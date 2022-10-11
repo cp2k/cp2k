@@ -691,18 +691,10 @@ CONTAINS
 !>      02.2019 created [JGH]
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE charge_mixing_init(mixing_store)
-      TYPE(mixing_storage_type), POINTER                 :: mixing_store
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'charge_mixing_init'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
+   ELEMENTAL SUBROUTINE charge_mixing_init(mixing_store)
+      TYPE(mixing_storage_type), INTENT(INOUT)           :: mixing_store
 
       mixing_store%acharge = 0.0_dp
-
-      CALL timestop(handle)
 
    END SUBROUTINE charge_mixing_init
 

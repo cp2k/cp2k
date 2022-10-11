@@ -97,14 +97,14 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pool
-      TYPE(pw_type), POINTER                             :: rho_tot_g
+      TYPE(pw_type)                                      :: rho_tot_g
       TYPE(qs_charges_type), POINTER                     :: qs_charges
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: density_fit_section
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
-      NULLIFY (dft_control, rho, rho_tot_g, pw_env, &
+      NULLIFY (dft_control, rho, pw_env, &
                radii, inp_radii, particle_set, qs_charges, para_env)
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
@@ -138,8 +138,6 @@ CONTAINS
             WRITE (iw, '(/,A)') " Initializing the DDAPC Environment"
          END IF
          CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pool)
-         NULLIFY (rho_tot_g)
-         ALLOCATE (rho_tot_g)
          CALL pw_pool_create_pw(auxbas_pool, rho_tot_g, in_space=RECIPROCALSPACE, &
                                 use_data=COMPLEXDATA1D)
          Vol = rho_tot_g%pw_grid%vol
@@ -183,7 +181,6 @@ CONTAINS
                                            "PROGRAM_RUN_INFO/CONDITION_NUMBER")
          DEALLOCATE (radii)
          CALL pw_pool_give_back_pw(auxbas_pool, rho_tot_g)
-         DEALLOCATE (rho_tot_g)
       END IF
       CALL timestop(handle)
    END SUBROUTINE cp_ddapc_init
@@ -215,7 +212,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: qout1, qout2, out_radii
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: dq_out
-      TYPE(pw_type), OPTIONAL, POINTER                   :: ext_rho_tot_g
+      TYPE(pw_type), INTENT(IN), OPTIONAL                :: ext_rho_tot_g
       CHARACTER(LEN=*), OPTIONAL                         :: Itype_of_density
       INTEGER, INTENT(IN), OPTIONAL                      :: iwc
 
@@ -241,7 +238,8 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pool
-      TYPE(pw_type), POINTER                             :: rho0_s_gs, rho_core, rho_tot_g
+      TYPE(pw_type)                                      :: rho_tot_g
+      TYPE(pw_type), POINTER                             :: rho0_s_gs, rho_core
       TYPE(qs_charges_type), POINTER                     :: qs_charges
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -256,7 +254,7 @@ CONTAINS
       need_f = .FALSE.
       IF (PRESENT(calc_force)) need_f = calc_force
       logger => cp_get_default_logger()
-      NULLIFY (dft_control, rho, rho_tot_g, rho_core, rho0_s_gs, pw_env, rho_g, rho_r, &
+      NULLIFY (dft_control, rho, rho_core, rho0_s_gs, pw_env, rho_g, rho_r, &
                radii, inp_radii, particle_set, qs_kind_set, qs_charges, cp_ddapc_env)
       CALL get_qs_env(qs_env=qs_env, &
                       dft_control=dft_control, &
@@ -280,8 +278,6 @@ CONTAINS
       END IF
       CALL pw_env_get(pw_env=pw_env, &
                       auxbas_pw_pool=auxbas_pool)
-      NULLIFY (rho_tot_g)
-      ALLOCATE (rho_tot_g)
       CALL pw_pool_create_pw(auxbas_pool, rho_tot_g, in_space=RECIPROCALSPACE, &
                              use_data=COMPLEXDATA1D)
       IF (PRESENT(ext_rho_tot_g)) THEN
@@ -522,7 +518,6 @@ CONTAINS
                                            "PROGRAM_RUN_INFO")
       END IF
       CALL pw_pool_give_back_pw(auxbas_pool, rho_tot_g)
-      DEALLOCATE (rho_tot_g)
       CALL timestop(handle)
    END SUBROUTINE get_ddapc
 
@@ -542,7 +537,7 @@ CONTAINS
    SUBROUTINE restraint_functional_potential(v_hartree_gspace, &
                                              density_fit_section, particle_set, AmI, radii, charges, &
                                              ddapc_restraint_control, energy_res)
-      TYPE(pw_p_type)                                    :: v_hartree_gspace
+      TYPE(pw_type), INTENT(IN)                          :: v_hartree_gspace
       TYPE(section_vals_type), POINTER                   :: density_fit_section
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: AmI
@@ -558,10 +553,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: arg, fac, fac2, g2, gcut, gcut2, gfunc, &
                                                             gvec(3), rc, rc2, rvec(3), sfac, Vol, w
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cv, uv
-      TYPE(pw_type), POINTER                             :: g_hartree
 
       CALL timeset(routineN, handle)
-      NULLIFY (g_hartree)
       n_gauss = SIZE(radii)
       ALLOCATE (cv(n_gauss*SIZE(particle_set)))
       ALLOCATE (uv(n_gauss*SIZE(particle_set)))
@@ -571,37 +564,38 @@ CONTAINS
       !
       CALL section_vals_val_get(density_fit_section, "GCUT", r_val=gcut)
       gcut2 = gcut*gcut
-      g_hartree => v_hartree_gspace%pw
-      Vol = g_hartree%pw_grid%vol
-      cv = 1.0_dp/Vol
-      sfac = -1.0_dp/Vol
-      fac = DOT_PRODUCT(cv, MATMUL(AmI, cv))
-      fac2 = DOT_PRODUCT(cv, MATMUL(AmI, uv))
-      cv(:) = uv - cv*fac2/fac
-      cv(:) = MATMUL(AmI, cv)
-      IF (g_hartree%pw_grid%have_g0) g_hartree%cc(1) = g_hartree%cc(1) + sfac*fac2/fac
-      DO ig = g_hartree%pw_grid%first_gne0, g_hartree%pw_grid%ngpts_cut_local
-         g2 = g_hartree%pw_grid%gsq(ig)
-         w = 4.0_dp*pi*(g2 - gcut2)**2.0_dp/(g2*gcut2)
-         IF (g2 > gcut2) EXIT
-         gvec = g_hartree%pw_grid%g(:, ig)
-         g_corr = 0.0_dp
-         idim = 0
-         DO iparticle = 1, SIZE(particle_set)
-            DO igauss = 1, SIZE(radii)
-               idim = idim + 1
-               rc = radii(igauss)
-               rc2 = rc*rc
-               rvec = particle_set(iparticle)%r
-               arg = DOT_PRODUCT(gvec, rvec)
-               phase = CMPLX(COS(arg), -SIN(arg), KIND=dp)
-               gfunc = EXP(-g2*rc2/4.0_dp)
-               g_corr = g_corr + gfunc*cv(idim)*phase
+      ASSOCIATE (pw_grid => v_hartree_gspace%pw_grid)
+         Vol = pw_grid%vol
+         cv = 1.0_dp/Vol
+         sfac = -1.0_dp/Vol
+         fac = DOT_PRODUCT(cv, MATMUL(AmI, cv))
+         fac2 = DOT_PRODUCT(cv, MATMUL(AmI, uv))
+         cv(:) = uv - cv*fac2/fac
+         cv(:) = MATMUL(AmI, cv)
+         IF (pw_grid%have_g0) v_hartree_gspace%cc(1) = v_hartree_gspace%cc(1) + sfac*fac2/fac
+         DO ig = pw_grid%first_gne0, pw_grid%ngpts_cut_local
+            g2 = pw_grid%gsq(ig)
+            w = 4.0_dp*pi*(g2 - gcut2)**2.0_dp/(g2*gcut2)
+            IF (g2 > gcut2) EXIT
+            gvec = pw_grid%g(:, ig)
+            g_corr = 0.0_dp
+            idim = 0
+            DO iparticle = 1, SIZE(particle_set)
+               DO igauss = 1, SIZE(radii)
+                  idim = idim + 1
+                  rc = radii(igauss)
+                  rc2 = rc*rc
+                  rvec = particle_set(iparticle)%r
+                  arg = DOT_PRODUCT(gvec, rvec)
+                  phase = CMPLX(COS(arg), -SIN(arg), KIND=dp)
+                  gfunc = EXP(-g2*rc2/4.0_dp)
+                  g_corr = g_corr + gfunc*cv(idim)*phase
+               END DO
             END DO
+            g_corr = g_corr*w
+            v_hartree_gspace%cc(ig) = v_hartree_gspace%cc(ig) + sfac*g_corr/Vol
          END DO
-         g_corr = g_corr*w
-         g_hartree%cc(ig) = g_hartree%cc(ig) + sfac*g_corr/Vol
-      END DO
+      END ASSOCIATE
       CALL timestop(handle)
    END SUBROUTINE restraint_functional_potential
 
@@ -620,7 +614,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE modify_hartree_pot(v_hartree_gspace, density_fit_section, &
                                  particle_set, M, AmI, radii, charges)
-      TYPE(pw_p_type)                                    :: v_hartree_gspace
+      TYPE(pw_type), INTENT(IN)                          :: v_hartree_gspace
       TYPE(section_vals_type), POINTER                   :: density_fit_section
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: M, AmI
@@ -633,46 +627,45 @@ CONTAINS
       REAL(kind=dp)                                      :: arg, fac, fac2, g2, gcut, gcut2, gfunc, &
                                                             gvec(3), rc, rc2, rvec(3), sfac, Vol, w
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cv, uv
-      TYPE(pw_type), POINTER                             :: g_hartree
 
       CALL timeset(routineN, handle)
-      NULLIFY (g_hartree)
       CALL section_vals_val_get(density_fit_section, "GCUT", r_val=gcut)
       gcut2 = gcut*gcut
-      g_hartree => v_hartree_gspace%pw
-      Vol = g_hartree%pw_grid%vol
-      ALLOCATE (cv(SIZE(M, 1)))
-      ALLOCATE (uv(SIZE(M, 1)))
-      cv = 1.0_dp/Vol
-      uv(:) = MATMUL(M, charges)
-      sfac = -1.0_dp/Vol
-      fac = DOT_PRODUCT(cv, MATMUL(AmI, cv))
-      fac2 = DOT_PRODUCT(cv, MATMUL(AmI, uv))
-      cv(:) = uv - cv*fac2/fac
-      cv(:) = MATMUL(AmI, cv)
-      IF (g_hartree%pw_grid%have_g0) g_hartree%cc(1) = g_hartree%cc(1) + sfac*fac2/fac
-      DO ig = g_hartree%pw_grid%first_gne0, g_hartree%pw_grid%ngpts_cut_local
-         g2 = g_hartree%pw_grid%gsq(ig)
-         w = 4.0_dp*pi*(g2 - gcut2)**2.0_dp/(g2*gcut2)
-         IF (g2 > gcut2) EXIT
-         gvec = g_hartree%pw_grid%g(:, ig)
-         g_corr = 0.0_dp
-         idim = 0
-         DO iparticle = 1, SIZE(particle_set)
-            DO igauss = 1, SIZE(radii)
-               idim = idim + 1
-               rc = radii(igauss)
-               rc2 = rc*rc
-               rvec = particle_set(iparticle)%r
-               arg = DOT_PRODUCT(gvec, rvec)
-               phase = CMPLX(COS(arg), -SIN(arg), KIND=dp)
-               gfunc = EXP(-g2*rc2/4.0_dp)
-               g_corr = g_corr + gfunc*cv(idim)*phase
+      ASSOCIATE (pw_grid => v_hartree_gspace%pw_grid)
+         Vol = pw_grid%vol
+         ALLOCATE (cv(SIZE(M, 1)))
+         ALLOCATE (uv(SIZE(M, 1)))
+         cv = 1.0_dp/Vol
+         uv(:) = MATMUL(M, charges)
+         sfac = -1.0_dp/Vol
+         fac = DOT_PRODUCT(cv, MATMUL(AmI, cv))
+         fac2 = DOT_PRODUCT(cv, MATMUL(AmI, uv))
+         cv(:) = uv - cv*fac2/fac
+         cv(:) = MATMUL(AmI, cv)
+         IF (pw_grid%have_g0) v_hartree_gspace%cc(1) = v_hartree_gspace%cc(1) + sfac*fac2/fac
+         DO ig = pw_grid%first_gne0, pw_grid%ngpts_cut_local
+            g2 = pw_grid%gsq(ig)
+            w = 4.0_dp*pi*(g2 - gcut2)**2.0_dp/(g2*gcut2)
+            IF (g2 > gcut2) EXIT
+            gvec = pw_grid%g(:, ig)
+            g_corr = 0.0_dp
+            idim = 0
+            DO iparticle = 1, SIZE(particle_set)
+               DO igauss = 1, SIZE(radii)
+                  idim = idim + 1
+                  rc = radii(igauss)
+                  rc2 = rc*rc
+                  rvec = particle_set(iparticle)%r
+                  arg = DOT_PRODUCT(gvec, rvec)
+                  phase = CMPLX(COS(arg), -SIN(arg), KIND=dp)
+                  gfunc = EXP(-g2*rc2/4.0_dp)
+                  g_corr = g_corr + gfunc*cv(idim)*phase
+               END DO
             END DO
+            g_corr = g_corr*w
+            v_hartree_gspace%cc(ig) = v_hartree_gspace%cc(ig) + sfac*g_corr/Vol
          END DO
-         g_corr = g_corr*w
-         g_hartree%cc(ig) = g_hartree%cc(ig) + sfac*g_corr/Vol
-      END DO
+      END ASSOCIATE
       CALL timestop(handle)
    END SUBROUTINE modify_hartree_pot
 
@@ -696,7 +689,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: dbv
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), DIMENSION(:), POINTER               :: radii
-      TYPE(pw_type), POINTER                             :: rho_tot_g
+      TYPE(pw_type), INTENT(IN)                          :: rho_tot_g
       REAL(KIND=dp), INTENT(IN)                          :: gcut
       INTEGER, INTENT(in)                                :: iparticle
       REAL(KIND=dp), INTENT(IN)                          :: Vol
@@ -769,7 +762,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: dAm
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), DIMENSION(:), POINTER               :: radii
-      TYPE(pw_type), POINTER                             :: rho_tot_g
+      TYPE(pw_type), INTENT(IN)                          :: rho_tot_g
       REAL(KIND=dp), INTENT(IN)                          :: gcut
       INTEGER, INTENT(in)                                :: iparticle
       REAL(KIND=dp), INTENT(IN)                          :: Vol
@@ -851,7 +844,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: density_fit_section
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), DIMENSION(:), POINTER               :: radii
-      TYPE(pw_type), POINTER                             :: rho_tot_g
+      TYPE(pw_type), INTENT(IN)                          :: rho_tot_g
       CHARACTER(LEN=*)                                   :: type_of_density
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'debug_charge'

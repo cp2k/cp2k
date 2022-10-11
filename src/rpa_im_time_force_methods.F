@@ -2582,10 +2582,10 @@ CONTAINS
          POINTER                                         :: sab_orb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env_ext
-      TYPE(pw_p_type)                                    :: dvg(3), pot_g, psi_L, rho_g, rho_g_copy, &
-                                                            rho_r
+      TYPE(pw_p_type)                                    :: dvg(3)
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: pot_g, psi_L, rho_g, rho_g_copy, rho_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_v
       TYPE(task_list_type), POINTER                      :: task_list_ext
@@ -2666,8 +2666,7 @@ CONTAINS
                        auxbas_pw_pool, poisson_env, task_list_ext, rho_r, rho_g, pot_g, psi_L, sab_orb)
 
       IF (use_virial) THEN
-         ALLOCATE (rho_g_copy%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, rho_g_copy%pw, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, rho_g_copy, &
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
          DO i_xyz = 1, 3
@@ -2706,7 +2705,7 @@ CONTAINS
             wf_vector = 0.0_dp
             wf_vector(j_RI) = 1.0_dp
 
-            CALL calculate_wavefunction(mos(1)%mo_set%mo_coeff, 1, psi_L%pw, rho_g%pw, atomic_kind_set, &
+            CALL calculate_wavefunction(mos(1)%mo_set%mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
                                         qs_kind_set, cell, dft_control, particle_set, pw_env_ext, &
                                         basis_type="RI_AUX", external_vector=wf_vector)
 
@@ -2727,8 +2726,8 @@ CONTAINS
                   wf_vector(i_RI + 1:i_RI + sizes_RI(iatom)) = pblock(:, j_RI - lb_RI)
                END DO
 
-               CALL pw_copy(rho_g%pw, rho_g_copy%pw)
-               CALL calculate_wavefunction(mos(1)%mo_set%mo_coeff, 1, psi_L%pw, rho_g%pw, atomic_kind_set, &
+               CALL pw_copy(rho_g, rho_g_copy)
+               CALL calculate_wavefunction(mos(1)%mo_set%mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
                                            qs_kind_set, cell, dft_control, particle_set, pw_env_ext, &
                                            basis_type="RI_AUX", external_vector=wf_vector)
 
@@ -2745,7 +2744,7 @@ CONTAINS
             DO i = 1, SIZE(rs_v)
                CALL rs_grid_retain(rs_v(i)%rs_grid)
             END DO
-            CALL potential_pw2rs(rs_v, rho_r%pw, pw_env_ext)
+            CALL potential_pw2rs(rs_v, rho_r, pw_env_ext)
 
             DO iatom = 1, natom
 
@@ -2840,8 +2839,7 @@ CONTAINS
       END DO !jatom
 
       IF (use_virial) THEN
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g_copy%pw)
-         DEALLOCATE (rho_g_copy%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g_copy)
          DO i_xyz = 1, 3
             CALL pw_pool_give_back_pw(auxbas_pw_pool, dvg(i_xyz)%pw)
             DEALLOCATE (dvg(i_xyz)%pw)

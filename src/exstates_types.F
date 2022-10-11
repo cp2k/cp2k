@@ -20,7 +20,8 @@ MODULE exstates_types
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE pw_types,                        ONLY: pw_p_type,&
-                                              pw_release
+                                              pw_release,&
+                                              pw_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -51,7 +52,7 @@ MODULE exstates_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_px1_asymm => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_px1_admm_asymm => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_wx1 => NULL()
-      TYPE(pw_p_type), POINTER                           :: vh_rspace => NULL()
+      TYPE(pw_type), POINTER                           :: vh_rspace => NULL()
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rspace => NULL()
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vtau_rspace => NULL()
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vadmm_rspace => NULL()
@@ -106,8 +107,7 @@ CONTAINS
          NULLIFY (ex_env%matrix_wx1)
          !
          IF (ASSOCIATED(ex_env%vh_rspace)) THEN
-            CALL pw_release(ex_env%vh_rspace%pw)
-            DEALLOCATE (ex_env%vh_rspace%pw)
+            CALL pw_release(ex_env%vh_rspace)
             DEALLOCATE (ex_env%vh_rspace)
          END IF
          IF (ASSOCIATED(ex_env%vxc_rspace)) THEN

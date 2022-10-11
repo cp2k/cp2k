@@ -50,7 +50,8 @@ MODULE qs_cdft_methods
                                               pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
-                                              pw_p_type
+                                              pw_p_type,&
+                                              pw_type
    USE qs_cdft_types,                   ONLY: becke_constraint_type,&
                                               cdft_control_type,&
                                               cdft_group_type,&
@@ -245,10 +246,10 @@ CONTAINS
              becke_control%should_skip) &
             is_constraint(catom(i)) = .TRUE.
       END DO
-      bo = group(1)%weight%pw%pw_grid%bounds_local
-      dvol = group(1)%weight%pw%pw_grid%dvol
-      dr = group(1)%weight%pw%pw_grid%dr
-      np = group(1)%weight%pw%pw_grid%npts
+      bo = group(1)%weight%pw_grid%bounds_local
+      dvol = group(1)%weight%pw_grid%dvol
+      dr = group(1)%weight%pw_grid%dr
+      np = group(1)%weight%pw_grid%npts
       shift = -REAL(MODULO(np, 2), dp)*dr/2.0_dp
       DO i = 1, 3
          cell_v(i) = cell%hmat(i, i)
@@ -534,7 +535,7 @@ CONTAINS
                ! Weight function(s) at (k,j,i)
                IF (.NOT. my_just_gradients .AND. ABS(sum_cell_f_all) .GT. 0.000001) THEN
                   DO igroup = 1, SIZE(group)
-                     group(igroup)%weight%pw%cr3d(k, j, i) = sum_cell_f_group(igroup)/sum_cell_f_all
+                     group(igroup)%weight%cr3d(k, j, i) = sum_cell_f_group(igroup)/sum_cell_f_all
                   END DO
                   IF (cdft_control%atomic_charges) THEN
                      DO iatom = 1, cdft_control%natoms
@@ -649,14 +650,15 @@ CONTAINS
       TYPE(hirshfeld_type), POINTER                      :: hirshfeld_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: pw_single_dr, rho_r
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: pw_single_dr
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
       TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_single, rs_single_charge, rs_single_dr
       TYPE(realspace_grid_type), POINTER                 :: rs_rho_all, rs_rho_constr
 
-      NULLIFY (atom_list, atomic_kind_set, dft_control, pw_single_dr, &
+      NULLIFY (atom_list, atomic_kind_set, dft_control, &
                hirshfeld_env, particle_set, pw_env, auxbas_pw_pool, para_env, &
                auxbas_rs_desc, cdft_control, pab, rs_rho_all, &
                hirshfeld_control, cell, rho_r, rho, rs_single, rs_single_dr, &
@@ -725,7 +727,7 @@ CONTAINS
          ub_rs(1) = UBOUND(rs_rho_all%r(:, :, :), 1)
          ub_rs(2) = UBOUND(rs_rho_all%r(:, :, :), 2)
          ub_rs(3) = UBOUND(rs_rho_all%r(:, :, :), 3)
-         bo = cdft_control%group(igroup)%weight%pw%pw_grid%bounds_local
+         bo = cdft_control%group(igroup)%weight%pw_grid%bounds_local
 
          ! Coefficients
          coefficients(:) = 0.0_dp
@@ -751,18 +753,16 @@ CONTAINS
          END IF
 
          ! Setup pw
-         cdft_control%group(igroup)%weight%pw%cr3d = 0.0_dp
+         cdft_control%group(igroup)%weight%cr3d = 0.0_dp
 
-         ALLOCATE (cdft_control%group(igroup)%hw_rho_total_constraint%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_total_constraint%pw, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_total_constraint, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
-         cdft_control%group(igroup)%hw_rho_total_constraint%pw%cr3d = 1.0_dp
+         cdft_control%group(igroup)%hw_rho_total_constraint%cr3d = 1.0_dp
 
          IF (igroup == 1) THEN
-            ALLOCATE (cdft_control%group(igroup)%hw_rho_total%pw)
-            CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_total%pw, &
+            CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_total, &
                                    use_data=REALDATA3D, in_space=REALSPACE)
-            cdft_control%group(igroup)%hw_rho_total%pw%cr3d = 1.0_dp
+            cdft_control%group(igroup)%hw_rho_total%cr3d = 1.0_dp
 
             IF (hirshfeld_control%print_density) THEN
                DO iatom = 1, cdft_control%natoms
@@ -890,17 +890,17 @@ CONTAINS
          DEALLOCATE (pab)
 
          IF (igroup == 1) THEN
-            CALL rs_pw_transfer(rs_rho_all, cdft_control%group(igroup)%hw_rho_total%pw, rs2pw)
+            CALL rs_pw_transfer(rs_rho_all, cdft_control%group(igroup)%hw_rho_total, rs2pw)
             IF (.NOT. cdft_control%in_memory) CALL rs_grid_release(rs_rho_all)
          END IF
 
-         CALL rs_pw_transfer(rs_rho_constr, cdft_control%group(igroup)%hw_rho_total_constraint%pw, rs2pw)
+         CALL rs_pw_transfer(rs_rho_constr, cdft_control%group(igroup)%hw_rho_total_constraint, rs2pw)
          CALL rs_grid_release(rs_rho_constr)
 
          ! Calculate weight function
-         CALL hfun_scale(cdft_control%group(igroup)%weight%pw%cr3d, &
-                         cdft_control%group(igroup)%hw_rho_total_constraint%pw%cr3d, &
-                         cdft_control%group(1)%hw_rho_total%pw%cr3d, divide=.TRUE., &
+         CALL hfun_scale(cdft_control%group(igroup)%weight%cr3d, &
+                         cdft_control%group(igroup)%hw_rho_total_constraint%cr3d, &
+                         cdft_control%group(1)%hw_rho_total%cr3d, divide=.TRUE., &
                          small=hirshfeld_control%eps_cutoff)
 
          ! Calculate charges
@@ -909,7 +909,7 @@ CONTAINS
                CALL rs_pw_transfer(rs_single_charge(i)%rs_grid, cdft_control%group(igroup)%hw_rho_atomic_charge(i)%pw, rs2pw)
                CALL hfun_scale(cdft_control%charge(i)%pw%cr3d, &
                                cdft_control%group(igroup)%hw_rho_atomic_charge(i)%pw%cr3d, &
-                               cdft_control%group(igroup)%hw_rho_total%pw%cr3d, divide=.TRUE., &
+                               cdft_control%group(igroup)%hw_rho_total%cr3d, divide=.TRUE., &
                                small=hirshfeld_control%eps_cutoff)
             END DO
          END IF
@@ -926,12 +926,10 @@ CONTAINS
 
       DO igroup = 1, SIZE(cdft_control%group)
 
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_total_constraint%pw)
-         DEALLOCATE (cdft_control%group(igroup)%hw_rho_total_constraint%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_total_constraint)
 
          IF (.NOT. cdft_control%in_memory .AND. igroup == 1) THEN
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(1)%hw_rho_total%pw)
-            DEALLOCATE (cdft_control%group(1)%hw_rho_total%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(1)%hw_rho_total)
          END IF
 
          IF (hirshfeld_control%print_density .AND. igroup == 1) THEN
@@ -982,10 +980,9 @@ CONTAINS
                ALLOCATE (rs_single_dr(num_species))
 
                DO i = 1, num_species
-                  ALLOCATE (pw_single_dr(i)%pw)
-                  CALL pw_pool_create_pw(auxbas_pw_pool, pw_single_dr(i)%pw, use_data=REALDATA3D, &
+                  CALL pw_pool_create_pw(auxbas_pw_pool, pw_single_dr(i), use_data=REALDATA3D, &
                                          in_space=REALSPACE)
-                  pw_single_dr(i)%pw%cr3d(:, :, :) = 0.0_dp
+                  pw_single_dr(i)%cr3d(:, :, :) = 0.0_dp
                END DO
 
                atoms_memory_num = SIZE((/(j, j=1, num_species, atoms_memory)/))
@@ -1062,7 +1059,7 @@ CONTAINS
                   END DO
 
                   DO iatom = num_species_small(k), num_species_small(k + 1)
-                     CALL rs_pw_transfer(rs_single_dr(iatom)%rs_grid, pw_single_dr(iatom)%pw, rs2pw)
+                     CALL rs_pw_transfer(rs_single_dr(iatom)%rs_grid, pw_single_dr(iatom), rs2pw)
                      CALL rs_grid_release(rs_single_dr(iatom)%rs_grid)
                   END DO
 
@@ -1071,9 +1068,8 @@ CONTAINS
 
                DO iatom = 1, num_species
                   atom_a = atom_list(iatom)
-                  cdft_control%group(igroup)%gradients_x(atom_a, :, :, :) = pw_single_dr(iatom)%pw%cr3d(:, :, :)
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, pw_single_dr(iatom)%pw)
-                  DEALLOCATE (pw_single_dr(iatom)%pw)
+                  cdft_control%group(igroup)%gradients_x(atom_a, :, :, :) = pw_single_dr(iatom)%cr3d(:, :, :)
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, pw_single_dr(iatom))
                END DO
 
                DEALLOCATE (rs_single_dr)
@@ -1106,11 +1102,11 @@ CONTAINS
 
                      ra(:) = particle_set(iatom)%r
 
-                     IF (cdft_control%group(igroup)%hw_rho_total%pw%cr3d(i, j, k) > hirshfeld_control%eps_cutoff) THEN
+                     IF (cdft_control%group(igroup)%hw_rho_total%cr3d(i, j, k) > hirshfeld_control%eps_cutoff) THEN
 
                         exp_eval = (coefficients(iatom) - &
-                                    cdft_control%group(igroup)%weight%pw%cr3d(i, j, k))/ &
-                                   cdft_control%group(igroup)%hw_rho_total%pw%cr3d(i, j, k)
+                                    cdft_control%group(igroup)%weight%cr3d(i, j, k))/ &
+                                   cdft_control%group(igroup)%hw_rho_total%cr3d(i, j, k)
 
                         r2 = (/i*dr_pw(1), j*dr_pw(2), k*dr_pw(3)/) + origin
                         r_pbc = pbc(ra, r2, cell)
@@ -1137,8 +1133,7 @@ CONTAINS
             END DO
 
             IF (igroup == 1) THEN
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(1)%hw_rho_total%pw)
-               DEALLOCATE (cdft_control%group(1)%hw_rho_total%pw)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(1)%hw_rho_total)
             END IF
             CALL rs_grid_release(rs_rho_all)
          END DO
@@ -1216,7 +1211,7 @@ CONTAINS
       target_val(:) = cdft_control%target(:)
       sign = 1.0_dp
       dE = 0.0_dp
-      dvol = group(1)%weight%pw%pw_grid%dvol
+      dvol = group(1)%weight%pw_grid%dvol
       IF (cdft_control%atomic_charges) THEN
          charge => cdft_control%charge
          ALLOCATE (electronic_charge(cdft_control%natoms, dft_control%nspins))
@@ -1249,10 +1244,10 @@ CONTAINS
                IF (igroup /= 1) &
                   CALL cp_abort(__LOCATION__, &
                                 "Multiple constraints not yet supported by parallel mixed calculations.")
-               dE(igroup) = dE(igroup) + sign*accurate_dot_product(group(igroup)%weight%pw%cr3d, rho_r(i)%pw%cr3d, &
+               dE(igroup) = dE(igroup) + sign*accurate_dot_product(group(igroup)%weight%cr3d, rho_r(i)%pw%cr3d, &
                                                                    becke_control%cavity_mat, eps_cavity)*dvol
             ELSE
-               dE(igroup) = dE(igroup) + sign*accurate_dot_product(group(igroup)%weight%pw%cr3d, rho_r(i)%pw%cr3d)*dvol
+               dE(igroup) = dE(igroup) + sign*accurate_dot_product(group(igroup)%weight%cr3d, rho_r(i)%pw%cr3d)*dvol
             END IF
          END DO
          IF (cdft_control%atomic_charges) THEN
@@ -1413,8 +1408,8 @@ CONTAINS
 
       lb(1:3) = rho_r(1)%pw%pw_grid%bounds_local(1, 1:3)
       ub(1:3) = rho_r(1)%pw%pw_grid%bounds_local(2, 1:3)
-      bo = cdft_control%group(1)%weight%pw%pw_grid%bounds_local
-      dvol = cdft_control%group(1)%weight%pw%pw_grid%dvol
+      bo = cdft_control%group(1)%weight%pw_grid%bounds_local
+      dvol = cdft_control%group(1)%weight%pw_grid%dvol
       sign = 1.0_dp
 
       IF (cdft_control%type == outer_scf_becke_constraint) THEN
@@ -1636,11 +1631,11 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_frag
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: rho_frag
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
-      NULLIFY (para_env, dft_control, logger, subsys, pw_env, auxbas_pw_pool, group, rho_frag)
+      NULLIFY (para_env, dft_control, logger, subsys, pw_env, auxbas_pw_pool, group)
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
       CALL get_qs_env(qs_env, &
@@ -1654,7 +1649,7 @@ CONTAINS
       IF (is_becke .AND. .NOT. ASSOCIATED(becke_control)) &
          CPABORT("Becke control has not been allocated.")
       group => cdft_control%group
-      dvol = group(1)%weight%pw%pw_grid%dvol
+      dvol = group(1)%weight%pw_grid%dvol
       ! Fragment densities are meaningful only for some calculation types
       IF (.NOT. qs_env%single_point_run) &
          CALL cp_abort(__LOCATION__, &
@@ -1717,11 +1712,10 @@ CONTAINS
       END IF
       ! Sum up fragments
       DO i = 1, nfrag_spins
-         ALLOCATE (rho_frag(i)%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, rho_frag(i)%pw, use_data=REALDATA3D, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, rho_frag(i), use_data=REALDATA3D, &
                                 in_space=REALSPACE)
-         CALL pw_copy(cdft_control%fragments(i, 1)%pw, rho_frag(i)%pw)
-         CALL pw_axpy(cdft_control%fragments(i, 2)%pw, rho_frag(i)%pw, 1.0_dp)
+         CALL pw_copy(cdft_control%fragments(i, 1)%pw, rho_frag(i))
+         CALL pw_axpy(cdft_control%fragments(i, 2)%pw, rho_frag(i), 1.0_dp)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%fragments(i, 1)%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%fragments(i, 2)%pw)
          DEALLOCATE (cdft_control%fragments(i, 1)%pw, cdft_control%fragments(i, 2)%pw)
@@ -1730,7 +1724,7 @@ CONTAINS
       ! Check that the number of electrons is consistent
       CALL get_qs_env(qs_env, subsys=subsys)
       CALL qs_subsys_get(subsys, nelectron_total=nelectron_total)
-      nelectron_frag = pw_integrate_function(rho_frag(1)%pw)
+      nelectron_frag = pw_integrate_function(rho_frag(1))
       IF (NINT(nelectron_frag) /= nelectron_total) &
          CALL cp_abort(__LOCATION__, &
                        "The number of electrons in the reference and interacting "// &
@@ -1745,11 +1739,11 @@ CONTAINS
          END IF
          IF (is_becke .AND. (cdft_control%external_control .AND. becke_control%cavity_confine)) THEN
             cdft_control%target(igroup) = cdft_control%target(igroup) + &
-                                          accurate_dot_product(group(igroup)%weight%pw%cr3d, rho_frag(i)%pw%cr3d, &
+                                          accurate_dot_product(group(igroup)%weight%cr3d, rho_frag(i)%cr3d, &
                                                                becke_control%cavity_mat, becke_control%eps_cavity)*dvol
          ELSE
             cdft_control%target(igroup) = cdft_control%target(igroup) + &
-                                          accurate_dot_product(group(igroup)%weight%pw%cr3d, rho_frag(i)%pw%cr3d)*dvol
+                                          accurate_dot_product(group(igroup)%weight%cr3d, rho_frag(i)%cr3d)*dvol
          END IF
       END DO
       CALL mp_sum(cdft_control%target, para_env%group)
@@ -1759,14 +1753,13 @@ CONTAINS
          DO i = 1, nfrag_spins
             DO iatom = 1, cdft_control%natoms
                cdft_control%charges_fragment(iatom, i) = &
-                  accurate_dot_product(cdft_control%charge(iatom)%pw%cr3d, rho_frag(i)%pw%cr3d)*dvol
+                  accurate_dot_product(cdft_control%charge(iatom)%pw%cr3d, rho_frag(i)%cr3d)*dvol
             END DO
          END DO
          CALL mp_sum(cdft_control%charges_fragment, para_env%group)
       END IF
       DO i = 1, nfrag_spins
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_frag(i)%pw)
-         DEALLOCATE (rho_frag(i)%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_frag(i))
       END DO
       DEALLOCATE (rho_frag)
       cdft_control%fragments_integrated = .TRUE.

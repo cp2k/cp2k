@@ -49,8 +49,7 @@ MODULE qs_ks_types
    USE pw_env_types,                    ONLY: pw_env_release,&
                                               pw_env_retain,&
                                               pw_env_type
-   USE pw_types,                        ONLY: pw_p_type,&
-                                              pw_release,&
+   USE pw_types,                        ONLY: pw_release,&
                                               pw_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_force_types,                  ONLY: qs_force_type
@@ -166,9 +165,9 @@ MODULE qs_ks_types
                                                                rho_buffer => Null(), &
                                                                rho_xc => Null()
 
-      TYPE(pw_p_type), POINTER                              :: vppl => Null(), &
-                                                               rho_nlcc => Null(), &
-                                                               rho_nlcc_g => Null()
+      TYPE(pw_type), POINTER                              :: vppl => Null(), &
+                                                             rho_nlcc => Null(), &
+                                                             rho_nlcc_g => Null()
 
       TYPE(pw_type), POINTER :: rho_core => NULL(), &
                                 vee => NULL()
@@ -352,10 +351,7 @@ CONTAINS
                                                             matrix_s_kp, matrix_w_kp, &
                                                             matrix_s_RI_aux_kp
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho, rho_buffer, rho_xc
-      TYPE(pw_p_type), OPTIONAL, POINTER                 :: vppl
-      TYPE(pw_type), OPTIONAL, POINTER                   :: rho_core
-      TYPE(pw_p_type), OPTIONAL, POINTER                 :: rho_nlcc, rho_nlcc_g
-      TYPE(pw_type), OPTIONAL, POINTER                   :: vee
+      TYPE(pw_type), OPTIONAL, POINTER                   :: vppl, rho_core, rho_nlcc, rho_nlcc_g, vee
       INTEGER, OPTIONAL                                  :: neighbor_list_id
       TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sab_orb, sab_all, sac_ae, &
          sac_ppl, sac_lri, sap_ppnl, sap_oce, sab_lrc, sab_se, sab_xtbe, sab_tbe, sab_core, &
@@ -578,10 +574,7 @@ CONTAINS
                                                             matrix_vxc_kp, kinetic_kp, &
                                                             matrix_s_kp, matrix_w_kp, &
                                                             matrix_s_RI_aux_kp
-      TYPE(pw_p_type), OPTIONAL, POINTER                 :: vppl
-      TYPE(pw_type), OPTIONAL, POINTER                   :: rho_core
-      TYPE(pw_p_type), OPTIONAL, POINTER                 :: rho_nlcc, rho_nlcc_g
-      TYPE(pw_type), OPTIONAL, POINTER                   :: vee
+      TYPE(pw_type), OPTIONAL, POINTER                   :: vppl, rho_core, rho_nlcc, rho_nlcc_g, vee
       INTEGER, OPTIONAL                                  :: neighbor_list_id
       TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
       TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sab_orb, sab_all, sac_ae, &
@@ -747,13 +740,11 @@ CONTAINS
                CALL deallocate_task_list(ks_env%task_list_soft)
 
             IF (ASSOCIATED(ks_env%rho_nlcc_g)) THEN
-               CALL pw_release(ks_env%rho_nlcc_g%pw)
-               DEALLOCATE (ks_env%rho_nlcc_g%pw)
+               CALL pw_release(ks_env%rho_nlcc_g)
                DEALLOCATE (ks_env%rho_nlcc_g)
             END IF
             IF (ASSOCIATED(ks_env%rho_nlcc)) THEN
-               CALL pw_release(ks_env%rho_nlcc%pw)
-               DEALLOCATE (ks_env%rho_nlcc%pw)
+               CALL pw_release(ks_env%rho_nlcc)
                DEALLOCATE (ks_env%rho_nlcc)
             END IF
             IF (ASSOCIATED(ks_env%rho_core)) THEN
@@ -761,8 +752,7 @@ CONTAINS
                DEALLOCATE (ks_env%rho_core)
             END IF
             IF (ASSOCIATED(ks_env%vppl)) THEN
-               CALL pw_release(ks_env%vppl%pw)
-               DEALLOCATE (ks_env%vppl%pw)
+               CALL pw_release(ks_env%vppl)
                DEALLOCATE (ks_env%vppl)
             END IF
             IF (ASSOCIATED(ks_env%vee)) THEN
@@ -847,13 +837,11 @@ CONTAINS
                CALL deallocate_task_list(ks_env%task_list_soft)
 
             IF (ASSOCIATED(ks_env%rho_nlcc_g)) THEN
-               CALL pw_release(ks_env%rho_nlcc_g%pw)
-               DEALLOCATE (ks_env%rho_nlcc_g%pw)
+               CALL pw_release(ks_env%rho_nlcc_g)
                DEALLOCATE (ks_env%rho_nlcc_g)
             END IF
             IF (ASSOCIATED(ks_env%rho_nlcc)) THEN
-               CALL pw_release(ks_env%rho_nlcc%pw)
-               DEALLOCATE (ks_env%rho_nlcc%pw)
+               CALL pw_release(ks_env%rho_nlcc)
                DEALLOCATE (ks_env%rho_nlcc)
             END IF
             IF (ASSOCIATED(ks_env%rho_core)) THEN
@@ -861,8 +849,7 @@ CONTAINS
                DEALLOCATE (ks_env%rho_core)
             END IF
             IF (ASSOCIATED(ks_env%vppl)) THEN
-               CALL pw_release(ks_env%vppl%pw)
-               DEALLOCATE (ks_env%vppl%pw)
+               CALL pw_release(ks_env%vppl)
                DEALLOCATE (ks_env%vppl)
             END IF
             IF (ASSOCIATED(ks_env%vee)) THEN

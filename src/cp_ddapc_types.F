@@ -104,7 +104,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(kind=dp), DIMENSION(:), POINTER               :: radii
       TYPE(cell_type), POINTER                           :: cell, super_cell
-      TYPE(pw_type), POINTER                             :: rho_tot_g
+      TYPE(pw_type), INTENT(IN)                          :: rho_tot_g
       REAL(KIND=dp), INTENT(IN)                          :: gcut
       INTEGER, INTENT(IN)                                :: iw2
       REAL(KIND=dp), INTENT(IN)                          :: Vol

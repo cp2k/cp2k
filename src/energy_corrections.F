@@ -333,9 +333,8 @@ CONTAINS
       IF (ec_env%should_update) THEN
          CALL ec_build_neighborlist(qs_env, ec_env)
          IF (.NOT. ASSOCIATED(ec_env%vh_rspace)) ALLOCATE (ec_env%vh_rspace)
-         IF (.NOT. ASSOCIATED(ec_env%vh_rspace%pw)) ALLOCATE (ec_env%vh_rspace%pw)
          CALL ks_ref_potential(qs_env, &
-                               ec_env%vh_rspace%pw, &
+                               ec_env%vh_rspace, &
                                ec_env%vxc_rspace, &
                                ec_env%vtau_rspace, &
                                ec_env%vadmm_rspace, &
@@ -427,7 +426,7 @@ CONTAINS
          END DO
 
          CALL response_force(qs_env, &
-                             vh_rspace=ec_env%vh_rspace%pw, &
+                             vh_rspace=ec_env%vh_rspace, &
                              vxc_rspace=ec_env%vxc_rspace, &
                              vtau_rspace=ec_env%vtau_rspace, &
                              vadmm_rspace=ec_env%vadmm_rspace, &
@@ -782,7 +781,7 @@ CONTAINS
          ! v_xc[n_in]_GS
          CALL pw_transfer(ec_env%vxc_rspace(ispin)%pw, v_rspace_in(ispin)%pw)
          ! add v_H[n_in]
-         CALL pw_axpy(ec_env%vh_rspace%pw, v_rspace_in(ispin)%pw)
+         CALL pw_axpy(ec_env%vh_rspace, v_rspace_in(ispin)%pw)
       END DO
 
       ! initialize src matrix
@@ -1317,7 +1316,7 @@ CONTAINS
       DO ispin = 1, nspins
          ! Add v_hartree + v_xc = v_rspace
          CALL pw_scale(v_rspace(ispin)%pw, v_rspace(ispin)%pw%pw_grid%dvol)
-         CALL pw_axpy(ec_env%vh_rspace%pw, v_rspace(ispin)%pw)
+         CALL pw_axpy(ec_env%vh_rspace, v_rspace(ispin)%pw)
          ! integrate over potential <a|V|b>
          CALL integrate_v_rspace(v_rspace=v_rspace(ispin)%pw, &
                                  hmat=ec_env%matrix_ks(ispin, 1), &
@@ -1683,7 +1682,7 @@ CONTAINS
       CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace, &
                              use_data=REALDATA3D, in_space=REALSPACE)
 
-      CALL pw_transfer(ec_env%vh_rspace%pw, v_hartree_rspace)
+      CALL pw_transfer(ec_env%vh_rspace, v_hartree_rspace)
 
       ! calculate output density on grid
       ! rho_in(R):   CALL qs_rho_get(rho, rho_r=rho_r)

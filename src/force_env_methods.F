@@ -143,7 +143,8 @@ MODULE force_env_methods
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               pw_p_type,&
-                                              pw_release
+                                              pw_release,&
+                                              pw_type
    USE pwdft_environment,               ONLY: pwdft_calc_energy_force
    USE pwdft_environment_types,         ONLY: pwdft_env_retain,&
                                               pwdft_environment_type
@@ -1414,8 +1415,8 @@ CONTAINS
       TYPE(particle_list_p_type), DIMENSION(:), POINTER  :: particles
       TYPE(particle_list_type), POINTER                  :: particles_embed
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), POINTER                           :: embed_pot, spin_embed_pot
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), POINTER                             :: embed_pot, spin_embed_pot
       TYPE(section_vals_type), POINTER                   :: embed_section, force_env_section, &
                                                             mapping_section, root_section
 
@@ -1509,25 +1510,15 @@ CONTAINS
                CALL get_qs_env(qs_env=force_env%sub_force_env(iforce_eval)%force_env%qs_env, &
                                embed_pot=embed_pot, spin_embed_pot=spin_embed_pot, pw_env=pw_env)
                CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, embed_pot%pw)
-               DEALLOCATE (embed_pot%pw)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, embed_pot)
                IF (ASSOCIATED(embed_pot)) THEN
-               IF (ASSOCIATED(embed_pot%pw)) THEN
-                  CALL pw_release(embed_pot%pw)
-                  DEALLOCATE (embed_pot%pw)
-               END IF
-               DEALLOCATE (embed_pot)
+                  CALL pw_release(embed_pot)
+                  DEALLOCATE (embed_pot)
                END IF
                IF (ASSOCIATED(spin_embed_pot)) THEN
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, spin_embed_pot%pw)
-                  DEALLOCATE (spin_embed_pot%pw)
-                  IF (ASSOCIATED(spin_embed_pot)) THEN
-                  IF (ASSOCIATED(spin_embed_pot%pw)) THEN
-                     CALL pw_release(spin_embed_pot%pw)
-                     DEALLOCATE (spin_embed_pot%pw)
-                  END IF
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, spin_embed_pot)
+                  CALL pw_release(spin_embed_pot)
                   DEALLOCATE (spin_embed_pot)
-                  END IF
                END IF
             END IF
          END IF
@@ -1636,10 +1627,10 @@ CONTAINS
       TYPE(opt_embed_pot_type)                           :: opt_embed
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r_ref, rho_r_subsys
-      TYPE(pw_p_type), POINTER                           :: diff_rho_r, diff_rho_spin, embed_pot, &
-                                                            embed_pot_subsys, spin_embed_pot, &
-                                                            spin_embed_pot_subsys
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: diff_rho_r, diff_rho_spin
+      TYPE(pw_type), POINTER                             :: embed_pot, embed_pot_subsys, &
+                                                            spin_embed_pot, spin_embed_pot_subsys
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_rho_type), POINTER                         :: rho, subsys_rho
       TYPE(section_vals_type), POINTER                   :: dft_section, embed_section, &
@@ -1694,31 +1685,25 @@ CONTAINS
 
       ! Prepare the pw object to store density differences
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-      NULLIFY (diff_rho_r)
-      ALLOCATE (diff_rho_r)
-      ALLOCATE (diff_rho_r%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, diff_rho_r%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, diff_rho_r, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
-      CALL pw_zero(diff_rho_r%pw)
+      CALL pw_zero(diff_rho_r)
       IF (opt_embed%open_shell_embed) THEN
-         NULLIFY (diff_rho_spin)
-         ALLOCATE (diff_rho_spin)
-         ALLOCATE (diff_rho_spin%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, diff_rho_spin%pw, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, diff_rho_spin, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
-         CALL pw_zero(diff_rho_spin%pw)
+         CALL pw_zero(diff_rho_spin)
       END IF
 
       ! Check the preliminary density differences
       DO i_spin = 1, nspins
-         diff_rho_r%pw%cr3d(:, :, :) = diff_rho_r%pw%cr3d(:, :, :) - rho_r_ref(i_spin)%pw%cr3d(:, :, :)
+         diff_rho_r%cr3d(:, :, :) = diff_rho_r%cr3d(:, :, :) - rho_r_ref(i_spin)%pw%cr3d(:, :, :)
       END DO
       IF (opt_embed%open_shell_embed) THEN ! Spin part
          IF (nspins .EQ. 2) THEN ! Reference systems has an open shell, else the reference diff_rho_spin is zero
-            diff_rho_spin%pw%cr3d(:, :, :) = diff_rho_spin%pw%cr3d(:, :, :) - rho_r_ref(1)%pw%cr3d(:, :, :) &
-                                             + rho_r_ref(2)%pw%cr3d(:, :, :)
+            diff_rho_spin%cr3d(:, :, :) = diff_rho_spin%cr3d(:, :, :) - rho_r_ref(1)%pw%cr3d(:, :, :) &
+                                          + rho_r_ref(2)%pw%cr3d(:, :, :)
          END IF
       END IF
 
@@ -1730,18 +1715,18 @@ CONTAINS
          ! Add subsystem densities
          CALL qs_rho_get(rho_struct=subsys_rho, rho_r=rho_r_subsys)
          DO i_spin = 1, nspins_subsys
-            diff_rho_r%pw%cr3d(:, :, :) = diff_rho_r%pw%cr3d(:, :, :) + rho_r_subsys(i_spin)%pw%cr3d(:, :, :)
+            diff_rho_r%cr3d(:, :, :) = diff_rho_r%cr3d(:, :, :) + rho_r_subsys(i_spin)%pw%cr3d(:, :, :)
          END DO
          IF (opt_embed%open_shell_embed) THEN ! Spin part
             IF (nspins_subsys .EQ. 2) THEN ! The subsystem makes contribution if it is spin-polarized
                ! We may need to change spin ONLY FOR THE SECOND SUBSYSTEM: that's the internal convention
                IF ((i_force_eval .EQ. 2) .AND. (opt_embed%change_spin)) THEN
-                  diff_rho_spin%pw%cr3d(:, :, :) = diff_rho_spin%pw%cr3d(:, :, :) - &
-                                                   rho_r_subsys(1)%pw%cr3d(:, :, :) + rho_r_subsys(2)%pw%cr3d(:, :, :)
+                  diff_rho_spin%cr3d(:, :, :) = diff_rho_spin%cr3d(:, :, :) - &
+                                                rho_r_subsys(1)%pw%cr3d(:, :, :) + rho_r_subsys(2)%pw%cr3d(:, :, :)
                ELSE
                   ! First subsystem (always) and second subsystem (without spin change)
-                  diff_rho_spin%pw%cr3d(:, :, :) = diff_rho_spin%pw%cr3d(:, :, :) + &
-                                                   rho_r_subsys(1)%pw%cr3d(:, :, :) - rho_r_subsys(2)%pw%cr3d(:, :, :)
+                  diff_rho_spin%cr3d(:, :, :) = diff_rho_spin%cr3d(:, :, :) + &
+                                                rho_r_subsys(1)%pw%cr3d(:, :, :) - rho_r_subsys(2)%pw%cr3d(:, :, :)
                END IF
             END IF
          END IF
@@ -1774,17 +1759,17 @@ CONTAINS
                                   force_env%sub_force_env(i_force_eval)%force_env%qs_env, nforce_eval, i_force_eval, opt_embed%eta)
             END IF
          END DO
-         embed_pot%pw%cr3d(:, :, :) = embed_pot%pw%cr3d(:, :, :) + opt_embed%pot_diff%pw%cr3d(:, :, :)
-         IF (.NOT. opt_embed%grid_opt) CALL pw_copy(embed_pot%pw, opt_embed%const_pot%pw)
+         embed_pot%cr3d(:, :, :) = embed_pot%cr3d(:, :, :) + opt_embed%pot_diff%cr3d(:, :, :)
+         IF (.NOT. opt_embed%grid_opt) CALL pw_copy(embed_pot, opt_embed%const_pot)
 
       END IF
 
       ! Difference guess
       IF (opt_embed%diff_guess) THEN
-         embed_pot%pw%cr3d(:, :, :) = diff_rho_r%pw%cr3d(:, :, :)
-         IF (.NOT. opt_embed%grid_opt) CALL pw_copy(embed_pot%pw, opt_embed%const_pot%pw)
+         embed_pot%cr3d(:, :, :) = diff_rho_r%cr3d(:, :, :)
+         IF (.NOT. opt_embed%grid_opt) CALL pw_copy(embed_pot, opt_embed%const_pot)
          ! Open shell
-         IF (opt_embed%open_shell_embed) spin_embed_pot%pw%cr3d(:, :, :) = diff_rho_spin%pw%cr3d(:, :, :)
+         IF (opt_embed%open_shell_embed) spin_embed_pot%cr3d(:, :, :) = diff_rho_spin%cr3d(:, :, :)
       END IF
 
       ! Calculate subsystems with trial embedding potential
@@ -1792,17 +1777,17 @@ CONTAINS
          opt_embed%i_iter = i_iter
 
          ! Set the density difference as the negative reference one
-         CALL pw_zero(diff_rho_r%pw)
+         CALL pw_zero(diff_rho_r)
          CALL get_qs_env(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, dft_control=dft_control)
          nspins = dft_control%nspins
          DO i_spin = 1, nspins
-            diff_rho_r%pw%cr3d(:, :, :) = diff_rho_r%pw%cr3d(:, :, :) - rho_r_ref(i_spin)%pw%cr3d(:, :, :)
+            diff_rho_r%cr3d(:, :, :) = diff_rho_r%cr3d(:, :, :) - rho_r_ref(i_spin)%pw%cr3d(:, :, :)
          END DO
          IF (opt_embed%open_shell_embed) THEN ! Spin part
-            CALL pw_zero(diff_rho_spin%pw)
+            CALL pw_zero(diff_rho_spin)
             IF (nspins .EQ. 2) THEN ! Reference systems has an open shell, else the reference diff_rho_spin is zero
-               diff_rho_spin%pw%cr3d(:, :, :) = diff_rho_spin%pw%cr3d(:, :, :) - rho_r_ref(1)%pw%cr3d(:, :, :) &
-                                                + rho_r_ref(2)%pw%cr3d(:, :, :)
+               diff_rho_spin%cr3d(:, :, :) = diff_rho_spin%cr3d(:, :, :) - rho_r_ref(1)%pw%cr3d(:, :, :) &
+                                             + rho_r_ref(2)%pw%cr3d(:, :, :)
             END IF
          END IF
 
@@ -1825,7 +1810,7 @@ CONTAINS
 
             ! Subtract Coulomb potential difference if needed
             !  IF ((i_force_eval .EQ. 2) .AND. (opt_embed%Coulomb_guess)) THEN
-            !     embed_pot_subsys%pw%cr3d(:, :, :) = embed_pot_subsys%pw%cr3d(:, :, :)-opt_embed%pot_diff%pw%cr3d(:, :, :)
+            !     embed_pot_subsys%cr3d(:, :, :) = embed_pot_subsys%cr3d(:, :, :)-opt_embed%pot_diff%cr3d(:, :, :)
             !  ENDIF
 
             ! Switch on external potential in the subsystems
@@ -1864,29 +1849,27 @@ CONTAINS
             ! Add subsystem densities
             CALL qs_rho_get(rho_struct=subsys_rho, rho_r=rho_r_subsys)
             DO i_spin = 1, nspins_subsys
-               diff_rho_r%pw%cr3d(:, :, :) = diff_rho_r%pw%cr3d(:, :, :) + rho_r_subsys(i_spin)%pw%cr3d(:, :, :)
+               diff_rho_r%cr3d(:, :, :) = diff_rho_r%cr3d(:, :, :) + rho_r_subsys(i_spin)%pw%cr3d(:, :, :)
             END DO
             IF (opt_embed%open_shell_embed) THEN ! Spin part
                IF (nspins_subsys .EQ. 2) THEN ! The subsystem makes contribution if it is spin-polarized
                   ! We may need to change spin ONLY FOR THE SECOND SUBSYSTEM: that's the internal convention
                   IF ((i_force_eval .EQ. 2) .AND. (opt_embed%change_spin)) THEN
-                     diff_rho_spin%pw%cr3d(:, :, :) = diff_rho_spin%pw%cr3d(:, :, :) - &
-                                                      rho_r_subsys(1)%pw%cr3d(:, :, :) + rho_r_subsys(2)%pw%cr3d(:, :, :)
+                     diff_rho_spin%cr3d(:, :, :) = diff_rho_spin%cr3d(:, :, :) - &
+                                                   rho_r_subsys(1)%pw%cr3d(:, :, :) + rho_r_subsys(2)%pw%cr3d(:, :, :)
                   ELSE
                      ! First subsystem (always) and second subsystem (without spin change)
-                     diff_rho_spin%pw%cr3d(:, :, :) = diff_rho_spin%pw%cr3d(:, :, :) + &
-                                                      rho_r_subsys(1)%pw%cr3d(:, :, :) - rho_r_subsys(2)%pw%cr3d(:, :, :)
+                     diff_rho_spin%cr3d(:, :, :) = diff_rho_spin%cr3d(:, :, :) + &
+                                                   rho_r_subsys(1)%pw%cr3d(:, :, :) - rho_r_subsys(2)%pw%cr3d(:, :, :)
                   END IF
                END IF
             END IF
 
             ! Release embedding potential for subsystem
-            CALL pw_release(embed_pot_subsys%pw)
-            DEALLOCATE (embed_pot_subsys%pw)
+            CALL pw_release(embed_pot_subsys)
             DEALLOCATE (embed_pot_subsys)
             IF (opt_embed%open_shell_embed) THEN
-               CALL pw_release(spin_embed_pot_subsys%pw)
-               DEALLOCATE (spin_embed_pot_subsys%pw)
+               CALL pw_release(spin_embed_pot_subsys)
                DEALLOCATE (spin_embed_pot_subsys)
             END IF
 
@@ -1902,15 +1885,15 @@ CONTAINS
 
          ! Integrate the potential over density differences and add to w functional; also add regularization contribution
          DO i_spin = 1, nspins ! Sum over nspins for the reference system, not subsystem!
-            opt_embed%w_func(i_iter) = opt_embed%w_func(i_iter) - pw_integral_ab(embed_pot%pw, rho_r_ref(i_spin)%pw)
+            opt_embed%w_func(i_iter) = opt_embed%w_func(i_iter) - pw_integral_ab(embed_pot, rho_r_ref(i_spin)%pw)
          END DO
          ! Spin part
          IF (opt_embed%open_shell_embed) THEN
             ! If reference system is not spin-polarized then it does not make a contribution to W functional
             IF (nspins .EQ. 2) THEN
                opt_embed%w_func(i_iter) = opt_embed%w_func(i_iter) &
-                                          - pw_integral_ab(spin_embed_pot%pw, rho_r_ref(1)%pw) &
-                                          + pw_integral_ab(spin_embed_pot%pw, rho_r_ref(2)%pw)
+                                          - pw_integral_ab(spin_embed_pot, rho_r_ref(1)%pw) &
+                                          + pw_integral_ab(spin_embed_pot, rho_r_ref(2)%pw)
             END IF
          END IF
          ! Finally, add the regularization term
@@ -1956,13 +1939,9 @@ CONTAINS
       END IF
 
       ! Give away plane waves pools
-      CALL pw_release(diff_rho_r%pw)
-      DEALLOCATE (diff_rho_r%pw)
-      DEALLOCATE (diff_rho_r)
+      CALL pw_release(diff_rho_r)
       IF (opt_embed%open_shell_embed) THEN
-         CALL pw_release(diff_rho_spin%pw)
-         DEALLOCATE (diff_rho_spin%pw)
-         DEALLOCATE (diff_rho_spin)
+         CALL pw_release(diff_rho_spin)
       END IF
 
       CALL cp_print_key_finished_output(output_unit, logger, force_env%force_env_section, &
@@ -1980,7 +1959,7 @@ CONTAINS
                                     opt_embed%open_shell_embed, opt_embed%change_spin)
 
          IF (opt_embed%Coulomb_guess) THEN
-            embed_pot_subsys%pw%cr3d(:, :, :) = embed_pot_subsys%pw%cr3d(:, :, :) - opt_embed%pot_diff%pw%cr3d(:, :, :)
+            embed_pot_subsys%cr3d(:, :, :) = embed_pot_subsys%cr3d(:, :, :) - opt_embed%pot_diff%cr3d(:, :, :)
          END IF
 
          CALL set_qs_env(force_env%sub_force_env(ref_subsys_number + 1)%force_env%qs_env, embed_pot=embed_pot_subsys)
@@ -2000,12 +1979,10 @@ CONTAINS
       CALL release_opt_embed(opt_embed)
 
       ! Deallocate embedding potential
-      CALL pw_release(embed_pot%pw)
-      DEALLOCATE (embed_pot%pw)
+      CALL pw_release(embed_pot)
       DEALLOCATE (embed_pot)
       IF (opt_embed%open_shell_embed) THEN
-         CALL pw_release(spin_embed_pot%pw)
-         DEALLOCATE (spin_embed_pot%pw)
+         CALL pw_release(spin_embed_pot)
          DEALLOCATE (spin_embed_pot)
       END IF
 

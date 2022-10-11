@@ -281,7 +281,7 @@ CONTAINS
             dft_control%qs_control%cdft_control%need_pot = .TRUE.
          IF (ASSOCIATED(dft_control%qs_control%cdft_control%group)) THEN
             ! In case CDFT weight function was built beforehand (in mixed force_eval)
-            IF (ASSOCIATED(dft_control%qs_control%cdft_control%group(1)%weight%pw)) &
+            IF (ASSOCIATED(dft_control%qs_control%cdft_control%group(1)%weight)) &
                dft_control%qs_control%cdft_control%need_pot = .FALSE.
          END IF
       END IF

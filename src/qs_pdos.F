@@ -68,7 +68,7 @@ MODULE qs_pdos
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type
+                                              pw_type
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -192,9 +192,9 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(ldos_p_type), DIMENSION(:), POINTER           :: ldos_p
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: wf_g, wf_r
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: wf_g, wf_r
       TYPE(r_ldos_p_type), DIMENSION(:), POINTER         :: r_ldos_p
       TYPE(section_vals_type), POINTER                   :: ldos_section
 
@@ -362,11 +362,10 @@ CONTAINS
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                          pw_pools=pw_pools)
 
-         ALLOCATE (wf_r%pw, wf_g%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, wf_r%pw, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
-         CALL pw_pool_create_pw(auxbas_pw_pool, wf_g%pw, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, wf_g, &
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
          ALLOCATE (read_r(4, n_r_ldos))
@@ -433,10 +432,10 @@ CONTAINS
                r_ldos_p(ildos)%ldos%eval_range(2) = +HUGE(0.0_dp)
             END IF
 
-            bo => wf_r%pw%pw_grid%bounds_local
-            dh = wf_r%pw%pw_grid%dh
-            dvol = wf_r%pw%pw_grid%dvol
-            np_tot = wf_r%pw%pw_grid%npts(1)*wf_r%pw%pw_grid%npts(2)*wf_r%pw%pw_grid%npts(3)
+            bo => wf_r%pw_grid%bounds_local
+            dh = wf_r%pw_grid%dh
+            dvol = wf_r%pw_grid%dvol
+            np_tot = wf_r%pw_grid%npts(1)*wf_r%pw_grid%npts(2)*wf_r%pw_grid%npts(3)
             ALLOCATE (r_ldos_p(ildos)%ldos%index_grid_local(3, np_tot))
 
             r_ldos_p(ildos)%ldos%npoints = 0
@@ -444,9 +443,9 @@ CONTAINS
             DO jy = bo(1, 2), bo(2, 2)
             DO jx = bo(1, 1), bo(2, 1)
                !compute the position of the grid point
-               i = jx - wf_r%pw%pw_grid%bounds(1, 1)
-               j = jy - wf_r%pw%pw_grid%bounds(1, 2)
-               k = jz - wf_r%pw%pw_grid%bounds(1, 3)
+               i = jx - wf_r%pw_grid%bounds(1, 1)
+               j = jy - wf_r%pw_grid%bounds(1, 2)
+               k = jz - wf_r%pw_grid%bounds(1, 3)
                r(3) = k*dh(3, 3) + j*dh(3, 2) + i*dh(3, 1)
                r(2) = k*dh(2, 3) + j*dh(2, 2) + i*dh(2, 1)
                r(1) = k*dh(1, 3) + j*dh(1, 2) + i*dh(1, 1)
@@ -650,11 +649,11 @@ CONTAINS
 
                IF (imo > nmo) THEN
                   CALL calculate_wavefunction(mo_virt, imo - nmo, &
-                                              wf_r%pw, wf_g%pw, atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
+                                              wf_r, wf_g, atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
                                               pw_env)
                ELSE
                   CALL calculate_wavefunction(mo_coeff, imo, &
-                                              wf_r%pw, wf_g%pw, atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
+                                              wf_r, wf_g, atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
                                               pw_env)
                END IF
                r_ldos_p(ildos)%ldos%pdos_array(imo) = 0.0_dp
@@ -664,7 +663,7 @@ CONTAINS
                   jy = r_ldos_p(ildos)%ldos%index_grid_local(2, il)
                   jz = r_ldos_p(ildos)%ldos%index_grid_local(3, il)
                   r_ldos_p(ildos)%ldos%pdos_array(imo) = r_ldos_p(ildos)%ldos%pdos_array(imo) + &
-                                                         wf_r%pw%cr3d(jx, jy, jz)*wf_r%pw%cr3d(jx, jy, jz)
+                                                         wf_r%cr3d(jx, jy, jz)*wf_r%cr3d(jx, jy, jz)
                END DO
                r_ldos_p(ildos)%ldos%pdos_array(imo) = r_ldos_p(ildos)%ldos%pdos_array(imo)*dvol
             END IF
@@ -902,9 +901,8 @@ CONTAINS
          DEALLOCATE (read_r)
          DEALLOCATE (r_ldos_p)
          DEALLOCATE (r_ldos_index)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g%pw)
-         DEALLOCATE (wf_r%pw, wf_g%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g)
       END IF
       IF (do_virt) THEN
          DEALLOCATE (evals_virt)

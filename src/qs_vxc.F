@@ -131,9 +131,9 @@ CONTAINS
                                                             rho_m_gspace, rho_m_rspace, rho_r, &
                                                             rho_struct_g, rho_struct_r, tau, &
                                                             tau_struct_r
-      TYPE(pw_p_type), POINTER                           :: rho_nlcc, rho_nlcc_g
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, vdw_pw_pool, xc_pw_pool
-      TYPE(pw_type), POINTER                             :: tmp_g, tmp_g2, tmp_pw
+      TYPE(pw_type), POINTER                             :: rho_nlcc, rho_nlcc_g, tmp_g, tmp_g2, &
+                                                            tmp_pw
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
@@ -279,8 +279,8 @@ CONTAINS
          IF (ASSOCIATED(rho_nlcc)) THEN
             factor = 1.0_dp
             DO ispin = 1, mspin
-               CALL pw_axpy(rho_nlcc%pw, rho_r(ispin)%pw, factor)
-               CALL pw_axpy(rho_nlcc_g%pw, rho_g(ispin)%pw, factor)
+               CALL pw_axpy(rho_nlcc, rho_r(ispin)%pw, factor)
+               CALL pw_axpy(rho_nlcc_g, rho_g(ispin)%pw, factor)
             END DO
          END IF
 
@@ -306,8 +306,8 @@ CONTAINS
          IF (ASSOCIATED(rho_nlcc)) THEN
             factor = -1.0_dp
             DO ispin = 1, mspin
-               CALL pw_axpy(rho_nlcc%pw, rho_r(ispin)%pw, factor)
-               CALL pw_axpy(rho_nlcc_g%pw, rho_g(ispin)%pw, factor)
+               CALL pw_axpy(rho_nlcc, rho_r(ispin)%pw, factor)
+               CALL pw_axpy(rho_nlcc_g, rho_g(ispin)%pw, factor)
             END DO
          END IF
 
@@ -647,7 +647,7 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(section_vals_type), POINTER                   :: xc_section
-      TYPE(pw_p_type), INTENT(INOUT)                     :: xc_den
+      TYPE(pw_type), INTENT(INOUT)                       :: xc_den
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_xc_density'
 
@@ -659,13 +659,13 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, tau_r, vxc_rho, vxc_tau
-      TYPE(pw_p_type), POINTER                           :: rho_nlcc, rho_nlcc_g
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, xc_pw_pool
       TYPE(pw_type)                                      :: exc_r
+      TYPE(pw_type), POINTER                             :: rho_nlcc, rho_nlcc_g
 
       CALL timeset(routineN, handle)
 
-      CALL pw_zero(xc_den%pw)
+      CALL pw_zero(xc_den)
 
       CALL get_ks_env(ks_env, &
                       dft_control=dft_control, &
@@ -708,8 +708,8 @@ CONTAINS
          IF (ASSOCIATED(rho_nlcc)) THEN
             factor = 1.0_dp
             DO ispin = 1, nspins
-               CALL pw_axpy(rho_nlcc%pw, rho_r(ispin)%pw, factor)
-               CALL pw_axpy(rho_nlcc_g%pw, rho_g(ispin)%pw, factor)
+               CALL pw_axpy(rho_nlcc, rho_r(ispin)%pw, factor)
+               CALL pw_axpy(rho_nlcc_g, rho_g(ispin)%pw, factor)
             END DO
          END IF
          NULLIFY (vxc_rho, vxc_tau)
@@ -724,16 +724,16 @@ CONTAINS
          IF (ASSOCIATED(rho_nlcc)) THEN
             factor = -1.0_dp
             DO ispin = 1, dft_control%nspins
-               CALL pw_axpy(rho_nlcc%pw, rho_r(ispin)%pw, factor)
-               CALL pw_axpy(rho_nlcc_g%pw, rho_g(ispin)%pw, factor)
+               CALL pw_axpy(rho_nlcc, rho_r(ispin)%pw, factor)
+               CALL pw_axpy(rho_nlcc_g, rho_g(ispin)%pw, factor)
             END DO
          END IF
          !
-         ovol = 1.0_dp/xc_den%pw%pw_grid%dvol
-         CALL pw_copy(exc_r, xc_den%pw)
+         ovol = 1.0_dp/xc_den%pw_grid%dvol
+         CALL pw_copy(exc_r, xc_den)
          DO ispin = 1, nspins
-!deb        CALL pw_multiply(xc_den%pw, vxc_rho(ispin)%pw, rho_r(ispin)%pw, alpha=-ovol)
-            CALL pw_multiply(xc_den%pw, vxc_rho(ispin)%pw, rho_r(ispin)%pw, alpha=-1.0_dp)
+!deb        CALL pw_multiply(xc_den, vxc_rho(ispin)%pw, rho_r(ispin)%pw, alpha=-ovol)
+            CALL pw_multiply(xc_den, vxc_rho(ispin)%pw, rho_r(ispin)%pw, alpha=-1.0_dp)
          END DO
          ! remove arrays
          DO ispin = 1, nspins

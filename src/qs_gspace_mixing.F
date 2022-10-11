@@ -26,7 +26,8 @@ MODULE qs_gspace_mixing
                                               pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type
+                                              pw_p_type,&
+                                              pw_type
    USE qs_density_mixing_types,         ONLY: broyden_mixing_new_nr,&
                                               broyden_mixing_nr,&
                                               cp_1d_z_p_type,&
@@ -83,9 +84,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: rho_tmp
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: rho_tmp
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
 
       CALL timeset(routineN, handle)
@@ -108,15 +109,14 @@ CONTAINS
 
          IF (nspin == 2) THEN
             CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool)
-            ALLOCATE (rho_tmp%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                   rho_tmp%pw, &
+                                   rho_tmp, &
                                    use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
-            CALL pw_zero(rho_tmp%pw)
-            CALL pw_copy(rho_g(1)%pw, rho_tmp%pw)
+            CALL pw_zero(rho_tmp)
+            CALL pw_copy(rho_g(1)%pw, rho_tmp)
             CALL pw_axpy(rho_g(2)%pw, rho_g(1)%pw, 1.0_dp)
-            CALL pw_axpy(rho_tmp%pw, rho_g(2)%pw, -1.0_dp)
+            CALL pw_axpy(rho_tmp, rho_g(2)%pw, -1.0_dp)
             CALL pw_scale(rho_g(2)%pw, -1.0_dp)
          END IF
 
@@ -146,8 +146,7 @@ CONTAINS
                CALL pw_scale(rho_g(1)%pw, 0.5_dp)
                CALL pw_axpy(rho_g(1)%pw, rho_g(2)%pw, -1.0_dp)
                CALL pw_scale(rho_g(2)%pw, -1.0_dp)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tmp%pw)
-               DEALLOCATE (rho_tmp%pw)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tmp)
             END IF
             CALL timestop(handle)
             RETURN
@@ -180,8 +179,7 @@ CONTAINS
             CALL pw_scale(rho_g(1)%pw, 0.5_dp)
             CALL pw_axpy(rho_g(1)%pw, rho_g(2)%pw, -1.0_dp)
             CALL pw_scale(rho_g(2)%pw, -1.0_dp)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tmp%pw)
-            DEALLOCATE (rho_tmp%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tmp)
          END IF
 
          DO ispin = 1, nspin

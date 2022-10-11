@@ -60,7 +60,6 @@ MODULE negf_env_types
                                               pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_density_mixing_types,         ONLY: mixing_storage_create,&
                                               mixing_storage_release,&
@@ -728,8 +727,8 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: v_hartree
       TYPE(pw_pool_type), POINTER                        :: pw_pool
+      TYPE(pw_type)                                      :: v_hartree
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
       CALL timeset(routineN, handle)
@@ -811,15 +810,13 @@ CONTAINS
          CALL dbcsr_copy(matrix_b=hmat%matrix, matrix_a=matrix_s_kp(1, 1)%matrix)
          CALL dbcsr_set(hmat%matrix, 0.0_dp)
 
-         ALLOCATE (v_hartree%pw)
-         CALL pw_pool_create_pw(pw_pool, v_hartree%pw, use_data=REALDATA3D, in_space=REALSPACE)
-         CALL negf_env_init_v_hartree(v_hartree%pw, negf_env%contacts, negf_control%contacts)
+         CALL pw_pool_create_pw(pw_pool, v_hartree, use_data=REALDATA3D, in_space=REALSPACE)
+         CALL negf_env_init_v_hartree(v_hartree, negf_env%contacts, negf_control%contacts)
 
-         CALL integrate_v_rspace(v_rspace=v_hartree%pw, hmat=hmat, qs_env=qs_env, &
+         CALL integrate_v_rspace(v_rspace=v_hartree, hmat=hmat, qs_env=qs_env, &
                                  calculate_forces=.FALSE., compute_tau=.FALSE., gapw=.FALSE.)
 
-         CALL pw_pool_give_back_pw(pw_pool, v_hartree%pw)
-         DEALLOCATE (v_hartree%pw)
+         CALL pw_pool_give_back_pw(pw_pool, v_hartree)
 
          CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=hmat%matrix, &
                                                fm=negf_env%v_hartree_s, &
@@ -861,7 +858,7 @@ CONTAINS
 !> \author Sergey Chulkov
 ! **************************************************************************************************
    SUBROUTINE negf_env_init_v_hartree(v_hartree, contact_env, contact_control)
-      TYPE(pw_type), POINTER                             :: v_hartree
+      TYPE(pw_type), INTENT(IN)                          :: v_hartree
       TYPE(negf_env_contact_type), DIMENSION(:), &
          INTENT(in)                                      :: contact_env
       TYPE(negf_control_contact_type), DIMENSION(:), &

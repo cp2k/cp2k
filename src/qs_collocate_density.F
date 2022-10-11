@@ -1480,7 +1480,7 @@ CONTAINS
                                  ks_env, soft_valid, compute_tau, compute_grad, &
                                  basis_type, der_type, idir, task_list_external, pw_env_external)
 
-      TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_p
+      TYPE(dbcsr_type), OPTIONAL, TARGET                 :: matrix_p
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_p_kp
       TYPE(pw_type), INTENT(INOUT)                       :: rho, rho_gspace
@@ -1647,7 +1647,7 @@ CONTAINS
    SUBROUTINE calculate_drho_elec(matrix_p, matrix_p_kp, drho, drho_gspace, qs_env, &
                                   soft_valid, basis_type)
 
-      TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_p
+      TYPE(dbcsr_type), OPTIONAL, TARGET                 :: matrix_p
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_p_kp
       TYPE(pw_type), DIMENSION(3), INTENT(INOUT)         :: drho, drho_gspace
@@ -2030,7 +2030,7 @@ CONTAINS
    SUBROUTINE calculate_drho_elec_dR(matrix_p, matrix_p_kp, drho, drho_gspace, qs_env, &
                                      soft_valid, basis_type, beta, lambda)
 
-      TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_p
+      TYPE(dbcsr_type), OPTIONAL, TARGET                 :: matrix_p
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_p_kp
       TYPE(pw_type), INTENT(INOUT)                       :: drho, drho_gspace

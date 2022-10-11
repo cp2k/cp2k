@@ -88,8 +88,8 @@ MODULE qs_active_space_methods
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
-                                              pw_release
+                                              pw_release,&
+                                              pw_type
    USE qs_active_space_types,           ONLY: active_space_type,&
                                               create_active_space_type,&
                                               csr_idx_from_combined,&
@@ -950,7 +950,7 @@ CONTAINS
    SUBROUTINE calculate_eri_gpw(mos, eri_env, qs_env, iw)
 
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(eri_type)                                     :: eri_env
+      TYPE(eri_type), INTENT(IN)                         :: eri_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: iw
 
@@ -973,11 +973,10 @@ CONTAINS
          POINTER                                         :: sab_orb_sub
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
-      TYPE(pw_p_type)                                    :: pot_g, rho_g, rho_r, wfn_r
-      TYPE(pw_p_type), DIMENSION(:, :), POINTER          :: wfn_a
-      TYPE(pw_p_type), POINTER                           :: wfn1, wfn2, wfn3, wfn4
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: pot_g, rho_g, rho_r, wfn_r
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:, :)        :: wfn_a
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(task_list_type), POINTER                      :: task_list_sub
@@ -1064,9 +1063,8 @@ CONTAINS
                                     pw_env_external=pw_env_sub, sab_orb_external=sab_orb_sub)
       END IF
 
-      ALLOCATE (wfn_r%pw, rho_g%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, wfn_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_g%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL pw_pool_create_pw(auxbas_pw_pool, wfn_r, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pool_create_pw(auxbas_pw_pool, rho_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, cell=cell, &
                       particle_set=particle_set, atomic_kind_set=atomic_kind_set)
 
@@ -1078,7 +1076,7 @@ CONTAINS
          DO ispin = 1, nspins
             CALL get_mo_set(mo_set=mos(ispin)%mo_set, nmo=nx)
             nmo = MAX(nmo, nx)
-            rsize = REAL(SIZE(wfn_r%pw%cr3d), KIND=dp)*nx
+            rsize = REAL(SIZE(wfn_r%cr3d), KIND=dp)*nx
          END DO
          IF (print1 .AND. iw > 0) THEN
             rsize = rsize*8._dp/1000000._dp
@@ -1088,11 +1086,10 @@ CONTAINS
          DO ispin = 1, nspins
             CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
             DO iwfn = 1, nmo
-               ALLOCATE (wfn_a(iwfn, ispin)%pw)
-               CALL pw_pool_create_pw(auxbas_pw_pool, wfn_a(iwfn, ispin)%pw, &
+               CALL pw_pool_create_pw(auxbas_pw_pool, wfn_a(iwfn, ispin), &
                                       use_data=REALDATA3D, &
                                       in_space=REALSPACE)
-               CALL calculate_wavefunction(mo_coeff, iwfn, wfn_a(iwfn, ispin)%pw, rho_g%pw, atomic_kind_set, &
+               CALL calculate_wavefunction(mo_coeff, iwfn, wfn_a(iwfn, ispin), rho_g, atomic_kind_set, &
                                            qs_kind_set, cell, dft_control, particle_set, pw_env_sub)
                IF (print2 .AND. iw > 0) THEN
                   WRITE (iw, "(T4,'ERI_GPW|',' Orbital stored ',I4,'  Spin ',i1)") iwfn, ispin
@@ -1102,14 +1099,13 @@ CONTAINS
       END IF
 
       ! get some of the grids ready
-      ALLOCATE (rho_r%pw, pot_g%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, pot_g%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL pw_pool_create_pw(auxbas_pw_pool, rho_r, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pool_create_pw(auxbas_pw_pool, pot_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
       ! run the FFT once, to set up buffers and to take into account the memory
-      rho_r%pw%cr3d = 0.0D0
-      CALL pw_transfer(rho_r%pw, rho_g%pw)
-      dvol = rho_r%pw%pw_grid%dvol
+      rho_r%cr3d = 0.0D0
+      CALL pw_transfer(rho_r, rho_g)
+      dvol = rho_r%pw_grid%dvol
 
       ! calculate the integrals
       intcount = 0
@@ -1118,11 +1114,7 @@ CONTAINS
          nmm = (nmo1*(nmo1 + 1))/2
          irange = get_irange_csr(nmm, eri_env%eri(1)%csr_mat%mp_group)
          DO iwa1 = 1, nmo1
-            IF (eri_env%eri_gpw%store_wfn) THEN
-               wfn1 => wfn_a(iwa1, isp1)
-            ELSE
-               CPABORT("")
-            END IF
+            CPASSERT(eri_env%eri_gpw%store_wfn)
             DO iwa2 = iwa1, nmo1
                iwa12 = csr_idx_to_combined(iwa1, iwa2, nmo1)
                IF (iwa12 >= irange(1) .AND. iwa12 <= irange(2)) THEN
@@ -1130,23 +1122,18 @@ CONTAINS
                ELSE
                   iwa12 = 0
                END IF
-               IF (eri_env%eri_gpw%store_wfn) THEN
-                  wfn2 => wfn_a(iwa2, isp1)
-               ELSE
-                  CPABORT("")
-               END IF
                ! calculate charge distribution and potential
-               rho_r%pw%cr3d = wfn1%pw%cr3d*wfn2%pw%cr3d
+               rho_r%cr3d = wfn_a(iwa1, isp1)%cr3d*wfn_a(iwa2, isp1)%cr3d
                IF (print2 .AND. iw > 0) THEN
-                  erint = pw_integrate_function(rho_r%pw)/dvol
+                  erint = pw_integrate_function(rho_r)/dvol
                   WRITE (iw, "(T4,'ERI_GPW| Integral rho_ab ',T32,2I4,' [',I1,']',T58,G20.14)") &
                      iwa1, iwa2, isp1, erint
                END IF
-               CALL pw_transfer(rho_r%pw, rho_g%pw)
-               CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_int, pot_g%pw)
+               CALL pw_transfer(rho_r, rho_g)
+               CALL pw_poisson_solve(poisson_env, rho_g, pair_int, pot_g)
                ! screening using pair_int
                IF (pair_int < eri_env%eps_integral) CYCLE
-               CALL pw_transfer(pot_g%pw, rho_r%pw)
+               CALL pw_transfer(pot_g, rho_r)
                !
                IF (eri_env%method == eri_method_gpw_ht) THEN
                   CPABORT("Not available")
@@ -1160,21 +1147,11 @@ CONTAINS
                      IF (isp1 == isp2) iwbs = iwa1
                      isp = (isp1 - 1)*isp2 - ((isp1 - 1)*(isp1 - 2))/2 + (isp2 - isp1 + 1)
                      DO iwb1 = iwbs, nmo2
-                        IF (eri_env%eri_gpw%store_wfn) THEN
-                           wfn3 => wfn_a(iwb1, isp2)
-                        ELSE
-                           CPABORT("")
-                        END IF
                         iwbt = iwb1
                         IF (isp1 == isp2 .AND. iwa1 == iwb1) iwbt = iwa2
                         DO iwb2 = iwbt, nmo2
-                           IF (eri_env%eri_gpw%store_wfn) THEN
-                              wfn4 => wfn_a(iwb2, isp2)
-                           ELSE
-                              CPABORT("")
-                           END IF
-                           wfn_r%pw%cr3d = rho_r%pw%cr3d*wfn3%pw%cr3d*wfn4%pw%cr3d
-                           erint = pw_integrate_function(wfn_r%pw)
+                           wfn_r%cr3d = rho_r%cr3d*wfn_a(iwb1, isp2)%cr3d*wfn_a(iwb2, isp2)%cr3d
+                           erint = pw_integrate_function(wfn_r)
                            IF (ABS(erint) > eri_env%eps_integral) THEN
                               intcount = intcount + 1
                               IF (print2 .AND. iw > 0) THEN
@@ -1207,17 +1184,15 @@ CONTAINS
          DO ispin = 1, nspins
             CALL get_mo_set(mo_set=mos(ispin)%mo_set, nmo=nmo)
             DO iwfn = 1, nmo
-               CALL pw_release(wfn_a(iwfn, ispin)%pw)
-               DEALLOCATE (wfn_a(iwfn, ispin)%pw)
+               CALL pw_release(wfn_a(iwfn, ispin))
             END DO
          END DO
          DEALLOCATE (wfn_a)
       END IF
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wfn_r%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_g%pw)
-      DEALLOCATE (wfn_r%pw, rho_g%pw, rho_r%pw, pot_g%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, wfn_r)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_g)
 
       IF (eri_env%method == eri_method_gpw_ht) THEN
          CALL deallocate_task_list(task_list_sub)
@@ -1418,8 +1393,8 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: wf_g, wf_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: wf_g, wf_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
@@ -1447,9 +1422,8 @@ CONTAINS
       CALL qs_subsys_get(subsys, particles=particles)
       !
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-      ALLOCATE (wf_r%pw, wf_g%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, wf_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, wf_g%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pool_create_pw(auxbas_pw_pool, wf_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       !
       DO isp = 1, SIZE(mos)
          CALL get_mo_set(mo_set=mos(isp)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
@@ -1476,7 +1450,7 @@ CONTAINS
                do_mo = .TRUE.
             END IF
             IF (.NOT. do_mo) CYCLE
-            CALL calculate_wavefunction(mo_coeff, imo, wf_r%pw, wf_g%pw, atomic_kind_set, &
+            CALL calculate_wavefunction(mo_coeff, imo, wf_r, wf_g, atomic_kind_set, &
                                         qs_kind_set, cell, dft_control, particle_set, pw_env)
             IF (para_env%ionode) THEN
                WRITE (filename, '(A,A1,I4.4,A1,I1.1,A)') TRIM(filebody), "_", imo, "_", isp, ".cube"
@@ -1485,16 +1459,15 @@ CONTAINS
             ELSE
                unit_nr = -1
             END IF
-            CALL cp_pw_to_cube(wf_r%pw, unit_nr, title, particles=particles, stride=istride)
+            CALL cp_pw_to_cube(wf_r, unit_nr, title, particles=particles, stride=istride)
             IF (para_env%ionode) THEN
                CALL close_file(unit_nr)
             END IF
          END DO
       END DO
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g%pw)
-      DEALLOCATE (wf_r%pw, wf_g%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g)
 
    END SUBROUTINE print_orbital_cubes
 

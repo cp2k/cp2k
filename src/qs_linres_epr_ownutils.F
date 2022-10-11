@@ -54,7 +54,8 @@ MODULE qs_linres_epr_ownutils
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type
+                                              pw_p_type,&
+                                              pw_type
    USE qs_core_energies,                ONLY: calculate_ptrace
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -311,9 +312,9 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: jrho2_r, jrho3_r, nrho1_r, nrho2_r, &
                                                             nrho3_r
-      TYPE(pw_p_type), DIMENSION(:, :), POINTER          :: vks_pw_spline
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_spline_precond_type)                       :: precond
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:, :)        :: vks_pw_spline
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_p_type), DIMENSION(:), POINTER         :: jrho1_set
       TYPE(qs_rho_p_type), DIMENSION(:, :), POINTER      :: nablavks_set
@@ -385,19 +386,18 @@ CONTAINS
 
          DO ispin = 1, nspins
             DO idir1 = 1, 3
-               ALLOCATE (vks_pw_spline(idir1, ispin)%pw)
                CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                      vks_pw_spline(idir1, ispin)%pw, &
+                                      vks_pw_spline(idir1, ispin), &
                                       use_data=REALDATA3D, in_space=REALSPACE)
                ! calculate spline coefficients
                CALL pw_spline_precond_create(precond, precond_kind=aint_precond, &
                                              pool=auxbas_pw_pool, pbc=.TRUE., transpose=.FALSE.)
                CALL qs_rho_get(nablavks_set(idir1, ispin)%rho, rho_r=nrho1_r)
                CALL pw_spline_do_precond(precond, nrho1_r(1)%pw, &
-                                         vks_pw_spline(idir1, ispin)%pw)
+                                         vks_pw_spline(idir1, ispin))
                CALL pw_spline_precond_set_kind(precond, precond_kind)
                success = find_coeffs(values=nrho1_r(1)%pw, &
-                                     coeffs=vks_pw_spline(idir1, ispin)%pw, linOp=spl3_pbc, &
+                                     coeffs=vks_pw_spline(idir1, ispin), linOp=spl3_pbc, &
                                      preconditioner=precond, pool=auxbas_pw_pool, &
                                      eps_r=eps_r, eps_x=eps_x, max_iter=max_iter)
                CPASSERT(success)
@@ -440,9 +440,9 @@ CONTAINS
                            ra = particle_set(iatom)%r
                            ra(:) = ra(:) + grid_atom%rad(ir)*harmonics%a(:, ia)
                            vks_ra_idir2 = Eval_Interp_Spl3_pbc(ra, &
-                                                               vks_pw_spline(idir2, ispin)%pw)
+                                                               vks_pw_spline(idir2, ispin))
                            vks_ra_idir3 = Eval_Interp_Spl3_pbc(ra, &
-                                                               vks_pw_spline(idir3, ispin)%pw)
+                                                               vks_pw_spline(idir3, ispin))
 
                            IF (iat .LT. bo(1) .OR. iat .GT. bo(2)) CYCLE !quick and dirty:
                            !                                    !here take care of the partition
@@ -521,11 +521,9 @@ CONTAINS
 
          DO ispin = 1, nspins
             DO idir1 = 1, 3
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, vks_pw_spline(idir1, ispin)%pw)
-               DEALLOCATE (vks_pw_spline(idir1, ispin)%pw)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, vks_pw_spline(idir1, ispin))
             END DO
          END DO
-
          DEALLOCATE (vks_pw_spline)
 
       END IF ! gapw
@@ -576,9 +574,9 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: brho1_r, rho_r
-      TYPE(pw_p_type), DIMENSION(:, :), POINTER          :: bind_pw_spline
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_spline_precond_type)                       :: precond
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:, :)        :: bind_pw_spline
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_p_type), DIMENSION(:, :), POINTER      :: bind_set
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -658,19 +656,18 @@ CONTAINS
          CALL section_vals_val_get(interp_section, "eps_x", r_val=eps_x)
 
          DO idir1 = 1, 3
-            ALLOCATE (bind_pw_spline(idir1, iB)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                   bind_pw_spline(idir1, iB)%pw, &
+                                   bind_pw_spline(idir1, iB), &
                                    use_data=REALDATA3D, in_space=REALSPACE)
             ! calculate spline coefficients
             CALL pw_spline_precond_create(precond, precond_kind=aint_precond, &
                                           pool=auxbas_pw_pool, pbc=.TRUE., transpose=.FALSE.)
             CALL qs_rho_get(bind_set(idir1, iB)%rho, rho_r=brho1_r)
             CALL pw_spline_do_precond(precond, brho1_r(1)%pw, &
-                                      bind_pw_spline(idir1, iB)%pw)
+                                      bind_pw_spline(idir1, iB))
             CALL pw_spline_precond_set_kind(precond, precond_kind)
             success = find_coeffs(values=brho1_r(1)%pw, &
-                                  coeffs=bind_pw_spline(idir1, iB)%pw, linOp=spl3_pbc, &
+                                  coeffs=bind_pw_spline(idir1, iB), linOp=spl3_pbc, &
                                   preconditioner=precond, pool=auxbas_pw_pool, &
                                   eps_r=eps_r, eps_x=eps_x, max_iter=max_iter)
             CPASSERT(success)
@@ -712,7 +709,7 @@ CONTAINS
                            ra = particle_set(iatom)%r
                            ra(:) = ra(:) + grid_atom%rad(ir)*harmonics%a(:, ia)
                            bind_ra_idir1 = Eval_Interp_Spl3_pbc(ra, &
-                                                                bind_pw_spline(idir1, iB)%pw)
+                                                                bind_pw_spline(idir1, iB))
 
                            IF (iat .LT. bo(1) .OR. iat .GT. bo(2)) CYCLE !quick and dirty:
                            !                                    !here take care of the partition
@@ -751,10 +748,8 @@ CONTAINS
          g_soo(iB, :) = g_soo(iB, :) + temp_soo_gapw(iB, :)
 
          DO idir1 = 1, 3
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, bind_pw_spline(idir1, iB)%pw)
-            DEALLOCATE (bind_pw_spline(idir1, iB)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, bind_pw_spline(idir1, iB))
          END DO
-
          DEALLOCATE (bind_pw_spline)
 
       END IF ! gapw
@@ -790,18 +785,17 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: pw_gspace_work, shift_pw_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: epr_rho_r, jrho1_g
-      TYPE(pw_p_type), DIMENSION(:, :), POINTER          :: shift_pw_gspace
-      TYPE(pw_p_type), POINTER                           :: rho_gspace
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: pw_gspace_work, shift_pw_rspace
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:, :)        :: shift_pw_gspace
       TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
 
       CALL timeset(routineN, handle)
 
       NULLIFY (cell, dft_control, pw_env, auxbas_rs_desc, auxbas_pw_pool, &
-               rho_gspace, pw_pools, particle_set, jrho1_g, epr_rho_r)
+               pw_pools, particle_set, jrho1_g, epr_rho_r)
 
       CALL get_qs_env(qs_env=qs_env, cell=cell, dft_control=dft_control, &
                       particle_set=particle_set)
@@ -823,22 +817,19 @@ CONTAINS
       ALLOCATE (shift_pw_gspace(3, nspins))
       DO ispin = 1, nspins
          DO idir = 1, 3
-            ALLOCATE (shift_pw_gspace(idir, ispin)%pw)
-            CALL pw_pool_create_pw(auxbas_pw_pool, shift_pw_gspace(idir, ispin)%pw, &
+            CALL pw_pool_create_pw(auxbas_pw_pool, shift_pw_gspace(idir, ispin), &
                                    use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
-            CALL pw_zero(shift_pw_gspace(idir, ispin)%pw)
+            CALL pw_zero(shift_pw_gspace(idir, ispin))
          END DO
       END DO
-      ALLOCATE (shift_pw_rspace%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, shift_pw_rspace%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, shift_pw_rspace, &
                              use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_zero(shift_pw_rspace%pw)
-      ALLOCATE (pw_gspace_work%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, pw_gspace_work%pw, &
+      CALL pw_zero(shift_pw_rspace)
+      CALL pw_pool_create_pw(auxbas_pw_pool, pw_gspace_work, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
-      CALL pw_zero(pw_gspace_work%pw)
+      CALL pw_zero(pw_gspace_work)
       !
       CALL set_vecp(iB, iiB, iiiB)
       !
@@ -846,24 +837,23 @@ CONTAINS
          !
          DO idir3 = 1, 3
             ! set to zero for the calculation of the shift
-            CALL pw_zero(shift_pw_gspace(idir3, ispin)%pw)
+            CALL pw_zero(shift_pw_gspace(idir3, ispin))
          END DO
          DO idir = 1, 3
             CALL qs_rho_get(current_env%jrho1_set(idir)%rho, rho_g=jrho1_g)
-            rho_gspace => jrho1_g(ispin)
             ! Field gradient
             ! loop over the Gvec  components: x,y,z
             DO idir2 = 1, 3
                IF (idir /= idir2) THEN
                   ! in reciprocal space multiply (G_idir2(i)/G(i)^2)J_(idir)(G(i))
-                  CALL mult_G_ov_G2_grid(auxbas_pw_pool, rho_gspace, &
+                  CALL mult_G_ov_G2_grid(auxbas_pw_pool, jrho1_g(ispin)%pw, &
                                          pw_gspace_work, idir2, 0.0_dp)
                   !
                   ! scale and add to the correct component of the shift column
                   CALL set_vecp_rev(idir, idir2, idir3)
                   scale_fac = fac_vecp(idir3, idir2, idir)
-                  CALL pw_scale(pw_gspace_work%pw, scale_fac)
-                  CALL pw_axpy(pw_gspace_work%pw, shift_pw_gspace(idir3, ispin)%pw)
+                  CALL pw_scale(pw_gspace_work, scale_fac)
+                  CALL pw_axpy(pw_gspace_work, shift_pw_gspace(idir3, ispin))
                END IF
             END DO
             !
@@ -874,22 +864,19 @@ CONTAINS
       IF (dft_control%nspins == 2) THEN
          DO idir = 1, 3
             CALL qs_rho_get(epr_env%bind_set(idir, iB)%rho, rho_r=epr_rho_r)
-            CALL pw_transfer(shift_pw_gspace(idir, 2)%pw, epr_rho_r(1)%pw)
+            CALL pw_transfer(shift_pw_gspace(idir, 2), epr_rho_r(1)%pw)
          END DO
       END IF
       !
       ! Dellocate grids for the calculation of jrho and the shift
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, pw_gspace_work%pw)
-      DEALLOCATE (pw_gspace_work%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, pw_gspace_work)
       DO ispin = 1, dft_control%nspins
          DO idir = 1, 3
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, shift_pw_gspace(idir, ispin)%pw)
-            DEALLOCATE (shift_pw_gspace(idir, ispin)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, shift_pw_gspace(idir, ispin))
          END DO
       END DO
       DEALLOCATE (shift_pw_gspace)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, shift_pw_rspace%pw)
-      DEALLOCATE (shift_pw_rspace%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, shift_pw_rspace)
       !
       ! Finalize
       CALL timestop(handle)

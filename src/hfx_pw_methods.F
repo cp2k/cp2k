@@ -51,7 +51,6 @@ MODULE hfx_pw_methods
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_create,&
-                                              pw_p_type,&
                                               pw_release,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_wavefunction
@@ -112,9 +111,8 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_grid_type), POINTER                        :: grid
-      TYPE(pw_p_type)                                    :: pot_g, rho_g, rho_r
-      TYPE(pw_p_type), ALLOCATABLE, DIMENSION(:)         :: rho_i, rho_j
-      TYPE(pw_type), POINTER                             :: greenfn
+      TYPE(pw_type)                                      :: greenfn, pot_g, rho_g, rho_r
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: rho_i, rho_j
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: ip_section
 
@@ -136,22 +134,19 @@ CONTAINS
          CALL cp_fm_get_info(mo_coeff, ncol_global=norb)
          blocksize = MAX(1, MIN(blocksize, norb))
 
-         ALLOCATE (rho_r%pw, rho_g%pw, pot_g%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, rho_r%pw, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, rho_r, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
-         CALL pw_pool_create_pw(auxbas_pw_pool, rho_g%pw, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, rho_g, &
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
-         CALL pw_pool_create_pw(auxbas_pw_pool, pot_g%pw, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, pot_g, &
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
 
          ALLOCATE (rho_i(blocksize))
          ALLOCATE (rho_j(blocksize))
 
-         NULLIFY (greenfn)
-         ALLOCATE (greenfn)
          CALL pw_pool_create_pw(auxbas_pw_pool, greenfn, &
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
@@ -190,12 +185,10 @@ CONTAINS
          END IF
 
          DO iorb_block = 1, blocksize
-            ALLOCATE (rho_i(iorb_block)%pw)
-            CALL pw_create(rho_i(iorb_block)%pw, rho_r%pw%pw_grid, &
+            CALL pw_create(rho_i(iorb_block), rho_r%pw_grid, &
                            use_data=REALDATA3D, &
                            in_space=REALSPACE)
-            ALLOCATE (rho_j(iorb_block)%pw)
-            CALL pw_create(rho_j(iorb_block)%pw, rho_r%pw%pw_grid, &
+            CALL pw_create(rho_j(iorb_block), rho_r%pw_grid, &
                            use_data=REALDATA3D, &
                            in_space=REALSPACE)
          END DO
@@ -216,7 +209,7 @@ CONTAINS
                DO iorb = iorb_block, MIN(iorb_block + blocksize - 1, norb)
 
                   iloc = iorb - iorb_block + 1
-                  CALL calculate_wavefunction(mo_coeff, iorb, rho_i(iloc)%pw, rho_g%pw, &
+                  CALL calculate_wavefunction(mo_coeff, iorb, rho_i(iloc), rho_g, &
                                               atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
                                               pw_env)
 
@@ -227,7 +220,7 @@ CONTAINS
                   DO jorb = jorb_block, MIN(jorb_block + blocksize - 1, norb)
 
                      jloc = jorb - jorb_block + 1
-                     CALL calculate_wavefunction(mo_coeff, jorb, rho_j(jloc)%pw, rho_g%pw, &
+                     CALL calculate_wavefunction(mo_coeff, jorb, rho_j(jloc), rho_g, &
                                                  atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
                                                  pw_env)
 
@@ -240,11 +233,11 @@ CONTAINS
                         IF (jorb < iorb) CYCLE
 
                         ! compute the pair density
-                        rho_r%pw%cr3d = rho_i(iloc)%pw%cr3d*rho_j(jloc)%pw%cr3d
+                        rho_r%cr3d = rho_i(iloc)%cr3d*rho_j(jloc)%cr3d
 
                         ! go the g-space and compute hartree energy
-                        CALL pw_transfer(rho_r%pw, rho_g%pw)
-                        CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw, &
+                        CALL pw_transfer(rho_r, rho_g)
+                        CALL pw_poisson_solve(poisson_env, rho_g, pair_energy, pot_g, &
                                               greenfn=greenfn)
 
                         ! sum up to the full energy
@@ -262,16 +255,14 @@ CONTAINS
          END DO
 
          DO iorb_block = 1, blocksize
-            CALL pw_release(rho_i(iorb_block)%pw)
-            CALL pw_release(rho_j(iorb_block)%pw)
-            DEALLOCATE (rho_i(iorb_block)%pw, rho_j(iorb_block)%pw)
+            CALL pw_release(rho_i(iorb_block))
+            CALL pw_release(rho_j(iorb_block))
          END DO
 
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r%pw)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g%pw)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_g%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_g)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, greenfn)
-         DEALLOCATE (rho_r%pw, rho_g%pw, pot_g%pw, greenfn)
 
          iw = cp_print_key_unit_nr(logger, hfx_section, "HF_INFO", &
                                    extension=".scfLog")

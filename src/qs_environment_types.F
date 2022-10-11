@@ -84,8 +84,7 @@ MODULE qs_environment_types
                                               molecular_scf_guess_env_type
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_type
-   USE pw_types,                        ONLY: pw_p_type,&
-                                              pw_release,&
+   USE pw_types,                        ONLY: pw_release,&
                                               pw_type
    USE qmmm_types_low,                  ONLY: qmmm_env_qm_type
    USE qs_active_space_types,           ONLY: active_space_type,&
@@ -255,8 +254,8 @@ MODULE qs_environment_types
       TYPE(rel_control_type), POINTER                       :: rel_control
       ! ZMP adding variables
       TYPE(qs_rho_type), POINTER                            :: rho_external
-      TYPE(pw_p_type), POINTER                              :: external_vxc
-      TYPE(pw_p_type), POINTER                              :: mask
+      TYPE(pw_type), POINTER                              :: external_vxc
+      TYPE(pw_type), POINTER                              :: mask
       TYPE(qs_charges_type), POINTER                        :: qs_charges
       TYPE(qs_ks_env_type), POINTER                         :: ks_env
       TYPE(qs_ks_qmmm_env_type), POINTER                    :: ks_qmmm_env
@@ -312,8 +311,8 @@ MODULE qs_environment_types
       ! Subsystem densities
       TYPE(qs_rho_p_type), DIMENSION(:), POINTER            :: subsys_dens
       ! Embedding potential
-      TYPE(pw_p_type), POINTER                              :: embed_pot
-      TYPE(pw_p_type), POINTER                              :: spin_embed_pot
+      TYPE(pw_type), POINTER                              :: embed_pot
+      TYPE(pw_type), POINTER                              :: spin_embed_pot
       ! Polarizability tensor
       TYPE(polar_env_type), POINTER                         :: polar_env
       ! Resp charges
@@ -569,9 +568,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: kinetic
       TYPE(qs_charges_type), OPTIONAL, POINTER           :: qs_charges
-      TYPE(pw_p_type), OPTIONAL, POINTER                 :: vppl
-      TYPE(pw_type), OPTIONAL, POINTER                   :: rho_core
-      TYPE(pw_p_type), OPTIONAL, POINTER                 :: rho_nlcc, rho_nlcc_g
+      TYPE(pw_type), OPTIONAL, POINTER                   :: vppl, rho_core, rho_nlcc, rho_nlcc_g
       TYPE(qs_ks_env_type), OPTIONAL, POINTER            :: ks_env
       TYPE(qs_ks_qmmm_env_type), OPTIONAL, POINTER       :: ks_qmmm_env
       TYPE(qs_wf_history_type), OPTIONAL, POINTER        :: wf_history
@@ -633,7 +630,7 @@ CONTAINS
       TYPE(qs_gcp_type), OPTIONAL, POINTER               :: gcp_env
       TYPE(pw_type), OPTIONAL, POINTER                   :: vee
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho_external
-      TYPE(pw_p_type), OPTIONAL, POINTER                 :: external_vxc, mask
+      TYPE(pw_type), OPTIONAL, POINTER                   :: external_vxc, mask
       TYPE(mp2_type), OPTIONAL, POINTER                  :: mp2_env
       TYPE(kg_environment_type), OPTIONAL, POINTER       :: kg_env
       TYPE(wannier_centres_type), DIMENSION(:), &
@@ -649,7 +646,7 @@ CONTAINS
          POINTER                                         :: mscfg_env
       TYPE(almo_scf_env_type), OPTIONAL, POINTER         :: almo_scf_env
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: gradient_history, variable_history
-      TYPE(pw_p_type), OPTIONAL, POINTER                 :: embed_pot, spin_embed_pot
+      TYPE(pw_type), OPTIONAL, POINTER                   :: embed_pot, spin_embed_pot
       TYPE(polar_env_type), OPTIONAL, POINTER            :: polar_env
       TYPE(mo_set_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: mos_last_converged
@@ -1063,7 +1060,7 @@ CONTAINS
       TYPE(ewald_pw_type), OPTIONAL, POINTER             :: ewald_pw
       TYPE(qs_matrix_pools_type), OPTIONAL, POINTER      :: mpools
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho_external
-      TYPE(pw_p_type), OPTIONAL, POINTER                 :: external_vxc, mask
+      TYPE(pw_type), OPTIONAL, POINTER                   :: external_vxc, mask
       TYPE(scf_control_type), OPTIONAL, POINTER          :: scf_control
       TYPE(rel_control_type), OPTIONAL, POINTER          :: rel_control
       TYPE(qs_charges_type), OPTIONAL, POINTER           :: qs_charges
@@ -1124,7 +1121,7 @@ CONTAINS
          OPTIONAL, POINTER                               :: WannierCentres
       TYPE(almo_scf_env_type), OPTIONAL, POINTER         :: almo_scf_env
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: gradient_history, variable_history
-      TYPE(pw_p_type), OPTIONAL, POINTER                 :: embed_pot, spin_embed_pot
+      TYPE(pw_type), OPTIONAL, POINTER                   :: embed_pot, spin_embed_pot
       TYPE(polar_env_type), OPTIONAL, POINTER            :: polar_env
       TYPE(mo_set_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: mos_last_converged
@@ -1444,13 +1441,11 @@ CONTAINS
                CALL qs_rho_release(qs_env%rho_external)
             END IF
             IF (ASSOCIATED(qs_env%external_vxc)) THEN
-               CALL pw_release(qs_env%external_vxc%pw)
-               DEALLOCATE (qs_env%external_vxc%pw)
+               CALL pw_release(qs_env%external_vxc)
                DEALLOCATE (qs_env%external_vxc)
             END IF
             IF (ASSOCIATED(qs_env%mask)) THEN
-               CALL pw_release(qs_env%mask%pw)
-               DEALLOCATE (qs_env%mask%pw)
+               CALL pw_release(qs_env%mask)
                DEALLOCATE (qs_env%mask)
             END IF
             IF (ASSOCIATED(qs_env%active_space)) THEN
@@ -1458,12 +1453,10 @@ CONTAINS
             END IF
             ! Embedding potentials if provided as input
             IF (qs_env%given_embed_pot) THEN
-               CALL pw_release(qs_env%embed_pot%pw)
-               DEALLOCATE (qs_env%embed_pot%pw)
+               CALL pw_release(qs_env%embed_pot)
                DEALLOCATE (qs_env%embed_pot)
                IF (ASSOCIATED(qs_env%spin_embed_pot)) THEN
-                  CALL pw_release(qs_env%spin_embed_pot%pw)
-                  DEALLOCATE (qs_env%spin_embed_pot%pw)
+                  CALL pw_release(qs_env%spin_embed_pot)
                   DEALLOCATE (qs_env%spin_embed_pot)
                END IF
             END IF
@@ -1644,13 +1637,11 @@ CONTAINS
                CALL qs_rho_release(qs_env%rho_external)
             END IF
             IF (ASSOCIATED(qs_env%external_vxc)) THEN
-               CALL pw_release(qs_env%external_vxc%pw)
-               DEALLOCATE (qs_env%external_vxc%pw)
+               CALL pw_release(qs_env%external_vxc)
                DEALLOCATE (qs_env%external_vxc)
             END IF
             IF (ASSOCIATED(qs_env%mask)) THEN
-               CALL pw_release(qs_env%mask%pw)
-               DEALLOCATE (qs_env%mask%pw)
+               CALL pw_release(qs_env%mask)
                DEALLOCATE (qs_env%mask)
             END IF
             IF (ASSOCIATED(qs_env%active_space)) THEN
@@ -1658,12 +1649,10 @@ CONTAINS
             END IF
             ! Embedding potentials if provided as input
             IF (qs_env%given_embed_pot) THEN
-               CALL pw_release(qs_env%embed_pot%pw)
-               DEALLOCATE (qs_env%embed_pot%pw)
+               CALL pw_release(qs_env%embed_pot)
                DEALLOCATE (qs_env%embed_pot)
                IF (ASSOCIATED(qs_env%spin_embed_pot)) THEN
-                  CALL pw_release(qs_env%spin_embed_pot%pw)
-                  DEALLOCATE (qs_env%spin_embed_pot%pw)
+                  CALL pw_release(qs_env%spin_embed_pot)
                   DEALLOCATE (qs_env%spin_embed_pot)
                END IF
             END IF

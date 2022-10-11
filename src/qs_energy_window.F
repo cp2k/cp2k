@@ -54,7 +54,7 @@ MODULE qs_energy_window
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type
+                                              pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -110,8 +110,8 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: rho_ao_ortho, window
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), POINTER                           :: rho_g, rho_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: rho_g, rho_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -160,11 +160,8 @@ CONTAINS
       CALL cp_fm_create(S_minus_half_fm, ao_ao_fmstruct)
       CALL cp_fm_create(eigenvectors, ao_ao_fmstruct)
       CALL cp_fm_create(eigenvectors_nonorth, ao_ao_fmstruct)
-      NULLIFY (rho_r, rho_g)
-      ALLOCATE (rho_r, rho_g)
-      ALLOCATE (rho_r%pw, rho_g%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_g%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL pw_pool_create_pw(auxbas_pw_pool, rho_r, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pool_create_pw(auxbas_pw_pool, rho_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
       !calculate S_minus_half
       CALL matrix_sqrt_Newton_Schulz(S_half, S_minus_half, matrix_s(1)%matrix, filter_eps, &
@@ -212,10 +209,10 @@ CONTAINS
          CALL dbcsr_copy(window, matrix_ks(1)%matrix)
          CALL dbcsr_copy_into_existing(window, tmp)
          CALL calculate_rho_elec(matrix_p=window, &
-                                 rho=rho_r%pw, &
-                                 rho_gspace=rho_g%pw, &
+                                 rho=rho_r, &
+                                 rho_gspace=rho_g, &
                                  ks_env=ks_env)
-         density_total = pw_integrate_function(rho_r%pw)
+         density_total = pw_integrate_function(rho_r)
          IF (unit_nr > 0) WRITE (unit_nr, *) " Ground-state density: ", density_total
          frob_norm = dbcsr_frobenius_norm(window)
          IF (unit_nr > 0) WRITE (unit_nr, *) " Frob norm of calculated ground-state density matrix: ", frob_norm
@@ -279,8 +276,8 @@ CONTAINS
             CALL dbcsr_copy(window, matrix_ks(1)%matrix)
             CALL dbcsr_copy_into_existing(window, tmp)
             CALL calculate_rho_elec(matrix_p=window, &
-                                    rho=rho_r%pw, &
-                                    rho_gspace=rho_g%pw, &
+                                    rho=rho_r, &
+                                    rho_gspace=rho_g, &
                                     ks_env=ks_env)
             WRITE (ext, "(A14,I5.5,A)") "-ENERGY-WINDOW", i, TRIM(cp_iter_string(logger%iter_info))//".cube"
             mpi_io = .TRUE.
@@ -288,10 +285,10 @@ CONTAINS
                                               extension=ext, file_status="REPLACE", file_action="WRITE", &
                                               log_filename=.FALSE., mpi_io=mpi_io)
             WRITE (title, "(A14,I5)") "ENERGY WINDOW ", i
-            CALL cp_pw_to_cube(rho_r%pw, print_unit, title, particles=particles, stride=stride, mpi_io=mpi_io)
+            CALL cp_pw_to_cube(rho_r, print_unit, title, particles=particles, stride=stride, mpi_io=mpi_io)
             CALL cp_print_key_finished_output(print_unit, logger, dft_section, &
                                               "PRINT%ENERGY_WINDOWS", mpi_io=mpi_io)
-            density_ewindow_total = pw_integrate_function(rho_r%pw)
+            density_ewindow_total = pw_integrate_function(rho_r)
             IF (unit_nr > 0) WRITE (unit_nr, "(A,F16.10,A,I5,A,F20.14,A,F20.14)") " Energy Level: ", &
                lower_bound + (i - 0.5_dp)*bin_width, " Number of states: ", next - last, " Occupation: ", &
                occupation, " Grid Density ", density_ewindow_total
@@ -320,10 +317,8 @@ CONTAINS
       CALL cp_fm_release(P_window_fm)
       CALL cp_fm_release(eigenvectors_nonorth)
       CALL cp_fm_release(S_minus_half_fm)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g%pw)
-      DEALLOCATE (rho_r%pw, rho_g%pw)
-      DEALLOCATE (rho_r, rho_g)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g)
       DEALLOCATE (eigenvalues)
       DEALLOCATE (STRIDE)
 

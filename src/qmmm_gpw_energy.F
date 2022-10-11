@@ -136,7 +136,7 @@ CONTAINS
       !
       ! Initializing vectors:
       !        Zeroing v_qmmm_rspace
-      CALL pw_zero(ks_qmmm_env_loc%v_qmmm_rspace%pw)
+      CALL pw_zero(ks_qmmm_env_loc%v_qmmm_rspace)
       IF (dft_control%qs_control%semi_empirical) THEN
          ! SEMIEMPIRICAL
          SELECT CASE (qmmm_env%qmmm_coupl_type)
@@ -209,7 +209,7 @@ CONTAINS
             mpi_io = .TRUE.
             iw2 = cp_print_key_unit_nr(logger, print_section, "POTENTIAL", &
                                        extension=".qmmmLog", mpi_io=mpi_io)
-            CALL cp_pw_to_cube(ks_qmmm_env_loc%v_qmmm_rspace%pw, iw2, &
+            CALL cp_pw_to_cube(ks_qmmm_env_loc%v_qmmm_rspace, iw2, &
                                particles=particles, &
                                stride=section_get_ivals(print_section, "POTENTIAL%STRIDE"), &
                                title="QM/MM: MM ELECTROSTATIC POTENTIAL ", &
@@ -246,7 +246,7 @@ CONTAINS
                                       aug_pools, cube_info, para_env, eps_mm_rspace, pw_pools, &
                                       auxbas_grid, coarser_grid, interp_section, mm_cell)
       TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env
-      TYPE(pw_p_type), INTENT(INOUT)                     :: v_qmmm
+      TYPE(pw_type), INTENT(IN)                          :: v_qmmm
       TYPE(particle_type), DIMENSION(:), POINTER         :: mm_particles
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: aug_pools
       TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
@@ -332,12 +332,12 @@ CONTAINS
       CASE DEFAULT
          CPABORT("")
       END SELECT
-      lb = v_qmmm%pw%pw_grid%bounds_local(1, :)
-      ub = v_qmmm%pw%pw_grid%bounds_local(2, :)
+      lb = v_qmmm%pw_grid%bounds_local(1, :)
+      ub = v_qmmm%pw_grid%bounds_local(2, :)
 
-      v_qmmm%pw%cr3d = grids(auxbas_grid)%pw%cr3d(lb(1):ub(1), &
-                                                  lb(2):ub(2), &
-                                                  lb(3):ub(3))
+      v_qmmm%cr3d = grids(auxbas_grid)%pw%cr3d(lb(1):ub(1), &
+                                               lb(2):ub(2), &
+                                               lb(3):ub(3))
 
       CALL pw_pools_give_back_pws(aug_pools, grids)
 

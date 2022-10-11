@@ -174,9 +174,9 @@ CONTAINS
                                                             mo_coeff
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: work_v_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, tau, vxc, vxc_tau
       TYPE(pw_pool_type), POINTER                        :: xc_pw_pool
+      TYPE(pw_type)                                      :: work_v_rspace
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: input, low_spin_roks_section, xc_section
@@ -285,8 +285,7 @@ CONTAINS
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
       END DO
-      ALLOCATE (work_v_rspace%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, work_v_rspace%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, work_v_rspace, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
 
@@ -337,11 +336,11 @@ CONTAINS
             ! get the potential in matrix form
             DO ispin = 1, Nspin
                ! use a work_v_rspace
-               work_v_rspace%pw%cr3d = (energy_scaling(iterm)*vxc(ispin)%pw%pw_grid%dvol)* &
-                                       vxc(ispin)%pw%cr3d
+               work_v_rspace%cr3d = (energy_scaling(iterm)*vxc(ispin)%pw%pw_grid%dvol)* &
+                                    vxc(ispin)%pw%cr3d
                ! zero first ?!
                CALL dbcsr_set(matrix_h(ispin)%matrix, 0.0_dp)
-               CALL integrate_v_rspace(v_rspace=work_v_rspace%pw, pmat=matrix_p(ispin), hmat=matrix_h(ispin), &
+               CALL integrate_v_rspace(v_rspace=work_v_rspace, pmat=matrix_p(ispin), hmat=matrix_h(ispin), &
                                        qs_env=qs_env, calculate_forces=calculate_forces)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc(ispin)%pw)
                DEALLOCATE (vxc(ispin)%pw)
@@ -373,8 +372,7 @@ CONTAINS
       CALL dbcsr_deallocate_matrix_set(matrix_p)
       CALL dbcsr_deallocate_matrix_set(matrix_h)
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, work_v_rspace%pw)
-      DEALLOCATE (work_v_rspace%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, work_v_rspace)
 
       CALL dbcsr_release_p(fm_deriv)
       CALL dbcsr_release_p(fm_scaled)
@@ -425,10 +423,10 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: orb_density_matrix, orb_h
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: orb_rho_g, orb_rho_r, tmp_g, tmp_r, &
-                                                            work_v_gspace, work_v_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, tau, vxc, vxc_tau
       TYPE(pw_pool_type), POINTER                        :: xc_pw_pool
+      TYPE(pw_type)                                      :: work_v_gspace, work_v_rspace
+      TYPE(pw_type), TARGET                              :: orb_rho_g, orb_rho_r, tmp_g, tmp_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: input, xc_section
@@ -546,23 +544,22 @@ CONTAINS
       END SELECT
 
       ! data needed for each of the orbs
-      ALLOCATE (orb_rho_r%pw, tmp_r%pw, orb_rho_g%pw, tmp_g%pw, work_v_gspace%pw, work_v_rspace%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, orb_rho_r%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, orb_rho_r, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, tmp_r%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, tmp_r, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, orb_rho_g%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, orb_rho_g, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, tmp_g%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, tmp_g, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, work_v_gspace%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, work_v_gspace, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, work_v_rspace%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, work_v_rspace, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
 
@@ -594,14 +591,14 @@ CONTAINS
       END DO
 
       ALLOCATE (rho_r(2))
-      rho_r(1)%pw => orb_rho_r%pw
-      rho_r(2)%pw => tmp_r%pw
-      CALL pw_zero(tmp_r%pw)
+      rho_r(1)%pw => orb_rho_r
+      rho_r(2)%pw => tmp_r
+      CALL pw_zero(tmp_r)
 
       ALLOCATE (rho_g(2))
-      rho_g(1)%pw => orb_rho_g%pw
-      rho_g(2)%pw => tmp_g%pw
-      CALL pw_zero(tmp_g%pw)
+      rho_g(1)%pw => orb_rho_g
+      rho_g(2)%pw => tmp_g
+      CALL pw_zero(tmp_g)
 
       NULLIFY (vxc)
       ! now apply to SIC correction to each selected orbital
@@ -616,18 +613,18 @@ CONTAINS
                                     alpha=1.0_dp)
 
          CALL calculate_rho_elec(matrix_p=orb_density_matrix, &
-                                 rho=orb_rho_r%pw, rho_gspace=orb_rho_g%pw, &
+                                 rho=orb_rho_r, rho_gspace=orb_rho_g, &
                                  ks_env=ks_env)
 
          ! compute the energy functional for this orbital and its derivative
 
-         CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener, work_v_gspace%pw)
+         CALL pw_poisson_solve(poisson_env, orb_rho_g, ener, work_v_gspace)
          ! no PBC correction is done here, see "calc_v_sic_rspace" for SIC methods
          ! with PBC aware corrections
          energy%hartree = energy%hartree - dft_control%sic_scaling_a*ener
          IF (.NOT. just_energy) THEN
-            CALL pw_transfer(work_v_gspace%pw, work_v_rspace%pw)
-            CALL pw_scale(work_v_rspace%pw, -dft_control%sic_scaling_a*work_v_rspace%pw%pw_grid%dvol)
+            CALL pw_transfer(work_v_gspace, work_v_rspace)
+            CALL pw_scale(work_v_rspace, -dft_control%sic_scaling_a*work_v_rspace%pw_grid%dvol)
             CALL dbcsr_set(orb_h, 0.0_dp)
          END IF
 
@@ -640,14 +637,14 @@ CONTAINS
                                    rho_g=rho_g, tau=tau, vxc_tau=vxc_tau, exc=exc, xc_section=xc_section, &
                                    pw_pool=xc_pw_pool, compute_virial=compute_virial, virial_xc=virial_xc_tmp)
             ! add to the existing work_v_rspace
-            work_v_rspace%pw%cr3d = work_v_rspace%pw%cr3d - &
-                                    dft_control%sic_scaling_b*vxc(1)%pw%pw_grid%dvol*vxc(1)%pw%cr3d
+            work_v_rspace%cr3d = work_v_rspace%cr3d - &
+                                 dft_control%sic_scaling_b*vxc(1)%pw%pw_grid%dvol*vxc(1)%pw%cr3d
          END IF
          energy%exc = energy%exc - dft_control%sic_scaling_b*exc
 
          IF (.NOT. just_energy) THEN
             ! note, orb_h (which is being pointed to with orb_h_p) is zeroed above
-            CALL integrate_v_rspace(v_rspace=work_v_rspace%pw, pmat=orb_density_matrix_p, hmat=orb_h_p, &
+            CALL integrate_v_rspace(v_rspace=work_v_rspace, pmat=orb_density_matrix_p, hmat=orb_h_p, &
                                     qs_env=qs_env, calculate_forces=calculate_forces)
 
             ! add this to the mo_derivs
@@ -670,13 +667,12 @@ CONTAINS
 
       END DO
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, orb_rho_r%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, tmp_r%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, orb_rho_g%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, tmp_g%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, work_v_gspace%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, work_v_rspace%pw)
-      DEALLOCATE (orb_rho_r%pw, tmp_r%pw, orb_rho_g%pw, tmp_g%pw, work_v_gspace%pw, work_v_rspace%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, orb_rho_r)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, tmp_r)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, orb_rho_g)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, tmp_g)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, work_v_gspace)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, work_v_rspace)
 
       CALL dbcsr_deallocate_matrix(orb_density_matrix)
       CALL dbcsr_deallocate_matrix(orb_h)
@@ -712,7 +708,7 @@ CONTAINS
                                 qs_env, dft_control, rho, poisson_env, just_energy, &
                                 calculate_forces, auxbas_pw_pool)
 
-      TYPE(pw_p_type), INTENT(INOUT)                     :: v_sic_rspace
+      TYPE(pw_type), POINTER                             :: v_sic_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -725,8 +721,8 @@ CONTAINS
       REAL(kind=dp)                                      :: ener, full_scaling, scaling
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: store_forces
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
-      TYPE(pw_p_type)                                    :: work_rho, work_v
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g
+      TYPE(pw_type)                                      :: work_rho, work_v
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
 
       NULLIFY (mo_array, rho_g)
@@ -740,11 +736,10 @@ CONTAINS
       ! OK, right now we like two spins to do sic, could be relaxed for AD
       CPASSERT(dft_control%nspins == 2)
 
-      ALLOCATE (work_rho%pw, work_v%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, work_rho%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, work_rho, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, work_v%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, work_v, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
 
@@ -753,20 +748,20 @@ CONTAINS
       ! Hartree sic corrections
       SELECT CASE (dft_control%sic_method_id)
       CASE (sic_mauri_us, sic_mauri_spz)
-         CALL pw_copy(rho_g(1)%pw, work_rho%pw)
-         CALL pw_axpy(rho_g(2)%pw, work_rho%pw, alpha=-1._dp)
-         CALL pw_poisson_solve(poisson_env, work_rho%pw, ener, work_v%pw)
+         CALL pw_copy(rho_g(1)%pw, work_rho)
+         CALL pw_axpy(rho_g(2)%pw, work_rho, alpha=-1._dp)
+         CALL pw_poisson_solve(poisson_env, work_rho, ener, work_v)
       CASE (sic_ad)
          ! find out how many elecs we have
          CALL get_qs_env(qs_env, mos=mo_array)
          CALL get_mo_set(mo_set=mo_array(1)%mo_set, nelectron=nelec_a)
          CALL get_mo_set(mo_set=mo_array(2)%mo_set, nelectron=nelec_b)
          nelec = nelec_a + nelec_b
-         CALL pw_copy(rho_g(1)%pw, work_rho%pw)
-         CALL pw_axpy(rho_g(2)%pw, work_rho%pw)
+         CALL pw_copy(rho_g(1)%pw, work_rho)
+         CALL pw_axpy(rho_g(2)%pw, work_rho)
          scaling = 1.0_dp/REAL(nelec, KIND=dp)
-         CALL pw_scale(work_rho%pw, scaling)
-         CALL pw_poisson_solve(poisson_env, work_rho%pw, ener, work_v%pw)
+         CALL pw_scale(work_rho, scaling)
+         CALL pw_poisson_solve(poisson_env, work_rho, ener, work_v)
       CASE DEFAULT
          CPABORT("Unknown sic method id")
       END SELECT
@@ -816,18 +811,17 @@ CONTAINS
       END IF
 
       IF (.NOT. just_energy) THEN
-         ALLOCATE (v_sic_rspace%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, v_sic_rspace%pw, &
+         ALLOCATE (v_sic_rspace)
+         CALL pw_pool_create_pw(auxbas_pw_pool, v_sic_rspace, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_transfer(work_v%pw, v_sic_rspace%pw)
+         CALL pw_transfer(work_v, v_sic_rspace)
          ! also take into account the scaling (in addition to the volume element)
-         CALL pw_scale(v_sic_rspace%pw, &
-                       dft_control%sic_scaling_a*v_sic_rspace%pw%pw_grid%dvol)
+         CALL pw_scale(v_sic_rspace, &
+                       dft_control%sic_scaling_a*v_sic_rspace%pw_grid%dvol)
       END IF
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, work_rho%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, work_v%pw)
-      DEALLOCATE (work_rho%pw, work_v%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, work_rho)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, work_v)
 
    END SUBROUTINE calc_v_sic_rspace
 
@@ -1211,10 +1205,10 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: my_rho
-      TYPE(pw_p_type), POINTER                           :: vppl_rspace
+      TYPE(pw_type), POINTER                             :: vppl_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace_new, v_rspace_new_aux_fit, &
                                                             v_tau_rspace, v_tau_rspace_aux_fit
-      TYPE(pw_p_type)                                    :: v_efield_rspace, v_sic_rspace, &
+      TYPE(pw_type), POINTER                             :: v_efield_rspace, v_sic_rspace, &
                                                             v_spin_ddapc_rest_r, v_sccs_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace_embed
       TYPE(cdft_control_type), POINTER                   :: cdft_control
@@ -1310,14 +1304,14 @@ CONTAINS
                IF (dft_control%qs_control%ddapc_restraint_is_spin) THEN
                   IF (ispin == 1) THEN
                      v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d &
-                                                   + v_spin_ddapc_rest_r%pw%cr3d
+                                                   + v_spin_ddapc_rest_r%cr3d
                   ELSE
                      v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d &
-                                                   - v_spin_ddapc_rest_r%pw%cr3d
+                                                   - v_spin_ddapc_rest_r%cr3d
                   END IF
                ELSE
                   v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d &
-                                                + v_spin_ddapc_rest_r%pw%cr3d
+                                                + v_spin_ddapc_rest_r%cr3d
                END IF
             END IF
             ! CDFT constraint contribution
@@ -1342,14 +1336,14 @@ CONTAINS
                      CPABORT("Unknown constraint type.")
                   END SELECT
                   v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d &
-                                                + sign*cdft_control%group(igroup)%weight%pw%cr3d* &
+                                                + sign*cdft_control%group(igroup)%weight%cr3d* &
                                                 cdft_control%strength(igroup)
                END DO
             END IF
             ! The efield contribution
             IF (dft_control%apply_efield_field) THEN
                v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d + &
-                                             v_efield_rspace%pw%cr3d
+                                             v_efield_rspace%cr3d
             END IF
             ! functional derivative of the Hartree energy wrt the density in the presence of dielectric
             ! (vhartree + v_eps); v_eps is nonzero only if the dielectric constant is defind as a function
@@ -1362,7 +1356,7 @@ CONTAINS
             ! Add SCCS contribution
             IF (dft_control%do_sccs) THEN
                v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d + &
-                                             v_sccs_rspace%pw%cr3d
+                                             v_sccs_rspace%cr3d
             END IF
             ! External electrostatic potential
             IF (dft_control%apply_external_potential) THEN
@@ -1372,7 +1366,7 @@ CONTAINS
             IF (do_ppl) THEN
                CPASSERT(.NOT. gapw)
                v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d + &
-                                             vppl_rspace%pw%cr3d*vppl_rspace%pw%pw_grid%dvol
+                                             vppl_rspace%cr3d*vppl_rspace%pw_grid%dvol
             END IF
             ! the electrostatic sic contribution
             SELECT CASE (dft_control%sic_method_id)
@@ -1381,13 +1375,13 @@ CONTAINS
             CASE (sic_mauri_us, sic_mauri_spz)
                IF (ispin == 1) THEN
                   v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d - &
-                                                v_sic_rspace%pw%cr3d
+                                                v_sic_rspace%cr3d
                ELSE
                   v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d + &
-                                                v_sic_rspace%pw%cr3d
+                                                v_sic_rspace%cr3d
                END IF
             CASE (sic_ad)
-               v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d - v_sic_rspace%pw%cr3d
+               v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d - v_sic_rspace%cr3d
             CASE (sic_eo)
                ! NOTHING TO BE DONE
             END SELECT
@@ -1447,8 +1441,8 @@ CONTAINS
          SELECT CASE (dft_control%sic_method_id)
          CASE (sic_none)
          CASE (sic_mauri_us, sic_mauri_spz, sic_ad)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_sic_rspace%pw)
-            DEALLOCATE (v_sic_rspace%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_sic_rspace)
+            DEALLOCATE (v_sic_rspace)
          END SELECT
          DEALLOCATE (v_rspace_new)
 
@@ -1459,7 +1453,7 @@ CONTAINS
          DO ispin = 1, nspins
             ! the efield contribution
             IF (dft_control%apply_efield_field) THEN
-               v_rspace%cr3d = v_rspace%cr3d + v_efield_rspace%pw%cr3d
+               v_rspace%cr3d = v_rspace%cr3d + v_efield_rspace%cr3d
             END IF
             ! extra contribution attributed to the dependency of the dielectric constant to the charge density
             IF (poisson_env%parameters%solver .EQ. pw_poisson_implicit) THEN
@@ -1468,7 +1462,7 @@ CONTAINS
             END IF
             ! Add SCCS contribution
             IF (dft_control%do_sccs) THEN
-               v_rspace%cr3d = v_rspace%cr3d + v_sccs_rspace%pw%cr3d
+               v_rspace%cr3d = v_rspace%cr3d + v_sccs_rspace%cr3d
             END IF
             ! DFT embedding
             IF (dft_control%apply_embed_pot) THEN
@@ -1665,10 +1659,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_ext_r
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: rho_eff_gspace, v_xc_gspace, v_xc_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_ext_g, rho_g, rho_r
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: v_xc_rspace
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(section_vals_type), POINTER                   :: ext_den_section, input
 
@@ -1694,75 +1688,75 @@ CONTAINS
       CALL qs_rho_get(rho, rho_r=rho_r, rho_g=rho_g)
       nspins = 1
       ALLOCATE (v_rspace_new(nspins))
-      ALLOCATE (v_rspace_new(1)%pw, v_xc_rspace%pw)
+      ALLOCATE (v_rspace_new(1)%pw)
       CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=v_rspace_new(1)%pw, &
                              use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=v_xc_rspace%pw, &
+      CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=v_xc_rspace, &
                              use_data=REALDATA3D, in_space=REALSPACE)
 
       CALL pw_zero(v_rspace_new(1)%pw)
       do_zmp_read = dft_control%apply_external_vxc
       IF (do_zmp_read) THEN
-         CALL pw_copy(qs_env%external_vxc%pw, v_rspace_new(1)%pw)
+         CALL pw_copy(qs_env%external_vxc, v_rspace_new(1)%pw)
          exc = 0.0_dp
          exc = accurate_dot_product(v_rspace_new(1)%pw%cr3d, rho_r(1)%pw%cr3d)* &
                v_rspace_new(1)%pw%pw_grid%dvol
       ELSE
-         ALLOCATE (rho_eff_gspace%pw, v_xc_gspace%pw)
-         CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
-                                pw=rho_eff_gspace%pw, &
-                                use_data=COMPLEXDATA1D, &
-                                in_space=RECIPROCALSPACE)
-         CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
-                                pw=v_xc_gspace%pw, &
-                                use_data=COMPLEXDATA1D, &
-                                in_space=RECIPROCALSPACE)
-         CALL pw_zero(rho_eff_gspace%pw)
-         CALL pw_zero(v_xc_gspace%pw)
-         CALL pw_zero(v_xc_rspace%pw)
-         factor = pw_integrate_function(rho_g(1)%pw)
-         CALL qs_rho_get(qs_env%rho_external, &
-                         rho_g=rho_ext_g, &
-                         tot_rho_r=tot_rho_ext_r)
-         factor = tot_rho_ext_r(1)/factor
+         BLOCK
+            TYPE(pw_type) :: rho_eff_gspace, v_xc_gspace
+            CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
+                                   pw=rho_eff_gspace, &
+                                   use_data=COMPLEXDATA1D, &
+                                   in_space=RECIPROCALSPACE)
+            CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
+                                   pw=v_xc_gspace, &
+                                   use_data=COMPLEXDATA1D, &
+                                   in_space=RECIPROCALSPACE)
+            CALL pw_zero(rho_eff_gspace)
+            CALL pw_zero(v_xc_gspace)
+            CALL pw_zero(v_xc_rspace)
+            factor = pw_integrate_function(rho_g(1)%pw)
+            CALL qs_rho_get(qs_env%rho_external, &
+                            rho_g=rho_ext_g, &
+                            tot_rho_r=tot_rho_ext_r)
+            factor = tot_rho_ext_r(1)/factor
 
-         CALL pw_axpy(rho_g(1)%pw, rho_eff_gspace%pw, alpha=factor)
-         CALL pw_axpy(rho_ext_g(1)%pw, rho_eff_gspace%pw, alpha=-1.0_dp)
-         ext_den_section => section_vals_get_subs_vals(input, "DFT%EXTERNAL_DENSITY")
-         CALL section_vals_val_get(ext_den_section, "LAMBDA", r_val=lambda)
-         CALL section_vals_val_get(ext_den_section, "ZMP_CONSTRAINT", i_val=my_val)
-         CALL section_vals_val_get(ext_den_section, "FERMI_AMALDI", l_val=fermi_amaldi)
+            CALL pw_axpy(rho_g(1)%pw, rho_eff_gspace, alpha=factor)
+            CALL pw_axpy(rho_ext_g(1)%pw, rho_eff_gspace, alpha=-1.0_dp)
+            ext_den_section => section_vals_get_subs_vals(input, "DFT%EXTERNAL_DENSITY")
+            CALL section_vals_val_get(ext_den_section, "LAMBDA", r_val=lambda)
+            CALL section_vals_val_get(ext_den_section, "ZMP_CONSTRAINT", i_val=my_val)
+            CALL section_vals_val_get(ext_den_section, "FERMI_AMALDI", l_val=fermi_amaldi)
 
-         CALL pw_scale(rho_eff_gspace%pw, a=lambda)
-         nelectron = nelectron_spin(1)
-         factor = -1.0_dp/nelectron
-         CALL pw_axpy(rho_g(1)%pw, rho_eff_gspace%pw, alpha=factor)
+            CALL pw_scale(rho_eff_gspace, a=lambda)
+            nelectron = nelectron_spin(1)
+            factor = -1.0_dp/nelectron
+            CALL pw_axpy(rho_g(1)%pw, rho_eff_gspace, alpha=factor)
 
-         CALL pw_poisson_solve(poisson_env, rho_eff_gspace%pw, vhartree=v_xc_gspace%pw)
-         CALL pw_transfer(v_xc_gspace%pw, v_rspace_new(1)%pw)
-         CALL pw_copy(v_rspace_new(1)%pw, v_xc_rspace%pw)
+            CALL pw_poisson_solve(poisson_env, rho_eff_gspace, vhartree=v_xc_gspace)
+            CALL pw_transfer(v_xc_gspace, v_rspace_new(1)%pw)
+            CALL pw_copy(v_rspace_new(1)%pw, v_xc_rspace)
 
-         exc = 0.0_dp
-         exc = accurate_sum(v_rspace_new(1)%pw%cr3d*rho_r(1)%pw%cr3d)* &
-               v_rspace_new(1)%pw%pw_grid%dvol
-         IF (v_rspace_new(1)%pw%pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
-            CALL mp_sum(exc, v_rspace_new(1)%pw%pw_grid%para%group)
-         END IF
+            exc = 0.0_dp
+            exc = accurate_sum(v_rspace_new(1)%pw%cr3d*rho_r(1)%pw%cr3d)* &
+                  v_rspace_new(1)%pw%pw_grid%dvol
+            IF (v_rspace_new(1)%pw%pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
+               CALL mp_sum(exc, v_rspace_new(1)%pw%pw_grid%para%group)
+            END IF
 
 !     IF (v_rspace_new(1)%pw%pw_grid%para%my_pos==0) &
 !           WRITE(*,FMT="(T3,A,T61,F20.10)") "ZMP| Integral of (electron density)*(v_xc):    " , exc
 !Note that this is not the xc energy but \int(\rho*v_xc)
 !Vxc---> v_rspace_new
 !Exc---> energy%exc
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, &
-                                   rho_eff_gspace%pw)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, &
-                                   v_xc_gspace%pw)
-         DEALLOCATE (rho_eff_gspace%pw, v_xc_gspace%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, &
+                                      rho_eff_gspace)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, &
+                                      v_xc_gspace)
+         END BLOCK
       END IF
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_rspace%pw)
-      DEALLOCATE (v_xc_rspace%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_rspace)
 
       CALL timestop(handle)
 
@@ -1814,21 +1808,21 @@ CONTAINS
          CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=v_rspace_embed(ispin)%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_zero(v_rspace_embed(ispin)%pw)
-         ns1 = SIZE(qs_env%embed_pot%pw%cr3d)
+         ns1 = SIZE(qs_env%embed_pot%cr3d)
          ns2 = SIZE(v_rspace_embed(ispin)%pw%cr3d)
          IF (ns1 .NE. ns2) CPABORT("Subsystem grids must be identical")
 
-         v_rspace_embed(ispin)%pw%cr3d(:, :, :) = qs_env%embed_pot%pw%cr3d
+         v_rspace_embed(ispin)%pw%cr3d(:, :, :) = qs_env%embed_pot%cr3d
          embed_corr_local = 0.0_dp
 
          ! Spin embedding potential in open-shell case
          IF (dft_control%nspins .EQ. 2) THEN
-            ns1 = SIZE(qs_env%spin_embed_pot%pw%cr3d)
+            ns1 = SIZE(qs_env%spin_embed_pot%cr3d)
             IF (ns1 .NE. ns2) CPABORT("Subsystem grids must be identical")
             IF (ispin .EQ. 1) v_rspace_embed(ispin)%pw%cr3d(:, :, :) = &
-               v_rspace_embed(ispin)%pw%cr3d(:, :, :) + qs_env%spin_embed_pot%pw%cr3d
+               v_rspace_embed(ispin)%pw%cr3d(:, :, :) + qs_env%spin_embed_pot%cr3d
             IF (ispin .EQ. 2) v_rspace_embed(ispin)%pw%cr3d(:, :, :) = &
-               v_rspace_embed(ispin)%pw%cr3d(:, :, :) - qs_env%spin_embed_pot%pw%cr3d
+               v_rspace_embed(ispin)%pw%cr3d(:, :, :) - qs_env%spin_embed_pot%cr3d
          END IF
          ! Integrate the density*potential
          embed_corr_local = accurate_dot_product(v_rspace_embed(ispin)%pw%cr3d, rho_r(ispin)%pw%cr3d)* &

@@ -95,7 +95,7 @@ MODULE qs_loc_methods
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type
+                                              pw_type
    USE qs_atomic_block,                 ONLY: calculate_atomic_block_dm
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -1091,8 +1091,8 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: wf_g, wf_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: wf_g, wf_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
@@ -1105,11 +1105,10 @@ CONTAINS
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
-      ALLOCATE (wf_r%pw, wf_g%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, wf_r%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, wf_g%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, wf_g, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
 
@@ -1138,7 +1137,7 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, cell=cell, &
                          dft_control=dft_control, particle_set=particle_set, pw_env=pw_env)
 
-         CALL calculate_wavefunction(mo_coeff, ivector, wf_r%pw, wf_g%pw, atomic_kind_set, &
+         CALL calculate_wavefunction(mo_coeff, ivector, wf_r, wf_g, atomic_kind_set, &
                                      qs_kind_set, cell, dft_control, particle_set, pw_env)
 
          ! Formatting the middle part of the name
@@ -1167,15 +1166,14 @@ CONTAINS
             WRITE (title, '(A7,I5.5,A2,I1.1,A1,3F10.4)') "WFN ", ivector, "_s", my_ispin, " ", &
                centers(1:3, istate)*angstrom
          END IF
-         CALL cp_pw_to_cube(wf_r%pw, unit_out_c, title, &
+         CALL cp_pw_to_cube(wf_r, unit_out_c, title, &
                             particles=particles, &
                             stride=section_get_ivals(print_key, "STRIDE"), mpi_io=mpi_io)
          CALL cp_print_key_finished_output(unit_out_c, logger, print_key, "", mpi_io=mpi_io)
       END DO
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g%pw)
-      DEALLOCATE (wf_r%pw, wf_g%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g)
       CALL timestop(handle)
    END SUBROUTINE qs_print_cubes
 

@@ -21,7 +21,7 @@ MODULE qs_ks_qmmm_types
                                               pw_env_type
    USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: pw_p_type
+   USE pw_types,                        ONLY: pw_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -50,8 +50,8 @@ MODULE qs_ks_qmmm_types
                  id_nr, ref_count
       REAL(KIND=dp)                               :: pc_ener
       TYPE(pw_env_type), POINTER                  :: pw_env
-      TYPE(pw_p_type)                             :: v_qmmm_rspace
-      TYPE(pw_p_type)                             :: v_metal_rspace
+      TYPE(pw_type)                             :: v_qmmm_rspace
+      TYPE(pw_type), POINTER                             :: v_metal_rspace
       TYPE(cube_info_type), DIMENSION(:), POINTER  :: cube_info
       TYPE(dbcsr_p_type), DIMENSION(:), &
          POINTER                                :: matrix_h
@@ -88,8 +88,7 @@ CONTAINS
 
          IF (ks_qmmm_env%ref_count < 1) THEN
             CALL pw_env_get(ks_qmmm_env%pw_env, auxbas_pw_pool=pool)
-            CALL pw_pool_give_back_pw(pool, ks_qmmm_env%v_qmmm_rspace%pw)
-            DEALLOCATE (ks_qmmm_env%v_qmmm_rspace%pw)
+            CALL pw_pool_give_back_pw(pool, ks_qmmm_env%v_qmmm_rspace)
             CALL pw_env_release(ks_qmmm_env%pw_env)
             IF (ASSOCIATED(ks_qmmm_env%cube_info)) THEN
                DO i = 1, SIZE(ks_qmmm_env%cube_info)

@@ -72,7 +72,7 @@ MODULE minbas_wfn_analysis
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type
+                                              pw_type
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -501,8 +501,8 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: wf_g, wf_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: wf_g, wf_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: minbas_section
@@ -527,9 +527,8 @@ CONTAINS
       END DO
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-      ALLOCATE (wf_r%pw, wf_g%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, wf_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, wf_g%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pool_create_pw(auxbas_pw_pool, wf_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
       ! loop over list of atoms
       CALL section_vals_val_get(minbas_section, "ATOM_LIST", n_rep_val=n_rep)
@@ -542,9 +541,9 @@ CONTAINS
                iw = cp_print_key_unit_nr(logger, print_section, "MINBAS_CUBE", extension=".cube", &
                                          middle_name=TRIM(filename), file_position="REWIND", log_filename=.FALSE., &
                                          mpi_io=mpi_io)
-               CALL calculate_wavefunction(minbas_coeff, ivec, wf_r%pw, wf_g%pw, atomic_kind_set, qs_kind_set, &
+               CALL calculate_wavefunction(minbas_coeff, ivec, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
                                            cell, dft_control, particle_set, pw_env)
-               CALL cp_pw_to_cube(wf_r%pw, iw, title, particles=particles, stride=stride, mpi_io=mpi_io)
+               CALL cp_pw_to_cube(wf_r, iw, title, particles=particles, stride=stride, mpi_io=mpi_io)
                CALL cp_print_key_finished_output(iw, logger, print_section, "MINBAS_CUBE", mpi_io=mpi_io)
             END DO
          END DO
@@ -560,18 +559,17 @@ CONTAINS
                   iw = cp_print_key_unit_nr(logger, print_section, "MINBAS_CUBE", extension=".cube", &
                                             middle_name=TRIM(filename), file_position="REWIND", log_filename=.FALSE., &
                                             mpi_io=mpi_io)
-                  CALL calculate_wavefunction(minbas_coeff, ivec, wf_r%pw, wf_g%pw, atomic_kind_set, qs_kind_set, &
+                  CALL calculate_wavefunction(minbas_coeff, ivec, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
                                               cell, dft_control, particle_set, pw_env)
-                  CALL cp_pw_to_cube(wf_r%pw, iw, title, particles=particles, stride=stride, mpi_io=mpi_io)
+                  CALL cp_pw_to_cube(wf_r, iw, title, particles=particles, stride=stride, mpi_io=mpi_io)
                   CALL cp_print_key_finished_output(iw, logger, print_section, "MINBAS_CUBE", mpi_io=mpi_io)
                END DO
             END DO
          END DO
       END IF
       DEALLOCATE (blk_sizes, first_bas)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g%pw)
-      DEALLOCATE (wf_r%pw, wf_g%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g)
 
    END SUBROUTINE post_minbas_cubes
 

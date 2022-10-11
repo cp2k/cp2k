@@ -39,7 +39,7 @@ MODULE qs_energy_utils
    USE kpoint_types,                    ONLY: kpoint_type
    USE mp2,                             ONLY: mp2_main
    USE pw_env_types,                    ONLY: pw_env_type
-   USE pw_types,                        ONLY: pw_p_type
+   USE pw_types,                        ONLY: pw_type
    USE qs_density_matrices,             ONLY: calculate_w_matrix,&
                                               calculate_w_matrix_ot
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -217,7 +217,7 @@ CONTAINS
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: v_hartree_rspace
+      TYPE(pw_type), POINTER                             :: v_hartree_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(section_vals_type), POINTER                   :: input, proj_section, rest_b_section, &
                                                             tip_scan_section
@@ -225,15 +225,13 @@ CONTAINS
       NULLIFY (atprop, energy, pw_env)
       CALL timeset(routineN, handle)
 
-      NULLIFY (v_hartree_rspace%pw)
-
       ! atomic energies using Mulliken partition
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
                       input=input, &
                       atprop=atprop, &
                       energy=energy, &
-                      v_hartree_rspace=v_hartree_rspace%pw, &
+                      v_hartree_rspace=v_hartree_rspace, &
                       pw_env=pw_env)
       IF (atprop%energy) THEN
          CALL qs_energies_mulliken(qs_env)
@@ -241,7 +239,7 @@ CONTAINS
              .NOT. dft_control%qs_control%xtb .AND. &
              .NOT. dft_control%qs_control%dftb) THEN
             ! Nuclear charge correction
-            CALL integrate_v_core_rspace(v_hartree_rspace%pw, qs_env)
+            CALL integrate_v_core_rspace(v_hartree_rspace, qs_env)
             ! Kohn-Sham Functional corrections
          END IF
          CALL atprop_array_add(atprop%atener, atprop%ateb)

@@ -52,7 +52,7 @@ MODULE stm_images
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type
+                                              pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -117,9 +117,9 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: stm_density_ao
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: wf_g, wf_r
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: wf_g, wf_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
 
@@ -159,11 +159,10 @@ CONTAINS
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       pw_pools=pw_pools)
-      ALLOCATE (wf_r%pw, wf_g%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, wf_r%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, wf_g%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, wf_g, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
 
@@ -224,9 +223,8 @@ CONTAINS
       DEALLOCATE (occupation)
 
       CALL dbcsr_deallocate_matrix(stm_density_ao)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g%pw)
-      DEALLOCATE (wf_r%pw, wf_g%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g)
 
       DEALLOCATE (stm_th_torb)
       DEALLOCATE (nadd_unocc)
@@ -266,7 +264,7 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(section_vals_type), POINTER                   :: stm_section
       TYPE(dbcsr_type), POINTER                          :: stm_density_ao
-      TYPE(pw_p_type)                                    :: wf_r, wf_g
+      TYPE(pw_type), INTENT(INOUT)                       :: wf_r, wf_g
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: mo_arrays
       TYPE(cp_1d_r_p_type), DIMENSION(:), INTENT(IN)     :: evals, occupation
       REAL(KIND=dp)                                      :: efermi
@@ -374,7 +372,7 @@ CONTAINS
          DO i = 1, SIZE(stm_th_torb)
             iorb = stm_th_torb(i)
             CALL calculate_rho_elec(matrix_p=stm_density_ao, &
-                                    rho=wf_r%pw, rho_gspace=wf_g%pw, &
+                                    rho=wf_r, rho_gspace=wf_g, &
                                     ks_env=ks_env, der_type=iorb)
 
             oname = torb_string(iorb)
@@ -390,7 +388,7 @@ CONTAINS
                                            middle_name=TRIM(filename), file_position=my_pos, file_action="WRITE", &
                                            log_filename=.FALSE., mpi_io=mpi_io)
             WRITE (title, '(A,I0,A,I0,A,F16.8)') "STM cube ", ibias, " wfn deriv. ", iorb, " at bias ", stm_biases(ibias)
-            CALL cp_pw_to_cube(wf_r%pw, unit_nr, title, particles=particles, &
+            CALL cp_pw_to_cube(wf_r, unit_nr, title, particles=particles, &
                                stride=section_get_ivals(stm_section, "STRIDE"), zero_tails=.TRUE., &
                                mpi_io=mpi_io)
 

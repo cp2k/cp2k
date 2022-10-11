@@ -90,7 +90,7 @@ CONTAINS
       TYPE(pw_type), INTENT(IN)                          :: pw
       INTEGER, INTENT(IN)                                :: unit_nr
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: stride
-      TYPE(pw_type), OPTIONAL, POINTER                   :: pw2
+      TYPE(pw_type), INTENT(IN), OPTIONAL                :: pw2
 
       IF (.NOT. PRESENT(pw2)) THEN
          CALL pw_to_simple_volumetric(pw, unit_nr, stride)

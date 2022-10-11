@@ -93,7 +93,7 @@ MODULE qs_tddfpt2_properties
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type
+                                              pw_type
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -1303,9 +1303,9 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: wf_g, wf_r
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: wf_g, wf_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
@@ -1313,11 +1313,10 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
-      ALLOCATE (wf_r%pw, wf_g%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, wf_r%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, wf_g%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, wf_g, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
 
@@ -1338,7 +1337,7 @@ CONTAINS
       DO iset = 1, 2
          CALL get_mo_set(mo_set=mos(iset)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
          DO i = 1, nmo
-            CALL calculate_wavefunction(mo_coeff, i, wf_r%pw, wf_g%pw, atomic_kind_set, qs_kind_set, &
+            CALL calculate_wavefunction(mo_coeff, i, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
                                         cell, dft_control, particle_set, pw_env)
             IF (iset == 1) THEN
                WRITE (filename, '(a4,I3.3,I2.2,a11)') "NTO_STATE", istate, i, "_Hole_State"
@@ -1354,15 +1353,14 @@ CONTAINS
             ELSEIF (iset == 2) THEN
                WRITE (title, *) "Natural Transition Orbital Particle State", i
             END IF
-            CALL cp_pw_to_cube(wf_r%pw, unit_nr, title, particles=particles, stride=stride, mpi_io=mpi_io)
+            CALL cp_pw_to_cube(wf_r, unit_nr, title, particles=particles, stride=stride, mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, print_section, '', &
                                               ignore_should_output=.TRUE., mpi_io=mpi_io)
          END DO
       END DO
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
-      DEALLOCATE (wf_g%pw, wf_r%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r)
 
    END SUBROUTINE print_nto_cubes
 

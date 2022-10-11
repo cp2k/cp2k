@@ -58,7 +58,7 @@ CONTAINS
    SUBROUTINE qs_elf_calc(qs_env, elf_r, rho_cutoff)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: elf_r
+      TYPE(pw_type), DIMENSION(:), INTENT(IN)            :: elf_r
       REAL(kind=dp), INTENT(IN)                          :: rho_cutoff
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_elf_calc'
@@ -178,8 +178,8 @@ CONTAINS
                   rho_53 = cfermi*MAX(rho_r(ispin)%pw%cr3d(i, j, k), rho_cutoff)**f53
                   elf_kernel = (tau_r(ispin)%pw%cr3d(i, j, k) - f18*norm_drho) + 2.87E-5_dp
                   elf_kernel = (elf_kernel/rho_53)**2
-                  elf_r(ispin)%pw%cr3d(i, j, k) = 1.0_dp/(1.0_dp + elf_kernel)
-                  IF (elf_r(ispin)%pw%cr3d(i, j, k) < ELFCUT) elf_r(ispin)%pw%cr3d(i, j, k) = 0.0_dp
+                  elf_r(ispin)%cr3d(i, j, k) = 1.0_dp/(1.0_dp + elf_kernel)
+                  IF (elf_r(ispin)%cr3d(i, j, k) < ELFCUT) elf_r(ispin)%cr3d(i, j, k) = 0.0_dp
                END DO
             END DO
          END DO

@@ -17,8 +17,8 @@ MODULE hirshfeld_types
    USE input_constants,                 ONLY: radius_default,&
                                               shape_function_gaussian
    USE kinds,                           ONLY: dp
-   USE pw_types,                        ONLY: pw_p_type,&
-                                              pw_release
+   USE pw_types,                        ONLY: pw_release,&
+                                              pw_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -44,7 +44,7 @@ MODULE hirshfeld_types
          POINTER                    :: kind_shape_fn
       REAL(KIND=dp), DIMENSION(:), &
          POINTER                    :: charges
-      TYPE(pw_p_type), POINTER      :: fnorm
+      TYPE(pw_type), POINTER      :: fnorm
    END TYPE hirshfeld_type
 
    TYPE shape_fn
@@ -112,8 +112,7 @@ CONTAINS
          END IF
 
          IF (ASSOCIATED(hirshfeld_env%fnorm)) THEN
-            CALL pw_release(hirshfeld_env%fnorm%pw)
-            DEALLOCATE (hirshfeld_env%fnorm%pw)
+            CALL pw_release(hirshfeld_env%fnorm)
             DEALLOCATE (hirshfeld_env%fnorm)
          END IF
 
@@ -140,7 +139,7 @@ CONTAINS
       INTEGER, INTENT(OUT), OPTIONAL                     :: shape_function_type
       LOGICAL, INTENT(OUT), OPTIONAL                     :: iterative
       INTEGER, INTENT(OUT), OPTIONAL                     :: ref_charge
-      TYPE(pw_p_type), OPTIONAL, POINTER                 :: fnorm
+      TYPE(pw_type), OPTIONAL, POINTER                   :: fnorm
       INTEGER, INTENT(OUT), OPTIONAL                     :: radius_type
       LOGICAL, INTENT(OUT), OPTIONAL                     :: use_bohr
 
@@ -184,7 +183,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: shape_function_type
       LOGICAL, INTENT(IN), OPTIONAL                      :: iterative
       INTEGER, INTENT(IN), OPTIONAL                      :: ref_charge
-      TYPE(pw_p_type), OPTIONAL, POINTER                 :: fnorm
+      TYPE(pw_type), OPTIONAL, POINTER                   :: fnorm
       INTEGER, INTENT(IN), OPTIONAL                      :: radius_type
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_bohr
 

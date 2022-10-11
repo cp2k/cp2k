@@ -573,7 +573,7 @@ CONTAINS
          ALLOCATE (cdft_control%group(1))
          ALLOCATE (cdft_control%group(1)%atoms(settings%ncdft))
          ALLOCATE (cdft_control%group(1)%coeff(settings%ncdft))
-         NULLIFY (cdft_control%group(1)%weight%pw)
+         NULLIFY (cdft_control%group(1)%weight)
          NULLIFY (cdft_control%group(1)%gradients)
          NULLIFY (cdft_control%group(1)%integrated)
          cdft_control%group(1)%atoms = cdft_control%atoms

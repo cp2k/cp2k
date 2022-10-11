@@ -74,7 +74,8 @@ MODULE qs_linres_kernel
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type
+                                              pw_p_type,&
+                                              pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_fxc,                          ONLY: qs_fxc_analytic,&
@@ -197,12 +198,12 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: rho1_tot_gspace, v_hartree_gspace, &
-                                                            v_hartree_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_r, rho_r, tau1_r, &
                                                             v_rspace_new, v_xc, v_xc_tau
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: rho1_tot_gspace, v_hartree_gspace, &
+                                                            v_hartree_rspace
       TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho1, rho1_xc, rho1a, rho_aux
@@ -277,11 +278,10 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
       ALLOCATE (v_rspace_new(nspins))
-      ALLOCATE (v_hartree_gspace%pw, v_hartree_rspace%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
 
@@ -289,28 +289,26 @@ CONTAINS
          CALL prepare_gapw_den(qs_env, p_env%local_rho_set, do_rho0=(.NOT. gapw_xc))
 
       ! *** calculate the hartree potential on the total density ***
-      ALLOCATE (rho1_tot_gspace%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho1_tot_gspace%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, rho1_tot_gspace, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
 
       CALL qs_rho_get(rho1, rho_g=rho1_g)
-      CALL pw_copy(rho1_g(1)%pw, rho1_tot_gspace%pw)
+      CALL pw_copy(rho1_g(1)%pw, rho1_tot_gspace)
       DO ispin = 2, nspins
-         CALL pw_axpy(rho1_g(ispin)%pw, rho1_tot_gspace%pw)
+         CALL pw_axpy(rho1_g(ispin)%pw, rho1_tot_gspace)
       END DO
       IF (gapw) &
-         CALL pw_axpy(p_env%local_rho_set%rho0_mpole%rho0_s_gs, rho1_tot_gspace%pw)
+         CALL pw_axpy(p_env%local_rho_set%rho0_mpole%rho0_s_gs, rho1_tot_gspace)
 
       IF (.NOT. (nspins == 1 .AND. lr_triplet)) THEN
-         CALL pw_poisson_solve(poisson_env, rho1_tot_gspace%pw, &
+         CALL pw_poisson_solve(poisson_env, rho1_tot_gspace, &
                                energy_hartree, &
-                               v_hartree_gspace%pw)
-         CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw)
+                               v_hartree_gspace)
+         CALL pw_transfer(v_hartree_gspace, v_hartree_rspace)
       END IF
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho1_tot_gspace%pw)
-      DEALLOCATE (rho1_tot_gspace%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho1_tot_gspace)
 
       ! *** calculate the xc potential ***
       NULLIFY (rho1a)
@@ -341,7 +339,7 @@ CONTAINS
       END DO
       DEALLOCATE (v_xc)
 
-      CALL pw_scale(v_hartree_rspace%pw, v_hartree_rspace%pw%pw_grid%dvol)
+      CALL pw_scale(v_hartree_rspace, v_hartree_rspace%pw_grid%dvol)
       DO ispin = 1, nspins
          CALL pw_scale(v_rspace_new(ispin)%pw, v_rspace_new(ispin)%pw%pw_grid%dvol)
          IF (ASSOCIATED(v_xc_tau)) CALL pw_scale(v_xc_tau(ispin)%pw, v_xc_tau(ispin)%pw%pw_grid%dvol)
@@ -398,7 +396,7 @@ CONTAINS
 
                ! add hartree only for SINGLETS
                IF (.NOT. lr_triplet) THEN
-                  v_rspace_new(1)%pw%cr3d = 2.0_dp*v_hartree_rspace%pw%cr3d
+                  v_rspace_new(1)%pw%cr3d = 2.0_dp*v_hartree_rspace%cr3d
 
                   CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin)%pw, &
                                           pmat=rho_ao(ispin), &
@@ -423,7 +421,7 @@ CONTAINS
                                           calculate_forces=.FALSE., gapw=gapw_xc)
                END IF
 
-               v_rspace_new(ispin)%pw%cr3d = v_hartree_rspace%pw%cr3d
+               v_rspace_new(ispin)%pw%cr3d = v_hartree_rspace%cr3d
                CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin)%pw, &
                                        pmat=rho_ao(ispin), &
                                        hmat=kpp1_env%v_ao(ispin), &
@@ -442,11 +440,11 @@ CONTAINS
                !IF (res_etype == tddfpt_singlet) THEN
                IF (.NOT. lr_triplet) THEN
                   v_rspace_new(1)%pw%cr3d = v_rspace_new(1)%pw%cr3d + &
-                                            2.0_dp*v_hartree_rspace%pw%cr3d
+                                            2.0_dp*v_hartree_rspace%cr3d
                END IF
             ELSE
                v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d + &
-                                             v_hartree_rspace%pw%cr3d
+                                             v_hartree_rspace%cr3d
             END IF
 
             IF (lrigpw) THEN
@@ -500,7 +498,7 @@ CONTAINS
                                     p_env%local_rho_set, &
                                     para_env, tddft=.TRUE.)
 
-            CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace%pw, para_env, &
+            CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, para_env, &
                                        calculate_forces=.FALSE., &
                                        local_rho_set=p_env%local_rho_set)
          END IF
@@ -540,9 +538,8 @@ CONTAINS
          END IF
       END IF
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace%pw)
-      DEALLOCATE (v_hartree_gspace%pw, v_hartree_rspace%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace)
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new(ispin)%pw)
          DEALLOCATE (v_rspace_new(ispin)%pw)
