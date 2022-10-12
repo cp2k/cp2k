@@ -65,15 +65,15 @@
     &END POISSON
 
     &MGRID
-      CUTOFF 1000
+      CUTOFF  300
     &END MGRID
 
     &SCF
-      EPS_DIIS 1E-005
+      EPS_DIIS 1E-003
       EPS_EIGVAL 1E-009
       EPS_SCF 1E-009
       ADDED_MOS 3
-      MAX_SCF 10
+      MAX_SCF 20
 
       &PRINT
         &RESTART OFF
@@ -97,7 +97,7 @@
           PERIODICITY 0 0 0
         &END ERI
         &ERI_GPW
-          CUTOFF 500
+          CUTOFF 250
         &END ERI_GPW
         &FCIDUMP
            FILENAME __STD_OUT__

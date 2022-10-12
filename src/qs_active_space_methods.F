@@ -1348,7 +1348,8 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: pot_g, rho_g, rho_r, wfn_r
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:, :)        :: wfn_a
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:, :), TARGET:: wfn_a
+      TYPE(pw_type), POINTER                             :: wfn1, wfn2, wfn3, wfn4
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(task_list_type), POINTER                      :: task_list_sub
@@ -1459,8 +1460,7 @@ CONTAINS
             CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
             DO i1 = 1, SIZE(orbitals, 1)
                iwfn = orbitals(i1, ispin)
-               ALLOCATE (wfn_a(iwfn, ispin)%pw)
-               CALL pw_pool_create_pw(auxbas_pw_pool, wfn_a(iwfn, ispin)%pw, &
+               CALL pw_pool_create_pw(auxbas_pw_pool, wfn_a(iwfn, ispin), &
                                       use_data=REALDATA3D, &
                                       in_space=REALSPACE)
                CALL calculate_wavefunction(mo_coeff, iwfn, wfn_a(iwfn, ispin), rho_g, atomic_kind_set, &
@@ -1502,8 +1502,13 @@ CONTAINS
                ELSE
                   iwa12 = 0
                END IF
+               IF (eri_env%eri_gpw%store_wfn) THEN
+                  wfn2 => wfn_a(iwa2, isp1)
+               ELSE
+                  CPABORT("")
+               END IF
                ! calculate charge distribution and potential
-               rho_r%cr3d = wfn_a(iwa1, isp1)%cr3d*wfn_a(iwa2, isp1)%cr3d
+               rho_r%cr3d = wfn1%cr3d*wfn2%cr3d
                IF (print2 .AND. iw > 0) THEN
                   erint = pw_integrate_function(rho_r)/dvol
                   WRITE (iw, "(T4,'ERI_GPW| Integral rho_ab ',T32,2I4,' [',I1,']',T58,G20.14)") &
@@ -1542,8 +1547,8 @@ CONTAINS
                            ELSE
                               CPABORT("")
                            END IF
-                           wfn_r%pw%cr3d = rho_r%pw%cr3d*wfn3%pw%cr3d*wfn4%pw%cr3d
-                           erint = pw_integrate_function(wfn_r%pw)
+                           wfn_r%cr3d = rho_r%cr3d*wfn3%cr3d*wfn4%cr3d
+                           erint = pw_integrate_function(wfn_r)
                            IF (ABS(erint) > eri_env%eps_integral) THEN
                               intcount = intcount + 1
                               IF (print2 .AND. iw > 0) THEN
@@ -1577,8 +1582,7 @@ CONTAINS
             CALL get_mo_set(mo_set=mos(ispin)%mo_set, nmo=nmo)
             DO i1 = 1, SIZE(orbitals, 1)
                iwfn = orbitals(i1, ispin)
-               CALL pw_release(wfn_a(iwfn, ispin)%pw)
-               DEALLOCATE (wfn_a(iwfn, ispin)%pw)
+               CALL pw_release(wfn_a(iwfn, ispin))
             END DO
          END DO
          DEALLOCATE (wfn_a)
