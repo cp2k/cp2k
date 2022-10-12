@@ -677,6 +677,7 @@ list(
   rtp_admm_methods.F
   rt_propagation_forces.F
   rt_propagation_types.F
+  rt_propagation_velocity_gauge.F
   sap_kind_types.F
   scf_control_types.F
   scine_utils.F
