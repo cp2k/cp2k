@@ -101,7 +101,6 @@ MODULE qs_collocate_density
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE realspace_grid_types,            ONLY: map_gaussian_here,&
                                               realspace_grid_desc_p_type,&
-                                              realspace_grid_p_type,&
                                               realspace_grid_type,&
                                               rs2pw,&
                                               rs_grid_zero,&
@@ -546,7 +545,7 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: mgrid_gspace, mgrid_rspace
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_rho
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_rho
       TYPE(realspace_grid_type), POINTER                 :: rs_grid
 
       NULLIFY (aci, atomic_kind_set, qs_kind_set, atom_list, cell, &
@@ -584,7 +583,7 @@ CONTAINS
 
       ! *** set up the rs multi-grids *** !
       DO igrid_level = 1, gridlevel_info%ngrid_levels
-         CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
+         CALL rs_grid_zero(rs_rho(igrid_level))
       END DO
 
       !take maxco from the LRI basis set!
@@ -621,7 +620,7 @@ CONTAINS
                map_it = .FALSE.
                DO ipgf = 1, npgfa(iset)
                   igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf, iset))
-                  rs_grid => rs_rho(igrid_level)%rs_grid
+                  rs_grid => rs_rho(igrid_level)
                   map_it(ipgf) = map_gaussian_here(rs_grid, cell%h_inv, ra, offset, group_size, my_pos)
                END DO
                offset = offset + 1
@@ -641,7 +640,7 @@ CONTAINS
                   DO ipgf = 1, npgfa(iset)
                      na1 = (ipgf - 1)*ncoset(la_max(iset))
                      igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf, iset))
-                     rs_grid => rs_rho(igrid_level)%rs_grid
+                     rs_grid => rs_rho(igrid_level)
                      IF (map_it(ipgf)) THEN
                         radius = exp_radius_very_extended(la_min=la_min(iset), la_max=la_max(iset), &
                                                           lb_min=0, lb_max=0, &
@@ -700,7 +699,7 @@ CONTAINS
                         DO jpgf = 1, npgfa(jset)
                            zetp = zeta(ipgf, iset) + zeta(jpgf, jset)
                            igrid_level = gaussian_gridlevel(gridlevel_info, zetp)
-                           rs_grid => rs_rho(igrid_level)%rs_grid
+                           rs_grid => rs_rho(igrid_level)
                            map_it2(ipgf, jpgf) = map_gaussian_here(rs_grid, cell%h_inv, ra, offset, group_size, my_pos)
                         END DO
                      END DO
@@ -724,7 +723,7 @@ CONTAINS
                            DO jpgf = 1, npgfa(jset)
                               zetp = zeta(ipgf, iset) + zeta(jpgf, jset)
                               igrid_level = gaussian_gridlevel(gridlevel_info, zetp)
-                              rs_grid => rs_rho(igrid_level)%rs_grid
+                              rs_grid => rs_rho(igrid_level)
 
                               na1 = (ipgf - 1)*ncoset(la_max(iset))
                               nb1 = (jpgf - 1)*ncoset(la_max(jset))
@@ -762,7 +761,7 @@ CONTAINS
 
       DO igrid_level = 1, gridlevel_info%ngrid_levels
          CALL pw_zero(mgrid_rspace(igrid_level)%pw)
-         CALL rs_pw_transfer(rs=rs_rho(igrid_level)%rs_grid, &
+         CALL rs_pw_transfer(rs=rs_rho(igrid_level), &
                              pw=mgrid_rspace(igrid_level)%pw, dir=rs2pw)
       END DO
 
@@ -1488,7 +1487,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_images
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_rho
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_rho
       TYPE(task_list_type), POINTER                      :: task_list
 
       CALL timeset(routineN, handle)
@@ -1571,12 +1570,12 @@ CONTAINS
       ! Get grids.
       CALL pw_env_get(pw_env, rs_grids=rs_rho)
       nlevels = SIZE(rs_rho)
-      group = rs_rho(1)%rs_grid%desc%group
+      group = rs_rho(1)%desc%group
 
       ! Check if any of the grids is distributed.
       any_distributed = .FALSE.
       DO ilevel = 1, nlevels
-         any_distributed = any_distributed .OR. rs_rho(ilevel)%rs_grid%desc%distributed
+         any_distributed = any_distributed .OR. rs_rho(ilevel)%desc%distributed
       END DO
 
       ! Gather all matrix images in a single array.
@@ -1669,7 +1668,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_rho
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_rho
       TYPE(task_list_type), POINTER                      :: task_list, task_list_soft
       TYPE(task_type), DIMENSION(:), POINTER             :: tasks
 
@@ -1742,7 +1741,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(pw_env))
       CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho)
       DO igrid_level = 1, gridlevel_info%ngrid_levels
-         distributed_rs_grids = rs_rho(igrid_level)%rs_grid%desc%distributed
+         distributed_rs_grids = rs_rho(igrid_level)%desc%distributed
       END DO
 
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -1790,7 +1789,7 @@ CONTAINS
       loop_xyz: DO idir = 1, 3
 
          DO igrid_level = 1, gridlevel_info%ngrid_levels
-            CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
+            CALL rs_grid_zero(rs_rho(igrid_level))
          END DO
 
          iatom_old = -1; jatom_old = -1; iset_old = -1; jset_old = -1
@@ -1925,7 +1924,7 @@ CONTAINS
             END IF
 
             ! check whether we need to use fawzi's generalised collocation scheme
-            IF (rs_rho(igrid_level)%rs_grid%desc%distributed) THEN
+            IF (rs_rho(igrid_level)%desc%distributed) THEN
                !tasks(4,:) is 0 for replicated, 1 for distributed 2 for exceptional distributed tasks
                IF (tasks(itask)%dist_type .EQ. 2) THEN
                   use_subpatch = .TRUE.
@@ -1952,7 +1951,7 @@ CONTAINS
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                   ra, rab, scale, pab, na1 - 1, nb1 - 1, &
-                  rs_rho(igrid_level)%rs_grid, &
+                  rs_rho(igrid_level), &
                   radius=radius, ga_gb_function=dabqadb_func, &
                   use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern)
             ELSE
@@ -1961,7 +1960,7 @@ CONTAINS
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
                   rb, rab_inv, scale, pab, nb1 - 1, na1 - 1, &
-                  rs_rho(igrid_level)%rs_grid, &
+                  rs_rho(igrid_level), &
                   radius=radius, ga_gb_function=dabqadb_func, &
                   use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern)
             END IF
@@ -2044,7 +2043,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_rho
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_rho
       TYPE(task_list_type), POINTER                      :: task_list, task_list_soft
       TYPE(task_type), DIMENSION(:), POINTER             :: tasks
 
@@ -2116,7 +2115,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(pw_env))
       CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho)
       DO igrid_level = 1, gridlevel_info%ngrid_levels
-         distributed_rs_grids = rs_rho(igrid_level)%rs_grid%desc%distributed
+         distributed_rs_grids = rs_rho(igrid_level)%desc%distributed
       END DO
 
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -2162,7 +2161,7 @@ CONTAINS
       work => workt(:, :, ithread)
 
       DO igrid_level = 1, gridlevel_info%ngrid_levels
-         CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
+         CALL rs_grid_zero(rs_rho(igrid_level))
       END DO
 
       iatom_old = -1; jatom_old = -1; iset_old = -1; jset_old = -1
@@ -2297,7 +2296,7 @@ CONTAINS
          END IF
 
          ! check whether we need to use fawzi's generalised collocation scheme
-         IF (rs_rho(igrid_level)%rs_grid%desc%distributed) THEN
+         IF (rs_rho(igrid_level)%desc%distributed) THEN
             !tasks(4,:) is 0 for replicated, 1 for distributed 2 for exceptional distributed tasks
             IF (tasks(itask)%dist_type .EQ. 2) THEN
                use_subpatch = .TRUE.
@@ -2325,7 +2324,7 @@ CONTAINS
                la_max(iset), zeta(ipgf, iset), la_min(iset), &
                lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                ra, rab, scale, pab, na1 - 1, nb1 - 1, &
-               rsgrid=rs_rho(igrid_level)%rs_grid, &
+               rsgrid=rs_rho(igrid_level), &
                ga_gb_function=dabqadb_func, radius=radius, &
                use_subpatch=use_subpatch, &
                subpatch_pattern=tasks(itask)%subpatch_pattern)
@@ -2334,7 +2333,7 @@ CONTAINS
                la_max(iset), zeta(ipgf, iset), la_min(iset), &
                lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                ra, rab, scale, pab, na1 - 1, nb1 - 1, &
-               rsgrid=rs_rho(igrid_level)%rs_grid, &
+               rsgrid=rs_rho(igrid_level), &
                ga_gb_function=dabqadb_func + 3, radius=radius, &
                use_subpatch=use_subpatch, &
                subpatch_pattern=tasks(itask)%subpatch_pattern)
@@ -2345,7 +2344,7 @@ CONTAINS
                lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                la_max(iset), zeta(ipgf, iset), la_min(iset), &
                rb, rab_inv, scale, pab, nb1 - 1, na1 - 1, &
-               rs_rho(igrid_level)%rs_grid, &
+               rs_rho(igrid_level), &
                ga_gb_function=dabqadb_func, radius=radius, &
                use_subpatch=use_subpatch, &
                subpatch_pattern=tasks(itask)%subpatch_pattern)
@@ -2354,7 +2353,7 @@ CONTAINS
                lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                la_max(iset), zeta(ipgf, iset), la_min(iset), &
                rb, rab_inv, scale, pab, nb1 - 1, na1 - 1, &
-               rs_rho(igrid_level)%rs_grid, &
+               rs_rho(igrid_level), &
                ga_gb_function=dabqadb_func + 3, radius=radius, &
                use_subpatch=use_subpatch, &
                subpatch_pattern=tasks(itask)%subpatch_pattern)
@@ -2429,7 +2428,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: mgrid_gspace, mgrid_rspace
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
-      TYPE(REALSPACE_GRID_P_TYPE), DIMENSION(:), POINTER :: rs_rho
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_rho
 
       IF (PRESENT(basis_type)) THEN
          my_basis_type = basis_type
@@ -2456,7 +2455,7 @@ CONTAINS
 
       ! *** set up rs multi-grids
       DO igrid_level = 1, gridlevel_info%ngrid_levels
-         CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
+         CALL rs_grid_zero(rs_rho(igrid_level))
       END DO
 
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -2517,7 +2516,7 @@ CONTAINS
                   scale = 1.0_dp
                   igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf, iset))
 
-                  IF (map_gaussian_here(rs_rho(igrid_level)%rs_grid, cell%h_inv, ra, offset, group_size, my_pos)) THEN
+                  IF (map_gaussian_here(rs_rho(igrid_level), cell%h_inv, ra, offset, group_size, my_pos)) THEN
                      radius = exp_radius_very_extended(la_min=la_min(iset), la_max=la_max(iset), &
                                                        lb_min=0, lb_max=0, ra=ra, rb=ra, rp=ra, &
                                                        zetp=zeta(ipgf, iset), eps=eps_rho_rspace, &
@@ -2526,7 +2525,7 @@ CONTAINS
                      CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), la_min(iset), &
                                                 0, 0.0_dp, 0, &
                                                 ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                                scale, pab, na1 - 1, 0, rs_rho(igrid_level)%rs_grid, &
+                                                scale, pab, na1 - 1, 0, rs_rho(igrid_level), &
                                                 radius=radius, ga_gb_function=GRID_FUNC_AB)
                   END IF
 
@@ -2541,7 +2540,7 @@ CONTAINS
       END DO
 
       DO igrid_level = 1, gridlevel_info%ngrid_levels
-         CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid, &
+         CALL rs_pw_transfer(rs_rho(igrid_level), &
                              mgrid_rspace(igrid_level)%pw, rs2pw)
       END DO
 
@@ -2624,7 +2623,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: mgrid_gspace, mgrid_rspace
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
-      TYPE(REALSPACE_GRID_P_TYPE), DIMENSION(:), POINTER :: rs_rho
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_rho
 
       IF (PRESENT(basis_type)) THEN
          my_basis_type = basis_type
@@ -2664,7 +2663,7 @@ CONTAINS
 
       ! *** set up rs multi-grids
       DO igrid_level = 1, gridlevel_info%ngrid_levels
-         CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
+         CALL rs_grid_zero(rs_rho(igrid_level))
       END DO
 
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -2721,7 +2720,7 @@ CONTAINS
                scale = 1.0_dp
                igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf, iset))
 
-               IF (map_gaussian_here(rs_rho(igrid_level)%rs_grid, cell%h_inv, ra, offset, group_size, my_pos)) THEN
+               IF (map_gaussian_here(rs_rho(igrid_level), cell%h_inv, ra, offset, group_size, my_pos)) THEN
                   radius = exp_radius_very_extended(la_min=la_min(iset), la_max=la_max(iset), &
                                                     lb_min=0, lb_max=0, ra=ra, rb=ra, rp=ra, &
                                                     zetp=zeta(ipgf, iset), eps=eps_rho_rspace, &
@@ -2730,7 +2729,7 @@ CONTAINS
                   CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), la_min(iset), &
                                              0, 0.0_dp, 0, &
                                              ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                             scale, pab, na1 - 1, 0, rs_rho(igrid_level)%rs_grid, &
+                                             scale, pab, na1 - 1, 0, rs_rho(igrid_level), &
                                              radius=radius, ga_gb_function=GRID_FUNC_AB)
                END IF
 
@@ -2743,7 +2742,7 @@ CONTAINS
       END DO
 
       DO igrid_level = 1, gridlevel_info%ngrid_levels
-         CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid, &
+         CALL rs_pw_transfer(rs_rho(igrid_level), &
                              mgrid_rspace(igrid_level)%pw, rs2pw)
       END DO
 

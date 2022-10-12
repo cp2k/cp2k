@@ -97,8 +97,8 @@ MODULE pw_env_methods
                                               rho0_mpole_type
    USE realspace_grid_types,            ONLY: &
         realspace_grid_desc_p_type, realspace_grid_desc_type, realspace_grid_input_type, &
-        realspace_grid_p_type, realspace_grid_type, rs_grid_create, rs_grid_create_descriptor, &
-        rs_grid_print, rs_grid_release, rs_grid_release_descriptor
+        realspace_grid_type, rs_grid_create, rs_grid_create_descriptor, rs_grid_print, &
+        rs_grid_release, rs_grid_release_descriptor
    USE xc_input_constants,              ONLY: &
         xc_deriv_collocate, xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, &
         xc_deriv_spline2, xc_deriv_spline2_smooth, xc_deriv_spline3, xc_deriv_spline3_smooth, &
@@ -183,7 +183,7 @@ CONTAINS
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
       TYPE(realspace_grid_input_type)                    :: input_settings
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_grids
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_grids
       TYPE(section_vals_type), POINTER                   :: efg_section, input, linres_section, &
                                                             poisson_section, print_section, &
                                                             rs_grid_section, xc_section
@@ -228,8 +228,7 @@ CONTAINS
       END IF
       IF (ASSOCIATED(pw_env%rs_grids)) THEN
          DO i = 1, SIZE(pw_env%rs_grids)
-            CALL rs_grid_release(pw_env%rs_grids(i)%rs_grid)
-            DEALLOCATE (pw_env%rs_grids(i)%rs_grid)
+            CALL rs_grid_release(pw_env%rs_grids(i))
          END DO
          DEALLOCATE (pw_env%rs_grids)
       END IF
@@ -587,8 +586,7 @@ CONTAINS
 
          IF (rs_descs(igrid_level)%rs_desc%distributed) higher_grid_layout = rs_descs(igrid_level)%rs_desc%group_dim
 
-         ALLOCATE (rs_grids(igrid_level)%rs_grid)
-         CALL rs_grid_create(rs_grids(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
+         CALL rs_grid_create(rs_grids(igrid_level), rs_descs(igrid_level)%rs_desc)
       END DO
       pw_env%rs_descs => rs_descs
       pw_env%rs_grids => rs_grids
@@ -747,7 +745,7 @@ CONTAINS
                                                           print_section, ''), cp_p_file)
          IF (should_output) THEN
             DO igrid_level = 1, ngrid_level
-               CALL rs_grid_print(rs_grids(igrid_level)%rs_grid, iounit)
+               CALL rs_grid_print(rs_grids(igrid_level), iounit)
             END DO
          END IF
          CALL cp_print_key_finished_output(iounit, logger, print_section, "")

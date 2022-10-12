@@ -52,8 +52,8 @@ MODULE pme
                                               pw_p_type,&
                                               pw_type
    USE realspace_grid_types,            ONLY: &
-        pw2rs, realspace_grid_desc_type, realspace_grid_p_type, realspace_grid_type, rs2pw, &
-        rs_grid_create, rs_grid_release, rs_grid_set_box, rs_grid_zero, rs_pw_transfer
+        pw2rs, realspace_grid_desc_type, realspace_grid_type, rs2pw, rs_grid_create, &
+        rs_grid_release, rs_grid_set_box, rs_grid_zero, rs_pw_transfer
    USE shell_potential_types,           ONLY: shell_kind_type
    USE structure_factor_types,          ONLY: structure_factor_type
    USE structure_factors,               ONLY: structure_factor_allocate,&
@@ -127,12 +127,12 @@ CONTAINS
       TYPE(pw_type)                                      :: phi_g, phi_r, rhob_g, rhob_r, rhos1, &
                                                             rhos2
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: drpot
+      TYPE(realspace_grid_type), DIMENSION(3)            :: drpot
       TYPE(realspace_grid_type), POINTER                 :: rden, rpot
       TYPE(structure_factor_type)                        :: exp_igr
 
       CALL timeset(routineN, handle)
-      NULLIFY (poisson_env, rden, drpot)
+      NULLIFY (poisson_env, rden)
       CALL cite_reference(Darden1993)
       CALL ewald_env_get(ewald_env, alpha=alpha, group=group)
       CALL ewald_pw_get(ewald_pw, pw_big_pool=pw_big_pool, &
@@ -360,15 +360,13 @@ CONTAINS
 
       !--------END OF STRESS TENSOR CALCULATION -----------
 
-      ALLOCATE (drpot(1:3))
       DO i = 1, 3
-         ALLOCATE (drpot(i)%rs_grid)
-         CALL rs_grid_create(drpot(i)%rs_grid, rs_desc)
-         CALL rs_grid_set_box(grid_b, rs=drpot(i)%rs_grid)
+         CALL rs_grid_create(drpot(i), rs_desc)
+         CALL rs_grid_set_box(grid_b, rs=drpot(i))
          CALL pw_transfer(dphi_g(i)%pw, rhob_r)
          CALL pw_pool_give_back_pw(pw_big_pool, dphi_g(i)%pw)
          DEALLOCATE (dphi_g(i)%pw)
-         CALL rs_pw_transfer(drpot(i)%rs_grid, rhob_r, pw2rs)
+         CALL rs_pw_transfer(drpot(i), rhob_r, pw2rs)
       END DO
 
       CALL pw_pool_give_back_pw(pw_big_pool, rhob_r)
@@ -468,10 +466,8 @@ CONTAINS
       CALL rs_grid_release(rden)
       DEALLOCATE (rden)
       DO i = 1, 3
-         CALL rs_grid_release(drpot(i)%rs_grid)
-         DEALLOCATE (drpot(i)%rs_grid)
+         CALL rs_grid_release(drpot(i))
       END DO
-      DEALLOCATE (drpot)
 
       CALL pw_pool_give_back_pw(pw_small_pool, rhos1)
       CALL pw_pool_give_back_pw(pw_small_pool, rhos2)

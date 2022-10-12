@@ -16,8 +16,7 @@ MODULE grid_api
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
    USE offload_api,                     ONLY: offload_buffer_type
-   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
-                                              realspace_grid_type
+   USE realspace_grid_types,            ONLY: realspace_grid_type
    USE string_utilities,                ONLY: strlcpy_c2f
 #include "../base/base_uses.f90"
 
@@ -736,7 +735,7 @@ CONTAINS
                                                             block_num_list
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), TARGET    :: radius_list
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), TARGET :: rab_list
-      TYPE(realspace_grid_p_type), DIMENSION(:), &
+      TYPE(realspace_grid_type), DIMENSION(:), &
          INTENT(IN)                                      :: rs_grids
       TYPE(grid_task_list_type), INTENT(INOUT)           :: task_list
 
@@ -752,7 +751,6 @@ CONTAINS
          ipgf_list_c, iset_list_c, jatom_list_c, jpgf_list_c, jset_list_c, level_list_c, &
          rab_list_c, radius_list_c
       TYPE(C_PTR), ALLOCATABLE, DIMENSION(:), TARGET     :: basis_sets_c
-      TYPE(realspace_grid_type), POINTER                 :: rsgrid
       INTERFACE
          SUBROUTINE grid_create_task_list_c(orthorhombic, &
                                             ntasks, nlevels, natoms, nkinds, nblocks, &
@@ -821,21 +819,22 @@ CONTAINS
 
       nlevels = SIZE(rs_grids)
       CPASSERT(nlevels > 0)
-      orthorhombic = LOGICAL(rs_grids(1)%rs_grid%desc%orthorhombic, C_BOOL)
+      orthorhombic = LOGICAL(rs_grids(1)%desc%orthorhombic, C_BOOL)
 
       ALLOCATE (npts_global(3, nlevels), npts_local(3, nlevels))
       ALLOCATE (shift_local(3, nlevels), border_width(3, nlevels))
       ALLOCATE (dh(3, 3, nlevels), dh_inv(3, 3, nlevels))
       DO ilevel = 1, nlevels
-         rsgrid => rs_grids(ilevel)%rs_grid
-         CALL get_rsgrid_properties(rsgrid=rsgrid, &
-                                    npts_global=npts_global(:, ilevel), &
-                                    npts_local=npts_local(:, ilevel), &
-                                    shift_local=shift_local(:, ilevel), &
-                                    border_width=border_width(:, ilevel))
-         CPASSERT(rsgrid%desc%orthorhombic .EQV. orthorhombic)  ! should be the same for all levels
-         dh(:, :, ilevel) = rsgrid%desc%dh(:, :)
-         dh_inv(:, :, ilevel) = rsgrid%desc%dh_inv(:, :)
+         ASSOCIATE (rsgrid => rs_grids(ilevel))
+            CALL get_rsgrid_properties(rsgrid=rsgrid, &
+                                       npts_global=npts_global(:, ilevel), &
+                                       npts_local=npts_local(:, ilevel), &
+                                       shift_local=shift_local(:, ilevel), &
+                                       border_width=border_width(:, ilevel))
+            CPASSERT(rsgrid%desc%orthorhombic .EQV. orthorhombic)  ! should be the same for all levels
+            dh(:, :, ilevel) = rsgrid%desc%dh(:, :)
+            dh_inv(:, :, ilevel) = rsgrid%desc%dh_inv(:, :)
+         END ASSOCIATE
       END DO
 
 #if __GNUC__ >= 9
@@ -968,7 +967,7 @@ CONTAINS
       TYPE(grid_task_list_type), INTENT(IN)              :: task_list
       INTEGER, INTENT(IN)                                :: ga_gb_function
       TYPE(offload_buffer_type), INTENT(IN)              :: pab_blocks
-      TYPE(realspace_grid_p_type), DIMENSION(:), &
+      TYPE(realspace_grid_type), DIMENSION(:), &
          INTENT(IN)                                      :: rs_grids
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'grid_collocate_task_list'
@@ -976,7 +975,6 @@ CONTAINS
       INTEGER                                            :: handle, ilevel, nlevels
       INTEGER, ALLOCATABLE, DIMENSION(:, :), TARGET      :: npts_local
       TYPE(C_PTR), ALLOCATABLE, DIMENSION(:), TARGET     :: grids_c
-      TYPE(realspace_grid_type), POINTER                 :: rsgrid
       INTERFACE
          SUBROUTINE grid_collocate_task_list_c(task_list, func, nlevels, &
                                                npts_local, pab_blocks, grids) &
@@ -999,9 +997,10 @@ CONTAINS
       ALLOCATE (grids_c(nlevels))
       ALLOCATE (npts_local(3, nlevels))
       DO ilevel = 1, nlevels
-         rsgrid => rs_grids(ilevel)%rs_grid
-         npts_local(:, ilevel) = rsgrid%ub_local - rsgrid%lb_local + 1
-         grids_c(ilevel) = rsgrid%buffer%c_ptr
+         ASSOCIATE (rsgrid => rs_grids(ilevel))
+            npts_local(:, ilevel) = rsgrid%ub_local - rsgrid%lb_local + 1
+            grids_c(ilevel) = rsgrid%buffer%c_ptr
+         END ASSOCIATE
       END DO
 
 #if __GNUC__ >= 9
@@ -1041,7 +1040,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: compute_tau, calculate_forces, &
                                                             calculate_virial
       TYPE(offload_buffer_type), INTENT(IN)              :: pab_blocks
-      TYPE(realspace_grid_p_type), DIMENSION(:), &
+      TYPE(realspace_grid_type), DIMENSION(:), &
          INTENT(IN)                                      :: rs_grids
       TYPE(offload_buffer_type), INTENT(INOUT)           :: hab_blocks
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
@@ -1055,7 +1054,6 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :), TARGET      :: npts_local
       TYPE(C_PTR)                                        :: forces_c, virial_c
       TYPE(C_PTR), ALLOCATABLE, DIMENSION(:), TARGET     :: grids_c
-      TYPE(realspace_grid_type), POINTER                 :: rsgrid
       INTERFACE
          SUBROUTINE grid_integrate_task_list_c(task_list, compute_tau, natoms, &
                                                nlevels, npts_local, &
@@ -1083,9 +1081,10 @@ CONTAINS
       ALLOCATE (grids_c(nlevels))
       ALLOCATE (npts_local(3, nlevels))
       DO ilevel = 1, nlevels
-         rsgrid => rs_grids(ilevel)%rs_grid
-         npts_local(:, ilevel) = rsgrid%ub_local - rsgrid%lb_local + 1
-         grids_c(ilevel) = rsgrid%buffer%c_ptr
+         ASSOCIATE (rsgrid => rs_grids(ilevel))
+            npts_local(:, ilevel) = rsgrid%ub_local - rsgrid%lb_local + 1
+            grids_c(ilevel) = rsgrid%buffer%c_ptr
+         END ASSOCIATE
       END DO
 
       IF (calculate_forces) THEN

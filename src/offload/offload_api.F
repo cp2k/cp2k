@@ -298,16 +298,17 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(C_ASSOCIATED(buffer%c_ptr))
+      IF (C_ASSOCIATED(buffer%c_ptr)) THEN
 
-      CALL offload_free_buffer_c(buffer%c_ptr)
+         CALL offload_free_buffer_c(buffer%c_ptr)
 
-      buffer%c_ptr = C_NULL_PTR
+         buffer%c_ptr = C_NULL_PTR
 
-      IF (SIZE(buffer%host_buffer) == 0) THEN
-         DEALLOCATE (buffer%host_buffer)
-      ELSE
-         NULLIFY (buffer%host_buffer)
+         IF (SIZE(buffer%host_buffer) == 0) THEN
+            DEALLOCATE (buffer%host_buffer)
+         ELSE
+            NULLIFY (buffer%host_buffer)
+         END IF
       END IF
 
       CALL timestop(handle)

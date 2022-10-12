@@ -110,7 +110,7 @@ MODULE mixed_cdft_utils
                                               qs_kind_type
    USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                               realspace_grid_input_type,&
-                                              realspace_grid_p_type,&
+                                              realspace_grid_type,&
                                               rs_grid_create,&
                                               rs_grid_create_descriptor,&
                                               rs_grid_print
@@ -664,7 +664,7 @@ CONTAINS
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
       TYPE(realspace_grid_input_type)                    :: input_settings
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_grids
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_grids
       TYPE(section_vals_type), POINTER :: force_env_section, force_env_sections, kind_section, &
          print_section, root_section, rs_grid_section, subsys_section
 
@@ -798,9 +798,8 @@ CONTAINS
             NULLIFY (rs_descs(1)%rs_desc)
             CALL rs_grid_create_descriptor(rs_descs(1)%rs_desc, pw_grid, input_settings)
             IF (rs_descs(1)%rs_desc%distributed) higher_grid_layout = rs_descs(1)%rs_desc%group_dim
-            NULLIFY (rs_grids(1)%rs_grid)
-            CALL rs_grid_create(rs_grids(1)%rs_grid, rs_descs(1)%rs_desc)
-            CALL rs_grid_print(rs_grids(1)%rs_grid, iounit)
+            CALL rs_grid_create(rs_grids(1), rs_descs(1)%rs_desc)
+            CALL rs_grid_print(rs_grids(1), iounit)
             mixed_cdft%pw_env%rs_descs => rs_descs
             mixed_cdft%pw_env%rs_grids => rs_grids
             ! qs_kind_set

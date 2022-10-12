@@ -63,7 +63,6 @@ MODULE qs_integrate_potential_single
                                               qs_kind_type
    USE realspace_grid_types,            ONLY: map_gaussian_here,&
                                               pw2rs,&
-                                              realspace_grid_p_type,&
                                               realspace_grid_type,&
                                               rs_grid_zero,&
                                               rs_pw_transfer
@@ -673,7 +672,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_v
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_v
       TYPE(realspace_grid_type), POINTER                 :: rs_grid
       TYPE(virial_type), POINTER                         :: virial
 
@@ -689,7 +688,7 @@ CONTAINS
 
       CALL pw_env_get(pw_env, rs_grids=rs_v)
       DO i = 1, SIZE(rs_v)
-         CALL rs_grid_zero(rs_v(i)%rs_grid)
+         CALL rs_grid_zero(rs_v(i))
       END DO
 
       gridlevel_info => pw_env%gridlevel_info
@@ -756,7 +755,7 @@ CONTAINS
                map_it = .FALSE.
                DO ipgf = 1, npgfa(iset)
                   igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf, iset))
-                  rs_grid => rs_v(igrid_level)%rs_grid
+                  rs_grid => rs_v(igrid_level)
                   map_it(ipgf) = map_gaussian_here(rs_grid, cell%h_inv, ra, offset, group_size, my_pos)
                END DO
                offset = offset + 1
@@ -782,7 +781,7 @@ CONTAINS
                   DO ipgf = 1, npgfa(iset)
                      na1 = (ipgf - 1)*ncoset(la_max(iset))
                      igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf, iset))
-                     rs_grid => rs_v(igrid_level)%rs_grid
+                     rs_grid => rs_v(igrid_level)
 
                      radius = exp_radius_very_extended(la_min=la_min(iset), la_max=la_max(iset), &
                                                        lb_min=0, lb_max=0, ra=ra, rb=ra, rp=ra, &
@@ -885,7 +884,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_v
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_v
       TYPE(realspace_grid_type), POINTER                 :: rs_grid
       TYPE(virial_type), POINTER                         :: virial
 
@@ -961,7 +960,7 @@ CONTAINS
                      DO jpgf = 1, npgfa(jset)
                         zetp = zeta(ipgf, iset) + zeta(jpgf, jset)
                         igrid_level = gaussian_gridlevel(gridlevel_info, zetp)
-                        rs_grid => rs_v(igrid_level)%rs_grid
+                        rs_grid => rs_v(igrid_level)
                         map_it2(ipgf, jpgf) = map_gaussian_here(rs_grid, cell%h_inv, ra, offset, group_size, my_pos)
                      END DO
                   END DO
@@ -988,7 +987,7 @@ CONTAINS
                            nb2 = jpgf*ncoset(la_max(jset))
                            zetp = zeta(ipgf, iset) + zeta(jpgf, jset)
                            igrid_level = gaussian_gridlevel(gridlevel_info, zetp)
-                           rs_grid => rs_v(igrid_level)%rs_grid
+                           rs_grid => rs_v(igrid_level)
 
                            radius = exp_radius_very_extended(la_min=la_min(iset), la_max=la_max(iset), &
                                                              lb_min=la_min(jset), lb_max=la_max(jset), &
@@ -1002,7 +1001,7 @@ CONTAINS
                                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
                                     la_max(jset), zeta(jpgf, jset), la_min(jset), &
                                     ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                    rsgrid=rs_v(igrid_level)%rs_grid, &
+                                    rsgrid=rs_v(igrid_level), &
                                     hab=hab, pab=pab, o1=na1, o2=nb1, &
                                     radius=radius, &
                                     calculate_forces=.TRUE., &
@@ -1013,7 +1012,7 @@ CONTAINS
                                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
                                     la_max(jset), zeta(jpgf, jset), la_min(jset), &
                                     ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                    rsgrid=rs_v(igrid_level)%rs_grid, &
+                                    rsgrid=rs_v(igrid_level), &
                                     hab=hab, o1=na1, o2=nb1, &
                                     radius=radius, &
                                     calculate_forces=.FALSE.)

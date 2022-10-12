@@ -37,7 +37,7 @@ MODULE rs_pw_interface
                                               pw_type
    USE realspace_grid_types,            ONLY: pw2rs,&
                                               realspace_grid_desc_p_type,&
-                                              realspace_grid_p_type,&
+                                              realspace_grid_type,&
                                               rs2pw,&
                                               rs_pw_transfer
 #include "../base/base_uses.f90"
@@ -70,7 +70,7 @@ CONTAINS
    SUBROUTINE density_rs2pw(pw_env, rs_rho, rho, rho_gspace)
 
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(realspace_grid_p_type), DIMENSION(:), &
+      TYPE(realspace_grid_type), DIMENSION(:), &
          INTENT(IN)                                      :: rs_rho
       TYPE(pw_type), INTENT(INOUT)                       :: rho, rho_gspace
 
@@ -101,14 +101,14 @@ CONTAINS
                                in_space=RECIPROCALSPACE)
 
       IF (gridlevel_info%ngrid_levels == 1) THEN
-         CALL rs_pw_transfer(rs_rho(1)%rs_grid, rho, rs2pw)
+         CALL rs_pw_transfer(rs_rho(1), rho, rs2pw)
          CALL pw_transfer(rho, rho_gspace)
          IF (rho%pw_grid%spherical) THEN ! rho_gspace = rho
             CALL pw_transfer(rho_gspace, rho)
          END IF
       ELSE
          DO igrid_level = 1, gridlevel_info%ngrid_levels
-            CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid, &
+            CALL rs_pw_transfer(rs_rho(igrid_level), &
                                 mgrid_rspace(igrid_level)%pw, rs2pw)
          END DO
 
@@ -158,7 +158,7 @@ CONTAINS
    SUBROUTINE density_rs2pw_basic(pw_env, rs_rho, rho, rho_gspace)
 
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(realspace_grid_p_type), DIMENSION(:), &
+      TYPE(realspace_grid_type), DIMENSION(:), &
          INTENT(IN)                                      :: rs_rho
       TYPE(pw_type), INTENT(INOUT)                       :: rho, rho_gspace
 
@@ -189,11 +189,11 @@ CONTAINS
                                in_space=RECIPROCALSPACE)
 
       IF (gridlevel_info%ngrid_levels == 1) THEN
-         CALL rs_pw_transfer(rs_rho(1)%rs_grid, rho, rs2pw)
+         CALL rs_pw_transfer(rs_rho(1), rho, rs2pw)
          CALL pw_transfer(rho, rho_gspace)
       ELSE
          DO igrid_level = 1, gridlevel_info%ngrid_levels
-            CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid, &
+            CALL rs_pw_transfer(rs_rho(igrid_level), &
                                 mgrid_rspace(igrid_level)%pw, rs2pw)
          END DO
 
@@ -246,7 +246,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE potential_pw2rs(rs_v, v_rspace, pw_env)
 
-      TYPE(realspace_grid_p_type), DIMENSION(:), &
+      TYPE(realspace_grid_type), DIMENSION(:), &
          INTENT(IN)                                      :: rs_v
       TYPE(pw_type), INTENT(IN)                          :: v_rspace
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -316,7 +316,7 @@ CONTAINS
       END SELECT
 
       DO igrid_level = 1, gridlevel_info%ngrid_levels
-         CALL rs_pw_transfer(rs_v(igrid_level)%rs_grid, &
+         CALL rs_pw_transfer(rs_v(igrid_level), &
                              mgrid_rspace(igrid_level)%pw, pw2rs)
       END DO
       ! *** give back the pw multi-grids

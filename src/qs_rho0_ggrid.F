@@ -60,8 +60,8 @@ MODULE qs_rho0_ggrid
                                               rho_atom_coeff,&
                                               rho_atom_type
    USE realspace_grid_types,            ONLY: &
-        pw2rs, realspace_grid_desc_p_type, realspace_grid_desc_type, realspace_grid_p_type, &
-        realspace_grid_type, rs2pw, rs_grid_create, rs_grid_release, rs_grid_zero, rs_pw_transfer
+        pw2rs, realspace_grid_desc_p_type, realspace_grid_desc_type, realspace_grid_type, rs2pw, &
+        rs_grid_create, rs_grid_release, rs_grid_zero, rs_pw_transfer
    USE util,                            ONLY: get_limit
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
@@ -117,7 +117,7 @@ CONTAINS
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: descs
       TYPE(realspace_grid_desc_type), POINTER            :: desc
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: grids
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: grids
       TYPE(realspace_grid_type), POINTER                 :: rs_grid
 
       CALL timeset(routineN, handle)
@@ -146,7 +146,7 @@ CONTAINS
       ! *** set up the rs grid at level igrid
       NULLIFY (rs_grid, desc, pw_pool)
       desc => descs(igrid)%rs_desc
-      rs_grid => grids(igrid)%rs_grid
+      rs_grid => grids(igrid)
       pw_pool => pw_pools(igrid)%pool
 
       CPASSERT(ASSOCIATED(desc))

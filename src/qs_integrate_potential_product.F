@@ -63,7 +63,7 @@ MODULE qs_integrate_potential_product
                                               get_qs_kind_set,&
                                               qs_kind_type
    USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
-                                              realspace_grid_p_type
+                                              realspace_grid_type
    USE rs_pw_interface,                 ONLY: potential_pw2rs
    USE task_list_methods,               ONLY: rs_copy_to_buffer,&
                                               rs_copy_to_matrices,&
@@ -149,7 +149,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_rho
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_rho
       TYPE(task_list_type), POINTER                      :: task_list, task_list_soft
       TYPE(task_type), DIMENSION(:), POINTER             :: tasks
 
@@ -184,10 +184,10 @@ CONTAINS
       CPASSERT(ASSOCIATED(pw_env))
       CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho)
       DO igrid_level = 1, gridlevel_info%ngrid_levels
-         distributed_grids = rs_rho(igrid_level)%rs_grid%desc%distributed
+         distributed_grids = rs_rho(igrid_level)%desc%distributed
       END DO
       ! get mpi group from rs_rho
-      group = rs_rho(1)%rs_grid%desc%group
+      group = rs_rho(1)%desc%group
 
       ! transform the potential on the rs_multigrids
       CALL potential_pw2rs(rs_rho, v_rspace, pw_env)
@@ -407,7 +407,7 @@ CONTAINS
             nb2 = jpgf*ncoset(lb_max(jset))
 
             ! check whether we need to use fawzi's generalised collocation scheme
-            IF (rs_rho(igrid_level)%rs_grid%desc%distributed) THEN
+            IF (rs_rho(igrid_level)%desc%distributed) THEN
                !tasks(4,:) is 0 for replicated, 1 for distributed 2 for exceptional distributed tasks
                IF (tasks(itask)%dist_type .EQ. 2) THEN
                   use_subpatch = .TRUE.
@@ -423,7 +423,7 @@ CONTAINS
                   CALL integrate_pgf_product( &
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                  ra, rab, rs_rho(igrid_level)%rs_grid, &
+                  ra, rab, rs_rho(igrid_level), &
                   hab, o1=na1 - 1, o2=nb1 - 1, &
                   radius=radius, &
                   calculate_forces=.TRUE., &
@@ -434,7 +434,7 @@ CONTAINS
                   CALL integrate_pgf_product( &
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                  ra, rab, rs_rho(igrid_level)%rs_grid, &
+                  ra, rab, rs_rho(igrid_level), &
                   hab, o1=na1 - 1, o2=nb1 - 1, &
                   radius=radius, &
                   calculate_forces=.TRUE., &
@@ -447,7 +447,7 @@ CONTAINS
                   CALL integrate_pgf_product( &
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                  rb, rab_inv, rs_rho(igrid_level)%rs_grid, &
+                  rb, rab_inv, rs_rho(igrid_level), &
                   hab, o1=nb1 - 1, o2=na1 - 1, &
                   radius=radius, &
                   calculate_forces=.TRUE., &
@@ -459,7 +459,7 @@ CONTAINS
                   CALL integrate_pgf_product( &
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                  rb, rab_inv, rs_rho(igrid_level)%rs_grid, &
+                  rb, rab_inv, rs_rho(igrid_level), &
                   hab, o1=nb1 - 1, o2=na1 - 1, &
                   radius=radius, &
                   calculate_forces=.TRUE., &
@@ -617,7 +617,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_v
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_v
       TYPE(task_list_type), POINTER                      :: task_list, task_list_soft
       TYPE(virial_type), POINTER                         :: virial
 
@@ -702,7 +702,7 @@ CONTAINS
       CALL pw_env_get(pw_env, rs_grids=rs_v)
 
       ! get mpi group from rs_v
-      group = rs_v(1)%rs_grid%desc%group
+      group = rs_v(1)%desc%group
 
       ! assign from pw_env
       gridlevel_info => pw_env%gridlevel_info
@@ -725,7 +725,7 @@ CONTAINS
 
       distributed_grids = .FALSE.
       DO igrid_level = 1, gridlevel_info%ngrid_levels
-         IF (rs_v(igrid_level)%rs_grid%desc%distributed) THEN
+         IF (rs_v(igrid_level)%desc%distributed) THEN
             distributed_grids = .TRUE.
          END IF
       END DO

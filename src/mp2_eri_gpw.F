@@ -68,7 +68,7 @@ MODULE mp2_eri_gpw
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE realspace_grid_types,            ONLY: map_gaussian_here,&
                                               realspace_grid_desc_p_type,&
-                                              realspace_grid_p_type
+                                              realspace_grid_type
    USE rs_pw_interface,                 ONLY: potential_pw2rs
    USE task_list_methods,               ONLY: generate_qs_task_list
    USE task_list_types,                 ONLY: allocate_task_list,&
@@ -207,7 +207,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_v
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_v
       TYPE(task_list_type), POINTER                      :: task_list_sub
 
       CALL timeset(routineN, handle)
@@ -294,9 +294,9 @@ CONTAINS
                offset = offset_2d(iset, iatom)
 
                igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, MINVAL(zeta(:, iset)))
-               use_subpatch = .NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)
+               use_subpatch = .NOT. ALL(rs_v(igrid_level)%desc%perd == 1)
 
-               IF (map_gaussian_here(rs_v(igrid_level)%rs_grid, cell%h_inv, ra, &
+               IF (map_gaussian_here(rs_v(igrid_level), cell%h_inv, ra, &
                                      offset, para_env_sub%num_pe, para_env_sub%mepos)) THEN
                   DO ipgf = 1, npgfa(iset)
                      sgfa = first_sgfa(1, iset)
@@ -314,7 +314,7 @@ CONTAINS
                         la_max=la_max(iset), zeta=zeta(ipgf, iset), la_min=la_min(iset), &
                         lb_max=0, zetb=0.0_dp, lb_min=0, &
                         ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
-                        rsgrid=rs_v(igrid_level)%rs_grid, &
+                        rsgrid=rs_v(igrid_level), &
                         hab=I_tmp2, &
                         o1=na1 - 1, &
                         o2=0, &
@@ -570,7 +570,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_v
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_v
 
       CALL timeset(routineN, handle)
 
@@ -659,9 +659,9 @@ CONTAINS
 
             igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, MINVAL(zeta(:, iset)))
             map_it_here = .FALSE.
-            use_subpatch = .NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)
+            use_subpatch = .NOT. ALL(rs_v(igrid_level)%desc%perd == 1)
 
-            IF (map_gaussian_here(rs_v(igrid_level)%rs_grid, cell%h_inv, ra, offset, para_env_sub%num_pe, para_env_sub%mepos)) THEN
+            IF (map_gaussian_here(rs_v(igrid_level), cell%h_inv, ra, offset, para_env_sub%num_pe, para_env_sub%mepos)) THEN
                DO ipgf = 1, npgfa(iset)
                   na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
                   na2 = ipgf*ncoset(la_max(iset))
@@ -676,7 +676,7 @@ CONTAINS
                   CALL integrate_pgf_product(la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
                                              lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
                                              ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                             rsgrid=rs_v(igrid_level)%rs_grid, &
+                                             rsgrid=rs_v(igrid_level), &
                                              hab=I_tmp2, &
                                              pab=pab, &
                                              o1=na1 - 1, &
@@ -877,7 +877,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_v
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_v
 
       CALL timeset(routineN, handle)
 
@@ -934,9 +934,9 @@ CONTAINS
             I_ab = 0.0_dp
 
             igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, MINVAL(zeta(:, iset)))
-            use_subpatch = .NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)
+            use_subpatch = .NOT. ALL(rs_v(igrid_level)%desc%perd == 1)
 
-            IF (map_gaussian_here(rs_v(igrid_level)%rs_grid, cell%h_inv, ra, offset, para_env_sub%num_pe, para_env_sub%mepos)) THEN
+            IF (map_gaussian_here(rs_v(igrid_level), cell%h_inv, ra, offset, para_env_sub%num_pe, para_env_sub%mepos)) THEN
                DO ipgf = 1, npgfa(iset)
                   na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
                   na2 = ipgf*ncoset(la_max(iset))
@@ -951,7 +951,7 @@ CONTAINS
                   CALL integrate_pgf_product(la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
                                              lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
                                              ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                             rsgrid=rs_v(igrid_level)%rs_grid, &
+                                             rsgrid=rs_v(igrid_level), &
                                              hab=I_tmp2, &
                                              pab=pab, &
                                              o1=na1 - 1, &

@@ -33,7 +33,7 @@ MODULE qs_linres_types
                                               rho_atom_type
    USE qs_rho_types,                    ONLY: qs_rho_p_type,&
                                               qs_rho_release
-   USE realspace_grid_types,            ONLY: realspace_grid_p_type
+   USE realspace_grid_types,            ONLY: realspace_grid_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -96,10 +96,6 @@ MODULE qs_linres_types
 !> \param jrho 1_atom_set : current density on the local atomic grids (only if gapw)
 !> \author MI
 ! **************************************************************************************************
-   TYPE realspaces_grid_p_type
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs
-   END TYPE realspaces_grid_p_type
-
    TYPE current_env_type
       LOGICAL                                     :: full, simple_done(6), simple_converged(6), do_qmmm
       LOGICAL                                     :: use_old_gauge_atom, chi_pbc, do_selected_states, &
@@ -117,8 +113,8 @@ MODULE qs_linres_types
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER :: psi1_p, psi1_rxp, psi1_D, p_psi0, rxp_psi0
       TYPE(jrho_atom_type), DIMENSION(:), POINTER :: jrho1_atom_set
       TYPE(qs_rho_p_type), DIMENSION(:), POINTER :: jrho1_set
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_buf
-      TYPE(realspaces_grid_p_type), DIMENSION(:), POINTER :: rs_gauge
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER :: rs_buf
+      TYPE(realspace_grid_type), DIMENSION(:, :), POINTER :: rs_gauge
       !
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: psi0_order
    END TYPE current_env_type
@@ -255,7 +251,7 @@ MODULE qs_linres_types
              nmr_env_type, issc_env_type, jrho_atom_type, &
              epr_env_type, dcdr_env_type, &
              nablavks_atom_type, current_env_type, &
-             realspaces_grid_p_type, polar_env_type
+             polar_env_type
 
 ! *** Public subroutines ***
 
@@ -503,7 +499,7 @@ CONTAINS
       REAL(dp), INTENT(OUT), OPTIONAL                    :: chi_tensor(3, 3, 2), &
                                                             chi_tensor_loc(3, 3, 2), &
                                                             gauge_atom_radius
-      TYPE(realspaces_grid_p_type), DIMENSION(:), &
+      TYPE(realspace_grid_type), DIMENSION(:, :), &
          OPTIONAL, POINTER                               :: rs_gauge
       LOGICAL, OPTIONAL                                  :: use_old_gauge_atom, chi_pbc
       TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &

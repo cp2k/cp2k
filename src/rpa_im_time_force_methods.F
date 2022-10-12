@@ -162,7 +162,7 @@ MODULE rpa_im_time_force_methods
                                               distribution_3d_type,&
                                               neighbor_list_3c_type
    USE realspace_grid_types,            ONLY: map_gaussian_here,&
-                                              realspace_grid_p_type
+                                              realspace_grid_type
    USE response_solver,                 ONLY: response_equation_new
    USE rpa_hfx,                         ONLY: add_exx_to_rhs
    USE rpa_im_time,                     ONLY: compute_mat_dm_global
@@ -2615,7 +2615,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: pot_g, psi_L, rho_g, rho_g_copy, rho_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_v
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_v
       TYPE(task_list_type), POINTER                      :: task_list_ext
 
       NULLIFY (sab_orb, task_list_ext, particle_set, qs_kind_set, dft_control, pw_env_ext, auxbas_pw_pool, &
@@ -2820,7 +2820,7 @@ CONTAINS
 
                   ! The last three parameters are used to check whether a given function is within the own range.
                   ! Here, it is always the case, so let's enforce it because mod(0, 1)==0
-                  IF (map_gaussian_here(rs_v(igrid_level)%rs_grid, cell%h_inv, ra, 0, 1, 0)) THEN
+                  IF (map_gaussian_here(rs_v(igrid_level), cell%h_inv, ra, 0, 1, 0)) THEN
                      DO ipgf = 1, npgfa(iset)
                         o1 = (ipgf - 1)*ncoset(la_max(iset))
                         igrid_level = gaussian_gridlevel(pw_env_ext%gridlevel_info, zeta(ipgf, iset))
@@ -2835,7 +2835,7 @@ CONTAINS
                            la_max=la_max(iset), zeta=zeta(ipgf, iset), la_min=la_min(iset), &
                            lb_max=0, zetb=0.0_dp, lb_min=0, &
                            ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
-                           rsgrid=rs_v(igrid_level)%rs_grid, &
+                           rsgrid=rs_v(igrid_level), &
                            hab=h_tmp, pab=pab, &
                            o1=o1, &
                            o2=0, &

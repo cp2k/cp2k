@@ -140,20 +140,20 @@ MODULE realspace_grid_types
 
    TYPE realspace_grid_type
 
-      TYPE(realspace_grid_desc_type), POINTER :: desc
+      TYPE(realspace_grid_desc_type), POINTER :: desc => NULL()
 
-      INTEGER :: id_nr ! unique identifier of rs
+      INTEGER :: id_nr=-1 ! unique identifier of rs
 
-      INTEGER :: ngpts_local ! local dimensions
-      INTEGER, DIMENSION(3) :: npts_local
-      INTEGER, DIMENSION(3) :: lb_local
-      INTEGER, DIMENSION(3) :: ub_local
-      INTEGER, DIMENSION(3) :: lb_real ! lower bounds of the real local data
-      INTEGER, DIMENSION(3) :: ub_real ! upper bounds of the real local data
+      INTEGER :: ngpts_local=-1 ! local dimensions
+      INTEGER, DIMENSION(3) :: npts_local=-1
+      INTEGER, DIMENSION(3) :: lb_local=-1
+      INTEGER, DIMENSION(3) :: ub_local=-1
+      INTEGER, DIMENSION(3) :: lb_real=-1 ! lower bounds of the real local data
+      INTEGER, DIMENSION(3) :: ub_real=-1 ! upper bounds of the real local data
 
-      INTEGER, DIMENSION(:), POINTER             :: px, py, pz ! index translators
+      INTEGER, DIMENSION(:), POINTER             :: px => NULL(), py => NULL(), pz => NULL() ! index translators
       TYPE(offload_buffer_type)                  :: buffer ! owner of the grid's memory
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: r ! the grid (pointer to buffer%host_buffer)
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: r=> NULL() ! the grid (pointer to buffer%host_buffer)
 
    END TYPE realspace_grid_type
 
@@ -2037,9 +2037,9 @@ CONTAINS
       CALL offload_free_buffer(rs_grid%buffer)
       NULLIFY (rs_grid%r)
 
-      DEALLOCATE (rs_grid%px)
-      DEALLOCATE (rs_grid%py)
-      DEALLOCATE (rs_grid%pz)
+      IF (ASSOCIATED(rs_grid%px)) DEALLOCATE (rs_grid%px)
+      IF (ASSOCIATED(rs_grid%py)) DEALLOCATE (rs_grid%py)
+      IF (ASSOCIATED(rs_grid%pz)) DEALLOCATE (rs_grid%pz)
    END SUBROUTINE rs_grid_release
 
 ! **************************************************************************************************

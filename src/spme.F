@@ -50,8 +50,8 @@ MODULE spme
                                               pw_p_type,&
                                               pw_type
    USE realspace_grid_types,            ONLY: &
-        pw2rs, realspace_grid_desc_type, realspace_grid_p_type, realspace_grid_type, rs2pw, &
-        rs_grid_create, rs_grid_release, rs_grid_set_box, rs_grid_zero, rs_pw_transfer
+        pw2rs, realspace_grid_desc_type, realspace_grid_type, rs2pw, rs_grid_create, &
+        rs_grid_release, rs_grid_set_box, rs_grid_zero, rs_pw_transfer
    USE shell_potential_types,           ONLY: shell_kind_type
 #include "./base/base_uses.f90"
 
@@ -127,10 +127,10 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       TYPE(pw_type), POINTER                             :: phi_g, rhob_g, rhob_r
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: drpot
+      TYPE(realspace_grid_type), DIMENSION(3)            :: drpot
       TYPE(realspace_grid_type), POINTER                 :: rden, rpot
 
-      NULLIFY (drpot, grid_spme, green, poisson_env, phi_g, rhob_g, rhob_r, pw_pool, rden, rpot)
+      NULLIFY (grid_spme, green, poisson_env, phi_g, rhob_g, rhob_r, pw_pool, rden, rpot)
       CALL timeset(routineN, handle)
       CALL cite_reference(Essmann1995)
 
@@ -358,16 +358,14 @@ CONTAINS
       !--------END OF STRESS TENSOR CALCULATION -----------
       ! move derivative of potential to real space grid and
       ! multiply by charge function in g-space
-      ALLOCATE (drpot(1:3))
       DO i = 1, 3
-         ALLOCATE (drpot(i)%rs_grid)
-         CALL rs_grid_create(drpot(i)%rs_grid, rs_desc)
-         CALL rs_grid_set_box(grid_spme, rs=drpot(i)%rs_grid)
+         CALL rs_grid_create(drpot(i), rs_desc)
+         CALL rs_grid_set_box(grid_spme, rs=drpot(i))
          dphi_g(i)%pw%cc = dphi_g(i)%pw%cc*green%p3m_charge%cr
          CALL pw_transfer(dphi_g(i)%pw, rhob_r)
          CALL pw_pool_give_back_pw(pw_pool, dphi_g(i)%pw)
          DEALLOCATE (dphi_g(i)%pw)
-         CALL rs_pw_transfer(drpot(i)%rs_grid, rhob_r, pw2rs)
+         CALL rs_pw_transfer(drpot(i), rhob_r, pw2rs)
       END DO
 
       CALL pw_pool_give_back_pw(pw_pool, rhob_r)
@@ -441,13 +439,9 @@ CONTAINS
       !------------------CLEANING UP ----------------------
       CALL rs_grid_release(rden)
       DEALLOCATE (rden)
-      IF (ASSOCIATED(drpot)) THEN
-         DO i = 1, 3
-            CALL rs_grid_release(drpot(i)%rs_grid)
-            DEALLOCATE (drpot(i)%rs_grid)
-         END DO
-         DEALLOCATE (drpot)
-      END IF
+      DO i = 1, 3
+         CALL rs_grid_release(drpot(i))
+      END DO
 
       DEALLOCATE (rhos)
       DEALLOCATE (center, delta)
@@ -648,10 +642,10 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       TYPE(pw_type), POINTER                             :: phi_g, rhob_g, rhob_r
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: drpot
+      TYPE(realspace_grid_type), DIMENSION(3)            :: drpot
       TYPE(realspace_grid_type), POINTER                 :: rden
 
-      NULLIFY (drpot, grid_spme, green, poisson_env, phi_g, rhob_g, rhob_r, &
+      NULLIFY (grid_spme, green, poisson_env, phi_g, rhob_g, rhob_r, &
                pw_pool, rden)
       CALL timeset(routineN, handle)
       CALL cite_reference(Essmann1995)
@@ -727,16 +721,14 @@ CONTAINS
       !---------- END OF ELECTROSTATIC CALCULATION --------
       ! move derivative of potential to real space grid and
       ! multiply by charge function in g-space
-      ALLOCATE (drpot(1:3))
       DO i = 1, 3
-         ALLOCATE (drpot(i)%rs_grid)
-         CALL rs_grid_create(drpot(i)%rs_grid, rs_desc)
-         CALL rs_grid_set_box(grid_spme, rs=drpot(i)%rs_grid)
+         CALL rs_grid_create(drpot(i), rs_desc)
+         CALL rs_grid_set_box(grid_spme, rs=drpot(i))
          dphi_g(i)%pw%cc = dphi_g(i)%pw%cc*green%p3m_charge%cr
          CALL pw_transfer(dphi_g(i)%pw, rhob_r)
          CALL pw_pool_give_back_pw(pw_pool, dphi_g(i)%pw)
          DEALLOCATE (dphi_g(i)%pw)
-         CALL rs_pw_transfer(drpot(i)%rs_grid, rhob_r, pw2rs)
+         CALL rs_pw_transfer(drpot(i), rhob_r, pw2rs)
       END DO
       !----------------- FORCE CALCULATION ----------------
       ALLOCATE (center(3, npart_b), delta(3, npart_b))
@@ -755,13 +747,9 @@ CONTAINS
          forces_b(3, p1) = forces_b(3, p1) - fat(3)*dvols
       END DO
       !------------------CLEANING UP ----------------------
-      IF (ASSOCIATED(drpot)) THEN
-         DO i = 1, 3
-            CALL rs_grid_release(drpot(i)%rs_grid)
-            DEALLOCATE (drpot(i)%rs_grid)
-         END DO
-         DEALLOCATE (drpot)
-      END IF
+      DO i = 1, 3
+         CALL rs_grid_release(drpot(i))
+      END DO
       CALL pw_pool_give_back_pw(pw_pool, phi_g)
       CALL pw_pool_give_back_pw(pw_pool, rhob_g)
       CALL pw_pool_give_back_pw(pw_pool, rhob_r)

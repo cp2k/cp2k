@@ -1335,8 +1335,7 @@ CONTAINS
       current_env%full_done = .FALSE.
       !
       ! allocate pointer for the gauge
-      ALLOCATE (current_env%rs_gauge(3))
-      NULLIFY (current_env%rs_gauge(1)%rs, current_env%rs_gauge(2)%rs, current_env%rs_gauge(3)%rs)
+      ALLOCATE (current_env%rs_gauge(3, pw_env%gridlevel_info%ngrid_levels))
 
       CALL cp_print_key_finished_output(output_unit, logger, lr_section, "PRINT%PROGRAM_RUN_INFO")
       CALL timestop(handle)
@@ -1471,23 +1470,20 @@ CONTAINS
          ! give back the gauge
          CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
          CALL pw_env_get(pw_env, rs_descs=rs_descs)
-         DO idir = 1, 3
-            IF (ASSOCIATED(current_env%rs_gauge(idir)%rs)) THEN
-               DO i = 1, SIZE(current_env%rs_gauge(idir)%rs)
-                  CALL rs_grid_release(current_env%rs_gauge(idir)%rs(i)%rs_grid)
-                  DEALLOCATE (current_env%rs_gauge(idir)%rs(i)%rs_grid)
+         IF (ASSOCIATED(current_env%rs_gauge)) THEN
+            DO idir = 1, 3
+               DO i = 1, SIZE(current_env%rs_gauge, 2)
+                  CALL rs_grid_release(current_env%rs_gauge(idir, i))
                END DO
-               DEALLOCATE (current_env%rs_gauge(idir)%rs)
-            END IF
-         END DO
+            END DO
+         END IF
          !
          DEALLOCATE (current_env%rs_gauge)
 
          ! give back the buf
          IF (ASSOCIATED(current_env%rs_buf)) THEN
             DO i = 1, SIZE(current_env%rs_buf)
-               CALL rs_grid_release(current_env%rs_buf(i)%rs_grid)
-               DEALLOCATE (current_env%rs_buf(i)%rs_grid)
+               CALL rs_grid_release(current_env%rs_buf(i))
             END DO
             DEALLOCATE (current_env%rs_buf)
          END IF
