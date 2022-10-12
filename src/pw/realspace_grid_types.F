@@ -59,7 +59,6 @@ MODULE realspace_grid_types
              rs_grid_set_box, &
              rs_grid_create, &
              rs_grid_create_descriptor, &
-             rs_grid_retain, &
              rs_grid_retain_descriptor, &
              rs_grid_release, &
              rs_grid_release_descriptor, &
@@ -77,7 +76,6 @@ MODULE realspace_grid_types
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_types'
    INTEGER, SAVE, PRIVATE :: last_rs_id = 0
-   INTEGER, SAVE, PRIVATE :: allocated_rs_grid_count = 0
    INTEGER, PARAMETER, PUBLIC :: rs2pw = 11, pw2rs = 12
 
 ! **************************************************************************************************
@@ -145,7 +143,6 @@ MODULE realspace_grid_types
       TYPE(realspace_grid_desc_type), POINTER :: desc
 
       INTEGER :: id_nr ! unique identifier of rs
-      INTEGER :: ref_count ! reference count
 
       INTEGER :: ngpts_local ! local dimensions
       INTEGER, DIMENSION(3) :: npts_local
@@ -505,7 +502,6 @@ CONTAINS
 
       last_rs_id = last_rs_id + 1
       rs%id_nr = last_rs_id
-      rs%ref_count = 1
       rs%desc => desc
       CALL rs_grid_retain_descriptor(rs%desc)
 
@@ -539,8 +535,6 @@ CONTAINS
          rs%npts_local = rs%ub_local - rs%lb_local + 1
          rs%ngpts_local = PRODUCT(rs%npts_local)
       END IF
-
-      allocated_rs_grid_count = allocated_rs_grid_count + 1
 
       CALL offload_create_buffer(rs%ngpts_local, rs%buffer)
       rs%r(rs%lb_local(1):rs%ub_local(1), &
@@ -2016,21 +2010,6 @@ CONTAINS
    END SUBROUTINE rs_grid_set_box
 
 ! **************************************************************************************************
-!> \brief retains the given rs grid (see doc/ReferenceCounting.html)
-!> \param rs_grid the grid to retain
-!> \par History
-!>      03.2003 created [fawzi]
-!> \author fawzi
-! **************************************************************************************************
-   SUBROUTINE rs_grid_retain(rs_grid)
-      TYPE(realspace_grid_type), POINTER                 :: rs_grid
-
-      CPASSERT(ASSOCIATED(rs_grid))
-      CPASSERT(rs_grid%ref_count > 0)
-      rs_grid%ref_count = rs_grid%ref_count + 1
-   END SUBROUTINE rs_grid_retain
-
-! **************************************************************************************************
 !> \brief retains the given rs grid descriptor (see doc/ReferenceCounting.html)
 !> \param rs_desc the grid descriptor to retain
 !> \par History
@@ -2056,22 +2035,15 @@ CONTAINS
       TYPE(realspace_grid_type), POINTER                 :: rs_grid
 
       IF (ASSOCIATED(rs_grid)) THEN
-         CPASSERT(rs_grid%ref_count > 0)
-         rs_grid%ref_count = rs_grid%ref_count - 1
-         IF (rs_grid%ref_count == 0) THEN
+         CALL rs_grid_release_descriptor(rs_grid%desc)
 
-            CALL rs_grid_release_descriptor(rs_grid%desc)
+         CALL offload_free_buffer(rs_grid%buffer)
+         NULLIFY (rs_grid%r)
 
-            allocated_rs_grid_count = allocated_rs_grid_count - 1
-
-            CALL offload_free_buffer(rs_grid%buffer)
-            NULLIFY (rs_grid%r)
-
-            DEALLOCATE (rs_grid%px)
-            DEALLOCATE (rs_grid%py)
-            DEALLOCATE (rs_grid%pz)
-            DEALLOCATE (rs_grid)
-         END IF
+         DEALLOCATE (rs_grid%px)
+         DEALLOCATE (rs_grid%py)
+         DEALLOCATE (rs_grid%pz)
+         DEALLOCATE (rs_grid)
       END IF
    END SUBROUTINE rs_grid_release
 
