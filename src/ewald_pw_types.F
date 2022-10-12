@@ -20,7 +20,6 @@ MODULE ewald_pw_types
    USE cp_realspace_grid_init,          ONLY: init_input_type
    USE dg_types,                        ONLY: dg_create,&
                                               dg_release,&
-                                              dg_retain,&
                                               dg_type
    USE dgs,                             ONLY: dg_pme_grid_setup
    USE ewald_environment_types,         ONLY: ewald_env_get,&
@@ -417,7 +416,6 @@ CONTAINS
          ewald_pw%rs_desc => rs_desc
       END IF
       IF (PRESENT(dg)) THEN
-         CALL dg_retain(dg)
          CALL dg_release(ewald_pw%dg)
          ewald_pw%dg => dg
       END IF
