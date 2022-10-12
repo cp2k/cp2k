@@ -13,7 +13,6 @@ MODULE dg_types
 
    USE dg_rho0_types,                   ONLY: dg_rho0_create,&
                                               dg_rho0_release,&
-                                              dg_rho0_retain,&
                                               dg_rho0_type
 #include "../base/base_uses.f90"
 
@@ -135,7 +134,6 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: grid_index
 
       IF (PRESENT(dg_rho0)) THEN
-         CALL dg_rho0_retain(dg_rho0)
          CALL dg_rho0_release(dg%dg_rho0)
          dg%dg_rho0 => dg_rho0
       END IF

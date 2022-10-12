@@ -178,7 +178,7 @@ CONTAINS
 
       CALL dg_rho0_init(dg_rho0, pw_grid)
 
-      CALL dg_set(dg, dg_rho0=dg_rho0, grid_index=grid_index)
+      CALL dg_set(dg, grid_index=grid_index)
 
    END SUBROUTINE ewald_pw_rho0_setup
 
