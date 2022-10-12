@@ -209,6 +209,7 @@ CONTAINS
             IF (ASSOCIATED(pw_env%rs_grids)) THEN
                DO i = 1, SIZE(pw_env%rs_grids)
                   CALL rs_grid_release(pw_env%rs_grids(i)%rs_grid)
+                  DEALLOCATE (pw_env%rs_grids(i)%rs_grid)
                END DO
                DEALLOCATE (pw_env%rs_grids)
             END IF

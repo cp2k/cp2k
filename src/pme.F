@@ -166,6 +166,7 @@ CONTAINS
       CALL pw_pool_create_pw(pw_small_pool, rhos2, &
                              use_data=REALDATA3D)
 
+      ALLOCATE (rden)
       CALL rs_grid_create(rden, rs_desc)
       CALL rs_grid_set_box(grid_b, rs=rden)
       CALL rs_grid_zero(rden)
@@ -256,6 +257,7 @@ CONTAINS
       ! atomic energies
       IF (atprop%energy .OR. atprop%stress) THEN
          dvols = rhos1%pw_grid%dvol
+         ALLOCATE (rpot)
          CALL rs_grid_create(rpot, rs_desc)
          CALL rs_pw_transfer(rpot, phi_r, pw2rs)
          ipart = 0
@@ -335,6 +337,7 @@ CONTAINS
             CALL pw_pool_give_back_pw(pw_big_pool, rhob_g)
          END IF
          CALL rs_grid_release(rpot)
+         DEALLOCATE (rpot)
       END IF
 
       CALL pw_pool_give_back_pw(pw_big_pool, phi_r)
@@ -359,6 +362,7 @@ CONTAINS
 
       ALLOCATE (drpot(1:3))
       DO i = 1, 3
+         ALLOCATE (drpot(i)%rs_grid)
          CALL rs_grid_create(drpot(i)%rs_grid, rs_desc)
          CALL rs_grid_set_box(grid_b, rs=drpot(i)%rs_grid)
          CALL pw_transfer(dphi_g(i)%pw, rhob_r)
@@ -462,12 +466,12 @@ CONTAINS
       !------------------CLEANING UP ----------------------
 
       CALL rs_grid_release(rden)
-      IF (ASSOCIATED(drpot)) THEN
-         DO i = 1, 3
-            CALL rs_grid_release(drpot(i)%rs_grid)
-         END DO
-         DEALLOCATE (drpot)
-      END IF
+      DEALLOCATE (rden)
+      DO i = 1, 3
+         CALL rs_grid_release(drpot(i)%rs_grid)
+         DEALLOCATE (drpot(i)%rs_grid)
+      END DO
+      DEALLOCATE (drpot)
 
       CALL pw_pool_give_back_pw(pw_small_pool, rhos1)
       CALL pw_pool_give_back_pw(pw_small_pool, rhos2)

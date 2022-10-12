@@ -149,6 +149,7 @@ CONTAINS
 
       n = o_spline
       ALLOCATE (rhos(n, n, n))
+      ALLOCATE (rden)
       CALL rs_grid_create(rden, rs_desc)
       CALL rs_grid_set_box(grid_spme, rs=rden)
       CALL rs_grid_zero(rden)
@@ -247,6 +248,7 @@ CONTAINS
 
       ! Atomic Energy and Stress
       IF (atprop%energy .OR. atprop%stress) THEN
+         ALLOCATE (rpot)
          CALL rs_grid_create(rpot, rs_desc)
          CALL rs_grid_set_box(grid_spme, rs=rpot)
          phi_g%cc = phi_g%cc*green%p3m_charge%cr
@@ -334,6 +336,7 @@ CONTAINS
             END DO
          END IF
          CALL rs_grid_release(rpot)
+         DEALLOCATE (rpot)
       END IF
 
       CALL pw_pool_give_back_pw(pw_pool, phi_g)
@@ -357,6 +360,7 @@ CONTAINS
       ! multiply by charge function in g-space
       ALLOCATE (drpot(1:3))
       DO i = 1, 3
+         ALLOCATE (drpot(i)%rs_grid)
          CALL rs_grid_create(drpot(i)%rs_grid, rs_desc)
          CALL rs_grid_set_box(grid_spme, rs=drpot(i)%rs_grid)
          dphi_g(i)%pw%cc = dphi_g(i)%pw%cc*green%p3m_charge%cr
@@ -436,9 +440,11 @@ CONTAINS
 
       !------------------CLEANING UP ----------------------
       CALL rs_grid_release(rden)
+      DEALLOCATE (rden)
       IF (ASSOCIATED(drpot)) THEN
          DO i = 1, 3
             CALL rs_grid_release(drpot(i)%rs_grid)
+            DEALLOCATE (drpot(i)%rs_grid)
          END DO
          DEALLOCATE (drpot)
       END IF
@@ -516,6 +522,7 @@ CONTAINS
 
       n = o_spline
       ALLOCATE (rhos(n, n, n))
+      ALLOCATE (rden)
       CALL rs_grid_create(rden, rs_desc)
       CALL rs_grid_set_box(grid_spme, rs=rden)
       CALL rs_grid_zero(rden)
@@ -589,6 +596,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(pw_pool, rhob_r)
       DEALLOCATE (phi_g, rhob_g, rhob_r)
       CALL rs_grid_release(rden)
+      DEALLOCATE (rden)
 
       DEALLOCATE (rhos)
       DEALLOCATE (center, delta)
@@ -662,6 +670,7 @@ CONTAINS
 
       n = o_spline
       ALLOCATE (rhos(n, n, n))
+      ALLOCATE (rden)
       CALL rs_grid_create(rden, rs_desc)
       CALL rs_grid_set_box(grid_spme, rs=rden)
       CALL rs_grid_zero(rden)
@@ -720,6 +729,7 @@ CONTAINS
       ! multiply by charge function in g-space
       ALLOCATE (drpot(1:3))
       DO i = 1, 3
+         ALLOCATE (drpot(i)%rs_grid)
          CALL rs_grid_create(drpot(i)%rs_grid, rs_desc)
          CALL rs_grid_set_box(grid_spme, rs=drpot(i)%rs_grid)
          dphi_g(i)%pw%cc = dphi_g(i)%pw%cc*green%p3m_charge%cr
@@ -748,6 +758,7 @@ CONTAINS
       IF (ASSOCIATED(drpot)) THEN
          DO i = 1, 3
             CALL rs_grid_release(drpot(i)%rs_grid)
+            DEALLOCATE (drpot(i)%rs_grid)
          END DO
          DEALLOCATE (drpot)
       END IF
@@ -756,6 +767,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(pw_pool, rhob_r)
       DEALLOCATE (phi_g, rhob_g, rhob_r)
       CALL rs_grid_release(rden)
+      DEALLOCATE (rden)
 
       DEALLOCATE (rhos)
       DEALLOCATE (center, delta)

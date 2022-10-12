@@ -48,7 +48,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: npart
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: center
       INTEGER, INTENT(OUT)                               :: p1
-      TYPE(realspace_grid_type), POINTER                 :: rs
+      TYPE(realspace_grid_type), INTENT(IN)              :: rs
       INTEGER, INTENT(INOUT)                             :: ipart
       INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: core_center
 

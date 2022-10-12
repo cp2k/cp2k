@@ -1096,7 +1096,6 @@ CONTAINS
       SELECT CASE (method)
       CASE (sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7)
          NULLIFY (rs_desc)
-         NULLIFY (rs_grid)
          rs_grid_section => section_vals_get_subs_vals(input, "DFT%MGRID%RS_GRID")
          SELECT CASE (method)
          CASE (sccs_derivative_cd3)
@@ -1110,6 +1109,7 @@ CONTAINS
                               1, (/-1, -1, -1/))
          CALL rs_grid_create_descriptor(rs_desc, f%pw_grid, input_settings, &
                                         border_points=border_points)
+         ALLOCATE (rs_grid)
          CALL rs_grid_create(rs_grid, rs_desc)
 !MK      CALL rs_grid_print(rs_grid, 6)
       CASE (sccs_derivative_fft)
@@ -1152,6 +1152,7 @@ CONTAINS
       SELECT CASE (method)
       CASE (sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7)
          CALL rs_grid_release(rs_grid)
+         DEALLOCATE (rs_grid)
          CALL rs_grid_release_descriptor(rs_desc)
       CASE (sccs_derivative_fft)
          DO i = 1, SIZE(work_g1d)

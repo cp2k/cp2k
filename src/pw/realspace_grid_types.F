@@ -489,7 +489,7 @@ CONTAINS
 !> \param desc ...
 ! **************************************************************************************************
    SUBROUTINE rs_grid_create(rs, desc)
-      TYPE(realspace_grid_type), POINTER                 :: rs
+      TYPE(realspace_grid_type), INTENT(OUT)             :: rs
       TYPE(realspace_grid_desc_type), POINTER            :: desc
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rs_grid_create'
@@ -497,8 +497,6 @@ CONTAINS
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
-
-      ALLOCATE (rs)
 
       last_rs_id = last_rs_id + 1
       rs%id_nr = last_rs_id
@@ -2032,19 +2030,16 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE rs_grid_release(rs_grid)
-      TYPE(realspace_grid_type), POINTER                 :: rs_grid
+      TYPE(realspace_grid_type), INTENT(INOUT)           :: rs_grid
 
-      IF (ASSOCIATED(rs_grid)) THEN
-         CALL rs_grid_release_descriptor(rs_grid%desc)
+      CALL rs_grid_release_descriptor(rs_grid%desc)
 
-         CALL offload_free_buffer(rs_grid%buffer)
-         NULLIFY (rs_grid%r)
+      CALL offload_free_buffer(rs_grid%buffer)
+      NULLIFY (rs_grid%r)
 
-         DEALLOCATE (rs_grid%px)
-         DEALLOCATE (rs_grid%py)
-         DEALLOCATE (rs_grid%pz)
-         DEALLOCATE (rs_grid)
-      END IF
+      DEALLOCATE (rs_grid%px)
+      DEALLOCATE (rs_grid%py)
+      DEALLOCATE (rs_grid%pz)
    END SUBROUTINE rs_grid_release
 
 ! **************************************************************************************************

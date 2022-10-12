@@ -78,6 +78,7 @@ CONTAINS
       rs_desc => rs_grid%desc
       CALL rs_pw_transfer(rs_grid, f, pw2rs)
       DO i = 1, 3
+         ALLOCATE (drs_grid(i)%rs_grid)
          CALL rs_grid_create(drs_grid(i)%rs_grid, rs_desc)
          CALL rs_grid_zero(drs_grid(i)%rs_grid)
       END DO
@@ -109,6 +110,7 @@ CONTAINS
       DO i = 1, 3
          CALL rs_pw_transfer(drs_grid(i)%rs_grid, df(i), rs2pw)
          CALL rs_grid_release(drs_grid(i)%rs_grid)
+         DEALLOCATE (drs_grid(i)%rs_grid)
       END DO
 
       CALL timestop(handle)
@@ -147,6 +149,7 @@ CONTAINS
       rs_desc => rs_grid%desc
       CALL rs_pw_transfer(rs_grid, f, pw2rs)
       DO i = 1, 3
+         ALLOCATE (drs_grid(i)%rs_grid)
          CALL rs_grid_create(drs_grid(i)%rs_grid, rs_desc)
          CALL rs_grid_zero(drs_grid(i)%rs_grid)
       END DO
@@ -178,6 +181,7 @@ CONTAINS
       DO i = 1, 3
          CALL rs_pw_transfer(drs_grid(i)%rs_grid, df(i), rs2pw)
          CALL rs_grid_release(drs_grid(i)%rs_grid)
+         DEALLOCATE (drs_grid(i)%rs_grid)
       END DO
 
       CALL timestop(handle)
@@ -216,6 +220,7 @@ CONTAINS
       rs_desc => rs_grid%desc
       CALL rs_pw_transfer(rs_grid, f, pw2rs)
       DO i = 1, 3
+         ALLOCATE (drs_grid(i)%rs_grid)
          CALL rs_grid_create(drs_grid(i)%rs_grid, rs_desc)
          CALL rs_grid_zero(drs_grid(i)%rs_grid)
       END DO
@@ -250,6 +255,7 @@ CONTAINS
       DO i = 1, 3
          CALL rs_pw_transfer(drs_grid(i)%rs_grid, df(i), rs2pw)
          CALL rs_grid_release(drs_grid(i)%rs_grid)
+         DEALLOCATE (drs_grid(i)%rs_grid)
       END DO
 
       CALL timestop(handle)

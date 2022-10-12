@@ -890,10 +890,10 @@ CONTAINS
          ! by distribute_tasks
          IF (rs_descs(igrid_level)%rs_desc%distributed .AND. .NOT. my_retain_rsgrid) THEN
             CALL rs_grid_release(rs_rho(igrid_level)%rs_grid)
-            NULLIFY (rs_rho(igrid_level)%rs_grid)
             CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
          END IF
          CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
+         ALLOCATE (rs_current(igrid_level)%rs_grid)
          CALL rs_grid_create(rs_current(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
          CALL rs_grid_zero(rs_current(igrid_level)%rs_grid)
       END DO
@@ -1243,11 +1243,13 @@ CONTAINS
       CALL density_rs2pw(pw_env, rs_current, current_rs, current_gs)
       DO i = 1, SIZE(rs_current)
          CALL rs_grid_release(rs_current(i)%rs_grid)
+         DEALLOCATE (rs_current(i)%rs_grid)
       END DO
 
       DO i = 1, SIZE(rs_rho)
          IF (rs_descs(i)%rs_desc%distributed .AND. .NOT. my_retain_rsgrid) THEN
             CALL rs_grid_release(rs_rho(i)%rs_grid)
+            DEALLOCATE (rs_rho(i)%rs_grid)
          END IF
       END DO
 
@@ -1483,6 +1485,9 @@ CONTAINS
          ALLOCATE (rs_gauge(3)%rs(pw_env%gridlevel_info%ngrid_levels))
          DO igrid_level = pw_env%gridlevel_info%ngrid_levels, 1, -1
 
+            ALLOCATE (rs_gauge(1)%rs(igrid_level)%rs_grid)
+            ALLOCATE (rs_gauge(2)%rs(igrid_level)%rs_grid)
+            ALLOCATE (rs_gauge(3)%rs(igrid_level)%rs_grid)
             CALL rs_grid_create(rs_gauge(1)%rs(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
             CALL rs_grid_create(rs_gauge(2)%rs(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
             CALL rs_grid_create(rs_gauge(3)%rs(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
@@ -1504,6 +1509,7 @@ CONTAINS
          ! allocate the buf
          ALLOCATE (current_env%rs_buf(pw_env%gridlevel_info%ngrid_levels))
          DO igrid_level = 1, pw_env%gridlevel_info%ngrid_levels
+            ALLOCATE (current_env%rs_buf(igrid_level)%rs_grid)
             CALL rs_grid_create(current_env%rs_buf(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
          END DO
          !

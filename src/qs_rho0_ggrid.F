@@ -355,7 +355,7 @@ CONTAINS
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
-      TYPE(realspace_grid_type), POINTER                 :: rs_v
+      TYPE(realspace_grid_type)                          :: rs_v
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: int_local_h, int_local_s
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
@@ -420,7 +420,7 @@ CONTAINS
       auxbas_grid = pw_env%auxbas_grid
 
       ! Get the potential on the right grid
-      NULLIFY (rs_v, rs_desc, pw_pool, pw_aux)
+      NULLIFY (rs_desc, pw_pool, pw_aux)
       rs_desc => rs_descs(igrid)%rs_desc
       pw_pool => pw_pools(igrid)%pool
 

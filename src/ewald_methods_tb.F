@@ -114,8 +114,9 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       TYPE(pw_type), POINTER                             :: phi_g, phib_g, rhob_g, rhob_r
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: drpot
-      TYPE(realspace_grid_type), POINTER                 :: rden, rpot
+      TYPE(realspace_grid_p_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: drpot
+      TYPE(realspace_grid_type)                          :: rden, rpot
 
       CALL timeset(routineN, handle)
       !-------------- INITIALISATION ---------------------
@@ -289,6 +290,7 @@ CONTAINS
          ! multiply by charge function in g-space
          ALLOCATE (drpot(1:3))
          DO i = 1, 3
+            ALLOCATE (drpot(i)%rs_grid)
             CALL rs_grid_create(drpot(i)%rs_grid, rs_desc)
             CALL rs_grid_set_box(grid_spme, rs=drpot(i)%rs_grid)
             dphi_g(i)%pw%cc = dphi_g(i)%pw%cc*green%p3m_charge%cr
@@ -337,12 +339,11 @@ CONTAINS
       CALL rs_grid_release(rden)
       CALL rs_grid_release(rpot)
       IF (calculate_forces) THEN
-         IF (ASSOCIATED(drpot)) THEN
-            DO i = 1, 3
-               CALL rs_grid_release(drpot(i)%rs_grid)
-            END DO
-            DEALLOCATE (drpot)
-         END IF
+         DO i = 1, 3
+            CALL rs_grid_release(drpot(i)%rs_grid)
+            DEALLOCATE (drpot(i)%rs_grid)
+         END DO
+         DEALLOCATE (drpot)
       END IF
       DEALLOCATE (rhos)
       DEALLOCATE (center, delta)
@@ -458,8 +459,9 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       TYPE(pw_type), POINTER                             :: phi_g, rhob_g, rhob_r
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: drpot
-      TYPE(realspace_grid_type), POINTER                 :: rden, rpot
+      TYPE(realspace_grid_p_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: drpot
+      TYPE(realspace_grid_type)                          :: rden, rpot
 
       CALL timeset(routineN, handle)
       !-------------- INITIALISATION ---------------------
@@ -550,6 +552,7 @@ CONTAINS
       ! multiply by charge function in g-space
       ALLOCATE (drpot(1:3))
       DO i = 1, 3
+         ALLOCATE (drpot(i)%rs_grid)
          CALL rs_grid_create(drpot(i)%rs_grid, rs_desc)
          CALL rs_grid_set_box(grid_spme, rs=drpot(i)%rs_grid)
          dphi_g(i)%pw%cc = dphi_g(i)%pw%cc*green%p3m_charge%cr
@@ -589,9 +592,10 @@ CONTAINS
 
       CALL rs_grid_release(rden)
       CALL rs_grid_release(rpot)
-      IF (ASSOCIATED(drpot)) THEN
+      IF (ALLOCATED(drpot)) THEN
          DO i = 1, 3
             CALL rs_grid_release(drpot(i)%rs_grid)
+            DEALLOCATE (drpot(i)%rs_grid)
          END DO
          DEALLOCATE (drpot)
       END IF

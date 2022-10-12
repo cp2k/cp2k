@@ -229,6 +229,7 @@ CONTAINS
       IF (ASSOCIATED(pw_env%rs_grids)) THEN
          DO i = 1, SIZE(pw_env%rs_grids)
             CALL rs_grid_release(pw_env%rs_grids(i)%rs_grid)
+            DEALLOCATE (pw_env%rs_grids(i)%rs_grid)
          END DO
          DEALLOCATE (pw_env%rs_grids)
       END IF
@@ -586,7 +587,7 @@ CONTAINS
 
          IF (rs_descs(igrid_level)%rs_desc%distributed) higher_grid_layout = rs_descs(igrid_level)%rs_desc%group_dim
 
-         NULLIFY (rs_grids(igrid_level)%rs_grid)
+         ALLOCATE (rs_grids(igrid_level)%rs_grid)
          CALL rs_grid_create(rs_grids(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
       END DO
       pw_env%rs_descs => rs_descs
@@ -1058,6 +1059,7 @@ CONTAINS
                            1, (/-1, -1, -1/))
       CALL rs_grid_create_descriptor(rs_desc, pw_grid, input_settings, &
                                      border_points=border_points)
+      ALLOCATE (diel_rs_grid)
       CALL rs_grid_create(diel_rs_grid, rs_desc)
 !   CALL rs_grid_print(diel_rs_grid,6)
       CALL rs_grid_release_descriptor(rs_desc)

@@ -722,7 +722,7 @@ CONTAINS
       TYPE(pw_type)                                      :: ca
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
       TYPE(realspace_grid_input_type)                    :: input_settings
-      TYPE(realspace_grid_type), POINTER                 :: rs_grid
+      TYPE(realspace_grid_type)                          :: rs_grid
       TYPE(section_vals_type), POINTER                   :: rs_grid_section
 
       CALL timeset(routineN, handle)
@@ -759,7 +759,6 @@ CONTAINS
       CALL init_input_type(input_settings, ns_max, rs_grid_section, 1, (/-1, -1, -1/))
 
       ! .. rs type
-      NULLIFY (rs_grid)
       NULLIFY (rs_desc)
       CALL rs_grid_create_descriptor(rs_desc, pw_grid=grid, input_settings=input_settings)
       CALL rs_grid_create(rs_grid, rs_desc)

@@ -337,7 +337,6 @@ CONTAINS
          DO i = 1, gridlevel_info%ngrid_levels
             IF (rs_descs(i)%rs_desc%distributed) THEN
                CALL rs_grid_release(rs_grids(i)%rs_grid)
-               NULLIFY (rs_grids(i)%rs_grid)
                CALL rs_grid_create(rs_grids(i)%rs_grid, rs_descs(i)%rs_desc)
             END IF
          END DO

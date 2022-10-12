@@ -1475,6 +1475,7 @@ CONTAINS
             IF (ASSOCIATED(current_env%rs_gauge(idir)%rs)) THEN
                DO i = 1, SIZE(current_env%rs_gauge(idir)%rs)
                   CALL rs_grid_release(current_env%rs_gauge(idir)%rs(i)%rs_grid)
+                  DEALLOCATE (current_env%rs_gauge(idir)%rs(i)%rs_grid)
                END DO
                DEALLOCATE (current_env%rs_gauge(idir)%rs)
             END IF
@@ -1486,6 +1487,7 @@ CONTAINS
          IF (ASSOCIATED(current_env%rs_buf)) THEN
             DO i = 1, SIZE(current_env%rs_buf)
                CALL rs_grid_release(current_env%rs_buf(i)%rs_grid)
+               DEALLOCATE (current_env%rs_buf(i)%rs_grid)
             END DO
             DEALLOCATE (current_env%rs_buf)
          END IF

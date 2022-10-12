@@ -661,13 +661,14 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
       TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_single, rs_single_charge, rs_single_dr
-      TYPE(realspace_grid_type), POINTER                 :: rs_rho_all, rs_rho_constr
+      TYPE(realspace_grid_type)                          :: rs_rho_constr
+      TYPE(realspace_grid_type), POINTER                 :: rs_rho_all
 
       NULLIFY (atom_list, atomic_kind_set, dft_control, &
                hirshfeld_env, particle_set, pw_env, auxbas_pw_pool, para_env, &
-               auxbas_rs_desc, cdft_control, pab, rs_rho_all, &
+               auxbas_rs_desc, cdft_control, pab, &
                hirshfeld_control, cell, rho_r, rho, rs_single, rs_single_dr, &
-               rs_rho_constr, rs_single_charge)
+               rs_single_charge)
 
       CALL timeset(routineN, handle)
       CALL get_qs_env(qs_env, &
@@ -750,7 +751,7 @@ CONTAINS
             ALLOCATE (cdft_control%group(igroup)%hw_rho_atomic(cdft_control%natoms))
             ALLOCATE (rs_single(cdft_control%natoms))
             DO i = 1, cdft_control%natoms
-               NULLIFY (rs_single(i)%rs_grid)
+               ALLOCATE (rs_single(i)%rs_grid)
                CALL rs_grid_create(rs_single(i)%rs_grid, auxbas_rs_desc)
                CALL rs_grid_zero(rs_single(i)%rs_grid)
             END DO
@@ -785,7 +786,7 @@ CONTAINS
             compute_charge = .FALSE.
 
             DO i = 1, cdft_control%natoms
-               NULLIFY (rs_single_charge(i)%rs_grid)
+               ALLOCATE (rs_single_charge(i)%rs_grid)
                CALL rs_grid_create(rs_single_charge(i)%rs_grid, auxbas_rs_desc)
                CALL rs_grid_zero(rs_single_charge(i)%rs_grid)
                compute_charge(cdft_control%atoms(i)) = .TRUE.
@@ -938,6 +939,7 @@ CONTAINS
          IF (hirshfeld_control%print_density .AND. igroup == 1) THEN
             DO i = 1, cdft_control%natoms
                CALL rs_grid_release(rs_single(i)%rs_grid)
+               DEALLOCATE (rs_single(i)%rs_grid)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_atomic(i)%pw)
                DEALLOCATE (cdft_control%group(igroup)%hw_rho_atomic(i)%pw)
             END DO
@@ -948,6 +950,7 @@ CONTAINS
          IF (cdft_control%atomic_charges .AND. igroup == 1) THEN
             DO i = 1, cdft_control%natoms
                CALL rs_grid_release(rs_single_charge(i)%rs_grid)
+               DEALLOCATE (rs_single_charge(i)%rs_grid)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_atomic_charge(i)%pw)
                DEALLOCATE (cdft_control%group(igroup)%hw_rho_atomic_charge(i)%pw)
             END DO
@@ -1009,7 +1012,7 @@ CONTAINS
                   END IF
 
                   DO i = num_species_small(k), num_species_small(k + 1)
-                     NULLIFY (rs_single_dr(i)%rs_grid)
+                     ALLOCATE (rs_single_dr(i)%rs_grid)
                      CALL rs_grid_create(rs_single_dr(i)%rs_grid, auxbas_rs_desc)
                      CALL rs_grid_zero(rs_single_dr(i)%rs_grid)
                   END DO
@@ -1064,6 +1067,7 @@ CONTAINS
                   DO iatom = num_species_small(k), num_species_small(k + 1)
                      CALL rs_pw_transfer(rs_single_dr(iatom)%rs_grid, pw_single_dr(iatom), rs2pw)
                      CALL rs_grid_release(rs_single_dr(iatom)%rs_grid)
+                     DEALLOCATE (rs_single_dr(iatom)%rs_grid)
                   END DO
 
                   DEALLOCATE (cores)

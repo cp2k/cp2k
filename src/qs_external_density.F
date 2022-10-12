@@ -105,6 +105,7 @@ CONTAINS
          ALLOCATE (rs_rho_ext(gridlevel_info%ngrid_levels))
 
          DO igrid_level = 1, gridlevel_info%ngrid_levels
+            ALLOCATE (rs_rho_ext(igrid_level)%rs_grid)
             CALL rs_grid_create(rs_rho_ext(igrid_level)%rs_grid, &
                                 rs_descs(igrid_level)%rs_desc)
             CALL rs_grid_zero(rs_rho_ext(igrid_level)%rs_grid)
@@ -200,6 +201,7 @@ CONTAINS
          CALL density_rs2pw(pw_env, rs_rho_ext, rho=rho_ext_r(1)%pw, rho_gspace=rho_ext_g(1)%pw)
          DO igrid_level = 1, SIZE(rs_rho_ext)
             CALL rs_grid_release(rs_rho_ext(igrid_level)%rs_grid)
+            DEALLOCATE (rs_rho_ext(igrid_level)%rs_grid)
          END DO
          tot_rho_r_ext(1) = pw_integrate_function(rho_ext_r(1)%pw, isign=1)
          IF (my_rank == 0) THEN

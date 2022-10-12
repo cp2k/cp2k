@@ -181,7 +181,6 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
       TYPE(realspace_grid_input_type)                    :: input_settings
-      TYPE(realspace_grid_type), POINTER                 :: rs
       TYPE(section_vals_type), POINTER                   :: poisson_section, rs_grid_section
 
       CALL timeset(routineN, handle)
@@ -276,9 +275,12 @@ CONTAINS
                               higher_grid_layout=(/-1, -1, -1/))
          CALL rs_grid_create_descriptor(rs_desc, pw_big_grid, input_settings)
 
-         CALL rs_grid_create(rs, rs_desc)
-         CALL rs_grid_print(rs, output_unit)
-         CALL rs_grid_release(rs)
+         BLOCK
+            TYPE(realspace_grid_type) :: rs
+            CALL rs_grid_create(rs, rs_desc)
+            CALL rs_grid_print(rs, output_unit)
+            CALL rs_grid_release(rs)
+         END BLOCK
 
          CALL cp_print_key_finished_output(output_unit, logger, print_section, "")
 
@@ -315,9 +317,13 @@ CONTAINS
                               higher_grid_layout=(/-1, -1, -1/))
          CALL rs_grid_create_descriptor(rs_desc, pw_big_grid, input_settings)
 
-         CALL rs_grid_create(rs, rs_desc)
-         CALL rs_grid_print(rs, output_unit)
-         CALL rs_grid_release(rs)
+         BLOCK
+            TYPE(realspace_grid_type) :: rs
+
+            CALL rs_grid_create(rs, rs_desc)
+            CALL rs_grid_print(rs, output_unit)
+            CALL rs_grid_release(rs)
+         END BLOCK
          CALL cp_print_key_finished_output(output_unit, logger, print_section, "")
 
          ewald_pw%rs_desc => rs_desc

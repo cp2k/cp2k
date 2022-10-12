@@ -655,7 +655,10 @@ CONTAINS
             CALL ps_implicit_release(poisson_env%implicit_env, &
                                      poisson_env%parameters%ps_implicit_params)
             CALL pw_grid_release(poisson_env%dct_pw_grid)
-            CALL rs_grid_release(poisson_env%diel_rs_grid)
+            IF (ASSOCIATED(poisson_env%diel_rs_grid)) THEN
+               CALL rs_grid_release(poisson_env%diel_rs_grid)
+               DEALLOCATE (poisson_env%diel_rs_grid)
+            END IF
             DEALLOCATE (poisson_env)
 
          END IF
