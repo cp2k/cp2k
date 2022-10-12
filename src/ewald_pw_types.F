@@ -219,8 +219,6 @@ CONTAINS
          NULLIFY (pw_pool)
          CALL pw_pool_create(pw_pool, pw_grid=pw_big_grid)
          ewald_pw%pw_big_pool => pw_pool
-         CALL pw_pool_retain(ewald_pw%pw_big_pool)
-         CALL pw_pool_release(pw_pool)
          CALL pw_grid_release(pw_big_grid)
          CALL cp_print_key_finished_output(output_unit, logger, print_section, "")
 
@@ -259,14 +257,10 @@ CONTAINS
          NULLIFY (pw_pool)
          CALL pw_pool_create(pw_pool, pw_grid=pw_big_grid)
          ewald_pw%pw_big_pool => pw_pool
-         CALL pw_pool_retain(ewald_pw%pw_big_pool)
-         CALL pw_pool_release(pw_pool)
 
          NULLIFY (pw_pool)
          CALL pw_pool_create(pw_pool, pw_grid=pw_small_grid)
          ewald_pw%pw_small_pool => pw_pool
-         CALL pw_pool_retain(ewald_pw%pw_small_pool)
-         CALL pw_pool_release(pw_pool)
 
          NULLIFY (rs_desc)
          CALL init_input_type(input_settings, nsmax=MAXVAL(pw_small_grid%npts(1:3)), &
@@ -307,8 +301,6 @@ CONTAINS
          NULLIFY (pw_pool)
          CALL pw_pool_create(pw_pool, pw_grid=pw_big_grid)
          ewald_pw%pw_big_pool => pw_pool
-         CALL pw_pool_retain(ewald_pw%pw_big_pool)
-         CALL pw_pool_release(pw_pool)
 
          NULLIFY (rs_desc)
          CALL init_input_type(input_settings, nsmax=o_spline, &
