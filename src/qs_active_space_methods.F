@@ -1348,7 +1348,8 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: pot_g, rho_g, rho_r, wfn_r
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:, :), TARGET:: wfn_a
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:, :), &
+         TARGET                                          :: wfn_a
       TYPE(pw_type), POINTER                             :: wfn1, wfn2, wfn3, wfn4
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
