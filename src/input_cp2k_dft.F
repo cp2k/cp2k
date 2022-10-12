@@ -510,6 +510,10 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_active_space_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
    END SUBROUTINE create_dft_section
 
 ! **************************************************************************************************
@@ -1078,9 +1082,9 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL create_active_space_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
+      ! CALL create_active_space_section(subsection)
+      ! CALL section_add_subsection(section, subsection)
+      ! CALL section_release(subsection)
 
       CALL section_create(subsection, __LOCATION__, name="GAPW", &
                           description="Controls the printing of some gapw related information (debug).", &
@@ -9135,6 +9139,20 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_EMBEDDING", &
+         description="Energy convergence threshold of the DFT ebedding scheme.", &
+         usage="EPS_EMBEDDING 1.0E-6 ", type_of_var=real_t, &
+         default_r_val=1.0E-6_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER", &
+         description="Max number of iterations for the DFT ebedding scheme.", &
+         usage="MAX_ITER 50", type_of_var=integer_t, &
+         default_i_val=50)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL create_print_orb_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -9151,7 +9169,42 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_qiskit_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
    END SUBROUTINE create_active_space_section
+
+! **************************************************************************************************
+!> \brief ...
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE create_qiskit_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="QISKIT", &
+                          description="Parameters to set up qiskit-nature as active space solver.", &
+                          n_keywords=2, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="PYTHON_PATH", &
+                          description="Path to the python installation containing qiskit.", &
+                          usage="PYTHON_PATH <PATH>", &
+                          type_of_var=lchar_t, repeats=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SCRIPT", &
+                          description="Name of the python script with the qiskit commands, may contain a path.", &
+                          usage="SCRIPT <FILENAME>", &
+                          type_of_var=lchar_t, repeats=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_qiskit_section
 
 ! **************************************************************************************************
 !> \brief ...

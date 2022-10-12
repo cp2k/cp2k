@@ -24,6 +24,7 @@ MODULE qs_energy
                                               section_vals_val_get
    USE lri_environment_methods,         ONLY: lri_print_stat
    USE mp2,                             ONLY: mp2_main
+   USE qs_active_space_methods,         ONLY: active_space_main
    USE qs_energy_init,                  ONLY: qs_energies_init
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_energy_utils,                 ONLY: qs_energies_properties
@@ -126,6 +127,9 @@ CONTAINS
             END IF
 
          END IF
+
+         ! Do active space calculation
+         CALL active_space_main(qs_env)
 
          ! Check for energy correction
          IF (qs_env%energy_correction) THEN

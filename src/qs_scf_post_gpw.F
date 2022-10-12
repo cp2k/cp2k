@@ -126,7 +126,6 @@ MODULE qs_scf_post_gpw
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_type
-   USE qs_active_space_methods,         ONLY: active_space_main
    USE qs_chargemol,                    ONLY: write_wfx
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_commutators,                  ONLY: build_com_hr_matrix
@@ -821,9 +820,6 @@ CONTAINS
 
       ! Use Wannier90 interface
       CALL wannier90_interface(input, logger, qs_env)
-
-      ! Do active space calculation
-      CALL active_space_main(input, logger, qs_env)
 
       IF (my_do_mp2) THEN
          ! Get everything back

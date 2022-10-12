@@ -40,7 +40,7 @@ case "$with_hdf5" in
       ./configure \
         --prefix="${pkg_install_dir}" \
         --libdir="${pkg_install_dir}/lib" \
-        --disable-shared \
+        --enable-fortran \
         > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
       make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
       make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
@@ -63,7 +63,7 @@ case "$with_hdf5" in
 
 esac
 if [ "$with_hdf5" != "__DONTUSE__" ]; then
-  HDF5_LIBS="-lhdf5 -lhdf5_hl -lz"
+  HDF5_LIBS="-lhdf5 -lhdf5_hl -lhdf5_fortran -lz"
   if [ "$with_hdf5" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_hdf5"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
@@ -77,7 +77,7 @@ EOF
   cat << EOF >> "${BUILDDIR}/setup_hdf5"
 export HDF5_CFLAGS="${HDF5_CFLAGS}"
 export HDF5_LDFLAGS="${HDF5_LDFLAGS}"
-export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__HDF5|)"
+export CP_DFLAGS="\${CP_DFLAGS} -D__HDF5"
 export CP_CFLAGS="\${CP_CFLAGS} ${HDF5_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${HDF5_LDFLAGS}"
 ####################################################
@@ -87,7 +87,7 @@ export CP_LDFLAGS="\${CP_LDFLAGS} ${HDF5_LDFLAGS}"
 #
 ####################################################
 
-export CP_LIBS="IF_MPI(${HDF5_LIBS}|) \${CP_LIBS}"
+export CP_LIBS="${HDF5_LIBS} \${CP_LIBS}"
 export HDF5_ROOT="$pkg_install_dir"
 export HDF5_LIBRARIES="$HDF5_LIBS"
 export HDF5_HL_LIBRARIES="$HDF5_LIBS"
