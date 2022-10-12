@@ -291,8 +291,10 @@ CONTAINS
       IF (ASSOCIATED(v_rspace)) THEN
          DO ispin = 1, nspins
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace(ispin)%pw)
+            DEALLOCATE (v_rspace(ispin)%pw)
             IF (ASSOCIATED(v_tau_rspace)) THEN
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace(ispin)%pw)
+               DEALLOCATE (v_tau_rspace(ispin)%pw)
             END IF
          END DO
          DEALLOCATE (v_rspace)
@@ -301,6 +303,7 @@ CONTAINS
       IF (ASSOCIATED(v_admm_rspace)) THEN
          DO ispin = 1, nspins
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_admm_rspace(ispin)%pw)
+            DEALLOCATE (v_admm_rspace(ispin)%pw)
          END DO
          DEALLOCATE (v_admm_rspace)
       END IF
