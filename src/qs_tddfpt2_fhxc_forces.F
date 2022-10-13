@@ -746,10 +746,12 @@ CONTAINS
          DEALLOCATE (rhox_r(ispin)%pw, rhox_g(ispin)%pw)
       END DO
       DEALLOCATE (rhox_r, rhox_g)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, rhox_tot_gspace)
       IF (gapw_xc) THEN
          DO ispin = 1, nspins
             CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoxx_r(ispin)%pw)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoxx_g(ispin)%pw)
+            DEALLOCATE (rhoxx_r(ispin)%pw, rhoxx_g(ispin)%pw)
          END DO
          DEALLOCATE (rhoxx_r, rhoxx_g)
       END IF

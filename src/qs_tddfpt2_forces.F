@@ -690,12 +690,12 @@ CONTAINS
       !
       deriv2_analytic = section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")
       IF (deriv2_analytic) THEN
-         NULLIFY (v_xc, v_xc_tau)
+         NULLIFY (v_xc, v_xc_tau, tau_r)
          IF (gapw_xc) THEN
             CALL get_qs_env(qs_env=qs_env, rho_xc=rho_xc)
-            CALL qs_fxc_analytic(rho_xc, trho_xc_r, NULL(), xc_section, auxbas_pw_pool, .FALSE., v_xc, v_xc_tau)
+            CALL qs_fxc_analytic(rho_xc, trho_xc_r, tau_r, xc_section, auxbas_pw_pool, .FALSE., v_xc, v_xc_tau)
          ELSE
-            CALL qs_fxc_analytic(rho, trho_r, NULL(), xc_section, auxbas_pw_pool, .FALSE., v_xc, v_xc_tau)
+            CALL qs_fxc_analytic(rho, trho_r, tau_r, xc_section, auxbas_pw_pool, .FALSE., v_xc, v_xc_tau)
          END IF
          IF (gapw .OR. gapw_xc) THEN
             CALL get_qs_env(qs_env, rho_atom_set=rho_atom_set)
@@ -750,18 +750,21 @@ CONTAINS
          CALL pw_pool_give_back_pw(auxbas_pw_pool, trho_r(ispin)%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, trho_g(ispin)%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
+         DEALLOCATE (trho_r(ispin)%pw, trho_g(ispin)%pw, v_xc(ispin)%pw)
       END DO
       DEALLOCATE (trho_r, trho_g, v_xc)
       IF (gapw_xc) THEN
          DO ispin = 1, nspins
             CALL pw_pool_give_back_pw(auxbas_pw_pool, trho_xc_r(ispin)%pw)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, trho_xc_g(ispin)%pw)
+            DEALLOCATE (trho_xc_r(ispin)%pw, trho_xc_g(ispin)%pw)
          END DO
          DEALLOCATE (trho_xc_r, trho_xc_g)
       END IF
       IF (ASSOCIATED(v_xc_tau)) THEN
          DO ispin = 1, nspins
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(ispin)%pw)
+            DEALLOCATE (v_xc_tau(ispin)%pw)
          END DO
          DEALLOCATE (v_xc_tau)
       END IF
@@ -821,6 +824,7 @@ CONTAINS
                                        task_list_external=task_list_aux_fit)
             END DO
             !
+            NULLIFY (v_xc)
             deriv2_analytic = section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")
             IF (deriv2_analytic) THEN
                NULLIFY (tau_r)

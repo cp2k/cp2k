@@ -1685,7 +1685,7 @@ CONTAINS
                virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - pv_loc)
             END IF
             !
-            NULLIFY (rho_g_aux, rho_r_aux, tau_r_aux, rhoz_g_aux, rhoz_r_aux)
+            NULLIFY (rho_g_aux, rho_r_aux, tau_r_aux)
             CALL qs_rho_get(rho_aux_fit, rho_r=rho_r_aux, rho_g=rho_g_aux, tau_r=tau_r_aux)
             ! rhoz_aux
             NULLIFY (rhoz_g_aux, rhoz_r_aux)
