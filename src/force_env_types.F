@@ -36,7 +36,6 @@ MODULE force_env_types
                                               fist_env_release,&
                                               fist_environment_type
    USE fp_types,                        ONLY: fp_env_release,&
-                                              fp_env_retain,&
                                               fp_type
    USE global_types,                    ONLY: global_environment_type,&
                                               globenv_release
@@ -47,7 +46,6 @@ MODULE force_env_types
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE metadynamics_types,              ONLY: meta_env_release,&
-                                              meta_env_retain,&
                                               meta_env_type
    USE mixed_energy_types,              ONLY: mixed_energy_type
    USE mixed_environment_types,         ONLY: get_mixed_env,&
@@ -631,14 +629,10 @@ CONTAINS
 
       CPASSERT(force_env%ref_count > 0)
       IF (PRESENT(meta_env)) THEN
-         IF (ASSOCIATED(meta_env)) THEN
-            CALL meta_env_retain(meta_env)
-         END IF
          CALL meta_env_release(force_env%meta_env)
          force_env%meta_env => meta_env
       END IF
       IF (PRESENT(fp_env)) THEN
-         CALL fp_env_retain(fp_env)
          CALL fp_env_release(force_env%fp_env)
          force_env%fp_env => fp_env
       END IF

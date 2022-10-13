@@ -51,11 +51,9 @@ MODULE f77_interface
                                               dbm_library_init
    USE eip_environment,                 ONLY: eip_init
    USE eip_environment_types,           ONLY: eip_env_create,&
-                                              eip_env_release,&
                                               eip_environment_type
    USE embed_main,                      ONLY: embed_create_force_env
-   USE embed_types,                     ONLY: embed_env_release,&
-                                              embed_env_type
+   USE embed_types,                     ONLY: embed_env_type
    USE environment,                     ONLY: cp2k_finalize,&
                                               cp2k_init,&
                                               cp2k_read,&
@@ -69,7 +67,6 @@ MODULE f77_interface
         force_env_type, multiple_fe_list
    USE fp_types,                        ONLY: fp_env_create,&
                                               fp_env_read,&
-                                              fp_env_release,&
                                               fp_env_write,&
                                               fp_type
    USE global_types,                    ONLY: global_environment_type,&
@@ -103,15 +100,12 @@ MODULE f77_interface
    USE message_passing,                 ONLY: &
         add_mp_perf_env, get_mp_perf_env, mp_comm_world, mp_environ, mp_max, mp_perf_env_release, &
         mp_perf_env_retain, mp_perf_env_type, mp_world_finalize, mp_world_init, rm_mp_perf_env
-   USE metadynamics_types,              ONLY: meta_env_release,&
-                                              meta_env_type
+   USE metadynamics_types,              ONLY: meta_env_type
    USE metadynamics_utils,              ONLY: metadyn_read
-   USE mixed_environment_types,         ONLY: mixed_env_release,&
-                                              mixed_environment_type
+   USE mixed_environment_types,         ONLY: mixed_environment_type
    USE mixed_main,                      ONLY: mixed_create_force_env
    USE nnp_environment,                 ONLY: nnp_init
    USE nnp_environment_types,           ONLY: nnp_env_create,&
-                                              nnp_env_release,&
                                               nnp_type
    USE offload_api,                     ONLY: offload_get_chosen_device,&
                                               offload_get_device_count,&
@@ -121,18 +115,14 @@ MODULE f77_interface
                                               pw_gpu_init
    USE pwdft_environment,               ONLY: pwdft_init
    USE pwdft_environment_types,         ONLY: pwdft_env_create,&
-                                              pwdft_env_release,&
                                               pwdft_environment_type
    USE qmmm_create,                     ONLY: qmmm_env_create
-   USE qmmm_types,                      ONLY: qmmm_env_release,&
-                                              qmmm_env_type
+   USE qmmm_types,                      ONLY: qmmm_env_type
    USE qmmmx_create,                    ONLY: qmmmx_env_create
-   USE qmmmx_types,                     ONLY: qmmmx_env_release,&
-                                              qmmmx_env_type
+   USE qmmmx_types,                     ONLY: qmmmx_env_type
    USE qs_environment,                  ONLY: qs_init
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_env_create,&
-                                              qs_env_release,&
                                               qs_environment_type
    USE reference_manager,               ONLY: remove_all_references
    USE string_table,                    ONLY: string_table_allocate,&
@@ -799,7 +789,6 @@ CONTAINS
                          subsys_section=subsys_section, use_motion_section=use_motion_section)
             CALL force_env_create(my_force_env, root_section, qs_env=qs_env, para_env=my_para_env, globenv=globenv, &
                                   force_env_section=force_env_section)
-            CALL qs_env_release(qs_env)
 
          CASE (do_qmmm)
             qmmm_section => section_vals_get_subs_vals(force_env_section, "QMMM")
@@ -807,14 +796,12 @@ CONTAINS
                                  force_env_section, qmmm_section, subsys_section, use_motion_section)
             CALL force_env_create(my_force_env, root_section, qmmm_env=qmmm_env, para_env=my_para_env, &
                                   globenv=globenv, force_env_section=force_env_section)
-            CALL qmmm_env_release(qmmm_env)
 
          CASE (do_qmmmx)
             CALL qmmmx_env_create(qmmmx_env, root_section, my_para_env, globenv, &
                                   force_env_section, subsys_section, use_motion_section)
             CALL force_env_create(my_force_env, root_section, qmmmx_env=qmmmx_env, para_env=my_para_env, &
                                   globenv=globenv, force_env_section=force_env_section)
-            CALL qmmmx_env_release(qmmmx_env)
 
          CASE (do_eip)
             CALL eip_env_create(eip_env)
@@ -822,7 +809,6 @@ CONTAINS
                           subsys_section=subsys_section)
             CALL force_env_create(my_force_env, root_section, eip_env=eip_env, para_env=my_para_env, &
                                   globenv=globenv, force_env_section=force_env_section)
-            CALL eip_env_release(eip_env)
 
          CASE (do_sirius)
             CALL pwdft_env_create(pwdft_env)
@@ -830,7 +816,6 @@ CONTAINS
                             subsys_section=subsys_section, use_motion_section=use_motion_section)
             CALL force_env_create(my_force_env, root_section, pwdft_env=pwdft_env, para_env=my_para_env, &
                                   globenv=globenv, force_env_section=force_env_section)
-            CALL pwdft_env_release(pwdft_env)
 
          CASE (do_mixed)
             CALL mixed_create_force_env(mixed_env, root_section, my_para_env, &
@@ -838,7 +823,6 @@ CONTAINS
                                         use_motion_section=use_motion_section)
             CALL force_env_create(my_force_env, root_section, mixed_env=mixed_env, para_env=my_para_env, &
                                   globenv=globenv, force_env_section=force_env_section)
-            CALL mixed_env_release(mixed_env)
             !TODO: the sub_force_envs should really be created via recursion
             use_multiple_para_env = .TRUE.
             CALL cp_add_default_logger(logger) ! just to get the logger swapping started
@@ -850,7 +834,6 @@ CONTAINS
                                         use_motion_section=use_motion_section)
             CALL force_env_create(my_force_env, root_section, embed_env=embed_env, para_env=my_para_env, &
                                   globenv=globenv, force_env_section=force_env_section)
-            CALL embed_env_release(embed_env)
             !TODO: the sub_force_envs should really be created via recursion
             use_multiple_para_env = .TRUE.
             CALL cp_add_default_logger(logger) ! just to get the logger swapping started
@@ -862,7 +845,6 @@ CONTAINS
                           subsys_section=subsys_section, use_motion_section=use_motion_section)
             CALL force_env_create(my_force_env, root_section, nnp_env=nnp_env, para_env=my_para_env, &
                                   globenv=globenv, force_env_section=force_env_section)
-            CALL nnp_env_release(nnp_env)
 
          CASE default
             CALL create_force_eval_section(section)
@@ -880,14 +862,12 @@ CONTAINS
             fe_section => section_vals_get_subs_vals(root_section, "MOTION%FREE_ENERGY")
             CALL metadyn_read(meta_env, my_force_env, root_section, my_para_env, fe_section)
             CALL force_env_set(my_force_env, meta_env=meta_env)
-            CALL meta_env_release(meta_env)
             ! Flexible Partition Setup
             fp_section => section_vals_get_subs_vals(root_section, "MOTION%FLEXIBLE_PARTITIONING")
             CALL fp_env_create(fp_env)
             CALL fp_env_read(fp_env, fp_section)
             CALL fp_env_write(fp_env, fp_section)
             CALL force_env_set(my_force_env, fp_env=fp_env)
-            CALL fp_env_release(fp_env)
          END IF
          ! Handle multiple force_eval
          IF (nforce_eval > 1 .AND. iforce_eval == 1) THEN
