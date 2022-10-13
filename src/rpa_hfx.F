@@ -61,10 +61,10 @@ MODULE rpa_hfx
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
+   USE qs_ks_reference,                 ONLY: ks_ref_potential
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_vxc,                          ONLY: qs_vxc_create
-   USE response_solver,                 ONLY: ks_ref_potential
    USE task_list_types,                 ONLY: task_list_type
    USE virial_types,                    ONLY: virial_type
 

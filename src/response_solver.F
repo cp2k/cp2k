@@ -21,6 +21,7 @@ MODULE response_solver
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
    USE cell_types,                      ONLY: cell_type
+   USE core_ae,                         ONLY: build_core_ae
    USE core_ppl,                        ONLY: build_core_ppl
    USE core_ppnl,                       ONLY: build_core_ppnl
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
@@ -96,7 +97,6 @@ MODULE response_solver
                                               RECIPROCALSPACE,&
                                               pw_create,&
                                               pw_p_type,&
-                                              pw_release,&
                                               pw_type
    USE qs_2nd_kernel_ao,                ONLY: build_dm_response
    USE qs_collocate_density,            ONLY: calculate_rho_elec
@@ -116,6 +116,7 @@ MODULE response_solver
                                               get_qs_kind_set,&
                                               qs_kind_type
    USE qs_kinetic,                      ONLY: build_kinetic_matrix
+   USE qs_ks_atom,                      ONLY: update_ks_atom
    USE qs_ks_methods,                   ONLY: calc_rho_tot_gspace
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_linres_methods,               ONLY: linres_solver
@@ -133,6 +134,7 @@ MODULE response_solver
                                               p_env_psi0_changed
    USE qs_p_env_types,                  ONLY: p_env_release,&
                                               qs_p_env_type
+   USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_vxc,                          ONLY: qs_vxc_create
@@ -158,7 +160,7 @@ MODULE response_solver
    LOGICAL, PARAMETER                   :: debug_forces = .TRUE.
 
    PUBLIC :: response_calculation, response_equation, response_force, response_force_xtb, &
-             ks_ref_potential, response_equation_new
+             response_equation_new
 
 ! **************************************************************************************************
 
@@ -839,9 +841,8 @@ CONTAINS
                                                             nao, nao_aux, natom, nder, nimages, &
                                                             nspins
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: distribute_fock_matrix, do_ex, do_hfx, &
-                                                            hfx_treat_lsd_in_core, resp_only, &
-                                                            s_mstruct_changed, use_virial
+      LOGICAL :: distribute_fock_matrix, do_ex, do_hfx, gapw, gapw_xc, hfx_treat_lsd_in_core, &
+         resp_only, s_mstruct_changed, use_virial
       REAL(KIND=dp)                                      :: eh1, ehartree, ekin_mol, eps_filter, &
                                                             eps_ppnl, exc, exc_aux_fit, fconv, focc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ftot1, ftot2, ftot3
@@ -863,7 +864,7 @@ CONTAINS
       TYPE(kg_environment_type), POINTER                 :: kg_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb, sac_ppl, sap_ppnl
+         POINTER                                         :: sab_orb, sac_ae, sac_ppl, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_g_aux, rho_r, rho_r_aux, &
@@ -899,7 +900,7 @@ CONTAINS
          CPASSERT(PRESENT(p_env))
       END IF
 
-      NULLIFY (ks_env, sab_orb, sac_ppl, sap_ppnl, tauz_r, virial)
+      NULLIFY (ks_env, sab_orb, sac_ae, sac_ppl, sap_ppnl, virial)
       CALL get_qs_env(qs_env=qs_env, &
                       cell=cell, &
                       force=force, &
@@ -907,10 +908,13 @@ CONTAINS
                       dft_control=dft_control, &
                       para_env=para_env, &
                       sab_orb=sab_orb, &
+                      sac_ae=sac_ae, &
                       sac_ppl=sac_ppl, &
                       sap_ppnl=sap_ppnl, &
                       virial=virial)
       nspins = dft_control%nspins
+      gapw = dft_control%qs_control%gapw
+      gapw_xc = dft_control%qs_control%gapw_xc
 
       IF (debug_forces) THEN
          CALL get_qs_env(qs_env, natom=natom, atomic_kind_set=atomic_kind_set)
@@ -996,6 +1000,26 @@ CONTAINS
          matrix_h(ispin, 1)%matrix => scrm(ispin)%matrix
       END DO
       matrix_h(1, 1)%matrix => scrm(1)%matrix
+
+      IF (ASSOCIATED(sac_ae)) THEN
+         nder = 1
+         IF (debug_forces) fodeb(1:3) = force(1)%all_potential(1:3, 1)
+         IF (debug_stress .AND. use_virial) stdeb = virial%pv_ppl
+         CALL build_core_ae(matrix_h, matrix_p, force, virial, .TRUE., use_virial, nder, &
+                            qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ae, &
+                            nimages, cell_to_index)
+         IF (debug_forces) THEN
+            fodeb(1:3) = force(1)%all_potential(1:3, 1) - fodeb(1:3)
+            CALL mp_sum(fodeb, para_env%group)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*dHae    ", fodeb
+         END IF
+         IF (debug_stress .AND. use_virial) THEN
+            stdeb = fconv*(virial%pv_ppl - stdeb)
+            CALL mp_sum(stdeb, para_env%group)
+            IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
+               'STRESS| Pz*dHae    ', one_third_sum_diag(stdeb), det_3x3(stdeb)
+         END IF
+      END IF
 
       IF (ASSOCIATED(sac_ppl)) THEN
          nder = 1
@@ -1125,13 +1149,28 @@ CONTAINS
 
       IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
       IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
-      DO ispin = 1, nspins
-         CALL pw_transfer(vh_rspace, vhxc_rspace)
-         CALL pw_axpy(vxc_rspace(ispin)%pw, vhxc_rspace)
-         CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
-                                 hmat=scrm(ispin), pmat=mpa(ispin), &
-                                 qs_env=qs_env, calculate_forces=.TRUE.)
-      END DO
+      IF (gapw_xc) THEN
+         DO ispin = 1, nspins
+            CALL pw_transfer(vh_rspace, vhxc_rspace)
+            CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
+                                    hmat=scrm(ispin), pmat=mpa(ispin), &
+                                    qs_env=qs_env, calculate_forces=.TRUE.)
+         END DO
+         DO ispin = 1, nspins
+            CALL pw_transfer(vxc_rspace(ispin)%pw, vhxc_rspace)
+            CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
+                                    hmat=scrm(ispin), pmat=mpa(ispin), &
+                                    qs_env=qs_env, gapw=gapw_xc, calculate_forces=.TRUE.)
+         END DO
+      ELSE
+         DO ispin = 1, nspins
+            CALL pw_transfer(vh_rspace, vhxc_rspace)
+            CALL pw_axpy(vxc_rspace(ispin)%pw, vhxc_rspace)
+            CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
+                                    hmat=scrm(ispin), pmat=mpa(ispin), &
+                                    qs_env=qs_env, gapw=gapw, calculate_forces=.TRUE.)
+         END DO
+      END IF
       IF (debug_forces) THEN
          fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
          CALL mp_sum(fodeb, para_env%group)
@@ -1150,7 +1189,8 @@ CONTAINS
          DO ispin = 1, nspins
             CALL integrate_v_rspace(v_rspace=vtau_rspace(ispin)%pw, &
                                     hmat=scrm(ispin), pmat=mpa(ispin), &
-                                    qs_env=qs_env, calculate_forces=.TRUE., compute_tau=.TRUE.)
+                                    qs_env=qs_env, gapw=(gapw .OR. gapw_xc), &
+                                    calculate_forces=.TRUE., compute_tau=.TRUE.)
          END DO
          IF (debug_forces) THEN
             fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
@@ -1165,6 +1205,32 @@ CONTAINS
          END IF
       END IF
       CALL pw_pool_give_back_pw(auxbas_pw_pool, vhxc_rspace)
+
+      IF (gapw) THEN
+         ! Hartree grid PAW term
+         CPASSERT(do_ex)
+         CPASSERT(.NOT. use_virial)
+         IF (debug_forces) fodeb(1:3) = force(1)%g0s_Vh_elec(1:3, 1)
+         CALL integrate_vhg0_rspace(qs_env, vh_rspace, para_env, calculate_forces=.TRUE., &
+                                    local_rho_set=ex_env%local_rho_set)
+         IF (debug_forces) THEN
+            fodeb(1:3) = force(1)%g0s_Vh_elec(1:3, 1) - fodeb(1:3)
+            CALL mp_sum(fodeb, para_env%group)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dVh[X]PAWg0", fodeb
+         END IF
+      END IF
+      IF (gapw .OR. gapw_xc) THEN
+         ! HXC term
+         IF (debug_forces) fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1)
+         CALL update_ks_atom(qs_env, scrm, mpa, forces=.TRUE., tddft=.TRUE., &
+                             rho_atom_external=ex_env%local_rho_set%rho_atom_set, &
+                             kscale=0.5_dp)
+         IF (debug_forces) THEN
+            fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1) - fodeb(1:3)
+            CALL mp_sum(fodeb, para_env%group)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*dVhxc[X]PAW ", fodeb
+         END IF
+      END IF
 
       ! Stress-tensor Pz*v_Hxc[Pin]
       IF (use_virial) THEN
@@ -1242,7 +1308,8 @@ CONTAINS
       CALL pw_zero(rhoz_tot_gspace)
       DO ispin = 1, nspins
          CALL calculate_rho_elec(ks_env=ks_env, matrix_p=mpa(ispin)%matrix, &
-                                 rho=rhoz_r(ispin)%pw, rho_gspace=rhoz_g(ispin)%pw)
+                                 rho=rhoz_r(ispin)%pw, rho_gspace=rhoz_g(ispin)%pw, &
+                                 soft_valid=gapw)
          CALL pw_axpy(rhoz_g(ispin)%pw, rhoz_tot_gspace)
       END DO
 
@@ -1423,7 +1490,7 @@ CONTAINS
                                  v_rspace=v_xc(ispin)%pw, &
                                  hmat=matrix_hz(ispin), &
                                  pmat=matrix_p(ispin, 1), &
-                                 calculate_forces=.TRUE.)
+                                 gapw=(gapw .OR. gapw_xc), calculate_forces=.TRUE.)
       END DO
 
       IF (debug_forces) THEN
@@ -1439,6 +1506,7 @@ CONTAINS
       END IF
 
       IF (ASSOCIATED(v_xc_tau)) THEN
+         CPASSERT(.NOT. (gapw .OR. gapw_xc))
          IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
          IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
          DO ispin = 1, nspins
@@ -1560,6 +1628,8 @@ CONTAINS
             CALL get_admm_env(admm_env, rho_aux_fit=rho_aux_fit, matrix_s_aux_fit=scrm, &
                               task_list_aux_fit=task_list_aux_fit)
             !
+            CPASSERT(.NOT. admm_env%do_gapw)
+            !
             NULLIFY (mpz, mhz, mhx, mhy)
             CALL dbcsr_allocate_matrix_set(mhx, nspins, 1)
             CALL dbcsr_allocate_matrix_set(mhy, nspins, 1)
@@ -1615,7 +1685,7 @@ CONTAINS
                virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - pv_loc)
             END IF
             !
-            NULLIFY (rho_g_aux, rho_r_aux, tau_r_aux, rhoz_g_aux, rhoz_r_aux)
+            NULLIFY (rho_g_aux, rho_r_aux, tau_r_aux)
             CALL qs_rho_get(rho_aux_fit, rho_r=rho_r_aux, rho_g=rho_g_aux, tau_r=tau_r_aux)
             ! rhoz_aux
             NULLIFY (rhoz_g_aux, rhoz_r_aux)

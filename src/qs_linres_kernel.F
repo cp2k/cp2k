@@ -206,7 +206,8 @@ CONTAINS
                                                             v_hartree_rspace
       TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho, rho1, rho1_xc, rho1a, rho_aux
+      TYPE(qs_rho_type), POINTER                         :: rho, rho0, rho1, rho1_xc, rho1a, &
+                                                            rho_aux, rho_xc
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
       TYPE(section_vals_type), POINTER                   :: input, xc_section, xc_section_aux
 
@@ -231,6 +232,7 @@ CONTAINS
                       admm_env=admm_env, &
                       para_env=para_env, &
                       rho=rho, &
+                      rho_xc=rho_xc, &
                       linres_control=linres_control, &
                       dft_control=dft_control)
 
@@ -313,8 +315,10 @@ CONTAINS
       ! *** calculate the xc potential ***
       NULLIFY (rho1a)
       IF (gapw_xc) THEN
+         rho0 => rho_xc
          rho1a => rho1_xc
       ELSE
+         rho0 => rho
          rho1a => rho1
       END IF
 
@@ -322,7 +326,7 @@ CONTAINS
       NULLIFY (v_xc_tau)
       IF (deriv2_analytic) THEN
          CALL qs_rho_get(rho1a, rho_r=rho1_r, tau_r=tau1_r)
-         CALL qs_fxc_analytic(rho, rho1_r, tau1_r, xc_section, auxbas_pw_pool, lr_triplet, v_xc, v_xc_tau)
+         CALL qs_fxc_analytic(rho0, rho1_r, tau1_r, xc_section, auxbas_pw_pool, lr_triplet, v_xc, v_xc_tau)
          IF (gapw .OR. gapw_xc) THEN
             CALL get_qs_env(qs_env, rho_atom_set=rho_atom_set)
             rho1_atom_set => p_env%local_rho_set%rho_atom_set
@@ -330,7 +334,7 @@ CONTAINS
                                              do_tddft=.FALSE., do_triplet=lr_triplet)
          END IF
       ELSE
-         CALL qs_fxc_fdiff(ks_env, rho, rho1a, xc_section, 6, lr_triplet, v_xc, v_xc_tau)
+         CALL qs_fxc_fdiff(ks_env, rho0, rho1a, xc_section, 6, lr_triplet, v_xc, v_xc_tau)
          CPASSERT((.NOT. gapw) .AND. (.NOT. gapw_xc))
       END IF
 
@@ -510,7 +514,6 @@ CONTAINS
          psmat(1:ns, 1:1) => rho_ao(1:ns)
          CALL update_ks_atom(qs_env, ksmat, psmat, forces=.FALSE., tddft=.TRUE., &
                              rho_atom_external=p_env%local_rho_set%rho_atom_set)
-
       ELSEIF (gapw_xc) THEN
          ns = SIZE(p_env%kpp1)
          ksmat(1:ns, 1:1) => p_env%kpp1(1:ns)

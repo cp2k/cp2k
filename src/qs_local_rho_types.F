@@ -44,7 +44,7 @@ MODULE qs_local_rho_types
       TYPE(rho_atom_type), DIMENSION(:), POINTER            :: rho_atom_set
       TYPE(rho0_mpole_type), POINTER                        :: rho0_mpole
       TYPE(rho0_atom_type), DIMENSION(:), POINTER           :: rho0_atom_set
-      TYPE(rhoz_type), DIMENSION(:), POINTER               :: rhoz_set
+      TYPE(rhoz_type), DIMENSION(:), POINTER                :: rhoz_set
       REAL(dp)                                              :: rhoz_tot
    END TYPE local_rho_type
 
@@ -200,6 +200,8 @@ CONTAINS
       NULLIFY (local_rho_set%rho0_atom_set)
       NULLIFY (local_rho_set%rho0_mpole)
       NULLIFY (local_rho_set%rhoz_set)
+
+      local_rho_set%rhoz_tot = 0.0_dp
 
    END SUBROUTINE local_rho_set_create
 

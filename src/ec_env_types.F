@@ -101,7 +101,7 @@ MODULE ec_env_types
       ! Harris (rhoout), and response density (rhoz) on grid
       TYPE(pw_p_type), DIMENSION(:), POINTER           :: rhoout_r, rhoz_r
       ! potentials from input density
-      TYPE(pw_type), POINTER                         :: vh_rspace
+      TYPE(pw_type)                                    :: vh_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER           :: vxc_rspace, vtau_rspace, vadmm_rspace
       ! efield
       TYPE(efield_berry_type), POINTER                 :: efield => NULL()
@@ -169,9 +169,8 @@ CONTAINS
             DEALLOCATE (ec_env%p_env)
          END IF
          ! potential
-         IF (ASSOCIATED(ec_env%vh_rspace)) THEN
+         IF (ASSOCIATED(ec_env%vh_rspace%pw_grid)) THEN
             CALL pw_release(ec_env%vh_rspace)
-            DEALLOCATE (ec_env%vh_rspace)
          END IF
          IF (ASSOCIATED(ec_env%vxc_rspace)) THEN
             DO iab = 1, SIZE(ec_env%vxc_rspace)

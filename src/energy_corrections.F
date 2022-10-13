@@ -152,6 +152,7 @@ MODULE energy_corrections
                                               qs_kind_type
    USE qs_kinetic,                      ONLY: build_kinetic_matrix
    USE qs_ks_methods,                   ONLY: calc_rho_tot_gspace
+   USE qs_ks_reference,                 ONLY: ks_ref_potential
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_linres_kernel,                ONLY: hfx_matrix
    USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues,&
@@ -171,8 +172,7 @@ MODULE energy_corrections
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_vxc,                          ONLY: qs_vxc_create
-   USE response_solver,                 ONLY: ks_ref_potential,&
-                                              response_calculation,&
+   USE response_solver,                 ONLY: response_calculation,&
                                               response_force
    USE string_utilities,                ONLY: uppercase
    USE task_list_methods,               ONLY: generate_qs_task_list
@@ -332,7 +332,6 @@ CONTAINS
 
       IF (ec_env%should_update) THEN
          CALL ec_build_neighborlist(qs_env, ec_env)
-         IF (.NOT. ASSOCIATED(ec_env%vh_rspace)) ALLOCATE (ec_env%vh_rspace)
          CALL ks_ref_potential(qs_env, &
                                ec_env%vh_rspace, &
                                ec_env%vxc_rspace, &

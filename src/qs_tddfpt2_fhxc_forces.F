@@ -54,6 +54,11 @@ MODULE qs_tddfpt2_fhxc_forces
                                               tb_spme_evaluate
    USE ewald_pw_types,                  ONLY: ewald_pw_type
    USE exstates_types,                  ONLY: excited_energy_type
+   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals,&
+                                              init_coulomb_local
+   USE hartree_local_types,             ONLY: hartree_local_create,&
+                                              hartree_local_release,&
+                                              hartree_local_type
    USE hfx_derivatives,                 ONLY: derivatives_four_center
    USE hfx_energy_potential,            ONLY: integrate_four_center
    USE hfx_ri,                          ONLY: hfx_ri_update_forces,&
@@ -94,16 +99,31 @@ MODULE qs_tddfpt2_fhxc_forces
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
+                                              qs_environment_type,&
+                                              set_qs_env
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_fxc,                          ONLY: qs_fgxc_create,&
                                               qs_fgxc_release
+   USE qs_gapw_densities,               ONLY: prepare_gapw_den
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
    USE qs_kernel_types,                 ONLY: full_kernel_env_type
    USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_ks_atom,                      ONLY: update_ks_atom
    USE qs_ks_types,                     ONLY: qs_ks_env_type
+   USE qs_local_rho_types,              ONLY: local_rho_set_create,&
+                                              local_rho_set_release,&
+                                              local_rho_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+   USE qs_oce_methods,                  ONLY: build_oce_matrices
+   USE qs_oce_types,                    ONLY: allocate_oce_set,&
+                                              create_oce_set,&
+                                              oce_matrix_type
    USE qs_overlap,                      ONLY: build_overlap_matrix
+   USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace,&
+                                              rho0_s_grid_create
+   USE qs_rho0_methods,                 ONLY: init_rho0
+   USE qs_rho_atom_methods,             ONLY: allocate_rho_atom_internals,&
+                                              calculate_rho_atom_coeff
    USE qs_rho_types,                    ONLY: qs_rho_create,&
                                               qs_rho_get,&
                                               qs_rho_set,&
@@ -114,6 +134,7 @@ MODULE qs_tddfpt2_fhxc_forces
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
    USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos,&
                                               tddfpt_work_matrices
+   USE qs_vxc_atom,                     ONLY: calculate_gfxc_atom
    USE task_list_types,                 ONLY: task_list_type
    USE util,                            ONLY: get_limit
    USE virial_types,                    ONLY: virial_type
@@ -153,12 +174,14 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fhxc_force', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, iounit, ispin, mspin, myfun, &
-                                                            n_rep_hf, nao, nao_aux, norb, nspins
-      LOGICAL :: distribute_fock_matrix, do_admm, do_analytic, do_hfx, do_numeric, &
+                                                            n_rep_hf, nao, nao_aux, natom, nkind, &
+                                                            norb, nspins
+      LOGICAL :: distribute_fock_matrix, do_admm, do_analytic, do_hfx, do_numeric, gapw, gapw_xc, &
          hfx_treat_lsd_in_core, is_rks_triplets, s_mstruct_changed, use_virial
-      REAL(KIND=dp)                                      :: eh1, focc, fval, xehartree
+      REAL(KIND=dp)                                      :: eh1, eh1c, eps_fit, focc, fval, xehartree
       REAL(KIND=dp), DIMENSION(3)                        :: fodeb
       TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: cpmos, evect
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, fm_struct_mat
       TYPE(cp_fm_type)                                   :: cvcmat, vcvec
@@ -169,21 +192,26 @@ CONTAINS
          matrix_hfx_admm, matrix_hfx_admm_asymm, matrix_hfx_asymm, matrix_hx, matrix_p, &
          matrix_p_admm, matrix_px1, matrix_px1_admm, matrix_px1_admm_asymm, matrix_px1_asymm, &
          matrix_s, matrix_s_aux_fit, matrix_wx1, mdum, mfx, mgx
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mhe, mpe
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mhe, mpe, mpga
       TYPE(dbcsr_type), POINTER                          :: dbwork, dbwork_asymm
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(hartree_local_type), POINTER                  :: hartree_local
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
+      TYPE(local_rho_type), POINTER                      :: local_rho_set, local_rho_set_admm, &
+                                                            local_rho_set_f, local_rho_set_g
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb
+         POINTER                                         :: sab, sab_aux_fit, sab_orb, sap_oce
+      TYPE(oce_matrix_type), POINTER                     :: oce
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: fxc_rho, fxc_tau, gxc_rho, gxc_tau, &
-                                                            rho_g_aux, rho_r_aux, rhox_g, &
-                                                            rhox_g_aux, rhox_r, rhox_r_aux, &
-                                                            tau_r_aux
+      TYPE(pw_p_type), DIMENSION(:), POINTER :: fxc_rho, fxc_tau, gxc_rho, gxc_tau, rho_g_aux, &
+         rho_r_aux, rhox_g, rhox_g_aux, rhox_r, rhox_r_aux, rhoxx_g, rhoxx_r, tau_r_aux
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: xv_hartree_gspace, xv_hartree_rspace
+      TYPE(pw_type)                                      :: rhox_tot_gspace, xv_hartree_gspace, &
+                                                            xv_hartree_rspace
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit, rhox, rhox_aux
       TYPE(section_vals_type), POINTER                   :: hfx_section, xc_section
@@ -206,6 +234,8 @@ CONTAINS
       CPASSERT(tddfpt_control%kernel == tddfpt_kernel_full)
       do_hfx = tddfpt_control%do_hfx
       do_admm = tddfpt_control%do_admm
+      gapw = dft_control%qs_control%gapw
+      gapw_xc = dft_control%qs_control%gapw_xc
 
       evect => ex_env%evect
       matrix_px1 => ex_env%matrix_px1
@@ -239,6 +269,53 @@ CONTAINS
                                     ncol=norb, alpha=focc)
       END DO
       !
+      CALL get_qs_env(qs_env, ks_env=ks_env, pw_env=pw_env, para_env=para_env)
+      !
+      NULLIFY (hartree_local, local_rho_set, local_rho_set_admm)
+      IF (gapw .OR. gapw_xc) THEN
+         CALL get_qs_env(qs_env, &
+                         atomic_kind_set=atomic_kind_set, &
+                         qs_kind_set=qs_kind_set)
+         CALL local_rho_set_create(local_rho_set)
+         CALL allocate_rho_atom_internals(local_rho_set%rho_atom_set, atomic_kind_set, &
+                                          qs_kind_set, dft_control, para_env)
+         IF (gapw) THEN
+            CALL get_qs_env(qs_env, natom=natom)
+            CALL init_rho0(local_rho_set, qs_env, dft_control%qs_control%gapw_control, .TRUE.)
+            CALL rho0_s_grid_create(pw_env, local_rho_set%rho0_mpole)
+            CALL hartree_local_create(hartree_local)
+            CALL init_coulomb_local(hartree_local, natom)
+         END IF
+
+         CALL get_qs_env(qs_env=qs_env, oce=oce, sap_oce=sap_oce, sab_orb=sab)
+         CALL create_oce_set(oce)
+         CALL get_qs_env(qs_env=qs_env, nkind=nkind, particle_set=particle_set)
+         CALL allocate_oce_set(oce, nkind)
+         eps_fit = dft_control%qs_control%gapw_control%eps_fit
+         CALL build_oce_matrices(oce%intac, .TRUE., 1, qs_kind_set, particle_set, &
+                                 sap_oce, eps_fit)
+         CALL set_qs_env(qs_env, oce=oce)
+
+         mpga(1:nspins, 1:1) => matrix_px1(1:nspins)
+         CALL calculate_rho_atom_coeff(qs_env, mpga, local_rho_set%rho_atom_set, &
+                                       qs_kind_set, oce, sab, para_env)
+         CALL prepare_gapw_den(qs_env, local_rho_set, do_rho0=gapw)
+         !
+         CALL local_rho_set_create(local_rho_set_f)
+         CALL allocate_rho_atom_internals(local_rho_set_f%rho_atom_set, atomic_kind_set, &
+                                          qs_kind_set, dft_control, para_env)
+         CALL calculate_rho_atom_coeff(qs_env, mpga, local_rho_set_f%rho_atom_set, &
+                                       qs_kind_set, oce, sab, para_env)
+         CALL prepare_gapw_den(qs_env, local_rho_set_f, do_rho0=.FALSE.)
+         !
+         CALL local_rho_set_create(local_rho_set_g)
+         CALL allocate_rho_atom_internals(local_rho_set_g%rho_atom_set, atomic_kind_set, &
+                                          qs_kind_set, dft_control, para_env)
+         CALL calculate_rho_atom_coeff(qs_env, mpga, local_rho_set_g%rho_atom_set, &
+                                       qs_kind_set, oce, sab, para_env)
+         CALL prepare_gapw_den(qs_env, local_rho_set_g, do_rho0=.FALSE.)
+      END IF
+      !
       IF (do_admm) THEN
          CALL get_qs_env(qs_env, admm_env=admm_env)
          nao_aux = admm_env%nao_aux_fit
@@ -265,9 +342,22 @@ CONTAINS
             CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, matrix_px1_admm_asymm(ispin)%matrix, &
                                   keep_sparsity=.TRUE.)
          END DO
+         !
+         IF (admm_env%do_gapw) THEN
+            CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set)
+            CALL local_rho_set_create(local_rho_set_admm)
+            CALL allocate_rho_atom_internals(local_rho_set_admm%rho_atom_set, atomic_kind_set, &
+                                             admm_env%admm_gapw_env%admm_kind_set, dft_control, para_env)
+            mpga(1:nspins, 1:1) => matrix_px1_admm(1:nspins)
+            CALL get_admm_env(qs_env%admm_env, sab_aux_fit=sab_aux_fit)
+            CALL calculate_rho_atom_coeff(qs_env, mpga, local_rho_set_admm%rho_atom_set, &
+                                          admm_env%admm_gapw_env%admm_kind_set, &
+                                          admm_env%admm_gapw_env%oce, sab_aux_fit, para_env)
+            CALL prepare_gapw_den(qs_env, local_rho_set_admm, do_rho0=.FALSE., &
+                                  kind_set_external=admm_env%admm_gapw_env%admm_kind_set)
+         END IF
       END IF
       !
-      CALL get_qs_env(qs_env, ks_env=ks_env, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
 
@@ -279,56 +369,90 @@ CONTAINS
          CALL pw_pool_create_pw(auxbas_pw_pool, rhox_g(ispin)%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       END DO
+      CALL pw_pool_create_pw(auxbas_pw_pool, rhox_tot_gspace, &
+                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
-      BLOCK
-         TYPE(pw_type) :: rhox_tot_gspace
-         CALL pw_pool_create_pw(auxbas_pw_pool, rhox_tot_gspace, &
-                                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-         CALL pw_zero(rhox_tot_gspace)
+      CALL pw_zero(rhox_tot_gspace)
+      DO ispin = 1, nspins
+         IF (nspins == 2) CALL dbcsr_scale(matrix_px1(ispin)%matrix, 2.0_dp)
+         CALL calculate_rho_elec(ks_env=ks_env, matrix_p=matrix_px1(ispin)%matrix, &
+                                 rho=rhox_r(ispin)%pw, rho_gspace=rhox_g(ispin)%pw, &
+                                 soft_valid=gapw)
+         CALL pw_axpy(rhox_g(ispin)%pw, rhox_tot_gspace)
+         IF (nspins == 2) CALL dbcsr_scale(matrix_px1(ispin)%matrix, 0.5_dp)
+      END DO
+
+      IF (gapw_xc) THEN
+         ALLOCATE (rhoxx_r(nspins), rhoxx_g(nspins))
+         DO ispin = 1, nspins
+            NULLIFY (rhoxx_r(ispin)%pw, rhoxx_g(ispin)%pw)
+            CALL pw_pool_create_pw(auxbas_pw_pool, rhoxx_r(ispin)%pw, &
+                                   use_data=REALDATA3D, in_space=REALSPACE)
+            CALL pw_pool_create_pw(auxbas_pw_pool, rhoxx_g(ispin)%pw, &
+                                   use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+         END DO
          DO ispin = 1, nspins
             IF (nspins == 2) CALL dbcsr_scale(matrix_px1(ispin)%matrix, 2.0_dp)
             CALL calculate_rho_elec(ks_env=ks_env, matrix_p=matrix_px1(ispin)%matrix, &
-                                    rho=rhox_r(ispin)%pw, rho_gspace=rhox_g(ispin)%pw)
-            CALL pw_axpy(rhox_g(ispin)%pw, rhox_tot_gspace)
+                                    rho=rhoxx_r(ispin)%pw, rho_gspace=rhoxx_g(ispin)%pw, &
+                                    soft_valid=gapw_xc)
             IF (nspins == 2) CALL dbcsr_scale(matrix_px1(ispin)%matrix, 0.5_dp)
          END DO
+      END IF
 
-         CALL get_qs_env(qs_env, matrix_s=matrix_s, force=force, para_env=para_env)
+      CALL get_qs_env(qs_env, matrix_s=matrix_s, force=force)
 
-         IF (.NOT. is_rks_triplets) THEN
-            NULLIFY (xv_hartree_rspace, xv_hartree_gspace)
-            ALLOCATE (xv_hartree_rspace, xv_hartree_gspace)
-            CALL pw_pool_create_pw(auxbas_pw_pool, xv_hartree_rspace, &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
-            CALL pw_pool_create_pw(auxbas_pw_pool, xv_hartree_gspace, &
-                                   use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-            ! calculate associated hartree potential
-            CALL pw_poisson_solve(poisson_env, rhox_tot_gspace, xehartree, &
-                                  xv_hartree_gspace)
-            CALL pw_transfer(xv_hartree_gspace, xv_hartree_rspace)
-            CALL pw_scale(xv_hartree_rspace, xv_hartree_rspace%pw_grid%dvol)
-            !
-            IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
-            NULLIFY (matrix_hx)
-            CALL dbcsr_allocate_matrix_set(matrix_hx, nspins)
-            DO ispin = 1, nspins
-               ALLOCATE (matrix_hx(ispin)%matrix)
-               CALL dbcsr_create(matrix_hx(ispin)%matrix, template=matrix_s(1)%matrix)
-               CALL dbcsr_copy(matrix_hx(ispin)%matrix, matrix_s(1)%matrix)
-               CALL dbcsr_set(matrix_hx(ispin)%matrix, 0.0_dp)
-               CALL integrate_v_rspace(qs_env=qs_env, v_rspace=xv_hartree_rspace, &
-                                       pmat=matrix_px1(ispin), &
-                                       hmat=matrix_hx(ispin), calculate_forces=.TRUE.)
-            END DO
+      IF (.NOT. is_rks_triplets) THEN
+         CALL pw_pool_create_pw(auxbas_pw_pool, xv_hartree_rspace, &
+                                use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_pool_create_pw(auxbas_pw_pool, xv_hartree_gspace, &
+                                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+         ! calculate associated hartree potential
+         IF (gapw) THEN
+            CALL pw_axpy(local_rho_set%rho0_mpole%rho0_s_gs, rhox_tot_gspace)
+         END IF
+         CALL pw_poisson_solve(poisson_env, rhox_tot_gspace, xehartree, &
+                               xv_hartree_gspace)
+         CALL pw_transfer(xv_hartree_gspace, xv_hartree_rspace)
+         CALL pw_scale(xv_hartree_rspace, xv_hartree_rspace%pw_grid%dvol)
+         !
+         IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
+         NULLIFY (matrix_hx)
+         CALL dbcsr_allocate_matrix_set(matrix_hx, nspins)
+         DO ispin = 1, nspins
+            ALLOCATE (matrix_hx(ispin)%matrix)
+            CALL dbcsr_create(matrix_hx(ispin)%matrix, template=matrix_s(1)%matrix)
+            CALL dbcsr_copy(matrix_hx(ispin)%matrix, matrix_s(1)%matrix)
+            CALL dbcsr_set(matrix_hx(ispin)%matrix, 0.0_dp)
+            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=xv_hartree_rspace, &
+                                    pmat=matrix_px1(ispin), hmat=matrix_hx(ispin), &
+                                    gapw=gapw, calculate_forces=.TRUE.)
+         END DO
+         IF (debug_forces) THEN
+            fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
+            CALL mp_sum(fodeb, para_env%group)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Px*dKh[X]   ", fodeb
+         END IF
+         IF (gapw) THEN
+            IF (debug_forces) fodeb(1:3) = force(1)%g0s_Vh_elec(1:3, 1)
+            CALL Vh_1c_gg_integrals(qs_env, eh1c, hartree_local%ecoul_1c, local_rho_set, para_env, tddft=.TRUE.)
+            CALL integrate_vhg0_rspace(qs_env, xv_hartree_rspace, para_env, calculate_forces=.TRUE., &
+                                       local_rho_set=local_rho_set)
             IF (debug_forces) THEN
-               fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
+               fodeb(1:3) = force(1)%g0s_Vh_elec(1:3, 1) - fodeb(1:3)
                CALL mp_sum(fodeb, para_env%group)
-               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Px*dKh[X]   ", fodeb
+               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Px*dKh[X]PAWg0", fodeb
+            END IF
+            IF (debug_forces) fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1)
+            CALL update_ks_atom(qs_env, matrix_hx, matrix_px1, forces=.TRUE., tddft=.TRUE., &
+                                rho_atom_external=local_rho_set%rho_atom_set, kscale=0.5_dp)
+            IF (debug_forces) THEN
+               fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1) - fodeb(1:3)
+               CALL mp_sum(fodeb, para_env%group)
+               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Px*dKh[X]PAW ", fodeb
             END IF
          END IF
-
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, rhox_tot_gspace)
-      END BLOCK
+      END IF
 
       ! XC
       NULLIFY (fxc_rho, fxc_tau, gxc_rho, gxc_tau)
@@ -350,13 +474,21 @@ CONTAINS
             CPABORT("invalid xc_kernel_method")
          END SELECT
 
-         NULLIFY (rho, ks_env)
-         CALL get_qs_env(qs_env=qs_env, ks_env=ks_env, rho=rho)
+         IF (gapw_xc) THEN
+            CALL get_qs_env(qs_env=qs_env, ks_env=ks_env, rho_xc=rho)
+         ELSE
+            CALL get_qs_env(qs_env=qs_env, ks_env=ks_env, rho=rho)
+         END IF
          CALL qs_rho_get(rho, rho_ao=matrix_p)
          NULLIFY (rhox)
          CALL qs_rho_create(rhox)
-         CALL qs_rho_set(rho_struct=rhox, rho_ao=matrix_px1, rho_r=rhox_r, rho_g=rhox_g, &
-                         rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
+         IF (gapw_xc) THEN
+            CALL qs_rho_set(rho_struct=rhox, rho_ao=matrix_px1, rho_r=rhoxx_r, rho_g=rhoxx_g, &
+                            rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
+         ELSE
+            CALL qs_rho_set(rho_struct=rhox, rho_ao=matrix_px1, rho_r=rhox_r, rho_g=rhox_g, &
+                            rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
+         END IF
          IF (do_analytic .AND. .NOT. do_numeric) THEN
             CPABORT("Analytic 3rd EXC derivatives not available")
          ELSE
@@ -376,6 +508,11 @@ CONTAINS
                IF (ASSOCIATED(gxc_tau)) CALL pw_scale(gxc_tau(ispin)%pw, 0.5_dp)
             END DO
          END IF
+         IF (gapw .OR. gapw_xc) THEN
+            CALL calculate_gfxc_atom(qs_env, ex_env%local_rho_set%rho_atom_set, &
+                                     local_rho_set_f%rho_atom_set, local_rho_set_g%rho_atom_set, &
+                                     qs_kind_set, xc_section, is_rks_triplets, 6)
+         END IF
 
          IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
          NULLIFY (matrix_fx)
@@ -387,8 +524,8 @@ CONTAINS
             CALL dbcsr_set(matrix_fx(ispin)%matrix, 0.0_dp)
             CALL pw_scale(fxc_rho(ispin)%pw, fxc_rho(ispin)%pw%pw_grid%dvol)
             CALL integrate_v_rspace(qs_env=qs_env, v_rspace=fxc_rho(ispin)%pw, &
-                                    pmat=matrix_px1(ispin), &
-                                    hmat=matrix_fx(ispin), calculate_forces=.TRUE.)
+                                    pmat=matrix_px1(ispin), hmat=matrix_fx(ispin), &
+                                    gapw=(gapw .OR. gapw_xc), calculate_forces=.TRUE.)
          END DO
          IF (debug_forces) THEN
             fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
@@ -407,8 +544,8 @@ CONTAINS
             CALL pw_scale(gxc_rho(ispin)%pw, gxc_rho(ispin)%pw%pw_grid%dvol)
             CALL pw_scale(gxc_rho(ispin)%pw, 0.5_dp)
             CALL integrate_v_rspace(qs_env=qs_env, v_rspace=gxc_rho(ispin)%pw, &
-                                    pmat=matrix_p(ispin), &
-                                    hmat=matrix_gx(ispin), calculate_forces=.TRUE.)
+                                    pmat=matrix_p(ispin), hmat=matrix_gx(ispin), &
+                                    gapw=(gapw .OR. gapw_xc), calculate_forces=.TRUE.)
             CALL dbcsr_scale(matrix_gx(ispin)%matrix, 2.0_dp)
          END DO
          IF (debug_forces) THEN
@@ -417,6 +554,26 @@ CONTAINS
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dKg[X]   ", fodeb
          END IF
          CALL qs_fgxc_release(ks_env, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+
+         IF (gapw .OR. gapw_xc) THEN
+            IF (debug_forces) fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1)
+            CALL update_ks_atom(qs_env, matrix_fx, matrix_px1, forces=.TRUE., tddft=.TRUE., &
+                                rho_atom_external=local_rho_set_f%rho_atom_set, kscale=0.5_dp)
+            IF (debug_forces) THEN
+               fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1) - fodeb(1:3)
+               CALL mp_sum(fodeb, para_env%group)
+               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Px*dKf[X]PAW ", fodeb
+            END IF
+            IF (debug_forces) fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1)
+            CALL update_ks_atom(qs_env, matrix_gx, matrix_p, forces=.TRUE., tddft=.TRUE., &
+                                rho_atom_external=local_rho_set_g%rho_atom_set, &
+                                kscale=0.5_dp)
+            IF (debug_forces) THEN
+               fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1) - fodeb(1:3)
+               CALL mp_sum(fodeb, para_env%group)
+               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Px*dKg[X]PAW ", fodeb
+            END IF
+         END IF
 
          IF (do_admm .AND. tddfpt_control%admm_xc_correction) THEN
             IF (qs_env%admm_env%aux_exch_func == do_admm_aux_exch_func_none) THEN
@@ -589,10 +746,18 @@ CONTAINS
          DEALLOCATE (rhox_r(ispin)%pw, rhox_g(ispin)%pw)
       END DO
       DEALLOCATE (rhox_r, rhox_g)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, rhox_tot_gspace)
+      IF (gapw_xc) THEN
+         DO ispin = 1, nspins
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoxx_r(ispin)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoxx_g(ispin)%pw)
+            DEALLOCATE (rhoxx_r(ispin)%pw, rhoxx_g(ispin)%pw)
+         END DO
+         DEALLOCATE (rhoxx_r, rhoxx_g)
+      END IF
       IF (.NOT. is_rks_triplets) THEN
          CALL pw_pool_give_back_pw(auxbas_pw_pool, xv_hartree_rspace)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, xv_hartree_gspace)
-         DEALLOCATE (xv_hartree_rspace, xv_hartree_gspace)
       END IF
 
       ! HFX
@@ -839,6 +1004,20 @@ CONTAINS
             CALL dbcsr_scale(matrix_hfx(ispin)%matrix, fval)
             CALL dbcsr_scale(matrix_hfx_asymm(ispin)%matrix, fval)
          END DO
+      END IF
+
+      IF (gapw .OR. gapw_xc) THEN
+         CALL local_rho_set_release(local_rho_set)
+         CALL local_rho_set_release(local_rho_set_f)
+         CALL local_rho_set_release(local_rho_set_g)
+         IF (gapw) THEN
+            CALL hartree_local_release(hartree_local)
+         END IF
+      END IF
+      IF (do_admm) THEN
+         IF (admm_env%do_gapw) THEN
+            CALL local_rho_set_release(local_rho_set_admm)
+         END IF
       END IF
 
       CALL get_qs_env(qs_env, sab_orb=sab_orb)
