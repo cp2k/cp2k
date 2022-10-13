@@ -22,6 +22,10 @@
 #include "grid_gpu_collint.h"
 #include "grid_gpu_collocate.h"
 
+#if defined(_OMP_H)
+#error "OpenMP should not be used in .cu files to accommodate HIP."
+#endif
+
 /*******************************************************************************
  * \brief Collocate a single grid point with distance d{xyz} from center.
  * \author Ole Schuett

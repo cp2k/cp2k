@@ -31,6 +31,10 @@ extern "C" {
 
 #include "grid_hip_task_list.h"
 
+#if defined(_OMP_H)
+#error "OpenMP should not be used in .cu files to accommodate HIP."
+#endif
+
 /*******************************************************************************
  * \brief Allocates a task list for the GPU backend.
  *        See grid_ctx.h for details.

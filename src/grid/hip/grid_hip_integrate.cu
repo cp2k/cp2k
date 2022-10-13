@@ -35,6 +35,10 @@
 namespace cg = cooperative_groups;
 #endif
 
+#if defined(_OMP_H)
+#error "OpenMP should not be used in .cu files to accommodate HIP."
+#endif
+
 namespace rocm_backend {
 // do a warp reduction and return the final sum to thread_id = 0
 template <typename T>

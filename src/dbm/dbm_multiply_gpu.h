@@ -9,15 +9,10 @@
 #define DBM_MULTIPLY_GPU_H
 
 #include "../offload/offload_runtime.h"
-
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
 
 #include "dbm_multiply_internal.h"
 #include "dbm_shard.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /*******************************************************************************
  * \brief Internal struct for storing per shard gpu objects.
@@ -83,10 +78,6 @@ void dbm_multiply_gpu_download_results(dbm_multiply_gpu_context_t *ctx);
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_multiply_gpu_stop(dbm_multiply_gpu_context_t *ctx);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif // defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
 #endif

@@ -8,9 +8,6 @@
 #ifndef DBM_MULTIPLY_INTERNAL_H
 #define DBM_MULTIPLY_INTERNAL_H
 
-#include "dbm_hyperparams.h"
-#include "dbm_shard.h"
-
 /*******************************************************************************
  * \brief Internal struct for storing a dbm_block_t plus its norm.
  * \author Ole Schuett

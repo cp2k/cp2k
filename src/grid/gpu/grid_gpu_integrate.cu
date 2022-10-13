@@ -22,6 +22,10 @@
 #include "grid_gpu_collint.h"
 #include "grid_gpu_integrate.h"
 
+#if defined(_OMP_H)
+#error "OpenMP should not be used in .cu files to accommodate HIP."
+#endif
+
 // Teen registers are sufficient to integrate lp <= 2 with a single grid sweep.
 #define GRID_N_CXYZ_REGISTERS 10
 
