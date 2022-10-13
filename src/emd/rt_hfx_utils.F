@@ -53,7 +53,7 @@ CONTAINS
    SUBROUTINE rtp_hfx_rebuild(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      LOGICAL                                            :: need_h_im = .FALSE.
+      LOGICAL                                            :: need_h_im
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_im, matrix_s_aux, &
                                                             rho_aux_ao_im
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -158,17 +158,18 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: headline
       INTEGER                                            :: image, ispin
-      LOGICAL                                            :: my_rebuild_h = .FALSE., &
-                                                            my_rebuild_ks = .FALSE., &
-                                                            my_rebuild_p = .FALSE.
+      LOGICAL                                            :: my_rebuild_h, my_rebuild_ks, my_rebuild_p
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h_im, matrix_h_kp, matrix_ks_im, &
                                                             matrix_ks_kp, matrix_p_im, rho_ao_kp
       TYPE(dbcsr_type), POINTER                          :: refmatrix
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
 
+      my_rebuild_p = .FALSE.
       IF (PRESENT(rebuild_matrix_p)) my_rebuild_p = rebuild_matrix_p
+      my_rebuild_ks = .FALSE.
       IF (PRESENT(rebuild_matrix_ks)) my_rebuild_ks = rebuild_matrix_ks
+      my_rebuild_h = .FALSE.
       IF (PRESENT(rebuild_matrix_h)) my_rebuild_h = rebuild_matrix_h
 
       NULLIFY (matrix_ks_kp, rho_ao_kp, sab_orb, matrix_h_kp)

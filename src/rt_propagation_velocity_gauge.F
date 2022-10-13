@@ -262,8 +262,6 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: vec_pot
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_vector_potential'
-
       ! fieldstrength
       ! for a delta pulse: vec_pot = - c * kvec
       ! the speed of light cancels in the terms in the velocity gauge Hamiltonian and is not
