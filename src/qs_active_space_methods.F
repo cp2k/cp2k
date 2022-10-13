@@ -624,7 +624,7 @@ CONTAINS
                   END IF
                END DO
                ! Release
-               DEALLOCATE(evals_virt)
+               DEALLOCATE (evals_virt)
                CALL cp_fm_release(fm_dummy)
                CALL cp_fm_release(mo_virt)
             END DO
@@ -823,7 +823,7 @@ CONTAINS
                END DO
 
                ! Release
-               DEALLOCATE(evals_virt)
+               DEALLOCATE (evals_virt)
                CALL cp_fm_release(fm_dummy)
                CALL cp_fm_release(mo_virt)
             END DO

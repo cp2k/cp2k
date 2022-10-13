@@ -417,7 +417,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'subspace_eigenvalues_ks_fm'
 
-      INTEGER                                            :: handle, i, j, ncol_global, nrow_global, n
+      INTEGER                                            :: handle, i, j, n, ncol_global, nrow_global
       LOGICAL                                            :: compute_evecs, do_rotation_local
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: evals
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
