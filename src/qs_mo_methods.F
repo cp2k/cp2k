@@ -417,7 +417,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'subspace_eigenvalues_ks_fm'
 
-      INTEGER                                            :: handle, i, j, ncol_global, nrow_global
+      INTEGER                                            :: handle, i, j, ncol_global, nrow_global, n
       LOGICAL                                            :: compute_evecs, do_rotation_local
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: evals
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
@@ -494,7 +494,8 @@ CONTAINS
 
          ! give output
          IF (PRESENT(evals_arg)) THEN
-            evals_arg(:) = evals(:)
+            n = MIN(SIZE(evals_arg), SIZE(evals))
+            evals_arg(1:n) = evals(1:n)
          END IF
 
          IF (PRESENT(ionode) .OR. PRESENT(scr)) THEN

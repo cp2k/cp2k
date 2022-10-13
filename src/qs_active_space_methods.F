@@ -543,7 +543,6 @@ CONTAINS
             CALL init_mo_set(mo_set, fm_struct=fm_struct_tmp, name="Active Space MO")
             CALL cp_fm_struct_release(fm_struct_tmp)
             active_space_env%mos_active(ispin)%mo_set => mo_set
-            mo_set => active_space_env%mos_inactive(ispin)%mo_set
             nel = active_space_env%nelec_inactive_spinwise(ispin)
             NULLIFY (mo_set)
             CALL allocate_mo_set(mo_set, nao, nmo, nel, REAL(nel, KIND=dp), maxocc, 0.0_dp)
@@ -624,8 +623,10 @@ CONTAINS
                      mo_set%occupation_numbers(m) = 1.0
                   END IF
                END DO
-               ! Release dummy
+               ! Release
+               DEALLOCATE(evals_virt)
                CALL cp_fm_release(fm_dummy)
+               CALL cp_fm_release(mo_virt)
             END DO
 
             CALL get_qs_env(qs_env, mos=mos)
@@ -821,8 +822,10 @@ CONTAINS
                   END IF
                END DO
 
-               ! Release dummy
+               ! Release
+               DEALLOCATE(evals_virt)
                CALL cp_fm_release(fm_dummy)
+               CALL cp_fm_release(mo_virt)
             END DO
 
             IF (iw > 0) THEN
