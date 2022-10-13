@@ -7,6 +7,10 @@
 
 #include "pw_gpu_kernels.h"
 
+#if defined(_OMP_H)
+#error "OpenMP should not be used in .cu files to accommodate HIP."
+#endif
+
 /*******************************************************************************
  * \brief   Performs a out-of-place copy of a double precision vector (first
  *          half filled) into a double precision complex vector on the GPU.

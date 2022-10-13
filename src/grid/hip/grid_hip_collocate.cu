@@ -25,6 +25,10 @@
 #include "grid_hip_internal_header.h"
 #include "grid_hip_prepare_pab.h"
 
+#if defined(_OMP_H)
+#error "OpenMP should not be used in .cu files to accommodate HIP."
+#endif
+
 namespace rocm_backend {
 /*******************************************************************************
  * \brief Decontracts the subblock, going from spherical to cartesian harmonics.
