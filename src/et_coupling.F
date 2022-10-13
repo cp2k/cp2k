@@ -213,8 +213,8 @@ CONTAINS
 
       IF (dft_control%qs_control%ddapc_restraint) THEN
          Waa = qs_env%et_coupling%order_p
-         Wbb = dft_control%qs_control%ddapc_restraint_control(1)%ddapc_restraint_control%ddapc_order_p
-         strength = dft_control%qs_control%ddapc_restraint_control(1)%ddapc_restraint_control%strength
+         Wbb = dft_control%qs_control%ddapc_restraint_control(1)%ddapc_order_p
+         strength = dft_control%qs_control%ddapc_restraint_control(1)%strength
       END IF
 
 !!   construct S and W   !!!

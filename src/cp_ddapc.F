@@ -129,7 +129,7 @@ CONTAINS
          END IF
 
          DO i = 1, SIZE(dft_control%qs_control%ddapc_restraint_control)
-            my_id = dft_control%qs_control%ddapc_restraint_control(i)%ddapc_restraint_control%density_type
+            my_id = dft_control%qs_control%ddapc_restraint_control(i)%density_type
             IF (my_id == do_spin_density .OR. ddapc_restraint_is_spin) ddapc_restraint_is_spin = .TRUE.
          END DO
          et_coupling_calc = dft_control%qs_control%et_coupling_calc
@@ -157,7 +157,7 @@ CONTAINS
          ! Restraints/Constraints
          DO i = 1, ddapc_size
             NULLIFY (ddapc_restraint_control)
-            ddapc_restraint_control => dft_control%qs_control%ddapc_restraint_control(i)%ddapc_restraint_control
+            ddapc_restraint_control => dft_control%qs_control%ddapc_restraint_control(i)
 
             CALL cp_ddapc_apply_RS(qs_env, energy%ddapc_restraint(i), v_hartree_gspace, &
                                    v_spin_ddapc_rest_g, ddapc_restraint_control, calculate_forces)
@@ -185,8 +185,8 @@ CONTAINS
                                              hmat=qs_env%et_coupling%rest_mat(1), &
                                              qs_env=qs_env, calculate_forces=.FALSE.)
                      qs_env%et_coupling%order_p = &
-                        dft_control%qs_control%ddapc_restraint_control(1)%ddapc_restraint_control%ddapc_order_p
-                     qs_env%et_coupling%e1 = dft_control%qs_control%ddapc_restraint_control(1)%ddapc_restraint_control%strength
+                        dft_control%qs_control%ddapc_restraint_control(1)%ddapc_order_p
+                     qs_env%et_coupling%e1 = dft_control%qs_control%ddapc_restraint_control(1)%strength
                      qs_env%et_coupling%keep_matrix = .FALSE.
                   ELSE
                      NULLIFY (qs_env%et_coupling%rest_mat(2)%matrix)

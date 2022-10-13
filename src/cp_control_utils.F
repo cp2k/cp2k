@@ -1914,7 +1914,7 @@ CONTAINS
          END IF
          IF (qs_control%ddapc_restraint) THEN
             DO i = 1, SIZE(qs_control%ddapc_restraint_control)
-               ddapc_restraint_control => qs_control%ddapc_restraint_control(i)%ddapc_restraint_control
+               ddapc_restraint_control => qs_control%ddapc_restraint_control(i)
                IF (SIZE(qs_control%ddapc_restraint_control) .GT. 1) &
                   WRITE (UNIT=output_unit, FMT="(T2,A,T3,I8)") &
                   "QS| parameters for DDAPC restraint number", i
@@ -2004,9 +2004,8 @@ CONTAINS
 
       DO i = 1, SIZE(qs_control%ddapc_restraint_control)
 
-         NULLIFY (qs_control%ddapc_restraint_control(i)%ddapc_restraint_control)
-         CALL ddapc_control_create(qs_control%ddapc_restraint_control(i)%ddapc_restraint_control)
-         ddapc_restraint_control => qs_control%ddapc_restraint_control(i)%ddapc_restraint_control
+         CALL ddapc_control_create(qs_control%ddapc_restraint_control(i))
+         ddapc_restraint_control => qs_control%ddapc_restraint_control(i)
 
          CALL section_vals_val_get(ddapc_section, "STRENGTH", i_rep_section=i, &
                                    r_val=ddapc_restraint_control%strength)
@@ -2065,7 +2064,7 @@ CONTAINS
       END DO
       k = 0
       DO i = 1, SIZE(qs_control%ddapc_restraint_control)
-         IF (qs_control%ddapc_restraint_control(i)%ddapc_restraint_control%functional_form == &
+         IF (qs_control%ddapc_restraint_control(i)%functional_form == &
              do_ddapc_constraint) k = k + 1
       END DO
       IF (k == 2) CALL cp_abort(__LOCATION__, &

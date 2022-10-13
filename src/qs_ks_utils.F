@@ -1096,7 +1096,7 @@ CONTAINS
          IF (dft_control%qs_control%ddapc_restraint) THEN
             DO n = 1, SIZE(dft_control%qs_control%ddapc_restraint_control)
                ddapc_order_p = &
-                  dft_control%qs_control%ddapc_restraint_control(n)%ddapc_restraint_control%ddapc_order_p
+                  dft_control%qs_control%ddapc_restraint_control(n)%ddapc_order_p
                WRITE (UNIT=output_unit, FMT="(T3,A,T41,2F20.10)") &
                   "DDAPC restraint (order_p,energy) : ", ddapc_order_p, energy%ddapc_restraint(n)
             END DO
