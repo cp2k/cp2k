@@ -63,14 +63,9 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE dg_create(dg)
-      TYPE(dg_type), POINTER                             :: dg
+      TYPE(dg_type), INTENT(OUT)                         :: dg
 
-      TYPE(dg_rho0_type), POINTER                        :: dg_rho0
-
-      ALLOCATE (dg)
-      NULLIFY (dg_rho0)
-      CALL dg_rho0_create(dg_rho0)
-      dg%dg_rho0 => dg_rho0
+      CALL dg_rho0_create(dg%dg_rho0)
 
    END SUBROUTINE dg_create
 
@@ -84,13 +79,9 @@ CONTAINS
 !>      see doc/ReferenceCounting.html
 ! **************************************************************************************************
    SUBROUTINE dg_release(dg)
-      TYPE(dg_type), POINTER                             :: dg
+      TYPE(dg_type), INTENT(INOUT)                       :: dg
 
-      IF (ASSOCIATED(dg)) THEN
-         CALL dg_rho0_release(dg%dg_rho0)
-         DEALLOCATE (dg)
-      END IF
-      NULLIFY (dg)
+      CALL dg_rho0_release(dg%dg_rho0)
    END SUBROUTINE dg_release
 
 ! **************************************************************************************************

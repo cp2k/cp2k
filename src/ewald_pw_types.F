@@ -98,16 +98,13 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell, cell_ref
       TYPE(section_vals_type), POINTER                   :: print_section
 
-      TYPE(dg_type), POINTER                             :: dg
-
-      NULLIFY (dg)
       ALLOCATE (ewald_pw)
       NULLIFY (ewald_pw%pw_big_pool)
       NULLIFY (ewald_pw%pw_small_pool)
       NULLIFY (ewald_pw%rs_desc)
       NULLIFY (ewald_pw%poisson_env)
-      CALL dg_create(dg)
-      ewald_pw%dg => dg
+      ALLOCATE (ewald_pw%dg)
+      CALL dg_create(ewald_pw%dg)
       ewald_pw%ref_count = 1
       last_ewald_pw_id_nr = last_ewald_pw_id_nr + 1
       ewald_pw%id_nr = last_ewald_pw_id_nr
@@ -137,6 +134,7 @@ CONTAINS
             CALL rs_grid_release_descriptor(ewald_pw%rs_desc)
             CALL pw_poisson_release(ewald_pw%poisson_env)
             CALL dg_release(ewald_pw%dg)
+            DEALLOCATE (ewald_pw%dg)
             DEALLOCATE (ewald_pw)
          END IF
       END IF
