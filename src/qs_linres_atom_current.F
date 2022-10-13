@@ -123,7 +123,7 @@ CONTAINS
       LOGICAL                                            :: den_found, dista, distab, distb, &
                                                             is_not_associated, paw_atom, &
                                                             sgf_soft_only_a, sgf_soft_only_b
-      REAL(dp)                                           :: eps_cpc, hard_radius_c, jmax, nbr_dbl, &
+      REAL(dp)                                           :: eps_cpc, jmax, nbr_dbl, &
                                                             rab(3), rbc(3)
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: a_matrix, b_matrix, c_matrix, d_matrix
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: C_coeff_hh_a, C_coeff_hh_b, &
@@ -254,7 +254,6 @@ CONTAINS
 !$OMP                 , basis_set_a, nsgfa                                      &
 !$OMP                 , basis_set_b, nsgfb                                      &
 !$OMP                 , basis_1c_set, jmax, den_found                          &
-!$OMP                 , hard_radius_c                                           &
 !$OMP                 , nsatbas, nsoctot, nso, paw_atom                         &
 !$OMP                 , iac , alist_ac, kac, n_cont_a, list_a, sgf_soft_only_a  &
 !$OMP                 , ibc , alist_bc, kbc, n_cont_b, list_b, sgf_soft_only_b  &
@@ -343,7 +342,6 @@ CONTAINS
          DO kkind = 1, nkind
             CALL get_qs_kind(qs_kind_set(kkind), &
                              basis_set=basis_1c_set, basis_type="GAPW_1C", &
-                             hard_radius=hard_radius_c, &
                              paw_atom=paw_atom)
 
             ! Quick cycle if needed.

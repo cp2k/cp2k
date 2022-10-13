@@ -41,7 +41,8 @@ MODULE qs_kind_types
         allocate_gto_basis_set, allocate_sto_basis_set, combine_basis_sets, &
         create_gto_from_sto_basis, deallocate_sto_basis_set, get_gto_basis_set, &
         gto_basis_set_type, init_aux_basis_set, init_orb_basis_set, read_gto_basis_set, &
-        read_sto_basis_set, sto_basis_set_type, write_gto_basis_set, write_orb_basis_set
+        read_sto_basis_set, sto_basis_set_type, write_gto_basis_set, write_orb_basis_set, &
+        copy_gto_basis_set
    USE cp_control_types,                ONLY: dft_control_type,&
                                               qs_control_type,&
                                               xtb_control_type
@@ -61,7 +62,8 @@ MODULE qs_kind_types
    USE input_constants,                 ONLY: &
         do_method_am1, do_method_dftb, do_method_mndo, do_method_mndod, do_method_pdg, &
         do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_pw, &
-        do_method_rm1, do_method_xtb, do_qs, do_sirius
+        do_method_rm1, do_method_xtb, do_qs, do_sirius, &
+        gapw_1c_external, gapw_1c_large, gapw_1c_medium, gapw_1c_orb, gapw_1c_small, gapw_1c_very_large
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -1292,8 +1294,10 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section
       LOGICAL, OPTIONAL                                  :: modify_qs_control
 
-      INTEGER                                            :: bas1c, ikind, nkind
-      LOGICAL                                            :: gpw, my_mod_control, paw_atom
+      CHARACTER(LEN=default_string_length)               :: bsname
+      INTEGER                                            :: bas1c, ikind, nkind, ilevel
+      LOGICAL                                            :: gpw, my_mod_control, paw_atom, &
+                                                            use_orb_basis, use_external_basis
       REAL(dp)                                           :: max_rad_local_type, rc
       TYPE(gto_basis_set_type), POINTER                  :: basis_1c, orb_basis, soft_basis
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj
@@ -1327,12 +1331,43 @@ CONTAINS
 
             bas1c = qs_control%gapw_control%basis_1c
             NULLIFY (basis_1c)
-            CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_1c, basis_type="GAPW_1C")
-            CALL create_1c_basis(orb_basis, soft_basis, basis_1c, bas1c)
-            IF (bas1c == 0) THEN
+            use_orb_basis = .FALSE.
+            use_external_basis = .FALSE.
+            SELECT CASE (bas1c)
+            CASE (gapw_1c_orb)
+               ilevel = 0
+               use_orb_basis = .TRUE.
+            CASE (gapw_1c_external)
+               ilevel = 0
+               use_external_basis = .TRUE.
+            CASE (gapw_1c_small)
+               ilevel = 1
+            CASE (gapw_1c_medium)
+               ilevel = 2
+            CASE (gapw_1c_large)
+               ilevel = 3
+            CASE (gapw_1c_very_large)
+               ilevel = 4
+            CASE DEFAULT
+               CPABORT("basis_1c type")
+            END SELECT
+            IF (use_orb_basis) THEN
+               CALL remove_basis_from_container(qs_kind%basis_sets, basis_type="GAPW_1C")
+               CALL copy_gto_basis_set(orb_basis, basis_1c)
+               CALL get_gto_basis_set(gto_basis_set=orb_basis, name=bsname)
+               basis_1c%name = TRIM(bsname)//"_1c"
+               CALL add_basis_set_to_container(qs_kind%basis_sets, basis_1c, "GAPW_1C")
+            ELSE IF (use_external_basis) THEN
+               CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_1c, basis_type="GAPW_1C")
+               IF (.NOT. ASSOCIATED(basis_1c)) THEN
+                  CPWARN("Requested GAPW_1C basis not specified in KIND section")
+                  CPABORT("GAPW BASIS")
+               END IF
+            ELSE
+               CALL remove_basis_from_container(qs_kind%basis_sets, basis_type="GAPW_1C")
+               CALL create_1c_basis(orb_basis, soft_basis, basis_1c, ilevel)
                CALL add_basis_set_to_container(qs_kind%basis_sets, basis_1c, "GAPW_1C")
             END IF
-
             IF (paw_atom) THEN
                CALL allocate_paw_proj_set(qs_kind%paw_proj_set)
                CALL get_qs_kind(qs_kind=qs_kind, paw_proj_set=paw_proj)
