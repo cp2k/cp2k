@@ -353,23 +353,22 @@ MODULE cp_control_types
 ! \brief Control parameters for the SCCS models
 ! **************************************************************************************************
    TYPE sccs_control_type
-      LOGICAL                              :: sccs_activated
-      INTEGER                              :: derivative_method, &
-                                              max_iter, &
-                                              method_id, &
-                                              ref_count
-      REAL(KIND=dp)                        :: alpha_solvent, &
-                                              beta, &
-                                              beta_solvent, &
-                                              delta_rho, &
-                                              eps_sccs, &
-                                              eps_scf, &
-                                              epsilon_solvent, &
-                                              gamma_solvent, &
-                                              mixing, &
-                                              rho_zero, &
-                                              rho_max, &
-                                              rho_min
+      LOGICAL                              :: sccs_activated = .FALSE.
+      INTEGER                              :: derivative_method = 0, &
+                                              max_iter = 0, &
+                                              method_id = 0
+      REAL(KIND=dp)                        :: alpha_solvent = 0.0_dp, &
+                                              beta = 0.0_dp, &
+                                              beta_solvent = 0.0_dp, &
+                                              delta_rho = 0.0_dp, &
+                                              eps_sccs = 0.0_dp, &
+                                              eps_scf = 0.0_dp, &
+                                              epsilon_solvent = 0.0_dp, &
+                                              gamma_solvent = 0.0_dp, &
+                                              mixing = 0.0_dp, &
+                                              rho_zero = 0.0_dp, &
+                                              rho_max = 0.0_dp, &
+                                              rho_min = 0.0_dp
    END TYPE sccs_control_type
 
 ! **************************************************************************************************
@@ -617,8 +616,7 @@ MODULE cp_control_types
              admm_control_create, &
              maxwell_control_create, &
              expot_control_create, &
-             ddapc_control_create, &
-             sccs_control_create
+             ddapc_control_create
 
 CONTAINS
 
@@ -789,7 +787,7 @@ CONTAINS
             CALL expot_control_release(dft_control%expot_control)
             CALL maxwell_control_release(dft_control%maxwell_control)
             CALL efield_fields_release(dft_control%efield_fields)
-            CALL sccs_control_release(dft_control%sccs_control)
+            IF (ASSOCIATED(dft_control%sccs_control)) DEALLOCATE (dft_control%sccs_control)
             IF (ASSOCIATED(dft_control%period_efield)) THEN
                DEALLOCATE (dft_control%period_efield)
             END IF
@@ -1111,61 +1109,6 @@ CONTAINS
          DEALLOCATE (admm_control)
       END IF
    END SUBROUTINE admm_control_release
-
-! **************************************************************************************************
-!> \brief   Create sccs_control_type
-!> \param sccs_control ...
-!> \par     History
-!>          - Creation (11.10.2013,MK)
-!> \author  Matthias Krack (MK)
-!> \version 1.0
-! **************************************************************************************************
-   SUBROUTINE sccs_control_create(sccs_control)
-      TYPE(sccs_control_type), POINTER                   :: sccs_control
-
-      CPASSERT(.NOT. ASSOCIATED(sccs_control))
-      ALLOCATE (sccs_control)
-
-      sccs_control%ref_count = 1
-      sccs_control%derivative_method = 0
-      sccs_control%max_iter = 0
-      sccs_control%method_id = 0
-      sccs_control%alpha_solvent = 0.0_dp
-      sccs_control%beta = 0.0_dp
-      sccs_control%beta_solvent = 0.0_dp
-      sccs_control%delta_rho = 0.0_dp
-      sccs_control%eps_sccs = 0.0_dp
-      sccs_control%eps_scf = 0.0_dp
-      sccs_control%epsilon_solvent = 0.0_dp
-      sccs_control%gamma_solvent = 0.0_dp
-      sccs_control%mixing = 0.0_dp
-      sccs_control%rho_max = 0.0_dp
-      sccs_control%rho_min = 0.0_dp
-      sccs_control%rho_zero = 0.0_dp
-      sccs_control%sccs_activated = .FALSE.
-
-   END SUBROUTINE sccs_control_create
-
-! **************************************************************************************************
-!> \brief   Release sccs_control_type
-!> \param sccs_control ...
-!> \par     History
-!>          - Creation (11.10.2013,MK)
-!> \author  Matthias Krack (MK)
-!> \version 1.0
-! **************************************************************************************************
-   SUBROUTINE sccs_control_release(sccs_control)
-      TYPE(sccs_control_type), POINTER                   :: sccs_control
-
-      IF (ASSOCIATED(sccs_control)) THEN
-         CPASSERT(sccs_control%ref_count > 0)
-         sccs_control%ref_count = sccs_control%ref_count - 1
-         IF (sccs_control%ref_count == 0) THEN
-            DEALLOCATE (sccs_control)
-         END IF
-      END IF
-
-   END SUBROUTINE sccs_control_release
 
 ! **************************************************************************************************
 !> \brief ...

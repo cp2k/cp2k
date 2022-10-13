@@ -17,8 +17,8 @@ MODULE cp_control_utils
    USE cp_control_types,                ONLY: &
         admm_control_create, admm_control_type, ddapc_control_create, ddapc_restraint_type, &
         dft_control_create, dft_control_type, efield_type, expot_control_create, &
-        maxwell_control_create, qs_control_type, sccs_control_create, tddfpt2_control_type, &
-        tddfpt_control_create, tddfpt_control_type, xtb_control_type
+        maxwell_control_create, qs_control_type, tddfpt2_control_type, tddfpt_control_create, &
+        tddfpt_control_type, xtb_control_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -471,7 +471,7 @@ CONTAINS
          CALL section_vals_val_get(sccs_section, "_SECTION_PARAMETERS_", &
                                    l_val=dft_control%do_sccs)
          IF (dft_control%do_sccs) THEN
-            CALL sccs_control_create(dft_control%sccs_control)
+            ALLOCATE (dft_control%sccs_control)
             CALL section_vals_val_get(sccs_section, "RELATIVE_PERMITTIVITY", &
                                       r_val=dft_control%sccs_control%epsilon_solvent)
             CALL section_vals_val_get(sccs_section, "ALPHA", &
