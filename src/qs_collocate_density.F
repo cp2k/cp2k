@@ -89,7 +89,6 @@ MODULE qs_collocate_density
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -542,15 +541,15 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: lri_basis_set, orb_basis_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: mgrid_gspace, mgrid_rspace
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: mgrid_gspace, mgrid_rspace
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_rho
       TYPE(realspace_grid_type), POINTER                 :: rs_grid
 
       NULLIFY (aci, atomic_kind_set, qs_kind_set, atom_list, cell, &
                dft_control, first_sgfa, gridlevel_info, la_max, &
-               la_min, lri_basis_set, mgrid_gspace, mgrid_rspace, npgfa, nsgfa, &
+               la_min, lri_basis_set, npgfa, nsgfa, &
                pab, particle_set, pw_env, pw_pools, rs_grid, rs_rho, sphi_a, &
                work, zeta)
 
@@ -592,8 +591,8 @@ CONTAINS
 
       ALLOCATE (pab(maxco, 1))
       offset = 0
-      my_pos = mgrid_rspace(1)%pw%pw_grid%para%my_pos
-      group_size = mgrid_rspace(1)%pw%pw_grid%para%group_size
+      my_pos = mgrid_rspace(1)%pw_grid%para%my_pos
+      group_size = mgrid_rspace(1)%pw_grid%para%group_size
 
       DO ikind = 1, SIZE(atomic_kind_set)
 
@@ -760,16 +759,16 @@ CONTAINS
       CALL pw_zero(lri_rho_r)
 
       DO igrid_level = 1, gridlevel_info%ngrid_levels
-         CALL pw_zero(mgrid_rspace(igrid_level)%pw)
+         CALL pw_zero(mgrid_rspace(igrid_level))
          CALL rs_pw_transfer(rs=rs_rho(igrid_level), &
-                             pw=mgrid_rspace(igrid_level)%pw, dir=rs2pw)
+                             pw=mgrid_rspace(igrid_level), dir=rs2pw)
       END DO
 
       DO igrid_level = 1, gridlevel_info%ngrid_levels
-         CALL pw_zero(mgrid_gspace(igrid_level)%pw)
-         CALL pw_transfer(mgrid_rspace(igrid_level)%pw, &
-                          mgrid_gspace(igrid_level)%pw)
-         CALL pw_axpy(mgrid_gspace(igrid_level)%pw, lri_rho_g)
+         CALL pw_zero(mgrid_gspace(igrid_level))
+         CALL pw_transfer(mgrid_rspace(igrid_level), &
+                          mgrid_gspace(igrid_level))
+         CALL pw_axpy(mgrid_gspace(igrid_level), lri_rho_g)
       END DO
       CALL pw_transfer(lri_rho_g, lri_rho_r)
       total_rho = pw_integrate_function(lri_rho_r, isign=-1)
@@ -2426,8 +2425,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab, sphi_a, zeta
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: mgrid_gspace, mgrid_rspace
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: mgrid_gspace, mgrid_rspace
       TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_rho
 
       IF (PRESENT(basis_type)) THEN
@@ -2439,7 +2438,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (orb_basis_set, pab, la_max, la_min, npgfa, nsgfa, sphi_a, &
-               zeta, first_sgfa, rs_rho, pw_pools, mgrid_rspace, mgrid_gspace)
+               zeta, first_sgfa, rs_rho, pw_pools)
 
       ! *** set up the pw multi-grids
       CPASSERT(ASSOCIATED(pw_env))
@@ -2469,9 +2468,9 @@ CONTAINS
       ALLOCATE (pab(maxco, 1))
 
       offset = 0
-      group = mgrid_rspace(1)%pw%pw_grid%para%group
-      my_pos = mgrid_rspace(1)%pw%pw_grid%para%my_pos
-      group_size = mgrid_rspace(1)%pw%pw_grid%para%group_size
+      group = mgrid_rspace(1)%pw_grid%para%group
+      my_pos = mgrid_rspace(1)%pw_grid%para%my_pos
+      group_size = mgrid_rspace(1)%pw_grid%para%group_size
       ALLOCATE (where_is_the_point(0:group_size - 1))
 
       DO iatom = 1, natom
@@ -2541,14 +2540,14 @@ CONTAINS
 
       DO igrid_level = 1, gridlevel_info%ngrid_levels
          CALL rs_pw_transfer(rs_rho(igrid_level), &
-                             mgrid_rspace(igrid_level)%pw, rs2pw)
+                             mgrid_rspace(igrid_level), rs2pw)
       END DO
 
       CALL pw_zero(rho_gspace)
       DO igrid_level = 1, gridlevel_info%ngrid_levels
-         CALL pw_transfer(mgrid_rspace(igrid_level)%pw, &
-                          mgrid_gspace(igrid_level)%pw)
-         CALL pw_axpy(mgrid_gspace(igrid_level)%pw, rho_gspace)
+         CALL pw_transfer(mgrid_rspace(igrid_level), &
+                          mgrid_gspace(igrid_level))
+         CALL pw_axpy(mgrid_gspace(igrid_level), rho_gspace)
       END DO
 
       CALL pw_transfer(rho_gspace, rho)
@@ -2621,8 +2620,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab, sphi_a, work, zeta
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: mgrid_gspace, mgrid_rspace
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: mgrid_gspace, mgrid_rspace
       TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_rho
 
       IF (PRESENT(basis_type)) THEN
@@ -2634,8 +2633,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (eigenvector, orb_basis_set, pab, work, la_max, la_min, &
-               npgfa, nsgfa, sphi_a, zeta, first_sgfa, rs_rho, pw_pools, &
-               mgrid_rspace, mgrid_gspace)
+               npgfa, nsgfa, sphi_a, zeta, first_sgfa, rs_rho, pw_pools)
 
       IF (PRESENT(external_vector)) THEN
          nao = SIZE(external_vector)
@@ -2678,9 +2676,9 @@ CONTAINS
       ALLOCATE (work(maxco, 1))
 
       offset = 0
-      group = mgrid_rspace(1)%pw%pw_grid%para%group
-      my_pos = mgrid_rspace(1)%pw%pw_grid%para%my_pos
-      group_size = mgrid_rspace(1)%pw%pw_grid%para%group_size
+      group = mgrid_rspace(1)%pw_grid%para%group
+      my_pos = mgrid_rspace(1)%pw_grid%para%my_pos
+      group_size = mgrid_rspace(1)%pw_grid%para%group_size
       ALLOCATE (where_is_the_point(0:group_size - 1))
 
       DO iatom = 1, natom
@@ -2743,14 +2741,14 @@ CONTAINS
 
       DO igrid_level = 1, gridlevel_info%ngrid_levels
          CALL rs_pw_transfer(rs_rho(igrid_level), &
-                             mgrid_rspace(igrid_level)%pw, rs2pw)
+                             mgrid_rspace(igrid_level), rs2pw)
       END DO
 
       CALL pw_zero(rho_gspace)
       DO igrid_level = 1, gridlevel_info%ngrid_levels
-         CALL pw_transfer(mgrid_rspace(igrid_level)%pw, &
-                          mgrid_gspace(igrid_level)%pw)
-         CALL pw_axpy(mgrid_gspace(igrid_level)%pw, rho_gspace)
+         CALL pw_transfer(mgrid_rspace(igrid_level), &
+                          mgrid_gspace(igrid_level))
+         CALL pw_axpy(mgrid_gspace(igrid_level), rho_gspace)
       END DO
 
       CALL pw_transfer(rho_gspace, rho)
