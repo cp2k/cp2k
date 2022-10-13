@@ -123,8 +123,7 @@ CONTAINS
       LOGICAL                                            :: den_found, dista, distab, distb, &
                                                             is_not_associated, paw_atom, &
                                                             sgf_soft_only_a, sgf_soft_only_b
-      REAL(dp)                                           :: eps_cpc, jmax, nbr_dbl, &
-                                                            rab(3), rbc(3)
+      REAL(dp)                                           :: eps_cpc, jmax, nbr_dbl, rab(3), rbc(3)
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: a_matrix, b_matrix, c_matrix, d_matrix
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: C_coeff_hh_a, C_coeff_hh_b, &
                                                             C_coeff_ss_a, C_coeff_ss_b, r_coef_h, &

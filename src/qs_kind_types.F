@@ -38,11 +38,10 @@ MODULE qs_kind_types
                                               remove_basis_from_container,&
                                               remove_basis_set_container
    USE basis_set_types,                 ONLY: &
-        allocate_gto_basis_set, allocate_sto_basis_set, combine_basis_sets, &
+        allocate_gto_basis_set, allocate_sto_basis_set, combine_basis_sets, copy_gto_basis_set, &
         create_gto_from_sto_basis, deallocate_sto_basis_set, get_gto_basis_set, &
         gto_basis_set_type, init_aux_basis_set, init_orb_basis_set, read_gto_basis_set, &
-        read_sto_basis_set, sto_basis_set_type, write_gto_basis_set, write_orb_basis_set, &
-        copy_gto_basis_set
+        read_sto_basis_set, sto_basis_set_type, write_gto_basis_set, write_orb_basis_set
    USE cp_control_types,                ONLY: dft_control_type,&
                                               qs_control_type,&
                                               xtb_control_type
@@ -62,8 +61,8 @@ MODULE qs_kind_types
    USE input_constants,                 ONLY: &
         do_method_am1, do_method_dftb, do_method_mndo, do_method_mndod, do_method_pdg, &
         do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_pw, &
-        do_method_rm1, do_method_xtb, do_qs, do_sirius, &
-        gapw_1c_external, gapw_1c_large, gapw_1c_medium, gapw_1c_orb, gapw_1c_small, gapw_1c_very_large
+        do_method_rm1, do_method_xtb, do_qs, do_sirius, gapw_1c_external, gapw_1c_large, &
+        gapw_1c_medium, gapw_1c_orb, gapw_1c_small, gapw_1c_very_large
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -1295,9 +1294,9 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: modify_qs_control
 
       CHARACTER(LEN=default_string_length)               :: bsname
-      INTEGER                                            :: bas1c, ikind, nkind, ilevel
+      INTEGER                                            :: bas1c, ikind, ilevel, nkind
       LOGICAL                                            :: gpw, my_mod_control, paw_atom, &
-                                                            use_orb_basis, use_external_basis
+                                                            use_external_basis, use_orb_basis
       REAL(dp)                                           :: max_rad_local_type, rc
       TYPE(gto_basis_set_type), POINTER                  :: basis_1c, orb_basis, soft_basis
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj

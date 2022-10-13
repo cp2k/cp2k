@@ -1542,9 +1542,9 @@ CONTAINS
                            afun = afun + atom%weight*atom%orbitals%wrefnod(k, l, 1)* &
                                   ABS(REAL(node, dp) - atom%orbitals%refnod(k, l, 1))
 !deb
-if(ABS(REAL(node, dp) - atom%orbitals%refnod(k, l, 1)) > 1.e-5_dp) then
-write(6,*) "NODES   ",k,l,node,atom%orbitals%refnod(k, l, 1)
-endif
+                           IF (ABS(REAL(node, dp) - atom%orbitals%refnod(k, l, 1)) > 1.e-5_dp) THEN
+                              WRITE (6, *) "NODES   ", k, l, node, atom%orbitals%refnod(k, l, 1)
+                           END IF
 !deb
                         END IF
                         IF (l == 0) THEN

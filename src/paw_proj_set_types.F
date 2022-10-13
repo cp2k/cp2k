@@ -25,7 +25,6 @@ MODULE paw_proj_set_types
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: dfac,&
-                                              pi,&
                                               rootpi
    USE mathlib,                         ONLY: invert_matrix
    USE memory_utilities,                ONLY: reallocate
@@ -227,11 +226,10 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section
 
       CHARACTER(LEN=default_string_length)               :: bsname
-      INTEGER :: ic, ico, icomax, icomin, il, info, ip, ipgf, ipp, &
-         iprjfirst, iprjs, is, iset, isgf, isgfmax, isgfmin, ishell, iso, iso_pgf, iso_set, &
-         isomin, jp, k, lshell, lwork, lx, ly, lz, maxco, maxl, maxnprj, maxpgf, maxso, mp, &
-         ms, n, ncgauprj, ncgf, ncgfo, nisop, np, npgfg, ns, nset, nsgauprj, nsgf, nsgfo, &
-         nsox, output_unit
+      INTEGER :: ic, ico, icomax, icomin, il, info, ip, ipgf, ipp, iprjfirst, iprjs, is, iset, &
+         isgf, isgfmax, isgfmin, ishell, iso, iso_pgf, iso_set, isomin, jp, k, lshell, lwork, lx, &
+         ly, lz, maxco, maxl, maxnprj, maxpgf, maxso, mp, ms, n, ncgauprj, ncgf, ncgfo, nisop, np, &
+         npgfg, ns, nset, nsgauprj, nsgf, nsgfo, nsox, output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: IWORK
       INTEGER, DIMENSION(:), POINTER                     :: lmax, lmin, npgf, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: first_cgf, first_sgf, l, last_cgf, &
@@ -242,8 +240,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: S, Work_dgesdd
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: U, VT
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius, zet, zetp
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: gcc, smat, sphi, work, zetb, gcch
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cprj_h, cprj_s
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cprj_h, cprj_s, gcc, gcch, smat, sphi, &
+                                                            work, zetb
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcca, set_radius2
       REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: gcchprj, gccprj
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -432,7 +430,7 @@ CONTAINS
                END DO
             ELSE
                DO jp = 1, np
-                  IF (.NOT.isoprj(jp)) THEN
+                  IF (.NOT. isoprj(jp)) THEN
                      smat(ip, jp) = prefac/(zetp(ip) + zet(jp))**expzet
                   END IF
                END DO
@@ -466,7 +464,7 @@ CONTAINS
          END IF
 
          ! Set the coefficient of the isolated projectors to 0
-         gcch(:,:) = gcc(:,:)
+         gcch(:, :) = gcc(:, :)
          DO ip = 1, np
             IF (isoprj(ip)) THEN
                gcc(:, ip) = 0.0_dp
@@ -546,8 +544,8 @@ CONTAINS
       CALL reallocate(paw_proj%m, 1, nsgauprj)
       CALL reallocate(paw_proj%first_prjs, 0, maxl)
 
-      ALLOCATE(cprj_s(1: nsgauprj, 1:maxso*nset))
-      ALLOCATE(cprj_h(1: nsgauprj, 1:maxso*nset))
+      ALLOCATE (cprj_s(1:nsgauprj, 1:maxso*nset))
+      ALLOCATE (cprj_h(1:nsgauprj, 1:maxso*nset))
       cprj_s = 0.0_dp
       cprj_h = 0.0_dp
 
@@ -711,7 +709,7 @@ CONTAINS
          ico = paw_proj%n2oindex(k)
          paw_proj%chprj(:, k) = cprj_h(:, ico)
       END DO
-      DEALLOCATE(cprj_s, cprj_h, gcchprj, gccprj)
+      DEALLOCATE (cprj_s, cprj_h, gcchprj, gccprj)
 
    END SUBROUTINE build_projector
 

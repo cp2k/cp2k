@@ -523,7 +523,6 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: basis_1c_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(paw_proj_set_type), POINTER                   :: paw_proj
       TYPE(pw_type)                                      :: rho_elec_gspace
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set

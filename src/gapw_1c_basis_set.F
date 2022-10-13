@@ -14,17 +14,9 @@ MODULE gapw_1c_basis_set
 
    USE basis_set_types,                 ONLY: allocate_gto_basis_set,&
                                               copy_gto_basis_set,&
-                                              deallocate_gto_basis_set,&
                                               get_gto_basis_set,&
                                               gto_basis_set_type
-   USE input_constants,                 ONLY: gapw_1c_external,&
-                                              gapw_1c_large,&
-                                              gapw_1c_medium,&
-                                              gapw_1c_orb,&
-                                              gapw_1c_small,&
-                                              gapw_1c_very_large
-   USE kinds,                           ONLY: default_string_length,&
-                                              dp
+   USE kinds,                           ONLY: dp
 #include "base/base_uses.f90"
 
    IMPLICIT NONE
@@ -56,8 +48,8 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis, soft_basis, gapw_1c_basis
       INTEGER, INTENT(IN)                                :: basis_1c_level
 
-      INTEGER                                            :: i, ipgf, iset, l, maxl, maxlo, &
-                                                            maxls, mp, nseto, nsets
+      INTEGER                                            :: i, ipgf, iset, l, maxl, maxlo, maxls, &
+                                                            mp, nseto, nsets
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nph, nps
       INTEGER, DIMENSION(:), POINTER                     :: lmaxo, lmaxs, lmino, lmins, npgfo, npgfs
       REAL(KIND=dp)                                      :: dex, zms
@@ -65,7 +57,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: zexh, zexs
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zeto, zets
 
-      CPASSERT(.NOT.ASSOCIATED(gapw_1c_basis))
+      CPASSERT(.NOT. ASSOCIATED(gapw_1c_basis))
 
       CALL allocate_gto_basis_set(gapw_1c_basis)
       ! get information on orbital basis and soft basis
@@ -137,7 +129,7 @@ CONTAINS
       CASE (4)
       CASE DEFAULT
       END SELECT
-      
+
       CPWARN("Option not implemented, use Orb Basis for GAPW 1C")
       CALL copy_gto_basis_set(orb_basis, gapw_1c_basis)
 
