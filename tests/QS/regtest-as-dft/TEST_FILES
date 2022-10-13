@@ -1,0 +1,30 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+#
+#h2_2-2.inp                                           1      1e-12              -1.15195791735218
+#h2_2-2.inp                                          92      1e-8                3.69431122
+h2_2-2.inp                                          92      1e-8                3.69373843
+#h2_manual_1+2.inp                                    1      1e-12              -1.15195791735218
+#h2_manual_1+2.inp                                   92      1e-8                3.69431122
+h2_manual_1+2.inp                                   92      1e-8                3.69373843
+#h2_manual_1+3.inp                                    1      1e-12              -1.15195791735218
+#h2_manual_1+3.inp                                   92      1e-8                3.69984673
+h2_manual_1+3.inp                                   92      1e-8                3.69884091
+#h2_manual_1+4.inp                                    1      1e-12              -1.15195791735218
+#h2_manual_1+4.inp                                   92      1e-8                3.86919130
+h2_manual_1+4.inp                                   92      1e-8                3.86984321
+#h2_iterative_density.inp                             1      1e-12              -1.15195791735218
+#h2_iterative_density.inp                            92      1e-8                3.69468254
+#h2_manual_1+2_1+3.inp                                1      1e-12              -1.15195791735218
+#h2_manual_1+2_1+3.inp                               92      1e-8                8.68780361
+h2_manual_1+2_1+3.inp                               92      1e-8                8.68621321
+#h2_manual_1+3_1+2.inp                                1      1e-12              -1.15195791735218
+#h2_manual_1+3_1+2.inp                               92      1e-8                8.68780361
+h2_manual_1+3_1+2.inp                               92      1e-8                8.68621321
+#h2_manual_UKS_1+2.inp                                1      1e-12              -1.15195791735218
+#h2_manual_UKS_1+2.inp                               92      1e-8                8.52511231
+h2_manual_UKS_1+2.inp                               92      1e-8                8.52386602
+#EOF

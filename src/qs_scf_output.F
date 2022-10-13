@@ -249,7 +249,7 @@ CONTAINS
          READ (tmpstringlist(2), *) occup_stats_occ_threshold
 
       logger => cp_get_default_logger()
-      print_mo_info = (cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%MO") /= 0)
+      print_mo_info = (cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%MO") /= 0) .OR. final_mos
 
       IF ((.NOT. print_mo_info) .OR. (.NOT. (print_eigvals .OR. print_eigvecs .OR. print_occup .OR. print_occup_stats))) THEN
          CALL timestop(handle)

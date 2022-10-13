@@ -69,12 +69,12 @@ MODULE input_cp2k_dft
         gto_spherical, hf_model, high_spin_roks, history_guess, jacobian_fd1, &
         jacobian_fd1_backward, jacobian_fd1_central, jacobian_fd2, jacobian_fd2_backward, &
         kg_color_dsatur, kg_color_greedy, kg_tnadd_atomic, kg_tnadd_embed, kg_tnadd_embed_ri, &
-        kg_tnadd_none, ls_2pnt, ls_3pnt, ls_gold, ls_none, mao_basis_ext, mao_basis_orb, &
-        mao_basis_prim, mao_projection, mopac_guess, no_excitations, no_guess, numerical, oe_gllb, &
-        oe_lb, oe_none, oe_saop, oe_sic, orb_dx2, orb_dxy, orb_dy2, orb_dyz, orb_dz2, orb_dzx, &
-        orb_px, orb_py, orb_pz, orb_s, ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, &
-        ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, ot_poly_irac, &
-        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
+        kg_tnadd_none, ls_2pnt, ls_3pnt, ls_gold, ls_none, manual_selection, mao_basis_ext, &
+        mao_basis_orb, mao_basis_prim, mao_projection, mopac_guess, no_excitations, no_guess, &
+        numerical, oe_gllb, oe_lb, oe_none, oe_saop, oe_sic, orb_dx2, orb_dxy, orb_dy2, orb_dyz, &
+        orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, orb_s, ot_algo_irac, ot_algo_taylor_or_diag, &
+        ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, &
+        ot_poly_irac, ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
         ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
         ot_precond_solver_default, ot_precond_solver_direct, ot_precond_solver_inv_chol, &
         ot_precond_solver_update, outer_scf_basis_center_opt, outer_scf_becke_constraint, &
@@ -8797,6 +8797,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="ACTIVE_ORBITAL_INDICES", &
+                          description="The indices of the active orbitals. Requires ORBITAL_SELECTION MANUAL!", &
+                          usage="ACTIVE_ORBITAL_INDICES 2 3 {...}", n_var=-1, default_i_vals=(/-1/), &
+                          type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="ISOLATED_SYSTEM", &
                           description="System is treated without any periodic boundary conditions.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -8813,11 +8820,13 @@ CONTAINS
                           description="Method used to select active space orbitals.", &
                           usage="ORBITAL_SELECTION CANONICAL", &
                           default_i_val=casci_canonical, &
-                          enum_c_vals=s2a("CANONICAL", "WANNIER_PROJECTION", "MAO"), &
-                          enum_i_vals=(/casci_canonical, wannier_projection, mao_projection/), &
+                          enum_c_vals=s2a("CANONICAL", "WANNIER_PROJECTION", "MAO", "MANUAL"), &
+                          enum_i_vals=(/casci_canonical, wannier_projection, mao_projection, manual_selection/), &
                           enum_desc=s2a("Select orbitals using energy ordering of canoncial orbitals", &
                                         "Select orbitals from projected Wannier functions", &
-                                        "Select orbitals from modified atomic orbitals"))
+                                        "Select orbitals from modified atomic orbitals", &
+                                        "Select orbitals manually via ACTIVE_ORBITAL_INDICES"))
+
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -8832,6 +8841,19 @@ CONTAINS
                           description="Shell definition for subsapce.", &
                           usage="SUBSPACE_SHELL 3d4s", default_c_val="X", &
                           type_of_var=char_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="READ_P_ACTIVE", &
+                          description="Active density matrix must be read", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="P_ACTIVE_FILE_NAME", &
+                          description="Name of the active DM file, may include a path", &
+                          usage="P_ACTIVE_FILE_NAME <FILENAME>", &
+                          type_of_var=lchar_t, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -8895,6 +8917,12 @@ CONTAINS
                           " You can provide 3 numbers (for X,Y,Z) or 1 number valid for all components", &
                           usage="STRIDE {2 2 2}", n_var=-1, default_i_vals=(/2, 2, 2/), &
                           type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="STOP_AFTER_CUBES", &
+                          description="Whether to stop the computation after printing the cubes.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

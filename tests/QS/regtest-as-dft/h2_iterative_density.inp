@@ -1,0 +1,106 @@
+&GLOBAL
+  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+  PROJECT h2_iterative_density
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD QS
+
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+      PERIODIC NONE
+    &END CELL
+
+    &COORD
+      H 0.0 0.0  0.356
+      H 0.0 0.0 -0.356
+    &END COORD
+
+    &KIND H
+      BASIS_SET 6-31G*
+      POTENTIAL ALL
+    &END KIND
+
+    &PRINT
+      &INTERATOMIC_DISTANCES ON
+      &END INTERATOMIC_DISTANCES
+    &END PRINT
+  &END SUBSYS
+
+  &DFT
+    &QS
+      METHOD GAPW
+    &END QS
+
+    &XC
+      &XC_FUNCTIONAL
+        # LDA_X_ERF is the short-range part of the functional
+        &LDA_X_ERF
+          _OMEGA 1.0
+          SCALE 1.0
+        &END
+        &LDA_C_PMGB06
+          SCALE -1.0
+          _OMEGA 1.0
+        &END
+        &LDA_C_PW
+        &END
+      &END XC_FUNCTIONAL
+      &HF
+         FRACTION 1.0
+         &INTERACTION_POTENTIAL
+            POTENTIAL_TYPE LONGRANGE
+            OMEGA 1.0
+         &END INTERACTION_POTENTIAL
+      &END HF
+    &END XC
+
+    &POISSON
+      POISSON_SOLVER ANALYTIC
+      PERIODIC NONE
+    &END POISSON
+
+    &MGRID
+      CUTOFF  300
+    &END MGRID
+
+    &SCF
+      EPS_DIIS 1E-001
+      EPS_EIGVAL 1E-009
+      EPS_SCF 1E-009
+      ADDED_MOS 3
+      MAX_SCF 20
+
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
+    &END SCF
+
+    &PRINT
+      &ACTIVE_SPACE
+        READ_P_ACTIVE .TRUE.
+        P_ACTIVE_FILE_NAME h2_iterative_density.bin
+        ACTIVE_ELECTRONS 2
+        ACTIVE_ORBITALS 2
+        ISOLATED_SYSTEM TRUE
+        &ERI
+          EPS_INTEGRAL 1E-10
+          METHOD FULL_GPW
+          OPERATOR <ERF(A*R)/R>
+          OPERATOR_PARAMETER 1.0
+          PERIODICITY 0 0 0
+        &END ERI
+        &ERI_GPW
+          CUTOFF 250
+        &END ERI_GPW
+        &FCIDUMP
+           FILENAME __STD_OUT__
+        &END FCIDUMP
+      &END ACTIVE_SPACE
+    &END PRINT
+
+  &END DFT
+&END FORCE_EVAL
