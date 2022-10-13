@@ -9,6 +9,7 @@
 #define PW_GPU_KERNELS_H
 
 #include "../../offload/offload_runtime.h"
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
 
 #ifdef __cplusplus
 extern "C" {
@@ -48,6 +49,7 @@ void pw_gpu_launch_scatter(double *c, const double *pwcc, const double scale,
 }
 #endif
 
+#endif // defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
 #endif
 
 // EOF
