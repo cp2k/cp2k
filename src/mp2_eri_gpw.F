@@ -51,7 +51,6 @@ MODULE mp2_eri_gpw
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec,&
                                               calculate_wavefunction,&
@@ -400,8 +399,7 @@ CONTAINS
       TYPE(pw_type), INTENT(INOUT)                       :: pot_g
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       LOGICAL, INTENT(IN)                                :: use_virial
-      TYPE(pw_type), INTENT(INOUT)                       :: rho_g_copy
-      TYPE(pw_p_type), INTENT(IN)                        :: dvg(3)
+      TYPE(pw_type), INTENT(INOUT)                       :: rho_g_copy, dvg(3)
       INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of, atom_of_kind
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: G_PQ_local
       TYPE(qs_force_type), DIMENSION(:), INTENT(IN), &
@@ -539,7 +537,7 @@ CONTAINS
       TYPE(pw_type), INTENT(INOUT)                       :: pot_g
       LOGICAL, INTENT(IN)                                :: use_virial
       TYPE(pw_type), INTENT(INOUT)                       :: rho_g_copy
-      TYPE(pw_p_type), INTENT(IN)                        :: dvg(3)
+      TYPE(pw_type), INTENT(IN)                          :: dvg(3)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: h_stress
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
       INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of, atom_of_kind
@@ -724,7 +722,7 @@ CONTAINS
 
       TYPE(pw_type), INTENT(IN)                          :: rho_g_copy, pot_g
       TYPE(pw_type), INTENT(INOUT)                       :: rho_g
-      TYPE(pw_p_type), INTENT(IN)                        :: dvg(3)
+      TYPE(pw_type), INTENT(IN)                          :: dvg(3)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: h_stress
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
@@ -749,7 +747,7 @@ CONTAINS
          h_stress(alpha, alpha) = h_stress(alpha, alpha) - e_hartree/REAL(para_env_sub%num_pe, dp)
          DO beta = alpha, 3
             h_stress(alpha, beta) = h_stress(alpha, beta) &
-                                    - 2.0_dp*pw_integral_ab(rho_g, dvg(beta)%pw)/fourpi/REAL(para_env_sub%num_pe, dp)
+                                    - 2.0_dp*pw_integral_ab(rho_g, dvg(beta))/fourpi/REAL(para_env_sub%num_pe, dp)
             h_stress(beta, alpha) = h_stress(alpha, beta)
          END DO
       END DO
@@ -1160,7 +1158,7 @@ CONTAINS
       TYPE(pw_poisson_type), INTENT(IN), POINTER         :: poisson_env
       TYPE(pw_type), INTENT(INOUT)                       :: pot_g
       TYPE(libint_potential_type), INTENT(IN), OPTIONAL  :: potential_parameter
-      TYPE(pw_p_type), DIMENSION(3), INTENT(IN), &
+      TYPE(pw_type), DIMENSION(3), INTENT(INOUT), &
          OPTIONAL                                        :: dvg
       LOGICAL, INTENT(IN), OPTIONAL                      :: no_transfer
 
@@ -1195,10 +1193,10 @@ CONTAINS
          CALL pw_copy(rho_g, pot_g)
          IF (PRESENT(dvg)) THEN
          DO idir = 1, 3
-            CALL pw_copy(pot_g, dvg(idir)%pw)
+            CALL pw_copy(pot_g, dvg(idir))
             comp = 0
             comp(idir) = 1
-            CALL pw_derive(dvg(idir)%pw, comp)
+            CALL pw_derive(dvg(idir), comp)
          END DO
          END IF
          IF (my_transfer) CALL pw_transfer(rho_g, pot_r)

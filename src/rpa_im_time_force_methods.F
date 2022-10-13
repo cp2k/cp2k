@@ -2610,10 +2610,10 @@ CONTAINS
          POINTER                                         :: sab_orb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env_ext
-      TYPE(pw_p_type)                                    :: dvg(3)
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: pot_g, psi_L, rho_g, rho_g_copy, rho_r
+      TYPE(pw_type)                                      :: dvg(3), pot_g, psi_L, rho_g, rho_g_copy, &
+                                                            rho_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_v
       TYPE(task_list_type), POINTER                      :: task_list_ext
@@ -2698,8 +2698,7 @@ CONTAINS
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
          DO i_xyz = 1, 3
-            ALLOCATE (dvg(i_xyz)%pw)
-            CALL pw_pool_create_pw(auxbas_pw_pool, dvg(i_xyz)%pw, &
+            CALL pw_pool_create_pw(auxbas_pw_pool, dvg(i_xyz), &
                                    use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
          END DO
@@ -2862,8 +2861,7 @@ CONTAINS
       IF (use_virial) THEN
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g_copy)
          DO i_xyz = 1, 3
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, dvg(i_xyz)%pw)
-            DEALLOCATE (dvg(i_xyz)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, dvg(i_xyz))
          END DO
       END IF
 

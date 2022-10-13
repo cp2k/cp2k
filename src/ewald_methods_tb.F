@@ -43,7 +43,6 @@ MODULE ewald_methods_tb
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                               neighbor_list_iterate,&
@@ -109,9 +108,9 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(greens_fn_type), POINTER                      :: green
       TYPE(pw_grid_type), POINTER                        :: grid_spme
-      TYPE(pw_p_type), DIMENSION(3)                      :: dphi_g
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: pw_pool
+      TYPE(pw_type), DIMENSION(3)                        :: dphi_g
       TYPE(pw_type), POINTER                             :: phi_g, phib_g, rhob_g, rhob_r
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
       TYPE(realspace_grid_type)                          :: rden, rpot
@@ -178,8 +177,7 @@ CONTAINS
 
       ! allocate intermediate arrays
       DO i = 1, 3
-         ALLOCATE (dphi_g(i)%pw)
-         CALL pw_pool_create_pw(pw_pool, dphi_g(i)%pw, &
+         CALL pw_pool_create_pw(pw_pool, dphi_g(i), &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       END DO
       NULLIFY (phi_g)
@@ -224,7 +222,7 @@ CONTAINS
             ffb = 1.0_dp/fourpi
             DO i = 1, 3
                DO ig = grid_spme%first_gne0, grid_spme%ngpts_cut_local
-                  phib_g%cc(ig) = ffb*dphi_g(i)%pw%cc(ig)*(1.0_dp + ffa*grid_spme%gsq(ig))
+                  phib_g%cc(ig) = ffb*dphi_g(i)%cc(ig)*(1.0_dp + ffa*grid_spme%gsq(ig))
                   phib_g%cc(ig) = phib_g%cc(ig)*green%influence_fn%cc(ig)
                END DO
                IF (grid_spme%have_g0) phib_g%cc(1) = 0.0_dp
@@ -275,7 +273,7 @@ CONTAINS
       IF (use_virial) THEN
          DO i = 1, 3
             DO j = i, 3
-               f_stress(i, j) = pw_integral_a2b(dphi_g(i)%pw, dphi_g(j)%pw)
+               f_stress(i, j) = pw_integral_a2b(dphi_g(i), dphi_g(j))
                f_stress(j, i) = f_stress(i, j)
             END DO
          END DO
@@ -292,16 +290,14 @@ CONTAINS
          DO i = 1, 3
             CALL rs_grid_create(drpot(i), rs_desc)
             CALL rs_grid_set_box(grid_spme, rs=drpot(i))
-            dphi_g(i)%pw%cc = dphi_g(i)%pw%cc*green%p3m_charge%cr
-            CALL pw_transfer(dphi_g(i)%pw, rhob_r)
-            CALL pw_pool_give_back_pw(pw_pool, dphi_g(i)%pw)
-            DEALLOCATE (dphi_g(i)%pw)
+            dphi_g(i)%cc = dphi_g(i)%cc*green%p3m_charge%cr
+            CALL pw_transfer(dphi_g(i), rhob_r)
+            CALL pw_pool_give_back_pw(pw_pool, dphi_g(i))
             CALL rs_pw_transfer(drpot(i), rhob_r, pw2rs)
          END DO
       ELSE
          DO i = 1, 3
-            CALL pw_pool_give_back_pw(pw_pool, dphi_g(i)%pw)
-            DEALLOCATE (dphi_g(i)%pw)
+            CALL pw_pool_give_back_pw(pw_pool, dphi_g(i))
          END DO
       END IF
       CALL pw_pool_give_back_pw(pw_pool, rhob_r)
@@ -452,9 +448,9 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(greens_fn_type), POINTER                      :: green
       TYPE(pw_grid_type), POINTER                        :: grid_spme
-      TYPE(pw_p_type), DIMENSION(3)                      :: dphi_g
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: pw_pool
+      TYPE(pw_type), DIMENSION(3)                        :: dphi_g
       TYPE(pw_type), POINTER                             :: phi_g, rhob_g, rhob_r
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
       TYPE(realspace_grid_type)                          :: rden, rpot
@@ -520,8 +516,7 @@ CONTAINS
 
       ! allocate intermediate arrays
       DO i = 1, 3
-         ALLOCATE (dphi_g(i)%pw)
-         CALL pw_pool_create_pw(pw_pool, dphi_g(i)%pw, &
+         CALL pw_pool_create_pw(pw_pool, dphi_g(i), &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       END DO
       NULLIFY (phi_g)
@@ -550,10 +545,9 @@ CONTAINS
       DO i = 1, 3
          CALL rs_grid_create(drpot(i), rs_desc)
          CALL rs_grid_set_box(grid_spme, rs=drpot(i))
-         dphi_g(i)%pw%cc = dphi_g(i)%pw%cc*green%p3m_charge%cr
-         CALL pw_transfer(dphi_g(i)%pw, rhob_r)
-         CALL pw_pool_give_back_pw(pw_pool, dphi_g(i)%pw)
-         DEALLOCATE (dphi_g(i)%pw)
+         dphi_g(i)%cc = dphi_g(i)%cc*green%p3m_charge%cr
+         CALL pw_transfer(dphi_g(i), rhob_r)
+         CALL pw_pool_give_back_pw(pw_pool, dphi_g(i))
          CALL rs_pw_transfer(drpot(i), rhob_r, pw2rs)
       END DO
       CALL pw_pool_give_back_pw(pw_pool, rhob_r)

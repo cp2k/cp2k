@@ -60,7 +60,6 @@ MODULE pw_poisson_methods
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
 #include "../base/base_uses.f90"
 
@@ -248,7 +247,7 @@ CONTAINS
       TYPE(pw_type), INTENT(IN)                          :: density
       REAL(kind=dp), INTENT(out), OPTIONAL               :: ehartree
       TYPE(pw_type), INTENT(INOUT), OPTIONAL             :: vhartree
-      TYPE(pw_p_type), DIMENSION(3), OPTIONAL            :: dvhartree
+      TYPE(pw_type), DIMENSION(3), OPTIONAL              :: dvhartree
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
          OPTIONAL                                        :: h_stress
       TYPE(pw_type), INTENT(IN), OPTIONAL                :: rho_core, greenfn, aux_density
@@ -424,7 +423,7 @@ CONTAINS
          ! save the derivatives
          IF (PRESENT(dvhartree)) THEN
             DO i = 1, 3
-               CALL pw_transfer(dvg(i), dvhartree(i)%pw)
+               CALL pw_transfer(dvg(i), dvhartree(i))
             END DO
          END IF
          ! Calculate the contribution to the stress tensor this is only the contribution from
