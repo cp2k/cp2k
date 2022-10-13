@@ -245,6 +245,7 @@ CONTAINS
                CALL mixed_env_release(force_env%mixed_env)
             CASE (use_nnp_force)
                CALL nnp_env_release(force_env%nnp_env)
+               DEALLOCATE (force_env%nnp_env)
             CASE (use_embed)
                CALL embed_env_release(force_env%embed_env)
             END SELECT
@@ -258,8 +259,13 @@ CONTAINS
             CPASSERT(.NOT. ASSOCIATED(force_env%mixed_env))
             CPASSERT(.NOT. ASSOCIATED(force_env%nnp_env))
             CPASSERT(.NOT. ASSOCIATED(force_env%embed_env))
-            CALL meta_env_release(force_env%meta_env)
-            CALL fp_env_release(force_env%fp_env)
+            IF (ASSOCIATED(force_env%meta_env)) THEN
+               CALL meta_env_release(force_env%meta_env)
+            END IF
+            IF (ASSOCIATED(force_env%fp_env)) THEN
+               CALL fp_env_release(force_env%fp_env)
+               DEALLOCATE (force_env%fp_env)
+            END IF
             CALL qmmm_env_release(force_env%qmmm_env)
             CALL qmmmx_env_release(force_env%qmmmx_env)
             CALL section_vals_release(force_env%force_env_section)
@@ -629,11 +635,11 @@ CONTAINS
 
       CPASSERT(force_env%ref_count > 0)
       IF (PRESENT(meta_env)) THEN
-         CALL meta_env_release(force_env%meta_env)
+         IF (ASSOCIATED(force_env%meta_env)) CALL meta_env_release(force_env%meta_env)
          force_env%meta_env => meta_env
       END IF
       IF (PRESENT(fp_env)) THEN
-         CALL fp_env_release(force_env%fp_env)
+         IF (ASSOCIATED(force_env%fp_env)) CALL fp_env_release(force_env%fp_env)
          force_env%fp_env => fp_env
       END IF
       IF (PRESENT(force_env_section)) THEN

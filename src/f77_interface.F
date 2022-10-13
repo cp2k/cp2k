@@ -840,6 +840,7 @@ CONTAINS
             lgroup_distribution => my_force_env%embed_env%group_distribution
 
          CASE (do_nnp)
+            ALLOCATE (nnp_env)
             CALL nnp_env_create(nnp_env)
             CALL nnp_init(nnp_env, root_section, my_para_env, force_env_section=force_env_section, &
                           subsys_section=subsys_section, use_motion_section=use_motion_section)
@@ -864,6 +865,7 @@ CONTAINS
             CALL force_env_set(my_force_env, meta_env=meta_env)
             ! Flexible Partition Setup
             fp_section => section_vals_get_subs_vals(root_section, "MOTION%FLEXIBLE_PARTITIONING")
+            ALLOCATE (fp_env)
             CALL fp_env_create(fp_env)
             CALL fp_env_read(fp_env, fp_section)
             CALL fp_env_write(fp_env, fp_section)
