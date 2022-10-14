@@ -168,7 +168,6 @@ MODULE qs_environment
         init_qs_kind_set, qs_kind_type, set_qs_kind, write_gto_basis_sets, write_qs_kind_set
    USE qs_ks_types,                     ONLY: qs_ks_env_create,&
                                               qs_ks_env_type,&
-                                              qs_ks_release,&
                                               set_ks_env
    USE qs_local_rho_types,              ONLY: local_rho_type
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
@@ -502,7 +501,6 @@ CONTAINS
       END IF
 
       CALL qs_subsys_release(subsys)
-      CALL qs_ks_release(ks_env)
 
    END SUBROUTINE qs_init
 

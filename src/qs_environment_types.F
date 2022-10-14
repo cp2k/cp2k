@@ -108,7 +108,6 @@ MODULE qs_environment_types
                                               qs_ks_env_type,&
                                               qs_ks_part_release,&
                                               qs_ks_release,&
-                                              qs_ks_retain,&
                                               set_ks_env
    USE qs_linres_types,                 ONLY: linres_control_release,&
                                               linres_control_retain,&
@@ -1196,7 +1195,6 @@ CONTAINS
          qs_env%ks_qmmm_env => ks_qmmm_env
       END IF
       IF (PRESENT(ks_env)) THEN ! accept also null pointers?
-         CALL qs_ks_retain(ks_env)
          CALL qs_ks_release(qs_env%ks_env)
          qs_env%ks_env => ks_env
       END IF
