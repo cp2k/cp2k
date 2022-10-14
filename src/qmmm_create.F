@@ -96,7 +96,7 @@ CONTAINS
    SUBROUTINE qmmm_env_create(qmmm_env, root_section, para_env, globenv, &
                               force_env_section, qmmm_section, subsys_section, use_motion_section, prev_subsys, &
                               ignore_outside_box)
-      TYPE(qmmm_env_type), POINTER                       :: qmmm_env
+      TYPE(qmmm_env_type), INTENT(OUT)                   :: qmmm_env
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
@@ -144,7 +144,6 @@ CONTAINS
       NULLIFY (qm_atom_index, mm_atom_index, qm_atom_type)
       NULLIFY (qmmm_env_qm, subsys_mm, subsys_qm, mm_cell, qm_cell_small)
       NULLIFY (mm_atom_chrg, mm_el_pot_radius, qmmm_env_mm, fist_env)
-      NULLIFY (qmmm_env)
       NULLIFY (mm_link_atoms, mm_link_scale_factor, qmmm_links, added_charges, added_shells)
       NULLIFY (fist_scale_charge_link, print_section, fist_nonbond_env)
       NULLIFY (print_gen, logger, mm_el_pot_radius_corr, super_cell, pw_env)
@@ -231,6 +230,7 @@ CONTAINS
 
       ! First Initialize Fist...
       CALL section_vals_val_set(force_env_section, "METHOD", i_val=do_fist)
+      ALLOCATE (fist_env)
       CALL fist_env_create(fist_env, para_env=para_env)
       CALL fist_env_set(fist_env, qmmm=.TRUE., qmmm_env=qmmm_env_mm)
       CALL fist_init(fist_env, root_section, para_env, force_env_section, &
@@ -419,7 +419,6 @@ CONTAINS
       CALL cell_release(qm_cell_small)
 
       ! assemble the actual qmmm_env
-      ALLOCATE (qmmm_env)
       qmmm_env%qs_env => qs_env
       qmmm_env%fist_env => fist_env
       qmmm_env%qm => qmmm_env_qm

@@ -136,7 +136,6 @@ CONTAINS
 
       ! from here on we can be sure that it's conventional QM/MM
       CPASSERT(ASSOCIATED(force_env%qmmm_env))
-      CPASSERT(force_env%qmmm_env%ref_count > 0)
 
       CALL fist_env_get(force_env%qmmm_env%fist_env, cell=mm_cell, subsys=subsys_mm)
       CALL get_qs_env(force_env%qmmm_env%qs_env, cell=qm_cell, cp_subsys=subsys_qm)
@@ -226,7 +225,6 @@ CONTAINS
       CALL section_vals_val_get(walls_section, "WALL_SKIN", r_vals=list)
       CALL section_vals_val_get(walls_section, "K", r_val=k)
       CPASSERT(ASSOCIATED(qmmm_env))
-      CPASSERT(qmmm_env%ref_count > 0)
 
       CALL fist_env_get(qmmm_env%fist_env, cell=mm_cell, subsys=subsys_mm)
       CALL get_qs_env(qmmm_env%qs_env, cell=qm_cell, cp_subsys=subsys_qm)
@@ -392,7 +390,6 @@ CONTAINS
                subsys_section, qm_cell, mm_cell, qs_kind_set)
 
       CPASSERT(ASSOCIATED(qmmm_env))
-      CPASSERT(qmmm_env%ref_count > 0)
 
       CALL fist_env_get(qmmm_env%fist_env, cell=mm_cell, subsys=subsys_mm)
       CALL get_qs_env(qmmm_env%qs_env, cell=qm_cell, cp_subsys=subsys_qm)

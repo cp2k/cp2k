@@ -85,6 +85,7 @@ CONTAINS
          myqmmm = qmmm
       END IF
 
+      ALLOCATE (fist_env)
       CALL fist_env_create(fist_env, para_env=para_env)
       IF (PRESENT(qmmm_env)) THEN
          CALL fist_env_set(fist_env, qmmm=myqmmm, qmmm_env=qmmm_env)

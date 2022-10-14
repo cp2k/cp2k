@@ -792,12 +792,14 @@ CONTAINS
 
          CASE (do_qmmm)
             qmmm_section => section_vals_get_subs_vals(force_env_section, "QMMM")
+            ALLOCATE (qmmm_env)
             CALL qmmm_env_create(qmmm_env, root_section, my_para_env, globenv, &
                                  force_env_section, qmmm_section, subsys_section, use_motion_section)
             CALL force_env_create(my_force_env, root_section, qmmm_env=qmmm_env, para_env=my_para_env, &
                                   globenv=globenv, force_env_section=force_env_section)
 
          CASE (do_qmmmx)
+            ALLOCATE (qmmmx_env)
             CALL qmmmx_env_create(qmmmx_env, root_section, my_para_env, globenv, &
                                   force_env_section, subsys_section, use_motion_section)
             CALL force_env_create(my_force_env, root_section, qmmmx_env=qmmmx_env, para_env=my_para_env, &

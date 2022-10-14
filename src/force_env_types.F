@@ -235,6 +235,7 @@ CONTAINS
             SELECT CASE (force_env%in_use)
             CASE (use_fist_force)
                CALL fist_env_release(force_env%fist_env)
+               DEALLOCATE (force_env%fist_env)
             CASE (use_qs_force)
                CALL qs_env_release(force_env%qs_env)
             CASE (use_eip_force)
@@ -271,8 +272,14 @@ CONTAINS
                CALL fp_env_release(force_env%fp_env)
                DEALLOCATE (force_env%fp_env)
             END IF
-            CALL qmmm_env_release(force_env%qmmm_env)
-            CALL qmmmx_env_release(force_env%qmmmx_env)
+            IF (ASSOCIATED(force_env%qmmm_env)) THEN
+               CALL qmmm_env_release(force_env%qmmm_env)
+               DEALLOCATE (force_env%qmmm_env)
+            END IF
+            IF (ASSOCIATED(force_env%qmmmx_env)) THEN
+               CALL qmmmx_env_release(force_env%qmmmx_env)
+               DEALLOCATE (force_env%qmmmx_env)
+            END IF
             CALL section_vals_release(force_env%force_env_section)
             CALL section_vals_release(force_env%root_section)
             DEALLOCATE (force_env)

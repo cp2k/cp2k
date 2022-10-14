@@ -76,7 +76,6 @@ MODULE fist_environment_types
 ! **************************************************************************************************
    TYPE fist_environment_type
       PRIVATE
-      INTEGER                                      :: id_nr, ref_count
       LOGICAL                                      :: qmmm
       LOGICAL                                      :: shell_model, shell_model_ad
       TYPE(qmmm_env_mm_type), POINTER              :: qmmm_env
@@ -92,17 +91,6 @@ MODULE fist_environment_types
       TYPE(fist_efield_type), POINTER              :: efield
    END TYPE fist_environment_type
 
-! **************************************************************************************************
-!> \brief to build arrays of pointers
-!> \param fist_env the pointer to the fist_env
-!> \par History
-!>      11/03
-!> \author CJM
-! **************************************************************************************************
-   TYPE fist_environment_p_type
-      TYPE(fist_environment_type), POINTER :: fist_env
-   END TYPE fist_environment_p_type
-
 ! *** Public data types ***
    PUBLIC :: fist_environment_type
 
@@ -110,11 +98,9 @@ MODULE fist_environment_types
    PUBLIC :: fist_env_get, &
              fist_env_set, &
              fist_env_create, &
-             fist_env_release, &
-             fist_env_retain
+             fist_env_release
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_environment_types'
-   INTEGER, PRIVATE, SAVE :: last_fist_env_id_nr = 0
 
 !***
 
@@ -259,9 +245,6 @@ CONTAINS
       NULLIFY (fist_env%subsys)
       CALL cp_para_env_retain(para_env)
       fist_env%para_env => para_env
-      fist_env%ref_count = 1
-      last_fist_env_id_nr = last_fist_env_id_nr + 1
-      fist_env%id_nr = last_fist_env_id_nr
 
    END SUBROUTINE init_fist_env
 
@@ -297,7 +280,7 @@ CONTAINS
                            fist_nonbond_env, thermo, subsys, qmmm, qmmm_env, &
                            input, shell_model, shell_model_ad, exclusions, efield)
 
-      TYPE(fist_environment_type), POINTER               :: fist_env
+      TYPE(fist_environment_type), INTENT(INOUT)         :: fist_env
       TYPE(atomic_kind_type), OPTIONAL, POINTER          :: atomic_kind_set(:)
       TYPE(particle_type), OPTIONAL, POINTER             :: particle_set(:)
       TYPE(ewald_pw_type), OPTIONAL, POINTER             :: ewald_pw
@@ -321,8 +304,6 @@ CONTAINS
       TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(particle_list_type), POINTER                  :: particles
-
-      CPASSERT(fist_env%ref_count > 0)
 
       IF (PRESENT(qmmm)) fist_env%qmmm = qmmm
       IF (PRESENT(qmmm_env)) THEN
@@ -417,27 +398,11 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE fist_env_create(fist_env, para_env)
-      TYPE(fist_environment_type), POINTER               :: fist_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(fist_environment_type), INTENT(OUT)           :: fist_env
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
 
-      ALLOCATE (fist_env)
       CALL init_fist_env(fist_env, para_env=para_env)
    END SUBROUTINE fist_env_create
-
-! **************************************************************************************************
-!> \brief retains the given fist_env (see doc/ReferenceCounting.html)
-!> \param fist_env the object to retain
-!> \par History
-!>      12.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   SUBROUTINE fist_env_retain(fist_env)
-      TYPE(fist_environment_type), POINTER               :: fist_env
-
-      CPASSERT(ASSOCIATED(fist_env))
-      CPASSERT(fist_env%ref_count > 0)
-      fist_env%ref_count = fist_env%ref_count + 1
-   END SUBROUTINE fist_env_retain
 
 ! **************************************************************************************************
 !> \brief releases the given fist_env (see doc/ReferenceCounting.html)
@@ -447,32 +412,24 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE fist_env_release(fist_env)
-      TYPE(fist_environment_type), POINTER               :: fist_env
+      TYPE(fist_environment_type), INTENT(INOUT)         :: fist_env
 
-      IF (ASSOCIATED(fist_env)) THEN
-         CPASSERT(fist_env%ref_count > 0)
-         fist_env%ref_count = fist_env%ref_count - 1
-         IF (fist_env%ref_count < 1) THEN
-            CALL qmmm_env_mm_release(fist_env%qmmm_env)
-            CALL cell_release(fist_env%cell_ref)
-            CALL ewald_pw_release(fist_env%ewald_pw)
-            CALL ewald_env_release(fist_env%ewald_env)
-            CALL cp_para_env_release(fist_env%para_env)
-            CALL deallocate_fist_energy(fist_env%thermo)
+      CALL qmmm_env_mm_release(fist_env%qmmm_env)
+      CALL cell_release(fist_env%cell_ref)
+      CALL ewald_pw_release(fist_env%ewald_pw)
+      CALL ewald_env_release(fist_env%ewald_env)
+      CALL cp_para_env_release(fist_env%para_env)
+      CALL deallocate_fist_energy(fist_env%thermo)
 
-            CALL fist_nonbond_env_release(fist_env%fist_nonbond_env)
-            CALL cp_subsys_release(fist_env%subsys)
-            CALL section_vals_release(fist_env%input)
-            CALL exclusion_release(fist_env%exclusions)
+      CALL fist_nonbond_env_release(fist_env%fist_nonbond_env)
+      CALL cp_subsys_release(fist_env%subsys)
+      CALL section_vals_release(fist_env%input)
+      CALL exclusion_release(fist_env%exclusions)
 
-            IF (ASSOCIATED(fist_env%efield)) THEN
-               DEALLOCATE (fist_env%efield)
-            END IF
-
-            DEALLOCATE (fist_env)
-         END IF
+      IF (ASSOCIATED(fist_env%efield)) THEN
+         DEALLOCATE (fist_env%efield)
       END IF
-      NULLIFY (fist_env)
+
    END SUBROUTINE fist_env_release
 
 END MODULE fist_environment_types
