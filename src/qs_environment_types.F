@@ -187,7 +187,6 @@ MODULE qs_environment_types
              qs_env_create, &
              qs_env_release, &
              qs_env_part_release, &
-             qs_env_retain, &
              set_qs_env
 
 ! **************************************************************************************************
@@ -307,7 +306,7 @@ MODULE qs_environment_types
       TYPE(mp2_type), POINTER                               :: mp2_env => NULL()
       TYPE(kg_environment_type), POINTER                    :: kg_env
       TYPE(wannier_centres_type), POINTER, DIMENSION(:)     :: WannierCentres => NULL()
-      TYPE(molecular_scf_guess_env_type)                    :: molecular_scf_guess_env
+      TYPE(molecular_scf_guess_env_type), POINTER           :: molecular_scf_guess_env => NULL()
       ! Subsystem densities
       TYPE(qs_rho_p_type), DIMENSION(:), POINTER            :: subsys_dens
       ! Embedding potential
@@ -522,7 +521,7 @@ CONTAINS
                          mp2_env, kg_env, WannierCentres, atprop, ls_scf_env, do_transport, transport_env, v_hartree_rspace, &
                          s_mstruct_changed, rho_changed, potential_changed, forces_up_to_date, mscfg_env, almo_scf_env, &
                          gradient_history, variable_history, embed_pot, spin_embed_pot, polar_env, mos_last_converged, rhs)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(IN)              :: qs_env
       TYPE(atomic_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), OPTIONAL, &
@@ -656,8 +655,6 @@ CONTAINS
       TYPE(rho0_mpole_type), POINTER                     :: rho0_m
 
       NULLIFY (rho0_m)
-      CPASSERT(ASSOCIATED(qs_env))
-      CPASSERT(qs_env%ref_count > 0)
       CPASSERT(ASSOCIATED(qs_env%ks_env))
 
       IF (PRESENT(outer_scf_history)) outer_scf_history => qs_env%outer_scf_history
@@ -854,7 +851,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE init_qs_env(qs_env, globenv)
 
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(INOUT)           :: qs_env
       TYPE(global_environment_type), OPTIONAL, POINTER   :: globenv
 
       NULLIFY (qs_env%ls_scf_env)
@@ -960,6 +957,8 @@ CONTAINS
       NULLIFY (qs_env%mo_derivs)
       NULLIFY (qs_env%mo_loc_history)
 
+      IF (.NOT. ASSOCIATED(qs_env%molecular_scf_guess_env)) ALLOCATE (qs_env%molecular_scf_guess_env)
+
    END SUBROUTINE init_qs_env
 
 ! **************************************************************************************************
@@ -1055,7 +1054,7 @@ CONTAINS
                          kpoints, WannierCentres, almo_scf_env, gradient_history, variable_history, embed_pot, &
                          spin_embed_pot, polar_env, mos_last_converged, rhs)
 
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(INOUT)           :: qs_env
       TYPE(cell_type), OPTIONAL, POINTER                 :: super_cell
       TYPE(mo_set_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: mos
@@ -1133,9 +1132,6 @@ CONTAINS
 
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
-!    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
-
-      CPASSERT(qs_env%ref_count > 0)
       IF (PRESENT(mp2_env)) qs_env%mp2_env => mp2_env
       IF (PRESENT(kg_env)) qs_env%kg_env => kg_env
       IF (PRESENT(super_cell)) THEN
@@ -1328,21 +1324,6 @@ CONTAINS
    END SUBROUTINE qs_env_create
 
 ! **************************************************************************************************
-!> \brief retains the given qs_env (see doc/ReferenceCounting.html)
-!> \param qs_env the object to retain
-!> \par History
-!>      12.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   SUBROUTINE qs_env_retain(qs_env)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CPASSERT(ASSOCIATED(qs_env))
-      CPASSERT(qs_env%ref_count > 0)
-      qs_env%ref_count = qs_env%ref_count + 1
-   END SUBROUTINE qs_env_retain
-
-! **************************************************************************************************
 !> \brief releases the given qs_env (see doc/ReferenceCounting.html)
 !> \param qs_env the object to release
 !> \par History
@@ -1419,7 +1400,10 @@ CONTAINS
             IF (ASSOCIATED(qs_env%ls_scf_env)) THEN
                CALL ls_scf_release(qs_env%ls_scf_env)
             END IF
-            CALL molecular_scf_guess_env_destroy(qs_env%molecular_scf_guess_env)
+            IF (ASSOCIATED(qs_env%molecular_scf_guess_env)) THEN
+               CALL molecular_scf_guess_env_destroy(qs_env%molecular_scf_guess_env)
+               DEALLOCATE (qs_env%molecular_scf_guess_env)
+            END IF
 
             IF (ASSOCIATED(qs_env%transport_env)) THEN
                CALL transport_env_release(qs_env%transport_env)
@@ -1615,7 +1599,10 @@ CONTAINS
             IF (ASSOCIATED(qs_env%ls_scf_env)) THEN
                CALL ls_scf_release(qs_env%ls_scf_env)
             END IF
-            CALL molecular_scf_guess_env_destroy(qs_env%molecular_scf_guess_env)
+            IF (ASSOCIATED(qs_env%molecular_scf_guess_env)) THEN
+               CALL molecular_scf_guess_env_destroy(qs_env%molecular_scf_guess_env)
+               DEALLOCATE (qs_env%molecular_scf_guess_env)
+            END IF
 
             IF (ASSOCIATED(qs_env%transport_env)) THEN
                CALL transport_env_release(qs_env%transport_env)
