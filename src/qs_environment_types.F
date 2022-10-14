@@ -90,7 +90,6 @@ MODULE qs_environment_types
    USE qs_active_space_types,           ONLY: active_space_type,&
                                               release_active_space_type
    USE qs_charges_types,                ONLY: qs_charges_release,&
-                                              qs_charges_retain,&
                                               qs_charges_type
    USE qs_dftb_types,                   ONLY: qs_dftb_pairpot_release,&
                                               qs_dftb_pairpot_type
@@ -1185,8 +1184,10 @@ CONTAINS
       IF (PRESENT(polar_env)) qs_env%polar_env => polar_env
 
       IF (PRESENT(qs_charges)) THEN
-         CALL qs_charges_retain(qs_charges)
-         CALL qs_charges_release(qs_env%qs_charges)
+         IF (ASSOCIATED(qs_env%qs_charges)) THEN
+            CALL qs_charges_release(qs_env%qs_charges)
+            DEALLOCATE (qs_env%qs_charges)
+         END IF
          qs_env%qs_charges => qs_charges
       END IF
       IF (PRESENT(ks_qmmm_env)) THEN
@@ -1426,7 +1427,10 @@ CONTAINS
       ! Polarisability tensor
       CALL polar_env_release(qs_env%polar_env)
 
-      CALL qs_charges_release(qs_env%qs_charges)
+      IF (ASSOCIATED(qs_env%qs_charges)) THEN
+         CALL qs_charges_release(qs_env%qs_charges)
+         DEALLOCATE (qs_env%qs_charges)
+      END IF
       CALL qs_ks_release(qs_env%ks_env)
       CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env)
       CALL wfi_release(qs_env%wf_history)
@@ -1616,7 +1620,10 @@ CONTAINS
       ! Polarisability tensor
       CALL polar_env_release(qs_env%polar_env)
 
-      CALL qs_charges_release(qs_env%qs_charges)
+      IF (ASSOCIATED(qs_env%qs_charges)) THEN
+         CALL qs_charges_release(qs_env%qs_charges)
+         DEALLOCATE (qs_env%qs_charges)
+      END IF
       CALL qs_ks_part_release(qs_env%ks_env)
       CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env)
       CALL wfi_release(qs_env%wf_history)
