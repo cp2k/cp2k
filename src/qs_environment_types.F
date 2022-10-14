@@ -101,8 +101,7 @@ MODULE qs_environment_types
                                               qs_gcp_type
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type,&
-                                              qs_ks_qmmm_release,&
-                                              qs_ks_qmmm_retain
+                                              qs_ks_qmmm_release
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type,&
                                               qs_ks_part_release,&
@@ -1191,8 +1190,10 @@ CONTAINS
          qs_env%qs_charges => qs_charges
       END IF
       IF (PRESENT(ks_qmmm_env)) THEN
-         CALL qs_ks_qmmm_retain(ks_qmmm_env)
-         CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env)
+         IF (ASSOCIATED(qs_env%ks_qmmm_env)) THEN
+            CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env)
+            DEALLOCATE (qs_env%ks_qmmm_env)
+         END IF
          qs_env%ks_qmmm_env => ks_qmmm_env
       END IF
       IF (PRESENT(ks_env)) THEN ! accept also null pointers?
@@ -1432,7 +1433,10 @@ CONTAINS
          DEALLOCATE (qs_env%qs_charges)
       END IF
       CALL qs_ks_release(qs_env%ks_env)
-      CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env)
+      IF (ASSOCIATED(qs_env%ks_qmmm_env)) THEN
+         CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env)
+         DEALLOCATE (qs_env%ks_qmmm_env)
+      END IF
       CALL wfi_release(qs_env%wf_history)
       CALL scf_env_release(qs_env%scf_env)
       CALL mpools_release(qs_env%mpools)
@@ -1625,7 +1629,10 @@ CONTAINS
          DEALLOCATE (qs_env%qs_charges)
       END IF
       CALL qs_ks_part_release(qs_env%ks_env)
-      CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env)
+      IF (ASSOCIATED(qs_env%ks_qmmm_env)) THEN
+         CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env)
+         DEALLOCATE (qs_env%ks_qmmm_env)
+      END IF
       CALL wfi_release(qs_env%wf_history)
       CALL scf_env_release(qs_env%scf_env)
       CALL cp_ddapc_release(qs_env%cp_ddapc_env)
