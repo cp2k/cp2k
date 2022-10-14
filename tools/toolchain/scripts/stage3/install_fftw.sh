@@ -69,7 +69,7 @@ case "$with_fftw" in
     check_lib -lfftw3 "FFTW"
     check_lib -lfftw3_omp "FFTW"
     [ "${MPI_MODE}" != "no" ] && check_lib -lfftw3_mpi "FFTW"
-    add_include_from_paths FFTW_CFLAGS "fftw3.h" ${INCLUDE_PATHS}
+    add_include_from_paths FFTW_CFLAGS "fftw3.h" FFTW_INC ${INCLUDE_PATHS}
     add_lib_from_paths FFTW_LDFLAGS "libfftw3.*" ${LIB_PATHS}
     ;;
   __DONTUSE__)
@@ -107,7 +107,6 @@ export CP_CFLAGS="\${CP_CFLAGS} ${FFTW_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${FFTW_LDFLAGS}"
 export CP_LIBS="${FFTW_LIBS} \${CP_LIBS}"
 prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
-export FFTW_ROOT="${pkg_install_dir}"
 EOF
   cat "${BUILDDIR}/setup_fftw" >> $SETUPFILE
 fi
