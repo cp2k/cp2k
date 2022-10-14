@@ -1952,6 +1952,7 @@ CONTAINS
             CALL dbt_batched_contract_finalize(t_R_virt)
          END DO
          CALL dbt_copy(t_3c_M, t_3c_3)
+         CALL dbt_copy(t_3c_M, t_M_virt)
          CALL timestop(handle2)
 
          CALL dbt_copy(t_M_occ, t_3c_4, move_data=.TRUE.)
