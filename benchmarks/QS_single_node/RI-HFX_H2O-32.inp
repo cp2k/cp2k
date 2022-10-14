@@ -63,9 +63,9 @@
           RI_FLAVOR RHO         !Using the RHO flavor, which involve more sparse contractions than the MO flavor
           RI_METRIC IDENTITY    !Use the overlap as RI metric for maximum sparsity
           MIN_BLOCK_SIZE 4      !This is the default block size. Smaller blocks help with sparsity.
-          MEMORY_CUT 9          !Memory cut: controls the batching of tensor contractions. With this default, at most
-        &END RI                 !1/9 of the tensors are sent to the GPU at a given time (note: rounded to a square number)
-      &END HF
+          MEMORY_CUT 3          !Memory cut: controls the batching of tensor contractions. With this default,
+        &END RI                 !at most 1/9 of the sparser tensors are sent to the GPU at a given time, 
+      &END HF                   !and 1/27 of the desner tensors.
     &END XC
   &END DFT
   &SUBSYS
