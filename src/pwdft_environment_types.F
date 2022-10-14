@@ -43,8 +43,7 @@ MODULE pwdft_environment_types
    PUBLIC :: pwdft_environment_type, pwdft_energy_type
 
    ! *** Public subroutines ***
-   PUBLIC :: pwdft_env_retain, &
-             pwdft_env_release, &
+   PUBLIC :: pwdft_env_release, &
              pwdft_env_set, &
              pwdft_env_get, &
              pwdft_env_create
@@ -61,15 +60,12 @@ MODULE pwdft_environment_types
 
 ! **************************************************************************************************
 !> \brief The PWDFT environment type
-!> \param id_nr unique identifier
 !> \param ref_count reference counter (see doc/ReferenceCounting.html)
 !> \par History
 !>      07.2018 initial create
 !> \author JHU
 ! **************************************************************************************************
    TYPE pwdft_environment_type
-      INTEGER                                          :: id_nr, &
-                                                          ref_count
       TYPE(cp_para_env_type), POINTER                  :: para_env => NULL()
       TYPE(qs_subsys_type), POINTER                    :: qs_subsys => NULL()
       TYPE(section_vals_type), POINTER                 :: pwdft_input => NULL()
@@ -92,36 +88,7 @@ MODULE pwdft_environment_types
 
    END TYPE pwdft_environment_type
 
-! **************************************************************************************************
-!> \brief Type which allows the use of arrays of pointers
-!> \param pwdft_env_ptr Pointer to the actual pwdft environment
-!> \par History
-!>      07.2018 initial create
-!> \author JHU
-! **************************************************************************************************
-   TYPE pwdft_environment_p_type
-      TYPE(pwdft_environment_type), POINTER :: pwdft_env_ptr
-   END TYPE pwdft_environment_p_type
-
 CONTAINS
-
-! **************************************************************************************************
-!> \brief Retains a pwdft environment (see doc/ReferenceCounting.html)
-!> \param pwdft_env The pwdft environment to retain
-!> \par History
-!>      07.2018 initial create
-!> \author JHU
-! **************************************************************************************************
-   SUBROUTINE pwdft_env_retain(pwdft_env)
-
-      TYPE(pwdft_environment_type), POINTER              :: pwdft_env
-
-!   ------------------------------------------------------------------------
-
-      CPASSERT(ASSOCIATED(pwdft_env))
-      CPASSERT(pwdft_env%ref_count > 0)
-      pwdft_env%ref_count = pwdft_env%ref_count + 1
-   END SUBROUTINE pwdft_env_retain
 
 ! **************************************************************************************************
 !> \brief Releases the given pwdft environment (see doc/ReferenceCounting.html)
@@ -132,42 +99,31 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pwdft_env_release(pwdft_env)
 
-      TYPE(pwdft_environment_type), POINTER              :: pwdft_env
+      TYPE(pwdft_environment_type), INTENT(INOUT)          :: pwdft_env
 
 #if defined(__SIRIUS)
 
-!   ------------------------------------------------------------------------
+      CALL sirius_free_handler(pwdft_env%gs_handler)
+      CALL sirius_free_handler(pwdft_env%ks_handler)
+      CALL sirius_free_handler(pwdft_env%sctx)
 
-      IF (ASSOCIATED(pwdft_env)) THEN
-         CPASSERT(pwdft_env%ref_count > 0)
-         pwdft_env%ref_count = pwdft_env%ref_count - 1
-         IF (pwdft_env%ref_count < 1) THEN
-
-            CALL sirius_free_handler(pwdft_env%gs_handler)
-            CALL sirius_free_handler(pwdft_env%ks_handler)
-            CALL sirius_free_handler(pwdft_env%sctx)
-
-            IF (ASSOCIATED(pwdft_env%qs_subsys)) THEN
-               CALL qs_subsys_release(pwdft_env%qs_subsys)
-            END IF
-            IF (ASSOCIATED(pwdft_env%energy)) THEN
-               DEALLOCATE (pwdft_env%energy)
-            END IF
-            IF (ASSOCIATED(pwdft_env%forces)) THEN
-               DEALLOCATE (pwdft_env%forces)
-            END IF
-            !
-            DEALLOCATE (pwdft_env)
-         END IF
+      IF (ASSOCIATED(pwdft_env%qs_subsys)) THEN
+         CALL qs_subsys_release(pwdft_env%qs_subsys)
       END IF
+      IF (ASSOCIATED(pwdft_env%energy)) THEN
+         DEALLOCATE (pwdft_env%energy)
+      END IF
+      IF (ASSOCIATED(pwdft_env%forces)) THEN
+         DEALLOCATE (pwdft_env%forces)
+      END IF
+#else
+      MARK_USED(pwdft_env)
 #endif
-      NULLIFY (pwdft_env)
    END SUBROUTINE pwdft_env_release
 
 ! **************************************************************************************************
 !> \brief Returns various attributes of the pwdft environment
 !> \param pwdft_env The enquired pwdft environment
-!> \param id_nr unique identifier
 !> \param pwdft_input ...
 !> \param force_env_input ...
 !> \param xc_input ...
@@ -184,12 +140,11 @@ CONTAINS
 !>      07.2018 initial create
 !> \author JHU
 ! **************************************************************************************************
-   SUBROUTINE pwdft_env_get(pwdft_env, id_nr, pwdft_input, force_env_input, xc_input, &
+   SUBROUTINE pwdft_env_get(pwdft_env, pwdft_input, force_env_input, xc_input, &
                             cp_subsys, qs_subsys, para_env, energy, forces, stress, &
                             sctx, gs_handler, ks_handler)
 
-      TYPE(pwdft_environment_type), POINTER              :: pwdft_env
-      INTEGER, INTENT(OUT), OPTIONAL                     :: id_nr
+      TYPE(pwdft_environment_type), INTENT(IN)           :: pwdft_env
       TYPE(section_vals_type), OPTIONAL, POINTER         :: pwdft_input, force_env_input, xc_input
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: cp_subsys
       TYPE(qs_subsys_type), OPTIONAL, POINTER            :: qs_subsys
@@ -207,12 +162,7 @@ CONTAINS
       TYPE(C_PTR), OPTIONAL                              :: gs_handler
       TYPE(C_PTR), OPTIONAL                              :: ks_handler
 #endif
-!     ------------------------------------------------------------------------
 
-      CPASSERT(ASSOCIATED(pwdft_env))
-      CPASSERT(pwdft_env%ref_count > 0)
-
-      IF (PRESENT(id_nr)) id_nr = pwdft_env%id_nr
       IF (PRESENT(pwdft_input)) pwdft_input => pwdft_env%pwdft_input
       IF (PRESENT(force_env_input)) force_env_input => pwdft_env%force_env_input
       IF (PRESENT(xc_input)) xc_input => pwdft_env%xc_input
@@ -233,7 +183,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Sets various attributes of the pwdft environment
 !> \param pwdft_env The enquired pwdft environment
-!> \param id_nr unique identifier
 !> \param pwdft_input ...
 !> \param force_env_input ...
 !> \param xc_input ...
@@ -252,12 +201,11 @@ CONTAINS
 !> \note
 !>   For possible missing arguments see the attributes of pwdft_environment_type
 ! **************************************************************************************************
-   SUBROUTINE pwdft_env_set(pwdft_env, id_nr, pwdft_input, force_env_input, xc_input, &
+   SUBROUTINE pwdft_env_set(pwdft_env, pwdft_input, force_env_input, xc_input, &
                             qs_subsys, cp_subsys, para_env, energy, forces, stress, &
                             sctx, gs_handler, ks_handler)
 
-      TYPE(pwdft_environment_type), POINTER              :: pwdft_env
-      INTEGER, INTENT(IN), OPTIONAL                      :: id_nr
+      TYPE(pwdft_environment_type), INTENT(INOUT)        :: pwdft_env
       TYPE(section_vals_type), OPTIONAL, POINTER         :: pwdft_input, force_env_input, xc_input
       TYPE(qs_subsys_type), OPTIONAL, POINTER            :: qs_subsys
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: cp_subsys
@@ -275,12 +223,7 @@ CONTAINS
       TYPE(C_PTR), OPTIONAL                              :: gs_handler
       TYPE(C_PTR), OPTIONAL                              :: ks_handler
 #endif
-!   ------------------------------------------------------------------------
 
-      CPASSERT(ASSOCIATED(pwdft_env))
-      CPASSERT(pwdft_env%ref_count > 0)
-
-      IF (PRESENT(id_nr)) pwdft_env%id_nr = id_nr
       IF (PRESENT(para_env)) pwdft_env%para_env => para_env
       IF (PRESENT(pwdft_input)) pwdft_env%pwdft_input => pwdft_input
       IF (PRESENT(force_env_input)) pwdft_env%force_env_input => force_env_input
@@ -312,11 +255,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pwdft_env_clear(pwdft_env)
 
-      TYPE(pwdft_environment_type), POINTER              :: pwdft_env
+      TYPE(pwdft_environment_type), INTENT(INOUT)        :: pwdft_env
 
 !   ------------------------------------------------------------------------
 
-      CPASSERT(ASSOCIATED(pwdft_env))
       NULLIFY (pwdft_env%para_env)
       NULLIFY (pwdft_env%pwdft_input)
       NULLIFY (pwdft_env%force_env_input)
@@ -343,13 +285,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pwdft_env_create(pwdft_env)
 
-      TYPE(pwdft_environment_type), POINTER              :: pwdft_env
+      TYPE(pwdft_environment_type), INTENT(OUT)          :: pwdft_env
 
-      ALLOCATE (pwdft_env)
-
-      pwdft_env%ref_count = 1
-      last_pwdft_id = last_pwdft_id + 1
-      pwdft_env%id_nr = last_pwdft_id
       CALL pwdft_env_clear(pwdft_env)
 
    END SUBROUTINE pwdft_env_create

@@ -47,14 +47,12 @@ MODULE eip_environment_types
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eip_environment_types'
-   INTEGER, PRIVATE, SAVE :: last_eip_id = 0
 
    ! *** Public data types ***
    PUBLIC :: eip_environment_type
 
    ! *** Public subroutines ***
-   PUBLIC :: eip_env_retain, &
-             eip_env_release, &
+   PUBLIC :: eip_env_release, &
              eip_env_set, &
              eip_env_get, &
              eip_env_create
@@ -86,9 +84,7 @@ MODULE eip_environment_types
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! **************************************************************************************************
    TYPE eip_environment_type
-      INTEGER                                          :: id_nr, &
-                                                          ref_count, &
-                                                          eip_model
+      INTEGER                                          :: eip_model
       REAL(KIND=dp)                                    :: eip_energy, &
                                                           eip_kinetic_energy, &
                                                           eip_potential_energy, &
@@ -104,36 +100,7 @@ MODULE eip_environment_types
       LOGICAL                                          :: use_ref_cell
    END TYPE eip_environment_type
 
-! **************************************************************************************************
-!> \brief Type which allows the use of arrays of pointers
-!> \param eip_env_ptr Pointer to the actual eip environment
-!> \par History
-!>      03.2006 initial create [tdk]
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-! **************************************************************************************************
-   TYPE eip_environment_p_type
-      TYPE(eip_environment_type), POINTER :: eip_env_ptr
-   END TYPE eip_environment_p_type
-
 CONTAINS
-
-! **************************************************************************************************
-!> \brief Retains a eip environment (see doc/ReferenceCounting.html)
-!> \param eip_env The eip environment to retain
-!> \par History
-!>      03.2006 initial create [tdk]
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-! **************************************************************************************************
-   SUBROUTINE eip_env_retain(eip_env)
-
-      TYPE(eip_environment_type), POINTER                :: eip_env
-
-!   ------------------------------------------------------------------------
-
-      CPASSERT(ASSOCIATED(eip_env))
-      CPASSERT(eip_env%ref_count > 0)
-      eip_env%ref_count = eip_env%ref_count + 1
-   END SUBROUTINE eip_env_retain
 
 ! **************************************************************************************************
 !> \brief Releases the given eip environment (see doc/ReferenceCounting.html)
@@ -144,42 +111,31 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE eip_env_release(eip_env)
 
-      TYPE(eip_environment_type), POINTER                :: eip_env
+      TYPE(eip_environment_type), INTENT(INOUT)          :: eip_env
 
-!   ------------------------------------------------------------------------
-
-      IF (ASSOCIATED(eip_env)) THEN
-         CPASSERT(eip_env%ref_count > 0)
-         eip_env%ref_count = eip_env%ref_count - 1
-         IF (eip_env%ref_count < 1) THEN
-            IF (ASSOCIATED(eip_env%eip_forces)) THEN
-               DEALLOCATE (eip_env%eip_forces)
-            END IF
-            IF (ASSOCIATED(eip_env%subsys)) THEN
-               CALL cp_subsys_release(eip_env%subsys)
-            END IF
-            IF (ASSOCIATED(eip_env%subsys)) THEN
-               CALL cp_subsys_release(eip_env%subsys)
-            END IF
-            !IF (ASSOCIATED(eip_env%eip_input)) THEN
-            !  CALL section_vals_release(eip_env%eip_input)
-            !END IF
-            !IF (ASSOCIATED(eip_env%force_env_input)) THEN
-            !  CALL section_vals_release(eip_env%force_env_input)
-            !END IF
-            IF (ASSOCIATED(eip_env%cell_ref)) THEN
-               CALL cell_release(eip_env%cell_ref)
-            END IF
-            DEALLOCATE (eip_env)
-         END IF
+      IF (ASSOCIATED(eip_env%eip_forces)) THEN
+         DEALLOCATE (eip_env%eip_forces)
       END IF
-      NULLIFY (eip_env)
+      IF (ASSOCIATED(eip_env%subsys)) THEN
+         CALL cp_subsys_release(eip_env%subsys)
+      END IF
+      IF (ASSOCIATED(eip_env%subsys)) THEN
+         CALL cp_subsys_release(eip_env%subsys)
+      END IF
+      !IF (ASSOCIATED(eip_env%eip_input)) THEN
+      !  CALL section_vals_release(eip_env%eip_input)
+      !END IF
+      !IF (ASSOCIATED(eip_env%force_env_input)) THEN
+      !  CALL section_vals_release(eip_env%force_env_input)
+      !END IF
+      IF (ASSOCIATED(eip_env%cell_ref)) THEN
+         CALL cell_release(eip_env%cell_ref)
+      END IF
    END SUBROUTINE eip_env_release
 
 ! **************************************************************************************************
 !> \brief Returns various attributes of the eip environment
 !> \param eip_env The enquired eip environment
-!> \param id_nr unique identifier
 !> \param eip_model Specifies which EIP model is in use.
 !> \param eip_energy The total eip energy
 !> \param eip_energy_var Variance of the energy/atom
@@ -211,7 +167,7 @@ CONTAINS
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! **************************************************************************************************
-   SUBROUTINE eip_env_get(eip_env, id_nr, eip_model, eip_energy, eip_energy_var, &
+   SUBROUTINE eip_env_get(eip_env, eip_model, eip_energy, eip_energy_var, &
                           eip_forces, coord_avg, coord_var, count, subsys, &
                           atomic_kind_set, particle_set, local_particles, &
                           molecule_kind_set, molecule_set, local_molecules, &
@@ -219,8 +175,8 @@ CONTAINS
                           use_ref_cell, eip_kinetic_energy, eip_potential_energy, &
                           virial)
 
-      TYPE(eip_environment_type), POINTER                :: eip_env
-      INTEGER, INTENT(OUT), OPTIONAL                     :: id_nr, eip_model
+      TYPE(eip_environment_type), INTENT(IN)             :: eip_env
+      INTEGER, INTENT(OUT), OPTIONAL                     :: eip_model
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: eip_energy, eip_energy_var
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: eip_forces
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: coord_avg, coord_var, count
@@ -250,10 +206,6 @@ CONTAINS
 
       NULLIFY (atomic_kinds, particles, molecules, molecule_kinds)
 
-      CPASSERT(ASSOCIATED(eip_env))
-      CPASSERT(eip_env%ref_count > 0)
-
-      IF (PRESENT(id_nr)) id_nr = eip_env%id_nr
       IF (PRESENT(eip_model)) eip_model = eip_env%eip_model
       IF (PRESENT(eip_kinetic_energy)) THEN
          eip_kinetic_energy = eip_env%eip_kinetic_energy
@@ -292,7 +244,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Sets various attributes of the eip environment
 !> \param eip_env The enquired eip environment
-!> \param id_nr unique identifier
 !> \param eip_model Specifies which EIP model is in use
 !> \param eip_energy The total eip energy
 !> \param eip_energy_var Variance of the energy/atom
@@ -321,15 +272,15 @@ CONTAINS
 !> \note
 !>   For possible missing arguments see the attributes of eip_environment_type
 ! **************************************************************************************************
-   SUBROUTINE eip_env_set(eip_env, id_nr, eip_model, eip_energy, eip_energy_var, &
+   SUBROUTINE eip_env_set(eip_env, eip_model, eip_energy, eip_energy_var, &
                           eip_forces, coord_avg, coord_var, count, subsys, &
                           atomic_kind_set, particle_set, local_particles, &
                           molecule_kind_set, molecule_set, local_molecules, &
                           eip_input, force_env_input, cell_ref, &
                           use_ref_cell, eip_kinetic_energy, eip_potential_energy)
 
-      TYPE(eip_environment_type), POINTER                :: eip_env
-      INTEGER, INTENT(IN), OPTIONAL                      :: id_nr, eip_model
+      TYPE(eip_environment_type), INTENT(INOUT)          :: eip_env
+      INTEGER, INTENT(IN), OPTIONAL                      :: eip_model
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eip_energy, eip_energy_var
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: eip_forces
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: coord_avg, coord_var, count
@@ -354,12 +305,6 @@ CONTAINS
       TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(particle_list_type), POINTER                  :: particles
 
-!   ------------------------------------------------------------------------
-
-      CPASSERT(ASSOCIATED(eip_env))
-      CPASSERT(eip_env%ref_count > 0)
-
-      IF (PRESENT(id_nr)) eip_env%id_nr = id_nr
       IF (PRESENT(eip_model)) eip_env%eip_model = eip_model
       IF (PRESENT(eip_kinetic_energy)) THEN
          eip_env%eip_kinetic_energy = eip_kinetic_energy
@@ -426,11 +371,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE eip_env_clear(eip_env)
 
-      TYPE(eip_environment_type), POINTER                :: eip_env
-
-!   ------------------------------------------------------------------------
-
-      CPASSERT(ASSOCIATED(eip_env))
+      TYPE(eip_environment_type), INTENT(INOUT)          :: eip_env
 
       eip_env%eip_model = 0
       eip_env%eip_kinetic_energy = 0.0_dp
@@ -466,9 +407,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE eip_env_create(eip_env)
 
-      TYPE(eip_environment_type), POINTER                :: eip_env
-
-      ALLOCATE (eip_env)
+      TYPE(eip_environment_type), INTENT(OUT)            :: eip_env
 
       NULLIFY (eip_env%eip_forces)
       NULLIFY (eip_env%subsys)
@@ -476,9 +415,6 @@ CONTAINS
       NULLIFY (eip_env%force_env_input)
       NULLIFY (eip_env%cell_ref)
 
-      eip_env%ref_count = 1
-      last_eip_id = last_eip_id + 1
-      eip_env%id_nr = last_eip_id
       eip_env%use_ref_cell = .FALSE.
       CALL eip_env_clear(eip_env)
    END SUBROUTINE eip_env_create

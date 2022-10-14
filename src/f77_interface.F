@@ -804,6 +804,7 @@ CONTAINS
                                   globenv=globenv, force_env_section=force_env_section)
 
          CASE (do_eip)
+            ALLOCATE (eip_env)
             CALL eip_env_create(eip_env)
             CALL eip_init(eip_env, root_section, my_para_env, force_env_section=force_env_section, &
                           subsys_section=subsys_section)
@@ -811,6 +812,7 @@ CONTAINS
                                   globenv=globenv, force_env_section=force_env_section)
 
          CASE (do_sirius)
+            ALLOCATE (pwdft_env)
             CALL pwdft_env_create(pwdft_env)
             CALL pwdft_init(pwdft_env, root_section, my_para_env, force_env_section=force_env_section, &
                             subsys_section=subsys_section, use_motion_section=use_motion_section)
@@ -818,6 +820,7 @@ CONTAINS
                                   globenv=globenv, force_env_section=force_env_section)
 
          CASE (do_mixed)
+            ALLOCATE (mixed_env)
             CALL mixed_create_force_env(mixed_env, root_section, my_para_env, &
                                         force_env_section=force_env_section, n_subforce_eval=nsubforce_size, &
                                         use_motion_section=use_motion_section)
