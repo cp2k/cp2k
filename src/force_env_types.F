@@ -248,6 +248,7 @@ CONTAINS
                DEALLOCATE (force_env%nnp_env)
             CASE (use_embed)
                CALL embed_env_release(force_env%embed_env)
+               DEALLOCATE (force_env%embed_env)
             END SELECT
             CALL globenv_release(force_env%globenv)
             CALL cp_para_env_release(force_env%para_env)
@@ -261,6 +262,7 @@ CONTAINS
             CPASSERT(.NOT. ASSOCIATED(force_env%embed_env))
             IF (ASSOCIATED(force_env%meta_env)) THEN
                CALL meta_env_release(force_env%meta_env)
+               DEALLOCATE (force_env%meta_env)
             END IF
             IF (ASSOCIATED(force_env%fp_env)) THEN
                CALL fp_env_release(force_env%fp_env)
@@ -635,7 +637,10 @@ CONTAINS
 
       CPASSERT(force_env%ref_count > 0)
       IF (PRESENT(meta_env)) THEN
-         IF (ASSOCIATED(force_env%meta_env)) CALL meta_env_release(force_env%meta_env)
+         IF (ASSOCIATED(force_env%meta_env)) THEN
+            CALL meta_env_release(force_env%meta_env)
+            DEALLOCATE (force_env%meta_env)
+         END IF
          force_env%meta_env => meta_env
       END IF
       IF (PRESENT(fp_env)) THEN

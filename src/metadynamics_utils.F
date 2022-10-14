@@ -123,6 +123,7 @@ CONTAINS
 
          metavar_section => section_vals_get_subs_vals(metadyn_section, "METAVAR")
          CALL section_vals_get(metavar_section, n_repetition=n_colvar)
+         ALLOCATE (meta_env)
          CALL metadyn_create(meta_env, n_colvar=n_colvar, &
                              dt=dt, para_env=para_env, metadyn_section=metadyn_section)
 

@@ -52,7 +52,7 @@ CONTAINS
    SUBROUTINE embed_create_force_env(embed_env, root_section, para_env, &
                                      force_env_section, n_subforce_eval, use_motion_section)
 
-      TYPE(embed_env_type), POINTER                      :: embed_env
+      TYPE(embed_env_type), INTENT(OUT)                  :: embed_env
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: force_env_section

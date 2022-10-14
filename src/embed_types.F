@@ -57,11 +57,9 @@ MODULE embed_types
    PUBLIC :: get_embed_env, &
              set_embed_env, &
              embed_env_create, &
-             embed_env_release, &
-             embed_env_retain
+             embed_env_release
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-   INTEGER, PRIVATE, SAVE :: last_embed_env_id_nr = 0
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'embed_types'
 
 ! **************************************************************************************************
@@ -120,7 +118,6 @@ MODULE embed_types
 ! **************************************************************************************************
 
    TYPE embed_env_type
-      INTEGER                                          :: id_nr, ref_count
       TYPE(cell_type), POINTER                         :: cell_ref
       TYPE(cp_para_env_type), POINTER                  :: para_env
       TYPE(cp_subsys_type), POINTER                    :: subsys
@@ -225,9 +222,6 @@ CONTAINS
       NULLIFY (embed_env%subsys)
       CALL cp_para_env_retain(para_env)
       embed_env%para_env => para_env
-      embed_env%ref_count = 1
-      last_embed_env_id_nr = last_embed_env_id_nr + 1
-      embed_env%id_nr = last_embed_env_id_nr
 
    END SUBROUTINE init_embed_env
 
@@ -250,7 +244,7 @@ CONTAINS
                             molecule_set, cell_ref, subsys, &
                             input, sub_para_env)
 
-      TYPE(embed_env_type), POINTER                      :: embed_env
+      TYPE(embed_env_type), INTENT(INOUT)                :: embed_env
       TYPE(atomic_kind_type), OPTIONAL, POINTER          :: atomic_kind_set(:)
       TYPE(particle_type), OPTIONAL, POINTER             :: particle_set(:)
       TYPE(distribution_1d_type), OPTIONAL, POINTER      :: local_particles, local_molecules
@@ -266,8 +260,6 @@ CONTAINS
       TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(particle_list_type), POINTER                  :: particles
-
-      CPASSERT(embed_env%ref_count > 0)
 
       IF (PRESENT(cell_ref)) THEN
          CALL cell_retain(cell_ref)
@@ -329,10 +321,9 @@ CONTAINS
 !> \author Vladimir Rybkin 02.2018
 ! **************************************************************************************************
    SUBROUTINE embed_env_create(embed_env, para_env)
-      TYPE(embed_env_type), POINTER                      :: embed_env
+      TYPE(embed_env_type), INTENT(OUT)                  :: embed_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      ALLOCATE (embed_env)
       CALL init_embed_env(embed_env, para_env=para_env)
    END SUBROUTINE embed_env_create
 
@@ -341,49 +332,28 @@ CONTAINS
 !> \param embed_env ...
 !> \author Vladimir Rybkin 02.2018
 ! **************************************************************************************************
-   SUBROUTINE embed_env_retain(embed_env)
-      TYPE(embed_env_type), POINTER                      :: embed_env
-
-      CPASSERT(ASSOCIATED(embed_env))
-      CPASSERT(embed_env%ref_count > 0)
-      embed_env%ref_count = embed_env%ref_count + 1
-   END SUBROUTINE embed_env_retain
-
-! **************************************************************************************************
-!> \brief ...
-!> \param embed_env ...
-!> \author Vladimir Rybkin 02.2018
-! **************************************************************************************************
    SUBROUTINE embed_env_release(embed_env)
-      TYPE(embed_env_type), POINTER                      :: embed_env
+      TYPE(embed_env_type), INTENT(INOUT)                :: embed_env
 
       INTEGER                                            :: i, ngroups
 
-      IF (ASSOCIATED(embed_env)) THEN
-         CPASSERT(embed_env%ref_count > 0)
-         embed_env%ref_count = embed_env%ref_count - 1
-         IF (embed_env%ref_count < 1) THEN
-            ngroups = SIZE(embed_env%sub_para_env)
-            DO i = 1, ngroups
-               IF (ASSOCIATED(embed_env%sub_para_env(i)%para_env)) THEN
-                  CALL cp_logger_release(embed_env%sub_logger(i)%p)
-                  CALL cp_para_env_release(embed_env%sub_para_env(i)%para_env)
-               END IF
-            END DO
-            DEALLOCATE (embed_env%sub_para_env)
-            DEALLOCATE (embed_env%sub_logger)
-            DEALLOCATE (embed_env%energies)
-            CALL cell_release(embed_env%cell_ref)
-            CALL cp_para_env_release(embed_env%para_env)
-            CALL cp_subsys_release(embed_env%subsys)
-            CALL section_vals_release(embed_env%input)
-            IF (ASSOCIATED(embed_env%group_distribution)) THEN
-               DEALLOCATE (embed_env%group_distribution)
-            END IF
-            DEALLOCATE (embed_env)
+      ngroups = SIZE(embed_env%sub_para_env)
+      DO i = 1, ngroups
+         IF (ASSOCIATED(embed_env%sub_para_env(i)%para_env)) THEN
+            CALL cp_logger_release(embed_env%sub_logger(i)%p)
+            CALL cp_para_env_release(embed_env%sub_para_env(i)%para_env)
          END IF
+      END DO
+      DEALLOCATE (embed_env%sub_para_env)
+      DEALLOCATE (embed_env%sub_logger)
+      DEALLOCATE (embed_env%energies)
+      CALL cell_release(embed_env%cell_ref)
+      CALL cp_para_env_release(embed_env%para_env)
+      CALL cp_subsys_release(embed_env%subsys)
+      CALL section_vals_release(embed_env%input)
+      IF (ASSOCIATED(embed_env%group_distribution)) THEN
+         DEALLOCATE (embed_env%group_distribution)
       END IF
-      NULLIFY (embed_env)
 
    END SUBROUTINE embed_env_release
 

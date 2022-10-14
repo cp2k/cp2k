@@ -829,6 +829,7 @@ CONTAINS
             lgroup_distribution => my_force_env%mixed_env%group_distribution
 
          CASE (do_embed)
+            ALLOCATE (embed_env)
             CALL embed_create_force_env(embed_env, root_section, my_para_env, &
                                         force_env_section=force_env_section, n_subforce_eval=nsubforce_size, &
                                         use_motion_section=use_motion_section)
