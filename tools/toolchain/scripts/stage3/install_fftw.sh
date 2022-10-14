@@ -107,6 +107,7 @@ export CP_CFLAGS="\${CP_CFLAGS} ${FFTW_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${FFTW_LDFLAGS}"
 export CP_LIBS="${FFTW_LIBS} \${CP_LIBS}"
 prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
+export FFTW_ROOT=${FFTW_ROOT:-${pkg_install_dir}}
 EOF
   cat "${BUILDDIR}/setup_fftw" >> $SETUPFILE
 fi
