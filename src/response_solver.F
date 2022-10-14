@@ -97,6 +97,7 @@ MODULE response_solver
                                               RECIPROCALSPACE,&
                                               pw_create,&
                                               pw_p_type,&
+                                              pw_release,&
                                               pw_type
    USE qs_2nd_kernel_ao,                ONLY: build_dm_response
    USE qs_collocate_density,            ONLY: calculate_rho_elec
@@ -152,7 +153,7 @@ MODULE response_solver
 
    PRIVATE
 
-! *** Global parameters ***
+   ! Global parameters
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'response_solver'
 
