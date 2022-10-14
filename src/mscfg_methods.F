@@ -284,6 +284,7 @@ CONTAINS
                                   small_para_env=para_env, small_cell=cell, sub_atom_index=atom_index, &
                                   sub_atom_kind_name=atom_type, para_env=para_env, &
                                   force_env_section=force_env_section, subsys_section=subsys_section)
+         ALLOCATE (qs_env_loc)
          CALL qs_env_create(qs_env_loc, globenv)
          CALL qs_init(qs_env_loc, para_env, root_section, globenv=globenv, cp_subsys=subsys_loc, &
                       force_env_section=force_env_section, subsys_section=subsys_section, &
@@ -341,6 +342,7 @@ CONTAINS
          !
          NULLIFY (qs_energy)
          CALL qs_env_release(qs_env_loc)
+         DEALLOCATE (qs_env_loc)
          DEALLOCATE (atom_index)
          DEALLOCATE (atom_type)
 

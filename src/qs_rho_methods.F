@@ -1271,7 +1271,6 @@ CONTAINS
       CPASSERT(ASSOCIATED(rho_input))
       CPASSERT(ASSOCIATED(rho_output))
       CPASSERT(ASSOCIATED(qs_env))
-      CPASSERT(qs_env%ref_count > 0)
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, dft_control=dft_control)
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool)

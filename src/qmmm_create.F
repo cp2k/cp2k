@@ -350,6 +350,7 @@ CONTAINS
                                ignore_outside_box=ignore_outside_box)
       IF (qmmm_link_imomm) CALL qmmm_link_Imomm_coord(qmmm_links, subsys_qm%particles%els, &
                                                       qm_atom_index)
+      ALLOCATE (qs_env)
       CALL qs_env_create(qs_env, globenv)
       CALL qs_init(qs_env, para_env, root_section, globenv=globenv, cp_subsys=subsys_qm, &
                    cell=qm_cell_small, qmmm=.TRUE., qmmm_env_qm=qmmm_env_qm, &

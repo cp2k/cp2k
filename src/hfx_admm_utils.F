@@ -235,8 +235,7 @@ CONTAINS
             CALL get_mo_set(mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit, mo_coeff_b=mo_coeff_b)
             IF (.NOT. ASSOCIATED(mo_coeff_aux_fit)) THEN
                CALL init_mo_set(mos_aux_fit(ispin)%mo_set, fm_struct=aux_fit_fm_struct, &
-                                name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))// &
-                                "%mo_aux_fit"//TRIM(ADJUSTL(cp_to_string(ispin))))
+                                name="qs_env%mo_aux_fit"//TRIM(ADJUSTL(cp_to_string(ispin))))
             END IF
             CALL cp_fm_struct_release(aux_fit_fm_struct)
 

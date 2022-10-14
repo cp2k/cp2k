@@ -238,6 +238,7 @@ CONTAINS
                DEALLOCATE (force_env%fist_env)
             CASE (use_qs_force)
                CALL qs_env_release(force_env%qs_env)
+               DEALLOCATE (force_env%qs_env)
             CASE (use_eip_force)
                CALL eip_env_release(force_env%eip_env)
                DEALLOCATE (force_env%eip_env)

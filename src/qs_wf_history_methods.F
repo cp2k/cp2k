@@ -509,7 +509,6 @@ CONTAINS
       CPASSERT(ASSOCIATED(wf_history))
       CPASSERT(wf_history%ref_count > 0)
       CPASSERT(ASSOCIATED(qs_env))
-      CPASSERT(qs_env%ref_count > 0)
       CALL get_qs_env(qs_env, mos=mos, rho=rho, do_kpoints=do_kpoints)
       CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
       ! chooses the method for this extrapolation
@@ -954,18 +953,9 @@ CONTAINS
 !>      11.2006 created [TdK]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! **************************************************************************************************
-   SUBROUTINE wfi_set_history_variables(qs_env, nvec)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+   ELEMENTAL SUBROUTINE wfi_set_history_variables(qs_env, nvec)
+      TYPE(qs_environment_type), INTENT(INOUT)           :: qs_env
       INTEGER, INTENT(IN)                                :: nvec
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'wfi_set_history_variables'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(qs_env))
-      CPASSERT(qs_env%ref_count > 0)
 
       IF (nvec >= qs_env%wf_history%memory_depth) THEN
          IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
@@ -980,8 +970,6 @@ CONTAINS
             qs_env%scf_control%outer_scf%eps_scf = qs_env%scf_control%eps_scf_hist
          END IF
       END IF
-
-      CALL timestop(handle)
 
    END SUBROUTINE wfi_set_history_variables
 
@@ -1002,7 +990,6 @@ CONTAINS
       CPASSERT(ASSOCIATED(wf_history))
       CPASSERT(wf_history%ref_count > 0)
       CPASSERT(ASSOCIATED(qs_env))
-      CPASSERT(qs_env%ref_count > 0)
 
       wf_history%snapshot_count = wf_history%snapshot_count + 1
       IF (wf_history%memory_depth > 0) THEN
@@ -1109,7 +1096,6 @@ CONTAINS
                                      extension=".scfLog")
 
       CPASSERT(ASSOCIATED(qs_env))
-      CPASSERT(qs_env%ref_count > 0)
       CPASSERT(ASSOCIATED(qs_env%wf_history))
       CPASSERT(qs_env%wf_history%ref_count > 0)
       CALL get_qs_env(qs_env, dft_control=dft_control)

@@ -72,7 +72,7 @@ CONTAINS
    SUBROUTINE build_tb_coulomb_qmqm(qs_env, ks_matrix, rho, mcharge, energy, &
                                     calculate_forces, just_energy)
 
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(IN)              :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
       TYPE(qs_rho_type), POINTER                         :: rho
       REAL(dp), DIMENSION(:)                             :: mcharge

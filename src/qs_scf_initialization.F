@@ -585,8 +585,7 @@ CONTAINS
          IF (.NOT. ASSOCIATED(mo_coeff)) THEN
             CALL init_mo_set(mos(ispin)%mo_set, &
                              fm_pool=ao_mo_fm_pools(ispin)%pool, &
-                             name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))// &
-                             "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))))
+                             name="qs_env%mo"//TRIM(ADJUSTL(cp_to_string(ispin))))
          END IF
          IF (.NOT. ASSOCIATED(mo_coeff_b)) THEN
             CALL cp_fm_get_info(mos(ispin)%mo_set%mo_coeff, ncol_global=nmo)
@@ -628,8 +627,7 @@ CONTAINS
             IF (.NOT. ASSOCIATED(mo_coeff_last)) THEN
                CALL init_mo_set(mos_last_converged(ispin)%mo_set, &
                                 fm_ref=mos(ispin)%mo_set%mo_coeff, &
-                                name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))// &
-                                "%mos_last_converged"//TRIM(ADJUSTL(cp_to_string(ispin))))
+                                name="qs_env%mos_last_converged"//TRIM(ADJUSTL(cp_to_string(ispin))))
             END IF
          END DO
       END IF
@@ -898,7 +896,6 @@ CONTAINS
       CPASSERT(ASSOCIATED(scf_env))
       CPASSERT(scf_env%ref_count > 0)
       CPASSERT(ASSOCIATED(qs_env))
-      CPASSERT(qs_env%ref_count > 0)
       NULLIFY (para_env)
 
       s_minus_half_available = .FALSE.

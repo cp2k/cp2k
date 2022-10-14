@@ -76,10 +76,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section, &
                                                             xc_fun_section
 
-      !--------------------------------------------------------------------------------------------!
-
-      CPASSERT(.NOT. ASSOCIATED(qs_env_kp))
-
       CALL get_qs_env(qs_env, &
                       para_env=para_env, &
                       input=force_env_section, &
@@ -106,6 +102,7 @@ CONTAINS
          CALL section_vals_val_set(xc_fun_section, "_SECTION_PARAMETERS_", i_val=xc_none)
       END IF
 
+      ALLOCATE (qs_env_kp)
       CALL qs_env_create(qs_env_kp)
       CALL qs_init(qs_env_kp, para_env, cp_subsys=cp_subsys, kpoint_env=kpoint, &
                    force_env_section=force_env_section, subsys_section=subsys_section, &
