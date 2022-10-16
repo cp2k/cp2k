@@ -233,12 +233,11 @@ CONTAINS
             WRITE (UNIT=output_unit, FMT="(/,T5,A)") &
                "Create and initialize the xas environment"
          END IF
+         ALLOCATE (xas_env)
          CALL xas_env_create(xas_env)
          CALL xas_env_init(xas_env, qs_env, dft_section, logger)
          xas_control => dft_control%xas_control
          CALL set_qs_env(qs_env, xas_env=xas_env)
-         CALL xas_env_release(xas_env)
-         CALL get_qs_env(qs_env, xas_env=xas_env)
       END IF
 
 !   Initialize the type of calculation
@@ -379,6 +378,8 @@ CONTAINS
             END IF
 
             CALL xas_env_release(qs_env%xas_env)
+            DEALLOCATE (qs_env%xas_env)
+            NULLIFY (qs_env%xas_env)
 
             CALL cp_print_key_finished_output(output_unit, logger, xas_section, &
                                               "PRINT%PROGRAM_RUN_INFO")
@@ -571,6 +572,8 @@ CONTAINS
       END IF
 
       CALL xas_env_release(qs_env%xas_env)
+      DEALLOCATE (qs_env%xas_env)
+      NULLIFY (qs_env%xas_env)
 
       CALL cp_print_key_finished_output(output_unit, logger, xas_section, &
                                         "PRINT%PROGRAM_RUN_INFO")

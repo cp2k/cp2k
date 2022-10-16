@@ -47,11 +47,10 @@ MODULE xas_env_types
 
 ! *** Public subroutines ***
 
-   PUBLIC :: get_xas_env, set_xas_env, xas_env_create, xas_env_release, xas_env_retain
+   PUBLIC :: get_xas_env, set_xas_env, xas_env_create, xas_env_release
 
 ! **************************************************************************************************
 !> \param ref_count counter for pointers to xas_env
-!> \param iter_count counter for the step at which xas is calculated
 !> \param nao number of atomic orbitals in the basis
 !> \param exc_state state that is now excited (this change atom by atom)
 !> \param nvirtual number of empy states to take into account for the spectrum
@@ -73,8 +72,6 @@ MODULE xas_env_types
 !> \author MI
 ! **************************************************************************************************
    TYPE xas_environment_type
-      INTEGER :: ref_count
-      INTEGER :: iter_count
       INTEGER :: nao, exc_state, xas_estate
       INTEGER :: nexc_search, nexc_atoms
       INTEGER :: spin_channel
@@ -115,7 +112,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param xas_env ...
-!> \param iter_count ...
 !> \param exc_state ...
 !> \param nao ...
 !> \param nvirtual ...
@@ -152,7 +148,7 @@ CONTAINS
 !> \param scf_env ...
 !> \param scf_control ...
 ! **************************************************************************************************
-   SUBROUTINE get_xas_env(xas_env, iter_count, exc_state, nao, nvirtual, nvirtual2, &
+   SUBROUTINE get_xas_env(xas_env, exc_state, nao, nvirtual, nvirtual2, &
                           centers_wfn, atom_of_state, exc_atoms, nexc_states, type_of_state, mykind_of_atom, &
                           mykind_of_kind, state_of_atom, spectrum, groundstate_coeff, ostrength_sm, &
                           dip_fm_set, excvec_coeff, excvec_overlap, &
@@ -161,9 +157,8 @@ CONTAINS
                           stogto_overlap, occ_estate, xas_nelectron, xas_estate, nexc_atoms, nexc_search, spin_channel, &
                           scf_env, scf_control)
 
-      TYPE(xas_environment_type), POINTER                :: xas_env
-      INTEGER, INTENT(OUT), OPTIONAL                     :: iter_count, exc_state, nao, nvirtual, &
-                                                            nvirtual2
+      TYPE(xas_environment_type), INTENT(IN)             :: xas_env
+      INTEGER, INTENT(OUT), OPTIONAL                     :: exc_state, nao, nvirtual, nvirtual2
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: centers_wfn
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: atom_of_state, exc_atoms, nexc_states, &
                                                             type_of_state, mykind_of_atom, &
@@ -194,9 +189,6 @@ CONTAINS
       TYPE(qs_scf_env_type), OPTIONAL, POINTER           :: scf_env
       TYPE(scf_control_type), OPTIONAL, POINTER          :: scf_control
 
-      CPASSERT(ASSOCIATED(xas_env))
-
-      IF (PRESENT(iter_count)) iter_count = xas_env%iter_count
       IF (PRESENT(exc_state)) exc_state = xas_env%exc_state
       IF (PRESENT(nao)) nao = xas_env%nao
       IF (PRESENT(nvirtual)) nvirtual = xas_env%nvirtual
@@ -237,7 +229,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param xas_env ...
-!> \param iter_count ...
 !> \param nexc_search ...
 !> \param spin_channel ...
 !> \param nexc_atoms ...
@@ -252,13 +243,13 @@ CONTAINS
 !> \param scf_env ...
 !> \param scf_control ...
 ! **************************************************************************************************
-   SUBROUTINE set_xas_env(xas_env, iter_count, nexc_search, spin_channel, nexc_atoms, &
+   SUBROUTINE set_xas_env(xas_env, nexc_search, spin_channel, nexc_atoms, &
                           nvirtual, nvirtual2, ip_energy, occ_estate, qs_loc_env, &
                           xas_estate, xas_nelectron, homo_occ, scf_env, scf_control)
 
-      TYPE(xas_environment_type), POINTER                :: xas_env
-      INTEGER, INTENT(IN), OPTIONAL                      :: iter_count, nexc_search, spin_channel, &
-                                                            nexc_atoms, nvirtual, nvirtual2
+      TYPE(xas_environment_type), INTENT(INOUT)          :: xas_env
+      INTEGER, INTENT(IN), OPTIONAL                      :: nexc_search, spin_channel, nexc_atoms, &
+                                                            nvirtual, nvirtual2
       REAL(dp), INTENT(IN), OPTIONAL                     :: ip_energy, occ_estate
       TYPE(qs_loc_env_new_type), OPTIONAL, POINTER       :: qs_loc_env
       INTEGER, INTENT(IN), OPTIONAL                      :: xas_estate
@@ -266,9 +257,6 @@ CONTAINS
       TYPE(qs_scf_env_type), OPTIONAL, POINTER           :: scf_env
       TYPE(scf_control_type), OPTIONAL, POINTER          :: scf_control
 
-      CPASSERT(ASSOCIATED(xas_env))
-
-      IF (PRESENT(iter_count)) xas_env%iter_count = iter_count
       IF (PRESENT(nexc_search)) xas_env%nexc_search = nexc_search
       IF (PRESENT(spin_channel)) xas_env%spin_channel = spin_channel
       IF (PRESENT(nexc_atoms)) xas_env%nexc_atoms = nexc_atoms
@@ -304,12 +292,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xas_env_create(xas_env)
 
-      TYPE(xas_environment_type), POINTER                :: xas_env
+      TYPE(xas_environment_type), INTENT(OUT)            :: xas_env
 
-      ALLOCATE (xas_env)
-
-      xas_env%ref_count = 1
-      xas_env%iter_count = 0
       xas_env%nvirtual = 0
       xas_env%nvirtual2 = 0
 
@@ -338,111 +322,89 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xas_env_release(xas_env)
 
-      TYPE(xas_environment_type), POINTER                :: xas_env
+      TYPE(xas_environment_type), INTENT(INOUT)          :: xas_env
 
       INTEGER                                            :: i, ik, j
 
-      IF (ASSOCIATED(xas_env)) THEN
-         CPASSERT(xas_env%ref_count > 0)
-         xas_env%ref_count = xas_env%ref_count - 1
-         IF (xas_env%ref_count == 0) THEN
-
-            DEALLOCATE (xas_env%state_of_atom, xas_env%atom_of_state)
-            DEALLOCATE (xas_env%nexc_states)
-            DEALLOCATE (xas_env%type_of_state)
-            DEALLOCATE (xas_env%mykind_of_atom)
-            DEALLOCATE (xas_env%mykind_of_kind)
-            DEALLOCATE (xas_env%exc_atoms)
-            DEALLOCATE (xas_env%centers_wfn)
-            IF (ASSOCIATED(xas_env%all_evals)) THEN
-               DEALLOCATE (xas_env%all_evals)
-            END IF
-            IF (ASSOCIATED(xas_env%unoccupied_evals)) THEN
-               DEALLOCATE (xas_env%unoccupied_evals)
-            END IF
-            IF (ASSOCIATED(xas_env%groundstate_coeff)) THEN
-               DO i = 1, SIZE(xas_env%groundstate_coeff)
-                  CALL fm_pool_give_back_fm(xas_env%ao_mo_fm_pools(i)%pool, &
-                                            xas_env%groundstate_coeff(i)%matrix)
-               END DO
-               DEALLOCATE (xas_env%groundstate_coeff)
-            END IF
-            IF (ASSOCIATED(xas_env%dip_fm_set)) THEN
-               DO i = 1, SIZE(xas_env%dip_fm_set, 2)
-                  DO j = 1, SIZE(xas_env%dip_fm_set, 1)
-                     CALL cp_fm_release(xas_env%dip_fm_set(j, i)%matrix)
-                     DEALLOCATE (xas_env%dip_fm_set(j, i)%matrix)
-                  END DO
-               END DO
-               DEALLOCATE (xas_env%dip_fm_set)
-            END IF
-
-            IF (ASSOCIATED(xas_env%excvec_coeff)) THEN
-               CALL cp_fm_release(xas_env%excvec_coeff)
-               DEALLOCATE (xas_env%excvec_coeff)
-               NULLIFY (xas_env%excvec_coeff)
-            END IF
-            IF (ASSOCIATED(xas_env%excvec_overlap)) THEN
-               CALL cp_fm_release(xas_env%excvec_overlap)
-               DEALLOCATE (xas_env%excvec_overlap)
-               NULLIFY (xas_env%excvec_overlap)
-            END IF
-            IF (ASSOCIATED(xas_env%unoccupied_orbs)) THEN
-               CALL cp_fm_release(xas_env%unoccupied_orbs)
-               DEALLOCATE (xas_env%unoccupied_orbs)
-               NULLIFY (xas_env%unoccupied_orbs)
-            END IF
-            NULLIFY (xas_env%ao_mo_fm_pools)
-            IF (ASSOCIATED(xas_env%all_vectors) .AND. xas_env%nvirtual .GT. 0) THEN
-               CALL cp_fm_release(xas_env%all_vectors)
-               DEALLOCATE (xas_env%all_vectors)
-               NULLIFY (xas_env%all_vectors)
-            ELSE
-               NULLIFY (xas_env%all_vectors)
-            END IF
-
-            IF (ASSOCIATED(xas_env%ostrength_sm)) THEN
-               CALL dbcsr_deallocate_matrix_set(xas_env%ostrength_sm)
-            END IF
-            IF (ASSOCIATED(xas_env%qs_loc_env)) THEN
-               CALL qs_loc_env_release(xas_env%qs_loc_env)
-            END IF
-
-            IF (ASSOCIATED(xas_env%my_gto_basis)) THEN
-               DO ik = 1, SIZE(xas_env%my_gto_basis, 1)
-                  CALL deallocate_gto_basis_set(xas_env%my_gto_basis(ik)%gto_basis_set)
-               END DO
-               DEALLOCATE (xas_env%my_gto_basis)
-            END IF
-
-            IF (ASSOCIATED(xas_env%stogto_overlap)) THEN
-               DO ik = 1, SIZE(xas_env%stogto_overlap, 1)
-                  DEALLOCATE (xas_env%stogto_overlap(ik)%array)
-               END DO
-               DEALLOCATE (xas_env%stogto_overlap)
-            END IF
-
-            CALL scf_env_release(xas_env%scf_env)
-            CALL scf_c_release(xas_env%scf_control)
-
-            DEALLOCATE (xas_env)
-         END IF
+      DEALLOCATE (xas_env%state_of_atom, xas_env%atom_of_state)
+      DEALLOCATE (xas_env%nexc_states)
+      DEALLOCATE (xas_env%type_of_state)
+      DEALLOCATE (xas_env%mykind_of_atom)
+      DEALLOCATE (xas_env%mykind_of_kind)
+      DEALLOCATE (xas_env%exc_atoms)
+      DEALLOCATE (xas_env%centers_wfn)
+      IF (ASSOCIATED(xas_env%all_evals)) THEN
+         DEALLOCATE (xas_env%all_evals)
+      END IF
+      IF (ASSOCIATED(xas_env%unoccupied_evals)) THEN
+         DEALLOCATE (xas_env%unoccupied_evals)
+      END IF
+      IF (ASSOCIATED(xas_env%groundstate_coeff)) THEN
+         DO i = 1, SIZE(xas_env%groundstate_coeff)
+            CALL fm_pool_give_back_fm(xas_env%ao_mo_fm_pools(i)%pool, &
+                                      xas_env%groundstate_coeff(i)%matrix)
+         END DO
+         DEALLOCATE (xas_env%groundstate_coeff)
+      END IF
+      IF (ASSOCIATED(xas_env%dip_fm_set)) THEN
+         DO i = 1, SIZE(xas_env%dip_fm_set, 2)
+            DO j = 1, SIZE(xas_env%dip_fm_set, 1)
+               CALL cp_fm_release(xas_env%dip_fm_set(j, i)%matrix)
+               DEALLOCATE (xas_env%dip_fm_set(j, i)%matrix)
+            END DO
+         END DO
+         DEALLOCATE (xas_env%dip_fm_set)
       END IF
 
+      IF (ASSOCIATED(xas_env%excvec_coeff)) THEN
+         CALL cp_fm_release(xas_env%excvec_coeff)
+         DEALLOCATE (xas_env%excvec_coeff)
+         NULLIFY (xas_env%excvec_coeff)
+      END IF
+      IF (ASSOCIATED(xas_env%excvec_overlap)) THEN
+         CALL cp_fm_release(xas_env%excvec_overlap)
+         DEALLOCATE (xas_env%excvec_overlap)
+         NULLIFY (xas_env%excvec_overlap)
+      END IF
+      IF (ASSOCIATED(xas_env%unoccupied_orbs)) THEN
+         CALL cp_fm_release(xas_env%unoccupied_orbs)
+         DEALLOCATE (xas_env%unoccupied_orbs)
+         NULLIFY (xas_env%unoccupied_orbs)
+      END IF
+      NULLIFY (xas_env%ao_mo_fm_pools)
+      IF (ASSOCIATED(xas_env%all_vectors) .AND. xas_env%nvirtual .GT. 0) THEN
+         CALL cp_fm_release(xas_env%all_vectors)
+         DEALLOCATE (xas_env%all_vectors)
+         NULLIFY (xas_env%all_vectors)
+      ELSE
+         NULLIFY (xas_env%all_vectors)
+      END IF
+
+      IF (ASSOCIATED(xas_env%ostrength_sm)) THEN
+         CALL dbcsr_deallocate_matrix_set(xas_env%ostrength_sm)
+      END IF
+      IF (ASSOCIATED(xas_env%qs_loc_env)) THEN
+         CALL qs_loc_env_release(xas_env%qs_loc_env)
+      END IF
+
+      IF (ASSOCIATED(xas_env%my_gto_basis)) THEN
+         DO ik = 1, SIZE(xas_env%my_gto_basis, 1)
+            CALL deallocate_gto_basis_set(xas_env%my_gto_basis(ik)%gto_basis_set)
+         END DO
+         DEALLOCATE (xas_env%my_gto_basis)
+      END IF
+
+      IF (ASSOCIATED(xas_env%stogto_overlap)) THEN
+         DO ik = 1, SIZE(xas_env%stogto_overlap, 1)
+            DEALLOCATE (xas_env%stogto_overlap(ik)%array)
+         END DO
+         DEALLOCATE (xas_env%stogto_overlap)
+      END IF
+
+      CALL scf_env_release(xas_env%scf_env)
+      CALL scf_c_release(xas_env%scf_control)
+
    END SUBROUTINE xas_env_release
-
-! **************************************************************************************************
-!> \brief ...
-!> \param xas_env ...
-! **************************************************************************************************
-   SUBROUTINE xas_env_retain(xas_env)
-
-      TYPE(xas_environment_type), POINTER                :: xas_env
-
-      CPASSERT(ASSOCIATED(xas_env))
-      CPASSERT(xas_env%ref_count > 0)
-      xas_env%ref_count = xas_env%ref_count + 1
-   END SUBROUTINE xas_env_retain
 
 END MODULE xas_env_types
 

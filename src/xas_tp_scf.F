@@ -177,7 +177,6 @@ CONTAINS
       converged = .TRUE.
 
       CPASSERT(ASSOCIATED(xas_env))
-      CPASSERT(xas_env%ref_count > 0)
       CPASSERT(ASSOCIATED(scf_env))
       CPASSERT(scf_env%ref_count > 0)
       CPASSERT(ASSOCIATED(qs_env))

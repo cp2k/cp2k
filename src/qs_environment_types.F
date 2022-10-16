@@ -163,7 +163,6 @@ MODULE qs_environment_types
    USE virial_types,                    ONLY: virial_type
    USE wannier_states_types,            ONLY: wannier_centres_type
    USE xas_env_types,                   ONLY: xas_env_release,&
-                                              xas_env_retain,&
                                               xas_environment_type
 #include "./base/base_uses.f90"
 
@@ -1211,8 +1210,10 @@ CONTAINS
          qs_env%scf_env => scf_env
       END IF
       IF (PRESENT(xas_env)) THEN ! accept also null pointers?
-         CALL xas_env_retain(xas_env)
-         CALL xas_env_release(qs_env%xas_env)
+         IF (ASSOCIATED(qs_env%xas_env)) THEN
+            CALL xas_env_release(qs_env%xas_env)
+            DEALLOCATE (qs_env%xas_env)
+         END IF
          qs_env%xas_env => xas_env
       END IF
       IF (PRESENT(mpools)) THEN
@@ -1388,6 +1389,7 @@ CONTAINS
       !Only if do_xas_calculation
       IF (ASSOCIATED(qs_env%xas_env)) THEN
          CALL xas_env_release(qs_env%xas_env)
+         DEALLOCATE (qs_env%xas_env)
       END IF
       CALL ewald_env_release(qs_env%ewald_env)
       CALL ewald_pw_release(qs_env%ewald_pw)
@@ -1584,6 +1586,7 @@ CONTAINS
       !Only if do_xas_calculation
       IF (ASSOCIATED(qs_env%xas_env)) THEN
          CALL xas_env_release(qs_env%xas_env)
+         DEALLOCATE (qs_env%xas_env)
       END IF
       CALL ewald_env_release(qs_env%ewald_env)
       CALL ewald_pw_release(qs_env%ewald_pw)
