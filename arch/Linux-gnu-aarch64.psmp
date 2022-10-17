@@ -22,7 +22,7 @@
    cd tools/toolchain; \
    [[ -z "${mpi_implementation}" ]] && mpi_implementation="mpich"; \
    [[ -z "${target_cpu}" ]] && target_cpu="native"; \
-   ./install_cp2k_toolchain.sh --install-all --no-arch-files --target-cpu=${target_cpu} --with-gcc --with-${mpi_implementation}; \
+   ./install_cp2k_toolchain.sh --install-all --no-arch-files --target-cpu=${target_cpu} --with-gcc --with-${mpi_implementation} --with-libxsmm=no; \
    source ./install/setup; \
    cd ../..; \
    echo; \
