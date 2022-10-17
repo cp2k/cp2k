@@ -219,7 +219,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       check_lib -lcufft "cuda"
       check_lib -lcublas "cuda"
       DFLAGS+=" IF_HIP(-D__HIP_PLATFORM_NVIDIA__ -D__HIP_PLATFORM_NVCC__ -D__OFFLOAD_HIP |) -D__DBCSR_ACC"
-      HIP_FLAGS=" -g -arch sm_${ARCH_NUM} -O3 -Xcompiler='-fopenmp -Wall -Wextra -Werror' --std=c++11 \$(DFLAGS)"
+      HIP_FLAGS+=" -g -arch sm_${ARCH_NUM} -O3 -Xcompiler='-fopenmp -Wall -Wextra -Werror' --std=c++11 \$(DFLAGS)"
       add_include_from_paths CUDA_CFLAGS "cuda.h" $INCLUDE_PATHS
       HIP_INCLUDES+=" -I${CUDA_PATH:-${CUDA_HOME:-/CUDA_HOME-notset}}/include"
       # GCC issues lots of warnings for hip/nvidia_detail/hip_runtime_api.h
