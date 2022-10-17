@@ -3181,6 +3181,8 @@ CONTAINS
          END DO
       END DO
       CALL spline_env_release(spline_env)
+      DEALLOCATE (spline_env)
+      NULLIFY (spline_env)
       CALL timestop(handle2)
 
    END SUBROUTINE force_field_pack_splines

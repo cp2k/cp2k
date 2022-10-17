@@ -949,6 +949,7 @@ CONTAINS
          END DO
       END DO
       ! Concluding the postprocess..
+      ALLOCATE (spline_env)
       CALL spline_env_create(spline_env, ntype, nunique)
       spline_env%spltab = tmp_index
       DEALLOCATE (tmp_index)

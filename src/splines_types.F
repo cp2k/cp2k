@@ -65,7 +65,6 @@ MODULE splines_types
 
 ! **************************************************************************************************
    TYPE spline_environment_type
-      INTEGER :: ref_count, id_nr
       TYPE(spline_data_pp_type), POINTER, DIMENSION(:) :: spl_pp
       INTEGER, POINTER, DIMENSION(:, :) :: spltab
    END TYPE spline_environment_type
@@ -86,24 +85,17 @@ CONTAINS
 !> \author unknown
 ! **************************************************************************************************
    SUBROUTINE spline_env_release(spline_env)
-      TYPE(spline_environment_type), POINTER             :: spline_env
+      TYPE(spline_environment_type), INTENT(INOUT)       :: spline_env
 
       INTEGER                                            :: i
       TYPE(spline_data_p_type), DIMENSION(:), POINTER    :: spl_p
 
-      IF (ASSOCIATED(spline_env)) THEN
-         CPASSERT(spline_env%ref_count > 0)
-         spline_env%ref_count = spline_env%ref_count - 1
-         IF (spline_env%ref_count < 1) THEN
-            DEALLOCATE (spline_env%spltab)
-            DO i = 1, SIZE(spline_env%spl_pp)
-               spl_p => spline_env%spl_pp(i)%spl_p
-               CALL spline_data_p_release(spl_p)
-            END DO
-            DEALLOCATE (spline_env%spl_pp)
-            DEALLOCATE (spline_env)
-         END IF
-      END IF
+      DEALLOCATE (spline_env%spltab)
+      DO i = 1, SIZE(spline_env%spl_pp)
+         spl_p => spline_env%spl_pp(i)%spl_p
+         CALL spline_data_p_release(spl_p)
+      END DO
+      DEALLOCATE (spline_env%spl_pp)
 
    END SUBROUTINE spline_env_release
 
@@ -184,21 +176,6 @@ CONTAINS
    END SUBROUTINE spline_data_p_retain
 
 ! **************************************************************************************************
-!> \brief retains spline_env
-!> \param spline_env ...
-!> \par History
-!>      2001-09-19-HAF added this doc entry and changed formatting
-!> \author unknown
-! **************************************************************************************************
-   SUBROUTINE spline_env_retain(spline_env)
-      TYPE(spline_environment_type), POINTER             :: spline_env
-
-      CPASSERT(ASSOCIATED(spline_env))
-      CPASSERT(spline_env%ref_count > 0)
-      spline_env%ref_count = spline_env%ref_count + 1
-   END SUBROUTINE spline_env_retain
-
-! **************************************************************************************************
 !> \brief Data-structure that holds all needed information about
 !>      a specific spline interpolation.
 !> \param spline_env ...
@@ -209,7 +186,7 @@ CONTAINS
 !> \author unknown
 ! **************************************************************************************************
    SUBROUTINE spline_env_create(spline_env, ntype, ntab_in)
-      TYPE(spline_environment_type), POINTER             :: spline_env
+      TYPE(spline_environment_type), INTENT(OUT)         :: spline_env
       INTEGER, INTENT(IN)                                :: ntype
       INTEGER, INTENT(IN), OPTIONAL                      :: ntab_in
 
@@ -219,12 +196,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ALLOCATE (spline_env)
       NULLIFY (spline_env%spl_pp)
       NULLIFY (spline_env%spltab)
-      spline_env%ref_count = 1
-      last_spline_env_id_nr = last_spline_env_id_nr + 1
-      spline_env%id_nr = last_spline_env_id_nr
       ! Allocate the number of spline data tables (upper triangular)
       IF (PRESENT(ntab_in)) THEN
          ntab = ntab_in
