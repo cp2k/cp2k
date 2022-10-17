@@ -132,7 +132,7 @@ case "$with_cosma" in
     ;;
 esac
 if [ "$with_cosma" != "__DONTUSE__" ]; then
-  COSMA_LIBS="-lcosma_prefixed_pxgemm -lcosma -lcosta IF_CUDA(-lTiled-MM|)"
+  COSMA_LIBS="-lcosma_prefixed_pxgemm -lcosma -lcosta IF_CUDA(-lTiled-MM|IF_HIP(-lTiled-MM|))"
   if [ "$with_cosma" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_cosma"
 prepend_path LD_LIBRARY_PATH "${COSMA_LIBDIR}"
