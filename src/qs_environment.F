@@ -323,6 +323,7 @@ CONTAINS
                             cp_subsys=cp_subsys, cell=cell, cell_ref=cell_ref, &
                             elkind=is_semi)
 
+      ALLOCATE (ks_env)
       CALL qs_ks_env_create(ks_env)
       CALL set_ks_env(ks_env, subsys=subsys)
       CALL set_qs_env(qs_env, ks_env=ks_env)

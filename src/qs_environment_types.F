@@ -1196,7 +1196,10 @@ CONTAINS
          qs_env%ks_qmmm_env => ks_qmmm_env
       END IF
       IF (PRESENT(ks_env)) THEN ! accept also null pointers?
-         CALL qs_ks_release(qs_env%ks_env)
+         IF (ASSOCIATED(qs_env%ks_env)) THEN
+            CALL qs_ks_release(qs_env%ks_env)
+            DEALLOCATE (qs_env%ks_env)
+         END IF
          qs_env%ks_env => ks_env
       END IF
       IF (PRESENT(wf_history)) THEN ! accept also null pointers ?
@@ -1434,7 +1437,10 @@ CONTAINS
          CALL qs_charges_release(qs_env%qs_charges)
          DEALLOCATE (qs_env%qs_charges)
       END IF
-      CALL qs_ks_release(qs_env%ks_env)
+      IF (ASSOCIATED(qs_env%ks_env)) THEN
+         CALL qs_ks_release(qs_env%ks_env)
+         DEALLOCATE (qs_env%ks_env)
+      END IF
       IF (ASSOCIATED(qs_env%ks_qmmm_env)) THEN
          CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env)
          DEALLOCATE (qs_env%ks_qmmm_env)
