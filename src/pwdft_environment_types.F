@@ -60,7 +60,6 @@ MODULE pwdft_environment_types
 
 ! **************************************************************************************************
 !> \brief The PWDFT environment type
-!> \param ref_count reference counter (see doc/ReferenceCounting.html)
 !> \par History
 !>      07.2018 initial create
 !> \author JHU

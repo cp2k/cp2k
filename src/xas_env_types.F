@@ -50,7 +50,6 @@ MODULE xas_env_types
    PUBLIC :: get_xas_env, set_xas_env, xas_env_create, xas_env_release
 
 ! **************************************************************************************************
-!> \param ref_count counter for pointers to xas_env
 !> \param nao number of atomic orbitals in the basis
 !> \param exc_state state that is now excited (this change atom by atom)
 !> \param nvirtual number of empy states to take into account for the spectrum
