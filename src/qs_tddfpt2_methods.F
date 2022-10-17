@@ -6,8 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE qs_tddfpt2_methods
-   USE admm_types,                      ONLY: admm_type,&
-                                              get_admm_env
+   USE admm_types,                      ONLY: admm_type
    USE bibliography,                    ONLY: Grimme2013,&
                                               Grimme2016,&
                                               Iannuzzi2005,&
@@ -24,7 +23,6 @@ MODULE qs_tddfpt2_methods
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
                                               cp_fm_release,&
-                                              cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -36,12 +34,10 @@ MODULE qs_tddfpt2_methods
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_complete_redistribute,&
-                                              dbcsr_copy,&
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_p_type,&
-                                              dbcsr_set,&
-                                              dbcsr_type_antisymmetric
+                                              dbcsr_set
    USE exstates_types,                  ONLY: excited_energy_type
    USE header,                          ONLY: tddfpt_header
    USE hfx_types,                       ONLY: compare_hfx_sections
@@ -76,12 +72,7 @@ MODULE qs_tddfpt2_methods
    USE qs_tddfpt2_eigensolver,          ONLY: tddfpt_davidson_solver,&
                                               tddfpt_orthogonalize_psi1_psi0,&
                                               tddfpt_orthonormalize_psi1_psi1
-   USE qs_tddfpt2_forces,               ONLY: tddfpt_forces,&
-                                              tddfpt_resvec1,&
-                                              tddfpt_resvec1_admm,&
-                                              tddfpt_resvec2,&
-                                              tddfpt_resvec2_xtb,&
-                                              tddfpt_resvec3
+   USE qs_tddfpt2_forces,               ONLY: tddfpt_forces_main
    USE qs_tddfpt2_lri_utils,            ONLY: tddfpt2_lri_init
    USE qs_tddfpt2_properties,           ONLY: tddfpt_dipole_operator,&
                                               tddfpt_print_excitation_analysis,&
@@ -160,9 +151,7 @@ CONTAINS
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: dipole_op_mos_occ, evects, S_evects
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_oep, &
-                                                            matrix_pe_asymm, matrix_pe_symm, &
-                                                            matrix_s, matrix_s_aux_fit
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_oep, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(excited_energy_type), POINTER                 :: ex_env
       TYPE(full_kernel_env_type), TARGET                 :: full_kernel_env, kernel_env_admm_aux
@@ -518,114 +507,7 @@ CONTAINS
          END IF
 
          IF (calc_forces) THEN
-            ! rhs of linres equation
-            IF (ASSOCIATED(ex_env%cpmos)) THEN
-               DO ispin = 1, SIZE(ex_env%cpmos)
-                  CALL cp_fm_release(ex_env%cpmos(ispin)%matrix)
-                  DEALLOCATE (ex_env%cpmos(ispin)%matrix)
-               END DO
-               DEALLOCATE (ex_env%cpmos)
-            END IF
-            ALLOCATE (ex_env%cpmos(nspins))
-            DO ispin = 1, nspins
-               CALL cp_fm_get_info(matrix=evects(ispin, 1)%matrix, matrix_struct=matrix_struct)
-               ALLOCATE (ex_env%cpmos(ispin)%matrix)
-               CALL cp_fm_create(ex_env%cpmos(ispin)%matrix, matrix_struct)
-               CALL cp_fm_set_all(ex_env%cpmos(ispin)%matrix, 0.0_dp)
-            END DO
-            CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
-            NULLIFY (matrix_pe_asymm, matrix_pe_symm)
-            CALL dbcsr_allocate_matrix_set(ex_env%matrix_pe, nspins)
-            CALL dbcsr_allocate_matrix_set(matrix_pe_symm, nspins)
-            CALL dbcsr_allocate_matrix_set(matrix_pe_asymm, nspins)
-            DO ispin = 1, nspins
-               ALLOCATE (ex_env%matrix_pe(ispin)%matrix)
-               CALL dbcsr_create(ex_env%matrix_pe(ispin)%matrix, template=matrix_s(1)%matrix)
-               CALL dbcsr_copy(ex_env%matrix_pe(ispin)%matrix, matrix_s(1)%matrix)
-               CALL dbcsr_set(ex_env%matrix_pe(ispin)%matrix, 0.0_dp)
-
-               ALLOCATE (matrix_pe_symm(ispin)%matrix)
-               CALL dbcsr_create(matrix_pe_symm(ispin)%matrix, template=matrix_s(1)%matrix)
-               CALL dbcsr_copy(matrix_pe_symm(ispin)%matrix, ex_env%matrix_pe(ispin)%matrix)
-
-               ALLOCATE (matrix_pe_asymm(ispin)%matrix)
-               CALL dbcsr_create(matrix_pe_asymm(ispin)%matrix, template=matrix_s(1)%matrix, &
-                                 matrix_type=dbcsr_type_antisymmetric)
-               CALL dbcsr_complete_redistribute(ex_env%matrix_pe(ispin)%matrix, matrix_pe_asymm(ispin)%matrix)
-
-               CALL tddfpt_resvec1(ex_env%evect(ispin)%matrix, gs_mos(ispin)%mos_occ, &
-                                   matrix_s(1)%matrix, ex_env%matrix_pe(ispin)%matrix)
-            END DO
-            !
-            ! ground state ADMM!
-            IF (dft_control%do_admm) THEN
-               CALL get_qs_env(qs_env, admm_env=admm_env)
-               CALL get_admm_env(admm_env, matrix_s_aux_fit=matrix_s_aux_fit)
-               CALL dbcsr_allocate_matrix_set(ex_env%matrix_pe_admm, nspins)
-               DO ispin = 1, nspins
-                  ALLOCATE (ex_env%matrix_pe_admm(ispin)%matrix)
-                  CALL dbcsr_create(ex_env%matrix_pe_admm(ispin)%matrix, template=matrix_s_aux_fit(1)%matrix)
-                  CALL dbcsr_copy(ex_env%matrix_pe_admm(ispin)%matrix, matrix_s_aux_fit(1)%matrix)
-                  CALL dbcsr_set(ex_env%matrix_pe_admm(ispin)%matrix, 0.0_dp)
-                  CALL tddfpt_resvec1_admm(ex_env%matrix_pe(ispin)%matrix, &
-                                           admm_env, ex_env%matrix_pe_admm(ispin)%matrix)
-               END DO
-            END IF
-            !
-            CALL dbcsr_allocate_matrix_set(ex_env%matrix_hz, nspins)
-            DO ispin = 1, nspins
-               ALLOCATE (ex_env%matrix_hz(ispin)%matrix)
-               CALL dbcsr_create(ex_env%matrix_hz(ispin)%matrix, template=matrix_s(1)%matrix)
-               CALL dbcsr_copy(ex_env%matrix_hz(ispin)%matrix, matrix_s(1)%matrix)
-               CALL dbcsr_set(ex_env%matrix_hz(ispin)%matrix, 0.0_dp)
-
-            END DO
-            IF (dft_control%qs_control%xtb) THEN
-               CALL tddfpt_resvec2_xtb(qs_env, ex_env%matrix_pe, gs_mos, ex_env%matrix_hz, ex_env%cpmos)
-            ELSE
-               CALL tddfpt_resvec2(qs_env, ex_env%matrix_pe, ex_env%matrix_pe_admm, &
-                                   gs_mos, ex_env%matrix_hz, ex_env%cpmos)
-            END IF
-            !
-            CALL dbcsr_allocate_matrix_set(ex_env%matrix_px1, nspins)
-            CALL dbcsr_allocate_matrix_set(ex_env%matrix_px1_asymm, nspins)
-            DO ispin = 1, nspins
-               ALLOCATE (ex_env%matrix_px1(ispin)%matrix)
-               CALL dbcsr_create(ex_env%matrix_px1(ispin)%matrix, template=matrix_s(1)%matrix)
-               CALL dbcsr_copy(ex_env%matrix_px1(ispin)%matrix, matrix_s(1)%matrix)
-               CALL dbcsr_set(ex_env%matrix_px1(ispin)%matrix, 0.0_dp)
-
-               ALLOCATE (ex_env%matrix_px1_asymm(ispin)%matrix)
-               CALL dbcsr_create(ex_env%matrix_px1_asymm(ispin)%matrix, template=matrix_s(1)%matrix, &
-                                 matrix_type=dbcsr_type_antisymmetric)
-               CALL dbcsr_complete_redistribute(ex_env%matrix_px1(ispin)%matrix, ex_env%matrix_px1_asymm(ispin)%matrix)
-            END DO
-            ! Kernel ADMM
-            IF (tddfpt_control%do_admm) THEN
-               CALL get_qs_env(qs_env, admm_env=admm_env)
-               CALL get_admm_env(admm_env, matrix_s_aux_fit=matrix_s_aux_fit)
-               CALL dbcsr_allocate_matrix_set(ex_env%matrix_px1_admm, nspins)
-               CALL dbcsr_allocate_matrix_set(ex_env%matrix_px1_admm_asymm, nspins)
-               DO ispin = 1, nspins
-                  ALLOCATE (ex_env%matrix_px1_admm(ispin)%matrix)
-                  CALL dbcsr_create(ex_env%matrix_px1_admm(ispin)%matrix, template=matrix_s_aux_fit(1)%matrix)
-                  CALL dbcsr_copy(ex_env%matrix_px1_admm(ispin)%matrix, matrix_s_aux_fit(1)%matrix)
-                  CALL dbcsr_set(ex_env%matrix_px1_admm(ispin)%matrix, 0.0_dp)
-
-                  ALLOCATE (ex_env%matrix_px1_admm_asymm(ispin)%matrix)
-                  CALL dbcsr_create(ex_env%matrix_px1_admm_asymm(ispin)%matrix, template=matrix_s_aux_fit(1)%matrix, &
-                                    matrix_type=dbcsr_type_antisymmetric)
-                  CALL dbcsr_complete_redistribute(ex_env%matrix_px1_admm(ispin)%matrix, &
-                                                   ex_env%matrix_px1_admm_asymm(ispin)%matrix)
-               END DO
-            END IF
-            ! TDA forces
-            CALL tddfpt_forces(qs_env, ex_env, gs_mos, kernel_env, sub_env, work_matrices)
-            ! Rotate res vector cpmos into original frame of occupied orbitals
-            CALL tddfpt_resvec3(qs_env, ex_env%cpmos, work_matrices)
-
-            CALL dbcsr_deallocate_matrix_set(matrix_pe_symm)
-            CALL dbcsr_deallocate_matrix_set(matrix_pe_asymm)
+            CALL tddfpt_forces_main(qs_env, gs_mos, ex_env, kernel_env, sub_env, work_matrices)
          END IF
       END IF
 
