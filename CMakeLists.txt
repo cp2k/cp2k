@@ -202,34 +202,37 @@ set(CP2K_USE_ACCEL "NONE"
 
 set_property(CACHE CP2K_USE_ACCEL PROPERTY STRINGS ${CP2K_SUPPORTED_ACCELEARTION_TARGETS})
 
-if ((CP2K_USE_ACCEL MATCHES "CUDA") OR (CP2K_USE_ACCEL MATCHES "HIP"))
-  set(CP2K_USE_GEMM_OFFLOADING
-    OFF
-    CACHE BOOL
-    "Use SPLA offloading gemm feature to the GPU if it is beneficial. ")
-  set(CP2K_USE_GRID_GPU
-    ON
-    CACHE
-    BOOL
-    "Enable the hardware accelerated (mostly GPU) backend for grid related functions. It is only effective when general gpu support is enabled."
-    )
-  set(CP2K_USE_PW_GPU
-    ON
-    CACHE
-    BOOL
-    "enable the ffts accelerated (mostly GPU) backend. It is only effective when general gpu support is enabled."
-    )
-  set(CP2K_USE_DBM_GPU
-    ON
-    CACHE
-    BOOL
-    "enable the dbm accelerated (mostly GPU) backend. It is only effective when general gpu support is enabled."
-    )
 
-  # set(CP2K_USE_HIP_CUDA
-  #   OFF
-  #   CACHE BOOL
-  #   "Compile hip code for Nvidia gpus. Can be used for debugging hip code when hardware is not available")
+if (CP2K_DEBUG_MODE)
+  if ((CP2K_USE_ACCEL MATCHES "CUDA") OR (CP2K_USE_ACCEL MATCHES "HIP"))
+    set(CP2K_USE_GEMM_OFFLOADING
+      OFF
+      CACHE BOOL
+      "Use SPLA offloading gemm feature to the GPU if it is beneficial. ")
+    set(CP2K_USE_GRID_GPU
+      ON
+      CACHE
+      BOOL
+      "Enable the hardware accelerated (mostly GPU) backend for grid related functions. It is only effective when general gpu support is enabled."
+      )
+    set(CP2K_USE_PW_GPU
+      ON
+      CACHE
+      BOOL
+      "enable the ffts accelerated (mostly GPU) backend. It is only effective when general gpu support is enabled."
+      )
+    set(CP2K_USE_DBM_GPU
+      ON
+      CACHE
+      BOOL
+      "enable the dbm accelerated (mostly GPU) backend. It is only effective when general gpu support is enabled."
+      )
+
+    # set(CP2K_USE_HIP_CUDA
+    #   OFF
+    #   CACHE BOOL
+    #   "Compile hip code for Nvidia gpus. Can be used for debugging hip code when hardware is not available")
+  endif()
 endif()
 
 set(CP2K_USE_HIP OFF)
