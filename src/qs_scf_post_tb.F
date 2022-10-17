@@ -1164,7 +1164,6 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_grid_type), POINTER                        :: pwdummy
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r
       TYPE(pw_poisson_parameter_type)                    :: poisson_params
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
@@ -1270,6 +1269,7 @@ CONTAINS
             poisson_params%ewald_type = do_ewald_none
             BLOCK
                TYPE(greens_fn_type)                     :: green_fft
+               TYPE(pw_grid_type), POINTER                        :: pwdummy
                NULLIFY (pwdummy)
                CALL pw_green_create(green_fft, poisson_params, cell%hmat, auxbas_pw_pool, pwdummy, pwdummy)
                rho_tot_gspace%cc(:) = rho_tot_gspace%cc(:)*green_fft%influence_fn%cc(:)
