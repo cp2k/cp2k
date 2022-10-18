@@ -62,7 +62,6 @@ MODULE fist_environment_types
    USE particle_types,                  ONLY: particle_type
    USE qmmm_types_low,                  ONLY: qmmm_env_mm_create,&
                                               qmmm_env_mm_release,&
-                                              qmmm_env_mm_retain,&
                                               qmmm_env_mm_type
 #include "./base/base_uses.f90"
 
@@ -241,6 +240,7 @@ CONTAINS
       fist_env%qmmm = .FALSE.
       fist_env%shell_model = .FALSE.
       fist_env%shell_model_ad = .FALSE.
+      ALLOCATE (fist_env%qmmm_env)
       CALL qmmm_env_mm_create(fist_env%qmmm_env)
       NULLIFY (fist_env%subsys)
       CALL cp_para_env_retain(para_env)
@@ -307,8 +307,10 @@ CONTAINS
 
       IF (PRESENT(qmmm)) fist_env%qmmm = qmmm
       IF (PRESENT(qmmm_env)) THEN
-         CALL qmmm_env_mm_retain(qmmm_env)
-         CALL qmmm_env_mm_release(fist_env%qmmm_env)
+         IF (ASSOCIATED(fist_env%qmmm_env)) THEN
+            CALL qmmm_env_mm_release(fist_env%qmmm_env)
+            DEALLOCATE (fist_env%qmmm_env)
+         END IF
          fist_env%qmmm_env => qmmm_env
       END IF
       IF (PRESENT(ewald_env)) THEN
@@ -414,7 +416,10 @@ CONTAINS
    SUBROUTINE fist_env_release(fist_env)
       TYPE(fist_environment_type), INTENT(INOUT)         :: fist_env
 
-      CALL qmmm_env_mm_release(fist_env%qmmm_env)
+      IF (ASSOCIATED(fist_env%qmmm_env)) THEN
+         CALL qmmm_env_mm_release(fist_env%qmmm_env)
+         DEALLOCATE (fist_env%qmmm_env)
+      END IF
       CALL cell_release(fist_env%cell_ref)
       CALL ewald_pw_release(fist_env%ewald_pw)
       CALL ewald_env_release(fist_env%ewald_env)

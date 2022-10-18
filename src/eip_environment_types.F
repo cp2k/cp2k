@@ -59,8 +59,6 @@ MODULE eip_environment_types
 
 ! **************************************************************************************************
 !> \brief The empirical interatomic potential environment
-!> \param id_nr unique identifier
-!> \param ref_count reference counter (see doc/ReferenceCounting.html)
 !> \param eip_model Specifies which EIP model is in use.
 !> \param eip_kinetic_energy The EIP kinetic energy
 !> \param eip_potential_energy The EIP potential energy

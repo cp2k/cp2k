@@ -165,6 +165,7 @@ CONTAINS
 
       ! Create QM/MM Environments..
       CALL qmmm_env_qm_create(qmmm_env_qm)
+      ALLOCATE (qmmm_env_mm)
       CALL qmmm_env_mm_create(qmmm_env_mm)
 
       ! Set up QM/MM Options
@@ -427,6 +428,7 @@ CONTAINS
       ! The qmmm_env inherits our ref_cout for qmmm_env_qm, fist_env, qs_env
       ! An exception is qmmm_env_mm, because it's buried in the fist_env
       CALL qmmm_env_mm_release(qmmm_env_mm)
+      DEALLOCATE (qmmm_env_mm)
 
       CALL section_vals_val_set(force_env_section, "METHOD", i_val=do_qmmm)
       DEALLOCATE (qm_atom_type)

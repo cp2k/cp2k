@@ -42,7 +42,6 @@ MODULE qmmm_types_low
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_types_low'
-   INTEGER, SAVE, PRIVATE :: last_qmmm_env_id_nr = 0
    INTEGER, PARAMETER, PUBLIC :: force_mixing_label_none = -1, &
                                  force_mixing_label_QM_core_list = 10, &
                                  force_mixing_label_QM_core = 9, &
@@ -54,7 +53,7 @@ MODULE qmmm_types_low
 
    PUBLIC :: qmmm_env_qm_type, qmmm_pot_type, qmmm_pot_p_type
    PUBLIC :: qmmm_env_qm_release, qmmm_env_qm_create
-   PUBLIC :: qmmm_env_mm_type, qmmm_env_mm_create, qmmm_env_mm_retain, qmmm_env_mm_release
+   PUBLIC :: qmmm_env_mm_type, qmmm_env_mm_create, qmmm_env_mm_release
    PUBLIC :: qmmm_imomm_link_type, qmmm_links_type
    PUBLIC :: add_set_type, add_set_release, create_add_set_type
    PUBLIC :: add_shell_type, create_add_shell_type
@@ -195,7 +194,7 @@ MODULE qmmm_types_low
 !> \brief ...
 ! **************************************************************************************************
    TYPE qmmm_env_qm_type
-      INTEGER :: ref_count, id_nr
+      INTEGER :: ref_count
       LOGICAL                                                 :: center_qm_subsys
       LOGICAL                                                 :: center_qm_subsys0, do_translate
       LOGICAL                                                 :: center_qm_subsys_pbc_aware
@@ -260,13 +259,8 @@ CONTAINS
 !> \author Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE qmmm_env_mm_create(qmmm_env)
-      TYPE(qmmm_env_mm_type), POINTER                    :: qmmm_env
+      TYPE(qmmm_env_mm_type), INTENT(OUT)                :: qmmm_env
 
-      CPASSERT(.NOT. ASSOCIATED(qmmm_env))
-      ALLOCATE (qmmm_env)
-      qmmm_env%ref_count = 1
-      last_qmmm_env_id_nr = last_qmmm_env_id_nr + 1
-      qmmm_env%id_nr = last_qmmm_env_id_nr
       NULLIFY (qmmm_env%qm_atom_index, &
                qmmm_env%qm_molecule_index, &
                qmmm_env%mm_link_atoms, &
@@ -281,55 +275,34 @@ CONTAINS
    END SUBROUTINE qmmm_env_mm_create
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param qmmm_env ...
-!> \author Teodoro Laino
-! **************************************************************************************************
-   SUBROUTINE qmmm_env_mm_retain(qmmm_env)
-      TYPE(qmmm_env_mm_type), POINTER                    :: qmmm_env
-
-      CPASSERT(ASSOCIATED(qmmm_env))
-      CPASSERT(qmmm_env%ref_count > 0)
-      qmmm_env%ref_count = qmmm_env%ref_count + 1
-   END SUBROUTINE qmmm_env_mm_retain
-
-! **************************************************************************************************
 !> \brief releases the given qmmm_env (see doc/ReferenceCounting.html)
 !> \param qmmm_env the object to release
 !> \author Fawzi Mohamed
 !>      Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE qmmm_env_mm_release(qmmm_env)
-      TYPE(qmmm_env_mm_type), POINTER                    :: qmmm_env
+      TYPE(qmmm_env_mm_type), INTENT(INOUT)              :: qmmm_env
 
-      IF (ASSOCIATED(qmmm_env)) THEN
-         CPASSERT(qmmm_env%ref_count > 0)
-         qmmm_env%ref_count = qmmm_env%ref_count - 1
-         IF (qmmm_env%ref_count == 0) THEN
-            IF (ASSOCIATED(qmmm_env%qm_atom_index)) THEN
-               DEALLOCATE (qmmm_env%qm_atom_index)
-            END IF
-            IF (ASSOCIATED(qmmm_env%qm_molecule_index)) THEN
-               DEALLOCATE (qmmm_env%qm_molecule_index)
-            END IF
-            IF (ASSOCIATED(qmmm_env%mm_link_atoms)) THEN
-               DEALLOCATE (qmmm_env%mm_link_atoms)
-            END IF
-            IF (ASSOCIATED(qmmm_env%mm_link_scale_factor)) THEN
-               DEALLOCATE (qmmm_env%mm_link_scale_factor)
-            END IF
-            IF (ASSOCIATED(qmmm_env%fist_scale_charge_link)) THEN
-               DEALLOCATE (qmmm_env%fist_scale_charge_link)
-            END IF
-            IF (ASSOCIATED(qmmm_env%inp_info)) THEN
-               CALL deallocate_inp_info(qmmm_env%inp_info)
-               DEALLOCATE (qmmm_env%inp_info)
-            END IF
-
-            DEALLOCATE (qmmm_env)
-         END IF
+      IF (ASSOCIATED(qmmm_env%qm_atom_index)) THEN
+         DEALLOCATE (qmmm_env%qm_atom_index)
       END IF
-      NULLIFY (qmmm_env)
+      IF (ASSOCIATED(qmmm_env%qm_molecule_index)) THEN
+         DEALLOCATE (qmmm_env%qm_molecule_index)
+      END IF
+      IF (ASSOCIATED(qmmm_env%mm_link_atoms)) THEN
+         DEALLOCATE (qmmm_env%mm_link_atoms)
+      END IF
+      IF (ASSOCIATED(qmmm_env%mm_link_scale_factor)) THEN
+         DEALLOCATE (qmmm_env%mm_link_scale_factor)
+      END IF
+      IF (ASSOCIATED(qmmm_env%fist_scale_charge_link)) THEN
+         DEALLOCATE (qmmm_env%fist_scale_charge_link)
+      END IF
+      IF (ASSOCIATED(qmmm_env%inp_info)) THEN
+         CALL deallocate_inp_info(qmmm_env%inp_info)
+         DEALLOCATE (qmmm_env%inp_info)
+      END IF
+
    END SUBROUTINE qmmm_env_mm_release
 
 ! **************************************************************************************************
@@ -343,8 +316,6 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(qmmm_env))
       ALLOCATE (qmmm_env)
       qmmm_env%ref_count = 1
-      last_qmmm_env_id_nr = last_qmmm_env_id_nr + 1
-      qmmm_env%id_nr = last_qmmm_env_id_nr
       NULLIFY (qmmm_env%qm_atom_index, qmmm_env%mm_link_atoms, &
                qmmm_env%mm_atom_index, qmmm_env%mm_atom_chrg, &
                qmmm_env%pgfs, qmmm_env%maxradius, &

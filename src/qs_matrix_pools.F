@@ -36,7 +36,6 @@ MODULE qs_matrix_pools
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_matrix_pools'
-   INTEGER, SAVE, PRIVATE :: last_mpools_id = 0
 
    PUBLIC :: qs_matrix_pools_type
    PUBLIC :: mpools_retain, mpools_release, mpools_get, &
@@ -44,7 +43,6 @@ MODULE qs_matrix_pools
 
 ! **************************************************************************************************
 !> \brief container for the pools of matrixes used by qs
-!> \param id_nr identification number
 !> \param ref_count reference count (see doc/ReferenceCounting.html)
 !> \param ao_mo_fm_pools pools with (ao x mo) full matrixes (same order as
 !>        c).
@@ -68,7 +66,7 @@ MODULE qs_matrix_pools
 !> \author fawzi
 ! **************************************************************************************************
    TYPE qs_matrix_pools_type
-      INTEGER :: id_nr, ref_count
+      INTEGER :: ref_count
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER        :: ao_mo_fm_pools, &
                                                                ao_ao_fm_pools, mo_mo_fm_pools
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER        :: ao_mosub_fm_pools, &
@@ -192,8 +190,6 @@ CONTAINS
                mpools%mo_mo_fm_pools, mpools%ao_mosub_fm_pools, &
                mpools%mosub_mosub_fm_pools)
       mpools%ref_count = 1
-      last_mpools_id = last_mpools_id + 1
-      mpools%id_nr = last_mpools_id
    END SUBROUTINE mpools_create
 
 ! **************************************************************************************************
