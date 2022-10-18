@@ -58,8 +58,6 @@ MODULE qs_scf_types
                                  ot_method_nr = 10, &
                                  filter_matrix_diag_method_nr = 20
 
-   INTEGER, SAVE, PRIVATE :: last_scf_env_id = 0
-
    PUBLIC :: qs_scf_env_type
    PUBLIC :: scf_env_retain, scf_env_release, scf_env_create, scf_env_did_change
    PUBLIC :: krylov_space_type, krylov_space_create, subspace_env_type
@@ -98,7 +96,7 @@ MODULE qs_scf_types
    ! **************************************************************************************************
    TYPE qs_scf_env_type
       TYPE(qs_outer_scf_type) :: outer_scf
-      INTEGER :: ref_count, id_nr, iter_count
+      INTEGER :: ref_count, iter_count
       INTEGER :: cholesky_method, nelectron, method, mixing_method, nskip_mixing
       REAL(KIND=dp) :: iter_param, iter_delta, p_mix_alpha, sum_zeff_corr
       CHARACTER(len=15) :: iter_method
@@ -143,8 +141,6 @@ CONTAINS
 
       ALLOCATE (scf_env)
       scf_env%ref_count = 1
-      last_scf_env_id = last_scf_env_id + 1
-      scf_env%id_nr = last_scf_env_id
       scf_env%iter_count = 0
       scf_env%nelectron = 0
       scf_env%iter_param = 0.0_dp

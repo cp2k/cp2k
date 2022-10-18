@@ -47,7 +47,7 @@ MODULE cp_units
 
    LOGICAL, PRIVATE, PARAMETER          :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_units'
-   INTEGER, SAVE, PRIVATE               :: last_unit_id = 0, last_unit_set_id = 0
+   INTEGER, SAVE, PRIVATE               :: last_unit_set_id = 0
 
    INTEGER, PARAMETER, PUBLIC :: cp_ukind_none = 0, &
                                  cp_ukind_energy = 1, &
@@ -127,13 +127,12 @@ MODULE cp_units
 ! **************************************************************************************************
 !> \brief stores a unit
 !> \param ref_count the reference count (see doc/ReferenceCounting.html)
-!> \param id_nr identification number (unique for each instance)
 !> \param kind the kind of unit (energy, length,...)
 !> \param unit the actual unit (Joule, eV,...)
 !> \author fawzi
 ! **************************************************************************************************
    TYPE cp_unit_type
-      INTEGER :: id_nr, ref_count, n_kinds
+      INTEGER :: ref_count, n_kinds
       INTEGER, DIMENSION(cp_unit_max_kinds):: kind_id, unit_id, power
    END TYPE cp_unit_type
 
@@ -151,7 +150,7 @@ MODULE cp_units
 !> \author fawzi
 ! **************************************************************************************************
    TYPE cp_unit_set_type
-      INTEGER :: id_nr, ref_count
+      INTEGER :: ref_count
       TYPE(cp_unit_p_type), DIMENSION(cp_ukind_max) :: units
    END TYPE cp_unit_set_type
 
@@ -466,8 +465,6 @@ CONTAINS
       CPASSERT(SIZE(unit_id) <= cp_unit_max_kinds)
       ALLOCATE (unit)
       unit%ref_count = 1
-      last_unit_id = last_unit_id + 1
-      unit%id_nr = last_unit_id
       unit%kind_id(1:SIZE(kind_id)) = kind_id
       unit%kind_id(SIZE(kind_id) + 1:) = cp_ukind_none
       unit%unit_id(1:SIZE(unit_id)) = unit_id
@@ -1268,8 +1265,6 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(unit_set))
       ALLOCATE (unit_set)
       unit_set%ref_count = 1
-      last_unit_set_id = last_unit_set_id + 1
-      unit_set%id_nr = last_unit_set_id
       my_name = name
       CALL uppercase(my_name)
 

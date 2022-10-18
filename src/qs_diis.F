@@ -60,7 +60,6 @@ MODULE qs_diis
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_diis'
-   INTEGER, SAVE               :: last_diis_b_id = 0
 
    ! Public subroutines
 
@@ -101,8 +100,6 @@ CONTAINS
       NULLIFY (diis_buffer%parameter)
       diis_buffer%nbuffer = nbuffer
       diis_buffer%ncall = 0
-      last_diis_b_id = last_diis_b_id + 1
-      diis_buffer%id_nr = last_diis_b_id
       diis_buffer%ref_count = 1
 
       CALL timestop(handle)
@@ -156,9 +153,7 @@ CONTAINS
             DO ibuffer = 1, nbuffer
                ALLOCATE (diis_buffer%error(ibuffer, ispin)%matrix)
                CALL cp_fm_create(diis_buffer%error(ibuffer, ispin)%matrix, &
-                                 name="qs_diis_b"// &
-                                 TRIM(ADJUSTL(cp_to_string(diis_buffer%id_nr)))// &
-                                 "%error("// &
+                                 name="qs_diis_b%error("// &
                                  TRIM(ADJUSTL(cp_to_string(ibuffer)))//","// &
                                  TRIM(ADJUSTL(cp_to_string(ibuffer)))//")", &
                                  matrix_struct=matrix_struct)
@@ -173,9 +168,7 @@ CONTAINS
             DO ibuffer = 1, nbuffer
                ALLOCATE (diis_buffer%parameter(ibuffer, ispin)%matrix)
                CALL cp_fm_create(diis_buffer%parameter(ibuffer, ispin)%matrix, &
-                                 name="qs_diis_b"// &
-                                 TRIM(ADJUSTL(cp_to_string(diis_buffer%id_nr)))// &
-                                 "%parameter("// &
+                                 name="qs_diis_b%parameter("// &
                                  TRIM(ADJUSTL(cp_to_string(ibuffer)))//","// &
                                  TRIM(ADJUSTL(cp_to_string(ibuffer)))//")", &
                                  matrix_struct=matrix_struct)
@@ -890,8 +883,6 @@ CONTAINS
       NULLIFY (diis_buffer%parameter)
       diis_buffer%nbuffer = nbuffer
       diis_buffer%ncall = 0
-      last_diis_b_id = last_diis_b_id + 1
-      diis_buffer%id_nr = last_diis_b_id
       diis_buffer%ref_count = 1
 
       CALL timestop(handle)

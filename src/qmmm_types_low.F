@@ -238,7 +238,7 @@ MODULE qmmm_types_low
 !> \brief ...
 ! **************************************************************************************************
    TYPE qmmm_env_mm_type
-      INTEGER :: ref_count, id_nr
+      INTEGER :: ref_count
       LOGICAL                                                 :: qmmm_link
       LOGICAL                                                 :: use_qmmm_ff
       LOGICAL                                                 :: multiple_potential

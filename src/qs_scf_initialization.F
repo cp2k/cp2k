@@ -452,8 +452,7 @@ CONTAINS
                ALLOCATE (scf_env%scf_work1(is)%matrix)
                CALL cp_fm_create(scf_env%scf_work1(is)%matrix, &
                                  matrix_struct=ao_ao_fmstruct, &
-                                 name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))// &
-                                 "WORK_MATRIX-1-"//TRIM(ADJUSTL(cp_to_string(is))))
+                                 name="SCF-WORK_MATRIX-1-"//TRIM(ADJUSTL(cp_to_string(is))))
             END DO
          END IF
          IF ((.NOT. ASSOCIATED(scf_env%ortho)) .AND. &
@@ -463,8 +462,7 @@ CONTAINS
             ALLOCATE (scf_env%ortho)
             CALL cp_fm_create(scf_env%ortho, &
                               matrix_struct=ao_ao_fmstruct, &
-                              name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))// &
-                              "ORTHO_MATRIX")
+                              name="SCF-ORTHO_MATRIX")
             ! Initialize dbcsr matrix to store the Cholesky decomposition
             IF (scf_env%cholesky_method == cholesky_dbcsr) THEN
                ref_matrix => matrix_s(1, 1)%matrix
@@ -483,16 +481,14 @@ CONTAINS
                ALLOCATE (scf_env%ortho_m1)
                CALL cp_fm_create(scf_env%ortho_m1, &
                                  matrix_struct=ao_ao_fmstruct, &
-                                 name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))// &
-                                 "ORTHO_MATRIX-1")
+                                 name="SCF-ORTHO_MATRIX-1")
             END IF
          END IF
          IF (.NOT. ASSOCIATED(scf_env%scf_work2)) THEN
             ALLOCATE (scf_env%scf_work2)
             CALL cp_fm_create(scf_env%scf_work2, &
                               matrix_struct=ao_ao_fmstruct, &
-                              name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))// &
-                              "WORK_MATRIX-2")
+                              name="SCF-WORK_MATRIX-2")
          END IF
       END IF
 
@@ -502,8 +498,7 @@ CONTAINS
                ALLOCATE (scf_env%scf_work2)
                CALL cp_fm_create(scf_env%scf_work2, &
                                  matrix_struct=ao_ao_fmstruct, &
-                                 name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))// &
-                                 "WORK_MATRIX-2")
+                                 name="SCF-WORK_MATRIX-2")
             END IF
             IF (.NOT. ASSOCIATED(scf_env%s_half)) THEN
                ALLOCATE (scf_env%s_half)
@@ -522,8 +517,7 @@ CONTAINS
                ALLOCATE (scf_env%scf_work1(is)%matrix)
                CALL cp_fm_create(scf_env%scf_work1(is)%matrix, &
                                  matrix_struct=ao_ao_fmstruct, &
-                                 name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))// &
-                                 "WORK_MATRIX-1-"//TRIM(ADJUSTL(cp_to_string(is))))
+                                 name="SCF-WORK_MATRIX-1-"//TRIM(ADJUSTL(cp_to_string(is))))
             END DO
          END IF
       END IF

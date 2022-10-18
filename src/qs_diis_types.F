@@ -38,7 +38,7 @@ MODULE qs_diis_types
 ! **************************************************************************************************
    TYPE qs_diis_buffer_type
       INTEGER                                          :: nbuffer, ncall, &
-                                                          id_nr, ref_count
+                                                          ref_count
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER :: error, PARAMETER
       REAL(KIND=dp), DIMENSION(:, :), POINTER                :: b_matrix
    END TYPE qs_diis_buffer_type
@@ -63,7 +63,7 @@ MODULE qs_diis_types
 ! **************************************************************************************************
    TYPE qs_diis_buffer_type_sparse
       INTEGER                                          :: nbuffer, ncall, &
-                                                          id_nr, ref_count
+                                                          ref_count
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER   :: error, PARAMETER
       REAL(KIND=dp), DIMENSION(:, :), POINTER         :: b_matrix
    END TYPE qs_diis_buffer_type_sparse

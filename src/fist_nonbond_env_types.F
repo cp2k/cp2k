@@ -30,7 +30,6 @@ MODULE fist_nonbond_env_types
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_nonbond_env_types'
-   INTEGER, PRIVATE, SAVE :: last_fist_nonbond_env_id_nr = 0
    PUBLIC :: fist_nonbond_env_type, fist_nonbond_env_set, &
              fist_nonbond_env_get, fist_nonbond_env_create, &
              fist_nonbond_env_retain, fist_nonbond_env_release, pos_type, eam_type, &
@@ -53,7 +52,7 @@ MODULE fist_nonbond_env_types
 
 ! **************************************************************************************************
    TYPE fist_nonbond_env_type
-      INTEGER :: ref_count, id_nr, natom_types
+      INTEGER :: ref_count, natom_types
       INTEGER :: counter, last_update, num_update
       LOGICAL :: do_nonbonded, shift_cutoff
       CHARACTER(len=default_string_length)   :: unit_type
@@ -349,8 +348,6 @@ CONTAINS
       fist_nonbond_env%num_update = 0
       fist_nonbond_env%long_range_correction = 0
       fist_nonbond_env%ref_count = 1
-      fist_nonbond_env%id_nr = last_fist_nonbond_env_id_nr
-      last_fist_nonbond_env_id_nr = last_fist_nonbond_env_id_nr + 1
       IF (do_nonbonded) THEN
          natom_types = 1
          ! Determine size of kind arrays
