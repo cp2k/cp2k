@@ -69,8 +69,6 @@ MODULE pw_poisson_types
              pw_green_release
    PUBLIC :: pw_poisson_parameter_type
 
-   INTEGER, SAVE, PRIVATE :: last_poisson_id = 0
-
    INTEGER, PARAMETER, PUBLIC               :: pw_poisson_none = 0, &
                                                pw_poisson_periodic = 1, &
                                                pw_poisson_analytic = 2, &
@@ -128,7 +126,7 @@ MODULE pw_poisson_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE pw_poisson_type
-      INTEGER :: ref_count, id_nr
+      INTEGER :: ref_count
       INTEGER :: pw_level
       INTEGER :: method
       INTEGER :: used_grid
@@ -597,8 +595,6 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(poisson_env))
       ALLOCATE (poisson_env)
-      last_poisson_id = last_poisson_id + 1
-      poisson_env%id_nr = last_poisson_id
       poisson_env%ref_count = 1
       poisson_env%method = pw_poisson_none
       poisson_env%rebuild = .TRUE.
