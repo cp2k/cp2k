@@ -31,16 +31,15 @@ cp2k_set_default_paths(METIS)
 cp2k_find_libraries(FLEXIBLAS "metis")
 cp2k_include_dirs(FFTW3 "metis.h")
 
-
 # check that METIS has been found
 # ---------------------------------
-find_package_handle_standard_args(Metis DEFAULT_MSG CP2K_METIS_LINK_LIBRARIES 
-  CP2K_METIS_INCLUDE_DIRS CP2K_METIS_FOUND)
+find_package_handle_standard_args(Metis DEFAULT_MSG CP2K_METIS_LINK_LIBRARIES
+                                  CP2K_METIS_INCLUDE_DIRS CP2K_METIS_FOUND)
 
 if(CP2K_METIS_FOUND AND NOT TARGET CP2K_metis::metis)
   add_library(CP2K_metis::metis INTERFACE IMPORTED)
   set_target_properties(
     CP2K_metis::metis
     PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_METIS_INCLUDE_DIRS}"
-    INTERFACE_LINK_LIBRARIES "${CP2K_METIS_LINK_LIBRARIES}")
+               INTERFACE_LINK_LIBRARIES "${CP2K_METIS_LINK_LIBRARIES}")
 endif()

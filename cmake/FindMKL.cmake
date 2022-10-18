@@ -100,8 +100,31 @@ Not supported
 
 #]=======================================================================]
 
-# Modules
+# Copyright (c) 2022- ETH Zurich
 #
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+# 3. Neither the name of the copyright holder nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 include(FindPackageHandleStandardArgs)
 
 if(NOT
@@ -177,7 +200,7 @@ endfunction()
 # Find MKL headers
 #
 find_path(CP2K_MKL_INCLUDE_DIRS mkl.h HINTS ${MKL_ROOT}/include
-  ${MKL_ROOT}/mkl/include)
+                                            ${MKL_ROOT}/mkl/include)
 mark_as_advanced(CP2K_MKL_INCLUDE_DIRS)
 
 # Group flags for static libraries on Linux (GNU, PGI, ICC -> same linker)
@@ -260,9 +283,9 @@ foreach(_libtype "ST" "DYN")
         set(_mkl_threading_lib ${MKL_${_threading}_LIB_${_libtype}})
 
         string(TOLOWER "${_iface}_${_bits}_${_threading}_${_libtype}"
-          _tgt_config)
+                       _tgt_config)
         set(_mkl_tgt CP2K_MKL::${_tgt_config})
-        
+
         if(MKL_FOUND
            AND _mkl_interface_lib
            AND _mkl_threading_lib
@@ -280,7 +303,7 @@ foreach(_libtype "ST" "DYN")
           add_library(${_mkl_tgt} INTERFACE IMPORTED)
           set_target_properties(
             ${_mkl_tgt}
-	    PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_MKL_INCLUDE_DIRS}"
+            PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_MKL_INCLUDE_DIRS}"
                        INTERFACE_LINK_LIBRARIES "${_mkl_libs}")
         endif()
 
@@ -289,43 +312,44 @@ foreach(_libtype "ST" "DYN")
 
           string(
             TOLOWER "${_mpi_impl}_${_iface}_${_bits}_${_threading}_${_libtype}"
-            _tgt_config)
-          
+                    _tgt_config)
+
           set(_scalapack_tgt CP2K_MKL::scalapack_${_tgt_config})
-          
+
           if(_mkl_blacs_lib
-              AND TARGET ${_mkl_tgt}
-              AND TARGET MPI::MPI_CXX
-              AND NOT TARGET CP2K_MKL::blacs_${_tgt_config})
+             AND TARGET ${_mkl_tgt}
+             AND TARGET MPI::MPI_CXX
+             AND NOT TARGET CP2K_MKL::blacs_${_tgt_config})
             set(_blacs_libs
-              "${_mkl_linker_pre_flags_${_libtype}}"
-              "${_mkl_interface_lib}"
-              "${_mkl_threading_lib}"
-              "${_mkl_core_lib}"
-              "${_mkl_blacs_lib}"
-              "${_mkl_linker_post_flags_${_libtype}}"
-              "MPI::MPI_CXX"
-              "${_mkl_dep_${_threading}}"
-              "Threads::Threads")
+                "${_mkl_linker_pre_flags_${_libtype}}"
+                "${_mkl_interface_lib}"
+                "${_mkl_threading_lib}"
+                "${_mkl_core_lib}"
+                "${_mkl_blacs_lib}"
+                "${_mkl_linker_post_flags_${_libtype}}"
+                "MPI::MPI_CXX"
+                "${_mkl_dep_${_threading}}"
+                "Threads::Threads")
             add_library(CP2K_MKL::blacs_${_tgt_config} INTERFACE IMPORTED)
             set_target_properties(
               CP2K_MKL::blacs_${_tgt_config}
-	      PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_MKL_INCLUDE_DIRS}"
-              INTERFACE_LINK_LIBRARIES "${_mkl_blacs_lib}")
+              PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
+                         "${CP2K_MKL_INCLUDE_DIRS}" INTERFACE_LINK_LIBRARIES
+                                                    "${_mkl_blacs_lib}")
           endif()
 
-          if(_mkl_scalapack_lib
-              AND NOT TARGET CP2K_MKL::scalapack_${_tgt_config})
+          if(_mkl_scalapack_lib AND NOT TARGET
+                                    CP2K_MKL::scalapack_${_tgt_config})
             set(_scalapack_libs "${_mkl_scalapack_lib}" "${_blacs_tgt}")
             add_library(CP2K_MKL::scalapack_${_tgt_config} INTERFACE IMPORTED)
             set_target_properties(
-              CP2K_MKL::scalapack_${_tgt_config} PROPERTIES INTERFACE_LINK_LIBRARIES
-             "${_scalapack_libs}")
-         endif()
-       endforeach()
-     endforeach()
-   endforeach()
- endforeach()
+              CP2K_MKL::scalapack_${_tgt_config}
+              PROPERTIES INTERFACE_LINK_LIBRARIES "${_scalapack_libs}")
+          endif()
+        endforeach()
+      endforeach()
+    endforeach()
+  endforeach()
 endforeach()
 
 if(MKL_FOUND AND NOT TARGET CP2K_MKL::blas)
@@ -342,7 +366,8 @@ if(MKL_FOUND AND NOT TARGET CP2K_MKL::blas)
     set(BLAS_mkl_INTFACE "intel")
   endif()
 
-  if(CP2K_BLAS_THREADING MATCHES "thread" OR CP2K_BLAS_THREADING MATCHES "gnu-thread")
+  if(CP2K_BLAS_THREADING MATCHES "thread" OR CP2K_BLAS_THREADING MATCHES
+                                             "gnu-thread")
     set(BLAS_mkl_thread__ "omp")
   endif()
 
@@ -379,11 +404,13 @@ if(MKL_FOUND AND NOT TARGET CP2K_MKL::blas)
     add_library(CP2K_MKL::lapack INTERFACE IMPORTED)
   endif()
   set_target_properties(
-	  CP2K_MKL::blas PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_MKL_INCLUDE_DIRS}"
-                         INTERFACE_LINK_LIBRARIES "${MKL_BLAS_LIBRARIES}")
+    CP2K_MKL::blas
+    PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_MKL_INCLUDE_DIRS}"
+               INTERFACE_LINK_LIBRARIES "${MKL_BLAS_LIBRARIES}")
   set_target_properties(
-	  CP2K_MKL::MKL PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_MKL_INCLUDE_DIRS}"
-                        INTERFACE_LINK_LIBRARIES "${MKL_BLAS_LIBRARIES}")
+    CP2K_MKL::MKL
+    PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_MKL_INCLUDE_DIRS}"
+               INTERFACE_LINK_LIBRARIES "${MKL_BLAS_LIBRARIES}")
 
   if("${MPI_Fortran_LIBRARY_VERSION_STRING}" MATCHES "Open MPI")
     set(__mkl_mpi_ver_ "ompi")
@@ -412,7 +439,8 @@ if(MKL_FOUND AND NOT TARGET CP2K_MKL::blas)
     set_target_properties(
       CP2K_MKL::scalapack_link
       PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${__mkl_scalapack_inc}"
-      INTERFACE_LINK_LIBRARIES "${__mkl_scalapack_lib};${__mkl_blacs_lib}")
+                 INTERFACE_LINK_LIBRARIES
+                 "${__mkl_scalapack_lib};${__mkl_blacs_lib}")
   endif()
   unset(BLAS_mkl_ILP_MODE)
   unset(BLAS_mkl_INTFACE)

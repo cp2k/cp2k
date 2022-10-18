@@ -1,4 +1,4 @@
-# Copyright (c) 2019 ETH Zurich
+# Copyright (c) 2012- ETH Zurich
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -35,18 +35,19 @@ cp2k_find_libraries(ATLAS "atlas")
 cp2k_include_dirs(FFTW3 "cblas.h atlas/cblas.h")
 # check if found
 find_package_handle_standard_args(Atlas REQUIRED_VARS CP2K_ATLAS_INCLUDE_DIRS
-  CP2K_ATLAS_LINK_LIBRARIES)
+                                                      CP2K_ATLAS_LINK_LIBRARIES)
 
 # add target to link against
 if(CP2K_ATLAS_FOUND AND NOT TARGET CP2K_ATLAS::atlas)
-  add_library(CP2K_ATLAS::atlas INTERFACE IMPORTED)
-  add_library(CP2K_ATLAS::atlas ALIAS CP2K_ATLAS::blas)
+  if(NOT TARGET CP2K_ATLAS::atlas)
+    add_library(CP2K_ATLAS::atlas INTERFACE IMPORTED)
   endif()
   set_property(TARGET CP2K_ATLAS::atlas PROPERTY INTERFACE_LINK_LIBRARIES
-    ${CP2K_ATLAS_LINK_LIBRARIES})
+                                                 ${CP2K_ATLAS_LINK_LIBRARIES})
   set_property(TARGET CP2K_ATLAS::atlas PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-    ${CP2K_ATLAS_INCLUDE_DIRS})
+                                                 ${CP2K_ATLAS_INCLUDE_DIRS})
 endif()
 
 # prevent clutter in cache
-mark_as_advanced(CP2K_ATLAS_FOUND CP2K_ATLAS_LINK_LIBRARIES CP2K_ATLAS_INCLUDE_DIRS)
+mark_as_advanced(CP2K_ATLAS_FOUND CP2K_ATLAS_LINK_LIBRARIES
+                 CP2K_ATLAS_INCLUDE_DIRS)

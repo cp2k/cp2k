@@ -1,4 +1,4 @@
-# Copyright (c) 2019 ETH Zurich
+# Copyright (c) 2012 ETH Zurich
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -22,25 +22,6 @@
 # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-# .rst: FindGenericBLAS
-# -----------
-#
-# This module tries to find the GenericBLAS library.
-#
-# The following variables are set
-#
-# ::
-#
-# GenericBLAS_FOUND           - True if blas is found GenericBLAS_LIBRARIES -
-# The required libraries GenericBLAS_INCLUDE_DIRS    - The required include
-# directory
-#
-# The following import target is created
-#
-# ::
-#
-# GenericBLAS::blas
 
 # set paths to look for library from ROOT variables.If new policy is set,
 # find_library() automatically uses them.

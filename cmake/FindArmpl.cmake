@@ -1,4 +1,4 @@
-# Copyright (c) 2022 ETH Zurich
+# Copyright (c) 2022- ETH Zurich
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -22,25 +22,6 @@
 # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-# .rst: FindARMPL
-# -----------
-#
-# This module tries to find the ATLAS library.
-#
-# The following variables are set
-#
-# ::
-#
-# ARMPL_FOUND
-# ARMPL_LIBRARIES
-# ARMPL_INCLUDE_DIRS
-#
-# The following import targets are created
-#
-# ::
-#
-# ARMPL::armpl ARMPL::blas
 
 include(FindPackageHandleStandardArgs)
 include(cp2k_utils)
@@ -69,34 +50,35 @@ if(CP2K_BLAS_THREADING MATCHES "openmp")
 endif()
 
 # check if found
-find_package_handle_standard_args(Armpl REQUIRED_VARS CP2K_ARMPL_INCLUDE_DIRS
-                                                      CP2K_ARMPL_LP64_LIBRARIES
-                                                      CP2K_ARMPL_LP64_MP_LIBRARIES)
+find_package_handle_standard_args(
+  Armpl REQUIRED_VARS CP2K_ARMPL_INCLUDE_DIRS CP2K_ARMPL_LP64_LIBRARIES
+                      CP2K_ARMPL_LP64_MP_LIBRARIES)
 
 # add target to link against
 if(CP2K_ARMPL_LP64_FOUND AND NOT TARGET ARMPL::armpl)
   add_library(CP2K_ARMPL::armpl INTERFACE IMPORTED)
   foreach(_var armpl_ilp64 armpl_lp64 armpl_ilp64_mp armpl_lp64_mp)
     string(TOUPPER "CP2K_${_var}_LINK_LIBRARIES" _var_up)
-    if (_var_up)
+    if(_var_up)
       add_library(CP2K_ARMPL::${_var} INTERFACE IMPORTED)
       set_property(TARGET ARMPL::${_var} PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-        ${CP2K_ARMPL_INCLUDE_DIRS})
+                                                  ${CP2K_ARMPL_INCLUDE_DIRS})
       set_property(TARGET ARMPL::${_var} PROPERTY INTERFACE_LINK_LIBRARIES
-        " ${${_var_up}}")
+                                                  " ${${_var_up}}")
     endif()
   endforeach()
 
   # check that what version of the library we want actually exists
-  if (NOT TARGET CP2K_ARMPL::${CP2K_BLAS_armpl_LIB})
-    message(FATAL "ARMPL installation is incomplete. Some of the components are missing.")
+  if(NOT TARGET CP2K_ARMPL::${CP2K_BLAS_armpl_LIB})
+    message(
+      FATAL
+      "ARMPL installation is incomplete. Some of the components are missing.")
   endif()
 
   # now define an alias to the target library
-  add_library(CP2K_ARMPL::blas
-  INTERFACE
-  ARMPL::${CP2K_BLAS_armpl_LIB})
+  add_library(CP2K_ARMPL::blas INTERFACE ARMPL::${CP2K_BLAS_armpl_LIB})
 
 endif()
 
-mark_as_advanced(CP2K_ARMPL_FOUND CP2K_ARMPL_LINK_LIBRARIES CP2K_ARMPL_INCLUDE_DIRS)
+mark_as_advanced(CP2K_ARMPL_FOUND CP2K_ARMPL_LINK_LIBRARIES
+                 CP2K_ARMPL_INCLUDE_DIRS)

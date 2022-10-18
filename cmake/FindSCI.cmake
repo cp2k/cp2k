@@ -1,4 +1,4 @@
-# Copyright (c) 2019 ETH Zurich
+# Copyright (c) 2019- ETH Zurich
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -23,7 +23,6 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
 # set paths to look for library from ROOT variables.If new policy is set,
 # find_library() automatically uses them.
 include(FindPackageHandleStandardArgs)
@@ -31,7 +30,8 @@ include(cp2k_utils)
 
 cp2k_set_default_paths(LIBSCI)
 
-# we might need to change the logic a little here since the cp2k_find_library function expect to have CP2K_package_PREFIX set.
+# we might need to change the logic a little here since the cp2k_find_library
+# function expect to have CP2K_package_PREFIX set.
 
 set(CP2K_LIBSCI_MP_PREFIX "${CP2K_LIBSCI_PREFIX}")
 set(CP2K_LIBSCI_MPI_PREFIX "${CP2K_LIBSCI_PREFIX}")
@@ -63,46 +63,60 @@ if(CP2K_LIBSCI_FOUND)
     add_library(CP2K_SCI::sci_mp INTERFACE IMPORTED)
     add_library(CP2K_SCI::sci_mpi_mp INTERFACE IMPORTED)
     add_library(CP2K_SCI::scalapack_link INTERFACE IMPORTED)
-    if (CP2K_LIBSCI_INCLUDE_DIRS)
+    add_library(CP2K_SCI::blas INTERFACE IMPORTED)
+
+    if(CP2K_LIBSCI_INCLUDE_DIRS)
       set_property(TARGET CP2K_SCI::sci PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-        "${CP2K_LIBSCI_INCLUDE_DIRS}")
-      set_property(TARGET CP2K_SCI::sci_mp PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-        "${CP2K_LIBSCI_INCLUDE_DIRS}")
-      set_property(TARGET CP2K_SCI::sci_mpi PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-        "${CP2K_LIBSCI_INCLUDE_DIRS}")
-      set_property(TARGET CP2K_SCI::sci_mpi_mp PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-        "${CP2K_LIBSCI_INCLUDE_DIRS}")
+                                                 "${CP2K_LIBSCI_INCLUDE_DIRS}")
+      set_property(
+        TARGET CP2K_SCI::sci_mp PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+                                         "${CP2K_LIBSCI_INCLUDE_DIRS}")
+      set_property(
+        TARGET CP2K_SCI::sci_mpi PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+                                          "${CP2K_LIBSCI_INCLUDE_DIRS}")
+      set_property(
+        TARGET CP2K_SCI::sci_mpi_mp PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+                                             "${CP2K_LIBSCI_INCLUDE_DIRS}")
     endif()
 
     set_property(TARGET CP2K_SCI::sci PROPERTY INTERFACE_LINK_LIBRARIES
-      ${CP2K_LIBSCI_LINK_LIBRARIES})
-    set_property(TARGET CP2K_SCI::sci_mp PROPERTY INTERFACE_LINK_LIBRARIES
-      ${CP2K_LIBSCI_MP_LINK_LIBRARIES})
-    set_property(TARGET CP2K_SCI::sci_mpi PROPERTY INTERFACE_LINK_LIBRARIES
-      ${CP2K_LIBSCI_MPI_LINK_LIBRARIES} CP2K_SCI::sci)
-    set_property(TARGET CP2K_SCI::sci_mpi_mp PROPERTY INTERFACE_LINK_LIBRARIES
-      ${CP2K_LIBSCI_MPI_MP_LINK_LIBRARIES} CP2K_SCI::sci_mp)
-    set_property(TARGET CP2K_SCI::scalapack_link
-      PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${CP2K_LIBSCI_INCLUDE_DIRS}")
+                                               ${CP2K_LIBSCI_LINK_LIBRARIES})
+    set_property(
+      TARGET CP2K_SCI::sci_mp PROPERTY INTERFACE_LINK_LIBRARIES
+                                       ${CP2K_LIBSCI_MP_LINK_LIBRARIES})
+    set_property(
+      TARGET CP2K_SCI::sci_mpi
+      PROPERTY INTERFACE_LINK_LIBRARIES ${CP2K_LIBSCI_MPI_LINK_LIBRARIES}
+               CP2K_SCI::sci)
+    set_property(
+      TARGET CP2K_SCI::sci_mpi_mp
+      PROPERTY INTERFACE_LINK_LIBRARIES ${CP2K_LIBSCI_MPI_MP_LINK_LIBRARIES}
+               CP2K_SCI::sci_mp)
+    set_property(
+      TARGET CP2K_SCI::scalapack_link PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+                                               "${CP2K_LIBSCI_INCLUDE_DIRS}")
   endif()
-endif()
 
-if(NOT TARGET CP2K_SCI::blas)
-  add_library(CP2K_SCI::blas INTERFACE IMPORTED)
-endif()
+  if(CP2K_BLAS_THREADING MATCHES "sequential")
+    set_property(TARGET CP2K_SCI::blas PROPERTY INTERFACE_LINK_LIBRARIES
+                                                CP2K_SCI::sci)
+    set_property(TARGET CP2K_SCI::scalapack_link
+                 PROPERTY INTERFACE_LINK_LIBRARIES CP2K_SCI::sci_mpi)
+  else()
+    set_property(TARGET CP2K_SCI::blas PROPERTY INTERFACE_LINK_LIBRARIES
+                                                CP2K_SCI::sci_mp)
+    set_property(TARGET CP2K_SCI::scalapack_link
+                 PROPERTY INTERFACE_LINK_LIBRARIES CP2K_SCI::sci_mpi_mp)
+  endif()
 
-if (CP2K_BLAS_THREADING MATCHES "sequential")
-	set_property(TARGET CP2K_SCI::blas PROPERTY INTERFACE_LINK_LIBRARIES CP2K_SCI::sci)
-  set_property(TARGET CP2K_SCI::scalapack_link
-    PROPERTY INTERFACE_LINK_LIBRARIES CP2K_SCI::sci_mpi)
-else()
-	set_property(TARGET CP2K_SCI::blas PROPERTY INTERFACE_LINK_LIBRARIES CP2K_SCI::sci_mp)
-	set_property(TARGET CP2K_SCI::scalapack_link
-    PROPERTY INTERFACE_LINK_LIBRARIES CP2K_SCI::sci_mpi_mp)
+  set(CP2K_BLAS_VENDOR "SCI")
+
 endif()
 
 # prevent clutter in cache
-mark_as_advanced(CP2K_LIBSCI_FOUND
+mark_as_advanced(
+  CP2K_LIBSCI_FOUND
+  CP2K_BLAS_VENDOR
   CP2K_LIBSCI_LINK_LIBRARIES
   CP2K_LIBSCI_MP_LINK_LIBRARIES
   CP2K_LIBSCI_MPI_LINK_LIBRARIES
