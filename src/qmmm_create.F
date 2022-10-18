@@ -57,9 +57,14 @@ MODULE qmmm_create
    USE qmmm_links_methods,              ONLY: qmmm_link_Imomm_coord
    USE qmmm_pw_grid,                    ONLY: qmmm_pw_grid_init
    USE qmmm_types,                      ONLY: qmmm_env_type
-   USE qmmm_types_low,                  ONLY: &
-        add_set_release, add_set_type, add_shell_type, qmmm_env_mm_create, qmmm_env_mm_release, &
-        qmmm_env_mm_type, qmmm_env_qm_create, qmmm_env_qm_type, qmmm_links_type
+   USE qmmm_types_low,                  ONLY: add_set_release,&
+                                              add_set_type,&
+                                              add_shell_type,&
+                                              qmmm_env_mm_create,&
+                                              qmmm_env_mm_type,&
+                                              qmmm_env_qm_create,&
+                                              qmmm_env_qm_type,&
+                                              qmmm_links_type
    USE qs_environment,                  ONLY: qs_init
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_env_create,&
@@ -424,11 +429,6 @@ CONTAINS
       qmmm_env%qs_env => qs_env
       qmmm_env%fist_env => fist_env
       qmmm_env%qm => qmmm_env_qm
-
-      ! The qmmm_env inherits our ref_cout for qmmm_env_qm, fist_env, qs_env
-      ! An exception is qmmm_env_mm, because it's buried in the fist_env
-      CALL qmmm_env_mm_release(qmmm_env_mm)
-      DEALLOCATE (qmmm_env_mm)
 
       CALL section_vals_val_set(force_env_section, "METHOD", i_val=do_qmmm)
       DEALLOCATE (qm_atom_type)
