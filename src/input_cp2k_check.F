@@ -313,12 +313,14 @@ CONTAINS
          NULLIFY (default_units, restart_file)
          CALL section_vals_create(restart_file, input_declaration)
          NULLIFY (cpparser)
+         ALLOCATE (cpparser)
          CALL parser_create(cpparser, file_name=r_file_path, para_env=para_env)
          CALL cp_unit_set_create(default_units, "OUTPUT")
          CALL section_vals_parse(restart_file, cpparser, root_section=.FALSE., &
                                  default_units=default_units)
          CALL cp_unit_set_release(default_units)
          CALL parser_release(cpparser)
+         DEALLOCATE (cpparser)
 
          ! Restart and input files same number of force_env sections
          sections1 => section_vals_get_subs_vals(restart_file, "FORCE_EVAL")

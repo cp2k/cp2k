@@ -104,12 +104,14 @@ CONTAINS
 
       ! Initialize parser for trajectory
       CALL section_vals_val_get(reftraj_section, "TRAJ_FILE_NAME", c_val=filename)
+      ALLOCATE (reftraj%info%traj_parser)
       CALL parser_create(reftraj%info%traj_parser, filename, para_env=para_env)
 
       CALL section_vals_val_get(reftraj_section, "VARIABLE_VOLUME", l_val=reftraj%info%variable_volume)
       IF (reftraj%info%variable_volume) THEN
          ! In case requested initialize parser for cell
          CALL section_vals_val_get(reftraj_section, "CELL_FILE_NAME", c_val=filename)
+         ALLOCATE (reftraj%info%cell_parser)
          CALL parser_create(reftraj%info%cell_parser, filename, para_env=para_env)
       END IF
 
@@ -158,8 +160,14 @@ CONTAINS
          CPASSERT(reftraj%ref_count > 0)
          reftraj%ref_count = reftraj%ref_count - 1
          IF (reftraj%ref_count < 1) THEN
-            CALL parser_release(reftraj%info%traj_parser)
-            CALL parser_release(reftraj%info%cell_parser)
+            IF (ASSOCIATED(reftraj%info%traj_parser)) THEN
+               CALL parser_release(reftraj%info%traj_parser)
+               DEALLOCATE (reftraj%info%traj_parser)
+            END IF
+            IF (ASSOCIATED(reftraj%info%cell_parser)) THEN
+               CALL parser_release(reftraj%info%cell_parser)
+               DEALLOCATE (reftraj%info%cell_parser)
+            END IF
             IF (ASSOCIATED(reftraj%info)) THEN
                DEALLOCATE (reftraj%info)
             END IF

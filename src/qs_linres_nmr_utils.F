@@ -135,6 +135,7 @@ CONTAINS
       IF (nmr_env%do_nics) THEN
          CALL section_vals_val_get(nmr_section, "NICS_FILE_NAME", &
                                    c_val=nics_file_name)
+         ALLOCATE (parser)
          CALL parser_create(parser, nics_file_name)
          CALL parser_get_next_line(parser, 1)
          CALL parser_get_object(parser, nmr_env%n_nics)
@@ -152,6 +153,7 @@ CONTAINS
             IF (my_end) EXIT
          END DO
          CALL parser_release(parser)
+         DEALLOCATE (parser)
       END IF
 
       CALL get_qs_env(qs_env=qs_env, &

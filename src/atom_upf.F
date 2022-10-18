@@ -195,6 +195,7 @@ CONTAINS
 
       ntag = 0
       NULLIFY (parser)
+      ALLOCATE (parser)
       CALL parser_create(parser, upf_filename)
       DO
          at_end = .FALSE.
@@ -257,6 +258,7 @@ CONTAINS
          END IF
       END DO
       CALL parser_release(parser)
+      DEALLOCATE (parser)
 
       CPASSERT(ntag > 0)
 

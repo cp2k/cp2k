@@ -124,6 +124,7 @@ CONTAINS
 
       ! Title Section
       IF (iw > 0) WRITE (iw, '(T2,A)') 'CRD_INFO| Parsing the TITLE section'
+      ALLOCATE (parser)
       CALL parser_create(parser, topology%coord_file_name, para_env=para_env)
       CALL parser_get_next_line(parser, 1)
       ! Title may be missing
@@ -265,6 +266,7 @@ CONTAINS
                          "Please provide the BOX information directly from the main CP2K input!")
       END IF
       CALL parser_release(parser)
+      DEALLOCATE (parser)
       CALL cp_print_key_finished_output(iw, logger, subsys_section, &
                                         "PRINT%TOPOLOGY_INFO/CRD_INFO")
       CALL timestop(handle)
@@ -400,6 +402,7 @@ CONTAINS
       NULLIFY (parser)
       IF (output_unit > 0) WRITE (output_unit, '(/,A)') " AMBER_INFO| Reading Amber Topology File: "// &
          TRIM(filename)
+      ALLOCATE (parser)
       CALL parser_create(parser, filename, para_env=para_env, parse_white_lines=.TRUE.)
       valid_format = check_amber_8_std(parser, output_unit)
       IF (valid_format) THEN
@@ -956,6 +959,7 @@ CONTAINS
       DEALLOCATE (lp)
       DEALLOCATE (icp)
       CALL parser_release(parser)
+      DEALLOCATE (parser)
       CALL timestop(handle)
       RETURN
       ! Output info Format

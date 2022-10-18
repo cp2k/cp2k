@@ -178,6 +178,7 @@ CONTAINS
                file_name = TRIM(dftb_control%sk_file_path)//"/"// &
                            TRIM(dftb_control%sk_file_list)
                NULLIFY (parser)
+               ALLOCATE (parser)
                CALL parser_create(parser, file_name, para_env=para_env)
                DO
                   at_end = .FALSE.
@@ -203,6 +204,7 @@ CONTAINS
                   END IF
                END DO
                CALL parser_release(parser)
+               DEALLOCATE (parser)
             END IF
             IF (.NOT. found) &
                CALL cp_abort(__LOCATION__, &
@@ -598,6 +600,7 @@ CONTAINS
 
                m = LEN_TRIM(iname)
                NULLIFY (parser)
+               ALLOCATE (parser)
                CALL parser_create(parser, file_name, para_env=para_env)
                found = .FALSE.
                DO
@@ -620,6 +623,7 @@ CONTAINS
                   END IF
                END DO
                CALL parser_release(parser)
+               DEALLOCATE (parser)
             END DO
          END IF
 

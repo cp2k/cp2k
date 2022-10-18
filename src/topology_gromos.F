@@ -110,6 +110,7 @@ CONTAINS
       IF (ASSOCIATED(atom_info%id_molname)) natom_prev = SIZE(atom_info%id_molname)
       ! TITLE SECTION
       IF (iw > 0) WRITE (iw, '(T2,A)') 'GTOP_INFO| Parsing the TITLE section'
+      ALLOCATE (parser)
       CALL parser_create(parser, file_name, para_env=para_env)
       label = TRIM(avail_section(1))
       CALL parser_search_string(parser, label, .TRUE., found, begin_line=.TRUE.)
@@ -122,8 +123,10 @@ CONTAINS
          END DO
       END IF
       CALL parser_release(parser)
+      DEALLOCATE (parser)
       ! TOPPHYSCON SECTION
       IF (iw > 0) WRITE (iw, '(T2,A)') 'GTOP_INFO| Parsing the TOPPHYSCON section'
+      ALLOCATE (parser)
       CALL parser_create(parser, file_name, para_env=para_env)
       label = TRIM(avail_section(2))
       CALL parser_search_string(parser, label, .TRUE., found, begin_line=.TRUE.)
@@ -136,8 +139,10 @@ CONTAINS
          END DO
       END IF
       CALL parser_release(parser)
+      DEALLOCATE (parser)
       ! TOPVERSION SECTION
       IF (iw > 0) WRITE (iw, '(T2,A)') 'GTOP_INFO| Parsing the TOPVERSION section'
+      ALLOCATE (parser)
       CALL parser_create(parser, file_name, para_env=para_env)
       label = TRIM(avail_section(3))
       CALL parser_search_string(parser, label, .TRUE., found, begin_line=.TRUE.)
@@ -150,8 +155,10 @@ CONTAINS
          END DO
       END IF
       CALL parser_release(parser)
+      DEALLOCATE (parser)
       ! ATOMTYPENAME SECTION
       IF (iw > 0) WRITE (iw, '(T2,A)') 'GTOP_INFO| Parsing the ATOMTYPENAME section'
+      ALLOCATE (parser)
       CALL parser_create(parser, file_name, para_env=para_env)
       label = TRIM(avail_section(4))
       CALL parser_search_string(parser, label, .TRUE., found, begin_line=.TRUE.)
@@ -166,8 +173,10 @@ CONTAINS
          END DO
       END IF
       CALL parser_release(parser)
+      DEALLOCATE (parser)
       ! RESNAME SECTION
       IF (iw > 0) WRITE (iw, '(T2,A)') 'GTOP_INFO| Parsing the RESNAME section'
+      ALLOCATE (parser)
       CALL parser_create(parser, file_name, para_env=para_env)
       label = TRIM(avail_section(5))
       CALL parser_search_string(parser, label, .TRUE., found, begin_line=.TRUE.)
@@ -182,9 +191,11 @@ CONTAINS
          END DO
       END IF
       CALL parser_release(parser)
+      DEALLOCATE (parser)
       ! SOLUTEATOM SECTION
       iresid = 1
       IF (iw > 0) WRITE (iw, '(T2,A)') 'GTOP_INFO| Parsing the SOLUTEATOM section'
+      ALLOCATE (parser)
       CALL parser_create(parser, file_name, para_env=para_env)
       label = TRIM(avail_section(6))
       CALL parser_search_string(parser, label, .TRUE., found, begin_line=.TRUE.)
@@ -279,7 +290,9 @@ CONTAINS
       END IF
       nsolute = natom
       CALL parser_release(parser)
+      DEALLOCATE (parser)
 
+      ALLOCATE (parser)
       CALL parser_create(parser, file_name, para_env=para_env)
       ! BONDH SECTION
       IF (iw > 0) WRITE (iw, '(T2,A)') 'GTOP_INFO| Parsing the BONDH section'
@@ -496,12 +509,14 @@ CONTAINS
          conn_info%phi_d(offset + 1:offset + ntype) = conn_info%phi_d(offset + 1:offset + ntype) + natom_prev
       END IF
       CALL parser_release(parser)
+      DEALLOCATE (parser)
 
       ! SOLVENTATOM and SOLVENTCONSTR SECTION
       IF (iw > 0) WRITE (iw, '(T2,A)') 'GTOP_INFO| Parsing the SOLVENTATOM section'
       nsolvent = (SIZE(atom_info%r(1, :)) - nsolute)/3
 
       NULLIFY (na, am, ac, ba, bb)
+      ALLOCATE (parser)
       CALL parser_create(parser, file_name, para_env=para_env)
       label = TRIM(avail_section(20))
       CALL parser_search_string(parser, label, .TRUE., found, begin_line=.TRUE.)
@@ -536,6 +551,7 @@ CONTAINS
          END DO
       END IF
       CALL parser_release(parser)
+      DEALLOCATE (parser)
 
       offset = 0
       IF (ASSOCIATED(atom_info%id_molname)) offset = SIZE(atom_info%id_molname)
@@ -675,6 +691,7 @@ CONTAINS
       CALL reallocate(atom_info%beta, 1, nblock)
       ! TITLE SECTION
       IF (iw > 0) WRITE (iw, '(T2,A)') 'G96_INFO| Parsing the TITLE section'
+      ALLOCATE (parser)
       CALL parser_create(parser, topology%coord_file_name, para_env=para_env)
       label = TRIM(avail_section(1))
       CALL parser_search_string(parser, label, .TRUE., found, begin_line=.TRUE.)
@@ -687,8 +704,10 @@ CONTAINS
          END DO
       END IF
       CALL parser_release(parser)
+      DEALLOCATE (parser)
       ! POSITION SECTION
       IF (iw > 0) WRITE (iw, '(T2,A)') 'G96_INFO| Parsing the POSITION section'
+      ALLOCATE (parser)
       CALL parser_create(parser, topology%coord_file_name, para_env=para_env)
       label = TRIM(avail_section(3))
       CALL parser_search_string(parser, label, .TRUE., found, begin_line=.TRUE.)
@@ -728,10 +747,12 @@ CONTAINS
          END DO
       END IF
       CALL parser_release(parser)
+      DEALLOCATE (parser)
       CALL reallocate(velocity, 1, 3, 1, natom)
       ! VELOCITY SECTION
       IF (topology%use_g96_velocity) THEN
          IF (iw > 0) WRITE (iw, '(T2,A)') 'G96_INFO| Parsing the VELOCITY section'
+         ALLOCATE (parser)
          CALL parser_create(parser, topology%coord_file_name, para_env=para_env)
          label = TRIM(avail_section(4))
          CALL parser_search_string(parser, label, .TRUE., found, begin_line=.TRUE.)
@@ -757,6 +778,7 @@ CONTAINS
                CALL parser_get_object(parser, string, string_length=default_string_length)
             END DO
             CALL parser_release(parser)
+            DEALLOCATE (parser)
             velocity_section => section_vals_get_subs_vals(subsys_section, "VELOCITY")
             CALL section_velocity_val_set(velocity_section, velocity=velocity, &
                                           conv_factor=1.0_dp)

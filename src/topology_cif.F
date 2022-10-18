@@ -137,6 +137,7 @@ CONTAINS
       CALL read_cell_cif(topology%coord_file_name, cell, para_env)
       CALL write_cell(cell, subsys_section, label="CELL_CIF|")
 
+      ALLOCATE (parser)
       CALL parser_create(parser, topology%coord_file_name, &
                          para_env=para_env, apply_preprocessing=.FALSE.)
 
@@ -340,6 +341,7 @@ CONTAINS
       ! Releasse local cell type and parser
       CALL cell_release(cell)
       CALL parser_release(parser)
+      DEALLOCATE (parser)
 
       ! Reallocate all structures with the exact NATOM size
       CALL reallocate(atom_info%id_molname, 1, natom)

@@ -210,6 +210,7 @@ CONTAINS
                CALL get_ptable_info(element_symbol, number=za)
                !
                NULLIFY (parser)
+               ALLOCATE (parser)
                CALL parser_create(parser, gcp_env%parameter_file_name, para_env=para_env)
                ea = 0.0_dp
                DO
@@ -223,6 +224,7 @@ CONTAINS
                   END IF
                END DO
                CALL parser_release(parser)
+               DEALLOCATE (parser)
                gcp_env%gcp_kind(ikind)%eamiss = ea
             END DO
          END IF

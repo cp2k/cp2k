@@ -831,6 +831,7 @@ CONTAINS
             IF (farming_env%Job(i)%output == "") THEN
                ! generate the output file
                WRITE (output_file, '(A12,I5.5)') "FARMING_OUT_", i
+               ALLOCATE (my_parser)
                CALL parser_create(my_parser, file_name=TRIM(farming_env%Job(i)%input))
                label = "&GLOBAL"
                CALL parser_search_string(my_parser, label, ignore_case=.TRUE., found=found)
@@ -850,6 +851,7 @@ CONTAINS
                   CALL section_release(g_section)
                END IF
                CALL parser_release(my_parser)
+               DEALLOCATE (my_parser)
             ELSE
                output_file = farming_env%Job(i)%output
             END IF

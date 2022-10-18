@@ -209,6 +209,7 @@ CONTAINS
             CALL section_vals_val_get(replica_section, "COORD_FILE_NAME", &
                                       i_rep_section=i_rep, c_val=filename)
             CPASSERT(TRIM(filename) /= "")
+            ALLOCATE (parser)
             CALL parser_create(parser, filename, para_env=para_env, parse_white_lines=.TRUE.)
             CALL parser_get_next_line(parser, 1)
             ! Start parser
@@ -234,6 +235,7 @@ CONTAINS
                END IF
             END DO
             CALL parser_release(parser)
+            DEALLOCATE (parser)
          END IF
          ! Collective Variables
          IF (neb_env%use_colvar) THEN

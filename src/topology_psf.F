@@ -103,6 +103,7 @@ CONTAINS
       iw = cp_print_key_unit_nr(logger, subsys_section, "PRINT%TOPOLOGY_INFO/PSF_INFO", &
                                 extension=".subsysLog")
       CALL timeset(routineN, handle)
+      ALLOCATE (parser)
       CALL parser_create(parser, filename, para_env=para_env)
 
       atom_info => topology%atom_info
@@ -392,6 +393,7 @@ CONTAINS
       END IF
 
       CALL parser_release(parser)
+      DEALLOCATE (parser)
       CALL timestop(handle)
       CALL cp_print_key_finished_output(iw, logger, subsys_section, &
                                         "PRINT%TOPOLOGY_INFO/PSF_INFO")

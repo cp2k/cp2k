@@ -276,6 +276,7 @@ CONTAINS
       CALL section_vals_val_get(cell_section, "CELL_FILE_FORMAT", i_val=my_format)
       SELECT CASE (my_format)
       CASE (do_cell_cp2k)
+         ALLOCATE (parser)
          CALL parser_create(parser, cell_file_name, para_env=para_env)
          CALL parser_get_next_line(parser, 1)
          my_end = .FALSE.
@@ -284,6 +285,7 @@ CONTAINS
             CALL parser_get_next_line(parser, 1, at_end=my_end)
          END DO
          CALL parser_release(parser)
+         DEALLOCATE (parser)
          ! Convert to CP2K units
          DO i = 1, 3
             DO j = 1, 3
@@ -291,10 +293,12 @@ CONTAINS
             END DO
          END DO
       CASE (do_cell_xsc)
+         ALLOCATE (parser)
          CALL parser_create(parser, cell_file_name, para_env=para_env)
          CALL parser_get_next_line(parser, 1)
          READ (parser%input_line, *) idum, hmat(:, 1), hmat(:, 2), hmat(:, 3)
          CALL parser_release(parser)
+         DEALLOCATE (parser)
          ! Convert to CP2K units
          DO i = 1, 3
             DO j = 1, 3
@@ -375,6 +379,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (parser)
+      ALLOCATE (parser)
       CALL parser_create(parser, cif_file_name, &
                          para_env=para_env, apply_preprocessing=.FALSE.)
 
@@ -433,6 +438,7 @@ CONTAINS
                           do_init_cell=.TRUE.)
 
       CALL parser_release(parser)
+      DEALLOCATE (parser)
 
       CALL timestop(handle)
 

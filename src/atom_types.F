@@ -2269,6 +2269,7 @@ CONTAINS
          END DO
       ELSE
          NULLIFY (parser)
+         ALLOCATE (parser)
          CALL parser_create(parser, basis_set_file)
          ! Search for the requested basis set in the basis set file
          ! until the basis set is found or the end of file is reached
@@ -2327,6 +2328,7 @@ CONTAINS
          END DO search_loop
 
          CALL parser_release(parser)
+         DEALLOCATE (parser)
       END IF
 
       ! fill in the basis data structures
@@ -2708,6 +2710,7 @@ CONTAINS
          END IF
       ELSE
          NULLIFY (parser)
+         ALLOCATE (parser)
          CALL parser_create(parser, pseudo_file)
 
          search_loop: DO
@@ -2823,6 +2826,7 @@ CONTAINS
          END DO search_loop
 
          CALL parser_release(parser)
+         DEALLOCATE (parser)
       END IF
 
    END SUBROUTINE read_gth_potential
@@ -2915,6 +2919,7 @@ CONTAINS
       ELSE
 
          NULLIFY (parser)
+         ALLOCATE (parser)
          CALL parser_create(parser, pseudo_file)
 
          search_loop: DO
@@ -2971,6 +2976,7 @@ CONTAINS
          END DO search_loop
 
          CALL parser_release(parser)
+         DEALLOCATE (parser)
       END IF
 
       ! set up econf

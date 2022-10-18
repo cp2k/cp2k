@@ -196,6 +196,7 @@ CONTAINS
 
       filename = ADJUSTL(TRIM(parameter_file_path))//ADJUSTL(TRIM(parameter_file_name))
       NULLIFY (parser)
+      ALLOCATE (parser)
       CALL parser_create(parser, filename, para_env=para_env)
       found = .FALSE.
       DO
@@ -278,6 +279,7 @@ CONTAINS
          END IF
       END IF
       CALL parser_release(parser)
+      DEALLOCATE (parser)
 
    END SUBROUTINE xtb_parameters_init
 

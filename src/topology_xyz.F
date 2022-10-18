@@ -77,6 +77,7 @@ CONTAINS
             "BEGIN of XYZ data read from file "//TRIM(topology%coord_file_name)
       END IF
 
+      ALLOCATE (parser)
       CALL parser_create(parser, topology%coord_file_name, para_env=para_env, &
                          parse_white_lines=.TRUE.)
 
@@ -161,6 +162,7 @@ CONTAINS
          END DO
       END DO Frames
       CALL parser_release(parser)
+      DEALLOCATE (parser)
 
       IF (iw > 0) THEN
          WRITE (UNIT=iw, FMT="(T2,A)") &

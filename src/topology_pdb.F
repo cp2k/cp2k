@@ -143,6 +143,7 @@ CONTAINS
       id0 = str2id(s2s(""))
       topology%molname_generated = .FALSE.
 
+      ALLOCATE (parser)
       CALL parser_create(parser, topology%coord_file_name, para_env=para_env)
 
       natom = 0
@@ -243,6 +244,7 @@ CONTAINS
          END SELECT
       END DO
       CALL parser_release(parser)
+      DEALLOCATE (parser)
 
       CALL reallocate(atom_info%id_molname, 1, natom)
       CALL reallocate(atom_info%id_resname, 1, natom)

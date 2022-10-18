@@ -1260,6 +1260,7 @@ CONTAINS
          IF (basis_found) EXIT basis_loop
          NULLIFY (parser)
          basis_set_file_name = cbasis(ibasis)
+         ALLOCATE (parser)
          CALL parser_create(parser, basis_set_file_name, para_env=para_env)
 
          bsname = basis_set_name
@@ -1503,6 +1504,7 @@ CONTAINS
          END IF
 
          CALL parser_release(parser)
+         DEALLOCATE (parser)
 
       END DO basis_loop
 
@@ -2258,6 +2260,7 @@ CONTAINS
          IF (basis_found) EXIT basis_loop
          NULLIFY (parser)
          basis_set_file_name = cbasis(ibasis)
+         ALLOCATE (parser)
          CALL parser_create(parser, basis_set_file_name, para_env=para_env)
 
          bsname = basis_set_name
@@ -2344,6 +2347,7 @@ CONTAINS
          END IF
 
          CALL parser_release(parser)
+         DEALLOCATE (parser)
 
       END DO basis_loop
 

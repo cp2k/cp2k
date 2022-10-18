@@ -5827,6 +5827,7 @@ CONTAINS
             CPASSERT(TRIM(filename) /= "")
             NULLIFY (parser)
             ALLOCATE (rptr(3))
+            ALLOCATE (parser)
             CALL parser_create(parser, filename, para_env=para_env, parse_white_lines=.TRUE.)
             CALL parser_get_next_line(parser, 1)
             ! Start parser
@@ -5852,6 +5853,7 @@ CONTAINS
                r_ref((j - 1)*3 + 3, i) = cp_unit_to_cp2k(rptr(3), "angstrom")
             END DO ! natom
             CALL parser_release(parser)
+            DEALLOCATE (parser)
             DEALLOCATE (rptr)
          END IF
       END DO ! nr_frames

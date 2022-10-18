@@ -94,7 +94,6 @@ CONTAINS
       output_unit = cp_logger_get_default_io_unit()
 
       CPASSERT(section_vals%ref_count > 0)
-      CPASSERT(parser%ref_count > 0)
       IF (root_sect .AND. parser%icol1 > parser%icol2) &
          CALL cp_abort(__LOCATION__, &
                        "Error 1: this routine must be called just after having parsed the start of the section " &

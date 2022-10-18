@@ -119,6 +119,7 @@ CONTAINS
       NULLIFY (namearray)
       ! ATOMTYPENAME SECTION
       IF (iw > 0) WRITE (iw, '(T2,A)') 'GTOP_INFO| Parsing the ATOMTYPENAME section'
+      ALLOCATE (parser)
       CALL parser_create(parser, ff_type%ff_file_name, para_env=para_env)
       label = TRIM(avail_section(4))
       CALL parser_search_string(parser, label, .TRUE., found, begin_line=.TRUE.)
@@ -133,9 +134,11 @@ CONTAINS
          END DO
       END IF
       CALL parser_release(parser)
+      DEALLOCATE (parser)
 
       ! SOLVENTCONSTR SECTION
       IF (iw > 0) WRITE (iw, '(T2,A)') 'GROMOS_FF| Parsing the SOLVENTATOM section'
+      ALLOCATE (parser)
       CALL parser_create(parser, ff_type%ff_file_name, para_env=para_env)
 
       label = TRIM(avail_section(21))
@@ -154,7 +157,9 @@ CONTAINS
          END DO
       END IF
       CALL parser_release(parser)
+      DEALLOCATE (parser)
 
+      ALLOCATE (parser)
       CALL parser_create(parser, ff_type%ff_file_name, para_env=para_env)
       ! BONDTYPE SECTION
       IF (iw > 0) WRITE (iw, '(T2,A)') 'GROMOS_FF| Parsing the BONDTYPE section'
@@ -248,9 +253,11 @@ CONTAINS
       END IF
 
       CALL parser_release(parser)
+      DEALLOCATE (parser)
 
       ! LJPARAMETERS SECTION
       IF (iw > 0) WRITE (iw, '(T2,A)') 'GROMOS_FF| Parsing the LJPARAMETERS section'
+      ALLOCATE (parser)
       CALL parser_create(parser, ff_type%ff_file_name, para_env=para_env)
       label = TRIM(avail_section(19))
       CALL parser_search_string(parser, label, .TRUE., found, begin_line=.TRUE.)
@@ -297,6 +304,7 @@ CONTAINS
          END DO
       END IF
       CALL parser_release(parser)
+      DEALLOCATE (parser)
 
       CALL cp_print_key_finished_output(iw, logger, mm_section, &
                                         "PRINT%FF_INFO")
@@ -368,6 +376,7 @@ CONTAINS
       !-----------------------------------------------------------------------------
       nbond = 0
       DO ilab = 1, SIZE(bond_section)
+         ALLOCATE (parser)
          CALL parser_create(parser, ff_type%ff_file_name, para_env=para_env)
          label = TRIM(bond_section(ilab))
          DO
@@ -406,6 +415,7 @@ CONTAINS
             END IF
          END DO
          CALL parser_release(parser)
+         DEALLOCATE (parser)
       END DO
       !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
@@ -419,6 +429,7 @@ CONTAINS
       nbend = 0
       nub = 0
       DO ilab = 1, SIZE(angl_section)
+         ALLOCATE (parser)
          CALL parser_create(parser, ff_type%ff_file_name, para_env=para_env)
          label = TRIM(angl_section(ilab))
          DO
@@ -484,6 +495,7 @@ CONTAINS
             END IF
          END DO
          CALL parser_release(parser)
+         DEALLOCATE (parser)
       END DO
       !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
@@ -493,6 +505,7 @@ CONTAINS
       !-----------------------------------------------------------------------------
       ntorsion = 0
       DO ilab = 1, SIZE(thet_section)
+         ALLOCATE (parser)
          CALL parser_create(parser, ff_type%ff_file_name, para_env=para_env)
          label = TRIM(thet_section(ilab))
          DO
@@ -545,6 +558,7 @@ CONTAINS
             END IF
          END DO
          CALL parser_release(parser)
+         DEALLOCATE (parser)
       END DO
       !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
@@ -554,6 +568,7 @@ CONTAINS
       !-----------------------------------------------------------------------------
       nimpr = 0
       DO ilab = 1, SIZE(impr_section)
+         ALLOCATE (parser)
          CALL parser_create(parser, ff_type%ff_file_name, para_env=para_env)
          label = TRIM(impr_section(ilab))
          DO
@@ -603,6 +618,7 @@ CONTAINS
             END IF
          END DO
          CALL parser_release(parser)
+         DEALLOCATE (parser)
       END DO
       !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
@@ -611,6 +627,7 @@ CONTAINS
       nnonbond = 0
       nonfo = 0
       DO ilab = 1, SIZE(nbon_section)
+         ALLOCATE (parser)
          CALL parser_create(parser, ff_type%ff_file_name, para_env=para_env)
          label = TRIM(nbon_section(ilab))
          DO
@@ -664,6 +681,7 @@ CONTAINS
             END IF
          END DO
          CALL parser_release(parser)
+         DEALLOCATE (parser)
       END DO
       CALL cp_print_key_finished_output(iw, logger, mm_section, &
                                         "PRINT%FF_INFO")

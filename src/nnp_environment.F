@@ -289,6 +289,7 @@ CONTAINS
       ALLOCATE (nnp_env%committee_stress(3, 3, nnp_env%n_committee))
 
       CALL section_vals_val_get(nnp_env%nnp_input, "NNP_INPUT_FILE_NAME", c_val=file_name)
+      ALLOCATE (parser)
       CALL parser_create(parser, file_name, para_env=logger%para_env)
 
       ! read number of elements and cut_type and check for scale and center
@@ -621,6 +622,7 @@ CONTAINS
       END DO
       ! Done with input.nn file
       CALL parser_release(parser)
+      DEALLOCATE (parser)
 
       ! sort symmetry functions and output information
       CALL nnp_sort_acsf(nnp_env)
@@ -634,6 +636,7 @@ CONTAINS
          END IF
          CALL section_vals_val_get(nnp_env%nnp_input, "SCALE_FILE_NAME", &
                                    c_val=file_name)
+         ALLOCATE (parser)
          CALL parser_create(parser, file_name, para_env=logger%para_env)
 
          ! Get number of elements in scaling file
@@ -684,6 +687,7 @@ CONTAINS
             END DO
          END DO
          CALL parser_release(parser)
+         DEALLOCATE (parser)
       END IF
 
       CALL nnp_init_acsf_groups(nnp_env)
@@ -706,6 +710,7 @@ CONTAINS
             IF (logger%para_env%ionode) THEN
                WRITE (unit_nr, *) "NNP| Reading weights from file: ", TRIM(file_name)
             END IF
+            ALLOCATE (parser)
             CALL parser_create(parser, file_name, para_env=logger%para_env)
             n_weight = 0
             DO WHILE (.TRUE.)
@@ -722,6 +727,7 @@ CONTAINS
                READ (parser%input_line, *) weights(j)
             END DO
             CALL parser_release(parser)
+            DEALLOCATE (parser)
 
             ! sort weights into corresponding arrays
             iweight = 0

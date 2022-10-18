@@ -133,6 +133,7 @@ CONTAINS
       END IF
 
       NULLIFY (parser)
+      ALLOCATE (parser)
       CALL parser_create( &
          parser, &
          file_name, &
@@ -178,6 +179,7 @@ CONTAINS
          END DO
       END DO Frames
       CALL parser_release(parser)
+      DEALLOCATE (parser)
 
       CALL timestop(handle)
 

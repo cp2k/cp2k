@@ -116,6 +116,7 @@ CONTAINS
       CALL reallocate(atom_info%id_element, 1, nblock)
 
       IF (iw > 0) WRITE (iw, *) "    Reading in XTL file ", TRIM(topology%coord_file_name)
+      ALLOCATE (parser)
       CALL parser_create(parser, topology%coord_file_name, para_env=para_env)
 
       ! Check for TITLE
@@ -309,6 +310,7 @@ CONTAINS
       ! Releasse local cell type and parser
       CALL cell_release(cell)
       CALL parser_release(parser)
+      DEALLOCATE (parser)
 
       ! Reallocate all structures with the exact NATOM size
       CALL reallocate(atom_info%id_molname, 1, natom)

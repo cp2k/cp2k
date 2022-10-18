@@ -139,6 +139,7 @@ CONTAINS
                                 c_val=mm_potential_file_name)
 
       NULLIFY (parser)
+      ALLOCATE (parser)
       CALL parser_create(parser, mm_potential_file_name, para_env=para_env)
 
       search_loop: DO
@@ -216,6 +217,7 @@ CONTAINS
       END DO search_loop
 
       CALL parser_release(parser)
+      DEALLOCATE (parser)
 
    END SUBROUTINE read_mm_potential
 

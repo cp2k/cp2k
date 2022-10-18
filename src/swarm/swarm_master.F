@@ -151,6 +151,7 @@ CONTAINS
          " SWARM| Starting replay of communication-log: ", TRIM(filename)
 
       CALL timeset("swarm_master_replay_comlog", handle)
+      ALLOCATE (parser)
       CALL parser_create(parser, filename, para_env=master%para_env)
 
       at_end = .FALSE.
@@ -190,6 +191,7 @@ CONTAINS
       END DO
 
       CALL parser_release(parser)
+      DEALLOCATE (parser)
       CALL timestop(handle)
    END SUBROUTINE replay_comlog
 

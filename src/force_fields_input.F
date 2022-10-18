@@ -2196,6 +2196,7 @@ CONTAINS
       iw = cp_print_key_unit_nr(logger, mm_section, "PRINT%FF_INFO", &
                                 extension=".mmLog")
       IF (iw > 0) WRITE (iw, *) "Reading EAM data from: ", TRIM(eam%eam_file_name)
+      ALLOCATE (parser)
       CALL parser_create(parser, TRIM(eam%eam_file_name), para_env=para_env)
 
       CALL parser_get_next_line(parser, 1)
@@ -2239,6 +2240,7 @@ CONTAINS
 
       IF (iw > 0) WRITE (iw, *) "Finished EAM data"
       CALL parser_release(parser)
+      DEALLOCATE (parser)
       CALL cp_print_key_finished_output(iw, logger, mm_section, "PRINT%FF_INFO")
       CALL timestop(handle)
 
@@ -2270,6 +2272,7 @@ CONTAINS
       iw = cp_print_key_unit_nr(logger, mm_section, "PRINT%FF_INFO", &
                                 extension=".mmLog")
       IF (iw > 0) WRITE (iw, *) "Reading TABPOT data from: ", TRIM(tab%tabpot_file_name)
+      ALLOCATE (parser)
       CALL parser_create(parser, TRIM(tab%tabpot_file_name), para_env=para_env)
       CALL parser_get_next_line(parser, 1)
       IF (iw > 0) WRITE (iw, *) "Title: ", parser%input_line
@@ -2298,6 +2301,7 @@ CONTAINS
 
       IF (iw > 0) WRITE (iw, *) "Finished TABPOT data"
       CALL parser_release(parser)
+      DEALLOCATE (parser)
       CALL cp_print_key_finished_output(iw, logger, mm_section, "PRINT%FF_INFO")
       CALL timestop(handle)
    END SUBROUTINE read_tabpot_data

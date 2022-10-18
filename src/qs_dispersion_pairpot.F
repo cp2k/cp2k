@@ -242,6 +242,7 @@ CONTAINS
                   INQUIRE (FILE=filename, EXIST=is_available)
                   IF (is_available) THEN
                      NULLIFY (parser)
+                     ALLOCATE (parser)
                      CALL parser_create(parser, filename, para_env=para_env)
                      DO
                         at_end = .FALSE.
@@ -259,6 +260,7 @@ CONTAINS
                         END IF
                      END DO
                      CALL parser_release(parser)
+                     DEALLOCATE (parser)
                   END IF
                END IF
                IF (found) THEN

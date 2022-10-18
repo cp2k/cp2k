@@ -1041,6 +1041,7 @@ CONTAINS
       CALL uppercase(element)
       CALL uppercase(basis_name)
       NULLIFY (parser)
+      ALLOCATE (parser)
       CALL parser_create(parser, template_basis_file, para_env=para_env)
 
       search_loop: DO
@@ -1070,6 +1071,7 @@ CONTAINS
          END IF
       END DO search_loop
       CALL parser_release(parser)
+      DEALLOCATE (parser)
 
       IF (.NOT. basis_found) CALL cp_abort(__LOCATION__, &
                                            "The requested basis set <"//TRIM(basis_name)// &
