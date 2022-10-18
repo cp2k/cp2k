@@ -1035,13 +1035,11 @@ CONTAINS
       CHARACTER(LEN=LEN(element)+2)                      :: element2
       INTEGER                                            :: iset, strlen1, strlen2
       LOGICAL                                            :: basis_found, found, match
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type)                               :: parser
 
       basis_found = .FALSE.
       CALL uppercase(element)
       CALL uppercase(basis_name)
-      NULLIFY (parser)
-      ALLOCATE (parser)
       CALL parser_create(parser, template_basis_file, para_env=para_env)
 
       search_loop: DO
@@ -1071,7 +1069,6 @@ CONTAINS
          END IF
       END DO search_loop
       CALL parser_release(parser)
-      DEALLOCATE (parser)
 
       IF (.NOT. basis_found) CALL cp_abort(__LOCATION__, &
                                            "The requested basis set <"//TRIM(basis_name)// &
@@ -1086,9 +1083,8 @@ CONTAINS
 !> \param subset ...
 !> \author Florian Schiffmann
 ! **************************************************************************************************
-
    SUBROUTINE parse_subset(parser, subset)
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       TYPE(subset_type)                                  :: subset
 
       CHARACTER(len=20*default_string_length)            :: line_att
@@ -1158,7 +1154,7 @@ CONTAINS
 ! **************************************************************************************************
 
    SUBROUTINE init_powell_var(p_param, powell_section)
-      TYPE(opt_state_type)                               :: p_param
+      TYPE(opt_state_type), INTENT(INOUT)                :: p_param
       TYPE(section_vals_type), POINTER                   :: powell_section
 
       p_param%state = 0

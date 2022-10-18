@@ -107,7 +107,6 @@ CONTAINS
       REAL(dp), DIMENSION(1:2)                           :: surr
       REAL(dp), DIMENSION(1:3)                           :: srep
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_parser_type), POINTER                      :: parser
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_atom_a, dftb_atom_b
 
       output_unit = -1
@@ -177,34 +176,34 @@ CONTAINS
             IF (.NOT. found .AND. sklist) THEN
                file_name = TRIM(dftb_control%sk_file_path)//"/"// &
                            TRIM(dftb_control%sk_file_list)
-               NULLIFY (parser)
-               ALLOCATE (parser)
-               CALL parser_create(parser, file_name, para_env=para_env)
-               DO
-                  at_end = .FALSE.
-                  CALL parser_get_next_line(parser, 1, at_end)
-                  IF (at_end) EXIT
-                  CALL parser_get_object(parser, name_a, lower_to_upper=.TRUE.)
-                  CALL parser_get_object(parser, name_b, lower_to_upper=.TRUE.)
-                  !Checking Names
-                  IF ((iname == name_a .AND. jname == name_b)) THEN
-                     CALL parser_get_object(parser, skfn, string_length=8)
-                     sk_files(ikind, jkind) = TRIM(dftb_control%sk_file_path)//"/"// &
-                                              TRIM(skfn)
-                     found = .TRUE.
-                     EXIT
-                  END IF
-                  !Checking Element
-                  IF ((iel == name_a .AND. jel == name_b)) THEN
-                     CALL parser_get_object(parser, skfn, string_length=8)
-                     sk_files(ikind, jkind) = TRIM(dftb_control%sk_file_path)//"/"// &
-                                              TRIM(skfn)
-                     found = .TRUE.
-                     EXIT
-                  END IF
-               END DO
-               CALL parser_release(parser)
-               DEALLOCATE (parser)
+               BLOCK
+                  TYPE(cp_parser_type) :: parser
+                  CALL parser_create(parser, file_name, para_env=para_env)
+                  DO
+                     at_end = .FALSE.
+                     CALL parser_get_next_line(parser, 1, at_end)
+                     IF (at_end) EXIT
+                     CALL parser_get_object(parser, name_a, lower_to_upper=.TRUE.)
+                     CALL parser_get_object(parser, name_b, lower_to_upper=.TRUE.)
+                     !Checking Names
+                     IF ((iname == name_a .AND. jname == name_b)) THEN
+                        CALL parser_get_object(parser, skfn, string_length=8)
+                        sk_files(ikind, jkind) = TRIM(dftb_control%sk_file_path)//"/"// &
+                                                 TRIM(skfn)
+                        found = .TRUE.
+                        EXIT
+                     END IF
+                     !Checking Element
+                     IF ((iel == name_a .AND. jel == name_b)) THEN
+                        CALL parser_get_object(parser, skfn, string_length=8)
+                        sk_files(ikind, jkind) = TRIM(dftb_control%sk_file_path)//"/"// &
+                                                 TRIM(skfn)
+                        found = .TRUE.
+                        EXIT
+                     END IF
+                  END DO
+                  CALL parser_release(parser)
+               END BLOCK
             END IF
             IF (.NOT. found) &
                CALL cp_abort(__LOCATION__, &
@@ -594,37 +593,37 @@ CONTAINS
          IF (dftb_control%dispersion_type == dispersion_uff) THEN
             file_name = TRIM(dftb_control%sk_file_path)//"/"// &
                         TRIM(dftb_control%uff_force_field)
-            DO ikind = 1, nkind
-               CALL get_atomic_kind(atomic_kind_set(ikind), name=iname)
-               CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_atom_a)
+            BLOCK
+               TYPE(cp_parser_type) :: parser
+               DO ikind = 1, nkind
+                  CALL get_atomic_kind(atomic_kind_set(ikind), name=iname)
+                  CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_atom_a)
 
-               m = LEN_TRIM(iname)
-               NULLIFY (parser)
-               ALLOCATE (parser)
-               CALL parser_create(parser, file_name, para_env=para_env)
-               found = .FALSE.
-               DO
-                  at_end = .FALSE.
-                  CALL parser_get_next_line(parser, 1, at_end)
-                  IF (at_end) EXIT
-                  CALL parser_get_object(parser, name_a)
-                  ! parser is no longer removing leading quotes
-                  IF (name_a(1:1) == '"') name_a(1:m) = name_a(2:m + 1)
-                  IF (name_a(1:m) == TRIM(iname)) THEN
-                     CALL parser_get_object(parser, rb)
-                     CALL parser_get_object(parser, rb)
-                     CALL parser_get_object(parser, ra)
-                     CALL parser_get_object(parser, da)
-                     found = .TRUE.
-                     ra = ra/angstrom
-                     da = da/kcalmol
-                     CALL set_dftb_atom_param(dftb_parameter=dftb_atom_a, name=iname, xi=ra, di=da)
-                     EXIT
-                  END IF
+                  m = LEN_TRIM(iname)
+                  CALL parser_create(parser, file_name, para_env=para_env)
+                  found = .FALSE.
+                  DO
+                     at_end = .FALSE.
+                     CALL parser_get_next_line(parser, 1, at_end)
+                     IF (at_end) EXIT
+                     CALL parser_get_object(parser, name_a)
+                     ! parser is no longer removing leading quotes
+                     IF (name_a(1:1) == '"') name_a(1:m) = name_a(2:m + 1)
+                     IF (name_a(1:m) == TRIM(iname)) THEN
+                        CALL parser_get_object(parser, rb)
+                        CALL parser_get_object(parser, rb)
+                        CALL parser_get_object(parser, ra)
+                        CALL parser_get_object(parser, da)
+                        found = .TRUE.
+                        ra = ra/angstrom
+                        da = da/kcalmol
+                        CALL set_dftb_atom_param(dftb_parameter=dftb_atom_a, name=iname, xi=ra, di=da)
+                        EXIT
+                     END IF
+                  END DO
+                  CALL parser_release(parser)
                END DO
-               CALL parser_release(parser)
-               DEALLOCATE (parser)
-            END DO
+            END BLOCK
          END IF
 
       END IF

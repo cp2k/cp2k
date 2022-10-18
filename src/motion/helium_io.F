@@ -116,7 +116,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: strtmp
       INTEGER                                            :: frame, handle, istat, j, natom
       LOGICAL                                            :: found, my_end
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type)                               :: parser
 
       CALL timeset(routineN, handle)
 
@@ -132,8 +132,6 @@ CONTAINS
          CPABORT("Coordinate file <"//TRIM(file_name)//"> not found.")
       END IF
 
-      NULLIFY (parser)
-      ALLOCATE (parser)
       CALL parser_create( &
          parser, &
          file_name, &
@@ -179,11 +177,9 @@ CONTAINS
          END DO
       END DO Frames
       CALL parser_release(parser)
-      DEALLOCATE (parser)
 
       CALL timestop(handle)
 
-      RETURN
    END SUBROUTINE helium_read_xyz
 
 ! ***************************************************************************
@@ -1899,7 +1895,6 @@ CONTAINS
 
       CALL timestop(handle)
 
-      RETURN
    END SUBROUTINE helium_print_force_inst
 
 #endif

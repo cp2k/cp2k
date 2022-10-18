@@ -148,18 +148,15 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_replica_coords'
 
       CHARACTER(LEN=default_path_length)                 :: filename
-      CHARACTER(LEN=default_string_length)               :: dummy_char
       INTEGER :: handle, i_rep, iatom, ic, input_nr_replica, is, ivar, j, jtarg, n_rep, natom, &
          neb_nr_replica, nr_replica_to_interpolate, nval, nvar, shell_index
-      LOGICAL                                            :: check, explicit, my_end, skip_vel_section
+      LOGICAL                                            :: check, explicit, skip_vel_section
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: distance
       REAL(KIND=dp), DIMENSION(3)                        :: r
       REAL(KIND=dp), DIMENSION(:), POINTER               :: initial_colvars, rptr
-      TYPE(cp_parser_type), POINTER                      :: parser
       TYPE(section_vals_type), POINTER                   :: coord_section, replica_section, &
                                                             vel_section
 
-      NULLIFY (parser)
       CALL timeset(routineN, handle)
       CPASSERT(ASSOCIATED(coords))
       CPASSERT(ASSOCIATED(vels))
@@ -206,36 +203,39 @@ CONTAINS
                END IF
             END DO
          ELSE
-            CALL section_vals_val_get(replica_section, "COORD_FILE_NAME", &
-                                      i_rep_section=i_rep, c_val=filename)
-            CPASSERT(TRIM(filename) /= "")
-            ALLOCATE (parser)
-            CALL parser_create(parser, filename, para_env=para_env, parse_white_lines=.TRUE.)
-            CALL parser_get_next_line(parser, 1)
-            ! Start parser
-            CALL parser_get_object(parser, natom)
-            CPASSERT((natom == SIZE(particle_set)))
-            CALL parser_get_next_line(parser, 1)
-            DO iatom = 1, natom
-               ! Atom coordinates
-               CALL parser_get_next_line(parser, 1, at_end=my_end)
-               IF (my_end) &
-                  CALL cp_abort(__LOCATION__, &
-                                "Number of lines in XYZ format not equal to the number of atoms."// &
-                                " Error in XYZ format for REPLICA coordinates. Very probably the"// &
-                                " line with title is missing or is empty. Please check the XYZ file and rerun your job!")
-               READ (parser%input_line, *) dummy_char, r(1:3)
-               ic = 3*(iatom - 1)
-               coords%xyz(ic + 1:ic + 3, i_rep) = r(1:3)*bohr
-               ! Initially core and shell positions are set to the atomic positions
-               shell_index = particle_set(iatom)%shell_index
-               IF (shell_index /= 0) THEN
-                  is = 3*(natom + shell_index - 1)
-                  coords%xyz(is + 1:is + 3, i_rep) = coords%xyz(ic + 1:ic + 3, i_rep)
-               END IF
-            END DO
-            CALL parser_release(parser)
-            DEALLOCATE (parser)
+            BLOCK
+               LOGICAL :: my_end
+               CHARACTER(LEN=default_string_length)               :: dummy_char
+               TYPE(cp_parser_type) :: parser
+               CALL section_vals_val_get(replica_section, "COORD_FILE_NAME", &
+                                         i_rep_section=i_rep, c_val=filename)
+               CPASSERT(TRIM(filename) /= "")
+               CALL parser_create(parser, filename, para_env=para_env, parse_white_lines=.TRUE.)
+               CALL parser_get_next_line(parser, 1)
+               ! Start parser
+               CALL parser_get_object(parser, natom)
+               CPASSERT((natom == SIZE(particle_set)))
+               CALL parser_get_next_line(parser, 1)
+               DO iatom = 1, natom
+                  ! Atom coordinates
+                  CALL parser_get_next_line(parser, 1, at_end=my_end)
+                  IF (my_end) &
+                     CALL cp_abort(__LOCATION__, &
+                                   "Number of lines in XYZ format not equal to the number of atoms."// &
+                                   " Error in XYZ format for REPLICA coordinates. Very probably the"// &
+                                   " line with title is missing or is empty. Please check the XYZ file and rerun your job!")
+                  READ (parser%input_line, *) dummy_char, r(1:3)
+                  ic = 3*(iatom - 1)
+                  coords%xyz(ic + 1:ic + 3, i_rep) = r(1:3)*bohr
+                  ! Initially core and shell positions are set to the atomic positions
+                  shell_index = particle_set(iatom)%shell_index
+                  IF (shell_index /= 0) THEN
+                     is = 3*(natom + shell_index - 1)
+                     coords%xyz(is + 1:is + 3, i_rep) = coords%xyz(ic + 1:ic + 3, i_rep)
+                  END IF
+               END DO
+               CALL parser_release(parser)
+            END BLOCK
          END IF
          ! Collective Variables
          IF (neb_env%use_colvar) THEN

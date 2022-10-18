@@ -58,14 +58,13 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'read_input'
 
       INTEGER                                            :: handle
-      TYPE(cp_parser_type), POINTER                      :: cpparser
+      TYPE(cp_parser_type)                               :: cpparser
       TYPE(cp_unit_set_type), POINTER                    :: default_units
 
       CALL timeset(routineN, handle)
       NULLIFY (res)
-      NULLIFY (cpparser, default_units)
+      NULLIFY (default_units)
       CALL section_vals_create(res, input_declaration)
-      ALLOCATE (cpparser)
       CALL parser_create(cpparser, initial_variables=initial_variables, file_name=file_path, &
                          para_env=para_env)
       CALL cp_unit_set_create(default_units, "OUTPUT")
@@ -75,7 +74,6 @@ CONTAINS
       typo_match_section => NULL()
       CALL cp_unit_set_release(default_units)
       CALL parser_release(cpparser)
-      DEALLOCATE (cpparser)
       CALL timestop(handle)
    END FUNCTION read_input
 

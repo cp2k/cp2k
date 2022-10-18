@@ -132,7 +132,6 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: exlist
       LOGICAL                                            :: at_end, explicit, found, is_available
       REAL(KIND=dp)                                      :: dum
-      TYPE(cp_parser_type), POINTER                      :: parser
       TYPE(qs_atom_dispersion_type), POINTER             :: disp
 
       CALL timeset(routineN, handle)
@@ -241,26 +240,26 @@ CONTAINS
                   ! check on file
                   INQUIRE (FILE=filename, EXIST=is_available)
                   IF (is_available) THEN
-                     NULLIFY (parser)
-                     ALLOCATE (parser)
-                     CALL parser_create(parser, filename, para_env=para_env)
-                     DO
-                        at_end = .FALSE.
-                        CALL parser_get_next_line(parser, 1, at_end)
-                        IF (at_end) EXIT
-                        CALL parser_get_object(parser, aname)
-                        IF (TRIM(aname) == TRIM(symbol)) THEN
-                           CALL parser_get_object(parser, disp%c6)
-                           ! we have to change the units J*nm^6*mol^-1 -> Hartree*Bohr^6
-                           disp%c6 = disp%c6*1000._dp*bohr**6/kjmol
-                           CALL parser_get_object(parser, disp%vdw_radii)
-                           disp%vdw_radii = disp%vdw_radii*bohr
-                           found = .TRUE.
-                           EXIT
-                        END IF
-                     END DO
-                     CALL parser_release(parser)
-                     DEALLOCATE (parser)
+                     BLOCK
+                        TYPE(cp_parser_type) :: parser
+                        CALL parser_create(parser, filename, para_env=para_env)
+                        DO
+                           at_end = .FALSE.
+                           CALL parser_get_next_line(parser, 1, at_end)
+                           IF (at_end) EXIT
+                           CALL parser_get_object(parser, aname)
+                           IF (TRIM(aname) == TRIM(symbol)) THEN
+                              CALL parser_get_object(parser, disp%c6)
+                              ! we have to change the units J*nm^6*mol^-1 -> Hartree*Bohr^6
+                              disp%c6 = disp%c6*1000._dp*bohr**6/kjmol
+                              CALL parser_get_object(parser, disp%vdw_radii)
+                              disp%vdw_radii = disp%vdw_radii*bohr
+                              found = .TRUE.
+                              EXIT
+                           END IF
+                        END DO
+                        CALL parser_release(parser)
+                     END BLOCK
                   END IF
                END IF
                IF (found) THEN

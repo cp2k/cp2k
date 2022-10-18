@@ -518,7 +518,7 @@ CONTAINS
       LOGICAL                                            :: at_end, test_ok
       REAL(KIND=dp)                                      :: cell_time, trj_epot, trj_time, vec(3), &
                                                             vol
-      TYPE(cp_parser_type), POINTER                      :: local_parser
+      TYPE(cp_parser_type)                               :: local_parser
 
       CALL timeset(routineN, handle)
 
@@ -527,11 +527,10 @@ CONTAINS
       ! trajectory
       n_frames = 0
       n_frames_current = 0
-      NULLIFY (local_parser, pos_traj, energy_traj, force_traj)
+      NULLIFY (pos_traj, energy_traj, force_traj)
       filename = oi_env%fm_env%ref_traj_file_name
       IF (filename .EQ. "") &
          CPABORT("The reference trajectory file name is empty")
-      ALLOCATE (local_parser)
       CALL parser_create(local_parser, filename, para_env=para_env)
       DO
          CALL parser_read_line(local_parser, 1, at_end=at_end)
@@ -556,7 +555,6 @@ CONTAINS
 
       END DO
       CALL parser_release(local_parser)
-      DEALLOCATE (local_parser)
 
       n_frames_current = n_frames
       CALL reallocate(energy_traj, 1, n_frames_current)
@@ -567,7 +565,6 @@ CONTAINS
       filename = oi_env%fm_env%ref_force_file_name
       IF (filename .EQ. "") &
          CPABORT("The reference force file name is empty")
-      ALLOCATE (local_parser)
       CALL parser_create(local_parser, filename, para_env=para_env)
       DO iframe = 1, n_frames
          CALL parser_read_line(local_parser, 1)
@@ -592,13 +589,11 @@ CONTAINS
          END DO
       END DO
       CALL parser_release(local_parser)
-      DEALLOCATE (local_parser)
 
       ! and cell, which is optional
       NULLIFY (cell_traj)
       filename = oi_env%fm_env%ref_cell_file_name
       IF (filename .NE. "") THEN
-         ALLOCATE (local_parser)
          CALL parser_create(local_parser, filename, para_env=para_env)
          ALLOCATE (cell_traj(3, 3, n_frames))
          DO iframe = 1, n_frames
@@ -606,7 +601,6 @@ CONTAINS
             CALL parse_cell_line(local_parser%input_line, cell_itimes, cell_time, cell_traj(:, :, iframe), vol)
          END DO
          CALL parser_release(local_parser)
-         DEALLOCATE (local_parser)
       END IF
 
       CALL timestop(handle)

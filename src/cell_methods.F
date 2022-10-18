@@ -269,14 +269,12 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
       REAL(KIND=dp), DIMENSION(:), POINTER               :: cell_par
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type)                               :: parser
 
-      NULLIFY (parser)
       CALL section_vals_val_get(cell_section, "CELL_FILE_NAME", c_val=cell_file_name)
       CALL section_vals_val_get(cell_section, "CELL_FILE_FORMAT", i_val=my_format)
       SELECT CASE (my_format)
       CASE (do_cell_cp2k)
-         ALLOCATE (parser)
          CALL parser_create(parser, cell_file_name, para_env=para_env)
          CALL parser_get_next_line(parser, 1)
          my_end = .FALSE.
@@ -285,7 +283,6 @@ CONTAINS
             CALL parser_get_next_line(parser, 1, at_end=my_end)
          END DO
          CALL parser_release(parser)
-         DEALLOCATE (parser)
          ! Convert to CP2K units
          DO i = 1, 3
             DO j = 1, 3
@@ -293,12 +290,10 @@ CONTAINS
             END DO
          END DO
       CASE (do_cell_xsc)
-         ALLOCATE (parser)
          CALL parser_create(parser, cell_file_name, para_env=para_env)
          CALL parser_get_next_line(parser, 1)
          READ (parser%input_line, *) idum, hmat(:, 1), hmat(:, 2), hmat(:, 3)
          CALL parser_release(parser)
-         DEALLOCATE (parser)
          ! Convert to CP2K units
          DO i = 1, 3
             DO j = 1, 3
@@ -374,12 +369,10 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: periodic
       LOGICAL                                            :: found
       REAL(KIND=dp), DIMENSION(3)                        :: cell_angles, cell_lengths
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type)                               :: parser
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (parser)
-      ALLOCATE (parser)
       CALL parser_create(parser, cif_file_name, &
                          para_env=para_env, apply_preprocessing=.FALSE.)
 
@@ -438,7 +431,6 @@ CONTAINS
                           do_init_cell=.TRUE.)
 
       CALL parser_release(parser)
-      DEALLOCATE (parser)
 
       CALL timestop(handle)
 
@@ -453,7 +445,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino]
 ! **************************************************************************************************
    SUBROUTINE cif_get_real(parser, r)
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       REAL(KIND=dp), INTENT(OUT)                         :: r
 
       CHARACTER(LEN=default_string_length)               :: s_tag

@@ -191,11 +191,9 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: nametag
       INTEGER                                            :: ib, ntag
       LOGICAL                                            :: at_end
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type)                               :: parser
 
       ntag = 0
-      NULLIFY (parser)
-      ALLOCATE (parser)
       CALL parser_create(parser, upf_filename)
       DO
          at_end = .FALSE.
@@ -258,7 +256,6 @@ CONTAINS
          END IF
       END DO
       CALL parser_release(parser)
-      DEALLOCATE (parser)
 
       CPASSERT(ntag > 0)
 
@@ -291,7 +288,7 @@ CONTAINS
 !> \param pot ...
 ! **************************************************************************************************
    SUBROUTINE upf_info_section(parser, pot)
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       TYPE(atom_upfpot_type)                             :: pot
 
       CHARACTER(LEN=default_string_length)               :: line, string
@@ -320,7 +317,7 @@ CONTAINS
 !> \param pot ...
 ! **************************************************************************************************
    SUBROUTINE upf_header_option(parser, pot)
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       TYPE(atom_upfpot_type)                             :: pot
 
       CHARACTER(LEN=default_string_length)               :: string
@@ -402,7 +399,7 @@ CONTAINS
 !> \param pot ...
 ! **************************************************************************************************
    SUBROUTINE upf_mesh_option(parser, pot)
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       TYPE(atom_upfpot_type)                             :: pot
 
       CHARACTER(LEN=default_string_length)               :: string
@@ -442,7 +439,7 @@ CONTAINS
 !> \param pot ...
 ! **************************************************************************************************
    SUBROUTINE upf_mesh_section(parser, pot)
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       TYPE(atom_upfpot_type)                             :: pot
 
       CHARACTER(LEN=default_string_length)               :: line, string, string2
@@ -547,7 +544,7 @@ CONTAINS
 !> \param options ...
 ! **************************************************************************************************
    SUBROUTINE upf_nlcc_section(parser, pot, options)
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       TYPE(atom_upfpot_type)                             :: pot
       LOGICAL, INTENT(IN)                                :: options
 
@@ -609,7 +606,7 @@ CONTAINS
 !> \param options ...
 ! **************************************************************************************************
    SUBROUTINE upf_local_section(parser, pot, options)
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       TYPE(atom_upfpot_type)                             :: pot
       LOGICAL, INTENT(IN)                                :: options
 
@@ -673,7 +670,7 @@ CONTAINS
 !> \param pot ...
 ! **************************************************************************************************
    SUBROUTINE upf_nonlocal_section(parser, pot)
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       TYPE(atom_upfpot_type)                             :: pot
 
       CHARACTER(LEN=default_string_length)               :: line, string
@@ -802,7 +799,7 @@ CONTAINS
 !> \param pot ...
 ! **************************************************************************************************
    SUBROUTINE upf_semilocal_section(parser, pot)
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       TYPE(atom_upfpot_type)                             :: pot
 
       CHARACTER(LEN=default_string_length)               :: line, string

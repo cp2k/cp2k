@@ -83,11 +83,11 @@ CONTAINS
       LOGICAL                                            :: found
       REAL(KIND=dp)                                      :: cosphi0, cost2, csq, sdet
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type)                               :: parser
       TYPE(gromos_info_type), POINTER                    :: gro_info
 
       CALL timeset(routineN, handle)
-      NULLIFY (logger, parser)
+      NULLIFY (logger)
       logger => cp_get_default_logger()
       iw = cp_print_key_unit_nr(logger, mm_section, "PRINT%FF_INFO", &
                                 extension=".mmLog")
@@ -119,7 +119,6 @@ CONTAINS
       NULLIFY (namearray)
       ! ATOMTYPENAME SECTION
       IF (iw > 0) WRITE (iw, '(T2,A)') 'GTOP_INFO| Parsing the ATOMTYPENAME section'
-      ALLOCATE (parser)
       CALL parser_create(parser, ff_type%ff_file_name, para_env=para_env)
       label = TRIM(avail_section(4))
       CALL parser_search_string(parser, label, .TRUE., found, begin_line=.TRUE.)
@@ -134,11 +133,9 @@ CONTAINS
          END DO
       END IF
       CALL parser_release(parser)
-      DEALLOCATE (parser)
 
       ! SOLVENTCONSTR SECTION
       IF (iw > 0) WRITE (iw, '(T2,A)') 'GROMOS_FF| Parsing the SOLVENTATOM section'
-      ALLOCATE (parser)
       CALL parser_create(parser, ff_type%ff_file_name, para_env=para_env)
 
       label = TRIM(avail_section(21))
@@ -157,9 +154,7 @@ CONTAINS
          END DO
       END IF
       CALL parser_release(parser)
-      DEALLOCATE (parser)
 
-      ALLOCATE (parser)
       CALL parser_create(parser, ff_type%ff_file_name, para_env=para_env)
       ! BONDTYPE SECTION
       IF (iw > 0) WRITE (iw, '(T2,A)') 'GROMOS_FF| Parsing the BONDTYPE section'
@@ -253,11 +248,9 @@ CONTAINS
       END IF
 
       CALL parser_release(parser)
-      DEALLOCATE (parser)
 
       ! LJPARAMETERS SECTION
       IF (iw > 0) WRITE (iw, '(T2,A)') 'GROMOS_FF| Parsing the LJPARAMETERS section'
-      ALLOCATE (parser)
       CALL parser_create(parser, ff_type%ff_file_name, para_env=para_env)
       label = TRIM(avail_section(19))
       CALL parser_search_string(parser, label, .TRUE., found, begin_line=.TRUE.)
@@ -304,7 +297,6 @@ CONTAINS
          END DO
       END IF
       CALL parser_release(parser)
-      DEALLOCATE (parser)
 
       CALL cp_print_key_finished_output(iw, logger, mm_section, &
                                         "PRINT%FF_INFO")
@@ -339,10 +331,10 @@ CONTAINS
       LOGICAL                                            :: found
       TYPE(charmm_info_type), POINTER                    :: chm_info
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type)                               :: parser
 
       CALL timeset(routineN, handle)
-      NULLIFY (logger, parser)
+      NULLIFY (logger)
       logger => cp_get_default_logger()
       iw = cp_print_key_unit_nr(logger, mm_section, "PRINT%FF_INFO", &
                                 extension=".mmLog")
@@ -376,7 +368,6 @@ CONTAINS
       !-----------------------------------------------------------------------------
       nbond = 0
       DO ilab = 1, SIZE(bond_section)
-         ALLOCATE (parser)
          CALL parser_create(parser, ff_type%ff_file_name, para_env=para_env)
          label = TRIM(bond_section(ilab))
          DO
@@ -415,7 +406,6 @@ CONTAINS
             END IF
          END DO
          CALL parser_release(parser)
-         DEALLOCATE (parser)
       END DO
       !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
@@ -429,7 +419,6 @@ CONTAINS
       nbend = 0
       nub = 0
       DO ilab = 1, SIZE(angl_section)
-         ALLOCATE (parser)
          CALL parser_create(parser, ff_type%ff_file_name, para_env=para_env)
          label = TRIM(angl_section(ilab))
          DO
@@ -495,7 +484,6 @@ CONTAINS
             END IF
          END DO
          CALL parser_release(parser)
-         DEALLOCATE (parser)
       END DO
       !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
@@ -505,7 +493,6 @@ CONTAINS
       !-----------------------------------------------------------------------------
       ntorsion = 0
       DO ilab = 1, SIZE(thet_section)
-         ALLOCATE (parser)
          CALL parser_create(parser, ff_type%ff_file_name, para_env=para_env)
          label = TRIM(thet_section(ilab))
          DO
@@ -558,7 +545,6 @@ CONTAINS
             END IF
          END DO
          CALL parser_release(parser)
-         DEALLOCATE (parser)
       END DO
       !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
@@ -568,7 +554,6 @@ CONTAINS
       !-----------------------------------------------------------------------------
       nimpr = 0
       DO ilab = 1, SIZE(impr_section)
-         ALLOCATE (parser)
          CALL parser_create(parser, ff_type%ff_file_name, para_env=para_env)
          label = TRIM(impr_section(ilab))
          DO
@@ -618,7 +603,6 @@ CONTAINS
             END IF
          END DO
          CALL parser_release(parser)
-         DEALLOCATE (parser)
       END DO
       !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
@@ -627,7 +611,6 @@ CONTAINS
       nnonbond = 0
       nonfo = 0
       DO ilab = 1, SIZE(nbon_section)
-         ALLOCATE (parser)
          CALL parser_create(parser, ff_type%ff_file_name, para_env=para_env)
          label = TRIM(nbon_section(ilab))
          DO
@@ -681,7 +664,6 @@ CONTAINS
             END IF
          END DO
          CALL parser_release(parser)
-         DEALLOCATE (parser)
       END DO
       CALL cp_print_key_finished_output(iw, logger, mm_section, &
                                         "PRINT%FF_INFO")
@@ -815,7 +797,7 @@ CONTAINS
 !> \author Teodoro Laino - Zurich University - 06.2007
 ! **************************************************************************************************
    SUBROUTINE charmm_get_next_line(parser, nline)
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       INTEGER, INTENT(IN)                                :: nline
 
       CHARACTER(LEN=1), PARAMETER                        :: continuation_char = "-"
