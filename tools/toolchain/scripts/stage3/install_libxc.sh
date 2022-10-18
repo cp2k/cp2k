@@ -7,7 +7,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
 libxc_ver="6.0.0"
-libxc_sha256="0c774e8e195dd92800b9adf3df5f5721e29acfe9af4b191a9937c7de4f9aa9f6"
+libxc_sha256="c2ca205a762200dfba2e6c9e8ca2061aaddc6b7cf42048859fe717a7aa07de7c"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
