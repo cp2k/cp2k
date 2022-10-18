@@ -299,7 +299,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE swarm_message_file_read(msg, parser, at_end)
       TYPE(swarm_message_type), INTENT(OUT)              :: msg
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       LOGICAL, INTENT(INOUT)                             :: at_end
 
       INTEGER                                            :: handle
@@ -318,7 +318,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE swarm_message_file_read_low(msg, parser, at_end)
       TYPE(swarm_message_type), INTENT(OUT)              :: msg
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       LOGICAL, INTENT(INOUT)                             :: at_end
 
       CHARACTER(LEN=20)                                  :: label
@@ -716,7 +716,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE swarm_message_entry_file_read(ENTRY, parser, at_end)
       TYPE(message_entry_type), INTENT(INOUT)            :: ENTRY
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       LOGICAL, INTENT(INOUT)                             :: at_end
 
       CHARACTER(LEN=15)                                  :: datatype, label

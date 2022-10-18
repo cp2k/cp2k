@@ -95,15 +95,14 @@ CONTAINS
       TYPE(atom_info_type), POINTER                      :: atom_info
       TYPE(connectivity_info_type), POINTER              :: conn_info
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type)                               :: parser
 
-      NULLIFY (parser, logger)
+      NULLIFY (logger)
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
       iw = cp_print_key_unit_nr(logger, subsys_section, "PRINT%TOPOLOGY_INFO/PSF_INFO", &
                                 extension=".subsysLog")
       CALL timeset(routineN, handle)
-      ALLOCATE (parser)
       CALL parser_create(parser, filename, para_env=para_env)
 
       atom_info => topology%atom_info
@@ -393,7 +392,6 @@ CONTAINS
       END IF
 
       CALL parser_release(parser)
-      DEALLOCATE (parser)
       CALL timestop(handle)
       CALL cp_print_key_finished_output(iw, logger, subsys_section, &
                                         "PRINT%TOPOLOGY_INFO/PSF_INFO")

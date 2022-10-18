@@ -105,9 +105,9 @@ CONTAINS
       TYPE(atom_info_type), POINTER                      :: atom_info
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type)                               :: parser
 
-      NULLIFY (parser, logger)
+      NULLIFY (logger)
       logger => cp_get_default_logger()
       iw = cp_print_key_unit_nr(logger, subsys_section, "PRINT%TOPOLOGY_INFO/CIF_INFO", &
                                 extension=".subsysLog")
@@ -137,7 +137,6 @@ CONTAINS
       CALL read_cell_cif(topology%coord_file_name, cell, para_env)
       CALL write_cell(cell, subsys_section, label="CELL_CIF|")
 
-      ALLOCATE (parser)
       CALL parser_create(parser, topology%coord_file_name, &
                          para_env=para_env, apply_preprocessing=.FALSE.)
 
@@ -341,7 +340,6 @@ CONTAINS
       ! Releasse local cell type and parser
       CALL cell_release(cell)
       CALL parser_release(parser)
-      DEALLOCATE (parser)
 
       ! Reallocate all structures with the exact NATOM size
       CALL reallocate(atom_info%id_molname, 1, natom)
@@ -371,7 +369,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino]
 ! **************************************************************************************************
    SUBROUTINE cif_get_real(parser, r)
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       REAL(KIND=dp), INTENT(OUT)                         :: r
 
       CHARACTER(LEN=default_string_length)               :: s_tag

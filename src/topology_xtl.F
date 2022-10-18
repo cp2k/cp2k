@@ -91,9 +91,9 @@ CONTAINS
       TYPE(atom_info_type), POINTER                      :: atom_info
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type)                               :: parser
 
-      NULLIFY (parser, logger)
+      NULLIFY (logger)
       logger => cp_get_default_logger()
       iw = cp_print_key_unit_nr(logger, subsys_section, "PRINT%TOPOLOGY_INFO/XTL_INFO", &
                                 extension=".subsysLog")
@@ -116,7 +116,6 @@ CONTAINS
       CALL reallocate(atom_info%id_element, 1, nblock)
 
       IF (iw > 0) WRITE (iw, *) "    Reading in XTL file ", TRIM(topology%coord_file_name)
-      ALLOCATE (parser)
       CALL parser_create(parser, topology%coord_file_name, para_env=para_env)
 
       ! Check for TITLE
@@ -310,7 +309,6 @@ CONTAINS
       ! Releasse local cell type and parser
       CALL cell_release(cell)
       CALL parser_release(parser)
-      DEALLOCATE (parser)
 
       ! Reallocate all structures with the exact NATOM size
       CALL reallocate(atom_info%id_molname, 1, natom)

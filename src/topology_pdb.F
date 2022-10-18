@@ -114,9 +114,9 @@ CONTAINS
       REAL(KIND=dp)                                      :: pfactor
       TYPE(atom_info_type), POINTER                      :: atom_info
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type)                               :: parser
 
-      NULLIFY (parser, logger)
+      NULLIFY (logger)
       logger => cp_get_default_logger()
       iw = cp_print_key_unit_nr(logger, subsys_section, "PRINT%TOPOLOGY_INFO/PDB_INFO", &
                                 extension=".subsysLog")
@@ -143,7 +143,6 @@ CONTAINS
       id0 = str2id(s2s(""))
       topology%molname_generated = .FALSE.
 
-      ALLOCATE (parser)
       CALL parser_create(parser, topology%coord_file_name, para_env=para_env)
 
       natom = 0
@@ -244,7 +243,6 @@ CONTAINS
          END SELECT
       END DO
       CALL parser_release(parser)
-      DEALLOCATE (parser)
 
       CALL reallocate(atom_info%id_molname, 1, natom)
       CALL reallocate(atom_info%id_resname, 1, natom)
