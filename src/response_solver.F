@@ -157,8 +157,8 @@ MODULE response_solver
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'response_solver'
 
-   LOGICAL, PARAMETER                   :: debug_stress = .TRUE.
-   LOGICAL, PARAMETER                   :: debug_forces = .TRUE.
+!  LOGICAL, PARAMETER                   :: debug_stress = .TRUE.
+!  LOGICAL, PARAMETER                   :: debug_forces = .TRUE.
 
    PUBLIC :: response_calculation, response_equation, response_force, response_force_xtb, &
              response_equation_new
@@ -821,10 +821,11 @@ CONTAINS
 !> \param rhopz_r Response density on real space grid
 !> \param p_env ...
 !> \param ex_env ...
+!> \param debug ...
 ! **************************************************************************************************
    SUBROUTINE response_force(qs_env, vh_rspace, vxc_rspace, vtau_rspace, vadmm_rspace, &
                              matrix_hz, matrix_pz, matrix_pz_admm, matrix_wz, &
-                             zehartree, zexc, zexc_aux_fit, rhopz_r, p_env, ex_env)
+                             zehartree, zexc, zexc_aux_fit, rhopz_r, p_env, ex_env, debug)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_type), INTENT(IN)                          :: vh_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rspace, vtau_rspace, vadmm_rspace
@@ -835,6 +836,7 @@ CONTAINS
          OPTIONAL                                        :: rhopz_r
       TYPE(qs_p_env_type), OPTIONAL                      :: p_env
       TYPE(excited_energy_type), OPTIONAL, POINTER       :: ex_env
+      LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'response_force'
 
@@ -842,8 +844,8 @@ CONTAINS
                                                             nao, nao_aux, natom, nder, nimages, &
                                                             nspins
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL :: distribute_fock_matrix, do_ex, do_hfx, gapw, gapw_xc, hfx_treat_lsd_in_core, &
-         resp_only, s_mstruct_changed, use_virial
+      LOGICAL :: debug_forces, debug_stress, distribute_fock_matrix, do_ex, do_hfx, gapw, gapw_xc, &
+         hfx_treat_lsd_in_core, resp_only, s_mstruct_changed, use_virial
       REAL(KIND=dp)                                      :: eh1, ehartree, ekin_mol, eps_filter, &
                                                             eps_ppnl, exc, exc_aux_fit, fconv, focc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ftot1, ftot2, ftot3
@@ -886,6 +888,14 @@ CONTAINS
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
+
+      IF (PRESENT(debug)) THEN
+         debug_forces = debug
+         debug_stress = debug
+      ELSE
+         debug_forces = .FALSE.
+         debug_stress = .FALSE.
+      END IF
 
       logger => cp_get_default_logger()
       logger => cp_get_default_logger()
@@ -2121,12 +2131,14 @@ CONTAINS
 !> \param p_env ...
 !> \param matrix_hz ...
 !> \param ex_env ...
+!> \param debug ...
 ! **************************************************************************************************
-   SUBROUTINE response_force_xtb(qs_env, p_env, matrix_hz, ex_env)
+   SUBROUTINE response_force_xtb(qs_env, p_env, matrix_hz, ex_env, debug)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hz
       TYPE(excited_energy_type), OPTIONAL, POINTER       :: ex_env
+      LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'response_force_xtb'
 
@@ -2135,7 +2147,7 @@ CONTAINS
                                                             nkind, ns, nsgf, nspins
       INTEGER, DIMENSION(25)                             :: lao
       INTEGER, DIMENSION(5)                              :: occ
-      LOGICAL                                            :: do_ex, use_virial
+      LOGICAL                                            :: debug_forces, do_ex, use_virial
       REAL(KIND=dp)                                      :: focc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: mcharge, mcharge1
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aocg, aocg1, charges, charges1, ftot1, &
@@ -2159,6 +2171,12 @@ CONTAINS
       TYPE(xtb_atom_type), POINTER                       :: xtb_kind
 
       CALL timeset(routineN, handle)
+
+      IF (PRESENT(debug)) THEN
+         debug_forces = debug
+      ELSE
+         debug_forces = .FALSE.
+      END IF
 
       logger => cp_get_default_logger()
       IF (logger%para_env%ionode) THEN
