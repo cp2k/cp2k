@@ -1606,6 +1606,35 @@ CONTAINS
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name="FORCES", &
+                                       description="Controls the calculation and printing of excited state forces.", &
+                                       print_level=debug_print_level, filename="TDFORCE")
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="NDIGITS", &
+                          description="Specifies the number of digits used "// &
+                          "for the printing of the forces", &
+                          usage="NDIGITS 6", &
+                          default_i_val=8, &
+                          repeats=.FALSE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="LIST", &
+                          description="Specifies a list of states for the force calculations.", &
+                          usage="LIST {integer} {integer} .. {integer}", repeats=.TRUE., &
+                          n_var=-1, type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="THRESHOLD", &
+                          description="Threshold for oszillator strength to screen states.", &
+                          usage="Threshold 0.01", &
+                          n_var=1, &
+                          type_of_var=real_t, &
+                          default_r_val=0.0_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 

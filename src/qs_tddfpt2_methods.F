@@ -73,6 +73,7 @@ MODULE qs_tddfpt2_methods
                                               tddfpt_orthogonalize_psi1_psi0,&
                                               tddfpt_orthonormalize_psi1_psi1
    USE qs_tddfpt2_forces,               ONLY: tddfpt_forces_main
+   USE qs_tddfpt2_fprint,               ONLY: tddfpt_print_forces
    USE qs_tddfpt2_lri_utils,            ONLY: tddfpt2_lri_init
    USE qs_tddfpt2_properties,           ONLY: tddfpt_dipole_operator,&
                                               tddfpt_print_excitation_analysis,&
@@ -144,7 +145,7 @@ CONTAINS
       LOGICAL                                            :: do_admm, do_exck, do_hfx, do_hfxlr, &
                                                             is_restarted, state_change
       REAL(kind=dp)                                      :: conv
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals, ostrength
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -443,7 +444,10 @@ CONTAINS
 
       ! *** print summary information ***
       log_unit = cp_logger_get_default_io_unit()
-      CALL tddfpt_print_summary(log_unit, evects, evals, mult, dipole_op_mos_occ, tddfpt_control%dipole_form)
+      ALLOCATE (ostrength(nstates))
+      ostrength = 0.0_dp
+      CALL tddfpt_print_summary(log_unit, evects, evals, ostrength, mult, &
+                                dipole_op_mos_occ, tddfpt_control%dipole_form)
       CALL tddfpt_print_excitation_analysis(log_unit, evects, evals, gs_mos, matrix_s(1)%matrix, &
                                             min_amplitude=tddfpt_control%min_excitation_amplitude)
       CALL tddfpt_print_nto_analysis(qs_env, evects, evals, gs_mos, matrix_s(1)%matrix, &
@@ -451,6 +455,12 @@ CONTAINS
 
       IF (tddfpt_control%do_lrigpw) THEN
          CALL lri_print_stat(qs_env, ltddfpt=.TRUE., tddfpt_lri_env=kernel_env%full_kernel%lri_env)
+      END IF
+
+      !print forces for selected states
+      IF (calc_forces) THEN
+         CALL tddfpt_print_forces(qs_env, evects, evals, ostrength, tddfpt_print_section, &
+                                  gs_mos, kernel_env, sub_env, work_matrices)
       END IF
 
       ! excited state potential energy surface
@@ -519,7 +529,7 @@ CONTAINS
             DEALLOCATE (evects(ispin, istate)%matrix, S_evects(ispin, istate)%matrix)
          END DO
       END DO
-      DEALLOCATE (evects, S_evects, evals)
+      DEALLOCATE (evects, S_evects, evals, ostrength)
 
       IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
          IF (do_admm) CALL release_kernel_env(kernel_env%admm_kernel)

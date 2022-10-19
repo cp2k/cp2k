@@ -547,6 +547,7 @@ CONTAINS
 !> \param evects             TDDFPT trial vectors (SIZE(evects,1) -- number of spins;
 !>                           SIZE(evects,2) -- number of excited states to print)
 !> \param evals              TDDFPT eigenvalues
+!> \param ostrength          TDDFPT oscillator strength
 !> \param mult               multiplicity
 !> \param dipole_op_mos_occ  action of the dipole operator on the ground state wave function
 !>                           [x,y,z ; spin]
@@ -564,10 +565,12 @@ CONTAINS
 !>       \f[ t_d(spin) = Tr[evects^T dipole\_op\_mos\_occ(d, spin)] .\f]
 !>       \endparblock
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_print_summary(log_unit, evects, evals, mult, dipole_op_mos_occ, dipole_form)
+   SUBROUTINE tddfpt_print_summary(log_unit, evects, evals, ostrength, mult, &
+                                   dipole_op_mos_occ, dipole_form)
       INTEGER, INTENT(in)                                :: log_unit
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: evects
       REAL(kind=dp), DIMENSION(:), INTENT(in)            :: evals
+      REAL(kind=dp), DIMENSION(:), INTENT(inout)         :: ostrength
       INTEGER, INTENT(in)                                :: mult
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: dipole_op_mos_occ
       INTEGER, INTENT(in)                                :: dipole_form
@@ -636,10 +639,10 @@ CONTAINS
 
       ! *** summary information ***
       DO istate = 1, nstates
+         osc_strength = 2.0_dp/3.0_dp*evals(istate)* &
+                        accurate_dot_product(trans_dipoles(istate, :, 1), trans_dipoles(istate, :, 1))
+         ostrength(istate) = osc_strength
          IF (log_unit > 0) THEN
-            osc_strength = 2.0_dp/3.0_dp*evals(istate)* &
-                           accurate_dot_product(trans_dipoles(istate, :, 1), trans_dipoles(istate, :, 1))
-
             WRITE (log_unit, '(1X,A,T9,I7,T19,F11.5,T31,3(1X,ES11.4E2),T69,ES12.5E2)') &
                "TDDFPT|", istate, evals(istate)*evolt, trans_dipoles(istate, 1:nderivs, 1), osc_strength
          END IF

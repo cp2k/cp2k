@@ -285,6 +285,7 @@ QS/regtest-hybrid-1                                         libint
 QS/regtest-rtp-1
 QS/regtest-as                                               libint
 QS/regtest-as-dft                                           libint
+QS/regtest-tddfpt-prop
 QS/regtest-sym-3
 FARMING/regtest-1
 QS/regtest-cdft-2
