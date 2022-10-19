@@ -112,6 +112,11 @@ CONTAINS
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_section, &
                                            "FORCES"), cp_p_file)) THEN
 
+         IF(sub_env%is_split) THEN
+            CALL cp_abort(__LOCATION__, "Excited state forces not possible when states"//&
+                                        " are distributed to different CPU pools.")
+         END IF
+
          nspins = SIZE(evects, 1)
          nstates = SIZE(evects, 2)
          IF (iounit > 0) THEN

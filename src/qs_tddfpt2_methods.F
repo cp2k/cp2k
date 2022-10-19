@@ -465,7 +465,12 @@ CONTAINS
 
       ! excited state potential energy surface
       IF (qs_env%excited_state) THEN
-         IF (ASSOCIATED(matrix_ks_oep)) CALL get_qs_env(qs_env, matrix_ks=matrix_ks) ! for gradients unshifted KS matrix
+         IF(sub_env%is_split) THEN
+            CALL cp_abort(__LOCATION__, "Excited state forces not possible when states"//&
+                                        " are distributed to different CPU pools.")
+         END IF
+         ! for gradients unshifted KS matrix
+         IF (ASSOCIATED(matrix_ks_oep)) CALL get_qs_env(qs_env, matrix_ks=matrix_ks) 
          CALL get_qs_env(qs_env, exstate_env=ex_env)
          state_change = .FALSE.
          IF (ex_env%state > 0) THEN
