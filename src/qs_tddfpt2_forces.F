@@ -315,7 +315,7 @@ CONTAINS
       TYPE(tddfpt_work_matrices)                         :: work_matrices
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_forces', routineP = moduleN//':'//routineN
-      LOGICAL, PARAMETER                                 :: debug_forces = .TRUE.
+      LOGICAL, PARAMETER                                 :: debug_forces = .FALSE.
 
       INTEGER                                            :: handle, nkind
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: natom_of_kind

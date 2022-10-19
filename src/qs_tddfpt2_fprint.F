@@ -89,9 +89,9 @@ CONTAINS
       TYPE(tddfpt_work_matrices)                         :: work_matrices
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_print_forces'
-      INTEGER, PARAMETER                                 :: ntomax = 10
+      LOGICAL, PARAMETER                                 :: debug_forces = .FALSE.
 
-      INTEGER                                            :: handle, iounit, is, ispin, istate, &
+      INTEGER                                            :: handle, iounit, is, ispin, istate, iw, &
                                                             iwunit, natom, nkind, nspins, nstates
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: alist, natom_of_kind, state_list
       REAL(KIND=dp)                                      :: threshold
@@ -190,7 +190,12 @@ CONTAINS
                !
                CALL tddfpt_forces_main(qs_env, gs_mos, ex_env, kernel_env, sub_env, work_matrices)
                !
-               CALL response_equation(qs_env, p_env, ex_env%cpmos, iounit)
+               IF (debug_forces) THEN
+                  iw = iounit
+               ELSE
+                  iw = -1
+               END IF
+               CALL response_equation(qs_env, p_env, ex_env%cpmos, iw)
                !
                CALL get_qs_env(qs_env, dft_control=dft_control)
                IF (dft_control%qs_control%semi_empirical) THEN
@@ -198,14 +203,13 @@ CONTAINS
                ELSEIF (dft_control%qs_control%dftb) THEN
                   CPABORT("Not available")
                ELSEIF (dft_control%qs_control%xtb) THEN
-                  CALL response_force_xtb(qs_env, p_env, ex_env%matrix_hz, ex_env)
+                  CALL response_force_xtb(qs_env, p_env, ex_env%matrix_hz, ex_env, debug=debug_forces)
                ELSE
                   CALL response_force(qs_env=qs_env, vh_rspace=ex_env%vh_rspace, &
                                       vxc_rspace=ex_env%vxc_rspace, vtau_rspace=ex_env%vtau_rspace, &
                                       vadmm_rspace=ex_env%vadmm_rspace, matrix_hz=ex_env%matrix_hz, &
                                       matrix_pz=ex_env%matrix_px1, matrix_pz_admm=p_env%p1_admm, &
-                                      matrix_wz=p_env%w1, &
-                                      p_env=p_env, ex_env=ex_env)
+                                      matrix_wz=p_env%w1, p_env=p_env, ex_env=ex_env, debug=debug_forces)
                END IF
                CALL p_env_release(p_env)
                !

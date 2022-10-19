@@ -44,8 +44,6 @@ MODULE excited_states
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'excited_states'
 
-   LOGICAL, PARAMETER                   :: debug_forces = .TRUE.
-
    PUBLIC :: excited_state_energy
 
 CONTAINS
@@ -65,6 +63,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'excited_state_energy', &
          routineP = moduleN//':'//routineN
+      LOGICAL, PARAMETER                                 :: debug_forces = .FALSE.
 
       INTEGER                                            :: handle, nkind, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: natom_of_kind
@@ -115,7 +114,7 @@ CONTAINS
             ELSEIF (dft_control%qs_control%dftb) THEN
                CPABORT("Not available")
             ELSEIF (dft_control%qs_control%xtb) THEN
-               CALL response_force_xtb(qs_env, p_env, ex_env%matrix_hz, ex_env)
+               CALL response_force_xtb(qs_env, p_env, ex_env%matrix_hz, ex_env, debug=debug_forces)
             ELSE
                ! KS-DFT
                CALL response_force(qs_env=qs_env, vh_rspace=ex_env%vh_rspace, &
@@ -123,7 +122,8 @@ CONTAINS
                                    vadmm_rspace=ex_env%vadmm_rspace, matrix_hz=ex_env%matrix_hz, &
                                    matrix_pz=ex_env%matrix_px1, matrix_pz_admm=p_env%p1_admm, &
                                    matrix_wz=p_env%w1, &
-                                   p_env=p_env, ex_env=ex_env)
+                                   p_env=p_env, ex_env=ex_env, &
+                                   debug=debug_forces)
             END IF
             ! add TD and KS forces
             CALL get_qs_env(qs_env, force=lr_force)
