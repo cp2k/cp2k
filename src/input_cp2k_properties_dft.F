@@ -1607,17 +1607,9 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, name="FORCES", &
-                                       description="Controls the calculation and printing of excited state forces.", &
+                                       description="Controls the calculation and printing of excited state forces."// &
+                                       "Prints difference in forces between excited state and ground state!", &
                                        print_level=debug_print_level, filename="TDFORCE")
-      CALL keyword_create(keyword, __LOCATION__, &
-                          name="NDIGITS", &
-                          description="Specifies the number of digits used "// &
-                          "for the printing of the forces", &
-                          usage="NDIGITS 6", &
-                          default_i_val=8, &
-                          repeats=.FALSE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="LIST", &
                           description="Specifies a list of states for the force calculations.", &
                           usage="LIST {integer} {integer} .. {integer}", repeats=.TRUE., &
