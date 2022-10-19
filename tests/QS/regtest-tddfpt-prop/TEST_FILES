@@ -5,4 +5,5 @@
 #      for details see cp2k/tools/do_regtest
 #
 h2o_f01.inp                                                1    1.0E-11             -17.14073254422469
+h2o_f02.inp                                                1    1.0E-11             -17.14073254422469
 #EOF

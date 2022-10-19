@@ -92,9 +92,9 @@ CONTAINS
       LOGICAL, PARAMETER                                 :: debug_forces = .FALSE.
 
       INTEGER                                            :: handle, iounit, is, ispin, istate, iw, &
-                                                            iwunit, natom, nkind, nspins, nstates
+                                                            iwunit, natom, nkind, nspins, nstates, kstate
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: alist, natom_of_kind, state_list
-      REAL(KIND=dp)                                      :: threshold
+      REAL(KIND=dp)                                      :: threshold, eener
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -157,6 +157,8 @@ CONTAINS
          CALL set_qs_env(qs_env, force=td_force)
 
          CALL get_qs_env(qs_env, exstate_env=ex_env)
+         kstate = ex_env%state
+         eener = ex_env%evalue
          ! Start force loop over states
          DO istate = 1, nstates
             IF (state_list(istate) == 1) THEN
@@ -186,7 +188,6 @@ CONTAINS
                END DO
                ! force array
                CALL zero_qs_force(td_force)
-               CALL sum_qs_force(td_force, ks_force)
                !
                CALL tddfpt_forces_main(qs_env, gs_mos, ex_env, kernel_env, sub_env, work_matrices)
                !
@@ -224,9 +225,10 @@ CONTAINS
          END DO
          CALL set_qs_env(qs_env, force=ks_force)
          CALL deallocate_qs_force(td_force)
-         DEALLOCATE (natom_of_kind)
+         DEALLOCATE (natom_of_kind, state_list)
 
-         DEALLOCATE (state_list)
+         ex_env%state = kstate
+         ex_env%evalue = eener
 
          CALL cp_print_key_finished_output(iwunit, logger, force_section, "")
 
@@ -299,7 +301,7 @@ CONTAINS
       WRITE (iwunit, *) natom
       WRITE (iwunit, *)
       DO iatom = 1, natom
-         WRITE (iwunit, "(3F24.14)") force(1:3, iatom)
+         WRITE (iwunit, "(3F24.14)") -force(1:3, iatom)
       END DO
       DEALLOCATE (force)
 
