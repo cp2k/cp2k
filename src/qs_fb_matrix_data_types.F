@@ -43,7 +43,6 @@ MODULE qs_fb_matrix_data_types
              fb_matrix_data_release
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_matrix_data_types'
-   INTEGER, PRIVATE, SAVE :: last_fb_matrix_data_id = 0
 
    ! Parameters related to automatic resizing of matrix_data:
    INTEGER, PARAMETER, PRIVATE :: EXPAND_FACTOR = 2
@@ -58,12 +57,9 @@ MODULE qs_fb_matrix_data_types
 !>                    to the location in the data area
 !> \param blks      : data area, well the matrix elements are actuaally stored
 !> \param lds       : leading dimensions of each block
-!> \param id_nr     : unique id for the object
-!> \param ref_count : reference counter for the object
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    TYPE fb_matrix_data_data
-      INTEGER :: id_nr, ref_count
       INTEGER :: nmax
       INTEGER :: nblks
       INTEGER :: nencode
@@ -154,13 +150,10 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    SUBROUTINE fb_matrix_data_create(matrix_data, nmax, nencode)
-      TYPE(fb_matrix_data_obj), INTENT(INOUT)            :: matrix_data
+      TYPE(fb_matrix_data_obj), INTENT(OUT)              :: matrix_data
       INTEGER, INTENT(IN)                                :: nmax, nencode
 
-      LOGICAL                                            :: check_ok
-
-      check_ok = .NOT. fb_matrix_data_has_data(matrix_data)
-      CPASSERT(check_ok)
+      NULLIFY (matrix_data%obj)
       ALLOCATE (matrix_data%obj)
       CALL fb_hash_table_nullify(matrix_data%obj%ind)
       CALL fb_buffer_nullify(matrix_data%obj%blks)
@@ -172,9 +165,6 @@ CONTAINS
                                nmax=nmax, &
                                nencode=nencode)
       ! book keeping stuff
-      matrix_data%obj%ref_count = 1
-      matrix_data%obj%id_nr = last_fb_matrix_data_id + 1
-      last_fb_matrix_data_id = matrix_data%obj%id_nr
    END SUBROUTINE fb_matrix_data_create
 
 ! **************************************************************************************************
@@ -281,47 +271,20 @@ CONTAINS
    SUBROUTINE fb_matrix_data_release(matrix_data)
       TYPE(fb_matrix_data_obj), INTENT(INOUT)            :: matrix_data
 
-      LOGICAL                                            :: check_ok
-
       IF (ASSOCIATED(matrix_data%obj)) THEN
-         check_ok = matrix_data%obj%ref_count > 0
-         CPASSERT(check_ok)
-         matrix_data%obj%ref_count = matrix_data%obj%ref_count - 1
-         IF (matrix_data%obj%ref_count == 0) THEN
-            matrix_data%obj%ref_count = 1
-            IF (fb_hash_table_has_data(matrix_data%obj%ind)) THEN
-               CALL fb_hash_table_release(matrix_data%obj%ind)
-            END IF
-            IF (fb_buffer_has_data(matrix_data%obj%blks)) THEN
-               CALL fb_buffer_release(matrix_data%obj%blks)
-            END IF
-            IF (ASSOCIATED(matrix_data%obj%lds)) THEN
-               DEALLOCATE (matrix_data%obj%lds)
-            END IF
-            matrix_data%obj%ref_count = 0
-            DEALLOCATE (matrix_data%obj)
+         IF (fb_hash_table_has_data(matrix_data%obj%ind)) THEN
+            CALL fb_hash_table_release(matrix_data%obj%ind)
          END IF
-      ELSE
-         NULLIFY (matrix_data%obj)
+         IF (fb_buffer_has_data(matrix_data%obj%blks)) THEN
+            CALL fb_buffer_release(matrix_data%obj%blks)
+         END IF
+         IF (ASSOCIATED(matrix_data%obj%lds)) THEN
+            DEALLOCATE (matrix_data%obj%lds)
+         END IF
+         DEALLOCATE (matrix_data%obj)
       END IF
+      NULLIFY (matrix_data%obj)
    END SUBROUTINE fb_matrix_data_release
-
-! **************************************************************************************************
-!> \brief retains given object
-!> \param matrix_data : the fb_matrix_data object in question
-!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! **************************************************************************************************
-   SUBROUTINE fb_matrix_data_retain(matrix_data)
-      TYPE(fb_matrix_data_obj), INTENT(INOUT)            :: matrix_data
-
-      LOGICAL                                            :: check_ok
-
-      check_ok = ASSOCIATED(matrix_data%obj)
-      CPASSERT(check_ok)
-      check_ok = matrix_data%obj%ref_count > 0
-      CPASSERT(check_ok)
-      matrix_data%obj%ref_count = matrix_data%obj%ref_count + 1
-   END SUBROUTINE fb_matrix_data_retain
 
 ! **************************************************************************************************
 !> \brief outputs the current information about fb_matrix_data object
