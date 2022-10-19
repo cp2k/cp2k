@@ -32,7 +32,6 @@ MODULE xas_env_types
                                               scf_env_release,&
                                               scf_env_retain
    USE scf_control_types,               ONLY: scf_c_release,&
-                                              scf_c_retain,&
                                               scf_control_type
 #include "./base/base_uses.f90"
 
@@ -278,8 +277,10 @@ CONTAINS
          xas_env%scf_env => scf_env
       END IF
       IF (PRESENT(scf_control)) THEN ! accept also null pointers?
-         CALL scf_c_retain(scf_control)
-         CALL scf_c_release(xas_env%scf_control)
+         IF (ASSOCIATED(xas_env%scf_control)) THEN
+            CALL scf_c_release(xas_env%scf_control)
+            DEALLOCATE (xas_env%scf_control)
+         END IF
          xas_env%scf_control => scf_control
       END IF
 
@@ -401,7 +402,10 @@ CONTAINS
       END IF
 
       CALL scf_env_release(xas_env%scf_env)
-      CALL scf_c_release(xas_env%scf_control)
+      IF (ASSOCIATED(xas_env%scf_control)) THEN
+         CALL scf_c_release(xas_env%scf_control)
+         DEALLOCATE (xas_env%scf_control)
+      END IF
 
    END SUBROUTINE xas_env_release
 

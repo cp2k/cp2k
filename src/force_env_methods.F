@@ -774,7 +774,6 @@ CONTAINS
                force_env%embed_env, force_env%pwdft_env, force_env%nnp_env, &
                force_env%root_section)
       last_force_env_id = last_force_env_id + 1
-      force_env%id_nr = last_force_env_id
       force_env%ref_count = 1
       force_env%in_use = 0
       force_env%additional_potential = 0.0_dp

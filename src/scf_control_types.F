@@ -56,8 +56,6 @@ MODULE scf_control_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scf_control_types'
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
 
-   INTEGER, SAVE :: last_scf_c_id_nr = 0
-
    ! Public data types
 
    PUBLIC :: scf_control_type, &
@@ -68,7 +66,6 @@ MODULE scf_control_types
    PUBLIC :: scf_c_create, &
              scf_c_read_parameters, &
              scf_c_release, &
-             scf_c_retain, &
              scf_c_write_parameters
 
 ! **************************************************************************************************
@@ -83,8 +80,6 @@ MODULE scf_control_types
 !> \param max_iter_lumus maxumum number of iterations used to calculate
 !>        the lumos at the end of the scf
 !> \param max_scf max scf iterations
-!> \param id_nr unique number to identify an scf control
-!> \param ref_count reference count (see cp2k/doc/ReferenceCounting.html)
 !> \param added_mos additional number of MOs that might be used in the SCF
 !> \param step_size the optimizer step size
 !> \param cdft_opt_control settings for optimizers that work only together with CDFT constraints
@@ -137,7 +132,6 @@ MODULE scf_control_types
                                                maxl, nkind
       LOGICAL                               :: do_diag_sub, &
                                                use_cholesky, use_ot, use_diag, do_outer_scf_reortho, stop_higher_iter_level
-      INTEGER                               :: ref_count, id_nr
       INTEGER, DIMENSION(2)                 :: added_mos
       INTEGER                               :: roks_scheme
       REAL(KIND=dp)                         :: roks_f
@@ -156,15 +150,13 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE scf_c_create(scf_control)
 
-      TYPE(scf_control_type), POINTER                    :: scf_control
+      TYPE(scf_control_type), INTENT(OUT)                :: scf_control
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'scf_c_create'
 
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
-
-      ALLOCATE (scf_control)
 
       ! Load the default values
 
@@ -187,8 +179,6 @@ CONTAINS
       scf_control%do_outer_scf_reortho = .TRUE.
       scf_control%max_diis = 4
       scf_control%eps_diis = 0.1_dp
-      scf_control%ref_count = 1
-      scf_control%id_nr = last_scf_c_id_nr
       scf_control%added_mos(:) = 0
       scf_control%max_scf_hist = 0
 
@@ -263,29 +253,9 @@ CONTAINS
 
       NULLIFY (scf_control%smear)
 
-      last_scf_c_id_nr = last_scf_c_id_nr + 1
-
       CALL timestop(handle)
 
    END SUBROUTINE scf_c_create
-
-! **************************************************************************************************
-!> \brief retains the given scf_control (see cp2k/doc/ReferenceCounting.html)
-!> \param scf_control the object to retain
-!> \par History
-!>      09.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   SUBROUTINE scf_c_retain(scf_control)
-
-      TYPE(scf_control_type), POINTER                    :: scf_control
-
-      CPASSERT(ASSOCIATED(scf_control))
-
-      CPASSERT(scf_control%ref_count > 0)
-      scf_control%ref_count = scf_control%ref_count + 1
-
-   END SUBROUTINE scf_c_retain
 
 ! **************************************************************************************************
 !> \brief releases the given scf_control (see cp2k/doc/ReferenceCounting.html)
@@ -298,30 +268,20 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE scf_c_release(scf_control)
 
-      TYPE(scf_control_type), POINTER                    :: scf_control
+      TYPE(scf_control_type), INTENT(INOUT)              :: scf_control
 
-      IF (ASSOCIATED(scf_control)) THEN
-         CPASSERT(scf_control%ref_count > 0)
-         scf_control%ref_count = scf_control%ref_count - 1
-         IF (scf_control%ref_count < 1) THEN
-            IF (ASSOCIATED(scf_control%smear%list)) THEN
-               DEALLOCATE (scf_control%smear%list)
-            END IF
-            DEALLOCATE (scf_control%smear)
-
-            IF (ASSOCIATED(scf_control%outer_scf%cdft_opt_control)) &
-               CALL cdft_opt_type_release(scf_control%outer_scf%cdft_opt_control)
-
-            ! Maximum overlap method orbital indices lists
-            ! mom_deoccA, mom_deoccB, mom_occA, mom_occB
-            ! points to memory allocated by input file parser,
-            ! so they do not have to be deallocated
-
-            DEALLOCATE (scf_control)
-         END IF
+      IF (ASSOCIATED(scf_control%smear%list)) THEN
+         DEALLOCATE (scf_control%smear%list)
       END IF
+      DEALLOCATE (scf_control%smear)
 
-      NULLIFY (scf_control)
+      IF (ASSOCIATED(scf_control%outer_scf%cdft_opt_control)) &
+         CALL cdft_opt_type_release(scf_control%outer_scf%cdft_opt_control)
+
+      ! Maximum overlap method orbital indices lists
+      ! mom_deoccA, mom_deoccB, mom_occA, mom_occB
+      ! points to memory allocated by input file parser,
+      ! so they do not have to be deallocated
 
    END SUBROUTINE scf_c_release
 
@@ -336,7 +296,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE scf_c_read_parameters(scf_control, inp_section)
 
-      TYPE(scf_control_type), POINTER                    :: scf_control
+      TYPE(scf_control_type), INTENT(INOUT)              :: scf_control
       TYPE(section_vals_type), POINTER                   :: inp_section
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_read_parameters'
@@ -350,8 +310,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(ASSOCIATED(scf_control))
-      CPASSERT(scf_control%ref_count > 0)
       scf_section => section_vals_get_subs_vals(inp_section, "SCF")
       CALL section_vals_val_get(scf_section, "DIAGONALIZATION%_SECTION_PARAMETERS_", &
                                 l_val=scf_control%use_diag)
@@ -559,7 +517,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE scf_c_write_parameters(scf_control, dft_section)
 
-      TYPE(scf_control_type), POINTER                    :: scf_control
+      TYPE(scf_control_type), INTENT(IN)                 :: scf_control
       TYPE(section_vals_type), POINTER                   :: dft_section
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_write_parameters'
@@ -580,9 +538,6 @@ CONTAINS
 
       NULLIFY (scf_section)
       NULLIFY (section)
-
-      CPASSERT(ASSOCIATED(scf_control))
-      CPASSERT(scf_control%ref_count > 0)
 
       scf_section => section_vals_get_subs_vals(dft_section, "SCF")
       output_unit = cp_print_key_unit_nr(logger, scf_section, "PRINT%PROGRAM_RUN_INFO", &

@@ -114,7 +114,6 @@ MODULE force_env_types
 
 ! **************************************************************************************************
 !> \brief wrapper to abstract the force evaluation of the various methods
-!> \param id_nr identification number
 !> \param ref_count reference count (see doc/ReferenceCounting.html)
 !> \param in_use which method is in use
 !> \param fist_env the fist environment (allocated only if fist is in use)
@@ -138,7 +137,7 @@ MODULE force_env_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE force_env_type
-      INTEGER :: id_nr, ref_count, in_use, method_name_id
+      INTEGER :: ref_count, in_use, method_name_id
       REAL(KIND=dp)                                    :: additional_potential
       TYPE(fist_environment_type), POINTER             :: fist_env
       TYPE(meta_env_type), POINTER                     :: meta_env

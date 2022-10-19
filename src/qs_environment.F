@@ -192,7 +192,6 @@ MODULE qs_environment
                                               rel_control_type
    USE scf_control_types,               ONLY: scf_c_create,&
                                               scf_c_read_parameters,&
-                                              scf_c_release,&
                                               scf_c_write_parameters,&
                                               scf_control_type
    USE semi_empirical_expns3_methods,   ONLY: semi_empirical_expns3_setup
@@ -1026,6 +1025,7 @@ CONTAINS
                                    force_env_section=qs_env%input)
 
       !   *** SCF parameters ***
+      ALLOCATE (scf_control)
       CALL scf_c_create(scf_control)
       CALL scf_c_read_parameters(scf_control, dft_section)
 
@@ -1068,7 +1068,6 @@ CONTAINS
 
       CALL distribution_1d_release(local_particles)
       CALL distribution_1d_release(local_molecules)
-      CALL scf_c_release(scf_control)
       CALL wfi_release(wf_history)
       CALL dft_control_release(dft_control)
 

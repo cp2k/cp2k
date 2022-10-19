@@ -108,7 +108,6 @@ MODULE xas_methods
                                               scf_env_release
    USE scf_control_types,               ONLY: scf_c_create,&
                                               scf_c_read_parameters,&
-                                              scf_c_release,&
                                               scf_control_type
    USE xas_control,                     ONLY: read_xas_control,&
                                               write_xas_control,&
@@ -653,11 +652,10 @@ CONTAINS
       CALL read_xas_control(dft_control%xas_control, xas_section)
       CALL write_xas_control(dft_control%xas_control, dft_section)
       xas_control => dft_control%xas_control
+      ALLOCATE (scf_control)
       CALL scf_c_create(scf_control)
       CALL scf_c_read_parameters(scf_control, xas_section)
       CALL set_xas_env(xas_env, scf_control=scf_control)
-      CALL scf_c_release(scf_control)
-      CALL get_xas_env(xas_env, scf_control=scf_control)
 
       my_spin = xas_control%spin_channel
       nexc_search = xas_control%nexc_search

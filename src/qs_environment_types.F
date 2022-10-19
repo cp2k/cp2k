@@ -149,7 +149,6 @@ MODULE qs_environment_types
    USE rt_propagation_types,            ONLY: rt_prop_release,&
                                               rt_prop_type
    USE scf_control_types,               ONLY: scf_c_release,&
-                                              scf_c_retain,&
                                               scf_control_type
    USE semi_empirical_mpole_types,      ONLY: nddo_mpole_release,&
                                               nddo_mpole_type
@@ -1152,8 +1151,10 @@ CONTAINS
          qs_env%ewald_pw => ewald_pw
       END IF
       IF (PRESENT(scf_control)) THEN ! accept also null pointers?
-         CALL scf_c_retain(scf_control)
-         CALL scf_c_release(qs_env%scf_control)
+         IF (ASSOCIATED(qs_env%scf_control)) THEN
+            CALL scf_c_release(qs_env%scf_control)
+            DEALLOCATE (qs_env%scf_control)
+         END IF
          qs_env%scf_control => scf_control
       END IF
       IF (PRESENT(rel_control)) THEN ! accept also null pointers?
@@ -1366,7 +1367,10 @@ CONTAINS
       IF (ASSOCIATED(qs_env%hartree_local)) THEN
          CALL hartree_local_release(qs_env%hartree_local)
       END IF
-      CALL scf_c_release(qs_env%scf_control)
+      IF (ASSOCIATED(qs_env%scf_control)) THEN
+         CALL scf_c_release(qs_env%scf_control)
+         DEALLOCATE (qs_env%scf_control)
+      END IF
       CALL rel_c_release(qs_env%rel_control)
 
       IF (ASSOCIATED(qs_env%linres_control)) THEN
@@ -1566,7 +1570,10 @@ CONTAINS
       IF (ASSOCIATED(qs_env%hartree_local)) THEN
          CALL hartree_local_release(qs_env%hartree_local)
       END IF
-      CALL scf_c_release(qs_env%scf_control)
+      IF (ASSOCIATED(qs_env%scf_control)) THEN
+         CALL scf_c_release(qs_env%scf_control)
+         DEALLOCATE (qs_env%scf_control)
+      END IF
       CALL rel_c_release(qs_env%rel_control)
 
       IF (ASSOCIATED(qs_env%linres_control)) THEN
