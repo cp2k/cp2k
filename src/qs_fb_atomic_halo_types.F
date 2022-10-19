@@ -67,13 +67,10 @@ MODULE qs_fb_atomic_halo_types
              fb_build_pair_radii
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_atomic_halo_types'
-   INTEGER, PRIVATE, SAVE :: last_fb_atomic_halo_id = 0
-   INTEGER, PRIVATE, SAVE :: last_fb_atomic_halo_list_id = 0
 
 ! **************************************************************************************************
 !> \brief derived type containing the list of atoms in an atomic halo,
 !>        used by filtered-basis diagonalisation method
-!> \param id_nr            : unique id for the object
 !> \param ref_count        : reference count on the object
 !> \param owner_atom       : global atomic id of the atom this halo belongs to
 !> \param owner_id_in_halo : index of the owner_atom in the halo_atoms array
@@ -86,7 +83,7 @@ MODULE qs_fb_atomic_halo_types
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    TYPE fb_atomic_halo_data
-      INTEGER :: id_nr, ref_count
+      INTEGER :: ref_count
       INTEGER :: owner_atom
       INTEGER :: owner_id_in_halo
       INTEGER :: natoms
@@ -107,7 +104,6 @@ MODULE qs_fb_atomic_halo_types
 ! **************************************************************************************************
 !> \brief derived type describing an atomic halo list used by
 !>        filtered-basis diagonalisation method
-!> \param id_nr     : unique id for the object
 !> \param ref_count : reference count on the object
 !> \param nhalos  : number of halos in the list
 !> \param max_nhalos : maximum of the number of halos amongst all of the procs
@@ -115,7 +111,7 @@ MODULE qs_fb_atomic_halo_types
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    TYPE fb_atomic_halo_list_data
-      INTEGER :: id_nr, ref_count
+      INTEGER :: ref_count
       INTEGER :: nhalos
       INTEGER :: max_nhalos
       TYPE(fb_atomic_halo_obj), DIMENSION(:), POINTER :: halos
@@ -237,8 +233,6 @@ CONTAINS
       atomic_halo%obj%cost = 0.0_dp
       NULLIFY (atomic_halo%obj%halo_atoms)
       atomic_halo%obj%ref_count = 1
-      atomic_halo%obj%id_nr = last_fb_atomic_halo_id + 1
-      last_fb_atomic_halo_id = atomic_halo%obj%id_nr
    END SUBROUTINE fb_atomic_halo_create
 
 ! **************************************************************************************************
@@ -650,8 +644,6 @@ CONTAINS
       atomic_halos%obj%max_nhalos = 0
       NULLIFY (atomic_halos%obj%halos)
       atomic_halos%obj%ref_count = 1
-      atomic_halos%obj%id_nr = last_fb_atomic_halo_list_id + 1
-      last_fb_atomic_halo_list_id = atomic_halos%obj%id_nr
    END SUBROUTINE fb_atomic_halo_list_create
 
 ! **************************************************************************************************
