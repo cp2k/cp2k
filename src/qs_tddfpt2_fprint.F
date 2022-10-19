@@ -34,7 +34,6 @@ MODULE qs_tddfpt2_fprint
    USE qs_force_types,                  ONLY: allocate_qs_force,&
                                               deallocate_qs_force,&
                                               qs_force_type,&
-                                              sum_qs_force,&
                                               total_qs_force,&
                                               zero_qs_force
    USE qs_kernel_types,                 ONLY: kernel_env_type
@@ -92,9 +91,10 @@ CONTAINS
       LOGICAL, PARAMETER                                 :: debug_forces = .FALSE.
 
       INTEGER                                            :: handle, iounit, is, ispin, istate, iw, &
-                                                            iwunit, natom, nkind, nspins, nstates, kstate
+                                                            iwunit, kstate, natom, nkind, nspins, &
+                                                            nstates
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: alist, natom_of_kind, state_list
-      REAL(KIND=dp)                                      :: threshold, eener
+      REAL(KIND=dp)                                      :: eener, threshold
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -301,7 +301,7 @@ CONTAINS
       WRITE (iwunit, *) natom
       WRITE (iwunit, *)
       DO iatom = 1, natom
-         WRITE (iwunit, "(3F24.14)") -force(1:3, iatom)
+         WRITE (iwunit, "(3F24.14)") - force(1:3, iatom)
       END DO
       DEALLOCATE (force)
 
