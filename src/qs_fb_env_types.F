@@ -9,11 +9,9 @@ MODULE qs_fb_env_types
 
    USE kinds,                           ONLY: dp
    USE qs_fb_atomic_halo_types,         ONLY: fb_atomic_halo_list_associate,&
-                                              fb_atomic_halo_list_has_data,&
                                               fb_atomic_halo_list_nullify,&
                                               fb_atomic_halo_list_obj,&
-                                              fb_atomic_halo_list_release,&
-                                              fb_atomic_halo_list_retain
+                                              fb_atomic_halo_list_release
    USE qs_fb_trial_fns_types,           ONLY: fb_trial_fns_associate,&
                                               fb_trial_fns_has_data,&
                                               fb_trial_fns_nullify,&
@@ -342,8 +340,6 @@ CONTAINS
       IF (PRESENT(eps_default)) &
          fb_env%obj%eps_default = eps_default
       IF (PRESENT(atomic_halos)) THEN
-         IF (fb_atomic_halo_list_has_data(atomic_halos)) &
-            CALL fb_atomic_halo_list_retain(atomic_halos)
          CALL fb_atomic_halo_list_release(fb_env%obj%atomic_halos)
          CALL fb_atomic_halo_list_associate(fb_env%obj%atomic_halos, atomic_halos)
       END IF

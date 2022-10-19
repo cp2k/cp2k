@@ -55,7 +55,6 @@ MODULE qs_fb_atomic_halo_types
              fb_atomic_halo_nelectrons_estimate_Z, &
              fb_atomic_halo_cost, &
              fb_atomic_halo_build_halo_atoms, &
-             fb_atomic_halo_list_retain, &
              fb_atomic_halo_list_release, &
              fb_atomic_halo_list_nullify, &
              fb_atomic_halo_list_has_data, &
@@ -71,7 +70,6 @@ MODULE qs_fb_atomic_halo_types
 ! **************************************************************************************************
 !> \brief derived type containing the list of atoms in an atomic halo,
 !>        used by filtered-basis diagonalisation method
-!> \param ref_count        : reference count on the object
 !> \param owner_atom       : global atomic id of the atom this halo belongs to
 !> \param owner_id_in_halo : index of the owner_atom in the halo_atoms array
 !> \param natoms           : number of atoms in the halo
@@ -83,7 +81,6 @@ MODULE qs_fb_atomic_halo_types
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    TYPE fb_atomic_halo_data
-      INTEGER :: ref_count
       INTEGER :: owner_atom
       INTEGER :: owner_id_in_halo
       INTEGER :: natoms
@@ -104,14 +101,12 @@ MODULE qs_fb_atomic_halo_types
 ! **************************************************************************************************
 !> \brief derived type describing an atomic halo list used by
 !>        filtered-basis diagonalisation method
-!> \param ref_count : reference count on the object
 !> \param nhalos  : number of halos in the list
 !> \param max_nhalos : maximum of the number of halos amongst all of the procs
 !> \param halos   : halos(ihalo) gives the ihalo-th fb_atomic_halo object
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    TYPE fb_atomic_halo_list_data
-      INTEGER :: ref_count
       INTEGER :: nhalos
       INTEGER :: max_nhalos
       TYPE(fb_atomic_halo_obj), DIMENSION(:), POINTER :: halos
@@ -128,22 +123,6 @@ MODULE qs_fb_atomic_halo_types
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Retains an fb_atomic_halo object
-!> \param atomic_halo the fb_atomic_halo object, its content must
-!>                     not be NULL or UNDEFINED
-!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! **************************************************************************************************
-   SUBROUTINE fb_atomic_halo_retain(atomic_halo)
-      ! note INTENT(IN) is okay because the obj pointer contained in the
-      ! obj type will not be changed
-      TYPE(fb_atomic_halo_obj), INTENT(IN)               :: atomic_halo
-
-      CPASSERT(ASSOCIATED(atomic_halo%obj))
-      CPASSERT(atomic_halo%obj%ref_count > 0)
-      atomic_halo%obj%ref_count = atomic_halo%obj%ref_count + 1
-   END SUBROUTINE fb_atomic_halo_retain
-
-! **************************************************************************************************
 !> \brief Releases an fb_atomic_halo object
 !> \param atomic_halo the fb_atomic_halo object, its content must
 !>                     not be UNDEFINED, and the subroutine does nothing
@@ -154,20 +133,14 @@ CONTAINS
       TYPE(fb_atomic_halo_obj), INTENT(INOUT)            :: atomic_halo
 
       IF (ASSOCIATED(atomic_halo%obj)) THEN
-         CPASSERT(atomic_halo%obj%ref_count > 0)
-         atomic_halo%obj%ref_count = atomic_halo%obj%ref_count - 1
-         IF (atomic_halo%obj%ref_count == 0) THEN
-            atomic_halo%obj%ref_count = 1
-            IF (ASSOCIATED(atomic_halo%obj%halo_atoms)) THEN
-               ! note that if there are other pointers associated to the memory pointed
-               ! by atomic_halo%obj%halo_atoms, their behaviour becomes undefined per
-               ! FORTRAN standard (and thus becomes compiler dependent and unreliable)
-               ! after the following DEALLOCATE
-               DEALLOCATE (atomic_halo%obj%halo_atoms)
-            END IF
-            atomic_halo%obj%ref_count = 0
-            DEALLOCATE (atomic_halo%obj)
+         IF (ASSOCIATED(atomic_halo%obj%halo_atoms)) THEN
+            ! note that if there are other pointers associated to the memory pointed
+            ! by atomic_halo%obj%halo_atoms, their behaviour becomes undefined per
+            ! FORTRAN standard (and thus becomes compiler dependent and unreliable)
+            ! after the following DEALLOCATE
+            DEALLOCATE (atomic_halo%obj%halo_atoms)
          END IF
+         DEALLOCATE (atomic_halo%obj)
       ELSE
          NULLIFY (atomic_halo%obj)
       END IF
@@ -232,7 +205,6 @@ CONTAINS
       atomic_halo%obj%sorted = .FALSE.
       atomic_halo%obj%cost = 0.0_dp
       NULLIFY (atomic_halo%obj%halo_atoms)
-      atomic_halo%obj%ref_count = 1
    END SUBROUTINE fb_atomic_halo_create
 
 ! **************************************************************************************************
@@ -545,20 +517,6 @@ CONTAINS
    END SUBROUTINE fb_atomic_halo_build_halo_atoms
 
 ! **************************************************************************************************
-!> \brief Retains an fb_atomic_halo_list object
-!> \param atomic_halos the fb_atomic_halo object, its content must
-!>                      not be NULL or UNDEFINED
-!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! **************************************************************************************************
-   SUBROUTINE fb_atomic_halo_list_retain(atomic_halos)
-      TYPE(fb_atomic_halo_list_obj), INTENT(IN)          :: atomic_halos
-
-      CPASSERT(ASSOCIATED(atomic_halos%obj))
-      CPASSERT(atomic_halos%obj%ref_count > 0)
-      atomic_halos%obj%ref_count = atomic_halos%obj%ref_count + 1
-   END SUBROUTINE fb_atomic_halo_list_retain
-
-! **************************************************************************************************
 !> \brief Releases an fb_atomic_halo_list object
 !> \param atomic_halos the fb_atomic_halo object, its content must
 !>                      not be UNDEFINED, and does nothing if it is NULL
@@ -570,19 +528,13 @@ CONTAINS
       INTEGER                                            :: ii
 
       IF (ASSOCIATED(atomic_halos%obj)) THEN
-         CPASSERT(atomic_halos%obj%ref_count > 0)
-         atomic_halos%obj%ref_count = atomic_halos%obj%ref_count - 1
-         IF (atomic_halos%obj%ref_count == 0) THEN
-            atomic_halos%obj%ref_count = 1
-            IF (ASSOCIATED(atomic_halos%obj%halos)) THEN
-               DO ii = 1, SIZE(atomic_halos%obj%halos)
-                  CALL fb_atomic_halo_release(atomic_halos%obj%halos(ii))
-               END DO
-               DEALLOCATE (atomic_halos%obj%halos)
-            END IF
-            atomic_halos%obj%ref_count = 0
-            DEALLOCATE (atomic_halos%obj)
+         IF (ASSOCIATED(atomic_halos%obj%halos)) THEN
+            DO ii = 1, SIZE(atomic_halos%obj%halos)
+               CALL fb_atomic_halo_release(atomic_halos%obj%halos(ii))
+            END DO
+            DEALLOCATE (atomic_halos%obj%halos)
          END IF
+         DEALLOCATE (atomic_halos%obj)
       ELSE
          NULLIFY (atomic_halos%obj)
       END IF
@@ -643,7 +595,6 @@ CONTAINS
       atomic_halos%obj%nhalos = 0
       atomic_halos%obj%max_nhalos = 0
       NULLIFY (atomic_halos%obj%halos)
-      atomic_halos%obj%ref_count = 1
    END SUBROUTINE fb_atomic_halo_list_create
 
 ! **************************************************************************************************
