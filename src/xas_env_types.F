@@ -278,8 +278,10 @@ CONTAINS
       END IF
       IF (PRESENT(scf_control)) THEN ! accept also null pointers?
          IF (ASSOCIATED(xas_env%scf_control)) THEN
-            CALL scf_c_release(xas_env%scf_control)
-            DEALLOCATE (xas_env%scf_control)
+            IF (.NOT. ASSOCIATED(xas_env%scf_control, scf_control)) THEN
+               CALL scf_c_release(xas_env%scf_control)
+               DEALLOCATE (xas_env%scf_control)
+            END IF
          END IF
          xas_env%scf_control => scf_control
       END IF

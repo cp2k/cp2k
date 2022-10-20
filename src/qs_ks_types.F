@@ -660,8 +660,10 @@ CONTAINS
       END IF
       IF (PRESENT(dbcsr_dist)) THEN
          IF (ASSOCIATED(ks_env%dbcsr_dist)) THEN
-            CALL dbcsr_distribution_release(ks_env%dbcsr_dist)
-            DEALLOCATE (ks_env%dbcsr_dist)
+            IF (.NOT. ASSOCIATED(ks_env%dbcsr_dist, dbcsr_dist)) THEN
+               CALL dbcsr_distribution_release(ks_env%dbcsr_dist)
+               DEALLOCATE (ks_env%dbcsr_dist)
+            END IF
          END IF
          ks_env%dbcsr_dist => dbcsr_dist
       END IF

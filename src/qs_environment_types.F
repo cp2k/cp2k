@@ -1151,8 +1151,10 @@ CONTAINS
       END IF
       IF (PRESENT(scf_control)) THEN ! accept also null pointers?
          IF (ASSOCIATED(qs_env%scf_control)) THEN
-            CALL scf_c_release(qs_env%scf_control)
-            DEALLOCATE (qs_env%scf_control)
+            IF (.NOT. ASSOCIATED(qs_env%scf_control, scf_control)) THEN
+               CALL scf_c_release(qs_env%scf_control)
+               DEALLOCATE (qs_env%scf_control)
+            END IF
          END IF
          qs_env%scf_control => scf_control
       END IF
@@ -1167,7 +1169,7 @@ CONTAINS
          qs_env%linres_control => linres_control
       END IF
       ! ZMP associating variables
-      IF (PRESENT(rho_external)) THEN ! accepts also null pointers !
+      IF (PRESENT(rho_external)) THEN
          IF (ASSOCIATED(rho_external)) CALL qs_rho_retain(rho_external)
          CALL qs_rho_release(qs_env%rho_external)
          qs_env%rho_external => rho_external
@@ -1183,22 +1185,28 @@ CONTAINS
 
       IF (PRESENT(qs_charges)) THEN
          IF (ASSOCIATED(qs_env%qs_charges)) THEN
-            CALL qs_charges_release(qs_env%qs_charges)
-            DEALLOCATE (qs_env%qs_charges)
+            IF (.NOT. ASSOCIATED(qs_env%qs_charges, qs_charges)) THEN
+               CALL qs_charges_release(qs_env%qs_charges)
+               DEALLOCATE (qs_env%qs_charges)
+            END IF
          END IF
          qs_env%qs_charges => qs_charges
       END IF
       IF (PRESENT(ks_qmmm_env)) THEN
          IF (ASSOCIATED(qs_env%ks_qmmm_env)) THEN
-            CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env)
-            DEALLOCATE (qs_env%ks_qmmm_env)
+            IF (.NOT. ASSOCIATED(qs_env%ks_qmmm_env, ks_qmmm_env)) THEN
+               CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env)
+               DEALLOCATE (qs_env%ks_qmmm_env)
+            END IF
          END IF
          qs_env%ks_qmmm_env => ks_qmmm_env
       END IF
       IF (PRESENT(ks_env)) THEN ! accept also null pointers?
          IF (ASSOCIATED(qs_env%ks_env)) THEN
-            CALL qs_ks_release(qs_env%ks_env)
-            DEALLOCATE (qs_env%ks_env)
+            IF (.NOT. ASSOCIATED(qs_env%ks_env, ks_env)) THEN
+               CALL qs_ks_release(qs_env%ks_env)
+               DEALLOCATE (qs_env%ks_env)
+            END IF
          END IF
          qs_env%ks_env => ks_env
       END IF
@@ -1214,8 +1222,10 @@ CONTAINS
       END IF
       IF (PRESENT(xas_env)) THEN ! accept also null pointers?
          IF (ASSOCIATED(qs_env%xas_env)) THEN
-            CALL xas_env_release(qs_env%xas_env)
-            DEALLOCATE (qs_env%xas_env)
+            IF (.NOT. ASSOCIATED(qs_env%xas_env, xas_env)) THEN
+               CALL xas_env_release(qs_env%xas_env)
+               DEALLOCATE (qs_env%xas_env)
+            END IF
          END IF
          qs_env%xas_env => xas_env
       END IF
@@ -1247,8 +1257,10 @@ CONTAINS
       END IF
       IF (PRESENT(cp_ddapc_env)) THEN
          IF (ASSOCIATED(qs_env%cp_ddapc_env)) THEN
-            CALL cp_ddapc_release(qs_env%cp_ddapc_env)
-            DEALLOCATE (qs_env%cp_ddapc_env)
+            IF (.NOT. ASSOCIATED(qs_env%cp_ddapc_env, cp_ddapc_env)) THEN
+               CALL cp_ddapc_release(qs_env%cp_ddapc_env)
+               DEALLOCATE (qs_env%cp_ddapc_env)
+            END IF
          END IF
          qs_env%cp_ddapc_env => cp_ddapc_env
       END IF
