@@ -43,7 +43,6 @@ MODULE cp_ddapc_types
    PRIVATE
    LOGICAL, PRIVATE, PARAMETER          :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_ddapc_types'
-   INTEGER, PRIVATE, SAVE               :: last_cp_ddapc_id = 0
 
    PUBLIC :: cp_ddapc_type, cp_ddapc_create, cp_ddapc_retain, cp_ddapc_release
    PUBLIC :: cp_ddapc_ewald_type, cp_ddapc_ewald_create, cp_ddapc_ewald_release
@@ -52,7 +51,7 @@ MODULE cp_ddapc_types
 !> \author Teodoro Laino
 ! **************************************************************************************************
    TYPE cp_ddapc_type
-      INTEGER :: ref_count, id_nr
+      INTEGER :: ref_count
       REAL(KIND=dp) :: c0
       REAL(KIND=dp), DIMENSION(:, :), POINTER     :: AmI
       REAL(KIND=dp), DIMENSION(:, :), POINTER     :: Md ! decoupling
@@ -118,8 +117,6 @@ CONTAINS
       CALL timeset(routineN, handle)
       ALLOCATE (cp_ddapc_env)
       cp_ddapc_env%ref_count = 1
-      last_cp_ddapc_id = last_cp_ddapc_id + 1
-      cp_ddapc_env%id_nr = last_cp_ddapc_id
       NULLIFY (cp_ddapc_env%AmI, &
                cp_ddapc_env%Md, &
                cp_ddapc_env%Mt, &
