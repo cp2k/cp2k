@@ -44,14 +44,13 @@ MODULE cp_ddapc_types
    LOGICAL, PRIVATE, PARAMETER          :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_ddapc_types'
 
-   PUBLIC :: cp_ddapc_type, cp_ddapc_create, cp_ddapc_retain, cp_ddapc_release
+   PUBLIC :: cp_ddapc_type, cp_ddapc_create, cp_ddapc_release
    PUBLIC :: cp_ddapc_ewald_type, cp_ddapc_ewald_create, cp_ddapc_ewald_release
 
 ! **************************************************************************************************
 !> \author Teodoro Laino
 ! **************************************************************************************************
    TYPE cp_ddapc_type
-      INTEGER :: ref_count
       REAL(KIND=dp) :: c0
       REAL(KIND=dp), DIMENSION(:, :), POINTER     :: AmI
       REAL(KIND=dp), DIMENSION(:, :), POINTER     :: Md ! decoupling
@@ -98,7 +97,7 @@ CONTAINS
                               particle_set, radii, cell, super_cell, rho_tot_g, gcut, iw2, Vol, &
                               force_env_section)
       TYPE(cp_para_env_type), POINTER                    :: cp_para_env
-      TYPE(cp_ddapc_type), POINTER                       :: cp_ddapc_env
+      TYPE(cp_ddapc_type), INTENT(OUT)                   :: cp_ddapc_env
       TYPE(cp_ddapc_ewald_type), POINTER                 :: cp_ddapc_ewald
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(kind=dp), DIMENSION(:), POINTER               :: radii
@@ -115,8 +114,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: param_section, solvation_section
 
       CALL timeset(routineN, handle)
-      ALLOCATE (cp_ddapc_env)
-      cp_ddapc_env%ref_count = 1
       NULLIFY (cp_ddapc_env%AmI, &
                cp_ddapc_env%Md, &
                cp_ddapc_env%Mt, &
@@ -180,52 +177,31 @@ CONTAINS
 !>      none
 !> \author Teodoro Laino - [tlaino]
 ! **************************************************************************************************
-   SUBROUTINE cp_ddapc_retain(cp_ddapc_env)
-      TYPE(cp_ddapc_type), POINTER                       :: cp_ddapc_env
-
-      CPASSERT(ASSOCIATED(cp_ddapc_env))
-      CPASSERT(cp_ddapc_env%ref_count > 0)
-      cp_ddapc_env%ref_count = cp_ddapc_env%ref_count + 1
-   END SUBROUTINE cp_ddapc_retain
-
-! **************************************************************************************************
-!> \brief ...
-!> \param cp_ddapc_env ...
-!> \par History
-!>      none
-!> \author Teodoro Laino - [tlaino]
-! **************************************************************************************************
    SUBROUTINE cp_ddapc_release(cp_ddapc_env)
-      TYPE(cp_ddapc_type), POINTER                       :: cp_ddapc_env
+      TYPE(cp_ddapc_type), INTENT(INOUT)                 :: cp_ddapc_env
 
-      IF (ASSOCIATED(cp_ddapc_env)) THEN
-         CPASSERT(cp_ddapc_env%ref_count > 0)
-         cp_ddapc_env%ref_count = cp_ddapc_env%ref_count - 1
-         IF (cp_ddapc_env%ref_count == 0) THEN
-            IF (ASSOCIATED(cp_ddapc_env%AmI)) THEN
-               DEALLOCATE (cp_ddapc_env%AmI)
-            END IF
-            IF (ASSOCIATED(cp_ddapc_env%Mt)) THEN
-               DEALLOCATE (cp_ddapc_env%Mt)
-            END IF
-            IF (ASSOCIATED(cp_ddapc_env%Md)) THEN
-               DEALLOCATE (cp_ddapc_env%Md)
-            END IF
-            IF (ASSOCIATED(cp_ddapc_env%Mr)) THEN
-               DEALLOCATE (cp_ddapc_env%Mr)
-            END IF
-            IF (ASSOCIATED(cp_ddapc_env%Ms)) THEN
-               DEALLOCATE (cp_ddapc_env%Ms)
-            END IF
-            IF (ASSOCIATED(cp_ddapc_env%gfunc)) THEN
-               DEALLOCATE (cp_ddapc_env%gfunc)
-            END IF
-            IF (ASSOCIATED(cp_ddapc_env%w)) THEN
-               DEALLOCATE (cp_ddapc_env%w)
-            END IF
-            DEALLOCATE (cp_ddapc_env)
-         END IF
+      IF (ASSOCIATED(cp_ddapc_env%AmI)) THEN
+         DEALLOCATE (cp_ddapc_env%AmI)
       END IF
+      IF (ASSOCIATED(cp_ddapc_env%Mt)) THEN
+         DEALLOCATE (cp_ddapc_env%Mt)
+      END IF
+      IF (ASSOCIATED(cp_ddapc_env%Md)) THEN
+         DEALLOCATE (cp_ddapc_env%Md)
+      END IF
+      IF (ASSOCIATED(cp_ddapc_env%Mr)) THEN
+         DEALLOCATE (cp_ddapc_env%Mr)
+      END IF
+      IF (ASSOCIATED(cp_ddapc_env%Ms)) THEN
+         DEALLOCATE (cp_ddapc_env%Ms)
+      END IF
+      IF (ASSOCIATED(cp_ddapc_env%gfunc)) THEN
+         DEALLOCATE (cp_ddapc_env%gfunc)
+      END IF
+      IF (ASSOCIATED(cp_ddapc_env%w)) THEN
+         DEALLOCATE (cp_ddapc_env%w)
+      END IF
+
    END SUBROUTINE cp_ddapc_release
 
 ! **************************************************************************************************

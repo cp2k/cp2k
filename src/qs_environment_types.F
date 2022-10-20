@@ -26,7 +26,6 @@ MODULE qs_environment_types
    USE cp_ddapc_types,                  ONLY: cp_ddapc_ewald_release,&
                                               cp_ddapc_ewald_type,&
                                               cp_ddapc_release,&
-                                              cp_ddapc_retain,&
                                               cp_ddapc_type
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                               cp_fm_release
@@ -1247,8 +1246,10 @@ CONTAINS
          qs_env%input => input
       END IF
       IF (PRESENT(cp_ddapc_env)) THEN
-         CALL cp_ddapc_retain(cp_ddapc_env)
-         CALL cp_ddapc_release(qs_env%cp_ddapc_env)
+         IF (ASSOCIATED(qs_env%cp_ddapc_env)) THEN
+            CALL cp_ddapc_release(qs_env%cp_ddapc_env)
+            DEALLOCATE (qs_env%cp_ddapc_env)
+         END IF
          qs_env%cp_ddapc_env => cp_ddapc_env
       END IF
       IF (PRESENT(cp_ddapc_ewald)) THEN
@@ -1453,7 +1454,10 @@ CONTAINS
       CALL scf_env_release(qs_env%scf_env)
       CALL mpools_release(qs_env%mpools)
       CALL section_vals_release(qs_env%input)
-      CALL cp_ddapc_release(qs_env%cp_ddapc_env)
+      IF (ASSOCIATED(qs_env%cp_ddapc_env)) THEN
+         CALL cp_ddapc_release(qs_env%cp_ddapc_env)
+         DEALLOCATE (qs_env%cp_ddapc_env)
+      END IF
       CALL cp_ddapc_ewald_release(qs_env%cp_ddapc_ewald)
       CALL efield_berry_release(qs_env%efield)
       IF (ASSOCIATED(qs_env%x_data)) THEN
@@ -1651,7 +1655,10 @@ CONTAINS
       END IF
       CALL wfi_release(qs_env%wf_history)
       CALL scf_env_release(qs_env%scf_env)
-      CALL cp_ddapc_release(qs_env%cp_ddapc_env)
+      IF (ASSOCIATED(qs_env%cp_ddapc_env)) THEN
+         CALL cp_ddapc_release(qs_env%cp_ddapc_env)
+         DEALLOCATE (qs_env%cp_ddapc_env)
+      END IF
       CALL cp_ddapc_ewald_release(qs_env%cp_ddapc_ewald)
       CALL efield_berry_release(qs_env%efield)
       IF (ASSOCIATED(qs_env%x_data)) THEN
