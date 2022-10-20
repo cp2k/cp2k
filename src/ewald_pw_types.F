@@ -54,7 +54,6 @@ MODULE ewald_pw_types
 
    PRIVATE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewald_pw_types'
-   INTEGER, PRIVATE, SAVE :: last_ewald_pw_id_nr = 0
    PUBLIC :: ewald_pw_type, ewald_pw_release, &
              ewald_pw_retain, ewald_pw_create, &
              ewald_pw_get, ewald_pw_set
@@ -62,7 +61,7 @@ MODULE ewald_pw_types
 ! **************************************************************************************************
    TYPE ewald_pw_type
       PRIVATE
-      INTEGER :: ref_count, id_nr
+      INTEGER :: ref_count
       TYPE(pw_pool_type), POINTER       :: pw_small_pool
       TYPE(pw_pool_type), POINTER       :: pw_big_pool
       TYPE(realspace_grid_desc_type), POINTER    :: rs_desc
@@ -106,12 +105,8 @@ CONTAINS
       ALLOCATE (ewald_pw%dg)
       CALL dg_create(ewald_pw%dg)
       ewald_pw%ref_count = 1
-      last_ewald_pw_id_nr = last_ewald_pw_id_nr + 1
-      ewald_pw%id_nr = last_ewald_pw_id_nr
       CALL ewald_pw_init(ewald_pw, ewald_env, cell, cell_ref, print_section)
    END SUBROUTINE ewald_pw_create
-
-!****f* ewald_pw_types/ewald_pw_release [1.0] *
 
 ! **************************************************************************************************
 !> \brief releases the memory used by the ewald_pw
@@ -141,8 +136,6 @@ CONTAINS
       NULLIFY (ewald_pw)
       CALL timestop(handle)
    END SUBROUTINE ewald_pw_release
-
-!****** ewald_pw_types/ewald_pw_init [1.0] *
 
 ! **************************************************************************************************
 !> \brief ...
@@ -341,8 +334,6 @@ CONTAINS
       CALL timestop(handle)
    END SUBROUTINE ewald_pw_init
 
-!****** ewald_pw_types/ewald_pw_get [1.0] *
-
 ! **************************************************************************************************
 !> \brief get the ewald_pw environment to the correct program.
 !> \param ewald_pw ...
@@ -368,8 +359,6 @@ CONTAINS
       IF (PRESENT(dg)) dg => ewald_pw%dg
 
    END SUBROUTINE ewald_pw_get
-
-!****** ewald_pw_types/ewald_pw_set [1.0] *
 
 ! **************************************************************************************************
 !> \brief set the ewald_pw environment to the correct program.
