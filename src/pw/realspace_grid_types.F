@@ -75,7 +75,6 @@ MODULE realspace_grid_types
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_types'
-   INTEGER, SAVE, PRIVATE :: last_rs_id = 0
    INTEGER, PARAMETER, PUBLIC :: rs2pw = 11, pw2rs = 12
 
 ! **************************************************************************************************
@@ -141,8 +140,6 @@ MODULE realspace_grid_types
    TYPE realspace_grid_type
 
       TYPE(realspace_grid_desc_type), POINTER :: desc => NULL()
-
-      INTEGER :: id_nr=-1 ! unique identifier of rs
 
       INTEGER :: ngpts_local=-1 ! local dimensions
       INTEGER, DIMENSION(3) :: npts_local=-1
@@ -498,8 +495,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      last_rs_id = last_rs_id + 1
-      rs%id_nr = last_rs_id
       rs%desc => desc
       CALL rs_grid_retain_descriptor(rs%desc)
 
