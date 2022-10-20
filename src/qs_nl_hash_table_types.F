@@ -47,7 +47,6 @@ MODULE qs_nl_hash_table_types
              nl_hash_table_status
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_nl_hash_table_types'
-   INTEGER, PRIVATE, SAVE :: last_nl_hash_table_id = 0
 
 ! key value indicating an empty slot
    INTEGER(KIND=int_8), PARAMETER, PRIVATE :: EMPTY_KEY = -1_int_8
@@ -76,11 +75,8 @@ MODULE qs_nl_hash_table_types
 !> \param nelements : number of non-empty slots in table
 !> \param nmax      : max number of slots in table
 !> \param prime     : prime number used in the hash function
-!> \param id_nr     : unique id for the object
-!> \param ref_count : reference counter for the object
 ! **************************************************************************************************
    TYPE nl_hash_table_data
-      INTEGER :: id_nr, ref_count
       TYPE(nl_hash_table_element), DIMENSION(:), POINTER :: table => NULL()
       INTEGER :: nelements
       INTEGER :: nmax
@@ -162,10 +158,6 @@ CONTAINS
       IF (PRESENT(nmax)) my_nmax = nmax
       CALL nl_hash_table_init(hash_table=hash_table, nmax=my_nmax)
 
-      ! book keeping stuff
-      hash_table%obj%ref_count = 1
-      hash_table%obj%id_nr = last_nl_hash_table_id + 1
-      last_nl_hash_table_id = hash_table%obj%id_nr
    END SUBROUTINE nl_hash_table_create
 
 ! **************************************************************************************************
@@ -317,20 +309,11 @@ CONTAINS
    SUBROUTINE nl_hash_table_release(hash_table)
       TYPE(nl_hash_table_obj), INTENT(INOUT)             :: hash_table
 
-      LOGICAL                                            :: check_ok
-
       IF (ASSOCIATED(hash_table%obj)) THEN
-         check_ok = hash_table%obj%ref_count > 0
-         CPASSERT(check_ok)
-         hash_table%obj%ref_count = hash_table%obj%ref_count - 1
-         IF (hash_table%obj%ref_count == 0) THEN
-            hash_table%obj%ref_count = 1
-            IF (ASSOCIATED(hash_table%obj%table)) THEN
-               DEALLOCATE (hash_table%obj%table)
-            END IF
-            hash_table%obj%ref_count = 0
-            DEALLOCATE (hash_table%obj)
+         IF (ASSOCIATED(hash_table%obj%table)) THEN
+            DEALLOCATE (hash_table%obj%table)
          END IF
+         DEALLOCATE (hash_table%obj)
       ELSE
          NULLIFY (hash_table%obj)
       END IF
