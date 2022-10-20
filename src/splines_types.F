@@ -20,8 +20,6 @@ MODULE splines_types
 
    PRIVATE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'splines_types'
-   INTEGER, PRIVATE, SAVE :: last_spline_env_id_nr = 0
-   INTEGER, PRIVATE, SAVE :: last_spline_data_id_nr = 0
 
    PUBLIC :: spline_env_release, spline_environment_type
    PUBLIC :: spline_env_create, spline_data_p_type
@@ -40,7 +38,7 @@ MODULE splines_types
 !> \author unknown
 ! **************************************************************************************************
    TYPE spline_data_type
-      INTEGER :: ref_count, id_nr
+      INTEGER :: ref_count
       REAL(KIND=dp), POINTER :: y(:) ! the function values y(x)
       REAL(KIND=dp), POINTER :: y2(:) ! the 2nd derivative via interpolation
       INTEGER                 :: n ! dimension of above arrays
@@ -264,7 +262,6 @@ CONTAINS
       IF (.NOT. ASSOCIATED(spline_data_dest)) CALL spline_data_create(spline_data_dest)
 
       spline_data_dest%ref_count = spline_data_source%ref_count
-      spline_data_dest%id_nr = spline_data_source%id_nr
       spline_data_dest%n = spline_data_source%n
       spline_data_dest%h = spline_data_source%h
       spline_data_dest%invh = spline_data_source%invh
@@ -291,8 +288,6 @@ CONTAINS
 
       ALLOCATE (spline_data)
       spline_data%ref_count = 1
-      last_spline_data_id_nr = last_spline_data_id_nr + 1
-      spline_data%id_nr = last_spline_data_id_nr
       NULLIFY (spline_data%y)
       NULLIFY (spline_data%y2)
    END SUBROUTINE spline_data_create
