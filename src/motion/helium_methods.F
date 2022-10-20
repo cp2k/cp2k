@@ -87,7 +87,6 @@ MODULE helium_methods
 
    LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'helium_methods'
-   INTEGER, SAVE, PRIVATE :: last_helium_id = 0
 
    PUBLIC :: helium_create
    PUBLIC :: helium_init
@@ -222,9 +221,6 @@ CONTAINS
                      helium_env(k)%helium%ename &
                      )
 
-            helium_env(k)%helium%ref_count = 1
-            last_helium_id = last_helium_id + 1
-            helium_env(k)%helium%id_nr = last_helium_id
             helium_env(k)%helium%accepts = 0
             helium_env(k)%helium%relrot = 0
 
@@ -845,163 +841,160 @@ CONTAINS
                DEALLOCATE (helium_env(k)%env_all)
             END IF
             NULLIFY (helium_env(k)%env_all)
-            helium_env(k)%helium%ref_count = helium_env(k)%helium%ref_count - 1
-            IF (helium_env(k)%helium%ref_count < 1) THEN
 
-               ! DEALLOCATE temporary arrays
+            ! DEALLOCATE temporary arrays
+            DEALLOCATE ( &
+               helium_env(k)%helium%ltmp_3_atoms_beads_3d, &
+               helium_env(k)%helium%rtmp_3_atoms_beads_np_1d, &
+               helium_env(k)%helium%rtmp_3_atoms_beads_1d, &
+               helium_env(k)%helium%rtmp_3_np_1d, &
+               helium_env(k)%helium%itmp_atoms_np_1d, &
+               helium_env(k)%helium%ltmp_atoms_1d, &
+               helium_env(k)%helium%itmp_atoms_1d)
+
+            NULLIFY ( &
+               helium_env(k)%helium%ltmp_3_atoms_beads_3d, &
+               helium_env(k)%helium%rtmp_3_atoms_beads_np_1d, &
+               helium_env(k)%helium%rtmp_3_atoms_beads_1d, &
+               helium_env(k)%helium%rtmp_3_np_1d, &
+               helium_env(k)%helium%itmp_atoms_np_1d, &
+               helium_env(k)%helium%ltmp_atoms_1d, &
+               helium_env(k)%helium%itmp_atoms_1d &
+               )
+
+            IF (helium_env(k)%helium%solute_present) THEN
+               ! DEALLOCATE solute-related arrays
                DEALLOCATE ( &
-                  helium_env(k)%helium%ltmp_3_atoms_beads_3d, &
-                  helium_env(k)%helium%rtmp_3_atoms_beads_np_1d, &
-                  helium_env(k)%helium%rtmp_3_atoms_beads_1d, &
-                  helium_env(k)%helium%rtmp_3_np_1d, &
-                  helium_env(k)%helium%itmp_atoms_np_1d, &
-                  helium_env(k)%helium%ltmp_atoms_1d, &
-                  helium_env(k)%helium%itmp_atoms_1d)
-
+                  helium_env(k)%helium%rtmp_p_ndim_2d, &
+                  helium_env(k)%helium%rtmp_p_ndim_np_1d, &
+                  helium_env(k)%helium%rtmp_p_ndim_1d, &
+                  helium_env(k)%helium%force_inst, &
+                  helium_env(k)%helium%force_avrg)
                NULLIFY ( &
-                  helium_env(k)%helium%ltmp_3_atoms_beads_3d, &
-                  helium_env(k)%helium%rtmp_3_atoms_beads_np_1d, &
-                  helium_env(k)%helium%rtmp_3_atoms_beads_1d, &
-                  helium_env(k)%helium%rtmp_3_np_1d, &
-                  helium_env(k)%helium%itmp_atoms_np_1d, &
-                  helium_env(k)%helium%ltmp_atoms_1d, &
-                  helium_env(k)%helium%itmp_atoms_1d &
-                  )
-
-               IF (helium_env(k)%helium%solute_present) THEN
-                  ! DEALLOCATE solute-related arrays
-                  DEALLOCATE ( &
-                     helium_env(k)%helium%rtmp_p_ndim_2d, &
-                     helium_env(k)%helium%rtmp_p_ndim_np_1d, &
-                     helium_env(k)%helium%rtmp_p_ndim_1d, &
-                     helium_env(k)%helium%force_inst, &
-                     helium_env(k)%helium%force_avrg)
-                  NULLIFY ( &
-                     helium_env(k)%helium%rtmp_p_ndim_2d, &
-                     helium_env(k)%helium%rtmp_p_ndim_np_1d, &
-                     helium_env(k)%helium%rtmp_p_ndim_1d, &
-                     helium_env(k)%helium%force_inst, &
-                     helium_env(k)%helium%force_avrg)
-               END IF
-
-               IF (helium_env(k)%helium%rho_present) THEN
-                  DEALLOCATE ( &
-                     helium_env(k)%helium%rho_rstr, &
-                     helium_env(k)%helium%rho_accu, &
-                     helium_env(k)%helium%rho_inst, &
-                     helium_env(k)%helium%rho_incr)
-                  NULLIFY ( &
-                     helium_env(k)%helium%rho_rstr, &
-                     helium_env(k)%helium%rho_accu, &
-                     helium_env(k)%helium%rho_inst, &
-                     helium_env(k)%helium%rho_incr)
-                  ! DEALLOCATE everything
-                  DEALLOCATE (helium_env(k)%helium%rho_property(rho_atom_number)%filename_suffix)
-                  DEALLOCATE (helium_env(k)%helium%rho_property(rho_atom_number)%component_name)
-                  DEALLOCATE (helium_env(k)%helium%rho_property(rho_atom_number)%component_index)
-                  NULLIFY (helium_env(k)%helium%rho_property(rho_atom_number)%filename_suffix)
-                  NULLIFY (helium_env(k)%helium%rho_property(rho_atom_number)%component_name)
-                  NULLIFY (helium_env(k)%helium%rho_property(rho_atom_number)%component_index)
-                  DEALLOCATE (helium_env(k)%helium%rho_property(rho_winding_number)%filename_suffix)
-                  DEALLOCATE (helium_env(k)%helium%rho_property(rho_winding_number)%component_name)
-                  DEALLOCATE (helium_env(k)%helium%rho_property(rho_winding_number)%component_index)
-                  NULLIFY (helium_env(k)%helium%rho_property(rho_winding_number)%filename_suffix)
-                  NULLIFY (helium_env(k)%helium%rho_property(rho_winding_number)%component_name)
-                  NULLIFY (helium_env(k)%helium%rho_property(rho_winding_number)%component_index)
-                  DEALLOCATE (helium_env(k)%helium%rho_property(rho_winding_cycle)%filename_suffix)
-                  DEALLOCATE (helium_env(k)%helium%rho_property(rho_winding_cycle)%component_name)
-                  DEALLOCATE (helium_env(k)%helium%rho_property(rho_winding_cycle)%component_index)
-                  NULLIFY (helium_env(k)%helium%rho_property(rho_winding_cycle)%filename_suffix)
-                  NULLIFY (helium_env(k)%helium%rho_property(rho_winding_cycle)%component_name)
-                  NULLIFY (helium_env(k)%helium%rho_property(rho_winding_cycle)%component_index)
-                  DEALLOCATE (helium_env(k)%helium%rho_property(rho_projected_area)%filename_suffix)
-                  DEALLOCATE (helium_env(k)%helium%rho_property(rho_projected_area)%component_name)
-                  DEALLOCATE (helium_env(k)%helium%rho_property(rho_projected_area)%component_index)
-                  NULLIFY (helium_env(k)%helium%rho_property(rho_projected_area)%filename_suffix)
-                  NULLIFY (helium_env(k)%helium%rho_property(rho_projected_area)%component_name)
-                  NULLIFY (helium_env(k)%helium%rho_property(rho_projected_area)%component_index)
-                  DEALLOCATE (helium_env(k)%helium%rho_property(rho_moment_of_inertia)%filename_suffix)
-                  DEALLOCATE (helium_env(k)%helium%rho_property(rho_moment_of_inertia)%component_name)
-                  DEALLOCATE (helium_env(k)%helium%rho_property(rho_moment_of_inertia)%component_index)
-                  NULLIFY (helium_env(k)%helium%rho_property(rho_moment_of_inertia)%filename_suffix)
-                  NULLIFY (helium_env(k)%helium%rho_property(rho_moment_of_inertia)%component_name)
-                  NULLIFY (helium_env(k)%helium%rho_property(rho_moment_of_inertia)%component_index)
-                  DEALLOCATE (helium_env(k)%helium%rho_property)
-                  NULLIFY (helium_env(k)%helium%rho_property)
-               END IF
-
-               CALL helium_rdf_release(helium_env(k)%helium)
-
-               ! DEALLOCATE helium-related arrays
-               DEALLOCATE ( &
-                  helium_env(k)%helium%atom_plength, &
-                  helium_env(k)%helium%plength_inst, &
-                  helium_env(k)%helium%plength_avrg, &
-                  helium_env(k)%helium%num_accepted, &
-                  helium_env(k)%helium%ipmatrix, &
-                  helium_env(k)%helium%pmatrix, &
-                  helium_env(k)%helium%nmatrix, &
-                  helium_env(k)%helium%tmatrix, &
-                  helium_env(k)%helium%iperm, &
-                  helium_env(k)%helium%permutation, &
-                  helium_env(k)%helium%ptable, &
-                  helium_env(k)%helium%work, &
-                  helium_env(k)%helium%pos)
-               IF (helium_env(k)%helium%worm_max_open_cycles > 0) THEN
-                  DEALLOCATE (helium_env(k)%helium%saveiperm, &
-                              helium_env(k)%helium%savepermutation, &
-                              helium_env(k)%helium%savepos)
-               END IF
-               NULLIFY ( &
-                  helium_env(k)%helium%atom_plength, &
-                  helium_env(k)%helium%plength_inst, &
-                  helium_env(k)%helium%plength_avrg, &
-                  helium_env(k)%helium%num_accepted, &
-                  helium_env(k)%helium%ipmatrix, &
-                  helium_env(k)%helium%pmatrix, &
-                  helium_env(k)%helium%nmatrix, &
-                  helium_env(k)%helium%tmatrix, &
-                  helium_env(k)%helium%iperm, &
-                  helium_env(k)%helium%saveiperm, &
-                  helium_env(k)%helium%permutation, &
-                  helium_env(k)%helium%savepermutation, &
-                  helium_env(k)%helium%ptable, &
-                  helium_env(k)%helium%work, &
-                  helium_env(k)%helium%pos, &
-                  helium_env(k)%helium%savepos &
-                  )
-
-               IF (k == 1) THEN
-                  CALL spline_data_release(helium_env(k)%helium%vij)
-                  CALL spline_data_release(helium_env(k)%helium%u0)
-                  CALL spline_data_release(helium_env(k)%helium%e0)
-                  DEALLOCATE (helium_env(k)%helium%uoffdiag)
-                  DEALLOCATE (helium_env(k)%helium%eoffdiag)
-               END IF
-               NULLIFY (helium_env(k)%helium%uoffdiag, &
-                        helium_env(k)%helium%eoffdiag, &
-                        helium_env(k)%helium%vij, &
-                        helium_env(k)%helium%u0, &
-                        helium_env(k)%helium%e0)
-
-               DEALLOCATE (helium_env(k)%helium%rng_stream_uniform)
-               DEALLOCATE (helium_env(k)%helium%rng_stream_gaussian)
-
-               ! deallocate solute-related arrays
-               IF (helium_env(k)%helium%solute_present) THEN
-                  DEALLOCATE (helium_env(k)%helium%solute_element)
-                  NULLIFY (helium_env(k)%helium%solute_element)
-               END IF
-
-               ! Deallocate everything from the helium_set_solute_indices
-               IF (ASSOCIATED(helium_env(k)%helium%ename)) THEN
-                  DEALLOCATE (helium_env(k)%helium%ename)
-                  NULLIFY (helium_env(k)%helium%ename)
-               END IF
-
-               DEALLOCATE (helium_env(k)%helium)
-
+                  helium_env(k)%helium%rtmp_p_ndim_2d, &
+                  helium_env(k)%helium%rtmp_p_ndim_np_1d, &
+                  helium_env(k)%helium%rtmp_p_ndim_1d, &
+                  helium_env(k)%helium%force_inst, &
+                  helium_env(k)%helium%force_avrg)
             END IF
+
+            IF (helium_env(k)%helium%rho_present) THEN
+               DEALLOCATE ( &
+                  helium_env(k)%helium%rho_rstr, &
+                  helium_env(k)%helium%rho_accu, &
+                  helium_env(k)%helium%rho_inst, &
+                  helium_env(k)%helium%rho_incr)
+               NULLIFY ( &
+                  helium_env(k)%helium%rho_rstr, &
+                  helium_env(k)%helium%rho_accu, &
+                  helium_env(k)%helium%rho_inst, &
+                  helium_env(k)%helium%rho_incr)
+               ! DEALLOCATE everything
+               DEALLOCATE (helium_env(k)%helium%rho_property(rho_atom_number)%filename_suffix)
+               DEALLOCATE (helium_env(k)%helium%rho_property(rho_atom_number)%component_name)
+               DEALLOCATE (helium_env(k)%helium%rho_property(rho_atom_number)%component_index)
+               NULLIFY (helium_env(k)%helium%rho_property(rho_atom_number)%filename_suffix)
+               NULLIFY (helium_env(k)%helium%rho_property(rho_atom_number)%component_name)
+               NULLIFY (helium_env(k)%helium%rho_property(rho_atom_number)%component_index)
+               DEALLOCATE (helium_env(k)%helium%rho_property(rho_winding_number)%filename_suffix)
+               DEALLOCATE (helium_env(k)%helium%rho_property(rho_winding_number)%component_name)
+               DEALLOCATE (helium_env(k)%helium%rho_property(rho_winding_number)%component_index)
+               NULLIFY (helium_env(k)%helium%rho_property(rho_winding_number)%filename_suffix)
+               NULLIFY (helium_env(k)%helium%rho_property(rho_winding_number)%component_name)
+               NULLIFY (helium_env(k)%helium%rho_property(rho_winding_number)%component_index)
+               DEALLOCATE (helium_env(k)%helium%rho_property(rho_winding_cycle)%filename_suffix)
+               DEALLOCATE (helium_env(k)%helium%rho_property(rho_winding_cycle)%component_name)
+               DEALLOCATE (helium_env(k)%helium%rho_property(rho_winding_cycle)%component_index)
+               NULLIFY (helium_env(k)%helium%rho_property(rho_winding_cycle)%filename_suffix)
+               NULLIFY (helium_env(k)%helium%rho_property(rho_winding_cycle)%component_name)
+               NULLIFY (helium_env(k)%helium%rho_property(rho_winding_cycle)%component_index)
+               DEALLOCATE (helium_env(k)%helium%rho_property(rho_projected_area)%filename_suffix)
+               DEALLOCATE (helium_env(k)%helium%rho_property(rho_projected_area)%component_name)
+               DEALLOCATE (helium_env(k)%helium%rho_property(rho_projected_area)%component_index)
+               NULLIFY (helium_env(k)%helium%rho_property(rho_projected_area)%filename_suffix)
+               NULLIFY (helium_env(k)%helium%rho_property(rho_projected_area)%component_name)
+               NULLIFY (helium_env(k)%helium%rho_property(rho_projected_area)%component_index)
+               DEALLOCATE (helium_env(k)%helium%rho_property(rho_moment_of_inertia)%filename_suffix)
+               DEALLOCATE (helium_env(k)%helium%rho_property(rho_moment_of_inertia)%component_name)
+               DEALLOCATE (helium_env(k)%helium%rho_property(rho_moment_of_inertia)%component_index)
+               NULLIFY (helium_env(k)%helium%rho_property(rho_moment_of_inertia)%filename_suffix)
+               NULLIFY (helium_env(k)%helium%rho_property(rho_moment_of_inertia)%component_name)
+               NULLIFY (helium_env(k)%helium%rho_property(rho_moment_of_inertia)%component_index)
+               DEALLOCATE (helium_env(k)%helium%rho_property)
+               NULLIFY (helium_env(k)%helium%rho_property)
+            END IF
+
+            CALL helium_rdf_release(helium_env(k)%helium)
+
+            ! DEALLOCATE helium-related arrays
+            DEALLOCATE ( &
+               helium_env(k)%helium%atom_plength, &
+               helium_env(k)%helium%plength_inst, &
+               helium_env(k)%helium%plength_avrg, &
+               helium_env(k)%helium%num_accepted, &
+               helium_env(k)%helium%ipmatrix, &
+               helium_env(k)%helium%pmatrix, &
+               helium_env(k)%helium%nmatrix, &
+               helium_env(k)%helium%tmatrix, &
+               helium_env(k)%helium%iperm, &
+               helium_env(k)%helium%permutation, &
+               helium_env(k)%helium%ptable, &
+               helium_env(k)%helium%work, &
+               helium_env(k)%helium%pos)
+            IF (helium_env(k)%helium%worm_max_open_cycles > 0) THEN
+               DEALLOCATE (helium_env(k)%helium%saveiperm, &
+                           helium_env(k)%helium%savepermutation, &
+                           helium_env(k)%helium%savepos)
+            END IF
+            NULLIFY ( &
+               helium_env(k)%helium%atom_plength, &
+               helium_env(k)%helium%plength_inst, &
+               helium_env(k)%helium%plength_avrg, &
+               helium_env(k)%helium%num_accepted, &
+               helium_env(k)%helium%ipmatrix, &
+               helium_env(k)%helium%pmatrix, &
+               helium_env(k)%helium%nmatrix, &
+               helium_env(k)%helium%tmatrix, &
+               helium_env(k)%helium%iperm, &
+               helium_env(k)%helium%saveiperm, &
+               helium_env(k)%helium%permutation, &
+               helium_env(k)%helium%savepermutation, &
+               helium_env(k)%helium%ptable, &
+               helium_env(k)%helium%work, &
+               helium_env(k)%helium%pos, &
+               helium_env(k)%helium%savepos &
+               )
+
+            IF (k == 1) THEN
+               CALL spline_data_release(helium_env(k)%helium%vij)
+               CALL spline_data_release(helium_env(k)%helium%u0)
+               CALL spline_data_release(helium_env(k)%helium%e0)
+               DEALLOCATE (helium_env(k)%helium%uoffdiag)
+               DEALLOCATE (helium_env(k)%helium%eoffdiag)
+            END IF
+            NULLIFY (helium_env(k)%helium%uoffdiag, &
+                     helium_env(k)%helium%eoffdiag, &
+                     helium_env(k)%helium%vij, &
+                     helium_env(k)%helium%u0, &
+                     helium_env(k)%helium%e0)
+
+            DEALLOCATE (helium_env(k)%helium%rng_stream_uniform)
+            DEALLOCATE (helium_env(k)%helium%rng_stream_gaussian)
+
+            ! deallocate solute-related arrays
+            IF (helium_env(k)%helium%solute_present) THEN
+               DEALLOCATE (helium_env(k)%helium%solute_element)
+               NULLIFY (helium_env(k)%helium%solute_element)
+            END IF
+
+            ! Deallocate everything from the helium_set_solute_indices
+            IF (ASSOCIATED(helium_env(k)%helium%ename)) THEN
+               DEALLOCATE (helium_env(k)%helium%ename)
+               NULLIFY (helium_env(k)%helium%ename)
+            END IF
+
+            DEALLOCATE (helium_env(k)%helium)
+
          END DO
 
          DEALLOCATE (helium_env)

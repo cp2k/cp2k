@@ -169,6 +169,7 @@ CONTAINS
          gopt_env%label = "CELL_OPT"
          gopt_env%tag = "  CELL  "
          gopt_env%cell_method_id = gopt_param%cell_method_id
+         ALLOCATE (gopt_env%cell_env)
          CALL cell_opt_env_create(gopt_env%cell_env, force_env, gopt_env%geo_section)
       CASE (default_shellcore_method_id)
          gopt_env%nfree = subsys%shell_particles%n_els
@@ -210,7 +211,10 @@ CONTAINS
                      gopt_env%globenv, &
                      gopt_env%motion_section, &
                      gopt_env%geo_section)
-            CALL cell_opt_env_release(gopt_env%cell_env)
+            IF (ASSOCIATED(gopt_env%cell_env)) THEN
+               CALL cell_opt_env_release(gopt_env%cell_env)
+               DEALLOCATE (gopt_env%cell_env)
+            END IF
             CALL dimer_env_release(gopt_env%dimer_env)
             CALL gopt_f_release(gopt_env%gopt_dimer_env)
             CALL gopt_param_release(gopt_env%gopt_dimer_param)

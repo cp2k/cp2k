@@ -89,8 +89,6 @@ MODULE helium_types
 ! ***************************************************************************
    TYPE helium_solvent_type
 
-      INTEGER                           :: id_nr !< identification number of this data structure
-      INTEGER                           :: ref_count !< reference count of this data structure
       TYPE(section_vals_type), POINTER  :: input !< input data structure (the whole tree)
       TYPE(cp_logger_type), POINTER     :: logger
 
