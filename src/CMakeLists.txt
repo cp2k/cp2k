@@ -1294,12 +1294,11 @@ list(
   grid/ref/grid_ref_prepare_pab.c
   grid/ref/grid_ref_task_list.c)
 
+# if (CP2k_USE_SIRIUS) list(APPEND  CP2K_SRCS_F ) endif ()
+
 list(APPEND OFFLOAD_SRCS_C offload/offload_buffer.c offload/offload_library.c)
 
 list(APPEND CP2K_SRCS_C pw/fpga/fft_fpga.c pw/fpga/opencl_utils.c)
-
-# starting list to compile cp2k without any additional features.
-list(APPEND CP2K_SRCS_C ${DBM_SRCS_C} ${GRID_SRCS_C} ${OFFLOAD_SRCS_C})
 
 if(CP2K_USE_PW_GPU)
   list(APPEND PW_SRCS_GPU pw/gpu/pw_gpu_kernels.cu)
@@ -1307,7 +1306,8 @@ if(CP2K_USE_PW_GPU)
 endif()
 
 if(CP2K_USE_DBM_GPU)
-  list(APPEND DBM_SRCS_GPU dbm/dbm_multiply_gpu.cu)
+  list(APPEND DBM_SRCS_C dbm/dbm_multiply_gpu.c)
+  list(APPEND DBM_SRCS_GPU dbm/dbm_multiply_gpu_kernel.cu)
 endif()
 
 if(CP2K_USE_GRID_GPU)
@@ -1330,6 +1330,9 @@ endif()
 if(CP2K_USE_CUDA OR CP2K_USE_HIP)
   list(APPEND CP2K_SRCS_GPU ${GRID_SRCS_GPU} ${DBM_SRCS_GPU} ${PW_SRCS_GPU})
 endif()
+
+# starting list to compile cp2k without any additional features.
+list(APPEND CP2K_SRCS_C ${DBM_SRCS_C} ${GRID_SRCS_C} ${OFFLOAD_SRCS_C})
 
 add_fypp_sources(CP2K_SRCS ${CP2K_SRCS_F})
 
@@ -1418,7 +1421,7 @@ add_compile_definitions(
   __COMPILE_DATE=\"${CP2K_TIMESTAMP}\"
   __COMPILE_HOST=\"${CP2K_HOST_NAME}\"
   __COMPILE_REVISION=\"${CP2K_GIT_HASH}\"
-  __DATA_DIR=\"${CMAKE_INSTALL_SHAREDIR}/cp2k/data\"
+  __DATA_DIR=\"${CMAKE_INSTALL_FULL_DATAROOTDIR}/cp2k/data\"
   __COMPILE_ARCH=\"${CMAKE_SYSTEM_PROCESSOR}\"
   "$<$<CONFIG:Release>:NDEBUG>"
   $<$<BOOL:${CP2K_USE_PEXSI}>:__PEXSI>
@@ -1442,23 +1445,30 @@ add_compile_definitions(
   $<$<STREQUAL:${CP2K_BLAS_VENDOR},Apple>:__ACCELERATE>
   $<$<BOOL:${CP2K_USE_CUDA}>:__OFFLOAD_CUDA>
   $<$<BOOL:${CP2K_USE_HIP}>:__OFFLOAD_HIP>
-  $<$<BOOL:${CP2K_USE_CUDA}>:__DBCSR_ACC>
-  $<$<BOOL:${CP2K_USE_HIP}>:__DBCSR_ACC>
   $<$<COMPILE_LANGUAGE:CUDA>:__OFFLOAD_CUDA>)
 
+if(CP2K_USE_CUDA OR CP2K_USE_HIP)
+  # these checks are only relevant when the debug mode is on
+
+  if(NOT CP2K_DBCSR_USE_CPU_ONLY)
+    add_compile_definitions(__DBCSR_ACC)
+  endif()
+
+  # the next three are off by default
+  if(NOT CP2K_USE_GRID_GPU)
+    add_compile_definitions(__NO_OFFLOAD_GRID)
+  endif()
+
+  if(NOT CP2K_USE_PW_GPU)
+    add_compile_definitions(__NO_OFFLOAD_PW)
+  endif()
+
+  if(NOT CP2K_USE_DBM_GPU)
+    add_compile_definitions(__NO_OFFLOAD_DBM)
+  endif()
+endif()
+
 target_link_libraries(cp2k PUBLIC cp2k_link_libs)
-
-if(NOT CP2K_USE_GRID_GPU)
-  add_compile_definitions(__NO_OFFLOAD_GRID)
-endif()
-
-if(NOT CP2K_USE_PW_GPU)
-  add_compile_definitions(__NO_OFFLOAD_PW)
-endif()
-
-if(NOT CP2K_USE_DBM_GPU)
-  add_compile_definitions(__NO_OFFLOAD_DBM)
-endif()
 
 if(CP2K_USE_HIP)
   foreach(__src ${CP2K_SRCS_GPU})
@@ -1599,5 +1609,5 @@ foreach(_app ${__GRID_APPS} ${__CP2K_APPS} cp2k-bin)
 endforeach()
 
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/data"
-        DESTINATION "${CMAKE_INSTALL_SHAREDIR}/cp2k")
+        DESTINATION "${CMAKE_INSTALL_FULL_DATAROOTDIR}/cp2k")
 install(TARGETS cp2k LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}")

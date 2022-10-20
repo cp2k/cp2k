@@ -1,3 +1,14 @@
+# --------------------------------------------------------------------------------------------------
+# CP2K: A general program to perform molecular dynamics simulations Copyright
+# 2000-2022 CP2K developers group <https://cp2k.org>
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+# --------------------------------------------------------------------------------------------------
+
+# Copyright (c) 2022- ETH Zurich
+#
+# authors : Mathieu Taillefumier
+
 function(cp2k_set_default_paths _varname _package_name)
   # find_library should work when ${PACKAGE_ROOT} is given to cmake
   # (-DPACKAGE_ROOT=bla) but I use only one variable syntax CP2K_PACKAGE_PREFIX

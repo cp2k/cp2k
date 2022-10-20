@@ -188,6 +188,7 @@ set(CP2K_SUPPORTED_HIP_ARCHITECTURES
     P100
     V100
     A100)
+
 set(CP2K_WITH_GPU
     "P100"
     CACHE STRING
@@ -197,6 +198,10 @@ set_property(
   CACHE CP2K_WITH_GPU PROPERTY STRINGS ${CP2K_SUPPORTED_CUDA_ARCHITECTURES}
                                ${CP2K_SUPPORTED_HIP_ARCHITECTURES})
 
+set(CP2K_DEBUG_MODE
+    OFF
+    CACHE BOOL "Enable several additional options for debugging cp2k.")
+
 set(CP2K_USE_ACCEL
     "NONE"
     CACHE STRING "Set hardware acceleartion support: CUDA, HIP")
@@ -204,35 +209,48 @@ set(CP2K_USE_ACCEL
 set_property(CACHE CP2K_USE_ACCEL
              PROPERTY STRINGS ${CP2K_SUPPORTED_ACCELEARTION_TARGETS})
 
-if(CP2K_DEBUG_MODE)
-  if((CP2K_USE_ACCEL MATCHES "CUDA") OR (CP2K_USE_ACCEL MATCHES "HIP"))
+if((CP2K_USE_ACCEL MATCHES "CUDA") OR (CP2K_USE_ACCEL MATCHES "HIP"))
+  if(CP2K_USE_SPLA)
     set(CP2K_USE_GEMM_OFFLOADING
-        OFF
+        ON
         CACHE
           BOOL
           "Use SPLA offloading gemm feature to the GPU if it is beneficial. ")
-    set(CP2K_USE_GRID_GPU
-        ON
-        CACHE
-          BOOL
-          "Enable the hardware accelerated (mostly GPU) backend for grid related functions. It is only effective when general gpu support is enabled."
-    )
-    set(CP2K_USE_PW_GPU
-        ON
-        CACHE
-          BOOL
-          "enable the ffts accelerated (mostly GPU) backend. It is only effective when general gpu support is enabled."
-    )
-    set(CP2K_USE_DBM_GPU
-        ON
-        CACHE
-          BOOL
-          "enable the dbm accelerated (mostly GPU) backend. It is only effective when general gpu support is enabled."
-    )
-
-    # set(CP2K_USE_HIP_CUDA OFF CACHE BOOL "Compile hip code for Nvidia gpus.
-    # Can be used for debugging hip code when hardware is not available")
   endif()
+endif()
+
+if(CP2K_DEBUG_MODE)
+  set(CP2K_USE_GRID_GPU
+      ON
+      CACHE
+        BOOL
+        "Enable the hardware accelerated (mostly GPU) backend for grid related functions. It is only effective when general gpu support is enabled."
+  )
+  set(CP2K_USE_PW_GPU
+      ON
+      CACHE
+        BOOL
+        "enable the ffts accelerated (mostly GPU) backend. It is only effective when general gpu support is enabled."
+  )
+  set(CP2K_USE_DBM_GPU
+      ON
+      CACHE
+        BOOL
+        "enable the dbm accelerated (mostly GPU) backend. It is only effective when general gpu support is enabled."
+  )
+
+  set(CP2K_DBCSR_CPU_ONLY
+      OFF
+      CACHE BOOL "Use DBCSR cpu only version")
+  # set(CP2K_USE_HIP_CUDA OFF CACHE BOOL "Compile hip code for Nvidia gpus. Can
+  # be used for debugging hip code when hardware is not available")
+else()
+  # they will be ignored in cpu only mode
+  set(CP2K_USE_GRID_GPU ON)
+  set(CP2K_USE_PW_GPU ON)
+  set(CP2K_USE_DBM_GPU ON)
+  # we assume dbcsr is build with the right gpu support by default
+  set(CP2K_DBCSR_CPU_ONLY OFF)
 endif()
 
 set(CP2K_USE_HIP OFF)
@@ -248,11 +266,6 @@ enable_language(C)
 enable_language(Fortran)
 
 find_package(PkgConfig)
-
-# =================================================================================================
-# PACKAGE DISCOVERY (compiler configuration can impact package discovery)
-
-find_package(OpenMP REQUIRED COMPONENTS Fortran C CXX)
 
 # =================================== Python this module looks preferably for
 # version 3 of Python. If not found, version 2 is searched. In CMake 3.15, if a
@@ -332,7 +345,6 @@ endif()
 
 # in practice it is always for any decent configuration. But I add a flags to
 # turn it off
-find_package(DBCSR 2.2.0 REQUIRED)
 find_package(SCALAPACK REQUIRED)
 
 # ================================== CUDA / ROCM easy for cuda a moving target
@@ -425,6 +437,13 @@ elseif(CP2K_USE_ACCEL MATCHES "HIP")
   set(CP2K_USE_HIP ON)
 endif()
 
+find_package(DBCSR 2.2.0 REQUIRED)
+
+# =================================================================================================
+# PACKAGE DISCOVERY (compiler configuration can impact package discovery)
+
+find_package(OpenMP REQUIRED COMPONENTS Fortran C CXX)
+
 # ==================================
 if(CP2K_USE_ELPA)
   find_package(Elpa REQUIRED)
@@ -495,6 +514,10 @@ if(CP2K_USE_SPLA)
   if(NOT SPLA_INCLUDE_DIRS)
     set(SPLA_INCLUDE_DIRS "/usr/include;/usr/include/spla")
   endif()
+  if (NOT SPLA_GPU_BACKEND AND CP2K_USE_GEMM_OFFLOADING)
+    set(CP2K_USE_GEMM_OFFLOADING OFF)
+    message(ERROR "SPLA should be compiled with GPU support if the gemm offloading is requested. Use -DCP2K_USE_GEMM_OFFLOADING=OFF othrwise")
+  endif ()
 endif()
 # =================================== SIRIUS
 # ==========================================
