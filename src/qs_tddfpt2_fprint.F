@@ -219,7 +219,9 @@ CONTAINS
                END IF
                CALL p_env_release(p_env)
                !
-               CALL pforce(iwunit, td_force, atomic_kind_set, natom)
+               IF (iwunit > 0) THEN
+                  CALL pforce(iwunit, td_force, atomic_kind_set, natom)
+               END IF
                !
             ELSE
                IF (iwunit > 0) THEN
