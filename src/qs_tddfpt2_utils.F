@@ -102,16 +102,19 @@ CONTAINS
 !> \brief Prepare MOs for TDDFPT Calculations
 !> \param qs_env  Quickstep environment
 !> \param gs_mos  ...
+!> \param iounit ...
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_init_mos(qs_env, gs_mos)
+   SUBROUTINE tddfpt_init_mos(qs_env, gs_mos, iounit)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          POINTER                                         :: gs_mos
+      INTEGER, INTENT(IN)                                :: iounit
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_init_mos'
 
-      INTEGER                                            :: handle, iounit, ispin, nmo_avail, &
-                                                            nmo_occ, nmo_virt, nspins
+      INTEGER                                            :: handle, ispin, nmo_avail, nmo_occ, &
+                                                            nmo_virt, nspins
+      INTEGER, DIMENSION(2, 2)                           :: moc, mvt
       LOGICAL                                            :: print_virtuals_newtonx
       REAL(kind=dp), DIMENSION(:), POINTER               :: evals_virt_spin
       TYPE(cell_type), POINTER                           :: cell
@@ -119,7 +122,6 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_virt
       TYPE(cp_fm_type), POINTER                          :: mos_virt_spin
-      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -128,9 +130,6 @@ CONTAINS
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
 
       CALL timeset(routineN, handle)
-
-      logger => cp_get_default_logger()
-      iounit = cp_logger_get_default_io_unit(logger)
 
       CALL get_qs_env(qs_env, blacs_env=blacs_env, cell=cell, dft_control=dft_control, &
                       matrix_ks=matrix_ks, matrix_s=matrix_s, mos=mos, scf_env=scf_env)
@@ -189,6 +188,21 @@ CONTAINS
                                            matrix_ks=matrix_ks(ispin)%matrix, matrix_s=matrix_s(1)%matrix, &
                                            mos_virt=mos_virt_spin, evals_virt=evals_virt_spin)
       END DO
+
+      moc = 0
+      mvt = 0
+      DO ispin = 1, nspins
+         CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, nrow_global=moc(1, ispin), ncol_global=moc(2, ispin))
+         CALL cp_fm_get_info(gs_mos(ispin)%mos_virt, nrow_global=mvt(1, ispin), ncol_global=mvt(2, ispin))
+      END DO
+      IF (iounit > 0) THEN
+         WRITE (iounit, "(T2,A,T36,A)") "TDDFPT| Molecular Orbitals:", &
+            " Spin       AOs       Occ      Virt     Total"
+         DO ispin = 1, nspins
+            WRITE (iounit, "(T2,A,T37,I4,4I10)") "TDDFPT| ", ispin, moc(1, ispin), moc(2, ispin), &
+               mvt(2, ispin), moc(2, ispin) + mvt(2, ispin)
+         END DO
+      END IF
 
       IF (ASSOCIATED(evals_virt)) THEN
          DO ispin = 1, SIZE(evals_virt)
@@ -302,7 +316,6 @@ CONTAINS
       ALLOCATE (gs_mos%phases_occ(nmo_occ))
 
       CALL cp_fm_struct_release(ao_mo_virt_fm_struct)
-      !CALL cp_fm_struct_release(ao_mo_occ_fm_struct)
 
       ! ++ nullify pointers
       NULLIFY (ao_ao_fm_struct, wfn_fm_struct, wfn_fm_pool)
