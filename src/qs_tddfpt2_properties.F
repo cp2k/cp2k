@@ -22,14 +22,14 @@ MODULE qs_tddfpt2_properties
                                               tddfpt2_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
-                                              cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                               cp_fm_scale_and_add,&
                                               cp_fm_trace
-   USE cp_fm_diag,                      ONLY: choose_eigv_solver
+   USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
+                                              cp_fm_geeig
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -51,14 +51,9 @@ MODULE qs_tddfpt2_properties
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_get_block_p, &
-        dbcsr_get_info, dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
-        dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
-   USE dbcsr_vector,                    ONLY: create_col_vec_from_matrix,&
-                                              create_replicated_col_vec_from_matrix,&
-                                              create_replicated_row_vec_from_matrix,&
-                                              dbcsr_matrix_colvec_multiply
+        dbcsr_copy, dbcsr_get_block_p, dbcsr_get_info, dbcsr_init_p, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_p_type, dbcsr_set, dbcsr_type
    USE input_constants,                 ONLY: tddfpt_dipole_berry,&
                                               tddfpt_dipole_length,&
                                               tddfpt_dipole_velocity
@@ -949,23 +944,21 @@ CONTAINS
 
       CHARACTER(LEN=20), DIMENSION(2)                    :: nto_name
       INTEGER                                            :: handle, i, ia, icg, iounit, ispin, &
-                                                            istate, nao, nmax, nmo, nnto, nspins, &
-                                                            nstates
+                                                            istate, j, nao, nmax, nmo, nnto, &
+                                                            nspins, nstates
       INTEGER, DIMENSION(2)                              :: iv
       INTEGER, DIMENSION(2, ntomax)                      :: ia_index
       INTEGER, DIMENSION(:), POINTER                     :: stride
       LOGICAL                                            :: append_cube, cube_file
-      REAL(KIND=dp)                                      :: alpha, beta, dkz, rkrk, rr, sume, &
-                                                            threshold
+      REAL(KIND=dp)                                      :: sume, threshold
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigvals
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvalues
       REAL(KIND=dp), DIMENSION(ntomax)                   :: ia_eval
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: teig
       TYPE(cp_fm_struct_type), POINTER                   :: fm_mo_struct, fm_struct
-      TYPE(cp_fm_type)                                   :: Sev, tmat, wvec
+      TYPE(cp_fm_type)                                   :: Sev, smat, tmat, wmat, work, wvec
       TYPE(cp_fm_type), POINTER                          :: ev
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_type)                                   :: dvec, pdens, rep_col_vec, rep_row_vec, &
-                                                            rvec, tvec, xvec, zvec
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: nto_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -1028,6 +1021,7 @@ CONTAINS
                NULLIFY (teig(ispin)%matrix)
             END DO
             ! hole states
+            ! Diagonalize X(T)*S*X
             DO ispin = 1, nspins
                ev => evects(ispin, istate)%matrix
                CALL cp_fm_get_info(ev, matrix_struct=fm_struct, ncol_global=nmo)
@@ -1083,67 +1077,48 @@ CONTAINS
                CALL cp_fm_release(tmat)
             END DO
             ! particle states
+            ! Solve generalized eigenvalue equation:  (S*X)*(S*X)(T)*v = lambda*S*v
             CALL set_mo_set(nto_set(2)%mo_set, nmo=nnto)
-            DO i = 1, nnto
-               ispin = ia_index(2, i)
+            DO ispin = 1, nspins
                ev => evects(ispin, istate)%matrix
-               CALL cp_fm_get_info(ev, matrix_struct=fm_struct, ncol_global=nmo)
+               CALL cp_fm_get_info(ev, matrix_struct=fm_struct, nrow_global=nao, ncol_global=nmo)
+               ALLOCATE (eigvals(nao))
+               eigvals = 0.0_dp
                CALL cp_fm_create(Sev, fm_struct)
                CALL cp_dbcsr_sm_fm_multiply(matrix_s, ev, Sev, ncol=nmo, alpha=1.0_dp, beta=0.0_dp)
-               CALL dbcsr_create(pdens, template=matrix_s, matrix_type=dbcsr_type_no_symmetry)
-               ! P(nu,mu) = SUM_j XT(nu,j)*CT(mu,j)
-               CALL cp_dbcsr_plus_fm_fm_t(pdens, ev, Sev, nmo, 1.0_dp, keep_sparsity=.FALSE.)
-               CALL dbcsr_filter(pdens, 1.0e-6_dp)
-               CALL dbcsr_add_on_diag(pdens, -ia_eval(i))
-               ! Conjugate Gradient search for particle states
-               CALL create_col_vec_from_matrix(rvec, pdens, 1)
-               CALL create_col_vec_from_matrix(dvec, pdens, 1)
-               CALL create_col_vec_from_matrix(zvec, pdens, 1)
-               CALL create_col_vec_from_matrix(tvec, pdens, 1)
-               CALL create_col_vec_from_matrix(xvec, pdens, 1)
-               CALL create_replicated_col_vec_from_matrix(rep_col_vec, pdens, 1)
-               CALL create_replicated_row_vec_from_matrix(rep_row_vec, pdens, 1)
-               !
-               CALL dbcsr_set(rvec, 1.0_dp)
-               CALL project_vector(rvec, xvec, gs_mos(ispin)%mos_occ, matrix_s)
-               CALL dbcsr_matrix_colvec_multiply(pdens, xvec, rvec, -1.0_dp, &
-                                                 0.0_dp, rep_row_vec, rep_col_vec)
-               CALL dbcsr_copy(dvec, rvec)
-               CALL vec_product(rvec, rvec, rkrk)
-               DO icg = 1, 20
-                  CALL dbcsr_matrix_colvec_multiply(pdens, dvec, tvec, 1.0_dp, &
-                                                    0.0_dp, rep_row_vec, rep_col_vec)
-                  CALL project_vector(tvec, zvec, gs_mos(ispin)%mos_occ, matrix_s)
-                  CALL vec_product(dvec, zvec, dkz)
-                  alpha = rkrk/dkz
-                  CALL dbcsr_add(xvec, dvec, 1.0_dp, alpha)
-                  CALL dbcsr_add(rvec, zvec, 1.0_dp, -alpha)
-                  rr = rkrk
-                  CALL vec_product(rvec, rvec, rkrk)
-                  IF (rkrk < 1.E-8_dp) EXIT
-                  beta = rkrk/rr
-                  CALL dbcsr_add(dvec, rvec, beta, 1.0_dp)
-               END DO
-               !
-               CALL cp_fm_get_info(gs_mos(1)%mos_occ, matrix_struct=fm_struct)
                CALL cp_fm_struct_create(fmstruct=fm_mo_struct, template_fmstruct=fm_struct, &
-                                        nrow_global=nao, ncol_global=1)
-               CALL cp_fm_create(wvec, fm_mo_struct)
+                                        nrow_global=nao, ncol_global=nao)
+               CALL cp_fm_create(tmat, fm_mo_struct)
+               CALL cp_fm_create(smat, fm_mo_struct)
+               CALL cp_fm_create(wmat, fm_mo_struct)
+               CALL cp_fm_create(work, fm_mo_struct)
                CALL cp_fm_struct_release(fm_mo_struct)
-               CALL copy_dbcsr_to_fm(xvec, wvec)
-               CALL cp_fm_to_fm(wvec, nto_set(2)%mo_set%mo_coeff, 1, 1, i)
-               CALL cp_fm_release(wvec)
-               !
-               CALL dbcsr_release(rep_col_vec)
-               CALL dbcsr_release(rep_row_vec)
-               CALL dbcsr_release(rvec)
-               CALL dbcsr_release(dvec)
-               CALL dbcsr_release(zvec)
-               CALL dbcsr_release(tvec)
-               CALL dbcsr_release(xvec)
-
+               CALL copy_dbcsr_to_fm(matrix_s, smat)
+               CALL parallel_gemm('N', 'T', nao, nao, nmo, 1.0_dp, Sev, Sev, 0.0_dp, tmat)
+               CALL cp_fm_geeig(tmat, smat, wmat, eigvals, work)
+               DO i = 1, nnto
+                  IF (ispin == ia_index(2, i)) THEN
+                     icg = 0
+                     DO j = 1, nao
+                        IF (ABS(eigvals(j) - ia_eval(i)) < 1.E-6_dp) THEN
+                           icg = j
+                           EXIT
+                        END IF
+                     END DO
+                     IF (icg == 0) THEN
+                        CALL cp_warn(__LOCATION__, &
+                                     "Could not locate particle state associated with hole state.")
+                     ELSE
+                        CALL cp_fm_to_fm(wmat, nto_set(2)%mo_set%mo_coeff, 1, icg, i)
+                     END IF
+                  END IF
+               END DO
+               DEALLOCATE (eigvals)
                CALL cp_fm_release(Sev)
-               CALL dbcsr_release(pdens)
+               CALL cp_fm_release(tmat)
+               CALL cp_fm_release(smat)
+               CALL cp_fm_release(wmat)
+               CALL cp_fm_release(work)
             END DO
             ! print
             IF (iounit > 0) THEN
