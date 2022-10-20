@@ -26,7 +26,7 @@
 include(FindPackageHandleStandardArgs)
 include(cp2k_utils)
 
-cp2k_set_default_paths(PTSCOTCH)
+cp2k_set_default_paths(PTSCOTCH "Ptscotch")
 
 find_package(Parmetis REQUIRED)
 find_package(Threads REQUIRED)

@@ -23,33 +23,12 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# .rst: FindOPENBLAS
-# -----------
-#
-# This module tries to find the OPENBLAS library.
-#
-# The following variables are set
-#
-# ::
-#
-# OPENBLAS_FOUND           - True if openblas is found OPENBLAS_LIBRARIES - The
-# required libraries OPENBLAS_INCLUDE_DIRS    - The required include directory
-#
-# The following import target is created
-#
-# ::
-#
-# OpenBLAS::openblas
-
-# set paths to look for library from ROOT variables.If new policy is set,
-# find_library() automatically uses them.
-
 include(cp2k_utils)
 include(FindPackageHandleStandardArgs)
 
 find_package(PkgConfig)
 
-cp2k_set_default_paths(OPENBLAS)
+cp2k_set_default_paths(OPENBLAS "OpenBLAS")
 
 if(PKG_CONFIG_FOUND)
   pkg_check_modules(CP2K_OPENBLAS openblas)

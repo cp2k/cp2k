@@ -27,11 +27,14 @@ include(FindPackageHandleStandardArgs)
 include(cp2k_utils)
 
 find_package(PkgConfig)
-cp2k_set_default_paths(SUPERLU)
-pkg_search_module(CP2K_SUPERLU "superlu superlu_dist")
+cp2k_set_default_paths(SUPERLU "SuperLU")
+pkg_check_module(CP2K_SUPERLU IMPORTED_TARGET GLOBAL "superlu superlu_dist")
 
 if(NOT CP2K_SUPERLU_FOUND)
   cp2k_find_libraries(SUPERLU "superlu;superlu_dist")
+endif()
+
+if(NOT CP2K_SUPERLU_INCLUDE_DIRS)
   cp2k_include_dirs(SUPERLU
                     "supermatrix.h;SuperLU/supermatrix.h;superlu/supermatrix.h")
 endif()

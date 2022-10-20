@@ -30,7 +30,7 @@
 include(FindPackageHandleStandardArgs)
 include(cp2k_utils)
 
-cp2k_set_default_paths(FFTW3)
+cp2k_set_default_paths(FFTW3 "Fftw")
 
 # Check if we can use PkgConfig
 find_package(PkgConfig)

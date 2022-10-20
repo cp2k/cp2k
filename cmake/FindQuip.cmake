@@ -27,7 +27,7 @@ include(FindPackageHandleStandardArgs)
 find_package(PkgConfig)
 cp2k_set_default_paths(LIBQUIP)
 
-pkg_search_module(CP2K_LIBQUIP quip)
+pkg_search_module(CP2K_LIBQUIP quip "Quip")
 
 if(CP2K_LIBQUIP_FOUND)
   cp2k_find_libraries(LIBQUIP "quip")

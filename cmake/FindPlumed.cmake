@@ -27,12 +27,12 @@ include(FindPackageHandleStandardArgs)
 include(cp2k_utils)
 find_package(PkgConfig)
 
-cp2k_set_default_paths(PLUMED)
+cp2k_set_default_paths(PLUMED "Plumed")
 
 # First try with pkg
 if(PKG_CONFIG_FOUND)
   # plumed has a pkg-config module
-  pkg_check_module(CP2K_PLUMED "plumed")
+  pkg_check_module(CP2K_PLUMED IMPORTED_TARGET GLOBAL "plumed")
 endif()
 
 if(NOT ${CP2K_PLUMED_FOUND})

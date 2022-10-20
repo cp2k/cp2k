@@ -29,7 +29,7 @@
 include(FindPackageHandleStandardArgs)
 include(cp2k_utils)
 
-cp2k_set_default_paths(ATLAS)
+cp2k_set_default_paths(ATLAS "Atlas")
 
 cp2k_find_libraries(ATLAS "atlas")
 cp2k_include_dirs(FFTW3 "cblas.h atlas/cblas.h")

@@ -1,3 +1,5 @@
+# Build cp2k with cmake
+
 This document regroups information about the cp2k cmake system. CMake is used to
 detect cp2k dependencies and configure the compilation process. Dependencies
 should be installed independently either with a distribution package manager,
@@ -24,11 +26,12 @@ build system was tested with MKL, cray libsci, openblas, flexiblas but it should
 also work with blis, or ATLAS. Corresponding findPACKAGE.cmake are included but
 they still need testing.
 
-Options turned on by default are CP2K_USE_LIBXSMM, CP2K_USE_FFTW3, CP2K_USE_LIBXC,
-CP2K_USE_COSMA, CP2K_USE_LIBINT2. Additionally MPI, DBCSR, OPENMP, SCALAPACK, and BLAS/LAPACK
-are mandatory and can not be turned off. the arguement `-DCP2K_USE_OPTION=ON,
-OFF` can be added to the cmake command line turn `ON` or `OFF` a specific
-option. The list of currently supported optional dependencies is
+Options turned on by default are CP2K_USE_LIBXSMM, CP2K_USE_FFTW3,
+CP2K_USE_LIBXC, CP2K_USE_COSMA, CP2K_USE_LIBINT2. Additionally MPI, DBCSR,
+OPENMP, SCALAPACK, and BLAS/LAPACK are mandatory and can not be turned off. the
+arguement `-DCP2K_USE_OPTION=ON, OFF` can be added to the cmake command line
+turn `ON` or `OFF` a specific option. The list of currently supported optional
+dependencies is
 
 - CP2K_USE_SIRIUS = OFF : add SIRIUS support to cp2k
 
@@ -80,10 +83,12 @@ option. The list of currently supported optional dependencies is
 - CP2K_BLAS_INTERFACE = 32 bits, 64 bits : size of the integers for the matrices
   and vectors sizes. default 32 bits
 
-- CP2K_DEV_OPTIONS = OFF : enable developer options. the main purpose is for debugging
-    - CP2K_USE_GRID_GPU = ON : turn on of gpu support for collocate integrate
-    - CP2K_USE_PW_GPU = ON, turn on or off gpu fft support
-    - CP2K_USE_DBM_GPU = ON turn on or off dbm gpu support
+- CP2K_DEV_OPTIONS = OFF : enable developer options. the main purpose is for
+  debugging
+  
+  - CP2K_USE_GRID_GPU = ON : turn on of gpu support for collocate integrate
+  - CP2K_USE_PW_GPU = ON, turn on or off gpu fft support
+  - CP2K_USE_DBM_GPU = ON turn on or off dbm gpu support
 
 It is also possible to compile CP2K with GPU support namely CUDA or HIP. To do
 so, add `-DCP2K_USE_ACCEL=CUDA,HIP -DCP2K_WITH_GPU=gpu_arch` to the cmake
@@ -97,55 +102,64 @@ ROCM 5.0.x is known to have a bug in the cmake configuration files. It is
 possible to go around this but at the expense of time. The build system was not
 tested with ROCM 5.1.x but this version shows performance regression and should
 be avoided. The Jiting capabilities of ROCM 5.2.x do not work properly which
-affects DBCSR. It is highly recommended to update ROCM to the latest version to avoid
-all these issues. CP2K can be built with ROCM 5.2.x but GPU support in dbcsr
-should be tunred off otherwise a crash should be expected.
+affects DBCSR. It is highly recommended to update ROCM to the latest version to
+avoid all these issues. CP2K can be built with ROCM 5.2.x but GPU support in
+dbcsr should be tunred off otherwise a crash should be expected.
 
-Threading with blas and lapack
+## Threading with blas and lapack
 
 CP2K expect by default a single threaded version of blas and lapack. The option
-`-DCP2K_BLAS_THREADING` can change this behavior. Be careful when tweaking
-this specific option as many implementations of blas / lapack are easier
-threaded or (exclusive) sequential but not both. I think the only exception to
-this is MKL. Also note that CP2K dependencies will most likely have the same
-issue (COSMA with cray-libsci for instance)
+`-DCP2K_BLAS_THREADING` can change this behavior. Be careful when tweaking this
+specific option as many implementations of blas / lapack are easier threaded or
+(exclusive) sequential but not both. I think the only exception to this is MKL.
+Also note that CP2K dependencies will most likely have the same issue (COSMA
+with cray-libsci for instance)
+
+## typical examples of cmake use
 
 The following list gives several examples of cmake command lines. Just add
 `-DCP2K_USE_SIRIUS=ON` to add support of SIRIUS in cp2k
 
-``cmake -DCP2K_INSTALL_PREFIX=/myprefix ..``
+```shell cmake -DCP2K_INSTALL_PREFIX=/myprefix ..```
 
 then
 
-``make``
+```shell make```
 
 - MKL
 
 the command line is
 
-``cmake -DCP2K_INSTALL_PREFIX=/myprefix -DCP2K_BLAS_VENDOR=MKL -DCP2K_SCALAPACK_VENDOR=MKL ..``
+```shell cmake -DCP2K_INSTALL_PREFIX=/myprefix -DCP2K_BLAS_VENDOR=MKL
+-DCP2K_SCALAPACK_VENDOR=MKL ..```
 
 - Cray environments (with cray-libsci)
-``
-MPICC=cc MPICXX=CC cmake -DCP2K_INSTALL_PREFIX=/myprefix -DCP2K_BLAS_VENDOR=SCI -DCP2K_SCALAPACK_VENDOR=SCI ..
-``
 
-CUDA / HIP
+```shell
+MPICC=cc MPICXX=CC cmake -DCP2K_INSTALL_PREFIX=/myprefix
+-DCP2K_BLAS_VENDOR=SCI -DCP2K_SCALAPACK_VENDOR=SCI .. ```
 
-Let us consider the case where openblas and netlib scalapack are installed (openmpi or mpich)
+## CUDA / HIP
 
-cmake -DCP2K_INSTALL_PREFIX=/myprefix -DCP2K_BLAS_VENDOR=openblas -DCP2K_SCALAPACK_VENDOR=GENERIC -DCP2K_USE_ACCEL=CUDA -DCP2K_WITH_GPU=A100 ..
+Let us consider the case where openblas and netlib scalapack are installed
+(openmpi or mpich)
 
-if HIP is needed than 
+```shell
+cmake -DCP2K_INSTALL_PREFIX=/myprefix -DCP2K_BLAS_VENDOR=openblas
+-DCP2K_SCALAPACK_VENDOR=GENERIC -DCP2K_USE_ACCEL=CUDA -DCP2K_WITH_GPU=A100 ..```
 
-cmake -DCP2K_INSTALL_PREFIX=/myprefix -DCP2K_BLAS_VENDOR=openblas -DCP2K_SCALAPACK_VENDOR=GENERIC -DCP2K_USE_ACCEL=HIP -DCP2K_WITH_GPU=Mi250 ..
+if HIP is needed than
 
-troubleshooting
+```shell
+cmake -DCP2K_INSTALL_PREFIX=/myprefix -DCP2K_BLAS_VENDOR=openblas
+-DCP2K_SCALAPACK_VENDOR=GENERIC -DCP2K_USE_ACCEL=HIP -DCP2K_WITH_GPU=Mi250 ..```
+
+## troubleshooting
 
 This build system is relatevily stable and was tested on Cray, IBM, and redhat
 like distributions. However it is not perfect and problems will show up, that's
 why the two build systems will be available. We encourage the user to test the
-build system just reporting the output of `cmake ..` is already beneficial. 
+build system just reporting the output of 'cmake ..' is already beneficial.
 
 The best way to report these problems is to open an issue including the cmake
 command line, error message, and operating systems.
@@ -158,11 +172,8 @@ recently. While CUDA support will be detected, the cuda maths libraries may not.
 - HIP : CMAKE support of ROCM is still under development and is known to fail
 from time to time. Update to ROCM 5.3.x or above to solve the issue.
 
-- BLAS / LAPACK / SCALAPACK : use the options `CP2k_BLAS_VENDOR` and
-`CP2K_SCALPACK_VENDOR` if you know that `MKL` or `SCI` (cray libsci) are
-present. `-DCP2k_BLAS_VENDOR=OpenBLAS` will also help if openBLAS is used.
-Detecting the scalapack library might also fail if the user environment is not
-properly set up.
-
-
-
+- BLAS / LAPACK / SCALAPACK : use the options 'CP2K_BLAS_VENDOR' and
+'CP2K_SCALPACK_VENDOR' if you know that 'MKL' or 'SCI' (cray libsci) are
+present. '-DCP2k_BLAS_VENDOR=OpenBLAS' will also help cmake to find OpenBLAS if
+it is used. Detecting the scalapack library might also fail if the user
+environment is not properly set up.

@@ -27,7 +27,7 @@ include(FindPackageHandleStandardArgs)
 find_package(PkgConfig REQUIRED)
 include(cp2k_utils)
 
-cp2k_set_default_paths(LIBXC)
+cp2k_set_default_paths(LIBXC "LibXC")
 
 if(PKG_CONFIG_FOUND)
   pkg_check_modules(CP2K_LIBXC libxc>=${LibXC_FIND_VERSION} libxcf03 libxcf90
@@ -39,10 +39,10 @@ if(NOT CP2K_LIBXC_FOUND)
     string(TOUPPER LIB${_var} _var_up)
     cp2k_find_libraries(${_var_up} ${_var})
   endforeach()
+endif()
+
+if(NOT CP2K_LIBXC_INCLUDE_DIRS)
   cp2k_include_dirs(LIBXC "xc.h;libxc/xc.h")
-  if(NOT CP2K_LIBXC_INCLUDE_DIRS)
-    cp2k_include_dirs(LIBXC xc.h)
-  endif()
 endif()
 
 if(CP2K_LIBXC_INCLUDE_DIRS)

@@ -28,7 +28,7 @@ include(cp2k_utils)
 
 find_package(PkgConfig)
 
-cp2k_set_default_paths(ARMPL)
+cp2k_set_default_paths(ARMPL "Armpl")
 
 foreach(_var armpl_ilp64 armpl_lp64 armpl_ilp64_mp armpl_lp64_mp)
   string(TOUPPER ${_var} _var_up)

@@ -26,7 +26,7 @@
 include(FindPackageHandleStandardArgs)
 include(cp2k_utils)
 
-cp2k_set_default_paths(SCALAPACK)
+cp2k_set_default_paths(SCALAPACK "SCALAPACK")
 
 # check if we have mkl as blas library or not and pick the scalapack from mkl
 # distro if found

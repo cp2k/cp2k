@@ -28,7 +28,7 @@
 include(FindPackageHandleStandardArgs)
 include(cp2k_utils)
 
-cp2k_set_default_paths(LIBSCI)
+cp2k_set_default_paths(LIBSCI "SCI")
 
 # we might need to change the logic a little here since the cp2k_find_library
 # function expect to have CP2K_package_PREFIX set.

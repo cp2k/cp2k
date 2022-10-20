@@ -643,6 +643,7 @@ list(
   qs_tddfpt_module.F
   qs_tddfpt_types.F
   qs_tddfpt_utils.F
+  qs_tddfpt2_fprint.F
   qs_tensors.F
   qs_tensors_types.F
   qs_update_s_mstruct.F

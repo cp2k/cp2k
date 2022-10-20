@@ -26,7 +26,7 @@
 include(FindPackageHandleStandardArgs)
 include(cp2k_utils)
 
-cp2k_set_default_paths(FLEXIBLAS)
+cp2k_set_default_paths(FLEXIBLAS "FlexiBLAS")
 
 # try first with pkg-config
 find_package(PkgConfig QUIET)

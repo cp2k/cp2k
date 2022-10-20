@@ -26,7 +26,7 @@
 include(FindPackageHandleStandardArgs)
 include(cp2k_utils)
 
-cp2k_set_default_paths(METIS)
+cp2k_set_default_paths(METIS "Metis")
 
 cp2k_find_libraries(FLEXIBLAS "metis")
 cp2k_include_dirs(FFTW3 "metis.h")

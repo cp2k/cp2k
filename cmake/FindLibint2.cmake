@@ -26,13 +26,19 @@
 include(FindPackageHandleStandardArgs)
 include(cp2k_utils)
 
+cp2k_set_default_paths(LIBINT2 "Libint2")
+
 find_package(PkgConfig REQUIRED)
+
 if(PKG_CONFIG_FOUND)
-  pkg_check_modules(CP2K_LIBINT2 QUIET libint2)
+  pkg_check_modules(CP2K_LIBINT2 IMPORTED_TARGET GLOBAL libint2)
 endif()
 
 if(NOT CP2K_LIBINT2_FOUND)
   cp2k_find_libraries(LIBINT2 int2)
+endif()
+
+if(NOT CP2K_LIBINT2_INCLUDE_DIRS)
   cp2k_include_dirs(LIBINT2 "libint2.h;libint2/atom.h")
 endif()
 

@@ -23,79 +23,52 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# .rst: FindBLIS
-# -----------
-#
-# This module tries to find the BLIS library.
-#
-# The following variables are set
-#
-# ::
-#
-# BLIS_FOUND           - True if blis is found BLIS_LIBRARIES       - The
-# required libraries BLIS_INCLUDE_DIRS    - The required include directory
-#
-# The following import target is created
-#
-# ::
-#
-# BLIS::blis
-
-# set paths to look for library from ROOT variables.If new policy is set,
-# find_library() automatically uses them.
-
 find_package(PkgConfig)
+include(cp2k_utils)
+include(FindPackageHandleStandardArgs)
 
-if(DEFINED BLIS_ROOT)
-  list(APPEND _BLIS_PATHS ${BLIS_ROOT} $ENV{BLIS_ROOT})
-endif()
+cp2k_set_default_paths(BLIS "BLIS")
 
 if(DEFINED AOCL_ROOT)
-  list(APPEND _BLIS_PATHS ${AOCL_ROOT} $ENV{AOCL_ROOT})
+  list(CP2K_BLIS_PREFIX "${AOCL_ROOT}" "$ENV{AOCL_ROOT}")
 endif()
 
 # one day blis will have a pkg-config file
 if(PKG_CONFIG_FOUND)
-  pkg_check_modules(BLIS blis)
+  pkg_check_modules(BLIS IMPORTED_TARGET GLOBAL blis)
 endif()
 
-if(NOT BLIS_FOUND)
-  find_library(
-    BLIS_LIBRARIES
-    NAMES "blis-mt" "blis"
-    HINTS ${_BLIS_PATHS}
-    PATH_SUFFIXES "blis/lib" "blis/lib64" "blis")
+if(NOT CP2K_BLIS_FOUND)
+  cp2k_find_libraries(BLIS "blis")
 endif()
 
-find_path(
-  BLIS_INCLUDE_DIRS
-  NAMES "blis.h"
-  HINTS ${_BLIS_PATHS}
-  PATH_SUFFIXES "blis" "blis/include" "include/blis")
+if(NOT CP2K_BLIS_INCLUDE_DIRS)
+  cp2k_include_dirs(BLIS "blis.h")
+endif()
 
 # check if found
-include(FindPackageHandleStandardArgs)
-if(BLIS_INCLUDE_DIRS)
-  find_package_handle_standard_args(BLIS REQUIRED_VARS BLIS_INCLUDE_DIRS
-                                                       BLIS_LIBRARIES)
+if(CP2K_BLIS_INCLUDE_DIRS)
+  find_package_handle_standard_args(
+    BLIS REQUIRED_VARS CP2K_BLIS_FOUND CP2K_BLIS_INCLUDE_DIRS
+                       CP2K_BLIS_LINK_LIBRARIES)
 else()
-  find_package_handle_standard_args(BLIS REQUIRED_VARS BLIS_LIBRARIES)
-endif()
-
-if(NOT BLIS_FOUND)
-  set(BLIS_FOUND ON)
+  find_package_handle_standard_args(BLIS REQUIRED_VARS CP2K_BLIS_FOUND
+                                                       CP2K_BLIS_LINK_LIBRARIES)
 endif()
 
 # add target to link against
-if(BLIS_FOUND AND NOT TARGET BLIS::blis)
-  add_library(BLIS::blis INTERFACE IMPORTED)
+if(CP2K_BLIS_FOUND AND NOT TARGET CP2K_BLIS::blis)
+  add_library(CP2K_BLIS::blis INTERFACE IMPORTED)
 endif()
-set_property(TARGET BLIS::blis PROPERTY INTERFACE_LINK_LIBRARIES
-                                        ${BLIS_LIBRARIES})
+
+set_property(TARGET CP2K_BLIS::blis PROPERTY INTERFACE_LINK_LIBRARIES
+                                             ${CP2K_BLIS_LINK_LIBRARIES})
+
 if(BLIS_INCLUDE_DIRS)
-  set_property(TARGET BLIS::blis PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-                                          ${BLIS_INCLUDE_DIRS})
+  set_property(TARGET CP2K_BLIS::blis PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+                                               ${CP2K_BLIS_INCLUDE_DIRS})
 endif()
-endif()
+
 # prevent clutter in cache
-mark_as_advanced(BLIS_FOUND BLIS_LIBRARIES BLIS_INCLUDE_DIRS)
+mark_as_advanced(CP2K_BLIS_FOUND CP2K_BLIS_LINK_LIBRARIES
+                 CP2K_BLIS_INCLUDE_DIRS)

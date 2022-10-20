@@ -28,7 +28,7 @@
 include(FindPackageHandleStandardArgs)
 include(cp2k_utils)
 
-cp2k_set_default_paths(ELPA)
+cp2k_set_default_paths(ELPA "Elpa")
 
 find_package(PkgConfig)
 

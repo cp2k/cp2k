@@ -26,7 +26,7 @@ include(FindPackageHandleStandardArgs)
 include(cp2k_utils)
 find_package(PkgConfig REQUIRED)
 
-cp2k_set_default_paths(LIBXSMM)
+cp2k_set_default_paths(LIBXSMM "LibXSMM")
 set(CP2K_LIBXSMMEXT_PREFIX "${CP2K_LIBXSMM_PREFIX}")
 set(CP2K_LIBXSMMF_PREFIX "${CP2K_LIBXSMM_PREFIX}")
 set(CP2K_LIBXSMMNOBLAS_PREFIX "${CP2K_LIBXSMM_PREFIX}")
@@ -45,6 +45,10 @@ foreach(__lib libxsmm libxsmmf libxsmmext libxsmmnoblas)
   endif()
 endforeach()
 
+if(NOT CP2K_LIBXSMM_INCLUDE_DIRS)
+  cp2k_include_dirs(LIBXSMM "libxsmm.h")
+endif()
+
 if(CP2K_LIBXSMM_INCLUDE_DIRS)
   find_package_handle_standard_args(
     LibXSMM
@@ -59,7 +63,6 @@ else()
     LibXSMM DEFAULT_MSG CP2K_LIBXSMMNOBLAS_LINK_LIBRARIES
     CP2K_LIBXSMMEXT_LINK_LIBRARIES CP2K_LIBXSMMF_LINK_LIBRARIES
     CP2K_LIBXSMM_LINK_LIBRARIES)
-  set(CP2K_LIBXSMM_INCLUDE_DIRS "/usr/include;/usr/include/libxsmm")
 endif()
 
 if(NOT TARGET CP2K_LibXSMM::libxsmm)
@@ -73,7 +76,6 @@ if(NOT TARGET CP2K_LibXSMM::libxsmm)
                    "${${__lib_search_up}_LINK_LIBRARIES}")
     endif()
   endforeach()
-  message("LibXSMM : ${CP2K_LIBXSMM_INCLUDE_DIRS}")
   if(CP2K_LIBXSMM_INCLUDE_DIRS)
     set_target_properties(
       CP2K_LibXSMM::libxsmm PROPERTIES INTERFACE_INCLUDE_DIRECTORIES

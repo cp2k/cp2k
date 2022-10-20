@@ -32,7 +32,7 @@ include(cp2k_utils)
 
 find_package(PkgConfig REQUIRED)
 
-cp2k_set_default_paths(LIBVDWXC)
+cp2k_set_default_paths(LIBVDWXC "LibVDWXC")
 
 pkg_search_module(CP2K_LIBVDWXC libvdwxc>=${LibVDWXC_FIND_VERSION})
 
