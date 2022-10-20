@@ -53,8 +53,7 @@ MODULE cp_subsys_types
                                               particle_list_retain,&
                                               particle_list_type
    USE particle_types,                  ONLY: particle_type
-   USE virial_types,                    ONLY: virial_release,&
-                                              virial_type
+   USE virial_types,                    ONLY: virial_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -172,7 +171,7 @@ CONTAINS
             CALL colvar_p_release(subsys%colvar_p)
             CALL deallocate_global_constraint(subsys%gci)
             CALL atprop_release(subsys%atprop)
-            CALL virial_release(subsys%virial)
+            IF (ASSOCIATED(subsys%virial)) DEALLOCATE (subsys%virial)
             CALL cp_result_release(subsys%results)
             CALL cell_release(subsys%cell)
             DEALLOCATE (subsys)

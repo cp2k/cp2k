@@ -21,31 +21,28 @@ MODULE virial_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'virial_types'
 
-   INTEGER, PRIVATE, SAVE :: last_virial_id_nr = 0
-
    PUBLIC :: virial_type, virial_p_type
 
    TYPE virial_type
-      INTEGER                        :: ref_count, id_nr
-      REAL(KIND=dp), DIMENSION(3, 3) :: pv_total, &
-                                        pv_kinetic, &
-                                        pv_virial, &
-                                        pv_xc, &
-                                        pv_fock_4c, &
-                                        pv_constraint
-      REAL(KIND=dp), DIMENSION(3, 3) :: pv_overlap, &
-                                        pv_ekinetic, &
-                                        pv_ppl, &
-                                        pv_ppnl, &
-                                        pv_ecore_overlap, &
-                                        pv_ehartree, &
-                                        pv_exc, &
-                                        pv_exx, &
-                                        pv_vdw, &
-                                        pv_mp2, &
-                                        pv_nlcc, &
-                                        pv_gapw, &
-                                        pv_lrigpw
+      REAL(KIND=dp), DIMENSION(3, 3) :: pv_total = 0.0_dp, &
+                                        pv_kinetic = 0.0_dp, &
+                                        pv_virial = 0.0_dp, &
+                                        pv_xc = 0.0_dp, &
+                                        pv_fock_4c = 0.0_dp, &
+                                        pv_constraint = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3, 3) :: pv_overlap = 0.0_dp, &
+                                        pv_ekinetic = 0.0_dp, &
+                                        pv_ppl = 0.0_dp, &
+                                        pv_ppnl = 0.0_dp, &
+                                        pv_ecore_overlap = 0.0_dp, &
+                                        pv_ehartree = 0.0_dp, &
+                                        pv_exc = 0.0_dp, &
+                                        pv_exx = 0.0_dp, &
+                                        pv_vdw = 0.0_dp, &
+                                        pv_mp2 = 0.0_dp, &
+                                        pv_nlcc = 0.0_dp, &
+                                        pv_gapw = 0.0_dp, &
+                                        pv_lrigpw = 0.0_dp
       LOGICAL                        :: pv_availability, &
                                         pv_calculate, &
                                         pv_numer, &
@@ -56,7 +53,7 @@ MODULE virial_types
       TYPE(virial_type), POINTER     :: virial
    END TYPE virial_p_type
 
-   PUBLIC :: cp_virial, virial_create, virial_release, virial_set, &
+   PUBLIC :: cp_virial, virial_set, &
              symmetrize_virial, zero_virial
 
 CONTAINS
@@ -265,43 +262,5 @@ CONTAINS
       IF (PRESENT(pv_diagonal)) virial%pv_diagonal = pv_diagonal
 
    END SUBROUTINE virial_set
-
-! **************************************************************************************************
-!> \brief ...
-!> \param virial ...
-! **************************************************************************************************
-   SUBROUTINE virial_create(virial)
-      TYPE(virial_type), POINTER                         :: virial
-
-      ALLOCATE (virial)
-      CALL zero_virial(virial)
-      last_virial_id_nr = last_virial_id_nr + 1
-      virial%id_nr = last_virial_id_nr
-      virial%ref_count = 1
-
-   END SUBROUTINE virial_create
-
-! **************************************************************************************************
-!> \brief releases the given virial_type
-!> \param virial the virial_type to release
-!> \par History
-!>      Created (04.2003, fawzi)
-!> \author fawzi
-!> \note
-!>      see doc/ReferenceCounting.html
-! **************************************************************************************************
-   SUBROUTINE virial_release(virial)
-      TYPE(virial_type), POINTER                         :: virial
-
-      IF (ASSOCIATED(virial)) THEN
-         CPASSERT(virial%ref_count > 0)
-         virial%ref_count = virial%ref_count - 1
-         IF (virial%ref_count == 0) THEN
-            DEALLOCATE (virial)
-         END IF
-         NULLIFY (virial)
-      END IF
-
-   END SUBROUTINE virial_release
 
 END MODULE virial_types

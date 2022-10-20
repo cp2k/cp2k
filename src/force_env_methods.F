@@ -160,9 +160,7 @@ MODULE force_env_methods
                                               write_stress_tensor_components
    USE virial_types,                    ONLY: cp_virial,&
                                               symmetrize_virial,&
-                                              virial_create,&
                                               virial_p_type,&
-                                              virial_release,&
                                               virial_type,&
                                               zero_virial
 #include "./base/base_uses.f90"
@@ -944,7 +942,8 @@ CONTAINS
          DO iforce_eval = 1, nforce_eval
             NULLIFY (subsystems(iforce_eval)%subsys, particles(iforce_eval)%list)
             NULLIFY (results(iforce_eval)%results, virials(iforce_eval)%virial)
-            CALL virial_create(virials(iforce_eval)%virial)
+            ALLOCATE (virials(iforce_eval)%virial)
+            CALL zero_virial(virials(iforce_eval)%virial)
             CALL cp_result_create(results(iforce_eval)%results)
             IF (.NOT. ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
             ! From this point on the error is the sub_error
@@ -1166,7 +1165,7 @@ CONTAINS
       !Simply deallocate and loose the pointer references..
       DO iforce_eval = 1, nforce_eval
          DEALLOCATE (global_forces(iforce_eval)%forces)
-         CALL virial_release(virials(iforce_eval)%virial)
+         IF (ASSOCIATED(virials(iforce_eval)%virial)) DEALLOCATE (virials(iforce_eval)%virial)
          CALL cp_result_release(results(iforce_eval)%results)
       END DO
       DEALLOCATE (global_forces)
@@ -1250,7 +1249,8 @@ CONTAINS
       DO iforce_eval = 1, nforce_eval
          NULLIFY (subsystems(iforce_eval)%subsys, particles(iforce_eval)%list)
          NULLIFY (results(iforce_eval)%results, virials(iforce_eval)%virial)
-         CALL virial_create(virials(iforce_eval)%virial)
+         ALLOCATE (virials(iforce_eval)%virial)
+         CALL zero_virial(virials(iforce_eval)%virial)
          CALL cp_result_create(results(iforce_eval)%results)
          IF (.NOT. ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
          ! Get all available subsys
