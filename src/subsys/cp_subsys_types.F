@@ -48,8 +48,7 @@ MODULE cp_subsys_types
                                               global_constraint_type,&
                                               molecule_type
    USE multipole_types,                 ONLY: multipole_type,&
-                                              release_multipole_type,&
-                                              retain_multipole_type
+                                              release_multipole_type
    USE particle_list_types,             ONLY: particle_list_release,&
                                               particle_list_retain,&
                                               particle_list_type
@@ -166,7 +165,10 @@ CONTAINS
             CALL molecule_list_release(subsys%molecules)
             CALL distribution_1d_release(subsys%local_molecules)
             CALL cp_para_env_release(subsys%para_env)
-            CALL release_multipole_type(subsys%multipoles)
+            IF (ASSOCIATED(subsys%multipoles)) THEN
+               CALL release_multipole_type(subsys%multipoles)
+               DEALLOCATE (subsys%multipoles)
+            END IF
             CALL colvar_p_release(subsys%colvar_p)
             CALL deallocate_global_constraint(subsys%gci)
             CALL atprop_release(subsys%atprop)
@@ -221,8 +223,12 @@ CONTAINS
 
       CPASSERT(subsys%ref_count > 0)
       IF (PRESENT(multipoles)) THEN
-         CALL retain_multipole_type(multipoles)
-         CALL release_multipole_type(subsys%multipoles)
+         IF (ASSOCIATED(subsys%multipoles)) THEN
+         IF (.NOT. ASSOCIATED(subsys%multipoles, multipoles)) THEN
+            CALL release_multipole_type(subsys%multipoles)
+            DEALLOCATE (subsys%multipoles)
+         END IF
+         END IF
          subsys%multipoles => multipoles
       END IF
       IF (PRESENT(atomic_kinds)) THEN

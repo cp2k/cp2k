@@ -63,8 +63,7 @@ MODULE fist_environment
                                               write_molecule_kind_set
    USE molecule_types,                  ONLY: molecule_type
    USE multipole_types,                 ONLY: create_multipole_type,&
-                                              multipole_type,&
-                                              release_multipole_type
+                                              multipole_type
    USE particle_list_types,             ONLY: particle_list_create,&
                                               particle_list_release,&
                                               particle_list_type
@@ -305,8 +304,10 @@ CONTAINS
       ! Possibly Initialize the multipole environment
       CALL ewald_env_get(ewald_env, do_multipoles=do_multipoles, &
                          max_multipole=max_multipole)
-      IF (do_multipoles) &
+      IF (do_multipoles) THEN
+         ALLOCATE (multipoles)
          CALL create_multipole_type(multipoles, particle_set, subsys_section, max_multipole)
+      END IF
       CALL cp_subsys_set(subsys, multipoles=multipoles, cell=cell)
 
       ! Set the fist_env
@@ -321,7 +322,6 @@ CONTAINS
       CALL distribution_1d_release(local_particles)
       CALL distribution_1d_release(local_molecules)
       CALL ewald_pw_release(ewald_pw)
-      CALL release_multipole_type(multipoles)
       CALL timestop(handle)
 
    END SUBROUTINE fist_init_subsys
