@@ -46,8 +46,6 @@ MODULE pint_types
 
    ! ***************************************************************************
    !> \brief environment for a path integral run
-   !> \param ref_count reference count of this data structure
-   !> \param id_nr identification number of this data structure
    !> \param p number of replicas/beads
    !> \param nnos nose hoover chain length
    !> \param nrespa number of respa steps
@@ -112,7 +110,7 @@ MODULE pint_types
    !>      2018-02-13 added qtb_therm [Fabien Brieuc]
    ! ***************************************************************************
    TYPE pint_env_type
-      INTEGER :: ref_count, id_nr, p, nnos, nrespa, iter, ndim, transform
+      INTEGER :: p, nnos, nrespa, iter, ndim, transform
       INTEGER :: first_step, last_step, num_steps, first_propagated_mode
       INTEGER :: pimd_thermostat, harm_integrator, thermostat_rng_seed
       REAL(KIND=dp) :: t_tol, v_tol, kT, beta, dt, &
@@ -149,8 +147,6 @@ MODULE pint_types
    ! ***************************************************************************
    !> \brief data to perform the normalmode transformation
    !> \note
-   !>    ref_count     - reference count of this data structure
-   !>    id_nr         - identification number of this data structure
    !>    p             - number of beads
    !>    Q_bead        - thermostat mass for a non-centroid bead
    !>    Q_centroid    - thermostat mass for a centroid degree of freedom
@@ -164,7 +160,7 @@ MODULE pint_types
    !> \author hforbert
    ! ***************************************************************************
    TYPE normalmode_env_type
-      INTEGER :: id_nr, ref_count, p
+      INTEGER :: p
       REAL(KIND=dp) :: Q_bead, Q_centroid, modefactor, harm
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: x2u, u2x
       REAL(KIND=dp), DIMENSION(:), POINTER :: lambda
@@ -173,8 +169,6 @@ MODULE pint_types
    ! ***************************************************************************
    !> \brief data to perform the staging transformation
    !> \note
-   !>    ref_count     - reference count of this data structure
-   !>    id_nr         - identification number of this data structure
    !>    nseg
    !>    j
    !>    p
@@ -185,7 +179,7 @@ MODULE pint_types
    !> \author fawzi
    ! ***************************************************************************
    TYPE staging_env_type
-      INTEGER :: id_nr, ref_count, nseg, j, p
+      INTEGER :: nseg, j, p
       REAL(KIND=dp) w_p, w_j, Q_stage, Q_end
    END TYPE staging_env_type
 
@@ -203,7 +197,6 @@ MODULE pint_types
    !> \author Felix Uhl
    ! ***************************************************************************
    TYPE pile_therm_type
-      INTEGER                                    :: ref_count
       REAL(KIND=dp)                              :: lamb, tau, thermostat_energy
       REAL(KIND=dp), DIMENSION(:), POINTER       :: c1
       REAL(KIND=dp), DIMENSION(:), POINTER       :: c2
@@ -234,7 +227,6 @@ MODULE pint_types
    !> \author Felix Uhl
    ! ***************************************************************************
    TYPE piglet_therm_type
-      INTEGER                              :: ref_count
       INTEGER                              :: ndim, p, nsp1
       REAL(KIND=dp)                        :: thermostat_energy
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: a_mat, c_mat
@@ -271,7 +263,6 @@ MODULE pint_types
    !> \author Fabien Brieuc
    ! ***************************************************************************
    TYPE qtb_therm_type
-      INTEGER                                    :: ref_count
       REAL(KIND=dp)                              :: tau, lamb
       REAL(KIND=dp)                              :: taucut, lambcut
       REAL(KIND=dp), DIMENSION(:), POINTER       :: c1

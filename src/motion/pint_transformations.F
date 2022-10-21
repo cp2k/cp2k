@@ -40,7 +40,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE pint_x2u(pint_env, ux, x)
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(pint_env_type), INTENT(IN)                    :: pint_env
       REAL(kind=dp), DIMENSION(:, :), INTENT(out), &
          OPTIONAL, TARGET                                :: ux
       REAL(kind=dp), DIMENSION(:, :), INTENT(in), &
@@ -48,8 +48,6 @@ CONTAINS
 
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: my_ux, my_x
 
-      CPASSERT(ASSOCIATED(pint_env))
-      CPASSERT(pint_env%ref_count > 0)
       my_x => pint_env%x
       my_ux => pint_env%ux
       IF (PRESENT(x)) my_x => x
@@ -62,7 +60,6 @@ CONTAINS
       ELSE
          CALL normalmode_x2u(pint_env%normalmode_env, ux=my_ux, x=my_x)
       END IF
-      RETURN
    END SUBROUTINE pint_x2u
 
 ! ***************************************************************************
@@ -75,7 +72,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE pint_u2x(pint_env, ux, x)
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(pint_env_type), INTENT(IN)                    :: pint_env
       REAL(kind=dp), DIMENSION(:, :), INTENT(in), &
          OPTIONAL, TARGET                                :: ux
       REAL(kind=dp), DIMENSION(:, :), INTENT(out), &
@@ -83,8 +80,6 @@ CONTAINS
 
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: my_ux, my_x
 
-      CPASSERT(ASSOCIATED(pint_env))
-      CPASSERT(pint_env%ref_count > 0)
       my_x => pint_env%x
       my_ux => pint_env%ux
       IF (PRESENT(x)) my_x => x
@@ -97,7 +92,6 @@ CONTAINS
       ELSE
          CALL normalmode_u2x(pint_env%normalmode_env, ux=my_ux, x=my_x)
       END IF
-      RETURN
    END SUBROUTINE pint_u2x
 
 ! ***************************************************************************
@@ -113,7 +107,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE pint_f2uf(pint_env, uf, f)
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(pint_env_type), INTENT(IN)                    :: pint_env
       REAL(kind=dp), DIMENSION(:, :), INTENT(out), &
          OPTIONAL, TARGET                                :: uf
       REAL(kind=dp), DIMENSION(:, :), INTENT(in), &
@@ -121,8 +115,6 @@ CONTAINS
 
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: my_f, my_uf
 
-      CPASSERT(ASSOCIATED(pint_env))
-      CPASSERT(pint_env%ref_count > 0)
       my_f => pint_env%f
       my_uf => pint_env%uf
       IF (PRESENT(f)) my_f => f
@@ -137,7 +129,6 @@ CONTAINS
       END IF
 
       my_uf = my_uf/pint_env%mass_fict*pint_env%propagator%physpotscale
-      RETURN
    END SUBROUTINE pint_f2uf
 
 END MODULE pint_transformations

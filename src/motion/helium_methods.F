@@ -107,7 +107,7 @@ CONTAINS
    SUBROUTINE helium_create(helium_env, input, solute)
       TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
       TYPE(section_vals_type), POINTER                   :: input
-      TYPE(pint_env_type), OPTIONAL, POINTER             :: solute
+      TYPE(pint_env_type), INTENT(IN), OPTIONAL          :: solute
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'helium_create'
 
@@ -234,11 +234,9 @@ CONTAINS
                l_val=ltmp)
             IF (.NOT. ltmp) THEN
                IF (PRESENT(solute)) THEN
-                  IF (ASSOCIATED(solute)) THEN
-                     helium_env(k)%helium%solute_present = .TRUE.
-                     helium_env(k)%helium%solute_atoms = solute%ndim/3
-                     helium_env(k)%helium%solute_beads = solute%p
-                  END IF
+                  helium_env(k)%helium%solute_present = .TRUE.
+                  helium_env(k)%helium%solute_atoms = solute%ndim/3
+                  helium_env(k)%helium%solute_beads = solute%p
                END IF
             END IF
 
@@ -1020,7 +1018,7 @@ CONTAINS
    SUBROUTINE helium_init(helium_env, pint_env)
 
       TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(pint_env_type), INTENT(IN)                    :: pint_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'helium_init'
 
@@ -2675,7 +2673,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE helium_set_solute_indices(helium, pint_env)
       TYPE(helium_solvent_type), POINTER                 :: helium
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(pint_env_type), INTENT(IN)                    :: pint_env
 
       INTEGER                                            :: iatom, natoms
       REAL(KIND=dp)                                      :: mass
@@ -2721,7 +2719,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE helium_set_solute_cell(helium, pint_env)
       TYPE(helium_solvent_type), POINTER                 :: helium
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(pint_env_type), INTENT(IN)                    :: pint_env
 
       LOGICAL                                            :: my_orthorhombic
       TYPE(cell_type), POINTER                           :: my_cell

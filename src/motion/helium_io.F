@@ -992,7 +992,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE helium_print_action(pint_env, helium_env)
 
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(pint_env_type), INTENT(IN)                    :: pint_env
       TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_print_action'

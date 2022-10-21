@@ -41,20 +41,17 @@ MODULE pint_pile
 
 CONTAINS
 
-   ! ***************************************************************************
-   !> \brief initializes the data for a pile run
-   !> \author Felix Uhl
-   ! ***************************************************************************
-! **************************************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief initializes the data for a pile run
 !> \param pile_therm ...
 !> \param pint_env ...
 !> \param normalmode_env ...
 !> \param section ...
+!> \author Felix Uhl
 ! **************************************************************************************************
    SUBROUTINE pint_pile_init(pile_therm, pint_env, normalmode_env, section)
-      TYPE(pile_therm_type), POINTER                     :: pile_therm
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(pile_therm_type), INTENT(OUT)                 :: pile_therm
+      TYPE(pint_env_type), INTENT(INOUT)                 :: pint_env
       TYPE(normalmode_env_type), POINTER                 :: normalmode_env
       TYPE(section_vals_type), POINTER                   :: section
 
@@ -66,8 +63,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: pint_section, rng_section
 
       pint_env%e_pile = 0.0_dp
-      ALLOCATE (pile_therm)
-      pile_therm%ref_count = 1
       pile_therm%thermostat_energy = 0.0_dp
       !Get input parameter
       CALL section_vals_val_get(section, "TAU", r_val=pile_therm%tau)
@@ -167,50 +162,33 @@ CONTAINS
       CALL timestop(handle)
    END SUBROUTINE pint_pile_step
 
-   ! ***************************************************************************
-   !> \brief releases the pile environment
-   !> \param pile_therm pile data to be released
-   !> \author Felix Uhl
-   ! ***************************************************************************
-! **************************************************************************************************
-!> \brief ...
-!> \param pile_therm ...
+! ***************************************************************************
+!> \brief releases the pile environment
+!> \param pile_therm pile data to be released
+!> \author Felix Uhl
 ! **************************************************************************************************
    SUBROUTINE pint_pile_release(pile_therm)
 
-      TYPE(pile_therm_type), POINTER                     :: pile_therm
+      TYPE(pile_therm_type), INTENT(INOUT)               :: pile_therm
 
-      IF (ASSOCIATED(pile_therm)) THEN
-         pile_therm%ref_count = pile_therm%ref_count - 1
-         IF (pile_therm%ref_count == 0) THEN
-            DEALLOCATE (pile_therm%c1)
-            DEALLOCATE (pile_therm%c2)
-            DEALLOCATE (pile_therm%g_fric)
-            DEALLOCATE (pile_therm%massfact)
-            DEALLOCATE (pile_therm)
-         END IF
-      END IF
-      NULLIFY (pile_therm)
+      DEALLOCATE (pile_therm%c1)
+      DEALLOCATE (pile_therm%c2)
+      DEALLOCATE (pile_therm%g_fric)
+      DEALLOCATE (pile_therm%massfact)
 
-      RETURN
    END SUBROUTINE pint_pile_release
 
-   ! ***************************************************************************
-   !> \brief returns the pile kinetic energy contribution
-   !> \author Felix Uhl
-   ! ***************************************************************************
-! **************************************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief returns the pile kinetic energy contribution
 !> \param pint_env ...
+!> \author Felix Uhl
 ! **************************************************************************************************
    SUBROUTINE pint_calc_pile_energy(pint_env)
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(pint_env_type), INTENT(INOUT)                 :: pint_env
 
       IF (ASSOCIATED(pint_env%pile_therm)) THEN
          pint_env%e_pile = pint_env%pile_therm%thermostat_energy
       END IF
-
-      RETURN
 
    END SUBROUTINE pint_calc_pile_energy
 END MODULE

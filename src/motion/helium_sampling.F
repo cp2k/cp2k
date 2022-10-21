@@ -82,12 +82,11 @@ CONTAINS
       INTEGER                                            :: k, num_steps, step, tot_steps
       LOGICAL                                            :: should_stop
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(pint_env_type)                                :: pint_env
 
       NULLIFY (logger)
       logger => cp_get_default_logger()
 
-      NULLIFY (pint_env)
       num_steps = 0
 
       IF (ASSOCIATED(helium_env)) THEN
@@ -181,7 +180,7 @@ CONTAINS
    SUBROUTINE helium_sample(helium_env, pint_env)
 
       TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(pint_env_type), INTENT(IN)                    :: pint_env
 
       CHARACTER(len=default_string_length)               :: msg_str
       INTEGER                                            :: i, irot, iweight, k, nslices, nsteps, &
@@ -408,7 +407,7 @@ CONTAINS
    SUBROUTINE helium_step(helium_env, pint_env)
 
       TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(pint_env_type), INTENT(IN)                    :: pint_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'helium_step'
 
@@ -567,7 +566,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE helium_try_permutations(helium, pint_env)
       TYPE(helium_solvent_type), POINTER                 :: helium
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(pint_env_type), INTENT(IN)                    :: pint_env
 
       CHARACTER(len=default_string_length)               :: err_str, stmp
       INTEGER                                            :: cyclen, ni
@@ -733,7 +732,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION helium_slice_metro_cyclic(helium, pint_env, cyclen) RESULT(res)
       TYPE(helium_solvent_type), POINTER                 :: helium
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(pint_env_type), INTENT(IN)                    :: pint_env
       INTEGER, INTENT(IN)                                :: cyclen
       LOGICAL                                            :: res
 
