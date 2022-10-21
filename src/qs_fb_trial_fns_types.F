@@ -27,7 +27,6 @@ MODULE qs_fb_trial_fns_types
              fb_trial_fns_set
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_trial_fns_types'
-   INTEGER, PRIVATE, SAVE :: last_fb_trial_fns_id = 0
 
 ! **************************************************************************************************
 !> \brief data containing information on trial functions used by filter
@@ -37,12 +36,11 @@ MODULE qs_fb_trial_fns_types
 !> \param functions  : functions(itrial,ikind) = the index of the
 !>                     GTO atomic orbital corresponding to itrial-th trial
 !>                     function for kind ikind
-!> \param id_nr      : unique id for the object
 !> \param ref_count  : reference counter for the object
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    TYPE fb_trial_fns_data
-      INTEGER :: id_nr, ref_count
+      INTEGER :: ref_count
       INTEGER, DIMENSION(:), POINTER :: nfunctions
       INTEGER, DIMENSION(:, :), POINTER :: functions
    END TYPE fb_trial_fns_data
@@ -154,8 +152,6 @@ CONTAINS
       NULLIFY (trial_fns%obj%nfunctions)
       NULLIFY (trial_fns%obj%functions)
       trial_fns%obj%ref_count = 1
-      trial_fns%obj%id_nr = last_fb_trial_fns_id + 1
-      last_fb_trial_fns_id = trial_fns%obj%id_nr
    END SUBROUTINE fb_trial_fns_create
 
 ! **************************************************************************************************
