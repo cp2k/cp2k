@@ -534,7 +534,6 @@ MODULE cp_control_types
                                               multiplicity, &
                                               sic_method_id, &
                                               ref_count, &
-                                              id_nr, &
                                               plus_u_method_id, &
                                               dir_surf_dip, &
                                               nimages = 1
@@ -584,7 +583,6 @@ MODULE cp_control_types
    END TYPE dft_control_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_control_types'
-   INTEGER, SAVE :: last_dft_control_id = 0
 
    ! Public data types
 
@@ -730,8 +728,6 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(dft_control))
       ALLOCATE (dft_control)
       dft_control%ref_count = 1
-      last_dft_control_id = last_dft_control_id + 1
-      dft_control%id_nr = last_dft_control_id
       NULLIFY (dft_control%xas_control)
       NULLIFY (dft_control%qs_control)
       NULLIFY (dft_control%tddfpt_control)
