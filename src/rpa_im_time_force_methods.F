@@ -131,6 +131,7 @@ MODULE rpa_im_time_force_methods
    USE qs_integrate_potential,          ONLY: integrate_pgf_product,&
                                               integrate_v_core_rspace,&
                                               integrate_v_rspace
+   USE qs_interactions,                 ONLY: init_interaction_radii_orb_basis
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_kinetic,                      ONLY: build_kinetic_matrix
    USE qs_ks_methods,                   ONLY: calc_rho_tot_gspace
@@ -204,9 +205,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'init_im_time_forces'
 
-      INTEGER                                            :: handle, i_mem, i_xyz, ispin, &
+      INTEGER                                            :: handle, i_mem, i_xyz, ibasis, ispin, &
                                                             mp_comm_t3c, n_dependent, n_mem, &
-                                                            natom, nkind, nspins
+                                                            n_rep, natom, nkind, nspins
       INTEGER(int_8)                                     :: nze, nze_tot
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1, dist2, dist_AO_1, dist_AO_2, &
                                                             dist_RI, dummy_end, dummy_start, &
@@ -216,7 +217,8 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: nblks_total, pcoord, pdims, pdims_t3c
       INTEGER, DIMENSION(:), POINTER                     :: col_bsize, row_bsize
       LOGICAL                                            :: do_periodic
-      REAL(dp)                                           :: compression_factor, memory, occ
+      REAL(dp)                                           :: compression_factor, eps_pgf_orb, &
+                                                            eps_pgf_orb_old, memory, occ
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -233,6 +235,7 @@ CONTAINS
       TYPE(distribution_3d_type)                         :: dist_3d
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
          DIMENSION(:), TARGET                            :: basis_set_ao, basis_set_ri_aux
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis, ri_basis
       TYPE(libint_potential_type)                        :: identity_pot
       TYPE(neighbor_list_3c_type)                        :: nl_3c
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -240,9 +243,10 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(section_vals_type), POINTER                   :: qs_section
 
       NULLIFY (dft_control, para_env, particle_set, qs_kind_set, dist_2d, nl_2c, blacs_env, matrix_s, &
-               rho, rho_ao, cell)
+               rho, rho_ao, cell, qs_section, orb_basis, ri_basis)
 
       CALL timeset(routineN, handle)
 
@@ -251,6 +255,17 @@ CONTAINS
       IF (dft_control%qs_control%gapw) THEN
          CPABORT("Low-scaling RPA/SOS-MP2 forces only available with GPW")
       END IF
+
+      !Make sure we use the proper QS EPS_PGF_ORB values
+      qs_section => section_vals_get_subs_vals(qs_env%input, "DFT%QS")
+      CALL section_vals_val_get(qs_section, "EPS_PGF_ORB", n_rep_val=n_rep)
+      IF (n_rep /= 0) THEN
+         CALL section_vals_val_get(qs_section, "EPS_PGF_ORB", r_val=eps_pgf_orb)
+      ELSE
+         CALL section_vals_val_get(qs_section, "EPS_DEFAULT", r_val=eps_pgf_orb)
+         eps_pgf_orb = SQRT(eps_pgf_orb)
+      END IF
+      eps_pgf_orb_old = dft_control%qs_control%eps_pgf_orb
 
       do_periodic = .FALSE.
       IF (ANY(cell%perd == 1)) do_periodic = .TRUE.
@@ -266,6 +281,13 @@ CONTAINS
       CALL get_particle_set(particle_set, qs_kind_set, nsgf=sizes_RI, basis=basis_set_ri_aux)
       CALL basis_set_list_setup(basis_set_ao, "ORB", qs_kind_set)
       CALL get_particle_set(particle_set, qs_kind_set, nsgf=sizes_AO, basis=basis_set_ao)
+
+      DO ibasis = 1, SIZE(basis_set_ao)
+         orb_basis => basis_set_ao(ibasis)%gto_basis_set
+         CALL init_interaction_radii_orb_basis(orb_basis, eps_pgf_orb)
+         ri_basis => basis_set_ri_aux(ibasis)%gto_basis_set
+         CALL init_interaction_radii_orb_basis(ri_basis, eps_pgf_orb)
+      END DO
 
       CALL create_3c_tensor(t_3c_template, dist_RI, dist_AO_1, dist_AO_2, pgrid_t3c, &
                             sizes_RI, sizes_AO, sizes_AO, map1=[1], map2=[2, 3], name="der (RI AO | AO)")
@@ -303,7 +325,7 @@ CONTAINS
       CALL get_idx_to_atom(force_data%idx_to_at_AO, force_data%bsizes_AO_split, sizes_AO)
 
       n_mem = mp2_env%ri_rpa_im_time%cut_memory
-      CALL create_tensor_batches(sizes_AO, n_mem, dummy_start, dummy_end, start_blocks, end_blocks)
+      CALL create_tensor_batches(sizes_RI, n_mem, dummy_start, dummy_end, start_blocks, end_blocks)
       DEALLOCATE (dummy_start, dummy_end)
 
       ALLOCATE (force_data%t_3c_der_AO_comp(n_mem, 3), force_data%t_3c_der_RI_comp(n_mem, 3))
@@ -315,7 +337,7 @@ CONTAINS
          CALL build_3c_derivatives(t_3c_der_RI_prv, t_3c_der_AO_prv, mp2_env%ri_rpa_im_time%eps_filter, &
                                    qs_env, nl_3c, basis_set_ri_aux, basis_set_ao, basis_set_ao, &
                                    mp2_env%ri_metric, der_eps=mp2_env%ri_rpa_im_time%eps_filter, op_pos=1, &
-                                   bounds_j=[start_blocks(i_mem), end_blocks(i_mem)])
+                                   bounds_i=[start_blocks(i_mem), end_blocks(i_mem)])
 
          DO i_xyz = 1, 3
             CALL dbt_copy(t_3c_der_RI_prv(1, 1, i_xyz), force_data%t_3c_der_RI(i_xyz), move_data=.TRUE.)
@@ -544,6 +566,13 @@ CONTAINS
       DO ispin = 1, nspins
          CALL dbcsr_copy(force_data%P_virt(ispin)%matrix, force_data%inv_ovlp)
          CALL dbcsr_add(force_data%P_virt(ispin)%matrix, force_data%P_occ(ispin)%matrix, 1.0_dp, -1.0_dp)
+      END DO
+
+      DO ibasis = 1, SIZE(basis_set_ao)
+         orb_basis => basis_set_ao(ibasis)%gto_basis_set
+         CALL init_interaction_radii_orb_basis(orb_basis, eps_pgf_orb_old)
+         ri_basis => basis_set_ri_aux(ibasis)%gto_basis_set
+         CALL init_interaction_radii_orb_basis(ri_basis, eps_pgf_orb_old)
       END DO
 
       CALL dbt_destroy(t_2c_template)
