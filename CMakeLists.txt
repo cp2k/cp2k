@@ -446,6 +446,9 @@ find_package(OpenMP REQUIRED COMPONENTS Fortran C CXX)
 
 # ==================================
 if(CP2K_USE_ELPA)
+  set(CP2K_ENABLE_ELPA_OPENMP_SUPPORT
+    OFF
+    CACHE BOOL "request openmp support in elpa")
   find_package(Elpa REQUIRED)
 endif()
 
