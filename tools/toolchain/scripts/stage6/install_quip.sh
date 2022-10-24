@@ -6,8 +6,14 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-quip_ver="b4336484fb65b0e73211a8f920ae4361c7c353fd"
-quip_sha256="60fe54d60f5bcccd99abdccb6ca8d5d59c3c1c6997f95cee775318137743084e"
+# Installing QUIP without GAP because its ASL licence is not GPL-compatible.
+# See also https://github.com/libAtoms/QUIP/issues/481
+
+quip_ver="0.9.10"
+quip_sha256="c03505779634459ea0ba3f7ddc120ac17f0546d44dc9b5096f008f1c3c6620ef"
+
+fox_ver="b5b69ef9a46837bd944ba5c9bc1cf9d00a6198a7"
+fox_sha256="a87dd7faf80612a0df94dc272474f37689c6213c6ac4705fb637644409c5cd4e"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -50,10 +56,19 @@ case "${with_quip}" in
       else
         download_pkg_from_cp2k_org "${quip_sha256}" "QUIP-${quip_ver}.tar.gz"
       fi
+      if [ -f fox-${fox_ver}.tar.gz ]; then
+        echo "fox-${fox_ver}.tar.gz is found"
+      else
+        download_pkg_from_cp2k_org "${fox_sha256}" "fox-${fox_ver}.tar.gz"
+      fi
       [ -d QUIP-${quip_ver} ] && rm -rf QUIP-${quip_ver}
+      [ -d fox-${fox_ver} ] && rm -rf fox-${fox_ver}
       echo "Installing from scratch into ${pkg_install_dir}"
       tar -xzf QUIP-${quip_ver}.tar.gz
+      tar -xzf fox-${fox_ver}.tar.gz
       cd QUIP-${quip_ver}
+      rmdir ./src/fox
+      ln -s ../../fox-${fox_ver} ./src/fox
       # translate OPENBLAS_ARCH
       case $OPENBLAS_ARCH in
         x86_64)
