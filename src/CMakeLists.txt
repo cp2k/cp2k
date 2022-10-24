@@ -10,7 +10,7 @@ configure_file(base/base_uses.f90 base/base_uses.f90 @ONLY)
 # SOURCE FILE LISTS
 # =================================================================================================
 
-# do not worry about formatting.
+# do not worry about formatting or sorting. make pretty will fix this for you
 
 # the sources files are split by directory which hopefully make the list a bit
 # clearer. Any Fortran new file can be added to CP2K_SRCS_F list. the list
@@ -1137,7 +1137,6 @@ list(
 list(
   APPEND
   CP2K_SRCS_F
-  # start/cp2k.F
   start/cp2k_runs.F
   start/cp2k_shell.F
   start/input_cp2k.F
@@ -1294,40 +1293,37 @@ list(
   grid/ref/grid_ref_prepare_pab.c
   grid/ref/grid_ref_task_list.c)
 
-# if (CP2k_USE_SIRIUS) list(APPEND  CP2K_SRCS_F ) endif ()
-
 list(APPEND OFFLOAD_SRCS_C offload/offload_buffer.c offload/offload_library.c)
 
 list(APPEND CP2K_SRCS_C pw/fpga/fft_fpga.c pw/fpga/opencl_utils.c)
 
-if(CP2K_USE_PW_GPU)
-  list(APPEND PW_SRCS_GPU pw/gpu/pw_gpu_kernels.cu)
-  list(APPEND CP2K_SRCS_C pw/gpu/pw_gpu_internal.c)
-endif()
-
-if(CP2K_USE_DBM_GPU)
-  list(APPEND DBM_SRCS_C dbm/dbm_multiply_gpu.c)
-  list(APPEND DBM_SRCS_GPU dbm/dbm_multiply_gpu_kernel.cu)
-endif()
-
-if(CP2K_USE_GRID_GPU)
-  if(CP2K_USE_CUDA)
-    list(APPEND GRID_SRCS_GPU grid/gpu/grid_gpu_collocate.cu
-         grid/gpu/grid_gpu_integrate.cu grid/gpu/grid_gpu_task_list.cu)
-  elseif(CP2K_USE_HIP)
-    list(
-      APPEND
-      GRID_SRCS_GPU
-      grid/gpu/grid_gpu_collocate.cu
-      grid/gpu/grid_gpu_integrate.cu
-      grid/gpu/grid_gpu_task_list.cu
-      grid/hip/grid_hip_collocate.cu
-      grid/hip/grid_hip_integrate.cu
-      grid/hip/grid_hip_context.cu)
-  endif()
-endif()
-
 if(CP2K_USE_CUDA OR CP2K_USE_HIP)
+  if(NOT CP2K_DISABLE_PW_GPU)
+    list(APPEND PW_SRCS_GPU pw/gpu/pw_gpu_kernels.cu)
+    list(APPEND CP2K_SRCS_C pw/gpu/pw_gpu_internal.c)
+  endif()
+
+  if(NOT CP2K_DISABLE_DBM_GPU)
+    list(APPEND DBM_SRCS_C dbm/dbm_multiply_gpu.c)
+    list(APPEND DBM_SRCS_GPU dbm/dbm_multiply_gpu_kernel.cu)
+  endif()
+
+  if(NOT CP2K_DISABLE_GRID_GPU)
+    if(CP2K_USE_CUDA)
+      list(APPEND GRID_SRCS_GPU grid/gpu/grid_gpu_collocate.cu
+           grid/gpu/grid_gpu_integrate.cu grid/gpu/grid_gpu_task_list.cu)
+    elseif(CP2K_USE_HIP)
+      list(
+        APPEND
+        GRID_SRCS_GPU
+        grid/gpu/grid_gpu_collocate.cu
+        grid/gpu/grid_gpu_integrate.cu
+        grid/gpu/grid_gpu_task_list.cu
+        grid/hip/grid_hip_collocate.cu
+        grid/hip/grid_hip_integrate.cu
+        grid/hip/grid_hip_context.cu)
+    endif()
+  endif()
   list(APPEND CP2K_SRCS_GPU ${GRID_SRCS_GPU} ${DBM_SRCS_GPU} ${PW_SRCS_GPU})
 endif()
 
@@ -1346,7 +1342,10 @@ endforeach()
 
 add_library(cp2k "${CP2K_SRCS};${CP2K_SRCS_C};${CP2K_SRCS_GPU}")
 
-message(INFO "${CP2K_SRCS_GPU}")
+target_compile_features(cp2k PUBLIC cxx_std_11)
+target_compile_features(cp2k PUBLIC c_std_99)
+target_compile_features(cp2k PUBLIC cuda_std_11)
+
 # =================================================================================================
 # main CP2K OBJECT LIBRARY
 if(CP2K_USE_ACCEL MATCHES "CUDA")
@@ -1384,7 +1383,7 @@ target_link_libraries(
             $<$<BOOL:${CP2K_USE_CUDA}>:CUDA::cublas>
             $<$<BOOL:${CP2K_USE_CUDA}>:CUDA::cudart>
             $<$<BOOL:${CP2K_USE_HIP}>:hip::hipfft>
-            $<$<BOOL:${CP2K_USE_HIP}>:rocm::hipblas>
+            $<$<BOOL:${CP2K_USE_HIP}>:roc::hipblas>
             $<$<BOOL:${CP2K_USE_HIP}>:hip::device>
             CP2K_SCALAPACK::scalapack
             $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K_LibXSMM::libxsmmf>
@@ -1414,68 +1413,71 @@ include_directories(
 
 string(TIMESTAMP CP2K_TIMESTAMP "%Y-%m-%d %H:%M:%S")
 
-add_compile_definitions(
-  __parallel
-  __MPI_VERSION=${MPI_Fortran_VERSION_MAJOR}
-  __SCALAPACK
-  __COMPILE_DATE=\"${CP2K_TIMESTAMP}\"
-  __COMPILE_HOST=\"${CP2K_HOST_NAME}\"
-  __COMPILE_REVISION=\"${CP2K_GIT_HASH}\"
-  __DATA_DIR=\"${CMAKE_INSTALL_FULL_DATAROOTDIR}/cp2k/data\"
-  __COMPILE_ARCH=\"${CMAKE_SYSTEM_PROCESSOR}\"
-  "$<$<CONFIG:Release>:NDEBUG>"
-  $<$<BOOL:${CP2K_USE_PEXSI}>:__PEXSI>
-  $<$<BOOL:${CP2K_USE_PLUMED2}>:__PLUMED2>
-  $<$<BOOL:${CP2K_USE_QUIP}>:__QUIP>
-  $<$<BOOL:${CP2K_USE_MAXWELL}>:__LIBMAXWELL>
-  $<$<BOOL:${CP2K_USE_VORI}>:__LIBVORI>
-  $<$<BOOL:${CP2K_USE_SPGLIB}>:__SPGLIB>
-  $<$<BOOL:${CP2K_USE_SIRIUS}>:__SIRIUS>
-  $<$<BOOL:${CP2K_USE_SPLA}>:__SPLA>
-  $<$<BOOL:${CP2K_USE_SpFFT}>:__SPFFT>
-  $<$<BOOL:${CP2K_USE_GEMM_OFFLOADING}>:__OFFLOAD_GEMM>
-  $<$<BOOL:${CP2K_USE_ELPA}>:__ELPA>
-  $<$<BOOL:${CP2K_USE_LIBXC}>:__LIBXC>
-  $<$<BOOL:${CP2K_USE_FFTW3}>:__FFTW3>
-  $<$<BOOL:${CP2K_USE_LIBINT2}>:__LIBINT>
-  $<$<BOOL:${CP2K_USE_PEXSI}>:__LIBPEXSI>
-  $<$<BOOL:${CP2K_USE_COSMA}>:__COSMA>
-  $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
-  $<$<STREQUAL:${CP2K_BLAS_VENDOR},MKL>:__MKL>
-  $<$<STREQUAL:${CP2K_BLAS_VENDOR},Apple>:__ACCELERATE>
-  $<$<BOOL:${CP2K_USE_CUDA}>:__OFFLOAD_CUDA>
-  $<$<BOOL:${CP2K_USE_HIP}>:__OFFLOAD_HIP>
-  $<$<COMPILE_LANGUAGE:CUDA>:__OFFLOAD_CUDA>)
+target_link_libraries(cp2k PUBLIC cp2k_link_libs)
+target_compile_definitions(
+  cp2k
+  PUBLIC __parallel
+         __MPI_VERSION=${MPI_Fortran_VERSION_MAJOR}
+         __SCALAPACK
+         __COMPILE_DATE=\"${CP2K_TIMESTAMP}\"
+         __COMPILE_HOST=\"${CP2K_HOST_NAME}\"
+         __COMPILE_REVISION=\"${CP2K_GIT_HASH}\"
+         __DATA_DIR=\"${CMAKE_INSTALL_FULL_DATAROOTDIR}/cp2k/data\"
+         __COMPILE_ARCH=\"${CMAKE_SYSTEM_PROCESSOR}\"
+         $<$<CONFIG:Release>:NDEBUG>
+         $<$<BOOL:${CP2K_USE_PEXSI}>:__PEXSI>
+         $<$<BOOL:${CP2K_USE_PLUMED2}>:__PLUMED2>
+         $<$<BOOL:${CP2K_USE_QUIP}>:__QUIP>
+         $<$<BOOL:${CP2K_USE_MAXWELL}>:__LIBMAXWELL>
+         $<$<BOOL:${CP2K_USE_VORI}>:__LIBVORI>
+         $<$<BOOL:${CP2K_USE_SPGLIB}>:__SPGLIB>
+         $<$<BOOL:${CP2K_USE_SIRIUS}>:__SIRIUS>
+         $<$<BOOL:${CP2K_USE_SPLA}>:__SPLA>
+         $<$<BOOL:${CP2K_USE_SpFFT}>:__SPFFT>
+         $<$<BOOL:${CP2K_USE_GEMM_OFFLOADING}>:__OFFLOAD_GEMM>
+         $<$<BOOL:${CP2K_USE_ELPA}>:__ELPA>
+         $<$<BOOL:${CP2K_USE_LIBXC}>:__LIBXC>
+         $<$<BOOL:${CP2K_USE_FFTW3}>:__FFTW3>
+         $<$<BOOL:${CP2K_USE_LIBINT2}>:__LIBINT>
+         $<$<BOOL:${CP2K_USE_PEXSI}>:__LIBPEXSI>
+         $<$<BOOL:${CP2K_USE_COSMA}>:__COSMA>
+         $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
+         $<$<STREQUAL:${CP2K_BLAS_VENDOR},MKL>:__MKL>
+         $<$<STREQUAL:${CP2K_BLAS_VENDOR},Apple>:__ACCELERATE>
+         $<$<BOOL:${CP2K_USE_CUDA}>:__OFFLOAD_CUDA>
+         $<$<COMPILE_LANGUAGE:CUDA>:__OFFLOAD_CUDA>
+         $<$<BOOL:${CP2K_USE_HIP}>:__OFFLOAD_HIP>
+         $<$<BOOL:${CP2K_USE_HIP}>:__HIP_PLATFORM_AMD__>
+         $<$<COMPILE_LANGUAGE:HIP>:__OFFLOAD_HIP>
+         $<$<COMPILE_LANGUAGE:HIP>:__HIP_PLATFORM_AMD__>)
 
 if(CP2K_USE_CUDA OR CP2K_USE_HIP)
   # these checks are only relevant when the debug mode is on
 
   if(NOT CP2K_DBCSR_USE_CPU_ONLY)
-    add_compile_definitions(__DBCSR_ACC)
+    target_compile_definitions(cp2k PUBLIC __DBCSR_ACC)
   endif()
 
   # the next three are off by default
-  if(NOT CP2K_USE_GRID_GPU)
-    add_compile_definitions(__NO_OFFLOAD_GRID)
+  if(CP2K_DISABLE_GRID_GPU)
+    target_compile_definitions(cp2k PUBLIC __NO_OFFLOAD_GRID)
   endif()
 
-  if(NOT CP2K_USE_PW_GPU)
-    add_compile_definitions(__NO_OFFLOAD_PW)
+  if(CP2K_DISABLE_PW_GPU)
+    target_compile_definitions(cp2k PUBLIC __NO_OFFLOAD_PW)
   endif()
 
-  if(NOT CP2K_USE_DBM_GPU)
-    add_compile_definitions(__NO_OFFLOAD_DBM)
+  if(CP2K_DISABLE_DBM_GPU)
+    target_compile_definitions(cp2k PUBLIC __NO_OFFLOAD_DBM)
   endif()
 endif()
-
-target_link_libraries(cp2k PUBLIC cp2k_link_libs)
 
 if(CP2K_USE_HIP)
   foreach(__src ${CP2K_SRCS_GPU})
     set_source_files_properties(${__src} PROPERTIES LANGUAGE HIP)
-    message(INFO "${__src}")
   endforeach()
-  set_target_properties(cp2kobj PROPERTIES HIP_ARCHITECTURES gfx90a)
+  set_target_properties(cp2k PROPERTIES HIP_ARCHITECTURES
+                                        "${CP2K_ACC_ARCH_NUMBER}")
 endif()
 
 list(
@@ -1513,9 +1515,10 @@ foreach(_app ${__CP2K_APPS})
   set_target_properties(${_app} PROPERTIES CXX_STANDARD 11)
   set_target_properties(${_app} PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES
                                            "CXX")
+  target_compile_features(${_app} PUBLIC c_std_99)
   if(CP2K_USE_ACCEL MATCHES HIP)
-    set_target_properties(${__app} PROPERTIES HIP_ARCHITECTURES
-                                              ${CP2K_ACC_ARCH_NUMBER})
+    set_target_properties(${_app} PROPERTIES HIP_ARCHITECTURES
+                                             ${CP2K_ACC_ARCH_NUMBER})
   endif()
   target_link_libraries(${_app} PUBLIC cp2k)
 endforeach()
@@ -1536,6 +1539,9 @@ add_executable(
 )
 
 foreach(_app ${__GRID_APPS})
+  set_target_properties(${_app} PROPERTIES LINKER_LANGUAGE C)
+  target_compile_features(${_app} PUBLIC c_std_99)
+
   target_link_libraries(
     ${_app}
     PUBLIC $<$<BOOL:${CP2K_USE_CUDA}>:CUDA::cudart>
@@ -1545,11 +1551,19 @@ foreach(_app ${__GRID_APPS})
            CP2K_BLAS::blas
            OpenMP::OpenMP_C
            m)
-  set_target_properties(${_app} PROPERTIES LINKER_LANGUAGE C)
-  # target_compile_options(${_app} PUBLIC "${OpenMP_C_FLAGS}")
+
   target_include_directories(
     ${_app} PUBLIC $<$<BOOL:${CP2K_USE_CUDA}>:${CMAKE_CUDA_INCLUDE_DIRECTORIES}>
                    $<$<BOOL:${CP2K_USE_HIP}>:${CMAKE_HIP_INCLUDE_DIRECTORIES}>)
+
+  target_compile_definitions(
+    ${_app}
+    PUBLIC $<$<BOOL:${CP2K_USE_CUDA}>:__OFFLOAD_CUDA>
+           $<$<BOOL:${CP2K_USE_HIP}>:__OFFLOAD_HIP>
+           $<$<STREQUAL:CP2K_BLAS_VENDOR,"MKL">:__MKL>
+           $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>)
+
+  target_compile_features(${_app} PUBLIC $<$<BOOL:CP2K_USE_CUDA>:cuda_std_11>)
 
   if(CP2K_USE_CUDA)
     set_target_properties(${_app} PROPERTIES CUDA_ARCHITECTURES
@@ -1559,7 +1573,7 @@ foreach(_app ${__GRID_APPS})
   # cmake 3.21 is needed for this
   if(CP2K_USE_HIP)
     set_target_properties(${_app} PROPERTIES HIP_ARCHITECTURES
-                                             ${CP2k_ACC_ARCH_NUMBER})
+                                             ${CP2K_ACC_ARCH_NUMBER})
   endif()
 endforeach()
 
@@ -1569,9 +1583,9 @@ endforeach()
 
 add_executable(dbm_miniapp dbm/dbm_miniapp.c ${DBM_SRCS_C} ${OFFLOAD_SRCS_C}
                            ${DBM_SRCS_GPU})
+target_compile_features(dbm_miniapp PUBLIC c_std_99)
 
 set_target_properties(dbm_miniapp PROPERTIES LINKER_LANGUAGE C)
-# target_compile_options(dbm_miniapp PUBLIC "${OpenMP_C_FLAGS}")
 target_link_libraries(
   dbm_miniapp
   PUBLIC $<$<BOOL:${CP2K_USE_CUDA}>:CUDA::cudart>
@@ -1584,8 +1598,15 @@ target_link_libraries(
          OpenMP::OpenMP_C
          m)
 
-if(CP2K_USE_DBM_GPU)
+target_compile_definitions(
+  dbm_miniapp
+  PUBLIC $<$<BOOL:${CP2K_USE_CUDA}>:__OFFLOAD_CUDA>
+         $<$<BOOL:${CP2K_USE_HIP}>:__OFFLOAD_HIP>
+         $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>)
+
+if(CP2K_DISABLE_DBM_GPU)
   if(CP2K_USE_CUDA)
+    target_compile_features(dbm_miniapp PUBLIC cuda_std_11)
     set_target_properties(dbm_miniapp PROPERTIES CUDA_ARCHITECTURES
                                                  ${CP2K_ACC_ARCH_NUMBER})
   endif()

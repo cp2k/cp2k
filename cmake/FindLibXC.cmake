@@ -12,8 +12,14 @@ include(cp2k_utils)
 cp2k_set_default_paths(LIBXC "LibXC")
 
 if(PKG_CONFIG_FOUND)
-  pkg_check_modules(CP2K_LIBXC libxc>=${LibXC_FIND_VERSION} libxcf03 libxcf90
-                    IMPORTED_TARGET)
+  pkg_check_modules(
+    CP2K_LIBXC
+    REQUIRED
+    IMPORTED_TARGET
+    GLOBAL
+    libxc>=${LibXC_FIND_VERSION}
+    libxcf03
+    libxcf90)
 endif()
 
 if(NOT CP2K_LIBXC_FOUND)

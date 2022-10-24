@@ -30,6 +30,11 @@ endforeach()
 
 if(NOT CP2K_LIBXSMM_INCLUDE_DIRS)
   cp2k_include_dirs(LIBXSMM "libxsmm.h")
+
+  # force the include directory
+  if(NOT CP2K_LIBXSMM_INCLUDE_DIRS)
+    set(CP2K_LIBXSMM_INCLUDE_DIRS "${CP2K_LIBXSMM_PREFIX}/include")
+  endif()
 endif()
 
 if(CP2K_LIBXSMM_INCLUDE_DIRS)
@@ -57,13 +62,13 @@ if(NOT TARGET CP2K_LibXSMM::libxsmm)
         CP2K_LibXSMM::${__lib}
         PROPERTIES INTERFACE_LINK_LIBRARIES
                    "${${__lib_search_up}_LINK_LIBRARIES}")
+      set_target_properties(
+        CP2K_LibXSMM::${__lib}
+        PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
+                   "${CP2K_LIBXSMM_INCLUDE_DIRS};${CP2K_LIBXSMM_PREFIX}/include"
+      )
     endif()
   endforeach()
-  if(CP2K_LIBXSMM_INCLUDE_DIRS)
-    set_target_properties(
-      CP2K_LibXSMM::libxsmm PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
-                                       "${CP2K_LIBXSMM_INCLUDE_DIRS}")
-  endif()
 endif()
 
 mark_as_advanced(

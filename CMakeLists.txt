@@ -16,6 +16,8 @@ endif()
 # =================================================================================================
 # PROJECT AND VERSION
 include(GetGitRevisionDescription)
+include(CMakeDependentOption)
+cmake_policy(SET CMP0048 NEW)
 
 git_describe(GIT_DESC)
 
@@ -43,26 +45,19 @@ if(GIT_DESC)
   string(REGEX REPLACE "^([0-9\\-]+) .*" "\\1" VERSION_DATE
                        "${GIT_COMMIT_DATE}")
 else()
-  file(STRINGS VERSION VERSION_INFO)
-  foreach(line ${VERSION_INFO})
-    if(${line} MATCHES "^([^#].*)=[ \t]*(.*)$")
-      set(key ${CMAKE_MATCH_1})
-      set(value ${CMAKE_MATCH_2})
-      string(REGEX REPLACE "[ \t\n]+$" "" key "${key}")
-      string(REGEX REPLACE "[ \t\n]+$" "" value "${value}")
-      set(VERSION_${key} "${value}")
-      continue()
-    endif()
-  endforeach()
+  set(VERSION_MAJOR 21)
+  set(VERSION_MINOR 10)
+  set(VERSION_PATCH 00)
 endif()
 
 project(
   cp2k
   DESCRIPTION "CP2K"
+  HOMEPAGE_URL "https://www.cp2k.org"
+  VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
   LANGUAGES Fortran C CXX)
-set(cp2k_VERSION
-    ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}${VERSION_GIT})
-set(cp2k_APIVERSION ${VERSION_MAJOR}.${VERSION_MINOR})
+
+set(cp2k_APIVERSION ${cp2k_VERSION_MAJOR}.${cp2k_VERSION_MINOR})
 
 if(NOT DEFINED CMAKE_CUDA_STANDARD)
   set(CMAKE_CUDA_STANDARD 11)
@@ -85,9 +80,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY
     CACHE PATH "Single output directory for building all executables.")
 
 # Search for rocm in common locations
-
-# list(APPEND CMAKE_PREFIX_PATH /opt/rocm/hip /opt/rocm)
-
 foreach(__var ROCM_ROOT CRAY_ROCM_ROOT ORNL_ROCM_ROOT CRAY_ROCM_PREFIX
               ROCM_PREFIX CRAY_ROCM_DIR)
   if($ENV{${__var}})
@@ -100,69 +92,36 @@ endforeach()
 
 # =================================================================================================
 # OPTIONS
-include(CMakeDependentOption)
 
-# make MPI optional as well. More work but might be useful set(CP2K_USE_MPI ON
-# CACHE BOOL "Enable MPI support")
+option(CMAKE_POSITION_INDEPENDENT_CODE "Enable position independent code" ON)
 
-set(CP2K_SET_POSITION_INDEPENDENT_CODE
-    ON
-    CACHE BOOL "Enable position independent code")
+option(CP2K_USE_SIRIUS "Enable plane wave dft calculations with sirius" OFF)
+option(CP2K_USE_FFTW3 "Use fftw3 for the calculating fast fourier transforms"
+       ON)
+option(CP2K_USE_ELPA "Enable elpa support" OFF)
+option(CP2K_USE_PEXSI "Enable pexsi support" OFF)
+option(CP2K_USE_SUPERLU "Enable superlu support" OFF)
+option(CP2K_USE_COSMA "COSMA is a drop in replacement of scalapack dgemm" ON)
+option(CP2K_USE_LIBINT2 "Enable libint2 support" ON)
+option(CP2K_USE_VORI "Enable libvori support" OFF)
+option(CP2K_USE_PEXSI "Enable pexsi support" OFF)
+option(CP2K_USE_QUIP "Enable quip support" OFF)
+option(CP2K_USE_SPGLIB "Enable spglib support" ON)
 
-set(CP2K_USE_SIRIUS
-    OFF
-    CACHE BOOL "Enable plane wave dft calculations with sirius")
-set(CP2K_USE_FFTW3
-    ON
-    CACHE BOOL "Use fftw3 for the calculating fast fourier transforms")
-set(CP2K_USE_ELPA
-    OFF
-    CACHE BOOL "Enable elpa support")
-set(CP2K_USE_PEXSI
-    OFF
-    CACHE BOOL "Enable pexsi support")
-set(CP2K_USE_SUPERLU
-    OFF
-    CACHE BOOL "Enable superlu support")
-set(CP2K_USE_COSMA
-    ON
-    CACHE BOOL "COSMA is a drop in replacement of scalapack dgemm")
-set(CP2K_USE_LIBINT2
-    ON
-    CACHE BOOL "Enable libint2 support")
-set(CP2K_USE_VORI
-    OFF
-    CACHE BOOL "Enable libvori support")
-set(CP2K_USE_PEXSI
-    OFF
-    CACHE BOOL "Enable pexsi support")
-set(CP2K_USE_QUIP
-    OFF
-    CACHE BOOL "Enable quip support")
-set(CP2K_USE_SPGLIB
-    ON
-    CACHE BOOL "Enable spglib support")
+option(CP2K_USE_LIBXC "Enable libxc support" ON)
 
-set(CP2K_USE_LIBXC
-    ON
-    CACHE BOOL "Enable libxc support")
+option(CP2K_USE_STATIC_BLAS "Link against static version of BLAS/LAPACK" OFF)
 
-set(CP2K_USE_STATIC_BLAS
-    OFF
-    CACHE BOOL "Link against static version of BLAS/LAPACK")
+option(CP2K_USE_SPLA
+       "Use SPLA offloading gemm feature to the GPU if it is beneficial. " OFF)
 
-set(CP2K_USE_SPLA
-    OFF
-    CACHE BOOL
-          "Use SPLA offloading gemm feature to the GPU if it is beneficial. ")
+option(CP2K_USE_METIS "enable metis library support" OFF)
 
-set(CP2K_USE_METIS
-    OFF
-    CACHE BOOL "enable metis library support")
+option(CP2K_USE_LIBXSMM "Use libxsmm for small gemms (supports x86 platforms)"
+       ON)
 
-set(CP2K_USE_LIBXSMM
-    ON
-    CACHE BOOL "Use libxsmm for small gemms (supports x86 platforms)")
+cmake_dependent_option(CP2K_ENABLE_ELPA_OPENMP_SUPPORT
+                       "Enable elpa openmp support" OFF "CP2K_USE_ELPA" OFF)
 
 set(CP2K_SCALAPACK_VENDOR_LIST "MKL" "SCI" "GENERIC")
 set(CP2K_SCALAPACK_VENDOR
@@ -175,7 +134,11 @@ if(NOT ${CP2K_SCALAPACK_VENDOR} IN_LIST CP2K_SCALAPACK_VENDOR_LIST)
   message(FATAL_ERROR "Invalid scalapack vendor backend")
 endif()
 
-set(CP2K_SUPPORTED_ACCELEARTION_TARGETS CUDA HIP NONE)
+# ##############################################################################
+# # gpu related options                                                    # #
+# ##############################################################################
+
+set(CP2K_SUPPORTED_ACCELERATION_TARGETS CUDA HIP NONE)
 set(CP2K_SUPPORTED_CUDA_ARCHITECTURES K20X K40 K80 P100 V100 A100)
 set(CP2K_SUPPORTED_HIP_ARCHITECTURES
     Mi50
@@ -198,72 +161,52 @@ set_property(
   CACHE CP2K_WITH_GPU PROPERTY STRINGS ${CP2K_SUPPORTED_CUDA_ARCHITECTURES}
                                ${CP2K_SUPPORTED_HIP_ARCHITECTURES})
 
-set(CP2K_DEBUG_MODE
-    OFF
-    CACHE BOOL "Enable several additional options for debugging cp2k.")
+option(CP2K_DEBUG_MODE OFF
+       "Enable several additional options for debugging cp2k.")
 
 set(CP2K_USE_ACCEL
     "NONE"
     CACHE STRING "Set hardware acceleartion support: CUDA, HIP")
 
 set_property(CACHE CP2K_USE_ACCEL
-             PROPERTY STRINGS ${CP2K_SUPPORTED_ACCELEARTION_TARGETS})
+             PROPERTY STRINGS ${CP2K_SUPPORTED_ACCELERATION_TARGETS})
 
-if((CP2K_USE_ACCEL MATCHES "CUDA") OR (CP2K_USE_ACCEL MATCHES "HIP"))
-  if(CP2K_USE_SPLA)
-    set(CP2K_USE_GEMM_OFFLOADING
-        ON
-        CACHE
-          BOOL
-          "Use SPLA offloading gemm feature to the GPU if it is beneficial. ")
-  endif()
-endif()
+cmake_dependent_option(
+  CP2K_USE_SPLA_GEMM_OFFLOADING ON
+  "Enable SPLA dgemm offloading (only valid with gpu support on)"
+  "(NOT CP2K_USE_ACCEL MATCHES \"NONE\") AND (CP2K_USE_SPLA)" OFF)
 
-if(CP2K_DEBUG_MODE)
-  set(CP2K_USE_GRID_GPU
-      ON
-      CACHE
-        BOOL
-        "Enable the hardware accelerated (mostly GPU) backend for grid related functions. It is only effective when general gpu support is enabled."
-  )
-  set(CP2K_USE_PW_GPU
-      ON
-      CACHE
-        BOOL
-        "enable the ffts accelerated (mostly GPU) backend. It is only effective when general gpu support is enabled."
-  )
-  set(CP2K_USE_DBM_GPU
-      ON
-      CACHE
-        BOOL
-        "enable the dbm accelerated (mostly GPU) backend. It is only effective when general gpu support is enabled."
-  )
+# ##############################################################################
+#
+# GPU debug options
+#
+# ##############################################################################
 
-  set(CP2K_DBCSR_CPU_ONLY
-      OFF
-      CACHE BOOL "Use DBCSR cpu only version")
-  # set(CP2K_USE_HIP_CUDA OFF CACHE BOOL "Compile hip code for Nvidia gpus. Can
-  # be used for debugging hip code when hardware is not available")
-else()
-  # they will be ignored in cpu only mode
-  set(CP2K_USE_GRID_GPU ON)
-  set(CP2K_USE_PW_GPU ON)
-  set(CP2K_USE_DBM_GPU ON)
-  # we assume dbcsr is build with the right gpu support by default
-  set(CP2K_DBCSR_CPU_ONLY OFF)
-endif()
-
-set(CP2K_USE_HIP OFF)
-set(CP2K_USE_CUDA OFF)
+cmake_dependent_option(CP2K_DEBUG_MODE OFF "Enable CP2K debug options"
+                       "NOT CP2K_USE_ACCEL MATCHES \"NONE\" " OFF)
+cmake_dependent_option(
+  CP2K_DISABLE_GRID_GPU
+  OFF
+  "disable the hardware accelerated backend for grid related functions. It is only effective when general gpu support is enabled."
+  "CP2K_DEBUG_MODE"
+  OFF)
+cmake_dependent_option(
+  CP2K_DISABLE_PW_GPU
+  OFF
+  "disable the ffts accelerated (mostly GPU) backend. It is only effective when general gpu support is enabled."
+  "CP2K_DEBUG_MODE"
+  OFF)
+cmake_dependent_option(
+  CP2K_DISABLE_DBM_GPU
+  OFF
+  "disable the dbm accelerated (mostly GPU) backend. It is only effective when general gpu support is enabled."
+  "CP2K_DEBUG_MODE"
+  OFF)
+cmake_dependent_option(
+  CP2K_DBCSR_CPU_ONLY "Use DBCSR compiled without GPU support." OFF
+  "CP2K_DEBUG_MODE" OFF)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ${CP2K_SET_POSITION_INDEPENDENT_CODE})
-
-# =================================================================================================
-# LANGUAGES AND TESTING
-
-enable_language(CXX)
-enable_language(C)
-enable_language(Fortran)
 
 find_package(PkgConfig)
 
@@ -272,6 +215,7 @@ find_package(PkgConfig)
 # python virtual environment is activated, it will search the virtual
 # environment for a python interpreter before searching elsewhere in the system.
 # In CMake <3.15, the system is searched before the virtual environment.
+
 if(NOT Python_EXECUTABLE)
   # If the python interpreter isn't specified as a command line option, look for
   # it:
@@ -364,19 +308,17 @@ if((CP2K_USE_ACCEL MATCHES CUDA) OR (CP2K_USE_ACCEL MATCHES HIP))
   set(CP2K_GPU_ARCH_NUMBER_Mi250X gfx90a)
 endif()
 
+set(CP2K_USE_HIP OFF)
+set(CP2K_USE_CUDA OFF)
+
 if(CP2K_USE_ACCEL MATCHES "CUDA")
-
-  if(NOT DEFINED CMAKE_CUDA_STANDARD)
-    set(CMAKE_CUDA_STANDARD 11)
-    set(CMAKE_CUDA_STANDARD_REQUIRED ON)
-  endif()
-
-  # P100 is the default target. We need that in cray environment for some weird
-  # reason. And it does not harm to define it anyway
+  # P100 is the default target.
   set(CMAKE_CUDA_ARCHITECTURES 60)
-  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -allow-unsupported-compiler")
-  enable_language(CUDA)
 
+  # allow for unsupported compilers (gcc/cuda version mismatch)
+  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -allow-unsupported-compiler")
+
+  enable_language(CUDA)
   find_package(CUDAToolkit REQUIRED)
 
   list(FIND CP2K_SUPPORTED_CUDA_ARCHITECTURES ${CP2K_WITH_GPU}
@@ -388,10 +330,6 @@ if(CP2K_USE_ACCEL MATCHES "CUDA")
         "GPU architecture (${CP2K_WITH_GPU}) is not supported. Please choose from: ${CP2K_SUPPORTED_CUDA_ARCHITECTURES}"
     )
   endif()
-
-  # set cuda architecture number and compilation flags
-  add_compile_definitions(__OFFLOAD_CUDA
-                          $<$<COMPILE_LANGUAGE:CUDA>:__OFFLOAD_CUDA>)
 
   # set cuda architecture number and compilation flags. Taken from dbcsr
   set(CP2K_ACC_ARCH_NUMBER ${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}})
@@ -420,8 +358,6 @@ elseif(CP2K_USE_ACCEL MATCHES "HIP")
   find_package(hipfft REQUIRED IMPORTED CONFIG)
   find_package(hipblas REQUIRED IMPORTED CONFIG)
 
-  add_compile_definitions(__OFFLOAD_HIP __HIP_PLATFORM_AMD__)
-  add_compile_definitions($<$<COMPILE_LANGUAGE:CUDA>:__OFFLOAD_HIP>)
   set(CMAKE_HIP_ARCHITECTURES gfx801 gfx900 gfx90a)
   if(NOT CMAKE_BUILD_TYPE)
     set(HIP_RELEASE_OPTIONS "-O3 -g -DNDEBUG")
@@ -446,9 +382,6 @@ find_package(OpenMP REQUIRED COMPONENTS Fortran C CXX)
 
 # ==================================
 if(CP2K_USE_ELPA)
-  set(CP2K_ENABLE_ELPA_OPENMP_SUPPORT
-    OFF
-    CACHE BOOL "request openmp support in elpa")
   find_package(Elpa REQUIRED)
 endif()
 
@@ -466,7 +399,7 @@ if(CP2K_USE_COSMA)
 
   # check that cosma::cosma_pxgemm and cosma::cosma_prefixed_pxgemm exist
   if(NOT TARGET cosma::cosma_pxgemm OR NOT TARGET cosma::cosma_prefixed_pxgemm)
-    message(ERROR " COSMA needs to be build with scalapack offloading support")
+    message(ERROR " COSMA needs tor be build with scalapack offloading support")
     message(
       FATAL
       " COSTA_SCALAPACK and COSMA_SCALAPACK should probably be set properly")
@@ -482,12 +415,6 @@ endif()
 
 if(CP2K_USE_FFTW3)
   find_package(Fftw REQUIRED)
-endif()
-
-# =================================== CP2K_PEXSI
-# ===========================================
-if(CP2K_USE_PEXSI)
-  find_package(pexsi REQUIRED)
 endif()
 
 # ==================================== QUIP
@@ -517,10 +444,14 @@ if(CP2K_USE_SPLA)
   if(NOT SPLA_INCLUDE_DIRS)
     set(SPLA_INCLUDE_DIRS "/usr/include;/usr/include/spla")
   endif()
-  if (NOT SPLA_GPU_BACKEND AND CP2K_USE_GEMM_OFFLOADING)
+
+  if(NOT SPLA_GPU_BACKEND AND CP2K_USE_GEMM_OFFLOADING)
     set(CP2K_USE_GEMM_OFFLOADING OFF)
-    message(ERROR "SPLA should be compiled with GPU support if the gemm offloading is requested. Use -DCP2K_USE_GEMM_OFFLOADING=OFF othrwise")
-  endif ()
+    message(
+      ERROR
+      "SPLA should be compiled with GPU support if the gemm offloading is requested. Use -DCP2K_USE_GEMM_OFFLOADING=OFF othrwise"
+    )
+  endif()
 endif()
 # =================================== SIRIUS
 # ==========================================
@@ -586,19 +517,9 @@ include(CustomTargets)
 
 include(GNUInstallDirs)
 
-# message(STATUS " ") message(STATUS
-# "--------------------------------------------------------------------")
-# message(STATUS "- -") message(STATUS "-               What need to be added to
-# cmake build -") message(STATUS "- -") message(STATUS
-# "--------------------------------------------------------------------")
+get_target_property(CP2K_LIBS cp2k_link_libs INTERFACE_LINK_LIBRARIES)
+configure_file(cp2k.pc.in cp2k.pc @ONLY)
 
-# message(STATUS "- Use CP2K_PREFIX/share for storing cp2k data") message(STATUS
-# "- Integrate the regtests") message(STATUS "- Use -DCP2K_OPTION_NANE instead
-# of -D__OPTION_NAME as it is reserved to compilers") message(STATUS "- create
-# the package file") message(STATUS "- clean up the find_packages and make them
-# more uniform") message(STATUS "- restore hip/cuda functionality")
-# message(STATUS "- fix findblas and findlapack for openblas/arm....")
-# message(STATUS "    ")
 message(
   STATUS "--------------------------------------------------------------------")
 message(
@@ -620,18 +541,14 @@ message(STATUS "   - include directories : " ${CP2K_BLAS_INCLUDE_DIRS}
 message(STATUS "   - libraries :           " ${CP2K_BLAS_LINK_LIBRARIES} " "
                ${CP2K_LAPACK_LINK_LIBRARIES})
 
-# if(CP2K_USE_MPI)
 message(STATUS " ")
 message(STATUS "- MPI")
 message(STATUS "   - include directories : " ${MPI_INCLUDE_DIRS})
 message(STATUS "   - libraries :           " ${MPI_LIBRARIES})
-# endif()
 
-if(CP2K_USE_SCALAPACK)
-  message(STATUS " ")
-  message(STATUS "- SCALAPACK:")
-  message(STATUS "     - libraries : " ${CP2K_SCALAPACK_LINK_LIBRARIES})
-endif()
+message(STATUS " ")
+message(STATUS "- SCALAPACK:")
+message(STATUS "     - libraries : " ${CP2K_SCALAPACK_LINK_LIBRARIES})
 
 message(STATUS " - Hardware Acceleration:")
 message(STATUS "                         ")
@@ -674,7 +591,7 @@ endif()
 
 if(CP2K_USE_FFTW3)
   message(STATUS " ")
-  message(STATUS "- CP2K_FFTW3")
+  message(STATUS "- FFTW3")
   message(STATUS "   - include directories : " ${CP2K_FFTW3_INCLUDE_DIRS})
   message(STATUS "   - libraries :           " ${CP2K_FFTW3_LINK_LIBRARIES})
 endif()
@@ -716,7 +633,7 @@ if(CP2K_USE_COSMA)
   message(STATUS " ")
   message(STATUS "- COSMA")
   message(STATUS "   - include directories : " ${COSMA_INCLUDE_DIRS})
-  # message(STATUS "  - libraries           : " ${COSMA_LIBRARIES})
+  message(STATUS "  - libraries           : " ${COSMA_LIBRARIES})
 endif()
 
 if(CP2K_USE_QUIP)
@@ -752,6 +669,12 @@ if(CP2K_USE_SPGLIB)
   message(STATUS "   - libraries           : " ${CP2K_LIBSPG_LINK_LIBRARIES})
 endif()
 
+if(CP2K_USE_ELPA)
+  message(STATUS "- ELPA")
+  message(STATUS "   - include directories : " ${CP2K_ELPA_INCLUDE_DIRS})
+  message(STATUS "   - libraries           : " ${CP2K_ELPA_LINK_LIBRARIES})
+endif()
+
 if(CP2K_USE_SUPERLU)
   message(STATUS " ")
   message(STATUS "- superlu")
@@ -781,12 +704,6 @@ if(NOT CP2K_USE_SPGLIB)
   message(STATUS "   - SPGLIB")
 endif()
 
-# if (NOT CP2K_USE_MPI) message(STATUS "   - MPI") endif()
-
-if(NOT CP2K_USE_SCALAPACK)
-  message(STATUS "   - scalapack")
-endif()
-
 if(NOT CP2K_USE_COSMA)
   message(STATUS "   - COSMA")
 endif()
@@ -796,7 +713,7 @@ if(NOT CP2K_USE_SPLA)
 endif()
 
 if(${CP2K_USE_ACCEL} MATCHES "NONE")
-  message(STATUS "   - GPU acceleration is off")
+  message(STATUS "   - GPU acceleration is disabled")
 endif()
 
 if(NOT CP2K_USE_ELPA)
