@@ -15,7 +15,8 @@ MODULE mp2_integrals
    USE OMP_LIB,                         ONLY: omp_get_num_threads,&
                                               omp_get_thread_num
    USE atomic_kind_types,               ONLY: atomic_kind_type
-   USE basis_set_types,                 ONLY: gto_basis_set_p_type
+   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
+                                              gto_basis_set_type
    USE bibliography,                    ONLY: DelBen2013,&
                                               cite_reference
    USE cell_types,                      ONLY: cell_type,&
@@ -55,6 +56,9 @@ MODULE mp2_integrals
         do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
         do_potential_long, do_potential_short, do_potential_truncated, kp_weights_W_auto, &
         kp_weights_W_tailored, kp_weights_W_uniform
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                              section_vals_type,&
+                                              section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
@@ -85,6 +89,7 @@ MODULE mp2_integrals
                                               qs_environment_type,&
                                               set_qs_env
    USE qs_integral_utils,               ONLY: basis_set_list_setup
+   USE qs_interactions,                 ONLY: init_interaction_radii_orb_basis
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_tensors,                      ONLY: build_3c_integrals,&
@@ -244,11 +249,11 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_gpw_compute_in'
 
       INTEGER :: cm, cut_memory, cut_memory_int, eri_method, gw_corr_lev_total, handle, handle2, &
-         handle4, i, i_counter, i_mem, ispin, itmp(2), j, jcell, kcell, LLL, min_bsize, &
+         handle4, i, i_counter, i_mem, ibasis, ispin, itmp(2), j, jcell, kcell, LLL, min_bsize, &
          mp_comm_t3c_2, my_B_all_end, my_B_all_size, my_B_all_start, my_B_occ_bse_end, &
          my_B_occ_bse_size, my_B_occ_bse_start, my_B_virt_bse_end, my_B_virt_bse_size, &
-         my_B_virt_bse_start, my_group_L_end, my_group_L_size, my_group_L_start, natom, ngroup, &
-         nimg, nkind, nspins, potential_type, ri_metric_type
+         my_B_virt_bse_start, my_group_L_end, my_group_L_size, my_group_L_start, n_rep, natom, &
+         ngroup, nimg, nkind, nspins, potential_type, ri_metric_type
       INTEGER(int_8)                                     :: nze
       INTEGER, ALLOCATABLE, DIMENSION(:) :: dist_AO_1, dist_AO_2, dist_RI, &
          ends_array_mc_block_int, ends_array_mc_int, my_B_size, my_B_virtual_end, &
@@ -259,9 +264,8 @@ CONTAINS
                                                             periodic
       LOGICAL                                            :: do_gpw, do_kpoints_from_Gamma, do_svd, &
                                                             memory_info
-      REAL(KIND=dp)                                      :: compression_factor, cutoff_old, &
-                                                            mem_for_iaK, memory_3c, occ, &
-                                                            omega_pot, rc_ang, relative_cutoff_old
+      REAL(KIND=dp) :: compression_factor, cutoff_old, eps_pgf_orb, eps_pgf_orb_old, mem_for_iaK, &
+         memory_3c, occ, omega_pot, rc_ang, relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows, my_Vrows
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
@@ -272,6 +276,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_3d_type)                         :: dist_3d
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_ao, basis_set_ri_aux
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis, ri_basis
       TYPE(intermediate_matrix_type)                     :: intermed_mat_bse_ab, intermed_mat_bse_ij
       TYPE(intermediate_matrix_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: intermed_mat, intermed_mat_gw
@@ -280,6 +285,7 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: pot_g, psi_L, rho_g, rho_r
+      TYPE(section_vals_type), POINTER                   :: qs_section
       TYPE(task_list_type), POINTER                      :: task_list_sub
 
       CALL timeset(routineN, handle)
@@ -664,8 +670,26 @@ CONTAINS
          CALL basis_set_list_setup(basis_set_ao, "ORB", qs_kind_set)
          CALL get_particle_set(particle_set, qs_kind_set, nsgf=sizes_AO, basis=basis_set_ao)
 
+         ! make sure we use the QS%EPS_PGF_ORB
+         qs_section => section_vals_get_subs_vals(qs_env%input, "DFT%QS")
+         CALL section_vals_val_get(qs_section, "EPS_PGF_ORB", n_rep_val=n_rep)
+         IF (n_rep /= 0) THEN
+            CALL section_vals_val_get(qs_section, "EPS_PGF_ORB", r_val=eps_pgf_orb)
+         ELSE
+            CALL section_vals_val_get(qs_section, "EPS_DEFAULT", r_val=eps_pgf_orb)
+            eps_pgf_orb = SQRT(eps_pgf_orb)
+         END IF
+         eps_pgf_orb_old = dft_control%qs_control%eps_pgf_orb
+
+         DO ibasis = 1, SIZE(basis_set_ao)
+            orb_basis => basis_set_ao(ibasis)%gto_basis_set
+            CALL init_interaction_radii_orb_basis(orb_basis, eps_pgf_orb)
+            ri_basis => basis_set_ri_aux(ibasis)%gto_basis_set
+            CALL init_interaction_radii_orb_basis(ri_basis, eps_pgf_orb)
+         END DO
+
          cut_memory_int = qs_env%mp2_env%ri_rpa_im_time%cut_memory
-         CALL create_tensor_batches(sizes_AO, cut_memory_int, starts_array_mc_int, ends_array_mc_int, &
+         CALL create_tensor_batches(sizes_RI, cut_memory_int, starts_array_mc_int, ends_array_mc_int, &
                                     starts_array_mc_block_int, ends_array_mc_block_int)
 
          DEALLOCATE (starts_array_mc_int, ends_array_mc_int)
@@ -761,11 +785,12 @@ CONTAINS
                                     qs_env%mp2_env%ri_rpa_im_time%eps_filter/2, &
                                     qs_env, &
                                     nl_3c, &
+                                    int_eps=qs_env%mp2_env%ri_rpa_im_time%eps_filter/2, &
                                     basis_i=basis_set_ri_aux, &
                                     basis_j=basis_set_ao, basis_k=basis_set_ao, &
                                     potential_parameter=ri_metric, &
                                     do_kpoints=do_kpoints_cubic_RPA, &
-                                    bounds_j=[starts_array_mc_block_int(cm), ends_array_mc_block_int(cm)], desymmetrize=.FALSE.)
+                                    bounds_i=[starts_array_mc_block_int(cm), ends_array_mc_block_int(cm)], desymmetrize=.FALSE.)
             CALL timeset(routineN//"_copy_3c", handle4)
             ! copy integral tensor t_3c_overl_int to t_3c_O tensor optimized for contraction
             DO i = 1, SIZE(t_3c_overl_int, 1)
@@ -841,6 +866,13 @@ CONTAINS
          CALL dbt_destroy(t_3c_tmp)
 
          CALL timestop(handle4)
+
+         DO ibasis = 1, SIZE(basis_set_ao)
+            orb_basis => basis_set_ao(ibasis)%gto_basis_set
+            CALL init_interaction_radii_orb_basis(orb_basis, eps_pgf_orb_old)
+            ri_basis => basis_set_ri_aux(ibasis)%gto_basis_set
+            CALL init_interaction_radii_orb_basis(ri_basis, eps_pgf_orb_old)
+         END DO
 
          DEALLOCATE (basis_set_ri_aux, basis_set_ao)
 
