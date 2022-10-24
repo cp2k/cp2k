@@ -2845,26 +2845,26 @@ CONTAINS
                      DO idir = 1, 3
                         DO ispin = 1, nspins
                            vxg(idir, ia, ir, ispin) = &
-                              v_drhoa(ispin)%pw%cr3d(ia, ir, 1)*drhoa(idir)%array(ia, ir, 1) + &
-                              v_drhob(ispin)%pw%cr3d(ia, ir, 1)*drhob(idir)%array(ia, ir, 1) + &
-                              v_drho(ispin)%pw%cr3d(ia, ir, 1)*drho(idir)%array(ia, ir, 1)
+                             -(v_drhoa(ispin)%pw%cr3d(ia, ir, 1)*drhoa(idir)%array(ia, ir, 1) + &
+                               v_drhob(ispin)%pw%cr3d(ia, ir, 1)*drhob(idir)%array(ia, ir, 1) + &
+                               v_drho(ispin)%pw%cr3d(ia, ir, 1)*drho(idir)%array(ia, ir, 1) )
                         END DO
                         IF (ASSOCIATED(e_drhoa)) THEN
-                           vxg(idir, ia, ir, 1) = vxg(idir, ia, ir, 1) - &
+                           vxg(idir, ia, ir, 1) = vxg(idir, ia, ir, 1) + &
                                                   e_drhoa(ia, ir, 1)*drho1a(idir)%array(ia, ir, 1)
                         END IF
                         IF (nspins /= 1 .AND. ASSOCIATED(e_drhob)) THEN
-                           vxg(idir, ia, ir, 2) = vxg(idir, ia, ir, 2) - &
+                           vxg(idir, ia, ir, 2) = vxg(idir, ia, ir, 2) + &
                                                   e_drhob(ia, ir, 1)*drho1b(idir)%array(ia, ir, 1)
                         END IF
                         IF (ASSOCIATED(e_drho)) THEN
                            IF (nspins /= 1) THEN
-                              vxg(idir, ia, ir, 1) = vxg(idir, ia, ir, 1) - &
+                              vxg(idir, ia, ir, 1) = vxg(idir, ia, ir, 1) + &
                                                      e_drho(ia, ir, 1)*drho1(idir)%array(ia, ir, 1)
-                              vxg(idir, ia, ir, 2) = vxg(idir, ia, ir, 2) - &
+                              vxg(idir, ia, ir, 2) = vxg(idir, ia, ir, 2) + &
                                                      e_drho(ia, ir, 1)*drho1(idir)%array(ia, ir, 1)
                            ELSE
-                              vxg(idir, ia, ir, 1) = vxg(idir, ia, ir, 1) - &
+                              vxg(idir, ia, ir, 1) = vxg(idir, ia, ir, 1) + &
                                                      e_drho(ia, ir, 1)*(drho1a(idir)%array(ia, ir, 1) + &
                                                                         fac*drho1b(idir)%array(ia, ir, 1))
                            END IF
@@ -2996,9 +2996,9 @@ CONTAINS
 !$OMP               SHARED(bo,vxg,drho,v_drho,e_drho,drho1,idir) COLLAPSE(2)
                   DO ia = bo(1, 1), bo(2, 1)
                      DO ir = bo(1, 2), bo(2, 2)
-                        vxg(idir, ia, ir, 1) = drho(idir)%array(ia, ir, 1)*v_drho(1)%pw%cr3d(ia, ir, 1)
+                        vxg(idir, ia, ir, 1) = -drho(idir)%array(ia, ir, 1)*v_drho(1)%pw%cr3d(ia, ir, 1)
                         IF (ASSOCIATED(e_drho)) THEN
-                           vxg(idir, ia, ir, 1) = vxg(idir, ia, ir, 1) - drho1(idir)%array(ia, ir, 1)*e_drho(ia, ir, 1)
+                           vxg(idir, ia, ir, 1) = vxg(idir, ia, ir, 1) + drho1(idir)%array(ia, ir, 1)*e_drho(ia, ir, 1)
                         END IF
                      END DO
                   END DO
