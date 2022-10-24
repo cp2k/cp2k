@@ -409,7 +409,8 @@ CONTAINS
 ! Trivial cases: diagonal elements
       num_pairs = 0
       DO my_i = 1, num_orbitals
-      DO my_j = my_i + 1, num_orbitals
+      DO my_j = 1, num_orbitals
+         IF (my_i == my_j) CYCLE
          IF (ABS(Eigenval(my_i) - Eigenval(my_j)) < eps_degen) num_pairs = num_pairs + 1
       END DO
       END DO
@@ -418,12 +419,13 @@ CONTAINS
 ! Print the required pairs
       pair_counter = 1
       DO my_i = 1, num_orbitals
-      DO my_j = my_i + 1, num_orbitals
-      IF (ABS(Eigenval(my_i) - Eigenval(my_j)) < eps_degen) THEN
-         pair_list(1, pair_counter) = my_i
-         pair_list(2, pair_counter) = my_j
-         pair_counter = pair_counter + 1
-      END IF
+      DO my_j = 1, num_orbitals
+         IF (my_i == my_j) CYCLE
+         IF (ABS(Eigenval(my_i) - Eigenval(my_j)) < eps_degen) THEN
+            pair_list(1, pair_counter) = my_i
+            pair_list(2, pair_counter) = my_j
+            pair_counter = pair_counter + 1
+         END IF
       END DO
       END DO
 
@@ -1933,9 +1935,12 @@ CONTAINS
             my_j = sos_mp2_work_occ(ispin)%pair_list(2, ij_counter)
 
             mp2_env%ri_grad%P_ij(ispin)%array(my_i, my_j) = my_scale*sos_mp2_work_occ(ispin)%P(homo(ispin) + ij_counter)
-            mp2_env%ri_grad%P_ij(ispin)%array(my_j, my_i) = my_scale*sos_mp2_work_occ(ispin)%P(homo(ispin) + ij_counter)
          END DO
          DEALLOCATE (sos_mp2_work_occ(ispin)%P, sos_mp2_work_occ(ispin)%pair_list)
+
+         ! Symmetrize P_ij
+         mp2_env%ri_grad%P_ij(ispin)%array(:, :) = 0.5_dp*(mp2_env%ri_grad%P_ij(ispin)%array + &
+                                                           TRANSPOSE(mp2_env%ri_grad%P_ij(ispin)%array))
 
          ! The first index of P_ab has to be distributed within the subgroups, so sum it up first and add the required elements later
          CALL mp_sum(sos_mp2_work_virt(ispin)%P, para_env%group)
@@ -1954,11 +1959,51 @@ CONTAINS
 
             IF (my_a >= itmp(1) .AND. my_a <= itmp(2)) mp2_env%ri_grad%P_ab(ispin)%array(my_a - itmp(1) + 1, my_b) = &
                my_scale*sos_mp2_work_virt(ispin)%P(virtual(ispin) + ab_counter)
-            IF (my_b >= itmp(1) .AND. my_b <= itmp(2)) mp2_env%ri_grad%P_ab(ispin)%array(my_b - itmp(1) + 1, my_a) = &
-               my_scale*sos_mp2_work_virt(ispin)%P(virtual(ispin) + ab_counter)
          END DO
 
          DEALLOCATE (sos_mp2_work_virt(ispin)%P, sos_mp2_work_virt(ispin)%pair_list)
+
+         ! Symmetrize P_ab
+         IF (para_env_sub%num_pe > 1) THEN
+            BLOCK
+               INTEGER :: my_B_start, my_B_end, my_B_size, send_a_start, send_a_end, send_a_size, &
+                          recv_a_start, recv_a_end, recv_a_size, proc_shift, proc_send, proc_recv
+               REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: buffer_send, buffer_recv
+               TYPE(group_dist_d1_type)                           :: gd_virtual_sub
+               CALL create_group_dist(gd_virtual_sub, para_env_sub%num_pe, virtual(ispin))
+
+               mp2_env%ri_grad%P_ab(ispin)%array(:, my_B_start:my_B_end) = &
+                  0.5_dp*(mp2_env%ri_grad%P_ab(ispin)%array(:, my_B_start:my_B_end) &
+                          + TRANSPOSE(mp2_env%ri_grad%P_ab(ispin)%array(:, my_B_start:my_B_end)))
+
+               ALLOCATE (buffer_send(my_B_size, maxsize(gd_virtual_sub)))
+               ALLOCATE (buffer_recv(my_B_size, maxsize(gd_virtual_sub)))
+
+               DO proc_shift = 1, para_env_sub%num_pe - 1
+
+                  proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
+                  proc_recv = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
+
+                  CALL get_group_dist(gd_virtual_sub, proc_send, send_a_start, send_a_end, send_a_size)
+                  CALL get_group_dist(gd_virtual_sub, proc_recv, recv_a_start, recv_a_end, recv_a_size)
+
+                  buffer_send(:, :send_a_size) = mp2_env%ri_grad%P_ab(ispin)%array(:, send_a_start:send_a_end)
+                  CALL mp_sendrecv(buffer_send(:, :send_a_size), proc_send, &
+                                   buffer_recv(:, :recv_a_size), proc_recv, para_env_sub%group)
+
+                  mp2_env%ri_grad%P_ab(ispin)%array(:, recv_a_start:recv_a_end) = &
+                     0.5_dp*(mp2_env%ri_grad%P_ab(ispin)%array(:, recv_a_start:recv_a_end) + buffer_send)
+
+               END DO
+
+               DEALLOCATE (buffer_send, buffer_recv)
+
+               CALL release_group_dist(gd_virtual_sub)
+            END BLOCK
+         ELSE
+            mp2_env%ri_grad%P_ab(ispin)%array(:, :) = 0.5_dp*(mp2_env%ri_grad%P_ab(ispin)%array + &
+                                                              TRANSPOSE(mp2_env%ri_grad%P_ab(ispin)%array))
+         END IF
 
       END DO
       DEALLOCATE (sos_mp2_work_occ, sos_mp2_work_virt)
@@ -2022,6 +2067,8 @@ CONTAINS
          mp2_env%ri_grad%P_ij(ispin)%array(my_i_start:my_i_end, :) = my_scale*rpa_work%P_ij(ispin)%array
          DEALLOCATE (rpa_work%P_ij(ispin)%array)
          CALL mp_sum(mp2_env%ri_grad%P_ij(ispin)%array, para_env%group)
+
+         ! Symmetrize P_ij
          mp2_env%ri_grad%P_ij(ispin)%array(:, :) = 0.5_dp*(mp2_env%ri_grad%P_ij(ispin)%array + &
                                                            TRANSPOSE(mp2_env%ri_grad%P_ij(ispin)%array))
 
