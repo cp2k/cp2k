@@ -73,10 +73,25 @@ fi
 
 echo "--------------------------- ARCH-file ------------------------------------"
 cat "./arch/${ARCH}.${VERSION}"
+
+if [ -x "$(command -v nvidia-smi)" ]; then
+  echo "--------------------------- NVIDIA-SMI -----------------------------------"
+  nvidia-smi
+  echo ""
+fi
+
+if [ -x "$(command -v rocm-smi)" ]; then
+  echo "--------------------------- ROCm-SMI -------------------------------------"
+  rocm-smi
+  echo ""
+fi
+
 echo "-------------------------- Build-Tools -----------------------------------"
 make toolversions ARCH="${ARCH}" VERSION="${VERSION}"
+
 echo "----------------------- External Modules ---------------------------------"
 make extversions ARCH="${ARCH}" VERSION="${VERSION}"
+
 echo "---------------------------- Modules -------------------------------------"
 if [ "$(type -t module)" = 'function' ]; then
   module list 2>&1
