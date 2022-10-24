@@ -38,6 +38,7 @@ MODULE rpa_grad
                                               group_dist_proc,&
                                               maxsize,&
                                               release_group_dist
+USE kahan_sum, ONLY: accurate_dot_product
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE libint_2c_3c,                    ONLY: compare_potential_types
@@ -1206,7 +1207,7 @@ CONTAINS
          recv_size, send_size, size_recv_buffer, size_send_buffer, tag
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, ncol_locals
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
-      REAL(KIND=dp)                                      :: ddot, trace
+      REAL(KIND=dp)                                      :: trace
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buffer_recv, buffer_send
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -1241,7 +1242,7 @@ CONTAINS
 
             my_col_local = cp_fm_indxg2l((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
 
-            trace = ddot(nrow_local, fm_mat_S%local_data(:, my_col_local), 1, fm_work_iaP%local_data(:, col_local), 1)
+            trace = accurate_dot_product(fm_mat_S%local_data(:, my_col_local), fm_work_iaP%local_data(:, col_local))
 
             P_ij(ij_counter) = P_ij(ij_counter) &
                                - trace*sinh_over_x(0.5_dp*(Eigenval(my_i) - Eigenval(my_j))*omega)*omega*weight
@@ -1334,7 +1335,7 @@ CONTAINS
 
                      my_col_local = cp_fm_indxg2l((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
 
-                     trace = trace + ddot(nrow_local, fm_mat_S%local_data(:, my_col_local), 1, buffer_recv(:, col_local), 1)
+                     trace = trace + accurate_dot_product(fm_mat_S%local_data(:, my_col_local), buffer_recv(:, col_local))
                   END DO
 
                   P_ij(ij_counter) = P_ij(ij_counter) &
@@ -1384,7 +1385,7 @@ CONTAINS
          proc_shift, recv_size, send_size, size_recv_buffer, size_send_buffer, tag
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, ncol_locals
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
-      REAL(KIND=dp)                                      :: ddot, trace
+      REAL(KIND=dp)                                      :: trace
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buffer_recv, buffer_send
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -1418,7 +1419,7 @@ CONTAINS
             IF (pcol /= my_pcol) CYCLE
             my_col_local = cp_fm_indxg2l((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
 
-            trace = ddot(nrow_local, fm_mat_S%local_data(:, my_col_local), 1, fm_work_iaP%local_data(:, col_local), 1)
+            trace = accurate_dot_product(fm_mat_S%local_data(:, my_col_local), fm_work_iaP%local_data(:, col_local))
 
             P_ab(ab_counter) = P_ab(ab_counter) &
                                - trace*sinh_over_x(0.5_dp*(Eigenval(my_a) - Eigenval(my_b))*omega)*omega*weight
@@ -1511,7 +1512,7 @@ CONTAINS
 
                      my_col_local = cp_fm_indxg2l((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
 
-                     trace = trace + ddot(nrow_local, fm_mat_S%local_data(:, my_col_local), 1, buffer_recv(:, col_local), 1)
+                     trace = trace + accurate_dot_product(fm_mat_S%local_data(:, my_col_local), buffer_recv(:, col_local))
                   END DO
 
                   P_ab(ab_counter) = P_ab(ab_counter) &
