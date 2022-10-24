@@ -38,7 +38,7 @@ MODULE rpa_grad
                                               group_dist_proc,&
                                               maxsize,&
                                               release_group_dist
-USE kahan_sum, ONLY: accurate_dot_product
+   USE kahan_sum,                       ONLY: accurate_dot_product
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE libint_2c_3c,                    ONLY: compare_potential_types
@@ -1238,7 +1238,7 @@ CONTAINS
 
             IF (iocc /= my_j) CYCLE
             pcol = cp_fm_indxg2p((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
-            IF (pcol /= pcol_send) CYCLE
+            IF (pcol /= my_pcol) CYCLE
 
             my_col_local = cp_fm_indxg2l((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
 
