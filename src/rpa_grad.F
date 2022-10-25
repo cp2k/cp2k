@@ -1244,9 +1244,7 @@ CONTAINS
             trace = accurate_dot_product(fm_mat_S%local_data(:, my_col_local), fm_work_iaP%local_data(:, col_local))
 
             P_ij(ij_counter) = P_ij(ij_counter) &
-                               - 2.0_dp*trace*sinh_over_x(0.5_dp*(Eigenval(my_i) - Eigenval(my_j))*omega)*omega*weight
-
-            EXIT
+                               - trace*sinh_over_x(0.5_dp*(Eigenval(my_i) - Eigenval(my_j))*omega)*omega*weight
 
          END DO
       END DO
@@ -1315,7 +1313,7 @@ CONTAINS
                   END DO
 
                   P_ij(ij_counter) = P_ij(ij_counter) &
-                                     - 2.0_dp*trace*sinh_over_x(0.5_dp*(Eigenval(my_i) - Eigenval(my_j))*omega)*omega*weight
+                                     - trace*sinh_over_x(0.5_dp*(Eigenval(my_i) - Eigenval(my_j))*omega)*omega*weight
                END DO
             ELSE IF (send_size > 0) THEN
                CALL timeset(routineN//"_send", handle2)
@@ -1398,9 +1396,7 @@ CONTAINS
             trace = accurate_dot_product(fm_mat_S%local_data(:, my_col_local), fm_work_iaP%local_data(:, col_local))
 
             P_ab(ab_counter) = P_ab(ab_counter) &
-                               + 2.0_dp*trace*sinh_over_x(0.5_dp*(Eigenval(my_a) - Eigenval(my_b))*omega)*omega*weight
-
-            EXIT
+                               + trace*sinh_over_x(0.5_dp*(Eigenval(my_a) - Eigenval(my_b))*omega)*omega*weight
 
          END DO
       END DO
@@ -1469,7 +1465,7 @@ CONTAINS
                   END DO
 
                   P_ab(ab_counter) = P_ab(ab_counter) &
-                                     + 2.0_dp*trace*sinh_over_x(0.5_dp*(Eigenval(my_a) - Eigenval(my_b))*omega)*omega*weight
+                                     + trace*sinh_over_x(0.5_dp*(Eigenval(my_a) - Eigenval(my_b))*omega)*omega*weight
 
                END DO
             ELSE IF (send_size > 0) THEN
