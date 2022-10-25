@@ -438,11 +438,15 @@ ENV I_MPI_FABRICS='shm'
 # ======================================================================================
 def toolchain_cuda(gpu_ver: str) -> str:
     return rf"""
-FROM nvidia/cuda:11.3.1-devel-ubuntu20.04
+FROM nvidia/cuda:11.8.0-devel-ubuntu20.04
 
 # Setup CUDA environment.
 ENV CUDA_PATH /usr/local/cuda
 ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
+
+# Disable JIT cache as there seems to be an issue with file locking on overlayfs.
+# See also https://github.com/cp2k/cp2k/pull/2337
+ENV CUDA_CACHE_DISABLE 1
 
 # Install Ubuntu packages.
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
