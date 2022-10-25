@@ -1654,8 +1654,6 @@ CONTAINS
          CALL rpa_grad_work_finalize(rpa_grad%rpa_work, mp2_env, homo, &
                                      virtual, para_env, para_env_sub)
       END IF
-      !IF (para_env%mepos == 0) WRITE (*, *) "P_ij", mp2_env%ri_grad%P_ij(1)%array
-      !IF (para_env%mepos == 0) WRITE (*, *) "P_ab1", mp2_env%ri_grad%P_ab(1)%array
 
       CALL get_qs_env(qs_env, blacs_env=blacs_env)
 
@@ -1885,8 +1883,6 @@ CONTAINS
             my_j = sos_mp2_work_occ(ispin)%pair_list(2, ij_counter)
 
             mp2_env%ri_grad%P_ij(ispin)%array(my_i, my_j) = my_scale*sos_mp2_work_occ(ispin)%P(homo(ispin) + ij_counter)
-            IF (para_env%mepos == 0) WRITE (*, *) "P_ij", my_i, my_j, &
-               sos_mp2_work_occ(ispin)%P(homo(ispin) + ij_counter)
          END DO
          DEALLOCATE (sos_mp2_work_occ(ispin)%P, sos_mp2_work_occ(ispin)%pair_list)
 
@@ -1911,8 +1907,6 @@ CONTAINS
 
             IF (my_a >= itmp(1) .AND. my_a <= itmp(2)) mp2_env%ri_grad%P_ab(ispin)%array(my_a - itmp(1) + 1, my_b) = &
                my_scale*sos_mp2_work_virt(ispin)%P(virtual(ispin) + ab_counter)
-            IF (para_env%mepos == 0) WRITE (*, *) "P_ab ", my_a, my_b, &
-               sos_mp2_work_virt(ispin)%P(virtual(ispin) + ab_counter)
          END DO
 
          DEALLOCATE (sos_mp2_work_virt(ispin)%P, sos_mp2_work_virt(ispin)%pair_list)

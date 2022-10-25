@@ -1329,8 +1329,6 @@ CONTAINS
       DEALLOCATE (mepos_2_grid)
       DEALLOCATE (sizes)
 
-      WRITE (*, *) "P ", mp2_env%ri_grad%P_mo(kspin)%matrix%local_data
-
       ! deallocate the local P_ab
       DEALLOCATE (mp2_env%ri_grad%P_ab(kspin)%array)
       CALL timestop(handle2)
