@@ -2845,9 +2845,9 @@ CONTAINS
                      DO idir = 1, 3
                         DO ispin = 1, nspins
                            vxg(idir, ia, ir, ispin) = &
-                             -(v_drhoa(ispin)%pw%cr3d(ia, ir, 1)*drhoa(idir)%array(ia, ir, 1) + &
-                               v_drhob(ispin)%pw%cr3d(ia, ir, 1)*drhob(idir)%array(ia, ir, 1) + &
-                               v_drho(ispin)%pw%cr3d(ia, ir, 1)*drho(idir)%array(ia, ir, 1) )
+                              -(v_drhoa(ispin)%pw%cr3d(ia, ir, 1)*drhoa(idir)%array(ia, ir, 1) + &
+                                v_drhob(ispin)%pw%cr3d(ia, ir, 1)*drhob(idir)%array(ia, ir, 1) + &
+                                v_drho(ispin)%pw%cr3d(ia, ir, 1)*drho(idir)%array(ia, ir, 1))
                         END DO
                         IF (ASSOCIATED(e_drhoa)) THEN
                            vxg(idir, ia, ir, 1) = vxg(idir, ia, ir, 1) + &
