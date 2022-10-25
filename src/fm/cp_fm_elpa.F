@@ -62,7 +62,7 @@ MODULE cp_fm_elpa
                              ELPA_2STAGE_REAL_AVX512_BLOCK6, &
                              ELPA_2STAGE_REAL_NVIDIA_GPU, &
                              ELPA_2STAGE_REAL_AMD_GPU, &
-                             ELPA_2STAGE_REAL_INTEL_GPU
+                             ELPA_2STAGE_REAL_INTEL_GPU_SYCL
 
    USE elpa, ONLY: elpa_t, elpa_solver_2stage, &
                    elpa_init, elpa_uninit, &
@@ -97,7 +97,7 @@ MODULE cp_fm_elpa
                                         ELPA_2STAGE_REAL_AVX512_BLOCK6, &
                                         ELPA_2STAGE_REAL_NVIDIA_GPU, &
                                         ELPA_2STAGE_REAL_AMD_GPU, &
-                                        ELPA_2STAGE_REAL_INTEL_GPU]
+                                        ELPA_2STAGE_REAL_INTEL_GPU_SYCL]
 
    CHARACTER(len=14), DIMENSION(SIZE(elpa_kernel_ids)), PARAMETER :: &
       elpa_kernel_names = [CHARACTER(len=14) :: &
@@ -229,7 +229,7 @@ CONTAINS
          elpa_kernel = ELPA_2STAGE_REAL_AMD_GPU
 #endif
 #if defined (__ELPA_INTEL_GPU)
-         elpa_kernel = ELPA_2STAGE_REAL_INTEL_GPU
+         elpa_kernel = ELPA_2STAGE_REAL_INTEL_GPU_SYCL
 #endif
 
          ! If we could not find a suitable kernel then use ELPA_2STAGE_REAL_DEFAULT.
@@ -511,7 +511,7 @@ CONTAINS
          CALL elpa_obj%set("amd-gpu", 1, success)
          CPASSERT(success == elpa_ok)
       END IF
-      IF (elpa_kernel == ELPA_2STAGE_REAL_INTEL_GPU) THEN
+      IF (elpa_kernel == ELPA_2STAGE_REAL_INTEL_GPU_SYCL) THEN
          CALL elpa_obj%set("intel-gpu", 1, success)
          CPASSERT(success == elpa_ok)
       END IF
