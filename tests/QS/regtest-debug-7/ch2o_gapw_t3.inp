@@ -13,11 +13,11 @@
   &DFT
     &QS
       METHOD GAPW
-      EPS_DEFAULT 1.e-14
+      EPS_DEFAULT 1.e-10
     &END QS
     &MGRID
-       CUTOFF 300
-       REL_CUTOFF 50
+       CUTOFF 200
+       REL_CUTOFF 40
     &END MGRID
     &EFIELD
     &END
@@ -29,10 +29,10 @@
       &END
       &OUTER_SCF
          MAX_SCF  10
-         EPS_SCF 1.0E-7
+         EPS_SCF 1.0E-6
       &END
       MAX_SCF  20
-      EPS_SCF 1.0E-7
+      EPS_SCF 1.0E-6
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE0
@@ -81,7 +81,7 @@
    DEBUG_STRESS_TENSOR .FALSE.
    DEBUG_DIPOLE .FALSE.
    DEBUG_POLARIZABILITY .TRUE.
-   DE 0.002
+   DE 0.005
    EPS_NO_ERROR_CHECK 5.e-5
 &END
 
