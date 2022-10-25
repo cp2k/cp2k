@@ -918,7 +918,7 @@ CONTAINS
                CALL prepare_gapw_den(qs_env, local_rho_set=p_env%local_rho_set_admm, &
                                      do_rho0=.FALSE., kind_set_external=admm_env%admm_gapw_env%admm_kind_set)
                rho_atom_set => admm_env%admm_gapw_env%local_rho_set%rho_atom_set
-               rho1_atom_set => p_env%local_rho_set%rho_atom_set
+               rho1_atom_set => p_env%local_rho_set_admm%rho_atom_set
                CALL calculate_xc_2nd_deriv_atom(rho_atom_set, rho1_atom_set, qs_env, xc_section, para_env, &
                                                 do_tddft=.FALSE., do_triplet=.FALSE., &
                                                 kind_set_external=admm_env%admm_gapw_env%admm_kind_set)
@@ -934,7 +934,7 @@ CONTAINS
                CALL dbcsr_copy(xcmat%matrix, matrix_s(1)%matrix)
                CALL dbcsr_set(xcmat%matrix, 0.0_dp)
                CALL integrate_v_rspace(v_rspace=v_xc(ispin)%pw, hmat=xcmat, qs_env=qs_env, &
-                                       calculate_forces=.FALSE., basis_type="AUX_FIT", &
+                                       calculate_forces=.FALSE., basis_type=basis_type, &
                                        task_list_external=task_list)
                CALL dbcsr_add(p_env%kpp1_admm(ispin)%matrix, xcmat%matrix, 1.0_dp, alpha)
             END DO
