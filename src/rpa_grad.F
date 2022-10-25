@@ -484,7 +484,6 @@ CONTAINS
 
          DO proc_shift = 0, num_pe_col - 1
             pcol_send = MODULO(my_pcol + proc_shift, num_pe_col)
-            pcol_recv = MODULO(my_pcol - proc_shift, num_pe_col)
 
             counter = 0
             DO col_local = 1, ncol_local
@@ -1245,7 +1244,7 @@ CONTAINS
             trace = accurate_dot_product(fm_mat_S%local_data(:, my_col_local), fm_work_iaP%local_data(:, col_local))
 
             P_ij(ij_counter) = P_ij(ij_counter) &
-                               - trace*sinh_over_x(0.5_dp*(Eigenval(my_i) - Eigenval(my_j))*omega)*omega*weight
+                               - 2.0_dp*trace*sinh_over_x(0.5_dp*(Eigenval(my_i) - Eigenval(my_j))*omega)*omega*weight
 
             EXIT
 
@@ -1276,32 +1275,9 @@ CONTAINS
             send_size = 0
             IF (ALLOCATED(index2send(pcol_send)%array)) send_size = SIZE(index2send(pcol_send)%array)
 
-            IF (send_size > 0) THEN
-               counter = 0
-               DO col_local = 1, ncol_local
-                  col_global = col_indices(col_local)
-
-                  iocc = MAX(1, col_global - 1)/virtual + 1
-                  avirt = col_global - (iocc - 1)*virtual
-
-                  DO ij_counter = 1, num_ij_pairs
-
-                     my_i = pair_list(1, ij_counter)
-                     my_j = pair_list(2, ij_counter)
-
-                     IF (iocc /= my_j) CYCLE
-                     pcol = cp_fm_indxg2p((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
-                     IF (pcol /= pcol_send) CYCLE
-
-                     counter = counter + 1
-
-                     buffer_send(:, counter) = fm_work_iaP%local_data(:, col_local)
-
-                     EXIT
-
-                  END DO
-               END DO
-            END IF
+            DO counter = 1, send_size
+               buffer_send(:, counter) = fm_work_iaP%local_data(:, index2send(pcol_send)%array(counter))
+            END DO
 
             recv_size = 0
             IF (ALLOCATED(index2recv(pcol_recv)%array)) recv_size = SIZE(index2recv(pcol_recv)%array)
@@ -1339,7 +1315,7 @@ CONTAINS
                   END DO
 
                   P_ij(ij_counter) = P_ij(ij_counter) &
-                                     - trace*sinh_over_x(0.5_dp*(Eigenval(my_i) - Eigenval(my_j))*omega)*omega*weight
+                                     - 2.0_dp*trace*sinh_over_x(0.5_dp*(Eigenval(my_i) - Eigenval(my_j))*omega)*omega*weight
                END DO
             ELSE IF (send_size > 0) THEN
                CALL timeset(routineN//"_send", handle2)
@@ -1422,7 +1398,7 @@ CONTAINS
             trace = accurate_dot_product(fm_mat_S%local_data(:, my_col_local), fm_work_iaP%local_data(:, col_local))
 
             P_ab(ab_counter) = P_ab(ab_counter) &
-                               - trace*sinh_over_x(0.5_dp*(Eigenval(my_a) - Eigenval(my_b))*omega)*omega*weight
+                               + 2.0_dp*trace*sinh_over_x(0.5_dp*(Eigenval(my_a) - Eigenval(my_b))*omega)*omega*weight
 
             EXIT
 
@@ -1453,32 +1429,9 @@ CONTAINS
             send_size = 0
             IF (ALLOCATED(index2send(pcol_send)%array)) send_size = SIZE(index2send(pcol_send)%array)
 
-            IF (send_size > 0) THEN
-               counter = 0
-               DO col_local = 1, ncol_local
-                  col_global = col_indices(col_local)
-
-                  iocc = MAX(1, col_global - 1)/virtual + 1
-                  avirt = col_global - (iocc - 1)*virtual
-
-                  DO ab_counter = 1, num_ab_pairs
-
-                     my_a = pair_list(1, ab_counter)
-                     my_b = pair_list(2, ab_counter)
-
-                     IF (avirt /= my_b) CYCLE
-                     pcol = cp_fm_indxg2p((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
-                     IF (pcol /= pcol_send) CYCLE
-
-                     counter = counter + 1
-
-                     buffer_send(:, counter) = fm_work_iaP%local_data(:, col_local)
-
-                     EXIT
-
-                  END DO
-               END DO
-            END IF
+            DO counter = 1, send_size
+               buffer_send(:, counter) = fm_work_iaP%local_data(:, index2send(pcol_send)%array(counter))
+            END DO
 
             recv_size = 0
             IF (ALLOCATED(index2recv(pcol_recv)%array)) recv_size = SIZE(index2recv(pcol_recv)%array)
@@ -1516,7 +1469,7 @@ CONTAINS
                   END DO
 
                   P_ab(ab_counter) = P_ab(ab_counter) &
-                                     - trace*sinh_over_x(0.5_dp*(Eigenval(my_a) - Eigenval(my_b))*omega)*omega*weight
+                                     + 2.0_dp*trace*sinh_over_x(0.5_dp*(Eigenval(my_a) - Eigenval(my_b))*omega)*omega*weight
 
                END DO
             ELSE IF (send_size > 0) THEN
@@ -1608,11 +1561,9 @@ CONTAINS
 
             send_size = 0
             IF (ALLOCATED(index2send(proc_send)%array)) send_size = SIZE(index2send(proc_send)%array)
-            IF (send_size > 0) THEN
-               DO col_local = 1, send_size
-                  buffer_send(:, col_local) = fm_mat_S%local_data(:, index2send(proc_send)%array(col_local))
-               END DO
-            END IF
+            DO col_local = 1, send_size
+               buffer_send(:, col_local) = fm_mat_S%local_data(:, index2send(proc_send)%array(col_local))
+            END DO
 
             recv_size = 0
             IF (ALLOCATED(index2recv(proc_recv)%array)) recv_size = SIZE(index2recv(proc_recv)%array, 2)
@@ -1707,6 +1658,8 @@ CONTAINS
          CALL rpa_grad_work_finalize(rpa_grad%rpa_work, mp2_env, homo, &
                                      virtual, para_env, para_env_sub)
       END IF
+      !IF (para_env%mepos == 0) WRITE (*, *) "P_ij", mp2_env%ri_grad%P_ij(1)%array
+      !IF (para_env%mepos == 0) WRITE (*, *) "P_ab1", mp2_env%ri_grad%P_ab(1)%array
 
       CALL get_qs_env(qs_env, blacs_env=blacs_env)
 
@@ -1936,6 +1889,8 @@ CONTAINS
             my_j = sos_mp2_work_occ(ispin)%pair_list(2, ij_counter)
 
             mp2_env%ri_grad%P_ij(ispin)%array(my_i, my_j) = my_scale*sos_mp2_work_occ(ispin)%P(homo(ispin) + ij_counter)
+            IF (para_env%mepos == 0) WRITE (*, *) "P_ij", my_i, my_j, &
+               sos_mp2_work_occ(ispin)%P(homo(ispin) + ij_counter)
          END DO
          DEALLOCATE (sos_mp2_work_occ(ispin)%P, sos_mp2_work_occ(ispin)%pair_list)
 
@@ -1960,6 +1915,8 @@ CONTAINS
 
             IF (my_a >= itmp(1) .AND. my_a <= itmp(2)) mp2_env%ri_grad%P_ab(ispin)%array(my_a - itmp(1) + 1, my_b) = &
                my_scale*sos_mp2_work_virt(ispin)%P(virtual(ispin) + ab_counter)
+            IF (para_env%mepos == 0) WRITE (*, *) "P_ab ", my_a, my_b, &
+               sos_mp2_work_virt(ispin)%P(virtual(ispin) + ab_counter)
          END DO
 
          DEALLOCATE (sos_mp2_work_virt(ispin)%P, sos_mp2_work_virt(ispin)%pair_list)
