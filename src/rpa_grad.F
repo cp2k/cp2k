@@ -1274,7 +1274,8 @@ CONTAINS
             IF (ALLOCATED(index2send(pcol_send)%array)) send_size = SIZE(index2send(pcol_send)%array)
 
             DO counter = 1, send_size
-               buffer_send(:, counter) = fm_work_iaP%local_data(:, index2send(pcol_send)%array(counter))
+               col_local = cp_fm_indxg2l(index2send(pcol_send)%array(counter), ncol_block, 0, first_p_pos_col, num_pe_col)
+               buffer_send(:, counter) = fm_work_iaP%local_data(:, col_local)
             END DO
 
             recv_size = 0
