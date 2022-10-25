@@ -16,15 +16,15 @@
       EPS_DEFAULT 1.e-14
     &END QS
     &MGRID
-       CUTOFF 400
-       REL_CUTOFF 60
+       CUTOFF 300
+       REL_CUTOFF 50
     &END MGRID
     &EFIELD
     &END
     &SCF
       SCF_GUESS ATOMIC
       &OT
-         PRECONDITIONER FULL_SINGLE_INVERSE
+         PRECONDITIONER FULL_ALL
          MINIMIZER DIIS
       &END
       &OUTER_SCF
@@ -47,7 +47,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom] 6.0 6.0 6.0
+      ABC [angstrom] 4.0 4.0 4.0
       PERIODIC NONE
     &END
     &COORD

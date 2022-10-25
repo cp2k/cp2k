@@ -23,8 +23,8 @@
       EXCH_SCALING_MODEL NONE
     &END
     &MGRID
-       CUTOFF 400
-       REL_CUTOFF 60
+       CUTOFF 300
+       REL_CUTOFF 50
     &END MGRID
     &EFIELD
     &END
@@ -54,7 +54,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom] 6.0 6.0 6.0
+      ABC [angstrom] 4.0 4.0 4.0
       PERIODIC NONE
     &END
     &COORD

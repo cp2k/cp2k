@@ -3,7 +3,7 @@
   &PROPERTIES
     &LINRES
        PRECONDITIONER FULL_ALL
-       EPS 1.e-12
+       EPS 1.e-10
        &POLAR
           DO_RAMAN T
           PERIODIC_DIPOLE_OPERATOR F
@@ -12,36 +12,34 @@
   &END
   &DFT
     &QS
-      ###METHOD GAPW
-      METHOD GPW
+      METHOD GAPW
       EPS_DEFAULT 1.e-14
     &END QS
     &MGRID
-       CUTOFF 600
-       REL_CUTOFF 80
+       CUTOFF 300
+       REL_CUTOFF 50
     &END MGRID
     &EFIELD
     &END
     &SCF
       SCF_GUESS ATOMIC
       &OT
-         PRECONDITIONER FULL_SINGLE_INVERSE
+         PRECONDITIONER FULL_ALL
          MINIMIZER DIIS
       &END
       &OUTER_SCF
          MAX_SCF  10
-         EPS_SCF 1.0E-8
+         EPS_SCF 1.0E-7
       &END
       MAX_SCF  20
-      EPS_SCF 1.0E-8
+      EPS_SCF 1.0E-7
     &END SCF
     &XC
-      ###&XC_FUNCTIONAL PADE
-      &XC_FUNCTIONAL PBE
+      &XC_FUNCTIONAL PADE
       &END XC_FUNCTIONAL
     &END XC
     &POISSON
-     POISSON_SOLVER WAVELET
+     POISSON_SOLVER MT
      PERIODIC NONE
     &END POISSON
     &PRINT
@@ -53,7 +51,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom] 8.0 8.0 8.0
+      ABC [angstrom] 4.0 4.0 4.0
       PERIODIC NONE
     &END
     &TOPOLOGY
@@ -91,7 +89,7 @@
    DEBUG_STRESS_TENSOR .FALSE.
    DEBUG_DIPOLE .FALSE.
    DEBUG_POLARIZABILITY .TRUE.
-   DE 0.001
+   DE 0.005
    EPS_NO_ERROR_CHECK 5.e-5
 &END
 
