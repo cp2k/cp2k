@@ -41,7 +41,6 @@ MODULE dimer_types
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dimer_types'
-   INTEGER, PRIVATE, SAVE :: last_dimer_id = 0
 
    PUBLIC :: dimer_env_type, &
              dimer_env_create, &
@@ -92,7 +91,7 @@ MODULE dimer_types
 !> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
 ! **************************************************************************************************
    TYPE dimer_env_type
-      INTEGER                                    :: ref_count, id_nr
+      INTEGER                                    :: ref_count
       REAL(KIND=dp)                              :: dr
       REAL(KIND=dp), POINTER, DIMENSION(:)       :: nvec
       REAL(KIND=dp)                              :: beta
@@ -131,8 +130,6 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(dimer_env))
       ALLOCATE (dimer_env)
       dimer_env%ref_count = 1
-      last_dimer_id = last_dimer_id + 1
-      dimer_env%id_nr = last_dimer_id
       ! Setup NVEC
       NULLIFY (dimer_env%nvec, dimer_env%rot%g0, dimer_env%rot%g1, dimer_env%rot%g1p, &
                dimer_env%tsl%tls_vec)

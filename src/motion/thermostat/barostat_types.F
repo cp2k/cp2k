@@ -51,7 +51,7 @@ MODULE barostat_types
 
 ! **************************************************************************************************
    TYPE barostat_type
-      INTEGER                          :: id_nr, ref_count
+      INTEGER                          :: ref_count
       INTEGER                          :: type_of_barostat, virial_components
       REAL(KIND=dp)                    :: temp_ext
       TYPE(npt_info_type), POINTER  :: npt(:, :)
@@ -61,7 +61,6 @@ MODULE barostat_types
 ! *** Global parameters ***
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'barostat_types'
-   INTEGER, PRIVATE, SAVE               :: last_barostat_id_nr = 0
 
 CONTAINS
 
@@ -100,8 +99,6 @@ CONTAINS
           simpar%ensemble == nph_uniaxial_ensemble .OR. &
           simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
          ALLOCATE (barostat)
-         last_barostat_id_nr = last_barostat_id_nr + 1
-         barostat%id_nr = last_barostat_id_nr
          barostat%ref_count = 1
          barostat%section => barostat_section
          NULLIFY (barostat%npt)

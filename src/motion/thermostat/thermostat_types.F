@@ -59,7 +59,7 @@ MODULE thermostat_types
 !> \author Teodoro Laino
 ! **************************************************************************************************
    TYPE thermostats_type
-      INTEGER :: id_nr, ref_count
+      INTEGER :: ref_count
       TYPE(thermostat_info_type), POINTER :: thermostat_info_part
       TYPE(thermostat_info_type), POINTER :: thermostat_info_shell
 ! cjm
@@ -77,7 +77,7 @@ MODULE thermostat_types
    ! Single thermostat_type
 ! **************************************************************************************************
    TYPE thermostat_type
-      INTEGER :: id_nr, ref_count, type_of_thermostat
+      INTEGER :: ref_count, type_of_thermostat
       CHARACTER(LEN=default_string_length) :: label
       TYPE(lnhc_parameters_type), POINTER :: nhc
       TYPE(csvr_system_type), POINTER     :: csvr
@@ -96,8 +96,6 @@ MODULE thermostat_types
    END TYPE thermostat_info_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermostat_types'
-   INTEGER, PRIVATE, SAVE :: last_thermostat_id_nr = 0, &
-                             last_thermostats_id_nr = 0
 
 CONTAINS
 
@@ -118,8 +116,6 @@ CONTAINS
 
       ! Preliminary allocation for thermostats
       ALLOCATE (thermostats)
-      last_thermostats_id_nr = last_thermostats_id_nr + 1
-      thermostats%id_nr = last_thermostats_id_nr
       thermostats%ref_count = 1
 
       ! Thermostats Info
@@ -235,8 +231,6 @@ CONTAINS
       skip_region_loc = .FALSE.
       IF (PRESENT(skip_region)) skip_region_loc = skip_region
       ALLOCATE (thermostat)
-      last_thermostat_id_nr = last_thermostat_id_nr + 1
-      thermostat%id_nr = last_thermostat_id_nr
       thermostat%ref_count = 1
       thermostat%section => section
       thermostat%label = label

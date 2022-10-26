@@ -28,7 +28,7 @@ MODULE thermal_region_types
              retain_thermal_regions
 
    TYPE thermal_regions_type
-      INTEGER :: id_nr, ref_count, nregions
+      INTEGER :: ref_count, nregions
       LOGICAL :: force_rescaling
       REAL(KIND=dp) :: temp_reg0
       LOGICAL, DIMENSION(:), POINTER                   :: do_langevin

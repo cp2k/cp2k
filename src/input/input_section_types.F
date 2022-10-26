@@ -48,7 +48,6 @@ MODULE input_section_types
    IMPLICIT NONE
    PRIVATE
 
-   INTEGER, SAVE, PRIVATE :: last_section_id = 0, last_section_vals_id = 0
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_section_types'
 
@@ -88,7 +87,6 @@ MODULE input_section_types
 !>        can be added)
 !>      - repeats: if the section can be repeated more than once in the same
 !>        context
-!>      - id_nr: identification number (different in each instance)
 !>      - ref_count: reference count (see doc/ReferenceCounting.html)
 !>      - n_keywords: the number of keywords in this section
 !>      - name: name of the section
@@ -102,7 +100,7 @@ MODULE input_section_types
 ! **************************************************************************************************
    TYPE section_type
       LOGICAL :: frozen, repeats
-      INTEGER :: id_nr, ref_count, n_keywords, n_subsections
+      INTEGER :: ref_count, n_keywords, n_subsections
       CHARACTER(len=default_string_length)        :: name
       CHARACTER(len=default_string_length)        :: location
       CHARACTER, DIMENSION(:), POINTER              :: description => Null()
@@ -125,7 +123,7 @@ MODULE input_section_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE section_vals_type
-      INTEGER :: ref_count, id_nr
+      INTEGER :: ref_count
       INTEGER, POINTER, DIMENSION(:)                     :: ibackup
       TYPE(section_type), POINTER                         :: section
       TYPE(cp_sll_val_p_type), DIMENSION(:, :), POINTER   :: values
@@ -169,8 +167,6 @@ CONTAINS
       IF (PRESENT(n_subsections)) my_n_subsections = n_subsections
 
       ALLOCATE (section)
-      last_section_id = last_section_id + 1
-      section%id_nr = last_section_id
       section%ref_count = 1
 
       section%n_keywords = 0
@@ -585,8 +581,6 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section_vals))
       ALLOCATE (section_vals)
-      last_section_vals_id = last_section_vals_id + 1
-      section_vals%id_nr = last_section_vals_id
       section_vals%ref_count = 1
       CALL section_retain(section)
       section_vals%section => section
@@ -659,7 +653,6 @@ CONTAINS
 !> \brief returns various attributes about the section_vals
 !> \param section_vals the section vals you want information from
 !> \param ref_count ...
-!> \param id_nr ...
 !> \param n_repetition number of repetitions of the section
 !> \param n_subs_vals_rep number of repetitions of the subsections values
 !>        (max(1,n_repetition))
@@ -668,17 +661,16 @@ CONTAINS
 !> \author fawzi
 !> \note     For the other arguments see the attributes of section_vals_type
 ! **************************************************************************************************
-   SUBROUTINE section_vals_get(section_vals, ref_count, id_nr, n_repetition, &
+   SUBROUTINE section_vals_get(section_vals, ref_count, n_repetition, &
                                n_subs_vals_rep, section, explicit)
       TYPE(section_vals_type), INTENT(IN)                :: section_vals
-      INTEGER, INTENT(out), OPTIONAL                     :: ref_count, id_nr, n_repetition, &
+      INTEGER, INTENT(out), OPTIONAL                     :: ref_count, n_repetition, &
                                                             n_subs_vals_rep
       TYPE(section_type), OPTIONAL, POINTER              :: section
       LOGICAL, INTENT(out), OPTIONAL                     :: explicit
 
       CPASSERT(section_vals%ref_count > 0)
       IF (PRESENT(ref_count)) ref_count = section_vals%ref_count
-      IF (PRESENT(id_nr)) id_nr = section_vals%id_nr
       IF (PRESENT(section)) section => section_vals%section
       IF (PRESENT(n_repetition)) n_repetition = SIZE(section_vals%values, 2)
       IF (PRESENT(n_subs_vals_rep)) n_subs_vals_rep = SIZE(section_vals%subs_vals, 2)
@@ -1727,7 +1719,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(section_vals_in))
       CPASSERT(ASSOCIATED(section_vals_out))
-      !  IF(section_vals_in%section%id_nr/=section_vals_out%section%id_nr)&
+      !  IF(.NOT. ASSOCIATED(section_vals_in%section, section_vals_out%section))&
       !     CPABORT("")
 
       istart = 1

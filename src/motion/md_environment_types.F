@@ -61,7 +61,7 @@ MODULE md_environment_types
       ! that are dealt with by the integrator e.g in the PIMD this could
       ! be parent of every bead.
       PRIVATE
-      INTEGER                                    :: id_nr, ref_count
+      INTEGER                                    :: ref_count
       LOGICAL                                    :: init, first_time, ehrenfest_md
       INTEGER, POINTER                           :: itimes
       REAL(KIND=dp), POINTER                     :: used_time, t
@@ -85,7 +85,6 @@ MODULE md_environment_types
 
    ! *** Global parameters ***
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_environment_types'
-   INTEGER, SAVE, PRIVATE :: last_md_env_id = 0
 
 CONTAINS
 
@@ -108,8 +107,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: averages_section
 
       ALLOCATE (md_env)
-      last_md_env_id = last_md_env_id + 1
-      md_env%id_nr = last_md_env_id
       md_env%ref_count = 1
 
       NULLIFY (md_env%itimes)

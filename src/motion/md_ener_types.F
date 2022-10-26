@@ -20,7 +20,7 @@ MODULE md_ener_types
 
 ! **************************************************************************************************
    TYPE md_ener_type
-      INTEGER       :: id_nr, ref_count
+      INTEGER       :: ref_count
       INTEGER       :: nfree, nfree_shell
       REAL(KIND=dp) :: constant
       REAL(KIND=dp) :: delta_cons, delta_epot
@@ -53,7 +53,6 @@ MODULE md_ener_types
 ! *** Global parameters ***
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_ener_types'
-   INTEGER, SAVE, PRIVATE :: last_md_ener_id = 0
 
 CONTAINS
 
@@ -69,8 +68,6 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(md_ener))
       ALLOCATE (md_ener)
-      last_md_ener_id = last_md_ener_id + 1
-      md_ener%id_nr = last_md_ener_id
 
       md_ener%ref_count = 1
 

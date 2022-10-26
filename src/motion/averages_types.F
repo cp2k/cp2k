@@ -37,7 +37,7 @@ MODULE averages_types
 
 ! **************************************************************************************************
    TYPE average_quantities_type
-      INTEGER                                       :: id_nr, ref_count, itimes_start
+      INTEGER                                       :: ref_count, itimes_start
       LOGICAL                                       :: do_averages
       TYPE(section_vals_type), POINTER              :: averages_section
       ! Real Scalar Quantities
@@ -65,7 +65,6 @@ MODULE averages_types
 
 ! *** Global parameters ***
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'averages_types'
-   INTEGER, SAVE, PRIVATE :: last_avg_env_id = 0
 
 CONTAINS
 
@@ -93,8 +92,6 @@ CONTAINS
       ! Point to the averages section
       averages%averages_section => averages_section
       ! Initialize averages
-      last_avg_env_id = last_avg_env_id + 1
-      averages%id_nr = last_avg_env_id
       averages%ref_count = 1
       averages%itimes_start = -1
       averages%avetemp = 0.0_dp

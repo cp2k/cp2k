@@ -41,7 +41,6 @@ MODULE input_keyword_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_keyword_types'
 
    INTEGER, PARAMETER, PUBLIC :: usage_string_length = default_string_length*2
-   INTEGER, SAVE, PRIVATE :: last_keyword_id = 0
 
    PUBLIC :: keyword_p_type, keyword_type, keyword_create, keyword_retain, &
              keyword_release, keyword_get, keyword_describe, &
@@ -87,7 +86,7 @@ MODULE input_keyword_types
 !> \author Joost & fawzi
 ! **************************************************************************************************
    TYPE keyword_type
-      INTEGER :: ref_count, id_nr
+      INTEGER :: ref_count
       CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER:: names
       CHARACTER(LEN=usage_string_length) :: location
       CHARACTER(LEN=usage_string_length) :: usage
@@ -198,8 +197,6 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(keyword))
       ALLOCATE (keyword)
       keyword%ref_count = 1
-      last_keyword_id = last_keyword_id + 1
-      keyword%id_nr = last_keyword_id
       NULLIFY (keyword%unit)
       keyword%location = location
       keyword%removed = .FALSE.
@@ -265,7 +262,7 @@ CONTAINS
          keyword%default_value => default_val
          IF (ASSOCIATED(default_val%enum)) THEN
             IF (ASSOCIATED(keyword%enum)) THEN
-               CPASSERT(keyword%enum%id_nr == default_val%enum%id_nr)
+               CPASSERT(ASSOCIATED(keyword%enum, default_val%enum))
             ELSE
                keyword%enum => default_val%enum
                CALL enum_retain(keyword%enum)
@@ -318,8 +315,8 @@ CONTAINS
          CALL val_retain(lone_keyword_val)
          IF (ASSOCIATED(lone_keyword_val%enum)) THEN
             IF (ASSOCIATED(keyword%enum)) THEN
-               IF (keyword%enum%id_nr /= lone_keyword_val%enum%id_nr) &
-                  CPABORT("keyword%enum%id_nr==lone_keyword_val%enum%id_nr")
+               IF (.NOT. ASSOCIATED(keyword%enum, lone_keyword_val%enum)) &
+                  CPABORT("keyword%enum/=lone_keyword_val%enum")
             ELSE
                IF (ASSOCIATED(keyword%lone_keyword_value)) THEN
                   CPABORT(".NOT. ASSOCIATED(keyword%lone_keyword_value)")

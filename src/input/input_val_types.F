@@ -34,8 +34,6 @@ MODULE input_val_types
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_val_types'
 
-   INTEGER, SAVE, PRIVATE :: last_val_id = 0
-
    PUBLIC :: val_p_type, val_type
    PUBLIC :: val_create, val_retain, val_release, val_get, val_write, &
              val_write_internal, val_duplicate
@@ -64,7 +62,7 @@ MODULE input_val_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE val_type
-      INTEGER :: ref_count, id_nr, type_of_var
+      INTEGER :: ref_count, type_of_var
       LOGICAL, DIMENSION(:), POINTER :: l_val
       INTEGER, DIMENSION(:), POINTER :: i_val
       CHARACTER(len=default_string_length), DIMENSION(:), POINTER :: &
@@ -131,8 +129,6 @@ CONTAINS
       ALLOCATE (val)
       NULLIFY (val%l_val, val%i_val, val%r_val, val%c_val, val%enum)
       val%type_of_var = no_t
-      last_val_id = last_val_id + 1
-      val%id_nr = last_val_id
       val%ref_count = 1
 
       narg = 0
@@ -735,8 +731,6 @@ CONTAINS
       CPASSERT(ASSOCIATED(val_in))
       CPASSERT(.NOT. ASSOCIATED(val_out))
       ALLOCATE (val_out)
-      last_val_id = last_val_id + 1
-      val_out%id_nr = last_val_id
       val_out%type_of_var = val_in%type_of_var
       val_out%ref_count = 1
       val_out%enum => val_in%enum
