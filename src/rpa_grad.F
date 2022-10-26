@@ -548,6 +548,13 @@ CONTAINS
             CALL mp_sendrecv(sos_mp2_work%index2send(pcol_send)%array, blacs2mpi(my_prow, pcol_send), &
                              sos_mp2_work%index2recv(pcol_recv)%array, blacs2mpi(my_prow, pcol_recv), &
                              para_env%group, tag)
+
+            ! Convert to global coordinates to local coordinates as we always work with them
+            DO counter = 1, data2send(pcol_send)
+               sos_mp2_work%index2send(pcol_send)%array(counter) = &
+                  cp_fm_indxg2l(sos_mp2_work%index2send(pcol_send)%array(counter), &
+                                ncol_block, 0, first_p_pos_col, num_pe_col)
+            END DO
          END DO
 
          CALL cp_para_env_release(para_env_exchange)
@@ -675,6 +682,13 @@ CONTAINS
             CALL mp_sendrecv(sos_mp2_work%index2send(pcol_send)%array, blacs2mpi(my_prow, pcol_send), &
                              sos_mp2_work%index2recv(pcol_recv)%array, blacs2mpi(my_prow, pcol_recv), &
                              para_env%group, tag)
+
+            ! Convert to global coordinates to local coordinates as we always work with them
+            DO counter = 1, data2send(pcol_send)
+               sos_mp2_work%index2send(pcol_send)%array(counter) = &
+                  cp_fm_indxg2l(sos_mp2_work%index2send(pcol_send)%array(counter), &
+                                ncol_block, 0, first_p_pos_col, num_pe_col)
+            END DO
          END DO
 
          CALL cp_para_env_release(para_env_exchange)
@@ -1273,8 +1287,7 @@ CONTAINS
             IF (ALLOCATED(index2send(pcol_send)%array)) send_size = SIZE(index2send(pcol_send)%array)
 
             DO counter = 1, send_size
-               col_local = cp_fm_indxg2l(index2send(pcol_send)%array(counter), ncol_block, 0, first_p_pos_col, num_pe_col)
-               buffer_send(:, counter) = fm_work_iaP%local_data(:, col_local)
+               buffer_send(:, counter) = fm_work_iaP%local_data(:, index2send(pcol_send)%array(counter))
             END DO
 
             recv_size = 0
