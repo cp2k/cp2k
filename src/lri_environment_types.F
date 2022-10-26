@@ -267,7 +267,6 @@ MODULE lri_environment_types
 ! **************************************************************************************************
 
    TYPE lri_environment_type
-      INTEGER                                                 :: ref_count, in_use
       ! parameter for (pseudo)inverse of overlap
       INTEGER                                                 :: lri_overlap_inv
       ! flag for debugging lri integrals
@@ -356,8 +355,6 @@ MODULE lri_environment_types
 ! **************************************************************************************************
 
    TYPE lri_density_type
-      INTEGER                                                 :: ref_count = 0, &
-                                                                 in_use = 0
       INTEGER                                                 :: nspin = 0
       ! pair density expansion (nspin)
       TYPE(lri_list_p_type), DIMENSION(:), POINTER            :: lri_rhos => NULL()
@@ -396,9 +393,6 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
 
       ALLOCATE (lri_env)
-
-      lri_env%ref_count = 1
-      lri_env%in_use = 0
 
       lri_env%debug = .FALSE.
       lri_env%delta = 1.E-6_dp
@@ -444,7 +438,6 @@ CONTAINS
       INTEGER                                            :: i, ikind, j, nkind
 
       IF (ASSOCIATED(lri_env)) THEN
-         lri_env%ref_count = 0
 
          ! deallocate basis sets
          IF (ASSOCIATED(lri_env%orb_basis)) THEN
@@ -556,9 +549,6 @@ CONTAINS
 
       ALLOCATE (lri_density)
 
-      lri_density%ref_count = 1
-      lri_density%in_use = 0
-
       lri_density%nspin = 0
 
       NULLIFY (lri_density%lri_rhos)
@@ -575,12 +565,9 @@ CONTAINS
       TYPE(lri_density_type), POINTER                    :: lri_density
 
       IF (ASSOCIATED(lri_density)) THEN
-         lri_density%ref_count = lri_density%ref_count - 1
-         IF (lri_density%ref_count == 0) THEN
             CALL deallocate_lri_rhos(lri_density%lri_rhos)
             CALL deallocate_lri_coefs(lri_density%lri_coefs)
             DEALLOCATE (lri_density)
-         END IF
       END IF
 
       NULLIFY (lri_density)
@@ -1012,7 +999,6 @@ CONTAINS
       TYPE(lri_spin_type), DIMENSION(:), POINTER         :: lri_coefs
 
       CPASSERT(ASSOCIATED(lri_density))
-      CPASSERT(lri_density%ref_count > 0)
 
       NULLIFY (atomic_kind, fbas, lri_coefs)
 
