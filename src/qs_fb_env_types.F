@@ -36,7 +36,6 @@ MODULE qs_fb_env_types
              fb_env_set
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_env_types'
-   INTEGER, PRIVATE, SAVE :: last_fb_env_id = 0
 
 ! **********************************************************************
 !> \brief wrapper to the simulation parameters used for filtered basis
@@ -62,12 +61,11 @@ MODULE qs_fb_env_types
 !>                             expense of larger memory usage
 !> \param local_atoms        : atoms corresponding to the
 !>                             atomic halos responsible by this processor
-!> \param id_nr : unique id of this object
 !> \param ref_count : reference counter of this object
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **********************************************************************
    TYPE fb_env_data
-      INTEGER :: id_nr, ref_count
+      INTEGER :: ref_count
       REAL(KIND=dp), DIMENSION(:), POINTER :: rcut
       TYPE(fb_atomic_halo_list_obj) :: atomic_halos
       TYPE(fb_trial_fns_obj) :: trial_fns
@@ -197,8 +195,6 @@ CONTAINS
       NULLIFY (fb_env%obj%local_atoms)
       fb_env%obj%nlocal_atoms = 0
       fb_env%obj%ref_count = 1
-      fb_env%obj%id_nr = last_fb_env_id + 1
-      last_fb_env_id = fb_env%obj%id_nr
    END SUBROUTINE fb_env_create
 
 ! **********************************************************************
