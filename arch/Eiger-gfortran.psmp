@@ -20,6 +20,7 @@
       spglib/1.16.3 \
       libvori/210412 \
       PLUMED/2.7.3 \
+      cray-mpich/8.1.12 \
       ; \
   module list ; \
   module save cp2k_gfortran_psmp ; \
@@ -37,13 +38,13 @@
 #   ex.: make -j ARCH=Eiger-gfortran VERSION=psmp USE_ELPA=0
 
 # NOTES:
-# Current versions of SIRIUS, LIBVORI and PLUMED provided by CSCS on Eiger are too old to run
+# Current versions of ELPA, SIRIUS, LIBVORI and PLUMED provided by CSCS on Eiger are too old to run
 # with the current development version of CP2K. The user should install these via the toolchain,
 # in case they should need these libraries.
 
 WITH_MKL=0
 
-USE_ELPA=1
+USE_ELPA=0
 USE_LIBINT=1
 USE_SIRIUS=0 
 USE_SPGLIB=1
