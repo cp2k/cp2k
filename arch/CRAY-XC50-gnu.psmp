@@ -72,7 +72,7 @@ USE_LIBVORI    := 220621
 USE_LIBXC      := 6.0.0
 USE_LIBXSMM    := 1.17
 USE_PLUMED     := 2.8.0
-#USE_QUIP       := b4336484fb65b0e73211a8f920ae4361c7c353fd
+#USE_QUIP       := 0.9.10
 USE_SIRIUS     := 7.3.2
 USE_SPGLIB     := 1.16.2
 # Only needed for SIRIUS
