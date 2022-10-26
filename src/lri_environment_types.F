@@ -267,7 +267,7 @@ MODULE lri_environment_types
 ! **************************************************************************************************
 
    TYPE lri_environment_type
-      INTEGER                                                 :: id_nr, ref_count, in_use
+      INTEGER                                                 :: ref_count, in_use
       ! parameter for (pseudo)inverse of overlap
       INTEGER                                                 :: lri_overlap_inv
       ! flag for debugging lri integrals
@@ -356,8 +356,7 @@ MODULE lri_environment_types
 ! **************************************************************************************************
 
    TYPE lri_density_type
-      INTEGER                                                 :: id_nr = 0, &
-                                                                 ref_count = 0, &
+      INTEGER                                                 :: ref_count = 0, &
                                                                  in_use = 0
       INTEGER                                                 :: nspin = 0
       ! pair density expansion (nspin)
@@ -398,8 +397,6 @@ CONTAINS
 
       ALLOCATE (lri_env)
 
-      last_lri_env_id = last_lri_env_id + 1
-      lri_env%id_nr = last_lri_env_id
       lri_env%ref_count = 1
       lri_env%in_use = 0
 
@@ -559,8 +556,6 @@ CONTAINS
 
       ALLOCATE (lri_density)
 
-      last_lri_density_id = last_lri_density_id + 1
-      lri_density%id_nr = last_lri_density_id
       lri_density%ref_count = 1
       lri_density%in_use = 0
 

@@ -21,7 +21,7 @@ MODULE mc_environment_types
 
 ! **************************************************************************************************
    TYPE mc_environment_type
-      INTEGER :: id_nr, ref_count, in_use
+      INTEGER :: ref_count, in_use
       TYPE(mc_simpar_type), POINTER :: mc_par
       TYPE(force_env_type), POINTER :: force_env
    END TYPE mc_environment_type
@@ -56,8 +56,6 @@ CONTAINS
 
       ALLOCATE (mc_env)
 
-      last_mc_env_id = last_mc_env_id + 1
-      mc_env%id_nr = last_mc_env_id
       mc_env%ref_count = 1
       mc_env%in_use = 0
 

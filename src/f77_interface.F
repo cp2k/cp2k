@@ -501,9 +501,9 @@ CONTAINS
          CPASSERT(ASSOCIATED(d_logger))
          CPASSERT(ASSOCIATED(d_timer_env))
          CPASSERT(ASSOCIATED(d_mp_perf_env))
-         CPASSERT(logger%id_nr == d_logger%id_nr)
-         ! CPASSERT(d_timer_env%id_nr==f_env%timer_env%id_nr)
-         CPASSERT(d_mp_perf_env%id_nr == f_env%mp_perf_env%id_nr)
+         CPASSERT(ASSOCIATED(logger, d_logger))
+         ! CPASSERT(ASSOCIATED(d_timer_env, f_env%timer_env))
+         CPASSERT(ASSOCIATED(d_mp_perf_env, f_env%mp_perf_env))
          IF (f_env%old_path /= f_env%my_path) THEN
             CALL m_chdir(TRIM(f_env%old_path), ierr2)
             CPASSERT(ierr2 == 0)

@@ -97,7 +97,6 @@ MODULE cp_log_handling
 !>      (0 note, 1 warning, 2 failure, 3 fatal)
 !>      it could be expanded with the ability to focus on one or more
 !>      module/object/thread/processor
-!> \param id_nr unique number to identify the logger
 !> \param ref_count reference count (see cp2k/doc/ReferenceCounting.html)
 !> \param print_level the level starting at which something gets printed
 !> \param default_local_unit_nr default unit for local logging (-1 if not
@@ -139,7 +138,7 @@ MODULE cp_log_handling
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    TYPE cp_logger_type
-      INTEGER :: id_nr, ref_count
+      INTEGER :: ref_count
       INTEGER :: print_level
       INTEGER :: default_local_unit_nr
       INTEGER :: default_global_unit_nr
@@ -162,8 +161,6 @@ MODULE cp_log_handling
    INTEGER, PRIVATE            :: stack_pointer = 0
    INTEGER, PARAMETER, PRIVATE :: max_stack_pointer = 10
    TYPE(default_logger_stack_type), SAVE, DIMENSION(max_stack_pointer) ::  default_logger_stack
-
-   INTEGER, SAVE, PRIVATE :: last_logger_id_nr = 0
 
 CONTAINS
 
@@ -308,8 +305,6 @@ CONTAINS
       NULLIFY (logger%para_env)
       NULLIFY (logger%iter_info)
       logger%ref_count = 1
-      last_logger_id_nr = last_logger_id_nr + 1
-      logger%id_nr = last_logger_id_nr
 
       IF (PRESENT(template_logger)) THEN
          IF (template_logger%ref_count < 1) &

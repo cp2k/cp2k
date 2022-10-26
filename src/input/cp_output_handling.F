@@ -118,7 +118,6 @@ MODULE cp_output_handling
 ! **************************************************************************************************
 !> \brief stores the flags_env controlling the output of properties
 !> \param ref_count reference count (see doc/ReferenceCounting.html)
-!> \param id_nr identification number (unique to each istance)
 !> \param n_flags number of flags stored in this type
 !> \param names names of the stored flags
 !> \param control_val value of the flag
@@ -140,7 +139,7 @@ MODULE cp_output_handling
 !> \author fawzi
 ! **************************************************************************************************
    TYPE cp_out_flags_type
-      INTEGER :: ref_count, id_nr, n_flags
+      INTEGER :: ref_count, n_flags
       CHARACTER(default_string_length), DIMENSION(:), POINTER :: names
       INTEGER, DIMENSION(:), POINTER :: control_val
       TYPE(section_vals_type), POINTER :: input

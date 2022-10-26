@@ -30,7 +30,6 @@ MODULE gopt_param_types
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gopt_param_types'
-   INTEGER, PRIVATE, SAVE :: last_gopt_param_id = 0
 
    PUBLIC :: gopt_param_type
    PUBLIC :: gopt_param_read, &
@@ -57,7 +56,7 @@ MODULE gopt_param_types
 ! **************************************************************************************************
    TYPE gopt_param_type
       LOGICAL                  :: Fletcher_Reeves
-      INTEGER                  :: id_nr, ref_count
+      INTEGER                  :: ref_count
       INTEGER                  :: method_id, type_id
       INTEGER                  :: ts_method_id, cell_method_id, shellcore_method_id
       INTEGER                  :: max_f_per_iter, max_iter, max_h_rank
@@ -83,8 +82,6 @@ CONTAINS
 
       ALLOCATE (gopt_param)
 
-      last_gopt_param_id = last_gopt_param_id + 1
-      gopt_param%id_nr = last_gopt_param_id
       gopt_param%ref_count = 1
    END SUBROUTINE gopt_param_create
 

@@ -50,7 +50,6 @@ MODULE gopt_f_types
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gopt_f_types'
-   INTEGER, PRIVATE, SAVE :: last_gopt_f_id = 0
 
    PUBLIC :: gopt_f_type, gopt_f_create, gopt_f_retain, gopt_f_release
 
@@ -60,7 +59,7 @@ MODULE gopt_f_types
 !>      none
 ! **************************************************************************************************
    TYPE gopt_f_type
-      INTEGER                                  :: ref_count, id_nr
+      INTEGER                                  :: ref_count
       INTEGER                                  :: nfree
       INTEGER                                  :: type_id, ts_method_id, cell_method_id, shellcore_method_id
       LOGICAL                                  :: dimer_rotation, do_line_search, eval_opt_geo
@@ -113,8 +112,6 @@ CONTAINS
 
       NULLIFY (gopt_env%dimer_env, gopt_env%gopt_dimer_env, gopt_env%gopt_dimer_param, gopt_env%cell_env, gopt_env%spgr)
       gopt_env%ref_count = 1
-      last_gopt_f_id = last_gopt_f_id + 1
-      gopt_env%id_nr = last_gopt_f_id
       gopt_env%dimer_rotation = .FALSE.
       gopt_env%do_line_search = .FALSE.
       ALLOCATE (gopt_env%spgr)
