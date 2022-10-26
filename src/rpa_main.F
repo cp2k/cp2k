@@ -540,8 +540,12 @@ CONTAINS
 
       CALL timestop(handle2)
 
-      NULLIFY (para_env_RPA)
-      CALL cp_para_env_split(para_env_RPA, para_env, color_rpa_group)
+      IF (num_integ_group > 1) THEN
+         NULLIFY (para_env_RPA)
+         CALL cp_para_env_split(para_env_RPA, para_env, color_rpa_group)
+      ELSE
+         para_env_RPA => para_env
+      END IF
 
       ! now create the matrices needed for the calculation, Q, S and G
       ! Q and G will have omega dependence
@@ -632,7 +636,7 @@ CONTAINS
 
       CALL release_group_dist(gd_array)
 
-      CALL cp_para_env_release(para_env_RPA)
+      IF (num_integ_group > 1) CALL cp_para_env_release(para_env_RPA)
 
       IF (.NOT. do_im_time) THEN
          DO ispin = 1, SIZE(fm_mat_Q_gemm)
