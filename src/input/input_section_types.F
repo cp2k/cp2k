@@ -664,8 +664,7 @@ CONTAINS
    SUBROUTINE section_vals_get(section_vals, ref_count, n_repetition, &
                                n_subs_vals_rep, section, explicit)
       TYPE(section_vals_type), INTENT(IN)                :: section_vals
-      INTEGER, INTENT(out), OPTIONAL                     :: ref_count, n_repetition, &
-                                                            n_subs_vals_rep
+      INTEGER, INTENT(out), OPTIONAL                     :: ref_count, n_repetition, n_subs_vals_rep
       TYPE(section_type), OPTIONAL, POINTER              :: section
       LOGICAL, INTENT(out), OPTIONAL                     :: explicit
 

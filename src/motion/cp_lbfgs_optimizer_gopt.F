@@ -53,7 +53,6 @@ MODULE cp_lbfgs_optimizer_gopt
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_lbfgs_optimizer_gopt'
-   INTEGER, PRIVATE, SAVE :: last_lbfgs_optimizer_id = 0
 
    ! types
    PUBLIC :: cp_lbfgs_opt_gopt_type
@@ -110,7 +109,6 @@ MODULE cp_lbfgs_optimizer_gopt
 !>           lsave(2) = .true.  the problem contains bounds;
 !>           lsave(3) = .true.  each variable has upper and lower bounds.
 !> \param ref_count reference count (see doc/ReferenceCounting.html)
-!> \param id_nr identification number (unique)
 !> \param m the dimension of the subspace used to approximate the second
 !>        derivative
 !> \param print_every every how many iterations output should be written.
@@ -166,7 +164,7 @@ MODULE cp_lbfgs_optimizer_gopt
       CHARACTER(len=60) :: csave
       LOGICAL :: lsave(4)
       INTEGER :: m, print_every, master, max_f_per_iter, status, n_iter
-      INTEGER :: ref_count, id_nr
+      INTEGER :: ref_count
       INTEGER, DIMENSION(:), POINTER :: kind_of_bound, i_work_array, isave
       REAL(kind=dp) :: f, wanted_relative_f_delta, wanted_projected_gradient, &
                        last_f, projected_gradient, eold, emin, trust_radius
@@ -236,8 +234,6 @@ CONTAINS
                optimizer%para_env, &
                optimizer%obj_funct)
       optimizer%ref_count = 0
-      last_lbfgs_optimizer_id = last_lbfgs_optimizer_id + 1
-      optimizer%id_nr = last_lbfgs_optimizer_id
       n = SIZE(x0)
       optimizer%m = 4
       IF (PRESENT(m)) optimizer%m = m
@@ -380,7 +376,6 @@ CONTAINS
 !> \param obj_funct ...
 !> \param m ...
 !> \param print_every ...
-!> \param id_nr ...
 !> \param wanted_relative_f_delta ...
 !> \param wanted_projected_gradient ...
 !> \param x ...
@@ -403,7 +398,7 @@ CONTAINS
 !>      @version 2.2002
 ! **************************************************************************************************
    SUBROUTINE cp_opt_gopt_get(optimizer, para_env, &
-                              obj_funct, m, print_every, id_nr, &
+                              obj_funct, m, print_every, &
                               wanted_relative_f_delta, wanted_projected_gradient, &
                               x, lower_bound, upper_bound, kind_of_bound, master, &
                               actual_projected_gradient, &
@@ -412,7 +407,7 @@ CONTAINS
       TYPE(cp_lbfgs_opt_gopt_type), POINTER              :: optimizer
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(gopt_f_type), OPTIONAL, POINTER               :: obj_funct
-      INTEGER, INTENT(out), OPTIONAL                     :: m, print_every, id_nr
+      INTEGER, INTENT(out), OPTIONAL                     :: m, print_every
       REAL(kind=dp), INTENT(out), OPTIONAL               :: wanted_relative_f_delta, &
                                                             wanted_projected_gradient
       REAL(kind=dp), DIMENSION(:), OPTIONAL, POINTER     :: x, lower_bound, upper_bound
@@ -432,7 +427,6 @@ CONTAINS
       IF (PRESENT(master)) master = optimizer%master
       IF (PRESENT(status)) status = optimizer%status
       IF (PRESENT(para_env)) para_env => optimizer%para_env
-      IF (PRESENT(id_nr)) id_nr = optimizer%id_nr
       IF (PRESENT(obj_funct)) obj_funct = optimizer%obj_funct
       IF (PRESENT(m)) m = optimizer%m
       IF (PRESENT(max_f_per_iter)) max_f_per_iter = optimizer%max_f_per_iter
