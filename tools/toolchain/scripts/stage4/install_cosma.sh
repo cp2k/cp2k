@@ -98,7 +98,7 @@ case "$with_cosma" in
       fi
 
       # Build HIP version.
-      if [ "$ENABLE_HIP" = "__TRUE__" ]; then
+      if [ "$ENABLE_HIP" = "__TRUE__" ] && $(check_lib -lrocblas "rocm" &> /dev/null); then
         [ -d build-cuda ] && rm -rf "build-cuda"
         mkdir build-cuda
         cd build-cuda
@@ -156,7 +156,10 @@ case "$with_cosma" in
     ;;
 esac
 if [ "$with_cosma" != "__DONTUSE__" ]; then
-  COSMA_LIBS="-lcosma_prefixed_pxgemm -lcosma -lcosta IF_CUDA(-lTiled-MM|IF_HIP(-lTiled-MM|))"
+  COSMA_LIBS="-lcosma_prefixed_pxgemm -lcosma -lcosta IF_CUDA(-lTiled-MM|)"
+  if [ "$ENABLE_HIP" = "__TRUE__" ] && $(check_lib -lrocblas "rocm" &> /dev/null); then
+    COSMA_LIBS+=" IF_HIP(-lTiled-MM|)"
+  fi
   if [ "$with_cosma" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_cosma"
 prepend_path LD_LIBRARY_PATH "${COSMA_LIBDIR}"
