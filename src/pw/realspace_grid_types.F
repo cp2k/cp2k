@@ -141,16 +141,16 @@ MODULE realspace_grid_types
 
       TYPE(realspace_grid_desc_type), POINTER :: desc => NULL()
 
-      INTEGER :: ngpts_local=-1 ! local dimensions
-      INTEGER, DIMENSION(3) :: npts_local=-1
-      INTEGER, DIMENSION(3) :: lb_local=-1
-      INTEGER, DIMENSION(3) :: ub_local=-1
-      INTEGER, DIMENSION(3) :: lb_real=-1 ! lower bounds of the real local data
-      INTEGER, DIMENSION(3) :: ub_real=-1 ! upper bounds of the real local data
+      INTEGER :: ngpts_local = -1 ! local dimensions
+      INTEGER, DIMENSION(3) :: npts_local = -1
+      INTEGER, DIMENSION(3) :: lb_local = -1
+      INTEGER, DIMENSION(3) :: ub_local = -1
+      INTEGER, DIMENSION(3) :: lb_real = -1 ! lower bounds of the real local data
+      INTEGER, DIMENSION(3) :: ub_real = -1 ! upper bounds of the real local data
 
       INTEGER, DIMENSION(:), POINTER             :: px => NULL(), py => NULL(), pz => NULL() ! index translators
       TYPE(offload_buffer_type)                  :: buffer ! owner of the grid's memory
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: r=> NULL() ! the grid (pointer to buffer%host_buffer)
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: r => NULL() ! the grid (pointer to buffer%host_buffer)
 
    END TYPE realspace_grid_type
 
