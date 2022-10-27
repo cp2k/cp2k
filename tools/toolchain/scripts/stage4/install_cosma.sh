@@ -97,6 +97,28 @@ case "$with_cosma" in
         cd ..
       fi
 
+      # Build HIP version.
+      if [ "$ENABLE_HIP" = "__TRUE__" ] && $(check_lib -lrocblas "rocm" &> /dev/null); then
+        [ -d build-cuda ] && rm -rf "build-cuda"
+        mkdir build-cuda
+        cd build-cuda
+        cmake \
+          -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}-cuda" \
+          -DCMAKE_INSTALL_LIBDIR=lib \
+          -DCMAKE_VERBOSE_MAKEFILE=ON \
+          -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
+          -DBUILD_SHARED_LIBS=NO \
+          -DCOSMA_BLAS=ROCM \
+          -DCOSMA_SCALAPACK=${cosma_sl} \
+          -DCOSMA_WITH_TESTS=NO \
+          -DCOSMA_WITH_APPS=NO \
+          -DCOSMA_WITH_BENCHMARKS=NO .. \
+          > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
+        make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+        make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+        cd ..
+      fi
+
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage4/$(basename ${SCRIPT_NAME})"
     fi
     COSMA_ROOT="${pkg_install_dir}"
@@ -107,6 +129,8 @@ case "$with_cosma" in
     COSMA_LDFLAGS="-L'${COSMA_LIBDIR}' -Wl,-rpath='${COSMA_LIBDIR}'"
     COSMA_CUDA_LIBDIR="${pkg_install_dir}-cuda/lib"
     COSMA_CUDA_LDFLAGS="-L'${COSMA_CUDA_LIBDIR}' -Wl,-rpath='${COSMA_CUDA_LIBDIR}'"
+    COSMA_HIP_LIBDIR="${pkg_install_dir}-cuda/lib"
+    COSMA_HIP_LDFLAGS="-L'${COSMA_HIP_LIBDIR}' -Wl,-rpath='${COSMA_HIP_LIBDIR}'"
     ;;
   __SYSTEM__)
     echo "==================== Finding COSMA from system paths ===================="
@@ -133,6 +157,9 @@ case "$with_cosma" in
 esac
 if [ "$with_cosma" != "__DONTUSE__" ]; then
   COSMA_LIBS="-lcosma_prefixed_pxgemm -lcosma -lcosta IF_CUDA(-lTiled-MM|)"
+  if [ "$ENABLE_HIP" = "__TRUE__" ] && $(check_lib -lrocblas "rocm" &> /dev/null); then
+    COSMA_LIBS+=" IF_HIP(-lTiled-MM|)"
+  fi
   if [ "$with_cosma" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_cosma"
 prepend_path LD_LIBRARY_PATH "${COSMA_LIBDIR}"
@@ -148,9 +175,10 @@ EOF
 export COSMA_CFLAGS="${COSMA_CFLAGS}"
 export COSMA_LDFLAGS="${COSMA_LDFLAGS}"
 export COSMA_CUDA_LDFLAGS="${COSMA_CUDA_LDFLAGS}"
+export COSMA_HIP_LDFLAGS="${COSMA_HIP_LDFLAGS}"
 export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__COSMA|)"
 export CP_CFLAGS="\${CP_CFLAGS} ${COSMA_CFLAGS}"
-export CP_LDFLAGS="\${CP_LDFLAGS} IF_CUDA(${COSMA_CUDA_LDFLAGS}|${COSMA_LDFLAGS})"
+export CP_LDFLAGS="\${CP_LDFLAGS} IF_CUDA(${COSMA_CUDA_LDFLAGS}|IF_HIP(${COSMA_HIP_LDFLAGS}|${COSMA_LDFLAGS}))"
 export COSMA_LIBS="${COSMA_LIBS}"
 export COSMA_ROOT="$pkg_install_dir"
 export COSMA_INCLUDE_DIR="$pkg_install_dir/include"
