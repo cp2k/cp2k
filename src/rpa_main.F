@@ -76,7 +76,8 @@ MODULE rpa_main
                                               three_dim_real_array,&
                                               two_dim_int_array,&
                                               two_dim_real_array
-   USE qs_environment_types,            ONLY: qs_environment_type
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
    USE rpa_axk,                         ONLY: compute_axk_ener
    USE rpa_grad,                        ONLY: rpa_grad_copy_Q,&
                                               rpa_grad_create,&
@@ -540,8 +541,12 @@ CONTAINS
 
       CALL timestop(handle2)
 
-      NULLIFY (para_env_RPA)
-      CALL cp_para_env_split(para_env_RPA, para_env, color_rpa_group)
+      IF (num_integ_group > 1) THEN
+         NULLIFY (para_env_RPA)
+         CALL cp_para_env_split(para_env_RPA, para_env, color_rpa_group)
+      ELSE
+         para_env_RPA => para_env
+      END IF
 
       ! now create the matrices needed for the calculation, Q, S and G
       ! Q and G will have omega dependence
@@ -566,7 +571,7 @@ CONTAINS
                             my_group_L_size, my_group_L_start, my_group_L_end, &
                             para_env_RPA, fm_mat_S, nrow_block_mat, ncol_block_mat, &
                             dimen_ia_for_block_size=dimen_ia(1), &
-                            do_im_time=do_im_time, fm_mat_Q_gemm=fm_mat_Q_gemm, fm_mat_Q=fm_mat_Q)
+                            do_im_time=do_im_time, fm_mat_Q_gemm=fm_mat_Q_gemm, fm_mat_Q=fm_mat_Q, qs_env=qs_env)
 
       DEALLOCATE (BIb_C_2D, my_ia_end, my_ia_size, my_ia_start)
 
@@ -632,7 +637,7 @@ CONTAINS
 
       CALL release_group_dist(gd_array)
 
-      CALL cp_para_env_release(para_env_RPA)
+      IF (num_integ_group > 1) CALL cp_para_env_release(para_env_RPA)
 
       IF (.NOT. do_im_time) THEN
          DO ispin = 1, SIZE(fm_mat_Q_gemm)
@@ -802,6 +807,7 @@ CONTAINS
 !> \param do_im_time ...
 !> \param fm_mat_Q_gemm ...
 !> \param fm_mat_Q ...
+!> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE create_integ_mat(BIb_C_2D, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
                                dimen_RI, dimen_ia, color_rpa_group, &
@@ -810,7 +816,7 @@ CONTAINS
                                my_group_L_size, my_group_L_start, my_group_L_end, &
                                para_env_RPA, fm_mat_S, nrow_block_mat, ncol_block_mat, &
                                blacs_env_ext, blacs_env_ext_S, dimen_ia_for_block_size, &
-                               do_im_time, fm_mat_Q_gemm, fm_mat_Q)
+                               do_im_time, fm_mat_Q_gemm, fm_mat_Q, qs_env)
 
       TYPE(two_dim_real_array), DIMENSION(:), &
          INTENT(INOUT)                                   :: BIb_C_2D
@@ -830,6 +836,8 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: dimen_ia_for_block_size
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_im_time
       TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL         :: fm_mat_Q_gemm, fm_mat_Q
+      TYPE(qs_environment_type), INTENT(IN), OPTIONAL, &
+         POINTER                                         :: qs_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_integ_mat'
 
@@ -973,6 +981,8 @@ CONTAINS
          NULLIFY (blacs_env_Q)
          IF (my_blacs_ext) THEN
             blacs_env_Q => blacs_env_ext
+         ELSE IF (para_env_RPA%num_pe == para_env%num_pe .AND. PRESENT(qs_env)) THEN
+            CALL get_qs_env(qs_env, blacs_env=blacs_env_Q)
          ELSE
             CALL cp_blacs_env_create(blacs_env=blacs_env_Q, para_env=para_env_RPA)
          END IF
@@ -986,11 +996,11 @@ CONTAINS
 
          CALL cp_fm_struct_release(fm_struct)
 
-         IF (.NOT. my_blacs_ext) CALL cp_blacs_env_release(blacs_env_Q)
+         IF (.NOT. (my_blacs_ext .OR. (para_env_RPA%num_pe == para_env%num_pe .AND. PRESENT(qs_env)))) &
+            CALL cp_blacs_env_release(blacs_env_Q)
       END IF
 
       ! release blacs_env
-      IF (.NOT. my_blacs_ext) CALL cp_blacs_env_release(blacs_env_Q)
       IF (.NOT. my_blacs_S_ext) CALL cp_blacs_env_release(blacs_env)
 
       CALL timestop(handle)

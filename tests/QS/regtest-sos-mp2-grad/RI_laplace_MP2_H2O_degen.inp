@@ -48,7 +48,7 @@
         &CANONICAL_GRADIENTS
           # This increases the computational costs significantly as the default suffices
           # We use it just to test the code path with degenerate orbital pairs
-          EPS_CANONICAL 0.1
+          EPS_CANONICAL 1.0
         &END
         &RI_SOS_MP2
           QUADRATURE_POINTS  4
