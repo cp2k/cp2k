@@ -590,9 +590,9 @@ CONTAINS
          keyword, __LOCATION__, &
          name="ACCURATE_DOT_PRODUCT", &
          description="In certain cases, the dot products to calculate the RPA density matrix need an extended accuracy. "// &
-         "Turn on, if necessary (Default: False).", &
+         "Set it to FALSE if the accuracy is sufficient (Default: True).", &
          lone_keyword_l_val=.TRUE., &
-         default_l_val=.FALSE.)
+         default_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

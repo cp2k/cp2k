@@ -36,6 +36,7 @@ MODULE kahan_sum
    REAL(KIND=dp), PARAMETER :: dzero = 0.0_dp
    COMPLEX(KIND=sp), PARAMETER :: czero = (0.0_sp, 0.0_sp)
    COMPLEX(KIND=dp), PARAMETER :: zzero = (0.0_dp, 0.0_dp)
+   INTEGER, PARAMETER :: dblksize = 4
 
    INTERFACE accurate_sum
       MODULE PROCEDURE &
@@ -136,17 +137,30 @@ CONTAINS
       REAL(KIND=dp)                                      :: ks
 
       INTEGER                                            :: i, n
-      REAL(KIND=dp)                                      :: c, t, y
+      REAL(KIND=dp), DIMENSION(dblksize)                 :: c, ks_local, t, y
 
-      ks = dzero; t = dzero; y = dzero; c = dzero
+      t = dzero; y = dzero; c = dzero; ks_local = dzero
 
       n = SIZE(array1)
-      DO i = 1, n
-         y = array1(i)*array2(i) - c
-         t = ks + y
-         c = (t - ks) - y
-         ks = t
+      DO i = 1, MOD(n, dblksize)
+         y(1) = array1(i)*array2(i) - c(1)
+         t(1) = ks_local(1) + y(1)
+         c(1) = (t(1) - ks_local(1)) - y(1)
+         ks_local(1) = t(1)
       END DO
+      DO i = MOD(n, dblksize) + 1, n, dblksize
+         y = array1(i:i + (dblksize - 1))*array2(i:i + (dblksize - 1)) - c
+         t = ks_local + y
+         c = (t - ks_local) - y
+         ks_local = t
+      END DO
+      DO i = 2, dblksize
+         y(1) = ks_local(i) - c(1)
+         t(1) = ks_local(1) + y(1)
+         c(1) = (t(1) - ks_local(1)) - y(1)
+         ks_local(1) = t(1)
+      END DO
+      ks = ks_local(1)
    END FUNCTION kahan_dot_product_d1
 
 ! **************************************************************************************************
