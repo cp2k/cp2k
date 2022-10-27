@@ -1927,17 +1927,22 @@ CONTAINS
          ! Symmetrize P_ab
          IF (para_env_sub%num_pe > 1) THEN
             BLOCK
-               INTEGER :: my_B_start, my_B_end, my_B_size, send_a_start, send_a_end, send_a_size, &
+               INTEGER :: my_B_start, my_B_end, send_a_start, send_a_end, send_a_size, &
                           recv_a_start, recv_a_end, recv_a_size, proc_shift, proc_send, proc_recv
-               REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: buffer_send, buffer_recv
+               REAL(KIND=dp), DIMENSION(:), ALLOCATABLE, TARGET :: buffer_send_1D
+               REAL(KIND=dp), DIMENSION(:, :), POINTER :: buffer_send
+               REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: buffer_recv
                TYPE(group_dist_d1_type)                           :: gd_virtual_sub
+
                CALL create_group_dist(gd_virtual_sub, para_env_sub%num_pe, virtual(ispin))
+               my_B_start = itmp(1)
+               my_B_end = itmp(2)
 
                mp2_env%ri_grad%P_ab(ispin)%array(:, my_B_start:my_B_end) = &
                   0.5_dp*(mp2_env%ri_grad%P_ab(ispin)%array(:, my_B_start:my_B_end) &
                           + TRANSPOSE(mp2_env%ri_grad%P_ab(ispin)%array(:, my_B_start:my_B_end)))
 
-               ALLOCATE (buffer_send(my_B_size, maxsize(gd_virtual_sub)))
+               ALLOCATE (buffer_send_1D(my_B_size*maxsize(gd_virtual_sub)))
                ALLOCATE (buffer_recv(my_B_size, maxsize(gd_virtual_sub)))
 
                DO proc_shift = 1, para_env_sub%num_pe - 1
@@ -1948,16 +1953,18 @@ CONTAINS
                   CALL get_group_dist(gd_virtual_sub, proc_send, send_a_start, send_a_end, send_a_size)
                   CALL get_group_dist(gd_virtual_sub, proc_recv, recv_a_start, recv_a_end, recv_a_size)
 
-                  buffer_send(:, :send_a_size) = mp2_env%ri_grad%P_ab(ispin)%array(:, send_a_start:send_a_end)
-                  CALL mp_sendrecv(buffer_send(:, :send_a_size), proc_send, &
+                  buffer_send(1:send_a_size, 1:my_B_size) => buffer_send_1D(1:my_B_size*send_a_size)
+
+                  buffer_send(:send_a_size, :) = TRANSPOSE(mp2_env%ri_grad%P_ab(ispin)%array(:, send_a_start:send_a_end))
+                  CALL mp_sendrecv(buffer_send(:send_a_size, :), proc_send, &
                                    buffer_recv(:, :recv_a_size), proc_recv, para_env_sub%group)
 
                   mp2_env%ri_grad%P_ab(ispin)%array(:, recv_a_start:recv_a_end) = &
-                     0.5_dp*(mp2_env%ri_grad%P_ab(ispin)%array(:, recv_a_start:recv_a_end) + buffer_send)
+                     0.5_dp*(mp2_env%ri_grad%P_ab(ispin)%array(:, recv_a_start:recv_a_end) + buffer_recv(:, 1:recv_a_size))
 
                END DO
 
-               DEALLOCATE (buffer_send, buffer_recv)
+               DEALLOCATE (buffer_send_1D, buffer_recv)
 
                CALL release_group_dist(gd_virtual_sub)
             END BLOCK
@@ -2121,32 +2128,39 @@ CONTAINS
 
          ! Symmetrize P_ab
          IF (para_env_sub%num_pe > 1) THEN
+            BLOCK
+               REAL(KIND=dp), DIMENSION(:), ALLOCATABLE, TARGET :: buffer_send_1D
+               REAL(KIND=dp), DIMENSION(:, :), POINTER :: buffer_send
+               REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: buffer_recv
 
-            mp2_env%ri_grad%P_ab(ispin)%array(:, my_B_start:my_B_end) = &
-               0.5_dp*(mp2_env%ri_grad%P_ab(ispin)%array(:, my_B_start:my_B_end) &
-                       + TRANSPOSE(mp2_env%ri_grad%P_ab(ispin)%array(:, my_B_start:my_B_end)))
+               mp2_env%ri_grad%P_ab(ispin)%array(:, my_B_start:my_B_end) = &
+                  0.5_dp*(mp2_env%ri_grad%P_ab(ispin)%array(:, my_B_start:my_B_end) &
+                          + TRANSPOSE(mp2_env%ri_grad%P_ab(ispin)%array(:, my_B_start:my_B_end)))
 
-            ALLOCATE (buffer_send(my_B_size, maxsize(gd_virtual_sub)))
-            ALLOCATE (buffer_recv(my_B_size, maxsize(gd_virtual_sub)))
+               ALLOCATE (buffer_send_1D(my_B_size*maxsize(gd_virtual_sub)))
+               ALLOCATE (buffer_recv(my_B_size, maxsize(gd_virtual_sub)))
 
-            DO proc_shift = 1, para_env_sub%num_pe - 1
+               DO proc_shift = 1, para_env_sub%num_pe - 1
 
-               proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
-               proc_recv = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
+                  proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
+                  proc_recv = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
 
-               CALL get_group_dist(gd_virtual_sub, proc_send, send_a_start, send_a_end, send_a_size)
-               CALL get_group_dist(gd_virtual_sub, proc_recv, recv_a_start, recv_a_end, recv_a_size)
+                  CALL get_group_dist(gd_virtual_sub, proc_send, send_a_start, send_a_end, send_a_size)
+                  CALL get_group_dist(gd_virtual_sub, proc_recv, recv_a_start, recv_a_end, recv_a_size)
 
-               buffer_send(:, :send_a_size) = mp2_env%ri_grad%P_ab(ispin)%array(:, send_a_start:send_a_end)
-               CALL mp_sendrecv(buffer_send(:, :send_a_size), proc_send, &
-                                buffer_recv(:, :recv_a_size), proc_recv, para_env_sub%group)
+                  buffer_send(1:send_a_size, 1:my_B_size) => buffer_send_1D(1:my_B_size*send_a_size)
 
-               mp2_env%ri_grad%P_ab(ispin)%array(:, recv_a_start:recv_a_end) = &
-                  0.5_dp*(mp2_env%ri_grad%P_ab(ispin)%array(:, recv_a_start:recv_a_end) + buffer_send)
+                  buffer_send(:send_a_size, :) = TRANSPOSE(mp2_env%ri_grad%P_ab(ispin)%array(:, send_a_start:send_a_end))
+                  CALL mp_sendrecv(buffer_send(:send_a_size, :), proc_send, &
+                                   buffer_recv(:, :recv_a_size), proc_recv, para_env_sub%group)
 
-            END DO
+                  mp2_env%ri_grad%P_ab(ispin)%array(:, recv_a_start:recv_a_end) = &
+                     0.5_dp*(mp2_env%ri_grad%P_ab(ispin)%array(:, recv_a_start:recv_a_end) + buffer_recv(:, 1:recv_a_size))
 
-            DEALLOCATE (buffer_send, buffer_recv)
+               END DO
+
+               DEALLOCATE (buffer_send_1D, buffer_recv)
+            END BLOCK
          ELSE
             mp2_env%ri_grad%P_ab(ispin)%array(:, :) = 0.5_dp*(mp2_env%ri_grad%P_ab(ispin)%array + &
                                                               TRANSPOSE(mp2_env%ri_grad%P_ab(ispin)%array))
