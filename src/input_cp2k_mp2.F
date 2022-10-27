@@ -586,6 +586,16 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="ACCURATE_DOT_PRODUCT", &
+         description="In certain cases, the dot products to calculate the RPA density matrix need an extended accuracy. "// &
+         "Turn on, if necessary (Default: False).", &
+         lone_keyword_l_val=.TRUE., &
+         default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       ! here we generate a hfx subsection to use in the case EXX has to be computed after RPA
       CALL create_hfx_section(subsection)
       CALL section_add_subsection(section, subsection)

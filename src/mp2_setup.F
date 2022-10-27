@@ -112,6 +112,7 @@ CONTAINS
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%RSE", l_val=mp2_env%ri_rpa%do_rse)
       CALL section_vals_val_get(mp2_section, "RI_RPA%PRINT_DGEMM_INFO", l_val=mp2_env%ri_rpa%print_dgemm_info)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%ACCURATE_DOT_PRODUCT", l_val=mp2_env%ri_rpa%accurate_dot_product)
 
       NULLIFY (gw_section)
       gw_section => section_vals_get_subs_vals(mp2_section, "RI_RPA%GW")
