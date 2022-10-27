@@ -3,7 +3,7 @@
 # Usage: docker build -f ./Dockerfile.test_cuda_P100 ../../
 #
 
-FROM nvidia/cuda:11.8.0-devel-ubuntu20.04
+FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
 
 # Setup CUDA environment.
 ENV CUDA_PATH /usr/local/cuda
