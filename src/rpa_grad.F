@@ -1012,9 +1012,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! We allocate it at every step to reduce potential memory conflicts with COSMA
-      IF (.NOT. c_associated(mp2_env%local_gemm_ctx)) THEN
-         CALL local_gemm_create(mp2_env%local_gemm_ctx, LOCAL_GEMM_PU_GPU)
-         CALL local_gemm_set_op_threshold_gpu(mp2_env%local_gemm_ctx, 128*128*128*2)
+      IF (.NOT. mp2_env%ri_rpa%accurate_dot_product) THEN
+         IF (.NOT. c_associated(mp2_env%local_gemm_ctx)) THEN
+            CALL local_gemm_create(mp2_env%local_gemm_ctx, LOCAL_GEMM_PU_GPU)
+            CALL local_gemm_set_op_threshold_gpu(mp2_env%local_gemm_ctx, 128*128*128*2)
+         END IF
       END IF
 
       tag = 47
@@ -1102,6 +1104,10 @@ CONTAINS
             END DO
             CALL timestop(handle2)
          ELSE
+!$OMP PARALLEL DO COLLAPSE(2) DEFAULT(NONE)&
+!$OMP SHARED(my_a_size,recv_a_size,my_i_size,mat_S_3D,homo,Eigenval,omega,my_a_start,&
+!$OMP        recv_a_start,P_ab,weight,buffer_3D,my_i_start)&
+!$OMP PRIVATE(tmp,my_a,recv_a,my_i)
             DO my_a = 1, my_a_size
             DO recv_a = 1, recv_a_size
                tmp = 0.0_dp
@@ -1178,12 +1184,16 @@ CONTAINS
             END DO
             CALL timestop(handle2)
          ELSE
+!$OMP PARALLEL DO COLLAPSE(2) DEFAULT(NONE)&
+!$OMP SHARED(my_a_size,recv_i_size,my_i_size,mat_S_3D,homo,Eigenval,omega,my_a_start,&
+!$OMP        recv_i_start,P_ij,weight,buffer_3D,my_i_start)&
+!$OMP PRIVATE(tmp,my_a,recv_i,my_i)
             DO my_i = 1, my_i_size
             DO recv_i = 1, recv_i_size
                tmp = 0.0_dp
                DO my_a = 1, my_a_size
                   tmp = tmp + accurate_dot_product(mat_S_3D(:, my_a, my_i), buffer_3D(:, my_a, recv_i)) &
-                        *(1.0_dp - omega**2/(Eigenval(homo + my_a_start - 1 + my_a) - Eigenval(+my_i_start - 1 + my_i)) &
+                        *(1.0_dp - omega**2/(Eigenval(homo + my_a_start - 1 + my_a) - Eigenval(my_i_start - 1 + my_i)) &
                           /(Eigenval(homo + my_a_start - 1 + my_a) - Eigenval(recv_i_start - 1 + recv_i)))
                END DO
                P_ij(my_i, recv_i + recv_i_start - 1) = P_ij(my_i, recv_i + recv_i_start - 1) + weight*tmp
@@ -1192,9 +1202,11 @@ CONTAINS
          END IF
       END DO
 
-      ! release memory allocated by local_gemm when run on GPU. local_gemm_ctx is null on cpu only runs
-      CALL local_gemm_destroy(mp2_env%local_gemm_ctx)
-      mp2_env%local_gemm_ctx = C_NULL_PTR
+      IF (.NOT. mp2_env%ri_rpa%accurate_dot_product) THEN
+         ! release memory allocated by local_gemm when run on GPU. local_gemm_ctx is null on cpu only runs
+         CALL local_gemm_destroy(mp2_env%local_gemm_ctx)
+         mp2_env%local_gemm_ctx = C_NULL_PTR
+      END IF
 
       CALL timestop(handle)
 
