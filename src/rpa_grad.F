@@ -1000,9 +1000,10 @@ CONTAINS
 
       INTEGER :: handle, handle2, my_a, my_a_size, my_a_start, my_i, my_i_size, my_i_start, &
          my_P_size, my_prow, proc_a_recv, proc_a_send, proc_i_recv, proc_i_send, proc_recv, &
-         proc_send, proc_shift, recv_a_end, recv_a_size, recv_a_start, recv_i_end, recv_i_size, &
-         recv_i_start, tag
+         proc_send, proc_shift, recv_a, recv_a_end, recv_a_size, recv_a_start, recv_i, recv_i_end, &
+         recv_i_size, recv_i_start, tag
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
+      REAL(KIND=dp)                                      :: tmp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: buffer_1D
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: buffer_2D, mat_S_2D
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: buffer_3D, mat_S_3D
@@ -1101,7 +1102,17 @@ CONTAINS
             END DO
             CALL timestop(handle2)
          ELSE
-!
+            DO my_a = 1, my_a_size
+            DO recv_a = 1, recv_a_size
+               tmp = 0.0_dp
+               DO my_i = 1, my_i_size
+                  tmp = tmp + accurate_dot_product(mat_S_3D(:, my_a, my_i), buffer_3D(:, recv_a, my_i)) &
+                        *(1.0_dp - omega**2/(Eigenval(homo + my_a_start - 1 + my_a) - Eigenval(my_i_start - 1 + my_i)) &
+                          /(Eigenval(homo + recv_a_start - 1 + recv_a) - Eigenval(my_i_start - 1 + my_i)))
+               END DO
+               P_ab(my_a, recv_a_start - 1 + recv_a) = P_ab(my_a, recv_a_start - 1 + recv_a) - weight*tmp
+            END DO
+            END DO
          END IF
       END DO
 
@@ -1167,7 +1178,17 @@ CONTAINS
             END DO
             CALL timestop(handle2)
          ELSE
-!
+            DO my_i = 1, my_i_size
+            DO recv_i = 1, recv_i_size
+               tmp = 0.0_dp
+               DO my_a = 1, my_a_size
+                  tmp = tmp + accurate_dot_product(mat_S_3D(:, my_a, my_i), buffer_3D(:, my_a, recv_i)) &
+                        *(1.0_dp - omega**2/(Eigenval(homo + my_a_start - 1 + my_a) - Eigenval(+my_i_start - 1 + my_i)) &
+                          /(Eigenval(homo + my_a_start - 1 + my_a) - Eigenval(recv_i_start - 1 + recv_i)))
+               END DO
+               P_ij(my_i, recv_i + recv_i_start - 1) = P_ij(my_i, recv_i + recv_i_start - 1) + weight*tmp
+            END DO
+            END DO
          END IF
       END DO
 
