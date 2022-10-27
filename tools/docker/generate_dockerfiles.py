@@ -438,7 +438,7 @@ ENV I_MPI_FABRICS='shm'
 # ======================================================================================
 def toolchain_cuda(gpu_ver: str) -> str:
     return rf"""
-FROM nvidia/cuda:11.8.0-devel-ubuntu20.04
+FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
 
 # Setup CUDA environment.
 ENV CUDA_PATH /usr/local/cuda
