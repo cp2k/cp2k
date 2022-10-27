@@ -16,6 +16,7 @@ MODULE exstates_types
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                               cp_fm_release
    USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE input_constants,                 ONLY: xc_kernel_method_best
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
@@ -213,6 +214,7 @@ CONTAINS
                                    i_val=ex_env%xc_kernel_method)
       ELSE
          ex_env%state = 0
+         ex_env%xc_kernel_method = xc_kernel_method_best
       END IF
       NULLIFY (ex_env%fingerprint)
 

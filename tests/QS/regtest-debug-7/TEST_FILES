@@ -9,9 +9,11 @@ ch2o_gapw_t3.inp                                       87      1e-05            
 ch2o_gapw_t4.inp                                       87      1e-05             0.509623579715E+02
 ch2o_gapw_t5.inp                                       87      1e-05             0.510993992202E+02
 ch2o_gapw_t6.inp                                       87      1e-05             0.560991029797E+02
+ch2o_gapw_t7.inp                                       87      1e-05             0.441933664749E+02
 ch2o_gapw_xc_t1.inp                                    87      1e-05             0.531344520427E+02
 ch2o_gapw_xc_t2.inp                                    87      1e-05             0.522983512347E+02
 ch2o_gapw_xc_t3.inp                                    87      1e-05             0.513981803741E+02
 ch2o_gapw_xc_t4.inp                                    87      1e-05             0.509588648640E+02
 ch2o_gapw_xc_t5.inp                                    87      1e-05             0.510955039506E+02
+ch2o_gapw_xc_t6.inp                                    87      1e-05             0.441881880291E+02
 #EOF
