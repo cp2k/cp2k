@@ -24,8 +24,6 @@ source "${INSTALLDIR}"/toolchain.env
 ELPA_CFLAGS=''
 ELPA_LDFLAGS=''
 ELPA_LIBS=''
-# ELPA 2019.05.001 has a parallel build issue, restricting to -j1
-ELPA_MAKEOPTS='-j1'
 elpa_dir_openmp="_openmp"
 
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
@@ -126,13 +124,13 @@ case "$with_elpa" in
           CC=${MPICC} \
           CXX=${MPICXX} \
           CPP="cpp -E" \
-          FCFLAGS="${FCFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} -ffree-line-length-none ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags}" \
-          CFLAGS="${CFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags}" \
-          CXXFLAGS="${CXXFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags}" \
+          FCFLAGS="${FCFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} -ffree-line-length-none ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags} -fno-lto" \
+          CFLAGS="${CFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags} -fno-lto" \
+          CXXFLAGS="${CXXFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags} -fno-lto" \
           LDFLAGS="-Wl,--allow-multiple-definition -Wl,--enable-new-dtags ${MATH_LDFLAGS} ${SCALAPACK_LDFLAGS} ${cray_ldflags}" \
           LIBS="${SCALAPACK_LIBS} $(resolve_string "${MATH_LIBS}" "MPI")" \
           > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
-        make -j $(get_nprocs) ${ELPA_MAKEOPTS} > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+        make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
         make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
         cd ..
       done
