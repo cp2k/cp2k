@@ -575,6 +575,7 @@ list(
   qs_loc_types.F
   qs_loc_utils.F
   qs_matrix_pools.F
+  qs_matrix_w.F
   qs_mixing_utils.F
   qs_mo_io.F
   qs_moments.F

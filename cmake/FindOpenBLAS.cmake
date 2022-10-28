@@ -17,7 +17,7 @@ find_package(PkgConfig)
 cp2k_set_default_paths(OPENBLAS "OpenBLAS")
 
 if(PKG_CONFIG_FOUND)
-  pkg_check_modules(CP2K_OPENBLAS openblas)
+  pkg_check_modules(CP2K_OPENBLAS IMPORTED_TARGET GLOBAL openblas)
 endif()
 
 # try the openblas module of openblas library Maybe we are lucky it is installed

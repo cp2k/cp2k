@@ -52,8 +52,8 @@ if(GIT_DESC)
   string(REGEX REPLACE "^([0-9\\-]+) .*" "\\1" VERSION_DATE
                        "${GIT_COMMIT_DATE}")
 else()
-  set(VERSION_MAJOR 21)
-  set(VERSION_MINOR 10)
+  set(VERSION_MAJOR 22)
+  set(VERSION_MINOR 11)
   set(VERSION_PATCH 00)
 endif()
 
@@ -101,7 +101,8 @@ endforeach()
 # OPTIONS
 
 option(CMAKE_POSITION_INDEPENDENT_CODE "Enable position independent code" ON)
-
+option(CP2K_DEBUG_MODE "Enable several additional options for debugging cp2k."
+       OFF)
 option(CP2K_USE_SIRIUS "Enable plane wave dft calculations with sirius" OFF)
 option(CP2K_USE_FFTW3 "Use fftw3 for the calculating fast fourier transforms"
        ON)
@@ -114,16 +115,11 @@ option(CP2K_USE_VORI "Enable libvori support" OFF)
 option(CP2K_USE_PEXSI "Enable pexsi support" OFF)
 option(CP2K_USE_QUIP "Enable quip support" OFF)
 option(CP2K_USE_SPGLIB "Enable spglib support" ON)
-
 option(CP2K_USE_LIBXC "Enable libxc support" ON)
-
 option(CP2K_USE_STATIC_BLAS "Link against static version of BLAS/LAPACK" OFF)
-
 option(CP2K_USE_SPLA
        "Use SPLA offloading gemm feature to the GPU if it is beneficial. " OFF)
-
 option(CP2K_USE_METIS "enable metis library support" OFF)
-
 option(CP2K_USE_LIBXSMM "Use libxsmm for small gemms (supports x86 platforms)"
        ON)
 
@@ -168,9 +164,6 @@ set_property(
   CACHE CP2K_WITH_GPU PROPERTY STRINGS ${CP2K_SUPPORTED_CUDA_ARCHITECTURES}
                                ${CP2K_SUPPORTED_HIP_ARCHITECTURES})
 
-option(CP2K_DEBUG_MODE OFF
-       "Enable several additional options for debugging cp2k.")
-
 set(CP2K_USE_ACCEL
     "NONE"
     CACHE STRING "Set hardware acceleartion support: CUDA, HIP")
@@ -189,14 +182,13 @@ cmake_dependent_option(
 #
 # ##############################################################################
 
-cmake_dependent_option(CP2K_DEBUG_MODE OFF "Enable CP2K debug options"
-                       "NOT CP2K_USE_ACCEL MATCHES \"NONE\" " OFF)
 cmake_dependent_option(
   CP2K_DISABLE_GRID_GPU
   OFF
   "disable the hardware accelerated backend for grid related functions. It is only effective when general gpu support is enabled."
   "CP2K_DEBUG_MODE"
   OFF)
+
 cmake_dependent_option(
   CP2K_DISABLE_PW_GPU
   OFF
@@ -213,15 +205,13 @@ cmake_dependent_option(
   CP2K_DBCSR_CPU_ONLY "Use DBCSR compiled without GPU support." OFF
   "CP2K_DEBUG_MODE" OFF)
 
-set(CMAKE_POSITION_INDEPENDENT_CODE ${CP2K_SET_POSITION_INDEPENDENT_CODE})
-
-find_package(PkgConfig)
-
-# =================================== Python this module looks preferably for
-# version 3 of Python. If not found, version 2 is searched. In CMake 3.15, if a
-# python virtual environment is activated, it will search the virtual
-# environment for a python interpreter before searching elsewhere in the system.
-# In CMake <3.15, the system is searched before the virtual environment.
+# Python
+# 
+# this module looks preferably for version 3 of Python. If not found, version 2
+# is searched. In CMake 3.15, if a python virtual environment is activated, it
+# will search the virtual environment for a python interpreter before searching
+# elsewhere in the system. In CMake <3.15, the system is searched before the
+# virtual environment.
 
 if(NOT Python_EXECUTABLE)
   # If the python interpreter isn't specified as a command line option, look for
@@ -254,9 +244,8 @@ add_custom_target(
     -DGIT_HASH_CACHE=${GIT_HASH_CACHE} -P ${CURRENT_LIST_DIR}/CheckGit.cmake
   BYPRODUCTS ${post_configure_file})
 
-# =================================== MPI
+# MPI
 
-# if (CP2K_USE_MPI)
 get_property(REQUIRED_MPI_COMPONENTS GLOBAL PROPERTY ENABLED_LANGUAGES)
 list(REMOVE_ITEM REQUIRED_MPI_COMPONENTS CUDA) # CUDA does not have an MPI
 # component
@@ -285,10 +274,11 @@ if("${MPI_Fortran_LIBRARY_VERSION_STRING}" MATCHES "Open MPI v2.1"
       " Please use a newer version of OpenMPI or switch to MPICH if you plan on using MPI-RMA."
   )
 endif()
-# endif () =================================== BLAS & LAPACK, PkgConfig
+
+# BLAS & LAPACK, PkgConfig
 find_package(Lapack REQUIRED) # also calls find_package(BLAS)
 
-# =================================== SMM (Small Matrix-Matrix multiplication)
+# SMM (Small Matrix-Matrix multiplication)
 if(CP2K_USE_LIBXSMM)
   find_package(LibXSMM REQUIRED)
   message(STATUS "-- Using libxsmm for Small Matrix Multiplication")
@@ -298,9 +288,7 @@ endif()
 # turn it off
 find_package(SCALAPACK REQUIRED)
 
-# ================================== CUDA / ROCM easy for cuda a moving target
-# for hip
-# ======================================
+# CUDA / ROCM easy for cuda a moving target for hip
 
 if((CP2K_USE_ACCEL MATCHES CUDA) OR (CP2K_USE_ACCEL MATCHES HIP))
   set(CP2K_GPU_ARCH_NUMBER_K20X 35)
@@ -417,28 +405,24 @@ if(CP2K_USE_VORI)
   find_package(LibVORI REQUIRED)
 endif()
 
-# =================================== CP2K_FFTW3
-# ===========================================
+# FFTW3
 
 if(CP2K_USE_FFTW3)
   find_package(Fftw REQUIRED)
 endif()
 
-# ==================================== QUIP
-# ===========================================
+# QUIP
 if(CP2K_USE_QUIP)
   find_package(Quip REQUIRED)
 endif()
 
-# ==================================== libint
-# =========================================
+# libint
 
 if(CP2K_USE_LIBINT2)
   find_package(Libint2 REQUIRED)
 endif()
 
-# ==================================== spglib
-# =========================================
+# spglib
 
 if(CP2K_USE_SPGLIB)
   find_package(LibSPG REQUIRED)
@@ -456,12 +440,11 @@ if(CP2K_USE_SPLA)
     set(CP2K_USE_GEMM_OFFLOADING OFF)
     message(
       ERROR
-      "SPLA should be compiled with GPU support if the gemm offloading is requested. Use -DCP2K_USE_GEMM_OFFLOADING=OFF othrwise"
+      "SPLA should be compiled with GPU support if the gemm offloading is requested. Use -DCP2K_USE_GEMM_OFFLOADING=OFF otherwise"
     )
   endif()
 endif()
-# =================================== SIRIUS
-# ==========================================
+# SIRIUS
 
 if(CP2K_USE_SIRIUS)
   find_package(sirius REQUIRED)
@@ -493,7 +476,6 @@ if(CP2K_USE_PLUMED)
   find_package(Plumed REQUIRED)
 endif()
 
-# =================================================================================================
 # OPTION HANDLING
 
 # make sure that the default build type is RELEASE
