@@ -464,6 +464,16 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="DOT_PRODUCT_BLKSIZE", &
+         description="Dot products for the calculation of the RPA/SOS-MP2 density matrices "// &
+         "are calculated in batches of the size given by this keyword. Larger block sizes, "// &
+         "improve the performance but reduce the numerical accuracy. Ignored with MP2 gradients.", &
+         default_i_val=32)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_canonical_gradients
 
 ! **************************************************************************************************

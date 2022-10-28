@@ -375,6 +375,7 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "CANONICAL_GRADIENTS%FREE_HFX_BUFFER", l_val=mp2_env%ri_grad%free_hfx_buffer)
       CALL section_vals_val_get(mp2_section, "CANONICAL_GRADIENTS%EPS_CANONICAL", r_val=mp2_env%ri_grad%eps_canonical)
       CALL section_vals_val_get(mp2_section, "CANONICAL_GRADIENTS%USE_OLD_GRADIENT_CODE", l_val=mp2_env%ri_grad%use_old_grad)
+      CALL section_vals_val_get(mp2_section, "CANONICAL_GRADIENTS%DOT_PRODUCT_BLKSIZE", i_val=mp2_env%ri_grad%dot_blksize)
       cphf_section => section_vals_get_subs_vals(mp2_section, "CANONICAL_GRADIENTS%CPHF")
       IF (ASSOCIATED(cphf_section)) THEN
          CALL section_vals_val_get(cphf_section, "MAX_ITER", i_val=mp2_env%ri_grad%cphf_max_num_iter)

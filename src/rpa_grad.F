@@ -832,7 +832,7 @@ CONTAINS
          IF (do_ri_sos_laplace_mp2) THEN
             CALL calc_P_sos_mp2(homo(ispin), fm_mat_S(ispin)%matrix, fm_work_iaP, &
                                 rpa_grad%sos_mp2_work_occ(ispin), rpa_grad%sos_mp2_work_virt(ispin), &
-                                omega, weight, virtual(ispin), Eigenval(:, ispin))
+                                omega, weight, virtual(ispin), Eigenval(:, ispin), mp2_env%ri_grad%dot_blksize)
 
             CALL calc_fm_mat_S_laplace(fm_work_iaP, homo(ispin), virtual(ispin), Eigenval(:, ispin), omega)
 
@@ -885,14 +885,17 @@ CONTAINS
 !> \param weight ...
 !> \param virtual ...
 !> \param Eigenval ...
+!> \param dot_blksize ...
 ! **************************************************************************************************
-   SUBROUTINE calc_P_sos_mp2(homo, fm_mat_S, fm_work_iaP, sos_mp2_work_occ, sos_mp2_work_virt, omega, weight, virtual, Eigenval)
+   SUBROUTINE calc_P_sos_mp2(homo, fm_mat_S, fm_work_iaP, sos_mp2_work_occ, sos_mp2_work_virt, &
+                             omega, weight, virtual, Eigenval, dot_blksize)
       INTEGER, INTENT(IN)                                :: homo
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S, fm_work_iaP
       TYPE(sos_mp2_grad_work_type), INTENT(INOUT)        :: sos_mp2_work_occ, sos_mp2_work_virt
       REAL(KIND=dp), INTENT(IN)                          :: omega, weight
       INTEGER, INTENT(IN)                                :: virtual
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
+      INTEGER, INTENT(IN)                                :: dot_blksize
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_P_sos_mp2'
 
@@ -954,12 +957,12 @@ CONTAINS
       IF (num_ij_pairs > 0) THEN
          CALL calc_Pij_degen(fm_work_iaP, fm_mat_S, sos_mp2_work_occ%pair_list, &
                              virtual, sos_mp2_work_occ%P(homo + 1:), Eigenval(:homo), omega, weight, &
-                             sos_mp2_work_occ%index2send, sos_mp2_work_occ%index2recv)
+                             sos_mp2_work_occ%index2send, sos_mp2_work_occ%index2recv, dot_blksize)
       END IF
       IF (num_ab_pairs > 0) THEN
          CALL calc_Pab_degen(fm_work_iaP, fm_mat_S, sos_mp2_work_virt%pair_list, &
                              virtual, sos_mp2_work_virt%P(virtual + 1:), Eigenval(homo + 1:), omega, weight, &
-                             sos_mp2_work_virt%index2send, sos_mp2_work_virt%index2recv)
+                             sos_mp2_work_virt%index2send, sos_mp2_work_virt%index2recv, dot_blksize)
       END IF
 
       CALL timestop(handle)
@@ -1107,13 +1110,14 @@ CONTAINS
             CALL timeset(routineN//"_accurate_a", handle2)
 !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(NONE)&
 !$OMP SHARED(my_a_size,recv_a_size,my_i_size,mat_S_3D,homo,Eigenval,omega,my_a_start,&
-!$OMP        recv_a_start,P_ab,weight,buffer_3D,my_i_start)&
+!$OMP        recv_a_start,P_ab,weight,buffer_3D,my_i_start,mp2_env)&
 !$OMP PRIVATE(tmp,my_a,recv_a,my_i)
             DO my_a = 1, my_a_size
             DO recv_a = 1, recv_a_size
                tmp = 0.0_dp
                DO my_i = 1, my_i_size
-                  tmp = tmp + accurate_dot_product_2(mat_S_3D(:, my_a, my_i), buffer_3D(:, recv_a, my_i)) &
+                  tmp = tmp + accurate_dot_product_2(mat_S_3D(:, my_a, my_i), buffer_3D(:, recv_a, my_i), &
+                                                     mp2_env%ri_grad%dot_blksize) &
                         *(1.0_dp - omega**2/(Eigenval(homo + my_a_start - 1 + my_a) - Eigenval(my_i_start - 1 + my_i)) &
                           /(Eigenval(homo + recv_a_start - 1 + recv_a) - Eigenval(my_i_start - 1 + my_i)))
                END DO
@@ -1189,13 +1193,14 @@ CONTAINS
             CALL timeset(routineN//"_accurate_i", handle2)
 !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(NONE)&
 !$OMP SHARED(my_a_size,recv_i_size,my_i_size,mat_S_3D,homo,Eigenval,omega,my_a_start,&
-!$OMP        recv_i_start,P_ij,weight,buffer_3D,my_i_start)&
+!$OMP        recv_i_start,P_ij,weight,buffer_3D,my_i_start,mp2_env)&
 !$OMP PRIVATE(tmp,my_a,recv_i,my_i)
             DO my_i = 1, my_i_size
             DO recv_i = 1, recv_i_size
                tmp = 0.0_dp
                DO my_a = 1, my_a_size
-                  tmp = tmp + accurate_dot_product_2(mat_S_3D(:, my_a, my_i), buffer_3D(:, my_a, recv_i)) &
+                  tmp = tmp + accurate_dot_product_2(mat_S_3D(:, my_a, my_i), buffer_3D(:, my_a, recv_i), &
+                                                     mp2_env%ri_grad%dot_blksize) &
                         *(1.0_dp - omega**2/(Eigenval(homo + my_a_start - 1 + my_a) - Eigenval(my_i_start - 1 + my_i)) &
                           /(Eigenval(homo + my_a_start - 1 + my_a) - Eigenval(recv_i_start - 1 + recv_i)))
                END DO
@@ -1247,8 +1252,10 @@ CONTAINS
 !> \param weight ...
 !> \param index2send ...
 !> \param index2recv ...
+!> \param dot_blksize ...
 ! **************************************************************************************************
-   SUBROUTINE calc_Pij_degen(fm_work_iaP, fm_mat_S, pair_list, virtual, P_ij, Eigenval, omega, weight, index2send, index2recv)
+   SUBROUTINE calc_Pij_degen(fm_work_iaP, fm_mat_S, pair_list, virtual, P_ij, Eigenval, &
+                             omega, weight, index2send, index2recv, dot_blksize)
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_work_iaP, fm_mat_S
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: pair_list
       INTEGER, INTENT(IN)                                :: virtual
@@ -1256,6 +1263,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       REAL(KIND=dp), INTENT(IN)                          :: omega, weight
       TYPE(one_dim_int_array), DIMENSION(0:), INTENT(IN) :: index2send, index2recv
+      INTEGER, INTENT(IN)                                :: dot_blksize
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_Pij_degen'
 
@@ -1300,7 +1308,8 @@ CONTAINS
 
             my_col_local = cp_fm_indxg2l((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
 
-            trace = accurate_dot_product_2(fm_mat_S%local_data(:, my_col_local), fm_work_iaP%local_data(:, col_local))
+            trace = accurate_dot_product_2(fm_mat_S%local_data(:, my_col_local), fm_work_iaP%local_data(:, col_local), &
+                                           dot_blksize)
 
             P_ij(ij_counter) = P_ij(ij_counter) &
                                - trace*sinh_over_x(0.5_dp*(Eigenval(my_i) - Eigenval(my_j))*omega)*omega*weight
@@ -1368,7 +1377,8 @@ CONTAINS
 
                      my_col_local = cp_fm_indxg2l((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
 
-                     trace = trace + accurate_dot_product_2(fm_mat_S%local_data(:, my_col_local), buffer_recv(:, col_local))
+                     trace = trace + accurate_dot_product_2(fm_mat_S%local_data(:, my_col_local), buffer_recv(:, col_local), &
+                                                            dot_blksize)
                   END DO
 
                   P_ij(ij_counter) = P_ij(ij_counter) &
@@ -1400,8 +1410,10 @@ CONTAINS
 !> \param weight ...
 !> \param index2send ...
 !> \param index2recv ...
+!> \param dot_blksize ...
 ! **************************************************************************************************
-   SUBROUTINE calc_Pab_degen(fm_work_iaP, fm_mat_S, pair_list, virtual, P_ab, Eigenval, omega, weight, index2send, index2recv)
+   SUBROUTINE calc_Pab_degen(fm_work_iaP, fm_mat_S, pair_list, virtual, P_ab, Eigenval, &
+                             omega, weight, index2send, index2recv, dot_blksize)
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_work_iaP, fm_mat_S
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: pair_list
       INTEGER, INTENT(IN)                                :: virtual
@@ -1409,6 +1421,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       REAL(KIND=dp), INTENT(IN)                          :: omega, weight
       TYPE(one_dim_int_array), DIMENSION(0:), INTENT(IN) :: index2send, index2recv
+      INTEGER, INTENT(IN)                                :: dot_blksize
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_Pab_degen'
 
@@ -1452,7 +1465,8 @@ CONTAINS
             IF (pcol /= my_pcol) CYCLE
             my_col_local = cp_fm_indxg2l((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
 
-            trace = accurate_dot_product_2(fm_mat_S%local_data(:, my_col_local), fm_work_iaP%local_data(:, col_local))
+            trace = accurate_dot_product_2(fm_mat_S%local_data(:, my_col_local), fm_work_iaP%local_data(:, col_local), &
+                                           dot_blksize)
 
             P_ab(ab_counter) = P_ab(ab_counter) &
                                + trace*sinh_over_x(0.5_dp*(Eigenval(my_a) - Eigenval(my_b))*omega)*omega*weight
@@ -1520,7 +1534,8 @@ CONTAINS
 
                      my_col_local = cp_fm_indxg2l((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
 
-                     trace = trace + accurate_dot_product_2(fm_mat_S%local_data(:, my_col_local), buffer_recv(:, col_local))
+                     trace = trace + accurate_dot_product_2(fm_mat_S%local_data(:, my_col_local), buffer_recv(:, col_local), &
+                                                            dot_blksize)
                   END DO
 
                   P_ab(ab_counter) = P_ab(ab_counter) &
