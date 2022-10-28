@@ -1104,6 +1104,7 @@ CONTAINS
             END DO
             CALL timestop(handle2)
          ELSE
+            CALL timeset(routineN//"_accurate_a", handle2)
 !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(NONE)&
 !$OMP SHARED(my_a_size,recv_a_size,my_i_size,mat_S_3D,homo,Eigenval,omega,my_a_start,&
 !$OMP        recv_a_start,P_ab,weight,buffer_3D,my_i_start)&
@@ -1119,6 +1120,7 @@ CONTAINS
                P_ab(my_a, recv_a_start - 1 + recv_a) = P_ab(my_a, recv_a_start - 1 + recv_a) - weight*tmp
             END DO
             END DO
+            CALL timestop(handle2)
          END IF
       END DO
 
@@ -1184,6 +1186,7 @@ CONTAINS
             END DO
             CALL timestop(handle2)
          ELSE
+            CALL timeset(routineN//"_accurate_i", handle2)
 !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(NONE)&
 !$OMP SHARED(my_a_size,recv_i_size,my_i_size,mat_S_3D,homo,Eigenval,omega,my_a_start,&
 !$OMP        recv_i_start,P_ij,weight,buffer_3D,my_i_start)&
@@ -1199,6 +1202,7 @@ CONTAINS
                P_ij(my_i, recv_i + recv_i_start - 1) = P_ij(my_i, recv_i + recv_i_start - 1) + weight*tmp
             END DO
             END DO
+            CALL timestop(handle2)
          END IF
       END DO
 
