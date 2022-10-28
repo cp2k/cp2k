@@ -38,7 +38,7 @@ MODULE rpa_grad
                                               group_dist_proc,&
                                               maxsize,&
                                               release_group_dist
-   USE kahan_sum,                       ONLY: accurate_dot_product
+   USE kahan_sum,                       ONLY: accurate_dot_product_2
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE libint_2c_3c,                    ONLY: compare_potential_types
@@ -1113,7 +1113,7 @@ CONTAINS
             DO recv_a = 1, recv_a_size
                tmp = 0.0_dp
                DO my_i = 1, my_i_size
-                  tmp = tmp + accurate_dot_product(mat_S_3D(:, my_a, my_i), buffer_3D(:, recv_a, my_i)) &
+                  tmp = tmp + accurate_dot_product_2(mat_S_3D(:, my_a, my_i), buffer_3D(:, recv_a, my_i)) &
                         *(1.0_dp - omega**2/(Eigenval(homo + my_a_start - 1 + my_a) - Eigenval(my_i_start - 1 + my_i)) &
                           /(Eigenval(homo + recv_a_start - 1 + recv_a) - Eigenval(my_i_start - 1 + my_i)))
                END DO
@@ -1195,7 +1195,7 @@ CONTAINS
             DO recv_i = 1, recv_i_size
                tmp = 0.0_dp
                DO my_a = 1, my_a_size
-                  tmp = tmp + accurate_dot_product(mat_S_3D(:, my_a, my_i), buffer_3D(:, my_a, recv_i)) &
+                  tmp = tmp + accurate_dot_product_2(mat_S_3D(:, my_a, my_i), buffer_3D(:, my_a, recv_i)) &
                         *(1.0_dp - omega**2/(Eigenval(homo + my_a_start - 1 + my_a) - Eigenval(my_i_start - 1 + my_i)) &
                           /(Eigenval(homo + my_a_start - 1 + my_a) - Eigenval(recv_i_start - 1 + recv_i)))
                END DO
@@ -1300,7 +1300,7 @@ CONTAINS
 
             my_col_local = cp_fm_indxg2l((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
 
-            trace = accurate_dot_product(fm_mat_S%local_data(:, my_col_local), fm_work_iaP%local_data(:, col_local))
+            trace = accurate_dot_product_2(fm_mat_S%local_data(:, my_col_local), fm_work_iaP%local_data(:, col_local))
 
             P_ij(ij_counter) = P_ij(ij_counter) &
                                - trace*sinh_over_x(0.5_dp*(Eigenval(my_i) - Eigenval(my_j))*omega)*omega*weight
@@ -1368,7 +1368,7 @@ CONTAINS
 
                      my_col_local = cp_fm_indxg2l((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
 
-                     trace = trace + accurate_dot_product(fm_mat_S%local_data(:, my_col_local), buffer_recv(:, col_local))
+                     trace = trace + accurate_dot_product_2(fm_mat_S%local_data(:, my_col_local), buffer_recv(:, col_local))
                   END DO
 
                   P_ij(ij_counter) = P_ij(ij_counter) &
@@ -1452,7 +1452,7 @@ CONTAINS
             IF (pcol /= my_pcol) CYCLE
             my_col_local = cp_fm_indxg2l((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
 
-            trace = accurate_dot_product(fm_mat_S%local_data(:, my_col_local), fm_work_iaP%local_data(:, col_local))
+            trace = accurate_dot_product_2(fm_mat_S%local_data(:, my_col_local), fm_work_iaP%local_data(:, col_local))
 
             P_ab(ab_counter) = P_ab(ab_counter) &
                                + trace*sinh_over_x(0.5_dp*(Eigenval(my_a) - Eigenval(my_b))*omega)*omega*weight
@@ -1520,7 +1520,7 @@ CONTAINS
 
                      my_col_local = cp_fm_indxg2l((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
 
-                     trace = trace + accurate_dot_product(fm_mat_S%local_data(:, my_col_local), buffer_recv(:, col_local))
+                     trace = trace + accurate_dot_product_2(fm_mat_S%local_data(:, my_col_local), buffer_recv(:, col_local))
                   END DO
 
                   P_ab(ab_counter) = P_ab(ab_counter) &

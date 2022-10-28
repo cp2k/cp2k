@@ -30,7 +30,7 @@ MODULE kahan_sum
 
    IMPLICIT NONE
    PRIVATE
-   PUBLIC :: accurate_dot_product, accurate_sum
+   PUBLIC :: accurate_dot_product, accurate_sum, accurate_dot_product_2
    INTEGER, PARAMETER :: sp = KIND(0.0), dp = KIND(0.0D0)
    REAL(KIND=sp), PARAMETER :: szero = 0.0_sp
    REAL(KIND=dp), PARAMETER :: dzero = 0.0_dp
@@ -55,6 +55,11 @@ MODULE kahan_sum
          kahan_dot_product_s2, kahan_dot_product_d2, kahan_dot_product_z2, &
          kahan_dot_product_d3, kahan_dot_product_masked_d3
    END INTERFACE accurate_dot_product
+
+   INTERFACE accurate_dot_product_2
+      MODULE PROCEDURE kahan_blocked_dot_product_d1
+   END INTERFACE
+
 CONTAINS
 ! **************************************************************************************************
 !> \brief ...
@@ -1583,5 +1588,47 @@ CONTAINS
          END DO
       END IF
    END FUNCTION kahan_sum_z7
+
+! **************************************************************************************************
+!> \brief computes the accurate sum of blocks of regular dot products
+!> \param array1 array of real numbers
+!> \param array2 another array of real numbers
+!> \param blksize ...
+!> \return dot product
+! **************************************************************************************************
+   PURE FUNCTION kahan_blocked_dot_product_d1(array1, array2, blksize) RESULT(ks)
+      REAL(KIND=dp), DIMENSION(:), INTENT(in)            :: array1, array2
+      INTEGER, INTENT(IN), OPTIONAL                      :: blksize
+      REAL(KIND=dp)                                      :: ks
+
+      INTEGER                                            :: my_blksize
+
+      my_blksize = 32
+      IF (PRESENT(blksize)) my_blksize = blksize
+
+      IF (my_blksize <= 1) THEN
+         ks = accurate_dot_product(array1, array2)
+      ELSE IF (my_blksize >= SIZE(array1)) THEN
+         ks = DOT_PRODUCT(array1, array2)
+      ELSE
+         ks = 0.0_dp
+         BLOCK
+            INTEGER :: i, n, strandsize
+            REAL(KIND=dp)                                      :: c, dotproduct, t, y
+            t = dzero; y = dzero; c = dzero
+
+            n = SIZE(array1)
+            DO i = 1, n, my_blksize
+               ! Remove 1 to save an operation in the length
+               strandsize = MIN(my_blksize - 1, n - i)
+               dotproduct = DOT_PRODUCT(array1(i:i + strandsize), array2(i:i + strandsize))
+               y = dotproduct - c
+               t = ks + y
+               c = (t - ks) - y
+               ks = t
+            END DO
+         END BLOCK
+      END IF
+   END FUNCTION kahan_blocked_dot_product_d1
 
 END MODULE kahan_sum
