@@ -81,8 +81,11 @@ MODULE cp_control_types
       REAL(KIND=dp)                        :: hb_sr_para
       REAL(KIND=dp)                        :: eps_disp
       REAL(KIND=dp)                        :: epscn
+      REAL(KIND=dp)                        :: exp_pre
+      REAL(KIND=dp)                        :: scaling
       REAL(KIND=dp)                        :: rcdisp
       REAL(KIND=dp), DIMENSION(3)          :: sd3
+      REAL(KIND=dp), DIMENSION(4)          :: sd3bj
       LOGICAL                              :: do_ewald
       CHARACTER(LEN=default_path_length)   :: sk_file_path
       CHARACTER(LEN=default_path_length)   :: sk_file_list
@@ -105,11 +108,14 @@ MODULE cp_control_types
       CHARACTER(LEN=default_path_length)   :: parameter_file_path
       CHARACTER(LEN=default_path_length)   :: parameter_file_name
       !
+      INTEGER                              :: dispersion_type
       CHARACTER(LEN=default_path_length)   :: dispersion_parameter_file
       REAL(KIND=dp)                        :: epscn
       REAL(KIND=dp)                        :: rcdisp
-      REAL(KIND=dp)                        :: s6, s8
+      REAL(KIND=dp)                        :: s6, sr6, s8
       REAL(KIND=dp)                        :: a1, a2
+      REAL(KIND=dp)                        :: d2_exp_pre
+      REAL(KIND=dp)                        :: d2_scaling
       !
       REAL(KIND=dp)                        :: ks, kp, kd, ksp, k2sh
       REAL(KIND=dp)                        :: kg, kf

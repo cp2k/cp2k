@@ -1139,8 +1139,11 @@ MODULE input_constants
                                                do_cosma = 2
 
    ! Dispersion DFTB
-   INTEGER, PARAMETER, PUBLIC               :: dispersion_uff = 100, &
-                                               dispersion_d3 = 200
+   INTEGER, PARAMETER, PUBLIC               :: dispersion_none = 0, &
+                                               dispersion_uff = 100, &
+                                               dispersion_d3 = 200, &
+                                               dispersion_d3bj = 210, &
+                                               dispersion_d2 = 300
 
    ! Transport section
    INTEGER, PARAMETER, PUBLIC               :: transport_localscf = 1, &

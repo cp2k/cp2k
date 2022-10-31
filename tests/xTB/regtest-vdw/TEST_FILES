@@ -1,0 +1,11 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+xtb_default.inp                            1    1.0E-12             -11.54506400580467
+xtb_none.inp                               1    1.0E-12             -11.54444043809505
+xtb_d2.inp                                 1    1.0E-12             -11.72534419006453
+xtb_d3.inp                                 1    1.0E-12             -11.54996113007034
+xtb_d3bj.inp                               1    1.0E-12             -11.54506400580467
+#EOF

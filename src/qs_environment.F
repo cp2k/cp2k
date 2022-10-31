@@ -95,14 +95,15 @@ MODULE qs_environment
    USE hfx_types,                       ONLY: compare_hfx_sections,&
                                               hfx_create
    USE input_constants,                 ONLY: &
-        dispersion_d3, do_et_ddapc, do_method_am1, do_method_dftb, do_method_gapw, &
-        do_method_gapw_xc, do_method_gpw, do_method_lrigpw, do_method_mndo, do_method_mndod, &
-        do_method_ofgpw, do_method_pdg, do_method_pm3, do_method_pm6, do_method_pm6fm, &
-        do_method_pnnl, do_method_rigpw, do_method_rm1, do_method_xtb, do_qmmm_gauss, &
-        do_qmmm_swave, general_roks, kg_tnadd_embed_ri, rel_none, rel_trans_atom, &
-        vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, wfi_aspc_nr, wfi_linear_ps_method_nr, &
-        wfi_linear_wf_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr, xc_vdw_fun_none, &
-        xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
+        dispersion_d2, dispersion_d3, dispersion_d3bj, dispersion_none, do_et_ddapc, &
+        do_method_am1, do_method_dftb, do_method_gapw, do_method_gapw_xc, do_method_gpw, &
+        do_method_lrigpw, do_method_mndo, do_method_mndod, do_method_ofgpw, do_method_pdg, &
+        do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rigpw, &
+        do_method_rm1, do_method_xtb, do_qmmm_gauss, do_qmmm_swave, general_roks, &
+        kg_tnadd_embed_ri, rel_none, rel_trans_atom, vdw_pairpot_dftd2, vdw_pairpot_dftd3, &
+        vdw_pairpot_dftd3bj, wfi_aspc_nr, wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, &
+        wfi_ps_method_nr, wfi_use_guess_method_nr, xc_vdw_fun_none, xc_vdw_fun_nonloc, &
+        xc_vdw_fun_pairpot
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -139,7 +140,8 @@ MODULE qs_environment
    USE qs_dftb_parameters,              ONLY: qs_dftb_param_init
    USE qs_dftb_types,                   ONLY: qs_dftb_pairpot_type
    USE qs_dispersion_nonloc,            ONLY: qs_dispersion_nonloc_init
-   USE qs_dispersion_pairpot,           ONLY: qs_dispersion_pairpot_init
+   USE qs_dispersion_pairpot,           ONLY: qs_dispersion_pairpot_init,&
+                                              qs_dispersion_setcn
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_dispersion_utils,             ONLY: qs_dispersion_env_set,&
                                               qs_write_dispersion
@@ -1242,6 +1244,29 @@ CONTAINS
             dispersion_env%nd3_exclude_pair = 0
             dispersion_env%parameter_file_name = dftb_control%dispersion_parameter_file
             CALL qs_dispersion_pairpot_init(atomic_kind_set, qs_kind_set, dispersion_env, para_env=para_env)
+         ELSEIF (dftb_control%dispersion .AND. dftb_control%dispersion_type == dispersion_d3bj) THEN
+            dispersion_env%type = xc_vdw_fun_pairpot
+            dispersion_env%pp_type = vdw_pairpot_dftd3bj
+            dispersion_env%eps_cn = dftb_control%epscn
+            dispersion_env%s6 = dftb_control%sd3bj(1)
+            dispersion_env%a1 = dftb_control%sd3bj(2)
+            dispersion_env%s8 = dftb_control%sd3bj(3)
+            dispersion_env%a2 = dftb_control%sd3bj(4)
+            dispersion_env%domol = .FALSE.
+            dispersion_env%kgc8 = 0._dp
+            dispersion_env%rc_disp = dftb_control%rcdisp
+            dispersion_env%exp_pre = 0._dp
+            dispersion_env%scaling = 0._dp
+            dispersion_env%nd3_exclude_pair = 0
+            dispersion_env%parameter_file_name = dftb_control%dispersion_parameter_file
+            CALL qs_dispersion_pairpot_init(atomic_kind_set, qs_kind_set, dispersion_env, para_env=para_env)
+         ELSEIF (dftb_control%dispersion .AND. dftb_control%dispersion_type == dispersion_d2) THEN
+            dispersion_env%type = xc_vdw_fun_pairpot
+            dispersion_env%pp_type = vdw_pairpot_dftd2
+            dispersion_env%exp_pre = dftb_control%exp_pre
+            dispersion_env%scaling = dftb_control%scaling
+            dispersion_env%parameter_file_name = dftb_control%dispersion_parameter_file
+            CALL qs_dispersion_pairpot_init(atomic_kind_set, qs_kind_set, dispersion_env, para_env=para_env)
          ELSE
             dispersion_env%type = xc_vdw_fun_none
          END IF
@@ -1261,20 +1286,46 @@ CONTAINS
                   dispersion_env%d2y_dx2, dispersion_env%dftd_section)
          NULLIFY (dispersion_env%sab_vdw, dispersion_env%sab_cn)
          dispersion_env%type = xc_vdw_fun_pairpot
-         dispersion_env%pp_type = vdw_pairpot_dftd3bj
          dispersion_env%eps_cn = xtb_control%epscn
-         dispersion_env%s6 = xtb_control%s6
-         dispersion_env%s8 = xtb_control%s8
-         dispersion_env%a1 = xtb_control%a1
-         dispersion_env%a2 = xtb_control%a2
+         dispersion_env%s6 = 0.0_dp
+         dispersion_env%s8 = 0.0_dp
+         dispersion_env%a1 = 0.0_dp
+         dispersion_env%a2 = 0.0_dp
          dispersion_env%domol = .FALSE.
-         dispersion_env%kgc8 = 0._dp
-         dispersion_env%rc_disp = xtb_control%rcdisp
-         dispersion_env%exp_pre = 0._dp
-         dispersion_env%scaling = 0._dp
+         dispersion_env%kgc8 = 0.0_dp
+         dispersion_env%rc_disp = 0.0_dp
+         dispersion_env%exp_pre = 0.0_dp
+         dispersion_env%scaling = 0.0_dp
          dispersion_env%nd3_exclude_pair = 0
          dispersion_env%parameter_file_name = xtb_control%dispersion_parameter_file
-         CALL qs_dispersion_pairpot_init(atomic_kind_set, qs_kind_set, dispersion_env, para_env=para_env)
+         IF (xtb_control%dispersion_type == dispersion_d3bj) THEN
+            dispersion_env%pp_type = vdw_pairpot_dftd3bj
+            dispersion_env%s6 = xtb_control%s6
+            dispersion_env%s8 = xtb_control%s8
+            dispersion_env%a1 = xtb_control%a1
+            dispersion_env%a2 = xtb_control%a2
+            dispersion_env%rc_disp = xtb_control%rcdisp
+            CALL qs_dispersion_pairpot_init(atomic_kind_set, qs_kind_set, dispersion_env, para_env=para_env)
+         ELSEIF (xtb_control%dispersion_type == dispersion_d3) THEN
+            dispersion_env%pp_type = vdw_pairpot_dftd3
+            dispersion_env%s6 = xtb_control%s6
+            dispersion_env%sr6 = xtb_control%sr6
+            dispersion_env%s8 = xtb_control%s8
+            dispersion_env%rc_disp = xtb_control%rcdisp
+            CALL qs_dispersion_pairpot_init(atomic_kind_set, qs_kind_set, dispersion_env, para_env=para_env)
+         ELSEIF (xtb_control%dispersion_type == dispersion_d2) THEN
+            dispersion_env%pp_type = vdw_pairpot_dftd2
+            dispersion_env%exp_pre = xtb_control%d2_exp_pre
+            dispersion_env%scaling = xtb_control%d2_scaling
+            dispersion_env%rc_disp = xtb_control%rcdisp
+            CALL qs_dispersion_pairpot_init(atomic_kind_set, qs_kind_set, dispersion_env, para_env=para_env)
+            CALL qs_dispersion_setcn(atomic_kind_set, qs_kind_set, dispersion_env, para_env)
+         ELSEIF (xtb_control%dispersion_type == dispersion_none) THEN
+            dispersion_env%type = xc_vdw_fun_none
+            CALL qs_dispersion_setcn(atomic_kind_set, qs_kind_set, dispersion_env, para_env)
+         ELSE
+            CPABORT("Unknown dispersion type")
+         END IF
          CALL set_qs_env(qs_env, dispersion_env=dispersion_env)
       ELSE IF (dft_control%qs_control%semi_empirical) THEN
          ALLOCATE (dispersion_env)
