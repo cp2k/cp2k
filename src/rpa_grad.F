@@ -1002,9 +1002,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_P_rpa'
 
       INTEGER :: handle, handle2, my_a, my_a_size, my_a_start, my_i, my_i_size, my_i_start, &
-         my_P_size, my_prow, proc_a_recv, proc_a_send, proc_i_recv, proc_i_send, proc_recv, &
-         proc_send, proc_shift, recv_a, recv_a_end, recv_a_size, recv_a_start, recv_i, recv_i_end, &
-         recv_i_size, recv_i_start, tag
+         my_P_size, my_prow, P_end, P_start, proc_a_recv, proc_a_send, proc_i_recv, proc_i_send, &
+         proc_recv, proc_send, proc_shift, recv_a, recv_a_end, recv_a_size, recv_a_start, recv_i, &
+         recv_i_end, recv_i_size, recv_i_start, stripesize, tag
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
       REAL(KIND=dp)                                      :: tmp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: buffer_1D, buffer_compens_1D, &
@@ -1077,16 +1077,21 @@ CONTAINS
             CALL timeset(routineN//"_dgemm_a", handle2)
             ! This loop imitates the actual tensor contraction
             DO my_i = 1, my_i_size
-               buffer_corr_2D = buffer_compens_2D
-               CALL local_gemm("T", "N", my_a_size, recv_a_size, my_P_size, &
-                               -weight, mat_S_3D(:, :, my_i), my_P_size, &
-                               buffer_3D(:, :, my_i), my_P_size, &
-                               -1.0_dp, buffer_corr_2D, my_a_size, mp2_env%local_gemm_ctx)
+               DO P_start = 1, my_P_size, mp2_env%ri_grad%dot_blksize
+                  stripesize = MIN(mp2_env%ri_grad%dot_blksize, my_P_size - P_start + 1)
+                  P_end = P_start + stripesize - 1
 
-               buffer_sum_2D(:, 1:recv_a_size) = P_ab(:, recv_a_start:recv_a_end) + buffer_corr_2D(:, 1:recv_a_size)
-               buffer_compens_2D(:, 1:recv_a_size) = (buffer_sum_2D(:, 1:recv_a_size) - P_ab(:, recv_a_start:recv_a_end)) &
-                                                     - buffer_corr_2D(:, 1:recv_a_size)
-               P_ab(:, recv_a_start:recv_a_end) = buffer_sum_2D(:, 1:recv_a_size)
+                  buffer_corr_2D = buffer_compens_2D
+                  CALL local_gemm("T", "N", my_a_size, recv_a_size, stripesize, &
+                                  -weight, mat_S_3D(P_start:P_end, :, my_i), stripesize, &
+                                  buffer_3D(P_start:P_end, :, my_i), stripesize, &
+                                  -1.0_dp, buffer_corr_2D, my_a_size, mp2_env%local_gemm_ctx)
+
+                  buffer_sum_2D(:, 1:recv_a_size) = P_ab(:, recv_a_start:recv_a_end) + buffer_corr_2D(:, 1:recv_a_size)
+                  buffer_compens_2D(:, 1:recv_a_size) = (buffer_sum_2D(:, 1:recv_a_size) - P_ab(:, recv_a_start:recv_a_end)) &
+                                                        - buffer_corr_2D(:, 1:recv_a_size)
+                  P_ab(:, recv_a_start:recv_a_end) = buffer_sum_2D(:, 1:recv_a_size)
+               END DO
             END DO
             CALL timestop(handle2)
 
@@ -1106,17 +1111,22 @@ CONTAINS
 
             CALL timeset(routineN//"_dgemm_a", handle2)
             DO my_i = 1, my_i_size
-               buffer_corr_2D = buffer_compens_2D
-               ! Repeat contraction
-               CALL local_gemm("T", "N", my_a_size, recv_a_size, my_P_size, &
-                               weight, mat_S_3D(:, :, my_i), my_P_size, &
-                               buffer_3D(:, :, my_i), my_P_size, &
-                               -1.0_dp, buffer_corr_2D, my_a_size, mp2_env%local_gemm_ctx)
+               DO P_start = 1, my_P_size, mp2_env%ri_grad%dot_blksize
+                  stripesize = MIN(mp2_env%ri_grad%dot_blksize, my_P_size - P_start + 1)
+                  P_end = P_start + stripesize - 1
 
-               buffer_sum_2D(:, 1:recv_a_size) = P_ab(:, recv_a_start:recv_a_end) + buffer_corr_2D(:, 1:recv_a_size)
-               buffer_compens_2D(:, 1:recv_a_size) = (buffer_sum_2D(:, 1:recv_a_size) - P_ab(:, recv_a_start:recv_a_end)) &
-                                                     - buffer_corr_2D(:, 1:recv_a_size)
-               P_ab(:, recv_a_start:recv_a_end) = buffer_sum_2D(:, 1:recv_a_size)
+                  buffer_corr_2D = buffer_compens_2D
+                  ! Repeat contraction
+                  CALL local_gemm("T", "N", my_a_size, recv_a_size, stripesize, &
+                                  weight, mat_S_3D(P_start:P_end, :, my_i), stripesize, &
+                                  buffer_3D(P_start:P_end, :, my_i), stripesize, &
+                                  -1.0_dp, buffer_corr_2D, my_a_size, mp2_env%local_gemm_ctx)
+
+                  buffer_sum_2D(:, 1:recv_a_size) = P_ab(:, recv_a_start:recv_a_end) + buffer_corr_2D(:, 1:recv_a_size)
+                  buffer_compens_2D(:, 1:recv_a_size) = (buffer_sum_2D(:, 1:recv_a_size) - P_ab(:, recv_a_start:recv_a_end)) &
+                                                        - buffer_corr_2D(:, 1:recv_a_size)
+                  P_ab(:, recv_a_start:recv_a_end) = buffer_sum_2D(:, 1:recv_a_size)
+               END DO
             END DO
             CALL timestop(handle2)
 
@@ -1183,17 +1193,22 @@ CONTAINS
 
             CALL timeset(routineN//"_dgemm_i", handle2)
             DO my_a = 1, my_a_size
-               buffer_corr_2D = buffer_compens_2D
-               ! This loop imitates the actual tensor contraction
-               CALL local_gemm("T", "N", my_i_size, recv_i_size, my_P_size, &
-                               weight, mat_S_3D(:, my_a, :), my_P_size, &
-                               buffer_3D(:, my_a, :), my_P_size, &
-                               -1.0_dp, buffer_corr_2D(:, 1:recv_i_start), my_i_size, mp2_env%local_gemm_ctx)
+               DO P_start = 1, my_P_size, mp2_env%ri_grad%dot_blksize
+                  stripesize = MIN(mp2_env%ri_grad%dot_blksize, my_P_size - P_start + 1)
+                  P_end = P_start + stripesize - 1
 
-               buffer_sum_2D(:, 1:recv_i_size) = P_ij(:, recv_i_start:recv_i_end) + buffer_corr_2D(:, 1:recv_i_size)
-               buffer_compens_2D(:, 1:recv_i_size) = (buffer_sum_2D(:, 1:recv_i_size) - P_ij(:, recv_i_start:recv_i_end)) &
-                                                     - buffer_corr_2D(:, 1:recv_i_size)
-               P_ij(:, recv_i_start:recv_i_end) = buffer_sum_2D(:, 1:recv_i_size)
+                  buffer_corr_2D = buffer_compens_2D
+                  ! This loop imitates the actual tensor contraction
+                  CALL local_gemm("T", "N", my_i_size, recv_i_size, stripesize, &
+                                  weight, mat_S_3D(P_start:P_end, my_a, :), stripesize, &
+                                  buffer_3D(P_start:P_end, my_a, :), stripesize, &
+                                  -1.0_dp, buffer_corr_2D(:, 1:recv_i_start), my_i_size, mp2_env%local_gemm_ctx)
+
+                  buffer_sum_2D(:, 1:recv_i_size) = P_ij(:, recv_i_start:recv_i_end) + buffer_corr_2D(:, 1:recv_i_size)
+                  buffer_compens_2D(:, 1:recv_i_size) = (buffer_sum_2D(:, 1:recv_i_size) - P_ij(:, recv_i_start:recv_i_end)) &
+                                                        - buffer_corr_2D(:, 1:recv_i_size)
+                  P_ij(:, recv_i_start:recv_i_end) = buffer_sum_2D(:, 1:recv_i_size)
+               END DO
             END DO
             CALL timestop(handle2)
 
@@ -1215,17 +1230,22 @@ CONTAINS
 
             CALL timeset(routineN//"_dgemm_i", handle2)
             DO my_a = 1, my_a_size
-               buffer_corr_2D = buffer_compens_2D
-               ! Repeat contraction
-               CALL local_gemm("T", "N", my_i_size, recv_i_size, my_P_size, &
-                               -weight, mat_S_3D(:, my_a, :), my_P_size, &
-                               buffer_3D(:, my_a, :), my_P_size, &
-                               -1.0_dp, buffer_corr_2D(:, 1:recv_i_start), my_i_size, mp2_env%local_gemm_ctx)
+               DO P_start = 1, my_P_size, mp2_env%ri_grad%dot_blksize
+                  stripesize = MIN(mp2_env%ri_grad%dot_blksize, my_P_size - P_start + 1)
+                  P_end = P_start + stripesize - 1
 
-               buffer_sum_2D(:, 1:recv_i_size) = P_ij(:, recv_i_start:recv_i_end) + buffer_corr_2D(:, 1:recv_i_size)
-               buffer_compens_2D(:, 1:recv_i_size) = (buffer_sum_2D(:, 1:recv_i_size) - P_ij(:, recv_i_start:recv_i_end)) &
-                                                     - buffer_corr_2D(:, 1:recv_i_size)
-               P_ij(:, recv_i_start:recv_i_end) = buffer_sum_2D(:, 1:recv_i_size)
+                  buffer_corr_2D = buffer_compens_2D
+                  ! Repeat contraction
+                  CALL local_gemm("T", "N", my_i_size, recv_i_size, stripesize, &
+                                  -weight, mat_S_3D(P_start:P_end, my_a, :), stripesize, &
+                                  buffer_3D(P_start:P_end, my_a, :), stripesize, &
+                                  -1.0_dp, buffer_corr_2D(:, 1:recv_i_start), my_i_size, mp2_env%local_gemm_ctx)
+
+                  buffer_sum_2D(:, 1:recv_i_size) = P_ij(:, recv_i_start:recv_i_end) + buffer_corr_2D(:, 1:recv_i_size)
+                  buffer_compens_2D(:, 1:recv_i_size) = (buffer_sum_2D(:, 1:recv_i_size) - P_ij(:, recv_i_start:recv_i_end)) &
+                                                        - buffer_corr_2D(:, 1:recv_i_size)
+                  P_ij(:, recv_i_start:recv_i_end) = buffer_sum_2D(:, 1:recv_i_size)
+               END DO
             END DO
             CALL timestop(handle2)
 
