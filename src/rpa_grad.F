@@ -1007,8 +1007,10 @@ CONTAINS
          recv_i_size, recv_i_start, tag
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
       REAL(KIND=dp)                                      :: tmp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: buffer_1D
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: buffer_2D, mat_S_2D
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: buffer_1D, buffer_compens_1D, &
+                                                            buffer_corr_1D, buffer_sum_1D
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: buffer_2D, buffer_compens_2D, &
+                                                            buffer_corr_2D, buffer_sum_2D, mat_S_2D
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: buffer_3D, mat_S_3D
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
@@ -1041,6 +1043,13 @@ CONTAINS
       ALLOCATE (buffer_1D(MAX(INT(maxsize(gd_homo), KIND=int_8)*my_a_size, &
                               INT(maxsize(gd_virtual), KIND=int_8)*my_i_size)*my_P_size))
 
+      ! Allocate buffers for vector version of kahan summation
+      IF (.NOT. mp2_env%ri_rpa%accurate_dot_product) THEN
+         ALLOCATE (buffer_sum_1D(MAX(my_a_size*maxsize(gd_virtual), my_i_size*maxsize(gd_homo))), &
+                   buffer_corr_1D(MAX(my_a_size*maxsize(gd_virtual), my_i_size*maxsize(gd_homo))), &
+                   buffer_compens_1D(MAX(my_a_size*maxsize(gd_virtual), my_i_size*maxsize(gd_homo))))
+      END IF
+
       DO proc_shift = 0, grid(1) - 1
          proc_a_send = MODULO(mepos(1) + proc_shift, grid(1))
          proc_a_recv = MODULO(mepos(1) - proc_shift, grid(1))
@@ -1051,6 +1060,13 @@ CONTAINS
          CALL get_group_dist(gd_virtual, proc_a_recv, recv_a_start, recv_a_end, recv_a_size)
 
          buffer_3D(1:my_P_size, 1:recv_a_size, 1:my_i_size) => buffer_1D(1:INT(my_P_size, KIND=int_8)*recv_a_size*my_i_size)
+         IF (.NOT. mp2_env%ri_rpa%accurate_dot_product) THEN
+            buffer_sum_2D(1:my_a_size, 1:recv_a_size) => buffer_sum_1D(1:my_a_size*recv_a_size)
+            buffer_corr_2D(1:my_a_size, 1:recv_a_size) => buffer_corr_1D(1:my_a_size*recv_a_size)
+            buffer_compens_2D(1:my_a_size, 1:recv_a_size) => buffer_compens_1D(1:my_a_size*recv_a_size)
+
+            buffer_compens_2D = 0.0_dp
+         END IF
 
          CALL timeset(routineN//"_comm_a", handle2)
          CALL mp_sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
@@ -1062,10 +1078,16 @@ CONTAINS
             CALL timeset(routineN//"_dgemm_a", handle2)
             ! This loop imitates the actual tensor contraction
             DO my_i = 1, my_i_size
+               buffer_corr_2D = buffer_compens_2D
                CALL local_gemm("T", "N", my_a_size, recv_a_size, my_P_size, &
                                -weight, mat_S_3D(:, :, my_i), my_P_size, &
                                buffer_3D(:, :, my_i), my_P_size, &
-                               1.0_dp, P_ab(:, recv_a_start:recv_a_end), my_a_size, mp2_env%local_gemm_ctx)
+                               -1.0_dp, buffer_corr_2D, my_a_size, mp2_env%local_gemm_ctx)
+
+               buffer_sum_2D(:, 1:recv_a_size) = P_ab(:, recv_a_start:recv_a_end) + buffer_corr_2D(:, 1:recv_a_size)
+               buffer_compens_2D(:, 1:recv_a_size) = (buffer_sum_2D(:, 1:recv_a_size) - P_ab(:, recv_a_start:recv_a_end)) &
+                                                     - buffer_corr_2D(:, 1:recv_a_size)
+               P_ab(:, recv_a_start:recv_a_end) = buffer_sum_2D(:, 1:recv_a_size)
             END DO
             CALL timestop(handle2)
 
@@ -1085,11 +1107,17 @@ CONTAINS
 
             CALL timeset(routineN//"_dgemm_a", handle2)
             DO my_i = 1, my_i_size
+               buffer_corr_2D = buffer_compens_2D
                ! Repeat contraction
                CALL local_gemm("T", "N", my_a_size, recv_a_size, my_P_size, &
                                weight, mat_S_3D(:, :, my_i), my_P_size, &
                                buffer_3D(:, :, my_i), my_P_size, &
-                               1.0_dp, P_ab(:, recv_a_start:recv_a_end), my_a_size, mp2_env%local_gemm_ctx)
+                               -1.0_dp, buffer_corr_2D, my_a_size, mp2_env%local_gemm_ctx)
+
+               buffer_sum_2D(:, 1:recv_a_size) = P_ab(:, recv_a_start:recv_a_end) + buffer_corr_2D(:, 1:recv_a_size)
+               buffer_compens_2D(:, 1:recv_a_size) = (buffer_sum_2D(:, 1:recv_a_size) - P_ab(:, recv_a_start:recv_a_end)) &
+                                                     - buffer_corr_2D(:, 1:recv_a_size)
+               P_ab(:, recv_a_start:recv_a_end) = buffer_sum_2D(:, 1:recv_a_size)
             END DO
             CALL timestop(handle2)
 
@@ -1215,6 +1243,7 @@ CONTAINS
          ! release memory allocated by local_gemm when run on GPU. local_gemm_ctx is null on cpu only runs
          CALL local_gemm_destroy(mp2_env%local_gemm_ctx)
          mp2_env%local_gemm_ctx = C_NULL_PTR
+         DEALLOCATE (buffer_sum_1D, buffer_corr_1D, buffer_compens_1D)
       END IF
 
       CALL timestop(handle)
