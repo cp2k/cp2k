@@ -1176,13 +1176,21 @@ CONTAINS
          CALL timestop(handle2)
 
          IF (.NOT. mp2_env%ri_rpa%accurate_dot_product) THEN
-            CALL timeset(routineN//"_dgemm_i", handle2)
-            ! This loop imitates the actual tensor contraction
-            CALL local_gemm("T", "N", my_i_size, recv_i_size, my_a_size*my_P_size, &
-                            weight, mat_S_2D, my_P_size*my_a_size, &
-                            buffer_2D, my_P_size*my_a_size, &
-                            1.0_dp, P_ij(:, recv_i_start:recv_i_end), my_i_size, mp2_env%local_gemm_ctx)
-            CALL timestop(handle2)
+            buffer_sum_2D(1:my_i_size, 1:recv_i_size) => buffer_sum_1D(1:my_i_size*recv_i_size)
+            buffer_corr_2D(1:my_i_size, 1:recv_i_size) => buffer_corr_1D(1:my_i_size*recv_i_size)
+            buffer_compens_2D(1:my_i_size, 1:recv_i_size) => buffer_compens_1D(1:my_i_size*recv_i_size)
+
+            buffer_compens_2D = 0.0_dp
+
+            DO my_a = 1, my_a_size
+               CALL timeset(routineN//"_dgemm_i", handle2)
+               ! This loop imitates the actual tensor contraction
+               CALL local_gemm("T", "N", my_i_size, recv_i_size, my_P_size, &
+                               weight, mat_S_3D(:, my_a, :), my_P_size, &
+                               buffer_3D(:, my_a, :), my_P_size, &
+                               1.0_dp, P_ij(:, recv_i_start:recv_i_end), my_i_size, mp2_env%local_gemm_ctx)
+               CALL timestop(handle2)
+            END DO
 
             CALL timeset(routineN//"_scale_i", handle2)
             ! Scale both matrices
@@ -1200,13 +1208,15 @@ CONTAINS
             END DO
             CALL timestop(handle2)
 
-            CALL timeset(routineN//"_dgemm_i", handle2)
-            ! Repeat contraction
-            CALL local_gemm("T", "N", my_i_size, recv_i_size, my_a_size*my_P_size, &
-                            -weight, mat_S_2D, my_P_size*my_a_size, &
-                            buffer_2D, my_P_size*my_a_size, &
-                            1.0_dp, P_ij(:, recv_i_start:recv_i_end), my_i_size, mp2_env%local_gemm_ctx)
-            CALL timestop(handle2)
+            DO my_a = 1, my_a_size
+               CALL timeset(routineN//"_dgemm_i", handle2)
+               ! Repeat contraction
+               CALL local_gemm("T", "N", my_i_size, recv_i_size, my_P_size, &
+                               -weight, mat_S_3D(:, my_a, :), my_P_size, &
+                               buffer_3D(:, my_a, :), my_P_size, &
+                               1.0_dp, P_ij(:, recv_i_start:recv_i_end), my_i_size, mp2_env%local_gemm_ctx)
+               CALL timestop(handle2)
+            END DO
 
             CALL timeset(routineN//"_scale_i", handle2)
             ! Remove scaling factor of mat_S for later
