@@ -1596,32 +1596,36 @@ CONTAINS
 !> \param blksize ...
 !> \return dot product
 ! **************************************************************************************************
-   PURE FUNCTION kahan_blocked_dot_product_d1(array1, array2, blksize) RESULT(ks)
+   FUNCTION kahan_blocked_dot_product_d1(array1, array2, blksize) RESULT(ks)
       REAL(KIND=dp), DIMENSION(:), INTENT(in)            :: array1, array2
       INTEGER, INTENT(IN), OPTIONAL                      :: blksize
       REAL(KIND=dp)                                      :: ks
 
       INTEGER                                            :: my_blksize
+      REAL(KIND=dp)                                      :: DDOT
 
       my_blksize = 32
       IF (PRESENT(blksize)) my_blksize = blksize
 
       IF (my_blksize <= 1) THEN
+         ! The original should be faster
          ks = accurate_dot_product(array1, array2)
       ELSE IF (my_blksize >= SIZE(array1)) THEN
-         ks = DOT_PRODUCT(array1, array2)
+         ! Just use standard dot product from BLAS for performance
+         ks = DDOT(SIZE(array1), array1(1), 1, array2(1), 1)
       ELSE
          ks = 0.0_dp
          BLOCK
-            INTEGER :: i, n, strandsize
+            INTEGER :: i, n, stripesize
             REAL(KIND=dp)                                      :: c, dotproduct, t, y
             t = dzero; y = dzero; c = dzero
 
             n = SIZE(array1)
             DO i = 1, n, my_blksize
                ! Remove 1 to save an operation in the length
-               strandsize = MIN(my_blksize - 1, n - i)
-               dotproduct = DOT_PRODUCT(array1(i:i + strandsize), array2(i:i + strandsize))
+               stripesize = MIN(my_blksize, n - i + 1)
+               ! Perform dot product on the given stripe
+               dotproduct = DDOT(stripesize, array1(i), 1, array2(i), 1)
                y = dotproduct - c
                t = ks + y
                c = (t - ks) - y
