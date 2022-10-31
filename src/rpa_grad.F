@@ -1060,13 +1060,6 @@ CONTAINS
          CALL get_group_dist(gd_virtual, proc_a_recv, recv_a_start, recv_a_end, recv_a_size)
 
          buffer_3D(1:my_P_size, 1:recv_a_size, 1:my_i_size) => buffer_1D(1:INT(my_P_size, KIND=int_8)*recv_a_size*my_i_size)
-         IF (.NOT. mp2_env%ri_rpa%accurate_dot_product) THEN
-            buffer_sum_2D(1:my_a_size, 1:recv_a_size) => buffer_sum_1D(1:my_a_size*recv_a_size)
-            buffer_corr_2D(1:my_a_size, 1:recv_a_size) => buffer_corr_1D(1:my_a_size*recv_a_size)
-            buffer_compens_2D(1:my_a_size, 1:recv_a_size) => buffer_compens_1D(1:my_a_size*recv_a_size)
-
-            buffer_compens_2D = 0.0_dp
-         END IF
 
          CALL timeset(routineN//"_comm_a", handle2)
          CALL mp_sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
@@ -1075,6 +1068,12 @@ CONTAINS
          CALL timestop(handle2)
 
          IF (.NOT. mp2_env%ri_rpa%accurate_dot_product) THEN
+            buffer_sum_2D(1:my_a_size, 1:recv_a_size) => buffer_sum_1D(1:my_a_size*recv_a_size)
+            buffer_corr_2D(1:my_a_size, 1:recv_a_size) => buffer_corr_1D(1:my_a_size*recv_a_size)
+            buffer_compens_2D(1:my_a_size, 1:recv_a_size) => buffer_compens_1D(1:my_a_size*recv_a_size)
+
+            buffer_compens_2D = 0.0_dp
+
             CALL timeset(routineN//"_dgemm_a", handle2)
             ! This loop imitates the actual tensor contraction
             DO my_i = 1, my_i_size
@@ -1182,15 +1181,21 @@ CONTAINS
 
             buffer_compens_2D = 0.0_dp
 
+            CALL timeset(routineN//"_dgemm_i", handle2)
             DO my_a = 1, my_a_size
-               CALL timeset(routineN//"_dgemm_i", handle2)
+               buffer_corr_2D = buffer_compens_2D
                ! This loop imitates the actual tensor contraction
                CALL local_gemm("T", "N", my_i_size, recv_i_size, my_P_size, &
                                weight, mat_S_3D(:, my_a, :), my_P_size, &
                                buffer_3D(:, my_a, :), my_P_size, &
-                               1.0_dp, P_ij(:, recv_i_start:recv_i_end), my_i_size, mp2_env%local_gemm_ctx)
-               CALL timestop(handle2)
+                               -1.0_dp, buffer_corr_2D(:, 1:recv_i_start), my_i_size, mp2_env%local_gemm_ctx)
+
+               buffer_sum_2D(:, 1:recv_i_size) = P_ij(:, recv_i_start:recv_i_end) + buffer_corr_2D(:, 1:recv_i_size)
+               buffer_compens_2D(:, 1:recv_i_size) = (buffer_sum_2D(:, 1:recv_i_size) - P_ij(:, recv_i_start:recv_i_end)) &
+                                                     - buffer_corr_2D(:, 1:recv_i_size)
+               P_ij(:, recv_i_start:recv_i_end) = buffer_sum_2D(:, 1:recv_i_size)
             END DO
+            CALL timestop(handle2)
 
             CALL timeset(routineN//"_scale_i", handle2)
             ! Scale both matrices
@@ -1208,15 +1213,21 @@ CONTAINS
             END DO
             CALL timestop(handle2)
 
+            CALL timeset(routineN//"_dgemm_i", handle2)
             DO my_a = 1, my_a_size
-               CALL timeset(routineN//"_dgemm_i", handle2)
+               buffer_corr_2D = buffer_compens_2D
                ! Repeat contraction
                CALL local_gemm("T", "N", my_i_size, recv_i_size, my_P_size, &
                                -weight, mat_S_3D(:, my_a, :), my_P_size, &
                                buffer_3D(:, my_a, :), my_P_size, &
-                               1.0_dp, P_ij(:, recv_i_start:recv_i_end), my_i_size, mp2_env%local_gemm_ctx)
-               CALL timestop(handle2)
+                               -1.0_dp, buffer_corr_2D(:, 1:recv_i_start), my_i_size, mp2_env%local_gemm_ctx)
+
+               buffer_sum_2D(:, 1:recv_i_size) = P_ij(:, recv_i_start:recv_i_end) + buffer_corr_2D(:, 1:recv_i_size)
+               buffer_compens_2D(:, 1:recv_i_size) = (buffer_sum_2D(:, 1:recv_i_size) - P_ij(:, recv_i_start:recv_i_end)) &
+                                                     - buffer_corr_2D(:, 1:recv_i_size)
+               P_ij(:, recv_i_start:recv_i_end) = buffer_sum_2D(:, 1:recv_i_size)
             END DO
+            CALL timestop(handle2)
 
             CALL timeset(routineN//"_scale_i", handle2)
             ! Remove scaling factor of mat_S for later
