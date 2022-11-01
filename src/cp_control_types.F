@@ -778,7 +778,10 @@ CONTAINS
             CALL qs_control_release(dft_control%qs_control)
             CALL tddfpt_control_release(dft_control%tddfpt_control)
             CALL tddfpt2_control_release(dft_control%tddfpt2_control)
-            CALL xas_control_release(dft_control%xas_control)
+            IF (ASSOCIATED(dft_control%xas_control)) THEN
+               CALL xas_control_release(dft_control%xas_control)
+               DEALLOCATE (dft_control%xas_control)
+            END IF
             CALL admm_control_release(dft_control%admm_control)
             CALL expot_control_release(dft_control%expot_control)
             CALL maxwell_control_release(dft_control%maxwell_control)

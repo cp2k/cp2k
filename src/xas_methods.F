@@ -648,6 +648,7 @@ CONTAINS
                       dbcsr_dist=dbcsr_dist)
 
       xas_section => section_vals_get_subs_vals(dft_section, "XAS")
+      ALLOCATE (dft_control%xas_control)
       CALL xas_control_create(dft_control%xas_control)
       CALL read_xas_control(dft_control%xas_control, xas_section)
       CALL write_xas_control(dft_control%xas_control, dft_section)
