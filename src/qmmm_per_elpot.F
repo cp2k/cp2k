@@ -359,6 +359,7 @@ CONTAINS
       ewald_section => section_vals_get_subs_vals(poisson_section, "EWALD")
       CALL read_ewald_section(ewald_env, ewald_section)
       ewald_print_section => section_vals_get_subs_vals(print_section, "GRID_INFORMATION")
+      ALLOCATE (ewald_pw)
       CALL ewald_pw_create(ewald_pw, ewald_env, mm_cell, mm_cell, print_section=ewald_print_section)
 
       CALL ewald_env_get(ewald_env, ewald_type=ewald_type, do_multipoles=do_multipoles, &

@@ -83,6 +83,7 @@ CONTAINS
       CALL qs_env_release(qmmm_env%qs_env)
       DEALLOCATE (qmmm_env%qs_env)
       CALL qmmm_env_qm_release(qmmm_env%qm)
+      DEALLOCATE (qmmm_env%qm)
       CALL fist_env_release(qmmm_env%fist_env)
       DEALLOCATE (qmmm_env%fist_env)
 

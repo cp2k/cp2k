@@ -169,6 +169,7 @@ CONTAINS
       iw = cp_print_key_unit_nr(logger, print_gen, "", extension=".log")
 
       ! Create QM/MM Environments..
+      ALLOCATE (qmmm_env_qm)
       CALL qmmm_env_qm_create(qmmm_env_qm)
       ALLOCATE (qmmm_env_mm)
       CALL qmmm_env_mm_create(qmmm_env_mm)

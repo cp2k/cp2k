@@ -295,6 +295,7 @@ CONTAINS
       ! Create ewald grids
       grid_print_section => section_vals_get_subs_vals(force_env_section, &
                                                        "PRINT%GRID_INFORMATION")
+      ALLOCATE (ewald_pw)
       CALL ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, grid_print_section)
 
       ! Initialize ewald grids
