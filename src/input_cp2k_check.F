@@ -315,9 +315,9 @@ CONTAINS
 
             BLOCK
                TYPE(cp_parser_type)                      :: cpparser
-               TYPE(cp_unit_set_type), POINTER                    :: default_units
+               TYPE(cp_unit_set_type)                   :: default_units
                ! parse the input
-               NULLIFY (default_units, restart_file)
+               NULLIFY (restart_file)
                CALL section_vals_create(restart_file, input_declaration)
                CALL parser_create(cpparser, file_name=r_file_path, para_env=para_env)
                CALL cp_unit_set_create(default_units, "OUTPUT")

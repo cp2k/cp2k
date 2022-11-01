@@ -497,14 +497,14 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: waittime
       TYPE(cp_logger_type), POINTER            :: logger
       TYPE(cp_parser_type), POINTER            :: my_parser
-      TYPE(cp_unit_set_type), POINTER          :: default_units
+      TYPE(cp_unit_set_type)         :: default_units
       TYPE(farming_env_type), POINTER          :: farming_env
       TYPE(section_type), POINTER              :: g_section
       TYPE(section_vals_type), POINTER         :: g_data
 
       ! the primus of all slaves, talks to the master on topics concerning all slaves
       CALL timeset(routineN, handle)
-      NULLIFY (my_parser, g_section, g_data, default_units)
+      NULLIFY (my_parser, g_section, g_data)
 
       logger => cp_get_default_logger()
       output_unit = cp_print_key_unit_nr(logger, root_section, "FARMING%PROGRAM_RUN_INFO", &

@@ -18,7 +18,6 @@ MODULE input_val_types
                                               cp_unit_from_cp2k,&
                                               cp_unit_from_cp2k1,&
                                               cp_unit_release,&
-                                              cp_unit_retain,&
                                               cp_unit_type
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enum_release,&
@@ -487,16 +486,18 @@ CONTAINS
 
       CHARACTER(len=default_string_length)               :: c_string, myfmt, rcval
       INTEGER                                            :: i, iend, item, j, l
+      LOGICAL                                            :: owns_unit
       TYPE(cp_unit_type), POINTER                        :: my_unit
 
       NULLIFY (my_unit)
       myfmt = ""
+      owns_unit = .FALSE.
       IF (PRESENT(fmt)) myfmt = fmt
       IF (PRESENT(unit)) my_unit => unit
-      IF (ASSOCIATED(my_unit)) THEN
-         CALL cp_unit_retain(my_unit)
-      ELSE IF (PRESENT(unit_str)) THEN
+      IF (.NOT. ASSOCIATED(my_unit) .AND. PRESENT(unit_str)) THEN
+         ALLOCATE (my_unit)
          CALL cp_unit_create(my_unit, unit_str)
+         owns_unit = .TRUE.
       END IF
       IF (ASSOCIATED(val)) THEN
          SELECT CASE (val%type_of_var)
@@ -622,7 +623,10 @@ CONTAINS
       ELSE
          WRITE (unit=unit_nr, fmt="(' *null*')", advance="NO")
       END IF
-      IF (ASSOCIATED(my_unit)) CALL cp_unit_release(my_unit)
+      IF (owns_unit) THEN
+         CALL cp_unit_release(my_unit)
+         DEALLOCATE (my_unit)
+      END IF
       WRITE (unit=unit_nr, fmt="()")
    END SUBROUTINE val_write
 

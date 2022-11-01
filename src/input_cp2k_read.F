@@ -59,11 +59,10 @@ CONTAINS
 
       INTEGER                                            :: handle
       TYPE(cp_parser_type)                               :: cpparser
-      TYPE(cp_unit_set_type), POINTER                    :: default_units
+      TYPE(cp_unit_set_type)                             :: default_units
 
       CALL timeset(routineN, handle)
       NULLIFY (res)
-      NULLIFY (default_units)
       CALL section_vals_create(res, input_declaration)
       CALL parser_create(cpparser, initial_variables=initial_variables, file_name=file_path, &
                          para_env=para_env)

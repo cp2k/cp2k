@@ -388,6 +388,7 @@ CONTAINS
          CPABORT("arrays of lchar_t not supported : "//keyword%names(1))
 
       IF (PRESENT(unit_str)) THEN
+         ALLOCATE (keyword%unit)
          CALL cp_unit_create(keyword%unit, unit_str)
       END IF
 
@@ -430,7 +431,10 @@ CONTAINS
             CALL val_release(keyword%default_value)
             CALL val_release(keyword%lone_keyword_value)
             CALL enum_release(keyword%enum)
-            CALL cp_unit_release(keyword%unit)
+            IF (ASSOCIATED(keyword%unit)) THEN
+               CALL cp_unit_release(keyword%unit)
+               DEALLOCATE (keyword%unit)
+            END IF
             IF (ASSOCIATED(keyword%citations)) THEN
                DEALLOCATE (keyword%citations)
             END IF
