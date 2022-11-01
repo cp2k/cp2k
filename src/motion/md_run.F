@@ -52,8 +52,7 @@ MODULE md_run
                                               dp
    USE machine,                         ONLY: m_walltime
    USE md_ener_types,                   ONLY: create_md_ener,&
-                                              md_ener_type,&
-                                              release_md_ener
+                                              md_ener_type
    USE md_energies,                     ONLY: initialize_md_ener,&
                                               md_ener_reftraj,&
                                               md_energy,&
@@ -245,9 +244,9 @@ CONTAINS
                                                         "LAGRANGE_MULTIPLIERS"), cp_p_file)
 
       ! Create the structure for the md energies
+      ALLOCATE (md_ener)
       CALL create_md_ener(md_ener)
       CALL set_md_env(md_env, md_ener=md_ener)
-      CALL release_md_ener(md_ener)
 
       ! If requested setup Thermostats
       CALL create_thermostats(thermostats, md_section, force_env, simpar, para_env, &

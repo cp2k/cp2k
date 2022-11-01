@@ -36,8 +36,7 @@ MODULE md_environment_types
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE md_ener_types,                   ONLY: md_ener_type,&
-                                              release_md_ener,&
-                                              retain_md_ener
+                                              release_md_ener
    USE reftraj_types,                   ONLY: reftraj_type,&
                                               release_reftraj,&
                                               retain_reftraj
@@ -168,7 +167,10 @@ CONTAINS
             CALL release_barostat_type(md_env%barostat)
             CALL release_thermostats(md_env%thermostats)
             CALL release_reftraj(md_env%reftraj)
-            CALL release_md_ener(md_env%md_ener)
+            IF (ASSOCIATED(md_env%md_ener)) THEN
+               CALL release_md_ener(md_env%md_ener)
+               DEALLOCATE (md_env%md_ener)
+            END IF
             CALL force_env_release(md_env%force_env)
             CALL release_averages(md_env%averages)
             CALL release_thermal_regions(md_env%thermal_regions)
@@ -367,8 +369,10 @@ CONTAINS
          md_env%reftraj => reftraj
       END IF
       IF (PRESENT(md_ener)) THEN
-         CALL release_md_ener(md_env%md_ener)
-         CALL retain_md_ener(md_ener)
+         IF (.NOT. ASSOCIATED(md_ener, md_env%md_ener)) THEN
+            CALL release_md_ener(md_ener)
+            DEALLOCATE (md_ener)
+         END IF
          md_env%md_ener => md_ener
       END IF
       IF (PRESENT(averages)) THEN
