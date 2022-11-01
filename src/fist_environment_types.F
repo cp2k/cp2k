@@ -34,7 +34,6 @@ MODULE fist_environment_types
                                               ewald_env_retain,&
                                               ewald_environment_type
    USE ewald_pw_types,                  ONLY: ewald_pw_release,&
-                                              ewald_pw_retain,&
                                               ewald_pw_type
    USE exclusion_types,                 ONLY: exclusion_release,&
                                               exclusion_type
@@ -319,8 +318,10 @@ CONTAINS
          fist_env%ewald_env => ewald_env
       END IF
       IF (PRESENT(ewald_pw)) THEN
-         CALL ewald_pw_retain(ewald_pw)
-         CALL ewald_pw_release(fist_env%ewald_pw)
+         IF (ASSOCIATED(ewald_pw, fist_env%ewald_pw)) THEN
+            CALL ewald_pw_release(fist_env%ewald_pw)
+            DEALLOCATE (fist_env%ewald_pw)
+         END IF
          fist_env%ewald_pw => ewald_pw
       END IF
       IF (PRESENT(cell_ref)) THEN
@@ -421,7 +422,10 @@ CONTAINS
          DEALLOCATE (fist_env%qmmm_env)
       END IF
       CALL cell_release(fist_env%cell_ref)
-      CALL ewald_pw_release(fist_env%ewald_pw)
+      IF (ASSOCIATED(fist_env%ewald_pw)) THEN
+         CALL ewald_pw_release(fist_env%ewald_pw)
+         DEALLOCATE (fist_env%ewald_pw)
+      END IF
       CALL ewald_env_release(fist_env%ewald_env)
       CALL cp_para_env_release(fist_env%para_env)
       CALL deallocate_fist_energy(fist_env%thermo)

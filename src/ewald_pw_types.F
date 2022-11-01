@@ -55,13 +55,12 @@ MODULE ewald_pw_types
    PRIVATE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewald_pw_types'
    PUBLIC :: ewald_pw_type, ewald_pw_release, &
-             ewald_pw_retain, ewald_pw_create, &
+             ewald_pw_create, &
              ewald_pw_get, ewald_pw_set
 
 ! **************************************************************************************************
    TYPE ewald_pw_type
       PRIVATE
-      INTEGER :: ref_count
       TYPE(pw_pool_type), POINTER       :: pw_small_pool
       TYPE(pw_pool_type), POINTER       :: pw_big_pool
       TYPE(realspace_grid_desc_type), POINTER    :: rs_desc
@@ -72,18 +71,6 @@ MODULE ewald_pw_types
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief retains the structure ewald_pw_type
-!> \param ewald_pw ...
-! **************************************************************************************************
-   SUBROUTINE ewald_pw_retain(ewald_pw)
-      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
-
-      CPASSERT(ASSOCIATED(ewald_pw))
-      CPASSERT(ewald_pw%ref_count > 0)
-      ewald_pw%ref_count = ewald_pw%ref_count + 1
-   END SUBROUTINE ewald_pw_retain
-
-! **************************************************************************************************
 !> \brief creates the structure ewald_pw_type
 !> \param ewald_pw ...
 !> \param ewald_env ...
@@ -92,19 +79,17 @@ CONTAINS
 !> \param print_section ...
 ! **************************************************************************************************
    SUBROUTINE ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, print_section)
-      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(ewald_pw_type), INTENT(OUT)                   :: ewald_pw
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(cell_type), POINTER                           :: cell, cell_ref
       TYPE(section_vals_type), POINTER                   :: print_section
 
-      ALLOCATE (ewald_pw)
       NULLIFY (ewald_pw%pw_big_pool)
       NULLIFY (ewald_pw%pw_small_pool)
       NULLIFY (ewald_pw%rs_desc)
       NULLIFY (ewald_pw%poisson_env)
       ALLOCATE (ewald_pw%dg)
       CALL dg_create(ewald_pw%dg)
-      ewald_pw%ref_count = 1
       CALL ewald_pw_init(ewald_pw, ewald_env, cell, cell_ref, print_section)
    END SUBROUTINE ewald_pw_create
 
@@ -113,28 +98,15 @@ CONTAINS
 !> \param ewald_pw ...
 ! **************************************************************************************************
    SUBROUTINE ewald_pw_release(ewald_pw)
-      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(ewald_pw_type), INTENT(INOUT)                 :: ewald_pw
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'ewald_pw_release'
+      CALL pw_pool_release(ewald_pw%pw_small_pool)
+      CALL pw_pool_release(ewald_pw%pw_big_pool)
+      CALL rs_grid_release_descriptor(ewald_pw%rs_desc)
+      CALL pw_poisson_release(ewald_pw%poisson_env)
+      CALL dg_release(ewald_pw%dg)
+      DEALLOCATE (ewald_pw%dg)
 
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-      IF (ASSOCIATED(ewald_pw)) THEN
-         CPASSERT(ewald_pw%ref_count > 0)
-         ewald_pw%ref_count = ewald_pw%ref_count - 1
-         IF (ewald_pw%ref_count < 1) THEN
-            CALL pw_pool_release(ewald_pw%pw_small_pool)
-            CALL pw_pool_release(ewald_pw%pw_big_pool)
-            CALL rs_grid_release_descriptor(ewald_pw%rs_desc)
-            CALL pw_poisson_release(ewald_pw%poisson_env)
-            CALL dg_release(ewald_pw%dg)
-            DEALLOCATE (ewald_pw%dg)
-            DEALLOCATE (ewald_pw)
-         END IF
-      END IF
-      NULLIFY (ewald_pw)
-      CALL timestop(handle)
    END SUBROUTINE ewald_pw_release
 
 ! **************************************************************************************************
@@ -151,7 +123,7 @@ CONTAINS
 !> \author CJM
 ! **************************************************************************************************
    SUBROUTINE ewald_pw_init(ewald_pw, ewald_env, cell, cell_ref, print_section)
-      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(ewald_pw_type), INTENT(INOUT)                 :: ewald_pw
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(cell_type), POINTER                           :: cell, cell_ref
       TYPE(section_vals_type), POINTER                   :: print_section
@@ -178,10 +150,8 @@ CONTAINS
       NULLIFY (pw_big_grid)
       NULLIFY (pw_small_grid, poisson_section)
 
-      CPASSERT(ASSOCIATED(ewald_pw))
       CPASSERT(ASSOCIATED(ewald_env))
       CPASSERT(ASSOCIATED(cell))
-      CPASSERT(ewald_pw%ref_count > 0)
       CALL ewald_env_get(ewald_env=ewald_env, &
                          para_env=para_env, &
                          gmax=gmax, alpha=alpha, &
@@ -346,7 +316,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE ewald_pw_get(ewald_pw, pw_big_pool, pw_small_pool, rs_desc, poisson_env, dg)
 
-      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(ewald_pw_type), INTENT(IN)                    :: ewald_pw
       TYPE(pw_pool_type), OPTIONAL, POINTER              :: pw_big_pool, pw_small_pool
       TYPE(realspace_grid_desc_type), OPTIONAL, POINTER  :: rs_desc
       TYPE(pw_poisson_type), OPTIONAL, POINTER           :: poisson_env
@@ -373,7 +343,7 @@ CONTAINS
    SUBROUTINE ewald_pw_set(ewald_pw, pw_big_pool, pw_small_pool, rs_desc, dg, &
                            poisson_env)
 
-      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(ewald_pw_type), INTENT(INOUT)                 :: ewald_pw
       TYPE(pw_pool_type), OPTIONAL, POINTER              :: pw_big_pool, pw_small_pool
       TYPE(realspace_grid_desc_type), OPTIONAL, POINTER  :: rs_desc
       TYPE(dg_type), OPTIONAL, POINTER                   :: dg

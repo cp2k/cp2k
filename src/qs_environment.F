@@ -79,7 +79,6 @@ MODULE qs_environment
                                               read_ewald_section_tb
    USE ewald_pw_methods,                ONLY: ewald_pw_grid_update
    USE ewald_pw_types,                  ONLY: ewald_pw_create,&
-                                              ewald_pw_release,&
                                               ewald_pw_type
    USE exstates_types,                  ONLY: excited_energy_type,&
                                               exstate_create
@@ -699,7 +698,6 @@ CONTAINS
             CALL ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, print_section=print_section)
             CALL set_qs_env(qs_env, ewald_env=ewald_env, ewald_pw=ewald_pw)
             CALL ewald_env_release(ewald_env)
-            CALL ewald_pw_release(ewald_pw)
          END IF
       ELSEIF (dft_control%qs_control%method_id == do_method_xtb) THEN
          !   *** Read xTB parameter file ***
@@ -762,7 +760,6 @@ CONTAINS
             CALL ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, print_section=print_section)
             CALL set_qs_env(qs_env, ewald_env=ewald_env, ewald_pw=ewald_pw)
             CALL ewald_env_release(ewald_env)
-            CALL ewald_pw_release(ewald_pw)
          END IF
       END IF
 
@@ -1179,7 +1176,6 @@ CONTAINS
             CALL set_qs_env(qs_env, ewald_env=ewald_env, ewald_pw=ewald_pw, &
                             se_nonbond_env=se_nonbond_env, se_nddo_mpole=se_nddo_mpole)
             CALL ewald_env_release(ewald_env)
-            CALL ewald_pw_release(ewald_pw)
             ! Handle the residual integral part 1/R^3
             CALL semi_empirical_expns3_setup(qs_kind_set, se_control, &
                                              dft_control%qs_control%method_id)

@@ -42,7 +42,6 @@ MODULE fist_environment
                                               read_ewald_section
    USE ewald_pw_methods,                ONLY: ewald_pw_grid_update
    USE ewald_pw_types,                  ONLY: ewald_pw_create,&
-                                              ewald_pw_release,&
                                               ewald_pw_type
    USE exclusion_types,                 ONLY: exclusion_type
    USE fist_efield_types,               ONLY: fist_efield_type,&
@@ -321,7 +320,6 @@ CONTAINS
 
       CALL distribution_1d_release(local_particles)
       CALL distribution_1d_release(local_molecules)
-      CALL ewald_pw_release(ewald_pw)
       CALL timestop(handle)
 
    END SUBROUTINE fist_init_subsys

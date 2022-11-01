@@ -47,7 +47,6 @@ MODULE qs_environment_types
                                               ewald_env_retain,&
                                               ewald_environment_type
    USE ewald_pw_types,                  ONLY: ewald_pw_release,&
-                                              ewald_pw_retain,&
                                               ewald_pw_type
    USE exstates_types,                  ONLY: excited_energy_type,&
                                               exstate_release
@@ -1145,8 +1144,10 @@ CONTAINS
          qs_env%ewald_env => ewald_env
       END IF
       IF (PRESENT(ewald_pw)) THEN ! accept also null pointers?
-         CALL ewald_pw_retain(ewald_pw)
-         CALL ewald_pw_release(qs_env%ewald_pw)
+         IF (ASSOCIATED(ewald_pw, qs_env%ewald_pw)) THEN
+            CALL ewald_pw_release(qs_env%ewald_pw)
+            DEALLOCATE (qs_env%ewald_pw)
+         END IF
          qs_env%ewald_pw => ewald_pw
       END IF
       IF (PRESENT(scf_control)) THEN ! accept also null pointers?
@@ -1412,7 +1413,10 @@ CONTAINS
          DEALLOCATE (qs_env%xas_env)
       END IF
       CALL ewald_env_release(qs_env%ewald_env)
-      CALL ewald_pw_release(qs_env%ewald_pw)
+      IF (ASSOCIATED(qs_env%ewald_pw)) THEN
+         CALL ewald_pw_release(qs_env%ewald_pw)
+         DEALLOCATE (qs_env%ewald_pw)
+      END IF
       IF (ASSOCIATED(qs_env%image_matrix)) THEN
          DEALLOCATE (qs_env%image_matrix)
       END IF
@@ -1620,7 +1624,10 @@ CONTAINS
          DEALLOCATE (qs_env%xas_env)
       END IF
       CALL ewald_env_release(qs_env%ewald_env)
-      CALL ewald_pw_release(qs_env%ewald_pw)
+      IF (ASSOCIATED(qs_env%ewald_pw)) THEN
+         CALL ewald_pw_release(qs_env%ewald_pw)
+         DEALLOCATE (qs_env%ewald_pw)
+      END IF
       IF (ASSOCIATED(qs_env%image_matrix)) THEN
          DEALLOCATE (qs_env%image_matrix)
       END IF

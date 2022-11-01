@@ -566,6 +566,7 @@ CONTAINS
       ! Release Ewald environment
       CALL ewald_env_release(ewald_env)
       CALL ewald_pw_release(ewald_pw)
+      DEALLOCATE (ewald_pw)
 
       CALL dbcsr_deallocate_matrix_set(matrix_s)
 
@@ -1220,6 +1221,7 @@ CONTAINS
          ! Release Ewald environment
          CALL ewald_env_release(ewald_env)
          CALL ewald_pw_release(ewald_pw)
+         DEALLOCATE (ewald_pw)
 
          CALL dbcsr_deallocate_matrix_set(matrix_s)
 
