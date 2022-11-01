@@ -821,9 +821,7 @@ CONTAINS
       output_unit = cp_print_key_unit_nr(logger, lr_section, "PRINT%PROGRAM_RUN_INFO", &
                                          extension=".linresLog")
 
-      IF (issc_env%ref_count /= 0) THEN
-         CALL issc_env_cleanup(issc_env)
-      END IF
+      CALL issc_env_cleanup(issc_env)
 
       IF (output_unit > 0) THEN
          WRITE (output_unit, "(/,T20,A,/)") "*** Start indirect spin-spin coupling Calculation ***"
@@ -1046,129 +1044,119 @@ CONTAINS
 
       INTEGER                                            :: idir, ispin
 
-      issc_env%ref_count = issc_env%ref_count - 1
-      IF (issc_env%ref_count == 0) THEN
-         IF (ASSOCIATED(issc_env%issc_on_atom_list)) THEN
-            DEALLOCATE (issc_env%issc_on_atom_list)
-         END IF
-         IF (ASSOCIATED(issc_env%issc)) THEN
-            DEALLOCATE (issc_env%issc)
-         END IF
-         IF (ASSOCIATED(issc_env%issc_loc)) THEN
-            DEALLOCATE (issc_env%issc_loc)
-         END IF
-         !
-         !efg_psi0
-         IF (ASSOCIATED(issc_env%efg_psi0)) THEN
-            DO idir = 1, SIZE(issc_env%efg_psi0, 2)
-               DO ispin = 1, SIZE(issc_env%efg_psi0, 1)
-                  CALL cp_fm_release(issc_env%efg_psi0(ispin, idir)%matrix)
-                  DEALLOCATE (issc_env%efg_psi0(ispin, idir)%matrix)
-               END DO
+      IF (ASSOCIATED(issc_env%issc_on_atom_list)) THEN
+         DEALLOCATE (issc_env%issc_on_atom_list)
+      END IF
+      IF (ASSOCIATED(issc_env%issc)) THEN
+         DEALLOCATE (issc_env%issc)
+      END IF
+      IF (ASSOCIATED(issc_env%issc_loc)) THEN
+         DEALLOCATE (issc_env%issc_loc)
+      END IF
+      !
+      !efg_psi0
+      IF (ASSOCIATED(issc_env%efg_psi0)) THEN
+         DO idir = 1, SIZE(issc_env%efg_psi0, 2)
+            DO ispin = 1, SIZE(issc_env%efg_psi0, 1)
+               CALL cp_fm_release(issc_env%efg_psi0(ispin, idir)%matrix)
+               DEALLOCATE (issc_env%efg_psi0(ispin, idir)%matrix)
             END DO
-            DEALLOCATE (issc_env%efg_psi0)
-         END IF
-         !
-         !pso_psi0
-         IF (ASSOCIATED(issc_env%pso_psi0)) THEN
-            DO idir = 1, SIZE(issc_env%pso_psi0, 2)
-               DO ispin = 1, SIZE(issc_env%pso_psi0, 1)
-                  CALL cp_fm_release(issc_env%pso_psi0(ispin, idir)%matrix)
-                  DEALLOCATE (issc_env%pso_psi0(ispin, idir)%matrix)
-               END DO
+         END DO
+         DEALLOCATE (issc_env%efg_psi0)
+      END IF
+      !
+      !pso_psi0
+      IF (ASSOCIATED(issc_env%pso_psi0)) THEN
+         DO idir = 1, SIZE(issc_env%pso_psi0, 2)
+            DO ispin = 1, SIZE(issc_env%pso_psi0, 1)
+               CALL cp_fm_release(issc_env%pso_psi0(ispin, idir)%matrix)
+               DEALLOCATE (issc_env%pso_psi0(ispin, idir)%matrix)
             END DO
-            DEALLOCATE (issc_env%pso_psi0)
-         END IF
-         !
-         !dso_psi0
-         IF (ASSOCIATED(issc_env%dso_psi0)) THEN
-            DO idir = 1, SIZE(issc_env%dso_psi0, 2)
-               DO ispin = 1, SIZE(issc_env%dso_psi0, 1)
-                  CALL cp_fm_release(issc_env%dso_psi0(ispin, idir)%matrix)
-                  DEALLOCATE (issc_env%dso_psi0(ispin, idir)%matrix)
-               END DO
+         END DO
+         DEALLOCATE (issc_env%pso_psi0)
+      END IF
+      !
+      !dso_psi0
+      IF (ASSOCIATED(issc_env%dso_psi0)) THEN
+         DO idir = 1, SIZE(issc_env%dso_psi0, 2)
+            DO ispin = 1, SIZE(issc_env%dso_psi0, 1)
+               CALL cp_fm_release(issc_env%dso_psi0(ispin, idir)%matrix)
+               DEALLOCATE (issc_env%dso_psi0(ispin, idir)%matrix)
             END DO
-            DEALLOCATE (issc_env%dso_psi0)
-         END IF
-         !
-         !fc_psi0
-         IF (ASSOCIATED(issc_env%fc_psi0)) THEN
-            DO ispin = 1, SIZE(issc_env%fc_psi0, 1)
-               CALL cp_fm_release(issc_env%fc_psi0(ispin)%matrix)
-               DEALLOCATE (issc_env%fc_psi0(ispin)%matrix)
+         END DO
+         DEALLOCATE (issc_env%dso_psi0)
+      END IF
+      !
+      !fc_psi0
+      IF (ASSOCIATED(issc_env%fc_psi0)) THEN
+         DO ispin = 1, SIZE(issc_env%fc_psi0, 1)
+            CALL cp_fm_release(issc_env%fc_psi0(ispin)%matrix)
+            DEALLOCATE (issc_env%fc_psi0(ispin)%matrix)
+         END DO
+         DEALLOCATE (issc_env%fc_psi0)
+      END IF
+      !
+      !psi1_efg
+      IF (ASSOCIATED(issc_env%psi1_efg)) THEN
+         DO idir = 1, SIZE(issc_env%psi1_efg, 2)
+            DO ispin = 1, SIZE(issc_env%psi1_efg, 1)
+               CALL cp_fm_release(issc_env%psi1_efg(ispin, idir)%matrix)
+               DEALLOCATE (issc_env%psi1_efg(ispin, idir)%matrix)
             END DO
-            DEALLOCATE (issc_env%fc_psi0)
-         END IF
-         !
-         !psi1_efg
-         IF (ASSOCIATED(issc_env%psi1_efg)) THEN
-            DO idir = 1, SIZE(issc_env%psi1_efg, 2)
-               DO ispin = 1, SIZE(issc_env%psi1_efg, 1)
-                  CALL cp_fm_release(issc_env%psi1_efg(ispin, idir)%matrix)
-                  DEALLOCATE (issc_env%psi1_efg(ispin, idir)%matrix)
-               END DO
+         END DO
+         DEALLOCATE (issc_env%psi1_efg)
+      END IF
+      !
+      !psi1_pso
+      IF (ASSOCIATED(issc_env%psi1_pso)) THEN
+         DO idir = 1, SIZE(issc_env%psi1_pso, 2)
+            DO ispin = 1, SIZE(issc_env%psi1_pso, 1)
+               CALL cp_fm_release(issc_env%psi1_pso(ispin, idir)%matrix)
+               DEALLOCATE (issc_env%psi1_pso(ispin, idir)%matrix)
             END DO
-            DEALLOCATE (issc_env%psi1_efg)
-         END IF
-         !
-         !psi1_pso
-         IF (ASSOCIATED(issc_env%psi1_pso)) THEN
-            DO idir = 1, SIZE(issc_env%psi1_pso, 2)
-               DO ispin = 1, SIZE(issc_env%psi1_pso, 1)
-                  CALL cp_fm_release(issc_env%psi1_pso(ispin, idir)%matrix)
-                  DEALLOCATE (issc_env%psi1_pso(ispin, idir)%matrix)
-               END DO
+         END DO
+         DEALLOCATE (issc_env%psi1_pso)
+      END IF
+      !
+      !psi1_dso
+      IF (ASSOCIATED(issc_env%psi1_dso)) THEN
+         DO idir = 1, SIZE(issc_env%psi1_dso, 2)
+            DO ispin = 1, SIZE(issc_env%psi1_dso, 1)
+               CALL cp_fm_release(issc_env%psi1_dso(ispin, idir)%matrix)
+               DEALLOCATE (issc_env%psi1_dso(ispin, idir)%matrix)
             END DO
-            DEALLOCATE (issc_env%psi1_pso)
-         END IF
-         !
-         !psi1_dso
-         IF (ASSOCIATED(issc_env%psi1_dso)) THEN
-            DO idir = 1, SIZE(issc_env%psi1_dso, 2)
-               DO ispin = 1, SIZE(issc_env%psi1_dso, 1)
-                  CALL cp_fm_release(issc_env%psi1_dso(ispin, idir)%matrix)
-                  DEALLOCATE (issc_env%psi1_dso(ispin, idir)%matrix)
-               END DO
-            END DO
-            DEALLOCATE (issc_env%psi1_dso)
-         END IF
-         !
-         !psi1_fc
-         IF (ASSOCIATED(issc_env%psi1_fc)) THEN
-            DO ispin = 1, SIZE(issc_env%psi1_fc, 1)
-               CALL cp_fm_release(issc_env%psi1_fc(ispin)%matrix)
-               DEALLOCATE (issc_env%psi1_fc(ispin)%matrix)
-            END DO
-            DEALLOCATE (issc_env%psi1_fc)
-         END IF
-         !
-         ! cubes
-         !IF(ASSOCIATED(issc_env%list_cubes)) THEN
-         !   DEALLOCATE(issc_env%list_cubes,STAT=istat)
-         !   CPPostcondition(istat==0,cp_failure_level,routineP,failure)
-         !ENDIF
-         !
-         !matrix_efg
-         IF (ASSOCIATED(issc_env%matrix_efg)) THEN
-            CALL dbcsr_deallocate_matrix_set(issc_env%matrix_efg)
-         END IF
-         !
-         !matrix_pso
-         IF (ASSOCIATED(issc_env%matrix_pso)) THEN
-            CALL dbcsr_deallocate_matrix_set(issc_env%matrix_pso)
-         END IF
-         !
-         !matrix_dso
-         IF (ASSOCIATED(issc_env%matrix_dso)) THEN
-            CALL dbcsr_deallocate_matrix_set(issc_env%matrix_dso)
-         END IF
-         !
-         !matrix_fc
-         IF (ASSOCIATED(issc_env%matrix_fc)) THEN
-            CALL dbcsr_deallocate_matrix_set(issc_env%matrix_fc)
-         END IF
-
-      END IF ! ref count
+         END DO
+         DEALLOCATE (issc_env%psi1_dso)
+      END IF
+      !
+      !psi1_fc
+      IF (ASSOCIATED(issc_env%psi1_fc)) THEN
+         DO ispin = 1, SIZE(issc_env%psi1_fc, 1)
+            CALL cp_fm_release(issc_env%psi1_fc(ispin)%matrix)
+            DEALLOCATE (issc_env%psi1_fc(ispin)%matrix)
+         END DO
+         DEALLOCATE (issc_env%psi1_fc)
+      END IF
+      !
+      !matrix_efg
+      IF (ASSOCIATED(issc_env%matrix_efg)) THEN
+         CALL dbcsr_deallocate_matrix_set(issc_env%matrix_efg)
+      END IF
+      !
+      !matrix_pso
+      IF (ASSOCIATED(issc_env%matrix_pso)) THEN
+         CALL dbcsr_deallocate_matrix_set(issc_env%matrix_pso)
+      END IF
+      !
+      !matrix_dso
+      IF (ASSOCIATED(issc_env%matrix_dso)) THEN
+         CALL dbcsr_deallocate_matrix_set(issc_env%matrix_dso)
+      END IF
+      !
+      !matrix_fc
+      IF (ASSOCIATED(issc_env%matrix_fc)) THEN
+         CALL dbcsr_deallocate_matrix_set(issc_env%matrix_fc)
+      END IF
 
    END SUBROUTINE issc_env_cleanup
 

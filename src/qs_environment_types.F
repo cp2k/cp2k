@@ -1498,9 +1498,11 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qs_env%lri_env)) THEN
          CALL lri_env_release(qs_env%lri_env)
+         DEALLOCATE (qs_env%lri_env)
       END IF
       IF (ASSOCIATED(qs_env%lri_density)) THEN
          CALL lri_density_release(qs_env%lri_density)
+         DEALLOCATE (qs_env%lri_density)
       END IF
       IF (ASSOCIATED(qs_env%ec_env)) THEN
          CALL ec_env_release(qs_env%ec_env)
@@ -1699,9 +1701,11 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qs_env%lri_env)) THEN
          CALL lri_env_release(qs_env%lri_env)
+         DEALLOCATE (qs_env%lri_env)
       END IF
       IF (ASSOCIATED(qs_env%lri_density)) THEN
          CALL lri_density_release(qs_env%lri_density)
+         DEALLOCATE (qs_env%lri_density)
       END IF
       IF (ASSOCIATED(qs_env%ec_env)) THEN
          CALL ec_env_release(qs_env%ec_env)

@@ -101,7 +101,7 @@ MODULE qs_linres_types
       LOGICAL                                     :: use_old_gauge_atom, chi_pbc, do_selected_states, &
                                                      gauge_init, all_pert_op_done
       LOGICAL, DIMENSION(:, :), POINTER            :: full_done
-      INTEGER                                     :: ref_count, nao, nstates(2), gauge, orb_center, nbr_center(2)
+      INTEGER                                     :: nao, nstates(2), gauge, orb_center, nbr_center(2)
       INTEGER, DIMENSION(:), POINTER          :: list_cubes, selected_states_on_atom_list
       INTEGER, DIMENSION(:, :, :), POINTER          :: statetrueindex
       CHARACTER(LEN=30)                           :: gauge_name, orb_center_name
@@ -122,7 +122,6 @@ MODULE qs_linres_types
 !*********************************************************************************************************
 ! \param type for polarisability calculation using Berry operator
    TYPE polar_env_type
-      INTEGER                                      :: ref_count
       LOGICAL                                      :: do_raman, run_stopped, do_periodic
       REAL(dp), DIMENSION(:, :), POINTER           :: polar
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER :: psi1_dBerry, dBerry_psi0
@@ -130,7 +129,6 @@ MODULE qs_linres_types
 ! *********************************************************************************************************
 
    TYPE issc_env_type
-      INTEGER                             :: ref_count
       INTEGER                             :: issc_natms
       INTEGER, DIMENSION(:), POINTER      :: issc_on_atom_list
       LOGICAL                             :: interpolate_issc
@@ -145,7 +143,7 @@ MODULE qs_linres_types
 
 ! *********************************************************************************************************
    TYPE nmr_env_type
-      INTEGER                             :: ref_count, n_nics
+      INTEGER                             :: n_nics
       INTEGER, DIMENSION(:), POINTER      :: cs_atom_list
       INTEGER, DIMENSION(:), POINTER      :: do_calc_cs_atom
       LOGICAL                             :: do_nics, interpolate_shift
@@ -158,7 +156,6 @@ MODULE qs_linres_types
 
 ! **************************************************************************************************
    TYPE epr_env_type
-      INTEGER                                     :: ref_count
       REAL(dp)                                    :: g_free_factor, g_soo_chicorr_factor, g_soo_factor, &
                                                      g_so_factor, g_so_factor_gapw, g_zke_factor, g_zke
       REAL(dp), DIMENSION(:, :), POINTER           :: g_total, g_so, g_soo
@@ -338,8 +335,6 @@ CONTAINS
 
       TYPE(current_env_type)                             :: current_env
 
-      CPASSERT(current_env%ref_count == 0)
-      current_env%ref_count = 1
       current_env%nao = HUGE(1)
       current_env%gauge = HUGE(1)
       current_env%orb_center = HUGE(1)
@@ -377,8 +372,6 @@ CONTAINS
 
       TYPE(nmr_env_type)                                 :: nmr_env
 
-      CPASSERT(nmr_env%ref_count == 0)
-      nmr_env%ref_count = 1
       NULLIFY (nmr_env%chemical_shift)
       NULLIFY (nmr_env%chemical_shift_loc)
       NULLIFY (nmr_env%chemical_shift_nics_loc)
@@ -397,8 +390,6 @@ CONTAINS
 
       TYPE(issc_env_type)                                :: issc_env
 
-      CPASSERT(issc_env%ref_count == 0)
-      issc_env%ref_count = 1
       NULLIFY (issc_env%issc)
       NULLIFY (issc_env%issc_loc)
       NULLIFY (issc_env%psi1_efg)
@@ -424,8 +415,6 @@ CONTAINS
 
       TYPE(epr_env_type)                                 :: epr_env
 
-      CPASSERT(epr_env%ref_count == 0)
-      epr_env%ref_count = 1
       NULLIFY (epr_env%nablavks_set)
       NULLIFY (epr_env%nablavks_atom_set)
       NULLIFY (epr_env%bind_set)
@@ -443,7 +432,6 @@ CONTAINS
 !> \param simple_done ...
 !> \param simple_converged ...
 !> \param full_done ...
-!> \param ref_count ...
 !> \param nao ...
 !> \param nstates ...
 !> \param gauge ...
@@ -469,7 +457,7 @@ CONTAINS
 !> \param chi_pbc ...
 !> \param psi0_order ...
 ! **************************************************************************************************
-   SUBROUTINE get_current_env(current_env, simple_done, simple_converged, full_done, ref_count, nao, &
+   SUBROUTINE get_current_env(current_env, simple_done, simple_converged, full_done, nao, &
                               nstates, gauge, list_cubes, statetrueindex, gauge_name, basisfun_center, &
                               nbr_center, center_list, centers_set, psi1_p, psi1_rxp, psi1_D, p_psi0, &
                               rxp_psi0, jrho1_atom_set, jrho1_set, chi_tensor, &
@@ -479,7 +467,7 @@ CONTAINS
       TYPE(current_env_type), OPTIONAL                   :: current_env
       LOGICAL, OPTIONAL                                  :: simple_done(6), simple_converged(6)
       LOGICAL, DIMENSION(:, :), OPTIONAL, POINTER        :: full_done
-      INTEGER, OPTIONAL                                  :: ref_count, nao, nstates(2), gauge
+      INTEGER, OPTIONAL                                  :: nao, nstates(2), gauge
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: list_cubes
       INTEGER, DIMENSION(:, :, :), OPTIONAL, POINTER     :: statetrueindex
       CHARACTER(LEN=30), OPTIONAL                        :: gauge_name
@@ -505,15 +493,9 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: psi0_order
 
-!
-!
-
-      CPASSERT(current_env%ref_count > 0)
-
       IF (PRESENT(simple_done)) simple_done(1:6) = current_env%simple_done(1:6)
       IF (PRESENT(simple_converged)) simple_converged(1:6) = current_env%simple_converged(1:6)
       IF (PRESENT(full_done)) full_done => current_env%full_done
-      IF (PRESENT(ref_count)) ref_count = current_env%ref_count
       IF (PRESENT(nao)) nao = current_env%nao
       IF (PRESENT(nstates)) nstates(1:2) = current_env%nstates(1:2)
       IF (PRESENT(gauge)) gauge = current_env%gauge
@@ -570,8 +552,6 @@ CONTAINS
                                                             chemical_shift_nics
       REAL(dp), INTENT(OUT), OPTIONAL                    :: shift_gapw_radius
       LOGICAL, INTENT(OUT), OPTIONAL                     :: do_nics, interpolate_shift
-
-      CPASSERT(nmr_env%ref_count > 0)
 
       IF (PRESENT(n_nics)) n_nics = nmr_env%n_nics
       IF (PRESENT(cs_atom_list)) cs_atom_list => nmr_env%cs_atom_list
@@ -638,8 +618,6 @@ CONTAINS
          POINTER                                         :: matrix_efg, matrix_pso, matrix_dso, &
                                                             matrix_fc
 
-      CPASSERT(issc_env%ref_count > 0)
-
       IF (PRESENT(issc_on_atom_list)) issc_on_atom_list => issc_env%issc_on_atom_list
       IF (PRESENT(issc_gapw_radius)) issc_gapw_radius = issc_env%issc_gapw_radius
       IF (PRESENT(issc_loc)) issc_loc => issc_env%issc_loc
@@ -679,8 +657,6 @@ CONTAINS
          POINTER                                         :: jrho1_set
 
       INTEGER                                            :: idir
-
-      CPASSERT(current_env%ref_count > 0)
 
       IF (PRESENT(jrho1_atom_set)) THEN
          IF (ASSOCIATED(current_env%jrho1_atom_set)) THEN
@@ -725,8 +701,6 @@ CONTAINS
       TYPE(rho_atom_coeff), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: bind_atom_set
 
-      CPASSERT(epr_env%ref_count > 0)
-
       IF (PRESENT(g_total)) g_total => epr_env%g_total
       IF (PRESENT(g_so)) g_so => epr_env%g_so
       IF (PRESENT(g_soo)) g_soo => epr_env%g_soo
@@ -763,8 +737,6 @@ CONTAINS
          POINTER                                         :: nablavks_atom_set
 
       INTEGER                                            :: idir, ispin
-
-      CPASSERT(epr_env%ref_count > 0)
 
       IF (PRESENT(g_free_factor)) epr_env%g_free_factor = g_free_factor
       IF (PRESENT(g_zke_factor)) epr_env%g_zke_factor = g_zke_factor
@@ -1375,7 +1347,6 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(polar_env))
       ALLOCATE (polar_env)
-      polar_env%ref_count = 1
       polar_env%do_raman = .FALSE.
       polar_env%do_periodic = .TRUE.
       polar_env%run_stopped = .FALSE.
@@ -1399,7 +1370,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_polar_env(polar_env, do_raman, do_periodic, dBerry_psi0, polar, psi1_dBerry, run_stopped)
 
-      TYPE(polar_env_type), POINTER                      :: polar_env
+      TYPE(polar_env_type), INTENT(IN)                   :: polar_env
       LOGICAL, OPTIONAL                                  :: do_raman, do_periodic
       TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: dBerry_psi0
@@ -1407,8 +1378,6 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: psi1_dBerry
       LOGICAL, OPTIONAL                                  :: run_stopped
-
-      CPASSERT(polar_env%ref_count > 0)
 
       IF (PRESENT(polar)) polar => polar_env%polar
       IF (PRESENT(do_raman)) do_raman = polar_env%do_raman
@@ -1432,7 +1401,7 @@ CONTAINS
    SUBROUTINE set_polar_env(polar_env, do_raman, do_periodic, dBerry_psi0, polar, &
                             psi1_dBerry, run_stopped)
 
-      TYPE(polar_env_type), POINTER                      :: polar_env
+      TYPE(polar_env_type), INTENT(INOUT)                :: polar_env
       LOGICAL, OPTIONAL                                  :: do_raman, do_periodic
       TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: dBerry_psi0
@@ -1440,8 +1409,6 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: psi1_dBerry
       LOGICAL, OPTIONAL                                  :: run_stopped
-
-      CPASSERT(polar_env%ref_count > 0)
 
       IF (PRESENT(polar)) polar_env%polar => polar
       IF (PRESENT(do_raman)) polar_env%do_raman = do_raman
@@ -1465,30 +1432,26 @@ CONTAINS
       INTEGER                                            :: idir, ispin
 
       IF (ASSOCIATED(polar_env)) THEN
-         CPASSERT(polar_env%ref_count > 0)
-         polar_env%ref_count = polar_env%ref_count - 1
-         IF (polar_env%ref_count < 1) THEN
-            IF (ASSOCIATED(polar_env%polar)) THEN
-               DEALLOCATE (polar_env%polar)
-            END IF
-            IF (ASSOCIATED(polar_env%dBerry_psi0)) THEN
-               DO idir = 1, SIZE(polar_env%dBerry_psi0, 1)
-                  DO ispin = 1, SIZE(polar_env%dBerry_psi0, 2)
-                     CALL cp_fm_release(polar_env%dBerry_psi0(idir, ispin)%matrix)
-                     DEALLOCATE (polar_env%dBerry_psi0(idir, ispin)%matrix)
-                  END DO
+         IF (ASSOCIATED(polar_env%polar)) THEN
+            DEALLOCATE (polar_env%polar)
+         END IF
+         IF (ASSOCIATED(polar_env%dBerry_psi0)) THEN
+            DO idir = 1, SIZE(polar_env%dBerry_psi0, 1)
+               DO ispin = 1, SIZE(polar_env%dBerry_psi0, 2)
+                  CALL cp_fm_release(polar_env%dBerry_psi0(idir, ispin)%matrix)
+                  DEALLOCATE (polar_env%dBerry_psi0(idir, ispin)%matrix)
                END DO
-               DEALLOCATE (polar_env%dBerry_psi0)
-            END IF
-            IF (ASSOCIATED(polar_env%psi1_dBerry)) THEN
-               DO idir = 1, SIZE(polar_env%psi1_dBerry, 1)
-                  DO ispin = 1, SIZE(polar_env%psi1_dBerry, 2)
-                     CALL cp_fm_release(polar_env%psi1_dBerry(idir, ispin)%matrix)
-                     DEALLOCATE (polar_env%psi1_dBerry(idir, ispin)%matrix)
-                  END DO
+            END DO
+            DEALLOCATE (polar_env%dBerry_psi0)
+         END IF
+         IF (ASSOCIATED(polar_env%psi1_dBerry)) THEN
+            DO idir = 1, SIZE(polar_env%psi1_dBerry, 1)
+               DO ispin = 1, SIZE(polar_env%psi1_dBerry, 2)
+                  CALL cp_fm_release(polar_env%psi1_dBerry(idir, ispin)%matrix)
+                  DEALLOCATE (polar_env%psi1_dBerry(idir, ispin)%matrix)
                END DO
-               DEALLOCATE (polar_env%psi1_dBerry)
-            END IF
+            END DO
+            DEALLOCATE (polar_env%psi1_dBerry)
          END IF
          DEALLOCATE (polar_env)
          NULLIFY (polar_env)
