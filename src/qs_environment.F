@@ -187,7 +187,6 @@ MODULE qs_environment
                                               wfi_release
    USE rel_control_types,               ONLY: rel_c_create,&
                                               rel_c_read_parameters,&
-                                              rel_c_release,&
                                               rel_control_type
    USE scf_control_types,               ONLY: scf_c_create,&
                                               scf_c_read_parameters,&
@@ -571,7 +570,6 @@ CONTAINS
       TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_wf_history_type), POINTER                  :: wf_history
-      TYPE(rel_control_type), POINTER                    :: rel_control
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
       TYPE(scf_control_type), POINTER                    :: scf_control
@@ -674,10 +672,13 @@ CONTAINS
       CALL read_tddfpt2_control(dft_control%tddfpt2_control, tddfpt_section, dft_control%qs_control)
 
       !   Create relativistic control section
-      CALL rel_c_create(rel_control)
-      CALL rel_c_read_parameters(rel_control, dft_section)
-      CALL set_qs_env(qs_env, rel_control=rel_control)
-      CALL rel_c_release(rel_control)
+      BLOCK
+         TYPE(rel_control_type), POINTER :: rel_control
+         ALLOCATE (rel_control)
+         CALL rel_c_create(rel_control)
+         CALL rel_c_read_parameters(rel_control, dft_section)
+         CALL set_qs_env(qs_env, rel_control=rel_control)
+      END BLOCK
 
       !   *** Read DFTB parameter files ***
       IF (dft_control%qs_control%method_id == do_method_dftb) THEN

@@ -73,9 +73,7 @@ MODULE force_fields_all
    USE physcon,                         ONLY: bohr
    USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
    USE qmmm_types_low,                  ONLY: qmmm_env_mm_type
-   USE shell_potential_types,           ONLY: shell_create,&
-                                              shell_kind_type,&
-                                              shell_release
+   USE shell_potential_types,           ONLY: shell_kind_type
    USE splines_types,                   ONLY: spline_data_p_release,&
                                               spline_data_p_retain,&
                                               spline_data_p_type,&
@@ -2383,9 +2381,7 @@ CONTAINS
                IF ((inp_info%shell_list(j)%atm_name) == atmname) THEN
                   CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                        shell=shell, mass=atmmass, natom=natom)
-                  IF (.NOT. ASSOCIATED(shell)) THEN
-                     CALL shell_create(shell)
-                  END IF
+                  IF (.NOT. ASSOCIATED(shell)) ALLOCATE (shell)
                   nshell_tot = nshell_tot + natom
                   shell%charge_core = inp_info%shell_list(j)%shell%charge_core
                   shell%charge_shell = inp_info%shell_list(j)%shell%charge_shell
@@ -2401,7 +2397,6 @@ CONTAINS
                   found_shell = .TRUE.
                   CALL set_atomic_kind(atomic_kind=atomic_kind, &
                                        shell=shell, shell_active=.TRUE.)
-                  CALL shell_release(shell)
                END IF
             END DO ! j shell kind
          END IF ! associated shell_list

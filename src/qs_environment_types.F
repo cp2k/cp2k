@@ -142,7 +142,6 @@ MODULE qs_environment_types
                                               wfi_release,&
                                               wfi_retain
    USE rel_control_types,               ONLY: rel_c_release,&
-                                              rel_c_retain,&
                                               rel_control_type
    USE rt_propagation_types,            ONLY: rt_prop_release,&
                                               rt_prop_type
@@ -1160,8 +1159,10 @@ CONTAINS
          qs_env%scf_control => scf_control
       END IF
       IF (PRESENT(rel_control)) THEN ! accept also null pointers?
-         CALL rel_c_retain(rel_control)
-         CALL rel_c_release(qs_env%rel_control)
+         IF (ASSOCIATED(rel_control, qs_env%rel_control)) THEN
+            CALL rel_c_release(qs_env%rel_control)
+            DEALLOCATE (qs_env%rel_control)
+         END IF
          qs_env%rel_control => rel_control
       END IF
       IF (PRESENT(linres_control)) THEN ! accept also null pointers?
@@ -1385,7 +1386,10 @@ CONTAINS
          CALL scf_c_release(qs_env%scf_control)
          DEALLOCATE (qs_env%scf_control)
       END IF
-      CALL rel_c_release(qs_env%rel_control)
+      IF (ASSOCIATED(qs_env%rel_control)) THEN
+         CALL rel_c_release(qs_env%rel_control)
+         DEALLOCATE (qs_env%rel_control)
+      END IF
 
       IF (ASSOCIATED(qs_env%linres_control)) THEN
          CALL linres_control_release(qs_env%linres_control)
@@ -1596,7 +1600,10 @@ CONTAINS
          CALL scf_c_release(qs_env%scf_control)
          DEALLOCATE (qs_env%scf_control)
       END IF
-      CALL rel_c_release(qs_env%rel_control)
+      IF (ASSOCIATED(qs_env%rel_control)) THEN
+         CALL rel_c_release(qs_env%rel_control)
+         DEALLOCATE (qs_env%rel_control)
+      END IF
 
       IF (ASSOCIATED(qs_env%linres_control)) THEN
          CALL linres_control_release(qs_env%linres_control)
