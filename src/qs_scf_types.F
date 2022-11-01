@@ -333,7 +333,10 @@ CONTAINS
                END DO
                DEALLOCATE (scf_env%qs_ot_env)
             END IF
-            CALL qs_diis_b_release(scf_env%scf_diis_buffer)
+            IF (ASSOCIATED(scf_env%scf_diis_buffer)) THEN
+               CALL qs_diis_b_release(scf_env%scf_diis_buffer)
+               DEALLOCATE (scf_env%scf_diis_buffer)
+            END IF
             IF (ASSOCIATED(scf_env%outer_scf%variables)) THEN
                DEALLOCATE (scf_env%outer_scf%variables)
             END IF

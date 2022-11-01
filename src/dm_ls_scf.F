@@ -499,10 +499,9 @@ CONTAINS
          eps_diis = ls_scf_env%eps_diis
          nmixing = ls_scf_env%nmixing
          NULLIFY (diis_buffer)
-         IF (.NOT. ASSOCIATED(diis_buffer)) THEN
-            CALL qs_diis_b_create_sparse(diis_buffer, &
-                                         nbuffer=ls_scf_env%max_diis)
-         END IF
+         ALLOCATE (diis_buffer)
+         CALL qs_diis_b_create_sparse(diis_buffer, &
+                                      nbuffer=ls_scf_env%max_diis)
          CALL qs_diis_b_clear_sparse(diis_buffer)
          CALL get_qs_env(qs_env, matrix_s=matrix_s)
       END IF
@@ -752,6 +751,7 @@ CONTAINS
       ! free storage
       IF (ls_scf_env%ls_diis) THEN
          CALL qs_diis_b_release_sparse(diis_buffer)
+         DEALLOCATE (diis_buffer)
       END IF
       DO ispin = 1, nspin
          CALL dbcsr_release(matrix_mixing_old(ispin))

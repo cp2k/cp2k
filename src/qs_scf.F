@@ -687,6 +687,7 @@ CONTAINS
 
          IF (.NOT. scf_env%skip_diis) THEN
             IF (.NOT. ASSOCIATED(scf_env%scf_diis_buffer)) THEN
+               ALLOCATE (scf_env%scf_diis_buffer)
                CALL qs_diis_b_create(scf_env%scf_diis_buffer, nbuffer=scf_control%max_diis)
             END IF
             CALL qs_diis_b_clear(scf_env%scf_diis_buffer)
@@ -695,6 +696,7 @@ CONTAINS
       CASE (general_diag_method_nr, special_diag_method_nr, block_krylov_diag_method_nr)
          IF (.NOT. scf_env%skip_diis) THEN
             IF (.NOT. ASSOCIATED(scf_env%scf_diis_buffer)) THEN
+               ALLOCATE (scf_env%scf_diis_buffer)
                CALL qs_diis_b_create(scf_env%scf_diis_buffer, nbuffer=scf_control%max_diis)
             END IF
             CALL qs_diis_b_clear(scf_env%scf_diis_buffer)
@@ -705,6 +707,7 @@ CONTAINS
 
          IF (.NOT. scf_env%skip_diis) THEN
             IF (.NOT. ASSOCIATED(scf_env%scf_diis_buffer)) THEN
+               ALLOCATE (scf_env%scf_diis_buffer)
                CALL qs_diis_b_create(scf_env%scf_diis_buffer, nbuffer=scf_control%max_diis)
             END IF
             CALL qs_diis_b_clear(scf_env%scf_diis_buffer)

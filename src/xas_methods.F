@@ -486,6 +486,7 @@ CONTAINS
 
                   IF (.NOT. scf_env%skip_diis) THEN
                      IF (.NOT. ASSOCIATED(scf_env%scf_diis_buffer)) THEN
+                        ALLOCATE (scf_env%scf_diis_buffer)
                         CALL qs_diis_b_create(scf_env%scf_diis_buffer, nbuffer=scf_control%max_diis)
                      END IF
                      CALL qs_diis_b_clear(scf_env%scf_diis_buffer)
