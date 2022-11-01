@@ -59,7 +59,6 @@ MODULE rel_control_types
       INTEGER                               :: rel_transformation
       INTEGER                               :: rel_z_cutoff
       INTEGER                               :: rel_potential
-      INTEGER                               :: ref_count
    END TYPE rel_control_type
 
 CONTAINS
@@ -84,7 +83,6 @@ CONTAINS
       rel_control%rel_transformation = rel_trans_full
       rel_control%rel_z_cutoff = 1
       rel_control%rel_potential = rel_pot_full
-      rel_control%ref_count = 1
 
    END SUBROUTINE rel_c_create
 
