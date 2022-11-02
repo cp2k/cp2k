@@ -24,11 +24,10 @@ MODULE thermal_region_types
    PUBLIC :: thermal_regions_type, &
              thermal_region_type, &
              allocate_thermal_regions, &
-             release_thermal_regions, &
-             retain_thermal_regions
+             release_thermal_regions
 
    TYPE thermal_regions_type
-      INTEGER :: ref_count, nregions
+      INTEGER :: nregions
       LOGICAL :: force_rescaling
       REAL(KIND=dp) :: temp_reg0
       LOGICAL, DIMENSION(:), POINTER                   :: do_langevin
@@ -51,35 +50,13 @@ CONTAINS
 !> \author
 ! **************************************************************************************************
    SUBROUTINE allocate_thermal_regions(thermal_regions)
-      TYPE(thermal_regions_type), POINTER                :: thermal_regions
+      TYPE(thermal_regions_type), INTENT(OUT)            :: thermal_regions
 
-      LOGICAL                                            :: check
-
-      check = .NOT. ASSOCIATED(thermal_regions)
-      CPASSERT(check)
-
-      ALLOCATE (thermal_regions)
-      thermal_regions%ref_count = 1
       thermal_regions%nregions = 0
       NULLIFY (thermal_regions%thermal_region)
       NULLIFY (thermal_regions%do_langevin)
 
    END SUBROUTINE allocate_thermal_regions
-! **************************************************************************************************
-!> \brief retains  thermal_regions
-!> \param thermal_regions ...
-!> \author
-! **************************************************************************************************
-   SUBROUTINE retain_thermal_regions(thermal_regions)
-
-      TYPE(thermal_regions_type), POINTER                :: thermal_regions
-
-      IF (ASSOCIATED(thermal_regions)) THEN
-         CPASSERT(thermal_regions%ref_count > 0)
-         thermal_regions%ref_count = thermal_regions%ref_count + 1
-      END IF
-
-   END SUBROUTINE retain_thermal_regions
 
 ! **************************************************************************************************
 !> \brief release thermal_regions
@@ -88,28 +65,18 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE release_thermal_regions(thermal_regions)
 
-      TYPE(thermal_regions_type), POINTER                :: thermal_regions
+      TYPE(thermal_regions_type), INTENT(INOUT)          :: thermal_regions
 
       INTEGER                                            :: ireg
-      LOGICAL                                            :: check
 
-      check = ASSOCIATED(thermal_regions)
-      IF (check) THEN
-         check = thermal_regions%ref_count > 0
-         CPASSERT(check)
-         thermal_regions%ref_count = thermal_regions%ref_count - 1
-         IF (thermal_regions%ref_count < 1) THEN
-            IF (ASSOCIATED(thermal_regions%thermal_region)) THEN
-               DO ireg = 1, SIZE(thermal_regions%thermal_region)
-                  DEALLOCATE (thermal_regions%thermal_region(ireg)%part_index)
-               END DO
-               DEALLOCATE (thermal_regions%thermal_region)
-            END IF
-            IF (ASSOCIATED(thermal_regions%do_langevin)) THEN
-               DEALLOCATE (thermal_regions%do_langevin)
-            END IF
-            DEALLOCATE (thermal_regions)
-         END IF
+      IF (ASSOCIATED(thermal_regions%thermal_region)) THEN
+         DO ireg = 1, SIZE(thermal_regions%thermal_region)
+            DEALLOCATE (thermal_regions%thermal_region(ireg)%part_index)
+         END DO
+         DEALLOCATE (thermal_regions%thermal_region)
+      END IF
+      IF (ASSOCIATED(thermal_regions%do_langevin)) THEN
+         DEALLOCATE (thermal_regions%do_langevin)
       END IF
 
    END SUBROUTINE release_thermal_regions

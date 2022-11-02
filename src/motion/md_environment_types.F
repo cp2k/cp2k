@@ -42,7 +42,6 @@ MODULE md_environment_types
                                               retain_reftraj
    USE simpar_types,                    ONLY: simpar_type
    USE thermal_region_types,            ONLY: release_thermal_regions,&
-                                              retain_thermal_regions,&
                                               thermal_regions_type
    USE thermostat_types,                ONLY: release_thermostats,&
                                               retain_thermostats,&
@@ -173,7 +172,10 @@ CONTAINS
             END IF
             CALL force_env_release(md_env%force_env)
             CALL release_averages(md_env%averages)
-            CALL release_thermal_regions(md_env%thermal_regions)
+            IF (ASSOCIATED(md_env%thermal_regions)) THEN
+               CALL release_thermal_regions(md_env%thermal_regions)
+               DEALLOCATE (md_env%thermal_regions)
+            END IF
             DEALLOCATE (md_env)
          END IF
       END IF
@@ -369,9 +371,11 @@ CONTAINS
          md_env%reftraj => reftraj
       END IF
       IF (PRESENT(md_ener)) THEN
-         IF (.NOT. ASSOCIATED(md_ener, md_env%md_ener)) THEN
-            CALL release_md_ener(md_ener)
-            DEALLOCATE (md_ener)
+         IF (ASSOCIATED(md_env%md_ener)) THEN
+            IF (.NOT. ASSOCIATED(md_env%md_ener, md_ener)) THEN
+               CALL release_md_ener(md_env%md_ener)
+               DEALLOCATE (md_env%md_ener)
+            END IF
          END IF
          md_env%md_ener => md_ener
       END IF
@@ -381,8 +385,12 @@ CONTAINS
          md_env%averages => averages
       END IF
       IF (PRESENT(thermal_regions)) THEN
-         CALL release_thermal_regions(md_env%thermal_regions)
-         CALL retain_thermal_regions(thermal_regions)
+         IF (ASSOCIATED(md_env%thermal_regions)) THEN
+            IF (.NOT. ASSOCIATED(md_env%thermal_regions, thermal_regions)) THEN
+               CALL release_thermal_regions(md_env%thermal_regions)
+               DEALLOCATE (md_env%thermal_regions)
+            END IF
+         END IF
          md_env%thermal_regions => thermal_regions
       END IF
 

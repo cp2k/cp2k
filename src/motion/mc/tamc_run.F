@@ -637,7 +637,6 @@ CONTAINS
       CALL release_thermostats(thermostats)
       CALL release_barostat_type(barostat)
       CALL release_simpar_type(simpar)
-      CALL release_thermal_regions(thermal_regions)
 
       CALL md_env_release(md_env)
       ! Clean restartable sections..

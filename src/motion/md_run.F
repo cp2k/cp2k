@@ -247,6 +247,7 @@ CONTAINS
       ALLOCATE (md_ener)
       CALL create_md_ener(md_ener)
       CALL set_md_env(md_env, md_ener=md_ener)
+      NULLIFY (md_ener)
 
       ! If requested setup Thermostats
       CALL create_thermostats(thermostats, md_section, force_env, simpar, para_env, &
@@ -558,7 +559,6 @@ CONTAINS
       CALL release_thermostats(thermostats)
       CALL release_barostat_type(barostat)
       CALL release_simpar_type(simpar)
-      CALL release_thermal_regions(thermal_regions)
       CALL timestop(handle)
 
    END SUBROUTINE qs_mol_dyn_low
