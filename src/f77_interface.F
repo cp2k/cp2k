@@ -71,8 +71,7 @@ MODULE f77_interface
                                               fp_type
    USE global_types,                    ONLY: global_environment_type,&
                                               globenv_create,&
-                                              globenv_release,&
-                                              globenv_retain
+                                              globenv_release
    USE grid_api,                        ONLY: grid_library_finalize,&
                                               grid_library_init
    USE input_constants,                 ONLY: &
@@ -958,7 +957,7 @@ CONTAINS
                          root_section=root_section, para_env=para_env)
 
       CPASSERT(ASSOCIATED(globenv))
-      CALL globenv_retain(globenv)
+      NULLIFY (f_env%force_env%globenv)
       CALL f_env_dealloc(f_env)
       IF (PRESENT(q_finalize)) THEN
          CALL cp2k_finalize(root_section, para_env, globenv, f_env%old_path, q_finalize)

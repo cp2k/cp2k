@@ -73,8 +73,7 @@ MODULE cp2k_runs
    USE geo_opt,                         ONLY: cp_geo_opt
    USE global_types,                    ONLY: global_environment_type,&
                                               globenv_create,&
-                                              globenv_release,&
-                                              globenv_retain
+                                              globenv_release
    USE grid_api,                        ONLY: grid_library_print_stats,&
                                               grid_library_set_config
    USE input_constants,                 ONLY: &
@@ -313,7 +312,6 @@ CONTAINS
          CALL f_env_add_defaults(new_env_id, f_env, handle=f_env_handle)
          force_env => f_env%force_env
          CALL force_env_get(force_env, globenv=globenv)
-         CALL globenv_retain(globenv)
       CASE (do_test)
          CALL lib_test(root_section, para_env, globenv)
       CASE (do_tree_mc) ! TMC entry point
@@ -437,15 +435,17 @@ CONTAINS
 
       IF (prog_name_id == do_cp2k) THEN
          f_env%force_env => force_env ! for mc
-         CALL globenv_retain(globenv) !mc
-         CALL globenv_release(force_env%globenv) !mc
+         IF (ASSOCIATED(force_env%globenv)) THEN
+         IF (.NOT. ASSOCIATED(force_env%globenv, globenv)) THEN
+            CALL globenv_release(force_env%globenv) !mc
+         END IF
+         END IF
          force_env%globenv => globenv !mc
          CALL f_env_rm_defaults(f_env, ierr=ierr, &
                                 handle=f_env_handle)
          CPASSERT(ierr == 0)
          CALL destroy_force_env(new_env_id, ierr=ierr)
          CPASSERT(ierr == 0)
-         CALL globenv_release(globenv)
       ELSE
          I_was_ionode = para_env%ionode
          CALL cp2k_finalize(root_section, para_env, globenv)
