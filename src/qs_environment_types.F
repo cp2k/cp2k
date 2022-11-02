@@ -1143,9 +1143,11 @@ CONTAINS
          qs_env%ewald_env => ewald_env
       END IF
       IF (PRESENT(ewald_pw)) THEN ! accept also null pointers?
-         IF (ASSOCIATED(ewald_pw, qs_env%ewald_pw)) THEN
-            CALL ewald_pw_release(qs_env%ewald_pw)
-            DEALLOCATE (qs_env%ewald_pw)
+         IF (ASSOCIATED(qs_env%ewald_pw)) THEN
+            IF (.NOT. ASSOCIATED(ewald_pw, qs_env%ewald_pw)) THEN
+               CALL ewald_pw_release(qs_env%ewald_pw)
+               DEALLOCATE (qs_env%ewald_pw)
+            END IF
          END IF
          qs_env%ewald_pw => ewald_pw
       END IF
@@ -1159,9 +1161,11 @@ CONTAINS
          qs_env%scf_control => scf_control
       END IF
       IF (PRESENT(rel_control)) THEN ! accept also null pointers?
-         IF (ASSOCIATED(rel_control, qs_env%rel_control)) THEN
-            CALL rel_c_release(qs_env%rel_control)
-            DEALLOCATE (qs_env%rel_control)
+         IF (ASSOCIATED(qs_env%rel_control)) THEN
+            IF (.NOT. ASSOCIATED(qs_env%rel_control, rel_control)) THEN
+               CALL rel_c_release(qs_env%rel_control)
+               DEALLOCATE (qs_env%rel_control)
+            END IF
          END IF
          qs_env%rel_control => rel_control
       END IF

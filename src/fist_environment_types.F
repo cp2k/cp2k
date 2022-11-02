@@ -318,9 +318,11 @@ CONTAINS
          fist_env%ewald_env => ewald_env
       END IF
       IF (PRESENT(ewald_pw)) THEN
-         IF (ASSOCIATED(ewald_pw, fist_env%ewald_pw)) THEN
-            CALL ewald_pw_release(fist_env%ewald_pw)
-            DEALLOCATE (fist_env%ewald_pw)
+         IF (ASSOCIATED(fist_env%ewald_pw)) THEN
+            IF (.NOT. ASSOCIATED(fist_env%ewald_pw, ewald_pw)) THEN
+               CALL ewald_pw_release(fist_env%ewald_pw)
+               DEALLOCATE (fist_env%ewald_pw)
+            END IF
          END IF
          fist_env%ewald_pw => ewald_pw
       END IF

@@ -355,8 +355,10 @@ CONTAINS
       END IF
       IF (PRESENT(fist_potential)) atomic_kind%fist_potential => fist_potential
       IF (PRESENT(shell)) THEN
-         IF (ASSOCIATED(atomic_kind%shell, shell)) THEN
-            DEALLOCATE (atomic_kind%shell)
+         IF (ASSOCIATED(atomic_kind%shell)) THEN
+            IF (.NOT. ASSOCIATED(atomic_kind%shell, shell)) THEN
+               DEALLOCATE (atomic_kind%shell)
+            END IF
          END IF
          atomic_kind%shell => shell
       END IF
