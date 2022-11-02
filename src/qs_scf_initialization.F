@@ -158,7 +158,7 @@ CONTAINS
 
       CALL section_vals_val_get(my_scf_section, "CHOLESKY", i_val=scf_env%cholesky_method)
 
-      CALL qs_scf_ensure_mos(qs_env, scf_env)
+      CALL qs_scf_ensure_mos(qs_env)
 
       ! set flags for diagonalization
       CALL qs_scf_ensure_diagonalization(scf_env, my_scf_section, qs_env, &
@@ -207,7 +207,7 @@ CONTAINS
       scf_control%use_diag = .TRUE.
       scf_control%diagonalization%method = diag_standard
 
-      CALL qs_scf_ensure_mos(qs_env, scf_env)
+      CALL qs_scf_ensure_mos(qs_env)
 
       ! set flags for diagonalization
       CALL qs_scf_ensure_diagonalization(scf_env, scf_section, qs_env, &
@@ -234,6 +234,7 @@ CONTAINS
       NULLIFY (rho_g)
 
       IF (.NOT. ASSOCIATED(scf_env)) THEN ! i.e. for MD this is associated on the second step (it so seems)
+         ALLOCATE (scf_env)
          CALL scf_env_create(scf_env)
       ELSE
          ! Reallocate mixing store, if the g space grid (cell) has changed
@@ -531,11 +532,9 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief performs allocation of the MO matrices
 !> \param qs_env ...
-!> \param scf_env ...
 ! **************************************************************************************************
-   SUBROUTINE qs_scf_ensure_mos(qs_env, scf_env)
+   SUBROUTINE qs_scf_ensure_mos(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_scf_env_type), POINTER                     :: scf_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_scf_ensure_mos'
 
@@ -554,10 +553,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (ao_mo_fm_pools, dft_control, mos, xas_env, matrix_s, mos_last_converged, mo_coeff_last)
-
-      CPASSERT(ASSOCIATED(scf_env))
-      CPASSERT(scf_env%ref_count > 0)
-      MARK_USED(scf_env)
 
       CALL get_qs_env(qs_env=qs_env, &
                       dft_control=dft_control, &
@@ -888,7 +883,6 @@ CONTAINS
       logger => cp_get_default_logger()
 
       CPASSERT(ASSOCIATED(scf_env))
-      CPASSERT(scf_env%ref_count > 0)
       CPASSERT(ASSOCIATED(qs_env))
       NULLIFY (para_env)
 
@@ -1063,7 +1057,6 @@ CONTAINS
       NULLIFY (mo_coeff, rho, dft_control, para_env, mos)
       logger => cp_get_default_logger()
       CPASSERT(ASSOCIATED(scf_env))
-      CPASSERT(scf_env%ref_count > 0)
       CPASSERT(ASSOCIATED(qs_env))
 
       CALL get_qs_env(qs_env, &

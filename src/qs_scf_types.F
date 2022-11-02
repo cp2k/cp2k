@@ -59,7 +59,7 @@ MODULE qs_scf_types
                                  filter_matrix_diag_method_nr = 20
 
    PUBLIC :: qs_scf_env_type
-   PUBLIC :: scf_env_retain, scf_env_release, scf_env_create, scf_env_did_change
+   PUBLIC :: scf_env_release, scf_env_create, scf_env_did_change
    PUBLIC :: krylov_space_type, krylov_space_create, subspace_env_type
    PUBLIC :: diag_subspace_env_create
 
@@ -96,7 +96,7 @@ MODULE qs_scf_types
    ! **************************************************************************************************
    TYPE qs_scf_env_type
       TYPE(qs_outer_scf_type) :: outer_scf
-      INTEGER :: ref_count, iter_count
+      INTEGER :: iter_count
       INTEGER :: cholesky_method, nelectron, method, mixing_method, nskip_mixing
       REAL(KIND=dp) :: iter_param, iter_delta, p_mix_alpha, sum_zeff_corr
       CHARACTER(len=15) :: iter_method
@@ -131,7 +131,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE scf_env_create(scf_env)
-      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(qs_scf_env_type), INTENT(OUT)                 :: scf_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'scf_env_create'
 
@@ -139,8 +139,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ALLOCATE (scf_env)
-      scf_env%ref_count = 1
       scf_env%iter_count = 0
       scf_env%nelectron = 0
       scf_env%iter_param = 0.0_dp
@@ -192,31 +190,6 @@ CONTAINS
    END SUBROUTINE scf_env_create
 
 ! **************************************************************************************************
-!> \brief retains an scf_env (see doc/ReferenceCounting.html)
-!> \param scf_env the environment to retain
-!> \par History
-!>      02.2003 created [fawzi]
-!> \author fawzi
-! **************************************************************************************************
-   SUBROUTINE scf_env_retain(scf_env)
-
-      TYPE(qs_scf_env_type), POINTER                     :: scf_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'scf_env_retain'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(scf_env))
-      CPASSERT(scf_env%ref_count > 0)
-      scf_env%ref_count = scf_env%ref_count + 1
-
-      CALL timestop(handle)
-
-   END SUBROUTINE scf_env_retain
-
-! **************************************************************************************************
 !> \brief function to be called to inform the scf_env about changes
 !> \param scf_env the scf env to inform
 !> \par History
@@ -224,16 +197,13 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE scf_env_did_change(scf_env)
-      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(qs_scf_env_type), INTENT(INOUT)               :: scf_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_did_change'
 
       INTEGER                                            :: handle, i
 
       CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(scf_env))
-      CPASSERT(scf_env%ref_count > 0)
 
       IF (ASSOCIATED(scf_env%p_mix_new)) THEN
          CALL dbcsr_deallocate_matrix_set(scf_env%p_mix_new)
@@ -262,7 +232,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE scf_env_release(scf_env)
 
-      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(qs_scf_env_type), INTENT(INOUT)               :: scf_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'scf_env_release'
 
@@ -270,135 +240,126 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (ASSOCIATED(scf_env)) THEN
-         CPASSERT(scf_env%ref_count > 0)
-         scf_env%ref_count = scf_env%ref_count - 1
-         IF (scf_env%ref_count < 1) THEN
-            CALL cp_fm_vect_dealloc(scf_env%scf_work1)
-            IF (ASSOCIATED(scf_env%scf_work2)) THEN
-               CALL cp_fm_release(scf_env%scf_work2)
-               DEALLOCATE (scf_env%scf_work2)
-            END IF
-            IF (ASSOCIATED(scf_env%ortho)) THEN
-               CALL cp_fm_release(scf_env%ortho)
-               DEALLOCATE (scf_env%ortho)
-            END IF
-            IF (ASSOCIATED(scf_env%ortho_m1)) THEN
-               CALL cp_fm_release(scf_env%ortho_m1)
-               DEALLOCATE (scf_env%ortho_m1)
-            END IF
-            IF (ASSOCIATED(scf_env%ortho_dbcsr)) THEN
-               ! we should not end up here, and give back using the pools
-               CPASSERT(.TRUE.)
-               CALL dbcsr_deallocate_matrix(scf_env%ortho_dbcsr)
-            END IF
-            IF (ASSOCIATED(scf_env%buf1_dbcsr)) THEN
-               ! we should not end up here, and give back using the pools
-               CPASSERT(.TRUE.)
-               CALL dbcsr_deallocate_matrix(scf_env%buf1_dbcsr)
-            END IF
-            IF (ASSOCIATED(scf_env%buf2_dbcsr)) THEN
-               ! we should not end up here, and give back using the pools
-               CPASSERT(.TRUE.)
-               CALL dbcsr_deallocate_matrix(scf_env%buf2_dbcsr)
-            END IF
-            IF (ASSOCIATED(scf_env%s_half)) THEN
-               CALL cp_fm_release(scf_env%s_half)
-               DEALLOCATE (scf_env%s_half)
-            END IF
-            IF (ASSOCIATED(scf_env%s_minus_one)) THEN
-               CALL cp_fm_release(scf_env%s_minus_one)
-               DEALLOCATE (scf_env%s_minus_one)
-            END IF
-            IF (ASSOCIATED(scf_env%p_mix_new)) THEN
-               ! we should not end up here, and give back using the pools
-               CPASSERT(.TRUE.)
-               CALL dbcsr_deallocate_matrix_set(scf_env%p_mix_new)
-            END IF
-            IF (ASSOCIATED(scf_env%p_delta)) THEN
-               ! we should not end up here, and give back using the pools
-               CPASSERT(.TRUE.)
-               CALL dbcsr_deallocate_matrix_set(scf_env%p_delta)
-            END IF
-            IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
-               DO i = 1, SIZE(scf_env%ot_preconditioner)
-                  CALL destroy_preconditioner(scf_env%ot_preconditioner(i)%preconditioner)
-                  DEALLOCATE (scf_env%ot_preconditioner(i)%preconditioner)
-               END DO
-               DEALLOCATE (scf_env%ot_preconditioner)
-            END IF
-            IF (ASSOCIATED(scf_env%qs_ot_env)) THEN
-               DO i = 1, SIZE(scf_env%qs_ot_env)
-                  CALL qs_ot_destroy(scf_env%qs_ot_env(i))
-               END DO
-               DEALLOCATE (scf_env%qs_ot_env)
-            END IF
-            IF (ASSOCIATED(scf_env%scf_diis_buffer)) THEN
-               CALL qs_diis_b_release(scf_env%scf_diis_buffer)
-               DEALLOCATE (scf_env%scf_diis_buffer)
-            END IF
-            IF (ASSOCIATED(scf_env%outer_scf%variables)) THEN
-               DEALLOCATE (scf_env%outer_scf%variables)
-            END IF
-            IF (ASSOCIATED(scf_env%outer_scf%count)) THEN
-               DEALLOCATE (scf_env%outer_scf%count)
-            END IF
-            IF (ASSOCIATED(scf_env%outer_scf%gradient)) THEN
-               DEALLOCATE (scf_env%outer_scf%gradient)
-            END IF
-            IF (ASSOCIATED(scf_env%outer_scf%inv_jacobian)) THEN
-               DEALLOCATE (scf_env%outer_scf%inv_jacobian)
-            END IF
-            IF (ASSOCIATED(scf_env%outer_scf%energy)) THEN
-               DEALLOCATE (scf_env%outer_scf%energy)
-            END IF
-            IF (ASSOCIATED(scf_env%cc_buffer)) THEN
-               DEALLOCATE (scf_env%cc_buffer)
-            END IF
-            IF (ASSOCIATED(scf_env%mixing_store)) THEN
-               CALL mixing_storage_release(scf_env%mixing_store)
-            END IF
-            IF (ASSOCIATED(scf_env%krylov_space)) THEN
-               CALL krylov_space_release(scf_env%krylov_space)
-            END IF
-            IF (ASSOCIATED(scf_env%subspace_env)) THEN
-               CALL diag_subspace_env_release(scf_env%subspace_env)
-            END IF
-            IF (ASSOCIATED(scf_env%block_davidson_env)) THEN
-               CALL block_davidson_release(scf_env%block_davidson_env)
-            END IF
-            IF (fb_env_has_data(scf_env%filter_matrix_env)) THEN
-               CALL fb_env_release(scf_env%filter_matrix_env)
-            END IF
-            IF (ASSOCIATED(scf_env%floating_basis%gradient)) THEN
-               DEALLOCATE (scf_env%floating_basis%gradient)
-            END IF
-            IF (ASSOCIATED(scf_env%mom_ref_mo_coeff)) THEN
-               DO i = 1, SIZE(scf_env%mom_ref_mo_coeff)
-                  CALL cp_fm_release(scf_env%mom_ref_mo_coeff(i)%matrix)
-                  DEALLOCATE (scf_env%mom_ref_mo_coeff(i)%matrix)
-               END DO
-               DEALLOCATE (scf_env%mom_ref_mo_coeff)
-            END IF
-            IF (ASSOCIATED(scf_env%mom_overlap)) THEN
-               DO i = 1, SIZE(scf_env%mom_overlap)
-                  CALL cp_fm_release(scf_env%mom_overlap(i)%matrix)
-                  DEALLOCATE (scf_env%mom_overlap(i)%matrix)
-               END DO
-               DEALLOCATE (scf_env%mom_overlap)
-            END IF
-            IF (ASSOCIATED(scf_env%mom_s_mo_coeff)) THEN
-               DO i = 1, SIZE(scf_env%mom_s_mo_coeff)
-                  CALL cp_fm_release(scf_env%mom_s_mo_coeff(i)%matrix)
-                  DEALLOCATE (scf_env%mom_s_mo_coeff(i)%matrix)
-               END DO
-               DEALLOCATE (scf_env%mom_s_mo_coeff)
-            END IF
-            DEALLOCATE (scf_env)
-         END IF
+      CALL cp_fm_vect_dealloc(scf_env%scf_work1)
+      IF (ASSOCIATED(scf_env%scf_work2)) THEN
+         CALL cp_fm_release(scf_env%scf_work2)
+         DEALLOCATE (scf_env%scf_work2)
       END IF
-
-      NULLIFY (scf_env)
+      IF (ASSOCIATED(scf_env%ortho)) THEN
+         CALL cp_fm_release(scf_env%ortho)
+         DEALLOCATE (scf_env%ortho)
+      END IF
+      IF (ASSOCIATED(scf_env%ortho_m1)) THEN
+         CALL cp_fm_release(scf_env%ortho_m1)
+         DEALLOCATE (scf_env%ortho_m1)
+      END IF
+      IF (ASSOCIATED(scf_env%ortho_dbcsr)) THEN
+         ! we should not end up here, and give back using the pools
+         CPASSERT(.TRUE.)
+         CALL dbcsr_deallocate_matrix(scf_env%ortho_dbcsr)
+      END IF
+      IF (ASSOCIATED(scf_env%buf1_dbcsr)) THEN
+         ! we should not end up here, and give back using the pools
+         CPASSERT(.TRUE.)
+         CALL dbcsr_deallocate_matrix(scf_env%buf1_dbcsr)
+      END IF
+      IF (ASSOCIATED(scf_env%buf2_dbcsr)) THEN
+         ! we should not end up here, and give back using the pools
+         CPASSERT(.TRUE.)
+         CALL dbcsr_deallocate_matrix(scf_env%buf2_dbcsr)
+      END IF
+      IF (ASSOCIATED(scf_env%s_half)) THEN
+         CALL cp_fm_release(scf_env%s_half)
+         DEALLOCATE (scf_env%s_half)
+      END IF
+      IF (ASSOCIATED(scf_env%s_minus_one)) THEN
+         CALL cp_fm_release(scf_env%s_minus_one)
+         DEALLOCATE (scf_env%s_minus_one)
+      END IF
+      IF (ASSOCIATED(scf_env%p_mix_new)) THEN
+         ! we should not end up here, and give back using the pools
+         CPASSERT(.TRUE.)
+         CALL dbcsr_deallocate_matrix_set(scf_env%p_mix_new)
+      END IF
+      IF (ASSOCIATED(scf_env%p_delta)) THEN
+         ! we should not end up here, and give back using the pools
+         CPASSERT(.TRUE.)
+         CALL dbcsr_deallocate_matrix_set(scf_env%p_delta)
+      END IF
+      IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
+         DO i = 1, SIZE(scf_env%ot_preconditioner)
+            CALL destroy_preconditioner(scf_env%ot_preconditioner(i)%preconditioner)
+            DEALLOCATE (scf_env%ot_preconditioner(i)%preconditioner)
+         END DO
+         DEALLOCATE (scf_env%ot_preconditioner)
+      END IF
+      IF (ASSOCIATED(scf_env%qs_ot_env)) THEN
+         DO i = 1, SIZE(scf_env%qs_ot_env)
+            CALL qs_ot_destroy(scf_env%qs_ot_env(i))
+         END DO
+         DEALLOCATE (scf_env%qs_ot_env)
+      END IF
+      IF (ASSOCIATED(scf_env%scf_diis_buffer)) THEN
+         CALL qs_diis_b_release(scf_env%scf_diis_buffer)
+         DEALLOCATE (scf_env%scf_diis_buffer)
+      END IF
+      IF (ASSOCIATED(scf_env%outer_scf%variables)) THEN
+         DEALLOCATE (scf_env%outer_scf%variables)
+      END IF
+      IF (ASSOCIATED(scf_env%outer_scf%count)) THEN
+         DEALLOCATE (scf_env%outer_scf%count)
+      END IF
+      IF (ASSOCIATED(scf_env%outer_scf%gradient)) THEN
+         DEALLOCATE (scf_env%outer_scf%gradient)
+      END IF
+      IF (ASSOCIATED(scf_env%outer_scf%inv_jacobian)) THEN
+         DEALLOCATE (scf_env%outer_scf%inv_jacobian)
+      END IF
+      IF (ASSOCIATED(scf_env%outer_scf%energy)) THEN
+         DEALLOCATE (scf_env%outer_scf%energy)
+      END IF
+      IF (ASSOCIATED(scf_env%cc_buffer)) THEN
+         DEALLOCATE (scf_env%cc_buffer)
+      END IF
+      IF (ASSOCIATED(scf_env%mixing_store)) THEN
+         CALL mixing_storage_release(scf_env%mixing_store)
+      END IF
+      IF (ASSOCIATED(scf_env%krylov_space)) THEN
+         CALL krylov_space_release(scf_env%krylov_space)
+      END IF
+      IF (ASSOCIATED(scf_env%subspace_env)) THEN
+         CALL diag_subspace_env_release(scf_env%subspace_env)
+      END IF
+      IF (ASSOCIATED(scf_env%block_davidson_env)) THEN
+         CALL block_davidson_release(scf_env%block_davidson_env)
+      END IF
+      IF (fb_env_has_data(scf_env%filter_matrix_env)) THEN
+         CALL fb_env_release(scf_env%filter_matrix_env)
+      END IF
+      IF (ASSOCIATED(scf_env%floating_basis%gradient)) THEN
+         DEALLOCATE (scf_env%floating_basis%gradient)
+      END IF
+      IF (ASSOCIATED(scf_env%mom_ref_mo_coeff)) THEN
+         DO i = 1, SIZE(scf_env%mom_ref_mo_coeff)
+            CALL cp_fm_release(scf_env%mom_ref_mo_coeff(i)%matrix)
+            DEALLOCATE (scf_env%mom_ref_mo_coeff(i)%matrix)
+         END DO
+         DEALLOCATE (scf_env%mom_ref_mo_coeff)
+      END IF
+      IF (ASSOCIATED(scf_env%mom_overlap)) THEN
+         DO i = 1, SIZE(scf_env%mom_overlap)
+            CALL cp_fm_release(scf_env%mom_overlap(i)%matrix)
+            DEALLOCATE (scf_env%mom_overlap(i)%matrix)
+         END DO
+         DEALLOCATE (scf_env%mom_overlap)
+      END IF
+      IF (ASSOCIATED(scf_env%mom_s_mo_coeff)) THEN
+         DO i = 1, SIZE(scf_env%mom_s_mo_coeff)
+            CALL cp_fm_release(scf_env%mom_s_mo_coeff(i)%matrix)
+            DEALLOCATE (scf_env%mom_s_mo_coeff(i)%matrix)
+         END DO
+         DEALLOCATE (scf_env%mom_s_mo_coeff)
+      END IF
 
       CALL timestop(handle)
 

@@ -161,10 +161,14 @@ MODULE qs_scf
                                               qs_scf_outer_loop_info,&
                                               qs_scf_write_mos
    USE qs_scf_post_scf,                 ONLY: qs_scf_compute_properties
-   USE qs_scf_types,                    ONLY: &
-        block_davidson_diag_method_nr, block_krylov_diag_method_nr, filter_matrix_diag_method_nr, &
-        general_diag_method_nr, ot_diag_method_nr, ot_method_nr, qs_scf_env_type, scf_env_release, &
-        special_diag_method_nr
+   USE qs_scf_types,                    ONLY: block_davidson_diag_method_nr,&
+                                              block_krylov_diag_method_nr,&
+                                              filter_matrix_diag_method_nr,&
+                                              general_diag_method_nr,&
+                                              ot_diag_method_nr,&
+                                              ot_method_nr,&
+                                              qs_scf_env_type,&
+                                              special_diag_method_nr
    USE qs_wf_history_methods,           ONLY: wfi_purge_history,&
                                               wfi_update
    USE scf_control_types,               ONLY: scf_control_type
@@ -227,8 +231,6 @@ CONTAINS
             CALL qs_scf_env_initialize(qs_env, scf_env)
             ! Moved here from qs_scf_env_initialize to be able to have more scf_env
             CALL set_qs_env(qs_env, scf_env=scf_env)
-            CALL scf_env_release(scf_env)
-            CALL get_qs_env(qs_env=qs_env, scf_env=scf_env)
          ELSE
             CALL qs_scf_env_initialize(qs_env, scf_env)
          END IF
@@ -373,7 +375,6 @@ CONTAINS
                scf_section, para_env, results, kpoints, pw_env, rho_ao_kp, mos_last_converged)
 
       CPASSERT(ASSOCIATED(scf_env))
-      CPASSERT(scf_env%ref_count > 0)
       CPASSERT(ASSOCIATED(qs_env))
 
       logger => cp_get_default_logger()
@@ -655,7 +656,6 @@ CONTAINS
       NULLIFY (scf_control, matrix_s, matrix_ks, dft_control, mos, mo_coeff)
 
       CPASSERT(ASSOCIATED(scf_env))
-      CPASSERT(scf_env%ref_count > 0)
       CPASSERT(ASSOCIATED(qs_env))
 
       CALL get_qs_env(qs_env=qs_env, &
@@ -874,7 +874,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE scf_env_cleanup(scf_env)
-      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(qs_scf_env_type), INTENT(INOUT)               :: scf_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'scf_env_cleanup'
 
@@ -882,11 +882,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(ASSOCIATED(scf_env))
-      CPASSERT(scf_env%ref_count > 0)
-
       ! Release SCF work storage
-
       IF (ASSOCIATED(scf_env%scf_work1)) THEN
          DO ispin = 1, SIZE(scf_env%scf_work1)
             CALL cp_fm_release(scf_env%scf_work1(ispin)%matrix)

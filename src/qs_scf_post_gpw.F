@@ -323,7 +323,6 @@ CONTAINS
       p_loc_mixed = .FALSE.
 
       CPASSERT(ASSOCIATED(scf_env))
-      CPASSERT(scf_env%ref_count > 0)
       CPASSERT(ASSOCIATED(qs_env))
       ! Here we start with data that needs a postprocessing...
       CALL get_qs_env(qs_env, &

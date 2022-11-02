@@ -134,8 +134,7 @@ MODULE qs_environment_types
                                               qs_rho_retain,&
                                               qs_rho_type
    USE qs_scf_types,                    ONLY: qs_scf_env_type,&
-                                              scf_env_release,&
-                                              scf_env_retain
+                                              scf_env_release
    USE qs_subsys_types,                 ONLY: qs_subsys_set,&
                                               qs_subsys_type
    USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
@@ -1222,8 +1221,12 @@ CONTAINS
          qs_env%wf_history => wf_history
       END IF
       IF (PRESENT(scf_env)) THEN ! accept also null pointers ?
-         CALL scf_env_retain(scf_env)
-         CALL scf_env_release(qs_env%scf_env)
+         IF (ASSOCIATED(qs_env%scf_env)) THEN
+         IF (.NOT. ASSOCIATED(qs_env%scf_env, scf_env)) THEN
+            CALL scf_env_release(qs_env%scf_env)
+            DEALLOCATE (qs_env%scf_env)
+         END IF
+         END IF
          qs_env%scf_env => scf_env
       END IF
       IF (PRESENT(xas_env)) THEN ! accept also null pointers?
@@ -1475,7 +1478,10 @@ CONTAINS
          DEALLOCATE (qs_env%ks_qmmm_env)
       END IF
       CALL wfi_release(qs_env%wf_history)
-      CALL scf_env_release(qs_env%scf_env)
+      IF (ASSOCIATED(qs_env%scf_env)) THEN
+         CALL scf_env_release(qs_env%scf_env)
+         DEALLOCATE (qs_env%scf_env)
+      END IF
       CALL mpools_release(qs_env%mpools)
       CALL section_vals_release(qs_env%input)
       IF (ASSOCIATED(qs_env%cp_ddapc_env)) THEN
@@ -1686,7 +1692,10 @@ CONTAINS
          DEALLOCATE (qs_env%ks_qmmm_env)
       END IF
       CALL wfi_release(qs_env%wf_history)
-      CALL scf_env_release(qs_env%scf_env)
+      IF (ASSOCIATED(qs_env%scf_env)) THEN
+         CALL scf_env_release(qs_env%scf_env)
+         DEALLOCATE (qs_env%scf_env)
+      END IF
       IF (ASSOCIATED(qs_env%cp_ddapc_env)) THEN
          CALL cp_ddapc_release(qs_env%cp_ddapc_env)
          DEALLOCATE (qs_env%cp_ddapc_env)

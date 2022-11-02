@@ -36,8 +36,7 @@ MODULE qs_gamma2kp
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_scf_initialization,           ONLY: qs_scf_env_init_basic
-   USE qs_scf_types,                    ONLY: qs_scf_env_type,&
-                                              scf_env_release
+   USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE scf_control_types,               ONLY: scf_control_type
 #include "./base/base_uses.f90"
 
@@ -116,7 +115,6 @@ CONTAINS
       CALL qs_scf_env_init_basic(qs_env_kp, scf_env)
 
       CALL set_qs_env(qs_env_kp, scf_env=scf_env)
-      CALL scf_env_release(scf_env)
 
       ! copy density matrix, n(r) and n(G) from Gamma-only to kpoint calculation
       CALL get_qs_env(qs_env, rho=rho_gamma)

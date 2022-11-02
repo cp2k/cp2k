@@ -93,8 +93,7 @@ MODULE xas_tp_scf
    USE qs_scf_methods,                  ONLY: scf_env_density_mixing
    USE qs_scf_output,                   ONLY: qs_scf_print_summary
    USE qs_scf_types,                    ONLY: general_diag_method_nr,&
-                                              qs_scf_env_type,&
-                                              scf_env_release
+                                              qs_scf_env_type
    USE scf_control_types,               ONLY: scf_control_type
    USE xas_control,                     ONLY: xas_control_type
    USE xas_env_types,                   ONLY: get_xas_env,&
@@ -178,7 +177,6 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(xas_env))
       CPASSERT(ASSOCIATED(scf_env))
-      CPASSERT(scf_env%ref_count > 0)
       CPASSERT(ASSOCIATED(qs_env))
 
       CALL get_qs_env(qs_env=qs_env, &
@@ -692,8 +690,6 @@ CONTAINS
          IF (.NOT. ASSOCIATED(scf_env)) THEN
             CALL qs_scf_env_initialize(qs_env, scf_env, scf_control, scf_section)
             CALL set_xas_env(xas_env, scf_env=scf_env)
-            CALL scf_env_release(scf_env)
-            CALL get_xas_env(xas_env=xas_env, scf_env=scf_env)
          ELSE
             CALL qs_scf_env_initialize(qs_env, scf_env, scf_control, scf_section)
          END IF

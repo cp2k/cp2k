@@ -29,8 +29,7 @@ MODULE xas_env_types
                                               qs_loc_env_release,&
                                               qs_loc_env_retain
    USE qs_scf_types,                    ONLY: qs_scf_env_type,&
-                                              scf_env_release,&
-                                              scf_env_retain
+                                              scf_env_release
    USE scf_control_types,               ONLY: scf_c_release,&
                                               scf_control_type
 #include "./base/base_uses.f90"
@@ -272,8 +271,12 @@ CONTAINS
          xas_env%qs_loc_env => qs_loc_env
       END IF
       IF (PRESENT(scf_env)) THEN ! accept also null pointers ?
-         CALL scf_env_retain(scf_env)
-         CALL scf_env_release(xas_env%scf_env)
+         IF (ASSOCIATED(xas_env%scf_env)) THEN
+         IF (ASSOCIATED(xas_env%scf_env, scf_env)) THEN
+            CALL scf_env_release(xas_env%scf_env)
+            DEALLOCATE (xas_env%scf_env)
+         END IF
+         END IF
          xas_env%scf_env => scf_env
       END IF
       IF (PRESENT(scf_control)) THEN ! accept also null pointers?
@@ -403,7 +406,10 @@ CONTAINS
          DEALLOCATE (xas_env%stogto_overlap)
       END IF
 
-      CALL scf_env_release(xas_env%scf_env)
+      IF (ASSOCIATED(xas_env%scf_env)) THEN
+         CALL scf_env_release(xas_env%scf_env)
+         DEALLOCATE (xas_env%scf_env)
+      END IF
       IF (ASSOCIATED(xas_env%scf_control)) THEN
          CALL scf_c_release(xas_env%scf_control)
          DEALLOCATE (xas_env%scf_control)

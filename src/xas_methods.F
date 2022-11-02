@@ -471,8 +471,6 @@ CONTAINS
                      CALL qs_scf_env_initialize(qs_env, scf_env, scf_control, scf_section)
                      !     Moved here from qs_scf_env_initialize to be able to have more scf_env
                      CALL set_xas_env(xas_env, scf_env=scf_env)
-                     CALL scf_env_release(scf_env)
-                     CALL get_xas_env(xas_env=xas_env, scf_env=scf_env)
                   ELSE
                      CALL qs_scf_env_initialize(qs_env, scf_env, scf_control, scf_section)
                   END IF
@@ -543,6 +541,7 @@ CONTAINS
                IF (iat == nexc_atoms) THEN
                   CALL scf_env_cleanup(scf_env)
                   CALL scf_env_release(xas_env%scf_env)
+                  DEALLOCATE (xas_env%scf_env)
                END IF
             END IF
 
