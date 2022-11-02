@@ -32,7 +32,7 @@ MODULE fist_nonbond_env_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_nonbond_env_types'
    PUBLIC :: fist_nonbond_env_type, fist_nonbond_env_set, &
              fist_nonbond_env_get, fist_nonbond_env_create, &
-             fist_nonbond_env_retain, fist_nonbond_env_release, pos_type, eam_type, &
+             fist_nonbond_env_release, pos_type, eam_type, &
              quip_data_type
 
 ! **************************************************************************************************
@@ -52,7 +52,7 @@ MODULE fist_nonbond_env_types
 
 ! **************************************************************************************************
    TYPE fist_nonbond_env_type
-      INTEGER :: ref_count, natom_types
+      INTEGER :: natom_types
       INTEGER :: counter, last_update, num_update
       LOGICAL :: do_nonbonded, shift_cutoff
       CHARACTER(len=default_string_length)   :: unit_type
@@ -111,7 +111,7 @@ CONTAINS
                                    counter, natom_types, long_range_correction, ij_kind_full_fac, eam_data, &
                                    quip_data, charges)
 
-      TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
+      TYPE(fist_nonbond_env_type), INTENT(IN)            :: fist_nonbond_env
       TYPE(pair_potential_pp_type), OPTIONAL, POINTER    :: potparm14, potparm
       TYPE(fist_neighbor_type), OPTIONAL, POINTER        :: nonbonded
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: rlist_cut, rlist_lowsq
@@ -198,7 +198,7 @@ CONTAINS
                                    rcore_last_update_pbc, cell_last_update, num_update, last_update, &
                                    counter, natom_types, long_range_correction, eam_data, quip_data, charges)
 
-      TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
+      TYPE(fist_nonbond_env_type), INTENT(INOUT)         :: fist_nonbond_env
       TYPE(pair_potential_pp_type), OPTIONAL, POINTER    :: potparm14, potparm
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: rlist_cut, rlist_lowsq
       TYPE(fist_neighbor_type), OPTIONAL, POINTER        :: nonbonded
@@ -266,7 +266,7 @@ CONTAINS
    SUBROUTINE fist_nonbond_env_create(fist_nonbond_env, atomic_kind_set, &
                                       potparm14, potparm, do_nonbonded, verlet_skin, ewald_rcut, ei_scale14, &
                                       vdw_scale14, shift_cutoff)
-      TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
+      TYPE(fist_nonbond_env_type), INTENT(OUT)           :: fist_nonbond_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(pair_potential_pp_type), OPTIONAL, POINTER    :: potparm14, potparm
       LOGICAL, INTENT(IN)                                :: do_nonbonded
@@ -274,7 +274,6 @@ CONTAINS
                                                             vdw_scale14
       LOGICAL, INTENT(IN)                                :: shift_cutoff
 
-      ALLOCATE (fist_nonbond_env)
       NULLIFY (fist_nonbond_env%potparm14)
       NULLIFY (fist_nonbond_env%potparm)
       NULLIFY (fist_nonbond_env%rlist_cut)
@@ -311,7 +310,7 @@ CONTAINS
                                     potparm14, potparm, do_nonbonded, verlet_skin, ewald_rcut, ei_scale14, &
                                     vdw_scale14, shift_cutoff)
 
-      TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
+      TYPE(fist_nonbond_env_type), INTENT(INOUT)         :: fist_nonbond_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(pair_potential_pp_type), OPTIONAL, POINTER    :: potparm14, potparm
       LOGICAL, INTENT(IN)                                :: do_nonbonded
@@ -347,7 +346,6 @@ CONTAINS
       fist_nonbond_env%last_update = 0
       fist_nonbond_env%num_update = 0
       fist_nonbond_env%long_range_correction = 0
-      fist_nonbond_env%ref_count = 1
       IF (do_nonbonded) THEN
          natom_types = 1
          ! Determine size of kind arrays
@@ -431,21 +429,6 @@ CONTAINS
    END SUBROUTINE init_fist_nonbond_env
 
 ! **************************************************************************************************
-!> \brief retains the given fist_nonbond_env (see doc/ReferenceCounting.html)
-!> \param fist_nonbond_env the object to retain
-!> \par History
-!>      12.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   SUBROUTINE fist_nonbond_env_retain(fist_nonbond_env)
-      TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
-
-      CPASSERT(ASSOCIATED(fist_nonbond_env))
-      CPASSERT(fist_nonbond_env%ref_count > 0)
-      fist_nonbond_env%ref_count = fist_nonbond_env%ref_count + 1
-   END SUBROUTINE fist_nonbond_env_retain
-
-! **************************************************************************************************
 !> \brief releases the given fist_nonbond_env (see doc/ReferenceCounting.html)
 !> \param fist_nonbond_env the object to release
 !> \par History
@@ -453,60 +436,53 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE fist_nonbond_env_release(fist_nonbond_env)
-      TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
+      TYPE(fist_nonbond_env_type), INTENT(INOUT)         :: fist_nonbond_env
 
-      IF (ASSOCIATED(fist_nonbond_env)) THEN
-         CPASSERT(fist_nonbond_env%ref_count > 0)
-         fist_nonbond_env%ref_count = fist_nonbond_env%ref_count - 1
-         IF (fist_nonbond_env%ref_count < 1) THEN
-            IF (ASSOCIATED(fist_nonbond_env%nonbonded)) THEN
-               CALL fist_neighbor_deallocate(fist_nonbond_env%nonbonded)
-            END IF
-            ! Release potparm
-            CALL pair_potential_pp_release(fist_nonbond_env%potparm)
-            ! Release potparm14
-            CALL pair_potential_pp_release(fist_nonbond_env%potparm14)
-            IF (ASSOCIATED(fist_nonbond_env%r_last_update)) THEN
-               DEALLOCATE (fist_nonbond_env%r_last_update)
-            END IF
-            IF (ASSOCIATED(fist_nonbond_env%r_last_update_pbc)) THEN
-               DEALLOCATE (fist_nonbond_env%r_last_update_pbc)
-            END IF
-            IF (ASSOCIATED(fist_nonbond_env%charges)) THEN
-               DEALLOCATE (fist_nonbond_env%charges)
-            END IF
-            IF (ASSOCIATED(fist_nonbond_env%eam_data)) THEN
-               DEALLOCATE (fist_nonbond_env%eam_data)
-            END IF
-            IF (ASSOCIATED(fist_nonbond_env%quip_data)) THEN
-               IF (ASSOCIATED(fist_nonbond_env%quip_data%force)) THEN
-                  DEALLOCATE (fist_nonbond_env%quip_data%force)
-               END IF
-               IF (ASSOCIATED(fist_nonbond_env%quip_data%use_indices)) THEN
-                  DEALLOCATE (fist_nonbond_env%quip_data%use_indices)
-               END IF
-               DEALLOCATE (fist_nonbond_env%quip_data)
-            END IF
-            IF (ASSOCIATED(fist_nonbond_env%rshell_last_update_pbc)) THEN
-               DEALLOCATE (fist_nonbond_env%rshell_last_update_pbc)
-            END IF
-            IF (ASSOCIATED(fist_nonbond_env%rcore_last_update_pbc)) THEN
-               DEALLOCATE (fist_nonbond_env%rcore_last_update_pbc)
-            END IF
-            IF (ASSOCIATED(fist_nonbond_env%cell_last_update)) THEN
-               CALL cell_release(fist_nonbond_env%cell_last_update)
-            END IF
-            IF (ASSOCIATED(fist_nonbond_env%ij_kind_full_fac)) THEN
-               DEALLOCATE (fist_nonbond_env%ij_kind_full_fac)
-            END IF
-            IF (ASSOCIATED(fist_nonbond_env%rlist_cut)) THEN
-               DEALLOCATE (fist_nonbond_env%rlist_cut)
-            END IF
-            IF (ASSOCIATED(fist_nonbond_env%rlist_lowsq)) THEN
-               DEALLOCATE (fist_nonbond_env%rlist_lowsq)
-            END IF
-            DEALLOCATE (fist_nonbond_env)
+      IF (ASSOCIATED(fist_nonbond_env%nonbonded)) THEN
+         CALL fist_neighbor_deallocate(fist_nonbond_env%nonbonded)
+      END IF
+      ! Release potparm
+      CALL pair_potential_pp_release(fist_nonbond_env%potparm)
+      ! Release potparm14
+      CALL pair_potential_pp_release(fist_nonbond_env%potparm14)
+      IF (ASSOCIATED(fist_nonbond_env%r_last_update)) THEN
+         DEALLOCATE (fist_nonbond_env%r_last_update)
+      END IF
+      IF (ASSOCIATED(fist_nonbond_env%r_last_update_pbc)) THEN
+         DEALLOCATE (fist_nonbond_env%r_last_update_pbc)
+      END IF
+      IF (ASSOCIATED(fist_nonbond_env%charges)) THEN
+         DEALLOCATE (fist_nonbond_env%charges)
+      END IF
+      IF (ASSOCIATED(fist_nonbond_env%eam_data)) THEN
+         DEALLOCATE (fist_nonbond_env%eam_data)
+      END IF
+      IF (ASSOCIATED(fist_nonbond_env%quip_data)) THEN
+         IF (ASSOCIATED(fist_nonbond_env%quip_data%force)) THEN
+            DEALLOCATE (fist_nonbond_env%quip_data%force)
          END IF
+         IF (ASSOCIATED(fist_nonbond_env%quip_data%use_indices)) THEN
+            DEALLOCATE (fist_nonbond_env%quip_data%use_indices)
+         END IF
+         DEALLOCATE (fist_nonbond_env%quip_data)
+      END IF
+      IF (ASSOCIATED(fist_nonbond_env%rshell_last_update_pbc)) THEN
+         DEALLOCATE (fist_nonbond_env%rshell_last_update_pbc)
+      END IF
+      IF (ASSOCIATED(fist_nonbond_env%rcore_last_update_pbc)) THEN
+         DEALLOCATE (fist_nonbond_env%rcore_last_update_pbc)
+      END IF
+      IF (ASSOCIATED(fist_nonbond_env%cell_last_update)) THEN
+         CALL cell_release(fist_nonbond_env%cell_last_update)
+      END IF
+      IF (ASSOCIATED(fist_nonbond_env%ij_kind_full_fac)) THEN
+         DEALLOCATE (fist_nonbond_env%ij_kind_full_fac)
+      END IF
+      IF (ASSOCIATED(fist_nonbond_env%rlist_cut)) THEN
+         DEALLOCATE (fist_nonbond_env%rlist_cut)
+      END IF
+      IF (ASSOCIATED(fist_nonbond_env%rlist_lowsq)) THEN
+         DEALLOCATE (fist_nonbond_env%rlist_lowsq)
       END IF
    END SUBROUTINE fist_nonbond_env_release
 

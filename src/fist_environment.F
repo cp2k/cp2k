@@ -51,8 +51,7 @@ MODULE fist_environment
    USE fist_environment_types,          ONLY: fist_env_get,&
                                               fist_env_set,&
                                               fist_environment_type
-   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_release,&
-                                              fist_nonbond_env_type
+   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
    USE force_fields,                    ONLY: force_field_control
    USE header,                          ONLY: fist_header
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -201,7 +200,6 @@ CONTAINS
       CALL cell_release(cell)
       CALL cell_release(cell_ref)
       CALL ewald_env_release(ewald_env)
-      CALL fist_nonbond_env_release(fist_nonbond_env)
       CALL cp_subsys_release(subsys)
 
       CALL timestop(handle)

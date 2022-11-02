@@ -41,7 +41,6 @@ MODULE fist_environment_types
    USE fist_energy_types,               ONLY: deallocate_fist_energy,&
                                               fist_energy_type
    USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_release,&
-                                              fist_nonbond_env_retain,&
                                               fist_nonbond_env_type
    USE input_section_types,             ONLY: section_vals_release,&
                                               section_vals_retain,&
@@ -332,8 +331,12 @@ CONTAINS
          fist_env%cell_ref => cell_ref
       END IF
       IF (PRESENT(fist_nonbond_env)) THEN
-         CALL fist_nonbond_env_retain(fist_nonbond_env)
-         CALL fist_nonbond_env_release(fist_env%fist_nonbond_env)
+         IF (ASSOCIATED(fist_env%fist_nonbond_env)) THEN
+         IF (.NOT. ASSOCIATED(fist_env%fist_nonbond_env, fist_nonbond_env)) THEN
+            CALL fist_nonbond_env_release(fist_env%fist_nonbond_env)
+            DEALLOCATE (fist_env%fist_nonbond_env)
+         END IF
+         END IF
          fist_env%fist_nonbond_env => fist_nonbond_env
       END IF
       IF (PRESENT(input)) THEN
@@ -432,7 +435,10 @@ CONTAINS
       CALL cp_para_env_release(fist_env%para_env)
       CALL deallocate_fist_energy(fist_env%thermo)
 
-      CALL fist_nonbond_env_release(fist_env%fist_nonbond_env)
+      IF (ASSOCIATED(fist_env%fist_nonbond_env)) THEN
+         CALL fist_nonbond_env_release(fist_env%fist_nonbond_env)
+         DEALLOCATE (fist_env%fist_nonbond_env)
+      END IF
       CALL cp_subsys_release(fist_env%subsys)
       CALL section_vals_release(fist_env%input)
       CALL exclusion_release(fist_env%exclusions)

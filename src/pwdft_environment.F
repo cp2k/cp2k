@@ -42,7 +42,6 @@ MODULE pwdft_environment
                                               write_qs_kind_set
    USE qs_subsys_methods,               ONLY: qs_subsys_create
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
-                                              qs_subsys_release,&
                                               qs_subsys_set,&
                                               qs_subsys_type
    USE sirius_interface,                ONLY: cp_sirius_create_env,&
@@ -121,6 +120,7 @@ CONTAINS
       CALL pwdft_env_set(pwdft_env=pwdft_env, para_env=para_env)
 
       NULLIFY (qs_subsys)
+      ALLOCATE (qs_subsys)
       CALL qs_subsys_create(qs_subsys, para_env, &
                             force_env_section=force_env_section, &
                             subsys_section=subsys_section, &
@@ -149,9 +149,7 @@ CONTAINS
       CALL distribution_1d_release(local_molecules)
 
       CALL pwdft_env_set(pwdft_env=pwdft_env, qs_subsys=qs_subsys)
-      CALL qs_subsys_release(qs_subsys)
 
-      CALL pwdft_env_get(pwdft_env=pwdft_env, qs_subsys=qs_subsys)
       CALL qs_subsys_get(qs_subsys, cell=my_cell, cell_ref=my_cell_ref, use_ref_cell=use_ref_cell)
 
       NULLIFY (logger)

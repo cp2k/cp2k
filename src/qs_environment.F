@@ -178,7 +178,6 @@ MODULE qs_environment
    USE qs_rho_atom_types,               ONLY: rho_atom_type
    USE qs_subsys_methods,               ONLY: qs_subsys_create
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
-                                              qs_subsys_release,&
                                               qs_subsys_set,&
                                               qs_subsys_type
    USE qs_wf_history_methods,           ONLY: wfi_create,&
@@ -312,6 +311,7 @@ CONTAINS
          is_semi = .FALSE.
       END SELECT
 
+      ALLOCATE (subsys)
       CALL qs_subsys_create(subsys, para_env, &
                             force_env_section=force_env_section, &
                             subsys_section=subsys_section, &
@@ -497,8 +497,6 @@ CONTAINS
             END DO
          END IF
       END IF
-
-      CALL qs_subsys_release(subsys)
 
    END SUBROUTINE qs_init
 
@@ -1172,6 +1170,7 @@ CONTAINS
             END IF
             CALL section_vals_val_get(se_section, "NEIGHBOR_LISTS%VERLET_SKIN", &
                                       r_val=verlet_skin)
+            ALLOCATE (se_nonbond_env)
             CALL fist_nonbond_env_create(se_nonbond_env, atomic_kind_set, &
                                          do_nonbonded=.TRUE., verlet_skin=verlet_skin, ewald_rcut=ewald_rcut, &
                                          ei_scale14=0.0_dp, vdw_scale14=0.0_dp, shift_cutoff=.FALSE.)

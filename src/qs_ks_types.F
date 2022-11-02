@@ -61,7 +61,6 @@ MODULE qs_ks_types
                                               qs_rho_type
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_release,&
-                                              qs_subsys_retain,&
                                               qs_subsys_type
    USE task_list_types,                 ONLY: deallocate_task_list,&
                                               task_list_type
@@ -649,8 +648,12 @@ CONTAINS
       IF (PRESENT(task_list_soft)) ks_env%task_list_soft => task_list_soft
 
       IF (PRESENT(subsys)) THEN
-         CALL qs_subsys_release(ks_env%subsys)
-         CALL qs_subsys_retain(subsys)
+         IF (ASSOCIATED(ks_env%subsys)) THEN
+         IF (ASSOCIATED(ks_env%subsys, subsys)) THEN
+            CALL qs_subsys_release(ks_env%subsys)
+            DEALLOCATE (ks_env%subsys)
+         END IF
+         END IF
          ks_env%subsys => subsys
       END IF
       IF (PRESENT(dft_control)) THEN
@@ -776,7 +779,10 @@ CONTAINS
       CALL release_neighbor_list_sets(ks_env%sab_kp)
       CALL dft_control_release(ks_env%dft_control)
       CALL kpoint_release(ks_env%kpoints)
-      CALL qs_subsys_release(ks_env%subsys)
+      IF (ASSOCIATED(ks_env%subsys)) THEN
+         CALL qs_subsys_release(ks_env%subsys)
+         DEALLOCATE (ks_env%subsys)
+      END IF
       CALL pw_env_release(ks_env%pw_env)
       CALL cp_para_env_release(ks_env%para_env)
       CALL cp_blacs_env_release(ks_env%blacs_env)

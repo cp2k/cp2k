@@ -20,7 +20,6 @@ MODULE pwdft_environment_types
    USE kinds, ONLY: dp
    USE qs_subsys_types, ONLY: qs_subsys_get, &
                               qs_subsys_release, &
-                              qs_subsys_retain, &
                               qs_subsys_set, &
                               qs_subsys_type
 
@@ -108,6 +107,7 @@ CONTAINS
 
       IF (ASSOCIATED(pwdft_env%qs_subsys)) THEN
          CALL qs_subsys_release(pwdft_env%qs_subsys)
+         DEALLOCATE (pwdft_env%qs_subsys)
       END IF
       IF (ASSOCIATED(pwdft_env%energy)) THEN
          DEALLOCATE (pwdft_env%energy)
@@ -229,8 +229,12 @@ CONTAINS
       IF (PRESENT(xc_input)) pwdft_env%xc_input => xc_input
 
       IF (PRESENT(qs_subsys)) THEN
-         CALL qs_subsys_retain(qs_subsys)
-         CALL qs_subsys_release(pwdft_env%qs_subsys)
+         IF (ASSOCIATED(pwdft_env%qs_subsys)) THEN
+         IF (.NOT. ASSOCIATED(pwdft_env%qs_subsys, qs_subsys)) THEN
+            CALL qs_subsys_release(pwdft_env%qs_subsys)
+            DEALLOCATE (pwdft_env%qs_subsys)
+         END IF
+         END IF
          pwdft_env%qs_subsys => qs_subsys
       END IF
       IF (PRESENT(cp_subsys)) THEN
@@ -263,6 +267,7 @@ CONTAINS
       NULLIFY (pwdft_env%force_env_input)
       IF (ASSOCIATED(pwdft_env%qs_subsys)) THEN
          CALL qs_subsys_release(pwdft_env%qs_subsys)
+         DEALLOCATE (pwdft_env%qs_subsys)
       END IF
       IF (ASSOCIATED(pwdft_env%energy)) THEN
          DEALLOCATE (pwdft_env%energy)

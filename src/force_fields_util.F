@@ -318,6 +318,7 @@ CONTAINS
       CALL ewald_env_get(ewald_env, rcut=ewald_rcut)
       CALL section_vals_val_get(mm_section, "NEIGHBOR_LISTS%VERLET_SKIN", &
                                 r_val=verlet_skin)
+      ALLOCATE (fist_nonbond_env)
       CALL fist_nonbond_env_create(fist_nonbond_env, atomic_kind_set, &
                                    potparm_nonbond14, potparm_nonbond, ff_type%do_nonbonded, &
                                    verlet_skin, ewald_rcut, ff_type%ei_scale14, &
