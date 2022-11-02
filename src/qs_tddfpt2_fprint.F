@@ -22,6 +22,7 @@ MODULE qs_tddfpt2_fprint
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE exstates_types,                  ONLY: excited_energy_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -34,6 +35,7 @@ MODULE qs_tddfpt2_fprint
    USE qs_force_types,                  ONLY: allocate_qs_force,&
                                               deallocate_qs_force,&
                                               qs_force_type,&
+                                              replicate_qs_force,&
                                               total_qs_force,&
                                               zero_qs_force
    USE qs_kernel_types,                 ONLY: kernel_env_type
@@ -98,6 +100,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(excited_energy_type), POINTER                 :: ex_env
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: ks_force, td_force
@@ -161,7 +164,7 @@ CONTAINS
          CALL allocate_qs_force(td_force, natom_of_kind)
          CALL set_qs_env(qs_env, force=td_force)
 
-         CALL get_qs_env(qs_env, exstate_env=ex_env)
+         CALL get_qs_env(qs_env, exstate_env=ex_env, para_env=para_env)
          kstate = ex_env%state
          eener = ex_env%evalue
          ! Start force loop over states
@@ -219,9 +222,8 @@ CONTAINS
                END IF
                CALL p_env_release(p_env)
                !
-               IF (iwunit > 0) THEN
-                  CALL pforce(iwunit, td_force, atomic_kind_set, natom)
-               END IF
+               CALL replicate_qs_force(td_force, para_env)
+               CALL pforce(iwunit, td_force, atomic_kind_set, natom)
                !
             ELSE
                IF (iwunit > 0) THEN
@@ -305,11 +307,13 @@ CONTAINS
       ALLOCATE (force(3, natom))
       CALL total_qs_force(force, td_force, atomic_kind_set)
 
-      WRITE (iwunit, *) natom
-      WRITE (iwunit, *)
-      DO iatom = 1, natom
-         WRITE (iwunit, "(3F24.14)") - force(1:3, iatom)
-      END DO
+      IF (iwunit > 0) THEN
+         WRITE (iwunit, *) natom
+         WRITE (iwunit, *)
+         DO iatom = 1, natom
+            WRITE (iwunit, "(3F24.14)") - force(1:3, iatom)
+         END DO
+      END IF
       DEALLOCATE (force)
 
    END SUBROUTINE pforce
