@@ -202,6 +202,7 @@ CONTAINS
       md_section => section_vals_get_subs_vals(motion_section, "MD")
 
       ! Real call to MD driver - Low Level
+      ALLOCATE (md_env)
       CALL md_env_create(md_env, md_section, para_env, force_env=force_env)
       IF (PRESENT(averages)) CALL set_md_env(md_env, averages=averages)
 
@@ -639,6 +640,7 @@ CONTAINS
       CALL release_simpar_type(simpar)
 
       CALL md_env_release(md_env)
+      DEALLOCATE (md_env)
       ! Clean restartable sections..
       IF (my_rm_restart_info) CALL remove_restart_info(force_env%root_section)
 !     IF (para_env%ionode) THEN

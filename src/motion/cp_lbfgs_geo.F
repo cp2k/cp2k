@@ -119,6 +119,7 @@ CONTAINS
          CPABORT("BFGS method not yet working with DIMER")
 
       CALL section_vals_val_get(geo_section, "LBFGS%TRUST_RADIUS", r_val=trust_radius)
+      ALLOCATE (optimizer)
       CALL cp_opt_gopt_create(optimizer, para_env=para_env, obj_funct=gopt_env, &
                               x0=x0, wanted_relative_f_delta=gopt_param%wanted_rel_f_error, &
                               wanted_projected_gradient=gopt_param%wanted_proj_gradient, m=gopt_param%max_h_rank, &
@@ -155,6 +156,7 @@ CONTAINS
                               optimizer%para_env, optimizer%master, output_unit)
 
       CALL cp_opt_gopt_release(optimizer)
+      DEALLOCATE (optimizer)
       CALL cp_print_key_finished_output(output_unit, logger, geo_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
 
