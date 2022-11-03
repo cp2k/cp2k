@@ -107,8 +107,7 @@ MODULE tamc_run
    USE qs_scf_post_gpw,                 ONLY: scf_post_calculation_gpw
    USE reference_manager,               ONLY: cite_reference
    USE reftraj_types,                   ONLY: create_reftraj,&
-                                              reftraj_type,&
-                                              release_reftraj
+                                              reftraj_type
    USE reftraj_util,                    ONLY: initialize_reftraj
    USE simpar_methods,                  ONLY: read_md_section
    USE simpar_types,                    ONLY: create_simpar_type,&
@@ -258,9 +257,9 @@ CONTAINS
 
       IF (simpar%ensemble == reftraj_ensemble) THEN
          reftraj_section => section_vals_get_subs_vals(md_section, "REFTRAJ")
+         ALLOCATE (reftraj)
          CALL create_reftraj(reftraj, reftraj_section, para_env)
          CALL set_md_env(md_env, reftraj=reftraj)
-         CALL release_reftraj(reftraj)
       END IF
 
       CALL force_env_get(force_env, subsys=subsys, cell=cell, &

@@ -78,8 +78,7 @@ MODULE md_run
    USE particle_list_types,             ONLY: particle_list_type
    USE qs_environment_methods,          ONLY: qs_env_time_update
    USE reftraj_types,                   ONLY: create_reftraj,&
-                                              reftraj_type,&
-                                              release_reftraj
+                                              reftraj_type
    USE reftraj_util,                    ONLY: initialize_reftraj,&
                                               write_output_reftraj
    USE rt_propagation,                  ONLY: rt_prop_setup
@@ -277,9 +276,9 @@ CONTAINS
          CPABORT("Ehrenfest MD does not support reftraj ensemble ")
       IF (simpar%ensemble == reftraj_ensemble) THEN
          reftraj_section => section_vals_get_subs_vals(md_section, "REFTRAJ")
+         ALLOCATE (reftraj)
          CALL create_reftraj(reftraj, reftraj_section, para_env)
          CALL set_md_env(md_env, reftraj=reftraj)
-         CALL release_reftraj(reftraj)
       END IF
 
       CALL force_env_get(force_env, subsys=subsys, cell=cell, &

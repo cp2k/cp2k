@@ -38,8 +38,7 @@ MODULE md_environment_types
    USE md_ener_types,                   ONLY: md_ener_type,&
                                               release_md_ener
    USE reftraj_types,                   ONLY: reftraj_type,&
-                                              release_reftraj,&
-                                              retain_reftraj
+                                              release_reftraj
    USE simpar_types,                    ONLY: simpar_type
    USE thermal_region_types,            ONLY: release_thermal_regions,&
                                               thermal_regions_type
@@ -155,7 +154,10 @@ CONTAINS
       NULLIFY (md_env%simpar)
       CALL release_barostat_type(md_env%barostat)
       CALL release_thermostats(md_env%thermostats)
-      CALL release_reftraj(md_env%reftraj)
+      IF (ASSOCIATED(md_env%reftraj)) THEN
+         CALL release_reftraj(md_env%reftraj)
+         DEALLOCATE (md_env%reftraj)
+      END IF
       IF (ASSOCIATED(md_env%md_ener)) THEN
          CALL release_md_ener(md_env%md_ener)
          DEALLOCATE (md_env%md_ener)
@@ -346,8 +348,12 @@ CONTAINS
          md_env%force_env => force_env
       END IF
       IF (PRESENT(reftraj)) THEN
-         CALL release_reftraj(md_env%reftraj)
-         CALL retain_reftraj(reftraj)
+         IF (ASSOCIATED(md_env%reftraj)) THEN
+         IF (.NOT. ASSOCIATED(md_env%reftraj, reftraj)) THEN
+            CALL release_reftraj(md_env%reftraj)
+            DEALLOCATE (md_env%reftraj)
+         END IF
+         END IF
          md_env%reftraj => reftraj
       END IF
       IF (PRESENT(md_ener)) THEN
