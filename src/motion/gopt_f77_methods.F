@@ -20,8 +20,8 @@
 !>       07.2020 Pierre Cazade [pcazade] Space Group Symmetry
 !> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
 ! **************************************************************************************************
-RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
-                                final_evaluation, para_env)
+SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
+                      final_evaluation, para_env)
 
    USE cp_log_handling, ONLY: cp_logger_type
    USE averages_types, ONLY: average_quantities_type, &
