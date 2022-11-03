@@ -115,8 +115,7 @@ MODULE tamc_run
                                               release_simpar_type,&
                                               simpar_type
    USE string_utilities,                ONLY: str_comp
-   USE thermal_region_types,            ONLY: release_thermal_regions,&
-                                              thermal_regions_type
+   USE thermal_region_types,            ONLY: thermal_regions_type
    USE thermal_region_utils,            ONLY: create_thermal_regions
    USE thermostat_methods,              ONLY: create_thermostats
    USE thermostat_types,                ONLY: release_thermostats,&
@@ -197,7 +196,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       my_rm_restart_info = .TRUE.
-      NULLIFY (md_env, para_env, fs_section, virial)
+      NULLIFY (para_env, fs_section, virial)
       para_env => force_env%para_env
       motion_section => section_vals_get_subs_vals(force_env%root_section, "MOTION")
       md_section => section_vals_get_subs_vals(motion_section, "MD")

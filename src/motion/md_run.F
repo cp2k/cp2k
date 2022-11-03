@@ -87,8 +87,7 @@ MODULE md_run
    USE simpar_types,                    ONLY: create_simpar_type,&
                                               release_simpar_type,&
                                               simpar_type
-   USE thermal_region_types,            ONLY: release_thermal_regions,&
-                                              thermal_regions_type
+   USE thermal_region_types,            ONLY: thermal_regions_type
    USE thermal_region_utils,            ONLY: create_thermal_regions,&
                                               print_thermal_regions_langevin
    USE thermostat_methods,              ONLY: create_thermostats
@@ -143,6 +142,7 @@ CONTAINS
       md_section => section_vals_get_subs_vals(motion_section, "MD")
 
       ! Real call to MD driver - Low Level
+      ALLOCATE (md_env)
       CALL md_env_create(md_env, md_section, para_env, force_env=force_env)
       CALL set_md_env(md_env, averages=averages)
       IF (PRESENT(hmc_e_initial) .AND. PRESENT(hmc_e_final)) THEN
@@ -152,6 +152,7 @@ CONTAINS
          CALL qs_mol_dyn_low(md_env, md_section, motion_section, force_env, globenv, mdctrl=mdctrl)
       END IF
       CALL md_env_release(md_env)
+      DEALLOCATE (md_env)
 
       ! Clean restartable sections..
       IF (my_rm_restart_info) CALL remove_restart_info(force_env%root_section)
