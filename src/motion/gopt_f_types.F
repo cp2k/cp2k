@@ -29,7 +29,6 @@ MODULE gopt_f_types
                                               force_env_type
    USE global_types,                    ONLY: global_environment_type
    USE gopt_param_types,                ONLY: gopt_param_read,&
-                                              gopt_param_release,&
                                               gopt_param_type
    USE input_constants,                 ONLY: default_cell_method_id,&
                                               default_dimer_method_id,&
@@ -149,6 +148,7 @@ CONTAINS
 
                ! Setup the GEO_OPT environment for the rotation of the Dimer
                rot_opt_section => section_vals_get_subs_vals(dimer_section, "ROT_OPT")
+               ALLOCATE (gopt_env%gopt_dimer_param)
                CALL gopt_param_read(gopt_env%gopt_dimer_param, rot_opt_section, &
                                     type_id=default_minimization_method_id)
                gopt_env%gopt_dimer_param%type_id = default_ts_method_id
@@ -214,7 +214,7 @@ CONTAINS
             END IF
             CALL dimer_env_release(gopt_env%dimer_env)
             CALL gopt_f_release(gopt_env%gopt_dimer_env)
-            CALL gopt_param_release(gopt_env%gopt_dimer_param)
+            IF (ASSOCIATED(gopt_env%gopt_dimer_param)) DEALLOCATE (gopt_env%gopt_dimer_param)
             CALL release_spgr_type(gopt_env%spgr)
             DEALLOCATE (gopt_env)
          END IF

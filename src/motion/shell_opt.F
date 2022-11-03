@@ -30,7 +30,6 @@ MODULE shell_opt
                                               gopt_f_release,&
                                               gopt_f_type
    USE gopt_param_types,                ONLY: gopt_param_read,&
-                                              gopt_param_release,&
                                               gopt_param_type
    USE input_constants,                 ONLY: default_shellcore_method_id
    USE input_section_types,             ONLY: section_vals_get,&
@@ -127,6 +126,7 @@ CONTAINS
       END DO
       dvec_sc_0 = dvec_sc
 
+      ALLOCATE (gopt_param)
       CALL gopt_param_read(gopt_param, geo_section, type_id=default_shellcore_method_id)
       CALL gopt_f_create(gopt_env, gopt_param, force_env=force_env, globenv=globenv, &
                          geo_opt_section=geo_section)
@@ -145,7 +145,7 @@ CONTAINS
       CALL cp_rm_iter_level(logger%iter_info, "SHELL_OPT")
 
       CALL gopt_f_release(gopt_env)
-      CALL gopt_param_release(gopt_param)
+      DEALLOCATE (gopt_param)
       DEALLOCATE (dvec_sc)
       DEALLOCATE (dvec_sc_0)
 

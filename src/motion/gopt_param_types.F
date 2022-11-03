@@ -32,8 +32,7 @@ MODULE gopt_param_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gopt_param_types'
 
    PUBLIC :: gopt_param_type
-   PUBLIC :: gopt_param_read, &
-             gopt_param_release
+   PUBLIC :: gopt_param_read
 
 ! **************************************************************************************************
 !> \brief stores the parameters nedeed for a geometry optimization
@@ -56,7 +55,6 @@ MODULE gopt_param_types
 ! **************************************************************************************************
    TYPE gopt_param_type
       LOGICAL                  :: Fletcher_Reeves
-      INTEGER                  :: ref_count
       INTEGER                  :: method_id, type_id
       INTEGER                  :: ts_method_id, cell_method_id, shellcore_method_id
       INTEGER                  :: max_f_per_iter, max_iter, max_h_rank
@@ -71,21 +69,6 @@ MODULE gopt_param_types
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief creates a new gopt_param object
-!> \param gopt_param the object to create
-!> \par History
-!>      08.2003 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   SUBROUTINE gopt_param_create(gopt_param)
-      TYPE(gopt_param_type), POINTER                     :: gopt_param
-
-      ALLOCATE (gopt_param)
-
-      gopt_param%ref_count = 1
-   END SUBROUTINE gopt_param_create
-
-! **************************************************************************************************
 !> \brief reads the parameters of the geopmetry optimizer
 !> \param gopt_param ...
 !> \param gopt_section ...
@@ -95,13 +78,11 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE gopt_param_read(gopt_param, gopt_section, type_id)
-      TYPE(gopt_param_type), POINTER                     :: gopt_param
+      TYPE(gopt_param_type), INTENT(OUT)                 :: gopt_param
       TYPE(section_vals_type), POINTER                   :: gopt_section
       INTEGER, INTENT(IN), OPTIONAL                      :: type_id
 
-      CPASSERT(.NOT. ASSOCIATED(gopt_param))
       CPASSERT(ASSOCIATED(gopt_section))
-      CALL gopt_param_create(gopt_param)
 
       IF (PRESENT(type_id)) THEN
          gopt_param%type_id = type_id
@@ -154,37 +135,5 @@ CONTAINS
       END SELECT
 
    END SUBROUTINE gopt_param_read
-
-! **************************************************************************************************
-!> \brief ...
-!> \param gopt_param the geometry optimization environment to retain
-!> \par History
-!>      none
-! **************************************************************************************************
-   SUBROUTINE gopt_param_retain(gopt_param)
-      TYPE(gopt_param_type), POINTER                     :: gopt_param
-
-      CPASSERT(ASSOCIATED(gopt_param))
-      CPASSERT(gopt_param%ref_count > 0)
-      gopt_param%ref_count = gopt_param%ref_count + 1
-   END SUBROUTINE gopt_param_retain
-
-! **************************************************************************************************
-!> \brief ...
-!> \param gopt_param the geometry optimization environment to release
-!> \par History
-!>      none
-! **************************************************************************************************
-   SUBROUTINE gopt_param_release(gopt_param)
-      TYPE(gopt_param_type), POINTER                     :: gopt_param
-
-      IF (ASSOCIATED(gopt_param)) THEN
-         CPASSERT(gopt_param%ref_count > 0)
-         gopt_param%ref_count = gopt_param%ref_count - 1
-         IF (gopt_param%ref_count == 0) THEN
-            DEALLOCATE (gopt_param)
-         END IF
-      END IF
-   END SUBROUTINE gopt_param_release
 
 END MODULE gopt_param_types

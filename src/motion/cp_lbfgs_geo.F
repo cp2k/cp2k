@@ -97,7 +97,6 @@ CONTAINS
       root_section => force_env%root_section
       CPASSERT(ASSOCIATED(force_env))
       CPASSERT(ASSOCIATED(gopt_param))
-      CPASSERT(gopt_param%ref_count > 0)
 
       ! collecting subsys
       CALL force_env_get(force_env, para_env=para_env, cell=cell, subsys=subsys)

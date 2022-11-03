@@ -27,7 +27,6 @@ MODULE geo_opt
                                               gopt_f_release,&
                                               gopt_f_type
    USE gopt_param_types,                ONLY: gopt_param_read,&
-                                              gopt_param_release,&
                                               gopt_param_type
    USE input_constants,                 ONLY: default_bfgs_method_id,&
                                               default_cg_method_id,&
@@ -81,6 +80,7 @@ CONTAINS
       force_env_section => force_env%force_env_section
       geo_section => section_vals_get_subs_vals(root_section, "MOTION%GEO_OPT")
 
+      ALLOCATE (gopt_param)
       CALL gopt_param_read(gopt_param, geo_section)
       CALL gopt_f_create(gopt_env, gopt_param, force_env=force_env, globenv=globenv, &
                          geo_opt_section=geo_section, eval_opt_geo=eval_opt_geo)
@@ -101,7 +101,7 @@ CONTAINS
 
       DEALLOCATE (x0)
       CALL gopt_f_release(gopt_env)
-      CALL gopt_param_release(gopt_param)
+      DEALLOCATE (gopt_param)
       CALL timestop(handle)
 
    END SUBROUTINE cp_geo_opt
