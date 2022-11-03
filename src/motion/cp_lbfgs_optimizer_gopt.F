@@ -446,9 +446,9 @@ CONTAINS
 !> \note
 !>      use directly mainlb in place of setulb ??
 ! **************************************************************************************************
-   RECURSIVE SUBROUTINE cp_opt_gopt_step(optimizer, n_iter, f, last_f, &
-                                         projected_gradient, converged, geo_section, force_env, &
-                                         gopt_param, spgr)
+   SUBROUTINE cp_opt_gopt_step(optimizer, n_iter, f, last_f, &
+                               projected_gradient, converged, geo_section, force_env, &
+                               gopt_param, spgr)
       TYPE(cp_lbfgs_opt_gopt_type), INTENT(INOUT)        :: optimizer
       INTEGER, INTENT(out), OPTIONAL                     :: n_iter
       REAL(kind=dp), INTENT(out), OPTIONAL               :: f, last_f, projected_gradient
@@ -766,9 +766,9 @@ CONTAINS
 !> \note
 !>      if you deactivate convergence control it returns never false
 ! **************************************************************************************************
-   RECURSIVE FUNCTION cp_opt_gopt_next(optimizer, n_iter, f, last_f, &
-                                       projected_gradient, converged, geo_section, force_env, &
-                                       gopt_param, spgr) RESULT(res)
+   FUNCTION cp_opt_gopt_next(optimizer, n_iter, f, last_f, &
+                             projected_gradient, converged, geo_section, force_env, &
+                             gopt_param, spgr) RESULT(res)
       TYPE(cp_lbfgs_opt_gopt_type), INTENT(INOUT)        :: optimizer
       INTEGER, INTENT(out), OPTIONAL                     :: n_iter
       REAL(kind=dp), INTENT(out), OPTIONAL               :: f, last_f, projected_gradient
