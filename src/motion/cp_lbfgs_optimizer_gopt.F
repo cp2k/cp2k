@@ -66,31 +66,6 @@ MODULE cp_lbfgs_optimizer_gopt
              cp_opt_gopt_next, &
              cp_opt_gopt_stop
 
-   ! initialize the object
-   INTERFACE cp_create
-      MODULE PROCEDURE cp_opt_gopt_create
-   END INTERFACE
-   ! releases the given object
-   INTERFACE cp_release
-      MODULE PROCEDURE cp_opt_gopt_release
-   END INTERFACE
-   ! returns attributes about the object
-   INTERFACE cp_get
-      MODULE PROCEDURE cp_opt_gopt_get
-   END INTERFACE
-   ! goes to the next point, returns true if not converged or error
-   INTERFACE cp_next
-      MODULE PROCEDURE cp_opt_gopt_next
-   END INTERFACE
-   ! goes to the next point
-   INTERFACE cp_step
-      MODULE PROCEDURE cp_opt_gopt_step
-   END INTERFACE
-   ! stops the iteration
-   INTERFACE cp_stop
-      MODULE PROCEDURE cp_opt_gopt_stop
-   END INTERFACE
-
 ! **************************************************************************************************
 !> \brief info for the optimizer (see the description of this module)
 !> \param task the actual task of the optimizer (in the master it is up to
