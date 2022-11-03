@@ -784,6 +784,7 @@ CONTAINS
          END IF
          IF (ASSOCIATED(xas_tdp_env%qs_loc_env)) THEN
             CALL qs_loc_env_release(xas_tdp_env%qs_loc_env)
+            DEALLOCATE (xas_tdp_env%qs_loc_env)
          END IF
          IF (ASSOCIATED(xas_tdp_env%mos_of_ex_atoms)) THEN
             DEALLOCATE (xas_tdp_env%mos_of_ex_atoms)

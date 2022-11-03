@@ -311,6 +311,7 @@ CONTAINS
          IF (linres_control%ref_count < 1) THEN
             IF (ASSOCIATED(linres_control%qs_loc_env)) THEN
                CALL qs_loc_env_release(linres_control%qs_loc_env)
+               DEALLOCATE (linres_control%qs_loc_env)
             END IF
             DEALLOCATE (linres_control)
          END IF

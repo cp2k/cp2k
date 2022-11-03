@@ -750,6 +750,7 @@ CONTAINS
       xas_tdp_control%print_loc_subsection => section_vals_get_subs_vals( &
                                               xas_tdp_control%loc_subsection, "PRINT")
 
+      ALLOCATE (xas_tdp_env%qs_loc_env)
       CALL qs_loc_env_create(xas_tdp_env%qs_loc_env)
       qs_loc_env => xas_tdp_env%qs_loc_env
       loc_section => xas_tdp_control%loc_subsection

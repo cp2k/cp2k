@@ -85,8 +85,7 @@ MODULE xas_methods
                                               qs_print_cubes
    USE qs_loc_types,                    ONLY: localized_wfn_control_type,&
                                               qs_loc_env_create,&
-                                              qs_loc_env_new_type,&
-                                              qs_loc_env_release
+                                              qs_loc_env_new_type
    USE qs_loc_utils,                    ONLY: qs_loc_control_init,&
                                               qs_loc_env_init,&
                                               set_loc_centers,&
@@ -892,10 +891,9 @@ CONTAINS
 
       ! Define the qs_loc_env : to find centers, spread and possibly localize them
       IF (.NOT. (ASSOCIATED(xas_env%qs_loc_env))) THEN
+         ALLOCATE (qs_loc_env)
          CALL qs_loc_env_create(qs_loc_env)
          CALL set_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env)
-         CALL qs_loc_env_release(qs_loc_env)
-         CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env)
          loc_section => section_vals_get_subs_vals(xas_section, "LOCALIZE")
 
          CALL qs_loc_control_init(qs_loc_env, loc_section, do_homo=.TRUE., &

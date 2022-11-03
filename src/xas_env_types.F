@@ -26,8 +26,7 @@ MODULE xas_env_types
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE kinds,                           ONLY: dp
    USE qs_loc_types,                    ONLY: qs_loc_env_new_type,&
-                                              qs_loc_env_release,&
-                                              qs_loc_env_retain
+                                              qs_loc_env_release
    USE qs_scf_types,                    ONLY: qs_scf_env_type,&
                                               scf_env_release
    USE scf_control_types,               ONLY: scf_c_release,&
@@ -265,9 +264,12 @@ CONTAINS
       IF (PRESENT(xas_estate)) xas_env%xas_estate = xas_estate
       IF (PRESENT(ip_energy)) xas_env%ip_energy = ip_energy
       IF (PRESENT(qs_loc_env)) THEN
-         CALL qs_loc_env_retain(qs_loc_env)
-         IF (ASSOCIATED(xas_env%qs_loc_env)) &
-            CALL qs_loc_env_release(xas_env%qs_loc_env)
+         IF (ASSOCIATED(xas_env%qs_loc_env)) THEN
+            IF (.NOT. ASSOCIATED(xas_env%qs_loc_env, qs_loc_env)) THEN
+               CALL qs_loc_env_release(xas_env%qs_loc_env)
+               DEALLOCATE (xas_env%qs_loc_env)
+            END IF
+         END IF
          xas_env%qs_loc_env => qs_loc_env
       END IF
       IF (PRESENT(scf_env)) THEN ! accept also null pointers ?
@@ -390,6 +392,7 @@ CONTAINS
       END IF
       IF (ASSOCIATED(xas_env%qs_loc_env)) THEN
          CALL qs_loc_env_release(xas_env%qs_loc_env)
+         DEALLOCATE (xas_env%qs_loc_env)
       END IF
 
       IF (ASSOCIATED(xas_env%my_gto_basis)) THEN

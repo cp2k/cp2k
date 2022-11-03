@@ -845,9 +845,9 @@ CONTAINS
          loc_section => section_vals_get_subs_vals(as_input, "LOCALIZE")
          CPASSERT(ASSOCIATED(loc_section))
          loc_print => section_vals_get_subs_vals(as_input, "LOCALIZE%PRINT")
-         NULLIFY (qs_loc_env_occ, qs_loc_env_virt)
-         CALL qs_loc_env_create(qs_loc_env_occ)
+         NULLIFY (mos_localized)
          ALLOCATE (mos_localized(nspins))
+         CALL get_qs_env(qs_env, mos=mos)
          DO ispin = 1, nspins
             CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
             ALLOCATE (mos_localized(ispin)%matrix)
@@ -856,6 +856,7 @@ CONTAINS
          END DO
          ! occupied states
          NULLIFY (qs_loc_env_occ)
+         ALLOCATE (qs_loc_env_occ)
          CALL qs_loc_env_create(qs_loc_env_occ)
          CALL qs_loc_control_init(qs_loc_env_occ, loc_section, do_homo=.TRUE.)
          CALL qs_loc_init(qs_env, qs_loc_env_occ, loc_section, &
@@ -866,6 +867,7 @@ CONTAINS
          END DO
          ! virtual states
          NULLIFY (qs_loc_env_virt)
+         ALLOCATE (qs_loc_env_virt)
          CALL qs_loc_env_create(qs_loc_env_virt)
          CALL qs_loc_control_init(qs_loc_env_virt, loc_section, do_homo=.FALSE.)
          CALL qs_loc_init(qs_env, qs_loc_env_virt, loc_section, &
@@ -892,7 +894,9 @@ CONTAINS
          CPABORT("not yet available")
          !
          CALL qs_loc_env_release(qs_loc_env_occ)
+         DEALLOCATE (qs_loc_env_occ)
          CALL qs_loc_env_release(qs_loc_env_virt)
+         DEALLOCATE (qs_loc_env_virt)
          CALL cp_fm_vect_dealloc(mos_localized)
          !
          CPABORT("not yet available")

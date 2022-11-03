@@ -1023,6 +1023,7 @@ CONTAINS
          END DO
 
          IF (ri_data%do_loc) THEN
+            ALLOCATE (ri_data%qs_loc_env)
             CALL qs_loc_env_create(ri_data%qs_loc_env)
             CALL qs_loc_control_init(ri_data%qs_loc_env, ri_data%loc_subsection, do_homo=.TRUE.)
             CALL qs_loc_init(qs_env, ri_data%qs_loc_env, ri_data%loc_subsection, homo_localized)
@@ -1049,7 +1050,10 @@ CONTAINS
             homo(ispin) = mo_set%homo
          END DO
 
-         IF (ri_data%do_loc) CALL qs_loc_env_release(ri_data%qs_loc_env)
+         IF (ri_data%do_loc) THEN
+            CALL qs_loc_env_release(ri_data%qs_loc_env)
+            DEALLOCATE (ri_data%qs_loc_env)
+         END IF
          CALL timestop(handle2)
 
          CALL hfx_ri_update_ks_mo(qs_env, ri_data, my_ks_matrix, mo_coeff_b, homo, &
@@ -2965,6 +2969,7 @@ CONTAINS
          END DO
 
          IF (ri_data%do_loc) THEN
+            ALLOCATE (ri_data%qs_loc_env)
             CALL qs_loc_env_create(ri_data%qs_loc_env)
             CALL qs_loc_control_init(ri_data%qs_loc_env, ri_data%loc_subsection, do_homo=.TRUE.)
             CALL qs_loc_init(qs_env, ri_data%qs_loc_env, ri_data%loc_subsection, homo_localized)
@@ -2992,7 +2997,10 @@ CONTAINS
             homo(ispin) = mo_set%homo
          END DO
 
-         IF (ri_data%do_loc) CALL qs_loc_env_release(ri_data%qs_loc_env)
+         IF (ri_data%do_loc) THEN
+            CALL qs_loc_env_release(ri_data%qs_loc_env)
+            DEALLOCATE (ri_data%qs_loc_env)
+         END IF
 
          CALL hfx_ri_forces_mo(qs_env, ri_data, nspins, hf_fraction, mo_coeff_b, use_virial)
 

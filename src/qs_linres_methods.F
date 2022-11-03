@@ -73,9 +73,7 @@ MODULE qs_linres_methods
    USE qs_loc_types,                    ONLY: get_qs_loc_env,&
                                               localized_wfn_control_type,&
                                               qs_loc_env_create,&
-                                              qs_loc_env_new_type,&
-                                              qs_loc_env_release,&
-                                              qs_loc_env_retain
+                                              qs_loc_env_new_type
    USE qs_loc_utils,                    ONLY: loc_write_restart,&
                                               qs_loc_control_init,&
                                               qs_loc_init
@@ -145,11 +143,9 @@ CONTAINS
 
       NULLIFY (mos, mo_coeff, qs_loc_env, mos_localized)
       CALL get_qs_env(qs_env=qs_env, mos=mos)
+      ALLOCATE (qs_loc_env)
       CALL qs_loc_env_create(qs_loc_env)
-      CALL qs_loc_env_retain(qs_loc_env)
       linres_control%qs_loc_env => qs_loc_env
-      CALL qs_loc_env_release(qs_loc_env)
-      qs_loc_env => linres_control%qs_loc_env
       CALL qs_loc_control_init(qs_loc_env, loc_section, do_homo=.TRUE.)
       CALL get_qs_loc_env(qs_loc_env, localized_wfn_control=localized_wfn_control)
 

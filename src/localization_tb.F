@@ -47,8 +47,8 @@ MODULE localization_tb
    USE qs_loc_dipole,                   ONLY: loc_dipole
    USE qs_loc_states,                   ONLY: get_localization_info
    USE qs_loc_types,                    ONLY: qs_loc_env_create,&
-                                              qs_loc_env_destroy,&
-                                              qs_loc_env_new_type
+                                              qs_loc_env_new_type,&
+                                              qs_loc_env_release
    USE qs_loc_utils,                    ONLY: loc_write_restart,&
                                               qs_loc_control_init,&
                                               qs_loc_init,&
@@ -190,6 +190,7 @@ CONTAINS
                                    in_space=RECIPROCALSPACE)
 
             NULLIFY (marked_states, qs_loc_env_homo)
+            ALLOCATE (qs_loc_env_homo)
             CALL qs_loc_env_create(qs_loc_env_homo)
             CALL qs_loc_control_init(qs_loc_env_homo, localize_section, do_homo=do_homo)
             CALL qs_loc_init(qs_env, qs_loc_env_homo, localize_section, homo_localized, do_homo, &
@@ -215,7 +216,8 @@ CONTAINS
             END IF
             CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r)
-            CALL qs_loc_env_destroy(qs_loc_env_homo)
+            CALL qs_loc_env_release(qs_loc_env_homo)
+            DEALLOCATE (qs_loc_env_homo)
             IF (ASSOCIATED(marked_states)) THEN
                DEALLOCATE (marked_states)
             END IF
