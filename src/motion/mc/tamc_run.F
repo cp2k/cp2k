@@ -358,6 +358,7 @@ CONTAINS
          END DO
       END DO
 
+      ALLOCATE (mc_env)
       CALL mc_env_create(mc_env)
       CALL set_mc_env(mc_env, mc_par=mc_par, force_env=force_env)
 !!!!!!!end mc setup
@@ -643,6 +644,7 @@ CONTAINS
 !     IF (para_env%ionode) THEN
 !     ENDIF
       CALL MC_ENV_RELEASE(mc_env)
+      DEALLOCATE (mc_env)
       DEALLOCATE (mc_par)
       CALL MC_MOVES_RELEASE(moves)
       CALL MC_MOVES_RELEASE(gmoves)

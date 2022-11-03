@@ -21,7 +21,7 @@ MODULE mc_environment_types
 
 ! **************************************************************************************************
    TYPE mc_environment_type
-      INTEGER :: ref_count, in_use
+      INTEGER :: in_use
       TYPE(mc_simpar_type), POINTER :: mc_par
       TYPE(force_env_type), POINTER :: force_env
    END TYPE mc_environment_type
@@ -39,7 +39,6 @@ MODULE mc_environment_types
 ! *** Global parameters ***
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_environment_types'
-   INTEGER, SAVE, PRIVATE :: last_mc_env_id = 0
 
 CONTAINS
 
@@ -52,11 +51,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mc_env_create(mc_env)
 
-      TYPE(mc_environment_type), POINTER                 :: mc_env
+      TYPE(mc_environment_type), INTENT(OUT)             :: mc_env
 
-      ALLOCATE (mc_env)
-
-      mc_env%ref_count = 1
       mc_env%in_use = 0
 
       NULLIFY (mc_env%mc_par)
@@ -76,7 +72,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE set_mc_env(mc_env, mc_par, force_env)
 
-      TYPE(mc_environment_type), POINTER                 :: mc_env
+      TYPE(mc_environment_type), INTENT(INOUT)           :: mc_env
       TYPE(mc_simpar_type), OPTIONAL, POINTER            :: mc_par
       TYPE(force_env_type), OPTIONAL, POINTER            :: force_env
 
@@ -101,7 +97,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_mc_env(mc_env, mc_par, force_env)
 
-      TYPE(mc_environment_type), POINTER                 :: mc_env
+      TYPE(mc_environment_type), INTENT(IN)              :: mc_env
       TYPE(mc_simpar_type), OPTIONAL, POINTER            :: mc_par
       TYPE(force_env_type), OPTIONAL, POINTER            :: force_env
 
@@ -118,20 +114,11 @@ CONTAINS
 !>      see doc/ReferenceCounting.html
 ! **************************************************************************************************
    SUBROUTINE mc_env_release(mc_env)
-      TYPE(mc_environment_type), POINTER                 :: mc_env
+      TYPE(mc_environment_type), INTENT(INOUT)           :: mc_env
 
-      IF (ASSOCIATED(mc_env)) THEN
-         CPASSERT(mc_env%ref_count > 0)
-         mc_env%ref_count = mc_env%ref_count - 1
-         IF (mc_env%ref_count == 0) THEN
-            mc_env%ref_count = 1
-            NULLIFY (mc_env%mc_par)
-            NULLIFY (mc_env%force_env)
-            mc_env%ref_count = 0
-            DEALLOCATE (mc_env)
-         END IF
-      END IF
-      NULLIFY (mc_env)
+      NULLIFY (mc_env%mc_par)
+      NULLIFY (mc_env%force_env)
+
    END SUBROUTINE mc_env_release
 
 END MODULE mc_environment_types
