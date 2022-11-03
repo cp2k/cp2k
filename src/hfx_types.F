@@ -77,7 +77,7 @@ MODULE hfx_types
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
-   USE qs_loc_types,                    ONLY: qs_loc_env_new_type
+   USE qs_loc_types,                    ONLY: qs_loc_env_type
    USE qs_tensors_types,                ONLY: &
         create_2c_tensor, create_3c_tensor, create_tensor_batches, default_block_size, &
         distribution_3d_create, distribution_3d_destroy, distribution_3d_type, pgf_block_sizes, &
@@ -394,7 +394,7 @@ MODULE hfx_types
       TYPE(dbt_distribution_type) :: dist
 
       ! MO localization
-      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env => NULL()
+      TYPE(qs_loc_env_type), POINTER                 :: qs_loc_env => NULL()
       TYPE(section_vals_type), POINTER                   :: loc_subsection => NULL(), print_loc_subsection => NULL()
       LOGICAL                                            :: do_loc
 

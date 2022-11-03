@@ -53,7 +53,7 @@ MODULE molecular_moments
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE qs_loc_types,                    ONLY: qs_loc_env_new_type
+   USE qs_loc_types,                    ONLY: qs_loc_env_type
    USE qs_moments,                      ONLY: build_local_moment_matrix
 #include "./base/base_uses.f90"
 
@@ -80,7 +80,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_molecular_moments(qs_env, qs_loc_env, mo_local, loc_print_key, molecule_set)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_loc_env_new_type), INTENT(IN)              :: qs_loc_env
+      TYPE(qs_loc_env_type), INTENT(IN)                  :: qs_loc_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_local
       TYPE(section_vals_type), POINTER                   :: loc_print_key
       TYPE(molecule_type), POINTER                       :: molecule_set(:)

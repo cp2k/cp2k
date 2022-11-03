@@ -27,8 +27,8 @@ MODULE qs_linres_types
    USE qs_harmonics_atom,               ONLY: harmonics_atom_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE qs_loc_types,                    ONLY: qs_loc_env_new_type,&
-                                              qs_loc_env_release
+   USE qs_loc_types,                    ONLY: qs_loc_env_release,&
+                                              qs_loc_env_type
    USE qs_rho_atom_types,               ONLY: rho_atom_coeff,&
                                               rho_atom_type
    USE qs_rho_types,                    ONLY: qs_rho_p_type,&
@@ -66,7 +66,7 @@ MODULE qs_linres_types
       LOGICAL                                   :: lr_triplet
       REAL(KIND=dp)                             :: eps
       REAL(KIND=dp)                             :: eps_filter
-      TYPE(qs_loc_env_new_type), POINTER        :: qs_loc_env
+      TYPE(qs_loc_env_type), POINTER        :: qs_loc_env
       CHARACTER(LEN=8)                          :: flag
    END TYPE linres_control_type
 

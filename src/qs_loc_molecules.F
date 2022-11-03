@@ -22,7 +22,7 @@ MODULE qs_loc_molecules
                                               molecule_kind_type
    USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
-   USE qs_loc_types,                    ONLY: qs_loc_env_new_type
+   USE qs_loc_types,                    ONLY: qs_loc_env_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -45,7 +45,7 @@ CONTAINS
 !> \param nspins ...
 ! **************************************************************************************************
    SUBROUTINE wfc_to_molecule(qs_loc_env, center, molecule_set, ispin, nspins)
-      TYPE(qs_loc_env_new_type), INTENT(IN)              :: qs_loc_env
+      TYPE(qs_loc_env_type), INTENT(IN)                  :: qs_loc_env
       REAL(KIND=dp), INTENT(IN)                          :: center(:, :)
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
       INTEGER, INTENT(IN)                                :: ispin, nspins

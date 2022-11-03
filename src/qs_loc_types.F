@@ -78,7 +78,7 @@ MODULE qs_loc_types
 !>      04-05 created
 !> \author MI
 ! **************************************************************************************************
-   TYPE qs_loc_env_new_type
+   TYPE qs_loc_env_type
       LOGICAL :: molecular_states, do_localize, first_time
       LOGICAL :: wannier_states
       CHARACTER(LEN=default_string_length)        :: tag_mo
@@ -99,7 +99,7 @@ MODULE qs_loc_types
       REAL(KIND=dp)                            :: start_time, target_time
       REAL(KIND=dp)                            :: weights(6)
       INTEGER                                     :: dim_op
-   END TYPE qs_loc_env_new_type
+   END TYPE qs_loc_env_type
 
 ! **************************************************************************************************
 !> \brief A type that holds controlling information for the
@@ -152,7 +152,7 @@ MODULE qs_loc_types
    PUBLIC :: qs_loc_env_create, qs_loc_env_release, &
              get_qs_loc_env, set_qs_loc_env, &
              localized_wfn_control_create, localized_wfn_control_release
-   PUBLIC :: qs_loc_env_new_type, localized_wfn_control_type
+   PUBLIC :: qs_loc_env_type, localized_wfn_control_type
 
 CONTAINS
 
@@ -165,7 +165,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qs_loc_env_create(qs_loc_env)
 
-      TYPE(qs_loc_env_new_type), INTENT(OUT)             :: qs_loc_env
+      TYPE(qs_loc_env_type), INTENT(OUT)                 :: qs_loc_env
 
       qs_loc_env%tag_mo = ""
       NULLIFY (qs_loc_env%para_env)
@@ -191,7 +191,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qs_loc_env_release(qs_loc_env)
 
-      TYPE(qs_loc_env_new_type), INTENT(INOUT)           :: qs_loc_env
+      TYPE(qs_loc_env_type), INTENT(INOUT)               :: qs_loc_env
 
       INTEGER                                            :: i, ii, j
 
@@ -327,7 +327,7 @@ CONTAINS
    SUBROUTINE get_qs_loc_env(qs_loc_env, cell, local_molecules, localized_wfn_control, &
                              moloc_coeff, op_sm_set, op_fm_set, para_env, particle_set, weights, dim_op)
 
-      TYPE(qs_loc_env_new_type), INTENT(IN)              :: qs_loc_env
+      TYPE(qs_loc_env_type), INTENT(IN)                  :: qs_loc_env
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell
       TYPE(distribution_1d_type), OPTIONAL, POINTER      :: local_molecules
       TYPE(localized_wfn_control_type), OPTIONAL, &
@@ -378,7 +378,7 @@ CONTAINS
    SUBROUTINE set_qs_loc_env(qs_loc_env, cell, local_molecules, localized_wfn_control, &
                              moloc_coeff, op_sm_set, op_fm_set, para_env, particle_set, weights, dim_op)
 
-      TYPE(qs_loc_env_new_type), INTENT(INOUT)           :: qs_loc_env
+      TYPE(qs_loc_env_type), INTENT(INOUT)               :: qs_loc_env
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell
       TYPE(distribution_1d_type), OPTIONAL, POINTER      :: local_molecules
       TYPE(localized_wfn_control_type), OPTIONAL, &

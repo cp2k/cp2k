@@ -25,8 +25,8 @@ MODULE xas_env_types
                                               cp_fm_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE kinds,                           ONLY: dp
-   USE qs_loc_types,                    ONLY: qs_loc_env_new_type,&
-                                              qs_loc_env_release
+   USE qs_loc_types,                    ONLY: qs_loc_env_release,&
+                                              qs_loc_env_type
    USE qs_scf_types,                    ONLY: qs_scf_env_type,&
                                               scf_env_release
    USE scf_control_types,               ONLY: scf_c_release,&
@@ -98,7 +98,7 @@ MODULE xas_env_types
       TYPE(cp_fm_type), POINTER :: unoccupied_orbs
       TYPE(cp_fm_type), POINTER :: all_vectors
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: ostrength_sm
-      TYPE(qs_loc_env_new_type), POINTER :: qs_loc_env
+      TYPE(qs_loc_env_type), POINTER :: qs_loc_env
       TYPE(qs_scf_env_type), POINTER                        :: scf_env
       TYPE(scf_control_type), POINTER          :: scf_control
 
@@ -176,7 +176,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), OPTIONAL, POINTER          :: all_evals
       TYPE(gto_basis_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: my_gto_basis
-      TYPE(qs_loc_env_new_type), OPTIONAL, POINTER       :: qs_loc_env
+      TYPE(qs_loc_env_type), OPTIONAL, POINTER           :: qs_loc_env
       TYPE(cp_2d_r_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: stogto_overlap
       REAL(dp), INTENT(OUT), OPTIONAL                    :: occ_estate, xas_nelectron
@@ -247,7 +247,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: nexc_search, spin_channel, nexc_atoms, &
                                                             nvirtual, nvirtual2
       REAL(dp), INTENT(IN), OPTIONAL                     :: ip_energy, occ_estate
-      TYPE(qs_loc_env_new_type), OPTIONAL, POINTER       :: qs_loc_env
+      TYPE(qs_loc_env_type), OPTIONAL, POINTER           :: qs_loc_env
       INTEGER, INTENT(IN), OPTIONAL                      :: xas_estate
       REAL(dp), INTENT(IN), OPTIONAL                     :: xas_nelectron, homo_occ
       TYPE(qs_scf_env_type), OPTIONAL, POINTER           :: scf_env

@@ -103,7 +103,7 @@ MODULE qs_loc_methods
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_loc_types,                    ONLY: get_qs_loc_env,&
                                               localized_wfn_control_type,&
-                                              qs_loc_env_new_type
+                                              qs_loc_env_type
    USE qs_loc_utils,                    ONLY: jacobi_rotation_pipek
    USE qs_localization_methods,         ONLY: approx_l1_norm_sd,&
                                               crazy_rotations,&
@@ -173,7 +173,7 @@ CONTAINS
                                  nextra, nmo, vectors_2, guess_mos)
 
       INTEGER, INTENT(IN)                                :: method
-      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
+      TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(cp_fm_type), INTENT(IN)                       :: vectors
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_sm_set
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: zij_fm_set
@@ -325,7 +325,7 @@ CONTAINS
                                  ispin, print_loc_section)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: method
-      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
+      TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(cp_fm_type), INTENT(IN)                       :: vectors
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: zij_fm_set
       INTEGER, INTENT(IN)                                :: ispin
@@ -447,7 +447,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE centers_spreads_berry(qs_loc_env, zij, nmoloc, cell, weights, ispin, &
                                     print_loc_section, only_initial_out)
-      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
+      TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(cp_fm_p_type), INTENT(INOUT)                  :: zij(:, :)
       INTEGER, INTENT(IN)                                :: nmoloc
       TYPE(cell_type), POINTER                           :: cell
@@ -558,7 +558,7 @@ CONTAINS
    SUBROUTINE centers_spreads_pipek(qs_loc_env, zij_fm_set, particle_set, ispin, &
                                     print_loc_section)
 
-      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
+      TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: zij_fm_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       INTEGER, INTENT(IN)                                :: ispin
@@ -649,7 +649,7 @@ CONTAINS
                             ext_mo_coeff)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
+      TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(section_vals_type), POINTER                   :: print_loc_section
       INTEGER, INTENT(IN), OPTIONAL                      :: myspin
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: ext_mo_coeff
@@ -1186,7 +1186,7 @@ CONTAINS
 !> \param ispin ...
 ! **************************************************************************************************
    SUBROUTINE print_wannier_centers(qs_loc_env, print_key, center, logger, ispin)
-      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
+      TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(section_vals_type), POINTER                   :: print_key
       REAL(KIND=dp), INTENT(IN)                          :: center(:, :)
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -1244,7 +1244,7 @@ CONTAINS
 !> \param unit_conv ...
 ! **************************************************************************************************
    SUBROUTINE print_wannier_traj(qs_loc_env, print_key, center, iunit, init_traj, unit_conv)
-      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
+      TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(section_vals_type), POINTER                   :: print_key
       REAL(KIND=dp), INTENT(IN)                          :: center(:, :)
       INTEGER, INTENT(IN)                                :: iunit
@@ -1327,7 +1327,7 @@ CONTAINS
 
       ! I might not actually need the qs_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
+      TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(section_vals_type), POINTER                   :: print_loc_section
       INTEGER, INTENT(IN)                                :: ispin
 
@@ -1476,7 +1476,7 @@ CONTAINS
    SUBROUTINE centers_second_moments_berry(qs_env, qs_loc_env, print_loc_section, ispin)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
+      TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(section_vals_type), POINTER                   :: print_loc_section
       INTEGER, INTENT(IN)                                :: ispin
 
