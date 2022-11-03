@@ -635,7 +635,6 @@ CONTAINS
                      CALL cp_fm_trace(psi1_dso(ispin, jxyz)%matrix, fc_psi0(ispin)%matrix, buf)
                      ! we save the polarizability for a checksum later on !
                      issc_dso = 2.0_dp*maxocc*buf
-                     !WRITE(*,*) ixyz,jxyz,'tr(P_r*r)=',2.0_dp * maxocc * buf
                      issc(ixyz, jxyz, iatom, jatom, 4) = issc(ixyz, jxyz, iatom, jatom, 4) + issc_dso
                   END DO
                END DO
@@ -1040,7 +1039,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE issc_env_cleanup(issc_env)
 
-      TYPE(issc_env_type)                                :: issc_env
+      TYPE(issc_env_type), INTENT(INOUT)                 :: issc_env
 
       INTEGER                                            :: idir, ispin
 
@@ -1063,6 +1062,7 @@ CONTAINS
             END DO
          END DO
          DEALLOCATE (issc_env%efg_psi0)
+         NULLIFY (issc_env%efg_psi0)
       END IF
       !
       !pso_psi0
@@ -1074,6 +1074,7 @@ CONTAINS
             END DO
          END DO
          DEALLOCATE (issc_env%pso_psi0)
+         NULLIFY (issc_env%pso_psi0)
       END IF
       !
       !dso_psi0
@@ -1085,6 +1086,7 @@ CONTAINS
             END DO
          END DO
          DEALLOCATE (issc_env%dso_psi0)
+         NULLIFY (issc_env%dso_psi0)
       END IF
       !
       !fc_psi0
@@ -1094,6 +1096,7 @@ CONTAINS
             DEALLOCATE (issc_env%fc_psi0(ispin)%matrix)
          END DO
          DEALLOCATE (issc_env%fc_psi0)
+         NULLIFY (issc_env%fc_psi0)
       END IF
       !
       !psi1_efg
@@ -1105,6 +1108,7 @@ CONTAINS
             END DO
          END DO
          DEALLOCATE (issc_env%psi1_efg)
+         NULLIFY (issc_env%psi1_efg)
       END IF
       !
       !psi1_pso
@@ -1116,6 +1120,7 @@ CONTAINS
             END DO
          END DO
          DEALLOCATE (issc_env%psi1_pso)
+         NULLIFY (issc_env%psi1_pso)
       END IF
       !
       !psi1_dso
@@ -1127,6 +1132,7 @@ CONTAINS
             END DO
          END DO
          DEALLOCATE (issc_env%psi1_dso)
+         NULLIFY (issc_env%psi1_dso)
       END IF
       !
       !psi1_fc
@@ -1136,6 +1142,7 @@ CONTAINS
             DEALLOCATE (issc_env%psi1_fc(ispin)%matrix)
          END DO
          DEALLOCATE (issc_env%psi1_fc)
+         NULLIFY (issc_env%psi1_fc)
       END IF
       !
       !matrix_efg

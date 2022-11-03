@@ -132,15 +132,16 @@ MODULE qs_linres_types
 
    TYPE issc_env_type
       INTEGER                             :: issc_natms
-      INTEGER, DIMENSION(:), POINTER      :: issc_on_atom_list
+      INTEGER, DIMENSION(:), POINTER      :: issc_on_atom_list => NULL()
       LOGICAL                             :: interpolate_issc
       LOGICAL                             :: do_fc, do_sd, do_pso, do_dso
       REAL(dp)                            :: issc_gapw_radius, issc_factor, issc_factor_gapw
-      REAL(dp), DIMENSION(:, :, :, :, :), POINTER :: issc, issc_loc
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER :: psi1_efg, psi1_pso, efg_psi0, pso_psi0, dso_psi0, psi1_dso !last two not needed
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: psi1_fc
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: fc_psi0
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_efg, matrix_pso, matrix_dso, matrix_fc
+      REAL(dp), DIMENSION(:, :, :, :, :), POINTER :: issc => NULL(), issc_loc => NULL()
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER :: psi1_efg => NULL(), psi1_pso => NULL(), efg_psi0 => NULL(), &
+                                                      pso_psi0 => NULL(), dso_psi0 => NULL(), psi1_dso => NULL()
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: psi1_fc => NULL()
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: fc_psi0 => NULL()
+  TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_efg => NULL(), matrix_pso => NULL(), matrix_dso => NULL(), matrix_fc => NULL()
    END TYPE issc_env_type
 
 ! *********************************************************************************************************

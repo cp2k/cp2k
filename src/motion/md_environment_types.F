@@ -61,20 +61,20 @@ MODULE md_environment_types
       PRIVATE
       INTEGER                                    :: ref_count
       LOGICAL                                    :: init, first_time, ehrenfest_md
-      INTEGER, POINTER                           :: itimes
-      REAL(KIND=dp), POINTER                     :: used_time, t
-      REAL(KIND=dp), POINTER                     :: constant
-      TYPE(cp_para_env_type), POINTER            :: para_env
-      TYPE(cell_type), POINTER                   :: cell
-      TYPE(force_env_type), POINTER              :: force_env
-      TYPE(md_ener_type), POINTER                :: md_ener
-      TYPE(thermostats_type), POINTER            :: thermostats
-      TYPE(barostat_type), POINTER               :: barostat
-      TYPE(reftraj_type), POINTER                :: reftraj
-      TYPE(free_energy_type), POINTER           :: fe_env
-      TYPE(simpar_type), POINTER                 :: simpar
-      TYPE(average_quantities_type), POINTER     :: averages
-      TYPE(thermal_regions_type), POINTER        :: thermal_regions
+      INTEGER, POINTER                           :: itimes => NULL()
+      REAL(KIND=dp), POINTER                     :: used_time => NULL(), t => NULL()
+      REAL(KIND=dp), POINTER                     :: constant => NULL()
+      TYPE(cp_para_env_type), POINTER            :: para_env => NULL()
+      TYPE(cell_type), POINTER                   :: cell => NULL()
+      TYPE(force_env_type), POINTER              :: force_env => NULL()
+      TYPE(md_ener_type), POINTER                :: md_ener => NULL()
+      TYPE(thermostats_type), POINTER            :: thermostats => NULL()
+      TYPE(barostat_type), POINTER               :: barostat => NULL()
+      TYPE(reftraj_type), POINTER                :: reftraj => NULL()
+      TYPE(free_energy_type), POINTER           :: fe_env => NULL()
+      TYPE(simpar_type), POINTER                 :: simpar => NULL()
+      TYPE(average_quantities_type), POINTER     :: averages => NULL()
+      TYPE(thermal_regions_type), POINTER        :: thermal_regions => NULL()
    END TYPE md_environment_type
 
    ! *** Public subroutines and data types ***
