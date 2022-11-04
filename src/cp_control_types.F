@@ -839,6 +839,7 @@ CONTAINS
       CALL se_control_create(qs_control%se_control)
       CALL dftb_control_create(qs_control%dftb_control)
       CALL xtb_control_create(qs_control%xtb_control)
+      ALLOCATE (qs_control%cdft_control)
       CALL cdft_control_create(qs_control%cdft_control)
    END SUBROUTINE qs_control_create
 
@@ -859,7 +860,10 @@ CONTAINS
          CALL se_control_release(qs_control%se_control)
          CALL dftb_control_release(qs_control%dftb_control)
          CALL xtb_control_release(qs_control%xtb_control)
-         CALL cdft_control_release(qs_control%cdft_control)
+         IF (ASSOCIATED(qs_control%cdft_control)) THEN
+            CALL cdft_control_release(qs_control%cdft_control)
+            DEALLOCATE (qs_control%cdft_control)
+         END IF
 
          IF (ASSOCIATED(qs_control%e_cutoff)) THEN
             DEALLOCATE (qs_control%e_cutoff)

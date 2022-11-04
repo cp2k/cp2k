@@ -351,8 +351,10 @@ CONTAINS
          END DO
          DEALLOCATE (cdft_control%sendbuff)
       END IF
-      IF (ASSOCIATED(cdft_control%cdft_control)) &
+      IF (ASSOCIATED(cdft_control%cdft_control)) THEN
          CALL cdft_control_release(cdft_control%cdft_control)
+         DEALLOCATE (cdft_control%cdft_control)
+      END IF
       IF (ASSOCIATED(cdft_control%blacs_env)) &
          CALL cp_blacs_env_release(cdft_control%blacs_env)
       IF (ASSOCIATED(cdft_control%qs_kind_set)) &
