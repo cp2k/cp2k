@@ -924,8 +924,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: beta, lambda
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_drho_core', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_drho_core'
 
       INTEGER                                            :: atom_a, dabqadb_func, handle, iatom, &
                                                             ikind, ithread, j, natom, npme, &

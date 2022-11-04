@@ -155,7 +155,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_type)                                   :: matrix_s
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ec_mos_init', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ec_mos_init'
 
       INTEGER                                            :: handle, ispin, multiplicity, n_ao, &
                                                             nelectron, nmo, nspins

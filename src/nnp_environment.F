@@ -95,7 +95,7 @@ CONTAINS
       TYPE(section_vals_type), INTENT(INOUT), POINTER    :: force_env_section, subsys_section
       LOGICAL, INTENT(IN)                                :: use_motion_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_init', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'nnp_init'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: explicit, use_ref_cell
@@ -166,8 +166,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: use_ref_cell
       TYPE(section_vals_type), INTENT(IN), POINTER       :: subsys_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_init_subsys', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'nnp_init_subsys'
 
       INTEGER                                            :: handle, natom
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -247,7 +246,7 @@ CONTAINS
    SUBROUTINE nnp_init_model(nnp_env)
       TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_init_model', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'nnp_init_model'
       INTEGER, PARAMETER                                 :: def_str_len = 256, &
                                                             default_path_length = 256
 

@@ -64,8 +64,7 @@ CONTAINS
       TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp
       LOGICAL, INTENT(IN)                                :: calc_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_calc_energy_force', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_calc_energy_force'
 
       INTEGER                                            :: handle, i, i_com, ig, ind, istart, j, k, &
                                                             m, mecalc
@@ -255,7 +254,7 @@ CONTAINS
       TYPE(nnp_type), INTENT(INOUT)                      :: nnp
       LOGICAL, INTENT(IN)                                :: calc_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_bias_sigma', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'nnp_bias_sigma'
 
       INTEGER                                            :: handle, i
       REAL(KIND=dp)                                      :: avrg, pref, sigma

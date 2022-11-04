@@ -79,7 +79,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: dft_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_wfx', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_wfx'
 
       CHARACTER(LEN=12), DIMENSION(:), POINTER           :: bcgf_symbol
       CHARACTER(len=2)                                   :: asym

@@ -2087,9 +2087,6 @@ CONTAINS
 
       TYPE(active_space_type), POINTER                   :: active_space_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'subspace_fock_matrix', &
-         routineP = moduleN//':'//routineN
-
       INTEGER                                            :: i1, i2, is, norb, nspins
       REAL(KIND=dp)                                      :: eeri, eref, esub, mval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ks_a_mat, ks_a_ref, ks_b_mat, ks_b_ref, &

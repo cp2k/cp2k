@@ -3040,7 +3040,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ec_ls_init', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ec_ls_init'
 
       INTEGER                                            :: handle, ispin, nspins
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -3113,7 +3113,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_w
       INTEGER, INTENT(IN)                                :: ec_ls_method
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_ls_solver', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ec_ls_solver'
 
       INTEGER                                            :: handle, ispin, nelectron_spin_real, &
                                                             nspins
@@ -3286,8 +3286,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), &
          INTENT(INOUT), POINTER                          :: matrix_p, matrix_w
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ec_ot_diag_solver', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ec_ot_diag_solver'
 
       INTEGER                                            :: handle, homo, ikind, iounit, ispin, &
                                                             max_iter, nao, nkind, nmo, nspins

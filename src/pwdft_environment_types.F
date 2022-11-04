@@ -36,7 +36,6 @@ MODULE pwdft_environment_types
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pwdft_environment_types'
-   INTEGER, PRIVATE, SAVE :: last_pwdft_id = 0
 
    ! *** Public data types ***
    PUBLIC :: pwdft_environment_type, pwdft_energy_type

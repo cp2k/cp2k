@@ -816,8 +816,6 @@ CONTAINS
 
       TYPE(qs_diis_buffer_type_sparse), INTENT(INOUT)    :: diis_buffer
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_diis_b_clear_sparse'
-
       diis_buffer%ncall = 0
 
    END SUBROUTINE qs_diis_b_clear_sparse

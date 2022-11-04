@@ -106,8 +106,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nmo, icenter
       TYPE(cp_fm_type), INTENT(IN)                       :: res
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'multiply_localization', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'multiply_localization'
 
       INTEGER                                            :: handle
 
@@ -393,8 +392,6 @@ CONTAINS
       TYPE(dcdr_env_type)                                :: dcdr_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dcdr_print', routineP = moduleN//':'//routineN
-
       CHARACTER(LEN=default_string_length)               :: description
       INTEGER                                            :: alpha, beta, delta, gamma, i, k, l, &
                                                             lambda, natom, nsubset, output_unit
@@ -551,8 +548,7 @@ CONTAINS
       TYPE(dcdr_env_type)                                :: dcdr_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_loc_setting', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_loc_setting'
 
       INTEGER                                            :: handle, is, istate, max_states, nmo, &
                                                             nmoloc, nstate, nstate_list(2)
@@ -679,7 +675,7 @@ CONTAINS
       TYPE(dcdr_env_type)                                :: dcdr_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dcdr_env_init', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dcdr_env_init'
 
       INTEGER                                            :: handle, homo, i, isize, j, jg, n_rep, &
                                                             nao, natom, nmo, nspins, nsubset, &
@@ -1009,9 +1005,6 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dcdr_env_type)                                :: dcdr_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dcdr_env_cleanup', &
-         routineP = moduleN//':'//routineN
 
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: dcdr_section

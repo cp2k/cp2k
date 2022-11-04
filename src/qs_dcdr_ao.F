@@ -123,8 +123,7 @@ CONTAINS
       TYPE(dcdr_env_type)                                :: dcdr_env
       TYPE(dbcsr_p_type), OPTIONAL                       :: overlap1
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'apply_op_constant_term', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'apply_op_constant_term'
 
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: energy_hartree
@@ -322,8 +321,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dcdr_env_type)                                :: dcdr_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'd_core_charge_density_dR', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'd_core_charge_density_dR'
 
       INTEGER                                            :: beta, handle
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -399,7 +397,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dcdr_env_type)                                :: dcdr_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'core_dR', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'core_dR'
 
       CHARACTER(LEN=default_string_length)               :: my_basis_type
       INTEGER                                            :: handle, nder
@@ -489,7 +487,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dcdr_env_type)                                :: dcdr_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'd_vhxc_dR', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'd_vhxc_dR'
 
       INTEGER                                            :: handle, idir
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
@@ -606,8 +604,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dcdr_env_type)                                :: dcdr_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'vhxc_R_perturbed_basis_functions', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'vhxc_R_perturbed_basis_functions'
 
       INTEGER                                            :: handle
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vhxc_dbasis
@@ -683,8 +680,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: lambda
       LOGICAL, INTENT(IN)                                :: direction_Or
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'hr_mult_by_delta_1d', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'hr_mult_by_delta_1d'
 
       INTEGER                                            :: handle, iatom, icol, ikind, irow, jatom, &
                                                             jkind, ldsab, mepos, nkind, nseta, &

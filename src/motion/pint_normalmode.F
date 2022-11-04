@@ -33,8 +33,6 @@ MODULE pint_normalmode
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pint_normalmode'
 
-   INTEGER, SAVE, PRIVATE :: last_normalmode_id = 0
-
    PUBLIC :: normalmode_env_create
    PUBLIC :: normalmode_release
    PUBLIC :: normalmode_init_masses

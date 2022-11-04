@@ -993,7 +993,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_type), POINTER                          :: p_matrix
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xtb_hab_force', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'xtb_hab_force'
 
       INTEGER :: atom_a, atom_b, atom_c, handle, i, iatom, ic, icol, ikind, img, ir, irow, iset, &
          j, jatom, jkind, jset, katom, kkind, la, lb, ldsab, lmaxa, lmaxb, maxder, maxs, n1, n2, &

@@ -76,8 +76,7 @@ CONTAINS
       TYPE(qs_environment_type), INTENT(in), OPTIONAL, &
          POINTER                                         :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_kernel_env', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_kernel_env'
 
       INTEGER                                            :: handle, ispin, nspins
       LOGICAL                                            :: lsd, my_excitations, my_singlets

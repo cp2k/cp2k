@@ -1020,8 +1020,6 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_info', routineP = moduleN//':'//routineN
-
       INTEGER                                            :: i
       REAL(dp)                                           :: occ
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
@@ -2734,8 +2732,7 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'make_lumo_guess', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'make_lumo_guess'
 
       INTEGER                                            :: handle, ispin, nao, nelec_spin(2), &
                                                             nlumo(2), nocc(2), nspins
@@ -2836,8 +2833,7 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_ot_spin_prec', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_ot_spin_prec'
 
       INTEGER                                            :: handle, nao, nelec_spin(2), nguess, &
                                                             nocc, nspins

@@ -365,8 +365,6 @@ MODULE lri_environment_types
 ! **************************************************************************************************
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_environment_types'
-   INTEGER, SAVE, PRIVATE :: last_lri_env_id = 0
-   INTEGER, SAVE, PRIVATE :: last_lri_density_id = 0
 
    PUBLIC :: lri_environment_type, &
              lri_force_type, lri_list_type, &

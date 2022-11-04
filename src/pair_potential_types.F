@@ -2358,9 +2358,6 @@ CONTAINS
    SUBROUTINE pair_potential_tab_create(tab)
       TYPE(tab_pot_type), POINTER                        :: tab
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_tab_create', &
-         routineP = moduleN//':'//routineN
-
       CPASSERT(.NOT. ASSOCIATED(tab))
       ALLOCATE (tab)
       NULLIFY (tab%r, tab%e, tab%f)
@@ -2374,9 +2371,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pair_potential_tab_copy(tab_source, tab_dest)
       TYPE(tab_pot_type), POINTER                        :: tab_source, tab_dest
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_tab_copy', &
-         routineP = moduleN//':'//routineN
 
       IF (.NOT. ASSOCIATED(tab_source)) RETURN
       IF (ASSOCIATED(tab_dest)) CALL pair_potential_tab_release(tab_dest)
@@ -2402,9 +2396,6 @@ CONTAINS
    SUBROUTINE pair_potential_tab_clean(tab)
       TYPE(tab_pot_type), POINTER                        :: tab
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_tab_clean', &
-         routineP = moduleN//':'//routineN
-
       IF (.NOT. ASSOCIATED(tab)) RETURN
       tab%tabpot_file_name = 'NULL'
       tab%dr = 0.0_dp
@@ -2423,9 +2414,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pair_potential_tab_release(tab)
       TYPE(tab_pot_type), POINTER                        :: tab
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_tab_release', &
-         routineP = moduleN//':'//routineN
 
       IF (ASSOCIATED(tab)) THEN
          IF (ASSOCIATED(tab%r)) THEN

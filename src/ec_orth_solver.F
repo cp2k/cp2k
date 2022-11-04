@@ -121,7 +121,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       INTEGER, INTENT(IN)                                :: iounit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'preconditioner', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'preconditioner'
 
       INTEGER                                            :: handle, i, ispin, max_iter, nao, nspins
       LOGICAL                                            :: converged
@@ -370,7 +370,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iounit
       LOGICAL, INTENT(OUT)                               :: should_stop
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ec_response_ao', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ec_response_ao'
 
       INTEGER                                            :: handle, i, ispin, max_iter_lanczos, nao, &
                                                             nspins, s_sqrt_method, s_sqrt_order
@@ -869,7 +869,7 @@ CONTAINS
          POINTER                                         :: matrix_wz
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ec_wz_matrix', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ec_wz_matrix'
 
       INTEGER                                            :: handle, ispin, nspins
       REAL(KIND=dp)                                      :: scaling
@@ -960,7 +960,7 @@ CONTAINS
          POINTER                                         :: matrix_b, matrix_Ax
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'hessian_op1', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'hessian_op1'
 
       INTEGER                                            :: handle
 
@@ -1015,8 +1015,7 @@ CONTAINS
          POINTER                                         :: matrix_Ax
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_hessian_op', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'build_hessian_op'
 
       INTEGER                                            :: handle, ispin, nspins
       REAL(KIND=dp)                                      :: chksum
@@ -1130,7 +1129,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix_s_sqrt_inv
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'hessian_op2', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'hessian_op2'
 
       INTEGER                                            :: handle, ispin, nspins
       REAL(KIND=dp)                                      :: ekin_mol
@@ -1370,7 +1369,7 @@ CONTAINS
       LOGICAL                                            :: anticomm
       REAL(KIND=dp), OPTIONAL                            :: alpha, beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'commutator', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'commutator'
 
       INTEGER                                            :: handle, ispin
       REAL(KIND=dp)                                      :: facc, myalpha, mybeta
@@ -1438,7 +1437,7 @@ CONTAINS
          POINTER                                         :: matrix_io
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'projector', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'projector'
 
       INTEGER                                            :: handle, ispin, nspins
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -1504,8 +1503,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: matrix, matrix_trafo
       REAL(KIND=dp)                                      :: eps_filter
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_m_orth', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'transform_m_orth'
 
       INTEGER                                            :: handle
       TYPE(dbcsr_type)                                   :: matrix_tmp, matrix_work

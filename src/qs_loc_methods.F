@@ -1331,8 +1331,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: print_loc_section
       INTEGER, INTENT(IN)                                :: ispin
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'centers_second_moments_loc', &
-         routineP = moduleN//':'//routineN
       INTEGER, PARAMETER                                 :: norder = 2
       LOGICAL, PARAMETER :: debug_this_subroutine = .FALSE.
 
@@ -1480,8 +1478,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: print_loc_section
       INTEGER, INTENT(IN)                                :: ispin
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'centers_second_moments_berry', &
-         routineP = moduleN//':'//routineN
       INTEGER, PARAMETER                                 :: taylor_order = 1
       LOGICAL, PARAMETER :: debug_this_subroutine = .FALSE.
 

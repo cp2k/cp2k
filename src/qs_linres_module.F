@@ -127,8 +127,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_p_env_type)                                :: p_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dcdr_linres', routineP = moduleN//':'//routineN
-
       INTEGER                                            :: beta, latom
       TYPE(dcdr_env_type)                                :: dcdr_env
 

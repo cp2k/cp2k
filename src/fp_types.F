@@ -65,8 +65,6 @@ CONTAINS
    PURE SUBROUTINE fp_env_create(fp_env)
       TYPE(fp_type), INTENT(OUT)                         :: fp_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'fp_env_create'
-
       fp_env%use_fp = .FALSE.
       NULLIFY (fp_env%inner_atoms)
       NULLIFY (fp_env%outer_atoms)
@@ -81,17 +79,10 @@ CONTAINS
    SUBROUTINE fp_env_release(fp_env)
       TYPE(fp_type), INTENT(INOUT)                       :: fp_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'fp_env_release'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
       IF (ASSOCIATED(fp_env%inner_atoms)) DEALLOCATE (fp_env%inner_atoms)
       IF (ASSOCIATED(fp_env%outer_atoms)) DEALLOCATE (fp_env%outer_atoms)
       IF (ASSOCIATED(fp_env%print_section)) CALL section_vals_release(fp_env%print_section)
       fp_env%use_fp = .FALSE.
-      CALL timestop(handle)
 
    END SUBROUTINE fp_env_release
 

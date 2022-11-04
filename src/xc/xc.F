@@ -1530,8 +1530,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
          OPTIONAL                                        :: virial_xc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_2nd_deriv', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_2nd_deriv'
 
       INTEGER                                            :: handle, ispin, nspins
       INTEGER, DIMENSION(2, 3)                           :: bo
@@ -1665,8 +1664,7 @@ CONTAINS
          OPTIONAL                                        :: virial_xc
       TYPE(xc_derivative_set_type), OPTIONAL             :: deriv_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_2nd_deriv_numerical', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_2nd_deriv_numerical'
       REAL(KIND=dp), DIMENSION(-4:4, 4), PARAMETER :: &
          weights = RESHAPE([0.0_dp, 0.0_dp, 0.0_dp, -0.5_dp, 0.0_dp, 0.5_dp, 0.0_dp, 0.0_dp, 0.0_dp, &
                            0.0_dp, 0.0_dp, 1.0_dp/12.0_dp, -2.0_dp/3.0_dp, 0.0_dp, 2.0_dp/3.0_dp, -1.0_dp/12.0_dp, 0.0_dp, 0.0_dp, &
@@ -2313,8 +2311,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER, INTENT(IN) :: rhoa, rhob, tau_a, tau_b
       TYPE(pw_p_type), DIMENSION(:), POINTER, INTENT(IN) :: rho_g, rho_r, tau_r
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calc_resp_potential_numer_ab', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calc_resp_potential_numer_ab'
 
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: exc
@@ -2370,7 +2367,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: dr1dr
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: v_drho
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'apply_drho', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'apply_drho'
 
       INTEGER                                            :: handle
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: deriv_data
@@ -2417,8 +2414,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(bo(1, 1):bo(2, 1), bo(1, &
                                                      2):bo(2, 2), bo(1, 3):bo(2, 3)), INTENT(INOUT)  :: v_drho
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'update_deriv_rho', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'update_deriv_rho'
 
       INTEGER                                            :: handle, i, j, k
       REAL(KIND=dp)                                      :: de
@@ -2468,8 +2464,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(bo(1, 1):bo(2, 1), bo(1, &
                                                      2):bo(2, 2), bo(1, 3):bo(2, 3)), INTENT(INOUT)  :: v
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'update_deriv', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'update_deriv'
 
       INTEGER                                            :: handle, i, j, k
       REAL(KIND=dp)                                      :: de
@@ -2527,8 +2522,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(bo(1, 1):bo(2, 1), bo(1, &
                                                      2):bo(2, 2), bo(1, 3):bo(2, 3)), INTENT(INOUT)  :: v_drhoa, v_drhob
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'update_deriv_drho_ab', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'update_deriv_drho_ab'
 
       INTEGER                                            :: handle, i, j, k
       REAL(KIND=dp)                                      :: de
@@ -2577,7 +2571,7 @@ CONTAINS
       TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho2_set
       TYPE(xc_derivative_set_type)                       :: deriv_set1
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_derivs_rho', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_derivs_rho'
 
       INTEGER                                            :: handle
 

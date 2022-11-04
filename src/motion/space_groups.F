@@ -92,7 +92,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iunit
       LOGICAL, INTENT(IN)                                :: print_atoms
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_create', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_create'
 #ifdef __SPGLIB
       CHARACTER(LEN=1000)                                :: buffer
       INTEGER                                            :: ierr, nchars, nop, tra_mat(3, 3)
@@ -289,8 +289,7 @@ CONTAINS
       TYPE(gopt_f_type), INTENT(IN), POINTER             :: gopt_env
       INTEGER, INTENT(IN)                                :: iunit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'identify_space_group', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'identify_space_group'
 
       INTEGER                                            :: handle, i, k, n_atom, n_core, n_shell, &
                                                             n_sr_rep, nparticle, shell_index
@@ -404,8 +403,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(IN)                                      :: scoord
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_find_equivalent_atoms', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_find_equivalent_atoms'
 
       INTEGER                                            :: handle, i, ia, ib, ir, j, natom, nop, &
                                                             nshell
@@ -496,8 +494,7 @@ CONTAINS
 
       TYPE(spgr_type), INTENT(INOUT), POINTER            :: spgr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_reduce_symm', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'spgr_reduce_symm'
 
       INTEGER                                            :: handle, ia, ib, ir, ja, jb, nop, nops, &
                                                             nparticle
@@ -565,8 +562,7 @@ CONTAINS
 
       TYPE(spgr_type), INTENT(INOUT), POINTER            :: spgr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_rotations_subset', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_rotations_subset'
 
       INTEGER                                            :: handle, i, j
       INTEGER, DIMENSION(3, 3)                           :: d
@@ -623,8 +619,7 @@ CONTAINS
       TYPE(spgr_type), INTENT(IN), POINTER               :: spgr
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: coord
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_apply_rotations_coord', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_apply_rotations_coord'
 
       INTEGER                                            :: handle, ia, ib, ir, ja, jb, nop, nops, &
                                                             nparticle
@@ -685,8 +680,7 @@ CONTAINS
       TYPE(spgr_type), INTENT(IN), POINTER               :: spgr
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: force
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_apply_rotations_force', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_apply_rotations_force'
 
       INTEGER                                            :: handle, ia, ib, ir, ja, jb, nop, nops, &
                                                             nparticle
@@ -744,8 +738,7 @@ CONTAINS
       INTEGER                                            :: nop
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h1, h2
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_change_basis', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'spgr_change_basis'
 
       INTEGER                                            :: handle, ir
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h1ih2, h2ih1, ih1, ih2, r, s
@@ -783,8 +776,7 @@ CONTAINS
       TYPE(cell_type), INTENT(IN), POINTER               :: cell
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: stress
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_apply_rotations_stress', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_apply_rotations_stress'
 
       INTEGER                                            :: handle, i, ir, j, k, l, nop
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: roto
@@ -837,8 +829,6 @@ CONTAINS
    SUBROUTINE print_spgr(spgr)
 
       TYPE(spgr_type), INTENT(IN), POINTER               :: spgr
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_spgr', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, j
 
@@ -912,9 +902,6 @@ CONTAINS
 
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: stress
       TYPE(spgr_type), INTENT(IN), POINTER               :: spgr
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_write_stress_tensor', &
-         routineP = moduleN//':'//routineN
 
       REAL(KIND=dp), DIMENSION(3)                        :: eigval
       REAL(KIND=dp), DIMENSION(3, 3)                     :: eigvec, stress_tensor

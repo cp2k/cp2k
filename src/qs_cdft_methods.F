@@ -617,11 +617,8 @@ CONTAINS
 
    END SUBROUTINE hirshfeld_constraint
 
-   ! **************************************************************************************************
-   !> \brief Calculates Hirshfeld constraints
-   ! **************************************************************************************************
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Calculates Hirshfeld constraints
 !> \param qs_env ...
 !> \param just_gradients ...
 ! **************************************************************************************************
@@ -629,8 +626,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, OPTIONAL                                  :: just_gradients
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'hirshfeld_constraint_low', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'hirshfeld_constraint_low'
 
       INTEGER :: atom_a, atoms_memory, atoms_memory_num, handle, i, iatom, iex, igroup, ikind, &
          ithread, j, k, natom, npme, nthread, num_atoms, num_species, numexp, subpatch_pattern
@@ -1145,12 +1141,9 @@ CONTAINS
 
    END SUBROUTINE hirshfeld_constraint_low
 
-   ! **************************************************************************************************
-   !> \brief Calculates the value of a CDFT constraint by integrating the product of the CDFT
-   !>        weight function and the realspace electron density
-   ! **************************************************************************************************
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Calculates the value of a CDFT constraint by integrating the product of the CDFT
+!>        weight function and the realspace electron density
 !> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE cdft_constraint_integrate(qs_env)
@@ -1338,18 +1331,14 @@ CONTAINS
 
    END SUBROUTINE cdft_constraint_integrate
 
-   ! **************************************************************************************************
-   !> \brief Calculates atomic forces due to a CDFT constraint (Becke or Hirshfeld)
-   ! **************************************************************************************************
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Calculates atomic forces due to a CDFT constraint (Becke or Hirshfeld)
 !> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE cdft_constraint_force(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cdft_constraint_force', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cdft_constraint_force'
 
       INTEGER                                            :: handle, i, iatom, igroup, ikind, ispin, &
                                                             j, k, natom, nvar
@@ -1606,12 +1595,9 @@ CONTAINS
 
    END SUBROUTINE cdft_constraint_force
 
-   ! **************************************************************************************************
-   !> \brief Prepare CDFT fragment constraints. Fragment densities are read from cube files, multiplied
-   !>        by the CDFT weight functions and integrated over the realspace grid.
-   ! **************************************************************************************************
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Prepare CDFT fragment constraints. Fragment densities are read from cube files, multiplied
+!>        by the CDFT weight functions and integrated over the realspace grid.
 !> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE prepare_fragment_constraint(qs_env)

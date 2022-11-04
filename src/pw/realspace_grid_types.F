@@ -563,8 +563,6 @@ CONTAINS
       TYPE(realspace_grid_desc_type), INTENT(INOUT)      :: desc
       INTEGER, DIMENSION(:), INTENT(IN)                  :: real2virtual
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_reorder_ranks'
-
       INTEGER                                            :: i
 
       desc%real2virtual(:) = real2virtual

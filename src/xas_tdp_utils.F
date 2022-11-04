@@ -744,7 +744,7 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xas_ot_solver', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'xas_ot_solver'
 
       INTEGER                                            :: handle, max_iter, ndo_mo, nelec_spin(2), &
                                                             nocc, nrow, output_unit
@@ -836,7 +836,7 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'prep_for_ot', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'prep_for_ot'
 
       INTEGER :: blk, handle, i, iblk, ido_mo, ispin, jblk, maxel, minel, nao, natom, ndo_mo, &
          nelec_spin(2), nhomo(2), nlumo(2), nspins, start_block, start_col, start_row

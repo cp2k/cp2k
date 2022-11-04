@@ -565,7 +565,7 @@ CONTAINS
 !> \param b ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION angle(a, b) RESULT(angle_ab)
+   PURE FUNCTION angle(a, b) RESULT(angle_ab)
       ! Calculation of the angle between the vectors a and b. The angle is returned in radians.
 
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: a, b

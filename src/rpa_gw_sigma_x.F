@@ -118,8 +118,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: energy_ex, energy_xc_admm(2), t3
       INTEGER, INTENT(IN)                                :: unit_nr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'compute_vec_Sigma_x_minus_vxc_gw', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'compute_vec_Sigma_x_minus_vxc_gw'
 
       CHARACTER(4)                                       :: occ_virt
       CHARACTER(LEN=40)                                  :: line
@@ -789,8 +788,7 @@ CONTAINS
       INTEGER                                            :: nmo
       TYPE(mp2_type)                                     :: mp2_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_sigma_x_minus_vxc_to_MO_basis', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_sigma_x_minus_vxc_to_MO_basis'
 
       INTEGER :: dimen, gw_corr_lev_occ, gw_corr_lev_virt, handle, homo, i_global, iiB, ikp, &
          ispin, j_global, jjB, ncol_local, nkp, nrow_local, nspins
@@ -943,8 +941,7 @@ CONTAINS
                                                             matrix_ks_kp_im
       TYPE(kpoint_type), POINTER                         :: kpoints
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'transform_matrix_ks_to_kp', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'transform_matrix_ks_to_kp'
 
       INTEGER                                            :: handle, ikp, ispin, nkp, nspin
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -991,8 +988,7 @@ CONTAINS
                                                             matrix_ks_kp_im
       TYPE(kpoint_type), POINTER                         :: kpoints
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_matrix_ks_kp', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_matrix_ks_kp'
 
       INTEGER                                            :: handle, ikp, ispin, nkp, nspin
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index

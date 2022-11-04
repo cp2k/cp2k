@@ -94,9 +94,6 @@ CONTAINS
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_template
       INTEGER, INTENT(IN)                                :: color
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_split', &
-         routineP = moduleN//':'//routineN
-
       INTEGER                                            :: comm
 
       CPASSERT(para_env_template%ref_count > 0)

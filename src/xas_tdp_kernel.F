@@ -669,8 +669,6 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ondiag_ex', routineP = moduleN//':'//routineN
-
       INTEGER                                            :: blk, group, iblk, iso, jblk, jso, nblk, &
                                                             ndo_mo, ndo_so, nsgfa, nsgfp, ri_atom, &
                                                             source

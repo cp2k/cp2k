@@ -451,8 +451,7 @@ CONTAINS
          POINTER                                         :: c_zij_out(:)
       TYPE(cp_fm_type), INTENT(OUT), OPTIONAL, POINTER   :: grad_final
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'jacobi_rotations_serial_1', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'jacobi_rotations_serial_1'
 
       COMPLEX(KIND=dp)                                   :: mzii
       COMPLEX(KIND=dp), POINTER                          :: mii(:), mij(:), mjj(:)
@@ -602,8 +601,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: nmo
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: vectors_2, mos_guess
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'jacobi_cg_edf_ls', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'jacobi_cg_edf_ls'
       COMPLEX(KIND=dp), PARAMETER                        :: cone = (1.0_dp, 0.0_dp), &
                                                             czero = (0.0_dp, 0.0_dp)
       REAL(KIND=dp), PARAMETER                           :: gold_sec = 0.3819_dp

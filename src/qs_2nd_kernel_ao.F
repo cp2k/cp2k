@@ -81,9 +81,6 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: c0, c1
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: dm
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_dm_response', &
-         routineP = moduleN//':'//routineN
-
       INTEGER                                            :: ispin, ncol, nspins
 
       nspins = SIZE(dm, 1)
@@ -194,7 +191,7 @@ CONTAINS
       TYPE(qs_p_env_type), INTENT(IN)                    :: p_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: recalc_integrals
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_hfx_ao', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'apply_hfx_ao'
 
       INTEGER                                            :: handle, ispin, nspins
       LOGICAL                                            :: my_recalc_integrals

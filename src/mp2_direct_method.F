@@ -95,8 +95,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(dimen, dimen), OPTIONAL   :: C_j
       REAL(KIND=dp), DIMENSION(dimen), OPTIONAL          :: Auto_j
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_direct_energy', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mp2_direct_energy'
       REAL(KIND=dp), PARAMETER                           :: zero = 0.D+00
 
       INTEGER :: batch_number, color_sub, counter, elements_ij_proc, group_counter, handle, i, &

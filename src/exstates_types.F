@@ -74,9 +74,6 @@ CONTAINS
    SUBROUTINE exstate_release(ex_env)
       TYPE(excited_energy_type), POINTER                 :: ex_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'exstate_release', &
-         routineP = moduleN//':'//routineN
-
       INTEGER                                            :: is
 
       IF (ASSOCIATED(ex_env)) THEN
@@ -201,8 +198,6 @@ CONTAINS
       TYPE(excited_energy_type), POINTER                 :: ex_env
       LOGICAL, INTENT(IN)                                :: excited_state
       TYPE(section_vals_type), POINTER                   :: dft_section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'exstate_create', routineP = moduleN//':'//routineN
 
       CPASSERT(.NOT. ASSOCIATED(ex_env))
       ALLOCATE (ex_env)

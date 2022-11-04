@@ -1226,9 +1226,6 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_mixed, do_xas
       INTEGER, INTENT(IN), OPTIONAL                      :: nloc_xas, spin_xas
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_control_init', &
-         routineP = moduleN//':'//routineN
-
       LOGICAL                                            :: my_do_mixed
       TYPE(localized_wfn_control_type), POINTER          :: localized_wfn_control
 

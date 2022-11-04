@@ -2541,8 +2541,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: order
       REAL(KIND=dp), DIMENSION(3), OPTIONAL              :: rcc
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dipole_deriv_ao', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dipole_deriv_ao'
 
       INTEGER :: handle, i, iatom, icol, idir, ikind, inode, irow, iset, j, jatom, jkind, jset, &
          last_jatom, lda, ldab, ldb, M_dim, maxsgf, natom, ncoa, ncob, nkind, nseta, nsetb, sgfa, &
