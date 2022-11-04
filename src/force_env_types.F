@@ -36,7 +36,6 @@ MODULE force_env_types
                                               fist_env_release,&
                                               fist_environment_type
    USE fp_types,                        ONLY: fp_env_release,&
-                                              fp_env_retain,&
                                               fp_type
    USE global_types,                    ONLY: global_environment_type,&
                                               globenv_release
@@ -47,7 +46,6 @@ MODULE force_env_types
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE metadynamics_types,              ONLY: meta_env_release,&
-                                              meta_env_retain,&
                                               meta_env_type
    USE mixed_energy_types,              ONLY: mixed_energy_type
    USE mixed_environment_types,         ONLY: get_mixed_env,&
@@ -116,7 +114,6 @@ MODULE force_env_types
 
 ! **************************************************************************************************
 !> \brief wrapper to abstract the force evaluation of the various methods
-!> \param id_nr identification number
 !> \param ref_count reference count (see doc/ReferenceCounting.html)
 !> \param in_use which method is in use
 !> \param fist_env the fist environment (allocated only if fist is in use)
@@ -140,7 +137,7 @@ MODULE force_env_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE force_env_type
-      INTEGER :: id_nr, ref_count, in_use, method_name_id
+      INTEGER :: ref_count, in_use, method_name_id
       REAL(KIND=dp)                                    :: additional_potential
       TYPE(fist_environment_type), POINTER             :: fist_env
       TYPE(meta_env_type), POINTER                     :: meta_env
@@ -237,18 +234,25 @@ CONTAINS
             SELECT CASE (force_env%in_use)
             CASE (use_fist_force)
                CALL fist_env_release(force_env%fist_env)
+               DEALLOCATE (force_env%fist_env)
             CASE (use_qs_force)
                CALL qs_env_release(force_env%qs_env)
+               DEALLOCATE (force_env%qs_env)
             CASE (use_eip_force)
                CALL eip_env_release(force_env%eip_env)
+               DEALLOCATE (force_env%eip_env)
             CASE (use_pwdft_force)
                CALL pwdft_env_release(force_env%pwdft_env)
+               DEALLOCATE (force_env%pwdft_env)
             CASE (use_mixed_force)
                CALL mixed_env_release(force_env%mixed_env)
+               DEALLOCATE (force_env%mixed_env)
             CASE (use_nnp_force)
                CALL nnp_env_release(force_env%nnp_env)
+               DEALLOCATE (force_env%nnp_env)
             CASE (use_embed)
                CALL embed_env_release(force_env%embed_env)
+               DEALLOCATE (force_env%embed_env)
             END SELECT
             CALL globenv_release(force_env%globenv)
             CALL cp_para_env_release(force_env%para_env)
@@ -260,10 +264,22 @@ CONTAINS
             CPASSERT(.NOT. ASSOCIATED(force_env%mixed_env))
             CPASSERT(.NOT. ASSOCIATED(force_env%nnp_env))
             CPASSERT(.NOT. ASSOCIATED(force_env%embed_env))
-            CALL meta_env_release(force_env%meta_env)
-            CALL fp_env_release(force_env%fp_env)
-            CALL qmmm_env_release(force_env%qmmm_env)
-            CALL qmmmx_env_release(force_env%qmmmx_env)
+            IF (ASSOCIATED(force_env%meta_env)) THEN
+               CALL meta_env_release(force_env%meta_env)
+               DEALLOCATE (force_env%meta_env)
+            END IF
+            IF (ASSOCIATED(force_env%fp_env)) THEN
+               CALL fp_env_release(force_env%fp_env)
+               DEALLOCATE (force_env%fp_env)
+            END IF
+            IF (ASSOCIATED(force_env%qmmm_env)) THEN
+               CALL qmmm_env_release(force_env%qmmm_env)
+               DEALLOCATE (force_env%qmmm_env)
+            END IF
+            IF (ASSOCIATED(force_env%qmmmx_env)) THEN
+               CALL qmmmx_env_release(force_env%qmmmx_env)
+               DEALLOCATE (force_env%qmmmx_env)
+            END IF
             CALL section_vals_release(force_env%force_env_section)
             CALL section_vals_release(force_env%root_section)
             DEALLOCATE (force_env)
@@ -631,15 +647,14 @@ CONTAINS
 
       CPASSERT(force_env%ref_count > 0)
       IF (PRESENT(meta_env)) THEN
-         IF (ASSOCIATED(meta_env)) THEN
-            CALL meta_env_retain(meta_env)
+         IF (ASSOCIATED(force_env%meta_env)) THEN
+            CALL meta_env_release(force_env%meta_env)
+            DEALLOCATE (force_env%meta_env)
          END IF
-         CALL meta_env_release(force_env%meta_env)
          force_env%meta_env => meta_env
       END IF
       IF (PRESENT(fp_env)) THEN
-         CALL fp_env_retain(fp_env)
-         CALL fp_env_release(force_env%fp_env)
+         IF (ASSOCIATED(force_env%fp_env)) CALL fp_env_release(force_env%fp_env)
          force_env%fp_env => fp_env
       END IF
       IF (PRESENT(force_env_section)) THEN

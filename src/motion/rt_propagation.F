@@ -473,8 +473,7 @@ CONTAINS
                IF (.NOT. ASSOCIATED(mo_coeff)) THEN
                   CALL init_mo_set(qs_env%mos(ispin)%mo_set, &
                                    qs_env%mpools%ao_mo_fm_pools(ispin)%pool, &
-                                   name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))// &
-                                   "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))))
+                                   name="qs_env%mo"//TRIM(ADJUSTL(cp_to_string(ispin))))
                END IF
             END DO
             IF (dft_control%do_admm) THEN
@@ -489,8 +488,7 @@ CONTAINS
                   IF (.NOT. ASSOCIATED(mo_coeff_aux_fit)) THEN
                      CALL init_mo_set(qs_env%admm_env%mos_aux_fit(ispin)%mo_set, &
                                       fm_struct=aux_fit_fm_struct, &
-                                      name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))// &
-                                      "%mo_aux_fit"//TRIM(ADJUSTL(cp_to_string(ispin))))
+                                      name="qs_env%mo_aux_fit"//TRIM(ADJUSTL(cp_to_string(ispin))))
                   END IF
                   CALL cp_fm_struct_release(aux_fit_fm_struct)
                END DO

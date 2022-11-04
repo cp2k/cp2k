@@ -238,16 +238,14 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: atom_index, atom_list, my_conf, tmplist
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(cp_subsys_type), POINTER                      :: subsys, subsys_loc
+      TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(particle_list_type), POINTER                  :: particles
-      TYPE(qs_energy_type), POINTER                      :: qs_energy
-      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: bsse_section, dft_section, &
                                                             force_env_section, subsys_section
 
       CALL section_vals_get(n_frags, n_repetition=num_of_frag)
       CPASSERT(SIZE(conf) == num_of_frag)
-      NULLIFY (subsys_loc, subsys, particles, para_env, cell, atom_index, atom_type, tmplist, &
+      NULLIFY (subsys, particles, para_env, cell, atom_index, atom_type, tmplist, &
                force_env_section)
       CALL force_env_get(force_env, force_env_section=force_env_section)
       CALL section_vals_val_get(force_env_section, "METHOD", i_val=method_name_id)
@@ -309,24 +307,32 @@ CONTAINS
       !
       energy = 0.0_dp
       IF (method_name_id == do_qs) THEN
-         CALL create_small_subsys(subsys_loc, big_subsys=subsys, &
-                                  small_para_env=para_env, small_cell=cell, sub_atom_index=atom_index, &
-                                  sub_atom_kind_name=atom_type, para_env=para_env, &
-                                  force_env_section=force_env_section, subsys_section=subsys_section)
+         BLOCK
+            TYPE(qs_environment_type), POINTER :: qs_env
+            TYPE(qs_energy_type), POINTER                      :: qs_energy
+            TYPE(cp_subsys_type), POINTER                      :: subsys_loc
+            NULLIFY (subsys_loc)
+            CALL create_small_subsys(subsys_loc, big_subsys=subsys, &
+                                     small_para_env=para_env, small_cell=cell, sub_atom_index=atom_index, &
+                                     sub_atom_kind_name=atom_type, para_env=para_env, &
+                                     force_env_section=force_env_section, subsys_section=subsys_section)
 
-         CALL qs_env_create(qs_env, globenv)
-         CALL qs_init(qs_env, para_env, root_section, globenv=globenv, cp_subsys=subsys_loc, &
-                      force_env_section=force_env_section, subsys_section=subsys_section, &
-                      use_motion_section=.FALSE.)
-         CALL cp_subsys_release(subsys_loc)
+            ALLOCATE (qs_env)
+            CALL qs_env_create(qs_env, globenv)
+            CALL qs_init(qs_env, para_env, root_section, globenv=globenv, cp_subsys=subsys_loc, &
+                         force_env_section=force_env_section, subsys_section=subsys_section, &
+                         use_motion_section=.FALSE.)
+            CALL cp_subsys_release(subsys_loc)
 
-         !
-         ! Evaluate Energy
-         !
-         CALL qs_energies(qs_env)
-         CALL get_qs_env(qs_env, energy=qs_energy)
-         energy = qs_energy%total
-         CALL qs_env_release(qs_env)
+            !
+            ! Evaluate Energy
+            !
+            CALL qs_energies(qs_env)
+            CALL get_qs_env(qs_env, energy=qs_energy)
+            energy = qs_energy%total
+            CALL qs_env_release(qs_env)
+            DEALLOCATE (qs_env)
+         END BLOCK
       ELSE
          CPABORT("")
       END IF

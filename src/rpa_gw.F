@@ -2615,9 +2615,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: kpt_latt, reducing_factor
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_environment_type), POINTER                 :: qs_env_kp_Gamma_only
 
-      NULLIFY (kpoints, cell, particle_set, qs_env_kp_Gamma_only)
+      NULLIFY (kpoints, cell, particle_set)
 
       ! check whether kp_grid includes the Gamma point. If so, abort.
       CPASSERT(MOD(kp_grid(1)*kp_grid(2)*kp_grid(3), 2) == 0)
@@ -2779,14 +2778,18 @@ CONTAINS
 
       ELSE
 
-         CALL create_kp_from_gamma(qs_env, qs_env_kp_Gamma_only)
+         BLOCK
+            TYPE(qs_environment_type), POINTER :: qs_env_kp_Gamma_only
+            CALL create_kp_from_gamma(qs_env, qs_env_kp_Gamma_only)
 
-         CALL get_qs_env(qs_env=qs_env, cell=cell, particle_set=particle_set)
+            CALL get_qs_env(qs_env=qs_env, cell=cell, particle_set=particle_set)
 
-         CALL calculate_kp_orbitals(qs_env_kp_Gamma_only, kpoints, "MONKHORST-PACK", nadd=nmo, mp_grid=kp_grid(1:3), &
-                                    group_size_ext=para_env%num_pe)
+            CALL calculate_kp_orbitals(qs_env_kp_Gamma_only, kpoints, "MONKHORST-PACK", nadd=nmo, mp_grid=kp_grid(1:3), &
+                                       group_size_ext=para_env%num_pe)
 
-         CALL qs_env_release(qs_env_kp_Gamma_only)
+            CALL qs_env_release(qs_env_kp_Gamma_only)
+            DEALLOCATE (qs_env_kp_Gamma_only)
+         END BLOCK
 
       END IF
 

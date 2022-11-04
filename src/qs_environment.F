@@ -79,7 +79,6 @@ MODULE qs_environment
                                               read_ewald_section_tb
    USE ewald_pw_methods,                ONLY: ewald_pw_grid_update
    USE ewald_pw_types,                  ONLY: ewald_pw_create,&
-                                              ewald_pw_release,&
                                               ewald_pw_type
    USE exstates_types,                  ONLY: excited_energy_type,&
                                               exstate_create
@@ -168,7 +167,6 @@ MODULE qs_environment
         init_qs_kind_set, qs_kind_type, set_qs_kind, write_gto_basis_sets, write_qs_kind_set
    USE qs_ks_types,                     ONLY: qs_ks_env_create,&
                                               qs_ks_env_type,&
-                                              qs_ks_release,&
                                               set_ks_env
    USE qs_local_rho_types,              ONLY: local_rho_type
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
@@ -180,7 +178,6 @@ MODULE qs_environment
    USE qs_rho_atom_types,               ONLY: rho_atom_type
    USE qs_subsys_methods,               ONLY: qs_subsys_create
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
-                                              qs_subsys_release,&
                                               qs_subsys_set,&
                                               qs_subsys_type
    USE qs_wf_history_methods,           ONLY: wfi_create,&
@@ -189,11 +186,9 @@ MODULE qs_environment
                                               wfi_release
    USE rel_control_types,               ONLY: rel_c_create,&
                                               rel_c_read_parameters,&
-                                              rel_c_release,&
                                               rel_control_type
    USE scf_control_types,               ONLY: scf_c_create,&
                                               scf_c_read_parameters,&
-                                              scf_c_release,&
                                               scf_c_write_parameters,&
                                               scf_control_type
    USE semi_empirical_expns3_methods,   ONLY: semi_empirical_expns3_setup
@@ -316,6 +311,7 @@ CONTAINS
          is_semi = .FALSE.
       END SELECT
 
+      ALLOCATE (subsys)
       CALL qs_subsys_create(subsys, para_env, &
                             force_env_section=force_env_section, &
                             subsys_section=subsys_section, &
@@ -324,6 +320,7 @@ CONTAINS
                             cp_subsys=cp_subsys, cell=cell, cell_ref=cell_ref, &
                             elkind=is_semi)
 
+      ALLOCATE (ks_env)
       CALL qs_ks_env_create(ks_env)
       CALL set_ks_env(ks_env, subsys=subsys)
       CALL set_qs_env(qs_env, ks_env=ks_env)
@@ -501,9 +498,6 @@ CONTAINS
          END IF
       END IF
 
-      CALL qs_subsys_release(subsys)
-      CALL qs_ks_release(ks_env)
-
    END SUBROUTINE qs_init
 
 ! **************************************************************************************************
@@ -574,7 +568,6 @@ CONTAINS
       TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_wf_history_type), POINTER                  :: wf_history
-      TYPE(rel_control_type), POINTER                    :: rel_control
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
       TYPE(scf_control_type), POINTER                    :: scf_control
@@ -677,10 +670,13 @@ CONTAINS
       CALL read_tddfpt2_control(dft_control%tddfpt2_control, tddfpt_section, dft_control%qs_control)
 
       !   Create relativistic control section
-      CALL rel_c_create(rel_control)
-      CALL rel_c_read_parameters(rel_control, dft_section)
-      CALL set_qs_env(qs_env, rel_control=rel_control)
-      CALL rel_c_release(rel_control)
+      BLOCK
+         TYPE(rel_control_type), POINTER :: rel_control
+         ALLOCATE (rel_control)
+         CALL rel_c_create(rel_control)
+         CALL rel_c_read_parameters(rel_control, dft_section)
+         CALL set_qs_env(qs_env, rel_control=rel_control)
+      END BLOCK
 
       !   *** Read DFTB parameter files ***
       IF (dft_control%qs_control%method_id == do_method_dftb) THEN
@@ -698,10 +694,10 @@ CONTAINS
             print_section => section_vals_get_subs_vals(qs_env%input, "PRINT%GRID_INFORMATION")
             CALL get_qs_kind_set(qs_kind_set, basis_rcut=ewald_rcut)
             CALL read_ewald_section_tb(ewald_env, ewald_section, cell_ref%hmat)
+            ALLOCATE (ewald_pw)
             CALL ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, print_section=print_section)
             CALL set_qs_env(qs_env, ewald_env=ewald_env, ewald_pw=ewald_pw)
             CALL ewald_env_release(ewald_env)
-            CALL ewald_pw_release(ewald_pw)
          END IF
       ELSEIF (dft_control%qs_control%method_id == do_method_xtb) THEN
          !   *** Read xTB parameter file ***
@@ -761,10 +757,10 @@ CONTAINS
             ewald_section => section_vals_get_subs_vals(poisson_section, "EWALD")
             print_section => section_vals_get_subs_vals(qs_env%input, "PRINT%GRID_INFORMATION")
             CALL read_ewald_section_tb(ewald_env, ewald_section, cell_ref%hmat)
+            ALLOCATE (ewald_pw)
             CALL ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, print_section=print_section)
             CALL set_qs_env(qs_env, ewald_env=ewald_env, ewald_pw=ewald_pw)
             CALL ewald_env_release(ewald_env)
-            CALL ewald_pw_release(ewald_pw)
          END IF
       END IF
 
@@ -1027,6 +1023,7 @@ CONTAINS
                                    force_env_section=qs_env%input)
 
       !   *** SCF parameters ***
+      ALLOCATE (scf_control)
       CALL scf_c_create(scf_control)
       CALL scf_c_read_parameters(scf_control, dft_section)
 
@@ -1069,7 +1066,6 @@ CONTAINS
 
       CALL distribution_1d_release(local_particles)
       CALL distribution_1d_release(local_molecules)
-      CALL scf_c_release(scf_control)
       CALL wfi_release(wf_history)
       CALL dft_control_release(dft_control)
 
@@ -1161,6 +1157,7 @@ CONTAINS
                                                         "PRINT%GRID_INFORMATION")
             CALL read_ewald_section(ewald_env, ewald_section)
             ! Create ewald grids
+            ALLOCATE (ewald_pw)
             CALL ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, &
                                  print_section=print_section)
             ! Initialize ewald grids
@@ -1173,6 +1170,7 @@ CONTAINS
             END IF
             CALL section_vals_val_get(se_section, "NEIGHBOR_LISTS%VERLET_SKIN", &
                                       r_val=verlet_skin)
+            ALLOCATE (se_nonbond_env)
             CALL fist_nonbond_env_create(se_nonbond_env, atomic_kind_set, &
                                          do_nonbonded=.TRUE., verlet_skin=verlet_skin, ewald_rcut=ewald_rcut, &
                                          ei_scale14=0.0_dp, vdw_scale14=0.0_dp, shift_cutoff=.FALSE.)
@@ -1181,7 +1179,6 @@ CONTAINS
             CALL set_qs_env(qs_env, ewald_env=ewald_env, ewald_pw=ewald_pw, &
                             se_nonbond_env=se_nonbond_env, se_nddo_mpole=se_nddo_mpole)
             CALL ewald_env_release(ewald_env)
-            CALL ewald_pw_release(ewald_pw)
             ! Handle the residual integral part 1/R^3
             CALL semi_empirical_expns3_setup(qs_kind_set, se_control, &
                                              dft_control%qs_control%method_id)

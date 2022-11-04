@@ -53,8 +53,6 @@ MODULE xc_rho_set_types
 ! **************************************************************************************************
 !> \brief represent a density, with all the representation and data needed
 !>      to perform a functional evaluation
-!> \param ref_count reference count (see doc/ReferenceCounting.html)
-!> \param id_nr identification number (unique)
 !> \param local_bounds the part of the 3d array on which the functional is
 !>        computed
 !> \param owns which components are owned by this structure (and should

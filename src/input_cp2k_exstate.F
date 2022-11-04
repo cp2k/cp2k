@@ -41,9 +41,6 @@ CONTAINS
    SUBROUTINE create_exstate_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_exstate_section', &
-         routineP = moduleN//':'//routineN
-
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))

@@ -51,7 +51,6 @@ MODULE mp2_eri_gpw
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec,&
                                               calculate_wavefunction,&
@@ -68,9 +67,7 @@ MODULE mp2_eri_gpw
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE realspace_grid_types,            ONLY: map_gaussian_here,&
                                               realspace_grid_desc_p_type,&
-                                              realspace_grid_p_type,&
-                                              rs_grid_release,&
-                                              rs_grid_retain
+                                              realspace_grid_type
    USE rs_pw_interface,                 ONLY: potential_pw2rs
    USE task_list_methods,               ONLY: generate_qs_task_list
    USE task_list_types,                 ONLY: allocate_task_list,&
@@ -185,7 +182,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_eri_2c_integrate_gpw'
 
-      INTEGER :: dir, handle, handle2, i, i_counter, iatom, igrid_level, ikind, ipgf, iset, lb(3), &
+      INTEGER :: dir, handle, handle2, i_counter, iatom, igrid_level, ikind, ipgf, iset, lb(3), &
          LLL, location(3), max_nseta, na1, na2, ncoa, nseta, offset, sgfa, tp(3), ub(3)
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: offset_2d
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
@@ -209,7 +206,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_v
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_v
       TYPE(task_list_type), POINTER                      :: task_list_sub
 
       CALL timeset(routineN, handle)
@@ -237,9 +234,6 @@ CONTAINS
          NULLIFY (rs_v)
          NULLIFY (rs_descs)
          CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v)
-         DO i = 1, SIZE(rs_v)
-            CALL rs_grid_retain(rs_v(i)%rs_grid)
-         END DO
          CALL potential_pw2rs(rs_v, rho_r, pw_env_sub)
 
          CALL timestop(handle2)
@@ -299,9 +293,9 @@ CONTAINS
                offset = offset_2d(iset, iatom)
 
                igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, MINVAL(zeta(:, iset)))
-               use_subpatch = .NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)
+               use_subpatch = .NOT. ALL(rs_v(igrid_level)%desc%perd == 1)
 
-               IF (map_gaussian_here(rs_v(igrid_level)%rs_grid, cell%h_inv, ra, &
+               IF (map_gaussian_here(rs_v(igrid_level), cell%h_inv, ra, &
                                      offset, para_env_sub%num_pe, para_env_sub%mepos)) THEN
                   DO ipgf = 1, npgfa(iset)
                      sgfa = first_sgfa(1, iset)
@@ -319,7 +313,7 @@ CONTAINS
                         la_max=la_max(iset), zeta=zeta(ipgf, iset), la_min=la_min(iset), &
                         lb_max=0, zetb=0.0_dp, lb_min=0, &
                         ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
-                        rsgrid=rs_v(igrid_level)%rs_grid, &
+                        rsgrid=rs_v(igrid_level), &
                         hab=I_tmp2, &
                         o1=na1 - 1, &
                         o2=0, &
@@ -344,10 +338,6 @@ CONTAINS
          END DO
          !$OMP END PARALLEL DO
          DEALLOCATE (offset_2d)
-
-         DO i = 1, SIZE(rs_v)
-            CALL rs_grid_release(rs_v(i)%rs_grid)
-         END DO
 
       END DO
 
@@ -409,8 +399,7 @@ CONTAINS
       TYPE(pw_type), INTENT(INOUT)                       :: pot_g
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       LOGICAL, INTENT(IN)                                :: use_virial
-      TYPE(pw_type), INTENT(INOUT)                       :: rho_g_copy
-      TYPE(pw_p_type), INTENT(IN)                        :: dvg(3)
+      TYPE(pw_type), INTENT(INOUT)                       :: rho_g_copy, dvg(3)
       INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of, atom_of_kind
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: G_PQ_local
       TYPE(qs_force_type), DIMENSION(:), INTENT(IN), &
@@ -548,7 +537,7 @@ CONTAINS
       TYPE(pw_type), INTENT(INOUT)                       :: pot_g
       LOGICAL, INTENT(IN)                                :: use_virial
       TYPE(pw_type), INTENT(INOUT)                       :: rho_g_copy
-      TYPE(pw_p_type), INTENT(IN)                        :: dvg(3)
+      TYPE(pw_type), INTENT(IN)                          :: dvg(3)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: h_stress
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
       INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of, atom_of_kind
@@ -564,7 +553,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potential_forces_3c_2c'
 
-      INTEGER                                            :: atom_a, handle, handle2, i, iatom, &
+      INTEGER                                            :: atom_a, handle, handle2, iatom, &
                                                             igrid_level, ikind, iorb, ipgf, iset, &
                                                             na1, na2, ncoa, nseta, offset, sgfa
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
@@ -579,7 +568,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_v
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_v
 
       CALL timeset(routineN, handle)
 
@@ -604,9 +593,6 @@ CONTAINS
       NULLIFY (rs_v)
       NULLIFY (rs_descs)
       CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v)
-      DO i = 1, SIZE(rs_v)
-         CALL rs_grid_retain(rs_v(i)%rs_grid)
-      END DO
       CALL potential_pw2rs(rs_v, rho_r, pw_env_sub)
 
       offset = 0
@@ -671,9 +657,9 @@ CONTAINS
 
             igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, MINVAL(zeta(:, iset)))
             map_it_here = .FALSE.
-            use_subpatch = .NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)
+            use_subpatch = .NOT. ALL(rs_v(igrid_level)%desc%perd == 1)
 
-            IF (map_gaussian_here(rs_v(igrid_level)%rs_grid, cell%h_inv, ra, offset, para_env_sub%num_pe, para_env_sub%mepos)) THEN
+            IF (map_gaussian_here(rs_v(igrid_level), cell%h_inv, ra, offset, para_env_sub%num_pe, para_env_sub%mepos)) THEN
                DO ipgf = 1, npgfa(iset)
                   na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
                   na2 = ipgf*ncoset(la_max(iset))
@@ -688,7 +674,7 @@ CONTAINS
                   CALL integrate_pgf_product(la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
                                              lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
                                              ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                             rsgrid=rs_v(igrid_level)%rs_grid, &
+                                             rsgrid=rs_v(igrid_level), &
                                              hab=I_tmp2, &
                                              pab=pab, &
                                              o1=na1 - 1, &
@@ -718,10 +704,6 @@ CONTAINS
          END IF
       END DO
 
-      DO i = 1, SIZE(rs_v)
-         CALL rs_grid_release(rs_v(i)%rs_grid)
-      END DO
-
       CALL timestop(handle)
 
    END SUBROUTINE integrate_potential_forces_3c_2c
@@ -740,7 +722,7 @@ CONTAINS
 
       TYPE(pw_type), INTENT(IN)                          :: rho_g_copy, pot_g
       TYPE(pw_type), INTENT(INOUT)                       :: rho_g
-      TYPE(pw_p_type), INTENT(IN)                        :: dvg(3)
+      TYPE(pw_type), INTENT(IN)                          :: dvg(3)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: h_stress
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
@@ -765,7 +747,7 @@ CONTAINS
          h_stress(alpha, alpha) = h_stress(alpha, alpha) - e_hartree/REAL(para_env_sub%num_pe, dp)
          DO beta = alpha, 3
             h_stress(alpha, beta) = h_stress(alpha, beta) &
-                                    - 2.0_dp*pw_integral_ab(rho_g, dvg(beta)%pw)/fourpi/REAL(para_env_sub%num_pe, dp)
+                                    - 2.0_dp*pw_integral_ab(rho_g, dvg(beta))/fourpi/REAL(para_env_sub%num_pe, dp)
             h_stress(beta, alpha) = h_stress(alpha, beta)
          END DO
       END DO
@@ -878,7 +860,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potential'
 
-      INTEGER                                            :: atom_a, handle, i, iatom, igrid_level, &
+      INTEGER                                            :: atom_a, handle, iatom, igrid_level, &
                                                             ikind, ipgf, iset, na1, na2, ncoa, &
                                                             nseta, offset, sgfa
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
@@ -893,16 +875,13 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_v
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_v
 
       CALL timeset(routineN, handle)
 
       NULLIFY (rs_v)
       NULLIFY (rs_descs)
       CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v)
-      DO i = 1, SIZE(rs_v)
-         CALL rs_grid_retain(rs_v(i)%rs_grid)
-      END DO
       CALL potential_pw2rs(rs_v, pot_r, pw_env_sub)
 
       offset = 0
@@ -953,9 +932,9 @@ CONTAINS
             I_ab = 0.0_dp
 
             igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, MINVAL(zeta(:, iset)))
-            use_subpatch = .NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)
+            use_subpatch = .NOT. ALL(rs_v(igrid_level)%desc%perd == 1)
 
-            IF (map_gaussian_here(rs_v(igrid_level)%rs_grid, cell%h_inv, ra, offset, para_env_sub%num_pe, para_env_sub%mepos)) THEN
+            IF (map_gaussian_here(rs_v(igrid_level), cell%h_inv, ra, offset, para_env_sub%num_pe, para_env_sub%mepos)) THEN
                DO ipgf = 1, npgfa(iset)
                   na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
                   na2 = ipgf*ncoset(la_max(iset))
@@ -970,7 +949,7 @@ CONTAINS
                   CALL integrate_pgf_product(la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
                                              lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
                                              ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                             rsgrid=rs_v(igrid_level)%rs_grid, &
+                                             rsgrid=rs_v(igrid_level), &
                                              hab=I_tmp2, &
                                              pab=pab, &
                                              o1=na1 - 1, &
@@ -1003,9 +982,6 @@ CONTAINS
          END IF
       END DO
 
-      DO i = 1, SIZE(rs_v)
-         CALL rs_grid_release(rs_v(i)%rs_grid)
-      END DO
       CALL timestop(handle)
 
    END SUBROUTINE
@@ -1182,7 +1158,7 @@ CONTAINS
       TYPE(pw_poisson_type), INTENT(IN), POINTER         :: poisson_env
       TYPE(pw_type), INTENT(INOUT)                       :: pot_g
       TYPE(libint_potential_type), INTENT(IN), OPTIONAL  :: potential_parameter
-      TYPE(pw_p_type), DIMENSION(3), INTENT(IN), &
+      TYPE(pw_type), DIMENSION(3), INTENT(INOUT), &
          OPTIONAL                                        :: dvg
       LOGICAL, INTENT(IN), OPTIONAL                      :: no_transfer
 
@@ -1217,10 +1193,10 @@ CONTAINS
          CALL pw_copy(rho_g, pot_g)
          IF (PRESENT(dvg)) THEN
          DO idir = 1, 3
-            CALL pw_copy(pot_g, dvg(idir)%pw)
+            CALL pw_copy(pot_g, dvg(idir))
             comp = 0
             comp(idir) = 1
-            CALL pw_derive(dvg(idir)%pw, comp)
+            CALL pw_derive(dvg(idir), comp)
          END DO
          END IF
          IF (my_transfer) CALL pw_transfer(rho_g, pot_r)

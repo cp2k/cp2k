@@ -165,6 +165,7 @@ CONTAINS
                                     "PROGRAM_RUN_INFO/CONDITION_NUMBER", ".FitCharge")
          ! Initialization of the cp_ddapc_env and of the cp_ddapc_ewald environment
          !NB pass qs_env%para_env for parallelization of ewald_ddapc_pot()
+         ALLOCATE (qs_env%cp_ddapc_env)
          CALL cp_ddapc_create(para_env, &
                               qs_env%cp_ddapc_env, &
                               qs_env%cp_ddapc_ewald, &

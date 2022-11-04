@@ -27,9 +27,14 @@ MODULE rs_methods
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_type
-   USE realspace_grid_types,            ONLY: &
-        pw2rs, realspace_grid_desc_type, realspace_grid_p_type, realspace_grid_type, rs2pw, &
-        rs_grid_create, rs_grid_release, rs_grid_zero, rs_pw_transfer
+   USE realspace_grid_types,            ONLY: pw2rs,&
+                                              realspace_grid_desc_type,&
+                                              realspace_grid_type,&
+                                              rs2pw,&
+                                              rs_grid_create,&
+                                              rs_grid_release,&
+                                              rs_grid_zero,&
+                                              rs_pw_transfer
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -70,7 +75,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: h
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: drdx, drdy, drdz, r
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
-      TYPE(realspace_grid_p_type), DIMENSION(3)          :: drs_grid
+      TYPE(realspace_grid_type), DIMENSION(3)            :: drs_grid
 
       CALL timeset(routineN, handle)
 
@@ -78,16 +83,16 @@ CONTAINS
       rs_desc => rs_grid%desc
       CALL rs_pw_transfer(rs_grid, f, pw2rs)
       DO i = 1, 3
-         CALL rs_grid_create(drs_grid(i)%rs_grid, rs_desc)
-         CALL rs_grid_zero(drs_grid(i)%rs_grid)
+         CALL rs_grid_create(drs_grid(i), rs_desc)
+         CALL rs_grid_zero(drs_grid(i))
       END DO
 
       lb(1:3) = rs_grid%lb_real(1:3)
       ub(1:3) = rs_grid%ub_real(1:3)
       r => rs_grid%r
-      drdx => drs_grid(1)%rs_grid%r
-      drdy => drs_grid(2)%rs_grid%r
-      drdz => drs_grid(3)%rs_grid%r
+      drdx => drs_grid(1)%r
+      drdy => drs_grid(2)%r
+      drdz => drs_grid(3)%r
 
       ! 3-point stencil central differences
       h(1:3) = 2.0_dp*f%pw_grid%dr(1:3)
@@ -107,8 +112,8 @@ CONTAINS
 
       ! Cleanup
       DO i = 1, 3
-         CALL rs_pw_transfer(drs_grid(i)%rs_grid, df(i), rs2pw)
-         CALL rs_grid_release(drs_grid(i)%rs_grid)
+         CALL rs_pw_transfer(drs_grid(i), df(i), rs2pw)
+         CALL rs_grid_release(drs_grid(i))
       END DO
 
       CALL timestop(handle)
@@ -139,7 +144,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: h
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: drdx, drdy, drdz, r
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
-      TYPE(realspace_grid_p_type), DIMENSION(3)          :: drs_grid
+      TYPE(realspace_grid_type), DIMENSION(3)            :: drs_grid
 
       CALL timeset(routineN, handle)
 
@@ -147,16 +152,16 @@ CONTAINS
       rs_desc => rs_grid%desc
       CALL rs_pw_transfer(rs_grid, f, pw2rs)
       DO i = 1, 3
-         CALL rs_grid_create(drs_grid(i)%rs_grid, rs_desc)
-         CALL rs_grid_zero(drs_grid(i)%rs_grid)
+         CALL rs_grid_create(drs_grid(i), rs_desc)
+         CALL rs_grid_zero(drs_grid(i))
       END DO
 
       lb(1:3) = rs_grid%lb_real(1:3)
       ub(1:3) = rs_grid%ub_real(1:3)
       r => rs_grid%r
-      drdx => drs_grid(1)%rs_grid%r
-      drdy => drs_grid(2)%rs_grid%r
-      drdz => drs_grid(3)%rs_grid%r
+      drdx => drs_grid(1)%r
+      drdy => drs_grid(2)%r
+      drdz => drs_grid(3)%r
 
       ! 5-point stencil central differences
       h(1:3) = 12.0_dp*f%pw_grid%dr(1:3)
@@ -176,8 +181,8 @@ CONTAINS
 
       ! Cleanup
       DO i = 1, 3
-         CALL rs_pw_transfer(drs_grid(i)%rs_grid, df(i), rs2pw)
-         CALL rs_grid_release(drs_grid(i)%rs_grid)
+         CALL rs_pw_transfer(drs_grid(i), df(i), rs2pw)
+         CALL rs_grid_release(drs_grid(i))
       END DO
 
       CALL timestop(handle)
@@ -208,7 +213,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: h
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: drdx, drdy, drdz, r
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
-      TYPE(realspace_grid_p_type), DIMENSION(3)          :: drs_grid
+      TYPE(realspace_grid_type), DIMENSION(3)            :: drs_grid
 
       CALL timeset(routineN, handle)
 
@@ -216,16 +221,16 @@ CONTAINS
       rs_desc => rs_grid%desc
       CALL rs_pw_transfer(rs_grid, f, pw2rs)
       DO i = 1, 3
-         CALL rs_grid_create(drs_grid(i)%rs_grid, rs_desc)
-         CALL rs_grid_zero(drs_grid(i)%rs_grid)
+         CALL rs_grid_create(drs_grid(i), rs_desc)
+         CALL rs_grid_zero(drs_grid(i))
       END DO
 
       lb(1:3) = rs_grid%lb_real(1:3)
       ub(1:3) = rs_grid%ub_real(1:3)
       r => rs_grid%r
-      drdx => drs_grid(1)%rs_grid%r
-      drdy => drs_grid(2)%rs_grid%r
-      drdz => drs_grid(3)%rs_grid%r
+      drdx => drs_grid(1)%r
+      drdy => drs_grid(2)%r
+      drdz => drs_grid(3)%r
 
       ! 7-point stencil central differences
       h(1:3) = 60.0_dp*f%pw_grid%dr(1:3)
@@ -248,8 +253,8 @@ CONTAINS
 
       ! Cleanup
       DO i = 1, 3
-         CALL rs_pw_transfer(drs_grid(i)%rs_grid, df(i), rs2pw)
-         CALL rs_grid_release(drs_grid(i)%rs_grid)
+         CALL rs_pw_transfer(drs_grid(i), df(i), rs2pw)
+         CALL rs_grid_release(drs_grid(i))
       END DO
 
       CALL timestop(handle)

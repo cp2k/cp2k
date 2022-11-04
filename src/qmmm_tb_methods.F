@@ -392,6 +392,7 @@ CONTAINS
       ewald_section => section_vals_get_subs_vals(poisson_section, "EWALD")
       CALL read_ewald_section(ewald_env, ewald_section)
       print_section => section_vals_get_subs_vals(qs_env%input, "PRINT%GRID_INFORMATION")
+      ALLOCATE (ewald_pw)
       CALL ewald_pw_create(ewald_pw, ewald_env, mm_cell, mm_cell, print_section=print_section)
 
       CALL ewald_env_get(ewald_env, ewald_type=ewald_type, do_multipoles=do_multipoles, do_ipol=do_ipol)
@@ -566,6 +567,7 @@ CONTAINS
       ! Release Ewald environment
       CALL ewald_env_release(ewald_env)
       CALL ewald_pw_release(ewald_pw)
+      DEALLOCATE (ewald_pw)
 
       CALL dbcsr_deallocate_matrix_set(matrix_s)
 
@@ -937,6 +939,7 @@ CONTAINS
          ewald_section => section_vals_get_subs_vals(poisson_section, "EWALD")
          CALL read_ewald_section(ewald_env, ewald_section)
          print_section => section_vals_get_subs_vals(qs_env%input, "PRINT%GRID_INFORMATION")
+         ALLOCATE (ewald_pw)
          CALL ewald_pw_create(ewald_pw, ewald_env, mm_cell, mm_cell, print_section=print_section)
 
          CALL ewald_env_get(ewald_env, ewald_type=ewald_type, do_multipoles=do_multipoles, do_ipol=do_ipol)
@@ -1220,6 +1223,7 @@ CONTAINS
          ! Release Ewald environment
          CALL ewald_env_release(ewald_env)
          CALL ewald_pw_release(ewald_pw)
+         DEALLOCATE (ewald_pw)
 
          CALL dbcsr_deallocate_matrix_set(matrix_s)
 

@@ -99,7 +99,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_gw, do_admm, calc_forces
       REAL(KIND=dp), INTENT(IN)                          :: E_ex_from_GW, E_admm_from_GW(2), t3
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_exx', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'calculate_exx'
 
       INTEGER                                            :: handle, i, irep, ispin, mspin, n_rep_hf, &
                                                             nspins
@@ -690,15 +690,8 @@ CONTAINS
 !> \brief ...
 !> \param energy ...
 ! **************************************************************************************************
-   SUBROUTINE remove_exc_energy(energy)
+   ELEMENTAL SUBROUTINE remove_exc_energy(energy)
       TYPE(qs_energy_type), INTENT(INOUT)                :: energy
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'remove_exc_energy', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
 
       ! Remove the Exchange-correlation energy contributions from the total energy
       energy%total = energy%total - (energy%exc + energy%exc1 + energy%ex + &
@@ -709,8 +702,6 @@ CONTAINS
       energy%exc_aux_fit = 0.0_dp
       energy%exc1_aux_fit = 0.0_dp
       energy%ex = 0.0_dp
-
-      CALL timestop(handle)
 
    END SUBROUTINE
 

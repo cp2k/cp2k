@@ -93,8 +93,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: is_triplet
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_xc, v_xc_tau
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_fxc_analytic', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_fxc_analytic'
 
       INTEGER                                            :: handle, nspins
       INTEGER, DIMENSION(2, 3)                           :: bo
@@ -154,7 +153,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: is_triplet
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: fxc_rho, fxc_tau
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_fxc_fdiff', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_fxc_fdiff'
       REAL(KIND=dp), PARAMETER                           :: epsrho = 5.e-4_dp
 
       INTEGER                                            :: handle, ispin, istep, nspins, nstep
@@ -293,7 +292,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: is_triplet
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: fxc_rho, fxc_tau, gxc_rho, gxc_tau
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_fgxc_create', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_fgxc_create'
       REAL(KIND=dp), PARAMETER                           :: epsrho = 5.e-4_dp
 
       INTEGER                                            :: handle, ispin, istep, nspins, nstep
@@ -418,9 +417,6 @@ CONTAINS
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: fxc_rho, fxc_tau, gxc_rho, gxc_tau
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_fgxc_release', &
-         routineP = moduleN//':'//routineN
 
       INTEGER                                            :: ispin
       TYPE(pw_env_type), POINTER                         :: pw_env

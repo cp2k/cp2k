@@ -54,7 +54,7 @@ CONTAINS
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds, new_atomic_kinds
       TYPE(cp_subsys_type), POINTER                      :: subsys, subsys_new
       TYPE(distribution_1d_type), POINTER                :: local_particles, new_local_particles
-      TYPE(qmmmx_env_type), POINTER                      :: new_qmmmx_env
+      TYPE(qmmmx_env_type)                               :: new_qmmmx_env
       TYPE(section_vals_type), POINTER                   :: qmmm_core_section, &
                                                             qmmm_extended_Section, &
                                                             qmmm_force_mixing, qmmm_section, &
@@ -80,17 +80,17 @@ CONTAINS
 
       CALL update_force_eval(force_env, root_section, .FALSE.)
 
-      ALLOCATE (new_qmmmx_env)
-
       ! using CUR_INDICES and CUR_LABELS, create appropriate QM_KIND sections for two QM/MM calculations
       CALL setup_force_mixing_qmmm_sections(subsys, qmmm_section, qmmm_core_section, qmmm_extended_section)
 
       subsys_section => section_vals_get_subs_vals(force_env%force_env_section, "SUBSYS")
       ![ADAPT] no sure about use_motion_section
+      ALLOCATE (new_qmmmx_env%core)
       CALL qmmm_env_create(new_qmmmx_env%core, &
                            force_env%root_section, force_env%para_env, force_env%globenv, &
                            force_env%force_env_section, qmmm_core_section, subsys_section, use_motion_section=.TRUE., &
                            prev_subsys=subsys, ignore_outside_box=.TRUE.)
+      ALLOCATE (new_qmmmx_env%ext)
       CALL qmmm_env_create(new_qmmmx_env%ext, &
                            force_env%root_section, force_env%para_env, force_env%globenv, &
                            force_env%force_env_section, qmmm_extended_section, subsys_section, use_motion_section=.TRUE., &
@@ -119,7 +119,7 @@ CONTAINS
 
       ! release old qmmmx_env and point to new one
       CALL qmmmx_env_release(force_env%qmmmx_env)
-      force_env%qmmmx_env => new_qmmmx_env
+      force_env%qmmmx_env = new_qmmmx_env
 
    END SUBROUTINE qmmmx_update_force_env
 

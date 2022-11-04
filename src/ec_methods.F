@@ -155,7 +155,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_type)                                   :: matrix_s
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ec_mos_init', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ec_mos_init'
 
       INTEGER                                            :: handle, ispin, multiplicity, n_ao, &
                                                             nelectron, nmo, nspins
@@ -252,8 +252,7 @@ CONTAINS
          IF (.NOT. ASSOCIATED(mo_coeff)) THEN
             CALL init_mo_set(mos(ispin)%mo_set, &
                              fm_pool=my_mpools%ao_mo_fm_pools(ispin)%pool, &
-                             name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))// &
-                             "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))))
+                             name="qs_env%mo"//TRIM(ADJUSTL(cp_to_string(ispin))))
          END IF
 
          IF (.NOT. ASSOCIATED(mo_coeff_b)) THEN

@@ -38,7 +38,6 @@ MODULE xas_control
 !> \brief A type that holds controlling information for a xas calculation
 ! **************************************************************************************************
    TYPE xas_control_type
-      INTEGER                             :: ref_count
       INTEGER                             :: nexc_atoms
       INTEGER                             :: nexc_search
       INTEGER                             :: spin_channel
@@ -84,7 +83,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE read_xas_control(xas_control, xas_section)
 
-      TYPE(xas_control_type)                             :: xas_control
+      TYPE(xas_control_type), INTENT(INOUT)              :: xas_control
       TYPE(section_vals_type), POINTER                   :: xas_section
 
       INTEGER                                            :: i, ir, n_rep, nex_at, nex_st
@@ -209,7 +208,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE write_xas_control(xas_control, dft_section)
 
-      TYPE(xas_control_type)                             :: xas_control
+      TYPE(xas_control_type), INTENT(IN)                 :: xas_control
       TYPE(section_vals_type), POINTER                   :: dft_section
 
       INTEGER                                            :: output_unit
@@ -260,8 +259,6 @@ CONTAINS
                                         "PRINT%DFT_CONTROL_PARAMETERS")
    END SUBROUTINE write_xas_control
 
-!****f* xas_control/xas_control_create/retain/release *
-
 ! **************************************************************************************************
 !> \brief create retain release the xas_control_type
 !> \param xas_control ...
@@ -270,12 +267,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xas_control_create(xas_control)
 
-      TYPE(xas_control_type), POINTER                    :: xas_control
+      TYPE(xas_control_type), INTENT(OUT)                :: xas_control
 
-      CPASSERT(.NOT. ASSOCIATED(xas_control))
-      ALLOCATE (xas_control)
-
-      xas_control%ref_count = 1
       xas_control%xas_method = xas_tp_hh
       xas_control%nexc_atoms = 1
       xas_control%spin_channel = 1
@@ -299,37 +292,18 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xas_control_release(xas_control)
 
-      TYPE(xas_control_type), POINTER                    :: xas_control
+      TYPE(xas_control_type), INTENT(INOUT)              :: xas_control
 
-      IF (ASSOCIATED(xas_control)) THEN
-         CPASSERT(xas_control%ref_count > 0)
-         xas_control%ref_count = xas_control%ref_count - 1
-         IF (xas_control%ref_count == 0) THEN
-            IF (ASSOCIATED(xas_control%exc_atoms)) THEN
-               DEALLOCATE (xas_control%exc_atoms)
-            END IF
-            IF (ASSOCIATED(xas_control%orbital_list)) THEN
-               DEALLOCATE (xas_control%orbital_list)
-            END IF
-            IF (ASSOCIATED(xas_control%list_cubes)) THEN
-               DEALLOCATE (xas_control%list_cubes)
-            END IF
-            DEALLOCATE (xas_control)
-         END IF
+      IF (ASSOCIATED(xas_control%exc_atoms)) THEN
+         DEALLOCATE (xas_control%exc_atoms)
+      END IF
+      IF (ASSOCIATED(xas_control%orbital_list)) THEN
+         DEALLOCATE (xas_control%orbital_list)
+      END IF
+      IF (ASSOCIATED(xas_control%list_cubes)) THEN
+         DEALLOCATE (xas_control%list_cubes)
       END IF
 
    END SUBROUTINE xas_control_release
-! **************************************************************************************************
-!> \brief ...
-!> \param xas_control ...
-! **************************************************************************************************
-   SUBROUTINE xas_control_retain(xas_control)
-
-      TYPE(xas_control_type), POINTER                    :: xas_control
-
-      CPASSERT(ASSOCIATED(xas_control))
-      xas_control%ref_count = xas_control%ref_count + 1
-
-   END SUBROUTINE xas_control_retain
 
 END MODULE xas_control

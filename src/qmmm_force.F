@@ -108,7 +108,6 @@ CONTAINS
       print_key => section_vals_get_subs_vals(force_env_section, "QMMM%PRINT%DIPOLE")
 
       CPASSERT(ASSOCIATED(qmmm_env))
-      CPASSERT(qmmm_env%ref_count > 0)
 
       CALL apply_qmmm_translate(qmmm_env)
 

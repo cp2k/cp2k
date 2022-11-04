@@ -60,9 +60,8 @@ MODULE qs_rho0_ggrid
                                               rho_atom_coeff,&
                                               rho_atom_type
    USE realspace_grid_types,            ONLY: &
-        pw2rs, realspace_grid_desc_p_type, realspace_grid_desc_type, realspace_grid_p_type, &
-        realspace_grid_type, rs2pw, rs_grid_create, rs_grid_release, rs_grid_retain, rs_grid_zero, &
-        rs_pw_transfer
+        pw2rs, realspace_grid_desc_p_type, realspace_grid_desc_type, realspace_grid_type, rs2pw, &
+        rs_grid_create, rs_grid_release, rs_grid_zero, rs_pw_transfer
    USE util,                            ONLY: get_limit
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
@@ -118,7 +117,7 @@ CONTAINS
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: descs
       TYPE(realspace_grid_desc_type), POINTER            :: desc
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: grids
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: grids
       TYPE(realspace_grid_type), POINTER                 :: rs_grid
 
       CALL timeset(routineN, handle)
@@ -147,7 +146,7 @@ CONTAINS
       ! *** set up the rs grid at level igrid
       NULLIFY (rs_grid, desc, pw_pool)
       desc => descs(igrid)%rs_desc
-      rs_grid => grids(igrid)%rs_grid
+      rs_grid => grids(igrid)
       pw_pool => pw_pools(igrid)%pool
 
       CPASSERT(ASSOCIATED(desc))
@@ -160,7 +159,6 @@ CONTAINS
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
       END IF
-      CALL rs_grid_retain(rs_grid)
       CALL rs_grid_zero(rs_grid)
 
       nch_max = ncoset(lmax0)
@@ -229,7 +227,6 @@ CONTAINS
 
       IF (igrid /= auxbas_grid) THEN
          CALL rs_pw_transfer(rs_grid, coeff_rspace, rs2pw)
-         CALL rs_grid_release(rs_grid)
          CALL pw_zero(rho0_s_gs)
          CALL pw_transfer(coeff_rspace, coeff_gspace)
          CALL pw_axpy(coeff_gspace, rho0_s_gs)
@@ -244,7 +241,6 @@ CONTAINS
                                 use_data=REALDATA3D, in_space=REALSPACE)
 
          CALL rs_pw_transfer(rs_grid, rho0_r_tmp, rs2pw)
-         CALL rs_grid_release(rs_grid)
 
          tot_rs_int = pw_integrate_function(rho0_r_tmp, isign=-1)
 
@@ -359,7 +355,7 @@ CONTAINS
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
-      TYPE(realspace_grid_type), POINTER                 :: rs_v
+      TYPE(realspace_grid_type)                          :: rs_v
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: int_local_h, int_local_s
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
@@ -424,7 +420,7 @@ CONTAINS
       auxbas_grid = pw_env%auxbas_grid
 
       ! Get the potential on the right grid
-      NULLIFY (rs_v, rs_desc, pw_pool, pw_aux)
+      NULLIFY (rs_desc, pw_pool, pw_aux)
       rs_desc => rs_descs(igrid)%rs_desc
       pw_pool => pw_pools(igrid)%pool
 

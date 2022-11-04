@@ -114,8 +114,8 @@ MODULE qs_active_space_methods
                                               qs_ks_env_type
    USE qs_loc_methods,                  ONLY: qs_loc_driver
    USE qs_loc_types,                    ONLY: qs_loc_env_create,&
-                                              qs_loc_env_new_type,&
-                                              qs_loc_env_release
+                                              qs_loc_env_release,&
+                                              qs_loc_env_type
    USE qs_loc_utils,                    ONLY: qs_loc_control_init,&
                                               qs_loc_env_init,&
                                               qs_loc_init
@@ -227,7 +227,7 @@ CONTAINS
       TYPE(mo_set_type), POINTER                         :: mo_set, mo_set_active, mo_set_inactive
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(preconditioner_type), POINTER                 :: local_preconditioner
-      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env_occ, qs_loc_env_virt
+      TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env_occ, qs_loc_env_virt
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: as_input, loc_print, loc_section, &
@@ -845,9 +845,9 @@ CONTAINS
          loc_section => section_vals_get_subs_vals(as_input, "LOCALIZE")
          CPASSERT(ASSOCIATED(loc_section))
          loc_print => section_vals_get_subs_vals(as_input, "LOCALIZE%PRINT")
-         NULLIFY (qs_loc_env_occ, qs_loc_env_virt)
-         CALL qs_loc_env_create(qs_loc_env_occ)
+         NULLIFY (mos_localized)
          ALLOCATE (mos_localized(nspins))
+         CALL get_qs_env(qs_env, mos=mos)
          DO ispin = 1, nspins
             CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
             ALLOCATE (mos_localized(ispin)%matrix)
@@ -856,6 +856,7 @@ CONTAINS
          END DO
          ! occupied states
          NULLIFY (qs_loc_env_occ)
+         ALLOCATE (qs_loc_env_occ)
          CALL qs_loc_env_create(qs_loc_env_occ)
          CALL qs_loc_control_init(qs_loc_env_occ, loc_section, do_homo=.TRUE.)
          CALL qs_loc_init(qs_env, qs_loc_env_occ, loc_section, &
@@ -866,6 +867,7 @@ CONTAINS
          END DO
          ! virtual states
          NULLIFY (qs_loc_env_virt)
+         ALLOCATE (qs_loc_env_virt)
          CALL qs_loc_env_create(qs_loc_env_virt)
          CALL qs_loc_control_init(qs_loc_env_virt, loc_section, do_homo=.FALSE.)
          CALL qs_loc_init(qs_env, qs_loc_env_virt, loc_section, &
@@ -892,7 +894,9 @@ CONTAINS
          CPABORT("not yet available")
          !
          CALL qs_loc_env_release(qs_loc_env_occ)
+         DEALLOCATE (qs_loc_env_occ)
          CALL qs_loc_env_release(qs_loc_env_virt)
+         DEALLOCATE (qs_loc_env_virt)
          CALL cp_fm_vect_dealloc(mos_localized)
          !
          CPABORT("not yet available")
@@ -1619,7 +1623,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_eri_green_create(green, eri_env)
 
-      TYPE(greens_fn_type), POINTER                      :: green
+      TYPE(greens_fn_type), INTENT(INOUT)                :: green
       TYPE(eri_type)                                     :: eri_env
 
       INTEGER                                            :: ig
@@ -2082,9 +2086,6 @@ CONTAINS
    SUBROUTINE subspace_fock_matrix(active_space_env)
 
       TYPE(active_space_type), POINTER                   :: active_space_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'subspace_fock_matrix', &
-         routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i1, i2, is, norb, nspins
       REAL(KIND=dp)                                      :: eeri, eref, esub, mval

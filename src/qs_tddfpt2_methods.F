@@ -539,7 +539,9 @@ CONTAINS
          IF (do_admm) CALL release_kernel_env(kernel_env%admm_kernel)
          IF (tddfpt_control%do_lrigpw) THEN
             CALL lri_env_release(kernel_env%full_kernel%lri_env)
+            DEALLOCATE (kernel_env%full_kernel%lri_env)
             CALL lri_density_release(kernel_env%full_kernel%lri_density)
+            DEALLOCATE (kernel_env%full_kernel%lri_density)
          END IF
          CALL release_kernel_env(kernel_env%full_kernel)
       ELSE IF (tddfpt_control%kernel == tddfpt_kernel_stda) THEN

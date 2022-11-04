@@ -115,7 +115,7 @@ CONTAINS
       TYPE(force_env_type), OPTIONAL, POINTER            :: force_env
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(neb_var_type), OPTIONAL, POINTER              :: coords, vels
-      TYPE(pint_env_type), OPTIONAL, POINTER             :: pint_env
+      TYPE(pint_env_type), INTENT(IN), OPTIONAL          :: pint_env
       TYPE(helium_solvent_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: helium_env
 
@@ -404,7 +404,7 @@ CONTAINS
       TYPE(force_env_type), OPTIONAL, POINTER            :: force_env
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(neb_var_type), OPTIONAL, POINTER              :: coords, vels
-      TYPE(pint_env_type), OPTIONAL, POINTER             :: pint_env
+      TYPE(pint_env_type), INTENT(IN), OPTIONAL          :: pint_env
       TYPE(helium_solvent_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: helium_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: save_mem, write_binary_restart_file
@@ -505,7 +505,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(neb_var_type), OPTIONAL, POINTER              :: coords, vels
-      TYPE(pint_env_type), OPTIONAL, POINTER             :: pint_env
+      TYPE(pint_env_type), INTENT(IN), OPTIONAL          :: pint_env
       TYPE(helium_solvent_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: helium_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: save_mem, write_binary_restart_file
@@ -899,7 +899,7 @@ CONTAINS
    SUBROUTINE update_motion_pint(motion_section, pint_env)
 
       TYPE(section_vals_type), POINTER                   :: motion_section
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(pint_env_type), INTENT(IN)                    :: pint_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion_pint'
 

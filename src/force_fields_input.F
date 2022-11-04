@@ -1628,9 +1628,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: mm_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_tabpot_section', &
-         routineP = moduleN//':'//routineN
-
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: atm_names
       INTEGER                                            :: isec, n_items
@@ -2188,10 +2185,10 @@ CONTAINS
 
       INTEGER                                            :: handle, i, iw
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type)                               :: parser
 
       CALL timeset(routineN, handle)
-      NULLIFY (parser, logger)
+      NULLIFY (logger)
       logger => cp_get_default_logger()
       iw = cp_print_key_unit_nr(logger, mm_section, "PRINT%FF_INFO", &
                                 extension=".mmLog")
@@ -2256,16 +2253,15 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: mm_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_tabpot_data', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_tabpot_data'
 
       CHARACTER                                          :: d1, d2
       INTEGER                                            :: d, handle, i, iw
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type)                               :: parser
 
       CALL timeset(routineN, handle)
-      NULLIFY (parser, logger)
+      NULLIFY (logger)
       logger => cp_get_default_logger()
       iw = cp_print_key_unit_nr(logger, mm_section, "PRINT%FF_INFO", &
                                 extension=".mmLog")

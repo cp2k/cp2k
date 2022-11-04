@@ -684,7 +684,7 @@ CONTAINS
 !>      03.2006 created [Joost VandeVondele]
 ! **************************************************************************************************
    SUBROUTINE cleanup_scf_loop(scf_env)
-      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(qs_scf_env_type), INTENT(INOUT)               :: scf_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cleanup_scf_loop'
 
@@ -692,9 +692,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(ASSOCIATED(scf_env))
-      CPASSERT(scf_env%ref_count > 0)
-! *** method dependent cleanup
       SELECT CASE (scf_env%method)
       CASE (ot_method_nr)
          DO ispin = 1, SIZE(scf_env%qs_ot_env)

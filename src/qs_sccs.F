@@ -155,13 +155,12 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(3)                      :: dphi_tot
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_pw_r
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: deps_elec, eps_elec
-      TYPE(pw_type), DIMENSION(3)                        :: dln_eps_elec
+      TYPE(pw_type), DIMENSION(3)                        :: dln_eps_elec, dphi_tot
       TYPE(pw_type), POINTER                             :: rho_pw_r_sccs
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -594,9 +593,8 @@ CONTAINS
 
          ! Get storage for the derivative of the total potential (field) in r-space
          DO i = 1, 3
-            ALLOCATE (dphi_tot(i)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                   dphi_tot(i)%pw, &
+                                   dphi_tot(i), &
                                    use_data=REALDATA3D, &
                                    in_space=REALSPACE)
          END DO
@@ -654,9 +652,9 @@ CONTAINS
             DO k = lb(3), ub(3)
                DO j = lb(2), ub(2)
                   DO i = lb(1), ub(1)
-                     rho_iter_new = (dln_eps_elec(1)%cr3d(i, j, k)*dphi_tot(1)%pw%cr3d(i, j, k) + &
-                                     dln_eps_elec(2)%cr3d(i, j, k)*dphi_tot(2)%pw%cr3d(i, j, k) + &
-                                     dln_eps_elec(3)%cr3d(i, j, k)*dphi_tot(3)%pw%cr3d(i, j, k))*f
+                     rho_iter_new = (dln_eps_elec(1)%cr3d(i, j, k)*dphi_tot(1)%cr3d(i, j, k) + &
+                                     dln_eps_elec(2)%cr3d(i, j, k)*dphi_tot(2)%cr3d(i, j, k) + &
+                                     dln_eps_elec(3)%cr3d(i, j, k)*dphi_tot(3)%cr3d(i, j, k))*f
                      rho_iter_new = rho_pw_r_sccs%cr3d(i, j, k) + &
                                     sccs_control%mixing*(rho_iter_new - rho_pw_r_sccs%cr3d(i, j, k))
                      rho_delta = ABS(rho_iter_new - rho_pw_r_sccs%cr3d(i, j, k))
@@ -895,9 +893,9 @@ CONTAINS
       DO k = lb(3), ub(3)
          DO j = lb(2), ub(2)
             DO i = lb(1), ub(1)
-               dphi2 = dphi_tot(1)%pw%cr3d(i, j, k)*dphi_tot(1)%pw%cr3d(i, j, k) + &
-                       dphi_tot(2)%pw%cr3d(i, j, k)*dphi_tot(2)%pw%cr3d(i, j, k) + &
-                       dphi_tot(3)%pw%cr3d(i, j, k)*dphi_tot(3)%pw%cr3d(i, j, k)
+               dphi2 = dphi_tot(1)%cr3d(i, j, k)*dphi_tot(1)%cr3d(i, j, k) + &
+                       dphi_tot(2)%cr3d(i, j, k)*dphi_tot(2)%cr3d(i, j, k) + &
+                       dphi_tot(3)%cr3d(i, j, k)*dphi_tot(3)%cr3d(i, j, k)
                v_sccs%cr3d(i, j, k) = v_sccs%cr3d(i, j, k) + f*deps_elec%cr3d(i, j, k)*dphi2
             END DO
          END DO
@@ -906,8 +904,7 @@ CONTAINS
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, deps_elec)
       DO i = 1, 3
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, dphi_tot(i)%pw)
-         DEALLOCATE (dphi_tot(i)%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, dphi_tot(i))
       END DO
 
       ! Release the SCCS printout environment
@@ -1096,7 +1093,6 @@ CONTAINS
       SELECT CASE (method)
       CASE (sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7)
          NULLIFY (rs_desc)
-         NULLIFY (rs_grid)
          rs_grid_section => section_vals_get_subs_vals(input, "DFT%MGRID%RS_GRID")
          SELECT CASE (method)
          CASE (sccs_derivative_cd3)
@@ -1110,6 +1106,7 @@ CONTAINS
                               1, (/-1, -1, -1/))
          CALL rs_grid_create_descriptor(rs_desc, f%pw_grid, input_settings, &
                                         border_points=border_points)
+         ALLOCATE (rs_grid)
          CALL rs_grid_create(rs_grid, rs_desc)
 !MK      CALL rs_grid_print(rs_grid, 6)
       CASE (sccs_derivative_fft)
@@ -1152,6 +1149,7 @@ CONTAINS
       SELECT CASE (method)
       CASE (sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7)
          CALL rs_grid_release(rs_grid)
+         DEALLOCATE (rs_grid)
          CALL rs_grid_release_descriptor(rs_desc)
       CASE (sccs_derivative_fft)
          DO i = 1, SIZE(work_g1d)

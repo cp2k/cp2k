@@ -78,17 +78,15 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'nmr_env_init'
 
-      CHARACTER(LEN=2)                                   :: label
       CHARACTER(LEN=default_path_length)                 :: nics_file_name
       INTEGER                                            :: handle, ini, ir, j, n_mo(2), n_rep, nao, &
                                                             nat_print, natom, nmoloc, nspins, &
                                                             output_unit
       INTEGER, DIMENSION(:), POINTER                     :: bounds, list
-      LOGICAL                                            :: gapw, my_end
+      LOGICAL                                            :: gapw
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_parser_type), POINTER                      :: parser
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -103,7 +101,7 @@ CONTAINS
 
       NULLIFY (atomic_kind_set, cell, dft_control, linres_control, scf_control)
       NULLIFY (logger, mpools, nmr_section, particle_set)
-      NULLIFY (pw_env, parser)
+      NULLIFY (pw_env)
 
       n_mo(1:2) = 0
       nao = 0
@@ -115,9 +113,7 @@ CONTAINS
       output_unit = cp_print_key_unit_nr(logger, lr_section, "PRINT%PROGRAM_RUN_INFO", &
                                          extension=".linresLog")
 
-      IF (nmr_env%ref_count /= 0) THEN
-         CALL nmr_env_cleanup(nmr_env)
-      END IF
+      CALL nmr_env_cleanup(nmr_env)
 
       IF (output_unit > 0) THEN
          WRITE (output_unit, "(/,T20,A,/)") "*** Start NMR Chemical Shift Calculation ***"
@@ -135,23 +131,28 @@ CONTAINS
       IF (nmr_env%do_nics) THEN
          CALL section_vals_val_get(nmr_section, "NICS_FILE_NAME", &
                                    c_val=nics_file_name)
-         CALL parser_create(parser, nics_file_name)
-         CALL parser_get_next_line(parser, 1)
-         CALL parser_get_object(parser, nmr_env%n_nics)
-         ALLOCATE (nmr_env%r_nics(3, nmr_env%n_nics))
-         CALL parser_get_next_line(parser, 2)
-         DO j = 1, nmr_env%n_nics
-            CALL parser_get_object(parser, label)
-            CALL parser_get_object(parser, nmr_env%r_nics(1, j))
-            CALL parser_get_object(parser, nmr_env%r_nics(2, j))
-            CALL parser_get_object(parser, nmr_env%r_nics(3, j))
-            nmr_env%r_nics(1, j) = cp_unit_to_cp2k(nmr_env%r_nics(1, j), "angstrom")
-            nmr_env%r_nics(2, j) = cp_unit_to_cp2k(nmr_env%r_nics(2, j), "angstrom")
-            nmr_env%r_nics(3, j) = cp_unit_to_cp2k(nmr_env%r_nics(3, j), "angstrom")
-            CALL parser_get_next_line(parser, 1, at_end=my_end)
-            IF (my_end) EXIT
-         END DO
-         CALL parser_release(parser)
+         BLOCK
+            CHARACTER(LEN=2)                                   :: label
+            LOGICAL :: my_end
+            TYPE(cp_parser_type) :: parser
+            CALL parser_create(parser, nics_file_name)
+            CALL parser_get_next_line(parser, 1)
+            CALL parser_get_object(parser, nmr_env%n_nics)
+            ALLOCATE (nmr_env%r_nics(3, nmr_env%n_nics))
+            CALL parser_get_next_line(parser, 2)
+            DO j = 1, nmr_env%n_nics
+               CALL parser_get_object(parser, label)
+               CALL parser_get_object(parser, nmr_env%r_nics(1, j))
+               CALL parser_get_object(parser, nmr_env%r_nics(2, j))
+               CALL parser_get_object(parser, nmr_env%r_nics(3, j))
+               nmr_env%r_nics(1, j) = cp_unit_to_cp2k(nmr_env%r_nics(1, j), "angstrom")
+               nmr_env%r_nics(2, j) = cp_unit_to_cp2k(nmr_env%r_nics(2, j), "angstrom")
+               nmr_env%r_nics(3, j) = cp_unit_to_cp2k(nmr_env%r_nics(3, j), "angstrom")
+               CALL parser_get_next_line(parser, 1, at_end=my_end)
+               IF (my_end) EXIT
+            END DO
+            CALL parser_release(parser)
+         END BLOCK
       END IF
 
       CALL get_qs_env(qs_env=qs_env, &
@@ -311,32 +312,29 @@ CONTAINS
 
       TYPE(nmr_env_type)                                 :: nmr_env
 
-      nmr_env%ref_count = nmr_env%ref_count - 1
-      IF (nmr_env%ref_count == 0) THEN
-         IF (ASSOCIATED(nmr_env%cs_atom_list)) THEN
-            DEALLOCATE (nmr_env%cs_atom_list)
-         END IF
-         IF (ASSOCIATED(nmr_env%do_calc_cs_atom)) THEN
-            DEALLOCATE (nmr_env%do_calc_cs_atom)
-         END IF
-         !chemical_shift
-         IF (ASSOCIATED(nmr_env%chemical_shift)) THEN
-            DEALLOCATE (nmr_env%chemical_shift)
-         END IF
-         IF (ASSOCIATED(nmr_env%chemical_shift_loc)) THEN
-            DEALLOCATE (nmr_env%chemical_shift_loc)
-         END IF
-         ! nics
-         IF (ASSOCIATED(nmr_env%r_nics)) THEN
-            DEALLOCATE (nmr_env%r_nics)
-         END IF
-         IF (ASSOCIATED(nmr_env%chemical_shift_nics)) THEN
-            DEALLOCATE (nmr_env%chemical_shift_nics)
-         END IF
-         IF (ASSOCIATED(nmr_env%chemical_shift_nics_loc)) THEN
-            DEALLOCATE (nmr_env%chemical_shift_nics_loc)
-         END IF
-      END IF ! ref count
+      IF (ASSOCIATED(nmr_env%cs_atom_list)) THEN
+         DEALLOCATE (nmr_env%cs_atom_list)
+      END IF
+      IF (ASSOCIATED(nmr_env%do_calc_cs_atom)) THEN
+         DEALLOCATE (nmr_env%do_calc_cs_atom)
+      END IF
+      !chemical_shift
+      IF (ASSOCIATED(nmr_env%chemical_shift)) THEN
+         DEALLOCATE (nmr_env%chemical_shift)
+      END IF
+      IF (ASSOCIATED(nmr_env%chemical_shift_loc)) THEN
+         DEALLOCATE (nmr_env%chemical_shift_loc)
+      END IF
+      ! nics
+      IF (ASSOCIATED(nmr_env%r_nics)) THEN
+         DEALLOCATE (nmr_env%r_nics)
+      END IF
+      IF (ASSOCIATED(nmr_env%chemical_shift_nics)) THEN
+         DEALLOCATE (nmr_env%chemical_shift_nics)
+      END IF
+      IF (ASSOCIATED(nmr_env%chemical_shift_nics_loc)) THEN
+         DEALLOCATE (nmr_env%chemical_shift_nics_loc)
+      END IF
 
    END SUBROUTINE nmr_env_cleanup
 

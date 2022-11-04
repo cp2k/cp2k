@@ -57,8 +57,7 @@ MODULE nnp_environment_types
    PUBLIC :: nnp_acsf_ang_type
 
    ! Public subroutines ***
-   PUBLIC :: nnp_env_retain, &
-             nnp_env_release, &
+   PUBLIC :: nnp_env_release, &
              nnp_env_set, &
              nnp_env_get, &
              nnp_env_create
@@ -128,7 +127,6 @@ MODULE nnp_environment_types
       TYPE(section_vals_type), POINTER                    :: nnp_input, &
                                                              force_env_input
       TYPE(cell_type), POINTER                            :: cell_ref
-      INTEGER                                             :: ref_count
       LOGICAL                                             :: use_ref_cell
       ! bias
       LOGICAL                                             :: bias
@@ -276,10 +274,8 @@ CONTAINS
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
    SUBROUTINE nnp_env_create(nnp_env)
-      TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp_env
+      TYPE(nnp_type), INTENT(OUT)                        :: nnp_env
 
-      NULLIFY (nnp_env)
-      ALLOCATE (nnp_env)
       NULLIFY (nnp_env%rad)
       NULLIFY (nnp_env%ang)
       NULLIFY (nnp_env%arc)
@@ -288,25 +284,9 @@ CONTAINS
       NULLIFY (nnp_env%force_env_input)
       NULLIFY (nnp_env%cell_ref)
 
-      nnp_env%ref_count = 1
       nnp_env%use_ref_cell = .FALSE.
 
    END SUBROUTINE nnp_env_create
-
-! **************************************************************************************************
-!> \brief Retains a nnp environment (see doc/ReferenceCounting.html)
-!> \param nnp_env The nnp environment to retain
-!> \date   2020-10-10
-!> \author Christoph Schran (christoph.schran@rub.de)
-! **************************************************************************************************
-   SUBROUTINE nnp_env_retain(nnp_env)
-
-      TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp_env
-
-      CPASSERT(ASSOCIATED(nnp_env))
-      CPASSERT(nnp_env%ref_count > 0)
-      nnp_env%ref_count = nnp_env%ref_count + 1
-   END SUBROUTINE nnp_env_retain
 
 ! **************************************************************************************************
 !> \brief Release data structure that holds all the information for neural
@@ -316,118 +296,111 @@ CONTAINS
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
    SUBROUTINE nnp_env_release(nnp_env)
-      TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp_env
+      TYPE(nnp_type), INTENT(INOUT)                      :: nnp_env
 
       INTEGER                                            :: i, j
 
-      IF (ASSOCIATED(nnp_env)) THEN
-         CPASSERT(nnp_env%ref_count > 0)
-         nnp_env%ref_count = nnp_env%ref_count - 1
-         IF (nnp_env%ref_count < 1) THEN
-            IF (ASSOCIATED(nnp_env%rad)) THEN
-               DO i = 1, nnp_env%n_ele
-                  DO j = 1, nnp_env%rad(i)%n_symfgrp
-                     DEALLOCATE (nnp_env%rad(i)%symfgrp(j)%symf, &
-                                 nnp_env%rad(i)%symfgrp(j)%ele, &
-                                 nnp_env%rad(i)%symfgrp(j)%ele_ind)
-                  END DO
-                  DEALLOCATE (nnp_env%rad(i)%y, &
-                              nnp_env%rad(i)%funccut, &
-                              nnp_env%rad(i)%eta, &
-                              nnp_env%rad(i)%rs, &
-                              nnp_env%rad(i)%loc_min, &
-                              nnp_env%rad(i)%loc_max, &
-                              nnp_env%rad(i)%loc_av, &
-                              nnp_env%rad(i)%sigma, &
-                              nnp_env%rad(i)%ele, &
-                              nnp_env%rad(i)%nuc_ele, &
-                              nnp_env%rad(i)%symfgrp)
-               END DO
-               DEALLOCATE (nnp_env%rad)
-            END IF
+      IF (ASSOCIATED(nnp_env%rad)) THEN
+         DO i = 1, nnp_env%n_ele
+            DO j = 1, nnp_env%rad(i)%n_symfgrp
+               DEALLOCATE (nnp_env%rad(i)%symfgrp(j)%symf, &
+                           nnp_env%rad(i)%symfgrp(j)%ele, &
+                           nnp_env%rad(i)%symfgrp(j)%ele_ind)
+            END DO
+            DEALLOCATE (nnp_env%rad(i)%y, &
+                        nnp_env%rad(i)%funccut, &
+                        nnp_env%rad(i)%eta, &
+                        nnp_env%rad(i)%rs, &
+                        nnp_env%rad(i)%loc_min, &
+                        nnp_env%rad(i)%loc_max, &
+                        nnp_env%rad(i)%loc_av, &
+                        nnp_env%rad(i)%sigma, &
+                        nnp_env%rad(i)%ele, &
+                        nnp_env%rad(i)%nuc_ele, &
+                        nnp_env%rad(i)%symfgrp)
+         END DO
+         DEALLOCATE (nnp_env%rad)
+      END IF
 
-            IF (ASSOCIATED(nnp_env%ang)) THEN
-               DO i = 1, nnp_env%n_ele
-                  DO j = 1, nnp_env%ang(i)%n_symfgrp
-                     DEALLOCATE (nnp_env%ang(i)%symfgrp(j)%symf, &
-                                 nnp_env%ang(i)%symfgrp(j)%ele, &
-                                 nnp_env%ang(i)%symfgrp(j)%ele_ind)
-                  END DO
-                  DEALLOCATE (nnp_env%ang(i)%y, &
-                              nnp_env%ang(i)%funccut, &
-                              nnp_env%ang(i)%eta, &
-                              nnp_env%ang(i)%zeta, &
-                              nnp_env%ang(i)%prefzeta, &
-                              nnp_env%ang(i)%lam, &
-                              nnp_env%ang(i)%loc_min, &
-                              nnp_env%ang(i)%loc_max, &
-                              nnp_env%ang(i)%loc_av, &
-                              nnp_env%ang(i)%sigma, &
-                              nnp_env%ang(i)%ele1, &
-                              nnp_env%ang(i)%ele2, &
-                              nnp_env%ang(i)%nuc_ele1, &
-                              nnp_env%ang(i)%nuc_ele2, &
-                              nnp_env%ang(i)%symfgrp)
-               END DO
-               DEALLOCATE (nnp_env%ang)
-            END IF
+      IF (ASSOCIATED(nnp_env%ang)) THEN
+         DO i = 1, nnp_env%n_ele
+            DO j = 1, nnp_env%ang(i)%n_symfgrp
+               DEALLOCATE (nnp_env%ang(i)%symfgrp(j)%symf, &
+                           nnp_env%ang(i)%symfgrp(j)%ele, &
+                           nnp_env%ang(i)%symfgrp(j)%ele_ind)
+            END DO
+            DEALLOCATE (nnp_env%ang(i)%y, &
+                        nnp_env%ang(i)%funccut, &
+                        nnp_env%ang(i)%eta, &
+                        nnp_env%ang(i)%zeta, &
+                        nnp_env%ang(i)%prefzeta, &
+                        nnp_env%ang(i)%lam, &
+                        nnp_env%ang(i)%loc_min, &
+                        nnp_env%ang(i)%loc_max, &
+                        nnp_env%ang(i)%loc_av, &
+                        nnp_env%ang(i)%sigma, &
+                        nnp_env%ang(i)%ele1, &
+                        nnp_env%ang(i)%ele2, &
+                        nnp_env%ang(i)%nuc_ele1, &
+                        nnp_env%ang(i)%nuc_ele2, &
+                        nnp_env%ang(i)%symfgrp)
+         END DO
+         DEALLOCATE (nnp_env%ang)
+      END IF
 
-            IF (ASSOCIATED(nnp_env%arc)) THEN
-               DO i = 1, nnp_env%n_ele
-                  IF (ASSOCIATED(nnp_env%arc(i)%layer)) THEN
-                     DO j = 1, nnp_env%n_layer
-                        IF (ALLOCATED(nnp_env%arc(i)%layer(j)%node)) THEN
-                           DEALLOCATE (nnp_env%arc(i)%layer(j)%node)
-                        END IF
-                        IF (ALLOCATED(nnp_env%arc(i)%layer(j)%node_grad)) THEN
-                           DEALLOCATE (nnp_env%arc(i)%layer(j)%node_grad)
-                        END IF
-                        IF (ALLOCATED(nnp_env%arc(i)%layer(j)%weights)) THEN
-                           DEALLOCATE (nnp_env%arc(i)%layer(j)%weights)
-                        END IF
-                        IF (ALLOCATED(nnp_env%arc(i)%layer(j)%bweights)) THEN
-                           DEALLOCATE (nnp_env%arc(i)%layer(j)%bweights)
-                        END IF
-                        IF (ALLOCATED(nnp_env%arc(i)%layer(j)%tmp_der)) THEN
-                           DEALLOCATE (nnp_env%arc(i)%layer(j)%tmp_der)
-                        END IF
-                     END DO
-                     DEALLOCATE (nnp_env%arc(i)%layer, &
-                                 nnp_env%arc(i)%n_nodes)
+      IF (ASSOCIATED(nnp_env%arc)) THEN
+         DO i = 1, nnp_env%n_ele
+            IF (ASSOCIATED(nnp_env%arc(i)%layer)) THEN
+               DO j = 1, nnp_env%n_layer
+                  IF (ALLOCATED(nnp_env%arc(i)%layer(j)%node)) THEN
+                     DEALLOCATE (nnp_env%arc(i)%layer(j)%node)
+                  END IF
+                  IF (ALLOCATED(nnp_env%arc(i)%layer(j)%node_grad)) THEN
+                     DEALLOCATE (nnp_env%arc(i)%layer(j)%node_grad)
+                  END IF
+                  IF (ALLOCATED(nnp_env%arc(i)%layer(j)%weights)) THEN
+                     DEALLOCATE (nnp_env%arc(i)%layer(j)%weights)
+                  END IF
+                  IF (ALLOCATED(nnp_env%arc(i)%layer(j)%bweights)) THEN
+                     DEALLOCATE (nnp_env%arc(i)%layer(j)%bweights)
+                  END IF
+                  IF (ALLOCATED(nnp_env%arc(i)%layer(j)%tmp_der)) THEN
+                     DEALLOCATE (nnp_env%arc(i)%layer(j)%tmp_der)
                   END IF
                END DO
-               DEALLOCATE (nnp_env%arc)
+               DEALLOCATE (nnp_env%arc(i)%layer, &
+                           nnp_env%arc(i)%n_nodes)
             END IF
+         END DO
+         DEALLOCATE (nnp_env%arc)
+      END IF
 
-            IF (ALLOCATED(nnp_env%ele)) DEALLOCATE (nnp_env%ele)
-            IF (ALLOCATED(nnp_env%nuc_ele)) DEALLOCATE (nnp_env%nuc_ele)
-            IF (ALLOCATED(nnp_env%n_hnodes)) DEALLOCATE (nnp_env%n_hnodes)
-            IF (ALLOCATED(nnp_env%actfnct)) DEALLOCATE (nnp_env%actfnct)
-            IF (ALLOCATED(nnp_env%nnp_forces)) DEALLOCATE (nnp_env%nnp_forces)
-            IF (ALLOCATED(nnp_env%atomic_energy)) DEALLOCATE (nnp_env%atomic_energy)
-            IF (ALLOCATED(nnp_env%committee_energy)) DEALLOCATE (nnp_env%committee_energy)
-            IF (ALLOCATED(nnp_env%ele_ind)) DEALLOCATE (nnp_env%ele_ind)
-            IF (ALLOCATED(nnp_env%nuc_atoms)) DEALLOCATE (nnp_env%nuc_atoms)
-            IF (ALLOCATED(nnp_env%sort)) DEALLOCATE (nnp_env%sort)
-            IF (ALLOCATED(nnp_env%sort_inv)) DEALLOCATE (nnp_env%sort_inv)
-            IF (ALLOCATED(nnp_env%coord)) DEALLOCATE (nnp_env%coord)
-            IF (ALLOCATED(nnp_env%myforce)) DEALLOCATE (nnp_env%myforce)
-            IF (ALLOCATED(nnp_env%committee_forces)) DEALLOCATE (nnp_env%committee_forces)
-            IF (ALLOCATED(nnp_env%committee_stress)) DEALLOCATE (nnp_env%committee_stress)
-            IF (ALLOCATED(nnp_env%atoms)) DEALLOCATE (nnp_env%atoms)
-            IF (ALLOCATED(nnp_env%nnp_forces)) DEALLOCATE (nnp_env%nnp_forces)
+      IF (ALLOCATED(nnp_env%ele)) DEALLOCATE (nnp_env%ele)
+      IF (ALLOCATED(nnp_env%nuc_ele)) DEALLOCATE (nnp_env%nuc_ele)
+      IF (ALLOCATED(nnp_env%n_hnodes)) DEALLOCATE (nnp_env%n_hnodes)
+      IF (ALLOCATED(nnp_env%actfnct)) DEALLOCATE (nnp_env%actfnct)
+      IF (ALLOCATED(nnp_env%nnp_forces)) DEALLOCATE (nnp_env%nnp_forces)
+      IF (ALLOCATED(nnp_env%atomic_energy)) DEALLOCATE (nnp_env%atomic_energy)
+      IF (ALLOCATED(nnp_env%committee_energy)) DEALLOCATE (nnp_env%committee_energy)
+      IF (ALLOCATED(nnp_env%ele_ind)) DEALLOCATE (nnp_env%ele_ind)
+      IF (ALLOCATED(nnp_env%nuc_atoms)) DEALLOCATE (nnp_env%nuc_atoms)
+      IF (ALLOCATED(nnp_env%sort)) DEALLOCATE (nnp_env%sort)
+      IF (ALLOCATED(nnp_env%sort_inv)) DEALLOCATE (nnp_env%sort_inv)
+      IF (ALLOCATED(nnp_env%coord)) DEALLOCATE (nnp_env%coord)
+      IF (ALLOCATED(nnp_env%myforce)) DEALLOCATE (nnp_env%myforce)
+      IF (ALLOCATED(nnp_env%committee_forces)) DEALLOCATE (nnp_env%committee_forces)
+      IF (ALLOCATED(nnp_env%committee_stress)) DEALLOCATE (nnp_env%committee_stress)
+      IF (ALLOCATED(nnp_env%atoms)) DEALLOCATE (nnp_env%atoms)
+      IF (ALLOCATED(nnp_env%nnp_forces)) DEALLOCATE (nnp_env%nnp_forces)
 
-            IF (ASSOCIATED(nnp_env%subsys)) THEN
-               CALL cp_subsys_release(nnp_env%subsys)
-            END IF
-            IF (ASSOCIATED(nnp_env%subsys)) THEN
-               CALL cp_subsys_release(nnp_env%subsys)
-            END IF
-            IF (ASSOCIATED(nnp_env%cell_ref)) THEN
-               CALL cell_release(nnp_env%cell_ref)
-            END IF
-            DEALLOCATE (nnp_env)
-         END IF
+      IF (ASSOCIATED(nnp_env%subsys)) THEN
+         CALL cp_subsys_release(nnp_env%subsys)
+      END IF
+      IF (ASSOCIATED(nnp_env%subsys)) THEN
+         CALL cp_subsys_release(nnp_env%subsys)
+      END IF
+      IF (ASSOCIATED(nnp_env%cell_ref)) THEN
+         CALL cell_release(nnp_env%cell_ref)
       END IF
 
    END SUBROUTINE nnp_env_release
@@ -488,8 +461,6 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles
 
       NULLIFY (atomic_kinds, particles, molecules, molecule_kinds)
-
-      CPASSERT(nnp_env%ref_count > 0)
 
       IF (PRESENT(nnp_potential_energy)) THEN
          nnp_potential_energy = nnp_env%nnp_potential_energy
@@ -570,8 +541,6 @@ CONTAINS
       TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(particle_list_type), POINTER                  :: particles
-
-      CPASSERT(nnp_env%ref_count > 0)
 
       IF (PRESENT(nnp_potential_energy)) THEN
          nnp_env%nnp_potential_energy = nnp_potential_energy

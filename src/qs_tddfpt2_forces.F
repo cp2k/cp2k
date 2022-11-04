@@ -314,7 +314,7 @@ CONTAINS
       TYPE(tddfpt_subgroup_env_type)                     :: sub_env
       TYPE(tddfpt_work_matrices)                         :: work_matrices
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_forces', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_forces'
       LOGICAL, PARAMETER                                 :: debug_forces = .FALSE.
 
       INTEGER                                            :: handle, nkind
@@ -385,8 +385,7 @@ CONTAINS
       TYPE(tddfpt_work_matrices)                         :: work_matrices
       LOGICAL                                            :: debug_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_force_direct', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_force_direct'
 
       INTEGER                                            :: handle, iounit, ispin, natom, norb, &
                                                             nspins
@@ -552,7 +551,7 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN)                       :: evect, mos_occ
       TYPE(dbcsr_type), POINTER                          :: matrix_s, matrix_pe
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_resvec1', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_resvec1'
 
       INTEGER                                            :: handle, iounit, nao, norb
       REAL(KIND=dp)                                      :: tmp
@@ -616,8 +615,7 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(dbcsr_type), POINTER                          :: matrix_pe_admm
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_resvec1_admm', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_resvec1_admm'
 
       INTEGER                                            :: handle, nao, nao_aux
 
@@ -657,7 +655,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hz
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: cpmos
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_resvec2', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_resvec2'
 
       INTEGER                                            :: handle, iounit, ispin, mspin, n_rep_hf, &
                                                             nao, nao_aux, natom, norb, nspins
@@ -1155,8 +1153,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hz
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: cpmos
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_resvec2_xtb', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_resvec2_xtb'
 
       INTEGER                                            :: atom_a, handle, iatom, ikind, is, ispin, &
                                                             na, natom, natorb, nkind, norb, ns, &
@@ -1260,7 +1257,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: cpmos
       TYPE(tddfpt_work_matrices)                         :: work
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_resvec3', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_resvec3'
 
       INTEGER                                            :: handle, ispin, nao, norb, nspins
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
@@ -1319,8 +1316,7 @@ CONTAINS
       TYPE(tddfpt_work_matrices)                         :: work_matrices
       LOGICAL, INTENT(IN)                                :: debug_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_kernel_force', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_kernel_force'
 
       INTEGER                                            :: handle
       TYPE(dft_control_type), POINTER                    :: dft_control

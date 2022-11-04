@@ -116,7 +116,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: strtmp
       INTEGER                                            :: frame, handle, istat, j, natom
       LOGICAL                                            :: found, my_end
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type)                               :: parser
 
       CALL timeset(routineN, handle)
 
@@ -132,7 +132,6 @@ CONTAINS
          CPABORT("Coordinate file <"//TRIM(file_name)//"> not found.")
       END IF
 
-      NULLIFY (parser)
       CALL parser_create( &
          parser, &
          file_name, &
@@ -181,7 +180,6 @@ CONTAINS
 
       CALL timestop(handle)
 
-      RETURN
    END SUBROUTINE helium_read_xyz
 
 ! ***************************************************************************
@@ -994,7 +992,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE helium_print_action(pint_env, helium_env)
 
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(pint_env_type), INTENT(IN)                    :: pint_env
       TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_print_action'
@@ -1897,7 +1895,6 @@ CONTAINS
 
       CALL timestop(handle)
 
-      RETURN
    END SUBROUTINE helium_print_force_inst
 
 #endif

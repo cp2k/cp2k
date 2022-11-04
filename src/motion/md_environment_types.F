@@ -36,14 +36,11 @@ MODULE md_environment_types
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE md_ener_types,                   ONLY: md_ener_type,&
-                                              release_md_ener,&
-                                              retain_md_ener
+                                              release_md_ener
    USE reftraj_types,                   ONLY: reftraj_type,&
-                                              release_reftraj,&
-                                              retain_reftraj
+                                              release_reftraj
    USE simpar_types,                    ONLY: simpar_type
    USE thermal_region_types,            ONLY: release_thermal_regions,&
-                                              retain_thermal_regions,&
                                               thermal_regions_type
    USE thermostat_types,                ONLY: release_thermostats,&
                                               retain_thermostats,&
@@ -61,22 +58,21 @@ MODULE md_environment_types
       ! that are dealt with by the integrator e.g in the PIMD this could
       ! be parent of every bead.
       PRIVATE
-      INTEGER                                    :: id_nr, ref_count
       LOGICAL                                    :: init, first_time, ehrenfest_md
-      INTEGER, POINTER                           :: itimes
-      REAL(KIND=dp), POINTER                     :: used_time, t
-      REAL(KIND=dp), POINTER                     :: constant
-      TYPE(cp_para_env_type), POINTER            :: para_env
-      TYPE(cell_type), POINTER                   :: cell
-      TYPE(force_env_type), POINTER              :: force_env
-      TYPE(md_ener_type), POINTER                :: md_ener
-      TYPE(thermostats_type), POINTER            :: thermostats
-      TYPE(barostat_type), POINTER               :: barostat
-      TYPE(reftraj_type), POINTER                :: reftraj
-      TYPE(free_energy_type), POINTER           :: fe_env
-      TYPE(simpar_type), POINTER                 :: simpar
-      TYPE(average_quantities_type), POINTER     :: averages
-      TYPE(thermal_regions_type), POINTER        :: thermal_regions
+      INTEGER, POINTER                           :: itimes => NULL()
+      REAL(KIND=dp), POINTER                     :: used_time => NULL(), t => NULL()
+      REAL(KIND=dp), POINTER                     :: constant => NULL()
+      TYPE(cp_para_env_type), POINTER            :: para_env => NULL()
+      TYPE(cell_type), POINTER                   :: cell => NULL()
+      TYPE(force_env_type), POINTER              :: force_env => NULL()
+      TYPE(md_ener_type), POINTER                :: md_ener => NULL()
+      TYPE(thermostats_type), POINTER            :: thermostats => NULL()
+      TYPE(barostat_type), POINTER               :: barostat => NULL()
+      TYPE(reftraj_type), POINTER                :: reftraj => NULL()
+      TYPE(free_energy_type), POINTER           :: fe_env => NULL()
+      TYPE(simpar_type), POINTER                 :: simpar => NULL()
+      TYPE(average_quantities_type), POINTER     :: averages => NULL()
+      TYPE(thermal_regions_type), POINTER        :: thermal_regions => NULL()
    END TYPE md_environment_type
 
    ! *** Public subroutines and data types ***
@@ -85,7 +81,6 @@ MODULE md_environment_types
 
    ! *** Global parameters ***
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_environment_types'
-   INTEGER, SAVE, PRIVATE :: last_md_env_id = 0
 
 CONTAINS
 
@@ -100,17 +95,12 @@ CONTAINS
 !> \param force_env ...
 ! **************************************************************************************************
    SUBROUTINE md_env_create(md_env, md_section, para_env, force_env)
-      TYPE(md_environment_type), POINTER                 :: md_env
+      TYPE(md_environment_type), INTENT(OUT)             :: md_env
       TYPE(section_vals_type), POINTER                   :: md_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(force_env_type), POINTER                      :: force_env
 
       TYPE(section_vals_type), POINTER                   :: averages_section
-
-      ALLOCATE (md_env)
-      last_md_env_id = last_md_env_id + 1
-      md_env%id_nr = last_md_env_id
-      md_env%ref_count = 1
 
       NULLIFY (md_env%itimes)
       NULLIFY (md_env%constant)
@@ -149,35 +139,36 @@ CONTAINS
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
-!> \note
-!>      see doc/ReferenceCounting.html
 ! **************************************************************************************************
    SUBROUTINE md_env_release(md_env)
-      TYPE(md_environment_type), POINTER                 :: md_env
+      TYPE(md_environment_type), INTENT(INOUT)           :: md_env
 
-      IF (ASSOCIATED(md_env)) THEN
-         CPASSERT(md_env%ref_count > 0)
-         md_env%ref_count = md_env%ref_count - 1
-         IF (md_env%ref_count == 0) THEN
-            CALL fe_env_release(md_env%fe_env)
-            CALL cp_para_env_release(md_env%para_env)
-            DEALLOCATE (md_env%itimes)
-            DEALLOCATE (md_env%constant)
-            DEALLOCATE (md_env%used_time)
-            DEALLOCATE (md_env%t)
+      CALL fe_env_release(md_env%fe_env)
+      CALL cp_para_env_release(md_env%para_env)
+      DEALLOCATE (md_env%itimes)
+      DEALLOCATE (md_env%constant)
+      DEALLOCATE (md_env%used_time)
+      DEALLOCATE (md_env%t)
 
-            NULLIFY (md_env%cell)
-            NULLIFY (md_env%simpar)
-            CALL release_barostat_type(md_env%barostat)
-            CALL release_thermostats(md_env%thermostats)
-            CALL release_reftraj(md_env%reftraj)
-            CALL release_md_ener(md_env%md_ener)
-            CALL force_env_release(md_env%force_env)
-            CALL release_averages(md_env%averages)
-            CALL release_thermal_regions(md_env%thermal_regions)
-            DEALLOCATE (md_env)
-         END IF
+      NULLIFY (md_env%cell)
+      NULLIFY (md_env%simpar)
+      CALL release_barostat_type(md_env%barostat)
+      CALL release_thermostats(md_env%thermostats)
+      IF (ASSOCIATED(md_env%reftraj)) THEN
+         CALL release_reftraj(md_env%reftraj)
+         DEALLOCATE (md_env%reftraj)
       END IF
+      IF (ASSOCIATED(md_env%md_ener)) THEN
+         CALL release_md_ener(md_env%md_ener)
+         DEALLOCATE (md_env%md_ener)
+      END IF
+      CALL force_env_release(md_env%force_env)
+      CALL release_averages(md_env%averages)
+      IF (ASSOCIATED(md_env%thermal_regions)) THEN
+         CALL release_thermal_regions(md_env%thermal_regions)
+         DEALLOCATE (md_env%thermal_regions)
+      END IF
+
    END SUBROUTINE md_env_release
 
 ! **************************************************************************************************
@@ -215,7 +206,7 @@ CONTAINS
                          thermostat_fast, thermostat_slow, md_ener, averages, &
                          thermal_regions, ehrenfest_md)
 
-      TYPE(md_environment_type), POINTER                 :: md_env
+      TYPE(md_environment_type), INTENT(IN)              :: md_env
       INTEGER, OPTIONAL, POINTER                         :: itimes
       REAL(KIND=dp), OPTIONAL, POINTER                   :: constant, used_time
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell
@@ -237,10 +228,6 @@ CONTAINS
       TYPE(thermal_regions_type), OPTIONAL, POINTER      :: thermal_regions
       LOGICAL, OPTIONAL                                  :: ehrenfest_md
 
-      LOGICAL                                            :: check
-
-      check = ASSOCIATED(md_env)
-      CPASSERT(check)
       IF (PRESENT(itimes)) itimes => md_env%itimes
       IF (PRESENT(fe_env)) fe_env => md_env%fe_env
       IF (PRESENT(constant)) constant => md_env%constant
@@ -315,7 +302,7 @@ CONTAINS
                          para_env, init, first_time, thermostats, barostat, reftraj, md_ener, averages, &
                          thermal_regions, ehrenfest_md)
 
-      TYPE(md_environment_type), POINTER                 :: md_env
+      TYPE(md_environment_type), INTENT(INOUT)           :: md_env
       INTEGER, OPTIONAL, POINTER                         :: itimes
       REAL(KIND=dp), OPTIONAL, POINTER                   :: constant
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell
@@ -332,10 +319,6 @@ CONTAINS
       TYPE(thermal_regions_type), OPTIONAL, POINTER      :: thermal_regions
       LOGICAL, OPTIONAL                                  :: ehrenfest_md
 
-      LOGICAL                                            :: check
-
-      check = ASSOCIATED(md_env)
-      CPASSERT(check)
       IF (PRESENT(init)) md_env%init = init
       IF (PRESENT(first_time)) md_env%first_time = first_time
       IF (PRESENT(ehrenfest_md)) md_env%ehrenfest_md = ehrenfest_md
@@ -365,13 +348,21 @@ CONTAINS
          md_env%force_env => force_env
       END IF
       IF (PRESENT(reftraj)) THEN
-         CALL release_reftraj(md_env%reftraj)
-         CALL retain_reftraj(reftraj)
+         IF (ASSOCIATED(md_env%reftraj)) THEN
+         IF (.NOT. ASSOCIATED(md_env%reftraj, reftraj)) THEN
+            CALL release_reftraj(md_env%reftraj)
+            DEALLOCATE (md_env%reftraj)
+         END IF
+         END IF
          md_env%reftraj => reftraj
       END IF
       IF (PRESENT(md_ener)) THEN
-         CALL release_md_ener(md_env%md_ener)
-         CALL retain_md_ener(md_ener)
+         IF (ASSOCIATED(md_env%md_ener)) THEN
+            IF (.NOT. ASSOCIATED(md_env%md_ener, md_ener)) THEN
+               CALL release_md_ener(md_env%md_ener)
+               DEALLOCATE (md_env%md_ener)
+            END IF
+         END IF
          md_env%md_ener => md_ener
       END IF
       IF (PRESENT(averages)) THEN
@@ -380,8 +371,12 @@ CONTAINS
          md_env%averages => averages
       END IF
       IF (PRESENT(thermal_regions)) THEN
-         CALL release_thermal_regions(md_env%thermal_regions)
-         CALL retain_thermal_regions(thermal_regions)
+         IF (ASSOCIATED(md_env%thermal_regions)) THEN
+            IF (.NOT. ASSOCIATED(md_env%thermal_regions, thermal_regions)) THEN
+               CALL release_thermal_regions(md_env%thermal_regions)
+               DEALLOCATE (md_env%thermal_regions)
+            END IF
+         END IF
          md_env%thermal_regions => thermal_regions
       END IF
 
@@ -395,8 +390,8 @@ CONTAINS
 !>      02.2012 created [noamb]
 !> \author Noam Bernstein
 ! **************************************************************************************************
-   FUNCTION need_per_atom_wiener_process(md_env)
-      TYPE(md_environment_type), POINTER                 :: md_env
+   PURE FUNCTION need_per_atom_wiener_process(md_env)
+      TYPE(md_environment_type), INTENT(IN)              :: md_env
       LOGICAL                                            :: need_per_atom_wiener_process
 
 ! return value

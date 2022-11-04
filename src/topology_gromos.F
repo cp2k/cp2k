@@ -72,9 +72,9 @@ CONTAINS
       TYPE(atom_info_type), POINTER                      :: atom_info
       TYPE(connectivity_info_type), POINTER              :: conn_info
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type)                               :: parser
 
-      NULLIFY (parser, logger)
+      NULLIFY (logger)
       NULLIFY (namearray1, namearray2)
       logger => cp_get_default_logger()
       iw = cp_print_key_unit_nr(logger, subsys_section, "PRINT%TOPOLOGY_INFO/GTOP_INFO", &
@@ -642,10 +642,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: velocity
       TYPE(atom_info_type), POINTER                      :: atom_info
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type)                               :: parser
       TYPE(section_vals_type), POINTER                   :: velocity_section
 
-      NULLIFY (parser, logger, velocity)
+      NULLIFY (logger, velocity)
       logger => cp_get_default_logger()
       iw = cp_print_key_unit_nr(logger, subsys_section, "PRINT%TOPOLOGY_INFO/G96_INFO", &
                                 extension=".subsysLog")

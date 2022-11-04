@@ -5799,7 +5799,6 @@ CONTAINS
       INTEGER                                            :: i, j, natom
       LOGICAL                                            :: explicit, my_end
       REAL(KIND=dp), DIMENSION(:), POINTER               :: rptr
-      TYPE(cp_parser_type), POINTER                      :: parser
       TYPE(section_vals_type), POINTER                   :: coord_section
 
       NULLIFY (rptr)
@@ -5823,35 +5822,37 @@ CONTAINS
                r_ref((j - 1)*3 + 1:(j - 1)*3 + 3, i) = rptr(1:3)
             END DO ! natom
          ELSE
-            CALL section_vals_val_get(frame_section, "COORD_FILE_NAME", i_rep_section=i, c_val=filename)
-            CPASSERT(TRIM(filename) /= "")
-            NULLIFY (parser)
-            ALLOCATE (rptr(3))
-            CALL parser_create(parser, filename, para_env=para_env, parse_white_lines=.TRUE.)
-            CALL parser_get_next_line(parser, 1)
-            ! Start parser
-            CALL parser_get_object(parser, natom)
-            CALL parser_get_next_line(parser, 1)
-            IF (i == 1) THEN
-               ALLOCATE (r_ref(3*natom, nr_frames))
-               n_atoms = natom
-            ELSE
-               CPASSERT(3*natom == SIZE(r_ref, 1))
-            END IF
-            DO j = 1, natom
-               ! Atom coordinates
-               CALL parser_get_next_line(parser, 1, at_end=my_end)
-               IF (my_end) &
-                  CALL cp_abort(__LOCATION__, &
-                                "Number of lines in XYZ format not equal to the number of atoms."// &
-                                " Error in XYZ format for COORD_A (CV rmsd). Very probably the"// &
-                                " line with title is missing or is empty. Please check the XYZ file and rerun your job!")
-               READ (parser%input_line, *) dummy_char, rptr(1:3)
-               r_ref((j - 1)*3 + 1, i) = cp_unit_to_cp2k(rptr(1), "angstrom")
-               r_ref((j - 1)*3 + 2, i) = cp_unit_to_cp2k(rptr(2), "angstrom")
-               r_ref((j - 1)*3 + 3, i) = cp_unit_to_cp2k(rptr(3), "angstrom")
-            END DO ! natom
-            CALL parser_release(parser)
+            BLOCK
+               TYPE(cp_parser_type)               :: parser
+               CALL section_vals_val_get(frame_section, "COORD_FILE_NAME", i_rep_section=i, c_val=filename)
+               CPASSERT(TRIM(filename) /= "")
+               ALLOCATE (rptr(3))
+               CALL parser_create(parser, filename, para_env=para_env, parse_white_lines=.TRUE.)
+               CALL parser_get_next_line(parser, 1)
+               ! Start parser
+               CALL parser_get_object(parser, natom)
+               CALL parser_get_next_line(parser, 1)
+               IF (i == 1) THEN
+                  ALLOCATE (r_ref(3*natom, nr_frames))
+                  n_atoms = natom
+               ELSE
+                  CPASSERT(3*natom == SIZE(r_ref, 1))
+               END IF
+               DO j = 1, natom
+                  ! Atom coordinates
+                  CALL parser_get_next_line(parser, 1, at_end=my_end)
+                  IF (my_end) &
+                     CALL cp_abort(__LOCATION__, &
+                                   "Number of lines in XYZ format not equal to the number of atoms."// &
+                                   " Error in XYZ format for COORD_A (CV rmsd). Very probably the"// &
+                                   " line with title is missing or is empty. Please check the XYZ file and rerun your job!")
+                  READ (parser%input_line, *) dummy_char, rptr(1:3)
+                  r_ref((j - 1)*3 + 1, i) = cp_unit_to_cp2k(rptr(1), "angstrom")
+                  r_ref((j - 1)*3 + 2, i) = cp_unit_to_cp2k(rptr(2), "angstrom")
+                  r_ref((j - 1)*3 + 3, i) = cp_unit_to_cp2k(rptr(3), "angstrom")
+               END DO ! natom
+               CALL parser_release(parser)
+            END BLOCK
             DEALLOCATE (rptr)
          END IF
       END DO ! nr_frames

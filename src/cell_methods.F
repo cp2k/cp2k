@@ -269,9 +269,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
       REAL(KIND=dp), DIMENSION(:), POINTER               :: cell_par
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type)                               :: parser
 
-      NULLIFY (parser)
       CALL section_vals_val_get(cell_section, "CELL_FILE_NAME", c_val=cell_file_name)
       CALL section_vals_val_get(cell_section, "CELL_FILE_FORMAT", i_val=my_format)
       SELECT CASE (my_format)
@@ -370,11 +369,10 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: periodic
       LOGICAL                                            :: found
       REAL(KIND=dp), DIMENSION(3)                        :: cell_angles, cell_lengths
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type)                               :: parser
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (parser)
       CALL parser_create(parser, cif_file_name, &
                          para_env=para_env, apply_preprocessing=.FALSE.)
 
@@ -447,7 +445,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino]
 ! **************************************************************************************************
    SUBROUTINE cif_get_real(parser, r)
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       REAL(KIND=dp), INTENT(OUT)                         :: r
 
       CHARACTER(LEN=default_string_length)               :: s_tag

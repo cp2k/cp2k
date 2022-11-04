@@ -83,8 +83,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: density_matrix
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_dbcsr, retain_sparsity
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_dm_sparse', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_dm_sparse'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: my_retain_sparsity, my_use_dbcsr
@@ -163,8 +162,7 @@ CONTAINS
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(dbcsr_type), POINTER                          :: w_matrix
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_1', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_1'
 
       INTEGER                                            :: handle, imo
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigocc
@@ -214,8 +212,7 @@ CONTAINS
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(dbcsr_type), POINTER                          :: mo_deriv, w_matrix, s_matrix
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_ot', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_ot'
       LOGICAL, PARAMETER                                 :: check_gradient = .FALSE., &
                                                             do_symm = .FALSE.
 
@@ -314,8 +311,7 @@ CONTAINS
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(dbcsr_type), POINTER                          :: matrix_ks, matrix_p, matrix_w
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_roks', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_roks'
 
       INTEGER                                            :: handle, nao
       TYPE(cp_blacs_env_type), POINTER                   :: context
@@ -371,8 +367,7 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN)                       :: psi1
       TYPE(dbcsr_type), POINTER                          :: ks_matrix, w_matrix
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_wz_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_wz_matrix'
 
       INTEGER                                            :: handle, ncol, nrow
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
@@ -419,8 +414,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: hzm, w_matrix
       REAL(KIND=dp), INTENT(IN)                          :: focc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_whz_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_whz_matrix'
 
       INTEGER                                            :: handle, nao, norb
       REAL(KIND=dp)                                      :: falpha
@@ -466,8 +460,7 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN)                       :: mos_occ, xvec
       TYPE(dbcsr_type), POINTER                          :: ks_matrix, w_matrix
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_wx_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_wx_matrix'
 
       INTEGER                                            :: handle, ncol, nrow
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
@@ -512,8 +505,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: s_matrix, ks_matrix, w_matrix
       REAL(KIND=dp), INTENT(IN)                          :: eval
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_xwx_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_xwx_matrix'
 
       INTEGER                                            :: handle, ncol, nrow
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp

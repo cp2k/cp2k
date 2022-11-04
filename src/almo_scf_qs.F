@@ -587,6 +587,7 @@ CONTAINS
 
       ! create and init scf_env (this is necessary to return MOs to qs)
       NULLIFY (mos, fm_struct_tmp, scf_env)
+      ALLOCATE (scf_env)
       CALL scf_env_create(scf_env)
 
       !CALL qs_scf_env_initialize(qs_env, scf_env)

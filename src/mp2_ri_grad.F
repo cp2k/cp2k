@@ -63,7 +63,6 @@ MODULE mp2_ri_grad
                                               pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -163,10 +162,10 @@ CONTAINS
       TYPE(mp2_eri_force), ALLOCATABLE, DIMENSION(:)     :: force_2c, force_2c_RI, force_3c_aux, &
                                                             force_3c_orb_mu, force_3c_orb_nu
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
-      TYPE(pw_p_type)                                    :: dvg(3)
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: pot_g, psi_L, rho_g, rho_g_copy, rho_r
+      TYPE(pw_type)                                      :: dvg(3), pot_g, psi_L, rho_g, rho_g_copy, &
+                                                            rho_r
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force, mp2_force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(task_list_type), POINTER                      :: task_list_sub
@@ -355,8 +354,7 @@ CONTAINS
                                    use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
             DO i = 1, 3
-               ALLOCATE (dvg(i)%pw)
-               CALL pw_pool_create_pw(auxbas_pw_pool, dvg(i)%pw, &
+               CALL pw_pool_create_pw(auxbas_pw_pool, dvg(i), &
                                       use_data=COMPLEXDATA1D, &
                                       in_space=RECIPROCALSPACE)
             END DO
@@ -418,8 +416,7 @@ CONTAINS
          IF (use_virial) THEN
             CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g_copy)
             DO i = 1, 3
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, dvg(i)%pw)
-               DEALLOCATE (dvg(i)%pw)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, dvg(i))
             END DO
          END IF
 

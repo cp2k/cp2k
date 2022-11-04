@@ -45,7 +45,6 @@ MODULE cell_opt_types
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_opt_types'
-   INTEGER, PRIVATE, SAVE :: last_cell_opt_env_id = 0
 
    PUBLIC :: cell_opt_env_type, &
              cell_opt_env_create, &
@@ -59,7 +58,7 @@ MODULE cell_opt_types
 ! **************************************************************************************************
    TYPE cell_opt_env_type
       ! Simulation cell optimization parameters
-      INTEGER                                    :: constraint_id, id_nr, ref_count
+      INTEGER                                    :: constraint_id
       LOGICAL                                    :: keep_angles, &
                                                     keep_symmetry
       REAL(KIND=dp)                              :: pres_ext, pres_int, pres_tol, pres_constr
@@ -80,7 +79,7 @@ CONTAINS
 !> \author Teodoro Laino - created [tlaino] - 03.2008 - Zurich University
 ! **************************************************************************************************
    SUBROUTINE cell_opt_env_create(cell_env, force_env, geo_section)
-      TYPE(cell_opt_env_type), POINTER                   :: cell_env
+      TYPE(cell_opt_env_type), INTENT(OUT)               :: cell_env
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(section_vals_type), POINTER                   :: geo_section
 
@@ -92,12 +91,7 @@ CONTAINS
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(particle_list_type), POINTER                  :: particles
 
-      CPASSERT(.NOT. ASSOCIATED(cell_env))
-      ALLOCATE (cell_env)
       NULLIFY (cell_env%ref_cell, cell, subsys, particles)
-      cell_env%ref_count = 1
-      last_cell_opt_env_id = last_cell_opt_env_id + 1
-      cell_env%id_nr = last_cell_opt_env_id
       CALL force_env_get(force_env, cell=cell, subsys=subsys)
       CALL cell_create(cell_env%ref_cell)
       CALL cell_clone(cell, cell_env%ref_cell)
@@ -175,16 +169,10 @@ CONTAINS
 !> \author Teodoro Laino - created [tlaino] - 03.2008 - Zurich University
 ! **************************************************************************************************
    SUBROUTINE cell_opt_env_release(cell_env)
-      TYPE(cell_opt_env_type), POINTER                   :: cell_env
+      TYPE(cell_opt_env_type), INTENT(INOUT)             :: cell_env
 
-      IF (ASSOCIATED(cell_env)) THEN
-         CPASSERT(cell_env%ref_count > 0)
-         cell_env%ref_count = cell_env%ref_count - 1
-         IF (cell_env%ref_count == 0) THEN
-            CALL cell_release(cell_env%ref_cell)
-            DEALLOCATE (cell_env)
-         END IF
-      END IF
+      CALL cell_release(cell_env%ref_cell)
+
    END SUBROUTINE cell_opt_env_release
 
 END MODULE cell_opt_types

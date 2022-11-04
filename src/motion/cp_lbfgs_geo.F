@@ -67,8 +67,8 @@ CONTAINS
 !>      01.2020 modified [pcazade]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   RECURSIVE SUBROUTINE geoopt_lbfgs(force_env, gopt_param, globenv, geo_section, gopt_env, &
-                                     x0)
+   SUBROUTINE geoopt_lbfgs(force_env, gopt_param, globenv, geo_section, gopt_env, &
+                           x0)
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(gopt_param_type), POINTER                     :: gopt_param
       TYPE(global_environment_type), POINTER             :: globenv
@@ -97,7 +97,6 @@ CONTAINS
       root_section => force_env%root_section
       CPASSERT(ASSOCIATED(force_env))
       CPASSERT(ASSOCIATED(gopt_param))
-      CPASSERT(gopt_param%ref_count > 0)
 
       ! collecting subsys
       CALL force_env_get(force_env, para_env=para_env, cell=cell, subsys=subsys)
@@ -120,6 +119,7 @@ CONTAINS
          CPABORT("BFGS method not yet working with DIMER")
 
       CALL section_vals_val_get(geo_section, "LBFGS%TRUST_RADIUS", r_val=trust_radius)
+      ALLOCATE (optimizer)
       CALL cp_opt_gopt_create(optimizer, para_env=para_env, obj_funct=gopt_env, &
                               x0=x0, wanted_relative_f_delta=gopt_param%wanted_rel_f_error, &
                               wanted_projected_gradient=gopt_param%wanted_proj_gradient, m=gopt_param%max_h_rank, &
@@ -156,6 +156,7 @@ CONTAINS
                               optimizer%para_env, optimizer%master, output_unit)
 
       CALL cp_opt_gopt_release(optimizer)
+      DEALLOCATE (optimizer)
       CALL cp_print_key_finished_output(output_unit, logger, geo_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
 

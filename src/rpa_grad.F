@@ -1856,8 +1856,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'sos_mp2_grad_finalize'
 
       INTEGER                                            :: ab_counter, handle, ij_counter, ispin, &
-                                                            itmp(2), my_a, my_b, my_B_size, my_i, &
-                                                            my_j, nspins, pcol
+                                                            itmp(2), my_a, my_b, my_B_end, &
+                                                            my_B_size, my_B_start, my_i, my_j, &
+                                                            nspins, pcol
       REAL(KIND=dp)                                      :: my_scale
 
       CALL timeset(routineN, handle)
@@ -1908,6 +1909,8 @@ CONTAINS
 
          itmp = get_limit(virtual(ispin), para_env_sub%num_pe, para_env_sub%mepos)
          my_B_size = itmp(2) - itmp(1) + 1
+         my_B_start = itmp(1)
+         my_B_end = itmp(2)
 
          ALLOCATE (mp2_env%ri_grad%P_ab(ispin)%array(my_B_size, virtual(ispin)))
          mp2_env%ri_grad%P_ab(ispin)%array = 0.0_dp
@@ -1927,7 +1930,7 @@ CONTAINS
          ! Symmetrize P_ab
          IF (para_env_sub%num_pe > 1) THEN
             BLOCK
-               INTEGER :: my_B_start, my_B_end, send_a_start, send_a_end, send_a_size, &
+               INTEGER :: send_a_start, send_a_end, send_a_size, &
                           recv_a_start, recv_a_end, recv_a_size, proc_shift, proc_send, proc_recv
                REAL(KIND=dp), DIMENSION(:), ALLOCATABLE, TARGET :: buffer_send_1D
                REAL(KIND=dp), DIMENSION(:, :), POINTER :: buffer_send
@@ -1935,8 +1938,6 @@ CONTAINS
                TYPE(group_dist_d1_type)                           :: gd_virtual_sub
 
                CALL create_group_dist(gd_virtual_sub, para_env_sub%num_pe, virtual(ispin))
-               my_B_start = itmp(1)
-               my_B_end = itmp(2)
 
                mp2_env%ri_grad%P_ab(ispin)%array(:, my_B_start:my_B_end) = &
                   0.5_dp*(mp2_env%ri_grad%P_ab(ispin)%array(:, my_B_start:my_B_end) &

@@ -54,7 +54,7 @@ MODULE ewald_environment_types
 ! **************************************************************************************************
    TYPE ewald_environment_type
       PRIVATE
-      INTEGER   :: id_nr, ref_count
+      INTEGER   :: ref_count
       LOGICAL   :: do_multipoles ! Flag for using the multipole code
       INTEGER   :: do_ipol ! Solver for induced dipoles
       INTEGER   :: max_multipole ! max expansion in the multipoles
@@ -101,7 +101,6 @@ MODULE ewald_environment_types
              read_ewald_section_tb
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewald_environment_types'
-   INTEGER, PRIVATE, SAVE :: last_ewald_env_id_nr = 0
 
 CONTAINS
 
@@ -117,7 +116,6 @@ CONTAINS
 !> \param o_spline ...
 !> \param group ...
 !> \param para_env ...
-!> \param id_nr ...
 !> \param poisson_section ...
 !> \param precs ...
 !> \param rcut ...
@@ -132,7 +130,7 @@ CONTAINS
 !> \author CJM
 ! **************************************************************************************************
    SUBROUTINE ewald_env_get(ewald_env, ewald_type, alpha, eps_pol, epsilon, &
-                            gmax, ns_max, o_spline, group, para_env, id_nr, poisson_section, precs, &
+                            gmax, ns_max, o_spline, group, para_env, poisson_section, precs, &
                             rcut, do_multipoles, max_multipole, do_ipol, max_ipol_iter, &
                             interaction_cutoffs, cell_hmat)
       TYPE(ewald_environment_type), POINTER              :: ewald_env
@@ -140,7 +138,6 @@ CONTAINS
       REAL(KIND=dp), OPTIONAL                            :: alpha, eps_pol, epsilon
       INTEGER, OPTIONAL                                  :: gmax(3), ns_max, o_spline, group
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
-      INTEGER, INTENT(OUT), OPTIONAL                     :: id_nr
       TYPE(section_vals_type), OPTIONAL, POINTER         :: poisson_section
       REAL(KIND=dp), OPTIONAL                            :: precs, rcut
       LOGICAL, INTENT(OUT), OPTIONAL                     :: do_multipoles
@@ -151,7 +148,6 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(ewald_env))
 
-      IF (PRESENT(id_nr)) id_nr = ewald_env%id_nr
       IF (PRESENT(ewald_type)) ewald_type = ewald_env%ewald_type
       IF (PRESENT(do_multipoles)) do_multipoles = ewald_env%do_multipoles
       IF (PRESENT(do_ipol)) do_ipol = ewald_env%do_ipol
@@ -185,7 +181,6 @@ CONTAINS
 !> \param precs ...
 !> \param o_spline ...
 !> \param para_env ...
-!> \param id_nr ...
 !> \param poisson_section ...
 !> \param interaction_cutoffs ...
 !> \param cell_hmat ...
@@ -194,7 +189,7 @@ CONTAINS
 !> \author CJM
 ! **************************************************************************************************
    SUBROUTINE ewald_env_set(ewald_env, ewald_type, alpha, epsilon, eps_pol, &
-                            gmax, ns_max, precs, o_spline, para_env, id_nr, poisson_section, &
+                            gmax, ns_max, precs, o_spline, para_env, poisson_section, &
                             interaction_cutoffs, cell_hmat)
 
       TYPE(ewald_environment_type), POINTER              :: ewald_env
@@ -204,7 +199,6 @@ CONTAINS
       REAL(KIND=dp), OPTIONAL                            :: precs
       INTEGER, OPTIONAL                                  :: o_spline
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
-      INTEGER, INTENT(IN), OPTIONAL                      :: id_nr
       TYPE(section_vals_type), OPTIONAL, POINTER         :: poisson_section
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: interaction_cutoffs
@@ -212,7 +206,6 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(ewald_env))
 
-      IF (PRESENT(id_nr)) ewald_env%id_nr = id_nr
       IF (PRESENT(ewald_type)) ewald_env%ewald_type = ewald_type
       IF (PRESENT(alpha)) ewald_env%alpha = alpha
       IF (PRESENT(precs)) ewald_env%precs = precs
@@ -246,8 +239,6 @@ CONTAINS
 
       ALLOCATE (ewald_env)
       ewald_env%ref_count = 1
-      last_ewald_env_id_nr = last_ewald_env_id_nr + 1
-      ewald_env%id_nr = last_ewald_env_id_nr
       NULLIFY (ewald_env%poisson_section)
       CALL cp_para_env_retain(para_env)
       ewald_env%para_env => para_env

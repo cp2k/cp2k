@@ -83,11 +83,11 @@ CONTAINS
       LOGICAL                                            :: found
       REAL(KIND=dp)                                      :: cosphi0, cost2, csq, sdet
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type)                               :: parser
       TYPE(gromos_info_type), POINTER                    :: gro_info
 
       CALL timeset(routineN, handle)
-      NULLIFY (logger, parser)
+      NULLIFY (logger)
       logger => cp_get_default_logger()
       iw = cp_print_key_unit_nr(logger, mm_section, "PRINT%FF_INFO", &
                                 extension=".mmLog")
@@ -331,10 +331,10 @@ CONTAINS
       LOGICAL                                            :: found
       TYPE(charmm_info_type), POINTER                    :: chm_info
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type)                               :: parser
 
       CALL timeset(routineN, handle)
-      NULLIFY (logger, parser)
+      NULLIFY (logger)
       logger => cp_get_default_logger()
       iw = cp_print_key_unit_nr(logger, mm_section, "PRINT%FF_INFO", &
                                 extension=".mmLog")
@@ -797,7 +797,7 @@ CONTAINS
 !> \author Teodoro Laino - Zurich University - 06.2007
 ! **************************************************************************************************
    SUBROUTINE charmm_get_next_line(parser, nline)
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       INTEGER, INTENT(IN)                                :: nline
 
       CHARACTER(LEN=1), PARAMETER                        :: continuation_char = "-"

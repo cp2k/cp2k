@@ -69,7 +69,7 @@ MODULE qs_fb_env_methods
    USE qs_fb_atomic_halo_types,         ONLY: &
         fb_atomic_halo_build_halo_atoms, fb_atomic_halo_cost, fb_atomic_halo_create, &
         fb_atomic_halo_list_create, fb_atomic_halo_list_nullify, fb_atomic_halo_list_obj, &
-        fb_atomic_halo_list_release, fb_atomic_halo_list_set, fb_atomic_halo_list_write_info, &
+        fb_atomic_halo_list_set, fb_atomic_halo_list_write_info, &
         fb_atomic_halo_nelectrons_estimate_Z, fb_atomic_halo_nullify, fb_atomic_halo_obj, &
         fb_atomic_halo_set, fb_atomic_halo_sort, fb_build_pair_radii
    USE qs_fb_env_types,                 ONLY: fb_env_get,&
@@ -949,7 +949,6 @@ CONTAINS
                                    halos=halos)
       CALL fb_env_set(fb_env=fb_env, &
                       atomic_halos=atomic_halos)
-      CALL fb_atomic_halo_list_release(atomic_halos)
 
       ! print info
       CALL fb_atomic_halo_list_write_info(atomic_halos, &

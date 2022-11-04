@@ -104,8 +104,7 @@ MODULE qs_linres_current
                                               set_vecp,&
                                               set_vecp_rev
    USE qs_linres_types,                 ONLY: current_env_type,&
-                                              get_current_env,&
-                                              realspaces_grid_p_type
+                                              get_current_env
    USE qs_matrix_pools,                 ONLY: qs_matrix_pools_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
@@ -120,10 +119,13 @@ MODULE qs_linres_current
    USE qs_rho_types,                    ONLY: qs_rho_get
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
-   USE realspace_grid_types,            ONLY: &
-        realspace_grid_desc_p_type, realspace_grid_desc_type, realspace_grid_p_type, &
-        realspace_grid_type, rs_grid_create, rs_grid_mult_and_add, rs_grid_release, &
-        rs_grid_retain, rs_grid_zero
+   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
+                                              realspace_grid_desc_type,&
+                                              realspace_grid_type,&
+                                              rs_grid_create,&
+                                              rs_grid_mult_and_add,&
+                                              rs_grid_release,&
+                                              rs_grid_zero
    USE rs_pw_interface,                 ONLY: density_rs2pw
    USE task_list_methods,               ONLY: distribute_tasks,&
                                               rs_distribute_matrix,&
@@ -634,8 +636,8 @@ CONTAINS
       TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_current, rs_rho
-      TYPE(realspaces_grid_p_type), DIMENSION(:), &
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_current, rs_rho
+      TYPE(realspace_grid_type), DIMENSION(:, :), &
          POINTER                                         :: rs_gauge
       TYPE(task_type), DIMENSION(:), POINTER             :: tasks
 
@@ -885,15 +887,12 @@ CONTAINS
          ! Here we need to reallocate the distributed rs_grids, which may have been reordered
          ! by distribute_tasks
          IF (rs_descs(igrid_level)%rs_desc%distributed .AND. .NOT. my_retain_rsgrid) THEN
-            CALL rs_grid_release(rs_rho(igrid_level)%rs_grid)
-            NULLIFY (rs_rho(igrid_level)%rs_grid)
-            CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
-         ELSE
-            IF (.NOT. my_retain_rsgrid) CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid)
+            CALL rs_grid_release(rs_rho(igrid_level))
+            CALL rs_grid_create(rs_rho(igrid_level), rs_descs(igrid_level)%rs_desc)
          END IF
-         CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
-         CALL rs_grid_create(rs_current(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
-         CALL rs_grid_zero(rs_current(igrid_level)%rs_grid)
+         CALL rs_grid_zero(rs_rho(igrid_level))
+         CALL rs_grid_create(rs_current(igrid_level), rs_descs(igrid_level)%rs_desc)
+         CALL rs_grid_zero(rs_current(igrid_level))
       END DO
 
       !
@@ -906,8 +905,8 @@ CONTAINS
       ! for any case double check the bounds !
       IF (do_igaim) THEN
          DO igrid_level = 1, gridlevel_info%ngrid_levels
-            my_rho => rs_rho(igrid_level)%rs_grid%r
-            my_current => rs_current(igrid_level)%rs_grid%r
+            my_rho => rs_rho(igrid_level)%r
+            my_current => rs_current(igrid_level)%r
             IF (LBOUND(my_rho, 3) .NE. LBOUND(my_current, 3) .OR. &
                 LBOUND(my_rho, 2) .NE. LBOUND(my_current, 2) .OR. &
                 LBOUND(my_rho, 1) .NE. LBOUND(my_current, 1) .OR. &
@@ -923,7 +922,7 @@ CONTAINS
                CPABORT("Bug")
             END IF
 
-            my_gauge => rs_gauge(1)%rs(igrid_level)%rs_grid%r
+            my_gauge => rs_gauge(1, igrid_level)%r
             IF (LBOUND(my_rho, 3) .NE. LBOUND(my_gauge, 3) .OR. &
                 LBOUND(my_rho, 2) .NE. LBOUND(my_gauge, 2) .OR. &
                 LBOUND(my_rho, 1) .NE. LBOUND(my_gauge, 1) .OR. &
@@ -1144,7 +1143,7 @@ CONTAINS
          CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), &
                                     la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                                     ra, rab, scale, jpab_a, na1 - 1, nb1 - 1, &
-                                    rs_current(igrid_level)%rs_grid, &
+                                    rs_current(igrid_level), &
                                     radius=radius, ga_gb_function=adbmdab_func)
          IF (do_igaim) THEN
             ! here the decontracted mat_jb_{ab} is multiplied by
@@ -1153,23 +1152,23 @@ CONTAINS
                CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), &
                                           la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                                           ra, rab, scale2, jpab_d, na1 - 1, nb1 - 1, &
-                                          rs_rho(igrid_level)%rs_grid, &
+                                          rs_rho(igrid_level), &
                                           radius=radius, ga_gb_function=GRID_FUNC_AB)
             END IF !rm
             ! here the decontracted mat_jp_rii{ab} is multiplied by
             !     f_{ab} = g_{a} (d(r) - R_{b})_{iiB} (dg_{b}/dr)_{idir} -
             !             (dg_{a}/dr)_{idir} (d(r) - R_{b})_{iiB} g_{b}
             scale = 1.0_dp
-            current_env%rs_buf(igrid_level)%rs_grid%r(:, :, :) = 0.0_dp
+            current_env%rs_buf(igrid_level)%r(:, :, :) = 0.0_dp
             CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), &
                                        la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                                        ra, rab, scale, jpab_b, na1 - 1, nb1 - 1, &
                                        radius=radius, &
                                        ga_gb_function=adbmdab_func, &
-                                       rsgrid=current_env%rs_buf(igrid_level)%rs_grid)
-            CALL collocate_gauge_ortho(rsgrid=current_env%rs_buf(igrid_level)%rs_grid, &
-                                       rsbuf=rs_current(igrid_level)%rs_grid, &
-                                       rsgauge=rs_gauge(iiiB)%rs(igrid_level)%rs_grid, &
+                                       rsgrid=current_env%rs_buf(igrid_level))
+            CALL collocate_gauge_ortho(rsgrid=current_env%rs_buf(igrid_level), &
+                                       rsbuf=rs_current(igrid_level), &
+                                       rsgauge=rs_gauge(iiiB, igrid_level), &
                                        cube_info=cube_info(igrid_level), radius=radius, &
                                        zeta=zeta(ipgf, iset), zetb=zetb(jpgf, jset), &
                                        ra=ra, rab=rab, ir=iiiB)
@@ -1178,16 +1177,16 @@ CONTAINS
             !     f_{ab} = -g_{a} (d(r) - R_{b})_{iiB} (dg_{b}/dr)_{idir} +
             !             (dg_{a}/dr)_{idir} (d(r) - R_{b})_{iiB} g_{b}
             scale = -1.0_dp
-            current_env%rs_buf(igrid_level)%rs_grid%r(:, :, :) = 0.0_dp
+            current_env%rs_buf(igrid_level)%r(:, :, :) = 0.0_dp
             CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), &
                                        la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                                        ra, rab, scale, jpab_c, na1 - 1, nb1 - 1, &
                                        radius=radius, &
                                        ga_gb_function=adbmdab_func, &
-                                       rsgrid=current_env%rs_buf(igrid_level)%rs_grid)
-            CALL collocate_gauge_ortho(rsgrid=current_env%rs_buf(igrid_level)%rs_grid, &
-                                       rsbuf=rs_current(igrid_level)%rs_grid, &
-                                       rsgauge=rs_gauge(iiB)%rs(igrid_level)%rs_grid, &
+                                       rsgrid=current_env%rs_buf(igrid_level))
+            CALL collocate_gauge_ortho(rsgrid=current_env%rs_buf(igrid_level), &
+                                       rsbuf=rs_current(igrid_level), &
+                                       rsgauge=rs_gauge(iiB, igrid_level), &
                                        cube_info=cube_info(igrid_level), radius=radius, &
                                        zeta=zeta(ipgf, iset), zetb=zetb(jpgf, jset), &
                                        ra=ra, rab=rab, ir=iiB)
@@ -1199,7 +1198,7 @@ CONTAINS
             CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), &
                                        la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                                        ra, rab, scale, jpab_b, na1 - 1, nb1 - 1, &
-                                       rs_current(igrid_level)%rs_grid, &
+                                       rs_current(igrid_level), &
                                        radius=radius, &
                                        ga_gb_function=encode_ardbmdarb_func(idir=idir, ir=iiiB))
             ! here the decontracted mat_jp_riii{ab} is multiplied by
@@ -1209,7 +1208,7 @@ CONTAINS
             CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), &
                                        la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                                        ra, rab, scale, jpab_c, na1 - 1, nb1 - 1, &
-                                       rs_current(igrid_level)%rs_grid, &
+                                       rs_current(igrid_level), &
                                        radius=radius, &
                                        ga_gb_function=encode_ardbmdarb_func(idir=idir, ir=iiB))
          END IF
@@ -1219,8 +1218,8 @@ CONTAINS
       ! Scale the density with the gauge rho * ( r - d(r) ) if needed
       IF (do_igaim) THEN
          DO igrid_level = 1, gridlevel_info%ngrid_levels
-            CALL rs_grid_mult_and_add(rs_current(igrid_level)%rs_grid, rs_rho(igrid_level)%rs_grid, &
-                                      rs_gauge(idir2)%rs(igrid_level)%rs_grid, 1.0_dp)
+            CALL rs_grid_mult_and_add(rs_current(igrid_level), rs_rho(igrid_level), &
+                                      rs_gauge(idir2, igrid_level), 1.0_dp)
          END DO
       END IF
       !   *** Release work storage ***
@@ -1239,12 +1238,15 @@ CONTAINS
       IF (ASSOCIATED(atom_pair_recv)) DEALLOCATE (atom_pair_recv)
 
       CALL density_rs2pw(pw_env, rs_current, current_rs, current_gs)
+      DO i = 1, SIZE(rs_current)
+         CALL rs_grid_release(rs_current(i))
+      END DO
 
-      IF (ASSOCIATED(rs_rho) .AND. .NOT. my_retain_rsgrid) THEN
-         DO i = 1, SIZE(rs_rho)
-            CALL rs_grid_release(rs_rho(i)%rs_grid)
-         END DO
-      END IF
+      DO i = 1, SIZE(rs_rho)
+         IF (rs_descs(i)%rs_desc%distributed .AND. .NOT. my_retain_rsgrid) THEN
+            CALL rs_grid_release(rs_rho(i))
+         END IF
+      END DO
 
       ! Free the array of grids (grids themselves are released in density_rs2pw)
       DEALLOCATE (rs_current)
@@ -1438,6 +1440,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'current_set_gauge'
 
+      INTEGER :: idir
       REAL(dp)                                 :: dbox(3)
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)    :: box_data
       INTEGER                                  :: handle, igrid_level, nbox(3), gauge
@@ -1445,7 +1448,7 @@ CONTAINS
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                :: rs_descs
       TYPE(pw_env_type), POINTER               :: pw_env
-      TYPE(realspaces_grid_p_type), DIMENSION(:), POINTER :: rs_gauge
+      TYPE(realspace_grid_type), DIMENSION(:, :), POINTER :: rs_gauge
 
       TYPE(box_type), DIMENSION(:, :, :), POINTER :: box
       LOGICAL                                   :: use_old_gauge_atom
@@ -1473,25 +1476,22 @@ CONTAINS
          END IF
          !
          ! allocate and build the gauge
-         ALLOCATE (rs_gauge(1)%rs(pw_env%gridlevel_info%ngrid_levels))
-         ALLOCATE (rs_gauge(2)%rs(pw_env%gridlevel_info%ngrid_levels))
-         ALLOCATE (rs_gauge(3)%rs(pw_env%gridlevel_info%ngrid_levels))
          DO igrid_level = pw_env%gridlevel_info%ngrid_levels, 1, -1
 
-            CALL rs_grid_create(rs_gauge(1)%rs(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
-            CALL rs_grid_create(rs_gauge(2)%rs(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
-            CALL rs_grid_create(rs_gauge(3)%rs(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
+            DO idir = 1, 3
+               CALL rs_grid_create(rs_gauge(idir, igrid_level), rs_descs(igrid_level)%rs_desc)
+            END DO
 
             IF (use_old_gauge_atom) THEN
                CALL collocate_gauge(current_env, qs_env, &
-                                    rs_gauge(1)%rs(igrid_level)%rs_grid, &
-                                    rs_gauge(2)%rs(igrid_level)%rs_grid, &
-                                    rs_gauge(3)%rs(igrid_level)%rs_grid)
+                                    rs_gauge(1, igrid_level), &
+                                    rs_gauge(2, igrid_level), &
+                                    rs_gauge(3, igrid_level))
             ELSE
                CALL collocate_gauge_new(current_env, qs_env, &
-                                        rs_gauge(1)%rs(igrid_level)%rs_grid, &
-                                        rs_gauge(2)%rs(igrid_level)%rs_grid, &
-                                        rs_gauge(3)%rs(igrid_level)%rs_grid, &
+                                        rs_gauge(1, igrid_level), &
+                                        rs_gauge(2, igrid_level), &
+                                        rs_gauge(3, igrid_level), &
                                         box)
             END IF
          END DO
@@ -1499,7 +1499,7 @@ CONTAINS
          ! allocate the buf
          ALLOCATE (current_env%rs_buf(pw_env%gridlevel_info%ngrid_levels))
          DO igrid_level = 1, pw_env%gridlevel_info%ngrid_levels
-            CALL rs_grid_create(current_env%rs_buf(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
+            CALL rs_grid_create(current_env%rs_buf(igrid_level), rs_descs(igrid_level)%rs_desc)
          END DO
          !
          DEALLOCATE (box_ptr, box_data)
@@ -1603,7 +1603,7 @@ CONTAINS
          !
       TYPE(current_env_type)                             :: current_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(realspace_grid_type), POINTER                 :: rs_grid_x, rs_grid_y, rs_grid_z
+      TYPE(realspace_grid_type), INTENT(IN)              :: rs_grid_x, rs_grid_y, rs_grid_z
 
       INTEGER                                            :: i, iatom, ibeg, ibox, iend, imax, imin, &
                                                             j, jatom, jbox, jmax, jmin, k, kbox, &
@@ -2000,7 +2000,7 @@ CONTAINS
          !
       TYPE(current_env_type)                             :: current_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(realspace_grid_type), POINTER                 :: rs_grid_x, rs_grid_y, rs_grid_z
+      TYPE(realspace_grid_type), INTENT(IN)              :: rs_grid_x, rs_grid_y, rs_grid_z
       TYPE(box_type), DIMENSION(:, :, :), POINTER        :: box
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'collocate_gauge_new'

@@ -61,8 +61,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'excited_state_energy', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'excited_state_energy'
       LOGICAL, PARAMETER                                 :: debug_forces = .FALSE.
 
       INTEGER                                            :: handle, nkind, unit_nr

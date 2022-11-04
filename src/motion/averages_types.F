@@ -27,9 +27,8 @@ MODULE averages_types
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE md_ener_types,                   ONLY: md_ener_type
-   USE virial_types,                    ONLY: virial_create,&
-                                              virial_release,&
-                                              virial_type
+   USE virial_types,                    ONLY: virial_type,&
+                                              zero_virial
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -38,7 +37,7 @@ MODULE averages_types
 
 ! **************************************************************************************************
    TYPE average_quantities_type
-      INTEGER                                       :: id_nr, ref_count, itimes_start
+      INTEGER                                       :: ref_count, itimes_start
       LOGICAL                                       :: do_averages
       TYPE(section_vals_type), POINTER              :: averages_section
       ! Real Scalar Quantities
@@ -66,7 +65,6 @@ MODULE averages_types
 
 ! *** Global parameters ***
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'averages_types'
-   INTEGER, SAVE, PRIVATE :: last_avg_env_id = 0
 
 CONTAINS
 
@@ -94,8 +92,6 @@ CONTAINS
       ! Point to the averages section
       averages%averages_section => averages_section
       ! Initialize averages
-      last_avg_env_id = last_avg_env_id + 1
-      averages%id_nr = last_avg_env_id
       averages%ref_count = 1
       averages%itimes_start = -1
       averages%avetemp = 0.0_dp
@@ -122,7 +118,10 @@ CONTAINS
       IF (averages%do_averages) THEN
          ! Setup Virial if requested
          IF (PRESENT(virial_avg)) THEN
-            IF (virial_avg) CALL virial_create(averages%virial)
+            IF (virial_avg) THEN
+               ALLOCATE (averages%virial)
+               CALL zero_virial(averages%virial)
+            END IF
          END IF
          CALL section_vals_val_get(averages_section, "AVERAGE_COLVAR", l_val=do_colvars)
          ! Total number of COLVARs
@@ -166,7 +165,7 @@ CONTAINS
          CPASSERT(averages%ref_count > 0)
          averages%ref_count = averages%ref_count - 1
          IF (averages%ref_count == 0) THEN
-            CALL virial_release(averages%virial)
+            IF (ASSOCIATED(averages%virial)) DEALLOCATE (averages%virial)
             IF (ASSOCIATED(averages%avecolvar)) THEN
                DEALLOCATE (averages%avecolvar)
             END IF

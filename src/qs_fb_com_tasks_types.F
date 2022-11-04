@@ -62,8 +62,6 @@ MODULE qs_fb_com_tasks_types
              fb_com_atom_pairs_distribute_blks
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_com_tasks_types'
-   INTEGER, PRIVATE, SAVE :: last_fb_com_tasks_id = 0
-   INTEGER, PRIVATE, SAVE :: last_fb_com_atom_pairs_id = 0
 
 ! **********************************************************************
 ! explanation on format of task lists (same for tasks_recv and tasks_send):
@@ -86,8 +84,6 @@ MODULE qs_fb_com_tasks_types
 ! **********************************************************************
 !> \brief data content for communication tasks used for send and receive
 !>        matrix blocks
-!> \param id_nr     : unique id for the object
-!> \param ref_count : reference count on the object
 !> \param tasks     : the list of communication tasks, which is
 !>                    represented by a 2D array, first dim stores
 !>                    info for the communication: src and desc procs
@@ -100,7 +96,6 @@ MODULE qs_fb_com_tasks_types
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **********************************************************************
    TYPE fb_com_tasks_data
-      INTEGER :: id_nr, ref_count
       ! use pure integer arrays to facilitate easier MPI coms
       INTEGER(KIND=int_8), DIMENSION(:, :), POINTER :: tasks
       INTEGER :: task_dim
@@ -120,8 +115,6 @@ MODULE qs_fb_com_tasks_types
 !> \brief data content for the list of block coordinates with the
 !>        associated src/dest proc id for communication. These will be
 !>        generated from the fb_com_tasks object
-!> \param id_nr         : unique id for the object
-!> \param ref_count     : reference count on the object
 !> \param pairs         : the list of communication tasks, which is
 !>                        represented by a 2D array, first dim stores
 !>                        info for the communication: src and desc procs
@@ -134,7 +127,6 @@ MODULE qs_fb_com_tasks_types
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **********************************************************************
    TYPE fb_com_atom_pairs_data
-      INTEGER :: id_nr, ref_count
       INTEGER(KIND=int_8), DIMENSION(:), POINTER :: pairs
       INTEGER :: npairs
       INTEGER :: natoms_encode
@@ -151,34 +143,6 @@ MODULE qs_fb_com_tasks_types
 CONTAINS
 
 ! **********************************************************************
-!> \brief Retains an fb_com_tasks object
-!> \param com_tasks the fb_com_tasks object, its content must not be
-!>                   NULL or UNDEFINED
-!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! **************************************************************************************************
-   SUBROUTINE fb_com_tasks_retain(com_tasks)
-      TYPE(fb_com_tasks_obj), INTENT(IN)                 :: com_tasks
-
-      CPASSERT(ASSOCIATED(com_tasks%obj))
-      CPASSERT(com_tasks%obj%ref_count > 0)
-      com_tasks%obj%ref_count = com_tasks%obj%ref_count + 1
-   END SUBROUTINE fb_com_tasks_retain
-
-! **********************************************************************
-!> \brief Retains an fb_com_atom_pairs object
-!> \param atom_pairs the fb_com_atom_pairs object, its content must not be
-!>                   NULL or UNDEFINED
-!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! **************************************************************************************************
-   SUBROUTINE fb_com_atom_pairs_retain(atom_pairs)
-      TYPE(fb_com_atom_pairs_obj), INTENT(IN)            :: atom_pairs
-
-      CPASSERT(ASSOCIATED(atom_pairs%obj))
-      CPASSERT(atom_pairs%obj%ref_count > 0)
-      atom_pairs%obj%ref_count = atom_pairs%obj%ref_count + 1
-   END SUBROUTINE fb_com_atom_pairs_retain
-
-! **********************************************************************
 !> \brief Releases an fb_com_tasks object
 !> \param com_tasks the fb_com_tasks object, its content must not be
 !>                   UNDEFINED, and the subroutine does nothing if the
@@ -189,16 +153,10 @@ CONTAINS
       TYPE(fb_com_tasks_obj), INTENT(INOUT)              :: com_tasks
 
       IF (ASSOCIATED(com_tasks%obj)) THEN
-         CPASSERT(com_tasks%obj%ref_count > 0)
-         com_tasks%obj%ref_count = com_tasks%obj%ref_count - 1
-         IF (com_tasks%obj%ref_count == 0) THEN
-            com_tasks%obj%ref_count = 1
-            IF (ASSOCIATED(com_tasks%obj%tasks)) THEN
-               DEALLOCATE (com_tasks%obj%tasks)
-            END IF
-            com_tasks%obj%ref_count = 0
-            DEALLOCATE (com_tasks%obj)
+         IF (ASSOCIATED(com_tasks%obj%tasks)) THEN
+            DEALLOCATE (com_tasks%obj%tasks)
          END IF
+         DEALLOCATE (com_tasks%obj)
       ELSE
          NULLIFY (com_tasks%obj)
       END IF
@@ -215,16 +173,10 @@ CONTAINS
       TYPE(fb_com_atom_pairs_obj), INTENT(INOUT)         :: atom_pairs
 
       IF (ASSOCIATED(atom_pairs%obj)) THEN
-         CPASSERT(atom_pairs%obj%ref_count > 0)
-         atom_pairs%obj%ref_count = atom_pairs%obj%ref_count - 1
-         IF (atom_pairs%obj%ref_count == 0) THEN
-            atom_pairs%obj%ref_count = 1
-            IF (ASSOCIATED(atom_pairs%obj%pairs)) THEN
-               DEALLOCATE (atom_pairs%obj%pairs)
-            END IF
-            atom_pairs%obj%ref_count = 0
-            DEALLOCATE (atom_pairs%obj)
+         IF (ASSOCIATED(atom_pairs%obj%pairs)) THEN
+            DEALLOCATE (atom_pairs%obj%pairs)
          END IF
+         DEALLOCATE (atom_pairs%obj)
       ELSE
          NULLIFY (atom_pairs%obj)
       END IF
@@ -327,9 +279,6 @@ CONTAINS
       com_tasks%obj%ntasks = 0
       com_tasks%obj%nencode = 0
       NULLIFY (com_tasks%obj%tasks)
-      com_tasks%obj%ref_count = 1
-      com_tasks%obj%id_nr = last_fb_com_tasks_id + 1
-      last_fb_com_tasks_id = com_tasks%obj%id_nr
    END SUBROUTINE fb_com_tasks_create
 
 ! **********************************************************************
@@ -346,9 +295,6 @@ CONTAINS
       atom_pairs%obj%npairs = 0
       atom_pairs%obj%natoms_encode = 0
       NULLIFY (atom_pairs%obj%pairs)
-      atom_pairs%obj%ref_count = 1
-      atom_pairs%obj%id_nr = last_fb_com_atom_pairs_id + 1
-      last_fb_com_atom_pairs_id = atom_pairs%obj%id_nr
    END SUBROUTINE fb_com_atom_pairs_create
 
 ! **********************************************************************

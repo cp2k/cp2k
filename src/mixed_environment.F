@@ -60,7 +60,7 @@ CONTAINS
    SUBROUTINE mixed_init(mixed_env, root_section, para_env, force_env_section, &
                          use_motion_section)
 
-      TYPE(mixed_environment_type), POINTER              :: mixed_env
+      TYPE(mixed_environment_type), INTENT(INOUT)        :: mixed_env
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: force_env_section
@@ -122,7 +122,7 @@ CONTAINS
    SUBROUTINE mixed_init_subsys(mixed_env, subsys, cell, cell_ref, &
                                 force_env_section, subsys_section)
 
-      TYPE(mixed_environment_type), POINTER              :: mixed_env
+      TYPE(mixed_environment_type), INTENT(INOUT)        :: mixed_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(cell_type), POINTER                           :: cell, cell_ref
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section

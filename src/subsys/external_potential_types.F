@@ -1403,6 +1403,7 @@ CONTAINS
       read_from_input = .FALSE.
       CALL section_vals_get(potential_section, explicit=read_from_input)
       IF (.NOT. read_from_input) THEN
+         ALLOCATE (parser)
          CALL parser_create(parser, potential_file_name, para_env=para_env)
       END IF
 
@@ -1532,6 +1533,7 @@ CONTAINS
                                       c_val=TRIM(line_att))
          END IF
          CALL parser_release(parser)
+         DEALLOCATE (parser)
       END IF
    END SUBROUTINE read_all_potential
 
@@ -1585,6 +1587,7 @@ CONTAINS
       read_from_input = .FALSE.
       CALL section_vals_get(potential_section, explicit=read_from_input)
       IF (.NOT. read_from_input) THEN
+         ALLOCATE (parser)
          CALL parser_create(parser, potential_file_name, para_env=para_env)
       END IF
 
@@ -1711,6 +1714,7 @@ CONTAINS
                                       c_val=TRIM(line_att))
          END IF
          CALL parser_release(parser)
+         DEALLOCATE (parser)
       END IF
 
    END SUBROUTINE read_local_potential
@@ -1778,6 +1782,7 @@ CONTAINS
       read_from_input = .FALSE.
       CALL section_vals_get(potential_section, explicit=read_from_input)
       IF (.NOT. read_from_input) THEN
+         ALLOCATE (parser)
          CALL parser_create(parser, potential_file_name, para_env=para_env)
       END IF
 
@@ -2339,6 +2344,7 @@ CONTAINS
                                       c_val=TRIM(line_att))
          END IF
          CALL parser_release(parser)
+         DEALLOCATE (parser)
       END IF
 
       IF (ASSOCIATED(tmp_vals)) DEALLOCATE (tmp_vals)

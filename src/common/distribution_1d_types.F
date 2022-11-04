@@ -36,7 +36,6 @@ MODULE distribution_1d_types
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'distribution_1d_types'
-   INTEGER, SAVE, PRIVATE :: distribution_1d_last_id_nr = 0
 
    PUBLIC :: distribution_1d_type
    PUBLIC :: distribution_1d_create, distribution_1d_retain, distribution_1d_release
@@ -62,7 +61,7 @@ MODULE distribution_1d_types
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    TYPE distribution_1d_type
-      INTEGER :: ref_count, id_nr
+      INTEGER :: ref_count
       LOGICAL :: listbased_distribution
       INTEGER, DIMENSION(:), POINTER :: n_el
       TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER :: list
@@ -110,8 +109,6 @@ CONTAINS
       IF (PRESENT(n_lists)) my_n_lists = n_lists
 
       ALLOCATE (distribution_1d)
-      distribution_1d_last_id_nr = distribution_1d_last_id_nr + 1
-      distribution_1d%id_nr = distribution_1d_last_id_nr
 
       distribution_1d%ref_count = 1
 

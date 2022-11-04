@@ -91,9 +91,9 @@ CONTAINS
       TYPE(atom_info_type), POINTER                      :: atom_info
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type)                               :: parser
 
-      NULLIFY (parser, logger)
+      NULLIFY (logger)
       logger => cp_get_default_logger()
       iw = cp_print_key_unit_nr(logger, subsys_section, "PRINT%TOPOLOGY_INFO/XTL_INFO", &
                                 extension=".subsysLog")

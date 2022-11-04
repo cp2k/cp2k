@@ -125,9 +125,7 @@ CONTAINS
       output_unit = cp_print_key_unit_nr(logger, lr_section, "PRINT%PROGRAM_RUN_INFO", &
                                          extension=".linresLog")
 
-      IF (epr_env%ref_count /= 0) THEN
-         CALL epr_env_cleanup(epr_env)
-      END IF
+      CALL epr_env_cleanup(epr_env)
 
       IF (output_unit > 0) THEN
          WRITE (output_unit, "(/,T20,A,/)") "*** Start EPR g tensor calculation ***"
@@ -246,53 +244,50 @@ CONTAINS
 
       INTEGER                                            :: i_B, idir, ispin
 
-      epr_env%ref_count = epr_env%ref_count - 1
-      IF (epr_env%ref_count == 0) THEN
-         ! nablavks_set
-         IF (ASSOCIATED(epr_env%nablavks_set)) THEN
-            DO ispin = 1, SIZE(epr_env%nablavks_set, 2)
-            DO idir = 1, SIZE(epr_env%nablavks_set, 1)
-               CALL qs_rho_clear(epr_env%nablavks_set(idir, ispin)%rho)
-               DEALLOCATE (epr_env%nablavks_set(idir, ispin)%rho)
-            END DO
-            END DO
-            DEALLOCATE (epr_env%nablavks_set)
-         END IF
-         ! nablavks_atom_set
-         IF (ASSOCIATED(epr_env%nablavks_atom_set)) THEN
-            CALL deallocate_nablavks_atom_set(epr_env%nablavks_atom_set)
-         END IF
-         ! vks_atom_set
-         IF (ASSOCIATED(epr_env%vks_atom_set)) THEN
-            CALL deallocate_rho_atom_set(epr_env%vks_atom_set)
-         END IF
-         ! bind_set
-         IF (ASSOCIATED(epr_env%bind_set)) THEN
-            DO i_B = 1, SIZE(epr_env%bind_set, 2)
-            DO idir = 1, SIZE(epr_env%bind_set, 1)
-               CALL qs_rho_clear(epr_env%bind_set(idir, i_B)%rho)
-               DEALLOCATE (epr_env%bind_set(idir, i_B)%rho)
-            END DO
-            END DO
-            DEALLOCATE (epr_env%bind_set)
-         END IF
-         ! bind_atom_set
-         IF (ASSOCIATED(epr_env%bind_atom_set)) THEN
-            DEALLOCATE (epr_env%bind_atom_set)
-         END IF
-         ! g_total
-         IF (ASSOCIATED(epr_env%g_total)) THEN
-            DEALLOCATE (epr_env%g_total)
-         END IF
-         ! g_so
-         IF (ASSOCIATED(epr_env%g_so)) THEN
-            DEALLOCATE (epr_env%g_so)
-         END IF
-         ! g_soo
-         IF (ASSOCIATED(epr_env%g_soo)) THEN
-            DEALLOCATE (epr_env%g_soo)
-         END IF
-      END IF ! ref count
+      ! nablavks_set
+      IF (ASSOCIATED(epr_env%nablavks_set)) THEN
+         DO ispin = 1, SIZE(epr_env%nablavks_set, 2)
+         DO idir = 1, SIZE(epr_env%nablavks_set, 1)
+            CALL qs_rho_clear(epr_env%nablavks_set(idir, ispin)%rho)
+            DEALLOCATE (epr_env%nablavks_set(idir, ispin)%rho)
+         END DO
+         END DO
+         DEALLOCATE (epr_env%nablavks_set)
+      END IF
+      ! nablavks_atom_set
+      IF (ASSOCIATED(epr_env%nablavks_atom_set)) THEN
+         CALL deallocate_nablavks_atom_set(epr_env%nablavks_atom_set)
+      END IF
+      ! vks_atom_set
+      IF (ASSOCIATED(epr_env%vks_atom_set)) THEN
+         CALL deallocate_rho_atom_set(epr_env%vks_atom_set)
+      END IF
+      ! bind_set
+      IF (ASSOCIATED(epr_env%bind_set)) THEN
+         DO i_B = 1, SIZE(epr_env%bind_set, 2)
+         DO idir = 1, SIZE(epr_env%bind_set, 1)
+            CALL qs_rho_clear(epr_env%bind_set(idir, i_B)%rho)
+            DEALLOCATE (epr_env%bind_set(idir, i_B)%rho)
+         END DO
+         END DO
+         DEALLOCATE (epr_env%bind_set)
+      END IF
+      ! bind_atom_set
+      IF (ASSOCIATED(epr_env%bind_atom_set)) THEN
+         DEALLOCATE (epr_env%bind_atom_set)
+      END IF
+      ! g_total
+      IF (ASSOCIATED(epr_env%g_total)) THEN
+         DEALLOCATE (epr_env%g_total)
+      END IF
+      ! g_so
+      IF (ASSOCIATED(epr_env%g_so)) THEN
+         DEALLOCATE (epr_env%g_so)
+      END IF
+      ! g_soo
+      IF (ASSOCIATED(epr_env%g_soo)) THEN
+         DEALLOCATE (epr_env%g_soo)
+      END IF
 
    END SUBROUTINE epr_env_cleanup
 

@@ -210,7 +210,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
          OPTIONAL                                        :: virial
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calc_kpp1', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'calc_kpp1'
 
       INTEGER                                            :: handle, ikind, ispin, nkind, ns, nspins, &
                                                             output_unit
@@ -696,9 +696,6 @@ CONTAINS
       TYPE(qs_kpp1_env_type)                             :: kpp1_env
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       LOGICAL, INTENT(IN)                                :: do_excitations, lsd_singlets, do_triplet
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_check_i_alloc', &
-         routineP = moduleN//':'//routineN
 
       INTEGER                                            :: ispin, nspins
       TYPE(admm_type), POINTER                           :: admm_env

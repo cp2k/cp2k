@@ -72,9 +72,6 @@ CONTAINS
 
       TYPE(spgr_type), POINTER                           :: spgr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'release_spgr_type', &
-         routineP = moduleN//':'//routineN
-
       IF (ASSOCIATED(spgr)) THEN
 
          IF (ALLOCATED(spgr%rotations)) THEN

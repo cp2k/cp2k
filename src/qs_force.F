@@ -54,8 +54,7 @@ MODULE qs_force
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
    USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type,&
-                                              set_qs_env
+                                              qs_environment_type
    USE qs_external_potential,           ONLY: external_c_potential,&
                                               external_e_potential
    USE qs_force_types,                  ONLY: allocate_qs_force,&
@@ -107,7 +106,6 @@ CONTAINS
       LOGICAL                                            :: calc_force, consistent_energies, linres
 
       qs_env%linres_run = linres
-      CALL set_qs_env(qs_env)
       IF (calc_force) THEN
          CALL qs_forces(qs_env)
       ELSE

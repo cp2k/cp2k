@@ -2291,8 +2291,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: nrows, ncols, start_row, start_col
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_norm, do_print
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_Gram_Schmidt_orthonorm', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_Gram_Schmidt_orthonorm'
 
       INTEGER :: end_col_global, end_col_local, end_row_global, end_row_local, handle, i, j, &
          j_col, ncol_global, ncol_local, nrow_global, nrow_local, start_col_global, &

@@ -37,8 +37,7 @@ MODULE qs_diis_types
 !> \author Matthias Krack
 ! **************************************************************************************************
    TYPE qs_diis_buffer_type
-      INTEGER                                          :: nbuffer, ncall, &
-                                                          id_nr, ref_count
+      INTEGER                                          :: nbuffer, ncall
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER :: error, PARAMETER
       REAL(KIND=dp), DIMENSION(:, :), POINTER                :: b_matrix
    END TYPE qs_diis_buffer_type
@@ -62,8 +61,7 @@ MODULE qs_diis_types
 !> \author fwaq
 ! **************************************************************************************************
    TYPE qs_diis_buffer_type_sparse
-      INTEGER                                          :: nbuffer, ncall, &
-                                                          id_nr, ref_count
+      INTEGER                                          :: nbuffer, ncall
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER   :: error, PARAMETER
       REAL(KIND=dp), DIMENSION(:, :), POINTER         :: b_matrix
    END TYPE qs_diis_buffer_type_sparse
@@ -75,21 +73,6 @@ MODULE qs_diis_types
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief retains a diis buffer (see doc/ReferenceCounting.html)
-!> \param diis_buffer the buffer to retain
-!> \par History
-!>      02.2003 created [fawzi]
-!> \author fawzi
-! **************************************************************************************************
-   SUBROUTINE qs_diis_b_retain(diis_buffer)
-      TYPE(qs_diis_buffer_type), POINTER                 :: diis_buffer
-
-      CPASSERT(ASSOCIATED(diis_buffer))
-      CPASSERT(diis_buffer%ref_count > 0)
-      diis_buffer%ref_count = diis_buffer%ref_count + 1
-   END SUBROUTINE qs_diis_b_retain
-
-! **************************************************************************************************
 !> \brief releases the given diis buffer (see doc/ReferenceCounting.html)
 !> \param diis_buffer the buffer to release
 !> \par History
@@ -97,39 +80,32 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE qs_diis_b_release(diis_buffer)
-      TYPE(qs_diis_buffer_type), POINTER                 :: diis_buffer
+      TYPE(qs_diis_buffer_type), INTENT(INOUT)           :: diis_buffer
 
       INTEGER                                            :: i, j
 
-      IF (ASSOCIATED(diis_buffer)) THEN
-         CPASSERT(diis_buffer%ref_count > 0)
-         diis_buffer%ref_count = diis_buffer%ref_count - 1
-         IF (diis_buffer%ref_count < 1) THEN
-            IF (ASSOCIATED(diis_buffer%b_matrix)) THEN
-               DEALLOCATE (diis_buffer%b_matrix)
-            END IF
-            IF (ASSOCIATED(diis_buffer%error)) THEN
-               DO j = 1, SIZE(diis_buffer%error, 2)
-                  DO i = 1, SIZE(diis_buffer%error, 1)
-                     CALL cp_fm_release(diis_buffer%error(i, j)%matrix)
-                     DEALLOCATE (diis_buffer%error(i, j)%matrix)
-                     NULLIFY (diis_buffer%error(i, j)%matrix)
-                  END DO
-               END DO
-               DEALLOCATE (diis_buffer%error)
-            END IF
-            IF (ASSOCIATED(diis_buffer%parameter)) THEN
-               DO j = 1, SIZE(diis_buffer%parameter, 2)
-                  DO i = 1, SIZE(diis_buffer%parameter, 1)
-                     CALL cp_fm_release(diis_buffer%parameter(i, j)%matrix)
-                     DEALLOCATE (diis_buffer%parameter(i, j)%matrix)
-                     NULLIFY (diis_buffer%parameter(i, j)%matrix)
-                  END DO
-               END DO
-               DEALLOCATE (diis_buffer%parameter)
-            END IF
-            DEALLOCATE (diis_buffer)
-         END IF
+      IF (ASSOCIATED(diis_buffer%b_matrix)) THEN
+         DEALLOCATE (diis_buffer%b_matrix)
+      END IF
+      IF (ASSOCIATED(diis_buffer%error)) THEN
+         DO j = 1, SIZE(diis_buffer%error, 2)
+            DO i = 1, SIZE(diis_buffer%error, 1)
+               CALL cp_fm_release(diis_buffer%error(i, j)%matrix)
+               DEALLOCATE (diis_buffer%error(i, j)%matrix)
+               NULLIFY (diis_buffer%error(i, j)%matrix)
+            END DO
+         END DO
+         DEALLOCATE (diis_buffer%error)
+      END IF
+      IF (ASSOCIATED(diis_buffer%parameter)) THEN
+         DO j = 1, SIZE(diis_buffer%parameter, 2)
+            DO i = 1, SIZE(diis_buffer%parameter, 1)
+               CALL cp_fm_release(diis_buffer%parameter(i, j)%matrix)
+               DEALLOCATE (diis_buffer%parameter(i, j)%matrix)
+               NULLIFY (diis_buffer%parameter(i, j)%matrix)
+            END DO
+         END DO
+         DEALLOCATE (diis_buffer%parameter)
       END IF
    END SUBROUTINE qs_diis_b_release
 
@@ -142,33 +118,30 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qs_diis_b_release_sparse(diis_buffer)
 
-      TYPE(qs_diis_buffer_type_sparse), POINTER          :: diis_buffer
+      TYPE(qs_diis_buffer_type_sparse), INTENT(INOUT)    :: diis_buffer
 
       INTEGER                                            :: i, j
 
-      IF (ASSOCIATED(diis_buffer)) THEN
-         IF (ASSOCIATED(diis_buffer%b_matrix)) THEN
-            DEALLOCATE (diis_buffer%b_matrix)
-         END IF
-         IF (ASSOCIATED(diis_buffer%error)) THEN
-            DO j = 1, SIZE(diis_buffer%error, 2)
-               DO i = 1, SIZE(diis_buffer%error, 1)
-                  CALL dbcsr_release(diis_buffer%error(i, j)%matrix)
-                  DEALLOCATE (diis_buffer%error(i, j)%matrix)
-               END DO
+      IF (ASSOCIATED(diis_buffer%b_matrix)) THEN
+         DEALLOCATE (diis_buffer%b_matrix)
+      END IF
+      IF (ASSOCIATED(diis_buffer%error)) THEN
+         DO j = 1, SIZE(diis_buffer%error, 2)
+            DO i = 1, SIZE(diis_buffer%error, 1)
+               CALL dbcsr_release(diis_buffer%error(i, j)%matrix)
+               DEALLOCATE (diis_buffer%error(i, j)%matrix)
             END DO
-            DEALLOCATE (diis_buffer%error)
-         END IF
-         IF (ASSOCIATED(diis_buffer%parameter)) THEN
-            DO j = 1, SIZE(diis_buffer%parameter, 2)
-               DO i = 1, SIZE(diis_buffer%parameter, 1)
-                  CALL dbcsr_release(diis_buffer%parameter(i, j)%matrix)
-                  DEALLOCATE (diis_buffer%parameter(i, j)%matrix)
-               END DO
+         END DO
+         DEALLOCATE (diis_buffer%error)
+      END IF
+      IF (ASSOCIATED(diis_buffer%parameter)) THEN
+         DO j = 1, SIZE(diis_buffer%parameter, 2)
+            DO i = 1, SIZE(diis_buffer%parameter, 1)
+               CALL dbcsr_release(diis_buffer%parameter(i, j)%matrix)
+               DEALLOCATE (diis_buffer%parameter(i, j)%matrix)
             END DO
-            DEALLOCATE (diis_buffer%parameter)
-         END IF
-         DEALLOCATE (diis_buffer)
+         END DO
+         DEALLOCATE (diis_buffer%parameter)
       END IF
    END SUBROUTINE qs_diis_b_release_sparse
 

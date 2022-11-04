@@ -151,8 +151,8 @@ MODULE qs_scf_post_gpw
    USE qs_loc_dipole,                   ONLY: loc_dipole
    USE qs_loc_states,                   ONLY: get_localization_info
    USE qs_loc_types,                    ONLY: qs_loc_env_create,&
-                                              qs_loc_env_destroy,&
-                                              qs_loc_env_new_type
+                                              qs_loc_env_release,&
+                                              qs_loc_env_type
    USE qs_loc_utils,                    ONLY: loc_write_restart,&
                                               qs_loc_control_init,&
                                               qs_loc_env_init,&
@@ -276,7 +276,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: wf_g, wf_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env_homo, qs_loc_env_lumo, &
+      TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env_homo, qs_loc_env_lumo, &
                                                             qs_loc_env_mixed
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
@@ -323,7 +323,6 @@ CONTAINS
       p_loc_mixed = .FALSE.
 
       CPASSERT(ASSOCIATED(scf_env))
-      CPASSERT(scf_env%ref_count > 0)
       CPASSERT(ASSOCIATED(qs_env))
       ! Here we start with data that needs a postprocessing...
       CALL get_qs_env(qs_env, &
@@ -524,6 +523,7 @@ CONTAINS
             CALL get_qs_env(qs_env, mo_loc_history=mo_loc_history)
             do_homo = .TRUE.
 
+            ALLOCATE (qs_loc_env_homo)
             CALL qs_loc_env_create(qs_loc_env_homo)
             CALL qs_loc_control_init(qs_loc_env_homo, localize_section, do_homo=do_homo)
             CALL qs_loc_init(qs_env, qs_loc_env_homo, localize_section, homo_localized, do_homo, &
@@ -600,6 +600,7 @@ CONTAINS
             IF (nlumo == 0) check_write = .FALSE.
             IF (p_loc_lumo) THEN
                do_homo = .FALSE.
+               ALLOCATE (qs_loc_env_lumo)
                CALL qs_loc_env_create(qs_loc_env_lumo)
                CALL qs_loc_control_init(qs_loc_env_lumo, localize_section, do_homo=do_homo)
                min_lumos = MAX(MAXVAL(qs_loc_env_lumo%localized_wfn_control%loc_states(:, :)), nlumo)
@@ -688,6 +689,7 @@ CONTAINS
             do_homo = .FALSE.
             do_mixed = .TRUE.
             total_zeff_corr = scf_env%sum_zeff_corr
+            ALLOCATE (qs_loc_env_mixed)
             CALL qs_loc_env_create(qs_loc_env_mixed)
             CALL qs_loc_control_init(qs_loc_env_mixed, localize_section, do_homo=do_homo, do_mixed=do_mixed)
             CALL qs_loc_init(qs_env, qs_loc_env_mixed, localize_section, mixed_localized, do_homo, &
@@ -729,9 +731,18 @@ CONTAINS
 
       ! Destroy the localization environment
       IF (.NOT. do_kpoints) THEN
-         IF (p_loc_homo) CALL qs_loc_env_destroy(qs_loc_env_homo)
-         IF (p_loc_lumo) CALL qs_loc_env_destroy(qs_loc_env_lumo)
-         IF (p_loc_mixed) CALL qs_loc_env_destroy(qs_loc_env_mixed)
+         IF (p_loc_homo) THEN
+            CALL qs_loc_env_release(qs_loc_env_homo)
+            DEALLOCATE (qs_loc_env_homo)
+         END IF
+         IF (p_loc_lumo) THEN
+            CALL qs_loc_env_release(qs_loc_env_lumo)
+            DEALLOCATE (qs_loc_env_lumo)
+         END IF
+         IF (p_loc_mixed) THEN
+            CALL qs_loc_env_release(qs_loc_env_mixed)
+            DEALLOCATE (qs_loc_env_mixed)
+         END IF
       END IF
 
       ! generate a mix of wfns, and write to a restart

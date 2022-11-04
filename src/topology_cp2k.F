@@ -134,6 +134,7 @@ CONTAINS
       ! Element is assigned on the basis of the atm_name
       topology%aa_element = .TRUE.
 
+      ALLOCATE (parser)
       CALL parser_create(parser, topology%coord_file_name, para_env=para_env)
 
       natom = 0
@@ -208,6 +209,7 @@ CONTAINS
       END DO
 
       CALL parser_release(parser)
+      DEALLOCATE (parser)
 
       topology%natoms = natom
       CALL reallocate(atom_info%id_molname, 1, natom)

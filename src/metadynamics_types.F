@@ -25,13 +25,11 @@ MODULE metadynamics_types
 
    PRIVATE
 
-   INTEGER, SAVE, PRIVATE               :: last_meta_env_id = 0
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'metadynamics_types'
 
    PUBLIC :: metadyn_create, &
              hills_env_type, &
              meta_env_type, &
-             meta_env_retain, &
              set_meta_env, &
              meta_env_release, &
              metavar_type, &
@@ -95,7 +93,6 @@ MODULE metadynamics_types
 !> \brief defines meta_env type
 ! **************************************************************************************************
    TYPE meta_env_type
-      INTEGER                                   :: ref_count, id_nr
       LOGICAL                                   :: do_hills, do_multiple_walkers
       LOGICAL                                   :: extended_lagrange
       LOGICAL                                   :: well_tempered
@@ -145,7 +142,7 @@ CONTAINS
 !>           Major rewriting and addition of multiple walkers
 ! **************************************************************************************************
    SUBROUTINE metadyn_create(meta_env, n_colvar, dt, para_env, metadyn_section)
-      TYPE(meta_env_type), POINTER                       :: meta_env
+      TYPE(meta_env_type), INTENT(OUT)                   :: meta_env
       INTEGER, INTENT(in)                                :: n_colvar
       REAL(dp), INTENT(in)                               :: dt
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -154,8 +151,6 @@ CONTAINS
       INTEGER                                            :: i
       LOGICAL                                            :: do_langevin
 
-      CPASSERT(.NOT. ASSOCIATED(meta_env))
-      ALLOCATE (meta_env)
       NULLIFY (meta_env%multiple_walkers, &
                meta_env%metadyn_section, &
                meta_env%time, &
@@ -164,10 +159,7 @@ CONTAINS
       meta_env%use_plumed = .FALSE.
       meta_env%plumed_input_file = ""
       meta_env%metadyn_section => metadyn_section
-      meta_env%ref_count = 1
       meta_env%restart = .TRUE.
-      last_meta_env_id = last_meta_env_id + 1
-      meta_env%id_nr = last_meta_env_id
       meta_env%n_colvar = n_colvar
       meta_env%para_env => para_env
       CALL cp_para_env_retain(para_env)
@@ -235,7 +227,7 @@ CONTAINS
 !> \author alessandro laio and fawzi mohamed
 ! **************************************************************************************************
    SUBROUTINE set_meta_env(meta_env, time)
-      TYPE(meta_env_type), POINTER                       :: meta_env
+      TYPE(meta_env_type), INTENT(IN), POINTER           :: meta_env
       REAL(KIND=dp), OPTIONAL, POINTER                   :: time
 
       IF (ASSOCIATED(meta_env)) THEN
@@ -247,64 +239,44 @@ CONTAINS
    END SUBROUTINE set_meta_env
 
 ! **************************************************************************************************
-!> \brief retains the meta_env
-!> \param meta_env ...
-!> \author alessandro laio and fawzi mohamed
-! **************************************************************************************************
-   SUBROUTINE meta_env_retain(meta_env)
-      TYPE(meta_env_type), POINTER                       :: meta_env
-
-      CPASSERT(ASSOCIATED(meta_env))
-      CPASSERT(meta_env%ref_count > 0)
-      meta_env%ref_count = meta_env%ref_count + 1
-   END SUBROUTINE meta_env_retain
-
-! **************************************************************************************************
 !> \brief releases the meta_env
 !> \param meta_env ...
 !> \author alessandro laio and fawzi mohamed
 ! **************************************************************************************************
    SUBROUTINE meta_env_release(meta_env)
-      TYPE(meta_env_type), POINTER                       :: meta_env
+      TYPE(meta_env_type), INTENT(INOUT)                 :: meta_env
 
       INTEGER                                            :: i
 
-      IF (ASSOCIATED(meta_env)) THEN
-         CPASSERT(meta_env%ref_count > 0)
-         meta_env%ref_count = meta_env%ref_count - 1
-         IF (meta_env%ref_count == 0) THEN
-            CALL cp_para_env_release(meta_env%para_env)
-            IF (ASSOCIATED(meta_env%metavar)) THEN
-               DO i = 1, SIZE(meta_env%metavar)
-                  IF (ASSOCIATED(meta_env%metavar(i)%walls)) THEN
-                     DEALLOCATE (meta_env%metavar(i)%walls)
-                  END IF
-               END DO
-               DEALLOCATE (meta_env%metavar)
+      CALL cp_para_env_release(meta_env%para_env)
+      IF (ASSOCIATED(meta_env%metavar)) THEN
+         DO i = 1, SIZE(meta_env%metavar)
+            IF (ASSOCIATED(meta_env%metavar(i)%walls)) THEN
+               DEALLOCATE (meta_env%metavar(i)%walls)
             END IF
-
-            ! Hills env
-            CALL hills_env_release(meta_env%hills_env)
-            ! Walkers type
-            IF (ASSOCIATED(meta_env%multiple_walkers)) THEN
-               IF (ASSOCIATED(meta_env%multiple_walkers%walkers_status)) THEN
-                  DEALLOCATE (meta_env%multiple_walkers%walkers_status)
-               END IF
-               IF (ASSOCIATED(meta_env%multiple_walkers%walkers_file_name)) THEN
-                  DEALLOCATE (meta_env%multiple_walkers%walkers_file_name)
-               END IF
-               DEALLOCATE (meta_env%multiple_walkers)
-            END IF
-
-            ! Langevin on COLVARS
-            IF (meta_env%langevin) &
-               DEALLOCATE (meta_env%rng)
-
-            NULLIFY (meta_env%time)
-            NULLIFY (meta_env%metadyn_section)
-            DEALLOCATE (meta_env)
-         END IF
+         END DO
+         DEALLOCATE (meta_env%metavar)
       END IF
+
+      ! Hills env
+      CALL hills_env_release(meta_env%hills_env)
+      ! Walkers type
+      IF (ASSOCIATED(meta_env%multiple_walkers)) THEN
+         IF (ASSOCIATED(meta_env%multiple_walkers%walkers_status)) THEN
+            DEALLOCATE (meta_env%multiple_walkers%walkers_status)
+         END IF
+         IF (ASSOCIATED(meta_env%multiple_walkers%walkers_file_name)) THEN
+            DEALLOCATE (meta_env%multiple_walkers%walkers_file_name)
+         END IF
+         DEALLOCATE (meta_env%multiple_walkers)
+      END IF
+
+      ! Langevin on COLVARS
+      IF (meta_env%langevin) &
+         DEALLOCATE (meta_env%rng)
+
+      NULLIFY (meta_env%time)
+      NULLIFY (meta_env%metadyn_section)
    END SUBROUTINE meta_env_release
 
 ! **************************************************************************************************

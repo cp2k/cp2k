@@ -108,7 +108,7 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'GW2X_shift', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'GW2X_shift'
 
       INTEGER :: ex_idx, exat, first_domo(2), handle, i, ido_mo, iloc, ilocat, ispin, jspin, &
          locat, nao, natom, ndo_mo, nhomo(2), nlumo(2), nonloc, nspins, start_sgf
@@ -953,9 +953,6 @@ CONTAINS
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_full_pqX_from_3c_ex', &
-         routineP = moduleN//':'//routineN
-
       INTEGER                                            :: i, ind(3), natom, nblk_ri, nsgf_x
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: orb_blk_size, proc_dist_1, proc_dist_2, &
                                                             proc_dist_3
@@ -1068,8 +1065,7 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'contract_AOs_to_MOs', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'contract_AOs_to_MOs'
 
       INTEGER                                            :: bo(2), handle, i, ispin, jspin, &
                                                             nblk_aos, nblk_mos(2), nblk_occ(2), &
@@ -1423,8 +1419,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: occ_evals, virt_evals
       REAL(dp), INTENT(in)                               :: omega, c_ss
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calc_ss_oov_contrib', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calc_ss_oov_contrib'
 
       INTEGER                                            :: a, boff(3), bsize(3), handle, idx1, &
                                                             idx2, idx3, ind(3), j, k, nocc
@@ -1506,8 +1501,7 @@ CONTAINS
       REAL(dp), INTENT(in)                               :: omega, c_os
       INTEGER, INTENT(IN)                                :: a_offset
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calc_os_oov_contrib', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calc_os_oov_contrib'
 
       INTEGER                                            :: a, boff(3), bsize(3), handle, idx1, &
                                                             idx2, idx3, ind(3), j, k
@@ -1588,8 +1582,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: occ_evals, virt_evals
       REAL(dp), INTENT(in)                               :: omega, c_ss
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calc_ss_ovv_contrib', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calc_ss_ovv_contrib'
 
       INTEGER                                            :: a, b, boff(3), bsize(3), handle, idx1, &
                                                             idx2, idx3, ind(3), j, nocc
@@ -1673,8 +1666,7 @@ CONTAINS
       REAL(dp), INTENT(in)                               :: omega, c_os
       INTEGER, INTENT(IN)                                :: a_offset, b_offset
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calc_os_ovv_contrib', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calc_os_ovv_contrib'
 
       INTEGER                                            :: a, b, boff(3), bsize(3), handle, idx1, &
                                                             idx2, idx3, ind(3), j

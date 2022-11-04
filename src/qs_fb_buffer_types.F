@@ -28,8 +28,6 @@ MODULE qs_fb_buffer_types
              fb_buffer_replace
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_buffer_types'
-   INTEGER, PRIVATE, SAVE :: last_fb_buffer_i_id = 0
-   INTEGER, PRIVATE, SAVE :: last_fb_buffer_d_id = 0
 
 ! **********************************************************************
 !> \brief data for the fb_buffer object (integer)
@@ -39,12 +37,11 @@ MODULE qs_fb_buffer_types
 !>                size of the current data, which is the same as the
 !>                displacement for the new data to be added
 !> \param data_1d : where all of the slices are stored
-!> \param id_nr : unique id of this object
 !> \param ref_count : reference counter of this object
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **********************************************************************
    TYPE fb_buffer_i_data
-      INTEGER :: id_nr, ref_count
+      INTEGER :: ref_count
       INTEGER :: n
       INTEGER, DIMENSION(:), POINTER :: disps
       INTEGER, DIMENSION(:), POINTER :: data_1d
@@ -67,12 +64,11 @@ MODULE qs_fb_buffer_types
 !>                size of the current data, which is the same as the
 !>                displacement for the new data to be added
 !> \param data_1d : where all of the slices are stored
-!> \param id_nr : unique id of this object
 !> \param ref_count : reference counter of this object
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **********************************************************************
    TYPE fb_buffer_d_data
-      INTEGER :: id_nr, ref_count
+      INTEGER :: ref_count
       INTEGER :: n
       INTEGER, DIMENSION(:), POINTER :: disps
       REAL(KIND=dp), DIMENSION(:), POINTER :: data_1d
@@ -287,8 +283,6 @@ CONTAINS
       END IF
       ! obj meta data update
       buffer%obj%ref_count = 1
-      buffer%obj%id_nr = last_fb_buffer_i_id + 1
-      last_fb_buffer_i_id = buffer%obj%id_nr
    END SUBROUTINE fb_buffer_i_create
 
 ! **************************************************************************************************
@@ -606,8 +600,6 @@ CONTAINS
       END IF
       ! obj meta data update
       buffer%obj%ref_count = 1
-      buffer%obj%id_nr = last_fb_buffer_d_id + 1
-      last_fb_buffer_d_id = buffer%obj%id_nr
    END SUBROUTINE fb_buffer_d_create
 
 ! **************************************************************************************************

@@ -41,8 +41,6 @@ MODULE qs_p_env_types
 !>      Can calculate the linear operator and the rhs of the system
 !>      of equations that needs to be solved for the perturbation.
 !> \param orthogonal_orbitals if the orbitals are orthogonal
-!> \param id_nr identification number (unique between p_env_types)
-!> \param ref_count reference count (see doc/ReferenceCounting.html)
 !> \param kpp 1: the kpp1 matrix (make it temporary?)
 !> \param kpp1_admm: collects the parts in auxiliary basis, they have to be added to kpp1 later
 !> \param m_epsilon minus epsilon: -<psi0d|H_rho|psi0d>

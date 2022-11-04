@@ -158,7 +158,7 @@ CONTAINS
 
       CALL section_vals_val_get(my_scf_section, "CHOLESKY", i_val=scf_env%cholesky_method)
 
-      CALL qs_scf_ensure_mos(qs_env, scf_env)
+      CALL qs_scf_ensure_mos(qs_env)
 
       ! set flags for diagonalization
       CALL qs_scf_ensure_diagonalization(scf_env, my_scf_section, qs_env, &
@@ -207,7 +207,7 @@ CONTAINS
       scf_control%use_diag = .TRUE.
       scf_control%diagonalization%method = diag_standard
 
-      CALL qs_scf_ensure_mos(qs_env, scf_env)
+      CALL qs_scf_ensure_mos(qs_env)
 
       ! set flags for diagonalization
       CALL qs_scf_ensure_diagonalization(scf_env, scf_section, qs_env, &
@@ -234,6 +234,7 @@ CONTAINS
       NULLIFY (rho_g)
 
       IF (.NOT. ASSOCIATED(scf_env)) THEN ! i.e. for MD this is associated on the second step (it so seems)
+         ALLOCATE (scf_env)
          CALL scf_env_create(scf_env)
       ELSE
          ! Reallocate mixing store, if the g space grid (cell) has changed
@@ -452,8 +453,7 @@ CONTAINS
                ALLOCATE (scf_env%scf_work1(is)%matrix)
                CALL cp_fm_create(scf_env%scf_work1(is)%matrix, &
                                  matrix_struct=ao_ao_fmstruct, &
-                                 name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))// &
-                                 "WORK_MATRIX-1-"//TRIM(ADJUSTL(cp_to_string(is))))
+                                 name="SCF-WORK_MATRIX-1-"//TRIM(ADJUSTL(cp_to_string(is))))
             END DO
          END IF
          IF ((.NOT. ASSOCIATED(scf_env%ortho)) .AND. &
@@ -463,8 +463,7 @@ CONTAINS
             ALLOCATE (scf_env%ortho)
             CALL cp_fm_create(scf_env%ortho, &
                               matrix_struct=ao_ao_fmstruct, &
-                              name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))// &
-                              "ORTHO_MATRIX")
+                              name="SCF-ORTHO_MATRIX")
             ! Initialize dbcsr matrix to store the Cholesky decomposition
             IF (scf_env%cholesky_method == cholesky_dbcsr) THEN
                ref_matrix => matrix_s(1, 1)%matrix
@@ -483,16 +482,14 @@ CONTAINS
                ALLOCATE (scf_env%ortho_m1)
                CALL cp_fm_create(scf_env%ortho_m1, &
                                  matrix_struct=ao_ao_fmstruct, &
-                                 name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))// &
-                                 "ORTHO_MATRIX-1")
+                                 name="SCF-ORTHO_MATRIX-1")
             END IF
          END IF
          IF (.NOT. ASSOCIATED(scf_env%scf_work2)) THEN
             ALLOCATE (scf_env%scf_work2)
             CALL cp_fm_create(scf_env%scf_work2, &
                               matrix_struct=ao_ao_fmstruct, &
-                              name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))// &
-                              "WORK_MATRIX-2")
+                              name="SCF-WORK_MATRIX-2")
          END IF
       END IF
 
@@ -502,8 +499,7 @@ CONTAINS
                ALLOCATE (scf_env%scf_work2)
                CALL cp_fm_create(scf_env%scf_work2, &
                                  matrix_struct=ao_ao_fmstruct, &
-                                 name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))// &
-                                 "WORK_MATRIX-2")
+                                 name="SCF-WORK_MATRIX-2")
             END IF
             IF (.NOT. ASSOCIATED(scf_env%s_half)) THEN
                ALLOCATE (scf_env%s_half)
@@ -522,8 +518,7 @@ CONTAINS
                ALLOCATE (scf_env%scf_work1(is)%matrix)
                CALL cp_fm_create(scf_env%scf_work1(is)%matrix, &
                                  matrix_struct=ao_ao_fmstruct, &
-                                 name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))// &
-                                 "WORK_MATRIX-1-"//TRIM(ADJUSTL(cp_to_string(is))))
+                                 name="SCF-WORK_MATRIX-1-"//TRIM(ADJUSTL(cp_to_string(is))))
             END DO
          END IF
       END IF
@@ -537,11 +532,9 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief performs allocation of the MO matrices
 !> \param qs_env ...
-!> \param scf_env ...
 ! **************************************************************************************************
-   SUBROUTINE qs_scf_ensure_mos(qs_env, scf_env)
+   SUBROUTINE qs_scf_ensure_mos(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_scf_env_type), POINTER                     :: scf_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_scf_ensure_mos'
 
@@ -560,10 +553,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (ao_mo_fm_pools, dft_control, mos, xas_env, matrix_s, mos_last_converged, mo_coeff_last)
-
-      CPASSERT(ASSOCIATED(scf_env))
-      CPASSERT(scf_env%ref_count > 0)
-      MARK_USED(scf_env)
 
       CALL get_qs_env(qs_env=qs_env, &
                       dft_control=dft_control, &
@@ -585,8 +574,7 @@ CONTAINS
          IF (.NOT. ASSOCIATED(mo_coeff)) THEN
             CALL init_mo_set(mos(ispin)%mo_set, &
                              fm_pool=ao_mo_fm_pools(ispin)%pool, &
-                             name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))// &
-                             "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))))
+                             name="qs_env%mo"//TRIM(ADJUSTL(cp_to_string(ispin))))
          END IF
          IF (.NOT. ASSOCIATED(mo_coeff_b)) THEN
             CALL cp_fm_get_info(mos(ispin)%mo_set%mo_coeff, ncol_global=nmo)
@@ -628,8 +616,7 @@ CONTAINS
             IF (.NOT. ASSOCIATED(mo_coeff_last)) THEN
                CALL init_mo_set(mos_last_converged(ispin)%mo_set, &
                                 fm_ref=mos(ispin)%mo_set%mo_coeff, &
-                                name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))// &
-                                "%mos_last_converged"//TRIM(ADJUSTL(cp_to_string(ispin))))
+                                name="qs_env%mos_last_converged"//TRIM(ADJUSTL(cp_to_string(ispin))))
             END IF
          END DO
       END IF
@@ -896,9 +883,7 @@ CONTAINS
       logger => cp_get_default_logger()
 
       CPASSERT(ASSOCIATED(scf_env))
-      CPASSERT(scf_env%ref_count > 0)
       CPASSERT(ASSOCIATED(qs_env))
-      CPASSERT(qs_env%ref_count > 0)
       NULLIFY (para_env)
 
       s_minus_half_available = .FALSE.
@@ -1072,7 +1057,6 @@ CONTAINS
       NULLIFY (mo_coeff, rho, dft_control, para_env, mos)
       logger => cp_get_default_logger()
       CPASSERT(ASSOCIATED(scf_env))
-      CPASSERT(scf_env%ref_count > 0)
       CPASSERT(ASSOCIATED(qs_env))
 
       CALL get_qs_env(qs_env, &

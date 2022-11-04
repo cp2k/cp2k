@@ -26,7 +26,6 @@ MODULE qs_environment_types
    USE cp_ddapc_types,                  ONLY: cp_ddapc_ewald_release,&
                                               cp_ddapc_ewald_type,&
                                               cp_ddapc_release,&
-                                              cp_ddapc_retain,&
                                               cp_ddapc_type
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                               cp_fm_release
@@ -48,7 +47,6 @@ MODULE qs_environment_types
                                               ewald_env_retain,&
                                               ewald_environment_type
    USE ewald_pw_types,                  ONLY: ewald_pw_release,&
-                                              ewald_pw_retain,&
                                               ewald_pw_type
    USE exstates_types,                  ONLY: excited_energy_type,&
                                               exstate_release
@@ -90,7 +88,6 @@ MODULE qs_environment_types
    USE qs_active_space_types,           ONLY: active_space_type,&
                                               release_active_space_type
    USE qs_charges_types,                ONLY: qs_charges_release,&
-                                              qs_charges_retain,&
                                               qs_charges_type
    USE qs_dftb_types,                   ONLY: qs_dftb_pairpot_release,&
                                               qs_dftb_pairpot_type
@@ -102,13 +99,11 @@ MODULE qs_environment_types
                                               qs_gcp_type
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type,&
-                                              qs_ks_qmmm_release,&
-                                              qs_ks_qmmm_retain
+                                              qs_ks_qmmm_release
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type,&
                                               qs_ks_part_release,&
                                               qs_ks_release,&
-                                              qs_ks_retain,&
                                               set_ks_env
    USE qs_linres_types,                 ONLY: linres_control_release,&
                                               linres_control_retain,&
@@ -139,20 +134,17 @@ MODULE qs_environment_types
                                               qs_rho_retain,&
                                               qs_rho_type
    USE qs_scf_types,                    ONLY: qs_scf_env_type,&
-                                              scf_env_release,&
-                                              scf_env_retain
+                                              scf_env_release
    USE qs_subsys_types,                 ONLY: qs_subsys_set,&
                                               qs_subsys_type
    USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
                                               wfi_release,&
                                               wfi_retain
    USE rel_control_types,               ONLY: rel_c_release,&
-                                              rel_c_retain,&
                                               rel_control_type
    USE rt_propagation_types,            ONLY: rt_prop_release,&
                                               rt_prop_type
    USE scf_control_types,               ONLY: scf_c_release,&
-                                              scf_c_retain,&
                                               scf_control_type
    USE semi_empirical_mpole_types,      ONLY: nddo_mpole_release,&
                                               nddo_mpole_type
@@ -166,7 +158,6 @@ MODULE qs_environment_types
    USE virial_types,                    ONLY: virial_type
    USE wannier_states_types,            ONLY: wannier_centres_type
    USE xas_env_types,                   ONLY: xas_env_release,&
-                                              xas_env_retain,&
                                               xas_environment_type
 #include "./base/base_uses.f90"
 
@@ -175,7 +166,6 @@ MODULE qs_environment_types
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_environment_types'
-   INTEGER, PRIVATE, SAVE :: last_qs_env_id_nr = 0
 
 ! *** Public data types ***
 
@@ -187,7 +177,6 @@ MODULE qs_environment_types
              qs_env_create, &
              qs_env_release, &
              qs_env_part_release, &
-             qs_env_retain, &
              set_qs_env
 
 ! **************************************************************************************************
@@ -225,7 +214,6 @@ MODULE qs_environment_types
 ! **************************************************************************************************
 
    TYPE qs_environment_type
-      INTEGER :: id_nr, ref_count
       LOGICAL :: qmmm, qmmm_periodic
       LOGICAL :: requires_mo_derivs
       LOGICAL :: requires_matrix_vxc
@@ -307,7 +295,7 @@ MODULE qs_environment_types
       TYPE(mp2_type), POINTER                               :: mp2_env => NULL()
       TYPE(kg_environment_type), POINTER                    :: kg_env
       TYPE(wannier_centres_type), POINTER, DIMENSION(:)     :: WannierCentres => NULL()
-      TYPE(molecular_scf_guess_env_type)                    :: molecular_scf_guess_env
+      TYPE(molecular_scf_guess_env_type), POINTER           :: molecular_scf_guess_env => NULL()
       ! Subsystem densities
       TYPE(qs_rho_p_type), DIMENSION(:), POINTER            :: subsys_dens
       ! Embedding potential
@@ -321,17 +309,6 @@ MODULE qs_environment_types
       LOGICAL                                               :: surface_dipole_switch_off
       TYPE(mo_set_p_type), DIMENSION(:), POINTER            :: mos_last_converged
    END TYPE qs_environment_type
-
-! **************************************************************************************************
-!> \brief to build arrays of pointers
-!> \param qs_env the pointer to the qs_env
-!> \par History
-!>      12.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   TYPE qs_environment_p_type
-      TYPE(qs_environment_type), POINTER :: qs_env
-   END TYPE qs_environment_p_type
 
 CONTAINS
 
@@ -414,7 +391,6 @@ CONTAINS
 !> \param ks_qmmm_env ...
 !> \param wf_history ...
 !> \param scf_env ...
-!> \param id_nr ...
 !> \param local_particles ...
 !> \param local_molecules ...
 !> \param distribution_2d ...
@@ -506,7 +482,7 @@ CONTAINS
                          matrix_p_mp2, matrix_p_mp2_admm, rho, &
                          rho_buffer, rho_xc, pw_env, ewald_env, ewald_pw, active_space, &
                          mpools, input, para_env, blacs_env, scf_control, rel_control, kinetic, qs_charges, &
-                         vppl, rho_core, rho_nlcc, rho_nlcc_g, ks_env, ks_qmmm_env, wf_history, scf_env, id_nr, local_particles, &
+                         vppl, rho_core, rho_nlcc, rho_nlcc_g, ks_env, ks_qmmm_env, wf_history, scf_env, local_particles, &
                          local_molecules, distribution_2d, dbcsr_dist, molecule_kind_set, &
                          molecule_set, subsys, cp_subsys, oce, local_rho_set, rho_atom_set, &
                          task_list, &
@@ -522,7 +498,7 @@ CONTAINS
                          mp2_env, kg_env, WannierCentres, atprop, ls_scf_env, do_transport, transport_env, v_hartree_rspace, &
                          s_mstruct_changed, rho_changed, potential_changed, forces_up_to_date, mscfg_env, almo_scf_env, &
                          gradient_history, variable_history, embed_pot, spin_embed_pot, polar_env, mos_last_converged, rhs)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(IN)              :: qs_env
       TYPE(atomic_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), OPTIONAL, &
@@ -574,7 +550,6 @@ CONTAINS
       TYPE(qs_ks_qmmm_env_type), OPTIONAL, POINTER       :: ks_qmmm_env
       TYPE(qs_wf_history_type), OPTIONAL, POINTER        :: wf_history
       TYPE(qs_scf_env_type), OPTIONAL, POINTER           :: scf_env
-      INTEGER, INTENT(out), OPTIONAL                     :: id_nr
       TYPE(distribution_1d_type), OPTIONAL, POINTER      :: local_particles, local_molecules
       TYPE(distribution_2d_type), OPTIONAL, POINTER      :: distribution_2d
       TYPE(dbcsr_distribution_type), OPTIONAL, POINTER   :: dbcsr_dist
@@ -656,8 +631,6 @@ CONTAINS
       TYPE(rho0_mpole_type), POINTER                     :: rho0_m
 
       NULLIFY (rho0_m)
-      CPASSERT(ASSOCIATED(qs_env))
-      CPASSERT(qs_env%ref_count > 0)
       CPASSERT(ASSOCIATED(qs_env%ks_env))
 
       IF (PRESENT(outer_scf_history)) outer_scf_history => qs_env%outer_scf_history
@@ -685,7 +658,6 @@ CONTAINS
       IF (PRESENT(ks_qmmm_env)) ks_qmmm_env => qs_env%ks_qmmm_env
       IF (PRESENT(wf_history)) wf_history => qs_env%wf_history
       IF (PRESENT(scf_env)) scf_env => qs_env%scf_env
-      IF (PRESENT(id_nr)) id_nr = qs_env%id_nr
       IF (PRESENT(oce)) oce => qs_env%oce
       IF (PRESENT(requires_mo_derivs)) requires_mo_derivs = qs_env%requires_mo_derivs
       IF (PRESENT(has_unit_metric)) has_unit_metric = qs_env%has_unit_metric
@@ -854,7 +826,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE init_qs_env(qs_env, globenv)
 
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(INOUT)           :: qs_env
       TYPE(global_environment_type), OPTIONAL, POINTER   :: globenv
 
       NULLIFY (qs_env%ls_scf_env)
@@ -925,9 +897,6 @@ CONTAINS
 
       CALL local_rho_set_create(qs_env%local_rho_set)
       CALL hartree_local_create(qs_env%hartree_local)
-      qs_env%ref_count = 1
-      last_qs_env_id_nr = last_qs_env_id_nr + 1
-      qs_env%id_nr = last_qs_env_id_nr
       qs_env%run_rtp = .FALSE.
       qs_env%linres_run = .FALSE.
       qs_env%single_point_run = .FALSE.
@@ -959,6 +928,8 @@ CONTAINS
       ! Zero all variables containing results
       NULLIFY (qs_env%mo_derivs)
       NULLIFY (qs_env%mo_loc_history)
+
+      IF (.NOT. ASSOCIATED(qs_env%molecular_scf_guess_env)) ALLOCATE (qs_env%molecular_scf_guess_env)
 
    END SUBROUTINE init_qs_env
 
@@ -1055,7 +1026,7 @@ CONTAINS
                          kpoints, WannierCentres, almo_scf_env, gradient_history, variable_history, embed_pot, &
                          spin_embed_pot, polar_env, mos_last_converged, rhs)
 
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(INOUT)           :: qs_env
       TYPE(cell_type), OPTIONAL, POINTER                 :: super_cell
       TYPE(mo_set_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: mos
@@ -1133,9 +1104,6 @@ CONTAINS
 
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
-!    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
-
-      CPASSERT(qs_env%ref_count > 0)
       IF (PRESENT(mp2_env)) qs_env%mp2_env => mp2_env
       IF (PRESENT(kg_env)) qs_env%kg_env => kg_env
       IF (PRESENT(super_cell)) THEN
@@ -1174,18 +1142,30 @@ CONTAINS
          qs_env%ewald_env => ewald_env
       END IF
       IF (PRESENT(ewald_pw)) THEN ! accept also null pointers?
-         CALL ewald_pw_retain(ewald_pw)
-         CALL ewald_pw_release(qs_env%ewald_pw)
+         IF (ASSOCIATED(qs_env%ewald_pw)) THEN
+            IF (.NOT. ASSOCIATED(ewald_pw, qs_env%ewald_pw)) THEN
+               CALL ewald_pw_release(qs_env%ewald_pw)
+               DEALLOCATE (qs_env%ewald_pw)
+            END IF
+         END IF
          qs_env%ewald_pw => ewald_pw
       END IF
       IF (PRESENT(scf_control)) THEN ! accept also null pointers?
-         CALL scf_c_retain(scf_control)
-         CALL scf_c_release(qs_env%scf_control)
+         IF (ASSOCIATED(qs_env%scf_control)) THEN
+            IF (.NOT. ASSOCIATED(qs_env%scf_control, scf_control)) THEN
+               CALL scf_c_release(qs_env%scf_control)
+               DEALLOCATE (qs_env%scf_control)
+            END IF
+         END IF
          qs_env%scf_control => scf_control
       END IF
       IF (PRESENT(rel_control)) THEN ! accept also null pointers?
-         CALL rel_c_retain(rel_control)
-         CALL rel_c_release(qs_env%rel_control)
+         IF (ASSOCIATED(qs_env%rel_control)) THEN
+            IF (.NOT. ASSOCIATED(qs_env%rel_control, rel_control)) THEN
+               CALL rel_c_release(qs_env%rel_control)
+               DEALLOCATE (qs_env%rel_control)
+            END IF
+         END IF
          qs_env%rel_control => rel_control
       END IF
       IF (PRESENT(linres_control)) THEN ! accept also null pointers?
@@ -1194,7 +1174,7 @@ CONTAINS
          qs_env%linres_control => linres_control
       END IF
       ! ZMP associating variables
-      IF (PRESENT(rho_external)) THEN ! accepts also null pointers !
+      IF (PRESENT(rho_external)) THEN
          IF (ASSOCIATED(rho_external)) CALL qs_rho_retain(rho_external)
          CALL qs_rho_release(qs_env%rho_external)
          qs_env%rho_external => rho_external
@@ -1209,18 +1189,30 @@ CONTAINS
       IF (PRESENT(polar_env)) qs_env%polar_env => polar_env
 
       IF (PRESENT(qs_charges)) THEN
-         CALL qs_charges_retain(qs_charges)
-         CALL qs_charges_release(qs_env%qs_charges)
+         IF (ASSOCIATED(qs_env%qs_charges)) THEN
+            IF (.NOT. ASSOCIATED(qs_env%qs_charges, qs_charges)) THEN
+               CALL qs_charges_release(qs_env%qs_charges)
+               DEALLOCATE (qs_env%qs_charges)
+            END IF
+         END IF
          qs_env%qs_charges => qs_charges
       END IF
       IF (PRESENT(ks_qmmm_env)) THEN
-         CALL qs_ks_qmmm_retain(ks_qmmm_env)
-         CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env)
+         IF (ASSOCIATED(qs_env%ks_qmmm_env)) THEN
+            IF (.NOT. ASSOCIATED(qs_env%ks_qmmm_env, ks_qmmm_env)) THEN
+               CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env)
+               DEALLOCATE (qs_env%ks_qmmm_env)
+            END IF
+         END IF
          qs_env%ks_qmmm_env => ks_qmmm_env
       END IF
       IF (PRESENT(ks_env)) THEN ! accept also null pointers?
-         CALL qs_ks_retain(ks_env)
-         CALL qs_ks_release(qs_env%ks_env)
+         IF (ASSOCIATED(qs_env%ks_env)) THEN
+            IF (.NOT. ASSOCIATED(qs_env%ks_env, ks_env)) THEN
+               CALL qs_ks_release(qs_env%ks_env)
+               DEALLOCATE (qs_env%ks_env)
+            END IF
+         END IF
          qs_env%ks_env => ks_env
       END IF
       IF (PRESENT(wf_history)) THEN ! accept also null pointers ?
@@ -1229,13 +1221,21 @@ CONTAINS
          qs_env%wf_history => wf_history
       END IF
       IF (PRESENT(scf_env)) THEN ! accept also null pointers ?
-         CALL scf_env_retain(scf_env)
-         CALL scf_env_release(qs_env%scf_env)
+         IF (ASSOCIATED(qs_env%scf_env)) THEN
+         IF (.NOT. ASSOCIATED(qs_env%scf_env, scf_env)) THEN
+            CALL scf_env_release(qs_env%scf_env)
+            DEALLOCATE (qs_env%scf_env)
+         END IF
+         END IF
          qs_env%scf_env => scf_env
       END IF
       IF (PRESENT(xas_env)) THEN ! accept also null pointers?
-         CALL xas_env_retain(xas_env)
-         CALL xas_env_release(qs_env%xas_env)
+         IF (ASSOCIATED(qs_env%xas_env)) THEN
+            IF (.NOT. ASSOCIATED(qs_env%xas_env, xas_env)) THEN
+               CALL xas_env_release(qs_env%xas_env)
+               DEALLOCATE (qs_env%xas_env)
+            END IF
+         END IF
          qs_env%xas_env => xas_env
       END IF
       IF (PRESENT(mpools)) THEN
@@ -1265,8 +1265,12 @@ CONTAINS
          qs_env%input => input
       END IF
       IF (PRESENT(cp_ddapc_env)) THEN
-         CALL cp_ddapc_retain(cp_ddapc_env)
-         CALL cp_ddapc_release(qs_env%cp_ddapc_env)
+         IF (ASSOCIATED(qs_env%cp_ddapc_env)) THEN
+            IF (.NOT. ASSOCIATED(qs_env%cp_ddapc_env, cp_ddapc_env)) THEN
+               CALL cp_ddapc_release(qs_env%cp_ddapc_env)
+               DEALLOCATE (qs_env%cp_ddapc_env)
+            END IF
+         END IF
          qs_env%cp_ddapc_env => cp_ddapc_env
       END IF
       IF (PRESENT(cp_ddapc_ewald)) THEN
@@ -1288,7 +1292,12 @@ CONTAINS
          qs_env%se_nddo_mpole => se_nddo_mpole
       END IF
       IF (PRESENT(se_nonbond_env)) THEN
-         CALL fist_nonbond_env_release(qs_env%se_nonbond_env)
+         IF (ASSOCIATED(qs_env%se_nonbond_env)) THEN
+         IF (.NOT. ASSOCIATED(qs_env%se_nonbond_env, se_nonbond_env)) THEN
+            CALL fist_nonbond_env_release(qs_env%se_nonbond_env)
+            DEALLOCATE (qs_env%se_nonbond_env)
+         END IF
+         END IF
          qs_env%se_nonbond_env => se_nonbond_env
       END IF
       IF (PRESENT(admm_env)) qs_env%admm_env => admm_env
@@ -1320,27 +1329,11 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE qs_env_create(qs_env, globenv)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(OUT)             :: qs_env
       TYPE(global_environment_type), OPTIONAL, POINTER   :: globenv
 
-      ALLOCATE (qs_env)
       CALL init_qs_env(qs_env, globenv=globenv)
    END SUBROUTINE qs_env_create
-
-! **************************************************************************************************
-!> \brief retains the given qs_env (see doc/ReferenceCounting.html)
-!> \param qs_env the object to retain
-!> \par History
-!>      12.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   SUBROUTINE qs_env_retain(qs_env)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CPASSERT(ASSOCIATED(qs_env))
-      CPASSERT(qs_env%ref_count > 0)
-      qs_env%ref_count = qs_env%ref_count + 1
-   END SUBROUTINE qs_env_retain
 
 ! **************************************************************************************************
 !> \brief releases the given qs_env (see doc/ReferenceCounting.html)
@@ -1351,200 +1344,221 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE qs_env_release(qs_env)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(INOUT)           :: qs_env
 
       INTEGER                                            :: i
 
-      IF (ASSOCIATED(qs_env)) THEN
-         CPASSERT(qs_env%ref_count > 0)
-         qs_env%ref_count = qs_env%ref_count - 1
-         IF (qs_env%ref_count < 1) THEN
-            CALL cell_release(qs_env%super_cell)
-            IF (ASSOCIATED(qs_env%mos)) THEN
-               DO i = 1, SIZE(qs_env%mos)
-                  CALL deallocate_mo_set(qs_env%mos(i)%mo_set)
-               END DO
-               DEALLOCATE (qs_env%mos)
-            END IF
-            IF (ASSOCIATED(qs_env%mos_last_converged)) THEN
-               DO i = 1, SIZE(qs_env%mos_last_converged)
-                  CALL deallocate_mo_set(qs_env%mos_last_converged(i)%mo_set)
-               END DO
-               DEALLOCATE (qs_env%mos_last_converged)
-            END IF
+      CALL cell_release(qs_env%super_cell)
+      IF (ASSOCIATED(qs_env%mos)) THEN
+         DO i = 1, SIZE(qs_env%mos)
+            CALL deallocate_mo_set(qs_env%mos(i)%mo_set)
+         END DO
+         DEALLOCATE (qs_env%mos)
+      END IF
+      IF (ASSOCIATED(qs_env%mos_last_converged)) THEN
+         DO i = 1, SIZE(qs_env%mos_last_converged)
+            CALL deallocate_mo_set(qs_env%mos_last_converged(i)%mo_set)
+         END DO
+         DEALLOCATE (qs_env%mos_last_converged)
+      END IF
 
-            IF (ASSOCIATED(qs_env%mo_derivs)) THEN
-               DO I = 1, SIZE(qs_env%mo_derivs)
-                  CALL dbcsr_release_p(qs_env%mo_derivs(I)%matrix)
-               END DO
-               DEALLOCATE (qs_env%mo_derivs)
-            END IF
-            IF (ASSOCIATED(qs_env%mo_loc_history)) THEN
-               DO I = 1, SIZE(qs_env%mo_loc_history)
-                  CALL cp_fm_release(qs_env%mo_loc_history(I)%matrix)
-                  DEALLOCATE (qs_env%mo_loc_history(I)%matrix)
-               END DO
-               DEALLOCATE (qs_env%mo_loc_history)
-            END IF
-            IF (ASSOCIATED(qs_env%rtp)) THEN
-               CALL rt_prop_release(qs_env%rtp)
-               DEALLOCATE (qs_env%rtp)
-            END IF
-            IF (ASSOCIATED(qs_env%outer_scf_history)) THEN
-               DEALLOCATE (qs_env%outer_scf_history)
-               qs_env%outer_scf_ihistory = 0
-            END IF
-            IF (ASSOCIATED(qs_env%gradient_history)) &
-               DEALLOCATE (qs_env%gradient_history)
-            IF (ASSOCIATED(qs_env%variable_history)) &
-               DEALLOCATE (qs_env%variable_history)
-            IF (ASSOCIATED(qs_env%oce)) CALL deallocate_oce_set(qs_env%oce)
-            IF (ASSOCIATED(qs_env%local_rho_set)) THEN
-               CALL local_rho_set_release(qs_env%local_rho_set)
-            END IF
-            IF (ASSOCIATED(qs_env%hartree_local)) THEN
-               CALL hartree_local_release(qs_env%hartree_local)
-            END IF
-            CALL scf_c_release(qs_env%scf_control)
-            CALL rel_c_release(qs_env%rel_control)
+      IF (ASSOCIATED(qs_env%mo_derivs)) THEN
+         DO I = 1, SIZE(qs_env%mo_derivs)
+            CALL dbcsr_release_p(qs_env%mo_derivs(I)%matrix)
+         END DO
+         DEALLOCATE (qs_env%mo_derivs)
+      END IF
+      IF (ASSOCIATED(qs_env%mo_loc_history)) THEN
+         DO I = 1, SIZE(qs_env%mo_loc_history)
+            CALL cp_fm_release(qs_env%mo_loc_history(I)%matrix)
+            DEALLOCATE (qs_env%mo_loc_history(I)%matrix)
+         END DO
+         DEALLOCATE (qs_env%mo_loc_history)
+      END IF
+      IF (ASSOCIATED(qs_env%rtp)) THEN
+         CALL rt_prop_release(qs_env%rtp)
+         DEALLOCATE (qs_env%rtp)
+      END IF
+      IF (ASSOCIATED(qs_env%outer_scf_history)) THEN
+         DEALLOCATE (qs_env%outer_scf_history)
+         qs_env%outer_scf_ihistory = 0
+      END IF
+      IF (ASSOCIATED(qs_env%gradient_history)) &
+         DEALLOCATE (qs_env%gradient_history)
+      IF (ASSOCIATED(qs_env%variable_history)) &
+         DEALLOCATE (qs_env%variable_history)
+      IF (ASSOCIATED(qs_env%oce)) CALL deallocate_oce_set(qs_env%oce)
+      IF (ASSOCIATED(qs_env%local_rho_set)) THEN
+         CALL local_rho_set_release(qs_env%local_rho_set)
+      END IF
+      IF (ASSOCIATED(qs_env%hartree_local)) THEN
+         CALL hartree_local_release(qs_env%hartree_local)
+      END IF
+      IF (ASSOCIATED(qs_env%scf_control)) THEN
+         CALL scf_c_release(qs_env%scf_control)
+         DEALLOCATE (qs_env%scf_control)
+      END IF
+      IF (ASSOCIATED(qs_env%rel_control)) THEN
+         CALL rel_c_release(qs_env%rel_control)
+         DEALLOCATE (qs_env%rel_control)
+      END IF
 
-            IF (ASSOCIATED(qs_env%linres_control)) THEN
-               CALL linres_control_release(qs_env%linres_control)
-            END IF
+      IF (ASSOCIATED(qs_env%linres_control)) THEN
+         CALL linres_control_release(qs_env%linres_control)
+      END IF
 
-            IF (ASSOCIATED(qs_env%almo_scf_env)) THEN
-               CALL almo_scf_env_release(qs_env%almo_scf_env)
-            END IF
+      IF (ASSOCIATED(qs_env%almo_scf_env)) THEN
+         CALL almo_scf_env_release(qs_env%almo_scf_env)
+      END IF
 
-            IF (ASSOCIATED(qs_env%ls_scf_env)) THEN
-               CALL ls_scf_release(qs_env%ls_scf_env)
-            END IF
-            CALL molecular_scf_guess_env_destroy(qs_env%molecular_scf_guess_env)
+      IF (ASSOCIATED(qs_env%ls_scf_env)) THEN
+         CALL ls_scf_release(qs_env%ls_scf_env)
+      END IF
+      IF (ASSOCIATED(qs_env%molecular_scf_guess_env)) THEN
+         CALL molecular_scf_guess_env_destroy(qs_env%molecular_scf_guess_env)
+         DEALLOCATE (qs_env%molecular_scf_guess_env)
+      END IF
 
-            IF (ASSOCIATED(qs_env%transport_env)) THEN
-               CALL transport_env_release(qs_env%transport_env)
-            END IF
+      IF (ASSOCIATED(qs_env%transport_env)) THEN
+         CALL transport_env_release(qs_env%transport_env)
+      END IF
 
-            !Only if do_xas_calculation
-            IF (ASSOCIATED(qs_env%xas_env)) THEN
-               CALL xas_env_release(qs_env%xas_env)
-            END IF
-            CALL ewald_env_release(qs_env%ewald_env)
-            CALL ewald_pw_release(qs_env%ewald_pw)
-            IF (ASSOCIATED(qs_env%image_matrix)) THEN
-               DEALLOCATE (qs_env%image_matrix)
-            END IF
-            IF (ASSOCIATED(qs_env%ipiv)) THEN
-               DEALLOCATE (qs_env%ipiv)
-            END IF
-            IF (ASSOCIATED(qs_env%image_coeff)) THEN
-               DEALLOCATE (qs_env%image_coeff)
-            END IF
-            ! ZMP
-            IF (ASSOCIATED(qs_env%rho_external)) THEN
-               CALL qs_rho_release(qs_env%rho_external)
-            END IF
-            IF (ASSOCIATED(qs_env%external_vxc)) THEN
-               CALL pw_release(qs_env%external_vxc)
-               DEALLOCATE (qs_env%external_vxc)
-            END IF
-            IF (ASSOCIATED(qs_env%mask)) THEN
-               CALL pw_release(qs_env%mask)
-               DEALLOCATE (qs_env%mask)
-            END IF
-            IF (ASSOCIATED(qs_env%active_space)) THEN
-               CALL release_active_space_type(qs_env%active_space)
-            END IF
-            ! Embedding potentials if provided as input
-            IF (qs_env%given_embed_pot) THEN
-               CALL pw_release(qs_env%embed_pot)
-               DEALLOCATE (qs_env%embed_pot)
-               IF (ASSOCIATED(qs_env%spin_embed_pot)) THEN
-                  CALL pw_release(qs_env%spin_embed_pot)
-                  DEALLOCATE (qs_env%spin_embed_pot)
-               END IF
-            END IF
-
-            ! Polarisability tensor
-            CALL polar_env_release(qs_env%polar_env)
-
-            CALL qs_charges_release(qs_env%qs_charges)
-            CALL qs_ks_release(qs_env%ks_env)
-            CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env)
-            CALL wfi_release(qs_env%wf_history)
-            CALL scf_env_release(qs_env%scf_env)
-            CALL mpools_release(qs_env%mpools)
-            CALL section_vals_release(qs_env%input)
-            CALL cp_ddapc_release(qs_env%cp_ddapc_env)
-            CALL cp_ddapc_ewald_release(qs_env%cp_ddapc_ewald)
-            CALL efield_berry_release(qs_env%efield)
-            IF (ASSOCIATED(qs_env%x_data)) THEN
-               CALL hfx_release(qs_env%x_data)
-            END IF
-            IF (ASSOCIATED(qs_env%et_coupling)) THEN
-               CALL et_coupling_release(qs_env%et_coupling)
-            END IF
-            IF (ASSOCIATED(qs_env%dftb_potential)) THEN
-               CALL qs_dftb_pairpot_release(qs_env%dftb_potential)
-            END IF
-            IF (ASSOCIATED(qs_env%se_taper)) THEN
-               CALL se_taper_release(qs_env%se_taper)
-            END IF
-            IF (ASSOCIATED(qs_env%se_store_int_env)) THEN
-               CALL semi_empirical_si_release(qs_env%se_store_int_env)
-            END IF
-            IF (ASSOCIATED(qs_env%se_nddo_mpole)) THEN
-               CALL nddo_mpole_release(qs_env%se_nddo_mpole)
-            END IF
-            IF (ASSOCIATED(qs_env%se_nonbond_env)) THEN
-               CALL fist_nonbond_env_release(qs_env%se_nonbond_env)
-            END IF
-            IF (ASSOCIATED(qs_env%admm_env)) THEN
-               CALL admm_env_release(qs_env%admm_env)
-            END IF
-            IF (ASSOCIATED(qs_env%lri_env)) THEN
-               CALL lri_env_release(qs_env%lri_env)
-            END IF
-            IF (ASSOCIATED(qs_env%lri_density)) THEN
-               CALL lri_density_release(qs_env%lri_density)
-            END IF
-            IF (ASSOCIATED(qs_env%ec_env)) THEN
-               CALL ec_env_release(qs_env%ec_env)
-            END IF
-            IF (ASSOCIATED(qs_env%exstate_env)) THEN
-               CALL exstate_release(qs_env%exstate_env)
-            END IF
-            IF (ASSOCIATED(qs_env%mp2_env)) THEN
-               CALL mp2_env_release(qs_env%mp2_env)
-               DEALLOCATE (qs_env%mp2_env)
-               NULLIFY (qs_env%mp2_env)
-            END IF
-            IF (ASSOCIATED(qs_env%kg_env)) THEN
-               CALL kg_env_release(qs_env%kg_env)
-            END IF
-
-            ! dispersion
-            CALL qs_dispersion_release(qs_env%dispersion_env)
-            ! gCP
-            IF (ASSOCIATED(qs_env%gcp_env)) THEN
-               CALL qs_gcp_release(qs_env%gcp_env)
-            END IF
-
-            IF (ASSOCIATED(qs_env%WannierCentres)) THEN
-               DO i = 1, SIZE(qs_env%WannierCentres)
-                  DEALLOCATE (qs_env%WannierCentres(i)%WannierHamDiag)
-                  DEALLOCATE (qs_env%WannierCentres(i)%centres)
-               END DO
-               DEALLOCATE (qs_env%WannierCentres)
-            END IF
-            ! Resp charges
-            IF (ASSOCIATED(qs_env%rhs)) DEALLOCATE (qs_env%rhs)
-            ! now we are ready to deallocate the full structure
-            DEALLOCATE (qs_env)
+      !Only if do_xas_calculation
+      IF (ASSOCIATED(qs_env%xas_env)) THEN
+         CALL xas_env_release(qs_env%xas_env)
+         DEALLOCATE (qs_env%xas_env)
+      END IF
+      CALL ewald_env_release(qs_env%ewald_env)
+      IF (ASSOCIATED(qs_env%ewald_pw)) THEN
+         CALL ewald_pw_release(qs_env%ewald_pw)
+         DEALLOCATE (qs_env%ewald_pw)
+      END IF
+      IF (ASSOCIATED(qs_env%image_matrix)) THEN
+         DEALLOCATE (qs_env%image_matrix)
+      END IF
+      IF (ASSOCIATED(qs_env%ipiv)) THEN
+         DEALLOCATE (qs_env%ipiv)
+      END IF
+      IF (ASSOCIATED(qs_env%image_coeff)) THEN
+         DEALLOCATE (qs_env%image_coeff)
+      END IF
+      ! ZMP
+      IF (ASSOCIATED(qs_env%rho_external)) THEN
+         CALL qs_rho_release(qs_env%rho_external)
+      END IF
+      IF (ASSOCIATED(qs_env%external_vxc)) THEN
+         CALL pw_release(qs_env%external_vxc)
+         DEALLOCATE (qs_env%external_vxc)
+      END IF
+      IF (ASSOCIATED(qs_env%mask)) THEN
+         CALL pw_release(qs_env%mask)
+         DEALLOCATE (qs_env%mask)
+      END IF
+      IF (ASSOCIATED(qs_env%active_space)) THEN
+         CALL release_active_space_type(qs_env%active_space)
+      END IF
+      ! Embedding potentials if provided as input
+      IF (qs_env%given_embed_pot) THEN
+         CALL pw_release(qs_env%embed_pot)
+         DEALLOCATE (qs_env%embed_pot)
+         IF (ASSOCIATED(qs_env%spin_embed_pot)) THEN
+            CALL pw_release(qs_env%spin_embed_pot)
+            DEALLOCATE (qs_env%spin_embed_pot)
          END IF
       END IF
 
-      NULLIFY (qs_env)
+      ! Polarisability tensor
+      CALL polar_env_release(qs_env%polar_env)
+
+      IF (ASSOCIATED(qs_env%qs_charges)) THEN
+         CALL qs_charges_release(qs_env%qs_charges)
+         DEALLOCATE (qs_env%qs_charges)
+      END IF
+      IF (ASSOCIATED(qs_env%ks_env)) THEN
+         CALL qs_ks_release(qs_env%ks_env)
+         DEALLOCATE (qs_env%ks_env)
+      END IF
+      IF (ASSOCIATED(qs_env%ks_qmmm_env)) THEN
+         CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env)
+         DEALLOCATE (qs_env%ks_qmmm_env)
+      END IF
+      CALL wfi_release(qs_env%wf_history)
+      IF (ASSOCIATED(qs_env%scf_env)) THEN
+         CALL scf_env_release(qs_env%scf_env)
+         DEALLOCATE (qs_env%scf_env)
+      END IF
+      CALL mpools_release(qs_env%mpools)
+      CALL section_vals_release(qs_env%input)
+      IF (ASSOCIATED(qs_env%cp_ddapc_env)) THEN
+         CALL cp_ddapc_release(qs_env%cp_ddapc_env)
+         DEALLOCATE (qs_env%cp_ddapc_env)
+      END IF
+      CALL cp_ddapc_ewald_release(qs_env%cp_ddapc_ewald)
+      CALL efield_berry_release(qs_env%efield)
+      IF (ASSOCIATED(qs_env%x_data)) THEN
+         CALL hfx_release(qs_env%x_data)
+      END IF
+      IF (ASSOCIATED(qs_env%et_coupling)) THEN
+         CALL et_coupling_release(qs_env%et_coupling)
+      END IF
+      IF (ASSOCIATED(qs_env%dftb_potential)) THEN
+         CALL qs_dftb_pairpot_release(qs_env%dftb_potential)
+      END IF
+      IF (ASSOCIATED(qs_env%se_taper)) THEN
+         CALL se_taper_release(qs_env%se_taper)
+      END IF
+      IF (ASSOCIATED(qs_env%se_store_int_env)) THEN
+         CALL semi_empirical_si_release(qs_env%se_store_int_env)
+      END IF
+      IF (ASSOCIATED(qs_env%se_nddo_mpole)) THEN
+         CALL nddo_mpole_release(qs_env%se_nddo_mpole)
+      END IF
+      IF (ASSOCIATED(qs_env%se_nonbond_env)) THEN
+         CALL fist_nonbond_env_release(qs_env%se_nonbond_env)
+         DEALLOCATE (qs_env%se_nonbond_env)
+      END IF
+      IF (ASSOCIATED(qs_env%admm_env)) THEN
+         CALL admm_env_release(qs_env%admm_env)
+      END IF
+      IF (ASSOCIATED(qs_env%lri_env)) THEN
+         CALL lri_env_release(qs_env%lri_env)
+         DEALLOCATE (qs_env%lri_env)
+      END IF
+      IF (ASSOCIATED(qs_env%lri_density)) THEN
+         CALL lri_density_release(qs_env%lri_density)
+         DEALLOCATE (qs_env%lri_density)
+      END IF
+      IF (ASSOCIATED(qs_env%ec_env)) THEN
+         CALL ec_env_release(qs_env%ec_env)
+      END IF
+      IF (ASSOCIATED(qs_env%exstate_env)) THEN
+         CALL exstate_release(qs_env%exstate_env)
+      END IF
+      IF (ASSOCIATED(qs_env%mp2_env)) THEN
+         CALL mp2_env_release(qs_env%mp2_env)
+         DEALLOCATE (qs_env%mp2_env)
+         NULLIFY (qs_env%mp2_env)
+      END IF
+      IF (ASSOCIATED(qs_env%kg_env)) THEN
+         CALL kg_env_release(qs_env%kg_env)
+      END IF
+
+      ! dispersion
+      CALL qs_dispersion_release(qs_env%dispersion_env)
+      ! gCP
+      IF (ASSOCIATED(qs_env%gcp_env)) THEN
+         CALL qs_gcp_release(qs_env%gcp_env)
+      END IF
+
+      IF (ASSOCIATED(qs_env%WannierCentres)) THEN
+         DO i = 1, SIZE(qs_env%WannierCentres)
+            DEALLOCATE (qs_env%WannierCentres(i)%WannierHamDiag)
+            DEALLOCATE (qs_env%WannierCentres(i)%centres)
+         END DO
+         DEALLOCATE (qs_env%WannierCentres)
+      END IF
+      ! Resp charges
+      IF (ASSOCIATED(qs_env%rhs)) DEALLOCATE (qs_env%rhs)
 
    END SUBROUTINE qs_env_release
 
@@ -1555,186 +1569,209 @@ CONTAINS
 !>      04.2022 created [JGH]
 ! **************************************************************************************************
    SUBROUTINE qs_env_part_release(qs_env)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(INOUT)           :: qs_env
 
       INTEGER                                            :: i
 
-      IF (ASSOCIATED(qs_env)) THEN
-         CPASSERT(qs_env%ref_count > 0)
-         IF (qs_env%ref_count == 1) THEN
-            IF (ASSOCIATED(qs_env%mos_last_converged)) THEN
-               DO i = 1, SIZE(qs_env%mos_last_converged)
-                  CALL deallocate_mo_set(qs_env%mos_last_converged(i)%mo_set)
-               END DO
-               DEALLOCATE (qs_env%mos_last_converged)
-            END IF
+      IF (ASSOCIATED(qs_env%mos_last_converged)) THEN
+         DO i = 1, SIZE(qs_env%mos_last_converged)
+            CALL deallocate_mo_set(qs_env%mos_last_converged(i)%mo_set)
+         END DO
+         DEALLOCATE (qs_env%mos_last_converged)
+      END IF
 
-            IF (ASSOCIATED(qs_env%mo_derivs)) THEN
-               DO I = 1, SIZE(qs_env%mo_derivs)
-                  CALL dbcsr_release_p(qs_env%mo_derivs(I)%matrix)
-               END DO
-               DEALLOCATE (qs_env%mo_derivs)
-            END IF
-            IF (ASSOCIATED(qs_env%mo_loc_history)) THEN
-               DO I = 1, SIZE(qs_env%mo_loc_history)
-                  CALL cp_fm_release(qs_env%mo_loc_history(I)%matrix)
-                  DEALLOCATE (qs_env%mo_loc_history(I)%matrix)
-               END DO
-               DEALLOCATE (qs_env%mo_loc_history)
-            END IF
-            IF (ASSOCIATED(qs_env%rtp)) THEN
-               CALL rt_prop_release(qs_env%rtp)
-               DEALLOCATE (qs_env%rtp)
-            END IF
-            IF (ASSOCIATED(qs_env%outer_scf_history)) THEN
-               DEALLOCATE (qs_env%outer_scf_history)
-               qs_env%outer_scf_ihistory = 0
-            END IF
-            IF (ASSOCIATED(qs_env%gradient_history)) &
-               DEALLOCATE (qs_env%gradient_history)
-            IF (ASSOCIATED(qs_env%variable_history)) &
-               DEALLOCATE (qs_env%variable_history)
-            IF (ASSOCIATED(qs_env%oce)) CALL deallocate_oce_set(qs_env%oce)
-            IF (ASSOCIATED(qs_env%local_rho_set)) THEN
-               CALL local_rho_set_release(qs_env%local_rho_set)
-            END IF
-            IF (ASSOCIATED(qs_env%hartree_local)) THEN
-               CALL hartree_local_release(qs_env%hartree_local)
-            END IF
-            CALL scf_c_release(qs_env%scf_control)
-            CALL rel_c_release(qs_env%rel_control)
+      IF (ASSOCIATED(qs_env%mo_derivs)) THEN
+         DO I = 1, SIZE(qs_env%mo_derivs)
+            CALL dbcsr_release_p(qs_env%mo_derivs(I)%matrix)
+         END DO
+         DEALLOCATE (qs_env%mo_derivs)
+      END IF
+      IF (ASSOCIATED(qs_env%mo_loc_history)) THEN
+         DO I = 1, SIZE(qs_env%mo_loc_history)
+            CALL cp_fm_release(qs_env%mo_loc_history(I)%matrix)
+            DEALLOCATE (qs_env%mo_loc_history(I)%matrix)
+         END DO
+         DEALLOCATE (qs_env%mo_loc_history)
+      END IF
+      IF (ASSOCIATED(qs_env%rtp)) THEN
+         CALL rt_prop_release(qs_env%rtp)
+         DEALLOCATE (qs_env%rtp)
+      END IF
+      IF (ASSOCIATED(qs_env%outer_scf_history)) THEN
+         DEALLOCATE (qs_env%outer_scf_history)
+         qs_env%outer_scf_ihistory = 0
+      END IF
+      IF (ASSOCIATED(qs_env%gradient_history)) &
+         DEALLOCATE (qs_env%gradient_history)
+      IF (ASSOCIATED(qs_env%variable_history)) &
+         DEALLOCATE (qs_env%variable_history)
+      IF (ASSOCIATED(qs_env%oce)) CALL deallocate_oce_set(qs_env%oce)
+      IF (ASSOCIATED(qs_env%local_rho_set)) THEN
+         CALL local_rho_set_release(qs_env%local_rho_set)
+      END IF
+      IF (ASSOCIATED(qs_env%hartree_local)) THEN
+         CALL hartree_local_release(qs_env%hartree_local)
+      END IF
+      IF (ASSOCIATED(qs_env%scf_control)) THEN
+         CALL scf_c_release(qs_env%scf_control)
+         DEALLOCATE (qs_env%scf_control)
+      END IF
+      IF (ASSOCIATED(qs_env%rel_control)) THEN
+         CALL rel_c_release(qs_env%rel_control)
+         DEALLOCATE (qs_env%rel_control)
+      END IF
 
-            IF (ASSOCIATED(qs_env%linres_control)) THEN
-               CALL linres_control_release(qs_env%linres_control)
-            END IF
+      IF (ASSOCIATED(qs_env%linres_control)) THEN
+         CALL linres_control_release(qs_env%linres_control)
+      END IF
 
-            IF (ASSOCIATED(qs_env%almo_scf_env)) THEN
-               CALL almo_scf_env_release(qs_env%almo_scf_env)
-            END IF
+      IF (ASSOCIATED(qs_env%almo_scf_env)) THEN
+         CALL almo_scf_env_release(qs_env%almo_scf_env)
+      END IF
 
-            IF (ASSOCIATED(qs_env%ls_scf_env)) THEN
-               CALL ls_scf_release(qs_env%ls_scf_env)
-            END IF
-            CALL molecular_scf_guess_env_destroy(qs_env%molecular_scf_guess_env)
+      IF (ASSOCIATED(qs_env%ls_scf_env)) THEN
+         CALL ls_scf_release(qs_env%ls_scf_env)
+      END IF
+      IF (ASSOCIATED(qs_env%molecular_scf_guess_env)) THEN
+         CALL molecular_scf_guess_env_destroy(qs_env%molecular_scf_guess_env)
+         DEALLOCATE (qs_env%molecular_scf_guess_env)
+      END IF
 
-            IF (ASSOCIATED(qs_env%transport_env)) THEN
-               CALL transport_env_release(qs_env%transport_env)
-            END IF
+      IF (ASSOCIATED(qs_env%transport_env)) THEN
+         CALL transport_env_release(qs_env%transport_env)
+      END IF
 
-            !Only if do_xas_calculation
-            IF (ASSOCIATED(qs_env%xas_env)) THEN
-               CALL xas_env_release(qs_env%xas_env)
-            END IF
-            CALL ewald_env_release(qs_env%ewald_env)
-            CALL ewald_pw_release(qs_env%ewald_pw)
-            IF (ASSOCIATED(qs_env%image_matrix)) THEN
-               DEALLOCATE (qs_env%image_matrix)
-            END IF
-            IF (ASSOCIATED(qs_env%ipiv)) THEN
-               DEALLOCATE (qs_env%ipiv)
-            END IF
-            IF (ASSOCIATED(qs_env%image_coeff)) THEN
-               DEALLOCATE (qs_env%image_coeff)
-            END IF
-            ! ZMP
-            IF (ASSOCIATED(qs_env%rho_external)) THEN
-               CALL qs_rho_release(qs_env%rho_external)
-            END IF
-            IF (ASSOCIATED(qs_env%external_vxc)) THEN
-               CALL pw_release(qs_env%external_vxc)
-               DEALLOCATE (qs_env%external_vxc)
-            END IF
-            IF (ASSOCIATED(qs_env%mask)) THEN
-               CALL pw_release(qs_env%mask)
-               DEALLOCATE (qs_env%mask)
-            END IF
-            IF (ASSOCIATED(qs_env%active_space)) THEN
-               CALL release_active_space_type(qs_env%active_space)
-            END IF
-            ! Embedding potentials if provided as input
-            IF (qs_env%given_embed_pot) THEN
-               CALL pw_release(qs_env%embed_pot)
-               DEALLOCATE (qs_env%embed_pot)
-               IF (ASSOCIATED(qs_env%spin_embed_pot)) THEN
-                  CALL pw_release(qs_env%spin_embed_pot)
-                  DEALLOCATE (qs_env%spin_embed_pot)
-               END IF
-            END IF
-
-            ! Polarisability tensor
-            CALL polar_env_release(qs_env%polar_env)
-
-            CALL qs_charges_release(qs_env%qs_charges)
-            CALL qs_ks_part_release(qs_env%ks_env)
-            CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env)
-            CALL wfi_release(qs_env%wf_history)
-            CALL scf_env_release(qs_env%scf_env)
-            CALL cp_ddapc_release(qs_env%cp_ddapc_env)
-            CALL cp_ddapc_ewald_release(qs_env%cp_ddapc_ewald)
-            CALL efield_berry_release(qs_env%efield)
-            IF (ASSOCIATED(qs_env%x_data)) THEN
-               CALL hfx_release(qs_env%x_data)
-            END IF
-            IF (ASSOCIATED(qs_env%et_coupling)) THEN
-               CALL et_coupling_release(qs_env%et_coupling)
-            END IF
-            IF (ASSOCIATED(qs_env%dftb_potential)) THEN
-               CALL qs_dftb_pairpot_release(qs_env%dftb_potential)
-            END IF
-            IF (ASSOCIATED(qs_env%se_taper)) THEN
-               CALL se_taper_release(qs_env%se_taper)
-            END IF
-            IF (ASSOCIATED(qs_env%se_store_int_env)) THEN
-               CALL semi_empirical_si_release(qs_env%se_store_int_env)
-            END IF
-            IF (ASSOCIATED(qs_env%se_nddo_mpole)) THEN
-               CALL nddo_mpole_release(qs_env%se_nddo_mpole)
-            END IF
-            IF (ASSOCIATED(qs_env%se_nonbond_env)) THEN
-               CALL fist_nonbond_env_release(qs_env%se_nonbond_env)
-            END IF
-            IF (ASSOCIATED(qs_env%admm_env)) THEN
-               CALL admm_env_release(qs_env%admm_env)
-            END IF
-            IF (ASSOCIATED(qs_env%lri_env)) THEN
-               CALL lri_env_release(qs_env%lri_env)
-            END IF
-            IF (ASSOCIATED(qs_env%lri_density)) THEN
-               CALL lri_density_release(qs_env%lri_density)
-            END IF
-            IF (ASSOCIATED(qs_env%ec_env)) THEN
-               CALL ec_env_release(qs_env%ec_env)
-            END IF
-            IF (ASSOCIATED(qs_env%exstate_env)) THEN
-               CALL exstate_release(qs_env%exstate_env)
-            END IF
-            IF (ASSOCIATED(qs_env%mp2_env)) THEN
-               CALL mp2_env_release(qs_env%mp2_env)
-               DEALLOCATE (qs_env%mp2_env)
-               NULLIFY (qs_env%mp2_env)
-            END IF
-            IF (ASSOCIATED(qs_env%kg_env)) THEN
-               CALL kg_env_release(qs_env%kg_env)
-            END IF
-
-            ! dispersion
-            CALL qs_dispersion_release(qs_env%dispersion_env)
-            ! gCP
-            IF (ASSOCIATED(qs_env%gcp_env)) THEN
-               CALL qs_gcp_release(qs_env%gcp_env)
-            END IF
-
-            IF (ASSOCIATED(qs_env%WannierCentres)) THEN
-               DO i = 1, SIZE(qs_env%WannierCentres)
-                  DEALLOCATE (qs_env%WannierCentres(i)%WannierHamDiag)
-                  DEALLOCATE (qs_env%WannierCentres(i)%centres)
-               END DO
-               DEALLOCATE (qs_env%WannierCentres)
-            END IF
-            ! Resp charges
-            IF (ASSOCIATED(qs_env%rhs)) DEALLOCATE (qs_env%rhs)
+      !Only if do_xas_calculation
+      IF (ASSOCIATED(qs_env%xas_env)) THEN
+         CALL xas_env_release(qs_env%xas_env)
+         DEALLOCATE (qs_env%xas_env)
+      END IF
+      CALL ewald_env_release(qs_env%ewald_env)
+      IF (ASSOCIATED(qs_env%ewald_pw)) THEN
+         CALL ewald_pw_release(qs_env%ewald_pw)
+         DEALLOCATE (qs_env%ewald_pw)
+      END IF
+      IF (ASSOCIATED(qs_env%image_matrix)) THEN
+         DEALLOCATE (qs_env%image_matrix)
+      END IF
+      IF (ASSOCIATED(qs_env%ipiv)) THEN
+         DEALLOCATE (qs_env%ipiv)
+      END IF
+      IF (ASSOCIATED(qs_env%image_coeff)) THEN
+         DEALLOCATE (qs_env%image_coeff)
+      END IF
+      ! ZMP
+      IF (ASSOCIATED(qs_env%rho_external)) THEN
+         CALL qs_rho_release(qs_env%rho_external)
+      END IF
+      IF (ASSOCIATED(qs_env%external_vxc)) THEN
+         CALL pw_release(qs_env%external_vxc)
+         DEALLOCATE (qs_env%external_vxc)
+      END IF
+      IF (ASSOCIATED(qs_env%mask)) THEN
+         CALL pw_release(qs_env%mask)
+         DEALLOCATE (qs_env%mask)
+      END IF
+      IF (ASSOCIATED(qs_env%active_space)) THEN
+         CALL release_active_space_type(qs_env%active_space)
+      END IF
+      ! Embedding potentials if provided as input
+      IF (qs_env%given_embed_pot) THEN
+         CALL pw_release(qs_env%embed_pot)
+         DEALLOCATE (qs_env%embed_pot)
+         IF (ASSOCIATED(qs_env%spin_embed_pot)) THEN
+            CALL pw_release(qs_env%spin_embed_pot)
+            DEALLOCATE (qs_env%spin_embed_pot)
          END IF
       END IF
+
+      ! Polarisability tensor
+      CALL polar_env_release(qs_env%polar_env)
+
+      IF (ASSOCIATED(qs_env%qs_charges)) THEN
+         CALL qs_charges_release(qs_env%qs_charges)
+         DEALLOCATE (qs_env%qs_charges)
+      END IF
+      CALL qs_ks_part_release(qs_env%ks_env)
+      IF (ASSOCIATED(qs_env%ks_qmmm_env)) THEN
+         CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env)
+         DEALLOCATE (qs_env%ks_qmmm_env)
+      END IF
+      CALL wfi_release(qs_env%wf_history)
+      IF (ASSOCIATED(qs_env%scf_env)) THEN
+         CALL scf_env_release(qs_env%scf_env)
+         DEALLOCATE (qs_env%scf_env)
+      END IF
+      IF (ASSOCIATED(qs_env%cp_ddapc_env)) THEN
+         CALL cp_ddapc_release(qs_env%cp_ddapc_env)
+         DEALLOCATE (qs_env%cp_ddapc_env)
+      END IF
+      CALL cp_ddapc_ewald_release(qs_env%cp_ddapc_ewald)
+      CALL efield_berry_release(qs_env%efield)
+      IF (ASSOCIATED(qs_env%x_data)) THEN
+         CALL hfx_release(qs_env%x_data)
+      END IF
+      IF (ASSOCIATED(qs_env%et_coupling)) THEN
+         CALL et_coupling_release(qs_env%et_coupling)
+      END IF
+      IF (ASSOCIATED(qs_env%dftb_potential)) THEN
+         CALL qs_dftb_pairpot_release(qs_env%dftb_potential)
+      END IF
+      IF (ASSOCIATED(qs_env%se_taper)) THEN
+         CALL se_taper_release(qs_env%se_taper)
+      END IF
+      IF (ASSOCIATED(qs_env%se_store_int_env)) THEN
+         CALL semi_empirical_si_release(qs_env%se_store_int_env)
+      END IF
+      IF (ASSOCIATED(qs_env%se_nddo_mpole)) THEN
+         CALL nddo_mpole_release(qs_env%se_nddo_mpole)
+      END IF
+      IF (ASSOCIATED(qs_env%se_nonbond_env)) THEN
+         CALL fist_nonbond_env_release(qs_env%se_nonbond_env)
+         DEALLOCATE (qs_env%se_nonbond_env)
+      END IF
+      IF (ASSOCIATED(qs_env%admm_env)) THEN
+         CALL admm_env_release(qs_env%admm_env)
+      END IF
+      IF (ASSOCIATED(qs_env%lri_env)) THEN
+         CALL lri_env_release(qs_env%lri_env)
+         DEALLOCATE (qs_env%lri_env)
+      END IF
+      IF (ASSOCIATED(qs_env%lri_density)) THEN
+         CALL lri_density_release(qs_env%lri_density)
+         DEALLOCATE (qs_env%lri_density)
+      END IF
+      IF (ASSOCIATED(qs_env%ec_env)) THEN
+         CALL ec_env_release(qs_env%ec_env)
+      END IF
+      IF (ASSOCIATED(qs_env%exstate_env)) THEN
+         CALL exstate_release(qs_env%exstate_env)
+      END IF
+      IF (ASSOCIATED(qs_env%mp2_env)) THEN
+         CALL mp2_env_release(qs_env%mp2_env)
+         DEALLOCATE (qs_env%mp2_env)
+         NULLIFY (qs_env%mp2_env)
+      END IF
+      IF (ASSOCIATED(qs_env%kg_env)) THEN
+         CALL kg_env_release(qs_env%kg_env)
+      END IF
+
+      ! dispersion
+      CALL qs_dispersion_release(qs_env%dispersion_env)
+      ! gCP
+      IF (ASSOCIATED(qs_env%gcp_env)) THEN
+         CALL qs_gcp_release(qs_env%gcp_env)
+      END IF
+
+      IF (ASSOCIATED(qs_env%WannierCentres)) THEN
+         DO i = 1, SIZE(qs_env%WannierCentres)
+            DEALLOCATE (qs_env%WannierCentres(i)%WannierHamDiag)
+            DEALLOCATE (qs_env%WannierCentres(i)%centres)
+         END DO
+         DEALLOCATE (qs_env%WannierCentres)
+      END IF
+      ! Resp charges
+      IF (ASSOCIATED(qs_env%rhs)) DEALLOCATE (qs_env%rhs)
 
    END SUBROUTINE qs_env_part_release
 

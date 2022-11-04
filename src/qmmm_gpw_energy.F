@@ -51,7 +51,6 @@ MODULE qmmm_gpw_energy
                                               pw_pools_give_back_pws
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                               qmmm_gaussian_type
@@ -262,7 +261,7 @@ CONTAINS
       INTEGER                                            :: handle, handle2, igrid, ilevel, &
                                                             kind_interp, lb(3), ngrids, ub(3)
       LOGICAL                                            :: shells
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: grids
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: grids
 
       CPASSERT(ASSOCIATED(mm_particles))
       CPASSERT(ASSOCIATED(qmmm_env%mm_atom_chrg))
@@ -274,7 +273,7 @@ CONTAINS
       ngrids = SIZE(pw_pools)
       CALL pw_pools_create_pws(aug_pools, grids, use_data=REALDATA3D, in_space=REALSPACE)
       DO igrid = 1, ngrids
-         CALL pw_zero(grids(igrid)%pw)
+         CALL pw_zero(grids(igrid))
       END DO
 
       shells = .FALSE.
@@ -312,7 +311,7 @@ CONTAINS
       ! Sumup all contributions according the parallelization scheme
       IF (qmmm_env%par_scheme == do_par_atom) THEN
          DO ilevel = 1, SIZE(grids)
-            CALL mp_sum(grids(ilevel)%pw%cr3d, para_env%group)
+            CALL mp_sum(grids(ilevel)%cr3d, para_env%group)
          END DO
       END IF
       ! RealSpace Interpolation
@@ -323,8 +322,8 @@ CONTAINS
          CALL mp_sync(para_env%group)
          CALL timeset(TRIM(routineN)//":spline3Int", handle2)
          DO Ilevel = coarser_grid, auxbas_grid + 1, -1
-            CALL pw_prolongate_s3(grids(Ilevel)%pw, &
-                                  grids(Ilevel - 1)%pw, &
+            CALL pw_prolongate_s3(grids(Ilevel), &
+                                  grids(Ilevel - 1), &
                                   aug_pools(Ilevel)%pool, &
                                   param_section=interp_section)
          END DO
@@ -335,9 +334,9 @@ CONTAINS
       lb = v_qmmm%pw_grid%bounds_local(1, :)
       ub = v_qmmm%pw_grid%bounds_local(2, :)
 
-      v_qmmm%cr3d = grids(auxbas_grid)%pw%cr3d(lb(1):ub(1), &
-                                               lb(2):ub(2), &
-                                               lb(3):ub(3))
+      v_qmmm%cr3d = grids(auxbas_grid)%cr3d(lb(1):ub(1), &
+                                            lb(2):ub(2), &
+                                            lb(3):ub(3))
 
       CALL pw_pools_give_back_pws(aug_pools, grids)
 
@@ -374,7 +373,7 @@ CONTAINS
                                           eps_mm_rspace, pgfs, auxbas_grid, coarser_grid, &
                                           potentials, mm_cell, dOmmOqm, periodic, per_potentials, par_scheme, &
                                           qmmm_spherical_cutoff, shells)
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: tmp_grid
+      TYPE(pw_type), DIMENSION(:), INTENT(IN)            :: tmp_grid
       TYPE(particle_type), DIMENSION(:), POINTER         :: mm_particles
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mm_charges
       INTEGER, DIMENSION(:), POINTER                     :: mm_atom_index
@@ -409,7 +408,7 @@ CONTAINS
       NULLIFY (pgf, pot, per_pot, xdat, ydat, zdat)
       CALL timeset(routineN, handle)
       CALL timeset(routineNb//"_G", handle2)
-      bo2 = tmp_grid(auxbas_grid)%pw%pw_grid%bounds
+      bo2 = tmp_grid(auxbas_grid)%pw_grid%bounds
       ALLOCATE (xdat(bo2(1, 1):bo2(2, 1)))
       ALLOCATE (ydat(bo2(1, 2):bo2(2, 2)))
       ALLOCATE (zdat(bo2(1, 3):bo2(2, 3)))
@@ -450,7 +449,7 @@ CONTAINS
                                               rp=ra, &
                                               scale=-1.0_dp, &
                                               W=W, &
-                                              pwgrid=tmp_grid(ilevel)%pw, &
+                                              pwgrid=tmp_grid(ilevel), &
                                               cube_info=cube_info(ilevel), &
                                               eps_mm_rspace=eps_mm_rspace, &
                                               xdat=xdat, &
@@ -476,7 +475,7 @@ CONTAINS
       IF (periodic) THEN
          ! Long Range Part of the QM/MM Potential with Gaussians With Periodic Boundary Conditions
          CALL qmmm_elec_with_gaussian_LG(pgfs=pgfs, &
-                                         cgrid=tmp_grid(coarser_grid)%pw, &
+                                         cgrid=tmp_grid(coarser_grid), &
                                          mm_charges=mm_charges, &
                                          mm_atom_index=mm_atom_index, &
                                          mm_particles=mm_particles, &
@@ -490,7 +489,7 @@ CONTAINS
       ELSE
          ! Long Range Part of the QM/MM Potential with Gaussians
          CALL qmmm_elec_with_gaussian_LR(pgfs=pgfs, &
-                                         grid=tmp_grid(coarser_grid)%pw, &
+                                         grid=tmp_grid(coarser_grid), &
                                          mm_charges=mm_charges, &
                                          mm_atom_index=mm_atom_index, &
                                          mm_particles=mm_particles, &
@@ -535,7 +534,7 @@ CONTAINS
                                          mm_particles, para_env, per_potentials, &
                                          mm_cell, dOmmOqm, par_scheme, qmmm_spherical_cutoff, shells)
       TYPE(qmmm_gaussian_p_type), DIMENSION(:), POINTER  :: pgfs
-      TYPE(pw_type), POINTER                             :: cgrid
+      TYPE(pw_type), INTENT(IN)                          :: cgrid
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mm_charges
       INTEGER, DIMENSION(:), POINTER                     :: mm_atom_index
       TYPE(particle_type), DIMENSION(:), POINTER         :: mm_particles
@@ -760,7 +759,7 @@ CONTAINS
                                          mm_particles, para_env, potentials, &
                                          mm_cell, dOmmOqm, par_scheme, qmmm_spherical_cutoff, shells)
       TYPE(qmmm_gaussian_p_type), DIMENSION(:), POINTER  :: pgfs
-      TYPE(pw_type), POINTER                             :: grid
+      TYPE(pw_type), INTENT(IN)                          :: grid
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mm_charges
       INTEGER, DIMENSION(:), POINTER                     :: mm_atom_index
       TYPE(particle_type), DIMENSION(:), POINTER         :: mm_particles

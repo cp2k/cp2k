@@ -52,8 +52,6 @@ MODULE outer_scf_control_types
 !> \param max_iter_lumus maxumum number of iterations used to calculate
 !>        the lumos at the end of the scf
 !> \param max_scf max scf iterations
-!> \param id_nr unique number to identify an scf control
-!> \param ref_count reference count (see cp2k/doc/ReferenceCounting.html)
 !> \param added_mos additional number of MOs that might be used in the SCF
 !> \param step_size the optimizer step size
 !> \param cdft_opt_control settings for optimizers that work only together with CDFT constraints

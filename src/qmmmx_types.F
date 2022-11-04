@@ -22,10 +22,9 @@ MODULE qmmmx_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmmx_types'
 
-   PUBLIC :: qmmmx_env_type, qmmmx_env_get, qmmmx_env_retain, qmmmx_env_release
+   PUBLIC :: qmmmx_env_type, qmmmx_env_get, qmmmx_env_release
 
    TYPE qmmmx_env_type
-      INTEGER                                                 :: ref_count = 1
       TYPE(qmmm_env_type), POINTER                            :: core => Null()
       TYPE(qmmm_env_type), POINTER                            :: ext => Null()
    END TYPE qmmmx_env_type
@@ -40,12 +39,9 @@ CONTAINS
 !> \param kinetic_energy ...
 ! **************************************************************************************************
    SUBROUTINE qmmmx_env_get(qmmmx_env, subsys, potential_energy, kinetic_energy)
-      TYPE(qmmmx_env_type), POINTER                      :: qmmmx_env
+      TYPE(qmmmx_env_type), INTENT(IN)                   :: qmmmx_env
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: potential_energy, kinetic_energy
-
-      CPASSERT(ASSOCIATED(qmmmx_env))
-      CPASSERT(qmmmx_env%ref_count > 0)
 
       ! get the underlying energies from primary subsys.  This is the only subsys
       ! for conventional QM/MM, and force-mixing knows to put relevant energy there.
@@ -57,36 +53,18 @@ CONTAINS
    END SUBROUTINE qmmmx_env_get
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param qmmmx_env ...
-!> \author Ole Schuett
-! **************************************************************************************************
-   SUBROUTINE qmmmx_env_retain(qmmmx_env)
-      TYPE(qmmmx_env_type), POINTER                      :: qmmmx_env
-
-      CPASSERT(ASSOCIATED(qmmmx_env))
-      CPASSERT(qmmmx_env%ref_count > 0)
-      qmmmx_env%ref_count = qmmmx_env%ref_count + 1
-   END SUBROUTINE qmmmx_env_retain
-
-! **************************************************************************************************
 !> \brief releases the given qmmmx_env (see doc/ReferenceCounting.html)
 !> \param qmmmx_env the object to release
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE qmmmx_env_release(qmmmx_env)
-      TYPE(qmmmx_env_type), POINTER                      :: qmmmx_env
+      TYPE(qmmmx_env_type), INTENT(INOUT)                :: qmmmx_env
 
-      IF (ASSOCIATED(qmmmx_env)) THEN
-         CPASSERT(qmmmx_env%ref_count > 0)
-         qmmmx_env%ref_count = qmmmx_env%ref_count - 1
-         IF (qmmmx_env%ref_count == 0) THEN
-            CALL qmmm_env_release(qmmmx_env%core)
-            CALL qmmm_env_release(qmmmx_env%ext)
-            DEALLOCATE (qmmmx_env)
-         END IF
-      END IF
-      NULLIFY (qmmmx_env)
+      CALL qmmm_env_release(qmmmx_env%core)
+      DEALLOCATE (qmmmx_env%core)
+      CALL qmmm_env_release(qmmmx_env%ext)
+      DEALLOCATE (qmmmx_env%ext)
+
    END SUBROUTINE qmmmx_env_release
 
 END MODULE qmmmx_types

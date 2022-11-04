@@ -110,10 +110,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: velocity
       TYPE(atom_info_type), POINTER                      :: atom_info
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type)                               :: parser
       TYPE(section_vals_type), POINTER                   :: velocity_section
 
-      NULLIFY (parser, logger, velocity)
+      NULLIFY (logger, velocity)
       logger => cp_get_default_logger()
       iw = cp_print_key_unit_nr(logger, subsys_section, "PRINT%TOPOLOGY_INFO/CRD_INFO", &
                                 extension=".subsysLog")
@@ -394,10 +394,9 @@ CONTAINS
       LOGICAL                                            :: check, valid_format
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: asol, bsol, cn1, cn2, phase, pk, pn, &
                                                             req, rk, teq, tk
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type)                               :: parser
 
       CALL timeset(routineN, handle)
-      NULLIFY (parser)
       IF (output_unit > 0) WRITE (output_unit, '(/,A)') " AMBER_INFO| Reading Amber Topology File: "// &
          TRIM(filename)
       CALL parser_create(parser, filename, para_env=para_env, parse_white_lines=.TRUE.)
@@ -1052,7 +1051,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
    SUBROUTINE rd_amber_section_i1(parser, section, array1, dim)
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       CHARACTER(LEN=default_string_length), INTENT(IN)   :: section
       INTEGER, DIMENSION(:)                              :: array1
       INTEGER, INTENT(IN)                                :: dim
@@ -1087,7 +1086,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
    SUBROUTINE rd_amber_section_i3(parser, section, array1, array2, array3, dim)
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       CHARACTER(LEN=default_string_length), INTENT(IN)   :: section
       INTEGER, DIMENSION(:)                              :: array1, array2, array3
       INTEGER, INTENT(IN)                                :: dim
@@ -1134,7 +1133,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
    SUBROUTINE rd_amber_section_i4(parser, section, array1, array2, array3, array4, dim)
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       CHARACTER(LEN=default_string_length), INTENT(IN)   :: section
       INTEGER, DIMENSION(:)                              :: array1, array2, array3, array4
       INTEGER, INTENT(IN)                                :: dim
@@ -1188,7 +1187,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rd_amber_section_i5(parser, section, array1, array2, array3, array4, &
                                   array5, dim)
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       CHARACTER(LEN=default_string_length), INTENT(IN)   :: section
       INTEGER, DIMENSION(:)                              :: array1, array2, array3, array4, array5
       INTEGER, INTENT(IN)                                :: dim
@@ -1242,7 +1241,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
    SUBROUTINE rd_amber_section_c1(parser, section, array1, dim)
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       CHARACTER(LEN=default_string_length), INTENT(IN)   :: section
       CHARACTER(LEN=default_string_length), DIMENSION(:) :: array1
       INTEGER, INTENT(IN)                                :: dim
@@ -1275,7 +1274,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
    SUBROUTINE rd_amber_section_r1(parser, section, array1, dim)
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       CHARACTER(LEN=default_string_length), INTENT(IN)   :: section
       REAL(KIND=dp), DIMENSION(:)                        :: array1
       INTEGER, INTENT(IN)                                :: dim
@@ -1307,7 +1306,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
    FUNCTION get_section_parmtop(parser, section, input_format) RESULT(another_section)
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       CHARACTER(LEN=default_string_length), INTENT(OUT)  :: section, input_format
       LOGICAL                                            :: another_section
 
@@ -1344,7 +1343,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
    FUNCTION check_amber_8_std(parser, output_unit) RESULT(found_AMBER_V8)
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       INTEGER, INTENT(IN)                                :: output_unit
       LOGICAL                                            :: found_AMBER_V8
 

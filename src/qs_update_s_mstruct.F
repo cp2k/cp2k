@@ -131,6 +131,7 @@ CONTAINS
       ! *** environment for ddapc ***
       IF (ASSOCIATED(qs_env%cp_ddapc_env)) THEN
          CALL cp_ddapc_release(qs_env%cp_ddapc_env)
+         DEALLOCATE (qs_env%cp_ddapc_env)
       END IF
       CALL cp_ddapc_init(qs_env)
 

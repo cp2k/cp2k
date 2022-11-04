@@ -60,7 +60,6 @@ MODULE pw_poisson_methods
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
 #include "../base/base_uses.f90"
 
@@ -98,7 +97,10 @@ CONTAINS
       IF (ASSOCIATED(poisson_env%pw_pools)) THEN
          pw_pool => poisson_env%pw_pools(poisson_env%pw_level)%pool
       END IF
-      CALL pw_green_release(poisson_env%green_fft, pw_pool=pw_pool)
+      IF (ASSOCIATED(poisson_env%green_fft)) THEN
+         CALL pw_green_release(poisson_env%green_fft, pw_pool=pw_pool)
+         DEALLOCATE (poisson_env%green_fft)
+      END IF
       poisson_env%rebuild = .TRUE.
 
    END SUBROUTINE pw_poisson_cleanup
@@ -189,6 +191,7 @@ CONTAINS
          CALL pw_poisson_cleanup(poisson_env)
          SELECT CASE (poisson_env%parameters%solver)
          CASE (pw_poisson_periodic, pw_poisson_analytic, pw_poisson_mt, pw_poisson_multipole)
+            ALLOCATE (poisson_env%green_fft)
             CALL pw_green_create(poisson_env%green_fft, cell_hmat=poisson_env%cell_hmat, &
                                  pw_pool=poisson_env%pw_pools(poisson_env%pw_level)%pool, &
                                  poisson_params=poisson_env%parameters, &
@@ -199,6 +202,7 @@ CONTAINS
             CALL ps_wavelet_create(poisson_env%parameters, poisson_env%wavelet, &
                                    density%pw_grid)
          CASE (pw_poisson_implicit)
+            ALLOCATE (poisson_env%green_fft)
             CALL pw_green_create(poisson_env%green_fft, cell_hmat=poisson_env%cell_hmat, &
                                  pw_pool=poisson_env%pw_pools(poisson_env%pw_level)%pool, &
                                  poisson_params=poisson_env%parameters, &
@@ -243,7 +247,7 @@ CONTAINS
       TYPE(pw_type), INTENT(IN)                          :: density
       REAL(kind=dp), INTENT(out), OPTIONAL               :: ehartree
       TYPE(pw_type), INTENT(INOUT), OPTIONAL             :: vhartree
-      TYPE(pw_p_type), DIMENSION(3), OPTIONAL            :: dvhartree
+      TYPE(pw_type), DIMENSION(3), OPTIONAL              :: dvhartree
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
          OPTIONAL                                        :: h_stress
       TYPE(pw_type), INTENT(IN), OPTIONAL                :: rho_core, greenfn, aux_density
@@ -419,7 +423,7 @@ CONTAINS
          ! save the derivatives
          IF (PRESENT(dvhartree)) THEN
             DO i = 1, 3
-               CALL pw_transfer(dvg(i), dvhartree(i)%pw)
+               CALL pw_transfer(dvg(i), dvhartree(i))
             END DO
          END IF
          ! Calculate the contribution to the stress tensor this is only the contribution from

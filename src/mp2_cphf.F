@@ -1376,13 +1376,14 @@ CONTAINS
          POINTER                                         :: sab_orb, sac_ppl, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: dvg, rho_g, rho_mp2_g, rho_mp2_r, &
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_mp2_g, rho_mp2_r, &
                                                             rho_mp2_r_aux, rho_r, tau_mp2_r, &
                                                             vadmm_rspace, vtau_rspace, vxc_rspace
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: pot_g, pot_r, rho_tot_g, temp_pw_g, &
                                                             vh_rspace, vhxc_rspace
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: dvg
       TYPE(pw_type), POINTER                             :: rho_core
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -1656,12 +1657,10 @@ CONTAINS
          CALL pw_axpy(rho_mp2_g(ispin)%pw, rho_tot_g)
       END DO
 
-      NULLIFY (dvg)
       IF (use_virial) THEN
          ALLOCATE (dvg(3))
          DO idir = 1, 3
-            ALLOCATE (dvg(idir)%pw)
-            CALL pw_pool_create_pw(auxbas_pw_pool, dvg(idir)%pw, &
+            CALL pw_pool_create_pw(auxbas_pw_pool, dvg(idir), &
                                    use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
          END DO
@@ -1716,7 +1715,7 @@ CONTAINS
             h_stress(alpha, alpha) = -e_hartree
             DO beta = alpha, 3
                h_stress(alpha, beta) = h_stress(alpha, beta) &
-                                       - 2.0_dp*pw_integral_ab(rho_tot_g, dvg(beta)%pw)/fourpi
+                                       - 2.0_dp*pw_integral_ab(rho_tot_g, dvg(beta))/fourpi
                h_stress(beta, alpha) = h_stress(alpha, beta)
             END DO
          END DO
@@ -1725,8 +1724,7 @@ CONTAINS
          ! free stuff
          CALL pw_pool_give_back_pw(auxbas_pw_pool, temp_pw_g)
          DO idir = 1, 3
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, dvg(idir)%pw)
-            DEALLOCATE (dvg(idir)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, dvg(idir))
          END DO
          DEALLOCATE (dvg)
 

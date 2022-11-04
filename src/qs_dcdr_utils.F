@@ -63,7 +63,7 @@ MODULE qs_dcdr_utils
                                               linres_control_type
    USE qs_loc_types,                    ONLY: get_qs_loc_env,&
                                               localized_wfn_control_type,&
-                                              qs_loc_env_new_type
+                                              qs_loc_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
    USE qs_moments,                      ONLY: build_local_moment_matrix
@@ -106,8 +106,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nmo, icenter
       TYPE(cp_fm_type), INTENT(IN)                       :: res
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'multiply_localization', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'multiply_localization'
 
       INTEGER                                            :: handle
 
@@ -393,8 +392,6 @@ CONTAINS
       TYPE(dcdr_env_type)                                :: dcdr_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dcdr_print', routineP = moduleN//':'//routineN
-
       CHARACTER(LEN=default_string_length)               :: description
       INTEGER                                            :: alpha, beta, delta, gamma, i, k, l, &
                                                             lambda, natom, nsubset, output_unit
@@ -551,8 +548,7 @@ CONTAINS
       TYPE(dcdr_env_type)                                :: dcdr_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_loc_setting', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_loc_setting'
 
       INTEGER                                            :: handle, is, istate, max_states, nmo, &
                                                             nmoloc, nstate, nstate_list(2)
@@ -561,7 +557,7 @@ CONTAINS
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(localized_wfn_control_type), POINTER          :: localized_wfn_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
+      TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(section_vals_type), POINTER                   :: dcdr_section
 
       CALL timeset(routineN, handle)
@@ -679,7 +675,7 @@ CONTAINS
       TYPE(dcdr_env_type)                                :: dcdr_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dcdr_env_init', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dcdr_env_init'
 
       INTEGER                                            :: handle, homo, i, isize, j, jg, n_rep, &
                                                             nao, natom, nmo, nspins, nsubset, &
@@ -1009,9 +1005,6 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dcdr_env_type)                                :: dcdr_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dcdr_env_cleanup', &
-         routineP = moduleN//':'//routineN
 
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: dcdr_section

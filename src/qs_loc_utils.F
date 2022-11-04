@@ -74,7 +74,7 @@ MODULE qs_loc_utils
                                               localized_wfn_control_create,&
                                               localized_wfn_control_release,&
                                               localized_wfn_control_type,&
-                                              qs_loc_env_new_type,&
+                                              qs_loc_env_type,&
                                               set_qs_loc_env
    USE qs_localization_methods,         ONLY: initialize_weights,&
                                               rotate_orbitals
@@ -446,7 +446,7 @@ CONTAINS
    SUBROUTINE qs_loc_env_init(qs_loc_env, localized_wfn_control, qs_env, myspin, do_localize, &
                               loc_coeff, mo_loc_history)
 
-      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
+      TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(localized_wfn_control_type), POINTER          :: localized_wfn_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN), OPTIONAL                      :: myspin
@@ -656,7 +656,7 @@ CONTAINS
 !> \author MI
 ! **************************************************************************************************
    SUBROUTINE get_berry_operator(qs_loc_env, qs_env)
-      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
+      TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_berry_operator'
@@ -912,7 +912,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE loc_write_restart(qs_loc_env, section, mo_array, coeff_localized, &
                                 do_homo, evals, do_mixed)
-      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
+      TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(section_vals_type), POINTER                   :: section
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: coeff_localized
@@ -1026,7 +1026,7 @@ CONTAINS
    SUBROUTINE loc_read_restart(qs_loc_env, mos, mos_localized, section, section2, para_env, &
                                do_homo, restart_found, evals, do_mixed)
 
-      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
+      TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_localized
       TYPE(section_vals_type), POINTER                   :: section, section2
@@ -1220,14 +1220,11 @@ CONTAINS
    SUBROUTINE qs_loc_control_init(qs_loc_env, loc_section, do_homo, do_mixed, &
                                   do_xas, nloc_xas, spin_xas)
 
-      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
+      TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(section_vals_type), POINTER                   :: loc_section
       LOGICAL, INTENT(IN)                                :: do_homo
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_mixed, do_xas
       INTEGER, INTENT(IN), OPTIONAL                      :: nloc_xas, spin_xas
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_control_init', &
-         routineP = moduleN//':'//routineN
 
       LOGICAL                                            :: my_do_mixed
       TYPE(localized_wfn_control_type), POINTER          :: localized_wfn_control
@@ -1267,7 +1264,7 @@ CONTAINS
                           do_homo, do_mo_cubes, mo_loc_history, evals, &
                           tot_zeff_corr, do_mixed)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
+      TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(section_vals_type), POINTER                   :: localize_section
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_localized
       LOGICAL, OPTIONAL                                  :: do_homo, do_mo_cubes

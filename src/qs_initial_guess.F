@@ -142,7 +142,7 @@ CONTAINS
       INTEGER :: atom_a, blk, density_guess, group, handle, homo, i, iatom, ic, icol, id_nr, &
          ikind, irow, iseed(4), ispin, istart_col, istart_row, j, last_read, n, n_cols, n_rows, &
          nao, natom, natoms, natoms_tmp, nblocks, nelectron, nmo, nmo_tmp, not_read, nsgf, nspin, &
-         nvec, ounit, qs_env_id, safe_density_guess, size_atomic_kind_set, z
+         nvec, ounit, safe_density_guess, size_atomic_kind_set, z
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, kind_of, last_sgf
       INTEGER, DIMENSION(2)                              :: nelectron_spin
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, elec_conf, nelec_kind, &
@@ -205,7 +205,6 @@ CONTAINS
                       matrix_ks_kp=matrix_ks_kp, &
                       input=input, &
                       scf_control=scf_control, &
-                      id_nr=qs_env_id, &
                       dft_control=dft_control, &
                       has_unit_metric=has_unit_metric, &
                       do_kpoints=do_kpoints, &

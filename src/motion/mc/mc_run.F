@@ -196,6 +196,7 @@ CONTAINS
          END IF
 
 ! allocates an mc_env and sets the variables to zero
+         ALLOCATE (mc_env(ibox)%mc_env)
          CALL mc_env_create(mc_env(ibox)%mc_env)
 
 ! now read in the values of the mc_pars
@@ -328,6 +329,7 @@ CONTAINS
 
          CALL mc_sim_par_destroy(mc_par(ibox)%mc_par)
          CALL mc_env_release(mc_env(ibox)%mc_env)
+         DEALLOCATE (mc_env(ibox)%mc_env)
          CALL force_env_release(force_env(ibox)%force_env)
       END DO
 

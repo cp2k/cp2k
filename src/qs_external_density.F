@@ -32,8 +32,9 @@ MODULE qs_external_density
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
-                                              realspace_grid_p_type,&
+                                              realspace_grid_type,&
                                               rs_grid_create,&
+                                              rs_grid_release,&
                                               rs_grid_zero
    USE rs_pw_interface,                 ONLY: density_rs2pw
 #include "./base/base_uses.f90"
@@ -77,11 +78,12 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho_external
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_rho_ext
+      TYPE(realspace_grid_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: rs_rho_ext
       TYPE(section_vals_type), POINTER                   :: ext_den_section, input
 
       CALL timeset(routineN, handle)
-      NULLIFY (cell, rs_rho_ext, input, ext_den_section, rs_descs, dft_control)
+      NULLIFY (cell, input, ext_den_section, rs_descs, dft_control)
       NULLIFY (rho_ext_r, rho_ext_g, tot_rho_r_ext)
 
       CALL get_qs_env(qs_env, &
@@ -104,9 +106,9 @@ CONTAINS
          ALLOCATE (rs_rho_ext(gridlevel_info%ngrid_levels))
 
          DO igrid_level = 1, gridlevel_info%ngrid_levels
-            CALL rs_grid_create(rs_rho_ext(igrid_level)%rs_grid, &
+            CALL rs_grid_create(rs_rho_ext(igrid_level), &
                                 rs_descs(igrid_level)%rs_desc)
-            CALL rs_grid_zero(rs_rho_ext(igrid_level)%rs_grid)
+            CALL rs_grid_zero(rs_rho_ext(igrid_level))
          END DO
 
          igrid_level = igrid_level - 1
@@ -188,7 +190,7 @@ CONTAINS
 
                   IF ((lbounds_local(1) .LE. i) .AND. (i .LE. ubounds_local(1)) .AND. (lbounds_local(2) .LE. j) &
                       .AND. (j .LE. ubounds_local(2))) THEN
-                     rs_rho_ext(igrid_level)%rs_grid%r(i, j, lbounds(3):ubounds(3)) = buffer(lbounds(3):ubounds(3))
+                     rs_rho_ext(igrid_level)%r(i, j, lbounds(3):ubounds(3)) = buffer(lbounds(3):ubounds(3))
                   END IF
 
                END DO
@@ -197,6 +199,9 @@ CONTAINS
          END IF
 
          CALL density_rs2pw(pw_env, rs_rho_ext, rho=rho_ext_r(1)%pw, rho_gspace=rho_ext_g(1)%pw)
+         DO igrid_level = 1, SIZE(rs_rho_ext)
+            CALL rs_grid_release(rs_rho_ext(igrid_level))
+         END DO
          tot_rho_r_ext(1) = pw_integrate_function(rho_ext_r(1)%pw, isign=1)
          IF (my_rank == 0) THEN
             WRITE (*, FMT="(T3,A,T61,F20.10)") "ZMP| Total external charge:                    ", &

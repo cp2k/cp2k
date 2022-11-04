@@ -41,7 +41,6 @@ MODULE pw_pool_types
                                               REALDATA1D,&
                                               REALDATA3D,&
                                               pw_create,&
-                                              pw_p_type,&
                                               pw_release,&
                                               pw_type
    USE timings,                         ONLY: print_stack
@@ -621,18 +620,17 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE pw_pools_create_pws(pools, pws, use_data, in_space)
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pools
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: pws
+      TYPE(pw_pool_p_type), DIMENSION(:), INTENT(IN)     :: pools
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:), &
+         INTENT(OUT)                                     :: pws
       INTEGER, INTENT(in)                                :: use_data
       INTEGER, INTENT(in), OPTIONAL                      :: in_space
 
       INTEGER                                            :: i
 
-      CPASSERT(ASSOCIATED(pools))
       ALLOCATE (pws(SIZE(pools)))
       DO i = 1, SIZE(pools)
-         ALLOCATE (pws(i)%pw)
-         CALL pw_pool_create_pw(pools(i)%pool, pws(i)%pw, use_data, &
+         CALL pw_pool_create_pw(pools(i)%pool, pws(i), use_data, &
                                 in_space=in_space)
       END DO
    END SUBROUTINE pw_pools_create_pws
@@ -646,17 +644,15 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE pw_pools_give_back_pws(pools, pws)
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pools
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: pws
+      TYPE(pw_pool_p_type), DIMENSION(:), INTENT(IN)     :: pools
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT)                                   :: pws
 
       INTEGER                                            :: i
 
-      CPASSERT(ASSOCIATED(pools))
-      CPASSERT(ASSOCIATED(pws))
       CPASSERT(SIZE(pws) == SIZE(pools))
       DO i = 1, SIZE(pools)
-         CALL pw_pool_give_back_pw(pools(i)%pool, pws(i)%pw)
-         DEALLOCATE (pws(i)%pw)
+         CALL pw_pool_give_back_pw(pools(i)%pool, pws(i))
       END DO
       DEALLOCATE (pws)
    END SUBROUTINE pw_pools_give_back_pws

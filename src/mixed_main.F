@@ -52,7 +52,7 @@ CONTAINS
    SUBROUTINE mixed_create_force_env(mixed_env, root_section, para_env, &
                                      force_env_section, n_subforce_eval, use_motion_section)
 
-      TYPE(mixed_environment_type), POINTER              :: mixed_env
+      TYPE(mixed_environment_type), INTENT(OUT)          :: mixed_env
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: force_env_section

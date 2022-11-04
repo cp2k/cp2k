@@ -130,7 +130,7 @@ CONTAINS
                                                             output_unit
       LOGICAL                                            :: Found, Found_Radius
       REAL(KIND=dp)                                      :: fconv, my_radius, Radius
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type)                               :: parser
 
       output_unit = cp_logger_get_default_io_unit()
       Nval = SIZE(qmmm_gaussian_fns)
@@ -138,7 +138,6 @@ CONTAINS
       CALL section_vals_val_get(qmmm_section, "MM_POTENTIAL_FILE_NAME", &
                                 c_val=mm_potential_file_name)
 
-      NULLIFY (parser)
       CALL parser_create(parser, mm_potential_file_name, para_env=para_env)
 
       search_loop: DO

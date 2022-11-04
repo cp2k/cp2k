@@ -1226,7 +1226,7 @@ CONTAINS
       LOGICAL                                            :: basis_found, found, match
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zet
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type)                               :: parser
 
       line = ""
       line2 = ""
@@ -1245,7 +1245,6 @@ CONTAINS
       DO ibasis = 1, nbasis
          CALL section_vals_val_get(dft_section, "BASIS_SET_FILE_NAME", &
                                    i_rep_val=ibasis, c_val=cbasis(ibasis))
-         NULLIFY (parser)
          basis_set_file_name = cbasis(ibasis)
          tmp = basis_set_file_name
          CALL uppercase(tmp)
@@ -1258,7 +1257,6 @@ CONTAINS
       basis_found = .FALSE.
       basis_loop: DO ibasis = 1, nbasis
          IF (basis_found) EXIT basis_loop
-         NULLIFY (parser)
          basis_set_file_name = cbasis(ibasis)
          CALL parser_create(parser, basis_set_file_name, para_env=para_env)
 
@@ -2226,7 +2224,7 @@ CONTAINS
                                                             strlen1, strlen2
       LOGICAL                                            :: basis_found, found, match
       REAL(KIND=dp)                                      :: zet
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type)                               :: parser
 
       line = ""
       line2 = ""
@@ -2244,7 +2242,6 @@ CONTAINS
       DO ibasis = 1, nbasis
          CALL section_vals_val_get(dft_section, "BASIS_SET_FILE_NAME", &
                                    i_rep_val=ibasis, c_val=cbasis(ibasis))
-         NULLIFY (parser)
          basis_set_file_name = cbasis(ibasis)
          tmp = basis_set_file_name
          CALL uppercase(tmp)
@@ -2256,7 +2253,6 @@ CONTAINS
       basis_found = .FALSE.
       basis_loop: DO ibasis = 1, nbasis
          IF (basis_found) EXIT basis_loop
-         NULLIFY (parser)
          basis_set_file_name = cbasis(ibasis)
          CALL parser_create(parser, basis_set_file_name, para_env=para_env)
 

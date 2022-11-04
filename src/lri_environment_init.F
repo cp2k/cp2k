@@ -68,6 +68,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: radii
 
       NULLIFY (lri_env)
+      ALLOCATE (lri_env)
       CALL lri_env_create(lri_env)
 
       ! init keywords

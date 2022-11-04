@@ -382,7 +382,11 @@ CONTAINS
       CALL calculate_avec_ri(lri_env, pmatrix)
       !
       CALL get_qs_env(qs_env, lri_density=lri_density, natom=natom)
-      CALL lri_density_release(lri_density)
+      IF (ASSOCIATED(lri_density)) THEN
+         CALL lri_density_release(lri_density)
+      ELSE
+         ALLOCATE (lri_density)
+      END IF
       CALL lri_density_create(lri_density)
       lri_density%nspin = nspin
       ! allocate the arrays to hold RI expansion coefficients lri_coefs

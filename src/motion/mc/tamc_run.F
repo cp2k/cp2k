@@ -77,8 +77,7 @@ MODULE tamc_run
                                               mc_simpar_type,&
                                               set_mc_par
    USE md_ener_types,                   ONLY: create_md_ener,&
-                                              md_ener_type,&
-                                              release_md_ener
+                                              md_ener_type
    USE md_energies,                     ONLY: initialize_md_ener,&
                                               md_energy
    USE md_environment_types,            ONLY: get_md_env,&
@@ -108,16 +107,14 @@ MODULE tamc_run
    USE qs_scf_post_gpw,                 ONLY: scf_post_calculation_gpw
    USE reference_manager,               ONLY: cite_reference
    USE reftraj_types,                   ONLY: create_reftraj,&
-                                              reftraj_type,&
-                                              release_reftraj
+                                              reftraj_type
    USE reftraj_util,                    ONLY: initialize_reftraj
    USE simpar_methods,                  ONLY: read_md_section
    USE simpar_types,                    ONLY: create_simpar_type,&
                                               release_simpar_type,&
                                               simpar_type
    USE string_utilities,                ONLY: str_comp
-   USE thermal_region_types,            ONLY: release_thermal_regions,&
-                                              thermal_regions_type
+   USE thermal_region_types,            ONLY: thermal_regions_type
    USE thermal_region_utils,            ONLY: create_thermal_regions
    USE thermostat_methods,              ONLY: create_thermostats
    USE thermostat_types,                ONLY: release_thermostats,&
@@ -198,12 +195,13 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       my_rm_restart_info = .TRUE.
-      NULLIFY (md_env, para_env, fs_section, virial)
+      NULLIFY (para_env, fs_section, virial)
       para_env => force_env%para_env
       motion_section => section_vals_get_subs_vals(force_env%root_section, "MOTION")
       md_section => section_vals_get_subs_vals(motion_section, "MD")
 
       ! Real call to MD driver - Low Level
+      ALLOCATE (md_env)
       CALL md_env_create(md_env, md_section, para_env, force_env=force_env)
       IF (PRESENT(averages)) CALL set_md_env(md_env, averages=averages)
 
@@ -241,9 +239,9 @@ CONTAINS
                                                         "LAGRANGE_MULTIPLIERS"), cp_p_file)
 
       ! Create the structure for the md energies
+      ALLOCATE (md_ener)
       CALL create_md_ener(md_ener)
       CALL set_md_env(md_env, md_ener=md_ener)
-      CALL release_md_ener(md_ener)
 
       ! If requested setup Thermostats
       CALL create_thermostats(thermostats, md_section, force_env, simpar, para_env, &
@@ -259,9 +257,9 @@ CONTAINS
 
       IF (simpar%ensemble == reftraj_ensemble) THEN
          reftraj_section => section_vals_get_subs_vals(md_section, "REFTRAJ")
+         ALLOCATE (reftraj)
          CALL create_reftraj(reftraj, reftraj_section, para_env)
          CALL set_md_env(md_env, reftraj=reftraj)
-         CALL release_reftraj(reftraj)
       END IF
 
       CALL force_env_get(force_env, subsys=subsys, cell=cell, &
@@ -360,6 +358,7 @@ CONTAINS
          END DO
       END DO
 
+      ALLOCATE (mc_env)
       CALL mc_env_create(mc_env)
       CALL set_mc_env(mc_env, mc_par=mc_par, force_env=force_env)
 !!!!!!!end mc setup
@@ -638,14 +637,15 @@ CONTAINS
       CALL release_thermostats(thermostats)
       CALL release_barostat_type(barostat)
       CALL release_simpar_type(simpar)
-      CALL release_thermal_regions(thermal_regions)
 
       CALL md_env_release(md_env)
+      DEALLOCATE (md_env)
       ! Clean restartable sections..
       IF (my_rm_restart_info) CALL remove_restart_info(force_env%root_section)
 !     IF (para_env%ionode) THEN
 !     ENDIF
       CALL MC_ENV_RELEASE(mc_env)
+      DEALLOCATE (mc_env)
       DEALLOCATE (mc_par)
       CALL MC_MOVES_RELEASE(moves)
       CALL MC_MOVES_RELEASE(gmoves)

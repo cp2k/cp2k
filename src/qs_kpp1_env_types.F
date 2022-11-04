@@ -31,10 +31,8 @@ MODULE qs_kpp1_env_types
 ! **************************************************************************************************
 !> \brief environment that keeps the informations and temporary
 !>      val to build the kpp1 kernel matrix
-!> \param ref_count reference count (how may objects are sharing this one)
 !> \param v_ao the potential in the ao basis (used togheter with v_rspace
 !>        to update only what changed
-!> \param id_nr identification number, unique for each kpp1 env
 !> \param deriv_xc (ii,ipot): the second derivative of the xc potential at psi0
 !>        (qs_env%c), if grad pot is true it should already be divised
 !>        by the gradient

@@ -101,7 +101,7 @@ MODULE qs_linres_current_utils
    USE qs_loc_methods,                  ONLY: qs_print_cubes
    USE qs_loc_types,                    ONLY: get_qs_loc_env,&
                                               localized_wfn_control_type,&
-                                              qs_loc_env_new_type
+                                              qs_loc_env_type
    USE qs_matrix_pools,                 ONLY: qs_matrix_pools_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
@@ -112,8 +112,7 @@ MODULE qs_linres_current_utils
                                               qs_rho_create,&
                                               qs_rho_retain,&
                                               qs_rho_set
-   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
-                                              rs_grid_release
+   USE realspace_grid_types,            ONLY: rs_grid_release
    USE scf_control_types,               ONLY: scf_control_type
 #include "./base/base_uses.f90"
 
@@ -624,7 +623,7 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
+      TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: current_section, lr_section
@@ -692,7 +691,7 @@ CONTAINS
          WRITE (output_unit, "(T10,A,/)") "Inizialization of the current environment"
       END IF
 
-      IF (current_env%ref_count /= 0) CALL current_env_cleanup(current_env, qs_env)
+      CALL current_env_cleanup(current_env)
 
       CALL current_env_create(current_env)
       !
@@ -1335,8 +1334,7 @@ CONTAINS
       current_env%full_done = .FALSE.
       !
       ! allocate pointer for the gauge
-      ALLOCATE (current_env%rs_gauge(3))
-      NULLIFY (current_env%rs_gauge(1)%rs, current_env%rs_gauge(2)%rs, current_env%rs_gauge(3)%rs)
+      ALLOCATE (current_env%rs_gauge(3, pw_env%gridlevel_info%ngrid_levels))
 
       CALL cp_print_key_finished_output(output_unit, logger, lr_section, "PRINT%PROGRAM_RUN_INFO")
       CALL timestop(handle)
@@ -1346,151 +1344,137 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param current_env ...
-!> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE current_env_cleanup(current_env, qs_env)
+   SUBROUTINE current_env_cleanup(current_env)
 
       TYPE(current_env_type)                             :: current_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
 
       INTEGER                                            :: i, idir, ispin
-      TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
-         POINTER                                         :: rs_descs
 
-      NULLIFY (pw_env, rs_descs)
-
-      current_env%ref_count = current_env%ref_count - 1
-      IF (current_env%ref_count == 0) THEN
-         !
-         !psi0_order
-         IF (ASSOCIATED(current_env%psi0_order)) THEN
-            DO ispin = 1, SIZE(current_env%psi0_order, 1)
-               CALL cp_fm_release(current_env%psi0_order(ispin)%matrix)
-               DEALLOCATE (current_env%psi0_order(ispin)%matrix)
+      IF (ASSOCIATED(current_env%psi0_order)) THEN
+         DO ispin = 1, SIZE(current_env%psi0_order, 1)
+            CALL cp_fm_release(current_env%psi0_order(ispin)%matrix)
+            DEALLOCATE (current_env%psi0_order(ispin)%matrix)
+         END DO
+         DEALLOCATE (current_env%psi0_order)
+      END IF
+      !
+      !psi1_p
+      IF (ASSOCIATED(current_env%psi1_p)) THEN
+         DO idir = 1, SIZE(current_env%psi1_p, 2)
+            DO ispin = 1, SIZE(current_env%psi1_p, 1)
+               CALL cp_fm_release(current_env%psi1_p(ispin, idir)%matrix)
+               DEALLOCATE (current_env%psi1_p(ispin, idir)%matrix)
             END DO
-            DEALLOCATE (current_env%psi0_order)
-         END IF
-         !
-         !psi1_p
-         IF (ASSOCIATED(current_env%psi1_p)) THEN
-            DO idir = 1, SIZE(current_env%psi1_p, 2)
-               DO ispin = 1, SIZE(current_env%psi1_p, 1)
-                  CALL cp_fm_release(current_env%psi1_p(ispin, idir)%matrix)
-                  DEALLOCATE (current_env%psi1_p(ispin, idir)%matrix)
-               END DO
+         END DO
+         DEALLOCATE (current_env%psi1_p)
+      END IF
+      !
+      !psi1_rxp
+      IF (ASSOCIATED(current_env%psi1_rxp)) THEN
+         DO idir = 1, SIZE(current_env%psi1_rxp, 2)
+            DO ispin = 1, SIZE(current_env%psi1_rxp, 1)
+               CALL cp_fm_release(current_env%psi1_rxp(ispin, idir)%matrix)
+               DEALLOCATE (current_env%psi1_rxp(ispin, idir)%matrix)
             END DO
-            DEALLOCATE (current_env%psi1_p)
-         END IF
-         !
-         !psi1_rxp
-         IF (ASSOCIATED(current_env%psi1_rxp)) THEN
-            DO idir = 1, SIZE(current_env%psi1_rxp, 2)
-               DO ispin = 1, SIZE(current_env%psi1_rxp, 1)
-                  CALL cp_fm_release(current_env%psi1_rxp(ispin, idir)%matrix)
-                  DEALLOCATE (current_env%psi1_rxp(ispin, idir)%matrix)
-               END DO
+         END DO
+         DEALLOCATE (current_env%psi1_rxp)
+      END IF
+      !
+      !psi1_D
+      IF (ASSOCIATED(current_env%psi1_D)) THEN
+         DO idir = 1, SIZE(current_env%psi1_D, 2)
+            DO ispin = 1, SIZE(current_env%psi1_D, 1)
+               CALL cp_fm_release(current_env%psi1_D(ispin, idir)%matrix)
+               DEALLOCATE (current_env%psi1_D(ispin, idir)%matrix)
             END DO
-            DEALLOCATE (current_env%psi1_rxp)
-         END IF
-         !
-         !psi1_D
-         IF (ASSOCIATED(current_env%psi1_D)) THEN
-            DO idir = 1, SIZE(current_env%psi1_D, 2)
-               DO ispin = 1, SIZE(current_env%psi1_D, 1)
-                  CALL cp_fm_release(current_env%psi1_D(ispin, idir)%matrix)
-                  DEALLOCATE (current_env%psi1_D(ispin, idir)%matrix)
-               END DO
+         END DO
+         DEALLOCATE (current_env%psi1_D)
+      END IF
+      !
+      !p_psi0
+      IF (ASSOCIATED(current_env%p_psi0)) THEN
+         DO idir = 1, SIZE(current_env%p_psi0, 2)
+            DO ispin = 1, SIZE(current_env%p_psi0, 1)
+               CALL cp_fm_release(current_env%p_psi0(ispin, idir)%matrix)
+               DEALLOCATE (current_env%p_psi0(ispin, idir)%matrix)
             END DO
-            DEALLOCATE (current_env%psi1_D)
-         END IF
-         !
-         !p_psi0
-         IF (ASSOCIATED(current_env%p_psi0)) THEN
-            DO idir = 1, SIZE(current_env%p_psi0, 2)
-               DO ispin = 1, SIZE(current_env%p_psi0, 1)
-                  CALL cp_fm_release(current_env%p_psi0(ispin, idir)%matrix)
-                  DEALLOCATE (current_env%p_psi0(ispin, idir)%matrix)
-               END DO
+         END DO
+         DEALLOCATE (current_env%p_psi0)
+      END IF
+      !
+      !rxp_psi0
+      IF (ASSOCIATED(current_env%rxp_psi0)) THEN
+         DO idir = 1, SIZE(current_env%rxp_psi0, 2)
+            DO ispin = 1, SIZE(current_env%rxp_psi0, 1)
+               CALL cp_fm_release(current_env%rxp_psi0(ispin, idir)%matrix)
+               DEALLOCATE (current_env%rxp_psi0(ispin, idir)%matrix)
             END DO
-            DEALLOCATE (current_env%p_psi0)
-         END IF
-         !
-         !rxp_psi0
-         IF (ASSOCIATED(current_env%rxp_psi0)) THEN
-            DO idir = 1, SIZE(current_env%rxp_psi0, 2)
-               DO ispin = 1, SIZE(current_env%rxp_psi0, 1)
-                  CALL cp_fm_release(current_env%rxp_psi0(ispin, idir)%matrix)
-                  DEALLOCATE (current_env%rxp_psi0(ispin, idir)%matrix)
-               END DO
-            END DO
-            DEALLOCATE (current_env%rxp_psi0)
-         END IF
-         !
-         !
+         END DO
+         DEALLOCATE (current_env%rxp_psi0)
+      END IF
+      !
+      IF (ASSOCIATED(current_env%centers_set)) THEN
          DO ispin = 1, SIZE(current_env%centers_set, 1)
             DEALLOCATE (current_env%centers_set(ispin)%array)
          END DO
          DEALLOCATE (current_env%centers_set)
+      END IF
 
+      IF (ASSOCIATED(current_env%center_list)) THEN
          DO ispin = 1, SIZE(current_env%center_list, 1)
             DEALLOCATE (current_env%center_list(ispin)%array)
          END DO
          DEALLOCATE (current_env%center_list)
+      END IF
 
-         IF (ASSOCIATED(current_env%list_cubes)) THEN
-            DEALLOCATE (current_env%list_cubes)
-         END IF
-         ! Current density on the grid
-         IF (ASSOCIATED(current_env%jrho1_set)) THEN
-            DO idir = 1, 3
-               CALL qs_rho_clear(current_env%jrho1_set(idir)%rho)
-               DEALLOCATE (current_env%jrho1_set(idir)%rho)
-            END DO
-            DEALLOCATE (current_env%jrho1_set)
-         END IF
-         !
-         ! Local current density, atom by atom (only gapw)
-         IF (ASSOCIATED(current_env%jrho1_atom_set)) THEN
-            CALL deallocate_jrho_atom_set(current_env%jrho1_atom_set)
-         END IF
-
-         !fullnmr_done
-         IF (ASSOCIATED(current_env%full_done)) THEN
-            DEALLOCATE (current_env%full_done)
-         END IF
-         IF (ASSOCIATED(current_env%basisfun_center)) THEN
-            DEALLOCATE (current_env%basisfun_center)
-         END IF
-         IF (ASSOCIATED(current_env%statetrueindex)) THEN
-            DEALLOCATE (current_env%statetrueindex)
-         END IF
-         IF (ASSOCIATED(current_env%selected_states_on_atom_list)) THEN
-            DEALLOCATE (current_env%selected_states_on_atom_list)
-         END IF
-         ! give back the gauge
-         CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
-         CALL pw_env_get(pw_env, rs_descs=rs_descs)
+      IF (ASSOCIATED(current_env%list_cubes)) THEN
+         DEALLOCATE (current_env%list_cubes)
+      END IF
+      ! Current density on the grid
+      IF (ASSOCIATED(current_env%jrho1_set)) THEN
          DO idir = 1, 3
-            IF (ASSOCIATED(current_env%rs_gauge(idir)%rs)) THEN
-               DO i = 1, SIZE(current_env%rs_gauge(idir)%rs)
-                  CALL rs_grid_release(current_env%rs_gauge(idir)%rs(i)%rs_grid)
-               END DO
-               DEALLOCATE (current_env%rs_gauge(idir)%rs)
-            END IF
+            CALL qs_rho_clear(current_env%jrho1_set(idir)%rho)
+            DEALLOCATE (current_env%jrho1_set(idir)%rho)
          END DO
-         !
-         DEALLOCATE (current_env%rs_gauge)
+         DEALLOCATE (current_env%jrho1_set)
+      END IF
+      !
+      ! Local current density, atom by atom (only gapw)
+      IF (ASSOCIATED(current_env%jrho1_atom_set)) THEN
+         CALL deallocate_jrho_atom_set(current_env%jrho1_atom_set)
+      END IF
 
-         ! give back the buf
-         IF (ASSOCIATED(current_env%rs_buf)) THEN
-            DO i = 1, SIZE(current_env%rs_buf)
-               CALL rs_grid_release(current_env%rs_buf(i)%rs_grid)
+      !fullnmr_done
+      IF (ASSOCIATED(current_env%full_done)) THEN
+         DEALLOCATE (current_env%full_done)
+      END IF
+      IF (ASSOCIATED(current_env%basisfun_center)) THEN
+         DEALLOCATE (current_env%basisfun_center)
+      END IF
+      IF (ASSOCIATED(current_env%statetrueindex)) THEN
+         DEALLOCATE (current_env%statetrueindex)
+      END IF
+      IF (ASSOCIATED(current_env%selected_states_on_atom_list)) THEN
+         DEALLOCATE (current_env%selected_states_on_atom_list)
+      END IF
+      ! give back the gauge
+      IF (ASSOCIATED(current_env%rs_gauge)) THEN
+         DO idir = 1, 3
+            DO i = 1, SIZE(current_env%rs_gauge, 2)
+               CALL rs_grid_release(current_env%rs_gauge(idir, i))
             END DO
-            DEALLOCATE (current_env%rs_buf)
-         END IF
+         END DO
+         DEALLOCATE (current_env%rs_gauge)
+      END IF
 
-      END IF ! ref count
+      ! give back the buf
+      IF (ASSOCIATED(current_env%rs_buf)) THEN
+         DO i = 1, SIZE(current_env%rs_buf)
+            CALL rs_grid_release(current_env%rs_buf(i))
+         END DO
+         DEALLOCATE (current_env%rs_buf)
+      END IF
 
    END SUBROUTINE current_env_cleanup
 

@@ -89,7 +89,6 @@ CONTAINS
          WRITE (unit_nr, '(T2,A)') TRIM(my_label)//" "//TRIM(line)
       END IF
 
-      RETURN
    END SUBROUTINE pint_write_line
 
 ! ***************************************************************************
@@ -102,7 +101,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE pint_write_centroids(pint_env)
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(pint_env_type), INTENT(IN)                    :: pint_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_centroids'
       INTEGER, PARAMETER                                 :: n_ids = 2, pos_id = 1, vel_id = 2
@@ -122,9 +121,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: print_key
 
       CALL timeset(routineN, handle1)
-
-      CPASSERT(ASSOCIATED(pint_env))
-      CPASSERT(pint_env%ref_count > 0)
 
       sect_path(pos_id) = "MOTION%PINT%PRINT%CENTROID_POS"
       sect_path(vel_id) = "MOTION%PINT%PRINT%CENTROID_VEL"
@@ -250,7 +246,6 @@ CONTAINS
       END DO
 
       CALL timestop(handle1)
-      RETURN
    END SUBROUTINE pint_write_centroids
 
 ! ***************************************************************************
@@ -261,7 +256,7 @@ CONTAINS
 !> \author hforbert
 ! **************************************************************************************************
    SUBROUTINE pint_write_trajectory(pint_env)
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(pint_env_type), INTENT(IN)                    :: pint_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_trajectory'
       INTEGER, PARAMETER                                 :: force_id = 3, n_ids = 3, pos_id = 1, &
@@ -283,9 +278,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: print_key
 
       CALL timeset(routineN, handle1)
-
-      CPASSERT(ASSOCIATED(pint_env))
-      CPASSERT(pint_env%ref_count > 0)
 
       sect_path(pos_id) = "MOTION%PRINT%TRAJECTORY"
       sect_path(vel_id) = "MOTION%PRINT%VELOCITIES"
@@ -411,7 +403,6 @@ CONTAINS
       END DO
 
       CALL timestop(handle1)
-      RETURN
    END SUBROUTINE pint_write_trajectory
 
 ! ***************************************************************************
@@ -422,7 +413,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pint_write_com(pint_env)
 
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(pint_env_type), INTENT(IN)                    :: pint_env
 
       CHARACTER(len=default_string_length)               :: stmp1, stmp2
       INTEGER                                            :: ic, unit_nr
@@ -430,8 +421,6 @@ CONTAINS
       REAL(kind=dp), DIMENSION(3)                        :: com_r
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: print_key
-
-      CPASSERT(ASSOCIATED(pint_env))
 
       NULLIFY (logger)
       logger => cp_get_default_logger()
@@ -478,7 +467,6 @@ CONTAINS
 
       CALL cp_print_key_finished_output(unit_nr, logger, print_key)
 
-      RETURN
    END SUBROUTINE pint_write_com
 
 ! ***************************************************************************
@@ -490,16 +478,13 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE pint_write_ener(pint_env)
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(pint_env_type), INTENT(IN)                    :: pint_env
 
       INTEGER                                            :: ndof, unit_nr
       LOGICAL                                            :: file_is_new
       REAL(kind=dp)                                      :: t, temp
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: print_key
-
-      CPASSERT(ASSOCIATED(pint_env))
-      CPASSERT(pint_env%ref_count > 0)
 
       NULLIFY (print_key, logger)
       print_key => section_vals_get_subs_vals(pint_env%input, &
@@ -561,7 +546,6 @@ CONTAINS
          CALL cp_print_key_finished_output(unit_nr, logger, print_key)
       END IF
 
-      RETURN
    END SUBROUTINE pint_write_ener
 
 ! ***************************************************************************
@@ -570,16 +554,13 @@ CONTAINS
 !> \author Felix Uhl
 ! **************************************************************************************************
    SUBROUTINE pint_write_action(pint_env)
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(pint_env_type), INTENT(IN)                    :: pint_env
 
       INTEGER                                            :: unit_nr
       LOGICAL                                            :: file_is_new
       REAL(kind=dp)                                      :: t
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: print_key
-
-      CPASSERT(ASSOCIATED(pint_env))
-      CPASSERT(pint_env%ref_count > 0)
 
       NULLIFY (print_key, logger)
       print_key => section_vals_get_subs_vals(pint_env%input, &
@@ -625,30 +606,23 @@ CONTAINS
          CALL cp_print_key_finished_output(unit_nr, logger, print_key)
       END IF
 
-      RETURN
    END SUBROUTINE pint_write_action
 
-   ! ***************************************************************************
-   !> \brief  Write step info to the output file.
-   !> \param pint_env ...
-   !> \date   2009-11-16
-   !> \par History
-   !>      2010-01-27 getting default unit nr now only on ionode [lwalewski]
-   !> \author Lukasz Walewski
-   ! **************************************************************************************************
-! **************************************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Write step info to the output file.
 !> \param pint_env ...
+!> \date   2009-11-16
+!> \par History
+!>      2010-01-27 getting default unit nr now only on ionode [lwalewski]
+!> \author Lukasz Walewski
 ! **************************************************************************************************
    SUBROUTINE pint_write_step_info(pint_env)
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(pint_env_type), INTENT(IN)                    :: pint_env
 
       CHARACTER(len=default_string_length)               :: msgstr, stmp, time_unit
       INTEGER                                            :: unit_nr
       REAL(kind=dp)                                      :: time_used
       TYPE(cp_logger_type), POINTER                      :: logger
-
-      CPASSERT(ASSOCIATED(pint_env))
 
       unit_nr = 0
       NULLIFY (logger)
@@ -689,7 +663,6 @@ CONTAINS
          WRITE (unit_nr, '(T2,A)') "PINT| "//TRIM(ADJUSTL(msgstr))
       END IF
 
-      RETURN
    END SUBROUTINE pint_write_step_info
 
 ! ***************************************************************************
@@ -700,7 +673,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pint_write_rgyr(pint_env)
 
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(pint_env_type), INTENT(IN)                    :: pint_env
 
       CHARACTER(len=default_string_length)               :: unit_str
       INTEGER                                            :: ia, ib, ic, idim, unit_nr
@@ -708,8 +681,6 @@ CONTAINS
       REAL(kind=dp)                                      :: nb, ss, unit_conv
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: print_key
-
-      CPASSERT(ASSOCIATED(pint_env))
 
       NULLIFY (logger)
       logger => cp_get_default_logger()
@@ -780,7 +751,6 @@ CONTAINS
 
       CALL cp_print_key_finished_output(unit_nr, logger, print_key)
 
-      RETURN
    END SUBROUTINE pint_write_rgyr
 
 END MODULE pint_io

@@ -31,7 +31,7 @@ MODULE qs_ks_qmmm_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_qmmm_types'
 
    PUBLIC :: qs_ks_qmmm_env_type
-   PUBLIC :: qs_ks_qmmm_release, qs_ks_qmmm_retain
+   PUBLIC :: qs_ks_qmmm_release
 
 ! **************************************************************************************************
 !> \brief calculation environment to calculate the ks_qmmm matrix,
@@ -46,8 +46,7 @@ MODULE qs_ks_qmmm_types
 !> \author Teodoro Laino
 ! **************************************************************************************************
    TYPE qs_ks_qmmm_env_type
-      INTEGER :: n_evals, &
-                 id_nr, ref_count
+      INTEGER :: n_evals
       REAL(KIND=dp)                               :: pc_ener
       TYPE(pw_env_type), POINTER                  :: pw_env
       TYPE(pw_type)                             :: v_qmmm_rspace
@@ -57,16 +56,6 @@ MODULE qs_ks_qmmm_types
          POINTER                                :: matrix_h
    END TYPE qs_ks_qmmm_env_type
 
-! **************************************************************************************************
-!> \brief type to build arrays of pointers
-!> \param ks_env the ks_env pointer
-!> \par History
-!>      05.2004 [tlaino]
-!> \author Teodoro Laino
-! **************************************************************************************************
-   TYPE qs_ks_qmmm_env_p_type
-      TYPE(qs_ks_qmmm_env_type), POINTER :: ks_env
-   END TYPE qs_ks_qmmm_env_p_type
 CONTAINS
 
 ! **************************************************************************************************
@@ -77,47 +66,24 @@ CONTAINS
 !> \author Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE qs_ks_qmmm_release(ks_qmmm_env)
-      TYPE(qs_ks_qmmm_env_type), POINTER                 :: ks_qmmm_env
+      TYPE(qs_ks_qmmm_env_type), INTENT(INOUT)           :: ks_qmmm_env
 
       INTEGER                                            :: i
       TYPE(pw_pool_type), POINTER                        :: pool
 
-      IF (ASSOCIATED(ks_qmmm_env)) THEN
-         CPASSERT(ks_qmmm_env%ref_count > 0)
-         ks_qmmm_env%ref_count = ks_qmmm_env%ref_count - 1
-
-         IF (ks_qmmm_env%ref_count < 1) THEN
-            CALL pw_env_get(ks_qmmm_env%pw_env, auxbas_pw_pool=pool)
-            CALL pw_pool_give_back_pw(pool, ks_qmmm_env%v_qmmm_rspace)
-            CALL pw_env_release(ks_qmmm_env%pw_env)
-            IF (ASSOCIATED(ks_qmmm_env%cube_info)) THEN
-               DO i = 1, SIZE(ks_qmmm_env%cube_info)
-                  CALL destroy_cube_info(ks_qmmm_env%cube_info(i))
-               END DO
-               DEALLOCATE (ks_qmmm_env%cube_info)
-            END IF
-            IF (ASSOCIATED(ks_qmmm_env%matrix_h)) THEN
-               CALL dbcsr_deallocate_matrix_set(ks_qmmm_env%matrix_h)
-            END IF
-            DEALLOCATE (ks_qmmm_env)
-         END IF
+      CALL pw_env_get(ks_qmmm_env%pw_env, auxbas_pw_pool=pool)
+      CALL pw_pool_give_back_pw(pool, ks_qmmm_env%v_qmmm_rspace)
+      CALL pw_env_release(ks_qmmm_env%pw_env)
+      IF (ASSOCIATED(ks_qmmm_env%cube_info)) THEN
+         DO i = 1, SIZE(ks_qmmm_env%cube_info)
+            CALL destroy_cube_info(ks_qmmm_env%cube_info(i))
+         END DO
+         DEALLOCATE (ks_qmmm_env%cube_info)
       END IF
-      NULLIFY (ks_qmmm_env)
+      IF (ASSOCIATED(ks_qmmm_env%matrix_h)) THEN
+         CALL dbcsr_deallocate_matrix_set(ks_qmmm_env%matrix_h)
+      END IF
+
    END SUBROUTINE qs_ks_qmmm_release
-
-! **************************************************************************************************
-!> \brief retains the given ks_environment
-!> \param ks_qmmm_env the KohnSham QM/MM environment to retain
-!> \par History
-!>      05.2004 created [tlaino]
-!> \author Teodoro Laino
-! **************************************************************************************************
-   SUBROUTINE qs_ks_qmmm_retain(ks_qmmm_env)
-      TYPE(qs_ks_qmmm_env_type), POINTER                 :: ks_qmmm_env
-
-      CPASSERT(ASSOCIATED(ks_qmmm_env))
-      CPASSERT(ks_qmmm_env%ref_count > 0)
-      ks_qmmm_env%ref_count = ks_qmmm_env%ref_count + 1
-   END SUBROUTINE qs_ks_qmmm_retain
 
 END MODULE qs_ks_qmmm_types

@@ -33,8 +33,6 @@ MODULE pint_normalmode
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pint_normalmode'
 
-   INTEGER, SAVE, PRIVATE :: last_normalmode_id = 0
-
    PUBLIC :: normalmode_env_create
    PUBLIC :: normalmode_release
    PUBLIC :: normalmode_init_masses
@@ -55,7 +53,7 @@ CONTAINS
 !> \author Harald Forbert
 ! **************************************************************************************************
    SUBROUTINE normalmode_env_create(normalmode_env, normalmode_section, p, kT, propagator)
-      TYPE(normalmode_env_type), POINTER                 :: normalmode_env
+      TYPE(normalmode_env_type), INTENT(OUT)             :: normalmode_env
       TYPE(section_vals_type), POINTER                   :: normalmode_section
       INTEGER, INTENT(in)                                :: p
       REAL(kind=dp), INTENT(in)                          :: kT
@@ -66,14 +64,9 @@ CONTAINS
       REAL(kind=dp)                                      :: gamma_parameter, invsqrtp, pip, sqrt2p, &
                                                             twopip
 
-      CPASSERT(.NOT. ASSOCIATED(normalmode_env))
-      ALLOCATE (normalmode_env)
       ALLOCATE (normalmode_env%x2u(p, p))
       ALLOCATE (normalmode_env%u2x(p, p))
       ALLOCATE (normalmode_env%lambda(p))
-      last_normalmode_id = last_normalmode_id + 1
-      normalmode_env%id_nr = last_normalmode_id
-      normalmode_env%ref_count = 1
 
       normalmode_env%p = p
 
@@ -184,7 +177,6 @@ CONTAINS
          CPABORT("UNKNOWN PROPAGATOR FOR PINT SELECTED")
       END IF
 
-      RETURN
    END SUBROUTINE normalmode_env_create
 
 ! ***************************************************************************
@@ -192,40 +184,15 @@ CONTAINS
 !> \param normalmode_env the normalmode_env to release
 !> \author Harald Forbert
 ! **************************************************************************************************
-   SUBROUTINE normalmode_release(normalmode_env)
+   PURE SUBROUTINE normalmode_release(normalmode_env)
 
-      TYPE(normalmode_env_type), POINTER                 :: normalmode_env
+      TYPE(normalmode_env_type), INTENT(INOUT)           :: normalmode_env
 
-      IF (ASSOCIATED(normalmode_env)) THEN
-         CPASSERT(normalmode_env%ref_count > 0)
-         normalmode_env%ref_count = normalmode_env%ref_count - 1
-         IF (normalmode_env%ref_count == 0) THEN
-            DEALLOCATE (normalmode_env%x2u)
-            DEALLOCATE (normalmode_env%u2x)
-            DEALLOCATE (normalmode_env%lambda)
-            DEALLOCATE (normalmode_env)
-         END IF
-      END IF
-      NULLIFY (normalmode_env)
+      DEALLOCATE (normalmode_env%x2u)
+      DEALLOCATE (normalmode_env%u2x)
+      DEALLOCATE (normalmode_env%lambda)
 
-      RETURN
    END SUBROUTINE normalmode_release
-
-! ***************************************************************************
-!> \brief retains a normalmode_env
-!> \param normalmode_env the normalmode_env to retain
-!> \author Harald Forbert
-! **************************************************************************************************
-   SUBROUTINE normalmode_retain(normalmode_env)
-
-      TYPE(normalmode_env_type), POINTER                 :: normalmode_env
-
-      CPASSERT(ASSOCIATED(normalmode_env))
-      CPASSERT(normalmode_env%ref_count > 0)
-      normalmode_env%ref_count = normalmode_env%ref_count + 1
-
-      RETURN
-   END SUBROUTINE normalmode_retain
 
 ! ***************************************************************************
 !> \brief initializes the masses and fictitious masses compatible with the
@@ -237,10 +204,10 @@ CONTAINS
 !> \param Q masses of the nose thermostats
 !> \author Harald Forbert
 ! **************************************************************************************************
-   SUBROUTINE normalmode_init_masses(normalmode_env, mass, mass_beads, mass_fict, &
-                                     Q)
+   PURE SUBROUTINE normalmode_init_masses(normalmode_env, mass, mass_beads, mass_fict, &
+                                          Q)
 
-      TYPE(normalmode_env_type), POINTER                 :: normalmode_env
+      TYPE(normalmode_env_type), INTENT(IN)              :: normalmode_env
       REAL(kind=dp), DIMENSION(:), INTENT(in)            :: mass
       REAL(kind=dp), DIMENSION(:, :), INTENT(out), &
          OPTIONAL                                        :: mass_beads, mass_fict
@@ -270,7 +237,6 @@ CONTAINS
          END IF
       END IF
 
-      RETURN
    END SUBROUTINE normalmode_init_masses
 
 ! ***************************************************************************
@@ -282,16 +248,13 @@ CONTAINS
 !> \author Harald Forbert
 ! **************************************************************************************************
    SUBROUTINE normalmode_x2u(normalmode_env, ux, x)
-      TYPE(normalmode_env_type), POINTER                 :: normalmode_env
+      TYPE(normalmode_env_type), INTENT(INOUT)           :: normalmode_env
       REAL(kind=dp), DIMENSION(:, :), INTENT(out)        :: ux
       REAL(kind=dp), DIMENSION(:, :), INTENT(in)         :: x
 
-      CPASSERT(ASSOCIATED(normalmode_env))
-      CPASSERT(normalmode_env%ref_count > 0)
       CALL DGEMM('N', 'N', normalmode_env%p, SIZE(x, 2), normalmode_env%p, 1.0_dp, &
                  normalmode_env%x2u(1, 1), SIZE(normalmode_env%x2u, 1), x(1, 1), SIZE(x, 1), &
                  0.0_dp, ux, SIZE(ux, 1))
-      RETURN
    END SUBROUTINE normalmode_x2u
 
 ! ***************************************************************************
@@ -303,16 +266,13 @@ CONTAINS
 !> \author Harald Forbert
 ! **************************************************************************************************
    SUBROUTINE normalmode_u2x(normalmode_env, ux, x)
-      TYPE(normalmode_env_type), POINTER                 :: normalmode_env
+      TYPE(normalmode_env_type), INTENT(INOUT)           :: normalmode_env
       REAL(kind=dp), DIMENSION(:, :), INTENT(in)         :: ux
       REAL(kind=dp), DIMENSION(:, :), INTENT(out)        :: x
 
-      CPASSERT(ASSOCIATED(normalmode_env))
-      CPASSERT(normalmode_env%ref_count > 0)
       CALL DGEMM('N', 'N', normalmode_env%p, SIZE(ux, 2), normalmode_env%p, 1.0_dp, &
                  normalmode_env%u2x(1, 1), SIZE(normalmode_env%u2x, 1), ux(1, 1), SIZE(ux, 1), &
                  0.0_dp, x, SIZE(x, 1))
-      RETURN
    END SUBROUTINE normalmode_u2x
 
 ! ***************************************************************************
@@ -323,16 +283,13 @@ CONTAINS
 !> \author Harald Forbert
 ! **************************************************************************************************
    SUBROUTINE normalmode_f2uf(normalmode_env, uf, f)
-      TYPE(normalmode_env_type), POINTER                 :: normalmode_env
+      TYPE(normalmode_env_type), INTENT(INOUT)           :: normalmode_env
       REAL(kind=dp), DIMENSION(:, :), INTENT(out)        :: uf
       REAL(kind=dp), DIMENSION(:, :), INTENT(in)         :: f
 
-      CPASSERT(ASSOCIATED(normalmode_env))
-      CPASSERT(normalmode_env%ref_count > 0)
       CALL DGEMM('T', 'N', normalmode_env%p, SIZE(f, 2), normalmode_env%p, 1.0_dp, &
                  normalmode_env%u2x(1, 1), SIZE(normalmode_env%u2x, 1), f(1, 1), SIZE(f, 1), &
                  0.0_dp, uf, SIZE(uf, 1))
-      RETURN
    END SUBROUTINE normalmode_f2uf
 
 ! ***************************************************************************
@@ -344,8 +301,8 @@ CONTAINS
 !> \param e_h ...
 !> \author Harald Forbert
 ! **************************************************************************************************
-   SUBROUTINE normalmode_calc_uf_h(normalmode_env, mass_beads, ux, uf_h, e_h)
-      TYPE(normalmode_env_type), POINTER                 :: normalmode_env
+   PURE SUBROUTINE normalmode_calc_uf_h(normalmode_env, mass_beads, ux, uf_h, e_h)
+      TYPE(normalmode_env_type), INTENT(IN)              :: normalmode_env
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: mass_beads, ux, uf_h
       REAL(KIND=dp), INTENT(OUT)                         :: e_h
 
@@ -367,7 +324,6 @@ CONTAINS
          END DO
 
       END DO
-      RETURN
    END SUBROUTINE normalmode_calc_uf_h
 
 END MODULE pint_normalmode

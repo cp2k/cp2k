@@ -33,8 +33,8 @@ CONTAINS
 !> \brief ...
 !> \param pint_env ...
 ! **************************************************************************************************
-   SUBROUTINE pint_calc_gle_energy(pint_env)
-      TYPE(pint_env_type), POINTER                       :: pint_env
+   ELEMENTAL SUBROUTINE pint_calc_gle_energy(pint_env)
+      TYPE(pint_env_type), INTENT(INOUT)                 :: pint_env
 
       INTEGER                                            :: i
 
@@ -51,7 +51,7 @@ CONTAINS
 !> \param pint_env ...
 ! **************************************************************************************************
    SUBROUTINE pint_gle_init(pint_env)
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(pint_env_type), INTENT(INOUT)                 :: pint_env
 
       INTEGER                                            :: i, ib, idim, imap, j
       REAL(dp) :: mf, rr(pint_env%gle%ndim), cc(pint_env%gle%ndim, pint_env%gle%ndim)
@@ -75,7 +75,7 @@ CONTAINS
 !> \param pint_env ...
 ! **************************************************************************************************
    SUBROUTINE pint_gle_step(pint_env)
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(pint_env_type), INTENT(INOUT)                 :: pint_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_gle_step'
 

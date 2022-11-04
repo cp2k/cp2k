@@ -100,7 +100,6 @@ MODULE qs_wf_history_methods
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_wf_history_methods'
-   INTEGER, SAVE, PRIVATE :: last_wfs_id = 0, last_wfi_id = 0
 
    PUBLIC :: wfi_create, wfi_update, wfi_create_for_kp, &
              wfi_extrapolate, wfi_get_method_label, &
@@ -117,16 +116,12 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE wfs_create(snapshot)
-      TYPE(qs_wf_snapshot_type), POINTER                 :: snapshot
+      TYPE(qs_wf_snapshot_type), INTENT(OUT)             :: snapshot
 
-      ALLOCATE (snapshot)
-      last_wfs_id = last_wfs_id + 1
-      snapshot%id_nr = last_wfs_id
       NULLIFY (snapshot%wf, snapshot%rho_r, &
                snapshot%rho_g, snapshot%rho_ao, snapshot%rho_ao_kp, &
                snapshot%overlap, snapshot%rho_frozen)
       snapshot%dt = 1.0_dp
-      snapshot%ref_count = 1
    END SUBROUTINE wfs_create
 
 ! **************************************************************************************************
@@ -172,10 +167,10 @@ CONTAINS
       CPASSERT(ASSOCIATED(wf_history))
       CPASSERT(ASSOCIATED(dft_control))
       IF (.NOT. ASSOCIATED(snapshot)) THEN
+         ALLOCATE (snapshot)
          CALL wfs_create(snapshot)
       END IF
       CPASSERT(wf_history%ref_count > 0)
-      CPASSERT(snapshot%ref_count > 0)
 
       nspins = dft_control%nspins
       snapshot%dt = 1.0_dp
@@ -184,8 +179,7 @@ CONTAINS
          CALL get_qs_env(qs_env, mos=mos)
          IF (.NOT. ASSOCIATED(snapshot%wf)) THEN
             CALL fm_pools_create_fm_vect(ao_mo_pools, snapshot%wf, &
-                                         name="ws_snap"//TRIM(ADJUSTL(cp_to_string(snapshot%id_nr)))// &
-                                         "ws")
+                                         name="ws_snap-ws")
             CPASSERT(nspins == SIZE(snapshot%wf))
          END IF
          DO ispin = 1, nspins
@@ -321,8 +315,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ALLOCATE (wf_history)
-      last_wfi_id = last_wfi_id + 1
-      wf_history%id_nr = last_wfi_id
       wf_history%ref_count = 1
       wf_history%memory_depth = 0
       wf_history%snapshot_count = 0
@@ -509,7 +501,6 @@ CONTAINS
       CPASSERT(ASSOCIATED(wf_history))
       CPASSERT(wf_history%ref_count > 0)
       CPASSERT(ASSOCIATED(qs_env))
-      CPASSERT(qs_env%ref_count > 0)
       CALL get_qs_env(qs_env, mos=mos, rho=rho, do_kpoints=do_kpoints)
       CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
       ! chooses the method for this extrapolation
@@ -954,18 +945,9 @@ CONTAINS
 !>      11.2006 created [TdK]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! **************************************************************************************************
-   SUBROUTINE wfi_set_history_variables(qs_env, nvec)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+   ELEMENTAL SUBROUTINE wfi_set_history_variables(qs_env, nvec)
+      TYPE(qs_environment_type), INTENT(INOUT)           :: qs_env
       INTEGER, INTENT(IN)                                :: nvec
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'wfi_set_history_variables'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(qs_env))
-      CPASSERT(qs_env%ref_count > 0)
 
       IF (nvec >= qs_env%wf_history%memory_depth) THEN
          IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
@@ -980,8 +962,6 @@ CONTAINS
             qs_env%scf_control%outer_scf%eps_scf = qs_env%scf_control%eps_scf_hist
          END IF
       END IF
-
-      CALL timestop(handle)
 
    END SUBROUTINE wfi_set_history_variables
 
@@ -1002,7 +982,6 @@ CONTAINS
       CPASSERT(ASSOCIATED(wf_history))
       CPASSERT(wf_history%ref_count > 0)
       CPASSERT(ASSOCIATED(qs_env))
-      CPASSERT(qs_env%ref_count > 0)
 
       wf_history%snapshot_count = wf_history%snapshot_count + 1
       IF (wf_history%memory_depth > 0) THEN
@@ -1109,7 +1088,6 @@ CONTAINS
                                      extension=".scfLog")
 
       CPASSERT(ASSOCIATED(qs_env))
-      CPASSERT(qs_env%ref_count > 0)
       CPASSERT(ASSOCIATED(qs_env%wf_history))
       CPASSERT(qs_env%wf_history%ref_count > 0)
       CALL get_qs_env(qs_env, dft_control=dft_control)

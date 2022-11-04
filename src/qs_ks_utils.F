@@ -1096,7 +1096,7 @@ CONTAINS
          IF (dft_control%qs_control%ddapc_restraint) THEN
             DO n = 1, SIZE(dft_control%qs_control%ddapc_restraint_control)
                ddapc_order_p = &
-                  dft_control%qs_control%ddapc_restraint_control(n)%ddapc_restraint_control%ddapc_order_p
+                  dft_control%qs_control%ddapc_restraint_control(n)%ddapc_order_p
                WRITE (UNIT=output_unit, FMT="(T3,A,T41,2F20.10)") &
                   "DDAPC restraint (order_p,energy) : ", ddapc_order_p, energy%ddapc_restraint(n)
             END DO
@@ -1655,7 +1655,7 @@ CONTAINS
       INTEGER                                            :: handle, my_val, nelectron, nspins
       INTEGER, DIMENSION(2)                              :: nelectron_spin
       LOGICAL                                            :: do_zmp_read, fermi_amaldi
-      REAL(KIND=dp)                                      :: factor, lambda
+      REAL(KIND=dp)                                      :: lambda
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_ext_r
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -1703,6 +1703,7 @@ CONTAINS
                v_rspace_new(1)%pw%pw_grid%dvol
       ELSE
          BLOCK
+            REAL(KIND=dp)                                      :: factor
             TYPE(pw_type) :: rho_eff_gspace, v_xc_gspace
             CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
                                    pw=rho_eff_gspace, &

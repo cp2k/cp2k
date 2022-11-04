@@ -85,7 +85,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_pe
       TYPE(qs_p_env_type)                                :: p_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ex_properties', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ex_properties'
 
       CHARACTER(LEN=8), DIMENSION(3)                     :: rlab
       CHARACTER(LEN=default_path_length)                 :: filename

@@ -82,26 +82,19 @@ MODULE pint_piglet
 
 CONTAINS
 
-   ! ***************************************************************************
-   !> \brief creates the data structure for a piglet thermostating in PI runs
-   !> \author Felix Uhl
-   ! ***************************************************************************
-! **************************************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief creates the data structure for a piglet thermostating in PI runs
 !> \param piglet_therm ...
 !> \param pint_env ...
 !> \param section ...
+!> \author Felix Uhl
 ! **************************************************************************************************
    SUBROUTINE pint_piglet_create(piglet_therm, pint_env, section)
-      TYPE(piglet_therm_type), POINTER                   :: piglet_therm
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(piglet_therm_type), INTENT(OUT)               :: piglet_therm
+      TYPE(pint_env_type), INTENT(IN)                    :: pint_env
       TYPE(section_vals_type), POINTER                   :: section
 
       INTEGER                                            :: ndim, p
-
-      NULLIFY (piglet_therm)
-      ALLOCATE (piglet_therm)
-      piglet_therm%ref_count = 1
 
       CALL section_vals_val_get(section, "NEXTRA_DOF", i_val=piglet_therm%nsp1)
       !add real degree of freedom to ns to reach nsp1
@@ -135,25 +128,20 @@ CONTAINS
       ALLOCATE (piglet_therm%sqrtmass(piglet_therm%p, piglet_therm%ndim))
       piglet_therm%sqrtmass(:, :) = 0.0_dp
 
-      RETURN
-
    END SUBROUTINE pint_piglet_create
 
-   ! ***************************************************************************
-   !> \brief initializes the data for a piglet run
-   !> \author Felix Uhl
-   ! ***************************************************************************
-! **************************************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief initializes the data for a piglet run
 !> \param piglet_therm ...
 !> \param pint_env ...
 !> \param section ...
 !> \param dt ...
 !> \param para_env ...
+!> \author Felix Uhl
 ! **************************************************************************************************
    SUBROUTINE pint_piglet_init(piglet_therm, pint_env, section, dt, para_env)
-      TYPE(piglet_therm_type), POINTER                   :: piglet_therm
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(piglet_therm_type), INTENT(INOUT)             :: piglet_therm
+      TYPE(pint_env_type), INTENT(INOUT)                 :: pint_env
       TYPE(section_vals_type), POINTER                   :: section
       REAL(KIND=dp), INTENT(IN)                          :: dt
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -412,8 +400,6 @@ CONTAINS
          END DO
       END DO
 
-      RETURN
-
    END SUBROUTINE pint_piglet_init
 
 ! **************************************************************************************************
@@ -515,53 +501,36 @@ CONTAINS
 
       CALL timestop(handle)
 
-      RETURN
-
    END SUBROUTINE pint_piglet_step
 
-   ! ***************************************************************************
-   !> \brief releases the piglet environment
-   !> \param piglet_therm piglet data to be released
-   !> \author Felix Uhl
-   ! ***************************************************************************
-! **************************************************************************************************
-!> \brief ...
-!> \param piglet_therm ...
+! ***************************************************************************
+!> \brief releases the piglet environment
+!> \param piglet_therm piglet data to be released
+!> \author Felix Uhl
 ! **************************************************************************************************
    SUBROUTINE pint_piglet_release(piglet_therm)
 
-      TYPE(piglet_therm_type), POINTER                   :: piglet_therm
+      TYPE(piglet_therm_type), INTENT(INOUT)             :: piglet_therm
 
-      IF (ASSOCIATED(piglet_therm)) THEN
-         piglet_therm%ref_count = piglet_therm%ref_count - 1
-         IF (piglet_therm%ref_count == 0) THEN
-            DEALLOCATE (piglet_therm%a_mat)
-            DEALLOCATE (piglet_therm%c_mat)
-            DEALLOCATE (piglet_therm%gle_t)
-            DEALLOCATE (piglet_therm%gle_s)
-            DEALLOCATE (piglet_therm%smalls)
-            DEALLOCATE (piglet_therm%temp1)
-            DEALLOCATE (piglet_therm%temp2)
-            DEALLOCATE (piglet_therm%sqrtmass)
-            DEALLOCATE (piglet_therm)
-         END IF
-      END IF
-      NULLIFY (piglet_therm)
+      DEALLOCATE (piglet_therm%a_mat)
+      DEALLOCATE (piglet_therm%c_mat)
+      DEALLOCATE (piglet_therm%gle_t)
+      DEALLOCATE (piglet_therm%gle_s)
+      DEALLOCATE (piglet_therm%smalls)
+      DEALLOCATE (piglet_therm%temp1)
+      DEALLOCATE (piglet_therm%temp2)
+      DEALLOCATE (piglet_therm%sqrtmass)
 
-      RETURN
    END SUBROUTINE pint_piglet_release
 
-   ! ***************************************************************************
-   !> \brief adjust the unit of A MAT for piglet
-   !> \author Felix Uhl
-   ! ***************************************************************************
-! **************************************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief adjust the unit of A MAT for piglet
 !> \param a_mat ...
 !> \param p ...
 !> \param nsp1 ...
 !> \param myunit ...
 !> \param msg ...
+!> \author Felix Uhl
 ! **************************************************************************************************
    SUBROUTINE a_mat_to_cp2k(a_mat, p, nsp1, myunit, msg)
 
@@ -596,8 +565,6 @@ CONTAINS
             END DO
          END DO
       END DO
-
-      RETURN
 
    END SUBROUTINE
 ! ***************************************************************************
@@ -640,8 +607,6 @@ CONTAINS
             END DO
          END DO
       END DO
-
-      RETURN
 
    END SUBROUTINE c_mat_to_cp2k
 
@@ -700,20 +665,15 @@ CONTAINS
          END IF
       END IF
 
-      RETURN
-
    END SUBROUTINE check_temperature
 
-   ! ***************************************************************************
-   !> \brief returns the piglet kinetic energy contribution
-   !> \author Felix Uhl
-   ! ***************************************************************************
-! **************************************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief returns the piglet kinetic energy contribution
 !> \param pint_env ...
+!> \author Felix Uhl
 ! **************************************************************************************************
-   SUBROUTINE pint_calc_piglet_energy(pint_env)
-      TYPE(pint_env_type), POINTER                       :: pint_env
+   ELEMENTAL SUBROUTINE pint_calc_piglet_energy(pint_env)
+      TYPE(pint_env_type), INTENT(INOUT)                 :: pint_env
 
       IF (ASSOCIATED(pint_env%piglet_therm)) THEN
          pint_env%e_piglet = pint_env%piglet_therm%thermostat_energy
@@ -721,24 +681,15 @@ CONTAINS
          pint_env%e_piglet = 0.0d0
       END IF
 
-      RETURN
-
    END SUBROUTINE pint_calc_piglet_energy
 
-   ! ***************************************************************************
-   !> \brief calculates S from S*TRANSPOSED(S) by diagonalizing
-   !>        if S*TRANSPOSED(S) is a positive definite matrix
-   !> \param n order of input matrix
-   !> \param SST matrix to be decomposed
-   !> \param S result matrix
-   !> \author Felix Uhl
-   !> \param LOG: 11-08-2015: Replaced DSYEVR by DSYEV (Felix Uhl)
-   ! ***************************************************************************
-! **************************************************************************************************
-!> \brief ...
-!> \param n ...
-!> \param SST ...
-!> \param S ...
+! ***************************************************************************
+!> \brief calculates S from S*TRANSPOSED(S) by diagonalizing
+!>        if S*TRANSPOSED(S) is a positive definite matrix
+!> \param n order of input matrix
+!> \param SST matrix to be decomposed
+!> \param S result matrix
+!> \author Felix Uhl
 ! **************************************************************************************************
    SUBROUTINE sqrt_pos_def_mat(n, SST, S)
 
@@ -832,8 +783,6 @@ CONTAINS
                  0.0D0, & ! scaling of S-matrix as additive
                  S, & ! result matrix: S-matrix
                  n) ! leading dimension of S-matrix as declared
-
-      RETURN
 
    END SUBROUTINE sqrt_pos_def_mat
 

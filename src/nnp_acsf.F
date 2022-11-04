@@ -62,7 +62,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), &
          OPTIONAL                                        :: dsymdxyz, stress
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_calc_acsf', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'nnp_calc_acsf'
 
       INTEGER                                            :: handle, handle_sf, ind, j, jj, k, kk, l, &
                                                             m, off, s, sf

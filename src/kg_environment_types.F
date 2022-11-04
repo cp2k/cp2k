@@ -162,15 +162,19 @@ CONTAINS
       ! LRI
       IF (ASSOCIATED(kg_env%lri_env)) THEN
          CALL lri_env_release(kg_env%lri_env)
+         DEALLOCATE (kg_env%lri_env)
       END IF
       IF (ASSOCIATED(kg_env%lri_density)) THEN
          CALL lri_density_release(kg_env%lri_density)
+         DEALLOCATE (kg_env%lri_density)
       END IF
       IF (ASSOCIATED(kg_env%lri_env1)) THEN
          CALL lri_env_release(kg_env%lri_env1)
+         DEALLOCATE (kg_env%lri_env1)
       END IF
       IF (ASSOCIATED(kg_env%lri_rho1)) THEN
          CALL lri_density_release(kg_env%lri_rho1)
+         DEALLOCATE (kg_env%lri_rho1)
       END IF
       ! atom grids
       IF (ASSOCIATED(kg_env%int_grid_atom)) THEN

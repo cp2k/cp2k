@@ -26,7 +26,6 @@ MODULE shell_potential_types
 !> \brief Define the shell type
 ! **************************************************************************************************
    TYPE shell_kind_type
-      INTEGER                                :: ref_count
       REAL(dp)                               :: charge_core, &
                                                 charge_shell
       REAL(dp)                               :: mass_core, &
@@ -45,8 +44,8 @@ MODULE shell_potential_types
 
 ! Public subroutines
 
-   PUBLIC :: get_shell, shell_create, shell_p_create, &
-             shell_p_release, shell_release, shell_retain
+   PUBLIC :: get_shell, shell_p_create, &
+             shell_p_release
 
 ! Public data types
 
@@ -86,19 +85,6 @@ CONTAINS
       IF (PRESENT(shell_cutoff)) shell_cutoff = shell%shell_cutoff
 
    END SUBROUTINE
-! **************************************************************************************************
-!> \brief ...
-!> \param shell ...
-! **************************************************************************************************
-   SUBROUTINE shell_create(shell)
-
-      TYPE(shell_kind_type), POINTER                     :: shell
-
-      CPASSERT(.NOT. ASSOCIATED(shell))
-      ALLOCATE (shell)
-      shell%ref_count = 1
-
-   END SUBROUTINE shell_create
 
 ! **************************************************************************************************
 !> \brief ...
@@ -117,44 +103,11 @@ CONTAINS
 
       DO i = 1, ndim
          NULLIFY (shell_list(i)%shell)
-         CALL shell_create(shell_list(i)%shell)
+         ALLOCATE (shell_list(i)%shell)
          shell_list(i)%atm_name = ''
       END DO
 
    END SUBROUTINE shell_p_create
-
-! **************************************************************************************************
-!> \brief ...
-!> \param shell ...
-! **************************************************************************************************
-   SUBROUTINE shell_retain(shell)
-
-      TYPE(shell_kind_type), POINTER                     :: shell
-
-      CPASSERT(ASSOCIATED(shell))
-      CPASSERT(shell%ref_count > 0)
-      shell%ref_count = shell%ref_count + 1
-
-   END SUBROUTINE shell_retain
-
-! **************************************************************************************************
-!> \brief ...
-!> \param shell ...
-! **************************************************************************************************
-   SUBROUTINE shell_release(shell)
-
-      TYPE(shell_kind_type), POINTER                     :: shell
-
-      IF (ASSOCIATED(shell)) THEN
-         CPASSERT(shell%ref_count > 0)
-         shell%ref_count = shell%ref_count - 1
-         IF (shell%ref_count == 0) THEN
-            DEALLOCATE (shell)
-         END IF
-      END IF
-      NULLIFY (shell)
-
-   END SUBROUTINE shell_release
 
 ! **************************************************************************************************
 !> \brief ...
@@ -167,7 +120,7 @@ CONTAINS
 
       IF (ASSOCIATED(shell_list)) THEN
          DO i = 1, SIZE(shell_list)
-            CALL shell_release(shell_list(i)%shell)
+            DEALLOCATE (shell_list(i)%shell)
          END DO
          DEALLOCATE (shell_list)
       END IF

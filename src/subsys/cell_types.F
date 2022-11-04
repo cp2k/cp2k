@@ -29,8 +29,6 @@ MODULE cell_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_types'
 
-   INTEGER, SAVE, PRIVATE :: last_cell_id = 0
-
    ! Impose cell symmetry
    INTEGER, PARAMETER, PUBLIC               :: cell_sym_none = 0, &
                                                cell_sym_triclinic = 1, &
@@ -58,7 +56,7 @@ MODULE cell_types
 !> \version 1.0
 ! **************************************************************************************************
    TYPE cell_type
-      INTEGER                           :: id_nr, ref_count, symmetry_id
+      INTEGER                           :: ref_count, symmetry_id
       LOGICAL                           :: orthorhombic ! actually means a diagonal hmat
       REAL(KIND=dp)                     :: deth
       INTEGER, DIMENSION(3)             :: perd
@@ -107,8 +105,6 @@ CONTAINS
       cell_out%orthorhombic = cell_in%orthorhombic
       cell_out%symmetry_id = cell_in%symmetry_id
       cell_out%ref_count = 1
-      last_cell_id = last_cell_id + 1
-      cell_out%id_nr = last_cell_id
 
    END SUBROUTINE cell_clone
 
@@ -173,14 +169,13 @@ CONTAINS
 !> \param periodic ...
 !> \param h ...
 !> \param h_inv ...
-!> \param id_nr ...
 !> \param symmetry_id ...
 !> \date    16.01.2002
 !> \author  Matthias Krack
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE get_cell(cell, alpha, beta, gamma, deth, orthorhombic, abc, periodic, &
-                       h, h_inv, id_nr, symmetry_id)
+                       h, h_inv, symmetry_id)
 
       TYPE(cell_type), INTENT(IN)                        :: cell
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: alpha, beta, gamma, deth
@@ -189,7 +184,7 @@ CONTAINS
       INTEGER, DIMENSION(3), INTENT(OUT), OPTIONAL       :: periodic
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
          OPTIONAL                                        :: h, h_inv
-      INTEGER, INTENT(OUT), OPTIONAL                     :: id_nr, symmetry_id
+      INTEGER, INTENT(OUT), OPTIONAL                     :: symmetry_id
 
       IF (PRESENT(deth)) deth = cell%deth ! the volume
       IF (PRESENT(orthorhombic)) orthorhombic = cell%orthorhombic
@@ -217,7 +212,6 @@ CONTAINS
       IF (PRESENT(beta)) beta = angle(cell%hmat(:, 1), cell%hmat(:, 3))*degree
       ! gamma = <(a,b)
       IF (PRESENT(gamma)) gamma = angle(cell%hmat(:, 1), cell%hmat(:, 2))*degree
-      IF (PRESENT(id_nr)) id_nr = cell%id_nr
       IF (PRESENT(symmetry_id)) symmetry_id = cell%symmetry_id
 
    END SUBROUTINE get_cell
@@ -761,8 +755,6 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(cell))
       ALLOCATE (cell)
-      last_cell_id = last_cell_id + 1
-      cell%id_nr = last_cell_id
       cell%ref_count = 1
       IF (PRESENT(periodic)) THEN
          cell%perd = periodic

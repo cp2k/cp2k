@@ -309,7 +309,7 @@ CONTAINS
                                                             gw_corr_lev_tot, homo, nmo, unit_nr
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_alpha, do_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_ic_corr', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'apply_ic_corr'
 
       CHARACTER(4)                                       :: occ_virt
       INTEGER                                            :: handle, n_level_gw, n_level_gw_ref

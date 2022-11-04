@@ -61,7 +61,6 @@ MODULE qs_ks_types
                                               qs_rho_type
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_release,&
-                                              qs_subsys_retain,&
                                               qs_subsys_type
    USE task_list_types,                 ONLY: deallocate_task_list,&
                                               task_list_type
@@ -75,7 +74,7 @@ MODULE qs_ks_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_types'
 
    PUBLIC :: qs_ks_env_type, qs_ks_env_create, qs_ks_did_change
-   PUBLIC :: qs_ks_release, qs_ks_part_release, qs_ks_retain, get_ks_env, set_ks_env
+   PUBLIC :: qs_ks_release, qs_ks_part_release, get_ks_env, set_ks_env
 
 ! **************************************************************************************************
 !> \brief calculation environment to calculate the ks matrix,
@@ -141,9 +140,7 @@ MODULE qs_ks_types
                                                                rho_changed = .TRUE., &
                                                                potential_changed = .TRUE., &
                                                                forces_up_to_date = .FALSE.
-      INTEGER                                               :: n_evals = 0, &
-                                                               id_nr = -1, &
-                                                               ref_count = 1
+      INTEGER                                               :: n_evals = 0
 
       ! hartree is supposed to contain the hartree potential (for cube output)
       ! ugly to keep it always around only for a cube output...
@@ -206,17 +203,6 @@ MODULE qs_ks_types
       TYPE(cp_blacs_env_type), POINTER                      :: blacs_env => Null()
    END TYPE qs_ks_env_type
 
-! **************************************************************************************************
-!> \brief type to build arrays of pointers
-!> \param ks_env the ks_env pointer
-!> \par History
-!>      11.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   TYPE qs_ks_env_p_type
-      TYPE(qs_ks_env_type), POINTER :: ks_env
-   END TYPE qs_ks_env_p_type
-
 CONTAINS
 
 ! **************************************************************************************************
@@ -225,10 +211,8 @@ CONTAINS
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE qs_ks_env_create(ks_env)
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(qs_ks_env_type), INTENT(OUT)                  :: ks_env
 
-      IF (ASSOCIATED(ks_env)) CPABORT("ks_env already associated")
-      ALLOCATE (ks_env)
       CALL qs_rho_create(ks_env%rho)
       CALL qs_rho_create(ks_env%rho_xc)
       CALL qs_rho_create(ks_env%rho_buffer)
@@ -393,7 +377,6 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: nelectron_total
       INTEGER, DIMENSION(2), OPTIONAL                    :: nelectron_spin
 
-      IF (ks_env%ref_count < 1) CPABORT("get_ks_env: ks_env%ref_count<1")
       IF (.NOT. ASSOCIATED(ks_env%subsys)) CPABORT("get_ks_env: subsys not associated")
 
       IF (PRESENT(s_mstruct_changed)) s_mstruct_changed = ks_env%s_mstruct_changed
@@ -597,8 +580,6 @@ CONTAINS
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env
 
-      IF (ks_env%ref_count < 1) CPABORT("set_ks_env: ks_env%ref_count<1")
-
       IF (PRESENT(s_mstruct_changed)) ks_env%s_mstruct_changed = s_mstruct_changed
       IF (PRESENT(rho_changed)) ks_env%rho_changed = rho_changed
       IF (PRESENT(potential_changed)) ks_env%potential_changed = potential_changed
@@ -667,8 +648,12 @@ CONTAINS
       IF (PRESENT(task_list_soft)) ks_env%task_list_soft => task_list_soft
 
       IF (PRESENT(subsys)) THEN
-         CALL qs_subsys_release(ks_env%subsys)
-         CALL qs_subsys_retain(subsys)
+         IF (ASSOCIATED(ks_env%subsys)) THEN
+         IF (ASSOCIATED(ks_env%subsys, subsys)) THEN
+            CALL qs_subsys_release(ks_env%subsys)
+            DEALLOCATE (ks_env%subsys)
+         END IF
+         END IF
          ks_env%subsys => subsys
       END IF
       IF (PRESENT(dft_control)) THEN
@@ -678,8 +663,10 @@ CONTAINS
       END IF
       IF (PRESENT(dbcsr_dist)) THEN
          IF (ASSOCIATED(ks_env%dbcsr_dist)) THEN
-            CALL dbcsr_distribution_release(ks_env%dbcsr_dist)
-            DEALLOCATE (ks_env%dbcsr_dist)
+            IF (.NOT. ASSOCIATED(ks_env%dbcsr_dist, dbcsr_dist)) THEN
+               CALL dbcsr_distribution_release(ks_env%dbcsr_dist)
+               DEALLOCATE (ks_env%dbcsr_dist)
+            END IF
          END IF
          ks_env%dbcsr_dist => dbcsr_dist
       END IF
@@ -713,99 +700,93 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE qs_ks_release(ks_env)
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(qs_ks_env_type), INTENT(INOUT)                :: ks_env
 
-      IF (ASSOCIATED(ks_env)) THEN
-         CPASSERT(ks_env%ref_count > 0)
-         ks_env%ref_count = ks_env%ref_count - 1
-
-         IF (ks_env%ref_count < 1) THEN
-            IF (ASSOCIATED(ks_env%v_hartree_rspace)) THEN
-               CALL pw_release(ks_env%v_hartree_rspace)
-               DEALLOCATE (ks_env%v_hartree_rspace)
-            END IF
-
-            CALL kpoint_transitional_release(ks_env%matrix_ks)
-            CALL kpoint_transitional_release(ks_env%matrix_ks_im)
-            CALL kpoint_transitional_release(ks_env%matrix_h)
-            CALL kpoint_transitional_release(ks_env%matrix_h_im)
-            CALL kpoint_transitional_release(ks_env%matrix_vxc)
-            CALL kpoint_transitional_release(ks_env%matrix_s)
-            CALL kpoint_transitional_release(ks_env%matrix_w)
-            CALL kpoint_transitional_release(ks_env%kinetic)
-            CALL kpoint_transitional_release(ks_env%matrix_s_RI_aux)
-
-            IF (ASSOCIATED(ks_env%matrix_p_mp2)) &
-               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_p_mp2)
-            IF (ASSOCIATED(ks_env%matrix_p_mp2_admm)) &
-               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_p_mp2_admm)
-            IF (ASSOCIATED(ks_env%rho)) &
-               CALL qs_rho_release(ks_env%rho)
-            IF (ASSOCIATED(ks_env%rho_buffer)) &
-               CALL qs_rho_release(ks_env%rho_buffer)
-            IF (ASSOCIATED(ks_env%rho_xc)) &
-               CALL qs_rho_release(ks_env%rho_xc)
-            IF (ASSOCIATED(ks_env%distribution_2d)) &
-               CALL distribution_2d_release(ks_env%distribution_2d)
-            IF (ASSOCIATED(ks_env%task_list)) &
-               CALL deallocate_task_list(ks_env%task_list)
-            IF (ASSOCIATED(ks_env%task_list_soft)) &
-               CALL deallocate_task_list(ks_env%task_list_soft)
-
-            IF (ASSOCIATED(ks_env%rho_nlcc_g)) THEN
-               CALL pw_release(ks_env%rho_nlcc_g)
-               DEALLOCATE (ks_env%rho_nlcc_g)
-            END IF
-            IF (ASSOCIATED(ks_env%rho_nlcc)) THEN
-               CALL pw_release(ks_env%rho_nlcc)
-               DEALLOCATE (ks_env%rho_nlcc)
-            END IF
-            IF (ASSOCIATED(ks_env%rho_core)) THEN
-               CALL pw_release(ks_env%rho_core)
-               DEALLOCATE (ks_env%rho_core)
-            END IF
-            IF (ASSOCIATED(ks_env%vppl)) THEN
-               CALL pw_release(ks_env%vppl)
-               DEALLOCATE (ks_env%vppl)
-            END IF
-            IF (ASSOCIATED(ks_env%vee)) THEN
-               CALL pw_release(ks_env%vee)
-               DEALLOCATE (ks_env%vee)
-            END IF
-            IF (ASSOCIATED(ks_env%dbcsr_dist)) THEN
-               CALL dbcsr_distribution_release(ks_env%dbcsr_dist)
-               DEALLOCATE (ks_env%dbcsr_dist)
-            END IF
-
-            CALL release_neighbor_list_sets(ks_env%sab_orb)
-            CALL release_neighbor_list_sets(ks_env%sac_ae)
-            CALL release_neighbor_list_sets(ks_env%sac_ppl)
-            CALL release_neighbor_list_sets(ks_env%sac_lri)
-            CALL release_neighbor_list_sets(ks_env%sap_ppnl)
-            CALL release_neighbor_list_sets(ks_env%sap_oce)
-            CALL release_neighbor_list_sets(ks_env%sab_se)
-            CALL release_neighbor_list_sets(ks_env%sab_vdw)
-            CALL release_neighbor_list_sets(ks_env%sab_scp)
-            CALL release_neighbor_list_sets(ks_env%sab_tbe)
-            CALL release_neighbor_list_sets(ks_env%sab_xtbe)
-            CALL release_neighbor_list_sets(ks_env%sab_core)
-            CALL release_neighbor_list_sets(ks_env%sab_xb)
-            CALL release_neighbor_list_sets(ks_env%sab_xtb_nonbond)
-            CALL release_neighbor_list_sets(ks_env%sab_all)
-            CALL release_neighbor_list_sets(ks_env%sab_lrc)
-            CALL release_neighbor_list_sets(ks_env%sab_almo)
-            CALL release_neighbor_list_sets(ks_env%sab_kp)
-            CALL dft_control_release(ks_env%dft_control)
-            CALL kpoint_release(ks_env%kpoints)
-            CALL qs_subsys_release(ks_env%subsys)
-            CALL pw_env_release(ks_env%pw_env)
-            CALL cp_para_env_release(ks_env%para_env)
-            CALL cp_blacs_env_release(ks_env%blacs_env)
-
-            DEALLOCATE (ks_env)
-         END IF
+      IF (ASSOCIATED(ks_env%v_hartree_rspace)) THEN
+         CALL pw_release(ks_env%v_hartree_rspace)
+         DEALLOCATE (ks_env%v_hartree_rspace)
       END IF
-      NULLIFY (ks_env)
+
+      CALL kpoint_transitional_release(ks_env%matrix_ks)
+      CALL kpoint_transitional_release(ks_env%matrix_ks_im)
+      CALL kpoint_transitional_release(ks_env%matrix_h)
+      CALL kpoint_transitional_release(ks_env%matrix_h_im)
+      CALL kpoint_transitional_release(ks_env%matrix_vxc)
+      CALL kpoint_transitional_release(ks_env%matrix_s)
+      CALL kpoint_transitional_release(ks_env%matrix_w)
+      CALL kpoint_transitional_release(ks_env%kinetic)
+      CALL kpoint_transitional_release(ks_env%matrix_s_RI_aux)
+
+      IF (ASSOCIATED(ks_env%matrix_p_mp2)) &
+         CALL dbcsr_deallocate_matrix_set(ks_env%matrix_p_mp2)
+      IF (ASSOCIATED(ks_env%matrix_p_mp2_admm)) &
+         CALL dbcsr_deallocate_matrix_set(ks_env%matrix_p_mp2_admm)
+      IF (ASSOCIATED(ks_env%rho)) &
+         CALL qs_rho_release(ks_env%rho)
+      IF (ASSOCIATED(ks_env%rho_buffer)) &
+         CALL qs_rho_release(ks_env%rho_buffer)
+      IF (ASSOCIATED(ks_env%rho_xc)) &
+         CALL qs_rho_release(ks_env%rho_xc)
+      IF (ASSOCIATED(ks_env%distribution_2d)) &
+         CALL distribution_2d_release(ks_env%distribution_2d)
+      IF (ASSOCIATED(ks_env%task_list)) &
+         CALL deallocate_task_list(ks_env%task_list)
+      IF (ASSOCIATED(ks_env%task_list_soft)) &
+         CALL deallocate_task_list(ks_env%task_list_soft)
+
+      IF (ASSOCIATED(ks_env%rho_nlcc_g)) THEN
+         CALL pw_release(ks_env%rho_nlcc_g)
+         DEALLOCATE (ks_env%rho_nlcc_g)
+      END IF
+      IF (ASSOCIATED(ks_env%rho_nlcc)) THEN
+         CALL pw_release(ks_env%rho_nlcc)
+         DEALLOCATE (ks_env%rho_nlcc)
+      END IF
+      IF (ASSOCIATED(ks_env%rho_core)) THEN
+         CALL pw_release(ks_env%rho_core)
+         DEALLOCATE (ks_env%rho_core)
+      END IF
+      IF (ASSOCIATED(ks_env%vppl)) THEN
+         CALL pw_release(ks_env%vppl)
+         DEALLOCATE (ks_env%vppl)
+      END IF
+      IF (ASSOCIATED(ks_env%vee)) THEN
+         CALL pw_release(ks_env%vee)
+         DEALLOCATE (ks_env%vee)
+      END IF
+      IF (ASSOCIATED(ks_env%dbcsr_dist)) THEN
+         CALL dbcsr_distribution_release(ks_env%dbcsr_dist)
+         DEALLOCATE (ks_env%dbcsr_dist)
+      END IF
+
+      CALL release_neighbor_list_sets(ks_env%sab_orb)
+      CALL release_neighbor_list_sets(ks_env%sac_ae)
+      CALL release_neighbor_list_sets(ks_env%sac_ppl)
+      CALL release_neighbor_list_sets(ks_env%sac_lri)
+      CALL release_neighbor_list_sets(ks_env%sap_ppnl)
+      CALL release_neighbor_list_sets(ks_env%sap_oce)
+      CALL release_neighbor_list_sets(ks_env%sab_se)
+      CALL release_neighbor_list_sets(ks_env%sab_vdw)
+      CALL release_neighbor_list_sets(ks_env%sab_scp)
+      CALL release_neighbor_list_sets(ks_env%sab_tbe)
+      CALL release_neighbor_list_sets(ks_env%sab_xtbe)
+      CALL release_neighbor_list_sets(ks_env%sab_core)
+      CALL release_neighbor_list_sets(ks_env%sab_xb)
+      CALL release_neighbor_list_sets(ks_env%sab_xtb_nonbond)
+      CALL release_neighbor_list_sets(ks_env%sab_all)
+      CALL release_neighbor_list_sets(ks_env%sab_lrc)
+      CALL release_neighbor_list_sets(ks_env%sab_almo)
+      CALL release_neighbor_list_sets(ks_env%sab_kp)
+      CALL dft_control_release(ks_env%dft_control)
+      CALL kpoint_release(ks_env%kpoints)
+      IF (ASSOCIATED(ks_env%subsys)) THEN
+         CALL qs_subsys_release(ks_env%subsys)
+         DEALLOCATE (ks_env%subsys)
+      END IF
+      CALL pw_env_release(ks_env%pw_env)
+      CALL cp_para_env_release(ks_env%para_env)
+      CALL cp_blacs_env_release(ks_env%blacs_env)
+
    END SUBROUTINE qs_ks_release
 
 ! **************************************************************************************************
@@ -815,99 +796,77 @@ CONTAINS
 !>      04.2022 created [JGH]
 ! **************************************************************************************************
    SUBROUTINE qs_ks_part_release(ks_env)
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(qs_ks_env_type), INTENT(INOUT)                :: ks_env
 
-      IF (ASSOCIATED(ks_env)) THEN
-         CPASSERT(ks_env%ref_count > 0)
-
-         IF (ks_env%ref_count == 1) THEN
-            IF (ASSOCIATED(ks_env%v_hartree_rspace)) THEN
-               CALL pw_release(ks_env%v_hartree_rspace)
-               DEALLOCATE (ks_env%v_hartree_rspace)
-            END IF
-
-            CALL kpoint_transitional_release(ks_env%matrix_h)
-            CALL kpoint_transitional_release(ks_env%matrix_h_im)
-            CALL kpoint_transitional_release(ks_env%matrix_ks_im)
-            CALL kpoint_transitional_release(ks_env%matrix_vxc)
-            CALL kpoint_transitional_release(ks_env%matrix_w)
-            CALL kpoint_transitional_release(ks_env%kinetic)
-            CALL kpoint_transitional_release(ks_env%matrix_s_RI_aux)
-
-            IF (ASSOCIATED(ks_env%matrix_p_mp2)) &
-               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_p_mp2)
-            IF (ASSOCIATED(ks_env%matrix_p_mp2_admm)) &
-               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_p_mp2_admm)
-            IF (ASSOCIATED(ks_env%rho)) &
-               CALL qs_rho_release(ks_env%rho)
-            IF (ASSOCIATED(ks_env%rho_buffer)) &
-               CALL qs_rho_release(ks_env%rho_buffer)
-            IF (ASSOCIATED(ks_env%rho_xc)) &
-               CALL qs_rho_release(ks_env%rho_xc)
-            IF (ASSOCIATED(ks_env%task_list)) &
-               CALL deallocate_task_list(ks_env%task_list)
-            IF (ASSOCIATED(ks_env%task_list_soft)) &
-               CALL deallocate_task_list(ks_env%task_list_soft)
-
-            IF (ASSOCIATED(ks_env%rho_nlcc_g)) THEN
-               CALL pw_release(ks_env%rho_nlcc_g)
-               DEALLOCATE (ks_env%rho_nlcc_g)
-            END IF
-            IF (ASSOCIATED(ks_env%rho_nlcc)) THEN
-               CALL pw_release(ks_env%rho_nlcc)
-               DEALLOCATE (ks_env%rho_nlcc)
-            END IF
-            IF (ASSOCIATED(ks_env%rho_core)) THEN
-               CALL pw_release(ks_env%rho_core)
-               DEALLOCATE (ks_env%rho_core)
-            END IF
-            IF (ASSOCIATED(ks_env%vppl)) THEN
-               CALL pw_release(ks_env%vppl)
-               DEALLOCATE (ks_env%vppl)
-            END IF
-            IF (ASSOCIATED(ks_env%vee)) THEN
-               CALL pw_release(ks_env%vee)
-               DEALLOCATE (ks_env%vee)
-            END IF
-
-            CALL release_neighbor_list_sets(ks_env%sac_ae)
-            CALL release_neighbor_list_sets(ks_env%sac_ppl)
-            CALL release_neighbor_list_sets(ks_env%sac_lri)
-            CALL release_neighbor_list_sets(ks_env%sap_ppnl)
-            CALL release_neighbor_list_sets(ks_env%sap_oce)
-            CALL release_neighbor_list_sets(ks_env%sab_se)
-            CALL release_neighbor_list_sets(ks_env%sab_vdw)
-            CALL release_neighbor_list_sets(ks_env%sab_scp)
-            CALL release_neighbor_list_sets(ks_env%sab_tbe)
-            CALL release_neighbor_list_sets(ks_env%sab_xtbe)
-            CALL release_neighbor_list_sets(ks_env%sab_core)
-            CALL release_neighbor_list_sets(ks_env%sab_xb)
-            CALL release_neighbor_list_sets(ks_env%sab_xtb_nonbond)
-            CALL release_neighbor_list_sets(ks_env%sab_all)
-            CALL release_neighbor_list_sets(ks_env%sab_lrc)
-            CALL release_neighbor_list_sets(ks_env%sab_almo)
-            CALL release_neighbor_list_sets(ks_env%sab_kp)
-            CALL kpoint_release(ks_env%kpoints)
-            CALL pw_env_release(ks_env%pw_env, ks_env%para_env)
-
-         END IF
+      IF (ASSOCIATED(ks_env%v_hartree_rspace)) THEN
+         CALL pw_release(ks_env%v_hartree_rspace)
+         DEALLOCATE (ks_env%v_hartree_rspace)
       END IF
+
+      CALL kpoint_transitional_release(ks_env%matrix_h)
+      CALL kpoint_transitional_release(ks_env%matrix_h_im)
+      CALL kpoint_transitional_release(ks_env%matrix_ks_im)
+      CALL kpoint_transitional_release(ks_env%matrix_vxc)
+      CALL kpoint_transitional_release(ks_env%matrix_w)
+      CALL kpoint_transitional_release(ks_env%kinetic)
+      CALL kpoint_transitional_release(ks_env%matrix_s_RI_aux)
+
+      IF (ASSOCIATED(ks_env%matrix_p_mp2)) &
+         CALL dbcsr_deallocate_matrix_set(ks_env%matrix_p_mp2)
+      IF (ASSOCIATED(ks_env%matrix_p_mp2_admm)) &
+         CALL dbcsr_deallocate_matrix_set(ks_env%matrix_p_mp2_admm)
+      IF (ASSOCIATED(ks_env%rho)) &
+         CALL qs_rho_release(ks_env%rho)
+      IF (ASSOCIATED(ks_env%rho_buffer)) &
+         CALL qs_rho_release(ks_env%rho_buffer)
+      IF (ASSOCIATED(ks_env%rho_xc)) &
+         CALL qs_rho_release(ks_env%rho_xc)
+      IF (ASSOCIATED(ks_env%task_list)) &
+         CALL deallocate_task_list(ks_env%task_list)
+      IF (ASSOCIATED(ks_env%task_list_soft)) &
+         CALL deallocate_task_list(ks_env%task_list_soft)
+
+      IF (ASSOCIATED(ks_env%rho_nlcc_g)) THEN
+         CALL pw_release(ks_env%rho_nlcc_g)
+         DEALLOCATE (ks_env%rho_nlcc_g)
+      END IF
+      IF (ASSOCIATED(ks_env%rho_nlcc)) THEN
+         CALL pw_release(ks_env%rho_nlcc)
+         DEALLOCATE (ks_env%rho_nlcc)
+      END IF
+      IF (ASSOCIATED(ks_env%rho_core)) THEN
+         CALL pw_release(ks_env%rho_core)
+         DEALLOCATE (ks_env%rho_core)
+      END IF
+      IF (ASSOCIATED(ks_env%vppl)) THEN
+         CALL pw_release(ks_env%vppl)
+         DEALLOCATE (ks_env%vppl)
+      END IF
+      IF (ASSOCIATED(ks_env%vee)) THEN
+         CALL pw_release(ks_env%vee)
+         DEALLOCATE (ks_env%vee)
+      END IF
+
+      CALL release_neighbor_list_sets(ks_env%sac_ae)
+      CALL release_neighbor_list_sets(ks_env%sac_ppl)
+      CALL release_neighbor_list_sets(ks_env%sac_lri)
+      CALL release_neighbor_list_sets(ks_env%sap_ppnl)
+      CALL release_neighbor_list_sets(ks_env%sap_oce)
+      CALL release_neighbor_list_sets(ks_env%sab_se)
+      CALL release_neighbor_list_sets(ks_env%sab_vdw)
+      CALL release_neighbor_list_sets(ks_env%sab_scp)
+      CALL release_neighbor_list_sets(ks_env%sab_tbe)
+      CALL release_neighbor_list_sets(ks_env%sab_xtbe)
+      CALL release_neighbor_list_sets(ks_env%sab_core)
+      CALL release_neighbor_list_sets(ks_env%sab_xb)
+      CALL release_neighbor_list_sets(ks_env%sab_xtb_nonbond)
+      CALL release_neighbor_list_sets(ks_env%sab_all)
+      CALL release_neighbor_list_sets(ks_env%sab_lrc)
+      CALL release_neighbor_list_sets(ks_env%sab_almo)
+      CALL release_neighbor_list_sets(ks_env%sab_kp)
+      CALL kpoint_release(ks_env%kpoints)
+      CALL pw_env_release(ks_env%pw_env, ks_env%para_env)
    END SUBROUTINE qs_ks_part_release
-
-! **************************************************************************************************
-!> \brief retains the given ks_environment
-!> \param ks_env the KohnSham environment to retain
-!> \par History
-!>      11.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   SUBROUTINE qs_ks_retain(ks_env)
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
-
-      CPASSERT(ASSOCIATED(ks_env))
-      CPASSERT(ks_env%ref_count > 0)
-      ks_env%ref_count = ks_env%ref_count + 1
-   END SUBROUTINE qs_ks_retain
 
 ! **************************************************************************************************
 !> \brief tells that some of the things relevant to the ks calculation

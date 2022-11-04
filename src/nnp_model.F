@@ -79,7 +79,7 @@ CONTAINS
       TYPE(nnp_type), INTENT(INOUT)                      :: nnp
       INTEGER, INTENT(IN)                                :: i_com
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_predict', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'nnp_predict'
 
       INTEGER                                            :: handle, i, j
       REAL(KIND=dp)                                      :: norm
@@ -167,7 +167,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: i_com
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: denergydsym
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_gradients', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'nnp_gradients'
 
       INTEGER                                            :: handle, i, j, k
       REAL(KIND=dp)                                      :: norm

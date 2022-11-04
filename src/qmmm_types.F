@@ -29,10 +29,9 @@ MODULE qmmm_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_types'
 
-   PUBLIC :: qmmm_env_type, qmmm_env_retain, qmmm_env_release, qmmm_env_get
+   PUBLIC :: qmmm_env_type, qmmm_env_release, qmmm_env_get
 
    TYPE qmmm_env_type
-      INTEGER                                                 :: ref_count = 1
       TYPE(qs_environment_type), POINTER                      :: qs_env => Null()
       TYPE(fist_environment_type), POINTER                    :: fist_env => Null()
       TYPE(qmmm_env_qm_type), POINTER                         :: qm => Null()
@@ -48,7 +47,7 @@ CONTAINS
 !> \param kinetic_energy ...
 ! **************************************************************************************************
    SUBROUTINE qmmm_env_get(qmmm_env, subsys, potential_energy, kinetic_energy)
-      TYPE(qmmm_env_type), POINTER                       :: qmmm_env
+      TYPE(qmmm_env_type), INTENT(IN)                    :: qmmm_env
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: potential_energy, kinetic_energy
 
@@ -56,9 +55,6 @@ CONTAINS
       TYPE(qs_energy_type), POINTER                      :: qs_energy
 
       NULLIFY (qs_energy, thermo)
-
-      CPASSERT(ASSOCIATED(qmmm_env))
-      CPASSERT(qmmm_env%ref_count > 0)
 
       IF (PRESENT(kinetic_energy)) THEN
          CALL fist_env_get(qmmm_env%fist_env, thermo=thermo)
@@ -82,32 +78,15 @@ CONTAINS
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE qmmm_env_release(qmmm_env)
-      TYPE(qmmm_env_type), POINTER                       :: qmmm_env
+      TYPE(qmmm_env_type), INTENT(INOUT)                 :: qmmm_env
 
-      IF (ASSOCIATED(qmmm_env)) THEN
-         CPASSERT(qmmm_env%ref_count > 0)
-         qmmm_env%ref_count = qmmm_env%ref_count - 1
-         IF (qmmm_env%ref_count == 0) THEN
-            CALL qs_env_release(qmmm_env%qs_env)
-            CALL qmmm_env_qm_release(qmmm_env%qm)
-            CALL fist_env_release(qmmm_env%fist_env)
-            DEALLOCATE (qmmm_env)
-         END IF
-      END IF
-      NULLIFY (qmmm_env)
+      CALL qs_env_release(qmmm_env%qs_env)
+      DEALLOCATE (qmmm_env%qs_env)
+      CALL qmmm_env_qm_release(qmmm_env%qm)
+      DEALLOCATE (qmmm_env%qm)
+      CALL fist_env_release(qmmm_env%fist_env)
+      DEALLOCATE (qmmm_env%fist_env)
+
    END SUBROUTINE qmmm_env_release
-
-! **************************************************************************************************
-!> \brief ...
-!> \param qmmm_env ...
-!> \author Ole Schuett
-! **************************************************************************************************
-   SUBROUTINE qmmm_env_retain(qmmm_env)
-      TYPE(qmmm_env_type), POINTER                       :: qmmm_env
-
-      CPASSERT(ASSOCIATED(qmmm_env))
-      CPASSERT(qmmm_env%ref_count > 0)
-      qmmm_env%ref_count = qmmm_env%ref_count + 1
-   END SUBROUTINE qmmm_env_retain
 
 END MODULE qmmm_types

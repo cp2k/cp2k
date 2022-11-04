@@ -26,8 +26,7 @@ MODULE multipole_types
    PRIVATE
    PUBLIC :: multipole_type, &
              create_multipole_type, &
-             release_multipole_type, &
-             retain_multipole_type
+             release_multipole_type
 
    INTEGER, PARAMETER, PUBLIC               :: do_multipole_none = -1, &
                                                do_multipole_charge = 0, &
@@ -43,7 +42,6 @@ MODULE multipole_types
 !> \author Teodoro Laino
 ! **************************************************************************************************
    TYPE multipole_type
-      INTEGER :: id_nr, ref_count
       LOGICAL, DIMENSION(3)                    :: task
       REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
       REAL(KIND=dp), DIMENSION(:), POINTER     :: radii
@@ -52,7 +50,6 @@ MODULE multipole_types
    END TYPE multipole_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'multipole_types'
-   INTEGER, PRIVATE, SAVE :: last_multipole_id_nr = 0
 
 CONTAINS
 
@@ -67,7 +64,7 @@ CONTAINS
 !> \author Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE create_multipole_type(multipoles, particle_set, subsys_section, max_multipole)
-      TYPE(multipole_type), POINTER                      :: multipoles
+      TYPE(multipole_type), INTENT(OUT)                  :: multipoles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: subsys_section
       INTEGER, INTENT(IN)                                :: max_multipole
@@ -78,11 +75,6 @@ CONTAINS
       TYPE(fist_potential_type), POINTER                 :: fist_potential
       TYPE(section_vals_type), POINTER                   :: work_section
 
-      ALLOCATE (multipoles)
-
-      last_multipole_id_nr = last_multipole_id_nr + 1
-      multipoles%id_nr = last_multipole_id_nr
-      multipoles%ref_count = 1
       multipoles%task = .FALSE.
       NULLIFY (multipoles%charges)
       NULLIFY (multipoles%radii)
@@ -160,43 +152,21 @@ CONTAINS
 !> \author Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE release_multipole_type(multipoles)
-      TYPE(multipole_type), POINTER                      :: multipoles
+      TYPE(multipole_type), INTENT(INOUT)                :: multipoles
 
-      IF (ASSOCIATED(multipoles)) THEN
-         CPASSERT(multipoles%ref_count > 0)
-         multipoles%ref_count = multipoles%ref_count - 1
-         IF (multipoles%ref_count == 0) THEN
-            IF (ASSOCIATED(multipoles%charges)) THEN
-               DEALLOCATE (multipoles%charges)
-            END IF
-            IF (ASSOCIATED(multipoles%radii)) THEN
-               DEALLOCATE (multipoles%radii)
-            END IF
-            IF (ASSOCIATED(multipoles%dipoles)) THEN
-               DEALLOCATE (multipoles%dipoles)
-            END IF
-            IF (ASSOCIATED(multipoles%quadrupoles)) THEN
-               DEALLOCATE (multipoles%quadrupoles)
-            END IF
-            DEALLOCATE (multipoles)
-         END IF
+      IF (ASSOCIATED(multipoles%charges)) THEN
+         DEALLOCATE (multipoles%charges)
       END IF
+      IF (ASSOCIATED(multipoles%radii)) THEN
+         DEALLOCATE (multipoles%radii)
+      END IF
+      IF (ASSOCIATED(multipoles%dipoles)) THEN
+         DEALLOCATE (multipoles%dipoles)
+      END IF
+      IF (ASSOCIATED(multipoles%quadrupoles)) THEN
+         DEALLOCATE (multipoles%quadrupoles)
+      END IF
+
    END SUBROUTINE release_multipole_type
-
-! **************************************************************************************************
-!> \brief ...
-!> \param multipoles ...
-!> \par History
-!>      12.2007 created [tlaino] - Teodoro Laino - University of Zurich
-!> \author Teodoro Laino
-! **************************************************************************************************
-   SUBROUTINE retain_multipole_type(multipoles)
-      TYPE(multipole_type), POINTER                      :: multipoles
-
-      IF (ASSOCIATED(multipoles)) THEN
-         CPASSERT(multipoles%ref_count > 0)
-         multipoles%ref_count = multipoles%ref_count + 1
-      END IF
-   END SUBROUTINE retain_multipole_type
 
 END MODULE multipole_types

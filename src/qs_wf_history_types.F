@@ -47,8 +47,6 @@ MODULE qs_wf_history_types
 !> \param overlap the overlap matrix
 !> \param rho_frozen the frozen density structure
 !> \param dt the time of the snapshot (wrf to te previous snapshot!)
-!> \param id_nr unique identification number
-!> \param ref_count reference count (see doc/ReferenceCounting.html)
 !> \note
 !>      keep track also of occupation numbers and energies?
 !> \par History
@@ -65,7 +63,6 @@ MODULE qs_wf_history_types
       TYPE(dbcsr_type), POINTER :: overlap
       TYPE(qs_rho_type), POINTER :: rho_frozen
       REAL(KIND=dp) :: dt
-      INTEGER :: id_nr, ref_count
    END TYPE qs_wf_snapshot_type
 
 ! **************************************************************************************************
@@ -82,7 +79,6 @@ MODULE qs_wf_history_types
 ! **************************************************************************************************
 !> \brief keeps track of the previous wavefunctions and can extrapolate them
 !>      for the next step of md
-!> \param id_nr unique identification number
 !> \param ref_cont reference count (see doc/ReferenceCounting.html)
 !> \param memory_depth how many snapshots should be stored
 !> \param last_state_index index of the latest snapshot
@@ -99,7 +95,7 @@ MODULE qs_wf_history_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE qs_wf_history_type
-      INTEGER :: id_nr, ref_count, memory_depth, last_state_index, &
+      INTEGER :: ref_count, memory_depth, last_state_index, &
                  interpolation_method_nr, snapshot_count
       LOGICAL :: store_wf, store_rho_r, store_rho_g, store_rho_ao, store_rho_ao_kp, &
                  store_overlap, store_frozen_density
@@ -126,39 +122,32 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE wfs_release(snapshot)
-      TYPE(qs_wf_snapshot_type), POINTER                 :: snapshot
+      TYPE(qs_wf_snapshot_type), INTENT(INOUT)           :: snapshot
 
       INTEGER                                            :: i
 
-      IF (ASSOCIATED(snapshot)) THEN
-         CPASSERT(snapshot%ref_count > 0)
-         snapshot%ref_count = snapshot%ref_count - 1
-         IF (snapshot%ref_count == 0) THEN
-            IF (ASSOCIATED(snapshot%wf)) THEN
-               DO i = 1, SIZE(snapshot%wf)
-                  CALL cp_fm_release(snapshot%wf(i)%matrix)
-                  DEALLOCATE (snapshot%wf(i)%matrix)
-               END DO
-               DEALLOCATE (snapshot%wf)
-            END IF
-            ! snapshot%rho_r & snapshot%rho_g is deallocated in wfs_update
-            ! of qs_wf_history_methods, in case you wonder about it.
-            IF (ASSOCIATED(snapshot%rho_ao)) THEN
-               CALL dbcsr_deallocate_matrix_set(snapshot%rho_ao)
-            END IF
-            IF (ASSOCIATED(snapshot%rho_ao_kp)) THEN
-               CALL dbcsr_deallocate_matrix_set(snapshot%rho_ao_kp)
-            END IF
-            IF (ASSOCIATED(snapshot%overlap)) THEN
-               CALL dbcsr_deallocate_matrix(snapshot%overlap)
-            END IF
-            IF (ASSOCIATED(snapshot%rho_frozen)) THEN
-               CALL qs_rho_release(snapshot%rho_frozen)
-            END IF
-            DEALLOCATE (snapshot)
-         END IF
+      IF (ASSOCIATED(snapshot%wf)) THEN
+         DO i = 1, SIZE(snapshot%wf)
+            CALL cp_fm_release(snapshot%wf(i)%matrix)
+            DEALLOCATE (snapshot%wf(i)%matrix)
+         END DO
+         DEALLOCATE (snapshot%wf)
       END IF
-      NULLIFY (snapshot)
+      ! snapshot%rho_r & snapshot%rho_g is deallocated in wfs_update
+      ! of qs_wf_history_methods, in case you wonder about it.
+      IF (ASSOCIATED(snapshot%rho_ao)) THEN
+         CALL dbcsr_deallocate_matrix_set(snapshot%rho_ao)
+      END IF
+      IF (ASSOCIATED(snapshot%rho_ao_kp)) THEN
+         CALL dbcsr_deallocate_matrix_set(snapshot%rho_ao_kp)
+      END IF
+      IF (ASSOCIATED(snapshot%overlap)) THEN
+         CALL dbcsr_deallocate_matrix(snapshot%overlap)
+      END IF
+      IF (ASSOCIATED(snapshot%rho_frozen)) THEN
+         CALL qs_rho_release(snapshot%rho_frozen)
+      END IF
+
    END SUBROUTINE wfs_release
 
 ! **************************************************************************************************
@@ -195,7 +184,10 @@ CONTAINS
          IF (wf_history%ref_count == 0) THEN
             IF (ASSOCIATED(wf_history%past_states)) THEN
                DO i = 1, SIZE(wf_history%past_states)
-                  CALL wfs_release(wf_history%past_states(i)%snapshot)
+                  IF (ASSOCIATED(wf_history%past_states(i)%snapshot)) THEN
+                     CALL wfs_release(wf_history%past_states(i)%snapshot)
+                     DEALLOCATE (wf_history%past_states(i)%snapshot)
+                  END IF
                END DO
                DEALLOCATE (wf_history%past_states)
             END IF

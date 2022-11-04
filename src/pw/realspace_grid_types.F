@@ -59,7 +59,6 @@ MODULE realspace_grid_types
              rs_grid_set_box, &
              rs_grid_create, &
              rs_grid_create_descriptor, &
-             rs_grid_retain, &
              rs_grid_retain_descriptor, &
              rs_grid_release, &
              rs_grid_release_descriptor, &
@@ -76,8 +75,6 @@ MODULE realspace_grid_types
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_types'
-   INTEGER, SAVE, PRIVATE :: last_rs_id = 0
-   INTEGER, SAVE, PRIVATE :: allocated_rs_grid_count = 0
    INTEGER, PARAMETER, PUBLIC :: rs2pw = 11, pw2rs = 12
 
 ! **************************************************************************************************
@@ -142,21 +139,18 @@ MODULE realspace_grid_types
 
    TYPE realspace_grid_type
 
-      TYPE(realspace_grid_desc_type), POINTER :: desc
+      TYPE(realspace_grid_desc_type), POINTER :: desc => NULL()
 
-      INTEGER :: id_nr ! unique identifier of rs
-      INTEGER :: ref_count ! reference count
+      INTEGER :: ngpts_local = -1 ! local dimensions
+      INTEGER, DIMENSION(3) :: npts_local = -1
+      INTEGER, DIMENSION(3) :: lb_local = -1
+      INTEGER, DIMENSION(3) :: ub_local = -1
+      INTEGER, DIMENSION(3) :: lb_real = -1 ! lower bounds of the real local data
+      INTEGER, DIMENSION(3) :: ub_real = -1 ! upper bounds of the real local data
 
-      INTEGER :: ngpts_local ! local dimensions
-      INTEGER, DIMENSION(3) :: npts_local
-      INTEGER, DIMENSION(3) :: lb_local
-      INTEGER, DIMENSION(3) :: ub_local
-      INTEGER, DIMENSION(3) :: lb_real ! lower bounds of the real local data
-      INTEGER, DIMENSION(3) :: ub_real ! upper bounds of the real local data
-
-      INTEGER, DIMENSION(:), POINTER             :: px, py, pz ! index translators
+      INTEGER, DIMENSION(:), POINTER             :: px => NULL(), py => NULL(), pz => NULL() ! index translators
       TYPE(offload_buffer_type)                  :: buffer ! owner of the grid's memory
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: r ! the grid (pointer to buffer%host_buffer)
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: r => NULL() ! the grid (pointer to buffer%host_buffer)
 
    END TYPE realspace_grid_type
 
@@ -492,7 +486,7 @@ CONTAINS
 !> \param desc ...
 ! **************************************************************************************************
    SUBROUTINE rs_grid_create(rs, desc)
-      TYPE(realspace_grid_type), POINTER                 :: rs
+      TYPE(realspace_grid_type), INTENT(OUT)             :: rs
       TYPE(realspace_grid_desc_type), POINTER            :: desc
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rs_grid_create'
@@ -501,11 +495,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ALLOCATE (rs)
-
-      last_rs_id = last_rs_id + 1
-      rs%id_nr = last_rs_id
-      rs%ref_count = 1
       rs%desc => desc
       CALL rs_grid_retain_descriptor(rs%desc)
 
@@ -540,8 +529,6 @@ CONTAINS
          rs%ngpts_local = PRODUCT(rs%npts_local)
       END IF
 
-      allocated_rs_grid_count = allocated_rs_grid_count + 1
-
       CALL offload_create_buffer(rs%ngpts_local, rs%buffer)
       rs%r(rs%lb_local(1):rs%ub_local(1), &
            rs%lb_local(2):rs%ub_local(2), &
@@ -571,16 +558,12 @@ CONTAINS
 !>        04-2009 created [Iain Bethune]
 !>          (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
 ! **************************************************************************************************
-   SUBROUTINE rs_grid_reorder_ranks(desc, real2virtual)
+   PURE SUBROUTINE rs_grid_reorder_ranks(desc, real2virtual)
 
-      TYPE(realspace_grid_desc_type), POINTER            :: desc
+      TYPE(realspace_grid_desc_type), INTENT(INOUT)      :: desc
       INTEGER, DIMENSION(:), INTENT(IN)                  :: real2virtual
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_reorder_ranks'
-
-      INTEGER                                            :: handle, i
-
-      CALL timeset(routineN, handle)
+      INTEGER                                            :: i
 
       desc%real2virtual(:) = real2virtual
 
@@ -594,8 +577,6 @@ CONTAINS
          desc%virtual_group_coor(:) = desc%rank2coord(:, desc%my_virtual_pos)
       END IF
 
-      CALL timestop(handle)
-
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -605,7 +586,7 @@ CONTAINS
 !> \author JGH (17-May-2007)
 ! **************************************************************************************************
    SUBROUTINE rs_grid_print(rs, iounit)
-      TYPE(realspace_grid_type), POINTER                 :: rs
+      TYPE(realspace_grid_type), INTENT(IN)              :: rs
       INTEGER, INTENT(in)                                :: iounit
 
       INTEGER                                            :: dir, i, nn
@@ -2010,31 +1991,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rs_grid_set_box(pw_grid, rs)
 
-      TYPE(pw_grid_type), POINTER                        :: pw_grid
-      TYPE(realspace_grid_type), POINTER                 :: rs
+      TYPE(pw_grid_type), INTENT(IN)                     :: pw_grid
+      TYPE(realspace_grid_type), INTENT(IN)              :: rs
 
-      CPASSERT(ASSOCIATED(pw_grid))
-      CPASSERT(ASSOCIATED(rs))
       CPASSERT(rs%desc%grid_id == pw_grid%id_nr)
       rs%desc%dh = pw_grid%dh
       rs%desc%dh_inv = pw_grid%dh_inv
 
    END SUBROUTINE rs_grid_set_box
-
-! **************************************************************************************************
-!> \brief retains the given rs grid (see doc/ReferenceCounting.html)
-!> \param rs_grid the grid to retain
-!> \par History
-!>      03.2003 created [fawzi]
-!> \author fawzi
-! **************************************************************************************************
-   SUBROUTINE rs_grid_retain(rs_grid)
-      TYPE(realspace_grid_type), POINTER                 :: rs_grid
-
-      CPASSERT(ASSOCIATED(rs_grid))
-      CPASSERT(rs_grid%ref_count > 0)
-      rs_grid%ref_count = rs_grid%ref_count + 1
-   END SUBROUTINE rs_grid_retain
 
 ! **************************************************************************************************
 !> \brief retains the given rs grid descriptor (see doc/ReferenceCounting.html)
@@ -2059,26 +2023,16 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE rs_grid_release(rs_grid)
-      TYPE(realspace_grid_type), POINTER                 :: rs_grid
+      TYPE(realspace_grid_type), INTENT(INOUT)           :: rs_grid
 
-      IF (ASSOCIATED(rs_grid)) THEN
-         CPASSERT(rs_grid%ref_count > 0)
-         rs_grid%ref_count = rs_grid%ref_count - 1
-         IF (rs_grid%ref_count == 0) THEN
+      CALL rs_grid_release_descriptor(rs_grid%desc)
 
-            CALL rs_grid_release_descriptor(rs_grid%desc)
+      CALL offload_free_buffer(rs_grid%buffer)
+      NULLIFY (rs_grid%r)
 
-            allocated_rs_grid_count = allocated_rs_grid_count - 1
-
-            CALL offload_free_buffer(rs_grid%buffer)
-            NULLIFY (rs_grid%r)
-
-            DEALLOCATE (rs_grid%px)
-            DEALLOCATE (rs_grid%py)
-            DEALLOCATE (rs_grid%pz)
-            DEALLOCATE (rs_grid)
-         END IF
-      END IF
+      IF (ASSOCIATED(rs_grid%px)) DEALLOCATE (rs_grid%px)
+      IF (ASSOCIATED(rs_grid%py)) DEALLOCATE (rs_grid%py)
+      IF (ASSOCIATED(rs_grid%pz)) DEALLOCATE (rs_grid%pz)
    END SUBROUTINE rs_grid_release
 
 ! **************************************************************************************************

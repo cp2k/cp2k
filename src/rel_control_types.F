@@ -38,8 +38,7 @@ MODULE rel_control_types
 
    PUBLIC :: rel_c_create, &
              rel_c_read_parameters, &
-             rel_c_release, &
-             rel_c_retain
+             rel_c_release
 
 ! **************************************************************************************************
 !> \brief contains the parameters needed by a relativistic calculation
@@ -60,7 +59,6 @@ MODULE rel_control_types
       INTEGER                               :: rel_transformation
       INTEGER                               :: rel_z_cutoff
       INTEGER                               :: rel_potential
-      INTEGER                               :: ref_count
    END TYPE rel_control_type
 
 CONTAINS
@@ -75,9 +73,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rel_c_create(rel_control)
 
-      TYPE(rel_control_type), POINTER                    :: rel_control
-
-      ALLOCATE (rel_control)
+      TYPE(rel_control_type), INTENT(OUT)                :: rel_control
 
       ! Load the default values
 
@@ -87,28 +83,8 @@ CONTAINS
       rel_control%rel_transformation = rel_trans_full
       rel_control%rel_z_cutoff = 1
       rel_control%rel_potential = rel_pot_full
-      rel_control%ref_count = 1
 
    END SUBROUTINE rel_c_create
-
-! **************************************************************************************************
-!> \brief retains the given rel_control (see cp2k/doc/ReferenceCounting.html)
-!> \param rel_control the object to retain
-!> \par History
-!>      09.2002 created [fawzi] for scf_control_type
-!>      10.2008 copied to rel_control_type [JT]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   SUBROUTINE rel_c_retain(rel_control)
-
-      TYPE(rel_control_type), POINTER                    :: rel_control
-
-      CPASSERT(ASSOCIATED(rel_control))
-
-      CPASSERT(rel_control%ref_count > 0)
-      rel_control%ref_count = rel_control%ref_count + 1
-
-   END SUBROUTINE rel_c_retain
 
 ! **************************************************************************************************
 !> \brief releases the given rel_control (see cp2k/doc/ReferenceCounting.html)
@@ -122,17 +98,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rel_c_release(rel_control)
 
-      TYPE(rel_control_type), POINTER                    :: rel_control
+      TYPE(rel_control_type), INTENT(IN)                 :: rel_control
 
-      IF (ASSOCIATED(rel_control)) THEN
-         CPASSERT(rel_control%ref_count > 0)
-         rel_control%ref_count = rel_control%ref_count - 1
-         IF (rel_control%ref_count < 1) THEN
-            DEALLOCATE (rel_control)
-         END IF
-      END IF
-
-      NULLIFY (rel_control)
+      MARK_USED(rel_control)
 
    END SUBROUTINE rel_c_release
 
@@ -148,13 +116,11 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rel_c_read_parameters(rel_control, dft_section)
 
-      TYPE(rel_control_type), POINTER                    :: rel_control
+      TYPE(rel_control_type), INTENT(INOUT)              :: rel_control
       TYPE(section_vals_type), POINTER                   :: dft_section
 
       TYPE(section_vals_type), POINTER                   :: rel_section
 
-      CPASSERT(ASSOCIATED(rel_control))
-      CPASSERT(rel_control%ref_count > 0)
       CPASSERT(ASSOCIATED(dft_section))
 
       rel_section => section_vals_get_subs_vals(dft_section, "RELATIVISTIC")

@@ -45,7 +45,6 @@ MODULE qs_environment_methods
                                               pw_release,&
                                               pw_type
    USE qs_charges_types,                ONLY: qs_charges_create,&
-                                              qs_charges_release,&
                                               qs_charges_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
@@ -133,9 +132,9 @@ CONTAINS
       CPASSERT(ASSOCIATED(dft_control))
       CPASSERT(ASSOCIATED(scf_control))
       ! allocate qs_charges
+      ALLOCATE (qs_charges)
       CALL qs_charges_create(qs_charges, nspins=dft_control%nspins)
       CALL set_qs_env(qs_env, qs_charges=qs_charges)
-      CALL qs_charges_release(qs_charges)
 
       ! outer scf setup
       IF (scf_control%outer_scf%have_scf) THEN

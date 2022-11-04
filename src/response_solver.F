@@ -559,8 +559,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: cpmos
       INTEGER, INTENT(IN)                                :: iounit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'response_equation_new', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'response_equation_new'
 
       INTEGER                                            :: handle, ispin, nao, nao_aux, nspins
       LOGICAL                                            :: should_stop
@@ -662,8 +661,7 @@ CONTAINS
          POINTER                                         :: p1_mat
       TYPE(section_vals_type), OPTIONAL, POINTER         :: lr_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'response_equation', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'response_equation'
 
       INTEGER                                            :: handle, ispin, nao, nao_aux, nspins
       LOGICAL                                            :: should_stop
@@ -2576,8 +2574,7 @@ CONTAINS
          POINTER                                         :: matrix_whz
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_whz_ao_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_whz_ao_matrix'
 
       INTEGER                                            :: handle, ispin, nspins
       REAL(KIND=dp)                                      :: scaling

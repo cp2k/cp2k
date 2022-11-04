@@ -85,9 +85,6 @@ CONTAINS
    SUBROUTINE release_kernel_env(kernel_env)
       TYPE(full_kernel_env_type), POINTER                :: kernel_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'release_kernel_env', &
-         routineP = moduleN//':'//routineN
-
       IF (ASSOCIATED(kernel_env)) THEN
          IF (ASSOCIATED(kernel_env%xc_rho1_set)) THEN
             CALL xc_rho_set_release(kernel_env%xc_rho1_set)

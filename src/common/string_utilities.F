@@ -111,7 +111,7 @@ CONTAINS
 !>      02.2006 created [Joost VandeVondele]
 !>      09.2020 switch to Levenshtein distance [Ole Schuett]
 ! **************************************************************************************************
-   FUNCTION typo_match(string, typo_string) RESULT(match)
+   ELEMENTAL FUNCTION typo_match(string, typo_string) RESULT(match)
       CHARACTER(LEN=*), INTENT(IN)                       :: string, typo_string
       INTEGER                                            :: match
 
@@ -126,7 +126,7 @@ CONTAINS
 !> \return edit distance
 !> \author Ole Schuett
 ! **************************************************************************************************
-   FUNCTION levenshtein_distance(s, t) RESULT(distance)
+   PURE FUNCTION levenshtein_distance(s, t) RESULT(distance)
 
       CHARACTER(LEN=*), INTENT(IN)                       :: s, t
       INTEGER                                            :: distance
@@ -3475,7 +3475,7 @@ CONTAINS
 !> \author  Matthias Krack (MK)
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE lowercase(string)
+   ELEMENTAL SUBROUTINE lowercase(string)
       CHARACTER(LEN=*), INTENT(INOUT)                    :: string
 
       INTEGER                                            :: i, iascii
@@ -3496,7 +3496,7 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE uppercase(string)
+   ELEMENTAL SUBROUTINE uppercase(string)
       CHARACTER(LEN=*), INTENT(INOUT)                    :: string
 
       INTEGER                                            :: i, iascii
@@ -3517,7 +3517,7 @@ CONTAINS
 !> \param ia ...
 !> \param ib ...
 ! **************************************************************************************************
-   SUBROUTINE xstring(string, ia, ib)
+   ELEMENTAL SUBROUTINE xstring(string, ia, ib)
 
       CHARACTER(LEN=*), INTENT(IN)                       :: string
       INTEGER, INTENT(OUT)                               :: ia, ib
@@ -3539,7 +3539,7 @@ CONTAINS
 !> \param str2 ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION str_comp(str1, str2) RESULT(equal)
+   ELEMENTAL FUNCTION str_comp(str1, str2) RESULT(equal)
 
       CHARACTER(LEN=*), INTENT(IN)                       :: str1, str2
       LOGICAL                                            :: equal
@@ -3562,7 +3562,7 @@ CONTAINS
 !> \par History
 !>      02.2008 created, AK
 ! **************************************************************************************************
-   FUNCTION is_whitespace(testchar) RESULT(resval)
+   ELEMENTAL FUNCTION is_whitespace(testchar) RESULT(resval)
       CHARACTER(LEN=1), INTENT(IN)                       :: testchar
       LOGICAL                                            :: resval
 
@@ -3577,7 +3577,7 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE strip_control_codes(string)
+   ELEMENTAL SUBROUTINE strip_control_codes(string)
 
       CHARACTER(LEN=*), INTENT(INOUT)                    :: string
 

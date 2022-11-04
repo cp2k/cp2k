@@ -18,7 +18,6 @@ MODULE input_val_types
                                               cp_unit_from_cp2k,&
                                               cp_unit_from_cp2k1,&
                                               cp_unit_release,&
-                                              cp_unit_retain,&
                                               cp_unit_type
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enum_release,&
@@ -33,8 +32,6 @@ MODULE input_val_types
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_val_types'
-
-   INTEGER, SAVE, PRIVATE :: last_val_id = 0
 
    PUBLIC :: val_p_type, val_type
    PUBLIC :: val_create, val_retain, val_release, val_get, val_write, &
@@ -64,7 +61,7 @@ MODULE input_val_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE val_type
-      INTEGER :: ref_count, id_nr, type_of_var
+      INTEGER :: ref_count, type_of_var
       LOGICAL, DIMENSION(:), POINTER :: l_val
       INTEGER, DIMENSION(:), POINTER :: i_val
       CHARACTER(len=default_string_length), DIMENSION(:), POINTER :: &
@@ -131,8 +128,6 @@ CONTAINS
       ALLOCATE (val)
       NULLIFY (val%l_val, val%i_val, val%r_val, val%c_val, val%enum)
       val%type_of_var = no_t
-      last_val_id = last_val_id + 1
-      val%id_nr = last_val_id
       val%ref_count = 1
 
       narg = 0
@@ -491,16 +486,18 @@ CONTAINS
 
       CHARACTER(len=default_string_length)               :: c_string, myfmt, rcval
       INTEGER                                            :: i, iend, item, j, l
+      LOGICAL                                            :: owns_unit
       TYPE(cp_unit_type), POINTER                        :: my_unit
 
       NULLIFY (my_unit)
       myfmt = ""
+      owns_unit = .FALSE.
       IF (PRESENT(fmt)) myfmt = fmt
       IF (PRESENT(unit)) my_unit => unit
-      IF (ASSOCIATED(my_unit)) THEN
-         CALL cp_unit_retain(my_unit)
-      ELSE IF (PRESENT(unit_str)) THEN
+      IF (.NOT. ASSOCIATED(my_unit) .AND. PRESENT(unit_str)) THEN
+         ALLOCATE (my_unit)
          CALL cp_unit_create(my_unit, unit_str)
+         owns_unit = .TRUE.
       END IF
       IF (ASSOCIATED(val)) THEN
          SELECT CASE (val%type_of_var)
@@ -626,7 +623,10 @@ CONTAINS
       ELSE
          WRITE (unit=unit_nr, fmt="(' *null*')", advance="NO")
       END IF
-      IF (ASSOCIATED(my_unit)) CALL cp_unit_release(my_unit)
+      IF (owns_unit) THEN
+         CALL cp_unit_release(my_unit)
+         DEALLOCATE (my_unit)
+      END IF
       WRITE (unit=unit_nr, fmt="()")
    END SUBROUTINE val_write
 
@@ -735,8 +735,6 @@ CONTAINS
       CPASSERT(ASSOCIATED(val_in))
       CPASSERT(.NOT. ASSOCIATED(val_out))
       ALLOCATE (val_out)
-      last_val_id = last_val_id + 1
-      val_out%id_nr = last_val_id
       val_out%type_of_var = val_in%type_of_var
       val_out%ref_count = 1
       val_out%enum => val_in%enum

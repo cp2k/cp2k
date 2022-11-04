@@ -84,7 +84,6 @@ MODULE qs_rho_types
                                                         tau_g_valid = .FALSE., &
                                                         soft_valid = .FALSE.
       INTEGER                                        :: ref_count = -1, &
-                                                        id_nr = -1, &
                                                         rebuild_each = -1
       REAL(KIND=dp), DIMENSION(:), POINTER           :: tot_rho_r => Null(), &
                                                         tot_rho_g => Null()
@@ -94,8 +93,6 @@ MODULE qs_rho_types
    TYPE qs_rho_p_type
       TYPE(qs_rho_type), POINTER                     :: rho
    END TYPE qs_rho_p_type
-
-   INTEGER, PRIVATE, SAVE :: last_rho_id_nr = 0
 
 CONTAINS
 
@@ -110,8 +107,6 @@ CONTAINS
       IF (ASSOCIATED(rho)) CPABORT("rho already associated")
 
       ALLOCATE (rho)
-      last_rho_id_nr = last_rho_id_nr + 1
-      rho%id_nr = last_rho_id_nr
       rho%rebuild_each = 5
       rho%ref_count = 1
    END SUBROUTINE qs_rho_create

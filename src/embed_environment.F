@@ -58,7 +58,7 @@ CONTAINS
    SUBROUTINE embed_init(embed_env, root_section, para_env, force_env_section, &
                          use_motion_section)
 
-      TYPE(embed_env_type), POINTER                      :: embed_env
+      TYPE(embed_env_type), INTENT(INOUT)                :: embed_env
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: force_env_section
@@ -119,7 +119,7 @@ CONTAINS
    SUBROUTINE embed_init_subsys(embed_env, subsys, cell, cell_ref, &
                                 force_env_section, subsys_section)
 
-      TYPE(embed_env_type), POINTER                      :: embed_env
+      TYPE(embed_env_type), INTENT(INOUT)                :: embed_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(cell_type), POINTER                           :: cell, cell_ref
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section

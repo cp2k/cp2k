@@ -75,7 +75,7 @@ MODULE xas_tp_scf
    USE qs_loc_methods,                  ONLY: qs_loc_driver
    USE qs_loc_types,                    ONLY: get_qs_loc_env,&
                                               localized_wfn_control_type,&
-                                              qs_loc_env_new_type
+                                              qs_loc_env_type
    USE qs_mixing_utils,                 ONLY: self_consistency_check
    USE qs_mo_io,                        ONLY: write_mo_set_to_restart
    USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
@@ -93,8 +93,7 @@ MODULE xas_tp_scf
    USE qs_scf_methods,                  ONLY: scf_env_density_mixing
    USE qs_scf_output,                   ONLY: qs_scf_print_summary
    USE qs_scf_types,                    ONLY: general_diag_method_nr,&
-                                              qs_scf_env_type,&
-                                              scf_env_release
+                                              qs_scf_env_type
    USE scf_control_types,               ONLY: scf_control_type
    USE xas_control,                     ONLY: xas_control_type
    USE xas_env_types,                   ONLY: get_xas_env,&
@@ -177,11 +176,8 @@ CONTAINS
       converged = .TRUE.
 
       CPASSERT(ASSOCIATED(xas_env))
-      CPASSERT(xas_env%ref_count > 0)
       CPASSERT(ASSOCIATED(scf_env))
-      CPASSERT(scf_env%ref_count > 0)
       CPASSERT(ASSOCIATED(qs_env))
-      CPASSERT(qs_env%ref_count > 0)
 
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
@@ -435,7 +431,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(preconditioner_type), POINTER                 :: local_preconditioner
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
+      TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: loc_section, print_loc_section
 
@@ -694,8 +690,6 @@ CONTAINS
          IF (.NOT. ASSOCIATED(scf_env)) THEN
             CALL qs_scf_env_initialize(qs_env, scf_env, scf_control, scf_section)
             CALL set_xas_env(xas_env, scf_env=scf_env)
-            CALL scf_env_release(scf_env)
-            CALL get_xas_env(xas_env=xas_env, scf_env=scf_env)
          ELSE
             CALL qs_scf_env_initialize(qs_env, scf_env, scf_control, scf_section)
          END IF

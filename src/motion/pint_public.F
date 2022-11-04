@@ -41,15 +41,13 @@ CONTAINS
 !>           2009-11-30 fixed serious bug in pint_env%x indexing [lwalewski]
 !> \author Lukasz Walewski
 ! **************************************************************************************************
-   FUNCTION pint_com_pos(pint_env) RESULT(com_r)
+   PURE FUNCTION pint_com_pos(pint_env) RESULT(com_r)
 
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(pint_env_type), INTENT(IN)                    :: pint_env
       REAL(kind=dp), DIMENSION(3)                        :: com_r
 
       INTEGER                                            :: ia, ib, ic
       REAL(kind=dp)                                      :: tmass
-
-      CPASSERT(ASSOCIATED(pint_env))
 
       tmass = 0.0_dp
       com_r(:) = 0.0_dp
@@ -67,7 +65,6 @@ CONTAINS
       ! values are equal
       tmass = tmass/3.0_dp
       com_r(:) = com_r(:)/tmass
-      RETURN
    END FUNCTION pint_com_pos
 
 ! ***************************************************************************
@@ -77,14 +74,12 @@ CONTAINS
 !> \date   2009-11-30
 !> \author Lukasz Walewski
 ! **************************************************************************************************
-   FUNCTION pint_cog_pos(pint_env) RESULT(cntrd_r)
+   PURE FUNCTION pint_cog_pos(pint_env) RESULT(cntrd_r)
 
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(pint_env_type), INTENT(IN)                    :: pint_env
       REAL(kind=dp), DIMENSION(3)                        :: cntrd_r
 
       INTEGER                                            :: ia, ib, ic, natoms
-
-      CPASSERT(ASSOCIATED(pint_env))
 
       cntrd_r(:) = 0.0_dp
       natoms = pint_env%ndim/3
@@ -96,7 +91,6 @@ CONTAINS
          END DO
       END DO
       cntrd_r(:) = cntrd_r(:)/REAL(pint_env%p, dp)/REAL(natoms, dp)
-      RETURN
    END FUNCTION pint_cog_pos
 
 ! ***************************************************************************
@@ -193,7 +187,6 @@ CONTAINS
          END DO
       END DO
 
-      RETURN
    END SUBROUTINE pint_free_part_bead_x
 
 ! ***************************************************************************
@@ -252,22 +245,17 @@ CONTAINS
          END DO
       END DO
 
-      RETURN
    END SUBROUTINE pint_levy_walk
 
-   ! ***************************************************************************
-   !> \brief  Calculate the centroid
-   !> \param  pint_env path integral environment
-   !> \date   2013-02-10
-   !> \author lwalewski
-   ! ***************************************************************************
+! ***************************************************************************
+!> \brief  Calculate the centroid
+!> \param  pint_env path integral environment
+!> \date   2013-02-10
+!> \author lwalewski
 ! **************************************************************************************************
-!> \brief ...
-!> \param pint_env ...
-! **************************************************************************************************
-   SUBROUTINE pint_calc_centroid(pint_env)
+   PURE SUBROUTINE pint_calc_centroid(pint_env)
 
-      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(pint_env_type), INTENT(INOUT)                 :: pint_env
 
       INTEGER                                            :: ia, ib
       REAL(KIND=dp)                                      :: invp

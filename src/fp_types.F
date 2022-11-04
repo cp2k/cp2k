@@ -29,7 +29,7 @@ MODULE fp_types
    PRIVATE
 
    PUBLIC :: fp_type
-   PUBLIC :: fp_env_create, fp_env_release, fp_env_retain, fp_env_read, fp_env_write
+   PUBLIC :: fp_env_create, fp_env_release, fp_env_read, fp_env_write
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fp_types'
 
@@ -38,7 +38,6 @@ MODULE fp_types
 
       ! input related objects
       LOGICAL                        :: use_fp
-      INTEGER                        :: ref_count
 
       INTEGER                        :: central_atom
       INTEGER, DIMENSION(:), POINTER :: inner_atoms, outer_atoms
@@ -63,24 +62,13 @@ CONTAINS
 !> \par History
 !>      04.2006 created [Joost VandeVondele]
 ! **************************************************************************************************
-   SUBROUTINE fp_env_create(fp_env)
-      TYPE(fp_type), POINTER                             :: fp_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'fp_env_create'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      CPASSERT(.NOT. ASSOCIATED(fp_env))
-      ALLOCATE (fp_env)
-      fp_env%ref_count = 1
+   PURE SUBROUTINE fp_env_create(fp_env)
+      TYPE(fp_type), INTENT(OUT)                         :: fp_env
 
       fp_env%use_fp = .FALSE.
       NULLIFY (fp_env%inner_atoms)
       NULLIFY (fp_env%outer_atoms)
       NULLIFY (fp_env%print_section)
-      CALL timestop(handle)
 
    END SUBROUTINE fp_env_create
 
@@ -89,40 +77,14 @@ CONTAINS
 !> \param fp_env ...
 ! **************************************************************************************************
    SUBROUTINE fp_env_release(fp_env)
-      TYPE(fp_type), POINTER                             :: fp_env
+      TYPE(fp_type), INTENT(INOUT)                       :: fp_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'fp_env_release'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      IF (ASSOCIATED(fp_env)) THEN
-         CPASSERT(fp_env%ref_count > 0)
-         fp_env%ref_count = fp_env%ref_count - 1
-         IF (fp_env%ref_count == 0) THEN
-            IF (ASSOCIATED(fp_env%inner_atoms)) DEALLOCATE (fp_env%inner_atoms)
-            IF (ASSOCIATED(fp_env%outer_atoms)) DEALLOCATE (fp_env%outer_atoms)
-            IF (ASSOCIATED(fp_env%print_section)) CALL section_vals_release(fp_env%print_section)
-            fp_env%use_fp = .FALSE.
-            DEALLOCATE (fp_env)
-         END IF
-      END IF
-      CALL timestop(handle)
+      IF (ASSOCIATED(fp_env%inner_atoms)) DEALLOCATE (fp_env%inner_atoms)
+      IF (ASSOCIATED(fp_env%outer_atoms)) DEALLOCATE (fp_env%outer_atoms)
+      IF (ASSOCIATED(fp_env%print_section)) CALL section_vals_release(fp_env%print_section)
+      fp_env%use_fp = .FALSE.
 
    END SUBROUTINE fp_env_release
-
-! **************************************************************************************************
-!> \brief ...
-!> \param fp_env ...
-! **************************************************************************************************
-   SUBROUTINE fp_env_retain(fp_env)
-      TYPE(fp_type), POINTER                             :: fp_env
-
-      CPASSERT(ASSOCIATED(fp_env))
-      fp_env%ref_count = fp_env%ref_count + 1
-
-   END SUBROUTINE fp_env_retain
 
 ! **************************************************************************************************
 !> \brief reads the corresponding input section and stores it in the fp_env
@@ -132,7 +94,7 @@ CONTAINS
 !>      04.2006 created [Joost VandeVondele]
 ! **************************************************************************************************
    SUBROUTINE fp_env_read(fp_env, fp_section)
-      TYPE(fp_type), POINTER                             :: fp_env
+      TYPE(fp_type), INTENT(INOUT)                       :: fp_env
       TYPE(section_vals_type), POINTER                   :: fp_section
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'fp_env_read'
@@ -141,7 +103,6 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
 
       CALL timeset(routineN, handle)
-      CPASSERT(ASSOCIATED(fp_env))
       CALL section_vals_get(fp_section, explicit=fp_env%use_fp)
       IF (fp_env%use_fp) THEN
          CALL section_vals_val_get(fp_section, "CENTRAL_ATOM", i_val=fp_env%central_atom)
@@ -176,7 +137,7 @@ CONTAINS
 !>      04.2006 created [Joost VandeVondele]
 ! **************************************************************************************************
    SUBROUTINE fp_env_write(fp_env, fp_section)
-      TYPE(fp_type), POINTER                             :: fp_env
+      TYPE(fp_type), INTENT(IN)                          :: fp_env
       TYPE(section_vals_type), POINTER                   :: fp_section
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'fp_env_write'
@@ -187,7 +148,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
-      CPASSERT(ASSOCIATED(fp_env))
 
       IF (fp_env%use_fp) THEN
          PRINT => section_vals_get_subs_vals(fp_section, "CONTROL")

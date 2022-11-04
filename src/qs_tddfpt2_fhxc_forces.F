@@ -171,7 +171,7 @@ CONTAINS
       TYPE(full_kernel_env_type), INTENT(IN)             :: full_kernel
       LOGICAL, INTENT(IN)                                :: debug_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fhxc_force', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fhxc_force'
 
       INTEGER                                            :: handle, iounit, ispin, mspin, myfun, &
                                                             n_rep_hf, nao, nao_aux, natom, nkind, &
@@ -1144,7 +1144,7 @@ CONTAINS
       TYPE(tddfpt_work_matrices)                         :: work
       LOGICAL, INTENT(IN)                                :: debug_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'stda_force', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'stda_force'
 
       INTEGER :: atom_i, atom_j, blk, ewald_type, handle, i, ia, iatom, idimk, ikind, iounit, is, &
          ispin, jatom, jkind, jspin, nao, natom, norb, nsgf, nspins

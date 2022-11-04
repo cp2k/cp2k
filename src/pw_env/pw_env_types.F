@@ -27,7 +27,6 @@ MODULE pw_env_types
                                               pw_pools_dealloc
    USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                               realspace_grid_desc_type,&
-                                              realspace_grid_p_type,&
                                               realspace_grid_type,&
                                               rs_grid_release,&
                                               rs_grid_release_descriptor
@@ -77,7 +76,7 @@ MODULE pw_env_types
       TYPE(pw_pool_type), POINTER                 :: vdw_pw_pool
       TYPE(realspace_grid_desc_p_type), &
          DIMENSION(:), POINTER                    :: rs_descs
-      TYPE(realspace_grid_p_type), &
+      TYPE(realspace_grid_type), &
          DIMENSION(:), POINTER                    :: rs_grids
       TYPE(gridlevel_info_type), POINTER          :: gridlevel_info
       TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
@@ -124,7 +123,7 @@ CONTAINS
       TYPE(realspace_grid_type), OPTIONAL, POINTER       :: auxbas_rs_grid
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: rs_descs
-      TYPE(realspace_grid_p_type), DIMENSION(:), &
+      TYPE(realspace_grid_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: rs_grids
       TYPE(pw_pool_type), OPTIONAL, POINTER              :: xc_pw_pool, vdw_pw_pool
       TYPE(pw_poisson_type), OPTIONAL, POINTER           :: poisson_env
@@ -144,7 +143,7 @@ CONTAINS
          auxbas_rs_desc => pw_env%rs_descs(pw_env%auxbas_grid)%rs_desc
       END IF
       IF (PRESENT(auxbas_rs_grid)) THEN
-         auxbas_rs_grid => pw_env%rs_grids(pw_env%auxbas_grid)%rs_grid
+         auxbas_rs_grid => pw_env%rs_grids(pw_env%auxbas_grid)
       END IF
       IF (PRESENT(auxbas_grid)) auxbas_grid = pw_env%auxbas_grid
       IF (PRESENT(xc_pw_pool)) xc_pw_pool => pw_env%xc_pw_pool
@@ -208,7 +207,7 @@ CONTAINS
             END IF
             IF (ASSOCIATED(pw_env%rs_grids)) THEN
                DO i = 1, SIZE(pw_env%rs_grids)
-                  CALL rs_grid_release(pw_env%rs_grids(i)%rs_grid)
+                  CALL rs_grid_release(pw_env%rs_grids(i))
                END DO
                DEALLOCATE (pw_env%rs_grids)
             END IF

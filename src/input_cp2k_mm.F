@@ -2687,9 +2687,6 @@ CONTAINS
 
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_TABPOT_section', &
-         routineP = moduleN//':'//routineN
-
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))

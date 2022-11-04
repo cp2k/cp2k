@@ -85,8 +85,7 @@ MODULE xas_methods
                                               qs_print_cubes
    USE qs_loc_types,                    ONLY: localized_wfn_control_type,&
                                               qs_loc_env_create,&
-                                              qs_loc_env_new_type,&
-                                              qs_loc_env_release
+                                              qs_loc_env_type
    USE qs_loc_utils,                    ONLY: qs_loc_control_init,&
                                               qs_loc_env_init,&
                                               set_loc_centers,&
@@ -108,7 +107,6 @@ MODULE xas_methods
                                               scf_env_release
    USE scf_control_types,               ONLY: scf_c_create,&
                                               scf_c_read_parameters,&
-                                              scf_c_release,&
                                               scf_control_type
    USE xas_control,                     ONLY: read_xas_control,&
                                               write_xas_control,&
@@ -184,7 +182,7 @@ CONTAINS
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
+      TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: dft_section, loc_section, &
@@ -233,12 +231,11 @@ CONTAINS
             WRITE (UNIT=output_unit, FMT="(/,T5,A)") &
                "Create and initialize the xas environment"
          END IF
+         ALLOCATE (xas_env)
          CALL xas_env_create(xas_env)
          CALL xas_env_init(xas_env, qs_env, dft_section, logger)
          xas_control => dft_control%xas_control
          CALL set_qs_env(qs_env, xas_env=xas_env)
-         CALL xas_env_release(xas_env)
-         CALL get_qs_env(qs_env, xas_env=xas_env)
       END IF
 
 !   Initialize the type of calculation
@@ -379,6 +376,8 @@ CONTAINS
             END IF
 
             CALL xas_env_release(qs_env%xas_env)
+            DEALLOCATE (qs_env%xas_env)
+            NULLIFY (qs_env%xas_env)
 
             CALL cp_print_key_finished_output(output_unit, logger, xas_section, &
                                               "PRINT%PROGRAM_RUN_INFO")
@@ -471,8 +470,6 @@ CONTAINS
                      CALL qs_scf_env_initialize(qs_env, scf_env, scf_control, scf_section)
                      !     Moved here from qs_scf_env_initialize to be able to have more scf_env
                      CALL set_xas_env(xas_env, scf_env=scf_env)
-                     CALL scf_env_release(scf_env)
-                     CALL get_xas_env(xas_env=xas_env, scf_env=scf_env)
                   ELSE
                      CALL qs_scf_env_initialize(qs_env, scf_env, scf_control, scf_section)
                   END IF
@@ -486,6 +483,7 @@ CONTAINS
 
                   IF (.NOT. scf_env%skip_diis) THEN
                      IF (.NOT. ASSOCIATED(scf_env%scf_diis_buffer)) THEN
+                        ALLOCATE (scf_env%scf_diis_buffer)
                         CALL qs_diis_b_create(scf_env%scf_diis_buffer, nbuffer=scf_control%max_diis)
                      END IF
                      CALL qs_diis_b_clear(scf_env%scf_diis_buffer)
@@ -542,6 +540,7 @@ CONTAINS
                IF (iat == nexc_atoms) THEN
                   CALL scf_env_cleanup(scf_env)
                   CALL scf_env_release(xas_env%scf_env)
+                  DEALLOCATE (xas_env%scf_env)
                END IF
             END IF
 
@@ -571,6 +570,8 @@ CONTAINS
       END IF
 
       CALL xas_env_release(qs_env%xas_env)
+      DEALLOCATE (qs_env%xas_env)
+      NULLIFY (qs_env%xas_env)
 
       CALL cp_print_key_finished_output(output_unit, logger, xas_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
@@ -621,7 +622,7 @@ CONTAINS
          POINTER                                         :: sab_orb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
+      TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: loc_section, xas_section
@@ -646,15 +647,15 @@ CONTAINS
                       dbcsr_dist=dbcsr_dist)
 
       xas_section => section_vals_get_subs_vals(dft_section, "XAS")
+      ALLOCATE (dft_control%xas_control)
       CALL xas_control_create(dft_control%xas_control)
       CALL read_xas_control(dft_control%xas_control, xas_section)
       CALL write_xas_control(dft_control%xas_control, dft_section)
       xas_control => dft_control%xas_control
+      ALLOCATE (scf_control)
       CALL scf_c_create(scf_control)
       CALL scf_c_read_parameters(scf_control, xas_section)
       CALL set_xas_env(xas_env, scf_control=scf_control)
-      CALL scf_c_release(scf_control)
-      CALL get_xas_env(xas_env, scf_control=scf_control)
 
       my_spin = xas_control%spin_channel
       nexc_search = xas_control%nexc_search
@@ -890,10 +891,9 @@ CONTAINS
 
       ! Define the qs_loc_env : to find centers, spread and possibly localize them
       IF (.NOT. (ASSOCIATED(xas_env%qs_loc_env))) THEN
+         ALLOCATE (qs_loc_env)
          CALL qs_loc_env_create(qs_loc_env)
          CALL set_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env)
-         CALL qs_loc_env_release(qs_loc_env)
-         CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env)
          loc_section => section_vals_get_subs_vals(xas_section, "LOCALIZE")
 
          CALL qs_loc_control_init(qs_loc_env, loc_section, do_homo=.TRUE., &

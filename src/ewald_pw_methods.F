@@ -97,7 +97,7 @@ CONTAINS
          CALL pw_grid_change(cell_hmat, pw_big_pool%pw_grid)
          CALL ewald_pw_rho0_setup(ewald_env, pw_big_pool%pw_grid, dg)
          CALL pw_poisson_release(poisson_env)
-         CALL ewald_pw_set(ewald_pw, pw_big_pool=pw_big_pool, dg=dg, &
+         CALL ewald_pw_set(ewald_pw, pw_big_pool=pw_big_pool, &
                            poisson_env=poisson_env)
       CASE (do_ewald_pme)
          CALL ewald_pw_get(ewald_pw, pw_big_pool=pw_big_pool, &
@@ -111,7 +111,7 @@ CONTAINS
          CALL dg_grid_change(cell_hmat, pw_big_pool%pw_grid, pw_small_pool%pw_grid)
          CALL ewald_pw_rho0_setup(ewald_env, pw_small_pool%pw_grid, dg)
          CALL ewald_pw_set(ewald_pw, pw_big_pool=pw_big_pool, &
-                           pw_small_pool=pw_small_pool, dg=dg, &
+                           pw_small_pool=pw_small_pool, &
                            poisson_env=poisson_env)
       CASE (do_ewald_spme)
          CALL ewald_pw_get(ewald_pw, pw_big_pool=pw_big_pool, &
@@ -178,7 +178,7 @@ CONTAINS
 
       CALL dg_rho0_init(dg_rho0, pw_grid)
 
-      CALL dg_set(dg, dg_rho0=dg_rho0, grid_index=grid_index)
+      CALL dg_set(dg, grid_index=grid_index)
 
    END SUBROUTINE ewald_pw_rho0_setup
 

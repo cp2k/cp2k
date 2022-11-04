@@ -47,7 +47,6 @@ MODULE cp_units
 
    LOGICAL, PRIVATE, PARAMETER          :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_units'
-   INTEGER, SAVE, PRIVATE               :: last_unit_id = 0, last_unit_set_id = 0
 
    INTEGER, PARAMETER, PUBLIC :: cp_ukind_none = 0, &
                                  cp_ukind_energy = 1, &
@@ -119,21 +118,19 @@ MODULE cp_units
                                  cp_unit_desc_length = cp_unit_max_kinds*cp_unit_basic_desc_length
 
    PUBLIC :: cp_unit_type, cp_unit_set_type
-   PUBLIC :: cp_unit_create, cp_unit_retain, cp_unit_release, &
+   PUBLIC :: cp_unit_create, cp_unit_release, &
              cp_unit_to_cp2k, cp_unit_from_cp2k, cp_unit_desc, &
              cp_unit_set_create, cp_unit_set_release, &
              cp_unit_to_cp2k1, cp_unit_from_cp2k1, cp_unit_compatible, print_all_units
 
 ! **************************************************************************************************
 !> \brief stores a unit
-!> \param ref_count the reference count (see doc/ReferenceCounting.html)
-!> \param id_nr identification number (unique for each instance)
 !> \param kind the kind of unit (energy, length,...)
 !> \param unit the actual unit (Joule, eV,...)
 !> \author fawzi
 ! **************************************************************************************************
    TYPE cp_unit_type
-      INTEGER :: id_nr, ref_count, n_kinds
+      INTEGER :: n_kinds
       INTEGER, DIMENSION(cp_unit_max_kinds):: kind_id, unit_id, power
    END TYPE cp_unit_type
 
@@ -151,7 +148,6 @@ MODULE cp_units
 !> \author fawzi
 ! **************************************************************************************************
    TYPE cp_unit_set_type
-      INTEGER :: id_nr, ref_count
       TYPE(cp_unit_p_type), DIMENSION(cp_ukind_max) :: units
    END TYPE cp_unit_set_type
 
@@ -164,7 +160,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE cp_unit_create(unit, string)
-      TYPE(cp_unit_type), POINTER                        :: unit
+      TYPE(cp_unit_type), INTENT(OUT)                    :: unit
       CHARACTER(len=*), INTENT(in)                       :: string
 
       CHARACTER(default_string_length)                   :: desc
@@ -454,20 +450,15 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE cp_unit_create2(unit, kind_id, unit_id, power)
-      TYPE(cp_unit_type), POINTER                        :: unit
+      TYPE(cp_unit_type), INTENT(OUT)                    :: unit
       INTEGER, DIMENSION(:), INTENT(in)                  :: kind_id, unit_id
       INTEGER, DIMENSION(:), INTENT(in), OPTIONAL        :: power
 
       INTEGER                                            :: i, j, max_kind, max_pos
       LOGICAL                                            :: repeat
 
-      CPASSERT(.NOT. ASSOCIATED(unit))
       CPASSERT(SIZE(kind_id) <= cp_unit_max_kinds)
       CPASSERT(SIZE(unit_id) <= cp_unit_max_kinds)
-      ALLOCATE (unit)
-      unit%ref_count = 1
-      last_unit_id = last_unit_id + 1
-      unit%id_nr = last_unit_id
       unit%kind_id(1:SIZE(kind_id)) = kind_id
       unit%kind_id(SIZE(kind_id) + 1:) = cp_ukind_none
       unit%unit_id(1:SIZE(unit_id)) = unit_id
@@ -544,21 +535,6 @@ CONTAINS
    END SUBROUTINE cp_unit_create2
 
 ! **************************************************************************************************
-!> \brief retains the given unit
-!> \param unit the unit to retain
-!> \author fawzi
-!> \note
-!>      at the moment not needed, there for completeness
-! **************************************************************************************************
-   SUBROUTINE cp_unit_retain(unit)
-      TYPE(cp_unit_type), POINTER                        :: unit
-
-      CPASSERT(ASSOCIATED(unit))
-      CPASSERT(unit%ref_count > 0)
-      unit%ref_count = unit%ref_count + 1
-   END SUBROUTINE cp_unit_retain
-
-! **************************************************************************************************
 !> \brief releases the given unit
 !> \param unit the unit to release
 !> \author fawzi
@@ -566,15 +542,10 @@ CONTAINS
 !>      at the moment not needed, there for completeness
 ! **************************************************************************************************
    SUBROUTINE cp_unit_release(unit)
-      TYPE(cp_unit_type), POINTER                        :: unit
+      TYPE(cp_unit_type), INTENT(IN)                     :: unit
 
-      IF (ASSOCIATED(unit)) THEN
-         CPASSERT(unit%ref_count > 0)
-         unit%ref_count = unit%ref_count - 1
-         IF (unit%ref_count == 0) THEN
-            DEALLOCATE (unit)
-         END IF
-      END IF
+      MARK_USED(unit)
+
    END SUBROUTINE cp_unit_release
 
 ! **************************************************************************************************
@@ -1062,15 +1033,14 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION cp_unit_desc(unit, defaults, accept_undefined) &
       RESULT(res)
-      TYPE(cp_unit_type), POINTER                        :: unit
-      TYPE(cp_unit_set_type), OPTIONAL, POINTER          :: defaults
+      TYPE(cp_unit_type), INTENT(IN)                     :: unit
+      TYPE(cp_unit_set_type), INTENT(IN), OPTIONAL       :: defaults
       LOGICAL, INTENT(in), OPTIONAL                      :: accept_undefined
       CHARACTER(len=cp_unit_desc_length)                 :: res
 
       INTEGER                                            :: i, my_unit, pos
       LOGICAL                                            :: check, has_defaults, my_accept_undefined
 
-      CPASSERT(ASSOCIATED(unit))
       res = ""
       pos = 1
       my_accept_undefined = .FALSE.
@@ -1080,7 +1050,7 @@ CONTAINS
          CPASSERT(pos < LEN(res))
          my_unit = unit%unit_id(i)
          has_defaults = .FALSE.
-         IF (PRESENT(defaults)) has_defaults = ASSOCIATED(defaults)
+         IF (PRESENT(defaults)) has_defaults = ASSOCIATED(defaults%units(1)%unit)
          IF (my_unit == 0) THEN
             IF (has_defaults) THEN
                my_unit = defaults%units(unit%kind_id(i))%unit%unit_id(1)
@@ -1113,8 +1083,8 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION cp_unit_to_cp2k1(value, unit, defaults, power) RESULT(res)
       REAL(kind=dp), INTENT(in)                          :: value
-      TYPE(cp_unit_type), POINTER                        :: unit
-      TYPE(cp_unit_set_type), OPTIONAL, POINTER          :: defaults
+      TYPE(cp_unit_type), INTENT(IN)                     :: unit
+      TYPE(cp_unit_set_type), INTENT(IN), OPTIONAL       :: defaults
       INTEGER, INTENT(in), OPTIONAL                      :: power
       REAL(kind=dp)                                      :: res
 
@@ -1123,13 +1093,11 @@ CONTAINS
       my_power = 1
       IF (PRESENT(power)) my_power = power
       res = value
-      CPASSERT(ASSOCIATED(unit))
       DO i_unit = 1, unit%n_kinds
          CPASSERT(unit%kind_id(i_unit) > 0)
          my_basic_unit = unit%unit_id(i_unit)
          IF (my_basic_unit == 0 .AND. unit%kind_id(i_unit) /= cp_ukind_undef) THEN
             CPASSERT(PRESENT(defaults))
-            CPASSERT(ASSOCIATED(defaults))
             CPASSERT(ASSOCIATED(defaults%units(unit%kind_id(i_unit))%unit))
             my_basic_unit = defaults%units(unit%kind_id(i_unit))%unit%unit_id(1)
          END IF
@@ -1151,8 +1119,8 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION cp_unit_from_cp2k1(value, unit, defaults, power) RESULT(res)
       REAL(kind=dp), INTENT(in)                          :: value
-      TYPE(cp_unit_type), POINTER                        :: unit
-      TYPE(cp_unit_set_type), OPTIONAL, POINTER          :: defaults
+      TYPE(cp_unit_type), INTENT(IN)                     :: unit
+      TYPE(cp_unit_set_type), INTENT(IN), OPTIONAL       :: defaults
       INTEGER, INTENT(in), OPTIONAL                      :: power
       REAL(kind=dp)                                      :: res
 
@@ -1181,13 +1149,12 @@ CONTAINS
    FUNCTION cp_unit_to_cp2k(value, unit_str, defaults, power) RESULT(res)
       REAL(kind=dp), INTENT(in)                          :: value
       CHARACTER(len=*), INTENT(in)                       :: unit_str
-      TYPE(cp_unit_set_type), OPTIONAL, POINTER          :: defaults
+      TYPE(cp_unit_set_type), INTENT(IN), OPTIONAL       :: defaults
       INTEGER, INTENT(in), OPTIONAL                      :: power
       REAL(kind=dp)                                      :: res
 
-      TYPE(cp_unit_type), POINTER                        :: my_unit
+      TYPE(cp_unit_type)                                 :: my_unit
 
-      NULLIFY (my_unit)
       CALL cp_unit_create(my_unit, unit_str)
       IF (PRESENT(defaults)) THEN
          res = cp_unit_to_cp2k1(value=value, unit=my_unit, defaults=defaults, &
@@ -1211,13 +1178,12 @@ CONTAINS
    FUNCTION cp_unit_from_cp2k(value, unit_str, defaults, power) RESULT(res)
       REAL(kind=dp), INTENT(in)                          :: value
       CHARACTER(len=*), INTENT(in)                       :: unit_str
-      TYPE(cp_unit_set_type), OPTIONAL, POINTER          :: defaults
+      TYPE(cp_unit_set_type), INTENT(IN), OPTIONAL       :: defaults
       INTEGER, INTENT(in), OPTIONAL                      :: power
       REAL(kind=dp)                                      :: res
 
-      TYPE(cp_unit_type), POINTER                        :: my_unit
+      TYPE(cp_unit_type)                                 :: my_unit
 
-      NULLIFY (my_unit)
       CALL cp_unit_create(my_unit, unit_str)
       IF (PRESENT(defaults)) THEN
          res = cp_unit_from_cp2k1(value=value, unit=my_unit, defaults=defaults, &
@@ -1236,7 +1202,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - 11.2007 - University of Zurich
 ! **************************************************************************************************
    FUNCTION cp_unit_compatible(ref_unit, unit) RESULT(res)
-      TYPE(cp_unit_type), POINTER                        :: ref_unit, unit
+      TYPE(cp_unit_type), INTENT(IN)                     :: ref_unit, unit
       LOGICAL                                            :: res
 
       INTEGER                                            :: i
@@ -1259,22 +1225,18 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE cp_unit_set_create(unit_set, name)
-      TYPE(cp_unit_set_type), POINTER                    :: unit_set
+      TYPE(cp_unit_set_type), INTENT(OUT)                :: unit_set
       CHARACTER(len=*), INTENT(in)                       :: name
 
       CHARACTER(len=default_string_length)               :: my_name
       INTEGER                                            :: i
 
-      CPASSERT(.NOT. ASSOCIATED(unit_set))
-      ALLOCATE (unit_set)
-      unit_set%ref_count = 1
-      last_unit_set_id = last_unit_set_id + 1
-      unit_set%id_nr = last_unit_set_id
       my_name = name
       CALL uppercase(my_name)
 
       DO i = 1, cp_ukind_max
          NULLIFY (unit_set%units(i)%unit)
+         ALLOCATE (unit_set%units(i)%unit)
       END DO
       DO i = 1, cp_ukind_max
          SELECT CASE (name)
@@ -1329,38 +1291,20 @@ CONTAINS
    END SUBROUTINE cp_unit_set_create
 
 ! **************************************************************************************************
-!> \brief retains the given unit set
-!> \param unit_set the unit set to retain
-!> \author fawzi
-! **************************************************************************************************
-   SUBROUTINE cp_unit_set_retain(unit_set)
-      TYPE(cp_unit_set_type), POINTER                    :: unit_set
-
-      CPASSERT(ASSOCIATED(unit_set))
-      CPASSERT(unit_set%ref_count > 0)
-      unit_set%ref_count = unit_set%ref_count + 1
-   END SUBROUTINE cp_unit_set_retain
-
-! **************************************************************************************************
 !> \brief releases the given unit set
 !> \param unit_set the unit set to release
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE cp_unit_set_release(unit_set)
-      TYPE(cp_unit_set_type), POINTER                    :: unit_set
+      TYPE(cp_unit_set_type), INTENT(INOUT)              :: unit_set
 
       INTEGER                                            :: i
 
-      IF (ASSOCIATED(unit_set)) THEN
-         CPASSERT(unit_set%ref_count > 0)
-         unit_set%ref_count = unit_set%ref_count - 1
-         IF (unit_set%ref_count == 0) THEN
-            DO i = 1, SIZE(unit_set%units)
-               CALL cp_unit_release(unit_set%units(i)%unit)
-            END DO
-            DEALLOCATE (unit_set)
-         END IF
-      END IF
+      DO i = 1, SIZE(unit_set%units)
+         CALL cp_unit_release(unit_set%units(i)%unit)
+         DEALLOCATE (unit_set%units(i)%unit)
+      END DO
+
    END SUBROUTINE cp_unit_set_release
 
 ! **************************************************************************************************

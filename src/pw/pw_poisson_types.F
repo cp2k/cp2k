@@ -69,9 +69,6 @@ MODULE pw_poisson_types
              pw_green_release
    PUBLIC :: pw_poisson_parameter_type
 
-   INTEGER, SAVE, PRIVATE :: last_greens_fn_id_nr = 0
-   INTEGER, SAVE, PRIVATE :: last_poisson_id = 0
-
    INTEGER, PARAMETER, PUBLIC               :: pw_poisson_none = 0, &
                                                pw_poisson_periodic = 1, &
                                                pw_poisson_analytic = 2, &
@@ -129,7 +126,7 @@ MODULE pw_poisson_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE pw_poisson_type
-      INTEGER :: ref_count, id_nr
+      INTEGER :: ref_count
       INTEGER :: pw_level
       INTEGER :: method
       INTEGER :: used_grid
@@ -152,8 +149,6 @@ MODULE pw_poisson_types
    TYPE greens_fn_type
       INTEGER :: method
       INTEGER :: special_dimension
-      INTEGER :: id_nr
-      INTEGER :: ref_count
       REAL(KIND=dp) :: radius
       REAL(KIND=dp) :: MT_alpha
       REAL(KIND=dp) :: MT_rel_cutoff
@@ -188,7 +183,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_green_create(green, poisson_params, cell_hmat, pw_pool, &
                               mt_super_ref_pw_grid, dct_pw_grid)
-      TYPE(greens_fn_type), POINTER                      :: green
+      TYPE(greens_fn_type), INTENT(OUT)                  :: green
       TYPE(pw_poisson_parameter_type), INTENT(IN)        :: poisson_params
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: cell_hmat
       TYPE(pw_pool_type), POINTER                        :: pw_pool
@@ -202,17 +197,12 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: pw_pool_xpndd
       TYPE(pw_type), POINTER                             :: dct_gf
 
-      CPASSERT(.NOT. (ASSOCIATED(green)))
-      ALLOCATE (green)
       green%p3m = .FALSE.
       green%special_dimension = 0
       green%radius = 0.0_dp
       green%slab_size = 0.0_dp
       green%alpha = 0.0_dp
       green%method = PERIODIC3D
-      last_greens_fn_id_nr = last_greens_fn_id_nr + 1
-      green%id_nr = last_greens_fn_id_nr
-      green%ref_count = 1
       green%MT_alpha = 1.0_dp
       green%MT_rel_cutoff = 1.0_dp
       green%p3m = .FALSE.
@@ -442,19 +432,6 @@ CONTAINS
    END SUBROUTINE pw_green_create
 
 ! **************************************************************************************************
-!> \brief retains the type
-!> \param gftype ...
-!> \author Teodoro Laino
-! **************************************************************************************************
-   SUBROUTINE pw_green_retain(gftype)
-      TYPE(greens_fn_type), POINTER                      :: gftype
-
-      CPASSERT(ASSOCIATED(gftype))
-      CPASSERT(gftype%ref_count > 0)
-      gftype%ref_count = gftype%ref_count + 1
-   END SUBROUTINE pw_green_retain
-
-! **************************************************************************************************
 !> \brief destroys the type (deallocates data)
 !> \param gftype ...
 !> \param pw_pool ...
@@ -464,54 +441,46 @@ CONTAINS
 !>      Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE pw_green_release(gftype, pw_pool)
-      TYPE(greens_fn_type), POINTER                      :: gftype
+      TYPE(greens_fn_type), INTENT(INOUT)                :: gftype
       TYPE(pw_pool_type), OPTIONAL, POINTER              :: pw_pool
 
       LOGICAL                                            :: can_give_back
 
-      IF (ASSOCIATED(gftype)) THEN
-         CPASSERT(gftype%ref_count > 0)
-         gftype%ref_count = gftype%ref_count - 1
-         IF (gftype%ref_count == 0) THEN
-            can_give_back = PRESENT(pw_pool)
-            IF (can_give_back) can_give_back = ASSOCIATED(pw_pool)
-            IF (can_give_back) THEN
-               CALL pw_pool_give_back_pw(pw_pool, gftype%influence_fn)
-               IF (ASSOCIATED(gftype%dct_influence_fn)) THEN
-                  CALL pw_pool_give_back_pw(pw_pool, gftype%dct_influence_fn)
-                  DEALLOCATE (gftype%dct_influence_fn)
-               END IF
-               IF (ASSOCIATED(gftype%screen_fn)) THEN
-                  CALL pw_pool_give_back_pw(pw_pool, gftype%screen_fn)
-                  DEALLOCATE (gftype%screen_fn)
-               END IF
-               IF (ASSOCIATED(gftype%p3m_charge)) THEN
-                  CALL pw_pool_give_back_pw(pw_pool, gftype%p3m_charge)
-                  DEALLOCATE (gftype%p3m_charge)
-               END IF
-            ELSE
-               CALL pw_release(gftype%influence_fn)
-               IF (ASSOCIATED(gftype%dct_influence_fn)) THEN
-                  CALL pw_release(gftype%dct_influence_fn)
-                  DEALLOCATE (gftype%dct_influence_fn)
-               END IF
-               IF (ASSOCIATED(gftype%screen_fn)) THEN
-                  CALL pw_release(gftype%screen_fn)
-                  DEALLOCATE (gftype%screen_fn)
-               END IF
-               IF (ASSOCIATED(gftype%p3m_charge)) THEN
-                  CALL pw_release(gftype%p3m_charge)
-                  DEALLOCATE (gftype%p3m_charge)
-               END IF
-            END IF
-            IF (ASSOCIATED(gftype%p3m_bm2)) &
-               DEALLOCATE (gftype%p3m_bm2)
-            IF (ASSOCIATED(gftype%p3m_coeff)) &
-               DEALLOCATE (gftype%p3m_coeff)
-            DEALLOCATE (gftype)
+      can_give_back = PRESENT(pw_pool)
+      IF (can_give_back) can_give_back = ASSOCIATED(pw_pool)
+      IF (can_give_back) THEN
+         CALL pw_pool_give_back_pw(pw_pool, gftype%influence_fn)
+         IF (ASSOCIATED(gftype%dct_influence_fn)) THEN
+            CALL pw_pool_give_back_pw(pw_pool, gftype%dct_influence_fn)
+            DEALLOCATE (gftype%dct_influence_fn)
+         END IF
+         IF (ASSOCIATED(gftype%screen_fn)) THEN
+            CALL pw_pool_give_back_pw(pw_pool, gftype%screen_fn)
+            DEALLOCATE (gftype%screen_fn)
+         END IF
+         IF (ASSOCIATED(gftype%p3m_charge)) THEN
+            CALL pw_pool_give_back_pw(pw_pool, gftype%p3m_charge)
+            DEALLOCATE (gftype%p3m_charge)
+         END IF
+      ELSE
+         CALL pw_release(gftype%influence_fn)
+         IF (ASSOCIATED(gftype%dct_influence_fn)) THEN
+            CALL pw_release(gftype%dct_influence_fn)
+            DEALLOCATE (gftype%dct_influence_fn)
+         END IF
+         IF (ASSOCIATED(gftype%screen_fn)) THEN
+            CALL pw_release(gftype%screen_fn)
+            DEALLOCATE (gftype%screen_fn)
+         END IF
+         IF (ASSOCIATED(gftype%p3m_charge)) THEN
+            CALL pw_release(gftype%p3m_charge)
+            DEALLOCATE (gftype%p3m_charge)
          END IF
       END IF
-      NULLIFY (gftype)
+      IF (ASSOCIATED(gftype%p3m_bm2)) &
+         DEALLOCATE (gftype%p3m_bm2)
+      IF (ASSOCIATED(gftype%p3m_coeff)) &
+         DEALLOCATE (gftype%p3m_coeff)
    END SUBROUTINE pw_green_release
 
 ! **************************************************************************************************
@@ -532,7 +501,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: l_arg, prod_arg, val
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: m_assign
 
-      CPASSERT(gftype%ref_count > 0)
       n = gftype%p3m_order
 
       ! calculate the assignment function values
@@ -627,8 +595,6 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(poisson_env))
       ALLOCATE (poisson_env)
-      last_poisson_id = last_poisson_id + 1
-      poisson_env%id_nr = last_poisson_id
       poisson_env%ref_count = 1
       poisson_env%method = pw_poisson_none
       poisson_env%rebuild = .TRUE.
@@ -676,13 +642,19 @@ CONTAINS
                CALL pw_pools_dealloc(poisson_env%pw_pools)
             END IF
 
-            CALL pw_green_release(poisson_env%green_fft)
+            IF (ASSOCIATED(poisson_env%green_fft)) THEN
+               CALL pw_green_release(poisson_env%green_fft)
+               DEALLOCATE (poisson_env%green_fft)
+            END IF
             CALL pw_grid_release(poisson_env%mt_super_ref_pw_grid)
             CALL ps_wavelet_release(poisson_env%wavelet)
             CALL ps_implicit_release(poisson_env%implicit_env, &
                                      poisson_env%parameters%ps_implicit_params)
             CALL pw_grid_release(poisson_env%dct_pw_grid)
-            CALL rs_grid_release(poisson_env%diel_rs_grid)
+            IF (ASSOCIATED(poisson_env%diel_rs_grid)) THEN
+               CALL rs_grid_release(poisson_env%diel_rs_grid)
+               DEALLOCATE (poisson_env%diel_rs_grid)
+            END IF
             DEALLOCATE (poisson_env)
 
          END IF

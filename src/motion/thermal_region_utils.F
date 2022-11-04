@@ -93,6 +93,7 @@ CONTAINS
       TYPE(thermal_region_type), POINTER                 :: t_region
 
       NULLIFY (region_sections, t_region, thermal_region_section, particles, subsys, tmplist)
+      ALLOCATE (thermal_regions)
       CALL allocate_thermal_regions(thermal_regions)
       thermal_region_section => section_vals_get_subs_vals(md_section, "THERMAL_REGION")
       CALL section_vals_get(thermal_region_section, explicit=explicit)
@@ -189,10 +190,12 @@ CONTAINS
             simpar%do_thermal_region = .TRUE.
          ELSE
             CALL release_thermal_regions(thermal_regions)
+            DEALLOCATE (thermal_regions)
             simpar%do_thermal_region = .FALSE.
          END IF
       ELSE
          CALL release_thermal_regions(thermal_regions)
+         DEALLOCATE (thermal_regions)
          simpar%do_thermal_region = .FALSE.
       END IF
 

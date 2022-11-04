@@ -51,13 +51,8 @@ CONTAINS
    SUBROUTINE create_nnp_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_nnp_section', &
-         routineP = moduleN//':'//routineN
-
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection, subsubsection
-
-!   ------------------------------------------------------------------------
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="NNP", &
@@ -156,13 +151,8 @@ CONTAINS
    SUBROUTINE create_nnp_print_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_nnp_print_section', &
-         routineP = moduleN//':'//routineN
-
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key
-
-!   ------------------------------------------------------------------------
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="PRINT", &
@@ -222,12 +212,7 @@ CONTAINS
    SUBROUTINE create_nnp_bias_print_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_nnp_bias_print_section', &
-         routineP = moduleN//':'//routineN
-
       TYPE(section_type), POINTER                        :: print_key
-
-!   ------------------------------------------------------------------------
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="PRINT", &

@@ -20,8 +20,8 @@
 !>       07.2020 Pierre Cazade [pcazade] Space Group Symmetry
 !> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
 ! **************************************************************************************************
-RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
-                                final_evaluation, para_env)
+SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
+                      final_evaluation, para_env)
 
    USE cp_log_handling, ONLY: cp_logger_type
    USE averages_types, ONLY: average_quantities_type, &
@@ -70,9 +70,7 @@ RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
    USE particle_methods, ONLY: write_structure_data
    USE virial_methods, ONLY: virial_update
    USE virial_types, ONLY: cp_virial, &
-                           virial_create, &
-                           virial_release, &
-                           virial_type
+                           virial_type, zero_virial
    USE cp_log_handling, ONLY: cp_add_default_logger, &
                               cp_rm_default_logger
    USE space_groups_types, ONLY: spgr_type
@@ -104,7 +102,7 @@ RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
    TYPE(cp_subsys_type), POINTER            :: subsys
    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                shell_particles
-   TYPE(virial_type), POINTER               :: virial, virial_avg
+   TYPE(virial_type), POINTER               :: virial
    TYPE(cp_logger_type), POINTER            :: new_logger
    CHARACTER(LEN=default_string_length)     :: project_name
    TYPE(average_quantities_type), POINTER   :: averages
@@ -194,140 +192,144 @@ RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
          ! Possibly output the new cell used for the next calculation
          CALL write_cell(cell, gopt_env%geo_section)
          ! Compute the pressure tensor
-         CALL virial_create(virial_avg)
-         CALL force_env_calc_energy_force(gopt_env%force_env, &
-                                          calc_force=PRESENT(gradient), &
-                                          require_consistent_energy_force=gopt_env%require_consistent_energy_force)
-         ! Possibly take the potential energy
-         CALL force_env_get(gopt_env%force_env, potential_energy=potential_energy)
-         CALL cp_virial(virial, virial_avg)
-         CALL virial_update(virial_avg, subsys, para_env)
-         IF (PRESENT(f)) THEN
-            CALL force_env_get(gopt_env%force_env, potential_energy=f)
-         END IF
-         ! Possibly take the gradients
-         IF (PRESENT(gradient)) THEN
-            CPASSERT(ANY(virial_avg%pv_total /= 0))
-            ! Convert the average ptens
-            av_ptens(:, :) = virial_avg%pv_total(:, :)/cell%deth
-            IF (master == para_env%mepos) THEN ! we are on the master
-               CPASSERT(ASSOCIATED(gradient))
-               nparticle = force_env_get_nparticle(gopt_env%force_env)
-               nsize = 3*nparticle
-               CPASSERT((SIZE(gradient) == nsize + 6))
-               CALL pack_subsys_particles(subsys=subsys, f=gradient(1:nsize), fscale=-1.0_dp)
-               CALL apply_cell_change(gopt_env, cell, gradient, update_forces=.TRUE.)
-               IF (spgr%keep_space_group) THEN
-                  CALL spgr_apply_rotations_force(spgr, gradient)
-                  CALL spgr_apply_rotations_stress(spgr, cell, av_ptens)
-                  CALL spgr_write_stress_tensor(av_ptens, spgr)
-               END IF
-               cell_gradient => gradient(nsize + 1:nsize + 6)
-               cell_gradient = 0.0_dp
-               CALL get_dg_dh(cell_gradient, av_ptens, gopt_env%cell_env%pres_ext, cell, gopt_env%cell_env%mtrx, &
-                              keep_angles=gopt_env%cell_env%keep_angles, &
-                              keep_symmetry=gopt_env%cell_env%keep_symmetry, &
-                              pres_int=gopt_env%cell_env%pres_int, &
-                              pres_constr=gopt_env%cell_env%pres_constr, &
-                              constraint_id=gopt_env%cell_env%constraint_id)
+         BLOCK
+            TYPE(virial_type) :: virial_avg
+            CALL zero_virial(virial_avg)
+            CALL force_env_calc_energy_force(gopt_env%force_env, &
+                                             calc_force=PRESENT(gradient), &
+                                             require_consistent_energy_force=gopt_env%require_consistent_energy_force)
+            ! Possibly take the potential energy
+            CALL force_env_get(gopt_env%force_env, potential_energy=potential_energy)
+            CALL cp_virial(virial, virial_avg)
+            CALL virial_update(virial_avg, subsys, para_env)
+            IF (PRESENT(f)) THEN
+               CALL force_env_get(gopt_env%force_env, potential_energy=f)
             END IF
-            ! some callers expect pres_int to be available on all ranks. Also, here master is not necessarily a single rank.
-            ! Assume at least master==0
-            CALL mp_bcast(gopt_env%cell_env%pres_int, 0, para_env%group)
-            IF (gopt_env%cell_env%constraint_id /= fix_none) &
-               CALL mp_bcast(gopt_env%cell_env%pres_constr, 0, para_env%group)
-         END IF
-         CALL virial_release(virial_avg)
+            ! Possibly take the gradients
+            IF (PRESENT(gradient)) THEN
+               CPASSERT(ANY(virial_avg%pv_total /= 0))
+               ! Convert the average ptens
+               av_ptens(:, :) = virial_avg%pv_total(:, :)/cell%deth
+               IF (master == para_env%mepos) THEN ! we are on the master
+                  CPASSERT(ASSOCIATED(gradient))
+                  nparticle = force_env_get_nparticle(gopt_env%force_env)
+                  nsize = 3*nparticle
+                  CPASSERT((SIZE(gradient) == nsize + 6))
+                  CALL pack_subsys_particles(subsys=subsys, f=gradient(1:nsize), fscale=-1.0_dp)
+                  CALL apply_cell_change(gopt_env, cell, gradient, update_forces=.TRUE.)
+                  IF (spgr%keep_space_group) THEN
+                     CALL spgr_apply_rotations_force(spgr, gradient)
+                     CALL spgr_apply_rotations_stress(spgr, cell, av_ptens)
+                     CALL spgr_write_stress_tensor(av_ptens, spgr)
+                  END IF
+                  cell_gradient => gradient(nsize + 1:nsize + 6)
+                  cell_gradient = 0.0_dp
+                  CALL get_dg_dh(cell_gradient, av_ptens, gopt_env%cell_env%pres_ext, cell, gopt_env%cell_env%mtrx, &
+                                 keep_angles=gopt_env%cell_env%keep_angles, &
+                                 keep_symmetry=gopt_env%cell_env%keep_symmetry, &
+                                 pres_int=gopt_env%cell_env%pres_int, &
+                                 pres_constr=gopt_env%cell_env%pres_constr, &
+                                 constraint_id=gopt_env%cell_env%constraint_id)
+               END IF
+               ! some callers expect pres_int to be available on all ranks. Also, here master is not necessarily a single rank.
+               ! Assume at least master==0
+               CALL mp_bcast(gopt_env%cell_env%pres_int, 0, para_env%group)
+               IF (gopt_env%cell_env%constraint_id /= fix_none) &
+                  CALL mp_bcast(gopt_env%cell_env%pres_constr, 0, para_env%group)
+            END IF
+         END BLOCK
       CASE (default_cell_geo_opt_id, default_cell_md_id)
          CALL apply_cell_change(gopt_env, cell, x, update_forces=.FALSE.)
          ! Possibly output the new cell used for the next calculation
          CALL write_cell(cell, gopt_env%geo_section)
          ! Compute the pressure tensor
-         CALL virial_create(virial_avg)
-         IF (my_final_evaluation) THEN
-            CALL force_env_calc_energy_force(gopt_env%force_env, &
-                                             calc_force=PRESENT(gradient), &
-                                             require_consistent_energy_force=gopt_env%require_consistent_energy_force)
-            IF (PRESENT(f)) THEN
-               CALL force_env_get(gopt_env%force_env, potential_energy=f)
-            END IF
-         ELSE
-            SELECT CASE (gopt_env%cell_method_id)
-            CASE (default_cell_geo_opt_id)
-               work => section_vals_get_subs_vals(gopt_env%motion_section, "GEO_OPT")
-               CALL section_vals_get(work, explicit=explicit)
-               IF (.NOT. explicit) &
-                  CALL cp_abort(__LOCATION__, &
-                                "Cell optimization at 0K was requested. GEO_OPT section MUST be provided in the input file!")
-               ! Perform a geometry optimization
-               CALL gopt_new_logger_create(new_logger, gopt_env%force_env%root_section, para_env, &
-                                           project_name, id_run=geo_opt_run)
-               CALL cp_add_default_logger(new_logger)
-               CALL cp_geo_opt(gopt_env%force_env, gopt_env%globenv, eval_opt_geo=.FALSE.)
-               CALL force_env_get(gopt_env%force_env, potential_energy=potential_energy)
-               CALL cp_virial(virial, virial_avg)
-            CASE (default_cell_md_id)
-               work => section_vals_get_subs_vals(gopt_env%motion_section, "MD")
-               avgs_section => section_vals_get_subs_vals(work, "AVERAGES")
-               CALL section_vals_get(work, explicit=explicit)
-               IF (.NOT. explicit) &
-                  CALL cp_abort( &
-                  __LOCATION__, &
-                  "Cell optimization at finite temperature was requested. MD section MUST be provided in the input file!")
-               ! Only NVT ensemble is allowed..
-               CALL section_vals_val_get(gopt_env%motion_section, "MD%ENSEMBLE", i_val=ensemble)
-               IF (ensemble /= nvt_ensemble) &
-                  CALL cp_abort(__LOCATION__, &
-                                "Cell optimization at finite temperature requires the NVT MD ensemble!")
-               ! Perform a molecular dynamics
-               CALL gopt_new_logger_create(new_logger, gopt_env%force_env%root_section, para_env, &
-                                           project_name, id_run=mol_dyn_run)
-               CALL cp_add_default_logger(new_logger)
-               CALL create_averages(averages, avgs_section, virial_avg=.TRUE., force_env=gopt_env%force_env)
-               CALL qs_mol_dyn(gopt_env%force_env, gopt_env%globenv, averages, rm_restart_info=.FALSE.)
-               ! Retrieve the average of the stress tensor and the average of the potential energy
-               potential_energy = averages%avepot
-               CALL cp_virial(averages%virial, virial_avg)
-               CALL release_averages(averages)
-            CASE DEFAULT
-               CPABORT("")
-            END SELECT
-            CALL cp_rm_default_logger()
-            CALL gopt_new_logger_release(new_logger, gopt_env%force_env%root_section, para_env, project_name, &
-                                         cell_opt_run)
-            ! Update the virial
-            CALL virial_update(virial_avg, subsys, para_env)
-            ! Possibly take give back the potential energy
-            IF (PRESENT(f)) THEN
-               f = potential_energy
-            END IF
-         END IF
-         ! Possibly give back the gradients
-         IF (PRESENT(gradient)) THEN
-            CPASSERT(ANY(virial_avg%pv_total /= 0))
-            ! Convert the average ptens
-            av_ptens(:, :) = virial_avg%pv_total(:, :)/cell%deth
-            IF (master == para_env%mepos) THEN ! we are on the master
-               CPASSERT(ASSOCIATED(gradient))
-               IF (spgr%keep_space_group) THEN
-                  CALL spgr_apply_rotations_stress(spgr, cell, av_ptens)
-                  CALL spgr_write_stress_tensor(av_ptens, spgr)
+         BLOCK
+            TYPE(virial_type) :: virial_avg
+            CALL zero_virial(virial_avg)
+            IF (my_final_evaluation) THEN
+               CALL force_env_calc_energy_force(gopt_env%force_env, &
+                                                calc_force=PRESENT(gradient), &
+                                                require_consistent_energy_force=gopt_env%require_consistent_energy_force)
+               IF (PRESENT(f)) THEN
+                  CALL force_env_get(gopt_env%force_env, potential_energy=f)
                END IF
-               ! Compute the gradients on the cell
-               CALL get_dg_dh(gradient, av_ptens, gopt_env%cell_env%pres_ext, cell, gopt_env%cell_env%mtrx, &
-                              keep_angles=gopt_env%cell_env%keep_angles, &
-                              keep_symmetry=gopt_env%cell_env%keep_symmetry, &
-                              pres_int=gopt_env%cell_env%pres_int, &
-                              pres_constr=gopt_env%cell_env%pres_constr, &
-                              constraint_id=gopt_env%cell_env%constraint_id)
+            ELSE
+               SELECT CASE (gopt_env%cell_method_id)
+               CASE (default_cell_geo_opt_id)
+                  work => section_vals_get_subs_vals(gopt_env%motion_section, "GEO_OPT")
+                  CALL section_vals_get(work, explicit=explicit)
+                  IF (.NOT. explicit) &
+                     CALL cp_abort(__LOCATION__, &
+                                   "Cell optimization at 0K was requested. GEO_OPT section MUST be provided in the input file!")
+                  ! Perform a geometry optimization
+                  CALL gopt_new_logger_create(new_logger, gopt_env%force_env%root_section, para_env, &
+                                              project_name, id_run=geo_opt_run)
+                  CALL cp_add_default_logger(new_logger)
+                  CALL cp_geo_opt(gopt_env%force_env, gopt_env%globenv, eval_opt_geo=.FALSE.)
+                  CALL force_env_get(gopt_env%force_env, potential_energy=potential_energy)
+                  CALL cp_virial(virial, virial_avg)
+               CASE (default_cell_md_id)
+                  work => section_vals_get_subs_vals(gopt_env%motion_section, "MD")
+                  avgs_section => section_vals_get_subs_vals(work, "AVERAGES")
+                  CALL section_vals_get(work, explicit=explicit)
+                  IF (.NOT. explicit) &
+                     CALL cp_abort( &
+                     __LOCATION__, &
+                     "Cell optimization at finite temperature was requested. MD section MUST be provided in the input file!")
+                  ! Only NVT ensemble is allowed..
+                  CALL section_vals_val_get(gopt_env%motion_section, "MD%ENSEMBLE", i_val=ensemble)
+                  IF (ensemble /= nvt_ensemble) &
+                     CALL cp_abort(__LOCATION__, &
+                                   "Cell optimization at finite temperature requires the NVT MD ensemble!")
+                  ! Perform a molecular dynamics
+                  CALL gopt_new_logger_create(new_logger, gopt_env%force_env%root_section, para_env, &
+                                              project_name, id_run=mol_dyn_run)
+                  CALL cp_add_default_logger(new_logger)
+                  CALL create_averages(averages, avgs_section, virial_avg=.TRUE., force_env=gopt_env%force_env)
+                  CALL qs_mol_dyn(gopt_env%force_env, gopt_env%globenv, averages, rm_restart_info=.FALSE.)
+                  ! Retrieve the average of the stress tensor and the average of the potential energy
+                  potential_energy = averages%avepot
+                  CALL cp_virial(averages%virial, virial_avg)
+                  CALL release_averages(averages)
+               CASE DEFAULT
+                  CPABORT("")
+               END SELECT
+               CALL cp_rm_default_logger()
+               CALL gopt_new_logger_release(new_logger, gopt_env%force_env%root_section, para_env, project_name, &
+                                            cell_opt_run)
+               ! Update the virial
+               CALL virial_update(virial_avg, subsys, para_env)
+               ! Possibly take give back the potential energy
+               IF (PRESENT(f)) THEN
+                  f = potential_energy
+               END IF
             END IF
-            ! some callers expect pres_int to be available on all ranks. Also, here master is not necessarily a single rank.
-            ! Assume at least master==0
-            CALL mp_bcast(gopt_env%cell_env%pres_int, 0, para_env%group)
-            IF (gopt_env%cell_env%constraint_id /= fix_none) &
-               CALL mp_bcast(gopt_env%cell_env%pres_constr, 0, para_env%group)
-         END IF
-         CALL virial_release(virial_avg)
+            ! Possibly give back the gradients
+            IF (PRESENT(gradient)) THEN
+               CPASSERT(ANY(virial_avg%pv_total /= 0))
+               ! Convert the average ptens
+               av_ptens(:, :) = virial_avg%pv_total(:, :)/cell%deth
+               IF (master == para_env%mepos) THEN ! we are on the master
+                  CPASSERT(ASSOCIATED(gradient))
+                  IF (spgr%keep_space_group) THEN
+                     CALL spgr_apply_rotations_stress(spgr, cell, av_ptens)
+                     CALL spgr_write_stress_tensor(av_ptens, spgr)
+                  END IF
+                  ! Compute the gradients on the cell
+                  CALL get_dg_dh(gradient, av_ptens, gopt_env%cell_env%pres_ext, cell, gopt_env%cell_env%mtrx, &
+                                 keep_angles=gopt_env%cell_env%keep_angles, &
+                                 keep_symmetry=gopt_env%cell_env%keep_symmetry, &
+                                 pres_int=gopt_env%cell_env%pres_int, &
+                                 pres_constr=gopt_env%cell_env%pres_constr, &
+                                 constraint_id=gopt_env%cell_env%constraint_id)
+               END IF
+               ! some callers expect pres_int to be available on all ranks. Also, here master is not necessarily a single rank.
+               ! Assume at least master==0
+               CALL mp_bcast(gopt_env%cell_env%pres_int, 0, para_env%group)
+               IF (gopt_env%cell_env%constraint_id /= fix_none) &
+                  CALL mp_bcast(gopt_env%cell_env%pres_constr, 0, para_env%group)
+            END IF
+         END BLOCK
       CASE DEFAULT
          CPABORT("")
       END SELECT

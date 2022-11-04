@@ -801,7 +801,10 @@ CONTAINS
          DEALLOCATE (work_matrices%S_eigenvalues)
       ! Ewald
       CALL ewald_env_release(work_matrices%ewald_env)
-      CALL ewald_pw_release(work_matrices%ewald_pw)
+      IF (ASSOCIATED(work_matrices%ewald_pw)) THEN
+         CALL ewald_pw_release(work_matrices%ewald_pw)
+         DEALLOCATE (work_matrices%ewald_pw)
+      END IF
       ! GAPW
       IF (ASSOCIATED(work_matrices%local_rho_set)) THEN
          CALL local_rho_set_release(work_matrices%local_rho_set)

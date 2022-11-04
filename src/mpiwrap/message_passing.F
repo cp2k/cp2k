@@ -677,7 +677,7 @@ MODULE message_passing
 ! **************************************************************************************************
    TYPE mp_perf_env_type
       !private
-      INTEGER :: ref_count, id_nr
+      INTEGER :: ref_count
       TYPE(mp_perf_type), DIMENSION(MAX_PERF) :: mp_perfs
    END TYPE mp_perf_env_type
 
@@ -709,7 +709,6 @@ MODULE message_passing
    INTEGER, PARAMETER :: reallen = 8
    INTEGER, PARAMETER :: loglen = BIT_SIZE(0)/8
    INTEGER, PARAMETER :: charlen = 1
-   INTEGER, SAVE, PRIVATE :: last_mp_perf_env_id = 0
 
    LOGICAL, PUBLIC, SAVE :: mp_collect_timings = .FALSE.
 
@@ -894,8 +893,6 @@ CONTAINS
       IF (stat /= 0) THEN
          CPABORT("allocation failed in mp_perf_env_create")
       END IF
-      last_mp_perf_env_id = last_mp_perf_env_id + 1
-      perf_env%id_nr = last_mp_perf_env_id
       perf_env%ref_count = 1
       DO i = 1, MAX_PERF
          perf_env%mp_perfs(i)%name = sname(i)

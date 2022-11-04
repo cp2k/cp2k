@@ -88,8 +88,7 @@ CONTAINS
       TYPE(dcdr_env_type)                                :: dcdr_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_per_atom', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'prepare_per_atom'
 
       INTEGER                                            :: handle, i, ispin, j, natom
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -190,8 +189,7 @@ CONTAINS
       TYPE(dcdr_env_type)                                :: dcdr_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dcdr_build_op_dR', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dcdr_build_op_dR'
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
       INTEGER                                            :: handle, nao, nmo
@@ -259,8 +257,7 @@ CONTAINS
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dcdr_response_dR', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dcdr_response_dR'
 
       INTEGER                                            :: handle, output_unit
       LOGICAL                                            :: should_stop
@@ -349,7 +346,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dcdr_env_type)                                :: dcdr_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'apt_dR', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'apt_dR'
 
       INTEGER                                            :: alpha, handle, ikind, nao, nmo
       LOGICAL                                            :: ghost
@@ -456,8 +453,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dcdr_env_type)                                :: dcdr_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'apt_dR_localization', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'apt_dR_localization'
 
       INTEGER                                            :: alpha, handle, i, icenter, ikind, &
                                                             map_atom, map_molecule, nao, natom, &

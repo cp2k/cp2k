@@ -637,7 +637,11 @@ CONTAINS
          nthread = 1
 !$       nthread = omp_get_max_threads()
 
-         CALL lri_density_release(lri_density)
+         IF (ASSOCIATED(lri_density)) THEN
+            CALL lri_density_release(lri_density)
+         ELSE
+            ALLOCATE (lri_density)
+         END IF
          CALL lri_density_create(lri_density)
          lri_density%nspin = nspin
 

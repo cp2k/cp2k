@@ -42,7 +42,6 @@ MODULE fist_environment
                                               read_ewald_section
    USE ewald_pw_methods,                ONLY: ewald_pw_grid_update
    USE ewald_pw_types,                  ONLY: ewald_pw_create,&
-                                              ewald_pw_release,&
                                               ewald_pw_type
    USE exclusion_types,                 ONLY: exclusion_type
    USE fist_efield_types,               ONLY: fist_efield_type,&
@@ -52,8 +51,7 @@ MODULE fist_environment
    USE fist_environment_types,          ONLY: fist_env_get,&
                                               fist_env_set,&
                                               fist_environment_type
-   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_release,&
-                                              fist_nonbond_env_type
+   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
    USE force_fields,                    ONLY: force_field_control
    USE header,                          ONLY: fist_header
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -63,8 +61,7 @@ MODULE fist_environment
                                               write_molecule_kind_set
    USE molecule_types,                  ONLY: molecule_type
    USE multipole_types,                 ONLY: create_multipole_type,&
-                                              multipole_type,&
-                                              release_multipole_type
+                                              multipole_type
    USE particle_list_types,             ONLY: particle_list_create,&
                                               particle_list_release,&
                                               particle_list_type
@@ -203,7 +200,6 @@ CONTAINS
       CALL cell_release(cell)
       CALL cell_release(cell_ref)
       CALL ewald_env_release(ewald_env)
-      CALL fist_nonbond_env_release(fist_nonbond_env)
       CALL cp_subsys_release(subsys)
 
       CALL timestop(handle)
@@ -297,6 +293,7 @@ CONTAINS
       ! Create ewald grids
       grid_print_section => section_vals_get_subs_vals(force_env_section, &
                                                        "PRINT%GRID_INFORMATION")
+      ALLOCATE (ewald_pw)
       CALL ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, grid_print_section)
 
       ! Initialize ewald grids
@@ -305,8 +302,10 @@ CONTAINS
       ! Possibly Initialize the multipole environment
       CALL ewald_env_get(ewald_env, do_multipoles=do_multipoles, &
                          max_multipole=max_multipole)
-      IF (do_multipoles) &
+      IF (do_multipoles) THEN
+         ALLOCATE (multipoles)
          CALL create_multipole_type(multipoles, particle_set, subsys_section, max_multipole)
+      END IF
       CALL cp_subsys_set(subsys, multipoles=multipoles, cell=cell)
 
       ! Set the fist_env
@@ -320,8 +319,6 @@ CONTAINS
 
       CALL distribution_1d_release(local_particles)
       CALL distribution_1d_release(local_molecules)
-      CALL ewald_pw_release(ewald_pw)
-      CALL release_multipole_type(multipoles)
       CALL timestop(handle)
 
    END SUBROUTINE fist_init_subsys

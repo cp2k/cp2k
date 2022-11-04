@@ -28,7 +28,7 @@ MODULE reftraj_types
 
    PRIVATE
    PUBLIC :: reftraj_type, reftraj_msd_type, &
-             create_reftraj, release_reftraj, retain_reftraj
+             create_reftraj, release_reftraj
 
 ! **************************************************************************************************
 !> \brief parameters related to the analysis of previously generated trajecorties
@@ -62,7 +62,6 @@ MODULE reftraj_types
 
 ! **************************************************************************************************
    TYPE reftraj_type
-      INTEGER                                  :: ref_count
       INTEGER                                  :: itimes
       INTEGER                                  :: itimes0
       INTEGER                                  :: isnap
@@ -85,15 +84,11 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_reftraj(reftraj, reftraj_section, para_env)
 
-      TYPE(reftraj_type), POINTER                        :: reftraj
+      TYPE(reftraj_type), INTENT(OUT)                    :: reftraj
       TYPE(section_vals_type), POINTER                   :: reftraj_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=default_path_length)                 :: filename
-
-      CPASSERT(.NOT. ASSOCIATED(reftraj))
-      ALLOCATE (reftraj)
-      reftraj%ref_count = 1
 
       NULLIFY (reftraj%info)
       NULLIFY (reftraj%msd)
@@ -104,12 +99,14 @@ CONTAINS
 
       ! Initialize parser for trajectory
       CALL section_vals_val_get(reftraj_section, "TRAJ_FILE_NAME", c_val=filename)
+      ALLOCATE (reftraj%info%traj_parser)
       CALL parser_create(reftraj%info%traj_parser, filename, para_env=para_env)
 
       CALL section_vals_val_get(reftraj_section, "VARIABLE_VOLUME", l_val=reftraj%info%variable_volume)
       IF (reftraj%info%variable_volume) THEN
          ! In case requested initialize parser for cell
          CALL section_vals_val_get(reftraj_section, "CELL_FILE_NAME", c_val=filename)
+         ALLOCATE (reftraj%info%cell_parser)
          CALL parser_create(reftraj%info%cell_parser, filename, para_env=para_env)
       END IF
 
@@ -132,58 +129,38 @@ CONTAINS
 !>      10.2007 created
 !> \author MI
 ! **************************************************************************************************
-   SUBROUTINE retain_reftraj(reftraj)
-
-      TYPE(reftraj_type), POINTER                        :: reftraj
-
-      IF (ASSOCIATED(reftraj)) THEN
-         CPASSERT(reftraj%ref_count > 0)
-         reftraj%ref_count = reftraj%ref_count + 1
-      END IF
-
-   END SUBROUTINE retain_reftraj
-
-! **************************************************************************************************
-!> \brief ...
-!> \param reftraj ...
-!> \par History
-!>      10.2007 created
-!> \author MI
-! **************************************************************************************************
    SUBROUTINE release_reftraj(reftraj)
 
-      TYPE(reftraj_type), POINTER                        :: reftraj
+      TYPE(reftraj_type), INTENT(INOUT)                  :: reftraj
 
-      IF (ASSOCIATED(reftraj)) THEN
-         CPASSERT(reftraj%ref_count > 0)
-         reftraj%ref_count = reftraj%ref_count - 1
-         IF (reftraj%ref_count < 1) THEN
-            CALL parser_release(reftraj%info%traj_parser)
-            CALL parser_release(reftraj%info%cell_parser)
-            IF (ASSOCIATED(reftraj%info)) THEN
-               DEALLOCATE (reftraj%info)
-            END IF
-            IF (ASSOCIATED(reftraj%msd)) THEN
-               DEALLOCATE (reftraj%msd%ref0_pos)
-               IF (reftraj%msd%msd_kind) THEN
-                  DEALLOCATE (reftraj%msd%val_msd_kind)
-               END IF
-               IF (reftraj%msd%msd_molecule) THEN
-                  DEALLOCATE (reftraj%msd%val_msd_molecule)
-                  DEALLOCATE (reftraj%msd%ref0_com_molecule)
-               END IF
-               IF (reftraj%msd%disp_atom) THEN
-                  DEALLOCATE (reftraj%msd%disp_atom_index)
-                  DEALLOCATE (reftraj%msd%disp_atom_dr)
-               END IF
-
-               DEALLOCATE (reftraj%msd)
-            END IF
-
-            DEALLOCATE (reftraj)
+      IF (ASSOCIATED(reftraj%info%traj_parser)) THEN
+         CALL parser_release(reftraj%info%traj_parser)
+         DEALLOCATE (reftraj%info%traj_parser)
+      END IF
+      IF (ASSOCIATED(reftraj%info%cell_parser)) THEN
+         CALL parser_release(reftraj%info%cell_parser)
+         DEALLOCATE (reftraj%info%cell_parser)
+      END IF
+      IF (ASSOCIATED(reftraj%info)) THEN
+         DEALLOCATE (reftraj%info)
+      END IF
+      IF (ASSOCIATED(reftraj%msd)) THEN
+         DEALLOCATE (reftraj%msd%ref0_pos)
+         IF (reftraj%msd%msd_kind) THEN
+            DEALLOCATE (reftraj%msd%val_msd_kind)
+         END IF
+         IF (reftraj%msd%msd_molecule) THEN
+            DEALLOCATE (reftraj%msd%val_msd_molecule)
+            DEALLOCATE (reftraj%msd%ref0_com_molecule)
+         END IF
+         IF (reftraj%msd%disp_atom) THEN
+            DEALLOCATE (reftraj%msd%disp_atom_index)
+            DEALLOCATE (reftraj%msd%disp_atom_dr)
          END IF
 
+         DEALLOCATE (reftraj%msd)
       END IF
+
    END SUBROUTINE release_reftraj
 
 END MODULE reftraj_types

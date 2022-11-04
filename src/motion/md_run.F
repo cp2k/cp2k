@@ -52,8 +52,7 @@ MODULE md_run
                                               dp
    USE machine,                         ONLY: m_walltime
    USE md_ener_types,                   ONLY: create_md_ener,&
-                                              md_ener_type,&
-                                              release_md_ener
+                                              md_ener_type
    USE md_energies,                     ONLY: initialize_md_ener,&
                                               md_ener_reftraj,&
                                               md_energy,&
@@ -79,8 +78,7 @@ MODULE md_run
    USE particle_list_types,             ONLY: particle_list_type
    USE qs_environment_methods,          ONLY: qs_env_time_update
    USE reftraj_types,                   ONLY: create_reftraj,&
-                                              reftraj_type,&
-                                              release_reftraj
+                                              reftraj_type
    USE reftraj_util,                    ONLY: initialize_reftraj,&
                                               write_output_reftraj
    USE rt_propagation,                  ONLY: rt_prop_setup
@@ -88,8 +86,7 @@ MODULE md_run
    USE simpar_types,                    ONLY: create_simpar_type,&
                                               release_simpar_type,&
                                               simpar_type
-   USE thermal_region_types,            ONLY: release_thermal_regions,&
-                                              thermal_regions_type
+   USE thermal_region_types,            ONLY: thermal_regions_type
    USE thermal_region_utils,            ONLY: create_thermal_regions,&
                                               print_thermal_regions_langevin
    USE thermostat_methods,              ONLY: create_thermostats
@@ -144,6 +141,7 @@ CONTAINS
       md_section => section_vals_get_subs_vals(motion_section, "MD")
 
       ! Real call to MD driver - Low Level
+      ALLOCATE (md_env)
       CALL md_env_create(md_env, md_section, para_env, force_env=force_env)
       CALL set_md_env(md_env, averages=averages)
       IF (PRESENT(hmc_e_initial) .AND. PRESENT(hmc_e_final)) THEN
@@ -153,6 +151,7 @@ CONTAINS
          CALL qs_mol_dyn_low(md_env, md_section, motion_section, force_env, globenv, mdctrl=mdctrl)
       END IF
       CALL md_env_release(md_env)
+      DEALLOCATE (md_env)
 
       ! Clean restartable sections..
       IF (my_rm_restart_info) CALL remove_restart_info(force_env%root_section)
@@ -245,9 +244,10 @@ CONTAINS
                                                         "LAGRANGE_MULTIPLIERS"), cp_p_file)
 
       ! Create the structure for the md energies
+      ALLOCATE (md_ener)
       CALL create_md_ener(md_ener)
       CALL set_md_env(md_env, md_ener=md_ener)
-      CALL release_md_ener(md_ener)
+      NULLIFY (md_ener)
 
       ! If requested setup Thermostats
       CALL create_thermostats(thermostats, md_section, force_env, simpar, para_env, &
@@ -276,9 +276,9 @@ CONTAINS
          CPABORT("Ehrenfest MD does not support reftraj ensemble ")
       IF (simpar%ensemble == reftraj_ensemble) THEN
          reftraj_section => section_vals_get_subs_vals(md_section, "REFTRAJ")
+         ALLOCATE (reftraj)
          CALL create_reftraj(reftraj, reftraj_section, para_env)
          CALL set_md_env(md_env, reftraj=reftraj)
-         CALL release_reftraj(reftraj)
       END IF
 
       CALL force_env_get(force_env, subsys=subsys, cell=cell, &
@@ -559,7 +559,6 @@ CONTAINS
       CALL release_thermostats(thermostats)
       CALL release_barostat_type(barostat)
       CALL release_simpar_type(simpar)
-      CALL release_thermal_regions(thermal_regions)
       CALL timestop(handle)
 
    END SUBROUTINE qs_mol_dyn_low

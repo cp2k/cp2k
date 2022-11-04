@@ -267,7 +267,6 @@ MODULE lri_environment_types
 ! **************************************************************************************************
 
    TYPE lri_environment_type
-      INTEGER                                                 :: id_nr, ref_count, in_use
       ! parameter for (pseudo)inverse of overlap
       INTEGER                                                 :: lri_overlap_inv
       ! flag for debugging lri integrals
@@ -356,9 +355,6 @@ MODULE lri_environment_types
 ! **************************************************************************************************
 
    TYPE lri_density_type
-      INTEGER                                                 :: id_nr = 0, &
-                                                                 ref_count = 0, &
-                                                                 in_use = 0
       INTEGER                                                 :: nspin = 0
       ! pair density expansion (nspin)
       TYPE(lri_list_p_type), DIMENSION(:), POINTER            :: lri_rhos => NULL()
@@ -369,8 +365,6 @@ MODULE lri_environment_types
 ! **************************************************************************************************
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_environment_types'
-   INTEGER, SAVE, PRIVATE :: last_lri_env_id = 0
-   INTEGER, SAVE, PRIVATE :: last_lri_density_id = 0
 
    PUBLIC :: lri_environment_type, &
              lri_force_type, lri_list_type, &
@@ -394,14 +388,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE lri_env_create(lri_env)
 
-      TYPE(lri_environment_type), POINTER                :: lri_env
-
-      ALLOCATE (lri_env)
-
-      last_lri_env_id = last_lri_env_id + 1
-      lri_env%id_nr = last_lri_env_id
-      lri_env%ref_count = 1
-      lri_env%in_use = 0
+      TYPE(lri_environment_type), INTENT(OUT)            :: lri_env
 
       lri_env%debug = .FALSE.
       lri_env%delta = 1.E-6_dp
@@ -442,110 +429,103 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE lri_env_release(lri_env)
 
-      TYPE(lri_environment_type), POINTER                :: lri_env
+      TYPE(lri_environment_type), INTENT(INOUT)          :: lri_env
 
       INTEGER                                            :: i, ikind, j, nkind
 
-      IF (ASSOCIATED(lri_env)) THEN
-         lri_env%ref_count = 0
-
-         ! deallocate basis sets
-         IF (ASSOCIATED(lri_env%orb_basis)) THEN
-            nkind = SIZE(lri_env%orb_basis)
-            DO ikind = 1, nkind
-               CALL deallocate_gto_basis_set(lri_env%orb_basis(ikind)%gto_basis_set)
-            END DO
-            DEALLOCATE (lri_env%orb_basis)
-         END IF
-         IF (ASSOCIATED(lri_env%ri_basis)) THEN
-            nkind = SIZE(lri_env%ri_basis)
-            DO ikind = 1, nkind
-               CALL deallocate_gto_basis_set(lri_env%ri_basis(ikind)%gto_basis_set)
-            END DO
-            DEALLOCATE (lri_env%ri_basis)
-         END IF
-         CALL release_neighbor_list_sets(lri_env%soo_list)
-         CALL release_neighbor_list_sets(lri_env%saa_list)
-         CALL release_neighbor_list_sets(lri_env%soa_list)
-         IF (ASSOCIATED(lri_env%lri_ints)) THEN
-            CALL deallocate_lri_ints(lri_env%lri_ints)
-         END IF
-         IF (ASSOCIATED(lri_env%lri_ppl_ints)) THEN
-            CALL deallocate_lri_ppl_ints(lri_env%lri_ppl_ints)
-         END IF
-         IF (ASSOCIATED(lri_env%lri_ints_rho)) THEN
-            CALL deallocate_lri_ints_rho(lri_env%lri_ints_rho)
-         END IF
-         CALL deallocate_bas_properties(lri_env)
-         IF (ASSOCIATED(lri_env%aradius)) THEN
-            DEALLOCATE (lri_env%aradius)
-         END IF
-         IF (ASSOCIATED(lri_env%wmat)) THEN
-            DO i = 1, SIZE(lri_env%wmat, 1)
-               DO j = 1, SIZE(lri_env%wmat, 2)
-                  IF (ASSOCIATED(lri_env%wmat(i, j)%mat)) THEN
-                     DEALLOCATE (lri_env%wmat(i, j)%mat)
-                  END IF
-               END DO
-            END DO
-            DEALLOCATE (lri_env%wmat)
-         END IF
-         IF (ASSOCIATED(lri_env%wbas)) THEN
-            DO i = 1, SIZE(lri_env%wbas, 1)
-               IF (ASSOCIATED(lri_env%wbas(i)%vec)) THEN
-                  DEALLOCATE (lri_env%wbas(i)%vec)
+      ! deallocate basis sets
+      IF (ASSOCIATED(lri_env%orb_basis)) THEN
+         nkind = SIZE(lri_env%orb_basis)
+         DO ikind = 1, nkind
+            CALL deallocate_gto_basis_set(lri_env%orb_basis(ikind)%gto_basis_set)
+         END DO
+         DEALLOCATE (lri_env%orb_basis)
+      END IF
+      IF (ASSOCIATED(lri_env%ri_basis)) THEN
+         nkind = SIZE(lri_env%ri_basis)
+         DO ikind = 1, nkind
+            CALL deallocate_gto_basis_set(lri_env%ri_basis(ikind)%gto_basis_set)
+         END DO
+         DEALLOCATE (lri_env%ri_basis)
+      END IF
+      CALL release_neighbor_list_sets(lri_env%soo_list)
+      CALL release_neighbor_list_sets(lri_env%saa_list)
+      CALL release_neighbor_list_sets(lri_env%soa_list)
+      IF (ASSOCIATED(lri_env%lri_ints)) THEN
+         CALL deallocate_lri_ints(lri_env%lri_ints)
+      END IF
+      IF (ASSOCIATED(lri_env%lri_ppl_ints)) THEN
+         CALL deallocate_lri_ppl_ints(lri_env%lri_ppl_ints)
+      END IF
+      IF (ASSOCIATED(lri_env%lri_ints_rho)) THEN
+         CALL deallocate_lri_ints_rho(lri_env%lri_ints_rho)
+      END IF
+      CALL deallocate_bas_properties(lri_env)
+      IF (ASSOCIATED(lri_env%aradius)) THEN
+         DEALLOCATE (lri_env%aradius)
+      END IF
+      IF (ASSOCIATED(lri_env%wmat)) THEN
+         DO i = 1, SIZE(lri_env%wmat, 1)
+            DO j = 1, SIZE(lri_env%wmat, 2)
+               IF (ASSOCIATED(lri_env%wmat(i, j)%mat)) THEN
+                  DEALLOCATE (lri_env%wmat(i, j)%mat)
                END IF
             END DO
-            DEALLOCATE (lri_env%wbas)
-         END IF
-         IF (ASSOCIATED(lri_env%cg_shg)) THEN
-            IF (ASSOCIATED(lri_env%cg_shg%cg_coeff)) THEN
-               DEALLOCATE (lri_env%cg_shg%cg_coeff)
-            END IF
-            IF (ASSOCIATED(lri_env%cg_shg%cg_none0_list)) THEN
-               DEALLOCATE (lri_env%cg_shg%cg_none0_list)
-            END IF
-            IF (ASSOCIATED(lri_env%cg_shg%ncg_none0)) THEN
-               DEALLOCATE (lri_env%cg_shg%ncg_none0)
-            END IF
-            DEALLOCATE (lri_env%cg_shg)
-         END IF
-         ! RI
-         IF (ASSOCIATED(lri_env%ob_smat)) CALL dbcsr_deallocate_matrix_set(lri_env%ob_smat)
-         IF (ASSOCIATED(lri_env%ri_smat)) CALL dbcsr_deallocate_matrix_set(lri_env%ri_smat)
-         IF (ASSOCIATED(lri_env%ri_sinv)) CALL dbcsr_deallocate_matrix_set(lri_env%ri_sinv)
-         IF (ASSOCIATED(lri_env%ri_fit)) THEN
-            IF (ASSOCIATED(lri_env%ri_fit%nvec)) THEN
-               DEALLOCATE (lri_env%ri_fit%nvec)
-            END IF
-            IF (ASSOCIATED(lri_env%ri_fit%rm1n)) THEN
-               DEALLOCATE (lri_env%ri_fit%rm1n)
-            END IF
-            IF (ASSOCIATED(lri_env%ri_fit%tvec)) THEN
-               DEALLOCATE (lri_env%ri_fit%tvec)
-            END IF
-            IF (ASSOCIATED(lri_env%ri_fit%rm1t)) THEN
-               DEALLOCATE (lri_env%ri_fit%rm1t)
-            END IF
-            IF (ASSOCIATED(lri_env%ri_fit%avec)) THEN
-               DEALLOCATE (lri_env%ri_fit%avec)
-            END IF
-            IF (ASSOCIATED(lri_env%ri_fit%fout)) THEN
-               DEALLOCATE (lri_env%ri_fit%fout)
-            END IF
-            IF (ASSOCIATED(lri_env%ri_fit%bas_ptr)) THEN
-               DEALLOCATE (lri_env%ri_fit%bas_ptr)
-            END IF
-            DEALLOCATE (lri_env%ri_fit)
-         END IF
-         IF (ASSOCIATED(lri_env%o3c)) THEN
-            CALL release_o3c_container(lri_env%o3c)
-            DEALLOCATE (lri_env%o3c)
-         END IF
-         !
-         DEALLOCATE (lri_env)
+         END DO
+         DEALLOCATE (lri_env%wmat)
       END IF
-      NULLIFY (lri_env)
+      IF (ASSOCIATED(lri_env%wbas)) THEN
+         DO i = 1, SIZE(lri_env%wbas, 1)
+            IF (ASSOCIATED(lri_env%wbas(i)%vec)) THEN
+               DEALLOCATE (lri_env%wbas(i)%vec)
+            END IF
+         END DO
+         DEALLOCATE (lri_env%wbas)
+      END IF
+      IF (ASSOCIATED(lri_env%cg_shg)) THEN
+         IF (ASSOCIATED(lri_env%cg_shg%cg_coeff)) THEN
+            DEALLOCATE (lri_env%cg_shg%cg_coeff)
+         END IF
+         IF (ASSOCIATED(lri_env%cg_shg%cg_none0_list)) THEN
+            DEALLOCATE (lri_env%cg_shg%cg_none0_list)
+         END IF
+         IF (ASSOCIATED(lri_env%cg_shg%ncg_none0)) THEN
+            DEALLOCATE (lri_env%cg_shg%ncg_none0)
+         END IF
+         DEALLOCATE (lri_env%cg_shg)
+      END IF
+      ! RI
+      IF (ASSOCIATED(lri_env%ob_smat)) CALL dbcsr_deallocate_matrix_set(lri_env%ob_smat)
+      IF (ASSOCIATED(lri_env%ri_smat)) CALL dbcsr_deallocate_matrix_set(lri_env%ri_smat)
+      IF (ASSOCIATED(lri_env%ri_sinv)) CALL dbcsr_deallocate_matrix_set(lri_env%ri_sinv)
+      IF (ASSOCIATED(lri_env%ri_fit)) THEN
+         IF (ASSOCIATED(lri_env%ri_fit%nvec)) THEN
+            DEALLOCATE (lri_env%ri_fit%nvec)
+         END IF
+         IF (ASSOCIATED(lri_env%ri_fit%rm1n)) THEN
+            DEALLOCATE (lri_env%ri_fit%rm1n)
+         END IF
+         IF (ASSOCIATED(lri_env%ri_fit%tvec)) THEN
+            DEALLOCATE (lri_env%ri_fit%tvec)
+         END IF
+         IF (ASSOCIATED(lri_env%ri_fit%rm1t)) THEN
+            DEALLOCATE (lri_env%ri_fit%rm1t)
+         END IF
+         IF (ASSOCIATED(lri_env%ri_fit%avec)) THEN
+            DEALLOCATE (lri_env%ri_fit%avec)
+         END IF
+         IF (ASSOCIATED(lri_env%ri_fit%fout)) THEN
+            DEALLOCATE (lri_env%ri_fit%fout)
+         END IF
+         IF (ASSOCIATED(lri_env%ri_fit%bas_ptr)) THEN
+            DEALLOCATE (lri_env%ri_fit%bas_ptr)
+         END IF
+         DEALLOCATE (lri_env%ri_fit)
+      END IF
+      IF (ASSOCIATED(lri_env%o3c)) THEN
+         CALL release_o3c_container(lri_env%o3c)
+         DEALLOCATE (lri_env%o3c)
+      END IF
 
    END SUBROUTINE lri_env_release
 
@@ -555,14 +535,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE lri_density_create(lri_density)
 
-      TYPE(lri_density_type), POINTER                    :: lri_density
-
-      ALLOCATE (lri_density)
-
-      last_lri_density_id = last_lri_density_id + 1
-      lri_density%id_nr = last_lri_density_id
-      lri_density%ref_count = 1
-      lri_density%in_use = 0
+      TYPE(lri_density_type), INTENT(OUT)                :: lri_density
 
       lri_density%nspin = 0
 
@@ -577,18 +550,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE lri_density_release(lri_density)
 
-      TYPE(lri_density_type), POINTER                    :: lri_density
+      TYPE(lri_density_type), INTENT(INOUT)              :: lri_density
 
-      IF (ASSOCIATED(lri_density)) THEN
-         lri_density%ref_count = lri_density%ref_count - 1
-         IF (lri_density%ref_count == 0) THEN
-            CALL deallocate_lri_rhos(lri_density%lri_rhos)
-            CALL deallocate_lri_coefs(lri_density%lri_coefs)
-            DEALLOCATE (lri_density)
-         END IF
-      END IF
-
-      NULLIFY (lri_density)
+      CALL deallocate_lri_rhos(lri_density%lri_rhos)
+      CALL deallocate_lri_coefs(lri_density%lri_coefs)
 
    END SUBROUTINE lri_density_release
 
@@ -1017,7 +982,6 @@ CONTAINS
       TYPE(lri_spin_type), DIMENSION(:), POINTER         :: lri_coefs
 
       CPASSERT(ASSOCIATED(lri_density))
-      CPASSERT(lri_density%ref_count > 0)
 
       NULLIFY (atomic_kind, fbas, lri_coefs)
 
@@ -1092,7 +1056,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE deallocate_bas_properties(lri_env)
 
-      TYPE(lri_environment_type), POINTER                :: lri_env
+      TYPE(lri_environment_type), INTENT(INOUT)          :: lri_env
 
       INTEGER                                            :: i
 

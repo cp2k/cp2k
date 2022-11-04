@@ -49,11 +49,10 @@ MODULE pme
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE realspace_grid_types,            ONLY: &
-        pw2rs, realspace_grid_desc_type, realspace_grid_p_type, realspace_grid_type, rs2pw, &
-        rs_grid_create, rs_grid_release, rs_grid_set_box, rs_grid_zero, rs_pw_transfer
+        pw2rs, realspace_grid_desc_type, realspace_grid_type, rs2pw, rs_grid_create, &
+        rs_grid_release, rs_grid_set_box, rs_grid_zero, rs_pw_transfer
    USE shell_potential_types,           ONLY: shell_kind_type
    USE structure_factor_types,          ONLY: structure_factor_type
    USE structure_factors,               ONLY: structure_factor_allocate,&
@@ -121,18 +120,18 @@ CONTAINS
       TYPE(dg_rho0_type), POINTER                        :: dg_rho0
       TYPE(dg_type), POINTER                             :: dg
       TYPE(pw_grid_type), POINTER                        :: grid_b, grid_s
-      TYPE(pw_p_type), DIMENSION(3)                      :: dphi_g
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: pw_big_pool, pw_small_pool
       TYPE(pw_type)                                      :: phi_g, phi_r, rhob_g, rhob_r, rhos1, &
                                                             rhos2
+      TYPE(pw_type), DIMENSION(3)                        :: dphi_g
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: drpot
+      TYPE(realspace_grid_type), DIMENSION(3)            :: drpot
       TYPE(realspace_grid_type), POINTER                 :: rden, rpot
       TYPE(structure_factor_type)                        :: exp_igr
 
       CALL timeset(routineN, handle)
-      NULLIFY (poisson_env, rden, drpot)
+      NULLIFY (poisson_env, rden)
       CALL cite_reference(Darden1993)
       CALL ewald_env_get(ewald_env, alpha=alpha, group=group)
       CALL ewald_pw_get(ewald_pw, pw_big_pool=pw_big_pool, &
@@ -166,6 +165,7 @@ CONTAINS
       CALL pw_pool_create_pw(pw_small_pool, rhos2, &
                              use_data=REALDATA3D)
 
+      ALLOCATE (rden)
       CALL rs_grid_create(rden, rs_desc)
       CALL rs_grid_set_box(grid_b, rs=rden)
       CALL rs_grid_zero(rden)
@@ -242,8 +242,7 @@ CONTAINS
 
       ! allocate intermediate arrays
       DO i = 1, 3
-         ALLOCATE (dphi_g(i)%pw)
-         CALL pw_pool_create_pw(pw_big_pool, dphi_g(i)%pw, &
+         CALL pw_pool_create_pw(pw_big_pool, dphi_g(i), &
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
       END DO
@@ -256,6 +255,7 @@ CONTAINS
       ! atomic energies
       IF (atprop%energy .OR. atprop%stress) THEN
          dvols = rhos1%pw_grid%dvol
+         ALLOCATE (rpot)
          CALL rs_grid_create(rpot, rs_desc)
          CALL rs_pw_transfer(rpot, phi_r, pw2rs)
          ipart = 0
@@ -299,7 +299,7 @@ CONTAINS
             ffb = 1.0_dp/fourpi
             DO i = 1, 3
                DO ig = grid_b%first_gne0, grid_b%ngpts_cut_local
-                  phi_g%cc(ig) = ffb*dphi_g(i)%pw%cc(ig)*(ffa*grid_b%gsq(ig) + 1.0_dp)
+                  phi_g%cc(ig) = ffb*dphi_g(i)%cc(ig)*(ffa*grid_b%gsq(ig) + 1.0_dp)
                   phi_g%cc(ig) = phi_g%cc(ig)*poisson_env%green_fft%influence_fn%cc(ig)
                END DO
                IF (grid_b%have_g0) phi_g%cc(1) = 0.0_dp
@@ -335,6 +335,7 @@ CONTAINS
             CALL pw_pool_give_back_pw(pw_big_pool, rhob_g)
          END IF
          CALL rs_grid_release(rpot)
+         DEALLOCATE (rpot)
       END IF
 
       CALL pw_pool_give_back_pw(pw_big_pool, phi_r)
@@ -346,7 +347,7 @@ CONTAINS
       IF ((use_virial) .AND. (PRESENT(pv_g))) THEN
          DO i = 1, 3
             DO j = i, 3
-               f_stress(i, j) = pw_integral_a2b(dphi_g(i)%pw, dphi_g(j)%pw)
+               f_stress(i, j) = pw_integral_a2b(dphi_g(i), dphi_g(j))
                f_stress(j, i) = f_stress(i, j)
             END DO
          END DO
@@ -357,14 +358,12 @@ CONTAINS
 
       !--------END OF STRESS TENSOR CALCULATION -----------
 
-      ALLOCATE (drpot(1:3))
       DO i = 1, 3
-         CALL rs_grid_create(drpot(i)%rs_grid, rs_desc)
-         CALL rs_grid_set_box(grid_b, rs=drpot(i)%rs_grid)
-         CALL pw_transfer(dphi_g(i)%pw, rhob_r)
-         CALL pw_pool_give_back_pw(pw_big_pool, dphi_g(i)%pw)
-         DEALLOCATE (dphi_g(i)%pw)
-         CALL rs_pw_transfer(drpot(i)%rs_grid, rhob_r, pw2rs)
+         CALL rs_grid_create(drpot(i), rs_desc)
+         CALL rs_grid_set_box(grid_b, rs=drpot(i))
+         CALL pw_transfer(dphi_g(i), rhob_r)
+         CALL pw_pool_give_back_pw(pw_big_pool, dphi_g(i))
+         CALL rs_pw_transfer(drpot(i), rhob_r, pw2rs)
       END DO
 
       CALL pw_pool_give_back_pw(pw_big_pool, rhob_r)
@@ -462,12 +461,10 @@ CONTAINS
       !------------------CLEANING UP ----------------------
 
       CALL rs_grid_release(rden)
-      IF (ASSOCIATED(drpot)) THEN
-         DO i = 1, 3
-            CALL rs_grid_release(drpot(i)%rs_grid)
-         END DO
-         DEALLOCATE (drpot)
-      END IF
+      DEALLOCATE (rden)
+      DO i = 1, 3
+         CALL rs_grid_release(drpot(i))
+      END DO
 
       CALL pw_pool_give_back_pw(pw_small_pool, rhos1)
       CALL pw_pool_give_back_pw(pw_small_pool, rhos2)

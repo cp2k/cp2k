@@ -73,8 +73,7 @@ MODULE cp2k_runs
    USE geo_opt,                         ONLY: cp_geo_opt
    USE global_types,                    ONLY: global_environment_type,&
                                               globenv_create,&
-                                              globenv_release,&
-                                              globenv_retain
+                                              globenv_release
    USE grid_api,                        ONLY: grid_library_print_stats,&
                                               grid_library_set_config
    USE input_constants,                 ONLY: &
@@ -313,7 +312,6 @@ CONTAINS
          CALL f_env_add_defaults(new_env_id, f_env, handle=f_env_handle)
          force_env => f_env%force_env
          CALL force_env_get(force_env, globenv=globenv)
-         CALL globenv_retain(globenv)
       CASE (do_test)
          CALL lib_test(root_section, para_env, globenv)
       CASE (do_tree_mc) ! TMC entry point
@@ -437,15 +435,17 @@ CONTAINS
 
       IF (prog_name_id == do_cp2k) THEN
          f_env%force_env => force_env ! for mc
-         CALL globenv_retain(globenv) !mc
-         CALL globenv_release(force_env%globenv) !mc
+         IF (ASSOCIATED(force_env%globenv)) THEN
+         IF (.NOT. ASSOCIATED(force_env%globenv, globenv)) THEN
+            CALL globenv_release(force_env%globenv) !mc
+         END IF
+         END IF
          force_env%globenv => globenv !mc
          CALL f_env_rm_defaults(f_env, ierr=ierr, &
                                 handle=f_env_handle)
          CPASSERT(ierr == 0)
          CALL destroy_force_env(new_env_id, ierr=ierr)
          CPASSERT(ierr == 0)
-         CALL globenv_release(globenv)
       ELSE
          I_was_ionode = para_env%ionode
          CALL cp2k_finalize(root_section, para_env, globenv)
@@ -497,14 +497,14 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: waittime
       TYPE(cp_logger_type), POINTER            :: logger
       TYPE(cp_parser_type), POINTER            :: my_parser
-      TYPE(cp_unit_set_type), POINTER          :: default_units
+      TYPE(cp_unit_set_type)         :: default_units
       TYPE(farming_env_type), POINTER          :: farming_env
       TYPE(section_type), POINTER              :: g_section
       TYPE(section_vals_type), POINTER         :: g_data
 
       ! the primus of all slaves, talks to the master on topics concerning all slaves
       CALL timeset(routineN, handle)
-      NULLIFY (my_parser, g_section, g_data, default_units)
+      NULLIFY (my_parser, g_section, g_data)
 
       logger => cp_get_default_logger()
       output_unit = cp_print_key_unit_nr(logger, root_section, "FARMING%PROGRAM_RUN_INFO", &
@@ -831,6 +831,7 @@ CONTAINS
             IF (farming_env%Job(i)%output == "") THEN
                ! generate the output file
                WRITE (output_file, '(A12,I5.5)') "FARMING_OUT_", i
+               ALLOCATE (my_parser)
                CALL parser_create(my_parser, file_name=TRIM(farming_env%Job(i)%input))
                label = "&GLOBAL"
                CALL parser_search_string(my_parser, label, ignore_case=.TRUE., found=found)
@@ -850,6 +851,7 @@ CONTAINS
                   CALL section_release(g_section)
                END IF
                CALL parser_release(my_parser)
+               DEALLOCATE (my_parser)
             ELSE
                output_file = farming_env%Job(i)%output
             END IF

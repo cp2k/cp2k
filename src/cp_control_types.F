@@ -215,7 +215,6 @@ MODULE cp_control_types
 ! \brief some parameters useful for mulliken_restraints
 ! **************************************************************************************************
    TYPE mulliken_restraint_type
-      INTEGER                              :: ref_count
       REAL(KIND=dp)                        :: strength
       REAL(KIND=dp)                        :: TARGET
       INTEGER                              :: natoms
@@ -238,17 +237,9 @@ MODULE cp_control_types
    END TYPE ddapc_restraint_type
 
 ! **************************************************************************************************
-! \brief provides a vector of pointers to ddapc_restraint_type
-! **************************************************************************************************
-   TYPE ddapc_restraint_p_type
-      TYPE(ddapc_restraint_type), POINTER  :: ddapc_restraint_control
-   END TYPE ddapc_restraint_p_type
-
-! **************************************************************************************************
 ! \brief some parameters useful for s2_restraints
 ! **************************************************************************************************
    TYPE s2_restraint_type
-      INTEGER                              :: ref_count
       REAL(KIND=dp)                        :: strength
       REAL(KIND=dp)                        :: TARGET
       REAL(KIND=dp)                        :: s2_order_p
@@ -339,7 +330,7 @@ MODULE cp_control_types
       REAL(KIND=dp), DIMENSION(:), POINTER :: e_cutoff
       TYPE(mulliken_restraint_type), &
          POINTER                           :: mulliken_restraint_control
-      TYPE(ddapc_restraint_p_type), &
+      TYPE(ddapc_restraint_type), &
          DIMENSION(:), POINTER             :: ddapc_restraint_control
       TYPE(cdft_control_type), POINTER     :: cdft_control
       TYPE(s2_restraint_type), POINTER     :: s2_restraint_control
@@ -362,23 +353,22 @@ MODULE cp_control_types
 ! \brief Control parameters for the SCCS models
 ! **************************************************************************************************
    TYPE sccs_control_type
-      LOGICAL                              :: sccs_activated
-      INTEGER                              :: derivative_method, &
-                                              max_iter, &
-                                              method_id, &
-                                              ref_count
-      REAL(KIND=dp)                        :: alpha_solvent, &
-                                              beta, &
-                                              beta_solvent, &
-                                              delta_rho, &
-                                              eps_sccs, &
-                                              eps_scf, &
-                                              epsilon_solvent, &
-                                              gamma_solvent, &
-                                              mixing, &
-                                              rho_zero, &
-                                              rho_max, &
-                                              rho_min
+      LOGICAL                              :: sccs_activated = .FALSE.
+      INTEGER                              :: derivative_method = 0, &
+                                              max_iter = 0, &
+                                              method_id = 0
+      REAL(KIND=dp)                        :: alpha_solvent = 0.0_dp, &
+                                              beta = 0.0_dp, &
+                                              beta_solvent = 0.0_dp, &
+                                              delta_rho = 0.0_dp, &
+                                              eps_sccs = 0.0_dp, &
+                                              eps_scf = 0.0_dp, &
+                                              epsilon_solvent = 0.0_dp, &
+                                              gamma_solvent = 0.0_dp, &
+                                              mixing = 0.0_dp, &
+                                              rho_zero = 0.0_dp, &
+                                              rho_max = 0.0_dp, &
+                                              rho_min = 0.0_dp
    END TYPE sccs_control_type
 
 ! **************************************************************************************************
@@ -544,7 +534,6 @@ MODULE cp_control_types
                                               multiplicity, &
                                               sic_method_id, &
                                               ref_count, &
-                                              id_nr, &
                                               plus_u_method_id, &
                                               dir_surf_dip, &
                                               nimages = 1
@@ -594,7 +583,6 @@ MODULE cp_control_types
    END TYPE dft_control_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_control_types'
-   INTEGER, SAVE :: last_dft_control_id = 0
 
    ! Public data types
 
@@ -626,8 +614,7 @@ MODULE cp_control_types
              admm_control_create, &
              maxwell_control_create, &
              expot_control_create, &
-             ddapc_control_create, &
-             sccs_control_create
+             ddapc_control_create
 
 CONTAINS
 
@@ -638,12 +625,8 @@ CONTAINS
 !>      02.2005 created [Joost VandeVondele]
 ! **************************************************************************************************
    SUBROUTINE mulliken_control_create(mulliken_restraint_control)
-      TYPE(mulliken_restraint_type), POINTER             :: mulliken_restraint_control
+      TYPE(mulliken_restraint_type), INTENT(OUT)         :: mulliken_restraint_control
 
-      CPASSERT(.NOT. ASSOCIATED(mulliken_restraint_control))
-      ALLOCATE (mulliken_restraint_control)
-
-      mulliken_restraint_control%ref_count = 1
       mulliken_restraint_control%strength = 0.1_dp
       mulliken_restraint_control%target = 1.0_dp
       mulliken_restraint_control%natoms = 0
@@ -657,35 +640,14 @@ CONTAINS
 !>      02.2005 created [Joost VandeVondele]
 ! **************************************************************************************************
    SUBROUTINE mulliken_control_release(mulliken_restraint_control)
-      TYPE(mulliken_restraint_type), POINTER             :: mulliken_restraint_control
+      TYPE(mulliken_restraint_type), INTENT(INOUT)       :: mulliken_restraint_control
 
-      CPASSERT(ASSOCIATED(mulliken_restraint_control))
-      CPASSERT(mulliken_restraint_control%ref_count > 0)
-      mulliken_restraint_control%ref_count = mulliken_restraint_control%ref_count - 1
-      IF (mulliken_restraint_control%ref_count == 0) THEN
-         IF (ASSOCIATED(mulliken_restraint_control%atoms)) &
-            DEALLOCATE (mulliken_restraint_control%atoms)
-         mulliken_restraint_control%ref_count = 0
-         mulliken_restraint_control%strength = 0.0_dp
-         mulliken_restraint_control%target = 0.0_dp
-         mulliken_restraint_control%natoms = 0
-         DEALLOCATE (mulliken_restraint_control)
-      END IF
+      IF (ASSOCIATED(mulliken_restraint_control%atoms)) &
+         DEALLOCATE (mulliken_restraint_control%atoms)
+      mulliken_restraint_control%strength = 0.0_dp
+      mulliken_restraint_control%target = 0.0_dp
+      mulliken_restraint_control%natoms = 0
    END SUBROUTINE mulliken_control_release
-
-! **************************************************************************************************
-!> \brief retain the mulliken_restraint_type
-!> \param mulliken_restraint_control ...
-!> \par History
-!>      02.2005 created [Joost VandeVondele]
-! **************************************************************************************************
-   SUBROUTINE mulliken_control_retain(mulliken_restraint_control)
-      TYPE(mulliken_restraint_type), POINTER             :: mulliken_restraint_control
-
-      CPASSERT(ASSOCIATED(mulliken_restraint_control))
-
-      mulliken_restraint_control%ref_count = mulliken_restraint_control%ref_count + 1
-   END SUBROUTINE mulliken_control_retain
 
 ! **************************************************************************************************
 !> \brief create the ddapc_restraint_type
@@ -694,13 +656,9 @@ CONTAINS
 !>      02.2006 created [Joost VandeVondele]
 ! **************************************************************************************************
    SUBROUTINE ddapc_control_create(ddapc_restraint_control)
-      TYPE(ddapc_restraint_type), POINTER                :: ddapc_restraint_control
-
-      CPASSERT(.NOT. ASSOCIATED(ddapc_restraint_control))
-      ALLOCATE (ddapc_restraint_control)
+      TYPE(ddapc_restraint_type), INTENT(OUT)            :: ddapc_restraint_control
 
       ddapc_restraint_control%density_type = do_full_density
-      ddapc_restraint_control%ref_count = 1
       ddapc_restraint_control%strength = 0.1_dp
       ddapc_restraint_control%ddapc_order_p = 0.0_dp
       ddapc_restraint_control%functional_form = -1
@@ -718,37 +676,16 @@ CONTAINS
 !>      02.2006 created [Joost VandeVondele]
 ! **************************************************************************************************
    SUBROUTINE ddapc_control_release(ddapc_restraint_control)
-      TYPE(ddapc_restraint_type), POINTER                :: ddapc_restraint_control
+      TYPE(ddapc_restraint_type), INTENT(INOUT)          :: ddapc_restraint_control
 
-      CPASSERT(ASSOCIATED(ddapc_restraint_control))
-      CPASSERT(ddapc_restraint_control%ref_count > 0)
-      ddapc_restraint_control%ref_count = ddapc_restraint_control%ref_count - 1
-      IF (ddapc_restraint_control%ref_count == 0) THEN
-         IF (ASSOCIATED(ddapc_restraint_control%atoms)) &
-            DEALLOCATE (ddapc_restraint_control%atoms)
-         IF (ASSOCIATED(ddapc_restraint_control%coeff)) &
-            DEALLOCATE (ddapc_restraint_control%coeff)
-         ddapc_restraint_control%ref_count = 0
-         ddapc_restraint_control%strength = 0.0_dp
-         ddapc_restraint_control%target = 0.0_dp
-         ddapc_restraint_control%natoms = 0
-         DEALLOCATE (ddapc_restraint_control)
-      END IF
+      IF (ASSOCIATED(ddapc_restraint_control%atoms)) &
+         DEALLOCATE (ddapc_restraint_control%atoms)
+      IF (ASSOCIATED(ddapc_restraint_control%coeff)) &
+         DEALLOCATE (ddapc_restraint_control%coeff)
+      ddapc_restraint_control%strength = 0.0_dp
+      ddapc_restraint_control%target = 0.0_dp
+      ddapc_restraint_control%natoms = 0
    END SUBROUTINE ddapc_control_release
-
-! **************************************************************************************************
-!> \brief retain the ddapc_restraint_type
-!> \param ddapc_restraint_control ...
-!> \par History
-!>      02.2006 created [Joost VandeVondele]
-! **************************************************************************************************
-   SUBROUTINE ddapc_control_retain(ddapc_restraint_control)
-      TYPE(ddapc_restraint_type), POINTER                :: ddapc_restraint_control
-
-      CPASSERT(ASSOCIATED(ddapc_restraint_control))
-
-      ddapc_restraint_control%ref_count = ddapc_restraint_control%ref_count + 1
-   END SUBROUTINE ddapc_control_retain
 
 ! **************************************************************************************************
 !> \brief create the s2_restraint_type
@@ -757,12 +694,8 @@ CONTAINS
 !>      03.2006 created [Joost VandeVondele]
 ! **************************************************************************************************
    SUBROUTINE s2_control_create(s2_restraint_control)
-      TYPE(s2_restraint_type), POINTER                   :: s2_restraint_control
+      TYPE(s2_restraint_type), INTENT(OUT)               :: s2_restraint_control
 
-      CPASSERT(.NOT. ASSOCIATED(s2_restraint_control))
-      ALLOCATE (s2_restraint_control)
-
-      s2_restraint_control%ref_count = 1
       s2_restraint_control%strength = 0.1_dp
       s2_restraint_control%s2_order_p = 0.0_dp
       s2_restraint_control%functional_form = -1
@@ -776,31 +709,11 @@ CONTAINS
 !>      03.2006 created [Joost VandeVondele]
 ! **************************************************************************************************
    SUBROUTINE s2_control_release(s2_restraint_control)
-      TYPE(s2_restraint_type), POINTER                   :: s2_restraint_control
+      TYPE(s2_restraint_type), INTENT(INOUT)             :: s2_restraint_control
 
-      CPASSERT(ASSOCIATED(s2_restraint_control))
-      CPASSERT(s2_restraint_control%ref_count > 0)
-      s2_restraint_control%ref_count = s2_restraint_control%ref_count - 1
-      IF (s2_restraint_control%ref_count == 0) THEN
-         s2_restraint_control%ref_count = 0
-         s2_restraint_control%strength = 0.0_dp
-         s2_restraint_control%target = 0.0_dp
-         DEALLOCATE (s2_restraint_control)
-      END IF
+      s2_restraint_control%strength = 0.0_dp
+      s2_restraint_control%target = 0.0_dp
    END SUBROUTINE s2_control_release
-
-! **************************************************************************************************
-!> \brief retain the s2_restraint_type
-!> \param s2_restraint_control ...
-!> \par History
-!>      03.2006 created [Joost VandeVondele]
-! **************************************************************************************************
-   SUBROUTINE s2_control_retain(s2_restraint_control)
-      TYPE(s2_restraint_type), POINTER                   :: s2_restraint_control
-
-      CPASSERT(ASSOCIATED(s2_restraint_control))
-      s2_restraint_control%ref_count = s2_restraint_control%ref_count + 1
-   END SUBROUTINE s2_control_retain
 
 ! **************************************************************************************************
 !> \brief allocates and perform a very basic initialization
@@ -815,8 +728,6 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(dft_control))
       ALLOCATE (dft_control)
       dft_control%ref_count = 1
-      last_dft_control_id = last_dft_control_id + 1
-      dft_control%id_nr = last_dft_control_id
       NULLIFY (dft_control%xas_control)
       NULLIFY (dft_control%qs_control)
       NULLIFY (dft_control%tddfpt_control)
@@ -867,12 +778,15 @@ CONTAINS
             CALL qs_control_release(dft_control%qs_control)
             CALL tddfpt_control_release(dft_control%tddfpt_control)
             CALL tddfpt2_control_release(dft_control%tddfpt2_control)
-            CALL xas_control_release(dft_control%xas_control)
+            IF (ASSOCIATED(dft_control%xas_control)) THEN
+               CALL xas_control_release(dft_control%xas_control)
+               DEALLOCATE (dft_control%xas_control)
+            END IF
             CALL admm_control_release(dft_control%admm_control)
             CALL expot_control_release(dft_control%expot_control)
             CALL maxwell_control_release(dft_control%maxwell_control)
             CALL efield_fields_release(dft_control%efield_fields)
-            CALL sccs_control_release(dft_control%sccs_control)
+            IF (ASSOCIATED(dft_control%sccs_control)) DEALLOCATE (dft_control%sccs_control)
             IF (ASSOCIATED(dft_control%period_efield)) THEN
                DEALLOCATE (dft_control%period_efield)
             END IF
@@ -917,7 +831,9 @@ CONTAINS
       NULLIFY (qs_control%cdft_control)
       NULLIFY (qs_control%ddapc_restraint_control)
 
+      ALLOCATE (qs_control%mulliken_restraint_control)
       CALL mulliken_control_create(qs_control%mulliken_restraint_control)
+      ALLOCATE (qs_control%s2_restraint_control)
       CALL s2_control_create(qs_control%s2_restraint_control)
       CALL gapw_control_create(qs_control%gapw_control)
       CALL se_control_create(qs_control%se_control)
@@ -937,7 +853,9 @@ CONTAINS
 
       IF (ASSOCIATED(qs_control)) THEN
          CALL mulliken_control_release(qs_control%mulliken_restraint_control)
+         DEALLOCATE (qs_control%mulliken_restraint_control)
          CALL s2_control_release(qs_control%s2_restraint_control)
+         DEALLOCATE (qs_control%s2_restraint_control)
          CALL se_control_release(qs_control%se_control)
          CALL dftb_control_release(qs_control%dftb_control)
          CALL xtb_control_release(qs_control%xtb_control)
@@ -951,7 +869,7 @@ CONTAINS
          END IF
          IF (ASSOCIATED(qs_control%ddapc_restraint_control)) THEN
             DO i = 1, SIZE(qs_control%ddapc_restraint_control)
-               CALL ddapc_control_release(qs_control%ddapc_restraint_control(i)%ddapc_restraint_control)
+               CALL ddapc_control_release(qs_control%ddapc_restraint_control(i))
             END DO
             DEALLOCATE (qs_control%ddapc_restraint_control)
          END IF
@@ -1190,61 +1108,6 @@ CONTAINS
          DEALLOCATE (admm_control)
       END IF
    END SUBROUTINE admm_control_release
-
-! **************************************************************************************************
-!> \brief   Create sccs_control_type
-!> \param sccs_control ...
-!> \par     History
-!>          - Creation (11.10.2013,MK)
-!> \author  Matthias Krack (MK)
-!> \version 1.0
-! **************************************************************************************************
-   SUBROUTINE sccs_control_create(sccs_control)
-      TYPE(sccs_control_type), POINTER                   :: sccs_control
-
-      CPASSERT(.NOT. ASSOCIATED(sccs_control))
-      ALLOCATE (sccs_control)
-
-      sccs_control%ref_count = 1
-      sccs_control%derivative_method = 0
-      sccs_control%max_iter = 0
-      sccs_control%method_id = 0
-      sccs_control%alpha_solvent = 0.0_dp
-      sccs_control%beta = 0.0_dp
-      sccs_control%beta_solvent = 0.0_dp
-      sccs_control%delta_rho = 0.0_dp
-      sccs_control%eps_sccs = 0.0_dp
-      sccs_control%eps_scf = 0.0_dp
-      sccs_control%epsilon_solvent = 0.0_dp
-      sccs_control%gamma_solvent = 0.0_dp
-      sccs_control%mixing = 0.0_dp
-      sccs_control%rho_max = 0.0_dp
-      sccs_control%rho_min = 0.0_dp
-      sccs_control%rho_zero = 0.0_dp
-      sccs_control%sccs_activated = .FALSE.
-
-   END SUBROUTINE sccs_control_create
-
-! **************************************************************************************************
-!> \brief   Release sccs_control_type
-!> \param sccs_control ...
-!> \par     History
-!>          - Creation (11.10.2013,MK)
-!> \author  Matthias Krack (MK)
-!> \version 1.0
-! **************************************************************************************************
-   SUBROUTINE sccs_control_release(sccs_control)
-      TYPE(sccs_control_type), POINTER                   :: sccs_control
-
-      IF (ASSOCIATED(sccs_control)) THEN
-         CPASSERT(sccs_control%ref_count > 0)
-         sccs_control%ref_count = sccs_control%ref_count - 1
-         IF (sccs_control%ref_count == 0) THEN
-            DEALLOCATE (sccs_control)
-         END IF
-      END IF
-
-   END SUBROUTINE sccs_control_release
 
 ! **************************************************************************************************
 !> \brief ...

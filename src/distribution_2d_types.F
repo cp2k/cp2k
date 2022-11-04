@@ -29,7 +29,6 @@ MODULE distribution_2d_types
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'distribution_2d_types'
-   INTEGER, SAVE, PRIVATE :: last_distribution_2d_id = 0
 
    PUBLIC :: distribution_2d_type
 
@@ -57,7 +56,6 @@ MODULE distribution_2d_types
 !>        (allocated on request, might be oversized)
 !> \param blacs_env parallel environment in which the pairs are distributed
 !> \param ref_count reference count (see doc/ReferenceCounting.html)
-!> \param id_nr identification number (unique)
 !> \par History
 !>      08.2003 created [joost]
 !>      09.2003 kind separation, minor cleanup [fawzi]
@@ -76,7 +74,6 @@ MODULE distribution_2d_types
       INTEGER, DIMENSION(:), POINTER       :: flat_local_cols
       TYPE(cp_blacs_env_type), POINTER     :: blacs_env
       INTEGER                              :: ref_count
-      INTEGER                              :: id_nr
    END TYPE distribution_2d_type
 
 CONTAINS
@@ -123,8 +120,6 @@ CONTAINS
 
       ALLOCATE (distribution_2d)
       distribution_2d%ref_count = 1
-      last_distribution_2d_id = last_distribution_2d_id + 1
-      distribution_2d%id_nr = last_distribution_2d_id
 
       NULLIFY (distribution_2d%col_distribution, distribution_2d%row_distribution, &
                distribution_2d%local_rows, distribution_2d%local_cols, &
@@ -311,8 +306,8 @@ CONTAINS
       IF (ASSOCIATED(distribution_2d)) THEN
          IF (my_local) THEN
             WRITE (unit=unit_nr, &
-                   fmt="(/,' <distribution_2d> {      id_nr=',i10,'      ref_count=',i10,',')") &
-               distribution_2d%id_nr, distribution_2d%ref_count
+                   fmt="(/,' <distribution_2d> {      ref_count=',i10,',')") &
+               distribution_2d%ref_count
 
             WRITE (unit=unit_nr, fmt="('    n_row_distribution=',i15,',')") &
                distribution_2d%n_row_distribution
@@ -476,7 +471,6 @@ CONTAINS
 !> \param n_flat_local_rows ...
 !> \param n_flat_local_cols ...
 !> \param blacs_env ...
-!> \param id_nr ...
 !> \par History
 !>      09.2003 created [fawzi]
 !> \author Fawzi Mohamed
@@ -485,7 +479,7 @@ CONTAINS
                                   col_distribution, n_row_distribution, n_col_distribution, &
                                   n_local_rows, n_local_cols, local_rows, local_cols, &
                                   flat_local_rows, flat_local_cols, n_flat_local_rows, n_flat_local_cols, &
-                                  blacs_env, id_nr)
+                                  blacs_env)
       TYPE(distribution_2d_type), POINTER                :: distribution_2d
       INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: row_distribution, col_distribution
       INTEGER, INTENT(out), OPTIONAL                     :: n_row_distribution, n_col_distribution
@@ -495,7 +489,6 @@ CONTAINS
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: flat_local_rows, flat_local_cols
       INTEGER, INTENT(out), OPTIONAL                     :: n_flat_local_rows, n_flat_local_cols
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env
-      INTEGER, INTENT(out), OPTIONAL                     :: id_nr
 
       INTEGER                                            :: iblock_atomic, iblock_min, ikind, &
                                                             ikind_min
@@ -566,7 +559,6 @@ CONTAINS
       IF (PRESENT(n_flat_local_rows)) n_flat_local_rows = SUM(distribution_2d%n_local_rows)
       IF (PRESENT(n_flat_local_cols)) n_flat_local_cols = SUM(distribution_2d%n_local_cols)
       IF (PRESENT(blacs_env)) blacs_env => distribution_2d%blacs_env
-      IF (PRESENT(id_nr)) id_nr = distribution_2d%id_nr
    END SUBROUTINE distribution_2d_get
 
 END MODULE distribution_2d_types

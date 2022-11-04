@@ -97,8 +97,7 @@ MODULE almo_scf
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_scf_post_scf,                 ONLY: qs_scf_compute_properties
-   USE qs_scf_types,                    ONLY: qs_scf_env_type,&
-                                              scf_env_release
+   USE qs_scf_types,                    ONLY: qs_scf_env_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -2189,13 +2188,6 @@ CONTAINS
       ! calculate post scf properties
       ! CALL almo_post_scf_compute_properties(qs_env, almo_scf_env)
       CALL almo_post_scf_compute_properties(qs_env)
-
-      ! In normal scf procedure this is done by scf,
-      ! but it's not called by ALMO
-      ! best to release it somewhere else
-      IF (ASSOCIATED(scf_env)) THEN
-         CALL scf_env_release(scf_env)
-      END IF
 
       ! compute the W matrix if associated
       IF (almo_scf_env%calc_forces) THEN

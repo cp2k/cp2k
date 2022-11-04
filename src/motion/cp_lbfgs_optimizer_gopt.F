@@ -53,7 +53,6 @@ MODULE cp_lbfgs_optimizer_gopt
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_lbfgs_optimizer_gopt'
-   INTEGER, PRIVATE, SAVE :: last_lbfgs_optimizer_id = 0
 
    ! types
    PUBLIC :: cp_lbfgs_opt_gopt_type
@@ -66,35 +65,6 @@ MODULE cp_lbfgs_optimizer_gopt
    PUBLIC :: cp_opt_gopt_create, cp_opt_gopt_release, &
              cp_opt_gopt_next, &
              cp_opt_gopt_stop
-
-   ! initialize the object
-   INTERFACE cp_create
-      MODULE PROCEDURE cp_opt_gopt_create
-   END INTERFACE
-   ! releases the given object
-   INTERFACE cp_release
-      MODULE PROCEDURE cp_opt_gopt_release
-   END INTERFACE
-   ! retains the given object
-   INTERFACE cp_retain
-      MODULE PROCEDURE cp_opt_gopt_retain
-   END INTERFACE
-   ! returns attributes about the object
-   INTERFACE cp_get
-      MODULE PROCEDURE cp_opt_gopt_get
-   END INTERFACE
-   ! goes to the next point, returns true if not converged or error
-   INTERFACE cp_next
-      MODULE PROCEDURE cp_opt_gopt_next
-   END INTERFACE
-   ! goes to the next point
-   INTERFACE cp_step
-      MODULE PROCEDURE cp_opt_gopt_step
-   END INTERFACE
-   ! stops the iteration
-   INTERFACE cp_stop
-      MODULE PROCEDURE cp_opt_gopt_stop
-   END INTERFACE
 
 ! **************************************************************************************************
 !> \brief info for the optimizer (see the description of this module)
@@ -110,7 +80,6 @@ MODULE cp_lbfgs_optimizer_gopt
 !>           lsave(2) = .true.  the problem contains bounds;
 !>           lsave(3) = .true.  each variable has upper and lower bounds.
 !> \param ref_count reference count (see doc/ReferenceCounting.html)
-!> \param id_nr identification number (unique)
 !> \param m the dimension of the subspace used to approximate the second
 !>        derivative
 !> \param print_every every how many iterations output should be written.
@@ -166,7 +135,6 @@ MODULE cp_lbfgs_optimizer_gopt
       CHARACTER(len=60) :: csave
       LOGICAL :: lsave(4)
       INTEGER :: m, print_every, master, max_f_per_iter, status, n_iter
-      INTEGER :: ref_count, id_nr
       INTEGER, DIMENSION(:), POINTER :: kind_of_bound, i_work_array, isave
       REAL(kind=dp) :: f, wanted_relative_f_delta, wanted_projected_gradient, &
                        last_f, projected_gradient, eold, emin, trust_radius
@@ -204,7 +172,7 @@ CONTAINS
    SUBROUTINE cp_opt_gopt_create(optimizer, para_env, obj_funct, x0, m, print_every, &
                                  wanted_relative_f_delta, wanted_projected_gradient, lower_bound, upper_bound, &
                                  kind_of_bound, master, max_f_per_iter, trust_radius)
-      TYPE(cp_lbfgs_opt_gopt_type), POINTER              :: optimizer
+      TYPE(cp_lbfgs_opt_gopt_type), INTENT(OUT)          :: optimizer
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(gopt_f_type), POINTER                         :: obj_funct
       REAL(kind=dp), DIMENSION(:), INTENT(in)            :: x0
@@ -223,7 +191,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ALLOCATE (optimizer)
       NULLIFY (optimizer%kind_of_bound, &
                optimizer%i_work_array, &
                optimizer%isave, &
@@ -235,9 +202,6 @@ CONTAINS
                optimizer%work_array, &
                optimizer%para_env, &
                optimizer%obj_funct)
-      optimizer%ref_count = 0
-      last_lbfgs_optimizer_id = last_lbfgs_optimizer_id + 1
-      optimizer%id_nr = last_lbfgs_optimizer_id
       n = SIZE(x0)
       optimizer%m = 4
       IF (PRESENT(m)) optimizer%m = m
@@ -293,26 +257,10 @@ CONTAINS
       END IF
       CALL mp_bcast(optimizer%x, optimizer%master, optimizer%para_env%group)
       optimizer%status = 0
-      optimizer%ref_count = 1
 
       CALL timestop(handle)
 
    END SUBROUTINE cp_opt_gopt_create
-
-! **************************************************************************************************
-!> \brief retains the given optimizer (see doc/ReferenceCounting.html)
-!> \param optimizer the optimizer to retain
-!> \par History
-!>      08.2003 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   SUBROUTINE cp_opt_gopt_retain(optimizer)
-      TYPE(cp_lbfgs_opt_gopt_type), POINTER              :: optimizer
-
-      CPASSERT(ASSOCIATED(optimizer))
-      CPASSERT(optimizer%ref_count > 0)
-      optimizer%ref_count = optimizer%ref_count + 1
-   END SUBROUTINE cp_opt_gopt_retain
 
 ! **************************************************************************************************
 !> \brief releases the optimizer (see doc/ReferenceCounting.html)
@@ -323,7 +271,7 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE cp_opt_gopt_release(optimizer)
-      TYPE(cp_lbfgs_opt_gopt_type), POINTER              :: optimizer
+      TYPE(cp_lbfgs_opt_gopt_type), INTENT(INOUT)        :: optimizer
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_release'
 
@@ -331,45 +279,36 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (ASSOCIATED(optimizer)) THEN
-         CPASSERT(optimizer%ref_count > 0)
-         optimizer%ref_count = optimizer%ref_count - 1
-         IF (optimizer%ref_count == 0) THEN
-            optimizer%status = 6
-            IF (ASSOCIATED(optimizer%kind_of_bound)) THEN
-               DEALLOCATE (optimizer%kind_of_bound)
-            END IF
-            IF (ASSOCIATED(optimizer%i_work_array)) THEN
-               DEALLOCATE (optimizer%i_work_array)
-            END IF
-            IF (ASSOCIATED(optimizer%isave)) THEN
-               DEALLOCATE (optimizer%isave)
-            END IF
-            IF (ASSOCIATED(optimizer%x)) THEN
-               DEALLOCATE (optimizer%x)
-            END IF
-            IF (ASSOCIATED(optimizer%lower_bound)) THEN
-               DEALLOCATE (optimizer%lower_bound)
-            END IF
-            IF (ASSOCIATED(optimizer%upper_bound)) THEN
-               DEALLOCATE (optimizer%upper_bound)
-            END IF
-            IF (ASSOCIATED(optimizer%gradient)) THEN
-               DEALLOCATE (optimizer%gradient)
-            END IF
-            IF (ASSOCIATED(optimizer%dsave)) THEN
-               DEALLOCATE (optimizer%dsave)
-            END IF
-            IF (ASSOCIATED(optimizer%work_array)) THEN
-               DEALLOCATE (optimizer%work_array)
-            END IF
-            CALL cp_para_env_release(optimizer%para_env)
-            CALL gopt_f_release(optimizer%obj_funct)
-            NULLIFY (optimizer%obj_funct)
-            DEALLOCATE (optimizer)
-         END IF
+      IF (ASSOCIATED(optimizer%kind_of_bound)) THEN
+         DEALLOCATE (optimizer%kind_of_bound)
       END IF
-      NULLIFY (optimizer)
+      IF (ASSOCIATED(optimizer%i_work_array)) THEN
+         DEALLOCATE (optimizer%i_work_array)
+      END IF
+      IF (ASSOCIATED(optimizer%isave)) THEN
+         DEALLOCATE (optimizer%isave)
+      END IF
+      IF (ASSOCIATED(optimizer%x)) THEN
+         DEALLOCATE (optimizer%x)
+      END IF
+      IF (ASSOCIATED(optimizer%lower_bound)) THEN
+         DEALLOCATE (optimizer%lower_bound)
+      END IF
+      IF (ASSOCIATED(optimizer%upper_bound)) THEN
+         DEALLOCATE (optimizer%upper_bound)
+      END IF
+      IF (ASSOCIATED(optimizer%gradient)) THEN
+         DEALLOCATE (optimizer%gradient)
+      END IF
+      IF (ASSOCIATED(optimizer%dsave)) THEN
+         DEALLOCATE (optimizer%dsave)
+      END IF
+      IF (ASSOCIATED(optimizer%work_array)) THEN
+         DEALLOCATE (optimizer%work_array)
+      END IF
+      CALL cp_para_env_release(optimizer%para_env)
+      CALL gopt_f_release(optimizer%obj_funct)
+
       CALL timestop(handle)
    END SUBROUTINE cp_opt_gopt_release
 
@@ -380,7 +319,6 @@ CONTAINS
 !> \param obj_funct ...
 !> \param m ...
 !> \param print_every ...
-!> \param id_nr ...
 !> \param wanted_relative_f_delta ...
 !> \param wanted_projected_gradient ...
 !> \param x ...
@@ -403,16 +341,16 @@ CONTAINS
 !>      @version 2.2002
 ! **************************************************************************************************
    SUBROUTINE cp_opt_gopt_get(optimizer, para_env, &
-                              obj_funct, m, print_every, id_nr, &
+                              obj_funct, m, print_every, &
                               wanted_relative_f_delta, wanted_projected_gradient, &
                               x, lower_bound, upper_bound, kind_of_bound, master, &
                               actual_projected_gradient, &
                               n_var, n_iter, status, max_f_per_iter, at_end, &
                               is_master, last_f, f)
-      TYPE(cp_lbfgs_opt_gopt_type), POINTER              :: optimizer
+      TYPE(cp_lbfgs_opt_gopt_type), INTENT(IN)           :: optimizer
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(gopt_f_type), OPTIONAL, POINTER               :: obj_funct
-      INTEGER, INTENT(out), OPTIONAL                     :: m, print_every, id_nr
+      INTEGER, INTENT(out), OPTIONAL                     :: m, print_every
       REAL(kind=dp), INTENT(out), OPTIONAL               :: wanted_relative_f_delta, &
                                                             wanted_projected_gradient
       REAL(kind=dp), DIMENSION(:), OPTIONAL, POINTER     :: x, lower_bound, upper_bound
@@ -423,16 +361,10 @@ CONTAINS
       LOGICAL, INTENT(out), OPTIONAL                     :: at_end, is_master
       REAL(kind=dp), INTENT(out), OPTIONAL               :: last_f, f
 
-!  call timeset(routineN,handle)
-
-      CPASSERT(ASSOCIATED(optimizer))
-      CPASSERT(optimizer%ref_count > 0)
-
       IF (PRESENT(is_master)) is_master = optimizer%master == optimizer%para_env%mepos
       IF (PRESENT(master)) master = optimizer%master
       IF (PRESENT(status)) status = optimizer%status
       IF (PRESENT(para_env)) para_env => optimizer%para_env
-      IF (PRESENT(id_nr)) id_nr = optimizer%id_nr
       IF (PRESENT(obj_funct)) obj_funct = optimizer%obj_funct
       IF (PRESENT(m)) m = optimizer%m
       IF (PRESENT(max_f_per_iter)) max_f_per_iter = optimizer%max_f_per_iter
@@ -468,7 +400,6 @@ CONTAINS
             CPWARN("asked undefined types")
       END IF
 
-      !  call timestop(handle)
    END SUBROUTINE cp_opt_gopt_get
 
 ! **************************************************************************************************
@@ -490,10 +421,10 @@ CONTAINS
 !> \note
 !>      use directly mainlb in place of setulb ??
 ! **************************************************************************************************
-   RECURSIVE SUBROUTINE cp_opt_gopt_step(optimizer, n_iter, f, last_f, &
-                                         projected_gradient, converged, geo_section, force_env, &
-                                         gopt_param, spgr)
-      TYPE(cp_lbfgs_opt_gopt_type), POINTER              :: optimizer
+   SUBROUTINE cp_opt_gopt_step(optimizer, n_iter, f, last_f, &
+                               projected_gradient, converged, geo_section, force_env, &
+                               gopt_param, spgr)
+      TYPE(cp_lbfgs_opt_gopt_type), INTENT(INOUT)        :: optimizer
       INTEGER, INTENT(out), OPTIONAL                     :: n_iter
       REAL(kind=dp), INTENT(out), OPTIONAL               :: f, last_f, projected_gradient
       LOGICAL, INTENT(out), OPTIONAL                     :: converged
@@ -536,9 +467,6 @@ CONTAINS
 
       xold = optimizer%x
       t_old = m_walltime()
-
-      CPASSERT(ASSOCIATED(optimizer))
-      CPASSERT(optimizer%ref_count > 0)
 
       IF (optimizer%status >= 4) THEN
          CPWARN("status>=4, trying to restart")
@@ -772,16 +700,11 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_opt_gopt_bcast_res(optimizer, n_iter, f, last_f, &
                                     projected_gradient)
-      TYPE(cp_lbfgs_opt_gopt_type), POINTER              :: optimizer
+      TYPE(cp_lbfgs_opt_gopt_type), INTENT(IN)           :: optimizer
       INTEGER, INTENT(out), OPTIONAL                     :: n_iter
       REAL(kind=dp), INTENT(inout), OPTIONAL             :: f, last_f, projected_gradient
 
       REAL(kind=dp), DIMENSION(4)                        :: results
-
-!  call timeset(routineN,handle)
-
-      CPASSERT(ASSOCIATED(optimizer))
-      CPASSERT(optimizer%ref_count > 0)
 
       IF (optimizer%master == optimizer%para_env%mepos) THEN
          results = (/REAL(optimizer%isave(30), kind=dp), &
@@ -795,7 +718,6 @@ CONTAINS
       IF (PRESENT(projected_gradient)) &
          projected_gradient = results(4)
 
-      !  call timestop(handle)
    END SUBROUTINE cp_opt_gopt_bcast_res
 
 ! **************************************************************************************************
@@ -819,10 +741,10 @@ CONTAINS
 !> \note
 !>      if you deactivate convergence control it returns never false
 ! **************************************************************************************************
-   RECURSIVE FUNCTION cp_opt_gopt_next(optimizer, n_iter, f, last_f, &
-                                       projected_gradient, converged, geo_section, force_env, &
-                                       gopt_param, spgr) RESULT(res)
-      TYPE(cp_lbfgs_opt_gopt_type), POINTER              :: optimizer
+   FUNCTION cp_opt_gopt_next(optimizer, n_iter, f, last_f, &
+                             projected_gradient, converged, geo_section, force_env, &
+                             gopt_param, spgr) RESULT(res)
+      TYPE(cp_lbfgs_opt_gopt_type), INTENT(INOUT)        :: optimizer
       INTEGER, INTENT(out), OPTIONAL                     :: n_iter
       REAL(kind=dp), INTENT(out), OPTIONAL               :: f, last_f, projected_gradient
       LOGICAL, INTENT(out)                               :: converged
@@ -832,17 +754,13 @@ CONTAINS
       TYPE(spgr_type), OPTIONAL, POINTER                 :: spgr
       LOGICAL                                            :: res
 
-!call timeset(routineN,handle)
-
-      CPASSERT(ASSOCIATED(optimizer))
-      CPASSERT(optimizer%ref_count > 0)
       ! passes spgr structure if present
       CALL cp_opt_gopt_step(optimizer, n_iter=n_iter, f=f, &
                             last_f=last_f, projected_gradient=projected_gradient, &
                             converged=converged, geo_section=geo_section, &
                             force_env=force_env, gopt_param=gopt_param, spgr=spgr)
       res = (optimizer%status < 40) .AND. .NOT. converged
-      !call timestop(handle)
+
    END FUNCTION cp_opt_gopt_next
 
 ! **************************************************************************************************
@@ -852,16 +770,9 @@ CONTAINS
 !>      none
 !> \author Fawzi Mohamed
 !>      @version 2.2002
-!> \note
-!>      necessary???
 ! **************************************************************************************************
    SUBROUTINE cp_opt_gopt_stop(optimizer)
-      TYPE(cp_lbfgs_opt_gopt_type), POINTER              :: optimizer
-
-!  call timeset(routineN,handle)
-
-      CPASSERT(ASSOCIATED(optimizer))
-      CPASSERT(optimizer%ref_count > 0)
+      TYPE(cp_lbfgs_opt_gopt_type), INTENT(INOUT)       :: optimizer
 
       optimizer%task = 'STOPPED on user request'
       optimizer%status = 4 ! normal exit
@@ -876,19 +787,6 @@ CONTAINS
                      optimizer%dsave, optimizer%trust_radius)
       END IF
 
-      ! call timestop(handle)
    END SUBROUTINE cp_opt_gopt_stop
-
-   ! template def put here so that line numbers in template and derived
-   ! files are almost the same (multi-line use change it a bit)
-   ! [template(type1,nametype1,USE,type1_retain,type1_release,type1_eval_at)]
-! ARGS:
-!  INTERFACE = "#:include "gopt_f77_methods.fypp""
-!  USE = "USE gopt_f_types, ONLY: gopt_f_type, gopt_f_release,gopt_f_retain"
-!  nametype1 = "gopt"
-!  type1 = "type(gopt_f_type)"
-!  type1_eval_at = "cp_eval_at"
-!  type1_release = "gopt_f_release"
-!  type1_retain = "gopt_f_retain"
 
 END MODULE cp_lbfgs_optimizer_gopt

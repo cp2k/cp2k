@@ -134,7 +134,7 @@ CONTAINS
          CPASSERT(dft_control%qs_control%ddapc_restraint)
          DO n = 1, SIZE(dft_control%qs_control%ddapc_restraint_control)
             NULLIFY (ddapc_restraint_control)
-            ddapc_restraint_control => dft_control%qs_control%ddapc_restraint_control(n)%ddapc_restraint_control
+            ddapc_restraint_control => dft_control%qs_control%ddapc_restraint_control(n)
             is_constraint = (ddapc_restraint_control%functional_form == do_ddapc_constraint)
             IF (is_constraint) EXIT
          END DO
@@ -408,7 +408,7 @@ CONTAINS
       CASE (outer_scf_ddapc_constraint)
          DO n = 1, SIZE(dft_control%qs_control%ddapc_restraint_control)
             NULLIFY (ddapc_restraint_control)
-            ddapc_restraint_control => dft_control%qs_control%ddapc_restraint_control(n)%ddapc_restraint_control
+            ddapc_restraint_control => dft_control%qs_control%ddapc_restraint_control(n)
             is_constraint = (ddapc_restraint_control%functional_form == do_ddapc_constraint)
             IF (is_constraint) EXIT
          END DO
@@ -474,7 +474,7 @@ CONTAINS
       CASE (outer_scf_ddapc_constraint)
          DO n = 1, SIZE(dft_control%qs_control%ddapc_restraint_control)
             NULLIFY (ddapc_restraint_control)
-            ddapc_restraint_control => dft_control%qs_control%ddapc_restraint_control(n)%ddapc_restraint_control
+            ddapc_restraint_control => dft_control%qs_control%ddapc_restraint_control(n)
             is_constraint = (ddapc_restraint_control%functional_form == do_ddapc_constraint)
             IF (is_constraint) EXIT
          END DO

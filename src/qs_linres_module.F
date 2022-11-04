@@ -127,8 +127,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_p_env_type)                                :: p_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dcdr_linres', routineP = moduleN//':'//routineN
-
       INTEGER                                            :: beta, latom
       TYPE(dcdr_env_type)                                :: dcdr_env
 
@@ -482,7 +480,6 @@ CONTAINS
       !
       !Initialize the current environment
       do_qmmm = .FALSE.
-      current_env%ref_count = 0
       IF (qs_env%qmmm) do_qmmm = .TRUE.
       current_env%do_qmmm = do_qmmm
       !current_env%prop='nmr'
@@ -493,13 +490,11 @@ CONTAINS
       IF (current_env%all_pert_op_done) THEN
          !Initialize the nmr environment
          IF (nmr_present) THEN
-            nmr_env%ref_count = 0
             CALL nmr_env_init(nmr_env, qs_env)
          END IF
          !
          !Initialize the epr environment
          IF (epr_present) THEN
-            epr_env%ref_count = 0
             CALL epr_env_init(epr_env, qs_env)
             CALL epr_g_zke(epr_env, qs_env)
             CALL epr_nablavks(epr_env, qs_env)
@@ -548,7 +543,7 @@ CONTAINS
          END IF
       END IF
       ! Finalized the current environment
-      CALL current_env_cleanup(current_env, qs_env)
+      CALL current_env_cleanup(current_env)
 
    END SUBROUTINE nmr_epr_linres
 
@@ -582,7 +577,6 @@ CONTAINS
       !
       !Initialize the current environment
       do_qmmm = .FALSE.
-      current_env%ref_count = 0
       IF (qs_env%qmmm) do_qmmm = .TRUE.
       current_env%do_qmmm = do_qmmm
       !current_env%prop='issc'
@@ -590,7 +584,6 @@ CONTAINS
       !CALL current_response(current_env,p_env,qs_env)
       !
       !Initialize the issc environment
-      issc_env%ref_count = 0
       CALL issc_env_init(issc_env, qs_env)
       !
       ! Loop over atoms

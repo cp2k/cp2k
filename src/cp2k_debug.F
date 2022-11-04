@@ -56,8 +56,6 @@ MODULE cp2k_debug
    USE qs_environment_types,            ONLY: get_qs_env
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE virial_types,                    ONLY: cp_virial,&
-                                              virial_create,&
-                                              virial_release,&
                                               virial_set,&
                                               virial_type,&
                                               zero_virial
@@ -107,8 +105,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: root_section, subsys_section
-      TYPE(virial_type), POINTER                         :: virial, virial_analytical, &
-                                                            virial_numerical
 
       NULLIFY (analyt_forces, numer_forces, subsys, particles)
 
@@ -162,88 +158,89 @@ CONTAINS
 
          IF (.NOT. skip) THEN
 
-            ! Compute the analytical stress tensor
-            CALL cp_subsys_get(subsys, virial=virial)
-            CALL virial_set(virial, pv_numer=.FALSE.)
-            CALL force_env_calc_energy_force(force_env, &
-                                             calc_force=.TRUE., &
-                                             calc_stress_tensor=.TRUE.)
+            BLOCK
+               TYPE(virial_type) :: virial_analytical, virial_numerical
+               TYPE(virial_type), POINTER :: virial
 
-            ! Retrieve the analytical virial
-            CALL virial_create(virial_analytical)
-            CALL zero_virial(virial_analytical)
-            CALL cp_virial(virial, virial_analytical)
+               ! Compute the analytical stress tensor
+               CALL cp_subsys_get(subsys, virial=virial)
+               CALL virial_set(virial, pv_numer=.FALSE.)
+               CALL force_env_calc_energy_force(force_env, &
+                                                calc_force=.TRUE., &
+                                                calc_stress_tensor=.TRUE.)
 
-            ! Debug stress tensor (numerical vs analytical)
-            CALL virial_set(virial, pv_numer=.TRUE.)
-            CALL force_env_calc_num_pressure(force_env, dx=dx)
+               ! Retrieve the analytical virial
+               CALL zero_virial(virial_analytical)
+               CALL cp_virial(virial, virial_analytical)
 
-            ! Retrieve the numerical virial
-            CALL cp_subsys_get(subsys, virial=virial)
-            CALL virial_create(virial_numerical)
-            CALL zero_virial(virial_numerical)
-            CALL cp_virial(virial, virial_numerical)
+               ! Debug stress tensor (numerical vs analytical)
+               CALL virial_set(virial, pv_numer=.TRUE.)
+               CALL force_env_calc_num_pressure(force_env, dx=dx)
 
-            ! Print results
-            IF (iw > 0) THEN
-               WRITE (UNIT=iw, FMT="((T2,A))") &
-                  "DEBUG| Numerical pv_virial [a.u.]"
-               WRITE (UNIT=iw, FMT="((T2,A,T21,3(1X,F19.12)))") &
-                  ("DEBUG|", virial_numerical%pv_virial(i, 1:3), i=1, 3)
-               WRITE (UNIT=iw, FMT="(/,(T2,A))") &
-                  "DEBUG| Analytical pv_virial [a.u.]"
-               WRITE (UNIT=iw, FMT="((T2,A,T21,3(1X,F19.12)))") &
-                  ("DEBUG|", virial_analytical%pv_virial(i, 1:3), i=1, 3)
-               WRITE (UNIT=iw, FMT="(/,(T2,A))") &
-                  "DEBUG| Difference pv_virial [a.u.]"
-               WRITE (UNIT=iw, FMT="((T2,A,T21,3(1X,F19.12)))") &
-                  ("DEBUG|", virial_numerical%pv_virial(i, 1:3) - virial_analytical%pv_virial(i, 1:3), i=1, 3)
-               WRITE (UNIT=iw, FMT="(T2,A,T61,F20.12)") &
-                  "DEBUG| Sum of differences", &
-                  SUM(ABS(virial_numerical%pv_virial(:, :) - virial_analytical%pv_virial(:, :)))
-            END IF
+               ! Retrieve the numerical virial
+               CALL cp_subsys_get(subsys, virial=virial)
+               CALL zero_virial(virial_numerical)
+               CALL cp_virial(virial, virial_numerical)
 
-            ! Check and abort on failure
-            check_failed = .FALSE.
-            IF (iw > 0) THEN
-               WRITE (UNIT=iw, FMT="(/T2,A)") &
-                  "DEBUG| Relative error pv_virial"
-               WRITE (UNIT=iw, FMT="(T2,A,T61,ES20.8)") &
-                  "DEBUG| Threshold value for error check [a.u.]", eps_no_error_check
-            END IF
-            DO i = 1, 3
-               err(:) = 0.0_dp
-               DO k = 1, 3
-                  IF (ABS(virial_analytical%pv_virial(i, k)) >= eps_no_error_check) THEN
-                     err(k) = 100.0_dp*(virial_numerical%pv_virial(i, k) - virial_analytical%pv_virial(i, k))/ &
-                              virial_analytical%pv_virial(i, k)
-                     WRITE (UNIT=line(20*(k - 1) + 1:20*k), FMT="(1X,F17.2,A2)") err(k), " %"
-                  ELSE
-                     WRITE (UNIT=line(20*(k - 1) + 1:20*k), FMT="(17X,A3)") "- %"
+               ! Print results
+               IF (iw > 0) THEN
+                  WRITE (UNIT=iw, FMT="((T2,A))") &
+                     "DEBUG| Numerical pv_virial [a.u.]"
+                  WRITE (UNIT=iw, FMT="((T2,A,T21,3(1X,F19.12)))") &
+                     ("DEBUG|", virial_numerical%pv_virial(i, 1:3), i=1, 3)
+                  WRITE (UNIT=iw, FMT="(/,(T2,A))") &
+                     "DEBUG| Analytical pv_virial [a.u.]"
+                  WRITE (UNIT=iw, FMT="((T2,A,T21,3(1X,F19.12)))") &
+                     ("DEBUG|", virial_analytical%pv_virial(i, 1:3), i=1, 3)
+                  WRITE (UNIT=iw, FMT="(/,(T2,A))") &
+                     "DEBUG| Difference pv_virial [a.u.]"
+                  WRITE (UNIT=iw, FMT="((T2,A,T21,3(1X,F19.12)))") &
+                     ("DEBUG|", virial_numerical%pv_virial(i, 1:3) - virial_analytical%pv_virial(i, 1:3), i=1, 3)
+                  WRITE (UNIT=iw, FMT="(T2,A,T61,F20.12)") &
+                     "DEBUG| Sum of differences", &
+                     SUM(ABS(virial_numerical%pv_virial(:, :) - virial_analytical%pv_virial(:, :)))
+               END IF
+
+               ! Check and abort on failure
+               check_failed = .FALSE.
+               IF (iw > 0) THEN
+                  WRITE (UNIT=iw, FMT="(/T2,A)") &
+                     "DEBUG| Relative error pv_virial"
+                  WRITE (UNIT=iw, FMT="(T2,A,T61,ES20.8)") &
+                     "DEBUG| Threshold value for error check [a.u.]", eps_no_error_check
+               END IF
+               DO i = 1, 3
+                  err(:) = 0.0_dp
+                  DO k = 1, 3
+                     IF (ABS(virial_analytical%pv_virial(i, k)) >= eps_no_error_check) THEN
+                        err(k) = 100.0_dp*(virial_numerical%pv_virial(i, k) - virial_analytical%pv_virial(i, k))/ &
+                                 virial_analytical%pv_virial(i, k)
+                        WRITE (UNIT=line(20*(k - 1) + 1:20*k), FMT="(1X,F17.2,A2)") err(k), " %"
+                     ELSE
+                        WRITE (UNIT=line(20*(k - 1) + 1:20*k), FMT="(17X,A3)") "- %"
+                     END IF
+                  END DO
+                  IF (iw > 0) THEN
+                     WRITE (UNIT=iw, FMT="(T2,A,T21,A60)") &
+                        "DEBUG|", line
                   END IF
+                  IF (ANY(ABS(err(1:3)) > maxerr)) check_failed = .TRUE.
                END DO
                IF (iw > 0) THEN
-                  WRITE (UNIT=iw, FMT="(T2,A,T21,A60)") &
-                     "DEBUG|", line
+                  WRITE (UNIT=iw, FMT="(T2,A,T61,F18.2,A2)") &
+                     "DEBUG| Maximum accepted error", maxerr, " %"
                END IF
-               IF (ANY(ABS(err(1:3)) > maxerr)) check_failed = .TRUE.
-            END DO
-            IF (iw > 0) THEN
-               WRITE (UNIT=iw, FMT="(T2,A,T61,F18.2,A2)") &
-                  "DEBUG| Maximum accepted error", maxerr, " %"
-            END IF
-            CALL virial_release(virial_analytical)
-            CALL virial_release(virial_numerical)
-            IF (check_failed) THEN
-               message = "A mismatch between the analytical and the numerical "// &
-                         "stress tensor has been detected. Check the implementation "// &
-                         "of the stress tensor"
-               IF (stop_on_mismatch) THEN
-                  CPABORT(TRIM(message))
-               ELSE
-                  CPWARN(TRIM(message))
+               IF (check_failed) THEN
+                  message = "A mismatch between the analytical and the numerical "// &
+                            "stress tensor has been detected. Check the implementation "// &
+                            "of the stress tensor"
+                  IF (stop_on_mismatch) THEN
+                     CPABORT(TRIM(message))
+                  ELSE
+                     CPWARN(TRIM(message))
+                  END IF
                END IF
-            END IF
+            END BLOCK
          END IF
       END IF
 

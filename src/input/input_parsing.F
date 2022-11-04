@@ -65,8 +65,8 @@ CONTAINS
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE section_vals_parse(section_vals, parser, default_units, root_section)
       TYPE(section_vals_type), POINTER                   :: section_vals
-      TYPE(cp_parser_type), POINTER                      :: parser
-      TYPE(cp_unit_set_type), POINTER                    :: default_units
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
+      TYPE(cp_unit_set_type), INTENT(IN)                 :: default_units
       LOGICAL, INTENT(in), OPTIONAL                      :: root_section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_parse'
@@ -90,11 +90,9 @@ CONTAINS
       IF (PRESENT(root_section)) root_sect = root_section
 
       CPASSERT(ASSOCIATED(section_vals))
-      CPASSERT(ASSOCIATED(parser))
       output_unit = cp_logger_get_default_io_unit()
 
       CPASSERT(section_vals%ref_count > 0)
-      CPASSERT(parser%ref_count > 0)
       IF (root_sect .AND. parser%icol1 > parser%icol2) &
          CALL cp_abort(__LOCATION__, &
                        "Error 1: this routine must be called just after having parsed the start of the section " &
@@ -326,9 +324,9 @@ CONTAINS
       TYPE(val_type), POINTER                            :: val
       INTEGER, INTENT(in)                                :: type_of_var, n_var
       TYPE(enumeration_type), POINTER                    :: enum
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       TYPE(cp_unit_type), POINTER                        :: unit
-      TYPE(cp_unit_set_type), POINTER                    :: default_units
+      TYPE(cp_unit_set_type), INTENT(IN)                 :: default_units
       TYPE(val_type), OPTIONAL, POINTER                  :: default_value
 
       CHARACTER(len=*), PARAMETER :: routineN = 'val_create_parsing'
@@ -645,9 +643,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_r_val(r_val, parser, unit, default_units, c_val)
       REAL(kind=dp), INTENT(OUT)                         :: r_val
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       TYPE(cp_unit_type), POINTER                        :: unit
-      TYPE(cp_unit_set_type), POINTER                    :: default_units
+      TYPE(cp_unit_set_type), INTENT(IN)                 :: default_units
       CHARACTER(len=default_string_length), &
          INTENT(INOUT)                                   :: c_val
 
@@ -662,9 +660,11 @@ CONTAINS
                              "Invalid unit specifier found when parsing a number: "// &
                              c_val)
             END IF
+            ALLOCATE (my_unit)
             CALL cp_unit_create(my_unit, c_val(2:LEN_TRIM(c_val) - 1))
          ELSE
             IF (c_val /= "") THEN
+               ALLOCATE (my_unit)
                CALL cp_unit_create(my_unit, c_val(2:LEN_TRIM(c_val) - 1))
             ELSE
                my_unit => unit
@@ -679,7 +679,10 @@ CONTAINS
       CALL parser_get_object(parser, r_val)
       IF (ASSOCIATED(unit)) THEN
          r_val = cp_unit_to_cp2k1(r_val, my_unit, default_units)
-         IF (.NOT. (ASSOCIATED(my_unit, unit))) CALL cp_unit_release(my_unit)
+         IF (.NOT. (ASSOCIATED(my_unit, unit))) THEN
+            CALL cp_unit_release(my_unit)
+            DEALLOCATE (my_unit)
+         END IF
       END IF
 
    END SUBROUTINE get_r_val

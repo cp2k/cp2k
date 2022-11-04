@@ -134,13 +134,11 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: command_log
       INTEGER                                            :: handle, i, worker_id
       LOGICAL                                            :: at_end, explicit
-      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(cp_parser_type)                               :: parser
       TYPE(swarm_message_type)                           :: cmd_log, report_log
       TYPE(swarm_message_type), &
          DIMENSION(master%n_workers)                     :: last_commands
       TYPE(swarm_message_type), POINTER                  :: cmd_now
-
-      NULLIFY (parser)
 
       ! Initialize parser for trajectory
       CALL section_vals_val_get(master%swarm_section, "REPLAY_COMMUNICATION_LOG", &

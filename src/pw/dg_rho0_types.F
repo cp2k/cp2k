@@ -28,10 +28,9 @@ MODULE dg_rho0_types
 
    PRIVATE
    PUBLIC:: dg_rho0_type, dg_rho0_init, dg_rho0_set, dg_rho0_get, &
-            dg_rho0_create, dg_rho0_retain, dg_rho0_release
+            dg_rho0_create, dg_rho0_release
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dg_rho0_types'
-   INTEGER, PRIVATE, SAVE :: last_dg_rho0_id_nr = 0
 
 ! **************************************************************************************************
 !> \brief   Type for Gaussian Densities
@@ -41,7 +40,6 @@ MODULE dg_rho0_types
 !>              zet = Gaussian exponent
 ! **************************************************************************************************
    TYPE dg_rho0_type
-      INTEGER :: ref_count, id_nr
       INTEGER :: TYPE
       INTEGER :: grid
       INTEGER :: kind
@@ -129,29 +127,9 @@ CONTAINS
       dg_rho0%grid = 0
       dg_rho0%kind = 0
       dg_rho0%type = do_ewald_none
-      last_dg_rho0_id_nr = last_dg_rho0_id_nr + 1
-      dg_rho0%id_nr = last_dg_rho0_id_nr
-      dg_rho0%ref_count = 1
       NULLIFY (dg_rho0%density)
 
    END SUBROUTINE dg_rho0_create
-
-! **************************************************************************************************
-!> \brief retains the given dg_rho0_type
-!> \param dg_rho0 the dg_rho0_type to retain
-!> \par History
-!>      04.2003 created [fawzi]
-!> \author fawzi
-!> \note
-!>      see doc/ReferenceCounting.html
-! **************************************************************************************************
-   SUBROUTINE dg_rho0_retain(dg_rho0)
-      TYPE(dg_rho0_type), POINTER                        :: dg_rho0
-
-      CPASSERT(ASSOCIATED(dg_rho0))
-      CPASSERT(dg_rho0%ref_count > 0)
-      dg_rho0%ref_count = dg_rho0%ref_count + 1
-   END SUBROUTINE dg_rho0_retain
 
 ! **************************************************************************************************
 !> \brief releases the given dg_rho0_type
@@ -166,23 +144,19 @@ CONTAINS
       TYPE(dg_rho0_type), POINTER                        :: dg_rho0
 
       IF (ASSOCIATED(dg_rho0)) THEN
-         CPASSERT(dg_rho0%ref_count > 0)
-         dg_rho0%ref_count = dg_rho0%ref_count - 1
-         IF (dg_rho0%ref_count == 0) THEN
-            IF (ASSOCIATED(dg_rho0%gcc)) THEN
-               DEALLOCATE (dg_rho0%gcc)
-            END IF
-            IF (ASSOCIATED(dg_rho0%zet)) THEN
-               DEALLOCATE (dg_rho0%zet)
-            END IF
-            IF (ASSOCIATED(dg_rho0%density)) THEN
-               CALL pw_release(dg_rho0%density)
-               DEALLOCATE (dg_rho0%density)
-            END IF
-            NULLIFY (dg_rho0%gcc)
-            NULLIFY (dg_rho0%zet)
-            DEALLOCATE (dg_rho0)
+         IF (ASSOCIATED(dg_rho0%gcc)) THEN
+            DEALLOCATE (dg_rho0%gcc)
          END IF
+         IF (ASSOCIATED(dg_rho0%zet)) THEN
+            DEALLOCATE (dg_rho0%zet)
+         END IF
+         IF (ASSOCIATED(dg_rho0%density)) THEN
+            CALL pw_release(dg_rho0%density)
+            DEALLOCATE (dg_rho0%density)
+         END IF
+         NULLIFY (dg_rho0%gcc)
+         NULLIFY (dg_rho0%zet)
+         DEALLOCATE (dg_rho0)
       END IF
       NULLIFY (dg_rho0)
    END SUBROUTINE dg_rho0_release

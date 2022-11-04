@@ -769,7 +769,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       INTEGER, INTENT(IN)                                :: mspin
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_copy', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_rho_copy'
 
       INTEGER                                            :: handle, i, j, nspins, rebuild_each_in
       LOGICAL :: drho_g_valid_in, drho_r_valid_in, rho_g_valid_in, rho_r_valid_in, soft_valid_in, &
@@ -1071,8 +1071,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rhoa, rhob
       REAL(KIND=dp), INTENT(IN)                          :: alpha, beta
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_scale_and_add', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_scale_and_add'
 
       INTEGER                                            :: handle, i, j, nspina, nspinb, nspins
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_g_a, tot_rho_g_b, tot_rho_r_a, &
@@ -1271,7 +1270,6 @@ CONTAINS
       CPASSERT(ASSOCIATED(rho_input))
       CPASSERT(ASSOCIATED(rho_output))
       CPASSERT(ASSOCIATED(qs_env))
-      CPASSERT(qs_env%ref_count > 0)
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, dft_control=dft_control)
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool)

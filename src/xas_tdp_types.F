@@ -51,8 +51,8 @@ MODULE xas_tdp_types
                                               grid_atom_type
    USE qs_harmonics_atom,               ONLY: deallocate_harmonics_atom,&
                                               harmonics_atom_type
-   USE qs_loc_types,                    ONLY: qs_loc_env_new_type,&
-                                              qs_loc_env_release
+   USE qs_loc_types,                    ONLY: qs_loc_env_release,&
+                                              qs_loc_env_type
    USE qs_ot_types,                     ONLY: qs_ot_settings_init,&
                                               qs_ot_settings_type
 #include "./base/base_uses.f90"
@@ -204,7 +204,7 @@ MODULE xas_tdp_types
       TYPE(donor_state_type), DIMENSION(:), &
          POINTER   :: donor_states
       INTEGER, DIMENSION(:, :, :), POINTER     :: mos_of_ex_atoms
-      TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
+      TYPE(qs_loc_env_type), POINTER       :: qs_loc_env
       REAL(dp), DIMENSION(:, :), POINTER       :: ri_inv_coul
       REAL(dp), DIMENSION(:, :), POINTER       :: ri_inv_ex
       TYPE(distribution_2d_type), POINTER      :: opt_dist2d_coul
@@ -784,6 +784,7 @@ CONTAINS
          END IF
          IF (ASSOCIATED(xas_tdp_env%qs_loc_env)) THEN
             CALL qs_loc_env_release(xas_tdp_env%qs_loc_env)
+            DEALLOCATE (xas_tdp_env%qs_loc_env)
          END IF
          IF (ASSOCIATED(xas_tdp_env%mos_of_ex_atoms)) THEN
             DEALLOCATE (xas_tdp_env%mos_of_ex_atoms)

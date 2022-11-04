@@ -162,9 +162,7 @@ MODULE rpa_im_time_force_methods
                                               distribution_3d_type,&
                                               neighbor_list_3c_type
    USE realspace_grid_types,            ONLY: map_gaussian_here,&
-                                              realspace_grid_p_type,&
-                                              rs_grid_release,&
-                                              rs_grid_retain
+                                              realspace_grid_type
    USE response_solver,                 ONLY: response_equation_new
    USE rpa_hfx,                         ONLY: add_exx_to_rhs
    USE rpa_im_time,                     ONLY: compute_mat_dm_global
@@ -2612,12 +2610,12 @@ CONTAINS
          POINTER                                         :: sab_orb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env_ext
-      TYPE(pw_p_type)                                    :: dvg(3)
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: pot_g, psi_L, rho_g, rho_g_copy, rho_r
+      TYPE(pw_type)                                      :: dvg(3), pot_g, psi_L, rho_g, rho_g_copy, &
+                                                            rho_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_v
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_v
       TYPE(task_list_type), POINTER                      :: task_list_ext
 
       NULLIFY (sab_orb, task_list_ext, particle_set, qs_kind_set, dft_control, pw_env_ext, auxbas_pw_pool, &
@@ -2700,8 +2698,7 @@ CONTAINS
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
          DO i_xyz = 1, 3
-            ALLOCATE (dvg(i_xyz)%pw)
-            CALL pw_pool_create_pw(auxbas_pw_pool, dvg(i_xyz)%pw, &
+            CALL pw_pool_create_pw(auxbas_pw_pool, dvg(i_xyz), &
                                    use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
          END DO
@@ -2771,9 +2768,6 @@ CONTAINS
 
             NULLIFY (rs_v)
             CALL pw_env_get(pw_env_ext, rs_grids=rs_v)
-            DO i = 1, SIZE(rs_v)
-               CALL rs_grid_retain(rs_v(i)%rs_grid)
-            END DO
             CALL potential_pw2rs(rs_v, rho_r, pw_env_ext)
 
             DO iatom = 1, natom
@@ -2825,7 +2819,7 @@ CONTAINS
 
                   ! The last three parameters are used to check whether a given function is within the own range.
                   ! Here, it is always the case, so let's enforce it because mod(0, 1)==0
-                  IF (map_gaussian_here(rs_v(igrid_level)%rs_grid, cell%h_inv, ra, 0, 1, 0)) THEN
+                  IF (map_gaussian_here(rs_v(igrid_level), cell%h_inv, ra, 0, 1, 0)) THEN
                      DO ipgf = 1, npgfa(iset)
                         o1 = (ipgf - 1)*ncoset(la_max(iset))
                         igrid_level = gaussian_gridlevel(pw_env_ext%gridlevel_info, zeta(ipgf, iset))
@@ -2840,7 +2834,7 @@ CONTAINS
                            la_max=la_max(iset), zeta=zeta(ipgf, iset), la_min=la_min(iset), &
                            lb_max=0, zetb=0.0_dp, lb_min=0, &
                            ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
-                           rsgrid=rs_v(igrid_level)%rs_grid, &
+                           rsgrid=rs_v(igrid_level), &
                            hab=h_tmp, pab=pab, &
                            o1=o1, &
                            o2=0, &
@@ -2861,18 +2855,13 @@ CONTAINS
                IF (use_virial) h_stress = h_stress + my_virial_a + my_virial_b
 
             END DO !iatom
-
-            DO i = 1, SIZE(rs_v)
-               CALL rs_grid_release(rs_v(i)%rs_grid)
-            END DO
          END DO !j_RI
       END DO !jatom
 
       IF (use_virial) THEN
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g_copy)
          DO i_xyz = 1, 3
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, dvg(i_xyz)%pw)
-            DEALLOCATE (dvg(i_xyz)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, dvg(i_xyz))
          END DO
       END IF
 

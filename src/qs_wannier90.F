@@ -340,6 +340,7 @@ CONTAINS
          qs_env_kp => qs_env
       ELSE
          ! we start from gamma point only
+         ALLOCATE (qs_env_kp)
          CALL create_kp_from_gamma(qs_env, qs_env_kp)
       END IF
       IF (iw > 0) THEN
@@ -606,6 +607,8 @@ CONTAINS
          NULLIFY (qs_env_kp)
       ELSE
          CALL qs_env_release(qs_env_kp)
+         DEALLOCATE (qs_env_kp)
+         NULLIFY (qs_env_kp)
       END IF
 
       CALL kpoint_release(kpoint)

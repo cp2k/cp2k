@@ -18,7 +18,6 @@ MODULE fist_main
    USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE fist_environment,                ONLY: fist_init
    USE fist_environment_types,          ONLY: fist_env_create,&
-                                              fist_env_release,&
                                               fist_env_set,&
                                               fist_environment_type
    USE force_env_methods,               ONLY: force_env_create
@@ -86,6 +85,7 @@ CONTAINS
          myqmmm = qmmm
       END IF
 
+      ALLOCATE (fist_env)
       CALL fist_env_create(fist_env, para_env=para_env)
       IF (PRESENT(qmmm_env)) THEN
          CALL fist_env_set(fist_env, qmmm=myqmmm, qmmm_env=qmmm_env)
@@ -101,7 +101,6 @@ CONTAINS
                             para_env=para_env, globenv=globenv, &
                             force_env_section=force_env_section)
 
-      CALL fist_env_release(fist_env)
       CALL timestop(handle)
    END SUBROUTINE fist_create_force_env
 

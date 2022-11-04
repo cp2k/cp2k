@@ -29,9 +29,7 @@ MODULE atomic_kind_types
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE periodic_table,                  ONLY: get_ptable_info
-   USE shell_potential_types,           ONLY: shell_kind_type,&
-                                              shell_release,&
-                                              shell_retain
+   USE shell_potential_types,           ONLY: shell_kind_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -105,7 +103,7 @@ CONTAINS
          IF (ASSOCIATED(atomic_kind_set(ikind)%atom_list)) THEN
             DEALLOCATE (atomic_kind_set(ikind)%atom_list)
          END IF
-         CALL shell_release(atomic_kind_set(ikind)%shell)
+         IF (ASSOCIATED(atomic_kind_set(ikind)%shell)) DEALLOCATE (atomic_kind_set(ikind)%shell)
 
          CALL damping_p_release(atomic_kind_set(ikind)%damping)
       END DO
@@ -357,8 +355,12 @@ CONTAINS
       END IF
       IF (PRESENT(fist_potential)) atomic_kind%fist_potential => fist_potential
       IF (PRESENT(shell)) THEN
+         IF (ASSOCIATED(atomic_kind%shell)) THEN
+            IF (.NOT. ASSOCIATED(atomic_kind%shell, shell)) THEN
+               DEALLOCATE (atomic_kind%shell)
+            END IF
+         END IF
          atomic_kind%shell => shell
-         CALL shell_retain(shell)
       END IF
       IF (PRESENT(shell_active)) atomic_kind%shell_active = shell_active
 

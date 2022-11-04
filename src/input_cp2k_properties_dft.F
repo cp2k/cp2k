@@ -294,9 +294,6 @@ CONTAINS
 
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_dcdr_section', &
-         routineP = moduleN//':'//routineN
-
       LOGICAL                                            :: failure
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection
