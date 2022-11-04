@@ -14,19 +14,20 @@
 MODULE qs_energy
    USE almo_scf,                        ONLY: almo_entry_scf
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_external_control,             ONLY: external_control
    USE dm_ls_scf,                       ONLY: ls_scf
    USE energy_corrections,              ONLY: energy_correction
    USE excited_states,                  ONLY: excited_state_energy
    USE lri_environment_methods,         ONLY: lri_print_stat
+   USE mp2,                             ONLY: mp2_main
    USE qs_energy_init,                  ONLY: qs_energies_init
    USE qs_energy_types,                 ONLY: qs_energy_type
-   USE qs_energy_utils,                 ONLY: qs_energies_compute_matrix_w,&
-                                              qs_energies_mp2,&
-                                              qs_energies_properties
+   USE qs_energy_utils,                 ONLY: qs_energies_properties
    USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
+   USE qs_matrix_w,                     ONLY: qs_energies_compute_matrix_w
    USE qs_scf,                          ONLY: scf
 #include "./base/base_uses.f90"
 
@@ -126,5 +127,29 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE qs_energies
+
+! **************************************************************************************************
+!> \brief Enters the mp2 part of cp2k
+!> \param qs_env ...
+!> \param calc_forces ...
+! **************************************************************************************************
+
+   SUBROUTINE qs_energies_mp2(qs_env, calc_forces)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN)                                :: calc_forces
+
+      LOGICAL                                            :: should_stop
+
+      ! Compute MP2 energy
+
+      IF (ASSOCIATED(qs_env%mp2_env)) THEN
+
+         CALL external_control(should_stop, "MP2", target_time=qs_env%target_time, &
+                               start_time=qs_env%start_time)
+
+         CALL mp2_main(qs_env=qs_env, calc_forces=calc_forces)
+      END IF
+
+   END SUBROUTINE qs_energies_mp2
 
 END MODULE qs_energy

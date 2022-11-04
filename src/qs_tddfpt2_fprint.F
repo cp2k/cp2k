@@ -9,6 +9,7 @@ MODULE qs_tddfpt2_fprint
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
@@ -23,24 +24,40 @@ MODULE qs_tddfpt2_fprint
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE efield_utils,                    ONLY: calculate_ecore_efield
    USE exstates_types,                  ONLY: excited_energy_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
+   USE lri_environment_types,           ONLY: lri_environment_type
    USE physcon,                         ONLY: evolt
+   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
+                                              calculate_ecore_self
+   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
+   USE qs_energy_init,                  ONLY: qs_energies_init
+   USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
+   USE qs_external_potential,           ONLY: external_c_potential,&
+                                              external_e_potential
    USE qs_force_types,                  ONLY: allocate_qs_force,&
                                               deallocate_qs_force,&
                                               qs_force_type,&
                                               replicate_qs_force,&
+                                              sum_qs_force,&
                                               total_qs_force,&
                                               zero_qs_force
    USE qs_kernel_types,                 ONLY: kernel_env_type
+   USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
+   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+                                              set_ks_env
+   USE qs_matrix_w,                     ONLY: qs_energies_compute_matrix_w
    USE qs_p_env_types,                  ONLY: p_env_release,&
                                               qs_p_env_type
+   USE qs_scf,                          ONLY: scf
    USE qs_tddfpt2_forces,               ONLY: tddfpt_forces_main
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
    USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos,&
@@ -48,6 +65,9 @@ MODULE qs_tddfpt2_fprint
    USE response_solver,                 ONLY: response_equation,&
                                               response_force,&
                                               response_force_xtb
+   USE ri_environment_methods,          ONLY: build_ri_matrices
+   USE xtb_matrices,                    ONLY: build_xtb_ks_matrix,&
+                                              build_xtb_matrices
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -103,7 +123,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(excited_energy_type), POINTER                 :: ex_env
-      TYPE(qs_force_type), DIMENSION(:), POINTER         :: ks_force, td_force
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: gs_force, ks_force, td_force
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(section_vals_type), POINTER                   :: force_section
 
@@ -156,12 +176,17 @@ CONTAINS
                                        extension=".tdfrc", file_status='REPLACE')
 
          ! prepare force array
-         CALL get_qs_env(qs_env, force=ks_force, atomic_kind_set=atomic_kind_set, natom=natom)
+         CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, natom=natom)
          nkind = SIZE(atomic_kind_set)
          ALLOCATE (natom_of_kind(nkind))
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom_of_kind=natom_of_kind)
-         NULLIFY (td_force)
+         NULLIFY (td_force, gs_force)
+         CALL allocate_qs_force(gs_force, natom_of_kind)
          CALL allocate_qs_force(td_force, natom_of_kind)
+         ! ground state forces
+         CALL gs_forces(qs_env, gs_force)
+         ! Swap force arrays
+         CALL get_qs_env(qs_env, force=ks_force)
          CALL set_qs_env(qs_env, force=td_force)
 
          CALL get_qs_env(qs_env, exstate_env=ex_env, para_env=para_env)
@@ -223,6 +248,7 @@ CONTAINS
                CALL p_env_release(p_env)
                !
                CALL replicate_qs_force(td_force, para_env)
+               CALL sum_qs_force(td_force, gs_force)
                CALL pforce(iwunit, td_force, atomic_kind_set, natom)
                !
             ELSE
@@ -233,6 +259,7 @@ CONTAINS
             END IF
          END DO
          CALL set_qs_env(qs_env, force=ks_force)
+         CALL deallocate_qs_force(gs_force)
          CALL deallocate_qs_force(td_force)
          DEALLOCATE (natom_of_kind, state_list)
 
@@ -251,6 +278,105 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE tddfpt_print_forces
+
+! **************************************************************************************************
+!> \brief   Calculate the Quickstep forces. Adapted from qs_forces
+!> \param   qs_env ...
+!> \param   gs_force ...
+!> \date    11.2022
+!> \author  JGH
+!> \version 1.0
+! **************************************************************************************************
+   SUBROUTINE gs_forces(qs_env, gs_force)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: gs_force
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'gs_forces'
+
+      INTEGER                                            :: handle
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_w_b, matrix_w_kp
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(lri_environment_type), POINTER                :: lri_env
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+
+      CALL timeset(routineN, handle)
+
+      ! Swap froce arrays
+      CALL get_qs_env(qs_env, force=force)
+      CALL zero_qs_force(gs_force)
+      CALL set_qs_env(qs_env, force=gs_force)
+
+      ! Check for incompatible options
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+      CPASSERT(.NOT. dft_control%qs_control%cdft)
+      CPASSERT(.NOT. qs_env%run_rtp)
+      CPASSERT(.NOT. dft_control%qs_control%mulliken_restraint)
+      CPASSERT(.NOT. dft_control%dft_plus_u)
+      CPASSERT(.NOT. qs_env%energy_correction)
+      IF (ASSOCIATED(qs_env%mp2_env)) THEN
+         CPABORT("TDDFPT| MP2 not available")
+      END IF
+
+      ! Save current W matrix
+      CALL get_qs_env(qs_env=qs_env, matrix_w_kp=matrix_w_b)
+      NULLIFY (matrix_w_kp)
+      CALL get_qs_env(qs_env=qs_env, ks_env=ks_env)
+      CALL set_ks_env(ks_env, matrix_w_kp=matrix_w_kp)
+
+      ! recalculate energy with forces
+      CPASSERT(.NOT. dft_control%qs_control%do_ls_scf)
+      CPASSERT(.NOT. dft_control%qs_control%do_almo_scf)
+      CALL qs_env_rebuild_pw_env(qs_env)
+      CALL qs_energies_init(qs_env, .TRUE.)
+      CALL scf(qs_env)
+      CALL qs_energies_compute_matrix_w(qs_env, .TRUE.)
+
+      NULLIFY (para_env)
+      CALL get_qs_env(qs_env, para_env=para_env)
+      IF (dft_control%qs_control%semi_empirical) THEN
+         CPABORT("TDDFPT| SE not available")
+      ELSEIF (dft_control%qs_control%dftb) THEN
+         CPABORT("TDDFPT| DFTB not available")
+      ELSEIF (dft_control%qs_control%xtb) THEN
+         CALL build_xtb_matrices(qs_env=qs_env, para_env=para_env, &
+                                 calculate_forces=.TRUE.)
+         CALL build_xtb_ks_matrix(qs_env, calculate_forces=.TRUE., just_energy=.FALSE.)
+      ELSE
+         CALL build_core_hamiltonian_matrix(qs_env=qs_env, calculate_forces=.TRUE.)
+         CALL calculate_ecore_self(qs_env)
+         CALL calculate_ecore_overlap(qs_env, para_env, calculate_forces=.TRUE.)
+         CALL calculate_ecore_efield(qs_env, calculate_forces=.TRUE.)
+         CALL external_e_potential(qs_env)
+         IF (.NOT. dft_control%qs_control%gapw) THEN
+            CALL external_c_potential(qs_env, calculate_forces=.TRUE.)
+         END IF
+         IF (dft_control%qs_control%rigpw) THEN
+            CALL get_qs_env(qs_env=qs_env, lri_env=lri_env)
+            CALL build_ri_matrices(lri_env, qs_env, calculate_forces=.TRUE.)
+         END IF
+         CALL qs_ks_build_kohn_sham_matrix(qs_env, calculate_forces=.TRUE., just_energy=.FALSE.)
+      END IF
+
+      ! replicate forces (get current pointer)
+      NULLIFY (gs_force)
+      CALL get_qs_env(qs_env=qs_env, force=gs_force)
+      CALL replicate_qs_force(gs_force, para_env)
+      ! Swap back force array
+      CALL set_qs_env(qs_env=qs_env, force=force)
+
+      ! deallocate W Matrix and bring back saved one
+      CALL get_qs_env(qs_env=qs_env, matrix_w_kp=matrix_w_kp)
+      CALL dbcsr_deallocate_matrix_set(matrix_w_kp)
+      NULLIFY (matrix_w_kp)
+      CALL get_qs_env(qs_env=qs_env, ks_env=ks_env)
+      CALL set_ks_env(ks_env, matrix_w_kp=matrix_w_b)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE gs_forces
 
 ! **************************************************************************************************
 !> \brief building a state list
