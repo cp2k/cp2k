@@ -21,8 +21,7 @@ MODULE embed_main
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE embed_environment,               ONLY: embed_init
    USE embed_types,                     ONLY: embed_env_create,&
-                                              embed_env_type,&
-                                              set_embed_env
+                                              embed_env_type
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length
@@ -173,7 +172,6 @@ CONTAINS
       END DO
 
       ! *** initializations for the setup of the EMBED environment ***
-      CALL set_embed_env(embed_env)
       CALL embed_init(embed_env, root_section, para_env, force_env_section, &
                       use_motion_section)
       CALL timestop(handle)

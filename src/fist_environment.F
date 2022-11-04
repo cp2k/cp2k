@@ -27,8 +27,7 @@ MODULE fist_environment
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_methods,               ONLY: cp_subsys_create
-   USE cp_subsys_types,                 ONLY: cp_subsys_release,&
-                                              cp_subsys_set,&
+   USE cp_subsys_types,                 ONLY: cp_subsys_set,&
                                               cp_subsys_type
    USE cp_symmetry,                     ONLY: write_symmetry
    USE distribution_1d_types,           ONLY: distribution_1d_release,&
@@ -200,7 +199,6 @@ CONTAINS
       CALL cell_release(cell)
       CALL cell_release(cell_ref)
       CALL ewald_env_release(ewald_env)
-      CALL cp_subsys_release(subsys)
 
       CALL timestop(handle)
 

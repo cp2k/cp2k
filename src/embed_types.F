@@ -23,7 +23,6 @@ MODULE embed_types
    USE cp_result_types,                 ONLY: cp_result_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_release,&
-                                              cp_subsys_retain,&
                                               cp_subsys_set,&
                                               cp_subsys_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -272,8 +271,11 @@ CONTAINS
          embed_env%input => input
       END IF
       IF (PRESENT(subsys)) THEN
-         CALL cp_subsys_retain(subsys)
-         CALL cp_subsys_release(embed_env%subsys)
+         IF (ASSOCIATED(embed_env%subsys)) THEN
+         IF (.NOT. ASSOCIATED(embed_env%subsys, subsys)) THEN
+            CALL cp_subsys_release(embed_env%subsys)
+         END IF
+         END IF
          embed_env%subsys => subsys
       END IF
       IF (PRESENT(sub_para_env)) THEN

@@ -21,7 +21,6 @@ MODULE eip_environment_types
                                               cell_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_release,&
-                                              cp_subsys_retain,&
                                               cp_subsys_set,&
                                               cp_subsys_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -317,8 +316,11 @@ CONTAINS
       IF (PRESENT(coord_var)) eip_env%coord_var = coord_var
       IF (PRESENT(count)) eip_env%count = count
       IF (PRESENT(subsys)) THEN
-         CALL cp_subsys_retain(subsys)
-         CALL cp_subsys_release(eip_env%subsys)
+         IF (ASSOCIATED(eip_env%subsys)) THEN
+         IF (.NOT. ASSOCIATED(eip_env%subsys, subsys)) THEN
+            CALL cp_subsys_release(eip_env%subsys)
+         END IF
+         END IF
          eip_env%subsys => subsys
       END IF
       IF (PRESENT(atomic_kind_set)) THEN

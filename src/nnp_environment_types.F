@@ -20,7 +20,6 @@ MODULE nnp_environment_types
                                               cell_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_release,&
-                                              cp_subsys_retain,&
                                               cp_subsys_set,&
                                               cp_subsys_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -548,8 +547,11 @@ CONTAINS
       IF (PRESENT(nnp_forces)) nnp_env%nnp_forces(:, :) = nnp_forces
 
       IF (PRESENT(subsys)) THEN
-         CALL cp_subsys_retain(subsys)
-         CALL cp_subsys_release(nnp_env%subsys)
+         IF (ASSOCIATED(nnp_env%subsys)) THEN
+         IF (.NOT. ASSOCIATED(nnp_env%subsys, subsys)) THEN
+            CALL cp_subsys_release(nnp_env%subsys)
+         END IF
+         END IF
          nnp_env%subsys => subsys
       END IF
       IF (PRESENT(atomic_kind_set)) THEN
