@@ -1266,6 +1266,7 @@ CONTAINS
             dispersion_env%exp_pre = dftb_control%exp_pre
             dispersion_env%scaling = dftb_control%scaling
             dispersion_env%parameter_file_name = dftb_control%dispersion_parameter_file
+            dispersion_env%rc_disp = dftb_control%rcdisp
             CALL qs_dispersion_pairpot_init(atomic_kind_set, qs_kind_set, dispersion_env, para_env=para_env)
          ELSE
             dispersion_env%type = xc_vdw_fun_none
