@@ -36,8 +36,7 @@ MODULE qs_environment
                                               cp_blacs_env_release,&
                                               cp_blacs_env_retain,&
                                               cp_blacs_env_type
-   USE cp_control_types,                ONLY: dft_control_release,&
-                                              dft_control_type,&
+   USE cp_control_types,                ONLY: dft_control_type,&
                                               dftb_control_type,&
                                               gapw_control_type,&
                                               qs_control_type,&
@@ -1067,7 +1066,6 @@ CONTAINS
       CALL distribution_1d_release(local_particles)
       CALL distribution_1d_release(local_molecules)
       CALL wfi_release(wf_history)
-      CALL dft_control_release(dft_control)
 
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &

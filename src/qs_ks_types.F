@@ -20,7 +20,6 @@ MODULE qs_ks_types
                                               cp_blacs_env_retain,&
                                               cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_release,&
-                                              dft_control_retain,&
                                               dft_control_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_para_env,                     ONLY: cp_para_env_release,&
@@ -657,8 +656,12 @@ CONTAINS
          ks_env%subsys => subsys
       END IF
       IF (PRESENT(dft_control)) THEN
-         CALL dft_control_retain(dft_control)
-         CALL dft_control_release(ks_env%dft_control)
+         IF (ASSOCIATED(ks_env%dft_control)) THEN
+         IF (.NOT. ASSOCIATED(ks_env%dft_control, dft_control)) THEN
+            CALL dft_control_release(ks_env%dft_control)
+            DEALLOCATE (ks_env%dft_control)
+         END IF
+         END IF
          ks_env%dft_control => dft_control
       END IF
       IF (PRESENT(dbcsr_dist)) THEN
@@ -777,7 +780,10 @@ CONTAINS
       CALL release_neighbor_list_sets(ks_env%sab_lrc)
       CALL release_neighbor_list_sets(ks_env%sab_almo)
       CALL release_neighbor_list_sets(ks_env%sab_kp)
-      CALL dft_control_release(ks_env%dft_control)
+      IF (ASSOCIATED(ks_env%dft_control)) THEN
+         CALL dft_control_release(ks_env%dft_control)
+         DEALLOCATE (ks_env%dft_control)
+      END IF
       CALL kpoint_release(ks_env%kpoints)
       IF (ASSOCIATED(ks_env%subsys)) THEN
          CALL qs_subsys_release(ks_env%subsys)

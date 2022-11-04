@@ -533,7 +533,6 @@ MODULE cp_control_types
                                               charge, &
                                               multiplicity, &
                                               sic_method_id, &
-                                              ref_count, &
                                               plus_u_method_id, &
                                               dir_surf_dip, &
                                               nimages = 1
@@ -607,8 +606,7 @@ MODULE cp_control_types
 
    ! Public subroutines
 
-   PUBLIC :: dft_control_retain, &
-             dft_control_release, &
+   PUBLIC :: dft_control_release, &
              dft_control_create, &
              tddfpt_control_create, &
              admm_control_create, &
@@ -723,11 +721,8 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE dft_control_create(dft_control)
-      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(dft_control_type), INTENT(OUT)                :: dft_control
 
-      CPASSERT(.NOT. ASSOCIATED(dft_control))
-      ALLOCATE (dft_control)
-      dft_control%ref_count = 1
       NULLIFY (dft_control%xas_control)
       NULLIFY (dft_control%qs_control)
       NULLIFY (dft_control%tddfpt_control)
@@ -753,62 +748,29 @@ CONTAINS
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! **************************************************************************************************
-   SUBROUTINE dft_control_retain(dft_control)
-      TYPE(dft_control_type), POINTER                    :: dft_control
-
-      CPASSERT(ASSOCIATED(dft_control))
-      CPASSERT(dft_control%ref_count > 0)
-      dft_control%ref_count = dft_control%ref_count + 1
-   END SUBROUTINE dft_control_retain
-
-! **************************************************************************************************
-!> \brief ...
-!> \param dft_control ...
-!> \par History
-!>      02.2003 created [fawzi]
-!> \author fawzi
-! **************************************************************************************************
    SUBROUTINE dft_control_release(dft_control)
-      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(dft_control_type), INTENT(INOUT)              :: dft_control
 
-      IF (ASSOCIATED(dft_control)) THEN
-         CPASSERT(dft_control%ref_count > 0)
-         dft_control%ref_count = dft_control%ref_count - 1
-         IF (dft_control%ref_count == 0) THEN
-            CALL qs_control_release(dft_control%qs_control)
-            CALL tddfpt_control_release(dft_control%tddfpt_control)
-            CALL tddfpt2_control_release(dft_control%tddfpt2_control)
-            IF (ASSOCIATED(dft_control%xas_control)) THEN
-               CALL xas_control_release(dft_control%xas_control)
-               DEALLOCATE (dft_control%xas_control)
-            END IF
-            CALL admm_control_release(dft_control%admm_control)
-            CALL expot_control_release(dft_control%expot_control)
-            CALL maxwell_control_release(dft_control%maxwell_control)
-            CALL efield_fields_release(dft_control%efield_fields)
-            IF (ASSOCIATED(dft_control%sccs_control)) DEALLOCATE (dft_control%sccs_control)
-            IF (ASSOCIATED(dft_control%period_efield)) THEN
-               DEALLOCATE (dft_control%period_efield)
-            END IF
-            IF (ASSOCIATED(dft_control%rtp_control)) THEN
-               DEALLOCATE (dft_control%rtp_control)
-            END IF
-            DEALLOCATE (dft_control)
-         END IF
+      CALL qs_control_release(dft_control%qs_control)
+      CALL tddfpt_control_release(dft_control%tddfpt_control)
+      CALL tddfpt2_control_release(dft_control%tddfpt2_control)
+      IF (ASSOCIATED(dft_control%xas_control)) THEN
+         CALL xas_control_release(dft_control%xas_control)
+         DEALLOCATE (dft_control%xas_control)
+      END IF
+      CALL admm_control_release(dft_control%admm_control)
+      CALL expot_control_release(dft_control%expot_control)
+      CALL maxwell_control_release(dft_control%maxwell_control)
+      CALL efield_fields_release(dft_control%efield_fields)
+      IF (ASSOCIATED(dft_control%sccs_control)) DEALLOCATE (dft_control%sccs_control)
+      IF (ASSOCIATED(dft_control%period_efield)) THEN
+         DEALLOCATE (dft_control%period_efield)
+      END IF
+      IF (ASSOCIATED(dft_control%rtp_control)) THEN
+         DEALLOCATE (dft_control%rtp_control)
       END IF
 
    END SUBROUTINE dft_control_release
-
-! **************************************************************************************************
-!> \brief ...
-!> \param gapw_control ...
-! **************************************************************************************************
-   SUBROUTINE gapw_control_create(gapw_control)
-      TYPE(gapw_control_type), POINTER                   :: gapw_control
-
-      CPASSERT(.NOT. ASSOCIATED(gapw_control))
-      ALLOCATE (gapw_control)
-   END SUBROUTINE gapw_control_create
 
 ! **************************************************************************************************
 !> \brief ...
@@ -835,7 +797,7 @@ CONTAINS
       CALL mulliken_control_create(qs_control%mulliken_restraint_control)
       ALLOCATE (qs_control%s2_restraint_control)
       CALL s2_control_create(qs_control%s2_restraint_control)
-      CALL gapw_control_create(qs_control%gapw_control)
+      ALLOCATE (qs_control%gapw_control)
       CALL se_control_create(qs_control%se_control)
       CALL dftb_control_create(qs_control%dftb_control)
       CALL xtb_control_create(qs_control%xtb_control)
