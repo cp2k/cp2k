@@ -1,20 +1,20 @@
 # author: Ole Schuett
 
+substitutions:
+  _IMAGE_NAME: "us-central1-docker.pkg.dev/${PROJECT_ID}/misc/img_cp2k_precommit"
+
 steps:
 - name: 'gcr.io/cloud-builders/docker'
-  args: ["build", "--build-arg", "REVISION=$SHORT_SHA", "-t", "img_cp2kprecommit", "./tools/precommit/"]
+  args: ["build", "--build-arg", "REVISION=${SHORT_SHA}", "-t", "${_IMAGE_NAME}:${SHORT_SHA}", "./tools/precommit/"]
 
 - name: 'gcr.io/cloud-builders/docker'
-  args: ["tag", "img_cp2kprecommit", "gcr.io/$PROJECT_ID/img_cp2kprecommit:$SHORT_SHA"]
+  args: ["push", "${_IMAGE_NAME}:${SHORT_SHA}"]
 
 - name: 'gcr.io/cloud-builders/docker'
-  args: ["push", "gcr.io/$PROJECT_ID/img_cp2kprecommit:$SHORT_SHA"]
+  args: ["tag", "${_IMAGE_NAME}:${SHORT_SHA}", "${_IMAGE_NAME}:latest"]
 
 - name: 'gcr.io/cloud-builders/docker'
-  args: ["tag", "img_cp2kprecommit", "gcr.io/$PROJECT_ID/img_cp2kprecommit:latest"]
-
-- name: 'gcr.io/cloud-builders/docker'
-  args: ["push", "gcr.io/$PROJECT_ID/img_cp2kprecommit:latest"]
+  args: ["push", "${_IMAGE_NAME}:latest"]
 
 - name: "gcr.io/cloud-builders/gcloud"
   args:
@@ -23,6 +23,6 @@ steps:
    - "cp2k-precommit"
    - "--platform=managed"
    - "--region=us-central1"
-   - "--image=gcr.io/$PROJECT_ID/img_cp2kprecommit:$SHORT_SHA"
+   - "--image=${_IMAGE_NAME}:${SHORT_SHA}"
 
 #EOF
