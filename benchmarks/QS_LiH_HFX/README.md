@@ -29,7 +29,7 @@ avoid recomputing any integrals on-the-fly, improving performance.
 ## Benchmark Requirements
 
 To run these this benchmark, CP2K needs to be compiled with libint support
-(-D__LIBINT), and it is advantageous to have a OMP/MPI hybrid code (cp2k.psmp).
+(-D\_\_LIBINT), and it is advantageous to have a OMP/MPI hybrid code (cp2k.psmp).
 
 ## How to Run the Benchmark
 
@@ -41,7 +41,7 @@ To run these this benchmark, CP2K needs to be compiled with libint support
    cp LiH_bulk_3-RESTART.wfn B88.wfn
    ```
 
-2. run `input_bulk_HFX_3.inp` on a number of nodes (about 30min on 2048 cores)
+1. run `input_bulk_HFX_3.inp` on a number of nodes (about 30min on 2048 cores)
 
    The obtained energies should be similar to (obtained on 2048 MPI x 8 OMP cores):
 
@@ -108,18 +108,16 @@ BASIS_SET OPT1
 The best configurations are shown below. Click the links under
 "Detailed Results" to see more detail.
 
-<!-- markdownlint-disable MD013 -->
-| Machine Name | Architecture | Date       | SVN Revision | Fastest time (s) | Number of cores | Number of threads                  | Detailed results |
-| ------------:| ------------:| ----------:| ------------:| ----------------:| ---------------:| ----------------------------------:| ----------------:|
-| HECToR       | Cray XE6     | 21/1/2014  | 13196(*)     | 121.362          | 65536           | 8 OMP threads per MPI task         | [hector-lih-hfx](https://www.cp2k.org/performance:hector-lih-hfx)       |
-| ARCHER       | Cray XC30    | 9/1/2014   | 13473(*)     | 51.172           | 49152           | 6 OMP threads per MPI task         | [archer-lih-hfx](https://www.cp2k.org/performance:archer-lih-hfx)       |
-| Magnus       | Cray XC40    | 10/11/2014 | 14377(*)     | 62.075           | 24576           | 4 OMP threads per MPI task         | [magnus-lih-hfx](https://www.cp2k.org/performance:magnus-lih-hfx)       |
-| Piz Daint    | Cray XC30    | 12/05/2015 | 15268        | 66.051           | 32768           | 4 OMP threads per MPI task, no GPU | [piz-daint-lih-hfx](https://www.cp2k.org/performance:piz-daint-lih-hfx) |
-| Cirrus       | SGI ICE XA   | 24/11/2016 | 17566        | 483.676          | 2016            | 6 OMP threads per MPI task         | [cirrus-lih-hfx](https://www.cp2k.org/performance:cirrus-lih-hfx)       |
-| Noctua       | Cray CS500   | 25/09/2019 | 9f58d81      | 131.290          | 10240           | 4 OMP threads per MPI task         | [noctua-lih-hfx](https://www.cp2k.org/performance:noctua-lih-hfx)       |
-<!-- markdownlint-enable MD013 -->
+| Machine Name | Architecture |       Date | SVN Revision | Fastest time (s) | Number of cores |                  Number of threads |                                                        Detailed results |
+| -----------: | -----------: | ---------: | -----------: | ---------------: | --------------: | ---------------------------------: | ----------------------------------------------------------------------: |
+|       HECToR |     Cray XE6 |  21/1/2014 |    13196(\*) |          121.362 |           65536 |         8 OMP threads per MPI task |       [hector-lih-hfx](https://www.cp2k.org/performance:hector-lih-hfx) |
+|       ARCHER |    Cray XC30 |   9/1/2014 |    13473(\*) |           51.172 |           49152 |         6 OMP threads per MPI task |       [archer-lih-hfx](https://www.cp2k.org/performance:archer-lih-hfx) |
+|       Magnus |    Cray XC40 | 10/11/2014 |    14377(\*) |           62.075 |           24576 |         4 OMP threads per MPI task |       [magnus-lih-hfx](https://www.cp2k.org/performance:magnus-lih-hfx) |
+|    Piz Daint |    Cray XC30 | 12/05/2015 |        15268 |           66.051 |           32768 | 4 OMP threads per MPI task, no GPU | [piz-daint-lih-hfx](https://www.cp2k.org/performance:piz-daint-lih-hfx) |
+|       Cirrus |   SGI ICE XA | 24/11/2016 |        17566 |          483.676 |            2016 |         6 OMP threads per MPI task |       [cirrus-lih-hfx](https://www.cp2k.org/performance:cirrus-lih-hfx) |
+|       Noctua |   Cray CS500 | 25/09/2019 |      9f58d81 |          131.290 |           10240 |         4 OMP threads per MPI task |       [noctua-lih-hfx](https://www.cp2k.org/performance:noctua-lih-hfx) |
 
-(*) Prior to r14945, a bug resulted in an underestimation of the number of ERIs
+(\*) Prior to r14945, a bug resulted in an underestimation of the number of ERIs
 which should be computed (by roughly 50% for this benchmark. Therefore these
 results cannot be compared directly with later ones.
 
@@ -128,12 +126,12 @@ results cannot be compared directly with later ones.
 Running on ORNL's Cray XT5 (Jaguar) the following runtime has been obtained in a
 setup using 8 OMP threads per node (8 cores per node / 16 Gb per node).
 
-| Cores | Full CP2K[s] | HFX[s]  | local HFX[s] | Mem/node[Mb] |
-| -----:| ------------:| -------:| ------------:| ------------:|
-|  1024 |      6569.07 | 6488.24 |      6406.99 |     14845.00 |
-|  2048 |      1369.92 | 1314.86 |      1259.82 |     13468.00 |
-|  4096 |       722.24 |  670.18 |       631.11 |      7293.00 |
-|  8192 |       402.18 |  352.21 |       317.59 |      4306.00 |
-| 16384 |       274.41 |  213.88 |       172.88 |      2801.00 |
-| 32768 |       201.71 |  135.47 |        85.29 |      2046.00 |
-| 65536 |       255.97 |  117.33 |        41.43 |      1673.00 |
+| Cores | Full CP2K\[s\] | HFX\[s\] | local HFX\[s\] | Mem/node\[Mb\] |
+| ----: | -------------: | -------: | -------------: | -------------: |
+|  1024 |        6569.07 |  6488.24 |        6406.99 |       14845.00 |
+|  2048 |        1369.92 |  1314.86 |        1259.82 |       13468.00 |
+|  4096 |         722.24 |   670.18 |         631.11 |        7293.00 |
+|  8192 |         402.18 |   352.21 |         317.59 |        4306.00 |
+| 16384 |         274.41 |   213.88 |         172.88 |        2801.00 |
+| 32768 |         201.71 |   135.47 |          85.29 |        2046.00 |
+| 65536 |         255.97 |   117.33 |          41.43 |        1673.00 |

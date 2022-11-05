@@ -23,16 +23,16 @@ are taken from [cp2k/data](../../../data) directory.
 
 1. run `H2O-32-PBE-TZ.inp`: this will generate the file `H2O-32-PBE-TZ-RESTART.wfn`,
    necessary for the two benchmark runs.
-2. run `H2O-32-RI-MP2-TZ.inp` for the RI-MP2 benchmark.
-3. and/or run `H2O-32-RI-dRPA-TZ.inp` for the RI-RPA benchmark.
+1. run `H2O-32-RI-MP2-TZ.inp` for the RI-MP2 benchmark.
+1. and/or run `H2O-32-RI-dRPA-TZ.inp` for the RI-RPA benchmark.
 
 ## Results
 
 ### Results on Piz Dora, CSCS
 
-| Input File | Configuration             | Total Number of Cores| Runtime [s]  |
-| ---------- | -------------------------:| --------------------:| ------------:|
-| RI-MP2.inp | 16 nodes x 16 MPI x 1 OMP |                  256 |          392 |
-| RI-RPA.inp | 16 nodes x 16 MPI x 1 OMP |                  256 |          221 |
+| Input File |             Configuration | Total Number of Cores | Runtime \[s\] |
+| ---------- | ------------------------: | --------------------: | ------------: |
+| RI-MP2.inp | 16 nodes x 16 MPI x 1 OMP |                   256 |           392 |
+| RI-RPA.inp | 16 nodes x 16 MPI x 1 OMP |                   256 |           221 |
 
-*) The timings have been obtained on CRAY-XC40 (PizDora@CSCS)
+\*) The timings have been obtained on CRAY-XC40 (PizDora@CSCS)

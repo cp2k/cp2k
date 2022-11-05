@@ -27,16 +27,16 @@ files. It has been tested on emacs 2.1, 2.3 and 2.4.
 
 ### Key Bindings
 
-| character     |               |
-| ------------- |---------------|
-| `<tab>`       | `cp2k-indent-line`
-| C-j           | `newline-and-indent`
-| C-c ;         | `comment-region`
-| C-M-a         | `cp2k-beginning-of-block`
-| C-M-e         | `cp2k-end-of-block`
-| C-c C-c       | `outline-toggle-children`
-| C-c C-a       | `show-all`
-| C-c C-t       | `show-subtree`
+| character |                           |
+| --------- | ------------------------- |
+| `<tab>`   | `cp2k-indent-line`        |
+| C-j       | `newline-and-indent`      |
+| C-c ;     | `comment-region`          |
+| C-M-a     | `cp2k-beginning-of-block` |
+| C-M-e     | `cp2k-end-of-block`       |
+| C-c C-c   | `outline-toggle-children` |
+| C-c C-a   | `show-all`                |
+| C-c C-t   | `show-subtree`            |
 
 ## Installation
 

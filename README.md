@@ -22,7 +22,7 @@ To clone the current master (development version):
 git clone --recursive https://github.com/cp2k/cp2k.git cp2k
 ```
 
-Note the ``--recursive`` flag that is needed because CP2K uses git submodules.
+Note the `--recursive` flag that is needed because CP2K uses git submodules.
 
 To clone a release version v*x.y*:
 
@@ -41,29 +41,29 @@ For building CP2K from scratch see the [installation instructions](./INSTALL.md)
 
 ## Links
 
-* [CP2K.org](https://www.cp2k.org)
+- [CP2K.org](https://www.cp2k.org)
   for showcases of scientific work, tutorials, exercises, presentation slides, etc.
-* [The manual](https://manual.cp2k.org/)
+- [The manual](https://manual.cp2k.org/)
   with descriptions of all the keywords for the CP2K input file
-* [The dashboard](https://dashboard.cp2k.org)
+- [The dashboard](https://dashboard.cp2k.org)
   to get an overview of the currently tested architectures
-* [The Google group](https://groups.google.com/group/cp2k) to get help if you
+- [The Google group](https://groups.google.com/group/cp2k) to get help if you
   could not find an answer in one of the previous links
-* [Acknowledgements](https://www.cp2k.org/funding) for list of institutions and
+- [Acknowledgements](https://www.cp2k.org/funding) for list of institutions and
   grants that help to fund the development of CP2K
 
 ## Directory organization
 
-* [`arch`](./arch): Collection of definitions for different architectures and compilers
-* [`benchmarks`](./benchmarks): Inputs for benchmarks
-* [`data`](./data): Simulation parameters e.g. basis sets and pseudopotentials
-* [`exts`](./exts): Access to external libraries via GIT submodules
-* [`src`](./src): The source code
-* [`tests`](./tests): Inputs for tests and regression tests
-* [`tools`](./tools): Mixed collection of useful scripts related to cp2k
+- [`arch`](./arch): Collection of definitions for different architectures and compilers
+- [`benchmarks`](./benchmarks): Inputs for benchmarks
+- [`data`](./data): Simulation parameters e.g. basis sets and pseudopotentials
+- [`exts`](./exts): Access to external libraries via GIT submodules
+- [`src`](./src): The source code
+- [`tests`](./tests): Inputs for tests and regression tests
+- [`tools`](./tools): Mixed collection of useful scripts related to cp2k
 
 Additional directories created during build process:
 
-* `lib`: Libraries built during compilation
-* `obj`: Objects and other intermediate compilation-time files
-* `exe`: Where the executables will be located
+- `lib`: Libraries built during compilation
+- `obj`: Objects and other intermediate compilation-time files
+- `exe`: Where the executables will be located

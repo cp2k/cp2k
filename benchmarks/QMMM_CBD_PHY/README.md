@@ -14,17 +14,17 @@ Generalized Hybrid Orbital (GHO) method.
 
 ## Files description
 
-``CBD_PHY.inp`` - CP2K input file.
+`CBD_PHY.inp` - CP2K input file.
 
-``CBD_PHY.prmtop`` - Amber forcefield for MM atoms. The Amber03 forcefield and
+`CBD_PHY.prmtop` - Amber forcefield for MM atoms. The Amber03 forcefield and
 the TIP3P water model are used.
 
-``CBD_PHY.pdb`` - Atomic input coordinates.
+`CBD_PHY.pdb` - Atomic input coordinates.
 
 ## Results
 
 ### MD Energy file
-<!-- markdownlint-disable MD013 -->
+
 ```cp2k-output
 #     Step Nr.          Time[fs]        Kin.[a.u.]          Temp[K]            Pot.[a.u.]        Cons Qty[a.u.]        UsedTime[s]
          0            0.000000       239.300084734       300.000000000     -1095.757596412      -856.457511678         0.000000000
@@ -34,14 +34,11 @@ the TIP3P water model are used.
          4            4.000000       237.524625019       297.774184180     -1087.284636223      -849.760011204        26.518459213
          5            5.000000       245.799648725       308.148217747     -1101.835669561      -856.036020836        27.761591604
 ```
-<!-- markdownlint-enable MD013 -->
 
 ### Best Configurations
 
 The best configurations are shown below.
 
-<!-- markdownlint-disable MD013 -->
-| Machine Name | Architecture | Date       | Commit No. | Fastest time (s) | Number of Cores | Number of Threads                 |
-| ------------ | ------------ | ---------- | -----------| ---------------- | --------------- | --------------------------------- |
-| ARCHER       | Cray XC30    | 07/06/2020 | 6e0731f    | 358.478          |  576            | 6 OMP threads per MPI task        |
-<!-- markdownlint-enable MD013 -->
+| Machine Name | Architecture | Date       | Commit No. | Fastest time (s) | Number of Cores | Number of Threads          |
+| ------------ | ------------ | ---------- | ---------- | ---------------- | --------------- | -------------------------- |
+| ARCHER       | Cray XC30    | 07/06/2020 | 6e0731f    | 358.478          | 576             | 6 OMP threads per MPI task |

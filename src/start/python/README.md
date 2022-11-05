@@ -23,7 +23,7 @@ Python interpreter instances due to side effects in the library.
 
 ## Known Issues
 
-* If libcp2k is built with MPI support, you may get an MPI initialization error
+- If libcp2k is built with MPI support, you may get an MPI initialization error
   depending on your MPI implementation/configuration. In that case MPI must be
   initialized first by using Mpi4py and the Fortran MPI communicator handler
   must be passed down the CP2K via the respective `...comm` functions.

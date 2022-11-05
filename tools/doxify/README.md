@@ -10,11 +10,11 @@ The driver script `doxyify.sh` will process CP2K source code (`*.F` files) proce
 one file at a time. The following steps are carried out for each `*.F` file:
 
 1. Run `remove_double_ampersands.pl` - removes any any double ampersand characters
-2. Run `fixcomments.pl` - does the addition of missing comments or updating of
+1. Run `fixcomments.pl` - does the addition of missing comments or updating of
    existing comments
-3. Run `remove_extra_comments.pl` - removes any extra comment lines which arise
+1. Run `remove_extra_comments.pl` - removes any extra comment lines which arise
    from application of `fixcomments.pl`
-4. Finally, overwrite the original `*.F` file with the updated version
+1. Finally, overwrite the original `*.F` file with the updated version
 
 To run the script, you should execute it with the name of the source file you
 want to process:

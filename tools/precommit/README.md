@@ -4,23 +4,25 @@ The precommit system consists of the following tools that analyze and format the
 source code:
 
 - [doxify](../doxify/)
-    to add Doxygen templates.
+  to add Doxygen templates.
 - [prettify](../prettify/)
-    to format Fortran files.
+  to format Fortran files.
 - [analyze_src](../conventions/analyze_src.py)
-    to check copyright banners and a few other things.
+  to check copyright banners and a few other things.
 - [ast.parse](https://docs.python.org/3/library/ast.html)
-    to check Python syntax.
+  to check Python syntax.
 - [clang-format](https://clang.llvm.org/docs/ClangFormat.html)
-    to format C and Cuda files.
+  to format C and Cuda files.
 - [black](https://github.com/psf/black)
-    to format Python scripts.
+  to format Python scripts.
 - [shfmt](https://github.com/mvdan/sh)
-    to format Shell scripts.
+  to format Shell scripts.
 - [shellcheck](https://github.com/koalaman/shellcheck)
-    to analyze Shell scripts.
-- [markdownlint](https://github.com/DavidAnson/markdownlint)
-    to analyze Markdown files.
+  to analyze Shell scripts.
+- [mdformat](https://github.com/executablebooks/mdformat) with [gfm plugin](https://github.com/hukkin/mdformat-gfm)
+  to format Markdown scripts.
+- [cmake-format](https://github.com/cheshirekow/cmake_format)
+  to format CMake scripts.
 
 In contrast to the [CP2K-CI](https://github.com/cp2k/cp2k-ci) these tools
 process each file individually, which makes them much more lightweight.

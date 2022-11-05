@@ -16,17 +16,16 @@
 
 1. run `H2O-128-PBE-TZ.inp`: this will generate the file `H2O-128-PBE-TZ-RESTART.wfn`,
    necessary for the benchmark run.
-2. run `H2O-128-RI-dRPA-TZ.inp` for the RI-RPA benchmark.
+1. run `H2O-128-RI-dRPA-TZ.inp` for the RI-RPA benchmark.
 
 ## Results
 
 ### Results on Piz Daint, CSCS
-<!-- markdownlint-disable MD013 -->
-| Input File             | Date       | CP2K Git SHA | Number of nodes | Node Configuration  | Runtime |
-| ---------------------- | ---------- | ------------:| ---------------:| ------------------- | ------- |
-| H2O-128-PBE-TZ.inp     | 2019-08-19 | 4519a8ad7    | 4 nodes         | 12 MPI x 1 OMP      | ~2 min  |
-| H2O-128-RI-dRPA-TZ.inp | 2019-08-19 | 4519a8ad7    | 128 nodes       | 2 MPI x 6 OMP       | 80 min  |
-| H2O-128-RI-dRPA-TZ.inp | 2019-12-03 | 78cea8eee    | 1024 nodes      | 2 MPI x 6 OMP       | 487 sec |
-<!-- markdownlint-enable MD013 -->
 
-*) The timings have been obtained on CRAY-XC50 (PizDaint@CSCS, GPU partition)
+| Input File             | Date       | CP2K Git SHA | Number of nodes | Node Configuration | Runtime |
+| ---------------------- | ---------- | -----------: | --------------: | ------------------ | ------- |
+| H2O-128-PBE-TZ.inp     | 2019-08-19 |    4519a8ad7 |         4 nodes | 12 MPI x 1 OMP     | ~2 min  |
+| H2O-128-RI-dRPA-TZ.inp | 2019-08-19 |    4519a8ad7 |       128 nodes | 2 MPI x 6 OMP      | 80 min  |
+| H2O-128-RI-dRPA-TZ.inp | 2019-12-03 |    78cea8eee |      1024 nodes | 2 MPI x 6 OMP      | 487 sec |
+
+\*) The timings have been obtained on CRAY-XC50 (PizDaint@CSCS, GPU partition)
