@@ -23,11 +23,11 @@ linear algebra routines as displayed at the end of the cp2k output.
 
 On rosa the total run times are approximately:
 
-| Input file    | Number cores | Runtime               |
-| ------------- | ------------:| ---------------------:|
-| H2O-256.inp   | 576 cores    | 5 min                 |
-| H2O-1024.inp  | 576 cores    | 40 min                |
-| H2O-4096.inp  | 2304 cores   | 15 min                |
+| Input file    | Number cores |               Runtime |
+| ------------- | -----------: | --------------------: |
+| H2O-256.inp   |    576 cores |                 5 min |
+| H2O-1024.inp  |    576 cores |                40 min |
+| H2O-4096.inp  |   2304 cores |                15 min |
 | H2O-65536.inp |              | doesn't run so far... |
 
 Runs performed with cp2k from 30.01.09 (no libdbcsr routines used), compiled

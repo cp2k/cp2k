@@ -20,20 +20,19 @@ See also <https://doi.org/10.1021/acs.jctc.9b00424>.
 
 ## Files description
 
-``ClC-19.inp`` - ClC with 19 QM atoms.
+`ClC-19.inp` - ClC with 19 QM atoms.
 
-``ClC-253.inp`` - ClC with 253 QM atoms.
+`ClC-253.inp` - ClC with 253 QM atoms.
 
-``ClC.prmtop`` - Amber forcefield for MM atoms. The Amber14 forcefield and
+`ClC.prmtop` - Amber forcefield for MM atoms. The Amber14 forcefield and
 the TIP3P water model are used.
 
-``ClC.pdb`` - Atomic input coordinates.
+`ClC.pdb` - Atomic input coordinates.
 
 ## Results
 
 ### MD Energy file for ClC-19
 
-<!-- markdownlint-disable MD013 -->
 ```cp2k-output
 #     Step Nr.          Time[fs]        Kin.[a.u.]          Temp[K]            Pot.[a.u.]        Cons Qty[a.u.]        UsedTime[s]
          0            0.000000       215.076797492       300.000000000      -596.086687006      -381.009889515         0.000000000
@@ -58,13 +57,12 @@ the TIP3P water model are used.
 
 ### Best Configuration for ClC-19
 
-| Machine Name | Architecture | Date       | Commit No. | Fastest time (s) | Number of Cores | Number of Threads                 |
-| ------------ | ------------ | ---------- | -----------| ---------------- | --------------- | --------------------------------- |
-| ARCHER       | Cray XC30    | 16/06/2020 | 6e0731f    | 225.171          |  384            | 4 OMP threads per MPI task        |
+| Machine Name | Architecture | Date       | Commit No. | Fastest time (s) | Number of Cores | Number of Threads          |
+| ------------ | ------------ | ---------- | ---------- | ---------------- | --------------- | -------------------------- |
+| ARCHER       | Cray XC30    | 16/06/2020 | 6e0731f    | 225.171          | 384             | 4 OMP threads per MPI task |
 
 ### Best Configuration for ClC-253
 
-| Machine Name | Architecture | Date       | Commit No. | Fastest time (s) | Number of Cores | Number of Threads                 |
-| ------------ | ------------ | ---------- | -----------| ---------------- | --------------- | --------------------------------- |
-| ARCHER       | Cray XC30    | 16/06/2020 | 6e0731f    | 937.151          |  576            | 6 OMP threads per MPI task        |
-<!-- markdownlint-enable MD013 -->
+| Machine Name | Architecture | Date       | Commit No. | Fastest time (s) | Number of Cores | Number of Threads          |
+| ------------ | ------------ | ---------- | ---------- | ---------------- | --------------- | -------------------------- |
+| ARCHER       | Cray XC30    | 16/06/2020 | 6e0731f    | 937.151          | 576             | 6 OMP threads per MPI task |

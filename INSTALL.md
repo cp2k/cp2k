@@ -197,7 +197,7 @@ the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
 
 - The version 5.1.0 (or later) of LIBXC can be downloaded from <https://www.tddft.org/programs/libxc>
 - CP2K does not make use of fourth derivates such that LIBXC may be configured
-  with './configure --disable-lxc \<other LIBXC configuration flags\>'.
+  with './configure --disable-lxc \<other LIBXC configuration flags>'.
 - During the installation, the directories `$(LIBXC_DIR)/lib`
   and `$(LIBXC_DIR)/include` are created.
 - Add `-D__LIBXC` to DFLAGS, `-I$(LIBXC_DIR)/include` to FCFLAGS
@@ -333,8 +333,7 @@ should work out of the box on Nvidia hardware as well.
 - Add `GPUVER=Mi50, Mi60, Mi100, Mi250`
 - Add `OFFLOAD_CC = hipcc`
 - Add  `-lamdhip64` to the `LIBS` variable
-- Add `OFFLOAD_FLAGS = '-fopenmp -m64 -pthread -fPIC -D__GRID_HIP -O2
-  --offload-arch=gfx908 --rocm-path=$(ROCM_PATH)'` where `ROCM_PATH` is the path
+- Add `OFFLOAD_FLAGS = '-fopenmp -m64 -pthread -fPIC -D__GRID_HIP -O2 --offload-arch=gfx908 --rocm-path=$(ROCM_PATH)'` where `ROCM_PATH` is the path
   where the rocm sdk resides. Architectures Mi250 (gfx90a), Mi100 (gfx908),
   Mi50 (gfx906) the hip backend for the grid library supports nvidia hardware
   as well. It uses the same code and can be used to validate the backend in case
@@ -429,13 +428,13 @@ Alternatively, <https://dashboard.cp2k.org> provides sample arch files as part o
 the testing reports (click on the status field, search for 'ARCH-file').
 
 - With -DNDEBUG assertions may be stripped ("compiled out").
-- NDEBUG is the ANSI-conforming symbol name (not __NDEBUG).
+- NDEBUG is the ANSI-conforming symbol name (not \_\_NDEBUG).
 - Regular release builds may carry assertions for safety.
 
 Conventionally, there are six versions:
 
-| Acronym |             Meaning              |
-|---------|----------------------------------|
+| Acronym | Meaning                          |
+| ------- | -------------------------------- |
 | sdbg    | OpenMP + debug settings          |
 | sopt    | OpenMP + OMP_NUM_THREADS=1       |
 | ssmp    | OpenMP                           |
@@ -589,4 +588,4 @@ can be generated using the cp2k executable, see <https://manual.cp2k.org/trunk/g
 
 ## 8. Happy computing
 
- The CP2K team.
+The CP2K team.

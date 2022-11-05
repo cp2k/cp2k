@@ -38,7 +38,7 @@ nodes, SB + K20X, +- 8Gb mem used per node
 ```
 
 ### MD Energy File
-<!-- markdownlint-disable MD013 -->
+
 ```shell
 > cat pao_ml_md-1.ener
 #     Step Nr.          Time[fs]        Kin.[a.u.]          Temp[K]            Pot.[a.u.]        Cons Qty[a.u.]        UsedTime[s]
@@ -64,7 +64,6 @@ nodes, SB + K20X, +- 8Gb mem used per node
         19            9.500000       105.405738067       286.181305486   -554932.815285468   -554827.409547401       365.768221021
         20           10.000000       102.522367308       278.352824576   -554929.882289568   -554827.359922261       364.275226861
 ```
-<!-- markdownlint-enable MD013 -->
 
 ### Timings
 

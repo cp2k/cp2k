@@ -13,7 +13,6 @@ apt-get install -qq --no-install-recommends \
   git \
   less \
   nano \
-  npm \
   python3 \
   python3-pip \
   python3-wheel \
@@ -22,14 +21,9 @@ apt-get install -qq --no-install-recommends \
   wget
 rm -rf /var/lib/apt/lists/*
 
-# Install markdownlint-cli and dependencies.
-# https://github.com/DavidAnson/markdownlint
-# https://github.com/igorshubovych/markdownlint-cli
-npm install .
-ln -s /opt/cp2k-precommit/node_modules/markdownlint-cli/markdownlint.js /usr/bin/markdownlint
-
-# Install black, flask, gunicorn, and dependencies.
-# https://github.com/psf/black
+# Install Python packages. Upgrade via:
+#   pip3 install black flask gunicorn mdformat-gfm cmake-format
+#   pip3 freeze > requirements.txt
 pip3 install --quiet -r requirements.txt
 
 # Install shfmt.

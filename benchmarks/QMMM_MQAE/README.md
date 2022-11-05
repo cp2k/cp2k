@@ -17,17 +17,17 @@ See also <https://doi.org/10.1021/acs.jctc.9b00424>.
 
 ## Files description
 
-``MQAE.inp`` - CP2K input file.
+`MQAE.inp` - CP2K input file.
 
-``MQAE.prmtop`` - Amber forcefield for MM atoms. The Amber14 forcefield and
+`MQAE.prmtop` - Amber forcefield for MM atoms. The Amber14 forcefield and
 the SPCE water model are used.
 
-``MQAE.pdb`` - Atomic input coordinates.
+`MQAE.pdb` - Atomic input coordinates.
 
 ## Results
 
 ### MD Energy file
-<!-- markdownlint-disable MD013 -->
+
 ```cp2k-output
 #     Step Nr.          Time[fs]        Kin.[a.u.]          Temp[K]            Pot.[a.u.]        Cons Qty[a.u.]        UsedTime[s]
          0            0.000000        10.239105709       300.000000000      -191.999316391      -181.760210683         0.000000000
@@ -42,7 +42,6 @@ the SPCE water model are used.
 
 The best configurations are shown below.
 
-| Machine Name | Architecture | Date       | Commit No. | Fastest time (s) | Number of Cores | Number of Threads                 |
-| ------------ | ------------ | ---------- | -----------| ---------------- | --------------- | --------------------------------- |
-| ARCHER       | Cray XC30    | 16/06/2020 | 6e0731f    | 72.439           |  384            | 6 OMP threads per MPI task        |
-<!-- markdownlint-enable MD013 -->
+| Machine Name | Architecture | Date       | Commit No. | Fastest time (s) | Number of Cores | Number of Threads          |
+| ------------ | ------------ | ---------- | ---------- | ---------------- | --------------- | -------------------------- |
+| ARCHER       | Cray XC30    | 16/06/2020 | 6e0731f    | 72.439           | 384             | 6 OMP threads per MPI task |

@@ -50,7 +50,6 @@ The `grid_collocate_miniapp.x` binary allows to run individual .task files.
 By default `grid_collocate_pgf_product_cpu` is called. When the `--batch` flag
 is set then `grid_collocate_task_list` is called instead.
 
-<!-- markdownlint-disable MD013 -->
 ```shell
 $ cd cp2k/src/grid
 $ make
@@ -60,7 +59,6 @@ Usage: grid_base_ref_miniapp.x [--batch <cycles-per-block>] <cycles> <task-file>
 $ ./grid_collocate_miniapp.x --batch 10 100 sample_tasks/collocate_ortho_density_l2200.task
 Task: sample_tasks/collocate_ortho_density_l2200.task                     Batched: yes   Cycles: 1.000000e+02   Max value: 1.579830e+02   Max diff: 1.705303e-13   Time: 1.884854e-03 sec
 ```
-<!-- markdownlint-enable MD013 -->
 
 ## Unit Test
 
@@ -69,7 +67,6 @@ The `grid_collocate_unittest.x` binary runs the .task files from the
 Beware that this is merely a smoke test.
 The cp2k regtest suite provides much more thorough testing.
 
-<!-- markdownlint-disable MD013 -->
 ```shell
 $ cd cp2k/src/grid
 $ make
@@ -83,4 +80,3 @@ Task: ../../src/grid/sample_tasks/collocate_ortho_density_l0000.task      Batche
 Task: ../../src/grid/sample_tasks/collocate_ortho_non_periodic.task       Batched: yes   Cycles: 1.000000e+00   Max value: 4.483815e-01   Max diff: 0.000000e+00   Time: 1.882868e-02 sec
 All tests have passed :-)
 ```
-<!-- markdownlint-enable MD013 -->

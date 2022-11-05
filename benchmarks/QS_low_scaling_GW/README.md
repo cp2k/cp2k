@@ -18,8 +18,8 @@ To run the benchmark, CP2K needs to be compiled with libint support (`-D__LIBINT
 
 ## Results on Piz Dora, CSCS
 
-| Input File | Configuration             | Total Number of Cores| Runtime [s]  |
-| ---------- | -------------------------:| --------------------:| ------------:|
-| GW.inp     | 16 nodes x 36 MPI x 1 OMP |                  576 |          305 |
+| Input File |             Configuration | Total Number of Cores | Runtime \[s\] |
+| ---------- | ------------------------: | --------------------: | ------------: |
+| GW.inp     | 16 nodes x 36 MPI x 1 OMP |                   576 |           305 |
 
 The timings have been obtained on CRAY-XC40 (PizDora@CSCS)

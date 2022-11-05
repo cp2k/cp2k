@@ -85,7 +85,7 @@ dependencies is
 
 - CP2K_DEV_OPTIONS = OFF : enable developer options. the main purpose is for
   debugging
-  
+
   - CP2K_USE_GRID_GPU = ON : turn on of gpu support for collocate integrate
   - CP2K_USE_PW_GPU = ON, turn on or off gpu fft support
   - CP2K_USE_DBM_GPU = ON turn on or off dbm gpu support
@@ -120,17 +120,17 @@ with cray-libsci for instance)
 The following list gives several examples of cmake command lines. Just add
 `-DCP2K_USE_SIRIUS=ON` to add support of SIRIUS in cp2k
 
-```shell cmake -DCP2K_INSTALL_PREFIX=/myprefix ..```
+`shell cmake -DCP2K_INSTALL_PREFIX=/myprefix ..`
 
 then
 
-```shell make```
+`shell make`
 
 - MKL
 
 the command line is
 
-```shell cmake -DCP2K_INSTALL_PREFIX=/myprefix -DCP2K_BLAS_VENDOR=MKL
+````shell cmake -DCP2K_INSTALL_PREFIX=/myprefix -DCP2K_BLAS_VENDOR=MKL
 -DCP2K_SCALAPACK_VENDOR=MKL ..```
 
 - Cray environments (with cray-libsci)
@@ -177,3 +177,4 @@ from time to time. Update to ROCM 5.3.x or above to solve the issue.
 present. '-DCP2k_BLAS_VENDOR=OpenBLAS' will also help cmake to find OpenBLAS if
 it is used. Detecting the scalapack library might also fail if the user
 environment is not properly set up.
+````
