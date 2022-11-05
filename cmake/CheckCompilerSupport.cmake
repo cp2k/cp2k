@@ -1,3 +1,10 @@
+#!-------------------------------------------------------------------------------------------------!
+#!   CP2K: A general program to perform molecular dynamics simulations                             !
+#!   Copyright 2000-2022 CP2K developers group <https://cp2k.org>                                  !
+#!                                                                                                 !
+#!   SPDX-License-Identifier: GPL-2.0-or-later                                                     !
+#!-------------------------------------------------------------------------------------------------!
+
 include(CheckFortranSourceCompiles)
 
 set(CHECK_PROGRAMS f2008-norm2.f90 f2008-block_construct.f90

@@ -84,7 +84,7 @@ BANNER_F = """\
 !--------------------------------------------------------------------------------------------------!
 """
 
-BANNER_FYPP = """\
+BANNER_SHELL = """\
 #!-------------------------------------------------------------------------------------------------!
 #!   CP2K: A general program to perform molecular dynamics simulations                             !
 #!   Copyright 2000-{:d} CP2K developers group <https://cp2k.org>                                  !
@@ -101,6 +101,7 @@ BANNER_C = """\
 /*  SPDX-License-Identifier: {:s}                                 */
 /*----------------------------------------------------------------------------*/
 """
+
 
 C_EXTENSIONS = (".c", ".cu", ".cpp", ".cc", ".h", ".hpp")
 
@@ -162,8 +163,11 @@ def check_file(path: pathlib.Path) -> typing.List[str]:
     spdx = "BSD-3-Clause    " if bsd_licensed else "GPL-2.0-or-later"
     if fn_ext == ".F" and not content.startswith(BANNER_F.format(year, spdx)):
         warnings += [f"{path}: Copyright banner malformed"]
-    if fn_ext == ".fypp" and not content.startswith(BANNER_FYPP.format(year, spdx)):
+    if fn_ext == ".fypp" and not content.startswith(BANNER_SHELL.format(year, spdx)):
         warnings += [f"{path}: Copyright banner malformed"]
+    if fn_ext == ".cmake" or path.name == "CMakeLists.txt":
+        if not content.startswith(BANNER_SHELL.format(year, spdx)):
+            warnings += [f"{path}: Copyright banner malformed"]
     if fn_ext in C_EXTENSIONS and not content.startswith(BANNER_C.format(year, spdx)):
         warnings += [f"{path}: Copyright banner malformed"]
 
