@@ -582,8 +582,8 @@ CONTAINS
             same = SIZE(poisson_env%pw_pools) == SIZE(pw_pools)
             IF (same) THEN
                DO i = 1, SIZE(pw_pools)
-                  IF (poisson_env%pw_pools(i)%pool%id_nr /= &
-                      pw_pools(i)%pool%id_nr) same = .FALSE.
+                  IF (.NOT. ASSOCIATED(poisson_env%pw_pools(i)%pool, &
+                                       pw_pools(i)%pool)) same = .FALSE.
                END DO
             END IF
          END IF

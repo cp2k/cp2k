@@ -111,9 +111,8 @@ CONTAINS
 
       IF (PRESENT(beta)) THEN
          CPASSERT(PRESENT(matrix_b))
-         IF (matrix_a%id_nr == matrix_b%id_nr) THEN
-            IF (matrix_a%id_nr == matrix_b%id_nr) &
-               CPWARN("Bad use of routine. Call cp_fm_scale instead")
+         IF (ASSOCIATED(matrix_a%local_data, matrix_b%local_data)) THEN
+            CPWARN("Bad use of routine. Call cp_fm_scale instead")
             CALL cp_fm_scale(alpha + beta, matrix_a)
             CALL timestop(handle)
             RETURN

@@ -25,7 +25,6 @@ MODULE cp_fm_types
                                               cp_fm_struct_retain,&
                                               cp_fm_struct_type,&
                                               cp_fm_struct_write_info
-   USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp,&
                                               sp
@@ -44,7 +43,6 @@ MODULE cp_fm_types
    LOGICAL, PARAMETER          :: debug_this_module = .TRUE.
    INTEGER, PARAMETER :: src_tag = 3, dest_tag = 5, send_tag = 7, recv_tag = 11
 
-   INTEGER, SAVE :: last_fm_id_nr = 0
    INTEGER, PRIVATE :: mm_type = 1
 
    PUBLIC :: cp_fm_type, &
@@ -92,8 +90,6 @@ MODULE cp_fm_types
 ! **************************************************************************************************
 !> \brief represent a full matrix
 !> \param name the name of the matrix, used for printing
-!> \param id_nr identification number that makes this matrix unique
-!> \param ref_cont reference count (see doc/ReferenceCounting.html)
 !> \param matrix_struct structure of this matrix
 !> \param local_data array with the data of the matrix (its contents
 !>        depend on the matrix type used: in parallel runs it will be
@@ -106,7 +102,6 @@ MODULE cp_fm_types
    TYPE cp_fm_type
 !    PRIVATE
       CHARACTER(LEN=60) :: name = ""
-      INTEGER :: id_nr = -1
       LOGICAL :: use_sp = .FALSE.
       TYPE(cp_fm_struct_type), POINTER :: matrix_struct => NULL()
       REAL(KIND=dp), DIMENSION(:, :), POINTER, CONTIGUOUS :: local_data => NULL()
@@ -175,8 +170,6 @@ CONTAINS
       context => matrix_struct%context
       matrix%matrix_struct => matrix_struct
       CALL cp_fm_struct_retain(matrix%matrix_struct)
-      last_fm_id_nr = last_fm_id_nr + 1
-      matrix%id_nr = last_fm_id_nr
 
       matrix%use_sp = .FALSE.
       IF (PRESENT(use_sp)) matrix%use_sp = use_sp
@@ -207,7 +200,7 @@ CONTAINS
       IF (PRESENT(name)) THEN
          matrix%name = name
       ELSE
-         matrix%name = 'full matrix'//cp_to_string(matrix%id_nr)
+         matrix%name = 'full matrix'
       END IF
 
       CALL timestop(handle)
