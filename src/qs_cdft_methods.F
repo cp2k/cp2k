@@ -655,10 +655,9 @@ CONTAINS
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: pw_single_dr
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
-      TYPE(realspace_grid_type)                          :: rs_rho_constr
+      TYPE(realspace_grid_type)                          :: rs_rho_all, rs_rho_constr
       TYPE(realspace_grid_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: rs_single, rs_single_charge, rs_single_dr
-      TYPE(realspace_grid_type), POINTER                 :: rs_rho_all
 
       NULLIFY (atom_list, atomic_kind_set, dft_control, &
                hirshfeld_env, particle_set, pw_env, auxbas_pw_pool, para_env, &
@@ -709,24 +708,27 @@ CONTAINS
       origin(2) = (dr_pw(2)*npts(2))*0.5_dp
       origin(3) = (dr_pw(3)*npts(3))*0.5_dp
 
+      CALL pw_env_get(pw_env, auxbas_rs_desc=auxbas_rs_desc, &
+                      auxbas_pw_pool=auxbas_pw_pool)
+      CALL rs_grid_create(rs_rho_all, auxbas_rs_desc)
+      CALL rs_grid_zero(rs_rho_all)
+
+      dr_rs(1) = rs_rho_all%desc%dh(1, 1)
+      dr_rs(2) = rs_rho_all%desc%dh(2, 2)
+      dr_rs(3) = rs_rho_all%desc%dh(3, 3)
+      lb_rs(1) = LBOUND(rs_rho_all%r(:, :, :), 1)
+      lb_rs(2) = LBOUND(rs_rho_all%r(:, :, :), 2)
+      lb_rs(3) = LBOUND(rs_rho_all%r(:, :, :), 3)
+      ub_rs(1) = UBOUND(rs_rho_all%r(:, :, :), 1)
+      ub_rs(2) = UBOUND(rs_rho_all%r(:, :, :), 2)
+      ub_rs(3) = UBOUND(rs_rho_all%r(:, :, :), 3)
+
       ! For each CDFT group
       DO igroup = 1, SIZE(cdft_control%group)
 
-         IF (.NOT. ASSOCIATED(rs_rho_all)) THEN
-            CALL pw_env_get(pw_env, auxbas_rs_desc=auxbas_rs_desc, auxbas_rs_grid=rs_rho_all, &
-                            auxbas_pw_pool=auxbas_pw_pool)
+         IF (igroup == 2 .AND. .NOT. cdft_control%in_memory) THEN
+            CALL rs_grid_zero(rs_rho_all)
          END IF
-         CALL rs_grid_zero(rs_rho_all)
-
-         dr_rs(1) = rs_rho_all%desc%dh(1, 1)
-         dr_rs(2) = rs_rho_all%desc%dh(2, 2)
-         dr_rs(3) = rs_rho_all%desc%dh(3, 3)
-         lb_rs(1) = LBOUND(rs_rho_all%r(:, :, :), 1)
-         lb_rs(2) = LBOUND(rs_rho_all%r(:, :, :), 2)
-         lb_rs(3) = LBOUND(rs_rho_all%r(:, :, :), 3)
-         ub_rs(1) = UBOUND(rs_rho_all%r(:, :, :), 1)
-         ub_rs(2) = UBOUND(rs_rho_all%r(:, :, :), 2)
-         ub_rs(3) = UBOUND(rs_rho_all%r(:, :, :), 3)
          bo = cdft_control%group(igroup)%weight%pw_grid%bounds_local
 
          ! Coefficients
@@ -1133,6 +1135,8 @@ CONTAINS
             END IF
          END DO
       END IF
+
+      CALL rs_grid_release(rs_rho_all)
 
       IF (ALLOCATED(coefficients)) DEALLOCATE (coefficients)
       IF (ALLOCATED(is_constraint)) DEALLOCATE (is_constraint)
