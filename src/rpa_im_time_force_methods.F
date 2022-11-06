@@ -138,7 +138,6 @@ MODULE rpa_im_time_force_methods
    USE qs_ks_reference,                 ONLY: ks_ref_potential
    USE qs_ks_types,                     ONLY: set_ks_env
    USE qs_linres_types,                 ONLY: linres_control_create,&
-                                              linres_control_release,&
                                               linres_control_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
@@ -2269,7 +2268,6 @@ CONTAINS
 
       !clean-up
       IF (dft_control%do_admm) CALL dbcsr_deallocate_matrix_set(YP_admm)
-      CALL linres_control_release(linres_control)
 
       DO ispin = 1, nspins
          IF (ASSOCIATED(cpmos(ispin)%matrix)) THEN

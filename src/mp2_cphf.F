@@ -115,7 +115,6 @@ MODULE mp2_cphf
    USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                               set_ks_env
    USE qs_linres_types,                 ONLY: linres_control_create,&
-                                              linres_control_release,&
                                               linres_control_type
    USE qs_mo_types,                     ONLY: mo_set_p_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
@@ -2019,7 +2018,6 @@ CONTAINS
       CALL p_env_release(p_env)
       DEALLOCATE (p_env)
       NULLIFY (qs_env%mp2_env%ri_grad%p_env)
-      CALL linres_control_release(linres_control)
 
       CALL sum_qs_force(force, qs_env%mp2_env%ri_grad%mp2_force)
       CALL deallocate_qs_force(qs_env%mp2_env%ri_grad%mp2_force)

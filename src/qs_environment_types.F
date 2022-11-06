@@ -106,7 +106,6 @@ MODULE qs_environment_types
                                               qs_ks_release,&
                                               set_ks_env
    USE qs_linres_types,                 ONLY: linres_control_release,&
-                                              linres_control_retain,&
                                               linres_control_type,&
                                               polar_env_release,&
                                               polar_env_type
@@ -1169,8 +1168,11 @@ CONTAINS
          qs_env%rel_control => rel_control
       END IF
       IF (PRESENT(linres_control)) THEN ! accept also null pointers?
-         CALL linres_control_retain(linres_control)
-         CALL linres_control_release(qs_env%linres_control)
+         IF (ASSOCIATED(qs_env%linres_control)) THEN
+         IF (.NOT. ASSOCIATED(qs_env%linres_control, linres_control)) THEN
+            CALL linres_control_release(qs_env%linres_control)
+         END IF
+         END IF
          qs_env%linres_control => linres_control
       END IF
       ! ZMP associating variables

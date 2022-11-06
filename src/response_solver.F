@@ -122,7 +122,6 @@ MODULE response_solver
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_linres_methods,               ONLY: linres_solver
    USE qs_linres_types,                 ONLY: linres_control_create,&
-                                              linres_control_release,&
                                               linres_control_type
    USE qs_matrix_pools,                 ONLY: mpools_rebuild_fm_pools
    USE qs_mo_methods,                   ONLY: make_basis_sm
@@ -316,7 +315,6 @@ CONTAINS
       ALLOCATE (ec_env%p_env)
       CALL p_env_create(ec_env%p_env, qs_env, orthogonal_orbitals=.TRUE., &
                         linres_control=linres_control)
-      CALL set_qs_env(qs_env, linres_control=linres_control)
       CALL p_env_psi0_changed(ec_env%p_env, qs_env)
       ! Total energy overwritten, replace with Etot from energy correction
       CALL get_qs_env(qs_env, energy=energy)
@@ -446,8 +444,6 @@ CONTAINS
             DEALLOCATE (qs_env%mos)
          END IF
       END IF
-
-      CALL linres_control_release(linres_control)
 
       CALL timestop(handle)
 
@@ -796,7 +792,6 @@ CONTAINS
          DEALLOCATE (psi1)
       END IF
       DEALLOCATE (psi0)
-      CALL linres_control_release(linres_control)
 
       CALL timestop(handle)
 

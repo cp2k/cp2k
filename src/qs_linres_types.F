@@ -260,7 +260,7 @@ MODULE qs_linres_types
    PUBLIC :: allocate_jrho_atom_rad, deallocate_jrho_atom_set, get_nmr_env, &
              get_current_env, allocate_jrho_coeff, &
              init_jrho_atom_set, init_nablavks_atom_set, linres_control_create, &
-             linres_control_retain, linres_control_release, &
+             linres_control_release, &
              set_epr_env, deallocate_nablavks_atom_set, &
              set2zero_jrho_atom_rad, get_epr_env, &
              nmr_env_create, epr_env_create, current_env_create, get_issc_env, &
@@ -318,20 +318,6 @@ CONTAINS
       END IF
       NULLIFY (linres_control)
    END SUBROUTINE linres_control_release
-
-! **************************************************************************************************
-!> \brief ...
-!> \param linres_control ...
-! **************************************************************************************************
-   SUBROUTINE linres_control_retain(linres_control)
-
-      TYPE(linres_control_type), POINTER                 :: linres_control
-
-      CPASSERT(ASSOCIATED(linres_control))
-      CPASSERT(linres_control%ref_count > 0)
-      linres_control%ref_count = linres_control%ref_count + 1
-
-   END SUBROUTINE linres_control_retain
 
 ! **************************************************************************************************
 !> \brief ...
