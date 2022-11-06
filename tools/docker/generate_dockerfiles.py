@@ -36,6 +36,9 @@ def main() -> None:
     with OutputFile(f"Dockerfile.test_minimal", args.check) as f:
         f.write(toolchain_full() + regtest("sdbg", "minimal"))
 
+    with OutputFile(f"Dockerfile.test_cmake", args.check) as f:
+        f.write(toolchain_full() + install_cp2k_cmake())
+
     for version in "ssmp", "psmp":
         with OutputFile(f"Dockerfile.test_asan-{version}", args.check) as f:
             f.write(toolchain_full() + regtest(version, "local_asan"))
@@ -357,6 +360,39 @@ RUN /bin/bash -c " \
 COPY ./data ./data
 COPY ./tests ./tests
 COPY ./tools/regtesting ./tools/regtesting
+"""
+
+
+# ======================================================================================
+def install_cp2k_cmake() -> str:
+    # TODO: This is a draft and does not yet actually work.
+
+    return rf"""
+# Install CP2K using CMake.
+WORKDIR /opt/cp2k
+COPY ./src ./src
+COPY ./exts ./exts
+COPY ./tools/build_utils ./tools/build_utils
+COPY ./cmake ./cmake
+COPY ./CMakeLists.txt .
+WORKDIR ./build
+RUN /bin/bash -c " \
+    echo 'Compiling dbcsr...' && \
+    source /opt/cp2k-toolchain/install/setup && \
+    cmake ../exts/dbcsr && \
+    make -j"
+RUN /bin/bash -c " \
+    echo 'Compiling cp2k...' && \
+    source /opt/cp2k-toolchain/install/setup && \
+    export PKG_CONFIG_PATH=/opt/cp2k-toolchain/install/openblas-0.3.21/lib/pkgconfig && \
+    cmake -DCP2K_USE_LIBXSMM=NO -DSCALAPACK_ROOT=/opt/cp2k-toolchain/install/scalapack-2.1.0 .. && \
+    make -j"
+COPY ./data ./data
+COPY ./tests ./tests
+COPY ./tools/regtesting ./tools/regtesting
+RUN echo "\nSummary: Compilation works fine.\nStatus: OK\n"
+
+#EOF
 """
 
 
