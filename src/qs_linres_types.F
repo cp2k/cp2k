@@ -314,7 +314,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE current_env_create(current_env)
 
-      TYPE(current_env_type)                             :: current_env
+      TYPE(current_env_type), INTENT(INOUT)              :: current_env
 
       current_env%nao = HUGE(1)
       current_env%gauge = HUGE(1)
@@ -351,7 +351,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE nmr_env_create(nmr_env)
 
-      TYPE(nmr_env_type)                                 :: nmr_env
+      TYPE(nmr_env_type), INTENT(INOUT)                  :: nmr_env
 
       NULLIFY (nmr_env%chemical_shift)
       NULLIFY (nmr_env%chemical_shift_loc)
@@ -369,7 +369,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE issc_env_create(issc_env)
 
-      TYPE(issc_env_type)                                :: issc_env
+      TYPE(issc_env_type), INTENT(INOUT)                 :: issc_env
 
       NULLIFY (issc_env%issc)
       NULLIFY (issc_env%issc_loc)
@@ -394,7 +394,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE epr_env_create(epr_env)
 
-      TYPE(epr_env_type)                                 :: epr_env
+      TYPE(epr_env_type), INTENT(INOUT)                  :: epr_env
 
       NULLIFY (epr_env%nablavks_set)
       NULLIFY (epr_env%nablavks_atom_set)
