@@ -89,8 +89,6 @@ MODULE realspace_grid_types
 
 ! **************************************************************************************************
    TYPE realspace_grid_desc_type
-      INTEGER :: grid_id ! tag of the pw_grid
-
       TYPE(pw_grid_type), POINTER   :: pw ! the pw grid
 
       INTEGER :: ref_count ! reference count
@@ -238,7 +236,6 @@ CONTAINS
       desc%dh = pw_grid%dh
       desc%dh_inv = pw_grid%dh_inv
       desc%orthorhombic = pw_grid%orthorhombic
-      desc%grid_id = pw_grid%id_nr
       desc%ref_count = 1
 
       IF (pw_grid%para%mode == PW_MODE_LOCAL) THEN
@@ -595,7 +592,7 @@ CONTAINS
       IF (rs%desc%parallel) THEN
          IF (iounit > 0) THEN
             WRITE (iounit, '(/,A,T71,I10)') &
-               " RS_GRID| Information for grid number ", rs%desc%grid_id
+               " RS_GRID| Information for grid number ", rs%desc%pw%id_nr
             DO i = 1, 3
                WRITE (iounit, '(A,I3,T30,2I8,T62,A,T71,I10)') " RS_GRID|   Bounds ", &
                   i, rs%desc%lb(i), rs%desc%ub(i), "Points:", rs%desc%npts(i)
@@ -642,7 +639,7 @@ CONTAINS
       ELSE
          IF (iounit > 0) THEN
             WRITE (iounit, '(/,A,T71,I10)') &
-               " RS_GRID| Information for grid number ", rs%desc%grid_id
+               " RS_GRID| Information for grid number ", rs%desc%pw%id_nr
             DO i = 1, 3
                WRITE (iounit, '(A,I3,T30,2I8,T62,A,T71,I10)') " RS_GRID|   Bounds ", &
                   i, rs%desc%lb(i), rs%desc%ub(i), "Points:", rs%desc%npts(i)
@@ -682,7 +679,7 @@ CONTAINS
       CALL timeset(routineN//"_"//TRIM(dirname)//"_"//TRIM(ADJUSTL( &
                                                            cp_to_string(CEILING(pw%pw_grid%cutoff/10)*10))), handle)
 
-      IF (rs%desc%grid_id /= pw%pw_grid%id_nr) &
+      IF (.NOT. ASSOCIATED(rs%desc%pw, pw%pw_grid)) &
          CPABORT("Different rs and pw indentifiers")
       IF ((pw%in_use .NE. REALDATA3D) .AND. (pw%in_use .NE. COMPLEXDATA3D)) &
          CPABORT("Need REALDATA3D or COMPLEXDATA3D")
@@ -1991,10 +1988,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rs_grid_set_box(pw_grid, rs)
 
-      TYPE(pw_grid_type), INTENT(IN)                     :: pw_grid
+      TYPE(pw_grid_type), INTENT(IN), TARGET             :: pw_grid
       TYPE(realspace_grid_type), INTENT(IN)              :: rs
 
-      CPASSERT(rs%desc%grid_id == pw_grid%id_nr)
+      CPASSERT(ASSOCIATED(rs%desc%pw, pw_grid))
       rs%desc%dh = pw_grid%dh
       rs%desc%dh_inv = pw_grid%dh_inv
 
