@@ -1171,6 +1171,7 @@ CONTAINS
          IF (ASSOCIATED(qs_env%linres_control)) THEN
          IF (.NOT. ASSOCIATED(qs_env%linres_control, linres_control)) THEN
             CALL linres_control_release(qs_env%linres_control)
+            DEALLOCATE (qs_env%linres_control)
          END IF
          END IF
          qs_env%linres_control => linres_control
@@ -1407,6 +1408,7 @@ CONTAINS
 
       IF (ASSOCIATED(qs_env%linres_control)) THEN
          CALL linres_control_release(qs_env%linres_control)
+         DEALLOCATE (qs_env%linres_control)
       END IF
 
       IF (ASSOCIATED(qs_env%almo_scf_env)) THEN
@@ -1625,6 +1627,7 @@ CONTAINS
 
       IF (ASSOCIATED(qs_env%linres_control)) THEN
          CALL linres_control_release(qs_env%linres_control)
+         DEALLOCATE (qs_env%linres_control)
       END IF
 
       IF (ASSOCIATED(qs_env%almo_scf_env)) THEN

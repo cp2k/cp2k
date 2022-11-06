@@ -228,6 +228,7 @@ CONTAINS
 
       ! initialize linres_control
       NULLIFY (linres_control)
+      ALLOCATE (linres_control)
       CALL linres_control_create(linres_control)
       linres_control%do_kernel = .TRUE.
       linres_control%lr_triplet = .FALSE.
@@ -676,6 +677,7 @@ CONTAINS
 
       ! initialized linres_control
       NULLIFY (linres_control)
+      ALLOCATE (linres_control)
       CALL linres_control_create(linres_control)
       linres_control%do_kernel = .TRUE.
       linres_control%lr_triplet = .FALSE.

@@ -336,6 +336,7 @@ CONTAINS
                                     extension=".linresLog")
       NULLIFY (dft_control, linres_control, loc_section, rho, mos, matrix_ks, rho_ao)
 
+      ALLOCATE (linres_control)
       CALL linres_control_create(linres_control)
       CALL set_qs_env(qs_env=qs_env, linres_control=linres_control)
       CALL get_qs_env(qs_env=qs_env, &

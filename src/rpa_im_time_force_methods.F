@@ -2138,6 +2138,7 @@ CONTAINS
       ! Initialize linres_control
       lr_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%WF_CORRELATION%LOW_SCALING%CPHF")
 
+      ALLOCATE (linres_control)
       CALL linres_control_create(linres_control)
       CALL section_vals_val_get(lr_section, "MAX_ITER", i_val=linres_control%max_iter)
       CALL section_vals_val_get(lr_section, "EPS_CONV", r_val=linres_control%eps)

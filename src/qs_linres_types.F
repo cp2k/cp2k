@@ -53,7 +53,6 @@ MODULE qs_linres_types
 !> \author MI
 ! **************************************************************************************************
    TYPE linres_control_type
-      INTEGER                                   :: ref_count
       INTEGER                                   :: property
       INTEGER                                   :: preconditioner_type
       INTEGER                                   :: restart_every
@@ -275,11 +274,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE linres_control_create(linres_control)
 
-      TYPE(linres_control_type), POINTER                 :: linres_control
+      TYPE(linres_control_type), INTENT(OUT)             :: linres_control
 
-      CPASSERT(.NOT. ASSOCIATED(linres_control))
-      ALLOCATE (linres_control)
-      linres_control%ref_count = 1
       NULLIFY (linres_control%qs_loc_env)
       linres_control%property = HUGE(0) !is that used?
       linres_control%preconditioner_type = HUGE(0)
@@ -303,20 +299,13 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE linres_control_release(linres_control)
 
-      TYPE(linres_control_type), POINTER                 :: linres_control
+      TYPE(linres_control_type), INTENT(INOUT)           :: linres_control
 
-      IF (ASSOCIATED(linres_control)) THEN
-         CPASSERT(linres_control%ref_count > 0)
-         linres_control%ref_count = linres_control%ref_count - 1
-         IF (linres_control%ref_count < 1) THEN
-            IF (ASSOCIATED(linres_control%qs_loc_env)) THEN
-               CALL qs_loc_env_release(linres_control%qs_loc_env)
-               DEALLOCATE (linres_control%qs_loc_env)
-            END IF
-            DEALLOCATE (linres_control)
-         END IF
+      IF (ASSOCIATED(linres_control%qs_loc_env)) THEN
+         CALL qs_loc_env_release(linres_control%qs_loc_env)
+         DEALLOCATE (linres_control%qs_loc_env)
       END IF
-      NULLIFY (linres_control)
+
    END SUBROUTINE linres_control_release
 
 ! **************************************************************************************************
