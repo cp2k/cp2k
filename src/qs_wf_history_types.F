@@ -146,6 +146,7 @@ CONTAINS
       END IF
       IF (ASSOCIATED(snapshot%rho_frozen)) THEN
          CALL qs_rho_release(snapshot%rho_frozen)
+         DEALLOCATE (snapshot%rho_frozen)
       END IF
 
    END SUBROUTINE wfs_release

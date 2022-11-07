@@ -582,8 +582,14 @@ CONTAINS
       IF (ASSOCIATED(admm_env%matrix_s_aux_fit)) CALL dbcsr_deallocate_matrix_set(admm_env%matrix_s_aux_fit)
       IF (ASSOCIATED(admm_env%matrix_s_aux_fit_vs_orb)) CALL dbcsr_deallocate_matrix_set(admm_env%matrix_s_aux_fit_vs_orb)
 
-      IF (ASSOCIATED(admm_env%rho_aux_fit)) CALL qs_rho_release(admm_env%rho_aux_fit)
-      IF (ASSOCIATED(admm_env%rho_aux_fit_buffer)) CALL qs_rho_release(admm_env%rho_aux_fit_buffer)
+      IF (ASSOCIATED(admm_env%rho_aux_fit)) THEN
+         CALL qs_rho_release(admm_env%rho_aux_fit)
+         DEALLOCATE (admm_env%rho_aux_fit)
+      END IF
+      IF (ASSOCIATED(admm_env%rho_aux_fit_buffer)) THEN
+         CALL qs_rho_release(admm_env%rho_aux_fit_buffer)
+         DEALLOCATE (admm_env%rho_aux_fit_buffer)
+      END IF
 
       IF (ASSOCIATED(admm_env%task_list_aux_fit)) CALL deallocate_task_list(admm_env%task_list_aux_fit)
 

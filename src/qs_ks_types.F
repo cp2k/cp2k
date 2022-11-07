@@ -212,8 +212,11 @@ CONTAINS
    SUBROUTINE qs_ks_env_create(ks_env)
       TYPE(qs_ks_env_type), INTENT(OUT)                  :: ks_env
 
+      ALLOCATE (ks_env%rho)
       CALL qs_rho_create(ks_env%rho)
+      ALLOCATE (ks_env%rho_xc)
       CALL qs_rho_create(ks_env%rho_xc)
+      ALLOCATE (ks_env%rho_buffer)
       CALL qs_rho_create(ks_env%rho_buffer)
    END SUBROUTINE qs_ks_env_create
 
@@ -724,12 +727,18 @@ CONTAINS
          CALL dbcsr_deallocate_matrix_set(ks_env%matrix_p_mp2)
       IF (ASSOCIATED(ks_env%matrix_p_mp2_admm)) &
          CALL dbcsr_deallocate_matrix_set(ks_env%matrix_p_mp2_admm)
-      IF (ASSOCIATED(ks_env%rho)) &
+      IF (ASSOCIATED(ks_env%rho)) THEN
          CALL qs_rho_release(ks_env%rho)
-      IF (ASSOCIATED(ks_env%rho_buffer)) &
+         DEALLOCATE (ks_env%rho)
+      END IF
+      IF (ASSOCIATED(ks_env%rho_buffer)) THEN
          CALL qs_rho_release(ks_env%rho_buffer)
-      IF (ASSOCIATED(ks_env%rho_xc)) &
+         DEALLOCATE (ks_env%rho_buffer)
+      END IF
+      IF (ASSOCIATED(ks_env%rho_xc)) THEN
          CALL qs_rho_release(ks_env%rho_xc)
+         DEALLOCATE (ks_env%rho_xc)
+      END IF
       IF (ASSOCIATED(ks_env%distribution_2d)) &
          CALL distribution_2d_release(ks_env%distribution_2d)
       IF (ASSOCIATED(ks_env%task_list)) &
@@ -821,12 +830,18 @@ CONTAINS
          CALL dbcsr_deallocate_matrix_set(ks_env%matrix_p_mp2)
       IF (ASSOCIATED(ks_env%matrix_p_mp2_admm)) &
          CALL dbcsr_deallocate_matrix_set(ks_env%matrix_p_mp2_admm)
-      IF (ASSOCIATED(ks_env%rho)) &
+      IF (ASSOCIATED(ks_env%rho)) THEN
          CALL qs_rho_release(ks_env%rho)
-      IF (ASSOCIATED(ks_env%rho_buffer)) &
+         DEALLOCATE (ks_env%rho)
+      END IF
+      IF (ASSOCIATED(ks_env%rho_buffer)) THEN
          CALL qs_rho_release(ks_env%rho_buffer)
-      IF (ASSOCIATED(ks_env%rho_xc)) &
+         DEALLOCATE (ks_env%rho_buffer)
+      END IF
+      IF (ASSOCIATED(ks_env%rho_xc)) THEN
          CALL qs_rho_release(ks_env%rho_xc)
+         DEALLOCATE (ks_env%rho_xc)
+      END IF
       IF (ASSOCIATED(ks_env%task_list)) &
          CALL deallocate_task_list(ks_env%task_list)
       IF (ASSOCIATED(ks_env%task_list_soft)) &

@@ -119,6 +119,7 @@ CONTAINS
                                                 dbcsr_dist=dbcsr_dist, sab=sab_orb)
             END DO
 
+            ALLOCATE (rho_struct_sub)
             CALL qs_rho_create(rho_struct_sub)
             CALL qs_rho_set(rho_struct_sub, rho_ao=rho_ia_ao)
             CALL qs_rho_rebuild(rho_struct_sub, qs_env, rebuild_ao=.FALSE., &

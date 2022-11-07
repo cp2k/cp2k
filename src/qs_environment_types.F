@@ -1183,6 +1183,7 @@ CONTAINS
          IF (ASSOCIATED(qs_env%rho_external)) THEN
          IF (.NOT. ASSOCIATED(qs_env%rho_external, rho_external)) THEN
             CALL qs_rho_release(qs_env%rho_external)
+            DEALLOCATE (qs_env%rho_external)
          END IF
          END IF
          qs_env%rho_external => rho_external
@@ -1457,6 +1458,7 @@ CONTAINS
       ! ZMP
       IF (ASSOCIATED(qs_env%rho_external)) THEN
          CALL qs_rho_release(qs_env%rho_external)
+         DEALLOCATE (qs_env%rho_external)
       END IF
       IF (ASSOCIATED(qs_env%external_vxc)) THEN
          CALL pw_release(qs_env%external_vxc)
@@ -1679,6 +1681,7 @@ CONTAINS
       ! ZMP
       IF (ASSOCIATED(qs_env%rho_external)) THEN
          CALL qs_rho_release(qs_env%rho_external)
+         DEALLOCATE (qs_env%rho_external)
       END IF
       IF (ASSOCIATED(qs_env%external_vxc)) THEN
          CALL pw_release(qs_env%external_vxc)

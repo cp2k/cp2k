@@ -187,6 +187,7 @@ CONTAINS
       DO i_B = 1, 3
          DO idir = 1, 3
             NULLIFY (epr_env%bind_set(idir, i_B)%rho, rho_r, rho_g)
+            ALLOCATE (epr_env%bind_set(idir, i_B)%rho)
             CALL qs_rho_create(epr_env%bind_set(idir, i_B)%rho)
             ALLOCATE (rho_r(1), rho_g(1))
             ALLOCATE (rho_r(1)%pw, rho_g(1)%pw)
@@ -203,6 +204,7 @@ CONTAINS
       DO idir = 1, 3
          DO ispin = 1, nspins
             NULLIFY (epr_env%nablavks_set(idir, ispin)%rho, rho_r, rho_g)
+            ALLOCATE (epr_env%nablavks_set(idir, ispin)%rho)
             CALL qs_rho_create(epr_env%nablavks_set(idir, ispin)%rho)
             ALLOCATE (rho_r(1), rho_g(1))
             ALLOCATE (rho_r(1)%pw, rho_g(1)%pw)

@@ -205,7 +205,9 @@ CONTAINS
          CALL admm_init_hamiltonians(admm_env, qs_env)
 
          !The aux_fit task list and densities
+         ALLOCATE (admm_env%rho_aux_fit)
          CALL qs_rho_create(admm_env%rho_aux_fit)
+         ALLOCATE (admm_env%rho_aux_fit_buffer)
          CALL qs_rho_create(admm_env%rho_aux_fit_buffer)
          CALL admm_update_s_mstruct(admm_env, qs_env)
          IF (admm_env%do_gapw) CALL update_admm_gapw(qs_env)

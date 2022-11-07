@@ -198,6 +198,7 @@ CONTAINS
             alpha = 1.0_dp
             beta = REAL(istep, KIND=dp)*epsrho
             NULLIFY (rhoin)
+            ALLOCATE (rhoin)
             CALL qs_rho_create(rhoin)
             NULLIFY (vxc00, v_tau_rspace)
             IF (is_triplet) THEN
@@ -215,6 +216,7 @@ CONTAINS
                                   vxc_rho=vxc00, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE.)
             END IF
             CALL qs_rho_release(rhoin)
+            DEALLOCATE (rhoin)
             IF (.NOT. ASSOCIATED(fxc_rho)) THEN
                ALLOCATE (fxc_rho(nspins))
                DO ispin = 1, nspins
@@ -343,6 +345,7 @@ CONTAINS
          alpha = 1.0_dp
          beta = REAL(istep, KIND=dp)*epsrho
          NULLIFY (rhoin)
+         ALLOCATE (rhoin)
          CALL qs_rho_create(rhoin)
          NULLIFY (vxc00, v_tau_rspace)
          IF (is_triplet) THEN
@@ -359,6 +362,7 @@ CONTAINS
                                vxc_rho=vxc00, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE.)
          END IF
          CALL qs_rho_release(rhoin)
+         DEALLOCATE (rhoin)
          IF (.NOT. ASSOCIATED(fxc_rho)) THEN
             ALLOCATE (fxc_rho(nspins))
             DO ispin = 1, nspins

@@ -1004,6 +1004,7 @@ CONTAINS
          IF (qs_env%wf_history%interpolation_method_nr == wfi_frozen_method_nr) THEN
             IF (.NOT. ASSOCIATED(qs_env%wf_history%past_states(1)%snapshot)) THEN
                CALL wfi_update(qs_env%wf_history, qs_env=qs_env, dt=1.0_dp)
+               ALLOCATE (qs_env%wf_history%past_states(1)%snapshot%rho_frozen)
                CALL qs_rho_create(qs_env%wf_history%past_states(1)%snapshot%rho_frozen)
                CALL duplicate_rho_type(rho_input=rho, &
                                        rho_output=qs_env%wf_history%past_states(1)%snapshot%rho_frozen, &

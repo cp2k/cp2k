@@ -650,6 +650,7 @@ CONTAINS
          IF (ASSOCIATED(current_env%jrho1_set)) THEN
             DO idir = 1, 3
                CALL qs_rho_release(current_env%jrho1_set(idir)%rho)
+               DEALLOCATE (current_env%jrho1_set(idir)%rho)
             END DO
          END IF
          current_env%jrho1_set => jrho1_set
@@ -731,6 +732,7 @@ CONTAINS
             DO ispin = 1, 2
                DO idir = 1, 3
                   CALL qs_rho_release(epr_env%nablavks_set(idir, ispin)%rho)
+                  DEALLOCATE (epr_env%nablavks_set(idir, ispin)%rho)
                END DO
             END DO
          END IF

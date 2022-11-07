@@ -481,6 +481,7 @@ CONTAINS
          END IF
          CALL qs_rho_get(rho, rho_ao=matrix_p)
          NULLIFY (rhox)
+         ALLOCATE (rhox)
          CALL qs_rho_create(rhox)
          IF (gapw_xc) THEN
             CALL qs_rho_set(rho_struct=rhox, rho_ao=matrix_px1, rho_r=rhoxx_r, rho_g=rhoxx_g, &
@@ -621,6 +622,7 @@ CONTAINS
                END DO
                !
                NULLIFY (rhox_aux)
+               ALLOCATE (rhox_aux)
                CALL qs_rho_create(rhox_aux)
                CALL qs_rho_set(rho_struct=rhox_aux, rho_ao=matrix_px1_admm, &
                                rho_r=rhox_r_aux, rho_g=rhox_g_aux, &

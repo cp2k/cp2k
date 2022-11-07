@@ -849,6 +849,7 @@ CONTAINS
       ELSE
          CPABORT("NYA 00006")
          NULLIFY (v_xc, trho)
+         ALLOCATE (trho)
          CALL qs_rho_create(trho)
          CALL qs_rho_set(trho, rho_r=trho_r, rho_g=trho_g)
          CALL qs_fxc_fdiff(ks_env, rho, trho, xc_section, 6, .FALSE., v_xc, tau_r)
@@ -975,6 +976,7 @@ CONTAINS
             ELSE
                CPABORT("NYA 00007")
                NULLIFY (rhoz_aux)
+               ALLOCATE (rhoz_aux)
                CALL qs_rho_create(rhoz_aux)
                CALL qs_rho_set(rhoz_aux, rho_r=rhoz_r_aux, rho_g=rhoz_g_aux)
                CALL qs_fxc_fdiff(ks_env, rho_aux_fit, rhoz_aux, xc_section, 6, .FALSE., v_xc, tau_r)

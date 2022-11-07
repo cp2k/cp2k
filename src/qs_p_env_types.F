@@ -112,9 +112,16 @@ CONTAINS
       CALL cp_fm_vect_dealloc(p_env%Smo_inv)
       IF (ASSOCIATED(p_env%rho1_xc)) THEN
          CALL qs_rho_release(p_env%rho1_xc)
+         DEALLOCATE (p_env%rho1_xc)
       END IF
-      CALL qs_rho_release(p_env%rho1)
-      IF (ASSOCIATED(p_env%rho1_admm)) CALL qs_rho_release(p_env%rho1_admm)
+      IF (ASSOCIATED(p_env%rho1)) THEN
+         CALL qs_rho_release(p_env%rho1)
+         DEALLOCATE (p_env%rho1)
+      END IF
+      IF (ASSOCIATED(p_env%rho1_admm)) THEN
+         CALL qs_rho_release(p_env%rho1_admm)
+         DEALLOCATE (p_env%rho1_admm)
+      END IF
       IF (ASSOCIATED(p_env%kpp1)) CALL dbcsr_deallocate_matrix_set(p_env%kpp1)
       IF (ASSOCIATED(p_env%kpp1_admm)) CALL dbcsr_deallocate_matrix_set(p_env%kpp1_admm)
       IF (ASSOCIATED(p_env%p1)) CALL dbcsr_deallocate_matrix_set(p_env%p1)

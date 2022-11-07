@@ -54,8 +54,6 @@ MODULE qs_rho_types
 !> \param tau_g grids with the kinetic energy density in g space
 !> \param rho_g_valid , rho_r_valid, tau_r_valid, tau_g_valid: if the
 !>        corresponding component is valid
-!> \param ref_count the reference count, when it becomes 0 the type
-!>        is deallocated.
 !> \param rebuild_each how often a rebuild should be done by default
 !> \param tot_rho_r the total charge in r space (valid only if rho_r is)
 !> \note
@@ -83,8 +81,7 @@ MODULE qs_rho_types
                                                         tau_r_valid = .FALSE., &
                                                         tau_g_valid = .FALSE., &
                                                         soft_valid = .FALSE.
-      INTEGER                                        :: ref_count = -1, &
-                                                        rebuild_each = -1
+      INTEGER                                        :: rebuild_each = -1
       REAL(KIND=dp), DIMENSION(:), POINTER           :: tot_rho_r => Null(), &
                                                         tot_rho_g => Null()
    END TYPE qs_rho_type
@@ -102,13 +99,9 @@ CONTAINS
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE qs_rho_create(rho)
-      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_rho_type), INTENT(OUT)                     :: rho
 
-      IF (ASSOCIATED(rho)) CPABORT("rho already associated")
-
-      ALLOCATE (rho)
       rho%rebuild_each = 5
-      rho%ref_count = 1
    END SUBROUTINE qs_rho_create
 
 ! **************************************************************************************************
@@ -121,18 +114,9 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE qs_rho_release(rho_struct)
-      TYPE(qs_rho_type), POINTER                         :: rho_struct
+      TYPE(qs_rho_type), INTENT(INOUT)                   :: rho_struct
 
-      IF (ASSOCIATED(rho_struct)) THEN
-         CPASSERT(rho_struct%ref_count > 0)
-         rho_struct%ref_count = rho_struct%ref_count - 1
-         IF (rho_struct%ref_count < 1) THEN
-            CALL qs_rho_clear(rho_struct)
-            DEALLOCATE (rho_struct)
-         END IF
-      END IF
-
-      NULLIFY (rho_struct)
+      CALL qs_rho_clear(rho_struct)
 
    END SUBROUTINE qs_rho_release
 
@@ -142,7 +126,7 @@ CONTAINS
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE qs_rho_clear(rho_struct)
-      TYPE(qs_rho_type), POINTER                         :: rho_struct
+      TYPE(qs_rho_type), INTENT(INOUT)                   :: rho_struct
 
       INTEGER                                            :: i, j
 
@@ -212,7 +196,7 @@ CONTAINS
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE qs_rho_unset_rho_ao(rho_struct)
-      TYPE(qs_rho_type), POINTER                         :: rho_struct
+      TYPE(qs_rho_type), INTENT(INOUT)                   :: rho_struct
 
       rho_struct%rho_ao = kpoint_transitional_type()
    END SUBROUTINE qs_rho_unset_rho_ao
@@ -250,7 +234,7 @@ CONTAINS
                          rho_g, drho_g, tau_r, tau_g, rho_r_valid, drho_r_valid, rho_g_valid, &
                          drho_g_valid, tau_r_valid, tau_g_valid, rebuild_each, tot_rho_r, tot_rho_g, &
                          rho_r_sccs, soft_valid)
-      TYPE(qs_rho_type), POINTER                         :: rho_struct
+      TYPE(qs_rho_type), INTENT(IN)                      :: rho_struct
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: rho_ao, rho_ao_im
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
@@ -266,9 +250,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: tot_rho_r, tot_rho_g
       TYPE(pw_type), OPTIONAL, POINTER                   :: rho_r_sccs
       LOGICAL, INTENT(out), OPTIONAL                     :: soft_valid
-
-      CPASSERT(ASSOCIATED(rho_struct))
-      CPASSERT(rho_struct%ref_count > 0)
 
       IF (PRESENT(rho_ao)) rho_ao => get_1d_pointer(rho_struct%rho_ao)
       IF (PRESENT(rho_ao_kp)) rho_ao_kp => get_2d_pointer(rho_struct%rho_ao)
@@ -326,7 +307,7 @@ CONTAINS
                          rho_g, drho_g, tau_r, tau_g, rho_r_valid, drho_r_valid, rho_g_valid, &
                          drho_g_valid, tau_r_valid, tau_g_valid, rebuild_each, tot_rho_r, tot_rho_g, &
                          rho_r_sccs, soft_valid)
-      TYPE(qs_rho_type), POINTER                         :: rho_struct
+      TYPE(qs_rho_type), INTENT(INOUT)                   :: rho_struct
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: rho_ao, rho_ao_im
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
@@ -342,9 +323,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: tot_rho_r, tot_rho_g
       TYPE(pw_type), OPTIONAL, POINTER                   :: rho_r_sccs
       LOGICAL, INTENT(in), OPTIONAL                      :: soft_valid
-
-      CPASSERT(ASSOCIATED(rho_struct))
-      CPASSERT(rho_struct%ref_count > 0)
 
       IF (PRESENT(rho_ao)) CALL set_1d_pointer(rho_struct%rho_ao, rho_ao)
       IF (PRESENT(rho_ao_kp)) CALL set_2d_pointer(rho_struct%rho_ao, rho_ao_kp)

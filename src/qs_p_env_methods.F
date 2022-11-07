@@ -166,7 +166,9 @@ CONTAINS
 
       p_env%new_preconditioner = .TRUE.
 
+      ALLOCATE (p_env%rho1)
       CALL qs_rho_create(p_env%rho1)
+      ALLOCATE (p_env%rho1_xc)
       CALL qs_rho_create(p_env%rho1_xc)
 
       ALLOCATE (p_env%kpp1_env)
@@ -187,6 +189,7 @@ CONTAINS
       IF (dft_control%do_admm) THEN
          CALL get_admm_env(qs_env%admm_env, matrix_s_aux_fit=matrix_s_aux_fit)
          IF (qs_env%admm_env%aux_exch_func /= do_admm_aux_exch_func_none) THEN
+            ALLOCATE (p_env%rho1_admm)
             CALL qs_rho_create(p_env%rho1_admm)
          END IF
 

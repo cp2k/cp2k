@@ -378,6 +378,7 @@ CONTAINS
       END DO
 
       NULLIFY (work_matrices%rho_orb_struct_sub)
+      ALLOCATE (work_matrices%rho_orb_struct_sub)
       CALL qs_rho_create(work_matrices%rho_orb_struct_sub)
       CALL qs_rho_set(work_matrices%rho_orb_struct_sub, rho_ao=rho_ia_ao)
       CALL qs_rho_rebuild(work_matrices%rho_orb_struct_sub, qs_env, rebuild_ao=.FALSE., &
@@ -392,6 +393,7 @@ CONTAINS
                                              dbcsr_dist=sub_env%dbcsr_dist, sab=sub_env%sab_orb)
          END DO
          NULLIFY (work_matrices%rho_xc_struct_sub)
+         ALLOCATE (work_matrices%rho_xc_struct_sub)
          CALL qs_rho_create(work_matrices%rho_xc_struct_sub)
          CALL qs_rho_set(work_matrices%rho_xc_struct_sub, rho_ao=rho_xc_ao)
          CALL qs_rho_rebuild(work_matrices%rho_xc_struct_sub, qs_env, rebuild_ao=.FALSE., &
@@ -408,6 +410,7 @@ CONTAINS
                                              dbcsr_dist=sub_env%dbcsr_dist, sab=sub_env%sab_aux_fit)
          END DO
 
+         ALLOCATE (work_matrices%rho_aux_fit_struct_sub)
          CALL qs_rho_create(work_matrices%rho_aux_fit_struct_sub)
          CALL qs_rho_set(work_matrices%rho_aux_fit_struct_sub, rho_ao=rho_ia_ao)
          CALL qs_rho_rebuild(work_matrices%rho_aux_fit_struct_sub, qs_env, rebuild_ao=.FALSE., &
@@ -722,9 +725,14 @@ CONTAINS
                      work_matrices%wpw_rspace_sub, work_matrices%wpw_tau_rspace_sub)
       END IF
 
-      IF (ASSOCIATED(work_matrices%rho_aux_fit_struct_sub)) &
+      IF (ASSOCIATED(work_matrices%rho_aux_fit_struct_sub)) THEN
          CALL qs_rho_release(work_matrices%rho_aux_fit_struct_sub)
-      CALL qs_rho_release(work_matrices%rho_orb_struct_sub)
+         DEALLOCATE (work_matrices%rho_aux_fit_struct_sub)
+      END IF
+      IF (ASSOCIATED(work_matrices%rho_orb_struct_sub)) THEN
+         CALL qs_rho_release(work_matrices%rho_orb_struct_sub)
+         DEALLOCATE (work_matrices%rho_orb_struct_sub)
+      END IF
 
       IF (ASSOCIATED(work_matrices%A_ia_munu_sub)) THEN
          DO ispin = SIZE(work_matrices%A_ia_munu_sub), 1, -1
@@ -819,7 +827,10 @@ CONTAINS
          CALL hartree_local_release(work_matrices%hartree_local)
       END IF
       ! GAPW_XC
-      CALL qs_rho_release(work_matrices%rho_xc_struct_sub)
+      IF (ASSOCIATED(work_matrices%rho_xc_struct_sub)) THEN
+         CALL qs_rho_release(work_matrices%rho_xc_struct_sub)
+         DEALLOCATE (work_matrices%rho_xc_struct_sub)
+      END IF
 
       CALL timestop(handle)
 

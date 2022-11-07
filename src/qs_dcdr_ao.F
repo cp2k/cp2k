@@ -201,6 +201,7 @@ CONTAINS
 
       ! Build the density struct from the environment
       NULLIFY (perturbed_density)
+      ALLOCATE (perturbed_density)
       CALL qs_rho_create(perturbed_density)
       CALL qs_rho_rebuild(perturbed_density, qs_env=qs_env)
 
@@ -301,6 +302,7 @@ CONTAINS
       END IF
 
       CALL qs_rho_release(perturbed_density)
+      DEALLOCATE (perturbed_density)
       CALL xc_rho_set_release(rho_set, auxbas_pw_pool)
       CALL xc_dset_release(deriv_set)
 

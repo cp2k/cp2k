@@ -187,6 +187,7 @@ CONTAINS
       ! get the density matrix
       CALL qs_rho_get(old_rho, rho_ao=density_matrix)
       ! allocate and initialize the density
+      ALLOCATE (rho_struct)
       CALL qs_rho_create(rho_struct)
       ! set the density matrix to the blocked matrix
       CALL qs_rho_set(rho_struct, rho_ao=density_matrix) ! blocked_matrix
@@ -201,6 +202,7 @@ CONTAINS
       ! 2) integration of response forces
       NULLIFY (rho1)
       IF (PRESENT(pmat_ext)) THEN
+         ALLOCATE (rho1)
          CALL qs_rho_create(rho1)
          CALL qs_rho_set(rho1, rho_ao=pmat_ext)
          CALL qs_rho_rebuild(rho1, qs_env, rebuild_ao=.FALSE., rebuild_grids=.TRUE.)
@@ -370,9 +372,11 @@ CONTAINS
       ! clean up rho_struct
       CALL qs_rho_unset_rho_ao(rho_struct)
       CALL qs_rho_release(rho_struct)
+      DEALLOCATE (rho_struct)
       IF (PRESENT(pmat_ext)) THEN
          CALL qs_rho_unset_rho_ao(rho1)
          CALL qs_rho_release(rho1)
+         DEALLOCATE (rho1)
       END IF
 
       CALL timestop(handle)
@@ -442,6 +446,7 @@ CONTAINS
       ! get the density matrix
       CALL qs_rho_get(old_rho, rho_ao=density_matrix)
       ! allocate and initialize the density
+      ALLOCATE (rho_struct)
       CALL qs_rho_create(rho_struct)
       ! set the density matrix to the blocked matrix
       CALL qs_rho_set(rho_struct, rho_ao=density_matrix) ! blocked_matrix
@@ -541,6 +546,7 @@ CONTAINS
       ! clean up rho_struct
       CALL qs_rho_unset_rho_ao(rho_struct)
       CALL qs_rho_release(rho_struct)
+      DEALLOCATE (rho_struct)
 
       CALL timestop(handle)
 
@@ -625,6 +631,7 @@ CONTAINS
       CALL qs_rho_get(rho, rho_ao=density_matrix)
       ! allocate and initialize the density
       NULLIFY (rho_struct)
+      ALLOCATE (rho_struct)
       CALL qs_rho_create(rho_struct)
       ! set the density matrix to the blocked matrix
       CALL qs_rho_set(rho_struct, rho_ao=density_matrix)
@@ -652,6 +659,7 @@ CONTAINS
          ! 1) folding of second derivative while partially integrating, or
          ! 2) integration of response forces
          NULLIFY (rho1)
+         ALLOCATE (rho1)
          CALL qs_rho_create(rho1)
          CALL qs_rho_set(rho1, rho_ao=pmat_ext)
          CALL qs_rho_rebuild(rho1, qs_env, rebuild_ao=.FALSE., rebuild_grids=.TRUE.)
@@ -850,9 +858,11 @@ CONTAINS
       ! clean up rho_struct
       CALL qs_rho_unset_rho_ao(rho_struct)
       CALL qs_rho_release(rho_struct)
+      DEALLOCATE (rho_struct)
       IF (PRESENT(pmat_ext)) THEN
          CALL qs_rho_unset_rho_ao(rho1)
          CALL qs_rho_release(rho1)
+         DEALLOCATE (rho1)
       END IF
       DEALLOCATE (cell_to_index)
 

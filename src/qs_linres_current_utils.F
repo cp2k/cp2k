@@ -1297,6 +1297,7 @@ CONTAINS
             CALL pw_zero(rho_g(ispin)%pw)
          END DO
          NULLIFY (current_env%jrho1_set(idir)%rho)
+         ALLOCATE (current_env%jrho1_set(idir)%rho)
          CALL qs_rho_create(current_env%jrho1_set(idir)%rho)
          CALL qs_rho_set(current_env%jrho1_set(idir)%rho, &
                          rho_r=rho_r, rho_g=rho_g)
