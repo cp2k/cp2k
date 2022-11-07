@@ -387,6 +387,7 @@ CONTAINS
 
       ! Create Ewald environments
       poisson_section => section_vals_get_subs_vals(qs_env%input, "MM%POISSON")
+      ALLOCATE (ewald_env)
       CALL ewald_env_create(ewald_env, para_env)
       CALL ewald_env_set(ewald_env, poisson_section=poisson_section)
       ewald_section => section_vals_get_subs_vals(poisson_section, "EWALD")
@@ -566,6 +567,7 @@ CONTAINS
 
       ! Release Ewald environment
       CALL ewald_env_release(ewald_env)
+      DEALLOCATE (ewald_env)
       CALL ewald_pw_release(ewald_pw)
       DEALLOCATE (ewald_pw)
 
@@ -934,6 +936,7 @@ CONTAINS
 
          ! Create Ewald environments
          poisson_section => section_vals_get_subs_vals(qs_env%input, "MM%POISSON")
+         ALLOCATE (ewald_env)
          CALL ewald_env_create(ewald_env, para_env)
          CALL ewald_env_set(ewald_env, poisson_section=poisson_section)
          ewald_section => section_vals_get_subs_vals(poisson_section, "EWALD")
@@ -1222,6 +1225,7 @@ CONTAINS
 
          ! Release Ewald environment
          CALL ewald_env_release(ewald_env)
+         DEALLOCATE (ewald_env)
          CALL ewald_pw_release(ewald_pw)
          DEALLOCATE (ewald_pw)
 

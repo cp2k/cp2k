@@ -71,7 +71,6 @@ MODULE qs_environment
    USE et_coupling_types,               ONLY: et_coupling_create
    USE ewald_environment_types,         ONLY: ewald_env_create,&
                                               ewald_env_get,&
-                                              ewald_env_release,&
                                               ewald_env_set,&
                                               ewald_environment_type,&
                                               read_ewald_section,&
@@ -686,6 +685,7 @@ CONTAINS
          CALL set_qs_env(qs_env, dftb_potential=dftb_potential)
          ! check for Ewald
          IF (dftb_control%do_ewald) THEN
+            ALLOCATE (ewald_env)
             CALL ewald_env_create(ewald_env, para_env)
             poisson_section => section_vals_get_subs_vals(dft_section, "POISSON")
             CALL ewald_env_set(ewald_env, poisson_section=poisson_section)
@@ -696,7 +696,6 @@ CONTAINS
             ALLOCATE (ewald_pw)
             CALL ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, print_section=print_section)
             CALL set_qs_env(qs_env, ewald_env=ewald_env, ewald_pw=ewald_pw)
-            CALL ewald_env_release(ewald_env)
          END IF
       ELSEIF (dft_control%qs_control%method_id == do_method_xtb) THEN
          !   *** Read xTB parameter file ***
@@ -750,6 +749,7 @@ CONTAINS
          !
          ! check for Ewald
          IF (xtb_control%do_ewald) THEN
+            ALLOCATE (ewald_env)
             CALL ewald_env_create(ewald_env, para_env)
             poisson_section => section_vals_get_subs_vals(dft_section, "POISSON")
             CALL ewald_env_set(ewald_env, poisson_section=poisson_section)
@@ -759,7 +759,6 @@ CONTAINS
             ALLOCATE (ewald_pw)
             CALL ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, print_section=print_section)
             CALL set_qs_env(qs_env, ewald_env=ewald_env, ewald_pw=ewald_pw)
-            CALL ewald_env_release(ewald_env)
          END IF
       END IF
 
@@ -1147,6 +1146,7 @@ CONTAINS
          se_control%max_multipole = do_multipole_none
          ! check for Ewald
          IF (se_control%do_ewald .OR. se_control%do_ewald_gks) THEN
+            ALLOCATE (ewald_env)
             CALL ewald_env_create(ewald_env, para_env)
             poisson_section => section_vals_get_subs_vals(dft_section, "POISSON")
             CALL ewald_env_set(ewald_env, poisson_section=poisson_section)
@@ -1176,7 +1176,6 @@ CONTAINS
             CALL nddo_mpole_setup(se_nddo_mpole, natom)
             CALL set_qs_env(qs_env, ewald_env=ewald_env, ewald_pw=ewald_pw, &
                             se_nonbond_env=se_nonbond_env, se_nddo_mpole=se_nddo_mpole)
-            CALL ewald_env_release(ewald_env)
             ! Handle the residual integral part 1/R^3
             CALL semi_empirical_expns3_setup(qs_kind_set, se_control, &
                                              dft_control%qs_control%method_id)

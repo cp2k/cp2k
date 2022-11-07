@@ -54,7 +54,6 @@ MODULE ewald_environment_types
 ! **************************************************************************************************
    TYPE ewald_environment_type
       PRIVATE
-      INTEGER   :: ref_count
       LOGICAL   :: do_multipoles ! Flag for using the multipole code
       INTEGER   :: do_ipol ! Solver for induced dipoles
       INTEGER   :: max_multipole ! max expansion in the multipoles
@@ -95,7 +94,6 @@ MODULE ewald_environment_types
    PUBLIC :: ewald_env_get, &
              ewald_env_set, &
              ewald_env_create, &
-             ewald_env_retain, &
              ewald_env_release, &
              read_ewald_section, &
              read_ewald_section_tb
@@ -133,7 +131,7 @@ CONTAINS
                             gmax, ns_max, o_spline, group, para_env, poisson_section, precs, &
                             rcut, do_multipoles, max_multipole, do_ipol, max_ipol_iter, &
                             interaction_cutoffs, cell_hmat)
-      TYPE(ewald_environment_type), POINTER              :: ewald_env
+      TYPE(ewald_environment_type), INTENT(IN)           :: ewald_env
       INTEGER, OPTIONAL                                  :: ewald_type
       REAL(KIND=dp), OPTIONAL                            :: alpha, eps_pol, epsilon
       INTEGER, OPTIONAL                                  :: gmax(3), ns_max, o_spline, group
@@ -145,8 +143,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: interaction_cutoffs
       REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL           :: cell_hmat
-
-      CPASSERT(ASSOCIATED(ewald_env))
 
       IF (PRESENT(ewald_type)) ewald_type = ewald_env%ewald_type
       IF (PRESENT(do_multipoles)) do_multipoles = ewald_env%do_multipoles
@@ -192,7 +188,7 @@ CONTAINS
                             gmax, ns_max, precs, o_spline, para_env, poisson_section, &
                             interaction_cutoffs, cell_hmat)
 
-      TYPE(ewald_environment_type), POINTER              :: ewald_env
+      TYPE(ewald_environment_type), INTENT(INOUT)        :: ewald_env
       INTEGER, OPTIONAL                                  :: ewald_type
       REAL(KIND=dp), OPTIONAL                            :: alpha, epsilon, eps_pol
       INTEGER, OPTIONAL                                  :: gmax(3), ns_max
@@ -203,8 +199,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: interaction_cutoffs
       REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL           :: cell_hmat
-
-      CPASSERT(ASSOCIATED(ewald_env))
 
       IF (PRESENT(ewald_type)) ewald_env%ewald_type = ewald_type
       IF (PRESENT(alpha)) ewald_env%alpha = alpha
@@ -234,31 +228,14 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE ewald_env_create(ewald_env, para_env)
-      TYPE(ewald_environment_type), POINTER              :: ewald_env
+      TYPE(ewald_environment_type), INTENT(OUT)          :: ewald_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      ALLOCATE (ewald_env)
-      ewald_env%ref_count = 1
       NULLIFY (ewald_env%poisson_section)
       CALL cp_para_env_retain(para_env)
       ewald_env%para_env => para_env
       NULLIFY (ewald_env%interaction_cutoffs) ! allocated and initialized later
    END SUBROUTINE ewald_env_create
-
-! **************************************************************************************************
-!> \brief retains the given ewald_env (see doc/ReferenceCounting.html)
-!> \param ewald_env the object to retain
-!> \par History
-!>      12.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   SUBROUTINE ewald_env_retain(ewald_env)
-      TYPE(ewald_environment_type), POINTER              :: ewald_env
-
-      CPASSERT(ASSOCIATED(ewald_env))
-      CPASSERT(ewald_env%ref_count > 0)
-      ewald_env%ref_count = ewald_env%ref_count + 1
-   END SUBROUTINE ewald_env_retain
 
 ! **************************************************************************************************
 !> \brief releases the given ewald_env (see doc/ReferenceCounting.html)
@@ -268,21 +245,14 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE ewald_env_release(ewald_env)
-      TYPE(ewald_environment_type), POINTER              :: ewald_env
+      TYPE(ewald_environment_type), INTENT(INOUT)        :: ewald_env
 
-      IF (ASSOCIATED(ewald_env)) THEN
-         CPASSERT(ewald_env%ref_count > 0)
-         ewald_env%ref_count = ewald_env%ref_count - 1
-         IF (ewald_env%ref_count < 1) THEN
-            CALL cp_para_env_release(ewald_env%para_env)
-            CALL section_vals_release(ewald_env%poisson_section)
-            IF (ASSOCIATED(ewald_env%interaction_cutoffs)) THEN
-               DEALLOCATE (ewald_env%interaction_cutoffs)
-            END IF
-            DEALLOCATE (ewald_env)
-         END IF
+      CALL cp_para_env_release(ewald_env%para_env)
+      CALL section_vals_release(ewald_env%poisson_section)
+      IF (ASSOCIATED(ewald_env%interaction_cutoffs)) THEN
+         DEALLOCATE (ewald_env%interaction_cutoffs)
       END IF
-      NULLIFY (ewald_env)
+
    END SUBROUTINE ewald_env_release
 
 ! **************************************************************************************************
@@ -292,7 +262,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] -University of Zurich - 2005
 ! **************************************************************************************************
    SUBROUTINE read_ewald_section(ewald_env, ewald_section)
-      TYPE(ewald_environment_type), POINTER              :: ewald_env
+      TYPE(ewald_environment_type), INTENT(INOUT)        :: ewald_env
       TYPE(section_vals_type), POINTER                   :: ewald_section
 
       INTEGER                                            :: iw
@@ -423,7 +393,7 @@ CONTAINS
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE read_ewald_section_tb(ewald_env, ewald_section, hmat)
-      TYPE(ewald_environment_type), POINTER              :: ewald_env
+      TYPE(ewald_environment_type), INTENT(INOUT)        :: ewald_env
       TYPE(section_vals_type), POINTER                   :: ewald_section
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat
 

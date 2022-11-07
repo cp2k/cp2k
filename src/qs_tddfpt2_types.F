@@ -800,7 +800,10 @@ CONTAINS
       IF (ASSOCIATED(work_matrices%S_eigenvalues)) &
          DEALLOCATE (work_matrices%S_eigenvalues)
       ! Ewald
-      CALL ewald_env_release(work_matrices%ewald_env)
+      IF (ASSOCIATED(work_matrices%ewald_env)) THEN
+         CALL ewald_env_release(work_matrices%ewald_env)
+         DEALLOCATE (work_matrices%ewald_env)
+      END IF
       IF (ASSOCIATED(work_matrices%ewald_pw)) THEN
          CALL ewald_pw_release(work_matrices%ewald_pw)
          DEALLOCATE (work_matrices%ewald_pw)

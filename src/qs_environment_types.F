@@ -44,7 +44,6 @@ MODULE qs_environment_types
    USE et_coupling_types,               ONLY: et_coupling_release,&
                                               et_coupling_type
    USE ewald_environment_types,         ONLY: ewald_env_release,&
-                                              ewald_env_retain,&
                                               ewald_environment_type
    USE ewald_pw_types,                  ONLY: ewald_pw_release,&
                                               ewald_pw_type
@@ -1136,8 +1135,12 @@ CONTAINS
       IF (PRESENT(active_space)) qs_env%active_space => active_space
 
       IF (PRESENT(ewald_env)) THEN ! accept also null pointers?
-         CALL ewald_env_retain(ewald_env)
-         CALL ewald_env_release(qs_env%ewald_env)
+         IF (ASSOCIATED(qs_env%ewald_env)) THEN
+         IF (.NOT. ASSOCIATED(qs_env%ewald_env, ewald_env)) THEN
+            CALL ewald_env_release(qs_env%ewald_env)
+            DEALLOCATE (qs_env%ewald_env)
+         END IF
+         END IF
          qs_env%ewald_env => ewald_env
       END IF
       IF (PRESENT(ewald_pw)) THEN ! accept also null pointers?
@@ -1432,7 +1435,10 @@ CONTAINS
          CALL xas_env_release(qs_env%xas_env)
          DEALLOCATE (qs_env%xas_env)
       END IF
-      CALL ewald_env_release(qs_env%ewald_env)
+      IF (ASSOCIATED(qs_env%ewald_env)) THEN
+         CALL ewald_env_release(qs_env%ewald_env)
+         DEALLOCATE (qs_env%ewald_env)
+      END IF
       IF (ASSOCIATED(qs_env%ewald_pw)) THEN
          CALL ewald_pw_release(qs_env%ewald_pw)
          DEALLOCATE (qs_env%ewald_pw)
@@ -1651,7 +1657,10 @@ CONTAINS
          CALL xas_env_release(qs_env%xas_env)
          DEALLOCATE (qs_env%xas_env)
       END IF
-      CALL ewald_env_release(qs_env%ewald_env)
+      IF (ASSOCIATED(qs_env%ewald_env)) THEN
+         CALL ewald_env_release(qs_env%ewald_env)
+         DEALLOCATE (qs_env%ewald_env)
+      END IF
       IF (ASSOCIATED(qs_env%ewald_pw)) THEN
          CALL ewald_pw_release(qs_env%ewald_pw)
          DEALLOCATE (qs_env%ewald_pw)

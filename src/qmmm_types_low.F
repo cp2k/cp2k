@@ -406,6 +406,7 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qmmm_env%ewald_env)) THEN
          CALL ewald_env_release(qmmm_env%ewald_env)
+         DEALLOCATE (qmmm_env%ewald_env)
       END IF
       IF (ASSOCIATED(qmmm_env%ewald_pw)) THEN
          CALL ewald_pw_release(qmmm_env%ewald_pw)

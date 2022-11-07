@@ -127,6 +127,7 @@ CONTAINS
       ! initialize Ewald for sTDA
       IF (tddfpt_control%stda_control%do_ewald) THEN
          NULLIFY (ewald_env, ewald_pw)
+         ALLOCATE (ewald_env)
          CALL ewald_env_create(ewald_env, sub_env%para_env)
          poisson_section => section_vals_get_subs_vals(qs_env%input, "DFT%POISSON")
          CALL ewald_env_set(ewald_env, poisson_section=poisson_section)
