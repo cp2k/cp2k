@@ -43,7 +43,6 @@ MODULE thermostat_types
              thermostat_type, &
              allocate_thermostats, &
              release_thermostats, &
-             retain_thermostats, &
              create_thermostat_type, &
              release_thermostat_type, &
              thermostat_info_type, &
@@ -140,23 +139,6 @@ CONTAINS
       NULLIFY (thermostats%thermostat_baro)
 
    END SUBROUTINE allocate_thermostats
-
-! **************************************************************************************************
-!> \brief retains the  full set of thermostats
-!> \param thermostats ...
-!> \par History
-!>      09.2007 created [tlaino]
-!> \author Teodoro Laino
-! **************************************************************************************************
-   SUBROUTINE retain_thermostats(thermostats)
-      TYPE(thermostats_type), POINTER                    :: thermostats
-
-      IF (ASSOCIATED(thermostats)) THEN
-         CPASSERT(thermostats%ref_count > 0)
-         thermostats%ref_count = thermostats%ref_count + 1
-      END IF
-
-   END SUBROUTINE retain_thermostats
 
 ! **************************************************************************************************
 !> \brief ...

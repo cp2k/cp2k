@@ -17,8 +17,7 @@ MODULE tamc_run
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE averages_types,                  ONLY: average_quantities_type
    USE barostat_types,                  ONLY: barostat_type,&
-                                              create_barostat_type,&
-                                              release_barostat_type
+                                              create_barostat_type
    USE bibliography,                    ONLY: VandenCic2006
    USE cell_types,                      ONLY: cell_type
    USE colvar_methods,                  ONLY: colvar_eval_glob_f
@@ -117,8 +116,7 @@ MODULE tamc_run
    USE thermal_region_types,            ONLY: thermal_regions_type
    USE thermal_region_utils,            ONLY: create_thermal_regions
    USE thermostat_methods,              ONLY: create_thermostats
-   USE thermostat_types,                ONLY: release_thermostats,&
-                                              thermostats_type
+   USE thermostat_types,                ONLY: thermostats_type
    USE virial_methods,                  ONLY: virial_evaluate
    USE virial_types,                    ONLY: virial_type
    USE wiener_process,                  ONLY: create_wiener_process,&
@@ -634,8 +632,6 @@ CONTAINS
       CALL cp_rm_iter_level(logger%iter_info, "MD")
 
       ! Deallocate Thermostats and Barostats
-      CALL release_thermostats(thermostats)
-      CALL release_barostat_type(barostat)
       CALL release_simpar_type(simpar)
 
       CALL md_env_release(md_env)
