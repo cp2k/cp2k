@@ -112,7 +112,7 @@ CONTAINS
          CALL qs_energies(qs_env, calc_forces=.FALSE., &
                           consistent_energies=consistent_energies)
       END IF
-      CALL get_qs_env(qs_env)
+
    END SUBROUTINE qs_calc_energy_force
 
 ! **************************************************************************************************
