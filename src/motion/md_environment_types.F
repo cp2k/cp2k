@@ -151,7 +151,10 @@ CONTAINS
       NULLIFY (md_env%cell)
       NULLIFY (md_env%simpar)
       CALL release_barostat_type(md_env%barostat)
-      CALL release_thermostats(md_env%thermostats)
+      IF (ASSOCIATED(md_env%thermostats)) THEN
+         CALL release_thermostats(md_env%thermostats)
+         DEALLOCATE (md_env%thermostats)
+      END IF
       IF (ASSOCIATED(md_env%reftraj)) THEN
          CALL release_reftraj(md_env%reftraj)
          DEALLOCATE (md_env%reftraj)
@@ -333,6 +336,7 @@ CONTAINS
          IF (ASSOCIATED(md_env%thermostats)) THEN
          IF (.NOT. ASSOCIATED(md_env%thermostats, thermostats)) THEN
             CALL release_thermostats(md_env%thermostats)
+            DEALLOCATE (md_env%thermostats)
          END IF
          END IF
          md_env%thermostats => thermostats

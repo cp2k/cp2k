@@ -58,7 +58,6 @@ MODULE thermostat_types
 !> \author Teodoro Laino
 ! **************************************************************************************************
    TYPE thermostats_type
-      INTEGER :: ref_count
       TYPE(thermostat_info_type), POINTER :: thermostat_info_part
       TYPE(thermostat_info_type), POINTER :: thermostat_info_shell
 ! cjm
@@ -76,7 +75,7 @@ MODULE thermostat_types
    ! Single thermostat_type
 ! **************************************************************************************************
    TYPE thermostat_type
-      INTEGER :: ref_count, type_of_thermostat
+      INTEGER :: type_of_thermostat
       CHARACTER(LEN=default_string_length) :: label
       TYPE(lnhc_parameters_type), POINTER :: nhc
       TYPE(csvr_system_type), POINTER     :: csvr
@@ -106,16 +105,7 @@ CONTAINS
 !> \author Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE allocate_thermostats(thermostats)
-      TYPE(thermostats_type), POINTER                    :: thermostats
-
-      LOGICAL                                            :: check
-
-      check = .NOT. ASSOCIATED(thermostats)
-      CPASSERT(check)
-
-      ! Preliminary allocation for thermostats
-      ALLOCATE (thermostats)
-      thermostats%ref_count = 1
+      TYPE(thermostats_type), INTENT(OUT)                :: thermostats
 
       ! Thermostats Info
       ALLOCATE (thermostats%thermostat_info_part)
@@ -148,43 +138,49 @@ CONTAINS
 !> \author Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE release_thermostats(thermostats)
-      TYPE(thermostats_type), POINTER                    :: thermostats
+      TYPE(thermostats_type), INTENT(INOUT)              :: thermostats
 
-      LOGICAL                                            :: check
-
-      check = ASSOCIATED(thermostats)
-      IF (check) THEN
-         check = thermostats%ref_count > 0
-         CPASSERT(check)
-         thermostats%ref_count = thermostats%ref_count - 1
-         IF (thermostats%ref_count < 1) THEN
-            CALL release_thermostat_info(thermostats%thermostat_info_part)
-            CALL release_thermostat_info(thermostats%thermostat_info_shell)
-!cjm
-            CALL release_thermostat_info(thermostats%thermostat_info_fast)
-            CALL release_thermostat_info(thermostats%thermostat_info_slow)
-            IF (ASSOCIATED(thermostats%thermostat_fast)) THEN
-               CALL release_thermostat_type(thermostats%thermostat_fast)
-            END IF
-            IF (ASSOCIATED(thermostats%thermostat_slow)) THEN
-               CALL release_thermostat_type(thermostats%thermostat_slow)
-            END IF
-!cjm
-            IF (ASSOCIATED(thermostats%thermostat_part)) THEN
-               CALL release_thermostat_type(thermostats%thermostat_part)
-            END IF
-            IF (ASSOCIATED(thermostats%thermostat_shell)) THEN
-               CALL release_thermostat_type(thermostats%thermostat_shell)
-            END IF
-            IF (ASSOCIATED(thermostats%thermostat_baro)) THEN
-               CALL release_thermostat_type(thermostats%thermostat_baro)
-            END IF
-            IF (ASSOCIATED(thermostats%thermostat_coef)) THEN
-               CALL release_thermostat_type(thermostats%thermostat_coef)
-            END IF
-            DEALLOCATE (thermostats)
-         END IF
+      IF (ASSOCIATED(thermostats%thermostat_info_part)) THEN
+         CALL release_thermostat_info(thermostats%thermostat_info_part)
+         DEALLOCATE (thermostats%thermostat_info_part)
       END IF
+      IF (ASSOCIATED(thermostats%thermostat_info_shell)) THEN
+         CALL release_thermostat_info(thermostats%thermostat_info_shell)
+         DEALLOCATE (thermostats%thermostat_info_shell)
+      END IF
+      IF (ASSOCIATED(thermostats%thermostat_info_fast)) THEN
+         CALL release_thermostat_info(thermostats%thermostat_info_fast)
+         DEALLOCATE (thermostats%thermostat_info_fast)
+      END IF
+      IF (ASSOCIATED(thermostats%thermostat_info_slow)) THEN
+         CALL release_thermostat_info(thermostats%thermostat_info_slow)
+         DEALLOCATE (thermostats%thermostat_info_slow)
+      END IF
+      IF (ASSOCIATED(thermostats%thermostat_fast)) THEN
+         CALL release_thermostat_type(thermostats%thermostat_fast)
+         DEALLOCATE (thermostats%thermostat_fast)
+      END IF
+      IF (ASSOCIATED(thermostats%thermostat_slow)) THEN
+         CALL release_thermostat_type(thermostats%thermostat_slow)
+         DEALLOCATE (thermostats%thermostat_slow)
+      END IF
+      IF (ASSOCIATED(thermostats%thermostat_part)) THEN
+         CALL release_thermostat_type(thermostats%thermostat_part)
+         DEALLOCATE (thermostats%thermostat_part)
+      END IF
+      IF (ASSOCIATED(thermostats%thermostat_shell)) THEN
+         CALL release_thermostat_type(thermostats%thermostat_shell)
+         DEALLOCATE (thermostats%thermostat_shell)
+      END IF
+      IF (ASSOCIATED(thermostats%thermostat_baro)) THEN
+         CALL release_thermostat_type(thermostats%thermostat_baro)
+         DEALLOCATE (thermostats%thermostat_baro)
+      END IF
+      IF (ASSOCIATED(thermostats%thermostat_coef)) THEN
+         CALL release_thermostat_type(thermostats%thermostat_coef)
+         DEALLOCATE (thermostats%thermostat_coef)
+      END IF
+
    END SUBROUTINE release_thermostats
 
 ! **************************************************************************************************
@@ -199,7 +195,7 @@ CONTAINS
 !> \author Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE create_thermostat_type(thermostat, simpar, section, skip_region, label)
-      TYPE(thermostat_type), POINTER                     :: thermostat
+      TYPE(thermostat_type), INTENT(OUT)                 :: thermostat
       TYPE(simpar_type), POINTER                         :: simpar
       TYPE(section_vals_type), POINTER                   :: section
       LOGICAL, INTENT(IN), OPTIONAL                      :: skip_region
@@ -212,8 +208,6 @@ CONTAINS
 
       skip_region_loc = .FALSE.
       IF (PRESENT(skip_region)) skip_region_loc = skip_region
-      ALLOCATE (thermostat)
-      thermostat%ref_count = 1
       thermostat%section => section
       thermostat%label = label
       region = do_region_global
@@ -258,14 +252,12 @@ CONTAINS
 !> \author Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE release_thermostat_info(thermostat_info)
-      TYPE(thermostat_info_type), POINTER                :: thermostat_info
+      TYPE(thermostat_info_type), INTENT(INOUT)          :: thermostat_info
 
-      IF (ASSOCIATED(thermostat_info)) THEN
-         IF (ASSOCIATED(thermostat_info%map_loc_thermo_gen)) THEN
-            DEALLOCATE (thermostat_info%map_loc_thermo_gen)
-         END IF
-         DEALLOCATE (thermostat_info)
+      IF (ASSOCIATED(thermostat_info%map_loc_thermo_gen)) THEN
+         DEALLOCATE (thermostat_info%map_loc_thermo_gen)
       END IF
+
    END SUBROUTINE release_thermostat_info
 
 ! **************************************************************************************************
@@ -276,32 +268,22 @@ CONTAINS
 !> \author Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE release_thermostat_type(thermostat)
-      TYPE(thermostat_type), POINTER                     :: thermostat
+      TYPE(thermostat_type), INTENT(INOUT)               :: thermostat
 
-      LOGICAL                                            :: check
-
-      check = ASSOCIATED(thermostat)
-      IF (check) THEN
-         check = thermostat%ref_count > 0
-         CPASSERT(check)
-         thermostat%ref_count = thermostat%ref_count - 1
-         IF (thermostat%ref_count < 1) THEN
-            NULLIFY (thermostat%section)
-            IF (ASSOCIATED(thermostat%nhc)) THEN
-               CALL lnhc_dealloc(thermostat%nhc)
-            END IF
-            IF (ASSOCIATED(thermostat%csvr)) THEN
-               CALL csvr_dealloc(thermostat%csvr)
-            END IF
-            IF (ASSOCIATED(thermostat%al)) THEN
-               CALL al_dealloc(thermostat%al)
-            END IF
-            IF (ASSOCIATED(thermostat%gle)) THEN
-               CALL gle_dealloc(thermostat%gle)
-            END IF
-            DEALLOCATE (thermostat)
-         END IF
+      NULLIFY (thermostat%section)
+      IF (ASSOCIATED(thermostat%nhc)) THEN
+         CALL lnhc_dealloc(thermostat%nhc)
       END IF
+      IF (ASSOCIATED(thermostat%csvr)) THEN
+         CALL csvr_dealloc(thermostat%csvr)
+      END IF
+      IF (ASSOCIATED(thermostat%al)) THEN
+         CALL al_dealloc(thermostat%al)
+      END IF
+      IF (ASSOCIATED(thermostat%gle)) THEN
+         CALL gle_dealloc(thermostat%gle)
+      END IF
+
    END SUBROUTINE release_thermostat_type
 
 ! **************************************************************************************************

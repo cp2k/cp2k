@@ -138,6 +138,7 @@ CONTAINS
          work_section
 
       NULLIFY (qmmm_env, cell)
+      ALLOCATE (thermostats)
       CALL allocate_thermostats(thermostats)
       adiabatic_fast_section => section_vals_get_subs_vals(md_section, "ADIABATIC_DYNAMICS%THERMOSTAT_FAST")
       adiabatic_slow_section => section_vals_get_subs_vals(md_section, "ADIABATIC_DYNAMICS%THERMOSTAT_SLOW")
@@ -193,8 +194,10 @@ CONTAINS
                             print_section, particles, gci)
          IF (explicit_adiabatic_fast .AND. explicit_adiabatic_slow) THEN
             IF (apply_thermo_adiabatic) THEN
+               ALLOCATE (thermostats%thermostat_fast)
                CALL create_thermostat_type(thermostats%thermostat_fast, simpar, adiabatic_fast_section, &
                                            label="FAST")
+               ALLOCATE (thermostats%thermostat_slow)
                CALL create_thermostat_type(thermostats%thermostat_slow, simpar, adiabatic_slow_section, &
                                            label="SLOW")
                CALL setup_adiabatic_thermostat_info(thermostats%thermostat_info_fast, &
@@ -225,7 +228,9 @@ CONTAINS
                          "does not support thermostat for Particles! Ignoring thermostat input.")
          END IF
          CALL release_thermostat_info(thermostats%thermostat_info_fast)
+         DEALLOCATE (thermostats%thermostat_info_fast)
          CALL release_thermostat_info(thermostats%thermostat_info_slow)
+         DEALLOCATE (thermostats%thermostat_info_fast)
       ELSE
          region = do_region_global
          region_sections => section_vals_get_subs_vals(thermo_part_section, "DEFINE_REGION")
@@ -240,6 +245,7 @@ CONTAINS
          ! For constant temperature ensembles the thermostat is activated by default
          IF (explicit_part) THEN
             IF (apply_general_thermo) THEN
+               ALLOCATE (thermostats%thermostat_part)
                CALL create_thermostat_type(thermostats%thermostat_part, simpar, thermo_part_section, &
                                            label="PARTICLES")
                ! Initialize thermostat
@@ -294,6 +300,7 @@ CONTAINS
                ! The thermostat is activated only if explicitely required
                ! It can be used to thermalize the shell-core motion when the temperature is not constant (nve, npe)
                IF (apply_thermo_shell) THEN
+                  ALLOCATE (thermostats%thermostat_shell)
                   CALL create_thermostat_type(thermostats%thermostat_shell, simpar, thermo_shell_section, &
                                               label="SHELL")
                   CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els, shell_adiabatic=shell_adiabatic)
@@ -327,7 +334,9 @@ CONTAINS
                                   "Continuing calculation ignoring the thermostat info! No Thermostat "// &
                                   "applied to Shells!")
                      CALL release_thermostat_type(thermostats%thermostat_shell)
+                     DEALLOCATE (thermostats%thermostat_shell)
                      CALL release_thermostat_info(thermostats%thermostat_info_shell)
+                     DEALLOCATE (thermostats%thermostat_info_shell)
                   END IF
                ELSE
                   CALL cp_warn(__LOCATION__, &
@@ -357,6 +366,7 @@ CONTAINS
                work_section => thermo_baro_section
                IF (thermostat_type == do_thermo_same_as_part) work_section => thermo_part_section
 
+               ALLOCATE (thermostats%thermostat_baro)
                CALL create_thermostat_type(thermostats%thermostat_baro, simpar, work_section, skip_region=.TRUE., &
                                            label="BAROSTAT")
                ! Initialize thermostat
@@ -391,7 +401,9 @@ CONTAINS
 
          ! Release the thermostats info..
          CALL release_thermostat_info(thermostats%thermostat_info_part)
+         DEALLOCATE (thermostats%thermostat_info_part)
          CALL release_thermostat_info(thermostats%thermostat_info_shell)
+         DEALLOCATE (thermostats%thermostat_info_shell)
 
       END IF ! Adiabitic_NVT screening
       ! If no thermostats have been allocated deallocate the full structure
@@ -401,6 +413,7 @@ CONTAINS
           (.NOT. ASSOCIATED(thermostats%thermostat_fast)) .AND. &
           (.NOT. ASSOCIATED(thermostats%thermostat_slow))) THEN
          CALL release_thermostats(thermostats)
+         DEALLOCATE (thermostats)
       END IF
 
    END SUBROUTINE create_thermostats
