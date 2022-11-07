@@ -176,11 +176,6 @@ MODULE qs_linres_types
    END TYPE nablavks_atom_type
 
 ! **************************************************************************************************
-   TYPE jrho_atom_p_type
-      TYPE(jrho_atom_type), POINTER       :: jrho_atom => NULL()
-   END TYPE jrho_atom_p_type
-
-! **************************************************************************************************
    TYPE jrho_atom_type
       TYPE(rho_atom_coeff), DIMENSION(:), &
          POINTER      :: cjc_h => NULL(), cjc_s => NULL(), cjc0_h => NULL(), cjc0_s => NULL()

@@ -140,6 +140,7 @@ CONTAINS
 
       NULLIFY (ls_scf_env%mixing_store)
       mixing_section => section_vals_get_subs_vals(input, "DFT%LS_SCF%RHO_MIXING")
+      ALLOCATE (ls_scf_env%mixing_store)
       CALL mixing_storage_create(ls_scf_env%mixing_store, mixing_section, &
                                  ls_scf_env%density_mixing_method, &
                                  dft_control%qs_control%cutoff)

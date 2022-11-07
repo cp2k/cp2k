@@ -103,10 +103,6 @@ MODULE basis_set_types
       REAL(KIND=dp), DIMENSION(:), POINTER     :: zet
    END TYPE sto_basis_set_type
 
-   TYPE sto_basis_set_p_type
-      TYPE(sto_basis_set_type), POINTER :: sto_basis_set
-   END TYPE sto_basis_set_p_type
-
 ! **************************************************************************************************
    INTERFACE read_gto_basis_set
       MODULE PROCEDURE read_gto_basis_set1, read_gto_basis_set2

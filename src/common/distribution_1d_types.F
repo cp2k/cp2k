@@ -69,17 +69,6 @@ MODULE distribution_1d_types
       TYPE(local_particle_type), DIMENSION(:), POINTER :: local_particle_set
    END TYPE distribution_1d_type
 
-! **************************************************************************************************
-!> \brief pointer to a distribution_1d_type
-!> \param distribution_1d: the pointer to the distribution_1d
-!> \par History
-!>      06.2003 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   TYPE distribution_1d_p_type
-      TYPE(distribution_1d_type), POINTER :: distribution_1d
-   END TYPE distribution_1d_p_type
-
 CONTAINS
 
 ! **************************************************************************************************

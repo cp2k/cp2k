@@ -76,17 +76,6 @@ MODULE ewald_environment_types
       REAL(KIND=dp), DIMENSION(3, 3)          :: cell_hmat = -1.0_dp
    END TYPE ewald_environment_type
 
-! **************************************************************************************************
-!> \brief to build arrays of pointers
-!> \param ewald_env the pointer to the ewald_env
-!> \par History
-!>      11/03
-!> \author CJM
-! **************************************************************************************************
-   TYPE ewald_environment_p_type
-      TYPE(ewald_environment_type), POINTER :: ewald_env
-   END TYPE ewald_environment_p_type
-
 ! *** Public data types ***
    PUBLIC :: ewald_environment_type
 

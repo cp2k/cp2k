@@ -323,6 +323,7 @@ CONTAINS
       END IF
       IF (ASSOCIATED(scf_env%mixing_store)) THEN
          CALL mixing_storage_release(scf_env%mixing_store)
+         DEALLOCATE (scf_env%mixing_store)
       END IF
       IF (ASSOCIATED(scf_env%krylov_space)) THEN
          CALL krylov_space_release(scf_env%krylov_space)
@@ -528,9 +529,11 @@ CONTAINS
       IF (do_mixing) THEN
          CALL section_vals_val_get(mixing_section, "METHOD", &
                                    i_val=subspace_env%mixing_method)
-         IF (subspace_env%mixing_method >= direct_mixing_nr) &
+         IF (subspace_env%mixing_method >= direct_mixing_nr) THEN
+            ALLOCATE (subspace_env%mixing_store)
             CALL mixing_storage_create(subspace_env%mixing_store, mixing_section, &
                                        subspace_env%mixing_method, ecut=ecut)
+         END IF
       END IF
 
    END SUBROUTINE diag_subspace_env_create
@@ -572,6 +575,7 @@ CONTAINS
 
          IF (ASSOCIATED(subspace_env%mixing_store)) THEN
             CALL mixing_storage_release(subspace_env%mixing_store)
+            DEALLOCATE (subspace_env%mixing_store)
          END IF
 
          DEALLOCATE (subspace_env)
