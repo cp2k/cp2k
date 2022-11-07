@@ -129,7 +129,6 @@ MODULE qs_environment_types
    USE qs_rho_atom_types,               ONLY: rho_atom_type
    USE qs_rho_types,                    ONLY: qs_rho_p_type,&
                                               qs_rho_release,&
-                                              qs_rho_retain,&
                                               qs_rho_type
    USE qs_scf_types,                    ONLY: qs_scf_env_type,&
                                               scf_env_release
@@ -1181,8 +1180,11 @@ CONTAINS
       END IF
       ! ZMP associating variables
       IF (PRESENT(rho_external)) THEN
-         IF (ASSOCIATED(rho_external)) CALL qs_rho_retain(rho_external)
-         CALL qs_rho_release(qs_env%rho_external)
+         IF (ASSOCIATED(qs_env%rho_external)) THEN
+         IF (.NOT. ASSOCIATED(qs_env%rho_external, rho_external)) THEN
+            CALL qs_rho_release(qs_env%rho_external)
+         END IF
+         END IF
          qs_env%rho_external => rho_external
       END IF
       IF (PRESENT(external_vxc)) qs_env%external_vxc => external_vxc

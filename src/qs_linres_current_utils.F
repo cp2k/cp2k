@@ -110,7 +110,6 @@ MODULE qs_linres_current_utils
    USE qs_p_env_types,                  ONLY: qs_p_env_type
    USE qs_rho_types,                    ONLY: qs_rho_clear,&
                                               qs_rho_create,&
-                                              qs_rho_retain,&
                                               qs_rho_set
    USE realspace_grid_types,            ONLY: rs_grid_release
    USE scf_control_types,               ONLY: scf_control_type
@@ -1301,7 +1300,6 @@ CONTAINS
          CALL qs_rho_create(current_env%jrho1_set(idir)%rho)
          CALL qs_rho_set(current_env%jrho1_set(idir)%rho, &
                          rho_r=rho_r, rho_g=rho_g)
-         CALL qs_rho_retain(current_env%jrho1_set(idir)%rho)
       END DO
       !
       ! Initialize local current density if GAPW calculation

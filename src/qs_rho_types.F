@@ -36,7 +36,7 @@ MODULE qs_rho_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho_types'
 
    PUBLIC :: qs_rho_p_type, qs_rho_type
-   PUBLIC :: qs_rho_retain, qs_rho_release, &
+   PUBLIC :: qs_rho_release, &
              qs_rho_get, qs_rho_set, qs_rho_clear, qs_rho_create, qs_rho_unset_rho_ao
 
 ! **************************************************************************************************
@@ -110,22 +110,6 @@ CONTAINS
       rho%rebuild_each = 5
       rho%ref_count = 1
    END SUBROUTINE qs_rho_create
-
-! **************************************************************************************************
-!> \brief retains a rho_struct by increasing the reference count by one
-!>      (to be called when you want to keep a shared copy)
-!> \param rho_struct the structure to retain
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   SUBROUTINE qs_rho_retain(rho_struct)
-      TYPE(qs_rho_type), POINTER                         :: rho_struct
-
-      CPASSERT(ASSOCIATED(rho_struct))
-      CPASSERT(rho_struct%ref_count > 0)
-      rho_struct%ref_count = rho_struct%ref_count + 1
-   END SUBROUTINE qs_rho_retain
 
 ! **************************************************************************************************
 !> \brief releases a rho_struct by decreasing the reference count by one
