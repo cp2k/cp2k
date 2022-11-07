@@ -366,7 +366,6 @@ CONTAINS
 !> \param matrix_p_mp2 ...
 !> \param matrix_p_mp2_admm ...
 !> \param rho ...
-!> \param rho_buffer ...
 !> \param rho_xc ...
 !> \param pw_env ...
 !> \param ewald_env ...
@@ -477,7 +476,7 @@ CONTAINS
                          matrix_h_kp, matrix_h_im_kp, matrix_ks_kp, matrix_ks_im_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, &
                          matrix_w_kp, matrix_s_RI_aux_kp, matrix_s, matrix_s_RI_aux, matrix_w, &
                          matrix_p_mp2, matrix_p_mp2_admm, rho, &
-                         rho_buffer, rho_xc, pw_env, ewald_env, ewald_pw, active_space, &
+                         rho_xc, pw_env, ewald_env, ewald_pw, active_space, &
                          mpools, input, para_env, blacs_env, scf_control, rel_control, kinetic, qs_charges, &
                          vppl, rho_core, rho_nlcc, rho_nlcc_g, ks_env, ks_qmmm_env, wf_history, scf_env, local_particles, &
                          local_molecules, distribution_2d, dbcsr_dist, molecule_kind_set, &
@@ -528,7 +527,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_s, matrix_s_RI_aux, matrix_w, &
                                                             matrix_p_mp2, matrix_p_mp2_admm
-      TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho, rho_buffer, rho_xc
+      TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho, rho_xc
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env
       TYPE(ewald_environment_type), OPTIONAL, POINTER    :: ewald_env
       TYPE(ewald_pw_type), OPTIONAL, POINTER             :: ewald_pw
@@ -753,7 +752,6 @@ CONTAINS
                       matrix_w_kp=matrix_w_kp, &
                       matrix_s_RI_aux_kp=matrix_s_RI_aux_kp, &
                       rho=rho, &
-                      rho_buffer=rho_buffer, &
                       rho_xc=rho_xc, &
                       rho_core=rho_core, &
                       rho_nlcc=rho_nlcc, &

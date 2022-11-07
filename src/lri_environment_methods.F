@@ -572,7 +572,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: pmatrix
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      TYPE(qs_rho_type), POINTER                         :: lri_rho_struct
+      TYPE(qs_rho_type), INTENT(INOUT)                   :: lri_rho_struct
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: response_density
@@ -822,7 +822,7 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_rho_type), POINTER                         :: lri_rho_struct
+      TYPE(qs_rho_type), INTENT(INOUT)                   :: lri_rho_struct
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: response_density

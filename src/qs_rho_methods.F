@@ -101,7 +101,7 @@ CONTAINS
 !>      associated and not requested?
 ! **************************************************************************************************
    SUBROUTINE qs_rho_rebuild(rho, qs_env, rebuild_ao, rebuild_grids, admm, pw_env_external)
-      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_rho_type), INTENT(INOUT)                   :: rho
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(in), OPTIONAL                      :: rebuild_ao, rebuild_grids, admm
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_external
@@ -161,7 +161,6 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       nspins = dft_control%nspins
 
-      IF (.NOT. ASSOCIATED(rho)) CPABORT("rho not associated")
       CALL qs_rho_get(rho, &
                       tot_rho_r=tot_rho_r, &
                       rho_ao_kp=rho_ao_kp, &
@@ -364,7 +363,7 @@ CONTAINS
    SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, rho_xc_external, local_rho_set, &
                                 task_list_external, task_list_external_soft, &
                                 pw_env_external, para_env_external)
-      TYPE(qs_rho_type), POINTER                         :: rho_struct
+      TYPE(qs_rho_type), INTENT(INOUT)                   :: rho_struct
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho_xc_external
       TYPE(local_rho_type), OPTIONAL, POINTER            :: local_rho_set
@@ -384,11 +383,7 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
-      CALL get_qs_env(qs_env, dft_control=dft_control)
-
-      CPASSERT(ASSOCIATED(rho_struct))
-
-      CALL get_qs_env(qs_env, &
+      CALL get_qs_env(qs_env, dft_control=dft_control, &
                       atomic_kind_set=atomic_kind_set, &
                       para_env=para_env)
       IF (PRESENT(para_env_external)) para_env => para_env_external
@@ -458,7 +453,7 @@ CONTAINS
                                     local_rho_set, pw_env_external, &
                                     task_list_external, task_list_external_soft, &
                                     para_env_external)
-      TYPE(qs_rho_type), POINTER                         :: rho_struct
+      TYPE(qs_rho_type), INTENT(INOUT)                   :: rho_struct
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho_xc_external
       TYPE(local_rho_type), OPTIONAL, POINTER            :: local_rho_set
@@ -496,8 +491,6 @@ CONTAINS
       NULLIFY (dft_control, rho_xc, ks_env, rho_ao, rho_r, rho_g, drho_r, drho_g, tau_r, tau_g)
       NULLIFY (rho_xc_ao, rho_xc_g, rho_xc_r, drho_xc_g, tau_xc_r, tau_xc_g, tot_rho_r, tot_rho_r_xc)
       NULLIFY (para_env, pw_env, atomic_kind_set)
-
-      CPASSERT(ASSOCIATED(rho_struct))
 
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
@@ -665,7 +658,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qs_rho_update_tddfpt(rho_struct, qs_env, pw_env_external, task_list_external, &
                                    para_env_external, tddfpt_lri_env, tddfpt_lri_density)
-      TYPE(qs_rho_type), POINTER                         :: rho_struct
+      TYPE(qs_rho_type), INTENT(INOUT)                   :: rho_struct
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_external
       TYPE(task_list_type), OPTIONAL, POINTER            :: task_list_external
@@ -692,14 +685,10 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(ASSOCIATED(rho_struct))
-
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
                       dft_control=dft_control, &
-                      atomic_kind_set=atomic_kind_set)
-
-      CALL get_qs_env(qs_env, &
+                      atomic_kind_set=atomic_kind_set, &
                       task_list=task_list, &
                       para_env=para_env, &
                       pw_env=pw_env)
@@ -765,7 +754,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qs_rho_copy(rho_input, rho_output, auxbas_pw_pool, mspin)
 
-      TYPE(qs_rho_type), POINTER                         :: rho_input, rho_output
+      TYPE(qs_rho_type), INTENT(IN)                      :: rho_input
+      TYPE(qs_rho_type), INTENT(INOUT)                   :: rho_output
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       INTEGER, INTENT(IN)                                :: mspin
 
@@ -787,9 +777,6 @@ CONTAINS
       TYPE(pw_type), POINTER                             :: rho_r_sccs_in, rho_r_sccs_out
 
       CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(rho_input))
-      CPASSERT(ASSOCIATED(rho_output))
 
       CPASSERT(mspin == 1 .OR. mspin == 2)
       ospin = 1._dp/REAL(mspin, KIND=dp)
@@ -1068,7 +1055,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qs_rho_scale_and_add(rhoa, rhob, alpha, beta)
 
-      TYPE(qs_rho_type), POINTER                         :: rhoa, rhob
+      TYPE(qs_rho_type), INTENT(IN)                      :: rhoa, rhob
       REAL(KIND=dp), INTENT(IN)                          :: alpha, beta
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_scale_and_add'
@@ -1084,9 +1071,6 @@ CONTAINS
       TYPE(pw_type), POINTER                             :: rho_r_sccs_a, rho_r_sccs_b
 
       CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(rhoa))
-      CPASSERT(ASSOCIATED(rhob))
 
       NULLIFY (rho_ao_a, rho_ao_im_a, rho_r_a, rho_g_a, drho_r_a, &
                drho_g_a, tau_r_a, tau_g_a, tot_rho_r_a, tot_rho_g_a, rho_r_sccs_a)
@@ -1237,7 +1221,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE duplicate_rho_type(rho_input, rho_output, qs_env)
 
-      TYPE(qs_rho_type), POINTER                         :: rho_input, rho_output
+      TYPE(qs_rho_type), INTENT(INOUT)                   :: rho_input, rho_output
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'duplicate_rho_type'
@@ -1267,8 +1251,6 @@ CONTAINS
       NULLIFY (tot_rho_r_in, tot_rho_r_out, tot_rho_g_in, tot_rho_g_out)
       NULLIFY (rho_r_sccs_in, rho_r_sccs_out)
 
-      CPASSERT(ASSOCIATED(rho_input))
-      CPASSERT(ASSOCIATED(rho_output))
       CPASSERT(ASSOCIATED(qs_env))
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, dft_control=dft_control)
