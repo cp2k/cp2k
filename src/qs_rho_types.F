@@ -54,7 +54,6 @@ MODULE qs_rho_types
 !> \param tau_g grids with the kinetic energy density in g space
 !> \param rho_g_valid , rho_r_valid, tau_r_valid, tau_g_valid: if the
 !>        corresponding component is valid
-!> \param rebuild_each how often a rebuild should be done by default
 !> \param tot_rho_r the total charge in r space (valid only if rho_r is)
 !> \note
 !>      If pw_p_type would implement retain/release it would be nice to
@@ -80,7 +79,6 @@ MODULE qs_rho_types
                                                         tau_r_valid = .FALSE., &
                                                         tau_g_valid = .FALSE., &
                                                         soft_valid = .FALSE.
-      INTEGER                                        :: rebuild_each = -1
       REAL(KIND=dp), DIMENSION(:), POINTER           :: tot_rho_r => Null(), &
                                                         tot_rho_g => Null()
    END TYPE qs_rho_type
@@ -100,7 +98,6 @@ CONTAINS
    SUBROUTINE qs_rho_create(rho)
       TYPE(qs_rho_type), INTENT(OUT)                     :: rho
 
-      rho%rebuild_each = 5
    END SUBROUTINE qs_rho_create
 
 ! **************************************************************************************************
@@ -218,7 +215,6 @@ CONTAINS
 !> \param drho_g_valid ...
 !> \param tau_r_valid ...
 !> \param tau_g_valid ...
-!> \param rebuild_each ...
 !> \param tot_rho_r ...
 !> \param tot_rho_g ...
 !> \param rho_r_sccs ...
@@ -229,7 +225,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qs_rho_get(rho_struct, rho_ao, rho_ao_im, rho_ao_kp, rho_ao_im_kp, rho_r, drho_r, &
                          rho_g, drho_g, tau_r, tau_g, rho_r_valid, drho_r_valid, rho_g_valid, &
-                         drho_g_valid, tau_r_valid, tau_g_valid, rebuild_each, tot_rho_r, tot_rho_g, &
+                         drho_g_valid, tau_r_valid, tau_g_valid, tot_rho_r, tot_rho_g, &
                          rho_r_sccs, soft_valid)
       TYPE(qs_rho_type), INTENT(IN)                      :: rho_struct
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
@@ -243,7 +239,6 @@ CONTAINS
       TYPE(pw_type), DIMENSION(:), OPTIONAL, POINTER     :: tau_r, tau_g
       LOGICAL, INTENT(out), OPTIONAL                     :: rho_r_valid, drho_r_valid, rho_g_valid, &
                                                             drho_g_valid, tau_r_valid, tau_g_valid
-      INTEGER, INTENT(out), OPTIONAL                     :: rebuild_each
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: tot_rho_r, tot_rho_g
       TYPE(pw_type), OPTIONAL, POINTER                   :: rho_r_sccs
       LOGICAL, INTENT(out), OPTIONAL                     :: soft_valid
@@ -267,7 +262,6 @@ CONTAINS
       IF (PRESENT(tau_r_valid)) tau_r_valid = rho_struct%tau_r_valid
       IF (PRESENT(tau_g_valid)) tau_g_valid = rho_struct%tau_g_valid
       IF (PRESENT(soft_valid)) soft_valid = rho_struct%soft_valid
-      IF (PRESENT(rebuild_each)) rebuild_each = rho_struct%rebuild_each
       IF (PRESENT(tot_rho_r)) tot_rho_r => rho_struct%tot_rho_r
       IF (PRESENT(tot_rho_g)) tot_rho_g => rho_struct%tot_rho_g
       IF (PRESENT(rho_r_sccs)) rho_r_sccs => rho_struct%rho_r_sccs
@@ -293,7 +287,6 @@ CONTAINS
 !> \param drho_g_valid ...
 !> \param tau_r_valid ...
 !> \param tau_g_valid ...
-!> \param rebuild_each ...
 !> \param tot_rho_r ...
 !> \param tot_rho_g ...
 !> \param rho_r_sccs ...
@@ -302,7 +295,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qs_rho_set(rho_struct, rho_ao, rho_ao_im, rho_ao_kp, rho_ao_im_kp, rho_r, drho_r, &
                          rho_g, drho_g, tau_r, tau_g, rho_r_valid, drho_r_valid, rho_g_valid, &
-                         drho_g_valid, tau_r_valid, tau_g_valid, rebuild_each, tot_rho_r, tot_rho_g, &
+                         drho_g_valid, tau_r_valid, tau_g_valid, tot_rho_r, tot_rho_g, &
                          rho_r_sccs, soft_valid)
       TYPE(qs_rho_type), INTENT(INOUT)                   :: rho_struct
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
@@ -316,7 +309,6 @@ CONTAINS
       TYPE(pw_type), DIMENSION(:), OPTIONAL, POINTER     :: tau_r, tau_g
       LOGICAL, INTENT(in), OPTIONAL                      :: rho_r_valid, drho_r_valid, rho_g_valid, &
                                                             drho_g_valid, tau_r_valid, tau_g_valid
-      INTEGER, INTENT(in), OPTIONAL                      :: rebuild_each
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: tot_rho_r, tot_rho_g
       TYPE(pw_type), OPTIONAL, POINTER                   :: rho_r_sccs
       LOGICAL, INTENT(in), OPTIONAL                      :: soft_valid
@@ -340,7 +332,6 @@ CONTAINS
       IF (PRESENT(tau_r_valid)) rho_struct%tau_r_valid = tau_r_valid
       IF (PRESENT(tau_g_valid)) rho_struct%tau_g_valid = tau_g_valid
       IF (PRESENT(soft_valid)) rho_struct%soft_valid = soft_valid
-      IF (PRESENT(rebuild_each)) rho_struct%rebuild_each = rebuild_each
       IF (PRESENT(tot_rho_r)) rho_struct%tot_rho_r => tot_rho_r
       IF (PRESENT(tot_rho_g)) rho_struct%tot_rho_g => tot_rho_g
       IF (PRESENT(rho_r_sccs)) rho_struct%rho_r_sccs => rho_r_sccs

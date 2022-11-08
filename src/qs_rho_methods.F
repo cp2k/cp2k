@@ -757,7 +757,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_rho_copy'
 
-      INTEGER                                            :: handle, i, j, nspins, rebuild_each_in
+      INTEGER                                            :: handle, i, j, nspins
       LOGICAL :: drho_g_valid_in, drho_r_valid_in, rho_g_valid_in, rho_r_valid_in, soft_valid_in, &
          tau_g_valid_in, tau_r_valid_in
       REAL(KIND=dp)                                      :: ospin
@@ -800,8 +800,7 @@ CONTAINS
                       tau_r_valid=tau_r_valid_in, &
                       tau_g_valid=tau_g_valid_in, &
                       rho_r_sccs=rho_r_sccs_in, &
-                      soft_valid=soft_valid_in, &
-                      rebuild_each=rebuild_each_in)
+                      soft_valid=soft_valid_in)
 
       NULLIFY (rho_ao_out, rho_r_out, rho_g_out, drho_r_out, &
                drho_g_out, tau_r_out, tau_g_out, tot_rho_r_out, tot_rho_g_out, rho_r_sccs_out)
@@ -1030,8 +1029,7 @@ CONTAINS
                       drho_r_valid=drho_r_valid_in, &
                       tau_r_valid=tau_r_valid_in, &
                       tau_g_valid=tau_g_valid_in, &
-                      soft_valid=soft_valid_in, &
-                      rebuild_each=rebuild_each_in)
+                      soft_valid=soft_valid_in)
 
       CALL timestop(handle)
 
@@ -1217,7 +1215,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'duplicate_rho_type'
 
-      INTEGER                                            :: handle, i, j, nspins, rebuild_each_in
+      INTEGER                                            :: handle, i, j, nspins
       LOGICAL :: drho_g_valid_in, drho_r_valid_in, rho_g_valid_in, rho_r_valid_in, soft_valid_in, &
          tau_g_valid_in, tau_r_valid_in
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_g_in, tot_rho_g_out, &
@@ -1266,8 +1264,7 @@ CONTAINS
                       tau_r_valid=tau_r_valid_in, &
                       tau_g_valid=tau_g_valid_in, &
                       rho_r_sccs=rho_r_sccs_in, &
-                      soft_valid=soft_valid_in, &
-                      rebuild_each=rebuild_each_in)
+                      soft_valid=soft_valid_in)
 
       ! rho_ao
       IF (ASSOCIATED(rho_ao_in)) THEN
@@ -1380,8 +1377,7 @@ CONTAINS
                       drho_r_valid=drho_r_valid_in, &
                       tau_r_valid=tau_r_valid_in, &
                       tau_g_valid=tau_g_valid_in, &
-                      soft_valid=soft_valid_in, &
-                      rebuild_each=rebuild_each_in)
+                      soft_valid=soft_valid_in)
 
       ! tot_rho_r
       IF (ASSOCIATED(tot_rho_r_in)) THEN
