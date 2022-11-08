@@ -1258,8 +1258,9 @@ CONTAINS
       REAL(dp)                                           :: eexc, evhxc
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, tau_r, v_rspace, v_tau_rspace
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, v_rspace, v_tau_rspace
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), DIMENSION(:), POINTER               :: tau_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
 
@@ -1340,7 +1341,7 @@ CONTAINS
          evhxc = evhxc + pw_integral_ab(rho_r(ispin)%pw, v_rspace(ispin)%pw)/ &
                  v_rspace(1)%pw%pw_grid%dvol
          IF (ASSOCIATED(v_tau_rspace)) THEN
-            evhxc = evhxc + pw_integral_ab(tau_r(ispin)%pw, v_tau_rspace(ispin)%pw)/ &
+            evhxc = evhxc + pw_integral_ab(tau_r(ispin), v_tau_rspace(ispin)%pw)/ &
                     v_tau_rspace(ispin)%pw%pw_grid%dvol
          END IF
 
@@ -1618,14 +1619,14 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, rhoout_g, rhoout_r, tau_r, &
-                                                            tauout_g, tauout_r, v_rspace, &
-                                                            v_tau_rspace, v_xc, v_xc_tau
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, rhoout_g, rhoout_r, &
+                                                            v_rspace, v_tau_rspace, v_xc, v_xc_tau
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: dv_hartree_rspace, rho_tot_gspace, &
                                                             rhodn_tot_gspace, v_hartree_gspace, &
                                                             v_hartree_rspace, vtot_rspace
+      TYPE(pw_type), DIMENSION(:), POINTER               :: tau_r, tauout_r
       TYPE(pw_type), POINTER                             :: rho_core
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -1719,25 +1720,29 @@ CONTAINS
          CALL pw_copy(rhoout_r(ispin)%pw, ec_env%rhoout_r(ispin)%pw)
       END DO
 
-      NULLIFY (tauout_r, tauout_g)
+      NULLIFY (tauout_r)
       IF (dft_control%use_kinetic_energy_density) THEN
-         ALLOCATE (tauout_r(nspins), tauout_g(nspins))
-         DO ispin = 1, nspins
-            ALLOCATE (tauout_r(ispin)%pw, tauout_g(ispin)%pw)
-            CALL pw_pool_create_pw(auxbas_pw_pool, tauout_r(ispin)%pw, &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
-            CALL pw_pool_create_pw(auxbas_pw_pool, tauout_g(ispin)%pw, &
+         BLOCK
+            TYPE(pw_type) :: tauout_g
+            ALLOCATE (tauout_r(nspins))
+            DO ispin = 1, nspins
+               CALL pw_pool_create_pw(auxbas_pw_pool, tauout_r(ispin), &
+                                      use_data=REALDATA3D, in_space=REALSPACE)
+            END DO
+            CALL pw_pool_create_pw(auxbas_pw_pool, tauout_g, &
                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-         END DO
 
-         DO ispin = 1, nspins
-            CALL calculate_rho_elec(ks_env=ks_env, matrix_p=ec_env%matrix_p(ispin, 1)%matrix, &
-                                    rho=tauout_r(ispin)%pw, &
-                                    rho_gspace=tauout_g(ispin)%pw, &
-                                    compute_tau=.TRUE., &
-                                    basis_type="HARRIS", &
-                                    task_list_external=ec_env%task_list)
-         END DO
+            DO ispin = 1, nspins
+               CALL calculate_rho_elec(ks_env=ks_env, matrix_p=ec_env%matrix_p(ispin, 1)%matrix, &
+                                       rho=tauout_r(ispin), &
+                                       rho_gspace=tauout_g, &
+                                       compute_tau=.TRUE., &
+                                       basis_type="HARRIS", &
+                                       task_list_external=ec_env%task_list)
+            END DO
+
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, tauout_g)
+         END BLOCK
       END IF
 
       IF (use_virial) THEN
@@ -1816,7 +1821,7 @@ CONTAINS
          CALL pw_axpy(rho_r(ispin)%pw, rhoout_r(ispin)%pw, -1.0_dp)
          CALL pw_axpy(rho_g(ispin)%pw, rhoout_g(ispin)%pw, -1.0_dp)
          CALL pw_axpy(rhoout_g(ispin)%pw, rhodn_tot_gspace)
-         IF (dft_control%use_kinetic_energy_density) CALL pw_axpy(tau_r(ispin)%pw, tauout_r(ispin)%pw, -1.0_dp)
+         IF (dft_control%use_kinetic_energy_density) CALL pw_axpy(tau_r(ispin), tauout_r(ispin), -1.0_dp)
       END DO
 
       ! calculate associated hartree potential
@@ -1995,7 +2000,7 @@ CONTAINS
          IF (ASSOCIATED(v_tau_rspace)) THEN
             DO ispin = 1, nspins
                ! 2nd deriv xc-volume term
-               eexc = eexc + pw_integral_ab(tauout_r(ispin)%pw, v_tau_rspace(ispin)%pw)
+               eexc = eexc + pw_integral_ab(tauout_r(ispin), v_tau_rspace(ispin)%pw)
             END DO
          END IF
       END IF
@@ -2125,11 +2130,9 @@ CONTAINS
       DEALLOCATE (rhoout_r, rhoout_g, v_xc)
       IF (ASSOCIATED(tauout_r)) THEN
          DO ispin = 1, nspins
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, tauout_r(ispin)%pw)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, tauout_g(ispin)%pw)
-            DEALLOCATE (tauout_r(ispin)%pw, tauout_g(ispin)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, tauout_r(ispin))
          END DO
-         DEALLOCATE (tauout_r, tauout_g)
+         DEALLOCATE (tauout_r)
       END IF
       IF (ASSOCIATED(v_xc_tau)) THEN
          DO ispin = 1, nspins

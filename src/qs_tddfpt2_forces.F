@@ -682,12 +682,15 @@ CONTAINS
          POINTER                                         :: sab, sab_aux_fit
       TYPE(oce_matrix_type), POINTER                     :: oce
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_g, rho_g_aux, rho_r, rho_r_aux, rhoz_g_aux, &
-         rhoz_r_aux, tau_r, tau_r_aux, trho_g, trho_r, trho_xc_g, trho_xc_r, v_xc, v_xc_tau
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_g_aux, rho_r, rho_r_aux, &
+                                                            rhoz_g_aux, rhoz_r_aux, trho_g, &
+                                                            trho_r, trho_xc_g, trho_xc_r, v_xc, &
+                                                            v_xc_tau
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: rho_tot_gspace, v_hartree_gspace, &
                                                             v_hartree_rspace
+      TYPE(pw_type), DIMENSION(:), POINTER               :: tau_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit, rho_xc, rhoz_aux, trho
@@ -821,7 +824,7 @@ CONTAINS
 
       ! Fxc*drho term
       CALL get_qs_env(qs_env, rho=rho)
-      CALL qs_rho_get(rho, rho_r=rho_r, rho_g=rho_g, tau_r=tau_r)
+      CALL qs_rho_get(rho, rho_r=rho_r, rho_g=rho_g)
       !
       CALL get_qs_env(qs_env, input=input)
       IF (dft_control%do_admm) THEN
@@ -852,7 +855,7 @@ CONTAINS
          ALLOCATE (trho)
          CALL qs_rho_create(trho)
          CALL qs_rho_set(trho, rho_r=trho_r, rho_g=trho_g)
-         CALL qs_fxc_fdiff(ks_env, rho, trho, xc_section, 6, .FALSE., v_xc, tau_r)
+         CALL qs_fxc_fdiff(ks_env, rho, trho, xc_section, 6, .FALSE., v_xc, v_xc_tau)
          DEALLOCATE (trho)
       END IF
 
@@ -950,8 +953,8 @@ CONTAINS
             !
             xc_section => admm_env%xc_section_aux
             !
-            NULLIFY (rho_g_aux, rho_r_aux, tau_r_aux, rhoz_g_aux, rhoz_r_aux)
-            CALL qs_rho_get(rho_aux_fit, rho_r=rho_r_aux, rho_g=rho_g_aux, tau_r=tau_r_aux)
+            NULLIFY (rho_g_aux, rho_r_aux, rhoz_g_aux, rhoz_r_aux)
+            CALL qs_rho_get(rho_aux_fit, rho_r=rho_r_aux, rho_g=rho_g_aux)
             ! rhoz_aux
             ALLOCATE (rhoz_r_aux(nspins), rhoz_g_aux(nspins))
             DO ispin = 1, nspins
@@ -979,7 +982,7 @@ CONTAINS
                ALLOCATE (rhoz_aux)
                CALL qs_rho_create(rhoz_aux)
                CALL qs_rho_set(rhoz_aux, rho_r=rhoz_r_aux, rho_g=rhoz_g_aux)
-               CALL qs_fxc_fdiff(ks_env, rho_aux_fit, rhoz_aux, xc_section, 6, .FALSE., v_xc, tau_r)
+               CALL qs_fxc_fdiff(ks_env, rho_aux_fit, rhoz_aux, xc_section, 6, .FALSE., v_xc, v_xc_tau)
                DEALLOCATE (rhoz_aux)
             END IF
             !

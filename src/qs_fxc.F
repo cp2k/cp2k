@@ -40,7 +40,8 @@ MODULE qs_fxc
                                               pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
-                                              pw_p_type
+                                              pw_p_type,&
+                                              pw_type
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type
    USE qs_rho_methods,                  ONLY: qs_rho_copy,&
@@ -87,7 +88,8 @@ CONTAINS
    SUBROUTINE qs_fxc_analytic(rho0, rho1_r, tau1_r, xc_section, auxbas_pw_pool, is_triplet, v_xc, v_xc_tau)
 
       TYPE(qs_rho_type), POINTER                         :: rho0
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_r, tau1_r
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: tau1_r
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       LOGICAL, INTENT(IN)                                :: is_triplet
@@ -99,7 +101,8 @@ CONTAINS
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL                                            :: lsd
       REAL(KIND=dp)                                      :: fac
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho0_g, rho0_r, rho1_g, tau0_r
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho0_g, rho0_r, rho1_g
+      TYPE(pw_type), DIMENSION(:), POINTER               :: tau0_r
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
       TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_rho_cflags_type)                           :: needs

@@ -125,8 +125,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_ia_g, rho_ia_g_aux_fit, rho_ia_r, &
-                                                            rho_ia_r_aux_fit, tau_ia_r, &
-                                                            tau_ia_r_aux_fit
+                                                            rho_ia_r_aux_fit
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: V_rspace_sub
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
@@ -151,12 +150,12 @@ CONTAINS
       END DO
 
       CALL qs_rho_get(work_matrices%rho_orb_struct_sub, rho_ao=rho_ia_ao, &
-                      rho_g=rho_ia_g, rho_r=rho_ia_r, tau_r=tau_ia_r)
+                      rho_g=rho_ia_g, rho_r=rho_ia_r)
       IF (do_hfx .AND. do_admm) THEN
          CALL get_qs_env(qs_env, admm_env=admm_env)
          CALL qs_rho_get(work_matrices%rho_aux_fit_struct_sub, &
                          rho_ao=rho_ia_ao_aux_fit, rho_g=rho_ia_g_aux_fit, &
-                         rho_r=rho_ia_r_aux_fit, tau_r=tau_ia_r_aux_fit)
+                         rho_r=rho_ia_r_aux_fit)
       END IF
 
       DO ivect = 1, nvects

@@ -226,11 +226,11 @@ CONTAINS
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_g_pw, rho1_r, rho1_r_pw, &
-                                                            tau1_r, tau1_r_pw, v_rspace_new, v_xc, &
-                                                            v_xc_tau
+                                                            v_rspace_new, v_xc, v_xc_tau
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: rho1_tot_gspace, v_hartree_rspace
+      TYPE(pw_type), DIMENSION(:), POINTER               :: tau1_r, tau1_r_pw
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
       TYPE(section_vals_type), POINTER                   :: input, scf_section
@@ -349,10 +349,9 @@ CONTAINS
          IF (ASSOCIATED(tau1_r)) THEN
             ALLOCATE (tau1_r_pw(2))
             DO ispin = 1, 2
-               ALLOCATE (tau1_r_pw(ispin)%pw)
-               CALL pw_create(tau1_r_pw(ispin)%pw, tau1_r(1)%pw%pw_grid, &
-                              tau1_r(1)%pw%in_use, tau1_r(1)%pw%in_space)
-               CALL pw_transfer(tau1_r(1)%pw, tau1_r_pw(ispin)%pw)
+               CALL pw_create(tau1_r_pw(ispin), tau1_r(1)%pw_grid, &
+                              tau1_r(1)%in_use, tau1_r(1)%in_space)
+               CALL pw_transfer(tau1_r(1), tau1_r_pw(ispin))
             END DO
          END IF
 
@@ -363,12 +362,7 @@ CONTAINS
             rho1_r_pw(ispin)%pw => rho1_r(ispin)%pw
          END DO
 
-         IF (ASSOCIATED(tau1_r)) THEN
-            ALLOCATE (tau1_r_pw(nspins))
-            DO ispin = 1, nspins
-               tau1_r_pw(ispin)%pw => tau1_r(ispin)%pw
-            END DO
-         END IF
+         tau1_r_pw => tau1_r
 
       END IF
 
@@ -412,15 +406,12 @@ CONTAINS
          END DO
          IF (ASSOCIATED(tau1_r_pw)) THEN
          DO ispin = 1, SIZE(tau1_r_pw)
-            IF (ASSOCIATED(tau1_r_pw(ispin)%pw)) THEN
-               CALL pw_release(tau1_r_pw(ispin)%pw)
-               DEALLOCATE (tau1_r_pw(ispin)%pw)
-            END IF
+            CALL pw_release(tau1_r_pw(ispin))
          END DO
+         DEALLOCATE (tau1_r_pw)
          END IF
       END IF
       DEALLOCATE (rho1_r_pw)
-      IF (ASSOCIATED(tau1_r_pw)) DEALLOCATE (tau1_r_pw)
 
       alpha = 1.0_dp
       IF (do_excitations .AND. nspins == 1) alpha = 2.0_dp
@@ -702,8 +693,9 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: my_rho_r, my_tau_r, rho_r, tau_r
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: my_rho_r, rho_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), DIMENSION(:), POINTER               :: my_tau_r, tau_r
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: admm_xc_section, input, xc_section
 
@@ -743,10 +735,9 @@ CONTAINS
             IF (dft_control%use_kinetic_energy_density) THEN
                ALLOCATE (my_tau_r(2))
                DO ispin = 1, 2
-                  ALLOCATE (my_tau_r(ispin)%pw)
-                  CALL pw_pool_create_pw(auxbas_pw_pool, my_tau_r(ispin)%pw, &
-                                         use_data=tau_r(1)%pw%in_use, in_space=tau_r(1)%pw%in_space)
-                  my_tau_r(ispin)%pw%cr3d = 0.5_dp*tau_r(1)%pw%cr3d
+                  CALL pw_pool_create_pw(auxbas_pw_pool, my_tau_r(ispin), &
+                                         use_data=tau_r(1)%in_use, in_space=tau_r(1)%in_space)
+                  my_tau_r(ispin)%cr3d = 0.5_dp*tau_r(1)%cr3d
                END DO
             END IF
          ELSE
@@ -755,10 +746,7 @@ CONTAINS
                my_rho_r(ispin)%pw => rho_r(ispin)%pw
             END DO
             IF (dft_control%use_kinetic_energy_density) THEN
-               ALLOCATE (my_tau_r(SIZE(tau_r)))
-               DO ispin = 1, SIZE(tau_r)
-                  my_tau_r(ispin)%pw => tau_r(ispin)%pw
-               END DO
+               my_tau_r => tau_r
             END IF
          END IF
 
@@ -781,13 +769,12 @@ CONTAINS
          END DO
          IF (ASSOCIATED(my_tau_r)) THEN
             DO ispin = 1, SIZE(my_tau_r)
-               CALL pw_release(my_tau_r(ispin)%pw)
-               DEALLOCATE (my_tau_r(ispin)%pw)
+               CALL pw_release(my_tau_r(ispin))
             END DO
+            DEALLOCATE (my_tau_r)
          END IF
          END IF
          DEALLOCATE (my_rho_r)
-         IF (ASSOCIATED(my_tau_r)) DEALLOCATE (my_tau_r)
       END IF
 
       ! ADMM Correction

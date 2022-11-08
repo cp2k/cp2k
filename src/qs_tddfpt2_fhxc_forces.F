@@ -204,8 +204,10 @@ CONTAINS
       TYPE(oce_matrix_type), POINTER                     :: oce
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER :: fxc_rho, fxc_tau, gxc_rho, gxc_tau, rho_g_aux, &
-         rho_r_aux, rhox_g, rhox_g_aux, rhox_r, rhox_r_aux, rhoxx_g, rhoxx_r, tau_r_aux
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: fxc_rho, fxc_tau, gxc_rho, gxc_tau, &
+                                                            rho_g_aux, rho_r_aux, rhox_g, &
+                                                            rhox_g_aux, rhox_r, rhox_r_aux, &
+                                                            rhoxx_g, rhoxx_r
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: rhox_tot_gspace, xv_hartree_gspace, &
@@ -602,8 +604,8 @@ CONTAINS
                   CALL dbcsr_set(mgx(ispin)%matrix, 0.0_dp)
                END DO
 
-               NULLIFY (rho_g_aux, rho_r_aux, tau_r_aux, rhox_g_aux, rhox_r_aux)
-               CALL qs_rho_get(rho_aux_fit, rho_r=rho_r_aux, rho_g=rho_g_aux, tau_r=tau_r_aux)
+               NULLIFY (rho_g_aux, rho_r_aux, rhox_g_aux, rhox_r_aux)
+               CALL qs_rho_get(rho_aux_fit, rho_r=rho_r_aux, rho_g=rho_g_aux)
                CALL qs_rho_get(rho_aux_fit, rho_ao=matrix_p_admm)
                ! rhox_aux
                ALLOCATE (rhox_r_aux(nspins), rhox_g_aux(nspins))

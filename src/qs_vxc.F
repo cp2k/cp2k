@@ -129,9 +129,9 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: my_vxc_rho, my_vxc_tau, rho_g, &
                                                             rho_m_gspace, rho_m_rspace, rho_r, &
-                                                            rho_struct_g, rho_struct_r, tau, &
-                                                            tau_struct_r
+                                                            rho_struct_g, rho_struct_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, vdw_pw_pool, xc_pw_pool
+      TYPE(pw_type), DIMENSION(:), POINTER               :: tau, tau_struct_r
       TYPE(pw_type), POINTER                             :: rho_nlcc, rho_nlcc_g, tmp_g, tmp_g2, &
                                                             tmp_pw
       TYPE(virial_type), POINTER                         :: virial
@@ -240,10 +240,7 @@ CONTAINS
             END DO
 
             IF (tau_r_valid) THEN
-               ALLOCATE (tau(mspin))
-               DO ispin = 1, mspin
-                  tau(ispin)%pw => tau_struct_r(ispin)%pw
-               END DO
+               tau => tau_struct_r
             END IF
 
             ! for gradient corrected functional the density in g space might
@@ -271,7 +268,7 @@ CONTAINS
             END DO
             IF (tau_r_valid) THEN
                ! tau with finer grids is not implemented (at least not correctly), which this asserts
-               CPABORT("tau with finer grids")
+               CPABORT("tau with finer grids not implemented")
             END IF
          END IF
 
@@ -621,11 +618,10 @@ CONTAINS
          IF (ASSOCIATED(tau)) THEN
             IF (uf_grid) THEN
                DO ispin = 1, SIZE(tau)
-                  CALL pw_pool_give_back_pw(xc_pw_pool, tau(ispin)%pw)
-                  DEALLOCATE (tau(ispin)%pw)
+                  CALL pw_pool_give_back_pw(xc_pw_pool, tau(ispin))
                END DO
+               DEALLOCATE (tau)
             END IF
-            DEALLOCATE (tau)
          END IF
 
       END IF
@@ -658,9 +654,10 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, tau_r, vxc_rho, vxc_tau
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, vxc_rho, vxc_tau
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, xc_pw_pool
       TYPE(pw_type)                                      :: exc_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: tau_r
       TYPE(pw_type), POINTER                             :: rho_nlcc, rho_nlcc_g
 
       CALL timeset(routineN, handle)

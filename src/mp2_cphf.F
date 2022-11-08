@@ -1377,13 +1377,14 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_mp2_g, rho_mp2_r, &
-                                                            rho_mp2_r_aux, rho_r, tau_mp2_r, &
-                                                            vadmm_rspace, vtau_rspace, vxc_rspace
+                                                            rho_mp2_r_aux, rho_r, vadmm_rspace, &
+                                                            vtau_rspace, vxc_rspace
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: pot_g, pot_r, rho_tot_g, temp_pw_g, &
                                                             vh_rspace, vhxc_rspace
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: dvg
+      TYPE(pw_type), DIMENSION(:), POINTER               :: tau_mp2_r
       TYPE(pw_type), POINTER                             :: rho_core
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -1610,7 +1611,7 @@ CONTAINS
             CALL pw_scale(vxc_rspace(ispin)%pw, 1.0_dp/vxc_rspace(ispin)%pw%pw_grid%dvol)
             e_xc = e_xc + pw_integral_ab(rho_mp2_r(ispin)%pw, vxc_rspace(ispin)%pw)
             IF (ASSOCIATED(vtau_rspace)) CALL pw_scale(vtau_rspace(ispin)%pw, 1.0_dp/vtau_rspace(ispin)%pw%pw_grid%dvol)
-            IF (ASSOCIATED(vtau_rspace)) e_xc = e_xc + pw_integral_ab(tau_mp2_r(ispin)%pw, vtau_rspace(ispin)%pw)
+            IF (ASSOCIATED(vtau_rspace)) e_xc = e_xc + pw_integral_ab(tau_mp2_r(ispin), vtau_rspace(ispin)%pw)
          END DO
          IF (debug_forces .AND. iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG VIRIAL:: vxc*d1   ", e_xc
          DO alpha = 1, 3

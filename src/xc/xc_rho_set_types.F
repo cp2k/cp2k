@@ -614,7 +614,7 @@ CONTAINS
             TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho_set
             TYPE(pw_p_type), DIMENSION(:), INTENT(IN)          :: rho_r
             TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g
-            TYPE(pw_p_type), DIMENSION(:), POINTER, INTENT(IN) :: tau
+            TYPE(pw_type), DIMENSION(:), POINTER, INTENT(IN) :: tau
             TYPE(xc_rho_cflags_type), INTENT(in)               :: needs
             INTEGER, INTENT(IN)                                :: xc_deriv_method_id, xc_rho_smooth_id
             TYPE(pw_pool_type), POINTER                        :: pw_pool
@@ -933,18 +933,17 @@ CONTAINS
             IF (needs%tau .OR. needs%tau_spin) THEN
                CPASSERT(ASSOCIATED(tau))
                DO ispin = 1, nspins
-                  CPASSERT(ASSOCIATED(tau(ispin)%pw))
-                  CPASSERT(ASSOCIATED(tau(ispin)%pw%cr3d))
+                  CPASSERT(ASSOCIATED(tau(ispin)%cr3d))
                END DO
             END IF
             IF (needs%tau) THEN
-               rho_set%tau => tau(1)%pw%cr3d
+               rho_set%tau => tau(1)%cr3d
                rho_set%owns%tau = .FALSE.
                rho_set%has%tau = .TRUE.
             END IF
             IF (needs%tau_spin) THEN
-               rho_set%tau_a => tau(1)%pw%cr3d
-               rho_set%tau_b => tau(2)%pw%cr3d
+               rho_set%tau_a => tau(1)%cr3d
+               rho_set%tau_b => tau(2)%cr3d
                rho_set%owns%tau_spin = .FALSE.
                rho_set%has%tau_spin = .TRUE.
             END IF

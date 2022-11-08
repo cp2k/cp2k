@@ -174,9 +174,10 @@ CONTAINS
                                                             mo_coeff
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, tau, vxc, vxc_tau
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, vxc, vxc_tau
       TYPE(pw_pool_type), POINTER                        :: xc_pw_pool
       TYPE(pw_type)                                      :: work_v_rspace
+      TYPE(pw_type), DIMENSION(:), POINTER               :: tau
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: input, low_spin_roks_section, xc_section
@@ -423,9 +424,10 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: orb_density_matrix, orb_h
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, tau, vxc, vxc_tau
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, vxc, vxc_tau
       TYPE(pw_pool_type), POINTER                        :: xc_pw_pool
       TYPE(pw_type)                                      :: work_v_gspace, work_v_rspace
+      TYPE(pw_type), DIMENSION(:), POINTER               :: tau
       TYPE(pw_type), TARGET                              :: orb_rho_g, orb_rho_r, tmp_g, tmp_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho

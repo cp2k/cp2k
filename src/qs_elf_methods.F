@@ -76,11 +76,12 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_struct_ao
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, rho_struct_r, tau_r, tau_struct_r
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, rho_struct_r
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: tau_g, tmp_g
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:, :)        :: drho_g, drho_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: tau_r, tau_struct_r
       TYPE(pw_type), DIMENSION(:, :), POINTER            :: drho_struct_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
@@ -121,14 +122,13 @@ CONTAINS
       DO ispin = 1, nspin
          rho_r(ispin)%pw => rho_struct_r(ispin)%pw
          IF (tau_r_valid) THEN
-            tau_r(ispin)%pw => tau_struct_r(ispin)%pw
+            tau_r => tau_struct_r
          ELSE
-            ALLOCATE (tau_r(ispin)%pw)
-            CALL pw_pool_create_pw(auxbas_pw_pool, tau_r(ispin)%pw, &
+            CALL pw_pool_create_pw(auxbas_pw_pool, tau_r(ispin), &
                                    use_data=REALDATA3D, in_space=REALSPACE)
             rho_ao => rho_struct_ao(ispin, :)
             CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
-                                    rho=tau_r(ispin)%pw, &
+                                    rho=tau_r(ispin), &
                                     rho_gspace=tau_g, &
                                     ks_env=ks_env, soft_valid=.FALSE., &
                                     compute_tau=.TRUE.)
@@ -179,7 +179,7 @@ CONTAINS
                               drho_r(3, ispin)%cr3d(i, j, k)**2
                   norm_drho = norm_drho/MAX(rho_r(ispin)%pw%cr3d(i, j, k), rho_cutoff)
                   rho_53 = cfermi*MAX(rho_r(ispin)%pw%cr3d(i, j, k), rho_cutoff)**f53
-                  elf_kernel = (tau_r(ispin)%pw%cr3d(i, j, k) - f18*norm_drho) + 2.87E-5_dp
+                  elf_kernel = (tau_r(ispin)%cr3d(i, j, k) - f18*norm_drho) + 2.87E-5_dp
                   elf_kernel = (elf_kernel/rho_53)**2
                   elf_r(ispin)%cr3d(i, j, k) = 1.0_dp/(1.0_dp + elf_kernel)
                   IF (elf_r(ispin)%cr3d(i, j, k) < ELFCUT) elf_r(ispin)%cr3d(i, j, k) = 0.0_dp
@@ -188,8 +188,7 @@ CONTAINS
          END DO
 
          IF (.NOT. tau_r_valid) THEN
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, tau_r(ispin)%pw)
-            DEALLOCATE (tau_r(ispin)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, tau_r(ispin))
          END IF
          IF (.NOT. drho_r_valid) THEN
             IF (deriv_pw) THEN

@@ -149,11 +149,12 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: orbital_density_matrix, rho_struct_ao
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: molecular_orbitals
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, rho_struct_r, tau, vxc_LB, &
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, rho_struct_r, vxc_LB, &
                                                             vxc_tau, vxc_tmp
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: orbital, orbital_g
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: vxc_GLLB, vxc_SAOP
+      TYPE(pw_type), DIMENSION(:), POINTER               :: tau
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(section_vals_type), POINTER                   :: input, xc_fun_section_orig, &
