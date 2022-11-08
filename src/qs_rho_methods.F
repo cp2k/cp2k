@@ -121,8 +121,9 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, tau_g, tau_r
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, tau_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), DIMENSION(:), POINTER               :: tau_g
       TYPE(pw_type), DIMENSION(:, :), POINTER            :: drho_g, drho_r
       TYPE(pw_type), POINTER                             :: rho_r_sccs
 
@@ -324,16 +325,14 @@ CONTAINS
          IF (my_rebuild_grids .OR. .NOT. ASSOCIATED(tau_g)) THEN
             IF (ASSOCIATED(tau_g)) THEN
                DO i = 1, SIZE(tau_g)
-                  CALL pw_release(tau_g(i)%pw)
-                  DEALLOCATE (tau_g(i)%pw)
+                  CALL pw_release(tau_g(i))
                END DO
                DEALLOCATE (tau_g)
             END IF
             ALLOCATE (tau_g(nspins))
             CALL qs_rho_set(rho, tau_g=tau_g)
             DO i = 1, nspins
-               ALLOCATE (tau_g(i)%pw)
-               CALL pw_pool_create_pw(auxbas_pw_pool, tau_g(i)%pw, &
+               CALL pw_pool_create_pw(auxbas_pw_pool, tau_g(i), &
                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
             END DO
          END IF
@@ -477,8 +476,9 @@ CONTAINS
          POINTER                                         :: sab
       TYPE(oce_matrix_type), POINTER                     :: oce
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, rho_xc_g, rho_xc_r, tau_g, &
-                                                            tau_r, tau_xc_g, tau_xc_r
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, rho_xc_g, rho_xc_r, tau_r, &
+                                                            tau_xc_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: tau_g, tau_xc_g
       TYPE(pw_type), DIMENSION(:, :), POINTER            :: drho_g, drho_r, drho_xc_g, drho_xc_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -593,7 +593,7 @@ CONTAINS
                rho_ao => rho_ao_kp(ispin, :)
                CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
                                        rho=tau_r(ispin)%pw, &
-                                       rho_gspace=tau_g(ispin)%pw, &
+                                       rho_gspace=tau_g(ispin), &
                                        total_rho=dum, & ! presumably not meaningful
                                        ks_env=ks_env, soft_valid=gapw, &
                                        compute_tau=.TRUE., &
@@ -626,8 +626,7 @@ CONTAINS
                rho_ao => rho_xc_ao(ispin, :)
                CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
                                        rho=tau_xc_r(ispin)%pw, &
-                                       rho_gspace=tau_xc_g(ispin)%pw, &
-                                       total_rho=dum, & ! presumably not meaningful
+                                       rho_gspace=tau_xc_g(ispin), &
                                        ks_env=ks_env, soft_valid=gapw_xc, &
                                        compute_tau=.TRUE., &
                                        task_list_external=task_list_external_soft, &
@@ -770,8 +769,8 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_im_in, rho_ao_in, rho_ao_out
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp_in
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g_in, rho_g_out, rho_r_in, &
-                                                            rho_r_out, tau_g_in, tau_g_out, &
-                                                            tau_r_in, tau_r_out
+                                                            rho_r_out, tau_r_in, tau_r_out
+      TYPE(pw_type), DIMENSION(:), POINTER               :: tau_g_in, tau_g_out
       TYPE(pw_type), DIMENSION(:, :), POINTER            :: drho_g_in, drho_g_out, drho_r_in, &
                                                             drho_r_out
       TYPE(pw_type), POINTER                             :: rho_r_sccs_in, rho_r_sccs_out
@@ -981,19 +980,17 @@ CONTAINS
          CALL qs_rho_set(rho_output, tau_g=tau_g_out)
          IF (mspin > nspins) THEN
             DO i = 1, mspin
-               ALLOCATE (tau_g_out(i)%pw)
-               CALL pw_pool_create_pw(auxbas_pw_pool, tau_g_out(i)%pw, &
+               CALL pw_pool_create_pw(auxbas_pw_pool, tau_g_out(i), &
                                       use_data=COMPLEXDATA1D, &
                                       in_space=RECIPROCALSPACE)
-               tau_g_out(i)%pw%cc(:) = tau_g_in(1)%pw%cc(:)*ospin
+               tau_g_out(i)%cc(:) = tau_g_in(1)%cc(:)*ospin
             END DO
          ELSE
             DO i = 1, nspins
-               ALLOCATE (tau_g_out(i)%pw)
-               CALL pw_pool_create_pw(auxbas_pw_pool, tau_g_out(i)%pw, &
+               CALL pw_pool_create_pw(auxbas_pw_pool, tau_g_out(i), &
                                       use_data=COMPLEXDATA1D, &
                                       in_space=RECIPROCALSPACE)
-               tau_g_out(i)%pw%cc(:) = tau_g_in(i)%pw%cc(:)
+               tau_g_out(i)%cc(:) = tau_g_in(i)%cc(:)
             END DO
          END IF
       END IF
@@ -1066,7 +1063,8 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_a, rho_ao_b, rho_ao_im_a, &
                                                             rho_ao_im_b
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g_a, rho_g_b, rho_r_a, rho_r_b, &
-                                                            tau_g_a, tau_g_b, tau_r_a, tau_r_b
+                                                            tau_r_a, tau_r_b
+      TYPE(pw_type), DIMENSION(:), POINTER               :: tau_g_a, tau_g_b
       TYPE(pw_type), DIMENSION(:, :), POINTER            :: drho_g_a, drho_g_b, drho_r_a, drho_r_b
       TYPE(pw_type), POINTER                             :: rho_r_sccs_a, rho_r_sccs_b
 
@@ -1179,7 +1177,7 @@ CONTAINS
          nspinb = SIZE(rho_ao_b)
          nspins = MIN(nspina, nspinb)
          DO i = 1, nspins
-            tau_g_a(i)%pw%cc(:) = alpha*tau_g_a(i)%pw%cc(:) + beta*tau_g_b(i)%pw%cc(:)
+            tau_g_a(i)%cc(:) = alpha*tau_g_a(i)%cc(:) + beta*tau_g_b(i)%cc(:)
          END DO
       END IF
 
@@ -1235,9 +1233,9 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g_in, rho_g_out, rho_r_in, &
-                                                            rho_r_out, tau_g_in, tau_g_out, &
-                                                            tau_r_in, tau_r_out
+                                                            rho_r_out, tau_r_in, tau_r_out
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), DIMENSION(:), POINTER               :: tau_g_in, tau_g_out
       TYPE(pw_type), DIMENSION(:, :), POINTER            :: drho_g_in, drho_g_out, drho_r_in, &
                                                             drho_r_out
       TYPE(pw_type), POINTER                             :: rho_r_sccs_in, rho_r_sccs_out
@@ -1376,11 +1374,10 @@ CONTAINS
             ALLOCATE (tau_g_out(nspins))
             CALL qs_rho_set(rho_output, tau_g=tau_g_out)
             DO i = 1, nspins
-               ALLOCATE (tau_g_out(i)%pw)
-               CALL pw_pool_create_pw(auxbas_pw_pool, tau_g_out(i)%pw, &
+               CALL pw_pool_create_pw(auxbas_pw_pool, tau_g_out(i), &
                                       use_data=COMPLEXDATA1D, &
                                       in_space=RECIPROCALSPACE)
-               tau_g_out(i)%pw%cc(:) = tau_g_in(i)%pw%cc(:)
+               tau_g_out(i)%cc(:) = tau_g_in(i)%cc(:)
             END DO
          END IF
       END IF

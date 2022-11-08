@@ -76,11 +76,10 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_struct_ao
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, rho_struct_r, tau_g, tau_r, &
-                                                            tau_struct_r
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, rho_struct_r, tau_r, tau_struct_r
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: tmp_g
+      TYPE(pw_type)                                      :: tau_g, tmp_g
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:, :)        :: drho_g, drho_r
       TYPE(pw_type), DIMENSION(:, :), POINTER            :: drho_struct_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -88,7 +87,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (rho_struct, rho_r, tau_r, tau_g, pw_env, auxbas_pw_pool, pw_pools, ks_env)
+      NULLIFY (rho_struct, rho_r, tau_r, pw_env, auxbas_pw_pool, pw_pools, ks_env)
       NULLIFY (rho_struct_ao, rho_struct_r, tau_struct_r, drho_struct_r)
 
       CALL get_qs_env(qs_env, ks_env=ks_env, pw_env=pw_env, rho=rho_struct)
@@ -109,24 +108,28 @@ CONTAINS
 
       ALLOCATE (rho_r(nspin))
       ALLOCATE (tau_r(nspin))
-      ALLOCATE (tau_g(nspin))
       ALLOCATE (drho_r(3, nspin))
       ALLOCATE (drho_g(3, nspin))
+
+      ! In this case, we need a work matrix containing tau in g space
+      ! We will not have further use for it, so we will need only one
+      IF (.NOT. tau_r_valid) THEN
+         CALL pw_pool_create_pw(auxbas_pw_pool, tau_g, &
+                                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      END IF
 
       DO ispin = 1, nspin
          rho_r(ispin)%pw => rho_struct_r(ispin)%pw
          IF (tau_r_valid) THEN
             tau_r(ispin)%pw => tau_struct_r(ispin)%pw
          ELSE
-            ALLOCATE (tau_r(ispin)%pw, tau_g(ispin)%pw)
+            ALLOCATE (tau_r(ispin)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, tau_r(ispin)%pw, &
                                    use_data=REALDATA3D, in_space=REALSPACE)
-            CALL pw_pool_create_pw(auxbas_pw_pool, tau_g(ispin)%pw, &
-                                   use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
             rho_ao => rho_struct_ao(ispin, :)
             CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
                                     rho=tau_r(ispin)%pw, &
-                                    rho_gspace=tau_g(ispin)%pw, &
+                                    rho_gspace=tau_g, &
                                     ks_env=ks_env, soft_valid=.FALSE., &
                                     compute_tau=.TRUE.)
          END IF
@@ -186,8 +189,7 @@ CONTAINS
 
          IF (.NOT. tau_r_valid) THEN
             CALL pw_pool_give_back_pw(auxbas_pw_pool, tau_r(ispin)%pw)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, tau_g(ispin)%pw)
-            DEALLOCATE (tau_r(ispin)%pw, tau_g(ispin)%pw)
+            DEALLOCATE (tau_r(ispin)%pw)
          END IF
          IF (.NOT. drho_r_valid) THEN
             IF (deriv_pw) THEN
@@ -204,9 +206,11 @@ CONTAINS
          END IF
       END DO !ispin
 
+      IF (.NOT. tau_r_valid) THEN
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, tau_g)
+      END IF
       DEALLOCATE (rho_r)
       DEALLOCATE (tau_r)
-      DEALLOCATE (tau_g)
       DEALLOCATE (drho_r)
       DEALLOCATE (drho_g)
 
