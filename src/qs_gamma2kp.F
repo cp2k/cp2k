@@ -25,7 +25,8 @@ MODULE qs_gamma2kp
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: kpoint_create,&
                                               kpoint_type
-   USE pw_types,                        ONLY: pw_p_type
+   USE pw_types,                        ONLY: pw_p_type,&
+                                              pw_type
    USE qs_energy_init,                  ONLY: qs_energies_init
    USE qs_environment,                  ONLY: qs_init
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -67,8 +68,8 @@ CONTAINS
       TYPE(cp_subsys_type), POINTER                      :: cp_subsys
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp, rho_ao_kp_gamma
       TYPE(kpoint_type), POINTER                         :: kpoint
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g_gamma, rho_g_kp, rho_r_gamma, &
-                                                            rho_r_kp
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r_gamma, rho_r_kp
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g_gamma, rho_g_kp
       TYPE(qs_rho_type), POINTER                         :: rho, rho_gamma
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
@@ -124,7 +125,7 @@ CONTAINS
 
       DO ispin = 1, SIZE(rho_r_gamma)
          rho_r_kp(ispin)%pw%cr3d(:, :, :) = rho_r_gamma(ispin)%pw%cr3d(:, :, :)
-         rho_g_kp(ispin)%pw%cc(:) = rho_g_gamma(ispin)%pw%cc(:)
+         rho_g_kp(ispin)%cc(:) = rho_g_gamma(ispin)%cc(:)
          CALL dbcsr_add(matrix_a=rho_ao_kp(ispin, 1)%matrix, alpha_scalar=0.0_dp, &
                         matrix_b=rho_ao_kp_gamma(ispin, 1)%matrix, beta_scalar=1.0_dp)
       END DO

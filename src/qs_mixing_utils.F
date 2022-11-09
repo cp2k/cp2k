@@ -22,7 +22,7 @@ MODULE qs_mixing_utils
    USE message_passing,                 ONLY: mp_bcast,&
                                               mp_max,&
                                               mp_min
-   USE pw_types,                        ONLY: pw_p_type
+   USE pw_types,                        ONLY: pw_type
    USE qs_density_mixing_types,         ONLY: broyden_mixing_new_nr,&
                                               broyden_mixing_nr,&
                                               gspace_mixing_nr,&
@@ -436,7 +436,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), POINTER                    :: g2
       REAL(dp), DIMENSION(:, :), POINTER                 :: g_vec
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
 
       CALL timeset(routineN, handle)
 
@@ -444,11 +444,11 @@ CONTAINS
       CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp, rho_g=rho_g)
 
       nspin = SIZE(rho_g)
-      ng = SIZE(rho_g(1)%pw%pw_grid%gsq, 1)
+      ng = SIZE(rho_g(1)%pw_grid%gsq, 1)
       nimg = SIZE(rho_ao_kp, 2)
       mixing_store%ig_max = ng
-      g2 => rho_g(1)%pw%pw_grid%gsq
-      g_vec => rho_g(1)%pw%pw_grid%g
+      g2 => rho_g(1)%pw_grid%gsq
+      g_vec => rho_g(1)%pw_grid%g
 
       IF (mixing_store%max_gvec_exp > 0._dp) THEN
          DO ig = 1, ng
@@ -470,7 +470,7 @@ CONTAINS
       mixing_store%kerker_factor = 1.0_dp
       mixing_store%special_metric = 1.0_dp
       ig1 = 1
-      IF (rho_g(1)%pw%pw_grid%have_g0) ig1 = 2
+      IF (rho_g(1)%pw_grid%have_g0) ig1 = 2
       DO ig = ig1, mixing_store%ig_max
          mixing_store%kerker_factor(ig) = MAX(g2(ig)/(g2(ig) + beta*beta), kmin)
          mixing_store%special_metric(ig) = &
@@ -487,7 +487,7 @@ CONTAINS
          IF (.NOT. ASSOCIATED(mixing_store%rhoin(ispin)%cc)) THEN
             ALLOCATE (mixing_store%rhoin(ispin)%cc(ng))
          END IF
-         mixing_store%rhoin(ispin)%cc = rho_g(ispin)%pw%cc
+         mixing_store%rhoin(ispin)%cc = rho_g(ispin)%cc
 
          IF (ASSOCIATED(mixing_store%rhoin_buffer)) THEN
             IF (.NOT. ASSOCIATED(mixing_store%rhoin_buffer(1, ispin)%cc)) THEN
@@ -496,7 +496,7 @@ CONTAINS
                END DO
             END IF
             mixing_store%rhoin_buffer(1, ispin)%cc(1:ng) = &
-               rho_g(ispin)%pw%cc(1:ng)
+               rho_g(ispin)%cc(1:ng)
          END IF
          IF (ASSOCIATED(mixing_store%res_buffer)) THEN
             IF (.NOT. ASSOCIATED(mixing_store%res_buffer(1, ispin)%cc)) THEN
@@ -508,11 +508,11 @@ CONTAINS
       END DO
 
       IF (nspin == 2) THEN
-         mixing_store%rhoin(1)%cc = rho_g(1)%pw%cc + rho_g(2)%pw%cc
-         mixing_store%rhoin(2)%cc = rho_g(1)%pw%cc - rho_g(2)%pw%cc
+         mixing_store%rhoin(1)%cc = rho_g(1)%cc + rho_g(2)%cc
+         mixing_store%rhoin(2)%cc = rho_g(1)%cc - rho_g(2)%cc
          IF (ASSOCIATED(mixing_store%rhoin_buffer)) THEN
-            mixing_store%rhoin_buffer(1, 1)%cc = rho_g(1)%pw%cc + rho_g(2)%pw%cc
-            mixing_store%rhoin_buffer(1, 2)%cc = rho_g(1)%pw%cc - rho_g(2)%pw%cc
+            mixing_store%rhoin_buffer(1, 1)%cc = rho_g(1)%cc + rho_g(2)%cc
+            mixing_store%rhoin_buffer(1, 2)%cc = rho_g(1)%cc - rho_g(2)%cc
          END IF
       END IF
 
@@ -635,7 +635,7 @@ CONTAINS
             DO ig = 1, ng
                mixing_store%p_metric(ig) = (g2(ig) + fdamp)/MAX(g2(ig), 1.E-10_dp)
             END DO
-            IF (rho_g(1)%pw%pw_grid%have_g0) mixing_store%p_metric(1) = bconst
+            IF (rho_g(1)%pw_grid%have_g0) mixing_store%p_metric(1) = bconst
          END IF
 
       ELSEIF (mixing_method == broyden_mixing_new_nr) THEN
@@ -661,7 +661,7 @@ CONTAINS
             DO ig = 1, ng
                mixing_store%p_metric(ig) = (g2(ig) + fdamp)/MAX(g2(ig), 1.E-10_dp)
             END DO
-            IF (rho_g(1)%pw%pw_grid%have_g0) mixing_store%p_metric(1) = bconst
+            IF (rho_g(1)%pw_grid%have_g0) mixing_store%p_metric(1) = bconst
          END IF
       ELSEIF (mixing_method == multisecant_mixing_nr) THEN
          IF (.NOT. ASSOCIATED(mixing_store%ig_global_index)) THEN

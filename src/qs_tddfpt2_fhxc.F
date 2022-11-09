@@ -124,10 +124,10 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: dbwork
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_ia_g, rho_ia_g_aux_fit, rho_ia_r, &
-                                                            rho_ia_r_aux_fit
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_ia_r, rho_ia_r_aux_fit
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: V_rspace_sub
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_ia_g, rho_ia_g_aux_fit
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
       TYPE(task_list_type), POINTER                      :: task_list
 
@@ -386,10 +386,10 @@ CONTAINS
             ! the Poisson equation for combined density (rho_{ia,alpha} + rho_{ia,beta}) .
             ! The following action will destroy reciprocal-space grid in spin-unrestricted case.
             DO ispin = 2, nspins
-               CALL pw_axpy(rho_ia_g(ispin)%pw, rho_ia_g(1)%pw)
+               CALL pw_axpy(rho_ia_g(ispin), rho_ia_g(1))
             END DO
             CALL tddfpt_apply_coulomb(A_ia_rspace=work_matrices%A_ia_rspace_sub, &
-                                      rho_ia_g=rho_ia_g(1)%pw, &
+                                      rho_ia_g=rho_ia_g(1), &
                                       local_rho_set=work_matrices%local_rho_set, &
                                       hartree_local=work_matrices%hartree_local, &
                                       qs_env=qs_env, sub_env=sub_env, gapw=gapw, &

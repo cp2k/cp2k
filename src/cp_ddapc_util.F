@@ -237,9 +237,10 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pool
       TYPE(pw_type)                                      :: rho_tot_g
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
       TYPE(pw_type), POINTER                             :: rho0_s_gs, rho_core
       TYPE(qs_charges_type), POINTER                     :: qs_charges
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -301,12 +302,12 @@ CONTAINS
                CALL pw_transfer(rho_core, rho_tot_g)
             END IF
             DO ispin = 1, SIZE(rho_g)
-               CALL pw_axpy(rho_g(ispin)%pw, rho_tot_g)
+               CALL pw_axpy(rho_g(ispin), rho_tot_g)
             END DO
             type_of_density = "FULL DENSITY"
          CASE (do_spin_density)
-            CALL pw_copy(rho_g(1)%pw, rho_tot_g)
-            CALL pw_axpy(rho_g(2)%pw, rho_tot_g, alpha=-1._dp)
+            CALL pw_copy(rho_g(1), rho_tot_g)
+            CALL pw_axpy(rho_g(2), rho_tot_g, alpha=-1._dp)
             type_of_density = "SPIN DENSITY"
          END SELECT
       END IF

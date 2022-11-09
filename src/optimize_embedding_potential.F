@@ -2930,9 +2930,8 @@ CONTAINS
                                                             rho_cutoff
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: rhoa, rhob
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: tau
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, tau
       TYPE(section_vals_type), POINTER                   :: input, xc_section
       TYPE(xc_rho_cflags_type)                           :: needs
       TYPE(xc_rho_set_type)                              :: rho_set
@@ -2954,11 +2953,10 @@ CONTAINS
       NULLIFY (rho_g)
       ALLOCATE (rho_g(nspins))
       DO i_spin = 1, nspins
-         ALLOCATE (rho_g(i_spin)%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, rho_g(i_spin)%pw, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, rho_g(i_spin), &
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
-         CALL pw_transfer(rho_r(i_spin)%pw, rho_g(i_spin)%pw)
+         CALL pw_transfer(rho_r(i_spin)%pw, rho_g(i_spin))
       END DO
 
       xc_section => section_vals_get_subs_vals(input, "DFT%XC")
@@ -3055,8 +3053,7 @@ CONTAINS
       CALL xc_rho_set_release(rho_set, pw_pool=auxbas_pw_pool)
 
       DO i_spin = 1, nspins
-         CALL pw_release(rho_g(i_spin)%pw)
-         DEALLOCATE (rho_g(i_spin)%pw)
+         CALL pw_release(rho_g(i_spin))
       END DO
       DEALLOCATE (rho_g)
 

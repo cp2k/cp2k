@@ -225,12 +225,12 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_g_pw, rho1_r, rho1_r_pw, &
-                                                            v_rspace_new, v_xc, v_xc_tau
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_r, rho1_r_pw, v_rspace_new, v_xc, &
+                                                            v_xc_tau
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: rho1_tot_gspace, v_hartree_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: tau1_r, tau1_r_pw
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_g, rho1_g_pw, tau1_r, tau1_r_pw
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
       TYPE(section_vals_type), POINTER                   :: input, scf_section
@@ -293,9 +293,9 @@ CONTAINS
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
 
-      CALL pw_copy(rho1_g(1)%pw, rho1_tot_gspace)
+      CALL pw_copy(rho1_g(1), rho1_tot_gspace)
       DO ispin = 2, nspins
-         CALL pw_axpy(rho1_g(ispin)%pw, rho1_tot_gspace)
+         CALL pw_axpy(rho1_g(ispin), rho1_tot_gspace)
       END DO
       IF (gapw) &
          CALL pw_axpy(p_env%local_rho_set%rho0_mpole%rho0_s_gs, rho1_tot_gspace)
@@ -603,7 +603,8 @@ CONTAINS
       INTEGER                                            :: ispin, nspins
       REAL(KIND=dp)                                      :: my_diff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_2, matrix_s, rho1_ao, rho_ao
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_r, rho_g, rho_r
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_r, rho_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_g, rho_g
       TYPE(qs_energy_type), POINTER                      :: qs_energy
 
       NULLIFY (ks_2, matrix_s, qs_energy, rho_ao, rho1_ao, rho_r, rho1_r, rho_g, rho1_g)
@@ -622,7 +623,7 @@ CONTAINS
          CALL dbcsr_add(rho_ao(ispin)%matrix, rho1_ao(ispin)%matrix, &
                         alpha_scalar=1.0_dp, beta_scalar=my_diff)
          rho_r(ispin)%pw%cr3d = rho_r(ispin)%pw%cr3d + my_diff*rho1_r(ispin)%pw%cr3d
-         rho_g(ispin)%pw%cc = rho_g(ispin)%pw%cc + my_diff*rho1_g(ispin)%pw%cc
+         rho_g(ispin)%cc = rho_g(ispin)%cc + my_diff*rho1_g(ispin)%cc
       END DO
 
       CALL qs_ks_build_kohn_sham_matrix(qs_env, &
@@ -643,7 +644,7 @@ CONTAINS
          CALL dbcsr_add(rho_ao(ispin)%matrix, rho1_ao(ispin)%matrix, &
                         alpha_scalar=1.0_dp, beta_scalar=my_diff)
          rho_r(ispin)%pw%cr3d = rho_r(ispin)%pw%cr3d + my_diff*rho1_r(ispin)%pw%cr3d
-         rho_g(ispin)%pw%cc = rho_g(ispin)%pw%cc + my_diff*rho1_g(ispin)%pw%cc
+         rho_g(ispin)%cc = rho_g(ispin)%cc + my_diff*rho1_g(ispin)%cc
       END DO
 
       CALL qs_ks_build_kohn_sham_matrix(qs_env, &
@@ -657,7 +658,7 @@ CONTAINS
          CALL dbcsr_add(rho_ao(ispin)%matrix, rho1_ao(ispin)%matrix, &
                         alpha_scalar=1.0_dp, beta_scalar=my_diff)
          rho_r(ispin)%pw%cr3d = rho_r(ispin)%pw%cr3d + my_diff*rho1_r(ispin)%pw%cr3d
-         rho_g(ispin)%pw%cc = rho_g(ispin)%pw%cc + my_diff*rho1_g(ispin)%pw%cc
+         rho_g(ispin)%cc = rho_g(ispin)%cc + my_diff*rho1_g(ispin)%cc
       END DO
 
 ! k_p_p1=(H(rho0+h/2 rho1)-H(rho0-h/2 rho1))/h

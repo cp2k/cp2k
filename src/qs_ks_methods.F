@@ -931,7 +931,7 @@ CONTAINS
       INTEGER                                            :: ispin
       LOGICAL                                            :: my_skip
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
       TYPE(pw_type), POINTER                             :: rho0_s_gs, rho_core
       TYPE(qs_charges_type), POINTER                     :: qs_charges
 
@@ -956,13 +956,13 @@ CONTAINS
             CALL pw_copy(rho_core, rho_tot_gspace)
          END IF
          DO ispin = 1, dft_control%nspins
-            CALL pw_axpy(rho_g(ispin)%pw, rho_tot_gspace)
+            CALL pw_axpy(rho_g(ispin), rho_tot_gspace)
          END DO
          CALL get_qs_env(qs_env=qs_env, qs_charges=qs_charges)
          qs_charges%total_rho_gspace = pw_integrate_function(rho_tot_gspace, isign=-1)
       ELSE
          DO ispin = 1, dft_control%nspins
-            CALL pw_axpy(rho_g(ispin)%pw, rho_tot_gspace)
+            CALL pw_axpy(rho_g(ispin), rho_tot_gspace)
          END DO
       END IF
 

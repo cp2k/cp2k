@@ -20,7 +20,8 @@ MODULE qs_tddfpt2_densities
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE pw_env_types,                    ONLY: pw_env_get
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: pw_p_type
+   USE pw_types,                        ONLY: pw_p_type,&
+                                              pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -171,7 +172,8 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_aux_fit, rho_ao_orb
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_aux_fit
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_aux_fit_g, rho_aux_fit_r
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_aux_fit_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_aux_fit_g
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(task_list_type), POINTER                      :: task_list
 
@@ -205,7 +207,7 @@ CONTAINS
          CALL copy_fm_to_dbcsr(wfm_rho_aux_fit, rho_ao_aux_fit(ispin)%matrix, keep_sparsity=.TRUE.)
 
          CALL calculate_rho_elec(matrix_p=rho_ao_aux_fit(ispin)%matrix, &
-                                 rho=rho_aux_fit_r(ispin)%pw, rho_gspace=rho_aux_fit_g(ispin)%pw, &
+                                 rho=rho_aux_fit_r(ispin)%pw, rho_gspace=rho_aux_fit_g(ispin), &
                                  total_rho=tot_rho_aux_fit_r(ispin), ks_env=ks_env, &
                                  soft_valid=.FALSE., basis_type=basis_type, &
                                  pw_env_external=sub_env%pw_env, task_list_external=task_list)

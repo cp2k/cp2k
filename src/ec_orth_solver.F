@@ -1138,13 +1138,13 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_G, matrix_s, rho1_ao, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_r, rho_r, v_xc, v_xc_tau
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_r, rho_r, v_xc, v_xc_tau
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: rho_tot_gspace, v_hartree_gspace, &
                                                             v_hartree_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: tau1_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_g, tau1_r
       TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux
       TYPE(section_vals_type), POINTER                   :: input, xc_section, xc_section_aux
@@ -1240,7 +1240,7 @@ CONTAINS
       ! take trial density to build G^{H}[B]
       CALL pw_zero(rho_tot_gspace)
       DO ispin = 1, nspins
-         CALL pw_axpy(rho1_g(ispin)%pw, rho_tot_gspace)
+         CALL pw_axpy(rho1_g(ispin), rho_tot_gspace)
       END DO
 
       ! get Hartree potential from rho_tot_gspace

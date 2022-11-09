@@ -39,7 +39,8 @@ MODULE ri_environment_methods
                                               lri_environment_type,&
                                               lri_kind_type
    USE message_passing,                 ONLY: mp_sum
-   USE pw_types,                        ONLY: pw_p_type
+   USE pw_types,                        ONLY: pw_p_type,&
+                                              pw_type
    USE qs_collocate_density,            ONLY: calculate_lri_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
@@ -372,7 +373,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: avec
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_coef
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
 
       CALL timeset(routineN, handle)
 
@@ -413,7 +415,7 @@ CONTAINS
       CALL qs_rho_get(lri_rho_struct, rho_r=rho_r, rho_g=rho_g, tot_rho_r=tot_rho_r)
       DO ispin = 1, nspin
          lri_coef => lri_density%lri_coefs(ispin)%lri_kinds
-         CALL calculate_lri_rho_elec(rho_g(ispin)%pw, rho_r(ispin)%pw, qs_env, &
+         CALL calculate_lri_rho_elec(rho_g(ispin), rho_r(ispin)%pw, qs_env, &
                                      lri_coef, tot_rho_r(ispin), "RI_HXC", .FALSE.)
       END DO
 

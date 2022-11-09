@@ -169,7 +169,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_dispersion_nonloc(vxc_rho, rho_r, rho_g, edispersion, &
                                           dispersion_env, energy_only, pw_pool, xc_pw_pool, para_env, virial)
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rho, rho_r, rho_g
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rho, rho_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
       REAL(KIND=dp), INTENT(OUT)                         :: edispersion
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       LOGICAL, INTENT(IN)                                :: energy_only
@@ -229,7 +230,7 @@ CONTAINS
          DO idir = 1, 3
             CALL pw_pool_create_pw(pw_pool, drho_r(idir, ispin), &
                                    use_data=REALDATA3D, in_space=REALSPACE)
-            CALL pw_transfer(rho_g(ispin)%pw, tmp_g)
+            CALL pw_transfer(rho_g(ispin), tmp_g)
             CALL pw_derive(tmp_g, nd(:, idir))
             CALL pw_transfer(tmp_g, drho_r(idir, ispin))
          END DO
@@ -268,7 +269,7 @@ CONTAINS
       END DO
       DO ispin = 1, nspin
          CPASSERT(rho_r(ispin)%pw%in_use == REALDATA3D)
-         CALL pw_transfer(rho_g(ispin)%pw, tmp_g)
+         CALL pw_transfer(rho_g(ispin), tmp_g)
          CALL pw_transfer(tmp_g, tmp_r)
 !$OMP PARALLEL DO DEFAULT(NONE)            &
 !$OMP             SHARED(n,lo,rho,tmp_r)   &

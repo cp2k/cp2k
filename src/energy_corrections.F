@@ -1619,14 +1619,14 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, rhoout_g, rhoout_r, &
-                                                            v_rspace, v_tau_rspace, v_xc, v_xc_tau
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, rhoout_r, v_rspace, v_tau_rspace, &
+                                                            v_xc, v_xc_tau
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: dv_hartree_rspace, rho_tot_gspace, &
                                                             rhodn_tot_gspace, v_hartree_gspace, &
                                                             v_hartree_rspace, vtot_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: tau_r, tauout_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rhoout_g, tau_r, tauout_r
       TYPE(pw_type), POINTER                             :: rho_core
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -1691,10 +1691,10 @@ CONTAINS
       NULLIFY (rhoout_r, rhoout_g)
       ALLOCATE (rhoout_r(nspins), rhoout_g(nspins))
       DO ispin = 1, nspins
-         ALLOCATE (rhoout_r(ispin)%pw, rhoout_g(ispin)%pw)
+         ALLOCATE (rhoout_r(ispin)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, rhoout_r(ispin)%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_pool_create_pw(auxbas_pw_pool, rhoout_g(ispin)%pw, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, rhoout_g(ispin), &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       END DO
       CALL pw_pool_create_pw(auxbas_pw_pool, dv_hartree_rspace, &
@@ -1706,7 +1706,7 @@ CONTAINS
       DO ispin = 1, nspins
          CALL calculate_rho_elec(ks_env=ks_env, matrix_p=ec_env%matrix_p(ispin, 1)%matrix, &
                                  rho=rhoout_r(ispin)%pw, &
-                                 rho_gspace=rhoout_g(ispin)%pw, &
+                                 rho_gspace=rhoout_g(ispin), &
                                  basis_type="HARRIS", &
                                  task_list_external=ec_env%task_list)
       END DO
@@ -1758,7 +1758,7 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, rho_core=rho_core)
          CALL pw_copy(rho_core, rhodn_tot_gspace)
          DO ispin = 1, dft_control%nspins
-            CALL pw_axpy(rhoout_g(ispin)%pw, rhodn_tot_gspace)
+            CALL pw_axpy(rhoout_g(ispin), rhodn_tot_gspace)
          END DO
 
          ! Volume and Green function terms
@@ -1819,8 +1819,8 @@ CONTAINS
       ! rho_out - rho_in
       DO ispin = 1, nspins
          CALL pw_axpy(rho_r(ispin)%pw, rhoout_r(ispin)%pw, -1.0_dp)
-         CALL pw_axpy(rho_g(ispin)%pw, rhoout_g(ispin)%pw, -1.0_dp)
-         CALL pw_axpy(rhoout_g(ispin)%pw, rhodn_tot_gspace)
+         CALL pw_axpy(rho_g(ispin), rhoout_g(ispin), -1.0_dp)
+         CALL pw_axpy(rhoout_g(ispin), rhodn_tot_gspace)
          IF (dft_control%use_kinetic_energy_density) CALL pw_axpy(tau_r(ispin), tauout_r(ispin), -1.0_dp)
       END DO
 
@@ -2123,9 +2123,9 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, vtot_rspace)
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoout_r(ispin)%pw)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoout_g(ispin)%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoout_g(ispin))
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
-         DEALLOCATE (rhoout_r(ispin)%pw, rhoout_g(ispin)%pw, v_xc(ispin)%pw)
+         DEALLOCATE (rhoout_r(ispin)%pw, v_xc(ispin)%pw)
       END DO
       DEALLOCATE (rhoout_r, rhoout_g, v_xc)
       IF (ASSOCIATED(tauout_r)) THEN

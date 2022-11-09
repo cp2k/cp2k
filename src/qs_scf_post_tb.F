@@ -1017,9 +1017,10 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -1042,7 +1043,7 @@ CONTAINS
          rho_ao => rho_ao_kp(ispin, :)
          CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
                                  rho=rho_r(ispin)%pw, &
-                                 rho_gspace=rho_g(ispin)%pw, &
+                                 rho_gspace=rho_g(ispin), &
                                  total_rho=tot_rho_r(ispin), &
                                  ks_env=ks_env)
       END DO
@@ -1164,11 +1165,12 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_poisson_parameter_type)                    :: poisson_params
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: rho_core, rho_tot_rspace, vhartree
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -1207,7 +1209,7 @@ CONTAINS
          rho_ao => rho_ao_kp(ispin, :)
          CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
                                  rho=rho_r(ispin)%pw, &
-                                 rho_gspace=rho_g(ispin)%pw, &
+                                 rho_gspace=rho_g(ispin), &
                                  total_rho=tot_rho_r(ispin), &
                                  ks_env=ks_env)
       END DO
@@ -1363,10 +1365,11 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: elf_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -1383,7 +1386,7 @@ CONTAINS
          rho_ao => rho_ao_kp(ispin, :)
          CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
                                  rho=rho_r(ispin)%pw, &
-                                 rho_gspace=rho_g(ispin)%pw, &
+                                 rho_gspace=rho_g(ispin), &
                                  total_rho=tot_rho_r(ispin), &
                                  ks_env=ks_env)
       END DO

@@ -54,7 +54,7 @@ MODULE qs_scf_initialization
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: kpoint_type
-   USE pw_types,                        ONLY: pw_p_type
+   USE pw_types,                        ONLY: pw_type
    USE qmmm_image_charge,               ONLY: conditional_calc_image_matrix
    USE qs_block_davidson_types,         ONLY: block_davidson_allocate,&
                                               block_davidson_env_create
@@ -228,7 +228,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
 
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
       TYPE(qs_rho_type), POINTER                         :: rho
 
       NULLIFY (rho_g)
@@ -247,7 +247,7 @@ CONTAINS
                CALL get_qs_env(qs_env, rho=rho)
                CALL qs_rho_get(rho, rho_g=rho_g)
                IF (ASSOCIATED(scf_env%mixing_store%rhoin)) THEN
-                  IF (SIZE(rho_g(1)%pw%pw_grid%gsq) /= SIZE(scf_env%mixing_store%rhoin(1)%cc)) THEN
+                  IF (SIZE(rho_g(1)%pw_grid%gsq) /= SIZE(scf_env%mixing_store%rhoin(1)%cc)) THEN
                      CALL mixing_storage_release(scf_env%mixing_store)
                      DEALLOCATE (scf_env%mixing_store)
                   END IF

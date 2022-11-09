@@ -1376,15 +1376,14 @@ CONTAINS
          POINTER                                         :: sab_orb, sac_ppl, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_mp2_g, rho_mp2_r, &
-                                                            rho_mp2_r_aux, rho_r, vadmm_rspace, &
-                                                            vtau_rspace, vxc_rspace
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_mp2_r, rho_mp2_r_aux, rho_r, &
+                                                            vadmm_rspace, vtau_rspace, vxc_rspace
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: pot_g, pot_r, rho_tot_g, temp_pw_g, &
                                                             vh_rspace, vhxc_rspace
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: dvg
-      TYPE(pw_type), DIMENSION(:), POINTER               :: tau_mp2_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_mp2_g, tau_mp2_r
       TYPE(pw_type), POINTER                             :: rho_core
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -1655,7 +1654,7 @@ CONTAINS
 
       CALL qs_rho_get(p_env%rho1, rho_r=rho_mp2_r, rho_g=rho_mp2_g)
       DO ispin = 1, nspins
-         CALL pw_axpy(rho_mp2_g(ispin)%pw, rho_tot_g)
+         CALL pw_axpy(rho_mp2_g(ispin), rho_tot_g)
       END DO
 
       IF (use_virial) THEN
@@ -1698,8 +1697,8 @@ CONTAINS
          CALL pw_copy(rho_tot_g, temp_pw_g)
 
          ! calculate total SCF density and potential
-         CALL pw_copy(rho_g(1)%pw, rho_tot_g)
-         IF (nspins == 2) CALL pw_axpy(rho_g(2)%pw, rho_tot_g)
+         CALL pw_copy(rho_g(1), rho_tot_g)
+         IF (nspins == 2) CALL pw_axpy(rho_g(2), rho_tot_g)
          CALL pw_axpy(rho_core, rho_tot_g)
          CALL pw_poisson_solve(poisson_env, rho_tot_g, vhartree=pot_g)
 

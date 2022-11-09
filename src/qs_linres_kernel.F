@@ -198,13 +198,13 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_r, rho_r, v_rspace_new, &
-                                                            v_xc, v_xc_tau
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_r, rho_r, v_rspace_new, v_xc, &
+                                                            v_xc_tau
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: rho1_tot_gspace, v_hartree_gspace, &
                                                             v_hartree_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: tau1_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_g, tau1_r
       TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho0, rho1, rho1_xc, rho1a, &
@@ -297,9 +297,9 @@ CONTAINS
                              in_space=RECIPROCALSPACE)
 
       CALL qs_rho_get(rho1, rho_g=rho1_g)
-      CALL pw_copy(rho1_g(1)%pw, rho1_tot_gspace)
+      CALL pw_copy(rho1_g(1), rho1_tot_gspace)
       DO ispin = 2, nspins
-         CALL pw_axpy(rho1_g(ispin)%pw, rho1_tot_gspace)
+         CALL pw_axpy(rho1_g(ispin), rho1_tot_gspace)
       END DO
       IF (gapw) &
          CALL pw_axpy(p_env%local_rho_set%rho0_mpole%rho0_s_gs, rho1_tot_gspace)
@@ -850,9 +850,9 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_aux_fit
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_aux_g, rho1_aux_r, v_xc, v_xc_tau
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_aux_r, v_xc, v_xc_tau
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: tau_pw
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_aux_g, tau_pw
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
       TYPE(section_vals_type), POINTER                   :: xc_fun_section, xc_section
       TYPE(task_list_type), POINTER                      :: task_list

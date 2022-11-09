@@ -444,8 +444,8 @@ CONTAINS
                                                                   norm_drhob, rho_1_3, rhoa_1_3, &
                                                                   rhob_1_3, laplace_rho, laplace_rhoa, &
                                                                   laplace_rhob, tau, tau_a, tau_b
-            TYPE(pw_grid_type), POINTER, INTENT(IN) :: pw_grid
-            TYPE(pw_pool_type), POINTER, INTENT(IN) :: pw_pool
+            TYPE(pw_grid_type), POINTER, INTENT(IN)            :: pw_grid
+            TYPE(pw_pool_type), POINTER, INTENT(IN)            :: pw_pool
             LOGICAL, INTENT(OUT) :: owns_data
 
             INTEGER                                            :: i
@@ -613,8 +613,8 @@ CONTAINS
                                       xc_deriv_method_id, xc_rho_smooth_id, pw_pool)
             TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho_set
             TYPE(pw_p_type), DIMENSION(:), INTENT(IN)          :: rho_r
-            TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g
-            TYPE(pw_type), DIMENSION(:), POINTER, INTENT(IN) :: tau
+            TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
+            TYPE(pw_type), DIMENSION(:), POINTER, INTENT(IN)   :: tau
             TYPE(xc_rho_cflags_type), INTENT(in)               :: needs
             INTEGER, INTENT(IN)                                :: xc_deriv_method_id, xc_rho_smooth_id
             TYPE(pw_pool_type), POINTER                        :: pw_pool
@@ -692,7 +692,7 @@ CONTAINS
                   IF (needs_rho_g) THEN
                      IF (ASSOCIATED(rho_g)) THEN
                         my_rho_g_local = .FALSE.
-                        my_rho_g = rho_g(ispin)%pw
+                        my_rho_g = rho_g(ispin)
                      END IF
                   END IF
 
@@ -722,7 +722,7 @@ CONTAINS
                         CALL pw_pool_create_pw(pw_pool, my_rho_g, &
                                                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
                         my_rho_g_local = .TRUE.
-                        CALL pw_copy(rho_g(ispin)%pw, my_rho_g)
+                        CALL pw_copy(rho_g(ispin), my_rho_g)
                      END IF
                   END IF
                   IF (needs%laplace_rho .OR. needs%laplace_rho_spin) THEN

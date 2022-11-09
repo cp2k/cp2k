@@ -101,8 +101,8 @@ CONTAINS
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL                                            :: lsd
       REAL(KIND=dp)                                      :: fac
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho0_g, rho0_r, rho1_g
-      TYPE(pw_type), DIMENSION(:), POINTER               :: tau0_r
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho0_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho0_g, rho1_g, tau0_r
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
       TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_rho_cflags_type)                           :: needs

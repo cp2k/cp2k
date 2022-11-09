@@ -85,16 +85,13 @@ CONTAINS
 
       SELECT CASE (pw%in_use)
       CASE (REALDATA1D)
-         DEALLOCATE (pw%cr)
+         IF (ASSOCIATED(pw%cr)) DEALLOCATE (pw%cr)
       CASE (COMPLEXDATA1D)
-         DEALLOCATE (pw%cc)
+         IF (ASSOCIATED(pw%cc)) DEALLOCATE (pw%cc)
       CASE (REALDATA3D)
-         IF (ASSOCIATED(pw%cr3d)) THEN
-            !FM optimizations of pools might have removed the 3d field to cache it
-            DEALLOCATE (pw%cr3d)
-         END IF
+         IF (ASSOCIATED(pw%cr3d)) DEALLOCATE (pw%cr3d)
       CASE (COMPLEXDATA3D)
-         DEALLOCATE (pw%cc3d)
+         IF (ASSOCIATED(pw%cc3d)) DEALLOCATE (pw%cc3d)
       CASE (NODATA)
       CASE default
          CPABORT("unknown data type "//cp_to_string(pw%in_use))

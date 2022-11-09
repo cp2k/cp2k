@@ -71,7 +71,8 @@ MODULE qs_p_env_methods
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE preconditioner_types,            ONLY: init_preconditioner
    USE pw_env_types,                    ONLY: pw_env_type
-   USE pw_types,                        ONLY: pw_p_type
+   USE pw_types,                        ONLY: pw_p_type,&
+                                              pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -408,7 +409,8 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_aux_fit
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g_aux, rho_r_aux
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r_aux
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g_aux
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(task_list_type), POINTER                      :: task_list
 
@@ -448,7 +450,7 @@ CONTAINS
                CALL calculate_rho_elec(ks_env=ks_env, &
                                        matrix_p=rho1_ao(ispin)%matrix, &
                                        rho=rho_r_aux(ispin)%pw, &
-                                       rho_gspace=rho_g_aux(ispin)%pw, &
+                                       rho_gspace=rho_g_aux(ispin), &
                                        soft_valid=.FALSE., &
                                        basis_type=basis_type, &
                                        task_list_external=task_list)

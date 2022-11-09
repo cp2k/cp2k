@@ -174,10 +174,10 @@ CONTAINS
                                                             mo_coeff
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, vxc, vxc_tau
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, vxc, vxc_tau
       TYPE(pw_pool_type), POINTER                        :: xc_pw_pool
       TYPE(pw_type)                                      :: work_v_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: tau
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, tau
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: input, low_spin_roks_section, xc_section
@@ -278,11 +278,11 @@ CONTAINS
       ALLOCATE (rho_r(Nspin))
       ALLOCATE (rho_g(Nspin))
       DO ispin = 1, Nspin
-         ALLOCATE (rho_r(ispin)%pw, rho_g(ispin)%pw)
+         ALLOCATE (rho_r(ispin)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, rho_r(ispin)%pw, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
-         CALL pw_pool_create_pw(auxbas_pw_pool, rho_g(ispin)%pw, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, rho_g(ispin), &
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
       END DO
@@ -315,7 +315,7 @@ CONTAINS
                                 0.0_dp, matrix_p(ispin)%matrix, retain_sparsity=.TRUE.)
             ! compute the densities on the grid
             CALL calculate_rho_elec(matrix_p=matrix_p(ispin)%matrix, &
-                                    rho=rho_r(ispin)%pw, rho_gspace=rho_g(ispin)%pw, &
+                                    rho=rho_r(ispin)%pw, rho_gspace=rho_g(ispin), &
                                     ks_env=ks_env)
          END DO
 
@@ -366,8 +366,8 @@ CONTAINS
       ! release allocated memory
       DO ispin = 1, Nspin
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r(ispin)%pw)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g(ispin)%pw)
-         DEALLOCATE (rho_r(ispin)%pw, rho_g(ispin)%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g(ispin))
+         DEALLOCATE (rho_r(ispin)%pw)
       END DO
       DEALLOCATE (rho_r, rho_g)
       CALL dbcsr_deallocate_matrix_set(matrix_p)
@@ -424,10 +424,10 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: orb_density_matrix, orb_h
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, vxc, vxc_tau
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, vxc, vxc_tau
       TYPE(pw_pool_type), POINTER                        :: xc_pw_pool
       TYPE(pw_type)                                      :: work_v_gspace, work_v_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: tau
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, tau
       TYPE(pw_type), TARGET                              :: orb_rho_g, orb_rho_r, tmp_g, tmp_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -598,8 +598,8 @@ CONTAINS
       CALL pw_zero(tmp_r)
 
       ALLOCATE (rho_g(2))
-      rho_g(1)%pw => orb_rho_g
-      rho_g(2)%pw => tmp_g
+      rho_g(1) = orb_rho_g
+      rho_g(2) = tmp_g
       CALL pw_zero(tmp_g)
 
       NULLIFY (vxc)
@@ -723,8 +723,8 @@ CONTAINS
       REAL(kind=dp)                                      :: ener, full_scaling, scaling
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: store_forces
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g
       TYPE(pw_type)                                      :: work_rho, work_v
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
 
       NULLIFY (mo_array, rho_g)
@@ -750,8 +750,8 @@ CONTAINS
       ! Hartree sic corrections
       SELECT CASE (dft_control%sic_method_id)
       CASE (sic_mauri_us, sic_mauri_spz)
-         CALL pw_copy(rho_g(1)%pw, work_rho)
-         CALL pw_axpy(rho_g(2)%pw, work_rho, alpha=-1._dp)
+         CALL pw_copy(rho_g(1), work_rho)
+         CALL pw_axpy(rho_g(2), work_rho, alpha=-1._dp)
          CALL pw_poisson_solve(poisson_env, work_rho, ener, work_v)
       CASE (sic_ad)
          ! find out how many elecs we have
@@ -759,8 +759,8 @@ CONTAINS
          CALL get_mo_set(mo_set=mo_array(1)%mo_set, nelectron=nelec_a)
          CALL get_mo_set(mo_set=mo_array(2)%mo_set, nelectron=nelec_b)
          nelec = nelec_a + nelec_b
-         CALL pw_copy(rho_g(1)%pw, work_rho)
-         CALL pw_axpy(rho_g(2)%pw, work_rho)
+         CALL pw_copy(rho_g(1), work_rho)
+         CALL pw_axpy(rho_g(2), work_rho)
          scaling = 1.0_dp/REAL(nelec, KIND=dp)
          CALL pw_scale(work_rho, scaling)
          CALL pw_poisson_solve(poisson_env, work_rho, ener, work_v)
@@ -1661,10 +1661,11 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_ext_r
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_ext_g, rho_g, rho_r
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: v_xc_rspace
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_ext_g, rho_g
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(section_vals_type), POINTER                   :: ext_den_section, input
 
@@ -1718,14 +1719,14 @@ CONTAINS
             CALL pw_zero(rho_eff_gspace)
             CALL pw_zero(v_xc_gspace)
             CALL pw_zero(v_xc_rspace)
-            factor = pw_integrate_function(rho_g(1)%pw)
+            factor = pw_integrate_function(rho_g(1))
             CALL qs_rho_get(qs_env%rho_external, &
                             rho_g=rho_ext_g, &
                             tot_rho_r=tot_rho_ext_r)
             factor = tot_rho_ext_r(1)/factor
 
-            CALL pw_axpy(rho_g(1)%pw, rho_eff_gspace, alpha=factor)
-            CALL pw_axpy(rho_ext_g(1)%pw, rho_eff_gspace, alpha=-1.0_dp)
+            CALL pw_axpy(rho_g(1), rho_eff_gspace, alpha=factor)
+            CALL pw_axpy(rho_ext_g(1), rho_eff_gspace, alpha=-1.0_dp)
             ext_den_section => section_vals_get_subs_vals(input, "DFT%EXTERNAL_DENSITY")
             CALL section_vals_val_get(ext_den_section, "LAMBDA", r_val=lambda)
             CALL section_vals_val_get(ext_den_section, "ZMP_CONSTRAINT", i_val=my_val)
@@ -1734,7 +1735,7 @@ CONTAINS
             CALL pw_scale(rho_eff_gspace, a=lambda)
             nelectron = nelectron_spin(1)
             factor = -1.0_dp/nelectron
-            CALL pw_axpy(rho_g(1)%pw, rho_eff_gspace, alpha=factor)
+            CALL pw_axpy(rho_g(1), rho_eff_gspace, alpha=factor)
 
             CALL pw_poisson_solve(poisson_env, rho_eff_gspace, vhartree=v_xc_gspace)
             CALL pw_transfer(v_xc_gspace, v_rspace_new(1)%pw)
