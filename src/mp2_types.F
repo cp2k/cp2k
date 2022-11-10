@@ -235,6 +235,7 @@ MODULE mp2_types
       REAL(dp)                 :: eps_canonical
       LOGICAL                  :: free_hfx_buffer
       LOGICAL                  :: use_old_grad
+      INTEGER :: dot_blksize
    END TYPE
 
    TYPE mp2_type

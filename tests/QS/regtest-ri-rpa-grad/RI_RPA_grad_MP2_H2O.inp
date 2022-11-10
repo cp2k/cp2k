@@ -61,6 +61,11 @@
             REL_CUTOFF 20
           &END WFC_GPW
         &END INTEGRALS
+        &CANONICAL_GRADIENTS
+          EPS_CANONICAL 0.1
+          # Just for testing, use it only if you need the accuracy
+          DOT_PRODUCT_BLKSIZE 1
+        &END
         MEMORY  200.
         NUMBER_PROC  1
       &END

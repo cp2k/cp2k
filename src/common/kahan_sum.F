@@ -30,12 +30,13 @@ MODULE kahan_sum
 
    IMPLICIT NONE
    PRIVATE
-   PUBLIC :: accurate_dot_product, accurate_sum
+   PUBLIC :: accurate_dot_product, accurate_sum, accurate_dot_product_2
    INTEGER, PARAMETER :: sp = KIND(0.0), dp = KIND(0.0D0)
    REAL(KIND=sp), PARAMETER :: szero = 0.0_sp
    REAL(KIND=dp), PARAMETER :: dzero = 0.0_dp
    COMPLEX(KIND=sp), PARAMETER :: czero = (0.0_sp, 0.0_sp)
    COMPLEX(KIND=dp), PARAMETER :: zzero = (0.0_dp, 0.0_dp)
+   INTEGER, PARAMETER :: dblksize = 8
 
    INTERFACE accurate_sum
       MODULE PROCEDURE &
@@ -54,6 +55,11 @@ MODULE kahan_sum
          kahan_dot_product_s2, kahan_dot_product_d2, kahan_dot_product_z2, &
          kahan_dot_product_d3, kahan_dot_product_masked_d3
    END INTERFACE accurate_dot_product
+
+   INTERFACE accurate_dot_product_2
+      MODULE PROCEDURE kahan_blocked_dot_product_d1
+   END INTERFACE
+
 CONTAINS
 ! **************************************************************************************************
 !> \brief ...
@@ -136,17 +142,30 @@ CONTAINS
       REAL(KIND=dp)                                      :: ks
 
       INTEGER                                            :: i, n
-      REAL(KIND=dp)                                      :: c, t, y
+      REAL(KIND=dp), DIMENSION(dblksize)                 :: c, ks_local, t, y
 
-      ks = dzero; t = dzero; y = dzero; c = dzero
+      t = dzero; y = dzero; c = dzero; ks_local = dzero
 
       n = SIZE(array1)
-      DO i = 1, n
-         y = array1(i)*array2(i) - c
-         t = ks + y
-         c = (t - ks) - y
-         ks = t
+      DO i = 1, MOD(n, dblksize)
+         y(1) = array1(i)*array2(i) - c(1)
+         t(1) = ks_local(1) + y(1)
+         c(1) = (t(1) - ks_local(1)) - y(1)
+         ks_local(1) = t(1)
       END DO
+      DO i = MOD(n, dblksize) + 1, n, dblksize
+         y = array1(i:i + (dblksize - 1))*array2(i:i + (dblksize - 1)) - c
+         t = ks_local + y
+         c = (t - ks_local) - y
+         ks_local = t
+      END DO
+      DO i = 2, dblksize
+         y(1) = ks_local(i) - (c(1) + c(i))
+         t(1) = ks_local(1) + y(1)
+         c(1) = (t(1) - ks_local(1)) - y(1)
+         ks_local(1) = t(1)
+      END DO
+      ks = ks_local(1)
    END FUNCTION kahan_dot_product_d1
 
 ! **************************************************************************************************
@@ -1569,5 +1588,51 @@ CONTAINS
          END DO
       END IF
    END FUNCTION kahan_sum_z7
+
+! **************************************************************************************************
+!> \brief computes the accurate sum of blocks of regular dot products
+!> \param array1 array of real numbers
+!> \param array2 another array of real numbers
+!> \param blksize ...
+!> \return dot product
+! **************************************************************************************************
+   FUNCTION kahan_blocked_dot_product_d1(array1, array2, blksize) RESULT(ks)
+      REAL(KIND=dp), DIMENSION(:), INTENT(in)            :: array1, array2
+      INTEGER, INTENT(IN), OPTIONAL                      :: blksize
+      REAL(KIND=dp)                                      :: ks
+
+      INTEGER                                            :: my_blksize
+      REAL(KIND=dp)                                      :: DDOT
+
+      my_blksize = 32
+      IF (PRESENT(blksize)) my_blksize = blksize
+
+      IF (my_blksize <= 1) THEN
+         ! The original should be faster
+         ks = accurate_dot_product(array1, array2)
+      ELSE IF (my_blksize >= SIZE(array1)) THEN
+         ! Just use standard dot product from BLAS for performance
+         ks = DDOT(SIZE(array1), array1(1), 1, array2(1), 1)
+      ELSE
+         ks = 0.0_dp
+         BLOCK
+            INTEGER :: i, n, stripesize
+            REAL(KIND=dp)                                      :: c, dotproduct, t, y
+            t = dzero; y = dzero; c = dzero
+
+            n = SIZE(array1)
+            DO i = 1, n, my_blksize
+               ! Remove 1 to save an operation in the length
+               stripesize = MIN(my_blksize, n - i + 1)
+               ! Perform dot product on the given stripe
+               dotproduct = DDOT(stripesize, array1(i), 1, array2(i), 1)
+               y = dotproduct - c
+               t = ks + y
+               c = (t - ks) - y
+               ks = t
+            END DO
+         END BLOCK
+      END IF
+   END FUNCTION kahan_blocked_dot_product_d1
 
 END MODULE kahan_sum
