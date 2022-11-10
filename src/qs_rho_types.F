@@ -24,8 +24,7 @@ MODULE qs_rho_types
                                               kpoint_transitional_type,&
                                               set_1d_pointer,&
                                               set_2d_pointer
-   USE pw_types,                        ONLY: pw_p_type,&
-                                              pw_release,&
+   USE pw_types,                        ONLY: pw_release,&
                                               pw_type
 #include "./base/base_uses.f90"
 
@@ -55,9 +54,6 @@ MODULE qs_rho_types
 !> \param rho_g_valid , rho_r_valid, tau_r_valid, tau_g_valid: if the
 !>        corresponding component is valid
 !> \param tot_rho_r the total charge in r space (valid only if rho_r is)
-!> \note
-!>      If pw_p_type would implement retain/release it would be nice to
-!>      store also the core charge and the qs_charges in this structure...
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed

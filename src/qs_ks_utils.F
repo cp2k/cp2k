@@ -99,7 +99,6 @@ MODULE qs_ks_utils
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_cdft_types,                   ONLY: cdft_control_type
    USE qs_charges_types,                ONLY: qs_charges_type
@@ -1206,7 +1205,7 @@ CONTAINS
                                                             v_tau_rspace, v_tau_rspace_aux_fit
       TYPE(pw_type), POINTER                             :: v_efield_rspace, v_sic_rspace, &
                                                             v_spin_ddapc_rest_r, v_sccs_rspace
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace_embed
+      TYPE(pw_type), DIMENSION(:), POINTER               :: v_rspace_embed
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       LOGICAL, INTENT(in)                                :: calculate_forces
 
@@ -1384,10 +1383,9 @@ CONTAINS
             ! DFT embedding
             IF (dft_control%apply_embed_pot) THEN
                v_rspace_new(ispin)%cr3d = v_rspace_new(ispin)%cr3d + &
-                                          v_rspace_embed(ispin)%pw%pw_grid%dvol* &
-                                          v_rspace_embed(ispin)%pw%cr3d
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_embed(ispin)%pw)
-               DEALLOCATE (v_rspace_embed(ispin)%pw)
+                                          v_rspace_embed(ispin)%pw_grid%dvol* &
+                                          v_rspace_embed(ispin)%cr3d
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_embed(ispin))
             END IF
             IF (lrigpw) THEN
                lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
@@ -1462,10 +1460,9 @@ CONTAINS
             ! DFT embedding
             IF (dft_control%apply_embed_pot) THEN
                v_rspace%cr3d = v_rspace%cr3d + &
-                               v_rspace_embed(ispin)%pw%pw_grid%dvol* &
-                               v_rspace_embed(ispin)%pw%cr3d
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_embed(ispin)%pw)
-               DEALLOCATE (v_rspace_embed(ispin)%pw)
+                               v_rspace_embed(ispin)%pw_grid%dvol* &
+                               v_rspace_embed(ispin)%cr3d
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_embed(ispin))
             END IF
             IF (lrigpw) THEN
                lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
@@ -1767,7 +1764,7 @@ CONTAINS
                                          just_energy)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace_embed
+      TYPE(pw_type), DIMENSION(:), POINTER               :: v_rspace_embed
       TYPE(dft_control_type), POINTER                    :: dft_control
       REAL(KIND=dp)                                      :: embed_corr
       LOGICAL                                            :: just_energy
@@ -1796,32 +1793,31 @@ CONTAINS
       embed_corr = 0.0_dp
 
       DO ispin = 1, dft_control%nspins
-         ALLOCATE (v_rspace_embed(ispin)%pw)
-         CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=v_rspace_embed(ispin)%pw, &
+         CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=v_rspace_embed(ispin), &
                                 use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_zero(v_rspace_embed(ispin)%pw)
+         CALL pw_zero(v_rspace_embed(ispin))
          ns1 = SIZE(qs_env%embed_pot%cr3d)
-         ns2 = SIZE(v_rspace_embed(ispin)%pw%cr3d)
+         ns2 = SIZE(v_rspace_embed(ispin)%cr3d)
          IF (ns1 .NE. ns2) CPABORT("Subsystem grids must be identical")
 
-         v_rspace_embed(ispin)%pw%cr3d(:, :, :) = qs_env%embed_pot%cr3d
+         v_rspace_embed(ispin)%cr3d(:, :, :) = qs_env%embed_pot%cr3d
          embed_corr_local = 0.0_dp
 
          ! Spin embedding potential in open-shell case
          IF (dft_control%nspins .EQ. 2) THEN
             ns1 = SIZE(qs_env%spin_embed_pot%cr3d)
             IF (ns1 .NE. ns2) CPABORT("Subsystem grids must be identical")
-            IF (ispin .EQ. 1) v_rspace_embed(ispin)%pw%cr3d(:, :, :) = &
-               v_rspace_embed(ispin)%pw%cr3d(:, :, :) + qs_env%spin_embed_pot%cr3d
-            IF (ispin .EQ. 2) v_rspace_embed(ispin)%pw%cr3d(:, :, :) = &
-               v_rspace_embed(ispin)%pw%cr3d(:, :, :) - qs_env%spin_embed_pot%cr3d
+            IF (ispin .EQ. 1) v_rspace_embed(ispin)%cr3d(:, :, :) = &
+               v_rspace_embed(ispin)%cr3d(:, :, :) + qs_env%spin_embed_pot%cr3d
+            IF (ispin .EQ. 2) v_rspace_embed(ispin)%cr3d(:, :, :) = &
+               v_rspace_embed(ispin)%cr3d(:, :, :) - qs_env%spin_embed_pot%cr3d
          END IF
          ! Integrate the density*potential
-         embed_corr_local = accurate_dot_product(v_rspace_embed(ispin)%pw%cr3d, rho_r(ispin)%cr3d)* &
-                            v_rspace_embed(ispin)%pw%pw_grid%dvol
+         embed_corr_local = accurate_dot_product(v_rspace_embed(ispin)%cr3d, rho_r(ispin)%cr3d)* &
+                            v_rspace_embed(ispin)%pw_grid%dvol
 
-         IF (v_rspace_embed(ispin)%pw%pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
-            CALL mp_sum(embed_corr_local, v_rspace_embed(ispin)%pw%pw_grid%para%group)
+         IF (v_rspace_embed(ispin)%pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
+            CALL mp_sum(embed_corr_local, v_rspace_embed(ispin)%pw_grid%para%group)
          END IF
 
          embed_corr = embed_corr + embed_corr_local
@@ -1831,8 +1827,7 @@ CONTAINS
       ! If only energy requiested we delete the potential
       IF (just_energy) THEN
          DO ispin = 1, dft_control%nspins
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_embed(ispin)%pw)
-            DEALLOCATE (v_rspace_embed(ispin)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_embed(ispin))
          END DO
          DEALLOCATE (v_rspace_embed)
       END IF

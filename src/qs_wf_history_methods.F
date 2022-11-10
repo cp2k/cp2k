@@ -196,18 +196,16 @@ CONTAINS
          IF (.NOT. ASSOCIATED(snapshot%rho_r)) THEN
             ALLOCATE (snapshot%rho_r(nspins))
             DO ispin = 1, nspins
-               ALLOCATE (snapshot%rho_r(ispin)%pw)
-               CALL pw_pool_create_pw(auxbas_pw_pool, snapshot%rho_r(ispin)%pw, &
+               CALL pw_pool_create_pw(auxbas_pw_pool, snapshot%rho_r(ispin), &
                                       in_space=REALSPACE, use_data=REALDATA3D)
             END DO
          END IF
          DO ispin = 1, nspins
-            CALL pw_copy(rho_r(ispin), snapshot%rho_r(ispin)%pw)
+            CALL pw_copy(rho_r(ispin), snapshot%rho_r(ispin))
          END DO
       ELSE IF (ASSOCIATED(snapshot%rho_r)) THEN
          DO ispin = 1, SIZE(snapshot%rho_r)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, snapshot%rho_r(ispin)%pw)
-            DEALLOCATE (snapshot%rho_r(ispin)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, snapshot%rho_r(ispin))
          END DO
          DEALLOCATE (snapshot%rho_r)
       END IF
@@ -218,18 +216,16 @@ CONTAINS
          IF (.NOT. ASSOCIATED(snapshot%rho_g)) THEN
             ALLOCATE (snapshot%rho_g(nspins))
             DO ispin = 1, nspins
-               ALLOCATE (snapshot%rho_g(ispin)%pw)
-               CALL pw_pool_create_pw(auxbas_pw_pool, snapshot%rho_g(ispin)%pw, &
+               CALL pw_pool_create_pw(auxbas_pw_pool, snapshot%rho_g(ispin), &
                                       in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D)
             END DO
          END IF
          DO ispin = 1, nspins
-            CALL pw_copy(rho_g(ispin), snapshot%rho_g(ispin)%pw)
+            CALL pw_copy(rho_g(ispin), snapshot%rho_g(ispin))
          END DO
       ELSE IF (ASSOCIATED(snapshot%rho_g)) THEN
          DO ispin = 1, SIZE(snapshot%rho_g)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, snapshot%rho_g(ispin)%pw)
-            DEALLOCATE (snapshot%rho_g(ispin)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, snapshot%rho_g(ispin))
          END DO
          DEALLOCATE (snapshot%rho_g)
       END IF

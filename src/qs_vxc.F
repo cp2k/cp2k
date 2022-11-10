@@ -537,60 +537,44 @@ CONTAINS
          !
          ! cleanups
          !
-         IF (uf_grid) THEN
-            IF (ASSOCIATED(vxc_rho)) THEN
-               DO ispin = 1, SIZE(vxc_rho)
-                  NULLIFY (tmp_pw, tmp_g, tmp_g2)
-                  ALLOCATE (tmp_pw, tmp_g, tmp_g2)
-                  CALL pw_pool_create_pw(auxbas_pw_pool, tmp_pw, &
-                                         in_space=REALSPACE, use_data=REALDATA3D)
-                  CALL pw_pool_create_pw(xc_pw_pool, tmp_g, &
-                                         in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D)
-                  CALL pw_pool_create_pw(auxbas_pw_pool, tmp_g2, &
-                                         in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D)
-                  CALL pw_transfer(vxc_rho(ispin), tmp_g)
-                  CALL pw_transfer(tmp_g, tmp_g2)
-                  CALL pw_transfer(tmp_g2, tmp_pw)
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, tmp_g2)
-                  CALL pw_pool_give_back_pw(xc_pw_pool, tmp_g)
-                  CALL pw_pool_give_back_pw(xc_pw_pool, vxc_rho(ispin))
-                  DEALLOCATE (tmp_g2, tmp_g)
-                  NULLIFY (tmp_g2, tmp_g)
-                  vxc_rho(ispin) = tmp_pw
-                  DEALLOCATE (tmp_pw)
-               END DO
-            END IF
-            IF (ASSOCIATED(vxc_tau)) THEN
-               DO ispin = 1, SIZE(vxc_tau)
-                  NULLIFY (tmp_pw, tmp_g, tmp_g2)
-                  ALLOCATE (tmp_pw, tmp_g, tmp_g2)
-                  CALL pw_pool_create_pw(auxbas_pw_pool, tmp_pw, &
-                                         in_space=REALSPACE, use_data=REALDATA3D)
-                  CALL pw_pool_create_pw(xc_pw_pool, tmp_g, &
-                                         in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D)
-                  CALL pw_pool_create_pw(auxbas_pw_pool, tmp_g2, &
-                                         in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D)
-                  CALL pw_transfer(vxc_tau(ispin), tmp_g)
-                  CALL pw_transfer(tmp_g, tmp_g2)
-                  CALL pw_transfer(tmp_g2, tmp_pw)
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, tmp_g2)
-                  CALL pw_pool_give_back_pw(xc_pw_pool, tmp_g)
-                  CALL pw_pool_give_back_pw(xc_pw_pool, vxc_tau(ispin))
-                  DEALLOCATE (tmp_g2, tmp_g)
-                  NULLIFY (tmp_g2, tmp_g)
-                  vxc_tau(ispin) = tmp_pw
-                  DEALLOCATE (tmp_pw)
-               END DO
-            END IF
-
+         IF (uf_grid .AND. (ASSOCIATED(vxc_rho) .OR. ASSOCIATED(vxc_tau))) THEN
+            BLOCK
+               TYPE(pw_type) :: tmp_pw, tmp_g, tmp_g2
+               CALL pw_pool_create_pw(xc_pw_pool, tmp_g, &
+                                      in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D)
+               CALL pw_pool_create_pw(auxbas_pw_pool, tmp_g2, &
+                                      in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D)
+               IF (ASSOCIATED(vxc_rho)) THEN
+                  DO ispin = 1, SIZE(vxc_rho)
+                     CALL pw_pool_create_pw(auxbas_pw_pool, tmp_pw, &
+                                            in_space=REALSPACE, use_data=REALDATA3D)
+                     CALL pw_transfer(vxc_rho(ispin), tmp_g)
+                     CALL pw_transfer(tmp_g, tmp_g2)
+                     CALL pw_transfer(tmp_g2, tmp_pw)
+                     CALL pw_pool_give_back_pw(xc_pw_pool, vxc_rho(ispin))
+                     vxc_rho(ispin) = tmp_pw
+                  END DO
+               END IF
+               IF (ASSOCIATED(vxc_tau)) THEN
+                  DO ispin = 1, SIZE(vxc_tau)
+                     CALL pw_pool_create_pw(auxbas_pw_pool, tmp_pw, &
+                                            in_space=REALSPACE, use_data=REALDATA3D)
+                     CALL pw_transfer(vxc_tau(ispin), tmp_g)
+                     CALL pw_transfer(tmp_g, tmp_g2)
+                     CALL pw_transfer(tmp_g2, tmp_pw)
+                     CALL pw_pool_give_back_pw(xc_pw_pool, vxc_tau(ispin))
+                     vxc_tau(ispin) = tmp_pw
+                  END DO
+               END IF
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, tmp_g2)
+               CALL pw_pool_give_back_pw(xc_pw_pool, tmp_g)
+            END BLOCK
          END IF
-         IF (ASSOCIATED(tau)) THEN
-            IF (uf_grid) THEN
-               DO ispin = 1, SIZE(tau)
-                  CALL pw_pool_give_back_pw(xc_pw_pool, tau(ispin))
-               END DO
-               DEALLOCATE (tau)
-            END IF
+         IF (ASSOCIATED(tau) .AND. uf_grid) THEN
+            DO ispin = 1, SIZE(tau)
+               CALL pw_pool_give_back_pw(xc_pw_pool, tau(ispin))
+            END DO
+            DEALLOCATE (tau)
          END IF
 
       END IF

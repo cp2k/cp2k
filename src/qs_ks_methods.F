@@ -86,7 +86,6 @@ MODULE qs_ks_methods
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_release,&
                                               pw_type
    USE qmmm_image_charge,               ONLY: add_image_pot_to_hartree_pot,&
@@ -204,11 +203,10 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace_embed
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: rho_tot_gspace, v_hartree_gspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r, v_rspace_new, &
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r, v_rspace_embed, v_rspace_new, &
                                                             v_rspace_new_aux_fit, v_tau_rspace, &
                                                             v_tau_rspace_aux_fit
       TYPE(pw_type), POINTER :: rho0_s_rs, rho_core, rho_nlcc, v_efield_rspace, v_hartree_rspace, &
@@ -751,16 +749,14 @@ CONTAINS
             END DO
             IF (cdft_control%atomic_charges) THEN
                DO iatom = 1, cdft_control%natoms
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%charge(iatom)%pw)
-                  DEALLOCATE (cdft_control%charge(iatom)%pw)
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%charge(iatom))
                END DO
                DEALLOCATE (cdft_control%charge)
             END IF
             IF (cdft_control%type == outer_scf_becke_constraint .AND. &
                 cdft_control%becke_control%cavity_confine) THEN
                IF (.NOT. ASSOCIATED(cdft_control%becke_control%cavity_mat)) THEN
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%becke_control%cavity%pw)
-                  DEALLOCATE (cdft_control%becke_control%cavity%pw)
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%becke_control%cavity)
                ELSE
                   DEALLOCATE (cdft_control%becke_control%cavity_mat)
                END IF

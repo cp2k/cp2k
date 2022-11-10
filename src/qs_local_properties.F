@@ -45,7 +45,6 @@ MODULE qs_local_properties
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_core_energies,                ONLY: calculate_ptrace
@@ -263,7 +262,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qs_local_stress(qs_env, stress_tensor, beta)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_p_type), DIMENSION(:, :), INTENT(INOUT), &
+      TYPE(pw_type), DIMENSION(:, :), INTENT(INOUT), &
          OPTIONAL                                        :: stress_tensor
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: beta
 
@@ -331,7 +330,7 @@ CONTAINS
       IF (do_stress) THEN
          DO i = 1, 3
             DO j = 1, 3
-               CALL pw_zero(stress_tensor(i, j)%pw)
+               CALL pw_zero(stress_tensor(i, j))
             END DO
          END DO
       END IF

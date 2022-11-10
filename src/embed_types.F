@@ -43,8 +43,7 @@ MODULE embed_types
                                               particle_list_release,&
                                               particle_list_type
    USE particle_types,                  ONLY: particle_type
-   USE pw_types,                        ONLY: pw_p_type,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -78,8 +77,8 @@ MODULE embed_types
                                                    grad_norm, vw_cutoff, vw_smooth_cutoff_range, eta
       TYPE(pw_type), POINTER                  :: const_pot => NULL(), prev_embed_pot => NULL(), &
                                                  prev_spin_embed_pot => NULL(), pot_diff => NULL()
-      TYPE(pw_p_type), DIMENSION(:), POINTER    :: prev_grid_grad => NULL(), prev_grid_pot => NULL(), &
-                                                   prev_subsys_dens => NULL(), v_w => NULL()
+      TYPE(pw_type), DIMENSION(:), POINTER    :: prev_grid_grad => NULL(), prev_grid_pot => NULL(), &
+                                                 prev_subsys_dens => NULL(), v_w => NULL()
       REAL(KIND=dp)                             :: reg_term, trust_rad, conv_max, conv_int, &
                                                    conv_max_spin, conv_int_spin, step_len
       LOGICAL                                   :: accept_step, newton_step, level_shift, steep_desc, &

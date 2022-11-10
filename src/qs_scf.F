@@ -1158,16 +1158,14 @@ CONTAINS
          END DO
          IF (cdft_control%atomic_charges) THEN
             DO iatom = 1, cdft_control%natoms
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%charge(iatom)%pw)
-               DEALLOCATE (cdft_control%charge(iatom)%pw)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%charge(iatom))
             END DO
             DEALLOCATE (cdft_control%charge)
          END IF
          IF (cdft_control%type == outer_scf_becke_constraint .AND. &
              cdft_control%becke_control%cavity_confine) THEN
             IF (.NOT. ASSOCIATED(cdft_control%becke_control%cavity_mat)) THEN
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%becke_control%cavity%pw)
-               DEALLOCATE (cdft_control%becke_control%cavity%pw)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%becke_control%cavity)
             ELSE
                DEALLOCATE (cdft_control%becke_control%cavity_mat)
             END IF

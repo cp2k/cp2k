@@ -27,8 +27,7 @@ MODULE qs_cdft_types
                                               dp
    USE outer_scf_control_types,         ONLY: outer_scf_control_type,&
                                               qs_outer_scf_type
-   USE pw_types,                        ONLY: pw_p_type,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_type
    USE qs_cdft_opt_types,               ONLY: cdft_opt_type_release
 #include "./base/base_uses.f90"
 
@@ -91,7 +90,7 @@ MODULE qs_cdft_types
          DIMENSION(:, :, :)                :: cavity_mat
       TYPE(becke_vector_buffer)            :: vector_buffer
       TYPE(hirshfeld_type), POINTER        :: cavity_env
-      TYPE(pw_p_type)                      :: cavity
+      TYPE(pw_type)                      :: cavity
    END TYPE becke_constraint_type
 
 ! **************************************************************************************************
@@ -211,9 +210,9 @@ MODULE qs_cdft_types
          DIMENSION(:, :, :, :)             :: gradients_z
       ! The weight function of this constraint group
       TYPE(pw_type), POINTER                      :: weight
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: hw_rho_atomic
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: hw_rho_atomic_dr
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: hw_rho_atomic_charge
+      TYPE(pw_type), DIMENSION(:), POINTER             :: hw_rho_atomic
+      TYPE(pw_type), DIMENSION(:), POINTER             :: hw_rho_atomic_dr
+      TYPE(pw_type), DIMENSION(:), POINTER             :: hw_rho_atomic_charge
       TYPE(pw_type)             :: hw_rho_total_constraint
       TYPE(pw_type)          :: hw_rho_total
    END TYPE cdft_group_type
@@ -252,9 +251,9 @@ MODULE qs_cdft_types
       TYPE(hirshfeld_constraint_type), &
          POINTER                           :: hirshfeld_control
       TYPE(outer_scf_control_type)         :: constraint_control, ot_control
-      TYPE(pw_p_type), POINTER, &
+      TYPE(pw_type), POINTER, &
          DIMENSION(:)                      :: charge
-      TYPE(pw_p_type), POINTER, &
+      TYPE(pw_type), POINTER, &
          DIMENSION(:, :)                   :: fragments
       TYPE(qs_outer_scf_type)              :: constraint
    END TYPE cdft_control_type
@@ -297,7 +296,6 @@ CONTAINS
       becke_control%eps_cavity = 1.0e-6_dp
       becke_control%cavity_shape = radius_single
       becke_control%vector_buffer%store_vectors = .TRUE.
-      NULLIFY (becke_control%cavity%pw)
       NULLIFY (becke_control%aij)
       NULLIFY (becke_control%cavity_mat)
       NULLIFY (becke_control%cavity_env)
