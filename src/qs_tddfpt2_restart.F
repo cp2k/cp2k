@@ -152,7 +152,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION tddfpt_read_restart(evects, evals, gs_mos, logger, tddfpt_section, tddfpt_print_section, &
                                 fm_pool_ao_mo_occ, blacs_env_global) RESULT(nstates_read)
-      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: evects
+      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(inout) :: evects
       REAL(kind=dp), DIMENSION(:), INTENT(out)           :: evals
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
@@ -276,6 +276,7 @@ CONTAINS
       DO istate = 1, nstates_read
          DO ispin = 1, nspins
             IF (istate <= nstates) THEN
+               ALLOCATE (evects(ispin, istate)%matrix)
                CALL fm_pool_create_fm(fm_pool_ao_mo_occ(ispin)%pool, evects(ispin, istate)%matrix)
 
                CALL cp_fm_read_unformatted(evects(ispin, istate)%matrix, iunit)

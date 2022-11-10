@@ -902,6 +902,7 @@ CONTAINS
          END DO
       END IF
       IF (max_cols <= nmo2) THEN
+         ALLOCATE (tmp_matrix)
          CALL fm_pool_create_fm(maxmo_maxmo_fm_pool, tmp_matrix)
       ELSE
          CALL cp_fm_struct_create(tmp_fmstruct, nrow_global=max_cols, &
@@ -996,6 +997,7 @@ CONTAINS
          END DO
       END IF
       IF (max_cols <= nmo2) THEN
+         ALLOCATE (tmp_matrix)
          CALL fm_pool_create_fm(maxmo_maxmo_fm_pool, tmp_matrix)
       ELSE
          CALL cp_fm_struct_create(tmp_fmstruct, nrow_global=max_cols, &

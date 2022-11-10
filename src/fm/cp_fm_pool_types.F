@@ -173,19 +173,21 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fm_pool_create_fm(pool, element, &
                                 name)
-      TYPE(cp_fm_pool_type), POINTER                     :: pool
-      TYPE(cp_fm_type), POINTER                          :: element
+      TYPE(cp_fm_pool_type), INTENT(IN)                  :: pool
+      TYPE(cp_fm_type), INTENT(OUT)                      :: element
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: name
 
-      CPASSERT(ASSOCIATED(pool))
-      CPASSERT(pool%ref_count > 0)
-      IF (ASSOCIATED(pool%cache)) THEN
-         element => cp_sll_fm_get_first_el(pool%cache)
-         CALL cp_sll_fm_rm_first_el(pool%cache)
+      TYPE(cp_fm_type), POINTER                          :: el
 
+      NULLIFY (el)
+      IF (ASSOCIATED(pool%cache)) THEN
+         el => cp_sll_fm_get_first_el(pool%cache)
+         CALL cp_sll_fm_rm_first_el(pool%cache)
+      END IF
+      IF (ASSOCIATED(el)) THEN
+         element = el
+         DEALLOCATE (el)
       ELSE
-         NULLIFY (element)
-         ALLOCATE (element)
          CALL cp_fm_create(element, matrix_struct=pool%el_struct)
       END IF
 
@@ -195,7 +197,6 @@ CONTAINS
          element%name = "tmp"
       END IF
 
-      CPASSERT(ASSOCIATED(element))
    END SUBROUTINE fm_pool_create_fm
 
 ! **************************************************************************************************
@@ -307,6 +308,7 @@ CONTAINS
       DO i = 1, SIZE(pools)
          NULLIFY (elements(i)%matrix)
          pool => pools(i)%pool
+         ALLOCATE (elements(i)%matrix)
          IF (PRESENT(name)) THEN
             CALL fm_pool_create_fm(pool, elements(i)%matrix, &
                                    name=name//"-"//ADJUSTL(cp_to_string(i)))

@@ -85,6 +85,7 @@ CONTAINS
       ALLOCATE (t_env%evecs(n_ev, n_spins))
       DO spin = 1, n_spins
          DO i = 1, n_ev
+            ALLOCATE (t_env%evecs(i, spin)%matrix)
             CALL fm_pool_create_fm(t_env%ao_mo_fm_pools(spin)%pool, &
                                    t_env%evecs(i, spin)%matrix)
          END DO

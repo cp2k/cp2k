@@ -734,7 +734,7 @@ CONTAINS
       ALLOCATE (Aop_ritz(nspins, nstates))
       DO istate = 1, nstates
          DO ispin = 1, nspins
-            NULLIFY (Aop_ritz(ispin, istate)%matrix)
+            ALLOCATE (Aop_ritz(ispin, istate)%matrix)
             CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, Aop_ritz(ispin, istate)%matrix)
          END DO
       END DO
@@ -751,12 +751,15 @@ CONTAINS
 
       DO istate = 1, nstates
          DO ispin = 1, nspins
+            ALLOCATE (krylov_vects(ispin, istate)%matrix)
             CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, krylov_vects(ispin, istate)%matrix)
             CALL cp_fm_to_fm(evects(ispin, istate)%matrix, krylov_vects(ispin, istate)%matrix)
 
+            ALLOCATE (S_krylov(ispin, istate)%matrix)
             CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, S_krylov(ispin, istate)%matrix)
             CALL cp_fm_to_fm(S_evects(ispin, istate)%matrix, S_krylov(ispin, istate)%matrix)
 
+            ALLOCATE (Aop_krylov(ispin, istate)%matrix)
             CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, Aop_krylov(ispin, istate)%matrix)
          END DO
       END DO
@@ -801,9 +804,9 @@ CONTAINS
             ! compute residual vectors for the next iteration
             DO istate = 1, nvects_new
                DO ispin = 1, nspins
-                  NULLIFY (Aop_krylov(ispin, nvects_exist + istate)%matrix, &
-                           krylov_vects(ispin, nvects_exist + istate)%matrix, &
-                           S_krylov(ispin, nvects_exist + istate)%matrix)
+                  ALLOCATE (Aop_krylov(ispin, nvects_exist + istate)%matrix, &
+                            krylov_vects(ispin, nvects_exist + istate)%matrix, &
+                            S_krylov(ispin, nvects_exist + istate)%matrix)
                   CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, &
                                          krylov_vects(ispin, nvects_exist + istate)%matrix)
                   CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, &

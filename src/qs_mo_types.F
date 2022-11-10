@@ -265,6 +265,7 @@ CONTAINS
       NULLIFY (mo_set%mo_coeff)
       IF (PRESENT(fm_pool)) THEN
          CPASSERT(ASSOCIATED(fm_pool))
+         ALLOCATE (mo_set%mo_coeff)
          CALL fm_pool_create_fm(fm_pool, mo_set%mo_coeff, name=name)
       ELSE IF (PRESENT(fm_ref)) THEN
          ALLOCATE (mo_set%mo_coeff)

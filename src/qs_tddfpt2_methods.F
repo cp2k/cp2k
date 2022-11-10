@@ -332,6 +332,7 @@ CONTAINS
       DO istate = 1, nstates
          DO ispin = 1, nspins
             NULLIFY (evects(ispin, istate)%matrix, S_evects(ispin, istate)%matrix)
+            ALLOCATE (S_evects(ispin, istate)%matrix)
             CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, S_evects(ispin, istate)%matrix)
          END DO
       END DO

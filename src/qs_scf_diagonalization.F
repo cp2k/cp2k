@@ -420,6 +420,7 @@ CONTAINS
       CALL get_kpoint_info(kpoints, mpools=mpools)
       CALL mpools_get(mpools, ao_ao_fm_pools=ao_ao_fm_pools)
 
+      ALLOCATE (fmlocal)
       CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool, fmlocal)
       CALL cp_fm_get_info(fmlocal, matrix_struct=matrix_struct)
 

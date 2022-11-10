@@ -803,7 +803,7 @@ CONTAINS
       NULLIFY (tmp_fm_struct)
       ALLOCATE (xas_env%groundstate_coeff(nspins))
       DO ispin = 1, nspins
-         NULLIFY (xas_env%groundstate_coeff(ispin)%matrix)
+         ALLOCATE (xas_env%groundstate_coeff(ispin)%matrix)
          CALL get_mo_set(mos(ispin)%mo_set, nao=nao, nmo=nmo)
          CALL fm_pool_create_fm(xas_env%ao_mo_fm_pools(ispin)%pool, &
                                 xas_env%groundstate_coeff(ispin)%matrix, &

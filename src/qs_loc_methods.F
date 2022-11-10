@@ -371,6 +371,7 @@ CONTAINS
 
       !   Copy the overlap sparse matrix in a full matrix
       CALL mpools_get(qs_env%mpools, ao_ao_fm_pools=ao_ao_fm_pools)
+      ALLOCATE (ov_fm)
       CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool, ov_fm, name=" ")
       CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, ov_fm)
 
