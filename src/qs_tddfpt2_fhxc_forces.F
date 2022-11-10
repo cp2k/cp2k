@@ -95,7 +95,6 @@ MODULE qs_tddfpt2_fhxc_forces
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -204,12 +203,12 @@ CONTAINS
       TYPE(oce_matrix_type), POINTER                     :: oce
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: fxc_rho, fxc_tau, gxc_rho, gxc_tau
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: rhox_tot_gspace, xv_hartree_gspace, &
                                                             xv_hartree_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g_aux, rho_r_aux, rhox_g, &
+      TYPE(pw_type), DIMENSION(:), POINTER               :: fxc_rho, fxc_tau, gxc_rho, gxc_tau, &
+                                                            rho_g_aux, rho_r_aux, rhox_g, &
                                                             rhox_g_aux, rhox_r, rhox_r_aux, &
                                                             rhoxx_g, rhoxx_r
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -505,8 +504,8 @@ CONTAINS
 
          IF (nspins == 2) THEN
             DO ispin = 1, nspins
-               CALL pw_scale(gxc_rho(ispin)%pw, 0.5_dp)
-               IF (ASSOCIATED(gxc_tau)) CALL pw_scale(gxc_tau(ispin)%pw, 0.5_dp)
+               CALL pw_scale(gxc_rho(ispin), 0.5_dp)
+               IF (ASSOCIATED(gxc_tau)) CALL pw_scale(gxc_tau(ispin), 0.5_dp)
             END DO
          END IF
          IF (gapw .OR. gapw_xc) THEN
@@ -523,8 +522,8 @@ CONTAINS
             CALL dbcsr_create(matrix_fx(ispin)%matrix, template=matrix_s(1)%matrix)
             CALL dbcsr_copy(matrix_fx(ispin)%matrix, matrix_s(1)%matrix)
             CALL dbcsr_set(matrix_fx(ispin)%matrix, 0.0_dp)
-            CALL pw_scale(fxc_rho(ispin)%pw, fxc_rho(ispin)%pw%pw_grid%dvol)
-            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=fxc_rho(ispin)%pw, &
+            CALL pw_scale(fxc_rho(ispin), fxc_rho(ispin)%pw_grid%dvol)
+            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=fxc_rho(ispin), &
                                     pmat=matrix_px1(ispin), hmat=matrix_fx(ispin), &
                                     gapw=(gapw .OR. gapw_xc), calculate_forces=.TRUE.)
          END DO
@@ -542,9 +541,9 @@ CONTAINS
             CALL dbcsr_create(matrix_gx(ispin)%matrix, template=matrix_s(1)%matrix)
             CALL dbcsr_copy(matrix_gx(ispin)%matrix, matrix_s(1)%matrix)
             CALL dbcsr_set(matrix_gx(ispin)%matrix, 0.0_dp)
-            CALL pw_scale(gxc_rho(ispin)%pw, gxc_rho(ispin)%pw%pw_grid%dvol)
-            CALL pw_scale(gxc_rho(ispin)%pw, 0.5_dp)
-            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=gxc_rho(ispin)%pw, &
+            CALL pw_scale(gxc_rho(ispin), gxc_rho(ispin)%pw_grid%dvol)
+            CALL pw_scale(gxc_rho(ispin), 0.5_dp)
+            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=gxc_rho(ispin), &
                                     pmat=matrix_p(ispin), hmat=matrix_gx(ispin), &
                                     gapw=(gapw .OR. gapw_xc), calculate_forces=.TRUE.)
             CALL dbcsr_scale(matrix_gx(ispin)%matrix, 2.0_dp)
@@ -646,15 +645,15 @@ CONTAINS
                DEALLOCATE (rhox_r_aux, rhox_g_aux)
                IF (nspins == 2) THEN
                   DO ispin = 1, nspins
-                     CALL pw_scale(gxc_rho(ispin)%pw, 0.5_dp)
-                     IF (ASSOCIATED(gxc_tau)) CALL pw_scale(gxc_tau(ispin)%pw, 0.5_dp)
+                     CALL pw_scale(gxc_rho(ispin), 0.5_dp)
+                     IF (ASSOCIATED(gxc_tau)) CALL pw_scale(gxc_tau(ispin), 0.5_dp)
                   END DO
                END IF
                !
                IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
                DO ispin = 1, nspins
-                  CALL pw_scale(fxc_rho(ispin)%pw, fxc_rho(ispin)%pw%pw_grid%dvol)
-                  CALL integrate_v_rspace(qs_env=qs_env, v_rspace=fxc_rho(ispin)%pw, &
+                  CALL pw_scale(fxc_rho(ispin), fxc_rho(ispin)%pw_grid%dvol)
+                  CALL integrate_v_rspace(qs_env=qs_env, v_rspace=fxc_rho(ispin), &
                                           hmat=mfx(ispin), &
                                           pmat=matrix_px1_admm(ispin), &
                                           basis_type="AUX_FIT", &
@@ -669,9 +668,9 @@ CONTAINS
 
                IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
                DO ispin = 1, nspins
-                  CALL pw_scale(gxc_rho(ispin)%pw, gxc_rho(ispin)%pw%pw_grid%dvol)
-                  CALL pw_scale(gxc_rho(ispin)%pw, 0.5_dp)
-                  CALL integrate_v_rspace(qs_env=qs_env, v_rspace=gxc_rho(ispin)%pw, &
+                  CALL pw_scale(gxc_rho(ispin), gxc_rho(ispin)%pw_grid%dvol)
+                  CALL pw_scale(gxc_rho(ispin), 0.5_dp)
+                  CALL integrate_v_rspace(qs_env=qs_env, v_rspace=gxc_rho(ispin), &
                                           hmat=mgx(ispin), &
                                           pmat=matrix_p_admm(ispin), &
                                           basis_type="AUX_FIT", &

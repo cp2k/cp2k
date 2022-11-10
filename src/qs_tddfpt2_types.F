@@ -51,7 +51,6 @@ MODULE qs_tddfpt2_types
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -164,11 +163,11 @@ MODULE qs_tddfpt2_types
       !> group-specific copy of a Coulomb/xc-potential on a real-space grid
       TYPE(pw_type), DIMENSION(:), POINTER             :: A_ia_rspace_sub
       !> group-specific copy of a reciprocal-space grid
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: wpw_gspace_sub
+      TYPE(pw_type), DIMENSION(:), POINTER             :: wpw_gspace_sub
       !> group-specific copy of a real-space grid
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: wpw_rspace_sub
+      TYPE(pw_type), DIMENSION(:), POINTER             :: wpw_rspace_sub
       !> group-specific copy of a real-space grid for the kinetic energy density
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: wpw_tau_rspace_sub
+      TYPE(pw_type), DIMENSION(:), POINTER             :: wpw_tau_rspace_sub
       !
       ! *** globally distributed matrices required to compute exact exchange terms ***
       !
@@ -426,13 +425,11 @@ CONTAINS
          CALL pw_pool_create_pw(auxbas_pw_pool, work_matrices%A_ia_rspace_sub(ispin), &
                                 use_data=REALDATA3D, in_space=REALSPACE)
 
-         ALLOCATE (work_matrices%wpw_gspace_sub(ispin)%pw, work_matrices%wpw_rspace_sub(ispin)%pw, &
-                   work_matrices%wpw_tau_rspace_sub(ispin)%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, work_matrices%wpw_gspace_sub(ispin)%pw, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, work_matrices%wpw_gspace_sub(ispin), &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-         CALL pw_pool_create_pw(auxbas_pw_pool, work_matrices%wpw_rspace_sub(ispin)%pw, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, work_matrices%wpw_rspace_sub(ispin), &
                                 use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_pool_create_pw(auxbas_pw_pool, work_matrices%wpw_tau_rspace_sub(ispin)%pw, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, work_matrices%wpw_tau_rspace_sub(ispin), &
                                 use_data=REALDATA3D, in_space=REALSPACE)
       END DO
 
@@ -714,12 +711,10 @@ CONTAINS
       IF (ASSOCIATED(sub_env%pw_env)) THEN
          CALL pw_env_get(sub_env%pw_env, auxbas_pw_pool=auxbas_pw_pool)
          DO ispin = SIZE(work_matrices%wpw_rspace_sub), 1, -1
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, work_matrices%wpw_rspace_sub(ispin)%pw)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, work_matrices%wpw_tau_rspace_sub(ispin)%pw)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, work_matrices%wpw_gspace_sub(ispin)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, work_matrices%wpw_rspace_sub(ispin))
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, work_matrices%wpw_tau_rspace_sub(ispin))
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, work_matrices%wpw_gspace_sub(ispin))
             CALL pw_pool_give_back_pw(auxbas_pw_pool, work_matrices%A_ia_rspace_sub(ispin))
-            DEALLOCATE (work_matrices%wpw_rspace_sub(ispin)%pw, work_matrices%wpw_tau_rspace_sub(ispin)%pw, &
-                        work_matrices%wpw_gspace_sub(ispin)%pw)
          END DO
          DEALLOCATE (work_matrices%A_ia_rspace_sub, work_matrices%wpw_gspace_sub, &
                      work_matrices%wpw_rspace_sub, work_matrices%wpw_tau_rspace_sub)

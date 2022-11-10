@@ -51,8 +51,8 @@ MODULE rpa_rse
    USE message_passing,                 ONLY: mp_sum
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
-   USE pw_types,                        ONLY: pw_p_type,&
-                                              pw_release
+   USE pw_types,                        ONLY: pw_release,&
+                                              pw_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -428,7 +428,7 @@ CONTAINS
       INTEGER                                            :: handle, i
       REAL(KIND=dp)                                      :: exc
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vxc
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: tau_rspace, v_rspace
+      TYPE(pw_type), DIMENSION(:), POINTER               :: tau_rspace, v_rspace
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: input, xc_section
@@ -447,8 +447,7 @@ CONTAINS
       CALL compute_matrix_vxc(qs_env=qs_env, v_rspace=v_rspace, matrix_vxc=matrix_vxc)
 
       DO i = 1, SIZE(v_rspace)
-         CALL pw_release(v_rspace(i)%pw)
-         DEALLOCATE (v_rspace(i)%pw)
+         CALL pw_release(v_rspace(i))
       END DO
       DEALLOCATE (v_rspace)
 

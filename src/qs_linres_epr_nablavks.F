@@ -56,7 +56,6 @@ MODULE qs_linres_epr_nablavks
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -145,12 +144,12 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace_new, v_tau_rspace
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type) :: rho_tot_gspace, v_coulomb_gspace, v_coulomb_gtemp, v_coulomb_rtemp, &
          v_hartree_gspace, v_hartree_gtemp, v_hartree_rtemp, v_xc_gtemp, v_xc_rtemp, wf_r
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_r, rho2_r, rho_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_r, rho2_r, rho_r, v_rspace_new, &
+                                                            v_tau_rspace
       TYPE(pw_type), POINTER                             :: pwx, pwy, pwz
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -342,19 +341,19 @@ CONTAINS
                !    iatom = atom_list(iat)
                !    ratom = particle_set(iatom)%r
                !
-               !    DO ig = v_hartree_gspace%pw%pw_grid%first_gne0,v_hartree_gspace%pw%pw_grid%ngpts_cut_local
+               !    DO ig = v_hartree_gspace%pw_grid%first_gne0,v_hartree_gspace%pw_grid%ngpts_cut_local
                !
                !       gtemp = fourpi * charge / cell%deth * &
-               !               EXP ( - v_hartree_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha_core) ) &
-               !               / v_hartree_gspace%pw%pw_grid%gsq(ig)
+               !               EXP ( - v_hartree_gspace%pw_grid%gsq(ig) / (4.0_dp * alpha_core) ) &
+               !               / v_hartree_gspace%pw_grid%gsq(ig)
                !
-               !       arg = DOT_PRODUCT(v_hartree_gspace%pw%pw_grid%g(:,ig),ratom)
+               !       arg = DOT_PRODUCT(v_hartree_gspace%pw_grid%g(:,ig),ratom)
                !
                !       gtemp = gtemp * CMPLX(COS(arg),-SIN(arg),KIND=dp)
                !
-               !       v_hartree_gspace%pw%cc(ig) = v_hartree_gspace%pw%cc(ig) + gtemp
+               !       v_hartree_gspace%cc(ig) = v_hartree_gspace%cc(ig) + gtemp
                !    END DO
-               !    IF ( v_hartree_gspace%pw%pw_grid%have_g0 ) v_hartree_gspace%pw%cc(1) = 0.0_dp
+               !    IF ( v_hartree_gspace%pw_grid%have_g0 ) v_hartree_gspace%cc(1) = 0.0_dp
                !
                ! END DO
 
@@ -522,8 +521,8 @@ CONTAINS
                   DO ig = v_coulomb_gspace%pw_grid%first_gne0, v_coulomb_gspace%pw_grid%ngpts_cut_local
                      gtemp = 0.0_dp
                      ! gtemp = - fourpi * charge / cell%deth * &
-                     !         EXP ( - v_coulomb_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha) ) &
-                     !         / v_coulomb_gspace%pw%pw_grid%gsq(ig)
+                     !         EXP ( - v_coulomb_gspace%pw_grid%gsq(ig) / (4.0_dp * alpha) ) &
+                     !         / v_coulomb_gspace%pw_grid%gsq(ig)
 
                      IF (.NOT. make_soft) THEN
 
@@ -871,26 +870,25 @@ CONTAINS
 
          DO ispin = 1, nspins
 
-            CALL pw_transfer(v_rspace_new(ispin)%pw, v_xc_gtemp)
+            CALL pw_transfer(v_rspace_new(ispin), v_xc_gtemp)
             CALL pw_derive(v_xc_gtemp, (/1, 0, 0/))
             CALL pw_transfer(v_xc_gtemp, v_xc_rtemp)
             CALL qs_rho_get(nablavks_set(1, ispin)%rho, rho_r=rho_r)
             CALL pw_axpy(v_xc_rtemp, rho_r(1))
 
-            CALL pw_transfer(v_rspace_new(ispin)%pw, v_xc_gtemp)
+            CALL pw_transfer(v_rspace_new(ispin), v_xc_gtemp)
             CALL pw_derive(v_xc_gtemp, (/0, 1, 0/))
             CALL pw_transfer(v_xc_gtemp, v_xc_rtemp)
             CALL qs_rho_get(nablavks_set(2, ispin)%rho, rho_r=rho_r)
             CALL pw_axpy(v_xc_rtemp, rho_r(1))
 
-            CALL pw_transfer(v_rspace_new(ispin)%pw, v_xc_gtemp)
+            CALL pw_transfer(v_rspace_new(ispin), v_xc_gtemp)
             CALL pw_derive(v_xc_gtemp, (/0, 0, 1/))
             CALL pw_transfer(v_xc_gtemp, v_xc_rtemp)
             CALL qs_rho_get(nablavks_set(3, ispin)%rho, rho_r=rho_r)
             CALL pw_axpy(v_xc_rtemp, rho_r(1))
 
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new(ispin)%pw)
-            DEALLOCATE (v_rspace_new(ispin)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new(ispin))
 
          END DO
 
@@ -901,26 +899,25 @@ CONTAINS
 
          DO ispin = 1, nspins
 
-            CALL pw_transfer(v_tau_rspace(ispin)%pw, v_xc_gtemp)
+            CALL pw_transfer(v_tau_rspace(ispin), v_xc_gtemp)
             CALL pw_derive(v_xc_gtemp, (/1, 0, 0/))
             CALL pw_transfer(v_xc_gtemp, v_xc_rtemp)
             CALL qs_rho_get(nablavks_set(1, ispin)%rho, rho_r=rho_r)
             CALL pw_axpy(v_xc_rtemp, rho_r(1))
 
-            CALL pw_transfer(v_tau_rspace(ispin)%pw, v_xc_gtemp)
+            CALL pw_transfer(v_tau_rspace(ispin), v_xc_gtemp)
             CALL pw_derive(v_xc_gtemp, (/0, 1, 0/))
             CALL pw_transfer(v_xc_gtemp, v_xc_rtemp)
             CALL qs_rho_get(nablavks_set(2, ispin)%rho, rho_r=rho_r)
             CALL pw_axpy(v_xc_rtemp, rho_r(1))
 
-            CALL pw_transfer(v_tau_rspace(ispin)%pw, v_xc_gtemp)
+            CALL pw_transfer(v_tau_rspace(ispin), v_xc_gtemp)
             CALL pw_derive(v_xc_gtemp, (/0, 0, 1/))
             CALL pw_transfer(v_xc_gtemp, v_xc_rtemp)
             CALL qs_rho_get(nablavks_set(3, ispin)%rho, rho_r=rho_r)
             CALL pw_axpy(v_xc_rtemp, rho_r(1))
 
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace(ispin)%pw)
-            DEALLOCATE (v_tau_rspace(ispin)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace(ispin))
 
          END DO
 

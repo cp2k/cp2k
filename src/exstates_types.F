@@ -20,8 +20,7 @@ MODULE exstates_types
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE pw_types,                        ONLY: pw_p_type,&
-                                              pw_release,&
+   USE pw_types,                        ONLY: pw_release,&
                                               pw_type
    USE qs_local_rho_types,              ONLY: local_rho_set_release,&
                                               local_rho_type
@@ -57,9 +56,9 @@ MODULE exstates_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_px1_admm_asymm => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_wx1 => NULL()
       TYPE(pw_type)                                      :: vh_rspace
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rspace => NULL()
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: vtau_rspace => NULL()
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: vadmm_rspace => NULL()
+      TYPE(pw_type), DIMENSION(:), POINTER             :: vxc_rspace => NULL()
+      TYPE(pw_type), DIMENSION(:), POINTER             :: vtau_rspace => NULL()
+      TYPE(pw_type), DIMENSION(:), POINTER             :: vadmm_rspace => NULL()
       TYPE(local_rho_type), POINTER                      :: local_rho_set => NULL()
       TYPE(local_rho_type), POINTER                      :: local_rho_set_admm => NULL()
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: fingerprint
@@ -151,24 +150,21 @@ CONTAINS
          END IF
          IF (ASSOCIATED(ex_env%vxc_rspace)) THEN
             DO iab = 1, SIZE(ex_env%vxc_rspace)
-               CALL pw_release(ex_env%vxc_rspace(iab)%pw)
-               DEALLOCATE (ex_env%vxc_rspace(iab)%pw)
+               CALL pw_release(ex_env%vxc_rspace(iab))
             END DO
             DEALLOCATE (ex_env%vxc_rspace)
             NULLIFY (ex_env%vxc_rspace)
          END IF
          IF (ASSOCIATED(ex_env%vtau_rspace)) THEN
             DO iab = 1, SIZE(ex_env%vtau_rspace)
-               CALL pw_release(ex_env%vtau_rspace(iab)%pw)
-               DEALLOCATE (ex_env%vtau_rspace(iab)%pw)
+               CALL pw_release(ex_env%vtau_rspace(iab))
             END DO
             DEALLOCATE (ex_env%vtau_rspace)
             NULLIFY (ex_env%vtau_rspace)
          END IF
          IF (ASSOCIATED(ex_env%vadmm_rspace)) THEN
             DO iab = 1, SIZE(ex_env%vadmm_rspace)
-               CALL pw_release(ex_env%vadmm_rspace(iab)%pw)
-               DEALLOCATE (ex_env%vadmm_rspace(iab)%pw)
+               CALL pw_release(ex_env%vadmm_rspace(iab))
             END DO
             DEALLOCATE (ex_env%vadmm_rspace)
             NULLIFY (ex_env%vadmm_rspace)

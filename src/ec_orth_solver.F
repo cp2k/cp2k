@@ -58,7 +58,6 @@ MODULE ec_orth_solver
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -1138,13 +1137,13 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_G, matrix_s, rho1_ao, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_xc, v_xc_tau
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: rho_tot_gspace, v_hartree_gspace, &
                                                             v_hartree_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_g, rho1_r, rho_r, tau1_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_g, rho1_r, rho_r, tau1_r, v_xc, &
+                                                            v_xc_tau
       TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux
       TYPE(section_vals_type), POINTER                   :: input, xc_section, xc_section_aux
@@ -1216,9 +1215,9 @@ CONTAINS
                          xc_section=xc_section)
 
       DO ispin = 1, nspins
-         CALL pw_scale(v_xc(ispin)%pw, v_xc(ispin)%pw%pw_grid%dvol)
+         CALL pw_scale(v_xc(ispin), v_xc(ispin)%pw_grid%dvol)
          IF (ASSOCIATED(v_xc_tau)) THEN
-            CALL pw_scale(v_xc_tau(ispin)%pw, v_xc_tau(ispin)%pw%pw_grid%dvol)
+            CALL pw_scale(v_xc_tau(ispin), v_xc_tau(ispin)%pw_grid%dvol)
          END IF
       END DO
 
@@ -1251,23 +1250,23 @@ CONTAINS
 
       ! Add v_xc + v_H
       DO ispin = 1, nspins
-         CALL pw_axpy(v_hartree_rspace, v_xc(ispin)%pw)
+         CALL pw_axpy(v_hartree_rspace, v_xc(ispin))
       END DO
       IF (nspins == 1) THEN
-         CALL pw_scale(v_xc(1)%pw, 2.0_dp)
-         IF (ASSOCIATED(v_xc_tau)) CALL pw_scale(v_xc_tau(1)%pw, 2.0_dp)
+         CALL pw_scale(v_xc(1), 2.0_dp)
+         IF (ASSOCIATED(v_xc_tau)) CALL pw_scale(v_xc_tau(1), 2.0_dp)
       END IF
 
       DO ispin = 1, nspins
          ! Integrate with ground-state density matrix, in non-orthogonal basis
-         CALL integrate_v_rspace(v_rspace=v_xc(ispin)%pw, &
+         CALL integrate_v_rspace(v_rspace=v_xc(ispin), &
                                  pmat=rho_ao(ispin), &
                                  hmat=p_env%kpp1(ispin), &
                                  qs_env=qs_env, &
                                  calculate_forces=.FALSE., &
                                  basis_type="ORB")
          IF (ASSOCIATED(v_xc_tau)) THEN
-            CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin)%pw, &
+            CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin), &
                                     pmat=rho_ao(ispin), &
                                     hmat=p_env%kpp1(ispin), &
                                     qs_env=qs_env, &
@@ -1327,14 +1326,12 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace)
       DO ispin = 1, nspins
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
-         DEALLOCATE (v_xc(ispin)%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin))
       END DO
       DEALLOCATE (v_xc)
       IF (ASSOCIATED(v_xc_tau)) THEN
          DO ispin = 1, nspins
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(ispin)%pw)
-            DEALLOCATE (v_xc_tau(ispin)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(ispin))
          END DO
          DEALLOCATE (v_xc_tau)
       END IF

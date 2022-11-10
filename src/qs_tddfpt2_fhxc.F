@@ -392,8 +392,8 @@ CONTAINS
                                       local_rho_set=work_matrices%local_rho_set, &
                                       hartree_local=work_matrices%hartree_local, &
                                       qs_env=qs_env, sub_env=sub_env, gapw=gapw, &
-                                      work_v_gspace=work_matrices%wpw_gspace_sub(1)%pw, &
-                                      work_v_rspace=work_matrices%wpw_rspace_sub(1)%pw)
+                                      work_v_gspace=work_matrices%wpw_gspace_sub(1), &
+                                      work_v_rspace=work_matrices%wpw_rspace_sub(1))
          END IF
 
          ! convert from the plane-wave representation into the Gaussian basis set representation

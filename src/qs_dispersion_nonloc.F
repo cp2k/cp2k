@@ -45,7 +45,6 @@ MODULE qs_dispersion_nonloc
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE virial_types,                    ONLY: virial_type
@@ -169,8 +168,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_dispersion_nonloc(vxc_rho, rho_r, rho_g, edispersion, &
                                           dispersion_env, energy_only, pw_pool, xc_pw_pool, para_env, virial)
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rho
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r, rho_g
+      TYPE(pw_type), DIMENSION(:), POINTER               :: vxc_rho, rho_r, rho_g
       REAL(KIND=dp), INTENT(OUT)                         :: edispersion
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       LOGICAL, INTENT(IN)                                :: energy_only
@@ -540,7 +538,7 @@ CONTAINS
          CALL pw_transfer(tmp_g, vxc_g)
          CALL pw_transfer(vxc_g, vxc_r)
          DO ispin = 1, nspin
-            CALL pw_axpy(vxc_r, vxc_rho(ispin)%pw, 1._dp)
+            CALL pw_axpy(vxc_r, vxc_rho(ispin), 1._dp)
          END DO
          CALL pw_pool_give_back_pw(xc_pw_pool, vxc_r)
          CALL pw_pool_give_back_pw(xc_pw_pool, vxc_g)

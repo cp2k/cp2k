@@ -44,7 +44,6 @@ MODULE qs_ks_reference
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_create,&
-                                              pw_p_type,&
                                               pw_release,&
                                               pw_type
    USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
@@ -105,7 +104,7 @@ CONTAINS
                                ehartree, exc, h_stress)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_type), INTENT(INOUT)                       :: vh_rspace
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rspace, vtau_rspace, vadmm_rspace
+      TYPE(pw_type), DIMENSION(:), POINTER               :: vxc_rspace, vtau_rspace, vadmm_rspace
       REAL(KIND=dp), INTENT(OUT)                         :: ehartree, exc
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
          OPTIONAL                                        :: h_stress
@@ -120,12 +119,12 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_grid_type), POINTER                        :: pw_grid
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_admm_rspace, v_admm_tau_rspace, &
-                                                            v_rspace, v_tau_rspace
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: rho_tot_gspace, v_hartree_gspace, &
                                                             v_hartree_rspace
+      TYPE(pw_type), DIMENSION(:), POINTER               :: v_admm_rspace, v_admm_tau_rspace, &
+                                                            v_rspace, v_tau_rspace
       TYPE(pw_type), POINTER                             :: rho_core
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_xc
@@ -212,24 +211,18 @@ CONTAINS
       END IF
       IF (ASSOCIATED(vxc_rspace)) THEN
          DO iab = 1, SIZE(vxc_rspace)
-            CALL pw_release(vxc_rspace(iab)%pw)
+            CALL pw_release(vxc_rspace(iab))
          END DO
       ELSE
          ALLOCATE (vxc_rspace(nspins))
-         DO iab = 1, nspins
-            ALLOCATE (vxc_rspace(iab)%pw)
-         END DO
       END IF
       IF (ASSOCIATED(v_tau_rspace)) THEN
          IF (ASSOCIATED(vtau_rspace)) THEN
             DO iab = 1, SIZE(vtau_rspace)
-               CALL pw_release(vtau_rspace(iab)%pw)
+               CALL pw_release(vtau_rspace(iab))
             END DO
          ELSE
             ALLOCATE (vtau_rspace(nspins))
-            DO iab = 1, nspins
-               ALLOCATE (vtau_rspace(iab)%pw)
-            END DO
          END IF
       ELSE
          NULLIFY (vtau_rspace)
@@ -237,13 +230,10 @@ CONTAINS
       IF (ASSOCIATED(v_admm_rspace)) THEN
          IF (ASSOCIATED(vadmm_rspace)) THEN
             DO iab = 1, SIZE(vadmm_rspace)
-               CALL pw_release(vadmm_rspace(iab)%pw)
+               CALL pw_release(vadmm_rspace(iab))
             END DO
          ELSE
             ALLOCATE (vadmm_rspace(nspins))
-            DO iab = 1, nspins
-               ALLOCATE (vadmm_rspace(iab)%pw)
-            END DO
          END IF
       ELSE
          NULLIFY (vadmm_rspace)
@@ -252,14 +242,14 @@ CONTAINS
       pw_grid => v_hartree_rspace%pw_grid
       CALL pw_create(vh_rspace, pw_grid, use_data=REALDATA3D, in_space=REALSPACE)
       DO ispin = 1, nspins
-         CALL pw_create(vxc_rspace(ispin)%pw, pw_grid, &
+         CALL pw_create(vxc_rspace(ispin), pw_grid, &
                         use_data=REALDATA3D, in_space=REALSPACE)
          IF (ASSOCIATED(vtau_rspace)) THEN
-            CALL pw_create(vtau_rspace(ispin)%pw, pw_grid, &
+            CALL pw_create(vtau_rspace(ispin), pw_grid, &
                            use_data=REALDATA3D, in_space=REALSPACE)
          END IF
          IF (ASSOCIATED(vadmm_rspace)) THEN
-            CALL pw_create(vadmm_rspace(ispin)%pw, pw_grid, &
+            CALL pw_create(vadmm_rspace(ispin), pw_grid, &
                            use_data=REALDATA3D, in_space=REALSPACE)
          END IF
       END DO
@@ -267,22 +257,22 @@ CONTAINS
       CALL pw_transfer(v_hartree_rspace, vh_rspace)
       IF (ASSOCIATED(v_rspace)) THEN
          DO ispin = 1, nspins
-            CALL pw_transfer(v_rspace(ispin)%pw, vxc_rspace(ispin)%pw)
-            CALL pw_scale(vxc_rspace(ispin)%pw, v_rspace(ispin)%pw%pw_grid%dvol)
+            CALL pw_transfer(v_rspace(ispin), vxc_rspace(ispin))
+            CALL pw_scale(vxc_rspace(ispin), v_rspace(ispin)%pw_grid%dvol)
             IF (ASSOCIATED(v_tau_rspace)) THEN
-               CALL pw_transfer(v_tau_rspace(ispin)%pw, vtau_rspace(ispin)%pw)
-               CALL pw_scale(vtau_rspace(ispin)%pw, v_tau_rspace(ispin)%pw%pw_grid%dvol)
+               CALL pw_transfer(v_tau_rspace(ispin), vtau_rspace(ispin))
+               CALL pw_scale(vtau_rspace(ispin), v_tau_rspace(ispin)%pw_grid%dvol)
             END IF
          END DO
       ELSE
          DO ispin = 1, nspins
-            CALL pw_zero(vxc_rspace(ispin)%pw)
+            CALL pw_zero(vxc_rspace(ispin))
          END DO
       END IF
       IF (ASSOCIATED(v_admm_rspace)) THEN
          DO ispin = 1, nspins
-            CALL pw_transfer(v_admm_rspace(ispin)%pw, vadmm_rspace(ispin)%pw)
-            CALL pw_scale(vadmm_rspace(ispin)%pw, vadmm_rspace(ispin)%pw%pw_grid%dvol)
+            CALL pw_transfer(v_admm_rspace(ispin), vadmm_rspace(ispin))
+            CALL pw_scale(vadmm_rspace(ispin), vadmm_rspace(ispin)%pw_grid%dvol)
          END DO
       END IF
 
@@ -290,11 +280,9 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace)
       IF (ASSOCIATED(v_rspace)) THEN
          DO ispin = 1, nspins
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace(ispin)%pw)
-            DEALLOCATE (v_rspace(ispin)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace(ispin))
             IF (ASSOCIATED(v_tau_rspace)) THEN
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace(ispin)%pw)
-               DEALLOCATE (v_tau_rspace(ispin)%pw)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace(ispin))
             END IF
          END DO
          DEALLOCATE (v_rspace)
@@ -302,8 +290,7 @@ CONTAINS
       IF (ASSOCIATED(v_tau_rspace)) DEALLOCATE (v_tau_rspace)
       IF (ASSOCIATED(v_admm_rspace)) THEN
          DO ispin = 1, nspins
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_admm_rspace(ispin)%pw)
-            DEALLOCATE (v_admm_rspace(ispin)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_admm_rspace(ispin))
          END DO
          DEALLOCATE (v_admm_rspace)
       END IF

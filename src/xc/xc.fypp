@@ -32,7 +32,7 @@
                   DO j = bo(1, 2), bo(2, 2)
                      DO i = bo(1, 1), bo(2, 1)
                         #:for i in range(start1, end1+1)
-                           ${v_arg1}$ (${i}$)%pw%cr3d(i, j, k) = ${v_arg1}$ (${i}$)%pw%cr3d(i, j, k) #{if arg1.startswith("norm")}#-#{else}#+#{endif}# &
+                           ${v_arg1}$ (${i}$)%cr3d(i, j, k) = ${v_arg1}$ (${i}$)%cr3d(i, j, k) #{if arg1.startswith("norm")}#-#{else}#+#{endif}# &
                            #{if ((outer_arguments!=my_inner_arguments) and (arg2[-1]=="b"))}#fac*#{endif}#deriv_data(i, j, k)*${darg2}$ (i, j, k)
                         #:endfor
                      END DO
@@ -56,7 +56,7 @@
 
 !$OMP       PARALLEL WORKSHARE DEFAULT(NONE) SHARED(${darg1}$,gradient_cut,${arg1}$,${v_arg1}$,deriv_data)
                #:for i in range(start1, end1+1)
-                  ${v_arg1}$ (${i}$)%pw%cr3d(:, :, :) = ${v_arg1}$ (${i}$)%pw%cr3d(:, :, :) + &
+                  ${v_arg1}$ (${i}$)%cr3d(:, :, :) = ${v_arg1}$ (${i}$)%cr3d(:, :, :) + &
                                                     deriv_data(:, :, :)*${darg1}$ (:, :, :)/MAX(gradient_cut, ${arg1}$ (:, :, :))**2
                #:endfor
 !$OMP       END PARALLEL WORKSHARE

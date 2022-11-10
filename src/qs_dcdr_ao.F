@@ -55,7 +55,6 @@ MODULE qs_dcdr_ao
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_drho_core,&
                                               calculate_drho_elec_dR
@@ -131,12 +130,12 @@ CONTAINS
                                                             s1_ao
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho1_ao, rho_ao
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_xc, v_xc_tau
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: rho1_tot_gspace, v_hartree_gspace, &
                                                             v_hartree_rspace, v_rspace_new
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_g, rho1_g_pw, rho1_r, rho_r, tau1_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_g, rho1_g_pw, rho1_r, rho_r, &
+                                                            tau1_r, v_xc, v_xc_tau
       TYPE(qs_rho_type), POINTER                         :: perturbed_density, rho
       TYPE(section_vals_type), POINTER                   :: input, xc_section
       TYPE(xc_derivative_set_type)                       :: deriv_set
@@ -263,8 +262,7 @@ CONTAINS
       CALL xc_calc_2nd_deriv(v_xc, v_xc_tau, deriv_set, rho_set, &
                              rho1_r, rho1_g_pw, tau1_r, auxbas_pw_pool, xc_section, gapw=.FALSE.)
 
-      v_rspace_new = v_xc(1)%pw
-      DEALLOCATE (v_xc(1)%pw)
+      v_rspace_new = v_xc(1)
       DEALLOCATE (v_xc)
 
       ! Done calculating the potentials
@@ -289,15 +287,14 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new)
 
       IF (ASSOCIATED(v_xc_tau)) THEN
-         CALL pw_scale(v_xc_tau(1)%pw, 2._dp*v_xc_tau(1)%pw%pw_grid%dvol)
-         CALL integrate_v_rspace(v_rspace=v_xc_tau(1)%pw, &
+         CALL pw_scale(v_xc_tau(1), 2._dp*v_xc_tau(1)%pw_grid%dvol)
+         CALL integrate_v_rspace(v_rspace=v_xc_tau(1), &
                                  hmat=dcdr_env%matrix_apply_op_constant(1), &
                                  qs_env=qs_env, &
                                  compute_tau=.TRUE., &
                                  calculate_forces=.FALSE.)
 
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(1)%pw)
-         DEALLOCATE (v_xc_tau(1)%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(1))
          DEALLOCATE (v_xc_tau)
       END IF
 
@@ -494,12 +491,12 @@ CONTAINS
       INTEGER                                            :: handle, idir
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_xc, v_xc_tau
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: v_hartree_gspace, v_hartree_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: drho_g, drho_r, dtau_r, rho_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: drho_g, drho_r, dtau_r, rho_r, v_xc, &
+                                                            v_xc_tau
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: input, xc_section
       TYPE(xc_derivative_set_type)                       :: my_deriv_set
@@ -567,17 +564,16 @@ CONTAINS
          ! Add both hartree and xc terms !
          !-------------------------------!
          ! Can the dvol be different?
-         CALL pw_scale(v_xc(1)%pw, v_xc(1)%pw%pw_grid%dvol)
-         CALL pw_axpy(v_hartree_rspace, v_xc(1)%pw, v_hartree_rspace%pw_grid%dvol)
+         CALL pw_scale(v_xc(1), v_xc(1)%pw_grid%dvol)
+         CALL pw_axpy(v_hartree_rspace, v_xc(1), v_hartree_rspace%pw_grid%dvol)
 
-         CALL integrate_v_rspace(v_rspace=v_xc(1)%pw, &
+         CALL integrate_v_rspace(v_rspace=v_xc(1), &
                                  hmat=dcdr_env%matrix_d_vhxc_dR(idir), &
                                  qs_env=qs_env, &
                                  calculate_forces=.FALSE.)
 
          ! v_xc gets allocated again in xc_calc_2nd_deriv
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(1)%pw)
-         DEALLOCATE (v_xc(1)%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(1))
          DEALLOCATE (v_xc)
       END DO ! idir
 
@@ -610,8 +606,8 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vhxc_dbasis
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_hxc_r, v_tau_rspace
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), DIMENSION(:), POINTER               :: v_hxc_r, v_tau_rspace
       TYPE(pw_type), POINTER                             :: v_hartree_r
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -641,20 +637,19 @@ CONTAINS
       CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
                          vxc_rho=v_hxc_r, vxc_tau=v_tau_rspace, exc=energy%exc)
 
-      CALL pw_scale(v_hxc_r(1)%pw, v_hxc_r(1)%pw%pw_grid%dvol)
+      CALL pw_scale(v_hxc_r(1), v_hxc_r(1)%pw_grid%dvol)
 
       ! sum up potentials and integrate
-      CALL pw_axpy(v_hartree_r, v_hxc_r(1)%pw, 1._dp)
+      CALL pw_axpy(v_hartree_r, v_hxc_r(1), 1._dp)
 
       matrix_vhxc_dbasis => dcdr_env%matrix_vhxc_perturbed_basis(1, :)
-      CALL integrate_v_dbasis(v_rspace=v_hxc_r(1)%pw, &
+      CALL integrate_v_dbasis(v_rspace=v_hxc_r(1), &
                               matrix_p=matrix_p(1, 1)%matrix, &
                               matrix_vhxc_dbasis=matrix_vhxc_dbasis, &
                               qs_env=qs_env, &
                               lambda=dcdr_env%lambda)
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hxc_r(1)%pw)
-      DEALLOCATE (v_hxc_r(1)%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hxc_r(1))
 
       DEALLOCATE (v_hxc_r)
 

@@ -14,7 +14,7 @@ MODULE xc_atom
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: pw_p_type
+   USE pw_types,                        ONLY: pw_type
    USE xc,                              ONLY: divide_by_norm_drho,&
                                               xc_calc_2nd_deriv_analytical
    USE xc_derivative_desc,              ONLY: &
@@ -361,8 +361,8 @@ CONTAINS
       LOGICAL                                            :: lsd
       REAL(dp)                                           :: drho_cutoff
       TYPE(cp_sll_xc_deriv_type), POINTER                :: pos
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_pw, vxc_tau_pw
       TYPE(pw_pool_type), POINTER                        :: pw_pool
+      TYPE(pw_type), DIMENSION(:), POINTER               :: vxc_pw, vxc_tau_pw
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
       TYPE(xc_derivative_type), POINTER                  :: deriv_att
 
@@ -396,8 +396,7 @@ CONTAINS
       NULLIFY (pw_pool)
       ALLOCATE (vxc_pw(nspins))
       DO ispin = 1, nspins
-         ALLOCATE (vxc_pw(ispin)%pw)
-         vxc_pw(ispin)%pw%cr3d => vxc(:, :, ispin:ispin)
+         vxc_pw(ispin)%cr3d => vxc(:, :, ispin:ispin)
       END DO
 
       NULLIFY (vxc_tau_pw)
@@ -405,9 +404,6 @@ CONTAINS
       CALL xc_calc_2nd_deriv_analytical(vxc_pw, vxc_tau_pw, deriv_set, rho_set, rho1_set, pw_pool, &
                                         xc_section, gapw=.TRUE., vxg=vxg)
 
-      DO ispin = 1, nspins
-         DEALLOCATE (vxc_pw(ispin)%pw)
-      END DO
       DEALLOCATE (vxc_pw)
 
       ! zero the derivative data for the next call

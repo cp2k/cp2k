@@ -204,13 +204,13 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace_embed, v_rspace_new, &
-                                                            v_rspace_new_aux_fit, v_tau_rspace, &
-                                                            v_tau_rspace_aux_fit
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace_embed
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: rho_tot_gspace, v_hartree_gspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r, v_rspace_new, &
+                                                            v_rspace_new_aux_fit, v_tau_rspace, &
+                                                            v_tau_rspace_aux_fit
       TYPE(pw_type), POINTER :: rho0_s_rs, rho_core, rho_nlcc, v_efield_rspace, v_hartree_rspace, &
          v_sccs_rspace, v_sic_rspace, v_spin_ddapc_rest_r, vee, vppl_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -623,8 +623,8 @@ CONTAINS
 
       IF (ASSOCIATED(rho_nlcc) .AND. calculate_forces) THEN
          DO ispin = 1, nspins
-            CALL integrate_rho_nlcc(v_rspace_new(ispin)%pw, qs_env)
-            IF (dft_control%do_admm) CALL integrate_rho_nlcc(v_rspace_new_aux_fit(ispin)%pw, qs_env)
+            CALL integrate_rho_nlcc(v_rspace_new(ispin), qs_env)
+            IF (dft_control%do_admm) CALL integrate_rho_nlcc(v_rspace_new_aux_fit(ispin), qs_env)
          END DO
       END IF
 

@@ -67,8 +67,7 @@ MODULE admm_methods
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE parallel_gemm_api,               ONLY: parallel_gemm
-   USE pw_types,                        ONLY: pw_p_type,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -1508,8 +1507,8 @@ CONTAINS
                                                             rho_ao_aux_buffer
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(local_rho_type), POINTER                      :: local_rho_buffer
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace_dummy, v_tau_rspace_dummy
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r, v_rspace_dummy, &
+                                                            v_tau_rspace_dummy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_aux_fit, rho_aux_fit_buffer
       TYPE(section_vals_type), POINTER                   :: xc_section_aux
