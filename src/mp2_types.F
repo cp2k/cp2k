@@ -135,7 +135,6 @@ MODULE mp2_types
       LOGICAL                  :: do_ri_axk
       LOGICAL                  :: do_rse
       LOGICAL                  :: print_dgemm_info
-      LOGICAL :: accurate_dot_product
       TYPE(dbcsr_type), POINTER             :: mo_coeff_o, &
                                                mo_coeff_v
       REAL(KIND=dp)            :: ener_axk

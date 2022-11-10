@@ -468,8 +468,9 @@ CONTAINS
          keyword, __LOCATION__, &
          name="DOT_PRODUCT_BLKSIZE", &
          description="Dot products for the calculation of the RPA/SOS-MP2 density matrices "// &
-         "are calculated in batches of the size given by this keyword. Larger block sizes, "// &
-         "improve the performance but reduce the numerical accuracy. Ignored with MP2 gradients.", &
+         "are calculated in batches of the size given by this keyword. Larger block sizes "// &
+         "improve the performance but reduce the numerical accuracy. Recommended block sizes are multiples of the number of "// &
+         "doubles per cache line (usually 8). Ignored with MP2 gradients. Set it to -1 to prevent blocking.", &
          default_i_val=32)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -593,16 +594,6 @@ CONTAINS
          description="Print details about all DGEMM calls.", &
          lone_keyword_l_val=.TRUE., &
          default_l_val=.FALSE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, &
-         name="ACCURATE_DOT_PRODUCT", &
-         description="In certain cases, the dot products to calculate the RPA density matrix need an extended accuracy. "// &
-         "Set it to FALSE if the accuracy is sufficient (Default: True).", &
-         lone_keyword_l_val=.TRUE., &
-         default_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

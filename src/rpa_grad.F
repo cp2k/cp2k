@@ -38,7 +38,8 @@ MODULE rpa_grad
                                               group_dist_proc,&
                                               maxsize,&
                                               release_group_dist
-   USE kahan_sum,                       ONLY: accurate_dot_product_2
+   USE kahan_sum,                       ONLY: accurate_dot_product,&
+                                              accurate_dot_product_2
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE libint_2c_3c,                    ONLY: compare_potential_types
@@ -760,6 +761,8 @@ CONTAINS
       CALL cp_fm_get_info(fm_mat_Q(1)%matrix, nrow_global=dimen_RI, nrow_local=nrow_local, ncol_local=ncol_local, &
                           col_indices=col_indices, row_indices=row_indices)
 
+      IF (mp2_env%ri_grad%dot_blksize == -1) mp2_env%ri_grad%dot_blksize = nrow_local
+
       IF (.NOT. do_ri_sos_laplace_mp2) THEN
          CALL cp_fm_create(fm_work_PQ, fm_mat_Q(1)%matrix%matrix_struct)
 
@@ -1001,23 +1004,21 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_P_rpa'
 
-      INTEGER :: handle, handle2, my_a, my_a_size, my_a_start, my_i, my_i_size, my_i_start, &
-         my_P_size, my_prow, P_end, P_start, proc_a_recv, proc_a_send, proc_i_recv, proc_i_send, &
-         proc_recv, proc_send, proc_shift, recv_a, recv_a_end, recv_a_size, recv_a_start, recv_i, &
-         recv_i_end, recv_i_size, recv_i_start, stripesize, tag
+      INTEGER :: handle, handle2, my_a, my_a_size, my_a_start, my_b, my_i, my_i_size, my_i_start, &
+         my_j, my_P_size, my_prow, P_end, P_start, proc_a_recv, proc_a_send, proc_i_recv, &
+         proc_i_send, proc_recv, proc_send, proc_shift, recv_a, recv_a_end, recv_a_size, &
+         recv_a_start, recv_i, recv_i_end, recv_i_size, recv_i_start, stripesize, tag
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
-      REAL(KIND=dp)                                      :: tmp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: buffer_1D, buffer_compens_1D, &
-                                                            buffer_corr_1D, buffer_sum_1D
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: buffer_2D, buffer_compens_2D, &
-                                                            buffer_corr_2D, buffer_sum_2D, mat_S_2D
+      REAL(KIND=dp)                                      :: my_compens, my_pab, my_pij, s
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: buffer_1D, buffer_compens_1D
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: buffer_2D, buffer_compens_2D
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: buffer_3D, mat_S_3D
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
       ! We allocate it at every step to reduce potential memory conflicts with COSMA
-      IF (.NOT. mp2_env%ri_rpa%accurate_dot_product) THEN
+      IF (mp2_env%ri_grad%dot_blksize >= 8) THEN
          IF (.NOT. c_associated(mp2_env%local_gemm_ctx)) THEN
             CALL local_gemm_create(mp2_env%local_gemm_ctx, LOCAL_GEMM_PU_GPU)
             CALL local_gemm_set_op_threshold_gpu(mp2_env%local_gemm_ctx, 128*128*128*2)
@@ -1028,6 +1029,8 @@ CONTAINS
 
       my_P_size = SIZE(mat_work_iaP_3D, 1)
 
+      IF (mp2_env%ri_grad%dot_blksize == -1) mp2_env%ri_grad%dot_blksize = my_P_size
+
       CALL cp_fm_struct_get(fm_struct_S, para_env=para_env)
       CALL get_blacs_info(fm_struct_S%context, my_process_row=my_prow, blacs2mpi=blacs2mpi, para_env=para_env)
 
@@ -1037,17 +1040,14 @@ CONTAINS
       ! We have to remap the indices because mp_sendrecv requires a 3D array (because of mat_work_iaP_3D)
       ! and dgemm requires 2D arrays
       ! Fortran 2008 does allow pointer remapping independently of the ranks but GCC 7 does not properly support it
-      mat_S_2D(1:my_P_size*my_a_size, 1:my_i_size) => mat_S_1D(1:INT(my_P_size, int_8)*my_a_size*my_i_size)
       mat_S_3D(1:my_P_size, 1:my_a_size, 1:my_i_size) => mat_S_1D(1:INT(my_P_size, int_8)*my_a_size*my_i_size)
 
       ALLOCATE (buffer_1D(MAX(INT(maxsize(gd_homo), KIND=int_8)*my_a_size, &
                               INT(maxsize(gd_virtual), KIND=int_8)*my_i_size)*my_P_size))
 
       ! Allocate buffers for vector version of kahan summation
-      IF (.NOT. mp2_env%ri_rpa%accurate_dot_product) THEN
-         ALLOCATE (buffer_sum_1D(MAX(my_a_size*maxsize(gd_virtual), my_i_size*maxsize(gd_homo))), &
-                   buffer_corr_1D(MAX(my_a_size*maxsize(gd_virtual), my_i_size*maxsize(gd_homo))), &
-                   buffer_compens_1D(MAX(my_a_size*maxsize(gd_virtual), my_i_size*maxsize(gd_homo))))
+      IF (mp2_env%ri_grad%dot_blksize >= 8) THEN
+         ALLOCATE (buffer_compens_1D(MAX(my_a_size*maxsize(gd_virtual), my_i_size*maxsize(gd_homo))))
       END IF
 
       DO proc_shift = 0, grid(1) - 1
@@ -1067,9 +1067,7 @@ CONTAINS
                           para_env%group, tag)
          CALL timestop(handle2)
 
-         IF (.NOT. mp2_env%ri_rpa%accurate_dot_product) THEN
-            buffer_sum_2D(1:my_a_size, 1:recv_a_size) => buffer_sum_1D(1:my_a_size*recv_a_size)
-            buffer_corr_2D(1:my_a_size, 1:recv_a_size) => buffer_corr_1D(1:my_a_size*recv_a_size)
+         IF (mp2_env%ri_grad%dot_blksize >= 8) THEN
             buffer_compens_2D(1:my_a_size, 1:recv_a_size) => buffer_compens_1D(1:my_a_size*recv_a_size)
 
             buffer_compens_2D = 0.0_dp
@@ -1081,16 +1079,22 @@ CONTAINS
                   stripesize = MIN(mp2_env%ri_grad%dot_blksize, my_P_size - P_start + 1)
                   P_end = P_start + stripesize - 1
 
-                  buffer_corr_2D = buffer_compens_2D
                   CALL local_gemm("T", "N", my_a_size, recv_a_size, stripesize, &
                                   -weight, mat_S_3D(P_start:P_end, :, my_i), stripesize, &
                                   buffer_3D(P_start:P_end, :, my_i), stripesize, &
-                                  -1.0_dp, buffer_corr_2D, my_a_size, mp2_env%local_gemm_ctx)
+                                  -1.0_dp, buffer_compens_2D, my_a_size, mp2_env%local_gemm_ctx)
 
-                  buffer_sum_2D(:, 1:recv_a_size) = P_ab(:, recv_a_start:recv_a_end) + buffer_corr_2D(:, 1:recv_a_size)
-                  buffer_compens_2D(:, 1:recv_a_size) = (buffer_sum_2D(:, 1:recv_a_size) - P_ab(:, recv_a_start:recv_a_end)) &
-                                                        - buffer_corr_2D(:, 1:recv_a_size)
-                  P_ab(:, recv_a_start:recv_a_end) = buffer_sum_2D(:, 1:recv_a_size)
+!$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) SHARED(recv_a_size,my_a_size,P_ab,recv_a_start,buffer_compens_2D) &
+!$OMP              PRIVATE(my_a,my_b,my_pab,my_compens,s)
+                  DO my_a = 1, recv_a_size
+                  DO my_b = 1, my_a_size
+                     my_pab = P_ab(my_b, recv_a_start - 1 + my_a)
+                     my_compens = buffer_compens_2D(my_b, my_a)
+                     s = my_pab + my_compens
+                     buffer_compens_2D(my_b, my_a) = (s - my_pab) - my_compens
+                     P_ab(my_b, recv_a_start - 1 + my_a) = s
+                  END DO
+                  END DO
                END DO
             END DO
             CALL timestop(handle2)
@@ -1115,17 +1119,23 @@ CONTAINS
                   stripesize = MIN(mp2_env%ri_grad%dot_blksize, my_P_size - P_start + 1)
                   P_end = P_start + stripesize - 1
 
-                  buffer_corr_2D = buffer_compens_2D
                   ! Repeat contraction
                   CALL local_gemm("T", "N", my_a_size, recv_a_size, stripesize, &
                                   weight, mat_S_3D(P_start:P_end, :, my_i), stripesize, &
                                   buffer_3D(P_start:P_end, :, my_i), stripesize, &
-                                  -1.0_dp, buffer_corr_2D, my_a_size, mp2_env%local_gemm_ctx)
+                                  -1.0_dp, buffer_compens_2D, my_a_size, mp2_env%local_gemm_ctx)
 
-                  buffer_sum_2D(:, 1:recv_a_size) = P_ab(:, recv_a_start:recv_a_end) + buffer_corr_2D(:, 1:recv_a_size)
-                  buffer_compens_2D(:, 1:recv_a_size) = (buffer_sum_2D(:, 1:recv_a_size) - P_ab(:, recv_a_start:recv_a_end)) &
-                                                        - buffer_corr_2D(:, 1:recv_a_size)
-                  P_ab(:, recv_a_start:recv_a_end) = buffer_sum_2D(:, 1:recv_a_size)
+!$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) SHARED(recv_a_size,my_a_size,P_ab,recv_a_start,buffer_compens_2D) &
+!$OMP              PRIVATE(my_a,my_b,my_pab,my_compens,s)
+                  DO my_a = 1, recv_a_size
+                  DO my_b = 1, my_a_size
+                     my_pab = P_ab(my_b, recv_a_start - 1 + my_a)
+                     my_compens = buffer_compens_2D(my_b, my_a)
+                     s = my_pab + my_compens
+                     buffer_compens_2D(my_b, my_a) = (s - my_pab) - my_compens
+                     P_ab(my_b, recv_a_start - 1 + my_a) = s
+                  END DO
+                  END DO
                END DO
             END DO
             CALL timestop(handle2)
@@ -1144,24 +1154,29 @@ CONTAINS
             END DO
             CALL timestop(handle2)
          ELSE
-            CALL timeset(routineN//"_accurate_a", handle2)
+            BLOCK
+               REAL(KIND=dp) :: tmp, e_i, e_a, e_b, omega2
+               CALL timeset(routineN//"_accurate_a", handle2)
+               omega2 = -omega**2
 !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(NONE)&
-!$OMP SHARED(my_a_size,recv_a_size,my_i_size,mat_S_3D,homo,Eigenval,omega,my_a_start,&
+!$OMP SHARED(my_a_size,recv_a_size,my_i_size,mat_S_3D,homo,Eigenval,omega2,my_a_start,&
 !$OMP        recv_a_start,P_ab,weight,buffer_3D,my_i_start,mp2_env)&
-!$OMP PRIVATE(tmp,my_a,recv_a,my_i)
-            DO my_a = 1, my_a_size
-            DO recv_a = 1, recv_a_size
-               tmp = 0.0_dp
-               DO my_i = 1, my_i_size
-                  tmp = tmp + accurate_dot_product_2(mat_S_3D(:, my_a, my_i), buffer_3D(:, recv_a, my_i), &
-                                                     mp2_env%ri_grad%dot_blksize) &
-                        *(1.0_dp - omega**2/(Eigenval(homo + my_a_start - 1 + my_a) - Eigenval(my_i_start - 1 + my_i)) &
-                          /(Eigenval(homo + recv_a_start - 1 + recv_a) - Eigenval(my_i_start - 1 + my_i)))
+!$OMP PRIVATE(tmp,my_a,recv_a,my_i,e_a,e_b,e_i)
+               DO my_a = 1, my_a_size
+               DO recv_a = 1, recv_a_size
+                  e_a = Eigenval(homo + my_a_start - 1 + my_a)
+                  e_b = Eigenval(homo + recv_a_start - 1 + recv_a)
+                  tmp = 0.0_dp
+                  DO my_i = 1, my_i_size
+                     e_i = -Eigenval(my_i_start - 1 + my_i)
+                     tmp = tmp + accurate_dot_product(mat_S_3D(:, my_a, my_i), buffer_3D(:, recv_a, my_i)) &
+                           *(1.0_dp + omega2/((e_a + e_i)*(e_b + e_i)))
+                  END DO
+                  P_ab(my_a, recv_a_start - 1 + recv_a) = P_ab(my_a, recv_a_start - 1 + recv_a) - weight*tmp
                END DO
-               P_ab(my_a, recv_a_start - 1 + recv_a) = P_ab(my_a, recv_a_start - 1 + recv_a) - weight*tmp
-            END DO
-            END DO
-            CALL timestop(handle2)
+               END DO
+               CALL timestop(handle2)
+            END BLOCK
          END IF
       END DO
 
@@ -1184,30 +1199,33 @@ CONTAINS
                           para_env%group, tag)
          CALL timestop(handle2)
 
-         IF (.NOT. mp2_env%ri_rpa%accurate_dot_product) THEN
-            buffer_sum_2D(1:my_i_size, 1:recv_i_size) => buffer_sum_1D(1:my_i_size*recv_i_size)
-            buffer_corr_2D(1:my_i_size, 1:recv_i_size) => buffer_corr_1D(1:my_i_size*recv_i_size)
+         IF (mp2_env%ri_grad%dot_blksize >= 8) THEN
             buffer_compens_2D(1:my_i_size, 1:recv_i_size) => buffer_compens_1D(1:my_i_size*recv_i_size)
-
             buffer_compens_2D = 0.0_dp
 
             CALL timeset(routineN//"_dgemm_i", handle2)
+            ! This loop imitates the actual tensor contraction
             DO my_a = 1, my_a_size
                DO P_start = 1, my_P_size, mp2_env%ri_grad%dot_blksize
                   stripesize = MIN(mp2_env%ri_grad%dot_blksize, my_P_size - P_start + 1)
                   P_end = P_start + stripesize - 1
 
-                  buffer_corr_2D = buffer_compens_2D
-                  ! This loop imitates the actual tensor contraction
                   CALL local_gemm("T", "N", my_i_size, recv_i_size, stripesize, &
                                   weight, mat_S_3D(P_start:P_end, my_a, :), stripesize, &
                                   buffer_3D(P_start:P_end, my_a, :), stripesize, &
-                                  -1.0_dp, buffer_corr_2D(:, 1:recv_i_start), my_i_size, mp2_env%local_gemm_ctx)
+                                  -1.0_dp, buffer_compens_2D(:, 1:recv_i_start), my_i_size, mp2_env%local_gemm_ctx)
 
-                  buffer_sum_2D(:, 1:recv_i_size) = P_ij(:, recv_i_start:recv_i_end) + buffer_corr_2D(:, 1:recv_i_size)
-                  buffer_compens_2D(:, 1:recv_i_size) = (buffer_sum_2D(:, 1:recv_i_size) - P_ij(:, recv_i_start:recv_i_end)) &
-                                                        - buffer_corr_2D(:, 1:recv_i_size)
-                  P_ij(:, recv_i_start:recv_i_end) = buffer_sum_2D(:, 1:recv_i_size)
+!$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) SHARED(recv_i_size,my_i_size,P_ij,recv_i_start,buffer_compens_2D) &
+!$OMP              PRIVATE(my_i,my_j,my_pij,my_compens,s)
+                  DO my_i = 1, recv_i_size
+                  DO my_j = 1, my_i_size
+                     my_pij = P_ij(my_j, recv_i_start - 1 + my_i)
+                     my_compens = buffer_compens_2D(my_j, my_i)
+                     s = my_pij + my_compens
+                     buffer_compens_2D(my_j, my_i) = (s - my_pij) - my_compens
+                     P_ij(my_j, recv_i_start - 1 + my_i) = s
+                  END DO
+                  END DO
                END DO
             END DO
             CALL timestop(handle2)
@@ -1234,17 +1252,23 @@ CONTAINS
                   stripesize = MIN(mp2_env%ri_grad%dot_blksize, my_P_size - P_start + 1)
                   P_end = P_start + stripesize - 1
 
-                  buffer_corr_2D = buffer_compens_2D
                   ! Repeat contraction
                   CALL local_gemm("T", "N", my_i_size, recv_i_size, stripesize, &
                                   -weight, mat_S_3D(P_start:P_end, my_a, :), stripesize, &
                                   buffer_3D(P_start:P_end, my_a, :), stripesize, &
-                                  -1.0_dp, buffer_corr_2D(:, 1:recv_i_start), my_i_size, mp2_env%local_gemm_ctx)
+                                  -1.0_dp, buffer_compens_2D(:, 1:recv_i_start), my_i_size, mp2_env%local_gemm_ctx)
 
-                  buffer_sum_2D(:, 1:recv_i_size) = P_ij(:, recv_i_start:recv_i_end) + buffer_corr_2D(:, 1:recv_i_size)
-                  buffer_compens_2D(:, 1:recv_i_size) = (buffer_sum_2D(:, 1:recv_i_size) - P_ij(:, recv_i_start:recv_i_end)) &
-                                                        - buffer_corr_2D(:, 1:recv_i_size)
-                  P_ij(:, recv_i_start:recv_i_end) = buffer_sum_2D(:, 1:recv_i_size)
+!$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) SHARED(recv_i_size,my_i_size,P_ij,recv_i_start,buffer_compens_2D) &
+!$OMP              PRIVATE(my_i,my_j,my_pij,my_compens,s)
+                  DO my_i = 1, recv_i_size
+                  DO my_j = 1, my_i_size
+                     my_pij = P_ij(my_j, recv_i_start - 1 + my_i)
+                     my_compens = buffer_compens_2D(my_j, my_i)
+                     s = my_pij + my_compens
+                     buffer_compens_2D(my_j, my_i) = (s - my_pij) - my_compens
+                     P_ij(my_j, recv_i_start - 1 + my_i) = s
+                  END DO
+                  END DO
                END DO
             END DO
             CALL timestop(handle2)
@@ -1259,32 +1283,37 @@ CONTAINS
             END DO
             CALL timestop(handle2)
          ELSE
-            CALL timeset(routineN//"_accurate_i", handle2)
+            BLOCK
+               REAL(KIND=dp) :: tmp, e_i, e_a, e_j, omega2
+               CALL timeset(routineN//"_accurate_i", handle2)
+               omega2 = -omega**2
 !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(NONE)&
-!$OMP SHARED(my_a_size,recv_i_size,my_i_size,mat_S_3D,homo,Eigenval,omega,my_a_start,&
-!$OMP        recv_i_start,P_ij,weight,buffer_3D,my_i_start,mp2_env)&
-!$OMP PRIVATE(tmp,my_a,recv_i,my_i)
-            DO my_i = 1, my_i_size
-            DO recv_i = 1, recv_i_size
-               tmp = 0.0_dp
-               DO my_a = 1, my_a_size
-                  tmp = tmp + accurate_dot_product_2(mat_S_3D(:, my_a, my_i), buffer_3D(:, my_a, recv_i), &
-                                                     mp2_env%ri_grad%dot_blksize) &
-                        *(1.0_dp - omega**2/(Eigenval(homo + my_a_start - 1 + my_a) - Eigenval(my_i_start - 1 + my_i)) &
-                          /(Eigenval(homo + my_a_start - 1 + my_a) - Eigenval(recv_i_start - 1 + recv_i)))
+!$OMP SHARED(my_a_size,recv_i_size,my_i_size,mat_S_3D,homo,Eigenval,omega2,my_a_start,&
+!$OMP        recv_i_start,P_ij,weight,buffer_3D,my_i_start)&
+!$OMP PRIVATE(tmp,my_a,recv_i,my_i,e_i,e_j,e_a)
+               DO my_i = 1, my_i_size
+               DO recv_i = 1, recv_i_size
+                  e_i = Eigenval(my_i_start - 1 + my_i)
+                  e_j = Eigenval(recv_i_start - 1 + recv_i)
+                  tmp = 0.0_dp
+                  DO my_a = 1, my_a_size
+                     e_a = Eigenval(homo + my_a_start - 1 + my_a)
+                     tmp = tmp + accurate_dot_product(mat_S_3D(:, my_a, my_i), buffer_3D(:, my_a, recv_i)) &
+                           *(1.0_dp + omega2/((e_a - e_i)*(e_a - e_j)))
+                  END DO
+                  P_ij(my_i, recv_i_start - 1 + recv_i) = P_ij(my_i, recv_i_start - 1 + recv_i) + weight*tmp
                END DO
-               P_ij(my_i, recv_i + recv_i_start - 1) = P_ij(my_i, recv_i + recv_i_start - 1) + weight*tmp
-            END DO
-            END DO
-            CALL timestop(handle2)
+               END DO
+               CALL timestop(handle2)
+            END BLOCK
          END IF
       END DO
 
-      IF (.NOT. mp2_env%ri_rpa%accurate_dot_product) THEN
+      IF (mp2_env%ri_grad%dot_blksize >= 8) THEN
          ! release memory allocated by local_gemm when run on GPU. local_gemm_ctx is null on cpu only runs
          CALL local_gemm_destroy(mp2_env%local_gemm_ctx)
          mp2_env%local_gemm_ctx = C_NULL_PTR
-         DEALLOCATE (buffer_sum_1D, buffer_corr_1D, buffer_compens_1D)
+         DEALLOCATE (buffer_compens_1D)
       END IF
 
       CALL timestop(handle)
@@ -1361,16 +1390,18 @@ CONTAINS
 
       tag = 42
 
-      DO col_local = 1, ncol_local
-         col_global = col_indices(col_local)
+      DO ij_counter = 1, num_ij_pairs
 
-         iocc = MAX(1, col_global - 1)/virtual + 1
-         avirt = col_global - (iocc - 1)*virtual
+         my_i = pair_list(1, ij_counter)
+         my_j = pair_list(2, ij_counter)
 
-         DO ij_counter = 1, num_ij_pairs
+         trace = 0.0_dp
 
-            my_i = pair_list(1, ij_counter)
-            my_j = pair_list(2, ij_counter)
+         DO col_local = 1, ncol_local
+            col_global = col_indices(col_local)
+
+            iocc = MAX(1, col_global - 1)/virtual + 1
+            avirt = col_global - (iocc - 1)*virtual
 
             IF (iocc /= my_j) CYCLE
             pcol = cp_fm_indxg2p((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
@@ -1378,13 +1409,12 @@ CONTAINS
 
             my_col_local = cp_fm_indxg2l((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
 
-            trace = accurate_dot_product_2(fm_mat_S%local_data(:, my_col_local), fm_work_iaP%local_data(:, col_local), &
-                                           dot_blksize)
-
-            P_ij(ij_counter) = P_ij(ij_counter) &
-                               - trace*sinh_over_x(0.5_dp*(Eigenval(my_i) - Eigenval(my_j))*omega)*omega*weight
-
+            trace = trace + accurate_dot_product_2(fm_mat_S%local_data(:, my_col_local), fm_work_iaP%local_data(:, col_local), &
+                                                   dot_blksize)
          END DO
+
+         P_ij(ij_counter) = P_ij(ij_counter) - trace*sinh_over_x(0.5_dp*(Eigenval(my_i) - Eigenval(my_j))*omega)*omega*weight
+
       END DO
 
       IF (num_pe_col > 1) THEN
@@ -1519,29 +1549,32 @@ CONTAINS
 
       tag = 43
 
-      DO col_local = 1, ncol_local
-         col_global = col_indices(col_local)
+      DO ab_counter = 1, num_ab_pairs
 
-         iocc = MAX(1, col_global - 1)/virtual + 1
-         avirt = col_global - (iocc - 1)*virtual
+         my_a = pair_list(1, ab_counter)
+         my_b = pair_list(2, ab_counter)
 
-         DO ab_counter = 1, num_ab_pairs
+         trace = 0.0_dp
 
-            my_a = pair_list(1, ab_counter)
-            my_b = pair_list(2, ab_counter)
+         DO col_local = 1, ncol_local
+            col_global = col_indices(col_local)
+
+            iocc = MAX(1, col_global - 1)/virtual + 1
+            avirt = col_global - (iocc - 1)*virtual
 
             IF (avirt /= my_b) CYCLE
             pcol = cp_fm_indxg2p((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
             IF (pcol /= my_pcol) CYCLE
             my_col_local = cp_fm_indxg2l((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
 
-            trace = accurate_dot_product_2(fm_mat_S%local_data(:, my_col_local), fm_work_iaP%local_data(:, col_local), &
-                                           dot_blksize)
-
-            P_ab(ab_counter) = P_ab(ab_counter) &
-                               + trace*sinh_over_x(0.5_dp*(Eigenval(my_a) - Eigenval(my_b))*omega)*omega*weight
+            trace = trace + accurate_dot_product_2(fm_mat_S%local_data(:, my_col_local), fm_work_iaP%local_data(:, col_local), &
+                                                   dot_blksize)
 
          END DO
+
+         P_ab(ab_counter) = P_ab(ab_counter) &
+                            + trace*sinh_over_x(0.5_dp*(Eigenval(my_a) - Eigenval(my_b))*omega)*omega*weight
+
       END DO
 
       IF (num_pe_col > 1) THEN

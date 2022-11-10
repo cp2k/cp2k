@@ -36,7 +36,7 @@ MODULE kahan_sum
    REAL(KIND=dp), PARAMETER :: dzero = 0.0_dp
    COMPLEX(KIND=sp), PARAMETER :: czero = (0.0_sp, 0.0_sp)
    COMPLEX(KIND=dp), PARAMETER :: zzero = (0.0_dp, 0.0_dp)
-   INTEGER, PARAMETER :: dblksize = 4
+   INTEGER, PARAMETER :: dblksize = 8
 
    INTERFACE accurate_sum
       MODULE PROCEDURE &
@@ -160,7 +160,7 @@ CONTAINS
          ks_local = t
       END DO
       DO i = 2, dblksize
-         y(1) = ks_local(i) - c(1)
+         y(1) = ks_local(i) - (c(1) + c(i))
          t(1) = ks_local(1) + y(1)
          c(1) = (t(1) - ks_local(1)) - y(1)
          ks_local(1) = t(1)
