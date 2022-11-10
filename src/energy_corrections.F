@@ -621,12 +621,12 @@ CONTAINS
          POINTER                                         :: sab_orb
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_grid_type), POINTER                        :: pw_grid
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, v_rspace, v_rspace_in, &
-                                                            v_tau_rspace
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace, v_rspace_in, v_tau_rspace
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: rho_tot_gspace, v_hartree_gspace, &
                                                             v_hartree_rspace
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -720,7 +720,7 @@ CONTAINS
          ALLOCATE (ec_env%rhoout_r(ispin)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, ec_env%rhoout_r(ispin)%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_copy(rho_r(ispin)%pw, ec_env%rhoout_r(ispin)%pw)
+         CALL pw_copy(rho_r(ispin), ec_env%rhoout_r(ispin)%pw)
       END DO
 
       ! Getting nuclear force contribution from the core charge density
@@ -1258,9 +1258,9 @@ CONTAINS
       REAL(dp)                                           :: eexc, evhxc
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, v_rspace, v_tau_rspace
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace, v_tau_rspace
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: tau_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r, tau_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
 
@@ -1338,7 +1338,7 @@ CONTAINS
          END IF
 
          ! calclulate Int(vhxc*rho)dr and Int(vtau*tau)dr
-         evhxc = evhxc + pw_integral_ab(rho_r(ispin)%pw, v_rspace(ispin)%pw)/ &
+         evhxc = evhxc + pw_integral_ab(rho_r(ispin), v_rspace(ispin)%pw)/ &
                  v_rspace(1)%pw%pw_grid%dvol
          IF (ASSOCIATED(v_tau_rspace)) THEN
             evhxc = evhxc + pw_integral_ab(tau_r(ispin), v_tau_rspace(ispin)%pw)/ &
@@ -1619,14 +1619,14 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, rhoout_r, v_rspace, v_tau_rspace, &
-                                                            v_xc, v_xc_tau
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace, v_tau_rspace, v_xc, v_xc_tau
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: dv_hartree_rspace, rho_tot_gspace, &
                                                             rhodn_tot_gspace, v_hartree_gspace, &
                                                             v_hartree_rspace, vtot_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rhoout_g, tau_r, tauout_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r, rhoout_g, rhoout_r, tau_r, &
+                                                            tauout_r
       TYPE(pw_type), POINTER                             :: rho_core
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -1691,8 +1691,7 @@ CONTAINS
       NULLIFY (rhoout_r, rhoout_g)
       ALLOCATE (rhoout_r(nspins), rhoout_g(nspins))
       DO ispin = 1, nspins
-         ALLOCATE (rhoout_r(ispin)%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, rhoout_r(ispin)%pw, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, rhoout_r(ispin), &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, rhoout_g(ispin), &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
@@ -1705,7 +1704,7 @@ CONTAINS
       CALL pw_zero(rhodn_tot_gspace)
       DO ispin = 1, nspins
          CALL calculate_rho_elec(ks_env=ks_env, matrix_p=ec_env%matrix_p(ispin, 1)%matrix, &
-                                 rho=rhoout_r(ispin)%pw, &
+                                 rho=rhoout_r(ispin), &
                                  rho_gspace=rhoout_g(ispin), &
                                  basis_type="HARRIS", &
                                  task_list_external=ec_env%task_list)
@@ -1717,7 +1716,7 @@ CONTAINS
          ALLOCATE (ec_env%rhoout_r(ispin)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, ec_env%rhoout_r(ispin)%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_copy(rhoout_r(ispin)%pw, ec_env%rhoout_r(ispin)%pw)
+         CALL pw_copy(rhoout_r(ispin), ec_env%rhoout_r(ispin)%pw)
       END DO
 
       NULLIFY (tauout_r)
@@ -1818,7 +1817,7 @@ CONTAINS
 
       ! rho_out - rho_in
       DO ispin = 1, nspins
-         CALL pw_axpy(rho_r(ispin)%pw, rhoout_r(ispin)%pw, -1.0_dp)
+         CALL pw_axpy(rho_r(ispin), rhoout_r(ispin), -1.0_dp)
          CALL pw_axpy(rho_g(ispin), rhoout_g(ispin), -1.0_dp)
          CALL pw_axpy(rhoout_g(ispin), rhodn_tot_gspace)
          IF (dft_control%use_kinetic_energy_density) CALL pw_axpy(tau_r(ispin), tauout_r(ispin), -1.0_dp)
@@ -1994,7 +1993,7 @@ CONTAINS
          IF (ASSOCIATED(v_rspace)) THEN
             DO ispin = 1, nspins
                ! 2nd deriv xc-volume term
-               eexc = eexc + pw_integral_ab(rhoout_r(ispin)%pw, v_rspace(ispin)%pw)
+               eexc = eexc + pw_integral_ab(rhoout_r(ispin), v_rspace(ispin)%pw)
             END DO
          END IF
          IF (ASSOCIATED(v_tau_rspace)) THEN
@@ -2122,10 +2121,10 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, dv_hartree_rspace)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, vtot_rspace)
       DO ispin = 1, nspins
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoout_r(ispin)%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoout_r(ispin))
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoout_g(ispin))
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
-         DEALLOCATE (rhoout_r(ispin)%pw, v_xc(ispin)%pw)
+         DEALLOCATE (v_xc(ispin)%pw)
       END DO
       DEALLOCATE (rhoout_r, rhoout_g, v_xc)
       IF (ASSOCIATED(tauout_r)) THEN

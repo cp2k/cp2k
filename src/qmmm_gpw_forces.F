@@ -55,7 +55,6 @@ MODULE qmmm_gpw_forces
                                               pw_pools_give_back_pws
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                               qmmm_gaussian_type
@@ -120,9 +119,9 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pool
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(pw_type), POINTER                             :: rho0_s_gs, rho_core, rho_tot_r, &
                                                             rho_tot_r2
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -245,7 +244,7 @@ CONTAINS
          IF (need_f) THEN
             !
             DO ispin = 1, SIZE(rho_r)
-               CALL pw_axpy(rho_r(ispin)%pw, rho_tot_r)
+               CALL pw_axpy(rho_r(ispin), rho_tot_r)
             END DO
             IF (iw > 0) WRITE (iw, '(T2,"QMMM|",1X,A)') "Evaluating forces on MM atoms due to the:"
             ! Electrostatic Interaction type...

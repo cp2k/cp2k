@@ -66,8 +66,10 @@ MODULE qs_rho_types
       PRIVATE
       TYPE(kpoint_transitional_type)                 :: rho_ao
       TYPE(kpoint_transitional_type)                 :: rho_ao_im
-      TYPE(pw_p_type), DIMENSION(:), POINTER         :: rho_r => Null()
-      TYPE(pw_type), DIMENSION(:), POINTER :: tau_g => NULL(), tau_r => Null(), rho_g => Null()
+      TYPE(pw_type), DIMENSION(:), POINTER         :: rho_r => Null(), &
+                                                      rho_g => Null(), &
+                                                      tau_r => Null(), &
+                                                      tau_g => Null()
       TYPE(pw_type), DIMENSION(:, :), POINTER :: drho_r => NULL(), drho_g => NULL()
       ! Final rho_iter of last SCCS cycle (r-space)
       TYPE(pw_type), POINTER                       :: rho_r_sccs => Null()
@@ -127,8 +129,7 @@ CONTAINS
 
       IF (ASSOCIATED(rho_struct%rho_r)) THEN
          DO i = 1, SIZE(rho_struct%rho_r)
-            CALL pw_release(rho_struct%rho_r(i)%pw)
-            DEALLOCATE (rho_struct%rho_r(i)%pw)
+            CALL pw_release(rho_struct%rho_r(i))
          END DO
          DEALLOCATE (rho_struct%rho_r)
       END IF
@@ -230,7 +231,7 @@ CONTAINS
          POINTER                                         :: rho_ao, rho_ao_im
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: rho_ao_kp, rho_ao_im_kp
-      TYPE(pw_p_type), DIMENSION(:), OPTIONAL, POINTER   :: rho_r
+      TYPE(pw_type), DIMENSION(:), OPTIONAL, POINTER     :: rho_r
       TYPE(pw_type), DIMENSION(:, :), OPTIONAL, POINTER  :: drho_r
       TYPE(pw_type), DIMENSION(:), OPTIONAL, POINTER     :: rho_g
       TYPE(pw_type), DIMENSION(:, :), OPTIONAL, POINTER  :: drho_g
@@ -300,7 +301,7 @@ CONTAINS
          POINTER                                         :: rho_ao, rho_ao_im
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: rho_ao_kp, rho_ao_im_kp
-      TYPE(pw_p_type), DIMENSION(:), OPTIONAL, POINTER   :: rho_r
+      TYPE(pw_type), DIMENSION(:), OPTIONAL, POINTER     :: rho_r
       TYPE(pw_type), DIMENSION(:, :), OPTIONAL, POINTER  :: drho_r
       TYPE(pw_type), DIMENSION(:), OPTIONAL, POINTER     :: rho_g
       TYPE(pw_type), DIMENSION(:, :), OPTIONAL, POINTER  :: drho_g

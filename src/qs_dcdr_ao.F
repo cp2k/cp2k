@@ -131,12 +131,12 @@ CONTAINS
                                                             s1_ao
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho1_ao, rho_ao
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_r, rho_r, v_xc, v_xc_tau
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_xc, v_xc_tau
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: rho1_tot_gspace, v_hartree_gspace, &
                                                             v_hartree_rspace, v_rspace_new
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_g, rho1_g_pw, tau1_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_g, rho1_g_pw, rho1_r, rho_r, tau1_r
       TYPE(qs_rho_type), POINTER                         :: perturbed_density, rho
       TYPE(section_vals_type), POINTER                   :: input, xc_section
       TYPE(xc_derivative_set_type)                       :: deriv_set
@@ -494,12 +494,12 @@ CONTAINS
       INTEGER                                            :: handle, idir
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: drho_r, rho_r, v_xc, v_xc_tau
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_xc, v_xc_tau
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: v_hartree_gspace, v_hartree_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: drho_g, dtau_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: drho_g, drho_r, dtau_r, rho_r
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: input, xc_section
       TYPE(xc_derivative_set_type)                       :: my_deriv_set
@@ -528,20 +528,19 @@ CONTAINS
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
 
-      ALLOCATE (drho_r(1)%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, drho_r(1)%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, drho_r(1), &
                              use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, drho_g(1), &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       DO idir = 1, 3
          CALL pw_zero(v_hartree_gspace)
          CALL pw_zero(v_hartree_rspace)
-         CALL pw_zero(drho_r(1)%pw)
+         CALL pw_zero(drho_r(1))
          CALL pw_zero(drho_g(1))
 
          ! Get the density
          CALL calculate_drho_elec_dR(matrix_p=rho_ao(1)%matrix, &
-                                     drho=drho_r(1)%pw, &
+                                     drho=drho_r(1), &
                                      drho_gspace=drho_g(1), &
                                      qs_env=qs_env, &
                                      beta=idir, lambda=dcdr_env%lambda)
@@ -585,8 +584,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_g(1))
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_r(1)%pw)
-      DEALLOCATE (drho_r(1)%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_r(1))
 
       DEALLOCATE (drho_g)
       DEALLOCATE (drho_r)

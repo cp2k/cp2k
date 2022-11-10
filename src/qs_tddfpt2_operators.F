@@ -288,9 +288,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_xc_analytic'
 
       INTEGER                                            :: handle, ispin, nspins
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_ia_r, rho_ia_r2
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_ia_g, rho_ia_g2, tau_ia_r, tau_ia_r2
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_ia_g, rho_ia_g2, rho_ia_r, &
+                                                            rho_ia_r2, tau_ia_r, tau_ia_r2
 
       CALL timeset(routineN, handle)
 
@@ -309,8 +309,8 @@ CONTAINS
       IF (is_rks_triplets) THEN
          ALLOCATE (rho_ia_r2(2))
          ALLOCATE (rho_ia_g2(2))
-         rho_ia_r2(1)%pw => rho_ia_r(1)%pw
-         rho_ia_r2(2)%pw => rho_ia_r(1)%pw
+         rho_ia_r2(1) = rho_ia_r(1)
+         rho_ia_r2(2) = rho_ia_r(1)
          rho_ia_g2(1) = rho_ia_g(1)
          rho_ia_g2(2) = rho_ia_g(1)
 
@@ -320,10 +320,7 @@ CONTAINS
             tau_ia_r2(2) = tau_ia_r(1)
          END IF
       ELSE
-         ALLOCATE (rho_ia_r2(nspins))
-         DO ispin = 1, nspins
-            rho_ia_r2(ispin)%pw => rho_ia_r(ispin)%pw
-         END DO
+         rho_ia_r2 => rho_ia_r
          rho_ia_g2 => rho_ia_g
 
          tau_ia_r2 => tau_ia_r
@@ -343,10 +340,10 @@ CONTAINS
                                         rho1_set=kernel_env%xc_rho1_set, pw_pool=auxbas_pw_pool, &
                                         xc_section=kernel_env%xc_section, gapw=.FALSE., tddfpt_fac=kernel_env%beta)
 
-      DEALLOCATE (rho_ia_r2)
-      IF (is_rks_triplets) DEALLOCATE (rho_ia_g2)
-      IF (is_rks_triplets .AND. ASSOCIATED(tau_ia_r2)) THEN
-         DEALLOCATE (tau_ia_r2)
+      IF (is_rks_triplets) THEN
+         DEALLOCATE (rho_ia_r2)
+         DEALLOCATE (rho_ia_g2)
+         IF (ASSOCIATED(tau_ia_r2)) DEALLOCATE (tau_ia_r2)
       END IF
 
       CALL timestop(handle)
@@ -378,9 +375,8 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin, nspins
       LOGICAL                                            :: lsd, singlet, triplet
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_g, tau1_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_g, rho1_r, tau1_r
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
 
       CALL timeset(routineN, handle)

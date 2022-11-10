@@ -612,7 +612,7 @@ CONTAINS
          SUBROUTINE xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs, &
                                       xc_deriv_method_id, xc_rho_smooth_id, pw_pool)
             TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho_set
-            TYPE(pw_p_type), DIMENSION(:), INTENT(IN)          :: rho_r
+            TYPE(pw_type), DIMENSION(:), INTENT(IN)            :: rho_r
             TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
             TYPE(pw_type), DIMENSION(:), POINTER, INTENT(IN)   :: tau
             TYPE(xc_rho_cflags_type), INTENT(in)               :: needs
@@ -625,14 +625,15 @@ CONTAINS
             LOGICAL                                            :: gradient_f, my_rho_g_local, &
                                                                   needs_laplace, needs_rho_g
             REAL(kind=dp)                                      :: rho_cutoff
-            TYPE(pw_p_type), DIMENSION(2)                      :: laplace_rho_r, my_rho_r
+            TYPE(pw_p_type), DIMENSION(2)                      :: laplace_rho_r
             TYPE(pw_p_type), DIMENSION(3, 2)                   :: drho_r
-            TYPE(pw_type)                             :: my_rho_g, tmp_g
+            TYPE(pw_type)                                      :: my_rho_g, tmp_g
+            TYPE(pw_type), DIMENSION(2)                        :: my_rho_r
 
             IF (ANY(rho_set%local_bounds /= pw_pool%pw_grid%bounds_local)) &
                CPABORT("pw_pool cr3d have different size than expected")
             nspins = SIZE(rho_r)
-            rho_set%local_bounds = rho_r(1)%pw%pw_grid%bounds_local
+            rho_set%local_bounds = rho_r(1)%pw_grid%bounds_local
             rho_cutoff = 0.5*rho_set%rho_cutoff
 
             my_rho_g_local = .FALSE.
@@ -640,8 +641,7 @@ CONTAINS
             SELECT CASE (nspins)
             CASE (1)
                CPASSERT(SIZE(rho_r) == 1)
-               CPASSERT(ASSOCIATED(rho_r(1)%pw))
-               CPASSERT(rho_r(1)%pw%in_use == REALDATA3D)
+               CPASSERT(rho_r(1)%in_use == REALDATA3D)
                CPASSERT(.NOT. needs%rho_spin)
                CPASSERT(.NOT. needs%drho_spin)
                CPASSERT(.NOT. needs%norm_drho_spin)
@@ -650,10 +650,8 @@ CONTAINS
                CPASSERT(.NOT. needs%laplace_rho_spin)
             CASE (2)
                CPASSERT(SIZE(rho_r) == 2)
-               CPASSERT(ASSOCIATED(rho_r(1)%pw))
-               CPASSERT(ASSOCIATED(rho_r(2)%pw))
-               CPASSERT(rho_r(1)%pw%in_use == REALDATA3D)
-               CPASSERT(rho_r(2)%pw%in_use == REALDATA3D)
+               CPASSERT(rho_r(1)%in_use == REALDATA3D)
+               CPASSERT(rho_r(2)%in_use == REALDATA3D)
                CPASSERT(.NOT. needs%rho)
                CPASSERT(.NOT. needs%drho)
                CPASSERT(.NOT. needs%rho_1_3)
@@ -684,8 +682,7 @@ CONTAINS
                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
             END IF
             DO ispin = 1, nspins
-               ALLOCATE (my_rho_r(ispin)%pw)
-               CALL pw_pool_create_pw(pw_pool, my_rho_r(ispin)%pw, &
+               CALL pw_pool_create_pw(pw_pool, my_rho_r(ispin), &
                                       use_data=REALDATA3D, in_space=REALSPACE)
                ! introduce a smoothing kernel on the density
                IF (xc_rho_smooth_id == xc_rho_no_smooth) THEN
@@ -696,9 +693,9 @@ CONTAINS
                      END IF
                   END IF
 
-                  CALL pw_copy(rho_r(ispin)%pw, my_rho_r(ispin)%pw)
+                  CALL pw_copy(rho_r(ispin), my_rho_r(ispin))
                ELSE
-                  CALL xc_pw_smooth(rho_r(ispin)%pw, my_rho_r(ispin)%pw, xc_rho_smooth_id)
+                  CALL xc_pw_smooth(rho_r(ispin), my_rho_r(ispin), xc_rho_smooth_id)
                END IF
 
                IF (gradient_f) THEN ! calculate the grad of rho
@@ -715,7 +712,7 @@ CONTAINS
                         my_rho_g_local = .TRUE.
                         CALL pw_pool_create_pw(pw_pool, my_rho_g, &
                                                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-                        CALL pw_transfer(my_rho_r(ispin)%pw, my_rho_g)
+                        CALL pw_transfer(my_rho_r(ispin), my_rho_g)
                      END IF
                      IF (.NOT. my_rho_g_local .AND. (xc_deriv_method_id == xc_deriv_spline2 .OR. &
                                                      xc_deriv_method_id == xc_deriv_spline3)) THEN
@@ -731,7 +728,7 @@ CONTAINS
                                             use_data=REALDATA3D, in_space=REALSPACE)
                      CALL xc_pw_laplace(my_rho_g, pw_pool, xc_deriv_method_id, laplace_rho_r(ispin)%pw, tmp_g=tmp_g)
                   END IF
-                  CALL xc_pw_gradient(my_rho_r(ispin)%pw, my_rho_g, tmp_g, drho_r(:, ispin), xc_deriv_method_id)
+                  CALL xc_pw_gradient(my_rho_r(ispin), my_rho_g, tmp_g, drho_r(:, ispin), xc_deriv_method_id)
 
                   IF (needs_rho_g) THEN
                      IF (my_rho_g_local) THEN
@@ -760,7 +757,7 @@ CONTAINS
                   DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
                      DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
                         DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
-                           rho_set%rho_1_3(i, j, k) = MAX(my_rho_r(1)%pw%cr3d(i, j, k), 0.0_dp)**f13
+                           rho_set%rho_1_3(i, j, k) = MAX(my_rho_r(1)%cr3d(i, j, k), 0.0_dp)**f13
                         END DO
                      END DO
                   END DO
@@ -768,8 +765,8 @@ CONTAINS
                   rho_set%has%rho_1_3 = .TRUE.
                END IF
                IF (needs%rho) THEN
-                  rho_set%rho => my_rho_r(1)%pw%cr3d
-                  NULLIFY (my_rho_r(1)%pw%cr3d)
+                  rho_set%rho => my_rho_r(1)%cr3d
+                  NULLIFY (my_rho_r(1)%cr3d)
                   rho_set%owns%rho = .TRUE.
                   rho_set%has%rho = .TRUE.
                END IF
@@ -812,7 +809,7 @@ CONTAINS
                   DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
                      DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
                         DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
-                           rho_set%rhoa_1_3(i, j, k) = MAX(my_rho_r(1)%pw%cr3d(i, j, k), 0.0_dp)**f13
+                           rho_set%rhoa_1_3(i, j, k) = MAX(my_rho_r(1)%cr3d(i, j, k), 0.0_dp)**f13
                         END DO
                      END DO
                   END DO
@@ -822,7 +819,7 @@ CONTAINS
                   DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
                      DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
                         DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
-                           rho_set%rhob_1_3(i, j, k) = MAX(my_rho_r(2)%pw%cr3d(i, j, k), 0.0_dp)**f13
+                           rho_set%rhob_1_3(i, j, k) = MAX(my_rho_r(2)%cr3d(i, j, k), 0.0_dp)**f13
                         END DO
                      END DO
                   END DO
@@ -849,11 +846,11 @@ CONTAINS
                END IF
                IF (needs%rho_spin) THEN
 
-                  rho_set%rhoa => my_rho_r(1)%pw%cr3d
-                  NULLIFY (my_rho_r(1)%pw%cr3d)
+                  rho_set%rhoa => my_rho_r(1)%cr3d
+                  NULLIFY (my_rho_r(1)%cr3d)
 
-                  rho_set%rhob => my_rho_r(2)%pw%cr3d
-                  NULLIFY (my_rho_r(2)%pw%cr3d)
+                  rho_set%rhob => my_rho_r(2)%cr3d
+                  NULLIFY (my_rho_r(2)%cr3d)
 
                   rho_set%owns%rho_spin = .TRUE.
                   rho_set%has%rho_spin = .TRUE.
@@ -925,8 +922,7 @@ CONTAINS
                END DO
             END DO
             DO ispin = 1, nspins
-               CALL pw_pool_give_back_pw(pw_pool, my_rho_r(ispin)%pw)
-               DEALLOCATE (my_rho_r(ispin)%pw)
+               CALL pw_pool_give_back_pw(pw_pool, my_rho_r(ispin))
             END DO
 
             ! tau part

@@ -88,8 +88,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc, vxc_tau
       TYPE(qs_rho_type), INTENT(IN), POINTER             :: rho
-      TYPE(pw_p_type), DIMENSION(:), INTENT(IN), POINTER :: rho1_r
-      TYPE(pw_type), DIMENSION(:), INTENT(IN), POINTER   :: rho1_g, tau1_r
+      TYPE(pw_type), DIMENSION(:), INTENT(IN), POINTER   :: rho1_r, rho1_g, tau1_r
       TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
       LOGICAL, INTENT(IN), OPTIONAL                      :: compute_virial
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
@@ -99,9 +98,8 @@ CONTAINS
 
       INTEGER                                            :: handle
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: tau_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r, tau_r
       TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_rho_set_type)                              :: rho_set
 

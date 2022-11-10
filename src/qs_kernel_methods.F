@@ -20,8 +20,7 @@ MODULE qs_kernel_methods
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: pw_p_type,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kernel_types,                 ONLY: full_kernel_env_type
@@ -87,9 +86,8 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_ij_r, rho_ij_r2
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: tau_ij_r, tau_ij_r2
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_ij_r, rho_ij_r2, tau_ij_r, tau_ij_r2
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
 
       CALL timeset(routineN, handle)
@@ -142,8 +140,8 @@ CONTAINS
          ! we are about to compute triplet states using spin-restricted reference MOs;
          ! we still need the beta-spin density component in order to compute the TDDFT kernel
          ALLOCATE (rho_ij_r2(2))
-         rho_ij_r2(1)%pw => rho_ij_r(1)%pw
-         rho_ij_r2(2)%pw => rho_ij_r(1)%pw
+         rho_ij_r2(1) = rho_ij_r(1)
+         rho_ij_r2(2) = rho_ij_r(1)
 
          IF (ASSOCIATED(tau_ij_r)) THEN
             ALLOCATE (tau_ij_r2(2))

@@ -204,12 +204,13 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, v_rspace_embed, v_rspace_new, &
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace_embed, v_rspace_new, &
                                                             v_rspace_new_aux_fit, v_tau_rspace, &
                                                             v_tau_rspace_aux_fit
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: rho_tot_gspace, v_hartree_gspace
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(pw_type), POINTER :: rho0_s_rs, rho_core, rho_nlcc, v_efield_rspace, v_hartree_rspace, &
          v_sccs_rspace, v_sic_rspace, v_spin_ddapc_rest_r, vee, vppl_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -460,7 +461,7 @@ CONTAINS
          ! Compute the energy due to the external potential
          ee_ener = 0.0_dp
          DO ispin = 1, nspins
-            ee_ener = ee_ener + pw_integral_ab(rho_r(ispin)%pw, vee)
+            ee_ener = ee_ener + pw_integral_ab(rho_r(ispin), vee)
          END DO
          IF (.NOT. just_energy) THEN
             IF (gapw) THEN
@@ -616,7 +617,7 @@ CONTAINS
       IF (do_ppl .AND. calculate_forces) THEN
          CPASSERT(.NOT. gapw)
          DO ispin = 1, nspins
-            CALL integrate_ppl_rspace(rho_r(ispin)%pw, qs_env)
+            CALL integrate_ppl_rspace(rho_r(ispin), qs_env)
          END DO
       END IF
 
@@ -872,7 +873,7 @@ CONTAINS
          ecore_ppl = 0._dp
          DO ispin = 1, nspins
             ecore_ppl = ecore_ppl + &
-                        SUM(vppl_rspace%cr3d*rho_r(ispin)%pw%cr3d)*vppl_rspace%pw_grid%dvol
+                        SUM(vppl_rspace%cr3d*rho_r(ispin)%cr3d)*vppl_rspace%pw_grid%dvol
          END DO
          CALL mp_sum(ecore_ppl, para_env%group)
          energy%core = energy%core + ecore_ppl

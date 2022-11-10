@@ -145,12 +145,12 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_r, rho2_r, rho_r, v_rspace_new, &
-                                                            v_tau_rspace
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace_new, v_tau_rspace
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type) :: rho_tot_gspace, v_coulomb_gspace, v_coulomb_gtemp, v_coulomb_rtemp, &
          v_hartree_gspace, v_hartree_gtemp, v_hartree_rtemp, v_xc_gtemp, v_xc_rtemp, wf_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_r, rho2_r, rho_r
       TYPE(pw_type), POINTER                             :: pwx, pwy, pwz
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -234,16 +234,16 @@ CONTAINS
       DO ispin = 1, SIZE(nablavks_set, 2)
          DO idir = 1, SIZE(nablavks_set, 1)
             CALL qs_rho_get(nablavks_set(idir, ispin)%rho, rho_r=rho_r)
-            CALL pw_zero(rho_r(1)%pw)
+            CALL pw_zero(rho_r(1))
          END DO
       END DO
 
       CALL qs_rho_get(nablavks_set(1, 1)%rho, rho_r=rho_r)
-      pwx => rho_r(1)%pw
+      pwx => rho_r(1)
       CALL qs_rho_get(nablavks_set(2, 1)%rho, rho_r=rho_r)
-      pwy => rho_r(1)%pw
+      pwy => rho_r(1)
       CALL qs_rho_get(nablavks_set(3, 1)%rho, rho_r=rho_r)
-      pwz => rho_r(1)%pw
+      pwz => rho_r(1)
 
       roffset = -REAL(MODULO(pwx%pw_grid%npts, 2), dp)*pwx%pw_grid%dr/2.0_dp
 
@@ -844,7 +844,7 @@ CONTAINS
       DO idir = 1, 3
          CALL qs_rho_get(nablavks_set(idir, 1)%rho, rho_r=rho1_r)
          CALL qs_rho_get(nablavks_set(idir, 2)%rho, rho_r=rho2_r)
-         CALL pw_copy(rho1_r(1)%pw, rho2_r(1)%pw)
+         CALL pw_copy(rho1_r(1), rho2_r(1))
       END DO
 
 !   -------------------------------------
@@ -875,19 +875,19 @@ CONTAINS
             CALL pw_derive(v_xc_gtemp, (/1, 0, 0/))
             CALL pw_transfer(v_xc_gtemp, v_xc_rtemp)
             CALL qs_rho_get(nablavks_set(1, ispin)%rho, rho_r=rho_r)
-            CALL pw_axpy(v_xc_rtemp, rho_r(1)%pw)
+            CALL pw_axpy(v_xc_rtemp, rho_r(1))
 
             CALL pw_transfer(v_rspace_new(ispin)%pw, v_xc_gtemp)
             CALL pw_derive(v_xc_gtemp, (/0, 1, 0/))
             CALL pw_transfer(v_xc_gtemp, v_xc_rtemp)
             CALL qs_rho_get(nablavks_set(2, ispin)%rho, rho_r=rho_r)
-            CALL pw_axpy(v_xc_rtemp, rho_r(1)%pw)
+            CALL pw_axpy(v_xc_rtemp, rho_r(1))
 
             CALL pw_transfer(v_rspace_new(ispin)%pw, v_xc_gtemp)
             CALL pw_derive(v_xc_gtemp, (/0, 0, 1/))
             CALL pw_transfer(v_xc_gtemp, v_xc_rtemp)
             CALL qs_rho_get(nablavks_set(3, ispin)%rho, rho_r=rho_r)
-            CALL pw_axpy(v_xc_rtemp, rho_r(1)%pw)
+            CALL pw_axpy(v_xc_rtemp, rho_r(1))
 
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new(ispin)%pw)
             DEALLOCATE (v_rspace_new(ispin)%pw)
@@ -905,19 +905,19 @@ CONTAINS
             CALL pw_derive(v_xc_gtemp, (/1, 0, 0/))
             CALL pw_transfer(v_xc_gtemp, v_xc_rtemp)
             CALL qs_rho_get(nablavks_set(1, ispin)%rho, rho_r=rho_r)
-            CALL pw_axpy(v_xc_rtemp, rho_r(1)%pw)
+            CALL pw_axpy(v_xc_rtemp, rho_r(1))
 
             CALL pw_transfer(v_tau_rspace(ispin)%pw, v_xc_gtemp)
             CALL pw_derive(v_xc_gtemp, (/0, 1, 0/))
             CALL pw_transfer(v_xc_gtemp, v_xc_rtemp)
             CALL qs_rho_get(nablavks_set(2, ispin)%rho, rho_r=rho_r)
-            CALL pw_axpy(v_xc_rtemp, rho_r(1)%pw)
+            CALL pw_axpy(v_xc_rtemp, rho_r(1))
 
             CALL pw_transfer(v_tau_rspace(ispin)%pw, v_xc_gtemp)
             CALL pw_derive(v_xc_gtemp, (/0, 0, 1/))
             CALL pw_transfer(v_xc_gtemp, v_xc_rtemp)
             CALL qs_rho_get(nablavks_set(3, ispin)%rho, rho_r=rho_r)
-            CALL pw_axpy(v_xc_rtemp, rho_r(1)%pw)
+            CALL pw_axpy(v_xc_rtemp, rho_r(1))
 
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace(ispin)%pw)
             DEALLOCATE (v_tau_rspace(ispin)%pw)
@@ -947,7 +947,7 @@ CONTAINS
          DO idir = 1, 3
             CALL pw_zero(wf_r)
             CALL qs_rho_get(nablavks_set(idir, 1)%rho, rho_r=rho_r)
-            CALL pw_copy(rho_r(1)%pw, wf_r) ! RA
+            CALL pw_copy(rho_r(1), wf_r) ! RA
             filename = "nablavks"
             mpi_io = .TRUE.
             WRITE (ext, '(a2,I1,a5)') "_d", idir, ".cube"

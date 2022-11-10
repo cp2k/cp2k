@@ -98,10 +98,10 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: band_density, edens_g, edens_r, &
                                                             hartree_density, xc_density
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(pw_type), POINTER                             :: rho_core, rho_tot_gspace, &
                                                             rho_tot_rspace, v_hartree_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -194,7 +194,7 @@ CONTAINS
          CALL pw_zero(rho_tot_rspace)
       END IF
       DO ispin = 1, nspins
-         CALL pw_axpy(rho_r(ispin)%pw, rho_tot_rspace, alpha=-1.0_dp)
+         CALL pw_axpy(rho_r(ispin), rho_tot_rspace, alpha=-1.0_dp)
       END DO
       CALL pw_zero(hartree_density)
       ovol = 0.5_dp/hartree_density%pw_grid%dvol

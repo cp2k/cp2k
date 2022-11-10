@@ -27,8 +27,7 @@ MODULE admm_dm_methods
                                               do_admm_blocked_projection
    USE iterate_matrix,                  ONLY: invert_Hotelling
    USE kinds,                           ONLY: dp
-   USE pw_types,                        ONLY: pw_p_type,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -238,8 +237,7 @@ CONTAINS
       TYPE(admm_dm_type), POINTER                        :: admm_dm
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_aux
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r_aux
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g_aux
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g_aux, rho_r_aux
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_aux
       TYPE(task_list_type), POINTER                      :: task_list_aux_fit
@@ -260,7 +258,7 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          CALL calculate_rho_elec(ks_env=ks_env, &
                                  matrix_p=rho_ao_aux(ispin)%matrix, &
-                                 rho=rho_r_aux(ispin)%pw, &
+                                 rho=rho_r_aux(ispin), &
                                  rho_gspace=rho_g_aux(ispin), &
                                  total_rho=tot_rho_r_aux(ispin), &
                                  soft_valid=.FALSE., &

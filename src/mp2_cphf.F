@@ -1376,14 +1376,14 @@ CONTAINS
          POINTER                                         :: sab_orb, sac_ppl, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_mp2_r, rho_mp2_r_aux, rho_r, &
-                                                            vadmm_rspace, vtau_rspace, vxc_rspace
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: vadmm_rspace, vtau_rspace, vxc_rspace
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: pot_g, pot_r, rho_tot_g, temp_pw_g, &
                                                             vh_rspace, vhxc_rspace
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: dvg
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_mp2_g, tau_mp2_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_mp2_g, rho_mp2_r, &
+                                                            rho_mp2_r_aux, rho_r, tau_mp2_r
       TYPE(pw_type), POINTER                             :: rho_core
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -1608,7 +1608,7 @@ CONTAINS
          DO ispin = 1, nspins
             ! The potentials have been scaled in ks_ref_potential, but for pw_integral_ab, we need the unscaled potentials
             CALL pw_scale(vxc_rspace(ispin)%pw, 1.0_dp/vxc_rspace(ispin)%pw%pw_grid%dvol)
-            e_xc = e_xc + pw_integral_ab(rho_mp2_r(ispin)%pw, vxc_rspace(ispin)%pw)
+            e_xc = e_xc + pw_integral_ab(rho_mp2_r(ispin), vxc_rspace(ispin)%pw)
             IF (ASSOCIATED(vtau_rspace)) CALL pw_scale(vtau_rspace(ispin)%pw, 1.0_dp/vtau_rspace(ispin)%pw%pw_grid%dvol)
             IF (ASSOCIATED(vtau_rspace)) e_xc = e_xc + pw_integral_ab(tau_mp2_r(ispin), vtau_rspace(ispin)%pw)
          END DO
@@ -1893,7 +1893,7 @@ CONTAINS
                   CALL qs_rho_get(p_env%rho1_admm, rho_r=rho_mp2_r_aux)
                   e_xc = 0.0_dp
                   DO ispin = 1, nspins
-                     e_xc = e_xc + pw_integral_ab(rho_mp2_r_aux(ispin)%pw, vadmm_rspace(ispin)%pw)
+                     e_xc = e_xc + pw_integral_ab(rho_mp2_r_aux(ispin), vadmm_rspace(ispin)%pw)
                   END DO
 
                   e_xc = -e_xc/vadmm_rspace(1)%pw%pw_grid%dvol/REAL(para_env%num_pe, dp)

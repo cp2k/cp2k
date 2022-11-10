@@ -28,7 +28,6 @@ MODULE surface_dipole
                                               pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -77,10 +76,10 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: vdip_r, wf_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(pw_type), POINTER                             :: rho0_s_gs, rho_core, v_hartree_rspace
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -118,7 +117,7 @@ CONTAINS
       END IF
       CALL qs_rho_get(rho, rho_r=rho_r)
       DO ispin = 1, dft_control%nspins
-         CALL pw_axpy(rho_r(ispin)%pw, wf_r)
+         CALL pw_axpy(rho_r(ispin), wf_r)
       END DO
 
       ngrid(1:3) = wf_r%pw_grid%npts(1:3)

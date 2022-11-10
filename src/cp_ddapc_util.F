@@ -52,7 +52,6 @@ MODULE cp_ddapc_util
                                               pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_charges_types,                ONLY: qs_charges_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -237,10 +236,9 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pool
       TYPE(pw_type)                                      :: rho_tot_g
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r
       TYPE(pw_type), POINTER                             :: rho0_s_gs, rho_core
       TYPE(qs_charges_type), POINTER                     :: qs_charges
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -311,7 +309,7 @@ CONTAINS
             type_of_density = "SPIN DENSITY"
          END SELECT
       END IF
-      Vol = rho_r(1)%pw%pw_grid%vol
+      Vol = rho_r(1)%pw_grid%vol
       ch_dens = 0.0_dp
       ! should use pw_integrate
       IF (rho_tot_g%pw_grid%have_g0) ch_dens = REAL(rho_tot_g%cc(1), KIND=dp)

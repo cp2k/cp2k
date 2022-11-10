@@ -174,10 +174,10 @@ CONTAINS
                                                             mo_coeff
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, vxc, vxc_tau
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc, vxc_tau
       TYPE(pw_pool_type), POINTER                        :: xc_pw_pool
       TYPE(pw_type)                                      :: work_v_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, tau
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r, tau
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: input, low_spin_roks_section, xc_section
@@ -278,8 +278,7 @@ CONTAINS
       ALLOCATE (rho_r(Nspin))
       ALLOCATE (rho_g(Nspin))
       DO ispin = 1, Nspin
-         ALLOCATE (rho_r(ispin)%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, rho_r(ispin)%pw, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, rho_r(ispin), &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, rho_g(ispin), &
@@ -315,7 +314,7 @@ CONTAINS
                                 0.0_dp, matrix_p(ispin)%matrix, retain_sparsity=.TRUE.)
             ! compute the densities on the grid
             CALL calculate_rho_elec(matrix_p=matrix_p(ispin)%matrix, &
-                                    rho=rho_r(ispin)%pw, rho_gspace=rho_g(ispin), &
+                                    rho=rho_r(ispin), rho_gspace=rho_g(ispin), &
                                     ks_env=ks_env)
          END DO
 
@@ -365,9 +364,8 @@ CONTAINS
 
       ! release allocated memory
       DO ispin = 1, Nspin
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r(ispin)%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r(ispin))
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g(ispin))
-         DEALLOCATE (rho_r(ispin)%pw)
       END DO
       DEALLOCATE (rho_r, rho_g)
       CALL dbcsr_deallocate_matrix_set(matrix_p)
@@ -424,10 +422,10 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: orb_density_matrix, orb_h
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, vxc, vxc_tau
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc, vxc_tau
       TYPE(pw_pool_type), POINTER                        :: xc_pw_pool
       TYPE(pw_type)                                      :: work_v_gspace, work_v_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, tau
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r, tau
       TYPE(pw_type), TARGET                              :: orb_rho_g, orb_rho_r, tmp_g, tmp_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -593,8 +591,8 @@ CONTAINS
       END DO
 
       ALLOCATE (rho_r(2))
-      rho_r(1)%pw => orb_rho_r
-      rho_r(2)%pw => tmp_r
+      rho_r(1) = orb_rho_r
+      rho_r(2) = tmp_r
       CALL pw_zero(tmp_r)
 
       ALLOCATE (rho_g(2))
@@ -1661,11 +1659,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_ext_r
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: v_xc_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_ext_g, rho_g
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_ext_g, rho_g, rho_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(section_vals_type), POINTER                   :: ext_den_section, input
 
@@ -1702,7 +1699,7 @@ CONTAINS
       IF (do_zmp_read) THEN
          CALL pw_copy(qs_env%external_vxc, v_rspace_new(1)%pw)
          exc = 0.0_dp
-         exc = accurate_dot_product(v_rspace_new(1)%pw%cr3d, rho_r(1)%pw%cr3d)* &
+         exc = accurate_dot_product(v_rspace_new(1)%pw%cr3d, rho_r(1)%cr3d)* &
                v_rspace_new(1)%pw%pw_grid%dvol
       ELSE
          BLOCK
@@ -1742,7 +1739,7 @@ CONTAINS
             CALL pw_copy(v_rspace_new(1)%pw, v_xc_rspace)
 
             exc = 0.0_dp
-            exc = accurate_sum(v_rspace_new(1)%pw%cr3d*rho_r(1)%pw%cr3d)* &
+            exc = accurate_sum(v_rspace_new(1)%pw%cr3d*rho_r(1)%cr3d)* &
                   v_rspace_new(1)%pw%pw_grid%dvol
             IF (v_rspace_new(1)%pw%pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
                CALL mp_sum(exc, v_rspace_new(1)%pw%pw_grid%para%group)
@@ -1789,8 +1786,8 @@ CONTAINS
       INTEGER                                            :: handle, ispin, ns1, ns2
       REAL(KIND=dp)                                      :: embed_corr_local
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
 
       CALL timeset(routineN, handle)
 
@@ -1829,7 +1826,7 @@ CONTAINS
                v_rspace_embed(ispin)%pw%cr3d(:, :, :) - qs_env%spin_embed_pot%cr3d
          END IF
          ! Integrate the density*potential
-         embed_corr_local = accurate_dot_product(v_rspace_embed(ispin)%pw%cr3d, rho_r(ispin)%pw%cr3d)* &
+         embed_corr_local = accurate_dot_product(v_rspace_embed(ispin)%pw%cr3d, rho_r(ispin)%cr3d)* &
                             v_rspace_embed(ispin)%pw%pw_grid%dvol
 
          IF (v_rspace_embed(ispin)%pw%pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN

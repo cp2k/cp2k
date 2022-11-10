@@ -41,8 +41,7 @@ MODULE rtp_admm_methods
    USE mathconstants,                   ONLY: one,&
                                               zero
    USE parallel_gemm_api,               ONLY: parallel_gemm
-   USE pw_types,                        ONLY: pw_p_type,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
@@ -94,8 +93,7 @@ CONTAINS
                                                             matrix_s_aux_fit_vs_orb
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r_aux
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g_aux
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g_aux, rho_r_aux
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
       TYPE(rt_prop_type), POINTER                        :: rtp
@@ -145,7 +143,7 @@ CONTAINS
                                     ispin)
 
          CALL calculate_rho_elec(matrix_p=matrix_p_aux(ispin)%matrix, &
-                                 rho=rho_r_aux(ispin)%pw, &
+                                 rho=rho_r_aux(ispin), &
                                  rho_gspace=rho_g_aux(ispin), &
                                  total_rho=tot_rho_r_aux(ispin), &
                                  ks_env=ks_env, soft_valid=.FALSE., &

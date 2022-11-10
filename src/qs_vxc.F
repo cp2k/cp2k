@@ -127,11 +127,11 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: my_vxc_rho, my_vxc_tau, rho_m_rspace, &
-                                                            rho_r, rho_struct_r
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: my_vxc_rho, my_vxc_tau
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, vdw_pw_pool, xc_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_m_gspace, rho_struct_g, tau, &
-                                                            tau_struct_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_m_gspace, rho_m_rspace, &
+                                                            rho_r, rho_struct_g, rho_struct_r, &
+                                                            tau, tau_struct_r
       TYPE(pw_type), POINTER                             :: rho_nlcc, rho_nlcc_g, tmp_g, tmp_g2, &
                                                             tmp_pw
       TYPE(virial_type), POINTER                         :: virial
@@ -233,11 +233,8 @@ CONTAINS
          CALL pw_env_get(pw_env, xc_pw_pool=xc_pw_pool, auxbas_pw_pool=auxbas_pw_pool)
          uf_grid = .NOT. pw_grid_compare(auxbas_pw_pool%pw_grid, xc_pw_pool%pw_grid)
 
-         ALLOCATE (rho_r(mspin))
          IF (.NOT. uf_grid) THEN
-            DO ispin = 1, mspin
-               rho_r(ispin)%pw => rho_struct_r(ispin)%pw
-            END DO
+            rho_r => rho_struct_r
 
             IF (tau_r_valid) THEN
                tau => tau_struct_r
@@ -250,6 +247,7 @@ CONTAINS
             END IF
          ELSE
             CPASSERT(rho_g_valid)
+            ALLOCATE (rho_r(mspin))
             ALLOCATE (rho_g(mspin))
             DO ispin = 1, mspin
                CALL pw_pool_create_pw(xc_pw_pool, rho_g(ispin), &
@@ -257,10 +255,9 @@ CONTAINS
                CALL pw_transfer(rho_struct_g(ispin), rho_g(ispin))
             END DO
             DO ispin = 1, mspin
-               ALLOCATE (rho_r(ispin)%pw)
-               CALL pw_pool_create_pw(xc_pw_pool, rho_r(ispin)%pw, &
+               CALL pw_pool_create_pw(xc_pw_pool, rho_r(ispin), &
                                       in_space=REALSPACE, use_data=REALDATA3D)
-               CALL pw_transfer(rho_g(ispin), rho_r(ispin)%pw)
+               CALL pw_transfer(rho_g(ispin), rho_r(ispin))
             END DO
             IF (tau_r_valid) THEN
                ! tau with finer grids is not implemented (at least not correctly), which this asserts
@@ -272,7 +269,7 @@ CONTAINS
          IF (ASSOCIATED(rho_nlcc)) THEN
             factor = 1.0_dp
             DO ispin = 1, mspin
-               CALL pw_axpy(rho_nlcc, rho_r(ispin)%pw, factor)
+               CALL pw_axpy(rho_nlcc, rho_r(ispin), factor)
                CALL pw_axpy(rho_nlcc_g, rho_g(ispin), factor)
             END DO
          END IF
@@ -299,7 +296,7 @@ CONTAINS
          IF (ASSOCIATED(rho_nlcc)) THEN
             factor = -1.0_dp
             DO ispin = 1, mspin
-               CALL pw_axpy(rho_nlcc, rho_r(ispin)%pw, factor)
+               CALL pw_axpy(rho_nlcc, rho_r(ispin), factor)
                CALL pw_axpy(rho_nlcc_g, rho_g(ispin), factor)
             END DO
          END IF
@@ -364,8 +361,12 @@ CONTAINS
             END DO
             DEALLOCATE (my_vxc_tau)
          END IF
-         IF (ASSOCIATED(rho_g)) THEN
-            IF (uf_grid) THEN
+         IF (uf_grid) THEN
+            DO ispin = 1, SIZE(rho_r)
+               CALL pw_pool_give_back_pw(xc_pw_pool, rho_r(ispin))
+            END DO
+            DEALLOCATE (rho_r)
+            IF (ASSOCIATED(rho_g)) THEN
                DO ispin = 1, SIZE(rho_g)
                   CALL pw_pool_give_back_pw(xc_pw_pool, rho_g(ispin))
                END DO
@@ -376,41 +377,35 @@ CONTAINS
          ! compute again the xc but now for Exc(m,o) and the opposite sign
          IF (dft_control%sic_method_id .EQ. sic_mauri_spz .AND. .NOT. sic_scaling_b_zero) THEN
             ALLOCATE (rho_m_rspace(2), rho_m_gspace(2))
-            ALLOCATE (rho_m_rspace(1)%pw)
             CALL pw_pool_create_pw(xc_pw_pool, rho_m_gspace(1), &
                                    use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
-            CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(1)%pw, &
+            CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(1), &
                                    use_data=REALDATA3D, &
                                    in_space=REALSPACE)
-            CALL pw_copy(rho_struct_r(1)%pw, rho_m_rspace(1)%pw)
-            CALL pw_axpy(rho_struct_r(2)%pw, rho_m_rspace(1)%pw, alpha=-1._dp)
+            CALL pw_copy(rho_struct_r(1), rho_m_rspace(1))
+            CALL pw_axpy(rho_struct_r(2), rho_m_rspace(1), alpha=-1._dp)
             CALL pw_copy(rho_struct_g(1), rho_m_gspace(1))
             CALL pw_axpy(rho_struct_g(2), rho_m_gspace(1), alpha=-1._dp)
             ! bit sad, these will be just zero...
-            ALLOCATE (rho_m_rspace(2)%pw)
             CALL pw_pool_create_pw(xc_pw_pool, rho_m_gspace(2), &
                                    use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
-            CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(2)%pw, &
+            CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(2), &
                                    use_data=REALDATA3D, &
                                    in_space=REALSPACE)
-            CALL pw_zero(rho_m_rspace(2)%pw)
+            CALL pw_zero(rho_m_rspace(2))
             CALL pw_zero(rho_m_gspace(2))
 
-            rho_g => rho_m_gspace
-            rho_r(1)%pw => rho_m_rspace(1)%pw
-            rho_r(2)%pw => rho_m_rspace(2)%pw
-
             IF (my_just_energy) THEN
-               exc_m = xc_exc_calc(rho_r=rho_r, tau=tau, &
-                                   rho_g=rho_g, xc_section=xc_section, &
+               exc_m = xc_exc_calc(rho_r=rho_m_rspace, tau=tau, &
+                                   rho_g=rho_m_gspace, xc_section=xc_section, &
                                    pw_pool=xc_pw_pool)
             ELSE
                ! virial untested
                CPASSERT(.NOT. compute_virial)
-               CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho, vxc_tau=my_vxc_tau, rho_r=rho_r, &
-                                      rho_g=rho_g, tau=tau, exc=exc_m, &
+               CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho, vxc_tau=my_vxc_tau, rho_r=rho_m_rspace, &
+                                      rho_g=rho_m_gspace, tau=tau, exc=exc_m, &
                                       xc_section=xc_section, &
                                       pw_pool=xc_pw_pool, &
                                       compute_virial=.FALSE., &
@@ -432,13 +427,11 @@ CONTAINS
             END IF
 
             DO ispin = 1, 2
-               CALL pw_pool_give_back_pw(xc_pw_pool, rho_m_rspace(ispin)%pw)
+               CALL pw_pool_give_back_pw(xc_pw_pool, rho_m_rspace(ispin))
                CALL pw_pool_give_back_pw(xc_pw_pool, rho_m_gspace(ispin))
-               DEALLOCATE (rho_m_rspace(ispin)%pw)
             END DO
             DEALLOCATE (rho_m_rspace)
             DEALLOCATE (rho_m_gspace)
-            NULLIFY (rho_g)
 
          END IF
 
@@ -450,18 +443,13 @@ CONTAINS
 
             ALLOCATE (rho_m_rspace(2), rho_m_gspace(2))
             DO ispin = 1, 2
-               ALLOCATE (rho_m_rspace(ispin)%pw)
                CALL pw_pool_create_pw(xc_pw_pool, rho_m_gspace(ispin), &
                                       use_data=COMPLEXDATA1D, &
                                       in_space=RECIPROCALSPACE)
-               CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(ispin)%pw, &
+               CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(ispin), &
                                       use_data=REALDATA3D, &
                                       in_space=REALSPACE)
             END DO
-
-            rho_g => rho_m_gspace
-            rho_r(1)%pw => rho_m_rspace(1)%pw
-            rho_r(2)%pw => rho_m_rspace(2)%pw
 
             DO ispin = 1, 2
                IF (nelec_spin(ispin) .GT. 0.0_dp) THEN
@@ -470,22 +458,22 @@ CONTAINS
                   ! does it matter if there are no electrons with this spin (H) ?
                   nelec_s_inv = 0.0_dp
                END IF
-               CALL pw_copy(rho_struct_r(ispin)%pw, rho_m_rspace(1)%pw)
+               CALL pw_copy(rho_struct_r(ispin), rho_m_rspace(1))
                CALL pw_copy(rho_struct_g(ispin), rho_m_gspace(1))
-               CALL pw_scale(rho_m_rspace(1)%pw, nelec_s_inv)
+               CALL pw_scale(rho_m_rspace(1), nelec_s_inv)
                CALL pw_scale(rho_m_gspace(1), nelec_s_inv)
-               CALL pw_zero(rho_m_rspace(2)%pw)
+               CALL pw_zero(rho_m_rspace(2))
                CALL pw_zero(rho_m_gspace(2))
 
                IF (my_just_energy) THEN
-                  exc_m = xc_exc_calc(rho_r=rho_r, tau=tau, &
-                                      rho_g=rho_g, xc_section=xc_section, &
+                  exc_m = xc_exc_calc(rho_r=rho_m_rspace, tau=tau, &
+                                      rho_g=rho_m_gspace, xc_section=xc_section, &
                                       pw_pool=xc_pw_pool)
                ELSE
                   ! virial untested
                   CPASSERT(.NOT. compute_virial)
-                  CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho, vxc_tau=my_vxc_tau, rho_r=rho_r, &
-                                         rho_g=rho_g, tau=tau, exc=exc_m, &
+                  CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho, vxc_tau=my_vxc_tau, rho_r=rho_m_rspace, &
+                                         rho_g=rho_m_gspace, tau=tau, exc=exc_m, &
                                          xc_section=xc_section, &
                                          pw_pool=xc_pw_pool, &
                                          compute_virial=.FALSE., &
@@ -506,20 +494,19 @@ CONTAINS
             END DO
 
             DO ispin = 1, 2
-               CALL pw_pool_give_back_pw(xc_pw_pool, rho_m_rspace(ispin)%pw)
+               CALL pw_pool_give_back_pw(xc_pw_pool, rho_m_rspace(ispin))
                CALL pw_pool_give_back_pw(xc_pw_pool, rho_m_gspace(ispin))
-               DEALLOCATE (rho_m_rspace(ispin)%pw)
             END DO
             DEALLOCATE (rho_m_rspace)
             DEALLOCATE (rho_m_gspace)
-            NULLIFY (rho_g)
 
          END IF
 
          ! compute again the xc but now for Exc(n_down,n_down)
          IF (dft_control%sic_method_id .EQ. sic_mauri_us .AND. .NOT. sic_scaling_b_zero) THEN
-            rho_r(1)%pw => rho_struct_r(2)%pw
-            rho_r(2)%pw => rho_struct_r(2)%pw
+            ALLOCATE (rho_r(2))
+            rho_r(1) = rho_struct_r(2)
+            rho_r(2) = rho_struct_r(2)
             IF (rho_g_valid) THEN
                ALLOCATE (rho_g(2))
                rho_g(1) = rho_struct_g(2)
@@ -553,7 +540,7 @@ CONTAINS
                DEALLOCATE (my_vxc_rho(1)%pw, my_vxc_rho(2)%pw)
                DEALLOCATE (my_vxc_rho)
             END IF
-            DEALLOCATE (rho_g)
+            DEALLOCATE (rho_r, rho_g)
 
          END IF
 
@@ -561,10 +548,6 @@ CONTAINS
          ! cleanups
          !
          IF (uf_grid) THEN
-            DO ispin = 1, SIZE(rho_r)
-               CALL pw_pool_give_back_pw(xc_pw_pool, rho_r(ispin)%pw)
-               DEALLOCATE (rho_r(ispin)%pw)
-            END DO
             IF (ASSOCIATED(vxc_rho)) THEN
                DO ispin = 1, SIZE(vxc_rho)
                   NULLIFY (tmp_pw, tmp_g, tmp_g2)
@@ -611,7 +594,6 @@ CONTAINS
             END IF
 
          END IF
-         DEALLOCATE (rho_r)
          IF (ASSOCIATED(tau)) THEN
             IF (uf_grid) THEN
                DO ispin = 1, SIZE(tau)
@@ -651,10 +633,10 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, vxc_rho, vxc_tau
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rho, vxc_tau
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, xc_pw_pool
       TYPE(pw_type)                                      :: exc_r
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, tau_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r, tau_r
       TYPE(pw_type), POINTER                             :: rho_nlcc, rho_nlcc_g
 
       CALL timeset(routineN, handle)
@@ -702,7 +684,7 @@ CONTAINS
          IF (ASSOCIATED(rho_nlcc)) THEN
             factor = 1.0_dp
             DO ispin = 1, nspins
-               CALL pw_axpy(rho_nlcc, rho_r(ispin)%pw, factor)
+               CALL pw_axpy(rho_nlcc, rho_r(ispin), factor)
                CALL pw_axpy(rho_nlcc_g, rho_g(ispin), factor)
             END DO
          END IF
@@ -718,7 +700,7 @@ CONTAINS
          IF (ASSOCIATED(rho_nlcc)) THEN
             factor = -1.0_dp
             DO ispin = 1, dft_control%nspins
-               CALL pw_axpy(rho_nlcc, rho_r(ispin)%pw, factor)
+               CALL pw_axpy(rho_nlcc, rho_r(ispin), factor)
                CALL pw_axpy(rho_nlcc_g, rho_g(ispin), factor)
             END DO
          END IF
@@ -726,8 +708,8 @@ CONTAINS
          ovol = 1.0_dp/xc_den%pw_grid%dvol
          CALL pw_copy(exc_r, xc_den)
          DO ispin = 1, nspins
-!deb        CALL pw_multiply(xc_den, vxc_rho(ispin)%pw, rho_r(ispin)%pw, alpha=-ovol)
-            CALL pw_multiply(xc_den, vxc_rho(ispin)%pw, rho_r(ispin)%pw, alpha=-1.0_dp)
+!deb        CALL pw_multiply(xc_den, vxc_rho(ispin)%pw, rho_r(ispin), alpha=-ovol)
+            CALL pw_multiply(xc_den, vxc_rho(ispin)%pw, rho_r(ispin), alpha=-1.0_dp)
          END DO
          ! remove arrays
          DO ispin = 1, nspins

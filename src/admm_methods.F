@@ -136,8 +136,7 @@ CONTAINS
                                                             rho_ao_aux
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r_aux
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g_aux
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g_aux, rho_r_aux
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
       TYPE(task_list_type), POINTER                      :: task_list
@@ -219,7 +218,7 @@ CONTAINS
 
          CALL calculate_rho_elec(ks_env=ks_env, &
                                  matrix_p=rho_ao_aux(ispin)%matrix, &
-                                 rho=rho_r_aux(ispin)%pw, &
+                                 rho=rho_r_aux(ispin), &
                                  rho_gspace=rho_g_aux(ispin), &
                                  total_rho=tot_rho_r_aux(ispin), &
                                  soft_valid=.FALSE., &
@@ -1509,8 +1508,8 @@ CONTAINS
                                                             rho_ao_aux_buffer
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(local_rho_type), POINTER                      :: local_rho_buffer
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, v_rspace_dummy, v_tau_rspace_dummy
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace_dummy, v_tau_rspace_dummy
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_aux_fit, rho_aux_fit_buffer
       TYPE(section_vals_type), POINTER                   :: xc_section_aux
@@ -1561,7 +1560,7 @@ CONTAINS
 
          CALL calculate_rho_elec(ks_env=ks_env, &
                                  matrix_p=rho_ao_aux_buffer(myspin)%matrix, &
-                                 rho=rho_r(myspin)%pw, &
+                                 rho=rho_r(myspin), &
                                  rho_gspace=rho_g(myspin), &
                                  total_rho=tot_rho_r(myspin), &
                                  soft_valid=.FALSE., &

@@ -1534,7 +1534,7 @@ CONTAINS
       TYPE(opt_embed_pot_type)                           :: opt_embed
       TYPE(pw_type), INTENT(INOUT)                       :: embed_pot
       TYPE(pw_type), INTENT(IN), POINTER                 :: spin_embed_pot
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r_ref
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r_ref
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'opt_embed_step'
@@ -2537,7 +2537,7 @@ CONTAINS
       TYPE(pw_type), INTENT(INOUT)                       :: embed_pot
       TYPE(pw_type), INTENT(IN), POINTER                 :: spin_embed_pot
       TYPE(pw_type), INTENT(IN)                          :: diff_rho_r, diff_rho_spin
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r_ref
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r_ref
       LOGICAL, INTENT(IN)                                :: open_shell_embed
       REAL(KIND=dp), INTENT(IN)                          :: step_len
 
@@ -2579,13 +2579,13 @@ CONTAINS
          DO k = lb(3), ub(3)
             DO j = lb(2), ub(2)
                DO i = lb(1), ub(1)
-                  IF (rho_r_ref(1)%pw%cr3d(i, j, k) .GT. rho_cutoff) THEN
-                     my_rho = rho_r_ref(1)%pw%cr3d(i, j, k)
+                  IF (rho_r_ref(1)%cr3d(i, j, k) .GT. rho_cutoff) THEN
+                     my_rho = rho_r_ref(1)%cr3d(i, j, k)
                   ELSE
                      my_rho = rho_cutoff
                   END IF
                   new_embed_pot(1)%pw%cr3d(i, j, k) = step_len*embed_pot%cr3d(i, j, k)* &
-                                                      (diff_rho_r%cr3d(i, j, k) + rho_r_ref(1)%pw%cr3d(i, j, k))/my_rho
+                                                      (diff_rho_r%cr3d(i, j, k) + rho_r_ref(1)%cr3d(i, j, k))/my_rho
                END DO
             END DO
          END DO
@@ -2623,8 +2623,8 @@ CONTAINS
          CALL pw_axpy(spin_embed_pot, temp_embed_pot(2)%pw, -1.0_dp)
 
          IF (SIZE(rho_r_ref) .EQ. 2) THEN
-            CALL pw_axpy(rho_r_ref(1)%pw, rho_n_1(1)%pw, 1.0_dp)
-            CALL pw_axpy(rho_r_ref(2)%pw, rho_n_1(2)%pw, 1.0_dp)
+            CALL pw_axpy(rho_r_ref(1), rho_n_1(1)%pw, 1.0_dp)
+            CALL pw_axpy(rho_r_ref(2), rho_n_1(2)%pw, 1.0_dp)
 
 !$OMP    PARALLEL DO DEFAULT(NONE) &
 !$OMP                PRIVATE(i,j,k, my_rho) &
@@ -2632,15 +2632,15 @@ CONTAINS
             DO k = lb(3), ub(3)
                DO j = lb(2), ub(2)
                   DO i = lb(1), ub(1)
-                     IF (rho_r_ref(1)%pw%cr3d(i, j, k) .GT. rho_cutoff) THEN
-                        my_rho = rho_r_ref(1)%pw%cr3d(i, j, k)
+                     IF (rho_r_ref(1)%cr3d(i, j, k) .GT. rho_cutoff) THEN
+                        my_rho = rho_r_ref(1)%cr3d(i, j, k)
                      ELSE
                         my_rho = rho_cutoff
                      END IF
                      new_embed_pot(1)%pw%cr3d(i, j, k) = step_len*temp_embed_pot(1)%pw%cr3d(i, j, k)* &
                                                          (rho_n_1(1)%pw%cr3d(i, j, k))/my_rho
-                     IF (rho_r_ref(2)%pw%cr3d(i, j, k) .GT. rho_cutoff) THEN
-                        my_rho = rho_r_ref(2)%pw%cr3d(i, j, k)
+                     IF (rho_r_ref(2)%cr3d(i, j, k) .GT. rho_cutoff) THEN
+                        my_rho = rho_r_ref(2)%cr3d(i, j, k)
                      ELSE
                         my_rho = rho_cutoff
                      END IF
@@ -2652,7 +2652,7 @@ CONTAINS
 !$OMP    END PARALLEL DO
 
          ELSE ! Reference system is closed-shell
-            CALL pw_axpy(rho_r_ref(1)%pw, rho_n_1(1)%pw, 1.0_dp)
+            CALL pw_axpy(rho_r_ref(1), rho_n_1(1)%pw, 1.0_dp)
             ! The beta spin component is here equal to the difference: nothing to do
 
 !$OMP    PARALLEL DO DEFAULT(NONE) &
@@ -2661,8 +2661,8 @@ CONTAINS
             DO k = lb(3), ub(3)
                DO j = lb(2), ub(2)
                   DO i = lb(1), ub(1)
-                     IF (rho_r_ref(1)%pw%cr3d(i, j, k) .GT. rho_cutoff) THEN
-                        my_rho = 0.5_dp*rho_r_ref(1)%pw%cr3d(i, j, k)
+                     IF (rho_r_ref(1)%cr3d(i, j, k) .GT. rho_cutoff) THEN
+                        my_rho = 0.5_dp*rho_r_ref(1)%cr3d(i, j, k)
                      ELSE
                         my_rho = rho_cutoff
                      END IF
@@ -2724,7 +2724,7 @@ CONTAINS
                          diff_rho_r, diff_rho_spin, v_w_ref, i_iter, step_len, open_shell_embed, &
                          vw_cutoff, vw_smooth_cutoff_range)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r_ref
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r_ref
       TYPE(pw_type), INTENT(INOUT)                       :: prev_embed_pot
       TYPE(pw_type), INTENT(IN), POINTER                 :: prev_spin_embed_pot
       TYPE(pw_type), INTENT(INOUT)                       :: embed_pot
@@ -2741,9 +2741,9 @@ CONTAINS
       INTEGER                                            :: handle, i_spin, nspins
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), ALLOCATABLE, DIMENSION(:)         :: v_w
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: curr_rho
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: new_embed_pot, temp_embed_pot
+      TYPE(pw_type), DIMENSION(:), POINTER               :: curr_rho
 
       CALL timeset(routineN, handle)
 
@@ -2797,19 +2797,18 @@ CONTAINS
                                    in_space=REALSPACE)
             CALL pw_zero(v_w(i_spin)%pw)
 
-            ALLOCATE (curr_rho(i_spin)%pw)
-            CALL pw_pool_create_pw(auxbas_pw_pool, curr_rho(i_spin)%pw, &
+            CALL pw_pool_create_pw(auxbas_pw_pool, curr_rho(i_spin), &
                                    use_data=REALDATA3D, &
                                    in_space=REALSPACE)
-            CALL pw_zero(curr_rho(i_spin)%pw)
+            CALL pw_zero(curr_rho(i_spin))
          END DO
 
          ! Now, deal with the current density
 
          IF (.NOT. open_shell_embed) THEN
             ! Reconstruct current density
-            CALL pw_copy(diff_rho_r, curr_rho(1)%pw)
-            CALL pw_axpy(rho_r_ref(1)%pw, curr_rho(1)%pw, 1.0_dp)
+            CALL pw_copy(diff_rho_r, curr_rho(1))
+            CALL pw_axpy(rho_r_ref(1), curr_rho(1), 1.0_dp)
             ! Compute von Weizsaecker potential
             CALL Von_Weizsacker(curr_rho, v_w, qs_env, vw_cutoff, vw_smooth_cutoff_range)
             ! Compute new embedding potential
@@ -2823,19 +2822,19 @@ CONTAINS
 
          ELSE
             ! Reconstruct current density
-            CALL pw_copy(diff_rho_r, curr_rho(1)%pw)
-            CALL pw_copy(diff_rho_r, curr_rho(2)%pw)
-            CALL pw_axpy(diff_rho_spin, curr_rho(1)%pw, 1.0_dp)
-            CALL pw_axpy(diff_rho_spin, curr_rho(2)%pw, -1.0_dp)
-            CALL pw_scale(curr_rho(1)%pw, a=0.5_dp)
-            CALL pw_scale(curr_rho(2)%pw, a=0.5_dp)
+            CALL pw_copy(diff_rho_r, curr_rho(1))
+            CALL pw_copy(diff_rho_r, curr_rho(2))
+            CALL pw_axpy(diff_rho_spin, curr_rho(1), 1.0_dp)
+            CALL pw_axpy(diff_rho_spin, curr_rho(2), -1.0_dp)
+            CALL pw_scale(curr_rho(1), a=0.5_dp)
+            CALL pw_scale(curr_rho(2), a=0.5_dp)
 
             IF (SIZE(rho_r_ref) .EQ. 1) THEN ! If reference system is closed-shell
-               CALL pw_axpy(rho_r_ref(1)%pw, curr_rho(1)%pw, 0.5_dp)
-               CALL pw_axpy(rho_r_ref(1)%pw, curr_rho(2)%pw, 0.5_dp)
+               CALL pw_axpy(rho_r_ref(1), curr_rho(1), 0.5_dp)
+               CALL pw_axpy(rho_r_ref(1), curr_rho(2), 0.5_dp)
             ELSE ! If reference system is open-shell
-               CALL pw_axpy(rho_r_ref(1)%pw, curr_rho(1)%pw, 1.0_dp)
-               CALL pw_axpy(rho_r_ref(2)%pw, curr_rho(2)%pw, 1.0_dp)
+               CALL pw_axpy(rho_r_ref(1), curr_rho(1), 1.0_dp)
+               CALL pw_axpy(rho_r_ref(2), curr_rho(2), 1.0_dp)
             END IF
 
             ! Compute von Weizsaecker potential
@@ -2892,10 +2891,10 @@ CONTAINS
          END IF
 
          DO i_spin = 1, nspins
-            CALL pw_release(curr_rho(i_spin)%pw)
+            CALL pw_release(curr_rho(i_spin))
             CALL pw_release(new_embed_pot(i_spin))
             CALL pw_release(v_w(i_spin)%pw)
-            DEALLOCATE (curr_rho(i_spin)%pw, v_w(i_spin)%pw)
+            DEALLOCATE (v_w(i_spin)%pw)
          END DO
 
          DEALLOCATE (new_embed_pot)
@@ -2917,7 +2916,7 @@ CONTAINS
 !> \param vw_smooth_cutoff_range ...
 ! **************************************************************************************************
    SUBROUTINE Von_Weizsacker(rho_r, v_w, qs_env, vw_cutoff, vw_smooth_cutoff_range)
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(pw_p_type), DIMENSION(:), INTENT(IN)          :: v_w
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), INTENT(IN)                          :: vw_cutoff, vw_smooth_cutoff_range
@@ -2956,13 +2955,13 @@ CONTAINS
          CALL pw_pool_create_pw(auxbas_pw_pool, rho_g(i_spin), &
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
-         CALL pw_transfer(rho_r(i_spin)%pw, rho_g(i_spin))
+         CALL pw_transfer(rho_r(i_spin), rho_g(i_spin))
       END DO
 
       xc_section => section_vals_get_subs_vals(input, "DFT%XC")
 
       CALL xc_rho_set_create(rho_set, &
-                             rho_r(1)%pw%pw_grid%bounds_local, &
+                             rho_r(1)%pw_grid%bounds_local, &
                              rho_cutoff=section_get_rval(xc_section, "density_cutoff"), &
                              drho_cutoff=section_get_rval(xc_section, "gradient_cutoff"), &
                              tau_cutoff=section_get_rval(xc_section, "tau_cutoff"))
@@ -2989,8 +2988,8 @@ CONTAINS
       CALL section_vals_val_get(xc_section, "DENSITY_SMOOTH_CUTOFF_RANGE", &
                                 r_val=density_smooth_cut_range)
 
-      lb(1:3) = rho_r(1)%pw%pw_grid%bounds_local(1, 1:3)
-      ub(1:3) = rho_r(1)%pw%pw_grid%bounds_local(2, 1:3)
+      lb(1:3) = rho_r(1)%pw_grid%bounds_local(1, 1:3)
+      ub(1:3) = rho_r(1)%pw_grid%bounds_local(2, 1:3)
 
       IF (nspins .EQ. 2) THEN
 !$OMP    PARALLEL DO DEFAULT(NONE) &
@@ -2999,16 +2998,16 @@ CONTAINS
          DO k = lb(3), ub(3)
             DO j = lb(2), ub(2)
                DO i = lb(1), ub(1)
-                  IF (rho_r(1)%pw%cr3d(i, j, k) .GT. rho_cutoff) THEN
-                     my_rho = rho_r(1)%pw%cr3d(i, j, k)
+                  IF (rho_r(1)%cr3d(i, j, k) .GT. rho_cutoff) THEN
+                     my_rho = rho_r(1)%cr3d(i, j, k)
                   ELSE
                      my_rho = rho_cutoff
                   END IF
                   v_w(1)%pw%cr3d(i, j, k) = one_8*rho_set%norm_drhoa(i, j, k)**2/my_rho**2 - &
                                             one_4*rho_set%laplace_rhoa(i, j, k)/my_rho
 
-                  IF (rho_r(2)%pw%cr3d(i, j, k) .GT. rho_cutoff) THEN
-                     my_rho = rho_r(2)%pw%cr3d(i, j, k)
+                  IF (rho_r(2)%cr3d(i, j, k) .GT. rho_cutoff) THEN
+                     my_rho = rho_r(2)%cr3d(i, j, k)
                   ELSE
                      my_rho = rho_cutoff
                   END IF
@@ -3025,8 +3024,8 @@ CONTAINS
          DO k = lb(3), ub(3)
             DO j = lb(2), ub(2)
                DO i = lb(1), ub(1)
-                  IF (rho_r(1)%pw%cr3d(i, j, k) .GT. rho_cutoff) THEN
-                     my_rho = rho_r(1)%pw%cr3d(i, j, k)
+                  IF (rho_r(1)%cr3d(i, j, k) .GT. rho_cutoff) THEN
+                     my_rho = rho_r(1)%cr3d(i, j, k)
                      v_w(1)%pw%cr3d(i, j, k) = one_8*rho_set%norm_drho(i, j, k)**2/my_rho**2 - &
                                                one_4*rho_set%laplace_rho(i, j, k)/my_rho
                   ELSE
@@ -3045,7 +3044,7 @@ CONTAINS
          rho_cutoff = 0.5_dp*rho_cutoff
       END IF
       DO i_spin = 1, nspins
-         CALL smooth_cutoff(pot=v_w(i_spin)%pw%cr3d, rho=rho_r(i_spin)%pw%cr3d, rhoa=rhoa, rhob=rhob, &
+         CALL smooth_cutoff(pot=v_w(i_spin)%pw%cr3d, rho=rho_r(i_spin)%cr3d, rhoa=rhoa, rhob=rhob, &
                             rho_cutoff=vw_cutoff, &
                             rho_smooth_cutoff_range=vw_smooth_cutoff_range)
       END DO
@@ -3516,7 +3515,7 @@ CONTAINS
       INTEGER                                            :: subsys_num
 
       INTEGER                                            :: i_dens_start, i_spin, nspins
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(qs_rho_type), POINTER                         :: rho
 
       NULLIFY (rho_r, rho)
@@ -3529,7 +3528,7 @@ CONTAINS
 
       DO i_spin = 1, nspins
          opt_embed%prev_subsys_dens(i_dens_start + i_spin - 1)%pw%cr3d(:, :, :) = &
-            rho_r(i_spin)%pw%cr3d(:, :, :)
+            rho_r(i_spin)%cr3d(:, :, :)
       END DO
 
    END SUBROUTINE get_prev_density
@@ -3546,7 +3545,7 @@ CONTAINS
       INTEGER                                            :: subsys_num
 
       INTEGER                                            :: i_dens_start, i_spin, nspins
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(qs_rho_type), POINTER                         :: rho
 
       NULLIFY (rho_r, rho)
@@ -3559,7 +3558,7 @@ CONTAINS
 
       DO i_spin = 1, nspins
          opt_embed%prev_subsys_dens(i_dens_start + i_spin - 1)%pw%cr3d(:, :, :) = &
-            rho_r(i_spin)%pw%cr3d(:, :, :) - opt_embed%prev_subsys_dens(i_dens_start + i_spin - 1)%pw%cr3d(:, :, :)
+            rho_r(i_spin)%cr3d(:, :, :) - opt_embed%prev_subsys_dens(i_dens_start + i_spin - 1)%pw%cr3d(:, :, :)
          opt_embed%max_subsys_dens_diff(i_dens_start + i_spin - 1) = &
             max_dens_diff(opt_embed%prev_subsys_dens(i_dens_start + i_spin - 1)%pw)
       END DO

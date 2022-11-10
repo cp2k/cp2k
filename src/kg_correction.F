@@ -150,9 +150,9 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: density_matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_r, rho_r, vxc_rho, vxc_tau
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rho, vxc_tau
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_g, tau1_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_g, rho1_r, rho_r, tau1_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: old_rho, rho1, rho_struct
       TYPE(section_vals_type), POINTER                   :: xc_section
@@ -252,7 +252,7 @@ CONTAINS
          IF (use_virial) THEN
             ekin_imol = 0.0_dp
             DO ispin = 1, nspins
-               ekin_imol = ekin_imol + pw_integral_ab(rho1_r(ispin)%pw, vxc_rho(ispin)%pw)
+               ekin_imol = ekin_imol + pw_integral_ab(rho1_r(ispin), vxc_rho(ispin)%pw)
             END DO
          END IF
       END IF
@@ -325,7 +325,7 @@ CONTAINS
             IF (use_virial) THEN
                ekin_imol = 0.0_dp
                DO ispin = 1, nspins
-                  ekin_imol = ekin_imol + pw_integral_ab(rho1_r(ispin)%pw, vxc_rho(ispin)%pw)
+                  ekin_imol = ekin_imol + pw_integral_ab(rho1_r(ispin), vxc_rho(ispin)%pw)
                END DO
             END IF
          END IF
@@ -593,9 +593,9 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env, lri_env1
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_r, vxc_rho, vxc_tau
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rho, vxc_tau
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_g, tau1_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_g, rho1_r, tau1_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho1, rho_struct
       TYPE(section_vals_type), POINTER                   :: xc_section

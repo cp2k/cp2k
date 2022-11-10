@@ -650,9 +650,9 @@ CONTAINS
       TYPE(hirshfeld_type), POINTER                      :: hirshfeld_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: pw_single_dr
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
       TYPE(realspace_grid_type)                          :: rs_rho_all, rs_rho_constr
@@ -698,12 +698,12 @@ CONTAINS
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
       radius = 100.0_dp
 
-      dr_pw(1) = rho_r(1)%pw%pw_grid%dr(1)
-      dr_pw(2) = rho_r(1)%pw%pw_grid%dr(2)
-      dr_pw(3) = rho_r(1)%pw%pw_grid%dr(3)
-      lb_pw(1:3) = rho_r(1)%pw%pw_grid%bounds_local(1, 1:3)
-      ub_pw(1:3) = rho_r(1)%pw%pw_grid%bounds_local(2, 1:3)
-      npts = rho_r(1)%pw%pw_grid%npts
+      dr_pw(1) = rho_r(1)%pw_grid%dr(1)
+      dr_pw(2) = rho_r(1)%pw_grid%dr(2)
+      dr_pw(3) = rho_r(1)%pw_grid%dr(3)
+      lb_pw(1:3) = rho_r(1)%pw_grid%bounds_local(1, 1:3)
+      ub_pw(1:3) = rho_r(1)%pw_grid%bounds_local(2, 1:3)
+      npts = rho_r(1)%pw_grid%npts
       origin(1) = (dr_pw(1)*npts(1))*0.5_dp
       origin(2) = (dr_pw(2)*npts(2))*0.5_dp
       origin(3) = (dr_pw(3)*npts(3))*0.5_dp
@@ -1169,7 +1169,8 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mpole_rho_atom), DIMENSION(:), POINTER        :: mp_rho
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: charge, rho_r
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: charge
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -1240,15 +1241,15 @@ CONTAINS
                IF (igroup /= 1) &
                   CALL cp_abort(__LOCATION__, &
                                 "Multiple constraints not yet supported by parallel mixed calculations.")
-               dE(igroup) = dE(igroup) + sign*accurate_dot_product(group(igroup)%weight%cr3d, rho_r(i)%pw%cr3d, &
+               dE(igroup) = dE(igroup) + sign*accurate_dot_product(group(igroup)%weight%cr3d, rho_r(i)%cr3d, &
                                                                    becke_control%cavity_mat, eps_cavity)*dvol
             ELSE
-               dE(igroup) = dE(igroup) + sign*accurate_dot_product(group(igroup)%weight%cr3d, rho_r(i)%pw%cr3d)*dvol
+               dE(igroup) = dE(igroup) + sign*accurate_dot_product(group(igroup)%weight%cr3d, rho_r(i)%cr3d)*dvol
             END IF
          END DO
          IF (cdft_control%atomic_charges) THEN
             DO iatom = 1, cdft_control%natoms
-               electronic_charge(iatom, i) = accurate_dot_product(charge(iatom)%pw%cr3d, rho_r(i)%pw%cr3d)*dvol
+               electronic_charge(iatom, i) = accurate_dot_product(charge(iatom)%pw%cr3d, rho_r(i)%cr3d)*dvol
             END DO
          END IF
       END DO
@@ -1360,7 +1361,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_rho_type), POINTER                         :: rho
 
@@ -1398,8 +1399,8 @@ CONTAINS
          cdft_control%group(igroup)%integrated = 0.0_dp
       END DO
 
-      lb(1:3) = rho_r(1)%pw%pw_grid%bounds_local(1, 1:3)
-      ub(1:3) = rho_r(1)%pw%pw_grid%bounds_local(2, 1:3)
+      lb(1:3) = rho_r(1)%pw_grid%bounds_local(1, 1:3)
+      ub(1:3) = rho_r(1)%pw_grid%bounds_local(2, 1:3)
       bo = cdft_control%group(1)%weight%pw_grid%bounds_local
       dvol = cdft_control%group(1)%weight%pw_grid%dvol
       sign = 1.0_dp
@@ -1454,7 +1455,7 @@ CONTAINS
                               cdft_control%group(igroup)%integrated(:, iatom) = &
                                  cdft_control%group(igroup)%integrated(:, iatom) + sign* &
                                  cdft_control%group(igroup)%gradients(3*(iatom - 1) + 1:3*(iatom - 1) + 3, k, j, i) &
-                                 *rho_r(ispin)%pw%cr3d(k, j, i) &
+                                 *rho_r(ispin)%cr3d(k, j, i) &
                                  *dvol
 
                            ELSE IF (cdft_control%type == outer_scf_hirshfeld_constraint) THEN
@@ -1462,19 +1463,19 @@ CONTAINS
                               cdft_control%group(igroup)%integrated(1, iatom) = &
                                  cdft_control%group(igroup)%integrated(1, iatom) + sign* &
                                  cdft_control%group(igroup)%gradients_x(iatom, k, j, i) &
-                                 *rho_r(ispin)%pw%cr3d(k, j, i) &
+                                 *rho_r(ispin)%cr3d(k, j, i) &
                                  *dvol
 
                               cdft_control%group(igroup)%integrated(2, iatom) = &
                                  cdft_control%group(igroup)%integrated(2, iatom) + sign* &
                                  cdft_control%group(igroup)%gradients_y(iatom, k, j, i) &
-                                 *rho_r(ispin)%pw%cr3d(k, j, i) &
+                                 *rho_r(ispin)%cr3d(k, j, i) &
                                  *dvol
 
                               cdft_control%group(igroup)%integrated(3, iatom) = &
                                  cdft_control%group(igroup)%integrated(3, iatom) + sign* &
                                  cdft_control%group(igroup)%gradients_z(iatom, k, j, i) &
-                                 *rho_r(ispin)%pw%cr3d(k, j, i) &
+                                 *rho_r(ispin)%cr3d(k, j, i) &
                                  *dvol
 
                            END IF
@@ -1523,7 +1524,7 @@ CONTAINS
                               cdft_control%group(igroup)%integrated(:, iatom) = &
                                  cdft_control%group(igroup)%integrated(:, iatom) + sign* &
                                  cdft_control%group(igroup)%gradients(3*(iatom - 1) + 1:3*(iatom - 1) + 3, k, j, i) &
-                                 *rho_r(ispin)%pw%cr3d(k, j, i) &
+                                 *rho_r(ispin)%cr3d(k, j, i) &
                                  *dvol
 
                            ELSE IF (cdft_control%type == outer_scf_hirshfeld_constraint) THEN
@@ -1531,19 +1532,19 @@ CONTAINS
                               cdft_control%group(igroup)%integrated(1, iatom) = &
                                  cdft_control%group(igroup)%integrated(1, iatom) + sign* &
                                  cdft_control%group(igroup)%gradients_x(iatom, k, j, i) &
-                                 *rho_r(ispin)%pw%cr3d(k, j, i) &
+                                 *rho_r(ispin)%cr3d(k, j, i) &
                                  *dvol
 
                               cdft_control%group(igroup)%integrated(2, iatom) = &
                                  cdft_control%group(igroup)%integrated(2, iatom) + sign* &
                                  cdft_control%group(igroup)%gradients_y(iatom, k, j, i) &
-                                 *rho_r(ispin)%pw%cr3d(k, j, i) &
+                                 *rho_r(ispin)%cr3d(k, j, i) &
                                  *dvol
 
                               cdft_control%group(igroup)%integrated(3, iatom) = &
                                  cdft_control%group(igroup)%integrated(3, iatom) + sign* &
                                  cdft_control%group(igroup)%gradients_z(iatom, k, j, i) &
-                                 *rho_r(ispin)%pw%cr3d(k, j, i) &
+                                 *rho_r(ispin)%cr3d(k, j, i) &
                                  *dvol
 
                            END IF

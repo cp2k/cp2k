@@ -81,7 +81,6 @@ MODULE qs_sccs
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -155,12 +154,12 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_pw_r
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: deps_elec, eps_elec
       TYPE(pw_type), DIMENSION(3)                        :: dln_eps_elec, dphi_tot
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_pw_r
       TYPE(pw_type), POINTER                             :: rho_pw_r_sccs
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -285,9 +284,9 @@ CONTAINS
          lb(1:3) = rho_elec%pw_grid%bounds_local(1, 1:3)
          ub(1:3) = rho_elec%pw_grid%bounds_local(2, 1:3)
 
-         CALL pw_copy(rho_pw_r(1)%pw, rho_elec)
+         CALL pw_copy(rho_pw_r(1), rho_elec)
          DO ispin = 2, nspin
-            CALL pw_axpy(rho_pw_r(ispin)%pw, rho_elec)
+            CALL pw_axpy(rho_pw_r(ispin), rho_elec)
          END DO
          tot_rho_elec = accurate_sum(rho_elec%cr3d)*dvol
          CALL mp_sum(tot_rho_elec, para_env%group)

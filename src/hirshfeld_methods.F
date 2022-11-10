@@ -51,7 +51,6 @@ MODULE hirshfeld_methods
                                               pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
-                                              pw_p_type,&
                                               pw_release,&
                                               pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -283,9 +282,9 @@ CONTAINS
       LOGICAL                                            :: rho_r_valid
       REAL(KIND=dp)                                      :: tnfun
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: rhonorm
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(qs_rho_type), POINTER                         :: rho
 
       NULLIFY (rho_r)
@@ -302,7 +301,7 @@ CONTAINS
       ! loop over spins
       DO is = 1, SIZE(rho_r)
          IF (rho_r_valid) THEN
-            CALL hfun_scale(rhonorm%cr3d, rho_r(is)%pw%cr3d, &
+            CALL hfun_scale(rhonorm%cr3d, rho_r(is)%cr3d, &
                             hirshfeld_env%fnorm%cr3d)
          ELSE
             CPABORT("We need rho in real space")
@@ -372,9 +371,9 @@ CONTAINS
       LOGICAL                                            :: rho_r_valid
       REAL(KIND=dp)                                      :: res, tnfun
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: rhonorm
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(qs_rho_type), POINTER                         :: rho
 
       NULLIFY (rho_r)
@@ -398,7 +397,7 @@ CONTAINS
          ! loop over spins
          DO is = 1, SIZE(rho_r)
             IF (rho_r_valid) THEN
-               CALL hfun_scale(rhonorm%cr3d, rho_r(is)%pw%cr3d, &
+               CALL hfun_scale(rhonorm%cr3d, rho_r(is)%cr3d, &
                                hirshfeld_env%fnorm%cr3d)
             ELSE
                CPABORT("We need rho in real space")

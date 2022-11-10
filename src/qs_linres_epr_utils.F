@@ -43,7 +43,6 @@ MODULE qs_linres_epr_utils
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -101,9 +100,8 @@ CONTAINS
       TYPE(nablavks_atom_type), DIMENSION(:), POINTER    :: nablavks_atom_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
       TYPE(scf_control_type), POINTER                    :: scf_control
@@ -192,8 +190,7 @@ CONTAINS
             ALLOCATE (epr_env%bind_set(idir, i_B)%rho)
             CALL qs_rho_create(epr_env%bind_set(idir, i_B)%rho)
             ALLOCATE (rho_r(1), rho_g(1))
-            ALLOCATE (rho_r(1)%pw)
-            CALL pw_pool_create_pw(auxbas_pw_pool, rho_r(1)%pw, &
+            CALL pw_pool_create_pw(auxbas_pw_pool, rho_r(1), &
                                    use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_g(1), &
                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
@@ -209,8 +206,7 @@ CONTAINS
             ALLOCATE (epr_env%nablavks_set(idir, ispin)%rho)
             CALL qs_rho_create(epr_env%nablavks_set(idir, ispin)%rho)
             ALLOCATE (rho_r(1), rho_g(1))
-            ALLOCATE (rho_r(1)%pw)
-            CALL pw_pool_create_pw(auxbas_pw_pool, rho_r(1)%pw, &
+            CALL pw_pool_create_pw(auxbas_pw_pool, rho_r(1), &
                                    use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_g(1), &
                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)

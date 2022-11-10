@@ -26,8 +26,7 @@ MODULE qs_external_density
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_integrate_function
-   USE pw_types,                        ONLY: pw_p_type,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
@@ -75,8 +74,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_ext_r
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_ext_g
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_ext_g, rho_ext_r
       TYPE(qs_rho_type), POINTER                         :: rho_external
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
@@ -118,9 +116,9 @@ CONTAINS
          ext_den_section => section_vals_get_subs_vals(input, "DFT%EXTERNAL_DENSITY")
          CALL section_vals_val_get(ext_den_section, "FILE_DENSITY", c_val=filename)
 
-         gid = rho_ext_r(1)%pw%pw_grid%para%group
-         my_rank = rho_ext_r(1)%pw%pw_grid%para%my_pos
-         num_pe = rho_ext_r(1)%pw%pw_grid%para%group_size
+         gid = rho_ext_r(1)%pw_grid%para%group
+         my_rank = rho_ext_r(1)%pw_grid%para%my_pos
+         num_pe = rho_ext_r(1)%pw_grid%para%group_size
          tag = 1
 
          IF (dft_control%read_external_density) THEN
@@ -132,9 +130,9 @@ CONTAINS
             lbounds = rs_descs(igrid_level)%rs_desc%lb
             ubounds = rs_descs(igrid_level)%rs_desc%ub
 
-            npoints_local = rho_ext_r(1)%pw%pw_grid%npts_local
-            lbounds_local = rho_ext_r(1)%pw%pw_grid%bounds_local(1, :)
-            ubounds_local = rho_ext_r(1)%pw%pw_grid%bounds_local(2, :)
+            npoints_local = rho_ext_r(1)%pw_grid%npts_local
+            lbounds_local = rho_ext_r(1)%pw_grid%bounds_local(1, :)
+            ubounds_local = rho_ext_r(1)%pw_grid%bounds_local(2, :)
 
 !        IF ( my_rank .eq. 0 ) THEN
 !          WRITE(*,*) my_rank,npoints, lbounds, ubounds
@@ -200,11 +198,11 @@ CONTAINS
             IF (my_rank == 0) CALL close_file(unit_number=extunit)
          END IF
 
-         CALL density_rs2pw(pw_env, rs_rho_ext, rho=rho_ext_r(1)%pw, rho_gspace=rho_ext_g(1))
+         CALL density_rs2pw(pw_env, rs_rho_ext, rho=rho_ext_r(1), rho_gspace=rho_ext_g(1))
          DO igrid_level = 1, SIZE(rs_rho_ext)
             CALL rs_grid_release(rs_rho_ext(igrid_level))
          END DO
-         tot_rho_r_ext(1) = pw_integrate_function(rho_ext_r(1)%pw, isign=1)
+         tot_rho_r_ext(1) = pw_integrate_function(rho_ext_r(1), isign=1)
          IF (my_rank == 0) THEN
             WRITE (*, FMT="(T3,A,T61,F20.10)") "ZMP| Total external charge:                    ", &
                tot_rho_r_ext(1)

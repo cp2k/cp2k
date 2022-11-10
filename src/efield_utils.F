@@ -26,8 +26,7 @@ MODULE efield_utils
    USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
-   USE pw_types,                        ONLY: pw_p_type,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -71,7 +70,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(3)                        :: dr, grid_p
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_rho_type), POINTER                         :: rho
 
@@ -108,7 +107,7 @@ CONTAINS
       END DO
       efield_ener = 0.0_dp
       DO i = 1, dft_control%nspins
-         efield_ener = efield_ener + accurate_dot_product(v_efield_rspace%cr3d, rho_r(i)%pw%cr3d)*dvol
+         efield_ener = efield_ener + accurate_dot_product(v_efield_rspace%cr3d, rho_r(i)%cr3d)*dvol
       END DO
       CALL mp_sum(efield_ener, para_env%group)
       energy%efield = efield_ener

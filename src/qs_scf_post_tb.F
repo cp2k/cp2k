@@ -99,7 +99,6 @@ MODULE qs_scf_post_tb
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_core,&
                                               calculate_rho_elec,&
@@ -1017,10 +1016,9 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -1042,7 +1040,7 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          rho_ao => rho_ao_kp(ispin, :)
          CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
-                                 rho=rho_r(ispin)%pw, &
+                                 rho=rho_r(ispin), &
                                  rho_gspace=rho_g(ispin), &
                                  total_rho=tot_rho_r(ispin), &
                                  ks_env=ks_env)
@@ -1065,8 +1063,8 @@ CONTAINS
                                    pw=rho_elec_rspace, &
                                    use_data=REALDATA3D, &
                                    in_space=REALSPACE)
-            CALL pw_copy(rho_r(1)%pw, rho_elec_rspace)
-            CALL pw_axpy(rho_r(2)%pw, rho_elec_rspace)
+            CALL pw_copy(rho_r(1), rho_elec_rspace)
+            CALL pw_axpy(rho_r(2), rho_elec_rspace)
             filename = "ELECTRON_DENSITY"
             mpi_io = .TRUE.
             unit_nr = cp_print_key_unit_nr(logger, cube_section, '', &
@@ -1086,8 +1084,8 @@ CONTAINS
                                particles=particles, stride=section_get_ivals(cube_section, "STRIDE"), &
                                mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
-            CALL pw_copy(rho_r(1)%pw, rho_elec_rspace)
-            CALL pw_axpy(rho_r(2)%pw, rho_elec_rspace, alpha=-1.0_dp)
+            CALL pw_copy(rho_r(1), rho_elec_rspace)
+            CALL pw_axpy(rho_r(2), rho_elec_rspace, alpha=-1.0_dp)
             filename = "SPIN_DENSITY"
             mpi_io = .TRUE.
             unit_nr = cp_print_key_unit_nr(logger, cube_section, '', &
@@ -1129,7 +1127,7 @@ CONTAINS
             WRITE (UNIT=iounit, FMT="(T2,A,/,T2,A79)") &
                "The electron density is written in cube file format to the file:", ADJUSTR(TRIM(filename))
          END IF
-         CALL cp_pw_to_cube(rho_r(1)%pw, unit_nr, "ELECTRON DENSITY", &
+         CALL cp_pw_to_cube(rho_r(1), unit_nr, "ELECTRON DENSITY", &
                             particles=particles, &
                             stride=section_get_ivals(cube_section, "STRIDE"), mpi_io=mpi_io)
          CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
@@ -1165,12 +1163,11 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_poisson_parameter_type)                    :: poisson_params
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: rho_core, rho_tot_rspace, vhartree
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -1208,7 +1205,7 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          rho_ao => rho_ao_kp(ispin, :)
          CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
-                                 rho=rho_r(ispin)%pw, &
+                                 rho=rho_r(ispin), &
                                  rho_gspace=rho_g(ispin), &
                                  total_rho=tot_rho_r(ispin), &
                                  ks_env=ks_env)
@@ -1237,7 +1234,7 @@ CONTAINS
                              use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_transfer(rho_core, rho_tot_rspace)
       DO ispin = 1, dft_control%nspins
-         CALL pw_axpy(rho_r(ispin)%pw, rho_tot_rspace)
+         CALL pw_axpy(rho_r(ispin), rho_tot_rspace)
       END DO
 
       IF (my_total_density) THEN
@@ -1365,11 +1362,10 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: elf_r
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -1385,7 +1381,7 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          rho_ao => rho_ao_kp(ispin, :)
          CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
-                                 rho=rho_r(ispin)%pw, &
+                                 rho=rho_r(ispin), &
                                  rho_gspace=rho_g(ispin), &
                                  total_rho=tot_rho_r(ispin), &
                                  ks_env=ks_env)

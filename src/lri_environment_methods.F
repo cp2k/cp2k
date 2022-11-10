@@ -61,8 +61,7 @@ MODULE lri_environment_methods
    USE message_passing,                 ONLY: mp_max,&
                                               mp_sum
    USE particle_types,                  ONLY: particle_type
-   USE pw_types,                        ONLY: pw_p_type,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_type
    USE qs_collocate_density,            ONLY: calculate_lri_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -353,8 +352,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_type)                                   :: pmat_diag
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r
 
       CALL timeset(routineN, handle)
 
@@ -370,7 +368,7 @@ CONTAINS
       CPASSERT(.NOT. lri_env%exact_1c_terms)
 
       DO ispin = 1, nspins
-         CALL calculate_lri_rho_elec(rho_g(ispin), rho_r(ispin)%pw, qs_env, &
+         CALL calculate_lri_rho_elec(rho_g(ispin), rho_r(ispin), qs_env, &
                                      lri_density%lri_coefs(ispin)%lri_kinds, tot_rho_r(ispin), &
                                      "LRI_AUX", lri_env%exact_1c_terms, pmat=pmat_diag, atomlist=atomlist)
       END DO
@@ -849,8 +847,7 @@ CONTAINS
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: soo_list
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r
       TYPE(qs_rho_type), POINTER                         :: rho
 
       CALL timeset(routineN, handle)
@@ -962,12 +959,12 @@ CONTAINS
             !
             IF (.NOT. response_density) THEN
                CALL calculate_lri_rho_elec(rho_g(ispin), &
-                                           rho_r(ispin)%pw, qs_env, &
+                                           rho_r(ispin), qs_env, &
                                            lri_density%lri_coefs(ispin)%lri_kinds, tot_rho_r(ispin), &
                                            "LRI_AUX", lri_env%exact_1c_terms, pmat=pmat_diag)
             ELSE
                CALL calculate_lri_rho_elec(rho_g(ispin), &
-                                           rho_r(ispin)%pw, qs_env, &
+                                           rho_r(ispin), qs_env, &
                                            lri_density%lri_coefs(ispin)%lri_kinds, tot_rho_r(ispin), &
                                            "P_LRI_AUX", lri_env%exact_1c_terms, pmat=pmat_diag)
             END IF

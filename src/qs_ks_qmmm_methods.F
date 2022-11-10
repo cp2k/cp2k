@@ -29,7 +29,6 @@ MODULE qs_ks_qmmm_methods
                                               pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qmmm_types_low,                  ONLY: qmmm_env_qm_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -147,7 +146,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qmmm_calculate_energy(qs_env, rho, v_qmmm, qmmm_energy)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho
+      TYPE(pw_type), DIMENSION(:), INTENT(IN)            :: rho
       TYPE(pw_type), INTENT(IN)                          :: v_qmmm
       REAL(KIND=dp), INTENT(INOUT)                       :: qmmm_energy
 
@@ -160,7 +159,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input
 
       CALL timeset(routineN, handle)
-      CPASSERT(ASSOCIATED(rho))
       NULLIFY (dft_control, input, logger)
       logger => cp_get_default_logger()
 
@@ -175,7 +173,7 @@ CONTAINS
 
       qmmm_energy = 0.0_dp
       DO ispin = 1, dft_control%nspins
-         qmmm_energy = qmmm_energy + pw_integral_ab(rho(ispin)%pw, v_qmmm)
+         qmmm_energy = qmmm_energy + pw_integral_ab(rho(ispin), v_qmmm)
       END DO
       IF (dft_control%qs_control%gapw) THEN
          CALL get_qs_env(qs_env=qs_env, &

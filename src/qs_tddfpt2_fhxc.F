@@ -37,7 +37,6 @@ MODULE qs_tddfpt2_fhxc
                                               pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -124,10 +123,10 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: dbwork
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_ia_r, rho_ia_r_aux_fit
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: V_rspace_sub
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_ia_g, rho_ia_g_aux_fit
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_ia_g, rho_ia_g_aux_fit, rho_ia_r, &
+                                                            rho_ia_r_aux_fit
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
       TYPE(task_list_type), POINTER                      :: task_list
 

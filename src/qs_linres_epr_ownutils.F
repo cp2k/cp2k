@@ -54,7 +54,6 @@ MODULE qs_linres_epr_ownutils
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_core_energies,                ONLY: calculate_ptrace
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -310,11 +309,11 @@ CONTAINS
       TYPE(nablavks_atom_type), POINTER                  :: nablavks_atom
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: jrho2_r, jrho3_r, nrho1_r, nrho2_r, &
-                                                            nrho3_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_spline_precond_type)                       :: precond
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:, :)        :: vks_pw_spline
+      TYPE(pw_type), DIMENSION(:), POINTER               :: jrho2_r, jrho3_r, nrho1_r, nrho2_r, &
+                                                            nrho3_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_p_type), DIMENSION(:), POINTER         :: jrho1_set
       TYPE(qs_rho_p_type), DIMENSION(:, :), POINTER      :: nablavks_set
@@ -359,8 +358,8 @@ CONTAINS
             CALL qs_rho_get(nablavks_set(idir2, ispin)%rho, rho_r=nrho2_r)
             CALL qs_rho_get(nablavks_set(idir3, ispin)%rho, rho_r=nrho3_r)
             temp_so_soft = temp_so_soft + (-1.0_dp)**(1 + ispin)*( &
-                           pw_integral_ab(jrho2_r(ispin)%pw, nrho3_r(1)%pw) - &
-                           pw_integral_ab(jrho3_r(ispin)%pw, nrho2_r(1)%pw))
+                           pw_integral_ab(jrho2_r(ispin), nrho3_r(1)) - &
+                           pw_integral_ab(jrho3_r(ispin), nrho2_r(1)))
          END DO
          temp_so_soft = -1.0_dp*epr_env%g_so_factor*temp_so_soft
          IF (output_unit > 0) THEN
@@ -393,10 +392,10 @@ CONTAINS
                CALL pw_spline_precond_create(precond, precond_kind=aint_precond, &
                                              pool=auxbas_pw_pool, pbc=.TRUE., transpose=.FALSE.)
                CALL qs_rho_get(nablavks_set(idir1, ispin)%rho, rho_r=nrho1_r)
-               CALL pw_spline_do_precond(precond, nrho1_r(1)%pw, &
+               CALL pw_spline_do_precond(precond, nrho1_r(1), &
                                          vks_pw_spline(idir1, ispin))
                CALL pw_spline_precond_set_kind(precond, precond_kind)
-               success = find_coeffs(values=nrho1_r(1)%pw, &
+               success = find_coeffs(values=nrho1_r(1), &
                                      coeffs=vks_pw_spline(idir1, ispin), linOp=spl3_pbc, &
                                      preconditioner=precond, pool=auxbas_pw_pool, &
                                      eps_r=eps_r, eps_x=eps_x, max_iter=max_iter)
@@ -573,10 +572,10 @@ CONTAINS
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: brho1_r, rho_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_spline_precond_type)                       :: precond
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:, :)        :: bind_pw_spline
+      TYPE(pw_type), DIMENSION(:), POINTER               :: brho1_r, rho_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_p_type), DIMENSION(:, :), POINTER      :: bind_set
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -621,7 +620,7 @@ CONTAINS
          DO ispin = 1, nspins
             CALL qs_rho_get(bind_set(idir1, iB)%rho, rho_r=brho1_r)
             temp_soo_soft = temp_soo_soft + (-1.0_dp)**(1 + ispin)* &
-                            pw_integral_ab(brho1_r(1)%pw, rho_r(ispin)%pw)
+                            pw_integral_ab(brho1_r(1), rho_r(ispin))
          END DO
          temp_soo_soft = 1.0_dp*epr_env%g_soo_factor*temp_soo_soft
          IF (output_unit > 0) THEN
@@ -663,10 +662,10 @@ CONTAINS
             CALL pw_spline_precond_create(precond, precond_kind=aint_precond, &
                                           pool=auxbas_pw_pool, pbc=.TRUE., transpose=.FALSE.)
             CALL qs_rho_get(bind_set(idir1, iB)%rho, rho_r=brho1_r)
-            CALL pw_spline_do_precond(precond, brho1_r(1)%pw, &
+            CALL pw_spline_do_precond(precond, brho1_r(1), &
                                       bind_pw_spline(idir1, iB))
             CALL pw_spline_precond_set_kind(precond, precond_kind)
-            success = find_coeffs(values=brho1_r(1)%pw, &
+            success = find_coeffs(values=brho1_r(1), &
                                   coeffs=bind_pw_spline(idir1, iB), linOp=spl3_pbc, &
                                   preconditioner=precond, pool=auxbas_pw_pool, &
                                   eps_r=eps_r, eps_x=eps_x, max_iter=max_iter)
@@ -785,12 +784,11 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: epr_rho_r
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: pw_gspace_work, shift_pw_rspace
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:, :)        :: shift_pw_gspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: jrho1_g
+      TYPE(pw_type), DIMENSION(:), POINTER               :: epr_rho_r, jrho1_g
       TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
 
       CALL timeset(routineN, handle)
@@ -865,7 +863,7 @@ CONTAINS
       IF (dft_control%nspins == 2) THEN
          DO idir = 1, 3
             CALL qs_rho_get(epr_env%bind_set(idir, iB)%rho, rho_r=epr_rho_r)
-            CALL pw_transfer(shift_pw_gspace(idir, 2), epr_rho_r(1)%pw)
+            CALL pw_transfer(shift_pw_gspace(idir, 2), epr_rho_r(1))
          END DO
       END IF
       !

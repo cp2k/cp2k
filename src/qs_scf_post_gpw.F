@@ -124,7 +124,6 @@ MODULE qs_scf_post_gpw
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_active_space_methods,         ONLY: active_space_main
    USE qs_chargemol,                    ONLY: write_wfx
@@ -1710,10 +1709,10 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: wf_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -1833,8 +1832,8 @@ CONTAINS
          CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
-         CALL pw_copy(rho_r(1)%pw, wf_r)
-         CALL pw_axpy(rho_r(2)%pw, wf_r, alpha=-1._dp)
+         CALL pw_copy(rho_r(1), wf_r)
+         CALL pw_axpy(rho_r(2), wf_r, alpha=-1._dp)
          total_abs_spin_dens = pw_integrate_function(wf_r, oprt="ABS")
          IF (output_unit > 0) WRITE (UNIT=output_unit, FMT='(/,(T3,A,T61,F20.10))') &
             "Integrated absolute spin density  : ", total_abs_spin_dens
@@ -1917,11 +1916,11 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: aux_g, aux_r, rho_elec_gspace, &
                                                             rho_elec_rspace, wf_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(pw_type), POINTER                             :: mb_rho, rho0_s_gs, rho_core, &
                                                             v_hartree_rspace, vee
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -1984,7 +1983,7 @@ CONTAINS
             CALL pw_transfer(rho_core, wf_r)
          END IF
          DO ispin = 1, dft_control%nspins
-            CALL pw_axpy(rho_r(ispin)%pw, wf_r)
+            CALL pw_axpy(rho_r(ispin), wf_r)
          END DO
          filename = "TOTAL_DENSITY"
          mpi_io = .TRUE.
@@ -2243,8 +2242,8 @@ CONTAINS
                                       pw=rho_elec_rspace, &
                                       use_data=REALDATA3D, &
                                       in_space=REALSPACE)
-               CALL pw_copy(rho_r(1)%pw, rho_elec_rspace)
-               CALL pw_axpy(rho_r(2)%pw, rho_elec_rspace)
+               CALL pw_copy(rho_r(1), rho_elec_rspace)
+               CALL pw_axpy(rho_r(2), rho_elec_rspace)
                filename = "ELECTRON_DENSITY"
                mpi_io = .TRUE.
                unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
@@ -2266,8 +2265,8 @@ CONTAINS
                                   mpi_io=mpi_io)
                CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                                  "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
-               CALL pw_copy(rho_r(1)%pw, rho_elec_rspace)
-               CALL pw_axpy(rho_r(2)%pw, rho_elec_rspace, alpha=-1.0_dp)
+               CALL pw_copy(rho_r(1), rho_elec_rspace)
+               CALL pw_axpy(rho_r(2), rho_elec_rspace, alpha=-1.0_dp)
                filename = "SPIN_DENSITY"
                mpi_io = .TRUE.
                unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
@@ -2307,7 +2306,7 @@ CONTAINS
                      "The electron density is written in cube file format to the file:", &
                      TRIM(filename)
                END IF
-               CALL cp_pw_to_cube(rho_r(1)%pw, unit_nr, "ELECTRON DENSITY", &
+               CALL cp_pw_to_cube(rho_r(1), unit_nr, "ELECTRON DENSITY", &
                                   particles=particles, &
                                   stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), mpi_io=mpi_io)
                CALL cp_print_key_finished_output(unit_nr, logger, input, &
@@ -2604,12 +2603,12 @@ CONTAINS
                                       pw=mb_rho, &
                                       use_data=REALDATA3D, &
                                       in_space=REALSPACE)
-               CALL pw_copy(rho_r(1)%pw, mb_rho)
-               CALL pw_axpy(rho_r(2)%pw, mb_rho)
-               !CALL voronoi_analysis( qs_env, rho_elec_rspace%pw, print_key, unit_nr )
+               CALL pw_copy(rho_r(1), mb_rho)
+               CALL pw_axpy(rho_r(2), mb_rho)
+               !CALL voronoi_analysis(qs_env, rho_elec_rspace, print_key, unit_nr)
             ELSE
-               mb_rho => rho_r(1)%pw
-               !CALL voronoi_analysis( qs_env, rho_r(1)%pw, print_key, unit_nr )
+               mb_rho => rho_r(1)
+               !CALL voronoi_analysis( qs_env, rho_r(1), print_key, unit_nr )
             END IF ! nspins
 
             IF (should_print_voro /= 0) THEN

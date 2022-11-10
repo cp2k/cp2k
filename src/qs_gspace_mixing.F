@@ -26,7 +26,6 @@ MODULE qs_gspace_mixing
                                               pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_density_mixing_types,         ONLY: broyden_mixing_new_nr,&
                                               broyden_mixing_nr,&
@@ -84,10 +83,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: rho_tmp
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
 
       CALL timeset(routineN, handle)
@@ -184,8 +182,8 @@ CONTAINS
          END IF
 
          DO ispin = 1, nspin
-            CALL pw_transfer(rho_g(ispin), rho_r(ispin)%pw)
-            tot_rho_r(ispin) = pw_integrate_function(rho_r(ispin)%pw, isign=-1)
+            CALL pw_transfer(rho_g(ispin), rho_r(ispin))
+            tot_rho_r(ispin) = pw_integrate_function(rho_r(ispin), isign=-1)
          END DO
       END IF
 

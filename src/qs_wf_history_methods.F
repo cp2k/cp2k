@@ -68,7 +68,6 @@ MODULE qs_wf_history_methods
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -152,9 +151,8 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r
       TYPE(qs_rho_type), POINTER                         :: rho
 
       CALL timeset(routineN, handle)
@@ -204,7 +202,7 @@ CONTAINS
             END DO
          END IF
          DO ispin = 1, nspins
-            CALL pw_copy(rho_r(ispin)%pw, snapshot%rho_r(ispin)%pw)
+            CALL pw_copy(rho_r(ispin), snapshot%rho_r(ispin)%pw)
          END DO
       ELSE IF (ASSOCIATED(snapshot%rho_r)) THEN
          DO ispin = 1, SIZE(snapshot%rho_r)
