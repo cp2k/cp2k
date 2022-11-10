@@ -40,7 +40,6 @@ MODULE pw_spline_utils
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
 #include "../base/base_uses.f90"
 
@@ -285,7 +284,7 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE pw_spline_scale_deriv(deriv_vals_r, transpose, scale)
-      TYPE(pw_p_type), DIMENSION(3)                      :: deriv_vals_r
+      TYPE(pw_type), DIMENSION(3), INTENT(IN)            :: deriv_vals_r
       LOGICAL, INTENT(in), OPTIONAL                      :: transpose
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: scale
 
@@ -305,9 +304,9 @@ CONTAINS
       IF (PRESENT(transpose)) my_transpose = transpose
       my_scale = 1.0_dp
       IF (PRESENT(scale)) my_scale = scale
-      n_tot(1:3) = deriv_vals_r(1)%pw%pw_grid%npts(1:3)
-      bo = deriv_vals_r(1)%pw%pw_grid%bounds_local
-      dh_inv = deriv_vals_r(1)%pw%pw_grid%dh_inv
+      n_tot(1:3) = deriv_vals_r(1)%pw_grid%npts(1:3)
+      bo = deriv_vals_r(1)%pw_grid%bounds_local
+      dh_inv = deriv_vals_r(1)%pw_grid%dh_inv
 
       ! map grid to real derivative
       diag = .TRUE.
@@ -329,15 +328,15 @@ CONTAINS
 
       IF (diag) THEN
          DO idir = 1, 3
-            ddata => deriv_vals_r(idir)%pw%cr3d
+            ddata => deriv_vals_r(idir)%cr3d
             scalef = h_grid(idir, idir)
             CALL dscal((bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1), &
                        scalef, ddata, 1)
          END DO
       ELSE
-         ddata => deriv_vals_r(1)%pw%cr3d
-         ddata2 => deriv_vals_r(2)%pw%cr3d
-         ddata3 => deriv_vals_r(3)%pw%cr3d
+         ddata => deriv_vals_r(1)%cr3d
+         ddata2 => deriv_vals_r(2)%cr3d
+         ddata3 => deriv_vals_r(3)%cr3d
 !$OMP        PARALLEL DO DEFAULT(NONE) PRIVATE(k,j,i,dVal1,dVal2,dVal3) &
 !$OMP                 SHARED(ddata,ddata2,ddata3,h_grid,bo)
          DO k = bo(1, 3), bo(2, 3)
