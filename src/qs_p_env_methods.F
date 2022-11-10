@@ -877,12 +877,12 @@ CONTAINS
                                                             nmo2, spin, v_cols, v_rows
       TYPE(cp_fm_pool_type), POINTER                     :: maxmo_maxmo_fm_pool
       TYPE(cp_fm_struct_type), POINTER                   :: maxmo_maxmo_fmstruct, tmp_fmstruct
-      TYPE(cp_fm_type), POINTER                          :: tmp_matrix
+      TYPE(cp_fm_type)                                   :: tmp_matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (tmp_matrix, maxmo_maxmo_fm_pool, maxmo_maxmo_fmstruct, tmp_fmstruct, &
+      NULLIFY (maxmo_maxmo_fm_pool, maxmo_maxmo_fmstruct, tmp_fmstruct, &
                dft_control)
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
@@ -902,12 +902,10 @@ CONTAINS
          END DO
       END IF
       IF (max_cols <= nmo2) THEN
-         ALLOCATE (tmp_matrix)
          CALL fm_pool_create_fm(maxmo_maxmo_fm_pool, tmp_matrix)
       ELSE
          CALL cp_fm_struct_create(tmp_fmstruct, nrow_global=max_cols, &
                                   ncol_global=maxnmo, template_fmstruct=maxmo_maxmo_fmstruct)
-         ALLOCATE (tmp_matrix)
          CALL cp_fm_create(tmp_matrix, matrix_struct=tmp_fmstruct)
          CALL cp_fm_struct_release(tmp_fmstruct)
       END IF
@@ -941,7 +939,6 @@ CONTAINS
          CALL fm_pool_give_back_fm(maxmo_maxmo_fm_pool, tmp_matrix)
       ELSE
          CALL cp_fm_release(tmp_matrix)
-         DEALLOCATE (tmp_matrix)
       END IF
 
       CALL timestop(handle)
@@ -972,7 +969,7 @@ CONTAINS
                                                             nmo2, spin, v_cols, v_rows
       TYPE(cp_fm_pool_type), POINTER                     :: maxmo_maxmo_fm_pool
       TYPE(cp_fm_struct_type), POINTER                   :: maxmo_maxmo_fmstruct, tmp_fmstruct
-      TYPE(cp_fm_type), POINTER                          :: tmp_matrix
+      TYPE(cp_fm_type)                                   :: tmp_matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
 
       CALL timeset(routineN, handle)
@@ -997,7 +994,6 @@ CONTAINS
          END DO
       END IF
       IF (max_cols <= nmo2) THEN
-         ALLOCATE (tmp_matrix)
          CALL fm_pool_create_fm(maxmo_maxmo_fm_pool, tmp_matrix)
       ELSE
          CALL cp_fm_struct_create(tmp_fmstruct, nrow_global=max_cols, &

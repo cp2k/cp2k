@@ -213,16 +213,19 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fm_pool_give_back_fm(pool, element)
       TYPE(cp_fm_pool_type), INTENT(INOUT)               :: pool
-      TYPE(cp_fm_type), POINTER                          :: element
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: element
 
-      CPASSERT(ASSOCIATED(element))
       IF (.NOT. ASSOCIATED(pool%el_struct, element%matrix_struct)) THEN
          CALL cp_fm_release(element)
-         DEALLOCATE (element)
       ELSE
-         CALL cp_sll_fm_insert_el(pool%cache, el=element)
+         BLOCK
+            TYPE(cp_fm_type), POINTER :: el
+            ALLOCATE (el)
+            el = element
+            CALL cp_sll_fm_insert_el(pool%cache, el=el)
+            NULLIFY (element%matrix_struct, element%local_data, element%local_data_sp)
+         END BLOCK
       END IF
-      NULLIFY (element)
    END SUBROUTINE fm_pool_give_back_fm
 
 ! **************************************************************************************************
@@ -343,6 +346,7 @@ CONTAINS
       DO i = 1, SIZE(pools)
          CALL fm_pool_give_back_fm(pools(i)%pool, &
                                    elements(i)%matrix)
+         DEALLOCATE (elements(i)%matrix)
       END DO
       DEALLOCATE (elements)
    END SUBROUTINE fm_pools_give_back_fm_vect

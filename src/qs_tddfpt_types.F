@@ -120,6 +120,7 @@ CONTAINS
          DO i = 1, SIZE(t_env%evecs, 1)
             CALL fm_pool_give_back_fm(t_env%ao_mo_fm_pools(spin)%pool, &
                                       t_env%evecs(i, spin)%matrix)
+            DEALLOCATE (t_env%evecs(i, spin)%matrix)
          END DO
       END DO
 

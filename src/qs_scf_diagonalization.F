@@ -616,6 +616,7 @@ CONTAINS
          CALL cp_cfm_release(cmos)
       END IF
       CALL fm_pool_give_back_fm(ao_ao_fm_pools(1)%pool, fmlocal)
+      DEALLOCATE (fmlocal)
 
       CALL timestop(handle)
 

@@ -875,8 +875,11 @@ CONTAINS
       DO istate = nvects_exist + nvects_new, 1, -1
          DO ispin = nspins, 1, -1
             CALL fm_pool_give_back_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, Aop_krylov(ispin, istate)%matrix)
+            DEALLOCATE (Aop_krylov(ispin, istate)%matrix)
             CALL fm_pool_give_back_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, S_krylov(ispin, istate)%matrix)
+            DEALLOCATE (S_krylov(ispin, istate)%matrix)
             CALL fm_pool_give_back_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, krylov_vects(ispin, istate)%matrix)
+            DEALLOCATE (krylov_vects(ispin, istate)%matrix)
          END DO
       END DO
       DEALLOCATE (Aop_krylov, krylov_vects, S_krylov)
@@ -885,6 +888,7 @@ CONTAINS
       DO istate = nstates, 1, -1
          DO ispin = nspins, 1, -1
             CALL fm_pool_give_back_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, Aop_ritz(ispin, istate)%matrix)
+            DEALLOCATE (Aop_ritz(ispin, istate)%matrix)
          END DO
       END DO
       DEALLOCATE (Aop_ritz)

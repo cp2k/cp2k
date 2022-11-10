@@ -546,6 +546,7 @@ CONTAINS
                END DO
             END DO
             CALL fm_pool_give_back_fm(ao_ao_fm_pools(1)%pool, fmlocal)
+            DEALLOCATE (fmlocal)
 
          END IF
 
