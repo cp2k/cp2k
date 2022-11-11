@@ -386,14 +386,12 @@ CONTAINS
       CALL cp_fm_get_info(rtp_coeff_aux_fit(re)%matrix, ncol_global=ncol)
       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux, &
                                  matrix_v=rtp_coeff_aux_fit(re)%matrix, &
-                                 matrix_g=rtp_coeff_aux_fit(re)%matrix, &
                                  ncol=ncol, &
                                  alpha=alpha)
 
       ! It is actually complex conjugate but i*i=-1 therefore it must be added
       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux, &
                                  matrix_v=rtp_coeff_aux_fit(im)%matrix, &
-                                 matrix_g=rtp_coeff_aux_fit(im)%matrix, &
                                  ncol=ncol, &
                                  alpha=alpha)
 
@@ -403,13 +401,8 @@ CONTAINS
                                  matrix_v=rtp_coeff_aux_fit(im)%matrix, &
                                  matrix_g=rtp_coeff_aux_fit(re)%matrix, &
                                  ncol=ncol, &
-                                 alpha=alpha)
-      alpha = -alpha
-      CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux_im, &
-                                 matrix_v=rtp_coeff_aux_fit(re)%matrix, &
-                                 matrix_g=rtp_coeff_aux_fit(im)%matrix, &
-                                 ncol=ncol, &
-                                 alpha=alpha)
+                                 alpha=2.0_dp*alpha, &
+                                 symmetry_mode=-1)
 
       CALL timestop(handle)
 

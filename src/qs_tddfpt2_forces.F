@@ -576,9 +576,7 @@ CONTAINS
       CALL cp_fm_release(xxmat)
       ! C*C^T*XX
       CALL cp_dbcsr_plus_fm_fm_t(matrix_pe, matrix_v=mos_occ, matrix_g=cxmat, &
-                                 ncol=norb, alpha=-0.5_dp)
-      CALL cp_dbcsr_plus_fm_fm_t(matrix_pe, matrix_g=mos_occ, matrix_v=cxmat, &
-                                 ncol=norb, alpha=-0.5_dp)
+                                 ncol=norb, alpha=-1.0_dp, symmetry_mode=1)
       CALL cp_fm_release(cxmat)
       !
       ! Test for Tr(Pe*S)=0

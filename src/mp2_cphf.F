@@ -487,8 +487,7 @@ CONTAINS
                             mo_coeff(ispin)%matrix, W_mo(ispin)%matrix, 0.0_dp, fm_back)
          CALL cp_fm_release(W_mo(ispin)%matrix)
          DEALLOCATE (W_mo(ispin)%matrix)
-         CALL cp_dbcsr_plus_fm_fm_t(p_env%w1(1)%matrix, fm_back, mo_coeff(ispin)%matrix, dimen, 0.5_dp, .TRUE.)
-         CALL cp_dbcsr_plus_fm_fm_t(p_env%w1(1)%matrix, mo_coeff(ispin)%matrix, fm_back, dimen, 0.5_dp, .TRUE.)
+         CALL cp_dbcsr_plus_fm_fm_t(p_env%w1(1)%matrix, fm_back, mo_coeff(ispin)%matrix, dimen, 1.0_dp, .TRUE., 1)
       END DO
       DEALLOCATE (W_mo)
 

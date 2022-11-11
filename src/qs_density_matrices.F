@@ -387,9 +387,7 @@ CONTAINS
       CALL parallel_gemm("N", "N", nrow, ncol, ncol, 1.0_dp, mo_set%mo_coeff, ksmat, 0.0_dp, scrv)
       CALL dbcsr_set(w_matrix, 0.0_dp)
       CALL cp_dbcsr_plus_fm_fm_t(w_matrix, matrix_v=scrv, matrix_g=psi1, &
-                                 ncol=mo_set%homo, alpha=0.5_dp)
-      CALL cp_dbcsr_plus_fm_fm_t(w_matrix, matrix_v=psi1, matrix_g=scrv, &
-                                 ncol=mo_set%homo, alpha=0.5_dp)
+                                 ncol=mo_set%homo, symmetry_mode=1)
       CALL cp_fm_release(scrv)
       CALL cp_fm_release(ksmat)
 
@@ -478,8 +476,7 @@ CONTAINS
       CALL cp_dbcsr_sm_fm_multiply(ks_matrix, mos_occ, scrv, ncol)
       CALL parallel_gemm("T", "N", ncol, ncol, nrow, 1.0_dp, mos_occ, scrv, 0.0_dp, ksmat)
       CALL parallel_gemm("N", "N", nrow, ncol, ncol, 1.0_dp, xvec, ksmat, 0.0_dp, scrv)
-      CALL cp_dbcsr_plus_fm_fm_t(w_matrix, matrix_v=scrv, matrix_g=xvec, ncol=ncol, alpha=0.5_dp)
-      CALL cp_dbcsr_plus_fm_fm_t(w_matrix, matrix_v=xvec, matrix_g=scrv, ncol=ncol, alpha=0.5_dp)
+      CALL cp_dbcsr_plus_fm_fm_t(w_matrix, matrix_v=scrv, matrix_g=xvec, ncol=ncol, symmetry_mode=1)
       CALL cp_fm_release(scrv)
       CALL cp_fm_release(ksmat)
 
@@ -526,8 +523,7 @@ CONTAINS
       CALL parallel_gemm("T", "N", ncol, ncol, nrow, 1.0_dp, xvec, scrv, 0.0_dp, xsxmat)
 
       CALL parallel_gemm("N", "N", nrow, ncol, ncol, 1.0_dp, mos_occ, xsxmat, 0.0_dp, scrv)
-      CALL cp_dbcsr_plus_fm_fm_t(w_matrix, matrix_v=scrv, matrix_g=mos_occ, ncol=ncol, alpha=0.5_dp)
-      CALL cp_dbcsr_plus_fm_fm_t(w_matrix, matrix_v=mos_occ, matrix_g=scrv, ncol=ncol, alpha=0.5_dp)
+      CALL cp_dbcsr_plus_fm_fm_t(w_matrix, matrix_v=scrv, matrix_g=mos_occ, ncol=ncol, symmetry_mode=1)
 
       CALL cp_fm_release(scrv)
       CALL cp_fm_release(xsxmat)

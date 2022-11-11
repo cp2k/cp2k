@@ -502,15 +502,8 @@ CONTAINS
                                     matrix_g=mos_occ(re)%matrix, &
                                     ncol=ncol, &
                                     keep_sparsity=my_keep_sparsity, &
-                                    alpha=alpha)
-         ! It is actually complex conjugate not only transposed
-         alpha = -alpha
-         CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=matrix_p_im(i)%matrix, &
-                                    matrix_v=mos_occ(re)%matrix, &
-                                    matrix_g=mos_occ(im)%matrix, &
-                                    ncol=ncol, &
-                                    keep_sparsity=my_keep_sparsity, &
-                                    alpha=alpha)
+                                    alpha=2.0_dp*alpha, &
+                                    symmetry_mode=-1)
       END DO
       CALL cp_fm_vect_dealloc(mos_occ)
 

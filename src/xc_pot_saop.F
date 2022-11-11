@@ -344,7 +344,6 @@ CONTAINS
             CALL dbcsr_set(orbital_density_matrix(ispin)%matrix, 0.0_dp)
             CALL cp_dbcsr_plus_fm_fm_t(orbital_density_matrix(ispin)%matrix, &
                                        matrix_v=single_mo_coeff(ispin), &
-                                       matrix_g=single_mo_coeff(ispin), &
                                        ncol=ncol(ispin), &
                                        alpha=1.0_dp)
             CALL pw_zero(orbital)
@@ -413,7 +412,6 @@ CONTAINS
             CALL dbcsr_set(orbital_density_matrix(ispin)%matrix, 0.0_dp)
             CALL cp_dbcsr_plus_fm_fm_t(orbital_density_matrix(ispin)%matrix, &
                                        matrix_v=single_mo_coeff(ispin), &
-                                       matrix_g=single_mo_coeff(ispin), &
                                        ncol=ncol(ispin), &
                                        alpha=1.0_dp)
             CALL pw_zero(orbital)
@@ -815,7 +813,6 @@ CONTAINS
                   CALL dbcsr_set(orbital_density_matrix(ispin)%matrix, 0.0_dp)
                   CALL cp_dbcsr_plus_fm_fm_t(orbital_density_matrix(ispin)%matrix, &
                                              matrix_v=single_mo_coeff(ispin), &
-                                             matrix_g=single_mo_coeff(ispin), &
                                              ncol=ncol(ispin), &
                                              alpha=1.0_dp)
 
@@ -923,7 +920,6 @@ CONTAINS
                   CALL dbcsr_set(orbital_density_matrix(ispin)%matrix, 0.0_dp)
                   CALL cp_dbcsr_plus_fm_fm_t(orbital_density_matrix(ispin)%matrix, &
                                              matrix_v=single_mo_coeff(ispin), &
-                                             matrix_g=single_mo_coeff(ispin), &
                                              ncol=ncol(ispin), &
                                              alpha=1.0_dp)
 

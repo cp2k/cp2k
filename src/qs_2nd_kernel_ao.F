@@ -91,13 +91,9 @@ CONTAINS
          CALL cp_dbcsr_plus_fm_fm_t(dm(ispin)%matrix, &
                                     matrix_v=c0(ispin)%matrix, &
                                     matrix_g=c1(ispin)%matrix, &
-                                    ncol=ncol, alpha=1.0_dp, &
-                                    keep_sparsity=.TRUE.)
-         CALL cp_dbcsr_plus_fm_fm_t(dm(ispin)%matrix, &
-                                    matrix_v=c1(ispin)%matrix, &
-                                    matrix_g=c0(ispin)%matrix, &
-                                    ncol=ncol, alpha=1.0_dp, &
-                                    keep_sparsity=.TRUE.)
+                                    ncol=ncol, alpha=2.0_dp, &
+                                    keep_sparsity=.TRUE., &
+                                    symmetry_mode=1)
       END DO
 
    END SUBROUTINE build_dm_response
