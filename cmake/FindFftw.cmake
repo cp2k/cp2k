@@ -13,7 +13,6 @@ include(FindPackageHandleStandardArgs)
 include(cp2k_utils)
 
 cp2k_set_default_paths(FFTW3 "Fftw")
-
 # Check if we can use PkgConfig
 find_package(PkgConfig)
 
@@ -27,13 +26,19 @@ endif()
 
 foreach(_lib fftw3 fftw3f fftw3l fftw3q)
   if(NOT CP2K_${__lib_up}_FOUND)
-    cp2k_find_libraries("${__lib_up}" ${_lib})
+    set(CP2K_${__lib_up}_PREFIX "${CP2k_FFTW3_PREFIX}")
+    cp2k_find_libraries("${__lib_up}" "${_lib}")
+    unset(CP2K_${__lib_up}_PREFIX CACHE)
   endif()
 
   # OMP variant
   foreach(_subtype "mpi" "omp" "threads")
     string(TOUPPER "${_lib}_${_subtype}" _sub_lib)
-    cp2k_find_libraries("${_sub_lib}" ${_lib}_${_subtype})
+
+    # yeah not super deep
+    set(CP2K_${_sub_lib}_PREFIX "${CP2K_FFTW3_PREFIX}")
+    cp2k_find_libraries("${_sub_lib}" "${_lib}_${_subtype}")
+    unset(CP2K_${_sub_lib}_PREFIX CACHE)
   endforeach()
 endforeach()
 

@@ -43,11 +43,11 @@ function(cp2k_set_default_paths _varname _package_name)
       PARENT_SCOPE)
 
   unset(CP2K_${_varname}_PREFIX_TMP CACHE)
-  # mark_as_advanced(CP2K_${_varname}_PREFIX)
 endfunction()
 
 function(cp2k_find_libraries _package_name _library_name)
   string(TOUPPER ${_library_name} _library_name_upper)
+
   find_library(
     CP2K_${_package_name}_LIBRARIES_TMP
     NAMES "${_library_name}"
@@ -64,13 +64,11 @@ function(cp2k_find_libraries _package_name _library_name)
         ON
         PARENT_SCOPE)
   endif()
+
   unset(CP2K_${_package_name}_LIBRARIES_TMP CACHE)
-  # mark_as_advanced(CP2K_${_package_name}_LINK_LIBRARIES
-  # CP2K_${_package_name}_LIBRARIES)
 endfunction()
 
 function(cp2k_include_dirs _package_name _library_include_file)
-  # string(TOUPPER ${_package_name} _library_name_upper)
   find_path(
     CP2K_${_package_name}_INCLUDE_DIRS_TMP
     NAMES "${_lib_include_file}"

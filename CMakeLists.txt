@@ -125,6 +125,10 @@ option(CP2K_USE_LIBXSMM "Use libxsmm for small gemms (supports x86 platforms)"
 
 cmake_dependent_option(CP2K_ENABLE_ELPA_OPENMP_SUPPORT
                        "Enable elpa openmp support" OFF "CP2K_USE_ELPA" OFF)
+cmake_dependent_option(CP2K_ENABLE_FFTW3_OPENMP_SUPPORT
+                       "Enable FFTW openmp support" ON "CP2K_USE_FFTW3" OFF)
+cmake_dependent_option(CP2K_ENABLE_FFTW3_THREADS_SUPPORT
+                       "Enable FFTW THREADS support" OFF "CP2K_USE_FFTW3" OFF)
 
 set(CP2K_SCALAPACK_VENDOR_LIST "MKL" "SCI" "GENERIC")
 set(CP2K_SCALAPACK_VENDOR
@@ -206,7 +210,7 @@ cmake_dependent_option(
   "CP2K_DEBUG_MODE" OFF)
 
 # Python
-# 
+#
 # this module looks preferably for version 3 of Python. If not found, version 2
 # is searched. In CMake 3.15, if a python virtual environment is activated, it
 # will search the virtual environment for a python interpreter before searching
@@ -345,7 +349,7 @@ if(CP2K_USE_ACCEL MATCHES "CUDA")
   endif()
 
   set(CP2K_USE_CUDA ON)
-  message(STATUS "-- CUDA compiler and libraries found")
+  message(STATUS ``"-- CUDA compiler and libraries found")
 elseif(CP2K_USE_ACCEL MATCHES "HIP")
   enable_language(HIP)
   # Find hip
@@ -385,7 +389,7 @@ if(CP2K_USE_LIBXC)
 endif()
 
 if(CP2K_USE_COSMA)
-  find_package(cosma REQUIRED)
+  find_package(cosma REQUIRED HINTS "${COSMA_ROOT}" "$ENV(COSMA_ROOT)")
   get_target_property(COSMA_INCLUDE_DIRS cosma::cosma
                       INTERFACE_INCLUDE_DIRECTORIES)
   if(NOT COSMA_INCLUDE_DIRS)
@@ -394,10 +398,11 @@ if(CP2K_USE_COSMA)
 
   # check that cosma::cosma_pxgemm and cosma::cosma_prefixed_pxgemm exist
   if(NOT TARGET cosma::cosma_pxgemm OR NOT TARGET cosma::cosma_prefixed_pxgemm)
-    message(ERROR " COSMA needs tor be build with scalapack offloading support")
+    message(ERROR_ERROR
+            " COSMA needs tor be build with scalapack offloading support")
     message(
-      FATAL
-      " COSTA_SCALAPACK and COSMA_SCALAPACK should probably be set properly")
+      FATAL_ERROR
+        " COSTA_SCALAPACK and COSMA_SCALAPACK should probably be set properly")
   endif()
 endif()
 
@@ -409,6 +414,26 @@ endif()
 
 if(CP2K_USE_FFTW3)
   find_package(Fftw REQUIRED)
+  if(CP2K_ENABLE_FFTW3_THREADS_SUPPORT AND CP2K_ENABLE_FFTW3_OPENMP_SUPPORT)
+    message(
+      FATAL_ERROR
+        "Fftw3 threads and openmp supports can not be used at the same time")
+  endif()
+
+  if((CP2K_ENABLE_FFTW3_THREADS_SUPPORT) AND (NOT TARGET
+                                              CP2K_FFTW3::fftw3_threads))
+    message(
+      FATAL_ERROR
+        "fftw3 was compiled without multithreading support (--enable-threads option in fftw build system)."
+    )
+  endif()
+
+  if((CP2K_ENABLE_FFTW3_OPENMP_SUPPORT) AND (NOT TARGET CP2K_FFTW3::fftw3_omp))
+    message(
+      FATAL_ERROR
+        "fftw3 was compiled without openmp support  (--enable-openmp option in fftw build system)."
+    )
+  endif()
 endif()
 
 # QUIP
@@ -439,8 +464,8 @@ if(CP2K_USE_SPLA)
   if(NOT SPLA_GPU_BACKEND AND CP2K_USE_GEMM_OFFLOADING)
     set(CP2K_USE_GEMM_OFFLOADING OFF)
     message(
-      ERROR
-      "SPLA should be compiled with GPU support if the gemm offloading is requested. Use -DCP2K_USE_GEMM_OFFLOADING=OFF otherwise"
+      FATAL_ERROR
+        "SPLA should be compiled with GPU support if the gemm offloading is requested. Use -DCP2K_USE_GEMM_OFFLOADING=OFF otherwise"
     )
   endif()
 endif()
