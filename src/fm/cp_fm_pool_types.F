@@ -72,6 +72,13 @@ MODULE cp_fm_pool_types
       TYPE(cp_fm_pool_type), POINTER :: pool
    END TYPE cp_fm_pool_p_type
 
+   INTERFACE fm_pools_create_fm_vect
+      MODULE PROCEDURE fm_pools_create_fm_m1_p_type_pointer
+      MODULE PROCEDURE fm_pools_create_fm_m1_p_type_alloc
+      MODULE PROCEDURE fm_pools_create_fm_m1_array_pointer
+      MODULE PROCEDURE fm_pools_create_fm_m1_array_alloc
+   END INTERFACE
+
    INTERFACE fm_pools_give_back_fm_vect
       MODULE PROCEDURE fm_pools_give_back_fm_m1_p_type_pointer
       MODULE PROCEDURE fm_pools_give_back_fm_m1_p_type_alloc
@@ -291,6 +298,13 @@ CONTAINS
       END IF
    END SUBROUTINE fm_pools_dealloc
 
+   #:mute
+      #:set types = [("cp_fm_type", "array", ""), ("cp_fm_p_type", "p_type","%matrix")]
+      #:set attributes = [("ALLOCATABLE", "alloc", "ALLOCATED"), ("POINTER", "pointer", "ASSOCIATED")]
+   #:endmute
+
+   #:for typename, shortname, appendix in types
+      #:for attr, shortattr, create in attributes
 ! **************************************************************************************************
 !> \brief Returns a vector with an element from each pool
 !> \param pools the pools to create the elements from
@@ -300,40 +314,34 @@ CONTAINS
 !>      09.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   SUBROUTINE fm_pools_create_fm_vect(pools, elements, &
-                                      name)
-      TYPE(cp_fm_pool_p_type), DIMENSION(:), INTENT(IN)  :: pools
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: elements
-      CHARACTER(len=*), INTENT(in), OPTIONAL             :: name
+         SUBROUTINE fm_pools_create_fm_m1_${shortname}$_${shortattr}$ (pools, elements, &
+                                                                       name)
+            TYPE(cp_fm_pool_p_type), DIMENSION(:), INTENT(IN)  :: pools
+            TYPE(${typename}$), DIMENSION(:), ${attr}$          :: elements
+            CHARACTER(len=*), INTENT(in), OPTIONAL             :: name
 
-      INTEGER                                            :: i
-      TYPE(cp_fm_pool_type), POINTER                     :: pool
+            INTEGER                                            :: i
+            TYPE(cp_fm_pool_type), POINTER                     :: pool
 
-      NULLIFY (pool)
+            NULLIFY (pool)
 
-      ALLOCATE (elements(SIZE(pools)))
-      DO i = 1, SIZE(pools)
-         NULLIFY (elements(i)%matrix)
-         pool => pools(i)%pool
-         ALLOCATE (elements(i)%matrix)
-         IF (PRESENT(name)) THEN
-            CALL fm_pool_create_fm(pool, elements(i)%matrix, &
-                                   name=name//"-"//ADJUSTL(cp_to_string(i)))
-         ELSE
-            CALL fm_pool_create_fm(pool, elements(i)%matrix)
-         END IF
+            ALLOCATE (elements(SIZE(pools)))
+            DO i = 1, SIZE(pools)
+               pool => pools(i)%pool
+               #:if typename=="cp_fm_p_type"
+                  ALLOCATE (elements(i)%matrix)
+               #:endif
+               IF (PRESENT(name)) THEN
+                  CALL fm_pool_create_fm(pool, elements(i) ${appendix}$, &
+                                         name=name//"-"//ADJUSTL(cp_to_string(i)))
+               ELSE
+                  CALL fm_pool_create_fm(pool, elements(i) ${appendix}$)
+               END IF
 
-      END DO
+            END DO
 
-   END SUBROUTINE fm_pools_create_fm_vect
+         END SUBROUTINE fm_pools_create_fm_m1_${shortname}$_${shortattr}$
 
-   #:mute
-      #:set types = [("cp_fm_type", "array", ""), ("cp_fm_p_type", "p_type","%matrix")]
-      #:set attributes = [("ALLOCATABLE", "alloc", "ALLOCATED"), ("POINTER", "pointer", "ASSOCIATED")]
-   #:endmute
-
-   #:for typename, shortname, appendix in types
-      #:for attr, shortattr, create in attributes
 ! **************************************************************************************************
 !> \brief returns a vector to the pools. The vector is deallocated
 !>      (like cp_fm_vect_dealloc)
