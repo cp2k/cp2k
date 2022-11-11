@@ -88,7 +88,6 @@ MODULE qs_linres_current
                                               pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -216,9 +215,9 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: jrho1_g, jrho1_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: wf_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: jrho1_g, jrho1_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -415,21 +414,21 @@ CONTAINS
             CALL qs_rho_get(current_env%jrho1_set(idir)%rho, rho_r=jrho1_r)
             CALL qs_rho_get(current_env%jrho1_set(idir)%rho, rho_g=jrho1_g)
             ASSOCIATE (jrho_rspace => jrho1_r(ispin), jrho_gspace => jrho1_g(ispin))
-               CALL pw_zero(jrho_rspace%pw)
-               CALL pw_zero(jrho_gspace%pw)
+               CALL pw_zero(jrho_rspace)
+               CALL pw_zero(jrho_gspace)
                CALL calculate_jrho_resp(density_matrix0(ispin)%matrix, &
                                         density_matrix_a(ispin)%matrix, &
                                         density_matrix_ii(ispin)%matrix, &
                                         density_matrix_iii(ispin)%matrix, &
-                                        iB, idir, jrho_rspace%pw, jrho_gspace%pw, qs_env, &
+                                        iB, idir, jrho_rspace, jrho_gspace, qs_env, &
                                         current_env, gapw)
 
                scale_fac = cell%deth/twopi
-               CALL pw_scale(jrho_rspace%pw, scale_fac)
-               CALL pw_scale(jrho_gspace%pw, scale_fac)
+               CALL pw_scale(jrho_rspace, scale_fac)
+               CALL pw_scale(jrho_gspace, scale_fac)
 
-               jrho_tot_G(idir, iB) = pw_integrate_function(jrho_gspace%pw, isign=-1)
-               jrho_tot_R(idir, iB) = pw_integrate_function(jrho_rspace%pw, isign=-1)
+               jrho_tot_G(idir, iB) = pw_integrate_function(jrho_gspace, isign=-1)
+               jrho_tot_R(idir, iB) = pw_integrate_function(jrho_rspace, isign=-1)
             END ASSOCIATE
 
             IF (output_unit > 0) THEN
@@ -488,7 +487,7 @@ CONTAINS
             CALL pw_zero(wf_r)
             CALL qs_rho_get(current_env%jrho1_set(idir)%rho, rho_r=jrho1_r)
             DO ispin = 1, nspins
-               CALL pw_axpy(jrho1_r(ispin)%pw, wf_r, 1.0_dp)
+               CALL pw_axpy(jrho1_r(ispin), wf_r, 1.0_dp)
             END DO
             !
             IF (gapw) THEN

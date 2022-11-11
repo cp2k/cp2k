@@ -54,7 +54,7 @@ CONTAINS
 !> \param eval_opt_geo ...
 !> \param rm_restart_info ...
 ! **************************************************************************************************
-   RECURSIVE SUBROUTINE cp_geo_opt(force_env, globenv, eval_opt_geo, rm_restart_info)
+   SUBROUTINE cp_geo_opt(force_env, globenv, eval_opt_geo, rm_restart_info)
 
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(global_environment_type), POINTER             :: globenv
@@ -68,16 +68,14 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(gopt_f_type), POINTER                         :: gopt_env
       TYPE(gopt_param_type), POINTER                     :: gopt_param
-      TYPE(section_vals_type), POINTER                   :: force_env_section, geo_section, &
-                                                            root_section
+      TYPE(section_vals_type), POINTER                   :: geo_section, root_section
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
       CPASSERT(ASSOCIATED(force_env))
       CPASSERT(ASSOCIATED(globenv))
-      NULLIFY (gopt_param, force_env_section, gopt_env, x0)
+      NULLIFY (gopt_param, gopt_env, x0)
       root_section => force_env%root_section
-      force_env_section => force_env%force_env_section
       geo_section => section_vals_get_subs_vals(root_section, "MOTION%GEO_OPT")
 
       ALLOCATE (gopt_param)
@@ -90,7 +88,7 @@ CONTAINS
       CALL cp_add_iter_level(logger%iter_info, "GEO_OPT")
       CALL cp_iterate(logger%iter_info, iter_nr=step_start_val)
       CALL cp_geo_opt_low(force_env, globenv, gopt_param, gopt_env, &
-                          force_env_section, geo_section, x0)
+                          geo_section, x0)
       CALL cp_rm_iter_level(logger%iter_info, "GEO_OPT")
 
       ! Reset counter for next iteration, unless rm_restart_info==.FALSE.
@@ -123,21 +121,18 @@ CONTAINS
 
       INTEGER                                            :: handle, step_start_val
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(section_vals_type), POINTER                   :: force_env_section
 
       CALL timeset(routineN, handle)
-      NULLIFY (force_env_section)
       logger => cp_get_default_logger()
       CPASSERT(ASSOCIATED(gopt_env))
       CPASSERT(ASSOCIATED(gopt_env%force_env))
       CPASSERT(ASSOCIATED(gopt_env%globenv))
-      force_env_section => gopt_env%force_env%force_env_section
 
       CALL section_vals_val_get(geo_section, "STEP_START_VAL", i_val=step_start_val)
       CALL cp_add_iter_level(logger%iter_info, "ROT_OPT")
       CALL cp_iterate(logger%iter_info, iter_nr=step_start_val)
       CALL cp_geo_opt_low(gopt_env%force_env, gopt_env%globenv, gopt_param, gopt_env, &
-                          force_env_section, geo_section, x0)
+                          geo_section, x0)
       CALL cp_rm_iter_level(logger%iter_info, "ROT_OPT")
 
       ! Reset counter for next iteration
@@ -152,17 +147,16 @@ CONTAINS
 !> \param globenv ...
 !> \param gopt_param ...
 !> \param gopt_env ...
-!> \param force_env_section ...
 !> \param geo_section ...
 !> \param x0 ...
 ! **************************************************************************************************
-   RECURSIVE SUBROUTINE cp_geo_opt_low(force_env, globenv, gopt_param, gopt_env, force_env_section, &
-                                       geo_section, x0)
+   SUBROUTINE cp_geo_opt_low(force_env, globenv, gopt_param, gopt_env, &
+                             geo_section, x0)
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(gopt_param_type), POINTER                     :: gopt_param
       TYPE(gopt_f_type), POINTER                         :: gopt_env
-      TYPE(section_vals_type), POINTER                   :: force_env_section, geo_section
+      TYPE(section_vals_type), POINTER                   :: geo_section
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x0
 
       CPASSERT(ASSOCIATED(force_env))
@@ -170,9 +164,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(gopt_param))
       CPASSERT(ASSOCIATED(gopt_env))
       CPASSERT(ASSOCIATED(x0))
-      CPASSERT(ASSOCIATED(force_env_section))
       CPASSERT(ASSOCIATED(geo_section))
-      MARK_USED(force_env_section)
 
       SELECT CASE (gopt_param%method_id)
       CASE (default_bfgs_method_id)

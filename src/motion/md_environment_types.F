@@ -18,8 +18,7 @@ MODULE md_environment_types
                                               release_averages,&
                                               retain_averages
    USE barostat_types,                  ONLY: barostat_type,&
-                                              release_barostat_type,&
-                                              retain_barostat_type
+                                              release_barostat_type
    USE cell_types,                      ONLY: cell_type
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_retain
@@ -43,7 +42,6 @@ MODULE md_environment_types
    USE thermal_region_types,            ONLY: release_thermal_regions,&
                                               thermal_regions_type
    USE thermostat_types,                ONLY: release_thermostats,&
-                                              retain_thermostats,&
                                               thermostat_type,&
                                               thermostats_type
 #include "../base/base_uses.f90"
@@ -153,7 +151,10 @@ CONTAINS
       NULLIFY (md_env%cell)
       NULLIFY (md_env%simpar)
       CALL release_barostat_type(md_env%barostat)
-      CALL release_thermostats(md_env%thermostats)
+      IF (ASSOCIATED(md_env%thermostats)) THEN
+         CALL release_thermostats(md_env%thermostats)
+         DEALLOCATE (md_env%thermostats)
+      END IF
       IF (ASSOCIATED(md_env%reftraj)) THEN
          CALL release_reftraj(md_env%reftraj)
          DEALLOCATE (md_env%reftraj)
@@ -324,13 +325,20 @@ CONTAINS
       IF (PRESENT(ehrenfest_md)) md_env%ehrenfest_md = ehrenfest_md
       IF (PRESENT(cell)) md_env%cell => cell
       IF (PRESENT(barostat)) THEN
-         CALL release_barostat_type(md_env%barostat)
-         CALL retain_barostat_type(barostat)
+         IF (ASSOCIATED(md_env%barostat)) THEN
+         IF (.NOT. ASSOCIATED(md_env%barostat, barostat)) THEN
+            CALL release_barostat_type(md_env%barostat)
+         END IF
+         END IF
          md_env%barostat => barostat
       END IF
       IF (PRESENT(thermostats)) THEN
-         CALL release_thermostats(md_env%thermostats)
-         CALL retain_thermostats(thermostats)
+         IF (ASSOCIATED(md_env%thermostats)) THEN
+         IF (.NOT. ASSOCIATED(md_env%thermostats, thermostats)) THEN
+            CALL release_thermostats(md_env%thermostats)
+            DEALLOCATE (md_env%thermostats)
+         END IF
+         END IF
          md_env%thermostats => thermostats
       END IF
       IF (PRESENT(simpar)) md_env%simpar => simpar

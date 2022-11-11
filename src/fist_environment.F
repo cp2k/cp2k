@@ -27,8 +27,7 @@ MODULE fist_environment
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_methods,               ONLY: cp_subsys_create
-   USE cp_subsys_types,                 ONLY: cp_subsys_release,&
-                                              cp_subsys_set,&
+   USE cp_subsys_types,                 ONLY: cp_subsys_set,&
                                               cp_subsys_type
    USE cp_symmetry,                     ONLY: write_symmetry
    USE distribution_1d_types,           ONLY: distribution_1d_release,&
@@ -36,7 +35,6 @@ MODULE fist_environment
    USE distribution_methods,            ONLY: distribute_molecules_1d
    USE ewald_environment_types,         ONLY: ewald_env_create,&
                                               ewald_env_get,&
-                                              ewald_env_release,&
                                               ewald_env_set,&
                                               ewald_environment_type,&
                                               read_ewald_section
@@ -149,6 +147,7 @@ CONTAINS
       CALL write_cell(cell, subsys_section, cell_ref)
 
       ! Create the ewald environment
+      ALLOCATE (ewald_env)
       CALL ewald_env_create(ewald_env, para_env)
 
       ! Read the input section and set the ewald_env
@@ -199,8 +198,6 @@ CONTAINS
 
       CALL cell_release(cell)
       CALL cell_release(cell_ref)
-      CALL ewald_env_release(ewald_env)
-      CALL cp_subsys_release(subsys)
 
       CALL timestop(handle)
 

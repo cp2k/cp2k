@@ -53,7 +53,6 @@ MODULE qs_linres_types
 !> \author MI
 ! **************************************************************************************************
    TYPE linres_control_type
-      INTEGER                                   :: ref_count
       INTEGER                                   :: property
       INTEGER                                   :: preconditioner_type
       INTEGER                                   :: restart_every
@@ -177,11 +176,6 @@ MODULE qs_linres_types
    END TYPE nablavks_atom_type
 
 ! **************************************************************************************************
-   TYPE jrho_atom_p_type
-      TYPE(jrho_atom_type), POINTER       :: jrho_atom => NULL()
-   END TYPE jrho_atom_p_type
-
-! **************************************************************************************************
    TYPE jrho_atom_type
       TYPE(rho_atom_coeff), DIMENSION(:), &
          POINTER      :: cjc_h => NULL(), cjc_s => NULL(), cjc0_h => NULL(), cjc0_s => NULL()
@@ -260,7 +254,7 @@ MODULE qs_linres_types
    PUBLIC :: allocate_jrho_atom_rad, deallocate_jrho_atom_set, get_nmr_env, &
              get_current_env, allocate_jrho_coeff, &
              init_jrho_atom_set, init_nablavks_atom_set, linres_control_create, &
-             linres_control_retain, linres_control_release, &
+             linres_control_release, &
              set_epr_env, deallocate_nablavks_atom_set, &
              set2zero_jrho_atom_rad, get_epr_env, &
              nmr_env_create, epr_env_create, current_env_create, get_issc_env, &
@@ -275,11 +269,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE linres_control_create(linres_control)
 
-      TYPE(linres_control_type), POINTER                 :: linres_control
+      TYPE(linres_control_type), INTENT(OUT)             :: linres_control
 
-      CPASSERT(.NOT. ASSOCIATED(linres_control))
-      ALLOCATE (linres_control)
-      linres_control%ref_count = 1
       NULLIFY (linres_control%qs_loc_env)
       linres_control%property = HUGE(0) !is that used?
       linres_control%preconditioner_type = HUGE(0)
@@ -303,35 +294,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE linres_control_release(linres_control)
 
-      TYPE(linres_control_type), POINTER                 :: linres_control
+      TYPE(linres_control_type), INTENT(INOUT)           :: linres_control
 
-      IF (ASSOCIATED(linres_control)) THEN
-         CPASSERT(linres_control%ref_count > 0)
-         linres_control%ref_count = linres_control%ref_count - 1
-         IF (linres_control%ref_count < 1) THEN
-            IF (ASSOCIATED(linres_control%qs_loc_env)) THEN
-               CALL qs_loc_env_release(linres_control%qs_loc_env)
-               DEALLOCATE (linres_control%qs_loc_env)
-            END IF
-            DEALLOCATE (linres_control)
-         END IF
+      IF (ASSOCIATED(linres_control%qs_loc_env)) THEN
+         CALL qs_loc_env_release(linres_control%qs_loc_env)
+         DEALLOCATE (linres_control%qs_loc_env)
       END IF
-      NULLIFY (linres_control)
+
    END SUBROUTINE linres_control_release
-
-! **************************************************************************************************
-!> \brief ...
-!> \param linres_control ...
-! **************************************************************************************************
-   SUBROUTINE linres_control_retain(linres_control)
-
-      TYPE(linres_control_type), POINTER                 :: linres_control
-
-      CPASSERT(ASSOCIATED(linres_control))
-      CPASSERT(linres_control%ref_count > 0)
-      linres_control%ref_count = linres_control%ref_count + 1
-
-   END SUBROUTINE linres_control_retain
 
 ! **************************************************************************************************
 !> \brief ...
@@ -339,7 +309,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE current_env_create(current_env)
 
-      TYPE(current_env_type)                             :: current_env
+      TYPE(current_env_type), INTENT(INOUT)              :: current_env
 
       current_env%nao = HUGE(1)
       current_env%gauge = HUGE(1)
@@ -376,7 +346,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE nmr_env_create(nmr_env)
 
-      TYPE(nmr_env_type)                                 :: nmr_env
+      TYPE(nmr_env_type), INTENT(INOUT)                  :: nmr_env
 
       NULLIFY (nmr_env%chemical_shift)
       NULLIFY (nmr_env%chemical_shift_loc)
@@ -394,7 +364,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE issc_env_create(issc_env)
 
-      TYPE(issc_env_type)                                :: issc_env
+      TYPE(issc_env_type), INTENT(INOUT)                 :: issc_env
 
       NULLIFY (issc_env%issc)
       NULLIFY (issc_env%issc_loc)
@@ -419,7 +389,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE epr_env_create(epr_env)
 
-      TYPE(epr_env_type)                                 :: epr_env
+      TYPE(epr_env_type), INTENT(INOUT)                  :: epr_env
 
       NULLIFY (epr_env%nablavks_set)
       NULLIFY (epr_env%nablavks_atom_set)
@@ -675,6 +645,7 @@ CONTAINS
          IF (ASSOCIATED(current_env%jrho1_set)) THEN
             DO idir = 1, 3
                CALL qs_rho_release(current_env%jrho1_set(idir)%rho)
+               DEALLOCATE (current_env%jrho1_set(idir)%rho)
             END DO
          END IF
          current_env%jrho1_set => jrho1_set
@@ -756,6 +727,7 @@ CONTAINS
             DO ispin = 1, 2
                DO idir = 1, 3
                   CALL qs_rho_release(epr_env%nablavks_set(idir, ispin)%rho)
+                  DEALLOCATE (epr_env%nablavks_set(idir, ispin)%rho)
                END DO
             END DO
          END IF

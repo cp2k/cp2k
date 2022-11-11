@@ -58,7 +58,6 @@ MODULE qs_linres_nmr_shift
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -121,11 +120,11 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: jrho1_g
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: pw_gspace_work, shift_pw_rspace
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:, :)        :: shift_pw_gspace
+      TYPE(pw_type), DIMENSION(:), POINTER               :: jrho1_g
       TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
       TYPE(section_vals_type), POINTER                   :: nmr_section
 
@@ -182,7 +181,7 @@ CONTAINS
             DO idir2 = 1, 3
                IF (idir /= idir2) THEN
                   ! in reciprocal space multiply (G_idir2(i)/G(i)^2)J_(idir)(G(i))
-                  CALL mult_G_ov_G2_grid(auxbas_pw_pool, jrho1_g(ispin)%pw, &
+                  CALL mult_G_ov_G2_grid(auxbas_pw_pool, jrho1_g(ispin), &
                                          pw_gspace_work, idir2, 0.0_dp)
                   !
                   ! scale and add to the correct component of the shift column

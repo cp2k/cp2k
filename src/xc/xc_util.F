@@ -28,7 +28,6 @@ MODULE xc_util
         spline2_deriv_coeffs, spline3_coeffs, spline3_deriv_coeffs
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE xc_input_constants,              ONLY: &
         xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, xc_deriv_spline2, &
@@ -118,14 +117,14 @@ CONTAINS
    SUBROUTINE xc_pw_gradient(pw_r, pw_g, tmp_g, gradient, xc_deriv_method_id)
       TYPE(pw_type), INTENT(IN)                          :: pw_r
       TYPE(pw_type), INTENT(INOUT)                       :: pw_g, tmp_g
-      TYPE(pw_p_type), DIMENSION(3), INTENT(IN)          :: gradient
+      TYPE(pw_type), DIMENSION(3), INTENT(INOUT)         :: gradient
       INTEGER, INTENT(IN)                                :: xc_deriv_method_id
 
       INTEGER                                            :: idir
 
       DO idir = 1, 3
-         CALL pw_zero(gradient(idir)%pw)
-         CALL xc_pw_derive(pw_r, tmp_g, gradient(idir)%pw, idir, xc_deriv_method_id, pw_g=pw_g)
+         CALL pw_zero(gradient(idir))
+         CALL xc_pw_derive(pw_r, tmp_g, gradient(idir), idir, xc_deriv_method_id, pw_g=pw_g)
       END DO
 
    END SUBROUTINE xc_pw_gradient
@@ -195,7 +194,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xc_pw_divergence(xc_deriv_method_id, pw_to_deriv, tmp_g, vxc_g, vxc_r)
       INTEGER, INTENT(IN)                                :: xc_deriv_method_id
-      TYPE(pw_p_type), DIMENSION(3)                      :: pw_to_deriv
+      TYPE(pw_type), DIMENSION(3), INTENT(INOUT)         :: pw_to_deriv
       TYPE(pw_type), INTENT(INOUT)                       :: tmp_g
       TYPE(pw_type), INTENT(IN)                          :: vxc_g
       TYPE(pw_type), INTENT(INOUT)                       :: vxc_r
@@ -208,20 +207,19 @@ CONTAINS
 
       ! partial integration
       IF (xc_deriv_method_id /= xc_deriv_pw) THEN
-         CALL pw_spline_scale_deriv(pw_to_deriv, &
-                                    transpose=.TRUE.)
+         CALL pw_spline_scale_deriv(pw_to_deriv, transpose=.TRUE.)
       END IF
 
       IF (ASSOCIATED(vxc_g%pw_grid)) CALL pw_zero(vxc_g)
 
       DO idir = 1, 3
-         CALL xc_pw_derive(pw_to_deriv(idir)%pw, tmp_g, vxc_r, idir, xc_deriv_method_id, copy_to_vxcr=.FALSE.)
+         CALL xc_pw_derive(pw_to_deriv(idir), tmp_g, vxc_r, idir, xc_deriv_method_id, copy_to_vxcr=.FALSE.)
          IF (ASSOCIATED(tmp_g%pw_grid) .AND. ASSOCIATED(vxc_g%pw_grid)) CALL pw_axpy(tmp_g, vxc_g)
       END DO
 
       IF (ASSOCIATED(vxc_g%pw_grid)) THEN
-         CALL pw_transfer(vxc_g, pw_to_deriv(1)%pw)
-         CALL pw_axpy(pw_to_deriv(1)%pw, vxc_r)
+         CALL pw_transfer(vxc_g, pw_to_deriv(1))
+         CALL pw_axpy(pw_to_deriv(1), vxc_r)
       END IF
 
       CALL timestop(handle)

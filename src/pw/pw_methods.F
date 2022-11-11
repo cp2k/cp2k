@@ -156,7 +156,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       out_unit = cp_logger_get_default_io_unit()
-      IF (pw1%pw_grid%id_nr /= pw2%pw_grid%id_nr) THEN
+      IF (.NOT. ASSOCIATED(pw1%pw_grid, pw2%pw_grid)) THEN
 
          IF (pw1%pw_grid%spherical .AND. pw2%pw_grid%spherical) THEN
 
@@ -988,7 +988,7 @@ CONTAINS
       my_alpha = 1.0_dp
       IF (PRESENT(alpha)) my_alpha = alpha
 
-      IF (pw1%pw_grid%id_nr == pw2%pw_grid%id_nr) THEN
+      IF (ASSOCIATED(pw1%pw_grid, pw2%pw_grid)) THEN
 
          IF (pw1%in_use == REALDATA1D .AND. pw2%in_use == REALDATA1D) THEN
             IF (my_alpha == 1.0_dp) THEN
@@ -1199,8 +1199,8 @@ CONTAINS
       my_alpha = 1.0_dp
       IF (PRESENT(alpha)) my_alpha = alpha
 
-      IF (pw_out%pw_grid%id_nr == pw2%pw_grid%id_nr .AND. &
-          pw_out%pw_grid%id_nr == pw2%pw_grid%id_nr) THEN
+      IF (ASSOCIATED(pw_out%pw_grid, pw2%pw_grid) .AND. &
+          ASSOCIATED(pw_out%pw_grid, pw2%pw_grid)) THEN
 
          IF (pw1%in_use == REALDATA1D .AND. pw2%in_use == REALDATA1D .AND. &
              pw_out%in_use == REALDATA1D) THEN
@@ -1690,7 +1690,7 @@ CONTAINS
       END IF
 
       !..check if grids are compatible
-      IF (pw1%pw_grid%id_nr /= pw2%pw_grid%id_nr) THEN
+      IF (.NOT. ASSOCIATED(pw1%pw_grid, pw2%pw_grid)) THEN
          IF (pw1%pw_grid%dvol /= pw2%pw_grid%dvol) THEN
             CPABORT("PW grids not compatible")
          END IF
@@ -2057,8 +2057,7 @@ CONTAINS
 
       INTEGER                                            :: iostatus
 
-      WRITE (unit=unit_nr, fmt="('<pw>:{ id_nr=',i8,',')", iostat=iostatus) &
-         pw%id_nr
+      WRITE (unit=unit_nr, fmt="('<pw>:{ ')", iostat=iostatus)
 
       SELECT CASE (pw%in_use)
       CASE (REALDATA1D)
@@ -2164,7 +2163,7 @@ CONTAINS
       loc_sumtype = do_accurate_sum
       IF (PRESENT(sumtype)) loc_sumtype = sumtype
 
-      IF (pw1%pw_grid%id_nr /= pw2%pw_grid%id_nr) THEN
+      IF (.NOT. ASSOCIATED(pw1%pw_grid, pw2%pw_grid)) THEN
          CPABORT("Grids incompatible")
       END IF
 
@@ -2293,7 +2292,7 @@ CONTAINS
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
-      IF (pw1%pw_grid%id_nr /= pw2%pw_grid%id_nr) THEN
+      IF (.NOT. ASSOCIATED(pw1%pw_grid, pw2%pw_grid)) THEN
          CPABORT("Grids incompatible")
       END IF
       IF (pw1%in_use == REALDATA1D .AND. &

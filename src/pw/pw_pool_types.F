@@ -28,14 +28,12 @@ MODULE pw_pool_types
         cp_sll_pw_dealloc, cp_sll_pw_get_first_el, cp_sll_pw_get_length, cp_sll_pw_insert_el, &
         cp_sll_pw_next, cp_sll_pw_rm_first_el, cp_sll_pw_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE kinds,                           ONLY: dp
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_compare,&
                                               pw_grid_release,&
                                               pw_grid_retain
-   USE pw_methods,                      ONLY: pw_write
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               COMPLEXDATA3D,&
                                               REALDATA1D,&
@@ -43,15 +41,12 @@ MODULE pw_pool_types
                                               pw_create,&
                                               pw_release,&
                                               pw_type
-   USE timings,                         ONLY: print_stack
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
 
-   LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_pool_types'
-   INTEGER, SAVE, PRIVATE :: last_pw_pool_id_nr = 0
    INTEGER, PARAMETER :: default_max_cache = 75, max_max_cache = 150
 
    PUBLIC :: pw_pool_type, pw_pool_p_type
@@ -65,7 +60,6 @@ MODULE pw_pool_types
 !> \brief Manages a pool of grids (to be used for example as tmp objects),
 !>      but can also be used to instantiate grids that are never given back.
 !> \param ref_count reference count (see /cp2k/doc/ReferenceCounting.html)
-!> \param id_nr number that identifies each pool
 !> \param real 1d_pw, real3d_pw, complex1d_pw, complex3d_pw: liked list with
 !>        the cached grids of the corresponding type
 !> \note
@@ -77,7 +71,7 @@ MODULE pw_pool_types
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    TYPE pw_pool_type
-      INTEGER :: ref_count, id_nr, max_cache
+      INTEGER :: ref_count, max_cache
       TYPE(pw_grid_type), POINTER :: pw_grid
       TYPE(cp_sll_pw_type), POINTER :: real1d_pw, real3d_pw, &
                                        complex1d_pw, complex3d_pw
@@ -118,17 +112,10 @@ CONTAINS
       ALLOCATE (pool)
       pool%pw_grid => pw_grid
       CALL pw_grid_retain(pw_grid)
-      last_pw_pool_id_nr = last_pw_pool_id_nr + 1
-      pool%id_nr = last_pw_pool_id_nr
       pool%ref_count = 1
       pool%max_cache = default_max_cache
       IF (PRESENT(max_cache)) pool%max_cache = max_cache
       pool%max_cache = MIN(max_max_cache, pool%max_cache)
-      IF (debug_this_module) THEN
-         WRITE (unit=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
-                fmt="(' *** pw_pool ',i4,' has been created')") pool%id_nr
-         CALL print_stack(cp_logger_get_default_unit_nr(logger, local=.TRUE.))
-      END IF
       NULLIFY (pool%real1d_pw, pool%real3d_pw, &
                pool%complex1d_pw, pool%complex3d_pw, pool%real3d_array)
    END SUBROUTINE pw_pool_create
@@ -151,12 +138,6 @@ CONTAINS
       CPASSERT(pool%ref_count > 0)
 
       pool%ref_count = pool%ref_count + 1
-      IF (debug_this_module) THEN
-         WRITE (unit=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
-                fmt="(' *** pw_pool ',i4,' has been retained, ref_count=',i4)") &
-            pool%id_nr, pool%ref_count
-         CALL print_stack(cp_logger_get_default_unit_nr(logger, local=.TRUE.))
-      END IF
    END SUBROUTINE pw_pool_retain
 
 ! **************************************************************************************************
@@ -167,7 +148,7 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE pw_pool_flush_cache(pool)
-      TYPE(pw_pool_type), POINTER                        :: pool
+      TYPE(pw_pool_type), INTENT(INOUT)                  :: pool
 
       REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: array_att
@@ -176,15 +157,8 @@ CONTAINS
       TYPE(cp_sll_pw_type), POINTER                      :: iterator
       TYPE(pw_type), POINTER                             :: pw_el
 
-      CPASSERT(ASSOCIATED(pool))
-      CPASSERT(pool%ref_count > 0)
       NULLIFY (iterator, array_iterator, pw_el, array_att)
       logger => cp_get_default_logger()
-      IF (debug_this_module) THEN
-         WRITE (unit=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
-                fmt="(' *** pw_pool ',i4,' is flushing the cache')") pool%id_nr
-         CALL print_stack(cp_logger_get_default_unit_nr(logger, local=.TRUE.))
-      END IF
 
       iterator => pool%real1d_pw
       DO
@@ -245,17 +219,8 @@ CONTAINS
       IF (ASSOCIATED(pool)) THEN
          CPASSERT(pool%ref_count > 0)
          pool%ref_count = pool%ref_count - 1
-         IF (debug_this_module) THEN
-            WRITE (unit=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
-                   fmt="(' *** pw_pool ',i4,' released ref_count=',i4)") &
-               pool%id_nr, pool%ref_count
-            CALL print_stack(cp_logger_get_default_unit_nr(logger, local=.TRUE.))
-         END IF
          IF (pool%ref_count == 0) THEN
-            pool%ref_count = 1
             CALL pw_pool_flush_cache(pool)
-            pool%ref_count = 0
-            CPASSERT(ASSOCIATED(pool%pw_grid))
             CALL pw_grid_release(pool%pw_grid)
 
             DEALLOCATE (pool)
@@ -298,7 +263,7 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE pw_pool_create_pw(pool, pw, use_data, in_space)
-      TYPE(pw_pool_type), INTENT(IN), POINTER            :: pool
+      TYPE(pw_pool_type), INTENT(IN)                     :: pool
       TYPE(pw_type), INTENT(OUT)                         :: pw
       INTEGER, INTENT(in)                                :: use_data
       INTEGER, INTENT(in), OPTIONAL                      :: in_space
@@ -314,8 +279,6 @@ CONTAINS
       CALL timeset(routineN, handle)
       NULLIFY (cr3d_ptr)
       logger => cp_get_default_logger()
-      CPASSERT(ASSOCIATED(pool))
-      CPASSERT(pool%ref_count > 0)
 
       SELECT CASE (use_data)
       CASE (REALDATA1D)
@@ -340,32 +303,8 @@ CONTAINS
       IF (.NOT. ASSOCIATED(el)) THEN
          CALL pw_create(pw, pool%pw_grid, use_data=use_data, &
                         cr3d_ptr=cr3d_ptr)
-         IF (debug_this_module) THEN
-            IF (ASSOCIATED(cr3d_ptr)) THEN
-               WRITE (unit=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
-                      fmt="(' *** pw_pool ',i4,' created pw ',i4,'reusing 3dr array')") &
-                  pool%id_nr, pw%id_nr
-            ELSE
-               WRITE (unit=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
-                      fmt="(' *** pw_pool ',i4,' created pw ',i4)") &
-                  pool%id_nr, pw%id_nr
-            END IF
-            CALL pw_write( &
-               unit_nr=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
-               pw=pw)
-            CALL print_stack(cp_logger_get_default_unit_nr(logger, local=.TRUE.))
-         END IF
       ELSE
          pw = el
-         IF (debug_this_module) THEN
-            WRITE (unit=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
-                   fmt="(' *** pw_pool ',i4,' created pw reusing old ',i4)") &
-               pool%id_nr, pw%id_nr
-            CALL pw_write( &
-               unit_nr=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
-               pw=pw)
-            CALL print_stack(cp_logger_get_default_unit_nr(logger, local=.TRUE.))
-         END IF
          DEALLOCATE (el)
       END IF
 
@@ -385,7 +324,7 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE pw_pool_give_back_pw(pool, pw)
-      TYPE(pw_pool_type), INTENT(IN), POINTER            :: pool
+      TYPE(pw_pool_type), INTENT(IN)                     :: pool
       TYPE(pw_type), INTENT(INOUT)                       :: pw
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_pw'
@@ -397,30 +336,10 @@ CONTAINS
       logger => cp_get_default_logger()
 
       CALL timeset(routineN, handle)
-      CPASSERT(ASSOCIATED(pool))
-      CPASSERT(pool%ref_count > 0)
       IF (ASSOCIATED(pw%pw_grid)) THEN
          IF (.NOT. pw_grid_compare(pw%pw_grid, pool%pw_grid)) THEN
-            IF (debug_this_module) THEN
-               WRITE (unit=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
-                      fmt="(' *** pw_pool ',i4,' giving back incompatible pw ',i4)") &
-                  pool%id_nr, pw%id_nr
-               CALL pw_write(unit_nr=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
-                             pw=pw)
-               CALL print_stack(cp_logger_get_default_unit_nr(logger, local=.TRUE.))
-            END IF
-
             CALL pw_release(pw)
          ELSE
-            IF (debug_this_module) THEN
-               WRITE (unit=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
-                      fmt="(' *** pw_pool ',i4,' giving back pw ',i4)") &
-                  pool%id_nr, pw%id_nr
-               CALL pw_write(unit_nr=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
-                             pw=pw)
-               CALL print_stack(cp_logger_get_default_unit_nr(logger, local=.TRUE.))
-            END IF
-
             NULLIFY (el)
             ALLOCATE (el)
             el = pw
@@ -446,12 +365,6 @@ CONTAINS
                      DEALLOCATE (el)
                   END IF
                ELSE
-                  IF (debug_this_module) THEN
-                     WRITE (unit=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
-                            fmt="(' *** pw_pool ',i4,' el ',i4,' cr3d is not associated, discarding')") &
-                        pool%id_nr, el%id_nr
-                     CALL print_stack(cp_logger_get_default_unit_nr(logger, local=.TRUE.))
-                  END IF
                   CALL pw_release(el)
                   DEALLOCATE (el)
                END IF
@@ -500,18 +413,15 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE pw_pool_create_cr3d(pw_pool, cr3d)
-      TYPE(pw_pool_type), POINTER                        :: pw_pool
+      TYPE(pw_pool_type), INTENT(IN)                     :: pw_pool
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: cr3d
 
-      INTEGER                                            :: stat
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(pw_type), POINTER                             :: pw
 
       NULLIFY (pw)
       logger => cp_get_default_logger()
 
-      CPASSERT(ASSOCIATED(pw_pool))
-      CPASSERT(.NOT. ASSOCIATED(cr3d))
       IF (ASSOCIATED(pw_pool%real3d_array)) THEN
          cr3d => cp_sll_3d_r_get_first_el(pw_pool%real3d_array)
          CALL cp_sll_3d_r_rm_first_el(pw_pool%real3d_array)
@@ -527,18 +437,7 @@ CONTAINS
       IF (.NOT. ASSOCIATED(cr3d)) THEN
          ALLOCATE (cr3d(pw_pool%pw_grid%bounds_local(1, 1):pw_pool%pw_grid%bounds_local(2, 1), &
                         pw_pool%pw_grid%bounds_local(1, 2):pw_pool%pw_grid%bounds_local(2, 2), &
-                        pw_pool%pw_grid%bounds_local(1, 3):pw_pool%pw_grid%bounds_local(2, 3)), &
-                   stat=stat)
-         CPASSERT(stat == 0)
-         IF (debug_this_module) THEN
-            WRITE (unit=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
-                   fmt="(' *** pw_pool ',i4,' created cr3d')") pw_pool%id_nr
-            CALL print_stack(cp_logger_get_default_unit_nr(logger, local=.TRUE.))
-         END IF
-      ELSEIF (debug_this_module) THEN
-         WRITE (unit=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
-                fmt="(' *** pw_pool ',i4,' created cr3d')") pw_pool%id_nr
-         CALL print_stack(cp_logger_get_default_unit_nr(logger, local=.TRUE.))
+                        pw_pool%pw_grid%bounds_local(1, 3):pw_pool%pw_grid%bounds_local(2, 3)))
       END IF
    END SUBROUTINE pw_pool_create_cr3d
 
@@ -554,7 +453,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE pw_pool_give_back_cr3d(pw_pool, cr3d, accept_non_compatible)
-      TYPE(pw_pool_type), POINTER                        :: pw_pool
+      TYPE(pw_pool_type), INTENT(IN)                     :: pw_pool
       REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: cr3d
       LOGICAL, INTENT(in), OPTIONAL                      :: accept_non_compatible
@@ -566,14 +465,7 @@ CONTAINS
       logger => cp_get_default_logger()
       IF (PRESENT(accept_non_compatible)) my_accept_non_compatible = accept_non_compatible
 
-      CPASSERT(ASSOCIATED(pw_pool))
-      CPASSERT(pw_pool%ref_count > 0)
       IF (ASSOCIATED(cr3d)) THEN
-         IF (debug_this_module) THEN
-            WRITE (unit=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
-                   fmt="(' *** pw_pool ',i4,' received back a cr3d')") pw_pool%id_nr
-            CALL print_stack(cp_logger_get_default_unit_nr(logger, local=.TRUE.))
-         END IF
          compatible = ALL(MERGE(pw_pool%pw_grid%bounds_local(1, :) == LBOUND(cr3d) .AND. &
                                 pw_pool%pw_grid%bounds_local(2, :) == UBOUND(cr3d), &
                                 pw_pool%pw_grid%bounds_local(2, :) < pw_pool%pw_grid%bounds_local(1, :), &
@@ -588,21 +480,9 @@ CONTAINS
                DEALLOCATE (cr3d)
             END IF
          ELSE
-            IF (debug_this_module) THEN
-               WRITE (unit=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
-                      fmt="(' *** pw_pool ',i4,' cr3d not accepted, deallocating')") &
-                  pw_pool%id_nr
-               CALL print_stack(cp_logger_get_default_unit_nr(logger, local=.TRUE.))
-            END IF
             DEALLOCATE (cr3d)
          END IF
       ELSE
-         IF (debug_this_module) THEN
-            WRITE (unit=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
-                   fmt="(' *** pw_pool ',i4,' received back a null cr3d')") &
-               pw_pool%id_nr
-            CALL print_stack(cp_logger_get_default_unit_nr(logger, local=.TRUE.))
-         END IF
          CPASSERT(my_accept_non_compatible)
       END IF
       NULLIFY (cr3d)
@@ -666,11 +546,11 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE pw_pools_copy(source_pools, target_pools)
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: source_pools, target_pools
+      TYPE(pw_pool_p_type), DIMENSION(:), INTENT(IN)     :: source_pools
+      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: target_pools
 
       INTEGER                                            :: i
 
-      CPASSERT(ASSOCIATED(source_pools))
       ALLOCATE (target_pools(SIZE(source_pools)))
       DO i = 1, SIZE(source_pools)
          target_pools(i)%pool => source_pools(i)%pool

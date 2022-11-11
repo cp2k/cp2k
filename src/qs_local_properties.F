@@ -45,7 +45,6 @@ MODULE qs_local_properties
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_core_energies,                ONLY: calculate_ptrace
@@ -98,10 +97,10 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: band_density, edens_g, edens_r, &
                                                             hartree_density, xc_density
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(pw_type), POINTER                             :: rho_core, rho_tot_gspace, &
                                                             rho_tot_rspace, v_hartree_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -194,7 +193,7 @@ CONTAINS
          CALL pw_zero(rho_tot_rspace)
       END IF
       DO ispin = 1, nspins
-         CALL pw_axpy(rho_r(ispin)%pw, rho_tot_rspace, alpha=-1.0_dp)
+         CALL pw_axpy(rho_r(ispin), rho_tot_rspace, alpha=-1.0_dp)
       END DO
       CALL pw_zero(hartree_density)
       ovol = 0.5_dp/hartree_density%pw_grid%dvol
@@ -263,7 +262,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qs_local_stress(qs_env, stress_tensor, beta)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_p_type), DIMENSION(:, :), INTENT(INOUT), &
+      TYPE(pw_type), DIMENSION(:, :), INTENT(INOUT), &
          OPTIONAL                                        :: stress_tensor
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: beta
 
@@ -331,7 +330,7 @@ CONTAINS
       IF (do_stress) THEN
          DO i = 1, 3
             DO j = 1, 3
-               CALL pw_zero(stress_tensor(i, j)%pw)
+               CALL pw_zero(stress_tensor(i, j))
             END DO
          END DO
       END IF

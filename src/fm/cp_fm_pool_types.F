@@ -33,7 +33,6 @@ MODULE cp_fm_pool_types
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_pool_types'
-   INTEGER, SAVE, PRIVATE :: last_fm_pool_id_nr = 0
 
    PUBLIC :: cp_fm_pool_type, cp_fm_pool_p_type
    PUBLIC :: fm_pool_create, fm_pool_retain, &
@@ -56,7 +55,7 @@ MODULE cp_fm_pool_types
 ! **************************************************************************************************
    TYPE cp_fm_pool_type
       PRIVATE
-      INTEGER :: ref_count, id_nr
+      INTEGER :: ref_count
       TYPE(cp_fm_struct_type), POINTER :: el_struct
 
       TYPE(cp_sll_fm_type), POINTER :: cache
@@ -91,8 +90,6 @@ CONTAINS
       ALLOCATE (pool)
       pool%el_struct => el_struct
       CALL cp_fm_struct_retain(pool%el_struct)
-      last_fm_pool_id_nr = last_fm_pool_id_nr + 1
-      pool%id_nr = last_fm_pool_id_nr
       pool%ref_count = 1
       NULLIFY (pool%cache)
 
@@ -195,8 +192,7 @@ CONTAINS
       IF (PRESENT(name)) THEN
          element%name = name
       ELSE
-         element%name = "tmp-"//TRIM(ADJUSTL(cp_to_string(element%id_nr)))
-         ! guarantee output unicity?
+         element%name = "tmp"
       END IF
 
       CPASSERT(ASSOCIATED(element))
@@ -215,16 +211,16 @@ CONTAINS
 !>      Accept give_backs of non associated elements?
 ! **************************************************************************************************
    SUBROUTINE fm_pool_give_back_fm(pool, element)
-      TYPE(cp_fm_pool_type), POINTER                     :: pool
+      TYPE(cp_fm_pool_type), INTENT(INOUT)               :: pool
       TYPE(cp_fm_type), POINTER                          :: element
 
-      CPASSERT(ASSOCIATED(pool))
-      CPASSERT(pool%ref_count > 0)
       CPASSERT(ASSOCIATED(element))
-      IF (pool%el_struct%id_nr /= element%matrix_struct%id_nr) &
-         CPABORT("pool cannot reuse matrixes with another structure")
-
-      CALL cp_sll_fm_insert_el(pool%cache, el=element)
+      IF (.NOT. ASSOCIATED(pool%el_struct, element%matrix_struct)) THEN
+         CALL cp_fm_release(element)
+         DEALLOCATE (element)
+      ELSE
+         CALL cp_sll_fm_insert_el(pool%cache, el=element)
+      END IF
       NULLIFY (element)
    END SUBROUTINE fm_pool_give_back_fm
 
@@ -237,11 +233,9 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    FUNCTION fm_pool_get_el_struct(pool) RESULT(res)
-      TYPE(cp_fm_pool_type), POINTER                     :: pool
+      TYPE(cp_fm_pool_type), INTENT(IN)                  :: pool
       TYPE(cp_fm_struct_type), POINTER                   :: res
 
-      CPASSERT(ASSOCIATED(pool))
-      CPASSERT(pool%ref_count > 0)
       res => pool%el_struct
    END FUNCTION fm_pool_get_el_struct
 

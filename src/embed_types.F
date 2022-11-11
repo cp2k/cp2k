@@ -23,7 +23,6 @@ MODULE embed_types
    USE cp_result_types,                 ONLY: cp_result_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_release,&
-                                              cp_subsys_retain,&
                                               cp_subsys_set,&
                                               cp_subsys_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -44,8 +43,7 @@ MODULE embed_types
                                               particle_list_release,&
                                               particle_list_type
    USE particle_types,                  ONLY: particle_type
-   USE pw_types,                        ONLY: pw_p_type,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -79,8 +77,8 @@ MODULE embed_types
                                                    grad_norm, vw_cutoff, vw_smooth_cutoff_range, eta
       TYPE(pw_type), POINTER                  :: const_pot => NULL(), prev_embed_pot => NULL(), &
                                                  prev_spin_embed_pot => NULL(), pot_diff => NULL()
-      TYPE(pw_p_type), DIMENSION(:), POINTER    :: prev_grid_grad => NULL(), prev_grid_pot => NULL(), &
-                                                   prev_subsys_dens => NULL(), v_w => NULL()
+      TYPE(pw_type), DIMENSION(:), POINTER    :: prev_grid_grad => NULL(), prev_grid_pot => NULL(), &
+                                                 prev_subsys_dens => NULL(), v_w => NULL()
       REAL(KIND=dp)                             :: reg_term, trust_rad, conv_max, conv_int, &
                                                    conv_max_spin, conv_int_spin, step_len
       LOGICAL                                   :: accept_step, newton_step, level_shift, steep_desc, &
@@ -272,8 +270,11 @@ CONTAINS
          embed_env%input => input
       END IF
       IF (PRESENT(subsys)) THEN
-         CALL cp_subsys_retain(subsys)
-         CALL cp_subsys_release(embed_env%subsys)
+         IF (ASSOCIATED(embed_env%subsys)) THEN
+         IF (.NOT. ASSOCIATED(embed_env%subsys, subsys)) THEN
+            CALL cp_subsys_release(embed_env%subsys)
+         END IF
+         END IF
          embed_env%subsys => subsys
       END IF
       IF (PRESENT(sub_para_env)) THEN

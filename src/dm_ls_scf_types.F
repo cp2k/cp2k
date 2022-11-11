@@ -207,6 +207,7 @@ CONTAINS
 
       IF (ASSOCIATED(ls_scf_env%mixing_store)) THEN
          CALL mixing_storage_release(ls_scf_env%mixing_store)
+         DEALLOCATE (ls_scf_env%mixing_store)
       END IF
 
       IF (ls_scf_env%do_pexsi) THEN

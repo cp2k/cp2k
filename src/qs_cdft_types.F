@@ -27,8 +27,7 @@ MODULE qs_cdft_types
                                               dp
    USE outer_scf_control_types,         ONLY: outer_scf_control_type,&
                                               qs_outer_scf_type
-   USE pw_types,                        ONLY: pw_p_type,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_type
    USE qs_cdft_opt_types,               ONLY: cdft_opt_type_release
 #include "./base/base_uses.f90"
 
@@ -91,7 +90,7 @@ MODULE qs_cdft_types
          DIMENSION(:, :, :)                :: cavity_mat
       TYPE(becke_vector_buffer)            :: vector_buffer
       TYPE(hirshfeld_type), POINTER        :: cavity_env
-      TYPE(pw_p_type)                      :: cavity
+      TYPE(pw_type)                      :: cavity
    END TYPE becke_constraint_type
 
 ! **************************************************************************************************
@@ -211,9 +210,9 @@ MODULE qs_cdft_types
          DIMENSION(:, :, :, :)             :: gradients_z
       ! The weight function of this constraint group
       TYPE(pw_type), POINTER                      :: weight
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: hw_rho_atomic
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: hw_rho_atomic_dr
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: hw_rho_atomic_charge
+      TYPE(pw_type), DIMENSION(:), POINTER             :: hw_rho_atomic
+      TYPE(pw_type), DIMENSION(:), POINTER             :: hw_rho_atomic_dr
+      TYPE(pw_type), DIMENSION(:), POINTER             :: hw_rho_atomic_charge
       TYPE(pw_type)             :: hw_rho_total_constraint
       TYPE(pw_type)          :: hw_rho_total
    END TYPE cdft_group_type
@@ -252,9 +251,9 @@ MODULE qs_cdft_types
       TYPE(hirshfeld_constraint_type), &
          POINTER                           :: hirshfeld_control
       TYPE(outer_scf_control_type)         :: constraint_control, ot_control
-      TYPE(pw_p_type), POINTER, &
+      TYPE(pw_type), POINTER, &
          DIMENSION(:)                      :: charge
-      TYPE(pw_p_type), POINTER, &
+      TYPE(pw_type), POINTER, &
          DIMENSION(:, :)                   :: fragments
       TYPE(qs_outer_scf_type)              :: constraint
    END TYPE cdft_control_type
@@ -282,10 +281,7 @@ CONTAINS
 !>      02.2007 created [Florian Schiffmann]
 ! **************************************************************************************************
    SUBROUTINE becke_control_create(becke_control)
-      TYPE(becke_constraint_type), POINTER               :: becke_control
-
-      CPASSERT(.NOT. ASSOCIATED(becke_control))
-      ALLOCATE (becke_control)
+      TYPE(becke_constraint_type), INTENT(OUT)           :: becke_control
 
       becke_control%adjust = .FALSE.
       becke_control%cutoff_type = becke_cutoff_global
@@ -300,7 +296,6 @@ CONTAINS
       becke_control%eps_cavity = 1.0e-6_dp
       becke_control%cavity_shape = radius_single
       becke_control%vector_buffer%store_vectors = .TRUE.
-      NULLIFY (becke_control%cavity%pw)
       NULLIFY (becke_control%aij)
       NULLIFY (becke_control%cavity_mat)
       NULLIFY (becke_control%cavity_env)
@@ -317,9 +312,8 @@ CONTAINS
 !>      02.2007 created [Florian Schiffmann]
 ! **************************************************************************************************
    SUBROUTINE becke_control_release(becke_control)
-      TYPE(becke_constraint_type), POINTER               :: becke_control
+      TYPE(becke_constraint_type), INTENT(INOUT)         :: becke_control
 
-      CPASSERT(ASSOCIATED(becke_control))
       IF (becke_control%vector_buffer%store_vectors) THEN
          IF (ALLOCATED(becke_control%vector_buffer%distances)) &
             DEALLOCATE (becke_control%vector_buffer%distances)
@@ -346,7 +340,6 @@ CONTAINS
          DEALLOCATE (becke_control%cavity_mat)
       IF (becke_control%cavity_confine) &
          CALL release_hirshfeld_type(becke_control%cavity_env)
-      DEALLOCATE (becke_control)
 
    END SUBROUTINE becke_control_release
 
@@ -357,11 +350,8 @@ CONTAINS
 !>      12.2015 created [Nico Holmberg]
 ! **************************************************************************************************
    SUBROUTINE cdft_control_create(cdft_control)
-      TYPE(cdft_control_type), POINTER                   :: cdft_control
+      TYPE(cdft_control_type), INTENT(OUT)               :: cdft_control
 
-      CPASSERT(.NOT. ASSOCIATED(cdft_control))
-      ALLOCATE (cdft_control)
-      cdft_control%ref_count = 1
       cdft_control%total_steps = 0
       NULLIFY (cdft_control%strength)
       NULLIFY (cdft_control%target)
@@ -398,8 +388,10 @@ CONTAINS
       cdft_control%istep = 0
       cdft_control%ienergy = 0
       NULLIFY (cdft_control%becke_control)
+      ALLOCATE (cdft_control%becke_control)
       CALL becke_control_create(cdft_control%becke_control)
       NULLIFY (cdft_control%hirshfeld_control)
+      ALLOCATE (cdft_control%hirshfeld_control)
       CALL hirshfeld_control_create(cdft_control%hirshfeld_control)
       NULLIFY (cdft_control%wmat)
       NULLIFY (cdft_control%matrix_s%matrix)
@@ -438,102 +430,86 @@ CONTAINS
 !>      12.2015 created [Nico Holmberg]
 ! **************************************************************************************************
    SUBROUTINE cdft_control_release(cdft_control)
-      TYPE(cdft_control_type), POINTER                   :: cdft_control
+      TYPE(cdft_control_type), INTENT(INOUT)             :: cdft_control
 
       INTEGER                                            :: i
 
-      CPASSERT(ASSOCIATED(cdft_control))
-      CPASSERT(cdft_control%ref_count > 0)
-      cdft_control%ref_count = cdft_control%ref_count - 1
-      IF (cdft_control%ref_count == 0) THEN
-         ! Constraint settings
-         IF (ASSOCIATED(cdft_control%atoms)) &
-            DEALLOCATE (cdft_control%atoms)
-         IF (ASSOCIATED(cdft_control%strength)) &
-            DEALLOCATE (cdft_control%strength)
-         IF (ASSOCIATED(cdft_control%target)) &
-            DEALLOCATE (cdft_control%target)
-         IF (ASSOCIATED(cdft_control%value)) &
-            DEALLOCATE (cdft_control%value)
-         IF (ASSOCIATED(cdft_control%charges_fragment)) &
-            DEALLOCATE (cdft_control%charges_fragment)
-         IF (ASSOCIATED(cdft_control%fragments)) &
-            DEALLOCATE (cdft_control%fragments)
-         IF (ASSOCIATED(cdft_control%is_constraint)) &
-            DEALLOCATE (cdft_control%is_constraint)
-         IF (ASSOCIATED(cdft_control%charge)) &
-            DEALLOCATE (cdft_control%charge)
-         ! Constraint atom groups
-         IF (ASSOCIATED(cdft_control%group)) THEN
-            DO i = 1, SIZE(cdft_control%group)
-               IF (ASSOCIATED(cdft_control%group(i)%atoms)) &
-                  DEALLOCATE (cdft_control%group(i)%atoms)
-               IF (ASSOCIATED(cdft_control%group(i)%coeff)) &
-                  DEALLOCATE (cdft_control%group(i)%coeff)
-               IF (ALLOCATED(cdft_control%group(i)%d_sum_const_dR)) &
-                  DEALLOCATE (cdft_control%group(i)%d_sum_const_dR)
-               IF (cdft_control%type == outer_scf_becke_constraint) THEN
-                  IF (ASSOCIATED(cdft_control%group(i)%gradients)) &
-                     DEALLOCATE (cdft_control%group(i)%gradients)
-               ELSE IF (cdft_control%type == outer_scf_hirshfeld_constraint) THEN
-                  IF (ASSOCIATED(cdft_control%group(i)%gradients_x)) &
-                     DEALLOCATE (cdft_control%group(i)%gradients_x)
-                  IF (ASSOCIATED(cdft_control%group(i)%gradients_y)) &
-                     DEALLOCATE (cdft_control%group(i)%gradients_y)
-                  IF (ASSOCIATED(cdft_control%group(i)%gradients_z)) &
-                     DEALLOCATE (cdft_control%group(i)%gradients_z)
-               END IF
-               IF (ASSOCIATED(cdft_control%group(i)%integrated)) &
-                  DEALLOCATE (cdft_control%group(i)%integrated)
-            END DO
-            DEALLOCATE (cdft_control%group)
-         END IF
-         ! Constraint type specific deallocations
-         IF (ASSOCIATED(cdft_control%becke_control)) THEN
-            CALL becke_control_release(cdft_control%becke_control)
-         END IF
-         IF (ASSOCIATED(cdft_control%hirshfeld_control)) THEN
-            CALL hirshfeld_control_release(cdft_control%hirshfeld_control)
-         END IF
-         ! Release OUTER_SCF types
-         CALL cdft_opt_type_release(cdft_control%ot_control%cdft_opt_control)
-         CALL cdft_opt_type_release(cdft_control%constraint_control%cdft_opt_control)
-         IF (ASSOCIATED(cdft_control%constraint%variables)) &
-            DEALLOCATE (cdft_control%constraint%variables)
-         IF (ASSOCIATED(cdft_control%constraint%count)) &
-            DEALLOCATE (cdft_control%constraint%count)
-         IF (ASSOCIATED(cdft_control%constraint%gradient)) &
-            DEALLOCATE (cdft_control%constraint%gradient)
-         IF (ASSOCIATED(cdft_control%constraint%energy)) &
-            DEALLOCATE (cdft_control%constraint%energy)
-         IF (ASSOCIATED(cdft_control%constraint%inv_jacobian)) &
-            DEALLOCATE (cdft_control%constraint%inv_jacobian)
-         ! Storage for mixed CDFT calculations
-         IF (ALLOCATED(cdft_control%occupations)) THEN
-            DO i = 1, SIZE(cdft_control%occupations)
-               IF (ASSOCIATED(cdft_control%occupations(i)%array)) &
-                  DEALLOCATE (cdft_control%occupations(i)%array)
-            END DO
-            DEALLOCATE (cdft_control%occupations)
-         END IF
-         ! Release control
-         cdft_control%type = outer_scf_none
-         DEALLOCATE (cdft_control)
+      ! Constraint settings
+      IF (ASSOCIATED(cdft_control%atoms)) &
+         DEALLOCATE (cdft_control%atoms)
+      IF (ASSOCIATED(cdft_control%strength)) &
+         DEALLOCATE (cdft_control%strength)
+      IF (ASSOCIATED(cdft_control%target)) &
+         DEALLOCATE (cdft_control%target)
+      IF (ASSOCIATED(cdft_control%value)) &
+         DEALLOCATE (cdft_control%value)
+      IF (ASSOCIATED(cdft_control%charges_fragment)) &
+         DEALLOCATE (cdft_control%charges_fragment)
+      IF (ASSOCIATED(cdft_control%fragments)) &
+         DEALLOCATE (cdft_control%fragments)
+      IF (ASSOCIATED(cdft_control%is_constraint)) &
+         DEALLOCATE (cdft_control%is_constraint)
+      IF (ASSOCIATED(cdft_control%charge)) &
+         DEALLOCATE (cdft_control%charge)
+      ! Constraint atom groups
+      IF (ASSOCIATED(cdft_control%group)) THEN
+         DO i = 1, SIZE(cdft_control%group)
+            IF (ASSOCIATED(cdft_control%group(i)%atoms)) &
+               DEALLOCATE (cdft_control%group(i)%atoms)
+            IF (ASSOCIATED(cdft_control%group(i)%coeff)) &
+               DEALLOCATE (cdft_control%group(i)%coeff)
+            IF (ALLOCATED(cdft_control%group(i)%d_sum_const_dR)) &
+               DEALLOCATE (cdft_control%group(i)%d_sum_const_dR)
+            IF (cdft_control%type == outer_scf_becke_constraint) THEN
+               IF (ASSOCIATED(cdft_control%group(i)%gradients)) &
+                  DEALLOCATE (cdft_control%group(i)%gradients)
+            ELSE IF (cdft_control%type == outer_scf_hirshfeld_constraint) THEN
+               IF (ASSOCIATED(cdft_control%group(i)%gradients_x)) &
+                  DEALLOCATE (cdft_control%group(i)%gradients_x)
+               IF (ASSOCIATED(cdft_control%group(i)%gradients_y)) &
+                  DEALLOCATE (cdft_control%group(i)%gradients_y)
+               IF (ASSOCIATED(cdft_control%group(i)%gradients_z)) &
+                  DEALLOCATE (cdft_control%group(i)%gradients_z)
+            END IF
+            IF (ASSOCIATED(cdft_control%group(i)%integrated)) &
+               DEALLOCATE (cdft_control%group(i)%integrated)
+         END DO
+         DEALLOCATE (cdft_control%group)
       END IF
+      ! Constraint type specific deallocations
+      IF (ASSOCIATED(cdft_control%becke_control)) THEN
+         CALL becke_control_release(cdft_control%becke_control)
+         DEALLOCATE (cdft_control%becke_control)
+      END IF
+      IF (ASSOCIATED(cdft_control%hirshfeld_control)) THEN
+         CALL hirshfeld_control_release(cdft_control%hirshfeld_control)
+         DEALLOCATE (cdft_control%hirshfeld_control)
+      END IF
+      ! Release OUTER_SCF types
+      CALL cdft_opt_type_release(cdft_control%ot_control%cdft_opt_control)
+      CALL cdft_opt_type_release(cdft_control%constraint_control%cdft_opt_control)
+      IF (ASSOCIATED(cdft_control%constraint%variables)) &
+         DEALLOCATE (cdft_control%constraint%variables)
+      IF (ASSOCIATED(cdft_control%constraint%count)) &
+         DEALLOCATE (cdft_control%constraint%count)
+      IF (ASSOCIATED(cdft_control%constraint%gradient)) &
+         DEALLOCATE (cdft_control%constraint%gradient)
+      IF (ASSOCIATED(cdft_control%constraint%energy)) &
+         DEALLOCATE (cdft_control%constraint%energy)
+      IF (ASSOCIATED(cdft_control%constraint%inv_jacobian)) &
+         DEALLOCATE (cdft_control%constraint%inv_jacobian)
+      ! Storage for mixed CDFT calculations
+      IF (ALLOCATED(cdft_control%occupations)) THEN
+         DO i = 1, SIZE(cdft_control%occupations)
+            IF (ASSOCIATED(cdft_control%occupations(i)%array)) &
+               DEALLOCATE (cdft_control%occupations(i)%array)
+         END DO
+         DEALLOCATE (cdft_control%occupations)
+      END IF
+      ! Release control
+      cdft_control%type = outer_scf_none
+
    END SUBROUTINE cdft_control_release
-
-! **************************************************************************************************
-!> \brief retain the cdft_control_type
-!> \param cdft_control the structure to retain
-!> \par History
-!>      created 12.2015 [Nico Holmberg]
-! **************************************************************************************************
-   SUBROUTINE cdft_control_retain(cdft_control)
-      TYPE(cdft_control_type), POINTER                   :: cdft_control
-
-      CPASSERT(ASSOCIATED(cdft_control))
-      cdft_control%ref_count = cdft_control%ref_count + 1
-   END SUBROUTINE cdft_control_retain
 
 ! **************************************************************************************************
 !> \brief create the hirshfeld_constraint_type
@@ -542,10 +518,7 @@ CONTAINS
 !>      09.2018 created [Nico Holmberg]
 ! **************************************************************************************************
    SUBROUTINE hirshfeld_control_create(hirshfeld_control)
-      TYPE(hirshfeld_constraint_type), POINTER           :: hirshfeld_control
-
-      CPASSERT(.NOT. ASSOCIATED(hirshfeld_control))
-      ALLOCATE (hirshfeld_control)
+      TYPE(hirshfeld_constraint_type), INTENT(OUT)       :: hirshfeld_control
 
       hirshfeld_control%use_bohr = .FALSE.
       hirshfeld_control%print_density = .FALSE.
@@ -568,14 +541,11 @@ CONTAINS
 !>      09.2018 created [Nico Holmberg]
 ! **************************************************************************************************
    SUBROUTINE hirshfeld_control_release(hirshfeld_control)
-      TYPE(hirshfeld_constraint_type), POINTER           :: hirshfeld_control
-
-      CPASSERT(ASSOCIATED(hirshfeld_control))
+      TYPE(hirshfeld_constraint_type), INTENT(INOUT)     :: hirshfeld_control
 
       IF (ASSOCIATED(hirshfeld_control%radii)) &
          DEALLOCATE (hirshfeld_control%radii)
       CALL release_hirshfeld_type(hirshfeld_control%hirshfeld_env)
-      DEALLOCATE (hirshfeld_control)
 
    END SUBROUTINE hirshfeld_control_release
 

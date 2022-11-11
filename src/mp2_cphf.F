@@ -93,7 +93,6 @@ MODULE mp2_cphf
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_2nd_kernel_ao,                ONLY: apply_2nd_order_kernel
    USE qs_density_matrices,             ONLY: calculate_whz_matrix
@@ -115,7 +114,6 @@ MODULE mp2_cphf
    USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                               set_ks_env
    USE qs_linres_types,                 ONLY: linres_control_create,&
-                                              linres_control_release,&
                                               linres_control_type
    USE qs_mo_types,                     ONLY: mo_set_p_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
@@ -360,6 +358,7 @@ CONTAINS
 
       ! Prepare arrays for linres code
       NULLIFY (linres_control)
+      ALLOCATE (linres_control)
       CALL linres_control_create(linres_control)
       linres_control%do_kernel = .TRUE.
       linres_control%lr_triplet = .FALSE.
@@ -1376,14 +1375,14 @@ CONTAINS
          POINTER                                         :: sab_orb, sac_ppl, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_mp2_g, rho_mp2_r, &
-                                                            rho_mp2_r_aux, rho_r, tau_mp2_r, &
-                                                            vadmm_rspace, vtau_rspace, vxc_rspace
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: pot_g, pot_r, rho_tot_g, temp_pw_g, &
                                                             vh_rspace, vhxc_rspace
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: dvg
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_mp2_g, rho_mp2_r, &
+                                                            rho_mp2_r_aux, rho_r, tau_mp2_r, &
+                                                            vadmm_rspace, vtau_rspace, vxc_rspace
       TYPE(pw_type), POINTER                             :: rho_core
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -1565,12 +1564,12 @@ CONTAINS
                                     hmat=matrix_ks(ispin), pmat=rho_ao(ispin), &
                                     qs_env=qs_env, calculate_forces=.TRUE.)
             CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
-            CALL pw_axpy(vxc_rspace(ispin)%pw, vhxc_rspace)
+            CALL pw_axpy(vxc_rspace(ispin), vhxc_rspace)
             CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
                                     hmat=matrix_ks(ispin), pmat=matrix_p_mp2(ispin), &
                                     qs_env=qs_env, calculate_forces=.TRUE.)
             IF (ASSOCIATED(vtau_rspace)) THEN
-               CALL integrate_v_rspace(v_rspace=vtau_rspace(ispin)%pw, &
+               CALL integrate_v_rspace(v_rspace=vtau_rspace(ispin), &
                                        hmat=matrix_ks(ispin), pmat=matrix_p_mp2(ispin), &
                                        qs_env=qs_env, calculate_forces=.TRUE., compute_tau=.TRUE.)
             END IF
@@ -1578,12 +1577,12 @@ CONTAINS
       ELSE
          DO ispin = 1, nspins
             CALL pw_transfer(vh_rspace, vhxc_rspace)
-            CALL pw_axpy(vxc_rspace(ispin)%pw, vhxc_rspace)
+            CALL pw_axpy(vxc_rspace(ispin), vhxc_rspace)
             CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
                                     hmat=matrix_ks(ispin), pmat=rho_ao(ispin), &
                                     qs_env=qs_env, calculate_forces=.TRUE.)
             IF (ASSOCIATED(vtau_rspace)) THEN
-               CALL integrate_v_rspace(v_rspace=vtau_rspace(ispin)%pw, &
+               CALL integrate_v_rspace(v_rspace=vtau_rspace(ispin), &
                                        hmat=matrix_ks(ispin), pmat=rho_ao(ispin), &
                                        qs_env=qs_env, calculate_forces=.TRUE., compute_tau=.TRUE.)
             END IF
@@ -1607,10 +1606,10 @@ CONTAINS
          e_xc = 0.0_dp
          DO ispin = 1, nspins
             ! The potentials have been scaled in ks_ref_potential, but for pw_integral_ab, we need the unscaled potentials
-            CALL pw_scale(vxc_rspace(ispin)%pw, 1.0_dp/vxc_rspace(ispin)%pw%pw_grid%dvol)
-            e_xc = e_xc + pw_integral_ab(rho_mp2_r(ispin)%pw, vxc_rspace(ispin)%pw)
-            IF (ASSOCIATED(vtau_rspace)) CALL pw_scale(vtau_rspace(ispin)%pw, 1.0_dp/vtau_rspace(ispin)%pw%pw_grid%dvol)
-            IF (ASSOCIATED(vtau_rspace)) e_xc = e_xc + pw_integral_ab(tau_mp2_r(ispin)%pw, vtau_rspace(ispin)%pw)
+            CALL pw_scale(vxc_rspace(ispin), 1.0_dp/vxc_rspace(ispin)%pw_grid%dvol)
+            e_xc = e_xc + pw_integral_ab(rho_mp2_r(ispin), vxc_rspace(ispin))
+            IF (ASSOCIATED(vtau_rspace)) CALL pw_scale(vtau_rspace(ispin), 1.0_dp/vtau_rspace(ispin)%pw_grid%dvol)
+            IF (ASSOCIATED(vtau_rspace)) e_xc = e_xc + pw_integral_ab(tau_mp2_r(ispin), vtau_rspace(ispin))
          END DO
          IF (debug_forces .AND. iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG VIRIAL:: vxc*d1   ", e_xc
          DO alpha = 1, 3
@@ -1619,11 +1618,9 @@ CONTAINS
          END DO
       END IF
       DO ispin = 1, nspins
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_rspace(ispin)%pw)
-         DEALLOCATE (vxc_rspace(ispin)%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_rspace(ispin))
          IF (ASSOCIATED(vtau_rspace)) THEN
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, vtau_rspace(ispin)%pw)
-            DEALLOCATE (vtau_rspace(ispin)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, vtau_rspace(ispin))
          END IF
       END DO
       DEALLOCATE (vxc_rspace)
@@ -1654,7 +1651,7 @@ CONTAINS
 
       CALL qs_rho_get(p_env%rho1, rho_r=rho_mp2_r, rho_g=rho_mp2_g)
       DO ispin = 1, nspins
-         CALL pw_axpy(rho_mp2_g(ispin)%pw, rho_tot_g)
+         CALL pw_axpy(rho_mp2_g(ispin), rho_tot_g)
       END DO
 
       IF (use_virial) THEN
@@ -1697,8 +1694,8 @@ CONTAINS
          CALL pw_copy(rho_tot_g, temp_pw_g)
 
          ! calculate total SCF density and potential
-         CALL pw_copy(rho_g(1)%pw, rho_tot_g)
-         IF (nspins == 2) CALL pw_axpy(rho_g(2)%pw, rho_tot_g)
+         CALL pw_copy(rho_g(1), rho_tot_g)
+         IF (nspins == 2) CALL pw_axpy(rho_g(2), rho_tot_g)
          CALL pw_axpy(rho_core, rho_tot_g)
          CALL pw_poisson_solve(poisson_env, rho_tot_g, vhartree=pot_g)
 
@@ -1893,10 +1890,10 @@ CONTAINS
                   CALL qs_rho_get(p_env%rho1_admm, rho_r=rho_mp2_r_aux)
                   e_xc = 0.0_dp
                   DO ispin = 1, nspins
-                     e_xc = e_xc + pw_integral_ab(rho_mp2_r_aux(ispin)%pw, vadmm_rspace(ispin)%pw)
+                     e_xc = e_xc + pw_integral_ab(rho_mp2_r_aux(ispin), vadmm_rspace(ispin))
                   END DO
 
-                  e_xc = -e_xc/vadmm_rspace(1)%pw%pw_grid%dvol/REAL(para_env%num_pe, dp)
+                  e_xc = -e_xc/vadmm_rspace(1)%pw_grid%dvol/REAL(para_env%num_pe, dp)
 
                   ! Update the virial
                   DO alpha = 1, 3
@@ -1915,16 +1912,15 @@ CONTAINS
                END IF
                DO ispin = 1, nspins
                   IF (do_exx) THEN
-                     CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin)%pw, hmat=matrix_ks_aux(ispin), qs_env=qs_env, &
+                     CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin), hmat=matrix_ks_aux(ispin), qs_env=qs_env, &
                                              calculate_forces=.TRUE., basis_type="AUX_FIT", &
                                              task_list_external=task_list_aux_fit, pmat=matrix_p_mp2_admm(ispin))
                   ELSE
-                     CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin)%pw, hmat=matrix_ks_aux(ispin), qs_env=qs_env, &
+                     CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin), hmat=matrix_ks_aux(ispin), qs_env=qs_env, &
                                              calculate_forces=.TRUE., basis_type="AUX_FIT", &
                                              task_list_external=task_list_aux_fit, pmat=rho_ao_aux(ispin))
                   END IF
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, vadmm_rspace(ispin)%pw)
-                  DEALLOCATE (vadmm_rspace(ispin)%pw)
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, vadmm_rspace(ispin))
                END DO
                IF (use_virial) virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - h_stress)
                DEALLOCATE (vadmm_rspace)
@@ -2019,7 +2015,6 @@ CONTAINS
       CALL p_env_release(p_env)
       DEALLOCATE (p_env)
       NULLIFY (qs_env%mp2_env%ri_grad%p_env)
-      CALL linres_control_release(linres_control)
 
       CALL sum_qs_force(force, qs_env%mp2_env%ri_grad%mp2_force)
       CALL deallocate_qs_force(qs_env%mp2_env%ri_grad%mp2_force)

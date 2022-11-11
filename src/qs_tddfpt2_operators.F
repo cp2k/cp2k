@@ -37,8 +37,7 @@ MODULE qs_tddfpt2_operators
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: pw_p_type,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kernel_types,                 ONLY: full_kernel_env_type
@@ -159,7 +158,7 @@ CONTAINS
    SUBROUTINE tddfpt_apply_coulomb(A_ia_rspace, rho_ia_g, local_rho_set, hartree_local, &
                                    qs_env, sub_env, gapw, work_v_gspace, work_v_rspace)
       TYPE(pw_type), DIMENSION(:), INTENT(IN)            :: A_ia_rspace
-      TYPE(pw_type), POINTER                             :: rho_ia_g
+      TYPE(pw_type), INTENT(IN)                          :: rho_ia_g
       TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(hartree_local_type), POINTER                  :: hartree_local
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -237,7 +236,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho_ia_struct
       LOGICAL, INTENT(in)                                :: is_rks_triplets
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: work_v_xc, work_v_xc_tau
+      TYPE(pw_type), DIMENSION(:), POINTER               :: work_v_xc, work_v_xc_tau
 
       INTEGER                                            :: ispin
 
@@ -251,7 +250,7 @@ CONTAINS
 
       DO ispin = 1, SIZE(work_v_xc)
          ! pw2 = pw2 + alpha * pw1
-         CALL pw_axpy(work_v_xc(ispin)%pw, A_ia_rspace(ispin), kernel_env%alpha)
+         CALL pw_axpy(work_v_xc(ispin), A_ia_rspace(ispin), kernel_env%alpha)
       END DO
 
    END SUBROUTINE tddfpt_apply_xc
@@ -283,14 +282,14 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho_ia_struct
       LOGICAL, INTENT(in)                                :: is_rks_triplets
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: work_v_xc, work_v_xc_tau
+      TYPE(pw_type), DIMENSION(:), POINTER               :: work_v_xc, work_v_xc_tau
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_xc_analytic'
 
       INTEGER                                            :: handle, ispin, nspins
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_ia_g, rho_ia_g2, rho_ia_r, &
-                                                            rho_ia_r2, tau_ia_r, tau_ia_r2
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_ia_g, rho_ia_g2, rho_ia_r, &
+                                                            rho_ia_r2, tau_ia_r, tau_ia_r2
 
       CALL timeset(routineN, handle)
 
@@ -309,35 +308,26 @@ CONTAINS
       IF (is_rks_triplets) THEN
          ALLOCATE (rho_ia_r2(2))
          ALLOCATE (rho_ia_g2(2))
-         rho_ia_r2(1)%pw => rho_ia_r(1)%pw
-         rho_ia_r2(2)%pw => rho_ia_r(1)%pw
-         rho_ia_g2(1)%pw => rho_ia_g(1)%pw
-         rho_ia_g2(2)%pw => rho_ia_g(1)%pw
+         rho_ia_r2(1) = rho_ia_r(1)
+         rho_ia_r2(2) = rho_ia_r(1)
+         rho_ia_g2(1) = rho_ia_g(1)
+         rho_ia_g2(2) = rho_ia_g(1)
 
          IF (ASSOCIATED(tau_ia_r)) THEN
             ALLOCATE (tau_ia_r2(2))
-            tau_ia_r2(1)%pw => tau_ia_r(1)%pw
-            tau_ia_r2(2)%pw => tau_ia_r(1)%pw
+            tau_ia_r2(1) = tau_ia_r(1)
+            tau_ia_r2(2) = tau_ia_r(1)
          END IF
       ELSE
-         ALLOCATE (rho_ia_r2(nspins))
-         ALLOCATE (rho_ia_g2(nspins))
-         DO ispin = 1, nspins
-            rho_ia_r2(ispin)%pw => rho_ia_r(ispin)%pw
-            rho_ia_g2(ispin)%pw => rho_ia_g(ispin)%pw
-         END DO
+         rho_ia_r2 => rho_ia_r
+         rho_ia_g2 => rho_ia_g
 
-         IF (ASSOCIATED(tau_ia_r)) THEN
-            ALLOCATE (tau_ia_r2(nspins))
-            DO ispin = 1, nspins
-               tau_ia_r2(ispin)%pw => tau_ia_r(ispin)%pw
-            END DO
-         END IF
+         tau_ia_r2 => tau_ia_r
       END IF
 
       DO ispin = 1, nspins
-         CALL pw_zero(work_v_xc(ispin)%pw)
-         IF (ASSOCIATED(work_v_xc_tau)) CALL pw_zero(work_v_xc_tau(ispin)%pw)
+         CALL pw_zero(work_v_xc(ispin))
+         IF (ASSOCIATED(work_v_xc_tau)) CALL pw_zero(work_v_xc_tau(ispin))
       END DO
 
       CALL xc_rho_set_update(rho_set=kernel_env%xc_rho1_set, rho_r=rho_ia_r2, rho_g=rho_ia_g2, tau=tau_ia_r2, &
@@ -349,9 +339,10 @@ CONTAINS
                                         rho1_set=kernel_env%xc_rho1_set, pw_pool=auxbas_pw_pool, &
                                         xc_section=kernel_env%xc_section, gapw=.FALSE., tddfpt_fac=kernel_env%beta)
 
-      DEALLOCATE (rho_ia_g2, rho_ia_r2)
-      IF (ASSOCIATED(tau_ia_r2)) THEN
-         DEALLOCATE (tau_ia_r2)
+      IF (is_rks_triplets) THEN
+         DEALLOCATE (rho_ia_r2)
+         DEALLOCATE (rho_ia_g2)
+         IF (ASSOCIATED(tau_ia_r2)) DEALLOCATE (tau_ia_r2)
       END IF
 
       CALL timestop(handle)
@@ -377,14 +368,14 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho_ia_struct
       LOGICAL, INTENT(in)                                :: is_rks_triplets
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: work_v_xc, work_v_xc_tau
+      TYPE(pw_type), DIMENSION(:), POINTER               :: work_v_xc, work_v_xc_tau
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_xc_fd'
 
       INTEGER                                            :: handle, ispin, nspins
       LOGICAL                                            :: lsd, singlet, triplet
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_r, tau1_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_g, rho1_r, tau1_r
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
 
       CALL timeset(routineN, handle)
@@ -393,7 +384,7 @@ CONTAINS
       CALL qs_rho_get(rho_ia_struct, rho_r=rho1_r, rho_g=rho1_g, tau_r=tau1_r)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       DO ispin = 1, nspins
-         CALL pw_zero(work_v_xc(ispin)%pw)
+         CALL pw_zero(work_v_xc(ispin))
       END DO
       rho_set => kernel_env%xc_rho_set
 
@@ -412,7 +403,7 @@ CONTAINS
 
       IF (ASSOCIATED(tau1_r)) THEN
       DO ispin = 1, nspins
-         CALL pw_zero(work_v_xc_tau(ispin)%pw)
+         CALL pw_zero(work_v_xc_tau(ispin))
       END DO
       END IF
 

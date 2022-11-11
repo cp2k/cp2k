@@ -68,7 +68,7 @@ MODULE qs_wf_history_methods
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type
+                                              pw_type
    USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
@@ -151,8 +151,8 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r
       TYPE(qs_rho_type), POINTER                         :: rho
 
       CALL timeset(routineN, handle)
@@ -196,18 +196,16 @@ CONTAINS
          IF (.NOT. ASSOCIATED(snapshot%rho_r)) THEN
             ALLOCATE (snapshot%rho_r(nspins))
             DO ispin = 1, nspins
-               ALLOCATE (snapshot%rho_r(ispin)%pw)
-               CALL pw_pool_create_pw(auxbas_pw_pool, snapshot%rho_r(ispin)%pw, &
+               CALL pw_pool_create_pw(auxbas_pw_pool, snapshot%rho_r(ispin), &
                                       in_space=REALSPACE, use_data=REALDATA3D)
             END DO
          END IF
          DO ispin = 1, nspins
-            CALL pw_copy(rho_r(ispin)%pw, snapshot%rho_r(ispin)%pw)
+            CALL pw_copy(rho_r(ispin), snapshot%rho_r(ispin))
          END DO
       ELSE IF (ASSOCIATED(snapshot%rho_r)) THEN
          DO ispin = 1, SIZE(snapshot%rho_r)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, snapshot%rho_r(ispin)%pw)
-            DEALLOCATE (snapshot%rho_r(ispin)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, snapshot%rho_r(ispin))
          END DO
          DEALLOCATE (snapshot%rho_r)
       END IF
@@ -218,18 +216,16 @@ CONTAINS
          IF (.NOT. ASSOCIATED(snapshot%rho_g)) THEN
             ALLOCATE (snapshot%rho_g(nspins))
             DO ispin = 1, nspins
-               ALLOCATE (snapshot%rho_g(ispin)%pw)
-               CALL pw_pool_create_pw(auxbas_pw_pool, snapshot%rho_g(ispin)%pw, &
+               CALL pw_pool_create_pw(auxbas_pw_pool, snapshot%rho_g(ispin), &
                                       in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D)
             END DO
          END IF
          DO ispin = 1, nspins
-            CALL pw_copy(rho_g(ispin)%pw, snapshot%rho_g(ispin)%pw)
+            CALL pw_copy(rho_g(ispin), snapshot%rho_g(ispin))
          END DO
       ELSE IF (ASSOCIATED(snapshot%rho_g)) THEN
          DO ispin = 1, SIZE(snapshot%rho_g)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, snapshot%rho_g(ispin)%pw)
-            DEALLOCATE (snapshot%rho_g(ispin)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, snapshot%rho_g(ispin))
          END DO
          DEALLOCATE (snapshot%rho_g)
       END IF

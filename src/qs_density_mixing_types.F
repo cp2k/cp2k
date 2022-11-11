@@ -55,7 +55,6 @@ MODULE qs_density_mixing_types
    END TYPE cp_1d_z_p_type
 
    TYPE mixing_storage_type
-      INTEGER                                           :: ref_count
       INTEGER                                           :: ig_max, ncall, ncall_p(2), nbuffer, n_simple_mix, &
                                                            nskip_mixing, p_metric_method
       INTEGER, POINTER, DIMENSION(:)                    :: ig_global_index
@@ -107,17 +106,13 @@ CONTAINS
 !> \author [MI]
 ! **************************************************************************************************
    SUBROUTINE mixing_storage_create(mixing_store, mixing_section, mixing_method, ecut)
-      TYPE(mixing_storage_type), POINTER                 :: mixing_store
+      TYPE(mixing_storage_type), INTENT(OUT)             :: mixing_store
       TYPE(section_vals_type), POINTER                   :: mixing_section
       INTEGER, INTENT(IN)                                :: mixing_method
       REAL(dp), INTENT(IN)                               :: ecut
 
       REAL(dp)                                           :: alpha, eps, gcut
 
-      CPASSERT(.NOT. ASSOCIATED(mixing_store))
-      ALLOCATE (mixing_store)
-
-      mixing_store%ref_count = 1
       mixing_store%nbuffer = 0
       mixing_store%n_simple_mix = 0
       mixing_store%ncall = 0
@@ -214,230 +209,220 @@ CONTAINS
 !> \author [MI]
 ! **************************************************************************************************
    SUBROUTINE mixing_storage_release(mixing_store)
-      TYPE(mixing_storage_type), POINTER                 :: mixing_store
+      TYPE(mixing_storage_type), INTENT(INOUT)           :: mixing_store
 
       INTEGER                                            :: i, j, k
 
-      IF (ASSOCIATED(mixing_store)) THEN
-         CPASSERT(mixing_store%ref_count > 0)
-         mixing_store%ref_count = mixing_store%ref_count - 1
-         IF (mixing_store%ref_count == 0) THEN
+      IF (ASSOCIATED(mixing_store%kerker_factor)) THEN
+         DEALLOCATE (mixing_store%kerker_factor)
+      END IF
 
-            IF (ASSOCIATED(mixing_store%kerker_factor)) THEN
-               DEALLOCATE (mixing_store%kerker_factor)
-            END IF
+      IF (ASSOCIATED(mixing_store%special_metric)) THEN
+         DEALLOCATE (mixing_store%special_metric)
+      END IF
 
-            IF (ASSOCIATED(mixing_store%special_metric)) THEN
-               DEALLOCATE (mixing_store%special_metric)
-            END IF
+      IF (ASSOCIATED(mixing_store%pulay_matrix)) THEN
+         DEALLOCATE (mixing_store%pulay_matrix)
+      END IF
 
-            IF (ASSOCIATED(mixing_store%pulay_matrix)) THEN
-               DEALLOCATE (mixing_store%pulay_matrix)
-            END IF
+      IF (ASSOCIATED(mixing_store%rhoin_buffer)) THEN
+         DO i = 1, SIZE(mixing_store%rhoin_buffer, 2)
+            DO j = 1, SIZE(mixing_store%rhoin_buffer, 1)
+               DEALLOCATE (mixing_store%rhoin_buffer(j, i)%cc)
+            END DO
+         END DO
+         DEALLOCATE (mixing_store%rhoin_buffer)
+      END IF
 
-            IF (ASSOCIATED(mixing_store%rhoin_buffer)) THEN
-               DO i = 1, SIZE(mixing_store%rhoin_buffer, 2)
-                  DO j = 1, SIZE(mixing_store%rhoin_buffer, 1)
-                     DEALLOCATE (mixing_store%rhoin_buffer(j, i)%cc)
-                  END DO
-               END DO
-               DEALLOCATE (mixing_store%rhoin_buffer)
+      IF (ASSOCIATED(mixing_store%paw)) THEN
+         DEALLOCATE (mixing_store%paw)
+      END IF
+      IF (ASSOCIATED(mixing_store%cpc_h_in)) THEN
+         DO j = 1, SIZE(mixing_store%cpc_h_in, 2)
+         DO k = 1, SIZE(mixing_store%cpc_h_in, 1)
+            IF (ASSOCIATED(mixing_store%cpc_h_in(k, j)%r_coef)) THEN
+               DEALLOCATE (mixing_store%cpc_h_in(k, j)%r_coef)
+               DEALLOCATE (mixing_store%cpc_s_in(k, j)%r_coef)
             END IF
+         END DO
+         END DO
+         DEALLOCATE (mixing_store%cpc_h_in)
+         DEALLOCATE (mixing_store%cpc_s_in)
+      END IF
+      IF (ASSOCIATED(mixing_store%cpc_h_old)) THEN
+         DO j = 1, SIZE(mixing_store%cpc_h_old, 2)
+         DO k = 1, SIZE(mixing_store%cpc_h_old, 1)
+            IF (ASSOCIATED(mixing_store%cpc_h_old(k, j)%r_coef)) THEN
+               DEALLOCATE (mixing_store%cpc_h_old(k, j)%r_coef)
+               DEALLOCATE (mixing_store%cpc_s_old(k, j)%r_coef)
+            END IF
+         END DO
+         END DO
+         DEALLOCATE (mixing_store%cpc_h_old)
+         DEALLOCATE (mixing_store%cpc_s_old)
+      END IF
+      IF (ASSOCIATED(mixing_store%cpc_h_in_buffer)) THEN
+         DO i = 1, SIZE(mixing_store%cpc_h_in_buffer, 3)
+         DO j = 1, SIZE(mixing_store%cpc_h_in_buffer, 2)
+         DO k = 1, SIZE(mixing_store%cpc_h_in_buffer, 1)
+            IF (ASSOCIATED(mixing_store%cpc_h_in_buffer(k, j, i)%r_coef)) THEN
+               DEALLOCATE (mixing_store%cpc_h_in_buffer(k, j, i)%r_coef)
+               DEALLOCATE (mixing_store%cpc_s_in_buffer(k, j, i)%r_coef)
+            END IF
+         END DO
+         END DO
+         END DO
+         DEALLOCATE (mixing_store%cpc_h_in_buffer)
+         DEALLOCATE (mixing_store%cpc_s_in_buffer)
+      END IF
+      IF (ASSOCIATED(mixing_store%cpc_h_res_buffer)) THEN
+         DO i = 1, SIZE(mixing_store%cpc_h_res_buffer, 3)
+         DO j = 1, SIZE(mixing_store%cpc_h_res_buffer, 2)
+         DO k = 1, SIZE(mixing_store%cpc_h_res_buffer, 1)
+            IF (ASSOCIATED(mixing_store%cpc_h_res_buffer(k, j, i)%r_coef)) THEN
+               DEALLOCATE (mixing_store%cpc_h_res_buffer(k, j, i)%r_coef)
+               DEALLOCATE (mixing_store%cpc_s_res_buffer(k, j, i)%r_coef)
+            END IF
+         END DO
+         END DO
+         END DO
+         DEALLOCATE (mixing_store%cpc_h_res_buffer)
+         DEALLOCATE (mixing_store%cpc_s_res_buffer)
+      END IF
 
-            IF (ASSOCIATED(mixing_store%paw)) THEN
-               DEALLOCATE (mixing_store%paw)
+      IF (ASSOCIATED(mixing_store%dcpc_h_in)) THEN
+         DO i = 1, SIZE(mixing_store%dcpc_h_in, 3)
+         DO j = 1, SIZE(mixing_store%dcpc_h_in, 2)
+         DO k = 1, SIZE(mixing_store%dcpc_h_in, 1)
+            IF (ASSOCIATED(mixing_store%dcpc_h_in(k, j, i)%r_coef)) THEN
+               DEALLOCATE (mixing_store%dcpc_h_in(k, j, i)%r_coef)
+               DEALLOCATE (mixing_store%dcpc_s_in(k, j, i)%r_coef)
             END IF
-            IF (ASSOCIATED(mixing_store%cpc_h_in)) THEN
-               DO j = 1, SIZE(mixing_store%cpc_h_in, 2)
-               DO k = 1, SIZE(mixing_store%cpc_h_in, 1)
-                  IF (ASSOCIATED(mixing_store%cpc_h_in(k, j)%r_coef)) THEN
-                     DEALLOCATE (mixing_store%cpc_h_in(k, j)%r_coef)
-                     DEALLOCATE (mixing_store%cpc_s_in(k, j)%r_coef)
-                  END IF
-               END DO
-               END DO
-               DEALLOCATE (mixing_store%cpc_h_in)
-               DEALLOCATE (mixing_store%cpc_s_in)
+         END DO
+         END DO
+         END DO
+         DEALLOCATE (mixing_store%dcpc_h_in)
+         DEALLOCATE (mixing_store%dcpc_s_in)
+      END IF
+      IF (ASSOCIATED(mixing_store%cpc_h_lastres)) THEN
+         DO j = 1, SIZE(mixing_store%cpc_h_lastres, 2)
+         DO k = 1, SIZE(mixing_store%cpc_h_lastres, 1)
+            IF (ASSOCIATED(mixing_store%cpc_h_lastres(k, j)%r_coef)) THEN
+               DEALLOCATE (mixing_store%cpc_h_lastres(k, j)%r_coef)
+               DEALLOCATE (mixing_store%cpc_s_lastres(k, j)%r_coef)
             END IF
-            IF (ASSOCIATED(mixing_store%cpc_h_old)) THEN
-               DO j = 1, SIZE(mixing_store%cpc_h_old, 2)
-               DO k = 1, SIZE(mixing_store%cpc_h_old, 1)
-                  IF (ASSOCIATED(mixing_store%cpc_h_old(k, j)%r_coef)) THEN
-                     DEALLOCATE (mixing_store%cpc_h_old(k, j)%r_coef)
-                     DEALLOCATE (mixing_store%cpc_s_old(k, j)%r_coef)
-                  END IF
-               END DO
-               END DO
-               DEALLOCATE (mixing_store%cpc_h_old)
-               DEALLOCATE (mixing_store%cpc_s_old)
-            END IF
-            IF (ASSOCIATED(mixing_store%cpc_h_in_buffer)) THEN
-               DO i = 1, SIZE(mixing_store%cpc_h_in_buffer, 3)
-               DO j = 1, SIZE(mixing_store%cpc_h_in_buffer, 2)
-               DO k = 1, SIZE(mixing_store%cpc_h_in_buffer, 1)
-                  IF (ASSOCIATED(mixing_store%cpc_h_in_buffer(k, j, i)%r_coef)) THEN
-                     DEALLOCATE (mixing_store%cpc_h_in_buffer(k, j, i)%r_coef)
-                     DEALLOCATE (mixing_store%cpc_s_in_buffer(k, j, i)%r_coef)
-                  END IF
-               END DO
-               END DO
-               END DO
-               DEALLOCATE (mixing_store%cpc_h_in_buffer)
-               DEALLOCATE (mixing_store%cpc_s_in_buffer)
-            END IF
-            IF (ASSOCIATED(mixing_store%cpc_h_res_buffer)) THEN
-               DO i = 1, SIZE(mixing_store%cpc_h_res_buffer, 3)
-               DO j = 1, SIZE(mixing_store%cpc_h_res_buffer, 2)
-               DO k = 1, SIZE(mixing_store%cpc_h_res_buffer, 1)
-                  IF (ASSOCIATED(mixing_store%cpc_h_res_buffer(k, j, i)%r_coef)) THEN
-                     DEALLOCATE (mixing_store%cpc_h_res_buffer(k, j, i)%r_coef)
-                     DEALLOCATE (mixing_store%cpc_s_res_buffer(k, j, i)%r_coef)
-                  END IF
-               END DO
-               END DO
-               END DO
-               DEALLOCATE (mixing_store%cpc_h_res_buffer)
-               DEALLOCATE (mixing_store%cpc_s_res_buffer)
-            END IF
+         END DO
+         END DO
+         DEALLOCATE (mixing_store%cpc_h_lastres)
+         DEALLOCATE (mixing_store%cpc_s_lastres)
+      END IF
 
-            IF (ASSOCIATED(mixing_store%dcpc_h_in)) THEN
-               DO i = 1, SIZE(mixing_store%dcpc_h_in, 3)
-               DO j = 1, SIZE(mixing_store%dcpc_h_in, 2)
-               DO k = 1, SIZE(mixing_store%dcpc_h_in, 1)
-                  IF (ASSOCIATED(mixing_store%dcpc_h_in(k, j, i)%r_coef)) THEN
-                     DEALLOCATE (mixing_store%dcpc_h_in(k, j, i)%r_coef)
-                     DEALLOCATE (mixing_store%dcpc_s_in(k, j, i)%r_coef)
-                  END IF
-               END DO
-               END DO
-               END DO
-               DEALLOCATE (mixing_store%dcpc_h_in)
-               DEALLOCATE (mixing_store%dcpc_s_in)
-            END IF
-            IF (ASSOCIATED(mixing_store%cpc_h_lastres)) THEN
-               DO j = 1, SIZE(mixing_store%cpc_h_lastres, 2)
-               DO k = 1, SIZE(mixing_store%cpc_h_lastres, 1)
-                  IF (ASSOCIATED(mixing_store%cpc_h_lastres(k, j)%r_coef)) THEN
-                     DEALLOCATE (mixing_store%cpc_h_lastres(k, j)%r_coef)
-                     DEALLOCATE (mixing_store%cpc_s_lastres(k, j)%r_coef)
-                  END IF
-               END DO
-               END DO
-               DEALLOCATE (mixing_store%cpc_h_lastres)
-               DEALLOCATE (mixing_store%cpc_s_lastres)
-            END IF
+      IF (ASSOCIATED(mixing_store%res_buffer)) THEN
+         DO i = 1, SIZE(mixing_store%res_buffer, 2)
+            DO j = 1, SIZE(mixing_store%res_buffer, 1)
+               DEALLOCATE (mixing_store%res_buffer(j, i)%cc)
+            END DO
+         END DO
+         DEALLOCATE (mixing_store%res_buffer)
+      END IF
 
-            IF (ASSOCIATED(mixing_store%res_buffer)) THEN
-               DO i = 1, SIZE(mixing_store%res_buffer, 2)
-                  DO j = 1, SIZE(mixing_store%res_buffer, 1)
-                     DEALLOCATE (mixing_store%res_buffer(j, i)%cc)
-                  END DO
-               END DO
-               DEALLOCATE (mixing_store%res_buffer)
-            END IF
+      IF (ASSOCIATED(mixing_store%norm_res_buffer)) THEN
+         DEALLOCATE (mixing_store%norm_res_buffer)
+      END IF
 
-            IF (ASSOCIATED(mixing_store%norm_res_buffer)) THEN
-               DEALLOCATE (mixing_store%norm_res_buffer)
-            END IF
+      IF (ASSOCIATED(mixing_store%ig_global_index)) THEN
+         DEALLOCATE (mixing_store%ig_global_index)
+      END IF
 
-            IF (ASSOCIATED(mixing_store%ig_global_index)) THEN
-               DEALLOCATE (mixing_store%ig_global_index)
-            END IF
+      IF (ASSOCIATED(mixing_store%drho_buffer)) THEN
+         DO i = 1, SIZE(mixing_store%drho_buffer, 2)
+            DO j = 1, SIZE(mixing_store%drho_buffer, 1)
+               DEALLOCATE (mixing_store%drho_buffer(j, i)%cc)
+            END DO
+         END DO
+         DEALLOCATE (mixing_store%drho_buffer)
+      END IF
 
-            IF (ASSOCIATED(mixing_store%drho_buffer)) THEN
-               DO i = 1, SIZE(mixing_store%drho_buffer, 2)
-                  DO j = 1, SIZE(mixing_store%drho_buffer, 1)
-                     DEALLOCATE (mixing_store%drho_buffer(j, i)%cc)
-                  END DO
-               END DO
-               DEALLOCATE (mixing_store%drho_buffer)
-            END IF
+      IF (ASSOCIATED(mixing_store%last_res)) THEN
+         DO i = 1, SIZE(mixing_store%last_res)
+            DEALLOCATE (mixing_store%last_res(i)%cc)
+         END DO
+         DEALLOCATE (mixing_store%last_res)
+      END IF
 
-            IF (ASSOCIATED(mixing_store%last_res)) THEN
-               DO i = 1, SIZE(mixing_store%last_res)
-                  DEALLOCATE (mixing_store%last_res(i)%cc)
-               END DO
-               DEALLOCATE (mixing_store%last_res)
-            END IF
+      IF (ASSOCIATED(mixing_store%rhoin)) THEN
+         DO i = 1, SIZE(mixing_store%rhoin)
+            DEALLOCATE (mixing_store%rhoin(i)%cc)
+         END DO
+         DEALLOCATE (mixing_store%rhoin)
+      END IF
 
-            IF (ASSOCIATED(mixing_store%rhoin)) THEN
-               DO i = 1, SIZE(mixing_store%rhoin)
-                  DEALLOCATE (mixing_store%rhoin(i)%cc)
-               END DO
-               DEALLOCATE (mixing_store%rhoin)
-            END IF
+      IF (ASSOCIATED(mixing_store%rhoin_old)) THEN
+         DO i = 1, SIZE(mixing_store%rhoin_old)
+            DEALLOCATE (mixing_store%rhoin_old(i)%cc)
+         END DO
+         DEALLOCATE (mixing_store%rhoin_old)
+      END IF
 
-            IF (ASSOCIATED(mixing_store%rhoin_old)) THEN
-               DO i = 1, SIZE(mixing_store%rhoin_old)
-                  DEALLOCATE (mixing_store%rhoin_old(i)%cc)
-               END DO
-               DEALLOCATE (mixing_store%rhoin_old)
-            END IF
+      IF (ASSOCIATED(mixing_store%p_metric)) THEN
+         DEALLOCATE (mixing_store%p_metric)
+      END IF
 
-            IF (ASSOCIATED(mixing_store%p_metric)) THEN
-               DEALLOCATE (mixing_store%p_metric)
-            END IF
+      IF (ASSOCIATED(mixing_store%weight)) THEN
+         DEALLOCATE (mixing_store%weight)
+      END IF
 
-            IF (ASSOCIATED(mixing_store%weight)) THEN
-               DEALLOCATE (mixing_store%weight)
-            END IF
+      IF (ASSOCIATED(mixing_store%fmat)) THEN
+         DEALLOCATE (mixing_store%fmat)
+      END IF
 
-            IF (ASSOCIATED(mixing_store%fmat)) THEN
-               DEALLOCATE (mixing_store%fmat)
-            END IF
+      IF (ASSOCIATED(mixing_store%acharge)) THEN
+         DEALLOCATE (mixing_store%acharge)
+      END IF
+      IF (ASSOCIATED(mixing_store%dacharge)) THEN
+         DEALLOCATE (mixing_store%dacharge)
+      END IF
+      IF (ASSOCIATED(mixing_store%dfbroy)) THEN
+         DEALLOCATE (mixing_store%dfbroy)
+      END IF
+      IF (ASSOCIATED(mixing_store%ubroy)) THEN
+         DEALLOCATE (mixing_store%ubroy)
+      END IF
+      IF (ASSOCIATED(mixing_store%abroy)) THEN
+         DEALLOCATE (mixing_store%abroy)
+      END IF
+      IF (ASSOCIATED(mixing_store%wbroy)) THEN
+         DEALLOCATE (mixing_store%wbroy)
+      END IF
+      IF (ASSOCIATED(mixing_store%atlist)) THEN
+         DEALLOCATE (mixing_store%atlist)
+      END IF
 
-            IF (ASSOCIATED(mixing_store%acharge)) THEN
-               DEALLOCATE (mixing_store%acharge)
-            END IF
-            IF (ASSOCIATED(mixing_store%dacharge)) THEN
-               DEALLOCATE (mixing_store%dacharge)
-            END IF
-            IF (ASSOCIATED(mixing_store%dfbroy)) THEN
-               DEALLOCATE (mixing_store%dfbroy)
-            END IF
-            IF (ASSOCIATED(mixing_store%ubroy)) THEN
-               DEALLOCATE (mixing_store%ubroy)
-            END IF
-            IF (ASSOCIATED(mixing_store%abroy)) THEN
-               DEALLOCATE (mixing_store%abroy)
-            END IF
-            IF (ASSOCIATED(mixing_store%wbroy)) THEN
-               DEALLOCATE (mixing_store%wbroy)
-            END IF
-            IF (ASSOCIATED(mixing_store%atlist)) THEN
-               DEALLOCATE (mixing_store%atlist)
-            END IF
+      IF (ASSOCIATED(mixing_store%delta_res)) THEN
+         DO i = 1, SIZE(mixing_store%delta_res, 2)
+            DO j = 1, SIZE(mixing_store%delta_res, 1)
+               DEALLOCATE (mixing_store%delta_res(j, i)%cc)
+            END DO
+         END DO
+         DEALLOCATE (mixing_store%delta_res)
+      END IF
 
-            IF (ASSOCIATED(mixing_store%delta_res)) THEN
-               DO i = 1, SIZE(mixing_store%delta_res, 2)
-                  DO j = 1, SIZE(mixing_store%delta_res, 1)
-                     DEALLOCATE (mixing_store%delta_res(j, i)%cc)
-                  END DO
-               END DO
-               DEALLOCATE (mixing_store%delta_res)
-            END IF
+      IF (ASSOCIATED(mixing_store%u_vec)) THEN
+         DO i = 1, SIZE(mixing_store%u_vec, 2)
+            DO j = 1, SIZE(mixing_store%u_vec, 1)
+               DEALLOCATE (mixing_store%u_vec(j, i)%cc)
+            END DO
+         END DO
+         DEALLOCATE (mixing_store%u_vec)
+      END IF
 
-            IF (ASSOCIATED(mixing_store%u_vec)) THEN
-               DO i = 1, SIZE(mixing_store%u_vec, 2)
-                  DO j = 1, SIZE(mixing_store%u_vec, 1)
-                     DEALLOCATE (mixing_store%u_vec(j, i)%cc)
-                  END DO
-               END DO
-               DEALLOCATE (mixing_store%u_vec)
-            END IF
-
-            IF (ASSOCIATED(mixing_store%z_vec)) THEN
-               DO i = 1, SIZE(mixing_store%z_vec, 2)
-                  DO j = 1, SIZE(mixing_store%z_vec, 1)
-                     DEALLOCATE (mixing_store%z_vec(j, i)%cc)
-                  END DO
-               END DO
-               DEALLOCATE (mixing_store%z_vec)
-            END IF
-
-            DEALLOCATE (mixing_store)
-         END IF
-         NULLIFY (mixing_store)
+      IF (ASSOCIATED(mixing_store%z_vec)) THEN
+         DO i = 1, SIZE(mixing_store%z_vec, 2)
+            DO j = 1, SIZE(mixing_store%z_vec, 1)
+               DEALLOCATE (mixing_store%z_vec(j, i)%cc)
+            END DO
+         END DO
+         DEALLOCATE (mixing_store%z_vec)
       END IF
 
    END SUBROUTINE mixing_storage_release

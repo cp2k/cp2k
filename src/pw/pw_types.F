@@ -48,9 +48,6 @@ MODULE pw_types
    INTEGER, PARAMETER, PUBLIC :: NOSPACE = 371, REALSPACE = 372, RECIPROCALSPACE = 373
    INTEGER, PUBLIC, PARAMETER :: SQUARE = 391, SQUAREROOT = 392
 
-   ! to generate unique id_nr
-   INTEGER, SAVE, PRIVATE :: last_pw_id_nr = 0
-
 ! **************************************************************************************************
    TYPE pw_type
       REAL(KIND=dp), DIMENSION(:), CONTIGUOUS, POINTER :: cr => NULL()
@@ -60,7 +57,6 @@ MODULE pw_types
 
       INTEGER :: in_use = NODATA ! Which data is used [r1d/c1d/r3d/c3d]
       INTEGER :: in_space = NOSPACE ! Real/Reciprocal space
-      INTEGER :: id_nr = -1 ! unique identifier
 
       TYPE(pw_grid_type), POINTER :: pw_grid => NULL()
    END TYPE pw_type
@@ -89,16 +85,13 @@ CONTAINS
 
       SELECT CASE (pw%in_use)
       CASE (REALDATA1D)
-         DEALLOCATE (pw%cr)
+         IF (ASSOCIATED(pw%cr)) DEALLOCATE (pw%cr)
       CASE (COMPLEXDATA1D)
-         DEALLOCATE (pw%cc)
+         IF (ASSOCIATED(pw%cc)) DEALLOCATE (pw%cc)
       CASE (REALDATA3D)
-         IF (ASSOCIATED(pw%cr3d)) THEN
-            !FM optimizations of pools might have removed the 3d field to cache it
-            DEALLOCATE (pw%cr3d)
-         END IF
+         IF (ASSOCIATED(pw%cr3d)) DEALLOCATE (pw%cr3d)
       CASE (COMPLEXDATA3D)
-         DEALLOCATE (pw%cc3d)
+         IF (ASSOCIATED(pw%cc3d)) DEALLOCATE (pw%cc3d)
       CASE (NODATA)
       CASE default
          CPABORT("unknown data type "//cp_to_string(pw%in_use))
@@ -150,8 +143,6 @@ CONTAINS
          END IF
       END IF
 
-      last_pw_id_nr = last_pw_id_nr + 1
-      pw%id_nr = last_pw_id_nr
       pw%in_use = use_data
       pw%pw_grid => pw_grid
       CALL pw_grid_retain(pw%pw_grid)

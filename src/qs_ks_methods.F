@@ -86,7 +86,6 @@ MODULE qs_ks_methods
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_release,&
                                               pw_type
    USE qmmm_image_charge,               ONLY: add_image_pot_to_hartree_pot,&
@@ -204,12 +203,12 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, v_rspace_embed, v_rspace_new, &
-                                                            v_rspace_new_aux_fit, v_tau_rspace, &
-                                                            v_tau_rspace_aux_fit
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: rho_tot_gspace, v_hartree_gspace
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r, v_rspace_embed, v_rspace_new, &
+                                                            v_rspace_new_aux_fit, v_tau_rspace, &
+                                                            v_tau_rspace_aux_fit
       TYPE(pw_type), POINTER :: rho0_s_rs, rho_core, rho_nlcc, v_efield_rspace, v_hartree_rspace, &
          v_sccs_rspace, v_sic_rspace, v_spin_ddapc_rest_r, vee, vppl_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -460,7 +459,7 @@ CONTAINS
          ! Compute the energy due to the external potential
          ee_ener = 0.0_dp
          DO ispin = 1, nspins
-            ee_ener = ee_ener + pw_integral_ab(rho_r(ispin)%pw, vee)
+            ee_ener = ee_ener + pw_integral_ab(rho_r(ispin), vee)
          END DO
          IF (.NOT. just_energy) THEN
             IF (gapw) THEN
@@ -616,14 +615,14 @@ CONTAINS
       IF (do_ppl .AND. calculate_forces) THEN
          CPASSERT(.NOT. gapw)
          DO ispin = 1, nspins
-            CALL integrate_ppl_rspace(rho_r(ispin)%pw, qs_env)
+            CALL integrate_ppl_rspace(rho_r(ispin), qs_env)
          END DO
       END IF
 
       IF (ASSOCIATED(rho_nlcc) .AND. calculate_forces) THEN
          DO ispin = 1, nspins
-            CALL integrate_rho_nlcc(v_rspace_new(ispin)%pw, qs_env)
-            IF (dft_control%do_admm) CALL integrate_rho_nlcc(v_rspace_new_aux_fit(ispin)%pw, qs_env)
+            CALL integrate_rho_nlcc(v_rspace_new(ispin), qs_env)
+            IF (dft_control%do_admm) CALL integrate_rho_nlcc(v_rspace_new_aux_fit(ispin), qs_env)
          END DO
       END IF
 
@@ -750,16 +749,14 @@ CONTAINS
             END DO
             IF (cdft_control%atomic_charges) THEN
                DO iatom = 1, cdft_control%natoms
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%charge(iatom)%pw)
-                  DEALLOCATE (cdft_control%charge(iatom)%pw)
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%charge(iatom))
                END DO
                DEALLOCATE (cdft_control%charge)
             END IF
             IF (cdft_control%type == outer_scf_becke_constraint .AND. &
                 cdft_control%becke_control%cavity_confine) THEN
                IF (.NOT. ASSOCIATED(cdft_control%becke_control%cavity_mat)) THEN
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%becke_control%cavity%pw)
-                  DEALLOCATE (cdft_control%becke_control%cavity%pw)
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%becke_control%cavity)
                ELSE
                   DEALLOCATE (cdft_control%becke_control%cavity_mat)
                END IF
@@ -872,7 +869,7 @@ CONTAINS
          ecore_ppl = 0._dp
          DO ispin = 1, nspins
             ecore_ppl = ecore_ppl + &
-                        SUM(vppl_rspace%cr3d*rho_r(ispin)%pw%cr3d)*vppl_rspace%pw_grid%dvol
+                        SUM(vppl_rspace%cr3d*rho_r(ispin)%cr3d)*vppl_rspace%pw_grid%dvol
          END DO
          CALL mp_sum(ecore_ppl, para_env%group)
          energy%core = energy%core + ecore_ppl
@@ -931,7 +928,7 @@ CONTAINS
       INTEGER                                            :: ispin
       LOGICAL                                            :: my_skip
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
       TYPE(pw_type), POINTER                             :: rho0_s_gs, rho_core
       TYPE(qs_charges_type), POINTER                     :: qs_charges
 
@@ -956,13 +953,13 @@ CONTAINS
             CALL pw_copy(rho_core, rho_tot_gspace)
          END IF
          DO ispin = 1, dft_control%nspins
-            CALL pw_axpy(rho_g(ispin)%pw, rho_tot_gspace)
+            CALL pw_axpy(rho_g(ispin), rho_tot_gspace)
          END DO
          CALL get_qs_env(qs_env=qs_env, qs_charges=qs_charges)
          qs_charges%total_rho_gspace = pw_integrate_function(rho_tot_gspace, isign=-1)
       ELSE
          DO ispin = 1, dft_control%nspins
-            CALL pw_axpy(rho_g(ispin)%pw, rho_tot_gspace)
+            CALL pw_axpy(rho_g(ispin), rho_tot_gspace)
          END DO
       END IF
 

@@ -112,6 +112,7 @@ CONTAINS
       logger => cp_get_default_logger()
 
       NULLIFY (tmp_section, xc_fun_section, xc_section)
+      ALLOCATE (dft_control)
       CALL dft_control_create(dft_control)
       ! determine wheather this is a semiempirical or DFTB run
       ! --> (no XC section needs to be provided)

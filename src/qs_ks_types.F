@@ -20,7 +20,6 @@ MODULE qs_ks_types
                                               cp_blacs_env_retain,&
                                               cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_release,&
-                                              dft_control_retain,&
                                               dft_control_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_para_env,                     ONLY: cp_para_env_release,&
@@ -160,7 +159,6 @@ MODULE qs_ks_types
                                                             matrix_p_mp2_admm => Null()
 
       TYPE(qs_rho_type), POINTER                            :: rho => Null(), &
-                                                               rho_buffer => Null(), &
                                                                rho_xc => Null()
 
       TYPE(pw_type), POINTER                              :: vppl => Null(), &
@@ -213,9 +211,10 @@ CONTAINS
    SUBROUTINE qs_ks_env_create(ks_env)
       TYPE(qs_ks_env_type), INTENT(OUT)                  :: ks_env
 
+      ALLOCATE (ks_env%rho)
       CALL qs_rho_create(ks_env%rho)
+      ALLOCATE (ks_env%rho_xc)
       CALL qs_rho_create(ks_env%rho_xc)
-      CALL qs_rho_create(ks_env%rho_buffer)
    END SUBROUTINE qs_ks_env_create
 
 ! **************************************************************************************************
@@ -247,7 +246,6 @@ CONTAINS
 !> \param matrix_s_RI_aux_kp ...
 !> \param matrix_ks_im_kp ...
 !> \param rho ...
-!> \param rho_buffer ...
 !> \param rho_xc ...
 !> \param vppl ...
 !> \param rho_core ...
@@ -313,8 +311,7 @@ CONTAINS
                          matrix_s_RI_aux, matrix_w, matrix_p_mp2, matrix_p_mp2_admm, &
                          matrix_h_kp, matrix_h_im_kp, matrix_ks_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, matrix_w_kp, &
                          matrix_s_RI_aux_kp, matrix_ks_im_kp, &
-                         rho, &
-                         rho_buffer, rho_xc, &
+                         rho, rho_xc, &
                          vppl, rho_core, rho_nlcc, rho_nlcc_g, vee, &
                          neighbor_list_id, &
                          sab_orb, sab_all, sac_ae, sac_ppl, sac_lri, sap_ppnl, sap_oce, sab_lrc, &
@@ -337,7 +334,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, POINTER :: matrix_h_kp, matrix_h_im_kp, &
          matrix_ks_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, matrix_w_kp, matrix_s_RI_aux_kp, &
          matrix_ks_im_kp
-      TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho, rho_buffer, rho_xc
+      TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho, rho_xc
       TYPE(pw_type), OPTIONAL, POINTER                   :: vppl, rho_core, rho_nlcc, rho_nlcc_g, vee
       INTEGER, OPTIONAL                                  :: neighbor_list_id
       TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sab_orb, sab_all, sac_ae, &
@@ -408,7 +405,6 @@ CONTAINS
       IF (PRESENT(matrix_p_mp2)) matrix_p_mp2 => ks_env%matrix_p_mp2
       IF (PRESENT(matrix_p_mp2_admm)) matrix_p_mp2_admm => ks_env%matrix_p_mp2_admm
       IF (PRESENT(rho)) rho => ks_env%rho
-      IF (PRESENT(rho_buffer)) rho_buffer => ks_env%rho_buffer
       IF (PRESENT(rho_xc)) rho_xc => ks_env%rho_xc
       IF (PRESENT(rho_core)) rho_core => ks_env%rho_core
       IF (PRESENT(rho_nlcc)) rho_nlcc => ks_env%rho_nlcc
@@ -657,8 +653,12 @@ CONTAINS
          ks_env%subsys => subsys
       END IF
       IF (PRESENT(dft_control)) THEN
-         CALL dft_control_retain(dft_control)
-         CALL dft_control_release(ks_env%dft_control)
+         IF (ASSOCIATED(ks_env%dft_control)) THEN
+         IF (.NOT. ASSOCIATED(ks_env%dft_control, dft_control)) THEN
+            CALL dft_control_release(ks_env%dft_control)
+            DEALLOCATE (ks_env%dft_control)
+         END IF
+         END IF
          ks_env%dft_control => dft_control
       END IF
       IF (PRESENT(dbcsr_dist)) THEN
@@ -721,12 +721,14 @@ CONTAINS
          CALL dbcsr_deallocate_matrix_set(ks_env%matrix_p_mp2)
       IF (ASSOCIATED(ks_env%matrix_p_mp2_admm)) &
          CALL dbcsr_deallocate_matrix_set(ks_env%matrix_p_mp2_admm)
-      IF (ASSOCIATED(ks_env%rho)) &
+      IF (ASSOCIATED(ks_env%rho)) THEN
          CALL qs_rho_release(ks_env%rho)
-      IF (ASSOCIATED(ks_env%rho_buffer)) &
-         CALL qs_rho_release(ks_env%rho_buffer)
-      IF (ASSOCIATED(ks_env%rho_xc)) &
+         DEALLOCATE (ks_env%rho)
+      END IF
+      IF (ASSOCIATED(ks_env%rho_xc)) THEN
          CALL qs_rho_release(ks_env%rho_xc)
+         DEALLOCATE (ks_env%rho_xc)
+      END IF
       IF (ASSOCIATED(ks_env%distribution_2d)) &
          CALL distribution_2d_release(ks_env%distribution_2d)
       IF (ASSOCIATED(ks_env%task_list)) &
@@ -777,7 +779,10 @@ CONTAINS
       CALL release_neighbor_list_sets(ks_env%sab_lrc)
       CALL release_neighbor_list_sets(ks_env%sab_almo)
       CALL release_neighbor_list_sets(ks_env%sab_kp)
-      CALL dft_control_release(ks_env%dft_control)
+      IF (ASSOCIATED(ks_env%dft_control)) THEN
+         CALL dft_control_release(ks_env%dft_control)
+         DEALLOCATE (ks_env%dft_control)
+      END IF
       CALL kpoint_release(ks_env%kpoints)
       IF (ASSOCIATED(ks_env%subsys)) THEN
          CALL qs_subsys_release(ks_env%subsys)
@@ -815,12 +820,14 @@ CONTAINS
          CALL dbcsr_deallocate_matrix_set(ks_env%matrix_p_mp2)
       IF (ASSOCIATED(ks_env%matrix_p_mp2_admm)) &
          CALL dbcsr_deallocate_matrix_set(ks_env%matrix_p_mp2_admm)
-      IF (ASSOCIATED(ks_env%rho)) &
+      IF (ASSOCIATED(ks_env%rho)) THEN
          CALL qs_rho_release(ks_env%rho)
-      IF (ASSOCIATED(ks_env%rho_buffer)) &
-         CALL qs_rho_release(ks_env%rho_buffer)
-      IF (ASSOCIATED(ks_env%rho_xc)) &
+         DEALLOCATE (ks_env%rho)
+      END IF
+      IF (ASSOCIATED(ks_env%rho_xc)) THEN
          CALL qs_rho_release(ks_env%rho_xc)
+         DEALLOCATE (ks_env%rho_xc)
+      END IF
       IF (ASSOCIATED(ks_env%task_list)) &
          CALL deallocate_task_list(ks_env%task_list)
       IF (ASSOCIATED(ks_env%task_list_soft)) &

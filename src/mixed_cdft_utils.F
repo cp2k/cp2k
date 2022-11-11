@@ -566,6 +566,7 @@ CONTAINS
             CALL cp_abort(__LOCATION__, &
                           "Parallel mode mixed CDFT does not support Hirshfeld constraints.")
 
+         ALLOCATE (mixed_cdft%cdft_control)
          CALL cdft_control_create(mixed_cdft%cdft_control)
          cdft_control => mixed_cdft%cdft_control
          ALLOCATE (cdft_control%atoms(settings%ncdft))

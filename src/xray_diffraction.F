@@ -54,7 +54,6 @@ MODULE xray_diffraction
                                               pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -524,8 +523,8 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_type)                                      :: rho_elec_gspace
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: cpc_h, cpc_s
@@ -582,7 +581,7 @@ CONTAINS
 
       DO ispin = 1, nspin
          CALL pw_zero(rho_elec_gspace)
-         CALL pw_transfer(rho_r(ispin)%pw, rho_elec_gspace, debug=.FALSE.)
+         CALL pw_transfer(rho_r(ispin), rho_elec_gspace, debug=.FALSE.)
          IF (PRESENT(fsign) .AND. (ispin == 2)) THEN
             alpha = fsign
          ELSE

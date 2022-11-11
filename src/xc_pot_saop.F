@@ -51,7 +51,6 @@ MODULE xc_pot_saop
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_release,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
@@ -149,11 +148,11 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: orbital_density_matrix, rho_struct_ao
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: molecular_orbitals
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, rho_struct_r, tau, vxc_LB, &
-                                                            vxc_tau, vxc_tmp
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: orbital, orbital_g
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: vxc_GLLB, vxc_SAOP
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r, rho_struct_r, tau, vxc_LB, &
+                                                            vxc_tau, vxc_tmp
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(section_vals_type), POINTER                   :: input, xc_fun_section_orig, &
@@ -202,16 +201,16 @@ CONTAINS
          nspins = 1
       END IF
 
-      ALLOCATE (rho_r(nspins), single_mo_coeff(nspins))
+      ALLOCATE (single_mo_coeff(nspins))
       CALL dbcsr_allocate_matrix_set(orbital_density_matrix, nspins)
       CALL qs_rho_get(rho_struct, rho_r=rho_struct_r, rho_ao=rho_struct_ao)
+      rho_r => rho_struct_r
       DO ispin = 1, nspins
-         rho_r(ispin)%pw => rho_struct_r(ispin)%pw
          ALLOCATE (orbital_density_matrix(ispin)%matrix)
          CALL dbcsr_copy(orbital_density_matrix(ispin)%matrix, &
                          rho_struct_ao(ispin)%matrix, "orbital density")
       END DO
-      bo = rho_r(1)%pw%pw_grid%bounds_local
+      bo = rho_r(1)%pw_grid%bounds_local
 
       !---------------------------!
       ! create the density needed !
@@ -271,13 +270,13 @@ CONTAINS
                              compute_virial=.FALSE., virial_xc=virial_xc_tmp)
 
       DO ispin = 1, nspins
-         vxc_LB(ispin)%pw%cr3d = vxc_LB(ispin)%pw%cr3d + alpha*vxc_tmp(ispin)%pw%cr3d
+         vxc_LB(ispin)%cr3d = vxc_LB(ispin)%cr3d + alpha*vxc_tmp(ispin)%cr3d
       END DO
 
       DO ispin = 1, nspins
-         dummy => vxc_tmp(ispin)%pw%cr3d
+         dummy => vxc_tmp(ispin)%cr3d
          CALL add_lb_pot(dummy, rho_set, lsd, ispin)
-         vxc_LB(ispin)%pw%cr3d = vxc_LB(ispin)%pw%cr3d - vxc_tmp(ispin)%pw%cr3d
+         vxc_LB(ispin)%cr3d = vxc_LB(ispin)%cr3d - vxc_tmp(ispin)%cr3d
       END DO
       NULLIFY (dummy)
 
@@ -330,7 +329,7 @@ CONTAINS
                              nrow_global=nrow(ispin), ncol_global=ncol(ispin))
          ALLOCATE (coeff_col(nrow(ispin), 1))
 
-         CALL pw_zero(vxc_tmp(ispin)%pw)
+         CALL pw_zero(vxc_tmp(ispin))
 
          DO orb = 1, homo - 1
 
@@ -354,8 +353,8 @@ CONTAINS
                                     rho=orbital, rho_gspace=orbital_g, &
                                     ks_env=ks_env)
 
-            vxc_tmp(ispin)%pw%cr3d = vxc_tmp(ispin)%pw%cr3d + &
-                                     efac*orbital%cr3d
+            vxc_tmp(ispin)%cr3d = vxc_tmp(ispin)%cr3d + &
+                                  efac*orbital%cr3d
 
          END DO
          DEALLOCATE (coeff_col)
@@ -363,17 +362,17 @@ CONTAINS
          DO k = bo(1, 3), bo(2, 3)
             DO j = bo(1, 2), bo(2, 2)
                DO i = bo(1, 1), bo(2, 1)
-                  IF (rho_r(ispin)%pw%cr3d(i, j, k) > density_cut) THEN
-                     vxc_tmp(ispin)%pw%cr3d(i, j, k) = vxc_tmp(ispin)%pw%cr3d(i, j, k)/ &
-                                                       rho_r(ispin)%pw%cr3d(i, j, k)
+                  IF (rho_r(ispin)%cr3d(i, j, k) > density_cut) THEN
+                     vxc_tmp(ispin)%cr3d(i, j, k) = vxc_tmp(ispin)%cr3d(i, j, k)/ &
+                                                    rho_r(ispin)%cr3d(i, j, k)
                   ELSE
-                     vxc_tmp(ispin)%pw%cr3d(i, j, k) = 0.0_dp
+                     vxc_tmp(ispin)%cr3d(i, j, k) = 0.0_dp
                   END IF
                END DO
             END DO
          END DO
 
-         vxc_GLLB(ispin)%cr3d = vxc_GLLB(ispin)%cr3d + vxc_tmp(ispin)%pw%cr3d
+         vxc_GLLB(ispin)%cr3d = vxc_GLLB(ispin)%cr3d + vxc_tmp(ispin)%cr3d
 
       END DO
 
@@ -403,8 +402,8 @@ CONTAINS
                we_GLLB = 2.0_dp*we_GLLB
             END IF
 
-            vxc_tmp(ispin)%pw%cr3d = we_LB*vxc_LB(ispin)%pw%cr3d + &
-                                     we_GLLB*vxc_GLLB(ispin)%cr3d
+            vxc_tmp(ispin)%cr3d = we_LB*vxc_LB(ispin)%cr3d + &
+                                  we_GLLB*vxc_GLLB(ispin)%cr3d
 
             CALL cp_fm_set_all(single_mo_coeff(ispin), 0.0_dp)
             CALL cp_fm_get_submatrix(mo_coeff, coeff_col, &
@@ -424,7 +423,7 @@ CONTAINS
                                     ks_env=ks_env)
 
             vxc_SAOP(ispin)%cr3d = vxc_SAOP(ispin)%cr3d + &
-                                   orbital%cr3d*vxc_tmp(ispin)%pw%cr3d
+                                   orbital%cr3d*vxc_tmp(ispin)%cr3d
 
          END DO
 
@@ -435,9 +434,9 @@ CONTAINS
          DO k = bo(1, 3), bo(2, 3)
             DO j = bo(1, 2), bo(2, 2)
                DO i = bo(1, 1), bo(2, 1)
-                  IF (rho_r(ispin)%pw%cr3d(i, j, k) > density_cut) THEN
+                  IF (rho_r(ispin)%cr3d(i, j, k) > density_cut) THEN
                      vxc_SAOP(ispin)%cr3d(i, j, k) = vxc_SAOP(ispin)%cr3d(i, j, k)/ &
-                                                     rho_r(ispin)%pw%cr3d(i, j, k)
+                                                     rho_r(ispin)%cr3d(i, j, k)
                   ELSE
                      vxc_SAOP(ispin)%cr3d(i, j, k) = 0.0_dp
                   END IF
@@ -462,7 +461,7 @@ CONTAINS
       DO ispin = 1, nspins
 
          IF (oe_corr == oe_lb) THEN
-            vxc_SAOP(ispin)%cr3d = vxc_LB(ispin)%pw%cr3d
+            vxc_SAOP(ispin)%cr3d = vxc_LB(ispin)%cr3d
          ELSE IF (oe_corr == oe_gllb) THEN
             vxc_SAOP(ispin)%cr3d = vxc_GLLB(ispin)%cr3d
          END IF
@@ -478,13 +477,12 @@ CONTAINS
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_SAOP(ispin))
          CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_GLLB(ispin))
-         CALL pw_release(vxc_LB(ispin)%pw)
-         CALL pw_release(vxc_tmp(ispin)%pw)
-         DEALLOCATE (vxc_LB(ispin)%pw, vxc_tmp(ispin)%pw)
+         CALL pw_release(vxc_LB(ispin))
+         CALL pw_release(vxc_tmp(ispin))
       END DO
       DEALLOCATE (vxc_GLLB, vxc_LB, vxc_tmp, orbital_density_matrix)
 
-      DEALLOCATE (rho_r, vxc_SAOP)
+      DEALLOCATE (vxc_SAOP)
 
       CALL section_vals_release(xc_fun_section_tmp)
       CALL section_vals_release(xc_section_tmp)

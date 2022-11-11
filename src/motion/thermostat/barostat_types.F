@@ -46,8 +46,7 @@ MODULE barostat_types
    PRIVATE
    PUBLIC :: barostat_type, &
              create_barostat_type, &
-             release_barostat_type, &
-             retain_barostat_type
+             release_barostat_type
 
 ! **************************************************************************************************
    TYPE barostat_type
@@ -130,22 +129,6 @@ CONTAINS
       END IF
 
    END SUBROUTINE create_barostat_type
-
-! **************************************************************************************************
-!> \brief retains the given barostat
-!> \param barostat ...
-!> \par History
-!>      09.2007 created [tlaino]
-!> \author Teodoro Laino
-! **************************************************************************************************
-   SUBROUTINE retain_barostat_type(barostat)
-      TYPE(barostat_type), POINTER                       :: barostat
-
-      IF (ASSOCIATED(barostat)) THEN
-         CPASSERT(barostat%ref_count > 0)
-         barostat%ref_count = barostat%ref_count + 1
-      END IF
-   END SUBROUTINE retain_barostat_type
 
 ! **************************************************************************************************
 !> \brief ...

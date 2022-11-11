@@ -85,7 +85,7 @@ MODULE hfx_admm_utils
                                               pw_env_type
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: pw_p_type
+   USE pw_types,                        ONLY: pw_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
@@ -205,7 +205,9 @@ CONTAINS
          CALL admm_init_hamiltonians(admm_env, qs_env)
 
          !The aux_fit task list and densities
+         ALLOCATE (admm_env%rho_aux_fit)
          CALL qs_rho_create(admm_env%rho_aux_fit)
+         ALLOCATE (admm_env%rho_aux_fit_buffer)
          CALL qs_rho_create(admm_env%rho_aux_fit_buffer)
          CALL admm_update_s_mstruct(admm_env, qs_env)
          IF (admm_env%do_gapw) CALL update_admm_gapw(qs_env)
@@ -722,7 +724,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_energy_type), POINTER                      :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace_new, v_tau_rspace
+      TYPE(pw_type), DIMENSION(:), POINTER               :: v_rspace_new, v_tau_rspace
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_ks_matrix'
 

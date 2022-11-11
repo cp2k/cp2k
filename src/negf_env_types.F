@@ -299,6 +299,7 @@ CONTAINS
       CALL section_vals_val_get(negf_mixing_section, "METHOD", i_val=negf_env%mixing_method)
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
+      ALLOCATE (negf_env%mixing_storage)
       CALL mixing_storage_create(negf_env%mixing_storage, negf_mixing_section, &
                                  negf_env%mixing_method, dft_control%qs_control%cutoff)
 
@@ -1292,7 +1293,10 @@ CONTAINS
       END IF
 
       ! density mixing
-      CALL mixing_storage_release(negf_env%mixing_storage)
+      IF (ASSOCIATED(negf_env%mixing_storage)) THEN
+         CALL mixing_storage_release(negf_env%mixing_storage)
+         DEALLOCATE (negf_env%mixing_storage)
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE negf_env_release

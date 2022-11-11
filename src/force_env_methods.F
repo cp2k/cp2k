@@ -136,7 +136,6 @@ MODULE force_env_methods
                                               pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
-                                              pw_p_type,&
                                               pw_release,&
                                               pw_type
    USE pwdft_environment,               ONLY: pwdft_calc_energy_force
@@ -1605,9 +1604,9 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(opt_embed_pot_type)                           :: opt_embed
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r_ref, rho_r_subsys
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: diff_rho_r, diff_rho_spin
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r_ref, rho_r_subsys
       TYPE(pw_type), POINTER                             :: embed_pot, embed_pot_subsys, &
                                                             spin_embed_pot, spin_embed_pot_subsys
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -1677,12 +1676,12 @@ CONTAINS
 
       ! Check the preliminary density differences
       DO i_spin = 1, nspins
-         diff_rho_r%cr3d(:, :, :) = diff_rho_r%cr3d(:, :, :) - rho_r_ref(i_spin)%pw%cr3d(:, :, :)
+         diff_rho_r%cr3d(:, :, :) = diff_rho_r%cr3d(:, :, :) - rho_r_ref(i_spin)%cr3d(:, :, :)
       END DO
       IF (opt_embed%open_shell_embed) THEN ! Spin part
          IF (nspins .EQ. 2) THEN ! Reference systems has an open shell, else the reference diff_rho_spin is zero
-            diff_rho_spin%cr3d(:, :, :) = diff_rho_spin%cr3d(:, :, :) - rho_r_ref(1)%pw%cr3d(:, :, :) &
-                                          + rho_r_ref(2)%pw%cr3d(:, :, :)
+            diff_rho_spin%cr3d(:, :, :) = diff_rho_spin%cr3d(:, :, :) - rho_r_ref(1)%cr3d(:, :, :) &
+                                          + rho_r_ref(2)%cr3d(:, :, :)
          END IF
       END IF
 
@@ -1694,18 +1693,18 @@ CONTAINS
          ! Add subsystem densities
          CALL qs_rho_get(rho_struct=subsys_rho, rho_r=rho_r_subsys)
          DO i_spin = 1, nspins_subsys
-            diff_rho_r%cr3d(:, :, :) = diff_rho_r%cr3d(:, :, :) + rho_r_subsys(i_spin)%pw%cr3d(:, :, :)
+            diff_rho_r%cr3d(:, :, :) = diff_rho_r%cr3d(:, :, :) + rho_r_subsys(i_spin)%cr3d(:, :, :)
          END DO
          IF (opt_embed%open_shell_embed) THEN ! Spin part
             IF (nspins_subsys .EQ. 2) THEN ! The subsystem makes contribution if it is spin-polarized
                ! We may need to change spin ONLY FOR THE SECOND SUBSYSTEM: that's the internal convention
                IF ((i_force_eval .EQ. 2) .AND. (opt_embed%change_spin)) THEN
                   diff_rho_spin%cr3d(:, :, :) = diff_rho_spin%cr3d(:, :, :) - &
-                                                rho_r_subsys(1)%pw%cr3d(:, :, :) + rho_r_subsys(2)%pw%cr3d(:, :, :)
+                                                rho_r_subsys(1)%cr3d(:, :, :) + rho_r_subsys(2)%cr3d(:, :, :)
                ELSE
                   ! First subsystem (always) and second subsystem (without spin change)
                   diff_rho_spin%cr3d(:, :, :) = diff_rho_spin%cr3d(:, :, :) + &
-                                                rho_r_subsys(1)%pw%cr3d(:, :, :) - rho_r_subsys(2)%pw%cr3d(:, :, :)
+                                                rho_r_subsys(1)%cr3d(:, :, :) - rho_r_subsys(2)%cr3d(:, :, :)
                END IF
             END IF
          END IF
@@ -1760,13 +1759,13 @@ CONTAINS
          CALL get_qs_env(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, dft_control=dft_control)
          nspins = dft_control%nspins
          DO i_spin = 1, nspins
-            diff_rho_r%cr3d(:, :, :) = diff_rho_r%cr3d(:, :, :) - rho_r_ref(i_spin)%pw%cr3d(:, :, :)
+            diff_rho_r%cr3d(:, :, :) = diff_rho_r%cr3d(:, :, :) - rho_r_ref(i_spin)%cr3d(:, :, :)
          END DO
          IF (opt_embed%open_shell_embed) THEN ! Spin part
             CALL pw_zero(diff_rho_spin)
             IF (nspins .EQ. 2) THEN ! Reference systems has an open shell, else the reference diff_rho_spin is zero
-               diff_rho_spin%cr3d(:, :, :) = diff_rho_spin%cr3d(:, :, :) - rho_r_ref(1)%pw%cr3d(:, :, :) &
-                                             + rho_r_ref(2)%pw%cr3d(:, :, :)
+               diff_rho_spin%cr3d(:, :, :) = diff_rho_spin%cr3d(:, :, :) - rho_r_ref(1)%cr3d(:, :, :) &
+                                             + rho_r_ref(2)%cr3d(:, :, :)
             END IF
          END IF
 
@@ -1828,18 +1827,18 @@ CONTAINS
             ! Add subsystem densities
             CALL qs_rho_get(rho_struct=subsys_rho, rho_r=rho_r_subsys)
             DO i_spin = 1, nspins_subsys
-               diff_rho_r%cr3d(:, :, :) = diff_rho_r%cr3d(:, :, :) + rho_r_subsys(i_spin)%pw%cr3d(:, :, :)
+               diff_rho_r%cr3d(:, :, :) = diff_rho_r%cr3d(:, :, :) + rho_r_subsys(i_spin)%cr3d(:, :, :)
             END DO
             IF (opt_embed%open_shell_embed) THEN ! Spin part
                IF (nspins_subsys .EQ. 2) THEN ! The subsystem makes contribution if it is spin-polarized
                   ! We may need to change spin ONLY FOR THE SECOND SUBSYSTEM: that's the internal convention
                   IF ((i_force_eval .EQ. 2) .AND. (opt_embed%change_spin)) THEN
                      diff_rho_spin%cr3d(:, :, :) = diff_rho_spin%cr3d(:, :, :) - &
-                                                   rho_r_subsys(1)%pw%cr3d(:, :, :) + rho_r_subsys(2)%pw%cr3d(:, :, :)
+                                                   rho_r_subsys(1)%cr3d(:, :, :) + rho_r_subsys(2)%cr3d(:, :, :)
                   ELSE
                      ! First subsystem (always) and second subsystem (without spin change)
                      diff_rho_spin%cr3d(:, :, :) = diff_rho_spin%cr3d(:, :, :) + &
-                                                   rho_r_subsys(1)%pw%cr3d(:, :, :) - rho_r_subsys(2)%pw%cr3d(:, :, :)
+                                                   rho_r_subsys(1)%cr3d(:, :, :) - rho_r_subsys(2)%cr3d(:, :, :)
                   END IF
                END IF
             END IF
@@ -1864,15 +1863,15 @@ CONTAINS
 
          ! Integrate the potential over density differences and add to w functional; also add regularization contribution
          DO i_spin = 1, nspins ! Sum over nspins for the reference system, not subsystem!
-            opt_embed%w_func(i_iter) = opt_embed%w_func(i_iter) - pw_integral_ab(embed_pot, rho_r_ref(i_spin)%pw)
+            opt_embed%w_func(i_iter) = opt_embed%w_func(i_iter) - pw_integral_ab(embed_pot, rho_r_ref(i_spin))
          END DO
          ! Spin part
          IF (opt_embed%open_shell_embed) THEN
             ! If reference system is not spin-polarized then it does not make a contribution to W functional
             IF (nspins .EQ. 2) THEN
                opt_embed%w_func(i_iter) = opt_embed%w_func(i_iter) &
-                                          - pw_integral_ab(spin_embed_pot, rho_r_ref(1)%pw) &
-                                          + pw_integral_ab(spin_embed_pot, rho_r_ref(2)%pw)
+                                          - pw_integral_ab(spin_embed_pot, rho_r_ref(1)) &
+                                          + pw_integral_ab(spin_embed_pot, rho_r_ref(2))
             END IF
          END IF
          ! Finally, add the regularization term

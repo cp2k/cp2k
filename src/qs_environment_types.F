@@ -44,7 +44,6 @@ MODULE qs_environment_types
    USE et_coupling_types,               ONLY: et_coupling_release,&
                                               et_coupling_type
    USE ewald_environment_types,         ONLY: ewald_env_release,&
-                                              ewald_env_retain,&
                                               ewald_environment_type
    USE ewald_pw_types,                  ONLY: ewald_pw_release,&
                                               ewald_pw_type
@@ -106,7 +105,6 @@ MODULE qs_environment_types
                                               qs_ks_release,&
                                               set_ks_env
    USE qs_linres_types,                 ONLY: linres_control_release,&
-                                              linres_control_retain,&
                                               linres_control_type,&
                                               polar_env_release,&
                                               polar_env_type
@@ -131,7 +129,6 @@ MODULE qs_environment_types
    USE qs_rho_atom_types,               ONLY: rho_atom_type
    USE qs_rho_types,                    ONLY: qs_rho_p_type,&
                                               qs_rho_release,&
-                                              qs_rho_retain,&
                                               qs_rho_type
    USE qs_scf_types,                    ONLY: qs_scf_env_type,&
                                               scf_env_release
@@ -369,7 +366,6 @@ CONTAINS
 !> \param matrix_p_mp2 ...
 !> \param matrix_p_mp2_admm ...
 !> \param rho ...
-!> \param rho_buffer ...
 !> \param rho_xc ...
 !> \param pw_env ...
 !> \param ewald_env ...
@@ -480,7 +476,7 @@ CONTAINS
                          matrix_h_kp, matrix_h_im_kp, matrix_ks_kp, matrix_ks_im_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, &
                          matrix_w_kp, matrix_s_RI_aux_kp, matrix_s, matrix_s_RI_aux, matrix_w, &
                          matrix_p_mp2, matrix_p_mp2_admm, rho, &
-                         rho_buffer, rho_xc, pw_env, ewald_env, ewald_pw, active_space, &
+                         rho_xc, pw_env, ewald_env, ewald_pw, active_space, &
                          mpools, input, para_env, blacs_env, scf_control, rel_control, kinetic, qs_charges, &
                          vppl, rho_core, rho_nlcc, rho_nlcc_g, ks_env, ks_qmmm_env, wf_history, scf_env, local_particles, &
                          local_molecules, distribution_2d, dbcsr_dist, molecule_kind_set, &
@@ -531,7 +527,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_s, matrix_s_RI_aux, matrix_w, &
                                                             matrix_p_mp2, matrix_p_mp2_admm
-      TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho, rho_buffer, rho_xc
+      TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho, rho_xc
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env
       TYPE(ewald_environment_type), OPTIONAL, POINTER    :: ewald_env
       TYPE(ewald_pw_type), OPTIONAL, POINTER             :: ewald_pw
@@ -756,7 +752,6 @@ CONTAINS
                       matrix_w_kp=matrix_w_kp, &
                       matrix_s_RI_aux_kp=matrix_s_RI_aux_kp, &
                       rho=rho, &
-                      rho_buffer=rho_buffer, &
                       rho_xc=rho_xc, &
                       rho_core=rho_core, &
                       rho_nlcc=rho_nlcc, &
@@ -1137,8 +1132,12 @@ CONTAINS
       IF (PRESENT(active_space)) qs_env%active_space => active_space
 
       IF (PRESENT(ewald_env)) THEN ! accept also null pointers?
-         CALL ewald_env_retain(ewald_env)
-         CALL ewald_env_release(qs_env%ewald_env)
+         IF (ASSOCIATED(qs_env%ewald_env)) THEN
+         IF (.NOT. ASSOCIATED(qs_env%ewald_env, ewald_env)) THEN
+            CALL ewald_env_release(qs_env%ewald_env)
+            DEALLOCATE (qs_env%ewald_env)
+         END IF
+         END IF
          qs_env%ewald_env => ewald_env
       END IF
       IF (PRESENT(ewald_pw)) THEN ! accept also null pointers?
@@ -1169,14 +1168,22 @@ CONTAINS
          qs_env%rel_control => rel_control
       END IF
       IF (PRESENT(linres_control)) THEN ! accept also null pointers?
-         CALL linres_control_retain(linres_control)
-         CALL linres_control_release(qs_env%linres_control)
+         IF (ASSOCIATED(qs_env%linres_control)) THEN
+         IF (.NOT. ASSOCIATED(qs_env%linres_control, linres_control)) THEN
+            CALL linres_control_release(qs_env%linres_control)
+            DEALLOCATE (qs_env%linres_control)
+         END IF
+         END IF
          qs_env%linres_control => linres_control
       END IF
       ! ZMP associating variables
       IF (PRESENT(rho_external)) THEN
-         IF (ASSOCIATED(rho_external)) CALL qs_rho_retain(rho_external)
-         CALL qs_rho_release(qs_env%rho_external)
+         IF (ASSOCIATED(qs_env%rho_external)) THEN
+         IF (.NOT. ASSOCIATED(qs_env%rho_external, rho_external)) THEN
+            CALL qs_rho_release(qs_env%rho_external)
+            DEALLOCATE (qs_env%rho_external)
+         END IF
+         END IF
          qs_env%rho_external => rho_external
       END IF
       IF (PRESENT(external_vxc)) qs_env%external_vxc => external_vxc
@@ -1405,6 +1412,7 @@ CONTAINS
 
       IF (ASSOCIATED(qs_env%linres_control)) THEN
          CALL linres_control_release(qs_env%linres_control)
+         DEALLOCATE (qs_env%linres_control)
       END IF
 
       IF (ASSOCIATED(qs_env%almo_scf_env)) THEN
@@ -1428,7 +1436,10 @@ CONTAINS
          CALL xas_env_release(qs_env%xas_env)
          DEALLOCATE (qs_env%xas_env)
       END IF
-      CALL ewald_env_release(qs_env%ewald_env)
+      IF (ASSOCIATED(qs_env%ewald_env)) THEN
+         CALL ewald_env_release(qs_env%ewald_env)
+         DEALLOCATE (qs_env%ewald_env)
+      END IF
       IF (ASSOCIATED(qs_env%ewald_pw)) THEN
          CALL ewald_pw_release(qs_env%ewald_pw)
          DEALLOCATE (qs_env%ewald_pw)
@@ -1445,6 +1456,7 @@ CONTAINS
       ! ZMP
       IF (ASSOCIATED(qs_env%rho_external)) THEN
          CALL qs_rho_release(qs_env%rho_external)
+         DEALLOCATE (qs_env%rho_external)
       END IF
       IF (ASSOCIATED(qs_env%external_vxc)) THEN
          CALL pw_release(qs_env%external_vxc)
@@ -1623,6 +1635,7 @@ CONTAINS
 
       IF (ASSOCIATED(qs_env%linres_control)) THEN
          CALL linres_control_release(qs_env%linres_control)
+         DEALLOCATE (qs_env%linres_control)
       END IF
 
       IF (ASSOCIATED(qs_env%almo_scf_env)) THEN
@@ -1646,7 +1659,10 @@ CONTAINS
          CALL xas_env_release(qs_env%xas_env)
          DEALLOCATE (qs_env%xas_env)
       END IF
-      CALL ewald_env_release(qs_env%ewald_env)
+      IF (ASSOCIATED(qs_env%ewald_env)) THEN
+         CALL ewald_env_release(qs_env%ewald_env)
+         DEALLOCATE (qs_env%ewald_env)
+      END IF
       IF (ASSOCIATED(qs_env%ewald_pw)) THEN
          CALL ewald_pw_release(qs_env%ewald_pw)
          DEALLOCATE (qs_env%ewald_pw)
@@ -1663,6 +1679,7 @@ CONTAINS
       ! ZMP
       IF (ASSOCIATED(qs_env%rho_external)) THEN
          CALL qs_rho_release(qs_env%rho_external)
+         DEALLOCATE (qs_env%rho_external)
       END IF
       IF (ASSOCIATED(qs_env%external_vxc)) THEN
          CALL pw_release(qs_env%external_vxc)

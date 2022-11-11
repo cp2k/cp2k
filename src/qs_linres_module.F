@@ -89,7 +89,6 @@ MODULE qs_linres_module
                                               epr_env_type,&
                                               issc_env_type,&
                                               linres_control_create,&
-                                              linres_control_release,&
                                               linres_control_type,&
                                               nmr_env_type
    USE qs_mo_types,                     ONLY: mo_set_p_type
@@ -337,10 +336,10 @@ CONTAINS
                                     extension=".linresLog")
       NULLIFY (dft_control, linres_control, loc_section, rho, mos, matrix_ks, rho_ao)
 
+      ALLOCATE (linres_control)
       CALL linres_control_create(linres_control)
       CALL set_qs_env(qs_env=qs_env, linres_control=linres_control)
-      CALL linres_control_release(linres_control)
-      CALL get_qs_env(qs_env=qs_env, linres_control=linres_control, &
+      CALL get_qs_env(qs_env=qs_env, &
                       dft_control=dft_control, matrix_ks=matrix_ks, mos=mos, rho=rho)
       CALL qs_rho_get(rho, rho_ao=rho_ao)
 
