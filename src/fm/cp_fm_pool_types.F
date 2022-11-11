@@ -73,10 +73,10 @@ MODULE cp_fm_pool_types
    END TYPE cp_fm_pool_p_type
 
    INTERFACE fm_pools_give_back_fm_vect
-      MODULE PROCEDURE fm_pools_give_back_fm_vect_p_type_pointer
-      MODULE PROCEDURE fm_pools_give_back_fm_vect_p_type_alloc
-      MODULE PROCEDURE fm_pools_give_back_fm_vect_array_pointer
-      MODULE PROCEDURE fm_pools_give_back_fm_vect_array_alloc
+      MODULE PROCEDURE fm_pools_give_back_fm_m1_p_type_pointer
+      MODULE PROCEDURE fm_pools_give_back_fm_m1_p_type_alloc
+      MODULE PROCEDURE fm_pools_give_back_fm_m1_array_pointer
+      MODULE PROCEDURE fm_pools_give_back_fm_m1_array_alloc
    END INTERFACE
 
 CONTAINS
@@ -338,7 +338,7 @@ CONTAINS
 !> \note
 !>      accept unassociated vect?
 ! **************************************************************************************************
-   SUBROUTINE fm_pools_give_back_fm_vect_p_type_pointer(pools, elements)
+   SUBROUTINE fm_pools_give_back_fm_m1_p_type_pointer(pools, elements)
       TYPE(cp_fm_pool_p_type), DIMENSION(:), INTENT(IN)  :: pools
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: elements
 
@@ -354,7 +354,7 @@ CONTAINS
          DEALLOCATE (elements)
          NULLIFY (elements)
       END IF
-   END SUBROUTINE fm_pools_give_back_fm_vect_p_type_pointer
+   END SUBROUTINE fm_pools_give_back_fm_m1_p_type_pointer
 
 ! **************************************************************************************************
 !> \brief returns a vector to the pools. The vector is deallocated
@@ -367,7 +367,7 @@ CONTAINS
 !> \note
 !>      accept unassociated vect?
 ! **************************************************************************************************
-   SUBROUTINE fm_pools_give_back_fm_vect_p_type_alloc(pools, elements)
+   SUBROUTINE fm_pools_give_back_fm_m1_p_type_alloc(pools, elements)
       TYPE(cp_fm_pool_p_type), DIMENSION(:), INTENT(IN)  :: pools
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: elements
@@ -383,7 +383,7 @@ CONTAINS
          END DO
          DEALLOCATE (elements)
       END IF
-   END SUBROUTINE fm_pools_give_back_fm_vect_p_type_alloc
+   END SUBROUTINE fm_pools_give_back_fm_m1_p_type_alloc
 
 ! **************************************************************************************************
 !> \brief returns a vector to the pools. The vector is deallocated
@@ -396,7 +396,7 @@ CONTAINS
 !> \note
 !>      accept unassociated vect?
 ! **************************************************************************************************
-   SUBROUTINE fm_pools_give_back_fm_vect_array_alloc(pools, elements)
+   SUBROUTINE fm_pools_give_back_fm_m1_array_alloc(pools, elements)
       TYPE(cp_fm_pool_p_type), DIMENSION(:), INTENT(IN)  :: pools
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: elements
@@ -411,7 +411,7 @@ CONTAINS
          END DO
          DEALLOCATE (elements)
       END IF
-   END SUBROUTINE fm_pools_give_back_fm_vect_array_alloc
+   END SUBROUTINE fm_pools_give_back_fm_m1_array_alloc
 
 ! **************************************************************************************************
 !> \brief returns a vector to the pools. The vector is deallocated
@@ -424,7 +424,7 @@ CONTAINS
 !> \note
 !>      accept unassociated vect?
 ! **************************************************************************************************
-   SUBROUTINE fm_pools_give_back_fm_vect_array_pointer(pools, elements)
+   SUBROUTINE fm_pools_give_back_fm_m1_array_pointer(pools, elements)
       TYPE(cp_fm_pool_p_type), DIMENSION(:), INTENT(IN)  :: pools
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: elements
 
@@ -439,6 +439,6 @@ CONTAINS
          DEALLOCATE (elements)
          NULLIFY (elements)
       END IF
-   END SUBROUTINE fm_pools_give_back_fm_vect_array_pointer
+   END SUBROUTINE fm_pools_give_back_fm_m1_array_pointer
 
 END MODULE cp_fm_pool_types

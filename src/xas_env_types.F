@@ -346,10 +346,8 @@ CONTAINS
       IF (ASSOCIATED(xas_env%unoccupied_evals)) THEN
          DEALLOCATE (xas_env%unoccupied_evals)
       END IF
-      IF (ASSOCIATED(xas_env%groundstate_coeff)) THEN
-         CALL fm_pools_give_back_fm_vect(xas_env%ao_mo_fm_pools, &
-                                         xas_env%groundstate_coeff)
-      END IF
+      CALL fm_pools_give_back_fm_vect(xas_env%ao_mo_fm_pools, &
+                                      xas_env%groundstate_coeff)
       IF (ASSOCIATED(xas_env%dip_fm_set)) THEN
          DO i = 1, SIZE(xas_env%dip_fm_set, 2)
             DO j = 1, SIZE(xas_env%dip_fm_set, 1)

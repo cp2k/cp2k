@@ -385,8 +385,8 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fmwork
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, mo_struct
-      TYPE(cp_fm_type)                                   :: fmdummy, rksmat, rsmat
-      TYPE(cp_fm_type), POINTER                          :: fmlocal, imos, mo_coeff, rmos
+      TYPE(cp_fm_type)                                   :: fmdummy, fmlocal, rksmat, rsmat
+      TYPE(cp_fm_type), POINTER                          :: imos, mo_coeff, rmos
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix, tmpmat
       TYPE(kpoint_env_type), POINTER                     :: kp
@@ -420,7 +420,6 @@ CONTAINS
       CALL get_kpoint_info(kpoints, mpools=mpools)
       CALL mpools_get(mpools, ao_ao_fm_pools=ao_ao_fm_pools)
 
-      ALLOCATE (fmlocal)
       CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool, fmlocal)
       CALL cp_fm_get_info(fmlocal, matrix_struct=matrix_struct)
 
@@ -616,7 +615,6 @@ CONTAINS
          CALL cp_cfm_release(cmos)
       END IF
       CALL fm_pool_give_back_fm(ao_ao_fm_pools(1)%pool, fmlocal)
-      DEALLOCATE (fmlocal)
 
       CALL timestop(handle)
 

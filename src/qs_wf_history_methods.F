@@ -186,7 +186,7 @@ CONTAINS
             CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff)
             CALL cp_fm_to_fm(mo_coeff, snapshot%wf(ispin)%matrix)
          END DO
-      ELSE IF (ASSOCIATED(snapshot%wf)) THEN
+      ELSE
          CALL fm_pools_give_back_fm_vect(ao_mo_pools, snapshot%wf)
       END IF
 
