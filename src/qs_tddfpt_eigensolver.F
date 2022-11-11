@@ -567,7 +567,7 @@ CONTAINS
          DO spin = 1, nspins
             CALL dbcsr_set(p_env%p1(spin)%matrix, 0.0_dp) ! optimize?
             CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(spin)%matrix, &
-                                       matrix_v=p_env%psi0d(spin)%matrix, &
+                                       matrix_v=p_env%psi0d(spin), &
                                        matrix_g=X(spin)%matrix, &
                                        ncol=p_env%n_mo(spin), &
                                        symmetry_mode=1)

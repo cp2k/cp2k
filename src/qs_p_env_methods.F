@@ -487,8 +487,8 @@ CONTAINS
       INTEGER                                            :: handle, iounit, lfomo, n_spins, nmo, spin
       LOGICAL                                            :: was_present
       REAL(KIND=dp)                                      :: maxocc
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi0
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: psi0
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -524,12 +524,10 @@ CONTAINS
                       ao_mo_fm_pools=ao_mo_fm_pools)
       ALLOCATE (psi0(n_spins))
       DO spin = 1, n_spins
-         NULLIFY (psi0(spin)%matrix)
          CALL get_mo_set(mos(spin)%mo_set, &
                          mo_coeff=mo_coeff)
-         ALLOCATE (psi0(spin)%matrix)
-         CALL cp_fm_create(psi0(spin)%matrix, mo_coeff%matrix_struct)
-         CALL cp_fm_to_fm(mo_coeff, psi0(spin)%matrix)
+         CALL cp_fm_create(psi0(spin), mo_coeff%matrix_struct)
+         CALL cp_fm_to_fm(mo_coeff, psi0(spin))
       END DO
 
       lr_section => section_vals_get_subs_vals(input, "PROPERTIES%LINRES")
@@ -545,44 +543,44 @@ CONTAINS
             ! m_epsilon=cholesky_decomposition(psi0^T S psi0)^-1
             ! could be optimized by combining next two calls
             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, &
-                                         psi0(spin)%matrix, &
-                                         p_env%S_psi0(spin)%matrix, &
+                                         psi0(spin), &
+                                         p_env%S_psi0(spin), &
                                          ncol=p_env%n_mo(spin), alpha=1.0_dp)
             CALL parallel_gemm(transa='T', transb='N', n=p_env%n_mo(spin), &
                                m=p_env%n_mo(spin), k=p_env%n_ao(spin), alpha=1.0_dp, &
-                               matrix_a=psi0(spin)%matrix, &
-                               matrix_b=p_env%S_psi0(spin)%matrix, &
-                               beta=0.0_dp, matrix_c=p_env%m_epsilon(spin)%matrix)
-            CALL cp_fm_cholesky_decompose(p_env%m_epsilon(spin)%matrix, &
+                               matrix_a=psi0(spin), &
+                               matrix_b=p_env%S_psi0(spin), &
+                               beta=0.0_dp, matrix_c=p_env%m_epsilon(spin))
+            CALL cp_fm_cholesky_decompose(p_env%m_epsilon(spin), &
                                           n=p_env%n_mo(spin))
 
             ! Smo_inv= (psi0^T S psi0)^-1
-            CALL cp_fm_set_all(p_env%Smo_inv(spin)%matrix, 0.0_dp, 1.0_dp)
+            CALL cp_fm_set_all(p_env%Smo_inv(spin), 0.0_dp, 1.0_dp)
             ! faster using cp_fm_cholesky_invert ?
             CALL cp_fm_triangular_multiply( &
-               triangular_matrix=p_env%m_epsilon(spin)%matrix, &
-               matrix_b=p_env%Smo_inv(spin)%matrix, side='R', &
+               triangular_matrix=p_env%m_epsilon(spin), &
+               matrix_b=p_env%Smo_inv(spin), side='R', &
                invert_tr=.TRUE., n_rows=p_env%n_mo(spin), &
                n_cols=p_env%n_mo(spin))
             CALL cp_fm_triangular_multiply( &
-               triangular_matrix=p_env%m_epsilon(spin)%matrix, &
-               matrix_b=p_env%Smo_inv(spin)%matrix, side='R', &
+               triangular_matrix=p_env%m_epsilon(spin), &
+               matrix_b=p_env%Smo_inv(spin), side='R', &
                transpose_tr=.TRUE., &
                invert_tr=.TRUE., n_rows=p_env%n_mo(spin), &
                n_cols=p_env%n_mo(spin))
 
             ! psi0d=psi0 (psi0^T S psi0)^-1
             ! faster using cp_fm_cholesky_invert ?
-            CALL cp_fm_to_fm(psi0(spin)%matrix, &
-                             p_env%psi0d(spin)%matrix)
+            CALL cp_fm_to_fm(psi0(spin), &
+                             p_env%psi0d(spin))
             CALL cp_fm_triangular_multiply( &
-               triangular_matrix=p_env%m_epsilon(spin)%matrix, &
-               matrix_b=p_env%psi0d(spin)%matrix, side='R', &
+               triangular_matrix=p_env%m_epsilon(spin), &
+               matrix_b=p_env%psi0d(spin), side='R', &
                invert_tr=.TRUE., n_rows=p_env%n_ao(spin), &
                n_cols=p_env%n_mo(spin))
             CALL cp_fm_triangular_multiply( &
-               triangular_matrix=p_env%m_epsilon(spin)%matrix, &
-               matrix_b=p_env%psi0d(spin)%matrix, side='R', &
+               triangular_matrix=p_env%m_epsilon(spin), &
+               matrix_b=p_env%psi0d(spin), side='R', &
                transpose_tr=.TRUE., &
                invert_tr=.TRUE., n_rows=p_env%n_ao(spin), &
                n_cols=p_env%n_mo(spin))
@@ -593,8 +591,8 @@ CONTAINS
             IF (lfomo > nmo) THEN
                CALL dbcsr_set(rho_ao(spin)%matrix, 0.0_dp)
                CALL cp_dbcsr_plus_fm_fm_t(rho_ao(spin)%matrix, &
-                                          matrix_v=psi0(spin)%matrix, &
-                                          matrix_g=p_env%psi0d(spin)%matrix, &
+                                          matrix_v=psi0(spin), &
+                                          matrix_g=p_env%psi0d(spin), &
                                           ncol=p_env%n_mo(spin))
                CALL dbcsr_scale(rho_ao(spin)%matrix, alpha_scalar=maxocc)
             ELSE
@@ -631,13 +629,13 @@ CONTAINS
       DO spin = 1, n_spins
          ! S_psi0 = k times psi0d
          CALL cp_dbcsr_sm_fm_multiply(matrix_ks(spin)%matrix, &
-                                      p_env%psi0d(spin)%matrix, &
-                                      p_env%S_psi0(spin)%matrix, p_env%n_mo(spin))
+                                      p_env%psi0d(spin), &
+                                      p_env%S_psi0(spin), p_env%n_mo(spin))
          ! m_epsilon = -1 times S_psi0^T times psi0d
          CALL parallel_gemm('T', 'N', &
                             p_env%n_mo(spin), p_env%n_mo(spin), p_env%n_ao(spin), &
-                            -1.0_dp, p_env%S_psi0(spin)%matrix, p_env%psi0d(spin)%matrix, &
-                            0.0_dp, p_env%m_epsilon(spin)%matrix)
+                            -1.0_dp, p_env%S_psi0(spin), p_env%psi0d(spin), &
+                            0.0_dp, p_env%m_epsilon(spin))
       END DO
 
       !----------------------------------|
@@ -649,8 +647,8 @@ CONTAINS
       CALL get_qs_env(qs_env, matrix_s=matrix_s)
       DO spin = 1, n_spins
          CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, &
-                                      psi0(spin)%matrix, &
-                                      p_env%S_psi0(spin)%matrix, &
+                                      psi0(spin), &
+                                      p_env%S_psi0(spin), &
                                       p_env%n_mo(spin))
       END DO
 
@@ -753,11 +751,11 @@ CONTAINS
       ELSE
          CALL cp_dbcsr_sm_fm_multiply(k_p, v, tmp, ncol)
          CALL cp_fm_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1.0_dp, &
-                         p_env%Smo_inv(spin)%matrix, tmp, 0.0_dp, res)
+                         p_env%Smo_inv(spin), tmp, 0.0_dp, res)
       END IF
 
       CALL cp_fm_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1.0_dp, &
-                      p_env%m_epsilon(spin)%matrix, v, 0.0_dp, tmp)
+                      p_env%m_epsilon(spin), v, 0.0_dp, tmp)
       CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, tmp, &
                                    res, p_env%n_mo(spin), alpha=1.0_dp, beta=1.0_dp)
 
@@ -844,7 +842,7 @@ CONTAINS
 
       DO ispin = 1, n_spins
          CALL cp_dbcsr_sm_fm_multiply(p_env%kpp1(ispin)%matrix, &
-                                      p_env%psi0d(ispin)%matrix, res(ispin)%matrix, &
+                                      p_env%psi0d(ispin), res(ispin)%matrix, &
                                       ncol=p_env%n_mo(ispin), &
                                       alpha=my_alpha, beta=my_beta)
       END DO
@@ -925,12 +923,12 @@ CONTAINS
          ! tmp_matrix = v^T (S psi0)
          CALL parallel_gemm(transa='T', transb='N', m=cols, n=p_env%n_mo(spin), &
                             k=p_env%n_ao(spin), alpha=1.0_dp, matrix_a=v(spin)%matrix, &
-                            matrix_b=p_env%S_psi0(spin)%matrix, beta=0.0_dp, &
+                            matrix_b=p_env%S_psi0(spin), beta=0.0_dp, &
                             matrix_c=tmp_matrix)
          ! v = v - psi0d tmp_matrix^T = v - psi0d psi0^T S v
          CALL parallel_gemm(transa='N', transb='T', m=p_env%n_ao(spin), n=cols, &
                             k=p_env%n_mo(spin), alpha=-1.0_dp, &
-                            matrix_a=p_env%psi0d(spin)%matrix, matrix_b=tmp_matrix, &
+                            matrix_a=p_env%psi0d(spin), matrix_b=tmp_matrix, &
                             beta=1.0_dp, matrix_c=v(spin)%matrix)
 
       END DO
@@ -1017,12 +1015,12 @@ CONTAINS
          ! tmp_matrix = v^T psi0d
          CALL parallel_gemm(transa='T', transb='N', m=cols, n=p_env%n_mo(spin), &
                             k=p_env%n_ao(spin), alpha=1.0_dp, matrix_a=v(spin)%matrix, &
-                            matrix_b=p_env%psi0d(spin)%matrix, beta=0.0_dp, &
+                            matrix_b=p_env%psi0d(spin), beta=0.0_dp, &
                             matrix_c=tmp_matrix)
          ! v = v - (S psi0) tmp_matrix^T = v - S psi0 psi0d^T v
          CALL parallel_gemm(transa='N', transb='T', m=p_env%n_ao(spin), n=cols, &
                             k=p_env%n_mo(spin), alpha=-1.0_dp, &
-                            matrix_a=p_env%S_psi0(spin)%matrix, matrix_b=tmp_matrix, &
+                            matrix_a=p_env%S_psi0(spin), matrix_b=tmp_matrix, &
                             beta=1.0_dp, matrix_c=v(spin)%matrix)
 
       END DO
