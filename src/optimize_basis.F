@@ -10,8 +10,7 @@ MODULE optimize_basis
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release,&
+   USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
@@ -171,7 +170,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: f_env_id
       LOGICAL                                            :: write_basis
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tot_time
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: matrix_S_inv
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: matrix_S_inv
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(f_env_type), POINTER                          :: f_env
 
@@ -228,8 +227,7 @@ CONTAINS
       DO icalc = SIZE(opt_bas%comp_group(mp_id)%member_list), 1, -1
          CALL f_env_get_from_id(f_env_id(icalc), f_env)
          CALL destroy_force_env(f_env_id(icalc), stat)
-         CALL cp_fm_release(matrix_s_inv(icalc)%matrix)
-         DEALLOCATE (matrix_s_inv(icalc)%matrix)
+         CALL cp_fm_release(matrix_s_inv(icalc))
       END DO
       DEALLOCATE (f_env_id); DEALLOCATE (tot_time); DEALLOCATE (matrix_S_inv)
       CALL cp_para_env_release(para_env)
@@ -254,7 +252,7 @@ CONTAINS
                                        para_env_top, para_env, iopt)
       TYPE(basis_optimization_type)                      :: opt_bas
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: f_env_id
-      TYPE(cp_fm_p_type), DIMENSION(:)                   :: matrix_S_inv
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: matrix_S_inv
       REAL(KIND=dp), DIMENSION(:)                        :: tot_time
       TYPE(cp_para_env_type), POINTER                    :: para_env_top, para_env
       INTEGER                                            :: iopt
@@ -341,7 +339,7 @@ CONTAINS
 
          CALL fit_mo_coeffs(matrix_s_aux, matrix_s_aux_orb, mos, mos_aux)
          CALL evaluate_optvals(mos, mos_aux, matrix_ks, matrix_s_aux_orb(1)%matrix, &
-                               matrix_s_aux(1)%matrix, matrix_S_inv(icalc)%matrix, &
+                               matrix_s_aux(1)%matrix, matrix_S_inv(icalc), &
                                f_vec(my_id), energy(my_id), cond_vec(my_id))
 
          DO ispin = 1, nspins
@@ -402,7 +400,7 @@ CONTAINS
       TYPE(basis_optimization_type)                      :: opt_bas
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: f_env_id
       TYPE(section_type), POINTER                        :: input_declaration
-      TYPE(cp_fm_p_type), DIMENSION(:)                   :: matrix_S_inv
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(OUT)        :: matrix_S_inv
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: mpi_comm_opt
 
@@ -472,8 +470,7 @@ CONTAINS
                                    sab_nl=sab_orb)
          CALL set_ks_env(ks_env, matrix_s=matrix_s)
          CALL get_qs_env(qs_env, matrix_s=matrix_s, blacs_env=blacs_env)
-         ALLOCATE (matrix_s_inv(icalc)%matrix)
-         CALL calculate_overlap_inverse(matrix_s(1)%matrix, matrix_s_inv(icalc)%matrix, &
+         CALL calculate_overlap_inverse(matrix_s(1)%matrix, matrix_s_inv(icalc), &
                                         para_env, blacs_env)
          CALL calculate_ks_matrix(qs_env)
 
