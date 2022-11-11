@@ -119,13 +119,11 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE fm_pool_flush_cache(pool)
-      TYPE(cp_fm_pool_type), POINTER                     :: pool
+      TYPE(cp_fm_pool_type), INTENT(IN)                  :: pool
 
       TYPE(cp_fm_type), POINTER                          :: el_att
       TYPE(cp_sll_fm_type), POINTER                      :: iterator
 
-      CPASSERT(ASSOCIATED(pool))
-      CPASSERT(pool%ref_count > 0)
       iterator => pool%cache
       DO
          IF (.NOT. cp_sll_fm_next(iterator, el_att=el_att)) EXIT
@@ -212,7 +210,7 @@ CONTAINS
 !>      Accept give_backs of non associated elements?
 ! **************************************************************************************************
    SUBROUTINE fm_pool_give_back_fm(pool, element)
-      TYPE(cp_fm_pool_type), INTENT(INOUT)               :: pool
+      TYPE(cp_fm_pool_type), INTENT(IN)                  :: pool
       TYPE(cp_fm_type), INTENT(INOUT)                    :: element
 
       IF (.NOT. ASSOCIATED(pool%el_struct, element%matrix_struct)) THEN
@@ -297,7 +295,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fm_pools_create_fm_vect(pools, elements, &
                                       name)
-      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: pools
+      TYPE(cp_fm_pool_p_type), DIMENSION(:), INTENT(IN)  :: pools
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: elements
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: name
 
@@ -306,7 +304,6 @@ CONTAINS
 
       NULLIFY (pool)
 
-      CPASSERT(ASSOCIATED(pools))
       ALLOCATE (elements(SIZE(pools)))
       DO i = 1, SIZE(pools)
          NULLIFY (elements(i)%matrix)
@@ -335,12 +332,11 @@ CONTAINS
 !>      accept unassociated vect?
 ! **************************************************************************************************
    SUBROUTINE fm_pools_give_back_fm_vect(pools, elements)
-      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: pools
+      TYPE(cp_fm_pool_p_type), DIMENSION(:), INTENT(IN)  :: pools
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: elements
 
       INTEGER                                            :: i
 
-      CPASSERT(ASSOCIATED(pools))
       CPASSERT(ASSOCIATED(elements))
       CPASSERT(SIZE(pools) == SIZE(elements))
       DO i = 1, SIZE(pools)
