@@ -181,8 +181,8 @@ CONTAINS
                   DEALLOCATE (ec%block(i)%atom)
                IF (ASSOCIATED(ec%block(i)%mo)) THEN
                   DO j = 1, SIZE(ec%block(i)%mo)
-                     IF (ASSOCIATED(ec%block(i)%mo(j)%mo_set)) &
-                        CALL deallocate_mo_set(ec%block(i)%mo(j)%mo_set)
+                     CALL deallocate_mo_set(ec%block(i)%mo(j)%mo_set)
+                     DEALLOCATE (ec%block(i)%mo(j)%mo_set)
                   END DO
                   DEALLOCATE (ec%block(i)%mo)
                END IF

@@ -579,6 +579,7 @@ CONTAINS
 
       DO ispin = 1, nspin
          CALL deallocate_mo_set(mo_set=mos_filtered(ispin)%mo_set)
+         DEALLOCATE (mos_filtered(ispin)%mo_set)
       END DO
       DEALLOCATE (mos_filtered)
       CALL dbcsr_deallocate_matrix_set(matrix_filter)

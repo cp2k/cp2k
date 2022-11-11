@@ -2189,6 +2189,7 @@ CONTAINS
          CALL cp_fm_release(inverse_mat)
          CALL cp_fm_release(mo_tmp)
          CALL deallocate_mo_set(mo_set(ispin)%mo_set)
+         DEALLOCATE (mo_set(ispin)%mo_set)
       END DO
       DEALLOCATE (mo_set)
       DO ipermutation = 1, npermutations

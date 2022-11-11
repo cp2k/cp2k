@@ -697,6 +697,7 @@ CONTAINS
             DO is = 1, SIZE(kp_env%mos, 2)
                DO ic = 1, SIZE(kp_env%mos, 1)
                   CALL deallocate_mo_set(kp_env%mos(ic, is)%mo_set)
+                  DEALLOCATE (kp_env%mos(ic, is)%mo_set)
                END DO
             END DO
             DEALLOCATE (kp_env%mos)

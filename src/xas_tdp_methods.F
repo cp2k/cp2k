@@ -2577,6 +2577,7 @@ CONTAINS
 
             DO ispin = 1, 2
                CALL deallocate_mo_set(restart_mos(ispin)%mo_set)
+               DEALLOCATE (restart_mos(ispin)%mo_set)
             END DO
             DEALLOCATE (restart_mos)
          END DO
@@ -2705,6 +2706,7 @@ CONTAINS
 
             !clean-up
             CALL deallocate_mo_set(mo_set)
+            DEALLOCATE (mo_set)
 
          END DO
       END DO

@@ -1357,6 +1357,7 @@ CONTAINS
                   cdft_control%total_steps = nsteps
                   DO ispin = 1, nspins
                      CALL deallocate_mo_set(mos(ispin)%mo_set)
+                     DEALLOCATE (mos(ispin)%mo_set)
                      CALL duplicate_mo_set(mos(ispin)%mo_set, mos_stashed(ispin)%mo_set)
                      CALL calculate_density_matrix(mos(ispin)%mo_set, &
                                                    p_rmpv(ispin)%matrix)
@@ -1381,6 +1382,7 @@ CONTAINS
             ! Release temporary storage
             DO ispin = 1, nspins
                CALL deallocate_mo_set(mos_stashed(ispin)%mo_set)
+               DEALLOCATE (mos_stashed(ispin)%mo_set)
             END DO
             DEALLOCATE (mos_stashed, jacobian, gradient, energy, coeff, step_multiplier, dh)
             IF (output_unit > 0) THEN
@@ -1602,6 +1604,7 @@ CONTAINS
                      ELSE
                         DO ispin = 1, nspins
                            CALL deallocate_mo_set(mos_ls(ispin)%mo_set)
+                           DEALLOCATE (mos_ls(ispin)%mo_set)
                         END DO
                      END IF
                      DO ispin = 1, nspins
@@ -1629,10 +1632,12 @@ CONTAINS
                alpha = alpha_ls
                DO ispin = 1, nspins
                   CALL deallocate_mo_set(mos(ispin)%mo_set)
+                  DEALLOCATE (mos(ispin)%mo_set)
                   CALL duplicate_mo_set(mos(ispin)%mo_set, mos_ls(ispin)%mo_set)
                   CALL calculate_density_matrix(mos(ispin)%mo_set, &
                                                 p_rmpv(ispin)%matrix)
                   CALL deallocate_mo_set(mos_ls(ispin)%mo_set)
+                  DEALLOCATE (mos_ls(ispin)%mo_set)
                END DO
                CALL qs_rho_update_rho(rho, qs_env=qs_env)
                CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
@@ -1656,6 +1661,7 @@ CONTAINS
             cdft_control%total_steps = nsteps
             DO ispin = 1, nspins
                CALL deallocate_mo_set(mos(ispin)%mo_set)
+               DEALLOCATE (mos(ispin)%mo_set)
                CALL duplicate_mo_set(mos(ispin)%mo_set, mos_stashed(ispin)%mo_set)
                CALL calculate_density_matrix(mos(ispin)%mo_set, &
                                              p_rmpv(ispin)%matrix)
@@ -1677,6 +1683,7 @@ CONTAINS
          ! Release temporary storage
          DO ispin = 1, nspins
             CALL deallocate_mo_set(mos_stashed(ispin)%mo_set)
+            DEALLOCATE (mos_stashed(ispin)%mo_set)
          END DO
          DEALLOCATE (mos_stashed, gradient, energy)
          IF (ALLOCATED(positive_sign)) DEALLOCATE (positive_sign)

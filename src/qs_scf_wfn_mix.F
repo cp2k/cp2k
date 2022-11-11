@@ -188,6 +188,7 @@ CONTAINS
 
          DO ispin = 1, SIZE(mos_new)
             CALL deallocate_mo_set(mos_new(ispin)%mo_set)
+            DEALLOCATE (mos_new(ispin)%mo_set)
          END DO
          DEALLOCATE (mos_new)
 

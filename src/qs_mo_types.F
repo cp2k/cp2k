@@ -209,9 +209,11 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nao, nmo, nelectron
       REAL(KIND=dp), INTENT(IN)                          :: n_el_f, maxocc, flexible_electron_count
 
-      IF (ASSOCIATED(mo_set)) CALL deallocate_mo_set(mo_set)
-
-      ALLOCATE (mo_set)
+      IF (ASSOCIATED(mo_set)) THEN
+         CALL deallocate_mo_set(mo_set)
+      ELSE
+         ALLOCATE (mo_set)
+      END IF
 
       mo_set%maxocc = maxocc
       mo_set%nelectron = nelectron
@@ -357,23 +359,20 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE deallocate_mo_set(mo_set)
 
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type), INTENT(INOUT)                   :: mo_set
 
-      IF (ASSOCIATED(mo_set)) THEN
-         IF (ASSOCIATED(mo_set%eigenvalues)) THEN
-            DEALLOCATE (mo_set%eigenvalues)
-         END IF
-         IF (ASSOCIATED(mo_set%occupation_numbers)) THEN
-            DEALLOCATE (mo_set%occupation_numbers)
-         END IF
-         IF (ASSOCIATED(mo_set%mo_coeff)) THEN
-            CALL cp_fm_release(mo_set%mo_coeff)
-            DEALLOCATE (mo_set%mo_coeff)
-            NULLIFY (mo_set%mo_coeff)
-         END IF
-         IF (ASSOCIATED(mo_set%mo_coeff_b)) CALL dbcsr_release_p(mo_set%mo_coeff_b)
-         DEALLOCATE (mo_set)
+      IF (ASSOCIATED(mo_set%eigenvalues)) THEN
+         DEALLOCATE (mo_set%eigenvalues)
       END IF
+      IF (ASSOCIATED(mo_set%occupation_numbers)) THEN
+         DEALLOCATE (mo_set%occupation_numbers)
+      END IF
+      IF (ASSOCIATED(mo_set%mo_coeff)) THEN
+         CALL cp_fm_release(mo_set%mo_coeff)
+         DEALLOCATE (mo_set%mo_coeff)
+         NULLIFY (mo_set%mo_coeff)
+      END IF
+      IF (ASSOCIATED(mo_set%mo_coeff_b)) CALL dbcsr_release_p(mo_set%mo_coeff_b)
 
    END SUBROUTINE deallocate_mo_set
 

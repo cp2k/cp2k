@@ -426,6 +426,7 @@ CONTAINS
             ! Deallocate temporary objects needed for OT
             IF (scf_env%method == ot_method_nr) THEN
                CALL deallocate_mo_set(mo_set_tmp)
+               DEALLOCATE (mo_set_tmp)
                NULLIFY (matrix_ks)
                NULLIFY (matrix_s)
             END IF

@@ -212,6 +212,7 @@ CONTAINS
          DO iset = 1, nset
             CALL reassign_allocated_mos(mos(iset)%mo_set, mos_ref(iset)%mo_set)
             CALL deallocate_mo_set(mos_ref(iset)%mo_set)
+            DEALLOCATE (mos_ref(iset)%mo_set)
          END DO
          DEALLOCATE (mos_ref)
       END IF

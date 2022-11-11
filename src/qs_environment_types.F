@@ -1359,12 +1359,14 @@ CONTAINS
       IF (ASSOCIATED(qs_env%mos)) THEN
          DO i = 1, SIZE(qs_env%mos)
             CALL deallocate_mo_set(qs_env%mos(i)%mo_set)
+            DEALLOCATE (qs_env%mos(i)%mo_set)
          END DO
          DEALLOCATE (qs_env%mos)
       END IF
       IF (ASSOCIATED(qs_env%mos_last_converged)) THEN
          DO i = 1, SIZE(qs_env%mos_last_converged)
             CALL deallocate_mo_set(qs_env%mos_last_converged(i)%mo_set)
+            DEALLOCATE (qs_env%mos_last_converged(i)%mo_set)
          END DO
          DEALLOCATE (qs_env%mos_last_converged)
       END IF
@@ -1588,6 +1590,7 @@ CONTAINS
       IF (ASSOCIATED(qs_env%mos_last_converged)) THEN
          DO i = 1, SIZE(qs_env%mos_last_converged)
             CALL deallocate_mo_set(qs_env%mos_last_converged(i)%mo_set)
+            DEALLOCATE (qs_env%mos_last_converged(i)%mo_set)
          END DO
          DEALLOCATE (qs_env%mos_last_converged)
       END IF

@@ -377,6 +377,7 @@ CONTAINS
          CALL write_mos_molden(mbas, qs_kind_set, particle_set, molden_section)
          DO ispin = 1, nspin
             CALL deallocate_mo_set(mbas(ispin)%mo_set)
+            DEALLOCATE (mbas(ispin)%mo_set)
          END DO
          DEALLOCATE (mbas)
 

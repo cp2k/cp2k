@@ -1151,6 +1151,7 @@ CONTAINS
             !
             DO i = 1, 2
                CALL deallocate_mo_set(nto_set(i)%mo_set)
+               DEALLOCATE (nto_set(i)%mo_set)
             END DO
             DEALLOCATE (nto_set)
          END DO

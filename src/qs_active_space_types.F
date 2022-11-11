@@ -164,6 +164,7 @@ CONTAINS
          IF (ASSOCIATED(active_space_env%mos_active)) THEN
             DO imo = 1, SIZE(active_space_env%mos_active)
                CALL deallocate_mo_set(active_space_env%mos_active(imo)%mo_set)
+               DEALLOCATE (active_space_env%mos_active(imo)%mo_set)
             END DO
             DEALLOCATE (active_space_env%mos_active)
          END IF
@@ -171,6 +172,7 @@ CONTAINS
          IF (ASSOCIATED(active_space_env%mos_inactive)) THEN
             DO imo = 1, SIZE(active_space_env%mos_inactive)
                CALL deallocate_mo_set(active_space_env%mos_inactive(imo)%mo_set)
+               DEALLOCATE (active_space_env%mos_inactive(imo)%mo_set)
             END DO
             DEALLOCATE (active_space_env%mos_inactive)
          END IF

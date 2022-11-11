@@ -559,7 +559,8 @@ CONTAINS
 
       IF (ASSOCIATED(admm_env%mos_aux_fit)) THEN
          DO ispin = 1, SIZE(admm_env%mos_aux_fit)
-            IF (ASSOCIATED(admm_env%mos_aux_fit(ispin)%mo_set)) CALL deallocate_mo_set(admm_env%mos_aux_fit(ispin)%mo_set)
+            CALL deallocate_mo_set(admm_env%mos_aux_fit(ispin)%mo_set)
+            DEALLOCATE (admm_env%mos_aux_fit(ispin)%mo_set)
          END DO
          DEALLOCATE (admm_env%mos_aux_fit)
       END IF

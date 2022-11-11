@@ -284,6 +284,7 @@ CONTAINS
             DO i = 1, SIZE(mos)
                CALL reassign_allocated_mos(mos(i)%mo_set, backup_mos(i)%mo_set)
                CALL deallocate_mo_set(backup_mos(i)%mo_set)
+               DEALLOCATE (backup_mos(i)%mo_set)
             END DO
             DEALLOCATE (backup_mos)
          END IF

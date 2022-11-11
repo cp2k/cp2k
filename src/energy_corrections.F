@@ -3442,10 +3442,12 @@ CONTAINS
       IF (dft_control%qs_control%do_ls_scf) THEN
          DO ispin = 1, nspins
             CALL deallocate_mo_set(mos(ispin)%mo_set)
+            DEALLOCATE (mos(ispin)%mo_set)
          END DO
          IF (ASSOCIATED(qs_env%mos)) THEN
             DO ispin = 1, SIZE(qs_env%mos)
                CALL deallocate_mo_set(qs_env%mos(ispin)%mo_set)
+               DEALLOCATE (qs_env%mos(ispin)%mo_set)
             END DO
             DEALLOCATE (qs_env%mos)
          END IF

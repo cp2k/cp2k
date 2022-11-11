@@ -344,6 +344,7 @@ CONTAINS
 
          DO ispin = 1, nspins
             CALL deallocate_mo_set(mos_aux(ispin)%mo_set)
+            DEALLOCATE (mos_aux(ispin)%mo_set)
          END DO
          DEALLOCATE (mos_aux)
          IF (ASSOCIATED(matrix_s_aux)) CALL dbcsr_deallocate_matrix_set(matrix_s_aux)

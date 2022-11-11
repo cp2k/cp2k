@@ -683,6 +683,7 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
 
       DO ispin = 1, nspins
          CALL deallocate_mo_set(mo_set=mos_mp2(ispin)%mo_set)
+         DEALLOCATE (mos_mp2(ispin)%mo_set)
       END DO
       DEALLOCATE (mos_mp2)
 
