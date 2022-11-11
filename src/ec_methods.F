@@ -16,6 +16,9 @@ MODULE ec_methods
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_m_by_n_from_row_template
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
+                                              cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_to_string
@@ -34,9 +37,7 @@ MODULE ec_methods
                                               set_qs_env
    USE qs_kind_types,                   ONLY: get_qs_kind_set,&
                                               qs_kind_type
-   USE qs_matrix_pools,                 ONLY: mpools_create,&
-                                              mpools_rebuild_fm_pools,&
-                                              mpools_release,&
+   USE qs_matrix_pools,                 ONLY: mpools_release,&
                                               qs_matrix_pools_type
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               get_mo_set,&
@@ -162,6 +163,7 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: n_mo, nelectron_spin
       REAL(dp)                                           :: maxocc
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_b
@@ -236,23 +238,22 @@ CONTAINS
 
       CALL set_qs_env(qs_env, mos=mos)
 
-      ! init pools
-      NULLIFY (my_mpools)
-      CALL mpools_create(mpools=my_mpools)
-      CALL mpools_rebuild_fm_pools(mpools=my_mpools, &
-                                   mos=mos, &
-                                   blacs_env=blacs_env, &
-                                   para_env=para_env)
-
       ! finish initialization of the MOs
       CPASSERT(ASSOCIATED(mos))
       NULLIFY (mo_coeff, mo_coeff_b)
       DO ispin = 1, SIZE(mos)
-         CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, mo_coeff_b=mo_coeff_b)
+         CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, mo_coeff_b=mo_coeff_b, &
+                         nmo=nmo, nao=n_ao)
+
          IF (.NOT. ASSOCIATED(mo_coeff)) THEN
+            CALL cp_fm_struct_create(fm_struct, nrow_global=n_ao, &
+                                     ncol_global=nmo, para_env=para_env, &
+                                     context=blacs_env)
+
             CALL init_mo_set(mos(ispin)%mo_set, &
-                             fm_pool=my_mpools%ao_mo_fm_pools(ispin)%pool, &
+                             fm_struct=fm_struct, &
                              name="qs_env%mo"//TRIM(ADJUSTL(cp_to_string(ispin))))
+            CALL cp_fm_struct_release(fm_struct)
          END IF
 
          IF (.NOT. ASSOCIATED(mo_coeff_b)) THEN

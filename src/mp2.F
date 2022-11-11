@@ -28,8 +28,6 @@ MODULE mp2
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
    USE cp_fm_diag,                      ONLY: cp_fm_power
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                              cp_fm_struct_get_ncol_block,&
-                                              cp_fm_struct_get_nrow_block,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
@@ -368,9 +366,7 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
          CALL get_mo_set(mos_mp2(ispin)%mo_set, nao=nao)
          CALL cp_fm_struct_create(fm_struct, nrow_global=nao, &
                                   ncol_global=nao, para_env=para_env, &
-                                  context=blacs_env, &
-                                  nrow_block=cp_fm_struct_get_nrow_block(), &
-                                  ncol_block=cp_fm_struct_get_ncol_block())
+                                  context=blacs_env)
 
          CALL init_mo_set(mos_mp2(ispin)%mo_set, &
                           fm_struct=fm_struct, &

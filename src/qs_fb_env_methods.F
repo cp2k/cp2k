@@ -86,10 +86,6 @@ MODULE qs_fb_env_methods
    USE qs_integral_utils,               ONLY: basis_set_list_setup
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE qs_matrix_pools,                 ONLY: mpools_create,&
-                                              mpools_rebuild_fm_pools,&
-                                              mpools_release,&
-                                              qs_matrix_pools_type
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               deallocate_mo_set,&
@@ -145,7 +141,7 @@ CONTAINS
       CHARACTER(len=2)                                   :: spin_string
       CHARACTER(len=default_string_length)               :: name
       INTEGER :: filtered_nfullrowsORcols_total, handle, homo_filtered, ispin, lfomo_filtered, &
-         my_nmo, ndep, nelectron, nmo, nmo_filtered, nspin, original_nfullrowsORcols_total
+         my_nmo, nao, ndep, nelectron, nmo, nmo_filtered, nspin, original_nfullrowsORcols_total
       INTEGER, DIMENSION(:), POINTER                     :: filtered_rowORcol_block_sizes, &
                                                             original_rowORcol_block_sizes
       LOGICAL                                            :: collective_com
@@ -168,7 +164,6 @@ CONTAINS
       TYPE(fb_trial_fns_obj)                             :: trial_fns
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_filtered
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_matrix_pools_type), POINTER                :: my_mpools
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
 
@@ -179,7 +174,6 @@ CONTAINS
       NULLIFY (scf_env, scf_control, para_env, blacs_env, particle_set)
       NULLIFY (eigenvalues, eigenvalues_filtered, occ, occ_filtered)
       NULLIFY (mos, mos_filtered)
-      NULLIFY (my_mpools)
       NULLIFY (matrix_filter, matrix_filtered_p)
       NULLIFY (fm_struct, filter_fm_struct)
       NULLIFY (mo_coeff_filtered, mo_coeff)
@@ -331,11 +325,6 @@ CONTAINS
                               maxocc=maxocc, &
                               flexible_electron_count=flexible_electron_count)
       END DO ! ispin
-      CALL mpools_create(mpools=my_mpools)
-      CALL mpools_rebuild_fm_pools(mpools=my_mpools, &
-                                   mos=mos_filtered, &
-                                   blacs_env=blacs_env, &
-                                   para_env=para_env)
 
       ! create DBCSR filtered KS matrix, this is reused for each spin
       ! channel
@@ -421,10 +410,17 @@ CONTAINS
          CALL copy_dbcsr_to_fm(matrix_filtered_s, fm_matrix_filtered_s)
          CALL copy_dbcsr_to_fm(matrix_filtered_ks, fm_matrix_filtered_ks)
 
+         CALL get_mo_set(mos_filtered(ispin)%mo_set, nmo=nmo, nao=nao)
+
+         CALL cp_fm_struct_create(fm_struct, nrow_global=nao, &
+                                  ncol_global=nmo, para_env=para_env, &
+                                  context=blacs_env)
+
          ! setup matrix pools for the molecular orbitals
          CALL init_mo_set(mos_filtered(ispin)%mo_set, &
-                          fm_pool=my_mpools%ao_mo_fm_pools(ispin)%pool, &
+                          fm_struct=fm_struct, &
                           name="FILTERED_MOS")
+         CALL cp_fm_struct_release(fm_struct)
 
          ! now diagonalise
          CALL fb_env_eigensolver(fm_matrix_filtered_ks, &
@@ -581,7 +577,6 @@ CONTAINS
       ! Final Clean Up
       ! ----------------------------------------------------------------------
 
-      CALL mpools_release(mpools=my_mpools)
       DO ispin = 1, nspin
          CALL deallocate_mo_set(mo_set=mos_filtered(ispin)%mo_set)
       END DO
