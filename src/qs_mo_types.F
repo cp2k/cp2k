@@ -248,15 +248,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE init_mo_set(mo_set, fm_pool, fm_ref, fm_struct, name)
 
-      TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(cp_fm_pool_type), OPTIONAL, POINTER           :: fm_pool
+      TYPE(mo_set_type), INTENT(INOUT)                   :: mo_set
+      TYPE(cp_fm_pool_type), INTENT(IN), OPTIONAL        :: fm_pool
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_ref
       TYPE(cp_fm_struct_type), OPTIONAL, POINTER         :: fm_struct
       CHARACTER(LEN=*), INTENT(in)                       :: name
 
       INTEGER                                            :: nao, nmo, nomo
 
-      CPASSERT(ASSOCIATED(mo_set))
       CPASSERT(.NOT. ASSOCIATED(mo_set%eigenvalues))
       CPASSERT(.NOT. ASSOCIATED(mo_set%occupation_numbers))
       CPASSERT(.NOT. ASSOCIATED(mo_set%mo_coeff))
@@ -264,7 +263,6 @@ CONTAINS
       CPASSERT(PRESENT(fm_pool) .NEQV. (PRESENT(fm_ref) .NEQV. PRESENT(fm_struct)))
       NULLIFY (mo_set%mo_coeff)
       IF (PRESENT(fm_pool)) THEN
-         CPASSERT(ASSOCIATED(fm_pool))
          ALLOCATE (mo_set%mo_coeff)
          CALL fm_pool_create_fm(fm_pool, mo_set%mo_coeff, name=name)
       ELSE IF (PRESENT(fm_ref)) THEN

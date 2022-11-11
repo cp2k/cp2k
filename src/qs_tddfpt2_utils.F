@@ -18,9 +18,6 @@ MODULE qs_tddfpt2_utils
                                               dbcsr_allocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
-   USE cp_fm_pool_types,                ONLY: cp_fm_pool_type,&
-                                              fm_pool_create,&
-                                              fm_pool_release
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_p_type,&
                                               cp_fm_struct_release,&
@@ -270,7 +267,6 @@ CONTAINS
          POINTER                                         :: my_block
       REAL(kind=dp), DIMENSION(:), POINTER               :: mo_evals_extended, mo_occ_extended, &
                                                             mo_occ_scf
-      TYPE(cp_fm_pool_type), POINTER                     :: wfn_fm_pool
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fm_struct, ao_mo_occ_fm_struct, &
                                                             ao_mo_virt_fm_struct, wfn_fm_struct
       TYPE(cp_fm_type)                                   :: matrix_ks_fm, ortho_fm, work_fm
@@ -318,19 +314,16 @@ CONTAINS
       CALL cp_fm_struct_release(ao_mo_virt_fm_struct)
 
       ! ++ nullify pointers
-      NULLIFY (ao_ao_fm_struct, wfn_fm_struct, wfn_fm_pool)
+      NULLIFY (ao_ao_fm_struct, wfn_fm_struct)
       NULLIFY (mos_extended, mo_coeff_extended, mo_evals_extended, mo_occ_extended)
       CALL cp_fm_struct_create(ao_ao_fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
 
       IF (do_eigen) THEN
          ! ++ set of molecular orbitals
          CALL cp_fm_struct_create(wfn_fm_struct, nrow_global=nao, ncol_global=nmo_occ + nmo_virt, context=blacs_env)
-         CALL fm_pool_create(wfn_fm_pool, wfn_fm_struct)
-
          CALL allocate_mo_set(mos_extended, nao, nmo_occ + nmo_virt, nelectrons, &
                               REAL(nelectrons, dp), maxocc, flexible_electron_count=0.0_dp)
-         CALL init_mo_set(mos_extended, fm_pool=wfn_fm_pool, name="mos-extended")
-         CALL fm_pool_release(wfn_fm_pool)
+         CALL init_mo_set(mos_extended, fm_struct=wfn_fm_struct, name="mos-extended")
          CALL cp_fm_struct_release(wfn_fm_struct)
          CALL get_mo_set(mos_extended, mo_coeff=mo_coeff_extended, &
                          eigenvalues=mo_evals_extended, occupation_numbers=mo_occ_extended)
