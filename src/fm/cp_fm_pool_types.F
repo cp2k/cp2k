@@ -72,6 +72,13 @@ MODULE cp_fm_pool_types
       TYPE(cp_fm_pool_type), POINTER :: pool
    END TYPE cp_fm_pool_p_type
 
+   INTERFACE fm_pools_give_back_fm_vect
+      MODULE PROCEDURE fm_pools_give_back_fm_vect_p_type_pointer
+      MODULE PROCEDURE fm_pools_give_back_fm_vect_p_type_alloc
+      MODULE PROCEDURE fm_pools_give_back_fm_vect_array_pointer
+      MODULE PROCEDURE fm_pools_give_back_fm_vect_array_alloc
+   END INTERFACE
+
 CONTAINS
 
 ! **************************************************************************************************
@@ -331,20 +338,107 @@ CONTAINS
 !> \note
 !>      accept unassociated vect?
 ! **************************************************************************************************
-   SUBROUTINE fm_pools_give_back_fm_vect(pools, elements)
+   SUBROUTINE fm_pools_give_back_fm_vect_p_type_pointer(pools, elements)
       TYPE(cp_fm_pool_p_type), DIMENSION(:), INTENT(IN)  :: pools
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: elements
 
       INTEGER                                            :: i
 
-      CPASSERT(ASSOCIATED(elements))
-      CPASSERT(SIZE(pools) == SIZE(elements))
-      DO i = 1, SIZE(pools)
-         CALL fm_pool_give_back_fm(pools(i)%pool, &
-                                   elements(i)%matrix)
-         DEALLOCATE (elements(i)%matrix)
-      END DO
-      DEALLOCATE (elements)
-   END SUBROUTINE fm_pools_give_back_fm_vect
+      IF (ASSOCIATED(elements)) THEN
+         CPASSERT(SIZE(pools) == SIZE(elements))
+         DO i = 1, SIZE(pools)
+            CALL fm_pool_give_back_fm(pools(i)%pool, &
+                                      elements(i)%matrix)
+            DEALLOCATE (elements(i)%matrix)
+         END DO
+         DEALLOCATE (elements)
+         NULLIFY (elements)
+      END IF
+   END SUBROUTINE fm_pools_give_back_fm_vect_p_type_pointer
+
+! **************************************************************************************************
+!> \brief returns a vector to the pools. The vector is deallocated
+!>      (like cp_fm_vect_dealloc)
+!> \param pools the pool where to give back the vector
+!> \param elements the vector of elements to give back
+!> \par History
+!>      09.2002 created [fawzi]
+!> \author Fawzi Mohamed
+!> \note
+!>      accept unassociated vect?
+! **************************************************************************************************
+   SUBROUTINE fm_pools_give_back_fm_vect_p_type_alloc(pools, elements)
+      TYPE(cp_fm_pool_p_type), DIMENSION(:), INTENT(IN)  :: pools
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT)                                   :: elements
+
+      INTEGER                                            :: i
+
+      IF (ALLOCATED(elements)) THEN
+         CPASSERT(SIZE(pools) == SIZE(elements))
+         DO i = 1, SIZE(pools)
+            CALL fm_pool_give_back_fm(pools(i)%pool, &
+                                      elements(i)%matrix)
+            DEALLOCATE (elements(i)%matrix)
+         END DO
+         DEALLOCATE (elements)
+      END IF
+   END SUBROUTINE fm_pools_give_back_fm_vect_p_type_alloc
+
+! **************************************************************************************************
+!> \brief returns a vector to the pools. The vector is deallocated
+!>      (like cp_fm_vect_dealloc)
+!> \param pools the pool where to give back the vector
+!> \param elements the vector of elements to give back
+!> \par History
+!>      09.2002 created [fawzi]
+!> \author Fawzi Mohamed
+!> \note
+!>      accept unassociated vect?
+! **************************************************************************************************
+   SUBROUTINE fm_pools_give_back_fm_vect_array_alloc(pools, elements)
+      TYPE(cp_fm_pool_p_type), DIMENSION(:), INTENT(IN)  :: pools
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT)                                   :: elements
+
+      INTEGER                                            :: i
+
+      IF (ALLOCATED(elements)) THEN
+         CPASSERT(SIZE(pools) == SIZE(elements))
+         DO i = 1, SIZE(pools)
+            CALL fm_pool_give_back_fm(pools(i)%pool, &
+                                      elements(i))
+         END DO
+         DEALLOCATE (elements)
+      END IF
+   END SUBROUTINE fm_pools_give_back_fm_vect_array_alloc
+
+! **************************************************************************************************
+!> \brief returns a vector to the pools. The vector is deallocated
+!>      (like cp_fm_vect_dealloc)
+!> \param pools the pool where to give back the vector
+!> \param elements the vector of elements to give back
+!> \par History
+!>      09.2002 created [fawzi]
+!> \author Fawzi Mohamed
+!> \note
+!>      accept unassociated vect?
+! **************************************************************************************************
+   SUBROUTINE fm_pools_give_back_fm_vect_array_pointer(pools, elements)
+      TYPE(cp_fm_pool_p_type), DIMENSION(:), INTENT(IN)  :: pools
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: elements
+
+      INTEGER                                            :: i
+
+      IF (ASSOCIATED(elements)) THEN
+         CPASSERT(SIZE(pools) == SIZE(elements))
+         DO i = 1, SIZE(pools)
+            CALL fm_pool_give_back_fm(pools(i)%pool, &
+                                      elements(i))
+         END DO
+         DEALLOCATE (elements)
+         NULLIFY (elements)
+      END IF
+   END SUBROUTINE fm_pools_give_back_fm_vect_array_pointer
 
 END MODULE cp_fm_pool_types
