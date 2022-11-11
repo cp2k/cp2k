@@ -28,6 +28,8 @@ MODULE mp2
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
    USE cp_fm_diag,                      ONLY: cp_fm_power
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_get_ncol_block,&
+                                              cp_fm_struct_get_nrow_block,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
@@ -77,10 +79,6 @@ MODULE mp2
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
-   USE qs_matrix_pools,                 ONLY: mpools_create,&
-                                              mpools_rebuild_fm_pools,&
-                                              mpools_release,&
-                                              qs_matrix_pools_type
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               deallocate_mo_set,&
                                               get_mo_set,&
@@ -156,7 +154,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(qs_matrix_pools_type), POINTER                :: my_mpools
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input
@@ -345,26 +342,6 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
       ALLOCATE (mos_mp2(nspins))
       ALLOCATE (nelec(nspins))
       DO ispin = 1, nspins
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, maxocc=maxocc, nelectron=nelec(ispin))
-
-         NULLIFY (mos_mp2(ispin)%mo_set)
-         CALL allocate_mo_set(mo_set=mos_mp2(ispin)%mo_set, &
-                              nao=nao, &
-                              nmo=nao, &
-                              nelectron=nelec(ispin), &
-                              n_el_f=REAL(nelec(ispin), dp), &
-                              maxocc=maxocc, &
-                              flexible_electron_count=dft_control%relax_multiplicity)
-      END DO
-
-      NULLIFY (my_mpools)
-      CALL mpools_create(mpools=my_mpools)
-      CALL mpools_rebuild_fm_pools(mpools=my_mpools, &
-                                   mos=mos_mp2, &
-                                   blacs_env=blacs_env, &
-                                   para_env=para_env)
-
-      DO ispin = 1, nspins
 
          ! If ADMM we should make the ks matrix up-to-date
          IF (dft_control%do_admm) THEN
@@ -377,9 +354,28 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
             CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, matrix_ks(ispin)%matrix)
          END IF
 
+         CALL get_mo_set(mo_set=mos(ispin)%mo_set, maxocc=maxocc, nelectron=nelec(ispin))
+
+         NULLIFY (mos_mp2(ispin)%mo_set)
+         CALL allocate_mo_set(mo_set=mos_mp2(ispin)%mo_set, &
+                              nao=nao, &
+                              nmo=nao, &
+                              nelectron=nelec(ispin), &
+                              n_el_f=REAL(nelec(ispin), dp), &
+                              maxocc=maxocc, &
+                              flexible_electron_count=dft_control%relax_multiplicity)
+
+         CALL get_mo_set(mos_mp2(ispin)%mo_set, nao=nao)
+         CALL cp_fm_struct_create(fm_struct, nrow_global=nao, &
+                                  ncol_global=nao, para_env=para_env, &
+                                  context=blacs_env, &
+                                  nrow_block=cp_fm_struct_get_nrow_block(), &
+                                  ncol_block=cp_fm_struct_get_ncol_block())
+
          CALL init_mo_set(mos_mp2(ispin)%mo_set, &
-                          fm_pool=my_mpools%ao_mo_fm_pools(ispin)%pool, &
+                          fm_struct=fm_struct, &
                           name="mp2_mos")
+         CALL cp_fm_struct_release(fm_struct)
 
          IF (cholesky_method == cholesky_inverse) THEN
 
@@ -411,7 +407,6 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
       CALL cp_fm_release(fm_matrix_s)
       CALL cp_fm_release(fm_matrix_ks)
       CALL cp_fm_release(fm_matrix_work)
-      CALL mpools_release(mpools=my_mpools)
 
       hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%HF")
 
