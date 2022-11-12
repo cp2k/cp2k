@@ -243,6 +243,7 @@ CONTAINS
 
             ALLOCATE (backup_mos(SIZE(mos)))
             DO i = 1, SIZE(mos)
+               ALLOCATE (backup_mos(i)%mo_set)
                CALL duplicate_mo_set(backup_mos(i)%mo_set, mos(i)%mo_set)
             END DO
          END IF

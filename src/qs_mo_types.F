@@ -146,11 +146,10 @@ CONTAINS
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE duplicate_mo_set(mo_set_new, mo_set_old)
-      TYPE(mo_set_type), POINTER                         :: mo_set_new, mo_set_old
+      TYPE(mo_set_type), INTENT(OUT)                     :: mo_set_new
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set_old
 
       INTEGER                                            :: nmo
-
-      ALLOCATE (mo_set_new)
 
       mo_set_new%maxocc = mo_set_old%maxocc
       mo_set_new%nelectron = mo_set_old%nelectron

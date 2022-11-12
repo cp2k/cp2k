@@ -2556,6 +2556,7 @@ CONTAINS
 
             ALLOCATE (restart_mos(2))
             DO ispin = 1, 2
+               ALLOCATE (restart_mos(ispin)%mo_set)
                CALL duplicate_mo_set(restart_mos(ispin)%mo_set, mos(1)%mo_set)
             END DO
 

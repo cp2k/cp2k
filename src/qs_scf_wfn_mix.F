@@ -99,6 +99,7 @@ CONTAINS
 
          ALLOCATE (mos_new(SIZE(mos)))
          DO ispin = 1, SIZE(mos)
+            ALLOCATE (mos_new(ispin)%mo_set)
             CALL duplicate_mo_set(mos_new(ispin)%mo_set, mos(ispin)%mo_set)
          END DO
 

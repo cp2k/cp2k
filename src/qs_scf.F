@@ -1285,6 +1285,7 @@ CONTAINS
             nspins = dft_control%nspins
             ALLOCATE (mos_stashed(nspins))
             DO ispin = 1, nspins
+               ALLOCATE (mos_stashed(ispin)%mo_set)
                CALL duplicate_mo_set(mos_stashed(ispin)%mo_set, mos(ispin)%mo_set)
             END DO
             CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
@@ -1357,7 +1358,6 @@ CONTAINS
                   cdft_control%total_steps = nsteps
                   DO ispin = 1, nspins
                      CALL deallocate_mo_set(mos(ispin)%mo_set)
-                     DEALLOCATE (mos(ispin)%mo_set)
                      CALL duplicate_mo_set(mos(ispin)%mo_set, mos_stashed(ispin)%mo_set)
                      CALL calculate_density_matrix(mos(ispin)%mo_set, &
                                                    p_rmpv(ispin)%matrix)
@@ -1492,6 +1492,7 @@ CONTAINS
          nspins = dft_control%nspins
          ALLOCATE (mos_stashed(nspins))
          DO ispin = 1, nspins
+            ALLOCATE (mos_stashed(ispin)%mo_set)
             CALL duplicate_mo_set(mos_stashed(ispin)%mo_set, mos(ispin)%mo_set)
          END DO
          CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
@@ -1608,6 +1609,7 @@ CONTAINS
                         END DO
                      END IF
                      DO ispin = 1, nspins
+                        ALLOCATE (mos_ls(ispin)%mo_set)
                         CALL duplicate_mo_set(mos_ls(ispin)%mo_set, mos(ispin)%mo_set)
                      END DO
                      alpha = alpha*factor
@@ -1632,7 +1634,6 @@ CONTAINS
                alpha = alpha_ls
                DO ispin = 1, nspins
                   CALL deallocate_mo_set(mos(ispin)%mo_set)
-                  DEALLOCATE (mos(ispin)%mo_set)
                   CALL duplicate_mo_set(mos(ispin)%mo_set, mos_ls(ispin)%mo_set)
                   CALL calculate_density_matrix(mos(ispin)%mo_set, &
                                                 p_rmpv(ispin)%matrix)
@@ -1661,7 +1662,6 @@ CONTAINS
             cdft_control%total_steps = nsteps
             DO ispin = 1, nspins
                CALL deallocate_mo_set(mos(ispin)%mo_set)
-               DEALLOCATE (mos(ispin)%mo_set)
                CALL duplicate_mo_set(mos(ispin)%mo_set, mos_stashed(ispin)%mo_set)
                CALL calculate_density_matrix(mos(ispin)%mo_set, &
                                              p_rmpv(ispin)%matrix)

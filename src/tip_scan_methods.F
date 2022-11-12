@@ -146,6 +146,7 @@ CONTAINS
          nset = SIZE(mos)
          ALLOCATE (mos_ref(nset))
          DO iset = 1, nset
+            ALLOCATE (mos_ref(iset)%mo_set)
             CALL duplicate_mo_set(mos_ref(iset)%mo_set, mos(iset)%mo_set)
          END DO
 
