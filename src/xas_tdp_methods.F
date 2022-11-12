@@ -2669,7 +2669,7 @@ CONTAINS
          DO ispin = 1, nspins
 
             !need to create a mo set for the LR-orbitals
-            IF (.NOT. ASSOCIATED(mo_set)) ALLOCATE (mo_set)
+            ALLOCATE (mo_set)
             CALL allocate_mo_set(mo_set, nao=nao, nmo=nmo, nelectron=nmo, n_el_f=REAL(nmo, dp), &
                                  maxocc=1.0_dp, flexible_electron_count=0.0_dp)
             CALL init_mo_set(mo_set, fm_ref=mo_coeff, name="PDOS XAS_TDP MOs")

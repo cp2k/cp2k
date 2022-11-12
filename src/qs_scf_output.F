@@ -340,7 +340,7 @@ CONTAINS
                                         para_env=para_env, &
                                         nrow_global=nao, &
                                         ncol_global=nmo_tmp)
-               IF (.NOT. ASSOCIATED(mo_set_tmp)) ALLOCATE (mo_set_tmp)
+               ALLOCATE (mo_set_tmp)
                CALL allocate_mo_set(mo_set=mo_set_tmp, &
                                     nao=nao, &
                                     nmo=nmo_tmp, &

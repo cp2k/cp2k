@@ -321,7 +321,7 @@ CONTAINS
       IF (do_eigen) THEN
          ! ++ set of molecular orbitals
          CALL cp_fm_struct_create(wfn_fm_struct, nrow_global=nao, ncol_global=nmo_occ + nmo_virt, context=blacs_env)
-         IF (.NOT. ASSOCIATED(mos_extended)) ALLOCATE (mos_extended)
+         ALLOCATE (mos_extended)
          CALL allocate_mo_set(mos_extended, nao, nmo_occ + nmo_virt, nelectrons, &
                               REAL(nelectrons, dp), maxocc, flexible_electron_count=0.0_dp)
          CALL init_mo_set(mos_extended, fm_struct=wfn_fm_struct, name="mos-extended")
