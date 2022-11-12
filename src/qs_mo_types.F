@@ -209,11 +209,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nao, nmo, nelectron
       REAL(KIND=dp), INTENT(IN)                          :: n_el_f, maxocc, flexible_electron_count
 
-      IF (ASSOCIATED(mo_set)) THEN
-         CALL deallocate_mo_set(mo_set)
-      ELSE
-         ALLOCATE (mo_set)
-      END IF
+      IF (.NOT. ASSOCIATED(mo_set)) ALLOCATE (mo_set)
+      CALL deallocate_mo_set(mo_set)
 
       mo_set%maxocc = maxocc
       mo_set%nelectron = nelectron
