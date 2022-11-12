@@ -314,7 +314,7 @@ CONTAINS
 !>      10.2004 created [Joost VandeVondele]
 ! **************************************************************************************************
    SUBROUTINE mo_set_restrict(mo_array, convert_dbcsr)
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
+      TYPE(mo_set_p_type), DIMENSION(2), INTENT(IN)      :: mo_array
       LOGICAL, INTENT(in), OPTIONAL                      :: convert_dbcsr
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mo_set_restrict'
@@ -327,8 +327,6 @@ CONTAINS
       my_convert_dbcsr = .FALSE.
       IF (PRESENT(convert_dbcsr)) my_convert_dbcsr = convert_dbcsr
 
-      CPASSERT(ASSOCIATED(mo_array))
-      CPASSERT(SIZE(mo_array) .EQ. 2)
       CPASSERT(mo_array(1)%mo_set%nmo >= mo_array(2)%mo_set%nmo)
 
       ! first nmo_beta orbitals are copied from alpha to beta
@@ -397,7 +395,7 @@ CONTAINS
                          eigenvalues, occupation_numbers, mo_coeff, mo_coeff_b, &
                          uniform_occupation, kTS, mu, flexible_electron_count)
 
-      TYPE(mo_set_type)                                  :: mo_set
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: maxocc
       INTEGER, INTENT(OUT), OPTIONAL                     :: homo, lfomo, nao, nelectron
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: n_el_f
@@ -452,7 +450,7 @@ CONTAINS
                          eigenvalues, occupation_numbers, uniform_occupation, &
                          kTS, mu, flexible_electron_count)
 
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type), INTENT(INOUT)                   :: mo_set
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: maxocc
       INTEGER, INTENT(IN), OPTIONAL                      :: homo, lfomo, nao, nelectron
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: n_el_f
@@ -503,15 +501,13 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION has_uniform_occupation(mo_set, first_mo, last_mo, occupation, tolerance)
 
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       INTEGER, INTENT(IN), OPTIONAL                      :: first_mo, last_mo
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: occupation, tolerance
       LOGICAL                                            :: has_uniform_occupation
 
       INTEGER                                            :: my_first_mo, my_last_mo
       REAL(KIND=dp)                                      :: my_occupation, my_tolerance
-
-      CPASSERT(ASSOCIATED(mo_set))
 
       has_uniform_occupation = .FALSE.
 
