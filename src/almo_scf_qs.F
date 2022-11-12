@@ -601,6 +601,7 @@ CONTAINS
 
          ! Currently only fm version of mo_set is usable.
          ! First transform the matrix_t to fm version
+         IF (.NOT. ASSOCIATED(mos(ispin)%mo_set)) ALLOCATE (mos(ispin)%mo_set)
          CALL allocate_mo_set(mo_set=mos(ispin)%mo_set, &
                               nao=nrow_fm, &
                               nmo=ncol_fm, &

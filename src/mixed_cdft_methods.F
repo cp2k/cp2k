@@ -2101,7 +2101,7 @@ CONTAINS
       DO ispin = 1, nspins
          nao = nrow_mo(ispin)
          nmo = ncol_mo(ispin)
-         NULLIFY (mo_set(ispin)%mo_set)
+         ALLOCATE (mo_set(ispin)%mo_set)
          ! Only OT with fully occupied orbitals is implicitly supported
          CALL allocate_mo_set(mo_set(ispin)%mo_set, nao=nao, nmo=nmo, nelectron=INT(maxocc*nmo), &
                               n_el_f=REAL(maxocc*nmo, dp), maxocc=maxocc, &

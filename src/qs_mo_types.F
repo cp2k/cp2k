@@ -205,11 +205,10 @@ CONTAINS
    SUBROUTINE allocate_mo_set(mo_set, nao, nmo, nelectron, n_el_f, maxocc, &
                               flexible_electron_count)
 
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type), INTENT(INOUT)                   :: mo_set
       INTEGER, INTENT(IN)                                :: nao, nmo, nelectron
       REAL(KIND=dp), INTENT(IN)                          :: n_el_f, maxocc, flexible_electron_count
 
-      IF (.NOT. ASSOCIATED(mo_set)) ALLOCATE (mo_set)
       CALL deallocate_mo_set(mo_set)
 
       mo_set%maxocc = maxocc

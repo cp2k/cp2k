@@ -1004,7 +1004,7 @@ CONTAINS
             nto_name(2) = 'Particle_states'
             ALLOCATE (nto_set(2))
             DO i = 1, 2
-               NULLIFY (nto_set(i)%mo_set)
+               ALLOCATE (nto_set(i)%mo_set)
                CALL allocate_mo_set(nto_set(i)%mo_set, nao, ntomax, 0, 0.0_dp, 1.0_dp, 0.0_dp)
                ev => evects(1, istate)%matrix
                CALL cp_fm_get_info(ev, matrix_struct=fm_struct)

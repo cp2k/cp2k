@@ -354,7 +354,7 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
 
          CALL get_mo_set(mo_set=mos(ispin)%mo_set, maxocc=maxocc, nelectron=nelec(ispin))
 
-         NULLIFY (mos_mp2(ispin)%mo_set)
+         ALLOCATE (mos_mp2(ispin)%mo_set)
          CALL allocate_mo_set(mo_set=mos_mp2(ispin)%mo_set, &
                               nao=nao, &
                               nmo=nao, &

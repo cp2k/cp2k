@@ -325,7 +325,7 @@ CONTAINS
          CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
          CALL get_qs_kind_set(qs_kind_set, nsgf=nao, basis_type=basis_type)
          DO ispin = 1, nspins
-            NULLIFY (mos_aux(ispin)%mo_set)
+            ALLOCATE (mos_aux(ispin)%mo_set)
             CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, maxocc=maxocc, nelectron=nelectron, &
                             n_el_f=n_el_f, nmo=nmo, flexible_electron_count=flexible_electron_count)
             CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nmo, &

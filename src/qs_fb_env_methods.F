@@ -316,7 +316,7 @@ CONTAINS
                          maxocc=maxocc, &
                          nelectron=nelectron, &
                          flexible_electron_count=flexible_electron_count)
-         NULLIFY (mos_filtered(ispin)%mo_set)
+         ALLOCATE (mos_filtered(ispin)%mo_set)
          CALL allocate_mo_set(mo_set=mos_filtered(ispin)%mo_set, &
                               nao=filtered_nfullrowsORcols_total, &
                               nmo=filtered_nfullrowsORcols_total, &

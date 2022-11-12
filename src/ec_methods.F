@@ -226,7 +226,7 @@ CONTAINS
       ! Allocate MO set
       ALLOCATE (mos(nspins))
       DO ispin = 1, nspins
-         NULLIFY (mos(ispin)%mo_set)
+         ALLOCATE (mos(ispin)%mo_set)
          CALL allocate_mo_set(mo_set=mos(ispin)%mo_set, &
                               nao=n_ao, &
                               nmo=n_mo(ispin), &

@@ -1529,7 +1529,7 @@ CONTAINS
       END IF
 
       ! Memory allocation
-      NULLIFY (ec%block(id)%mo(spin)%mo_set)
+      ALLOCATE (ec%block(id)%mo(spin)%mo_set)
       CALL allocate_mo_set(ec%block(id)%mo(spin)%mo_set, n_ao, n_mo, n_el, REAL(n_el, dp), mx_occ, 0.0_dp)
       mo => ec%block(id)%mo(spin)%mo_set
 

@@ -219,7 +219,7 @@ CONTAINS
          ALLOCATE (mos_aux_fit(dft_control%nspins))
          DO ispin = 1, dft_control%nspins
             CALL get_mo_set(mo_set=mos(ispin)%mo_set, nmo=nmo, nelectron=nelectron, maxocc=maxocc)
-            NULLIFY (mos_aux_fit(ispin)%mo_set)
+            ALLOCATE (mos_aux_fit(ispin)%mo_set)
             CALL allocate_mo_set(mo_set=mos_aux_fit(ispin)%mo_set, &
                                  nao=nao_aux_fit, &
                                  nmo=nmo, &

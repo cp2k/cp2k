@@ -470,7 +470,7 @@ CONTAINS
                                   n_el_f=n_el_f, maxocc=maxocc, flexible_electron_count=flexible_electron_count)
                   nmo = MIN(nao, nmo + nadd)
                   DO ic = 1, nc
-                     NULLIFY (kp%mos(ic, is)%mo_set)
+                     ALLOCATE (kp%mos(ic, is)%mo_set)
                      CALL allocate_mo_set(kp%mos(ic, is)%mo_set, nao, nmo, nelectron, n_el_f, maxocc, &
                                           flexible_electron_count)
                   END DO

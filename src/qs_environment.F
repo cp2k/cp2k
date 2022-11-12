@@ -1539,7 +1539,7 @@ CONTAINS
       ELSE
          ALLOCATE (mos(dft_control%nspins))
          DO ispin = 1, dft_control%nspins
-            NULLIFY (mos(ispin)%mo_set)
+            ALLOCATE (mos(ispin)%mo_set)
             CALL allocate_mo_set(mo_set=mos(ispin)%mo_set, &
                                  nao=n_ao, &
                                  nmo=n_mo(ispin), &
@@ -1556,7 +1556,7 @@ CONTAINS
       IF (dft_control%switch_surf_dip) THEN
          ALLOCATE (mos_last_converged(dft_control%nspins))
          DO ispin = 1, dft_control%nspins
-            NULLIFY (mos_last_converged(ispin)%mo_set)
+            ALLOCATE (mos_last_converged(ispin)%mo_set)
             CALL allocate_mo_set(mo_set=mos_last_converged(ispin)%mo_set, &
                                  nao=n_ao, &
                                  nmo=n_mo(ispin), &

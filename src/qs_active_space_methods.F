@@ -409,14 +409,14 @@ CONTAINS
       ! ALLOCATE (active_space_env%mos_inactive(nspins))
       ! DO ispin = 1, nspins
       !    nmo = nao
-      !    NULLIFY (mo_set)
+      !    ALLOCATE (mo_set)
       !    CALL allocate_mo_set(mo_set, nao, nmo, 0, 0.0_dp, maxocc, 0.0_dp)
       !    CALL init_mo_set(mo_set, fm_ref=fm_ref, name="Active Space MO")
       !    active_space_env%mos_active(ispin)%mo_set => mo_set
       !    mo_set => active_space_env%mos_inactive(ispin)%mo_set
       !    nmo = nao
       !    nel = active_space_env%nelec_inactive_spinwise(ispin)
-      !    NULLIFY (mo_set)
+      !    ALLOCATE (mo_set)
       !    CALL allocate_mo_set(mo_set, nao, nmo, nel, REAL(nel, KIND=dp), maxocc, 0.0_dp)
       !    CALL init_mo_set(mo_set, fm_ref=fm_ref, name="Inactive Space MO")
       !    active_space_env%mos_inactive(ispin)%mo_set => mo_set
@@ -536,7 +536,7 @@ CONTAINS
          ALLOCATE (active_space_env%mos_active(nspins))
          ALLOCATE (active_space_env%mos_inactive(nspins))
          DO ispin = 1, nspins
-            NULLIFY (mo_set)
+            ALLOCATE (mo_set)
             CALL allocate_mo_set(mo_set, nao, nmo, 0, 0.0_dp, maxocc, 0.0_dp)
             CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
                                      nrow_global=nrow_global, ncol_global=nmo)
@@ -544,7 +544,7 @@ CONTAINS
             CALL cp_fm_struct_release(fm_struct_tmp)
             active_space_env%mos_active(ispin)%mo_set => mo_set
             nel = active_space_env%nelec_inactive_spinwise(ispin)
-            NULLIFY (mo_set)
+            ALLOCATE (mo_set)
             CALL allocate_mo_set(mo_set, nao, nmo, nel, REAL(nel, KIND=dp), maxocc, 0.0_dp)
             CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
                                      nrow_global=nrow_global, ncol_global=nmo)
@@ -712,7 +712,7 @@ CONTAINS
                CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=fm_ref, nao=nao, nmo=nmo)
                CALL cp_fm_get_info(fm_ref, context=context, para_env=para_env, &
                                    nrow_global=nrow_global)
-               NULLIFY (mo_set)
+               ALLOCATE (mo_set)
                CALL allocate_mo_set(mo_set, nao, max_orb_ind, 0, 0.0_dp, maxocc, 0.0_dp)
                CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
                                         nrow_global=nrow_global, ncol_global=max_orb_ind)
@@ -721,7 +721,7 @@ CONTAINS
                active_space_env%mos_active(ispin)%mo_set => mo_set
                mo_set => active_space_env%mos_inactive(ispin)%mo_set
                nel = active_space_env%nelec_inactive_spinwise(ispin)
-               NULLIFY (mo_set)
+               ALLOCATE (mo_set)
                CALL allocate_mo_set(mo_set, nao, max_orb_ind, nel, REAL(nel, KIND=dp), maxocc, 0.0_dp)
                CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
                                         nrow_global=nrow_global, ncol_global=max_orb_ind)
