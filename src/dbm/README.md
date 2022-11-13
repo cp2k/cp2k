@@ -17,11 +17,15 @@ typedef struct {
 } dbm_block_t;
 ```
 
-To allow for efficient OpenMP parallelism the blocks are
-[sharded](<https://en.wikipedia.org/wiki/Shard_(database_architecture)>) via round-robin:
+To allow for efficient OpenMP parallelism the blocks are [sharded](<https://en.wikipedia.org/wiki/Shard_(database_architecture)>)
+across threads similar to how they are distributed across MPI ranks:
 
 ```C
-const int ishard = row % matrix->nshards;
+int dbm_get_shard_index(const dbm_matrix_t *matrix, const int row, const int col) {
+  const int shard_row = row % matrix->dist->rows.nshards;
+  const int shard_col = col % matrix->dist->cols.nshards;
+  return shard_row * matrix->dist->cols.nshards + shard_col;
+}
 ```
 
 ## MPI Communication

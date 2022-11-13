@@ -172,11 +172,9 @@ dbm_block_t *dbm_shard_promise_new_block(dbm_shard_t *shard, const int row,
                                          const int col, const int block_size) {
   // Grow blocks array if nessecary.
   if (shard->nblocks_allocated < shard->nblocks + 1) {
-    dbm_block_t *old_blocks = shard->blocks;
     shard->nblocks_allocated = ALLOCATION_FACTOR * (shard->nblocks + 1);
-    shard->blocks = malloc(shard->nblocks_allocated * sizeof(dbm_block_t));
-    memcpy(shard->blocks, old_blocks, shard->nblocks * sizeof(dbm_block_t));
-    free(old_blocks);
+    shard->blocks =
+        realloc(shard->blocks, shard->nblocks_allocated * sizeof(dbm_block_t));
 
     // rebuild hashtable
     free(shard->hashtable);
@@ -206,11 +204,8 @@ void dbm_shard_allocate_promised_blocks(dbm_shard_t *shard) {
 
   // Reallocate data array if nessecary.
   if (shard->data_promised > shard->data_allocated) {
-    double *old_data = shard->data;
     shard->data_allocated = ALLOCATION_FACTOR * shard->data_promised;
-    shard->data = malloc(shard->data_allocated * sizeof(double));
-    memcpy(shard->data, old_data, shard->data_size * sizeof(double));
-    free(old_data);
+    shard->data = realloc(shard->data, shard->data_allocated * sizeof(double));
   }
 
   // Zero new blocks.
