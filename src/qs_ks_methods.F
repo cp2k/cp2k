@@ -896,7 +896,7 @@ CONTAINS
                      energy%dft_plus_u + energy%kTS + &
                      energy%efield + energy%efield_core + energy%ee + &
                      energy%ee_core + energy%exc_aux_fit + energy%image_charge + &
-                     energy%sccs_pol + energy%sccs_mpc + energy%cdft + energy%exc1_aux_fit
+                     energy%sccs_pol + energy%cdft + energy%exc1_aux_fit
 
       IF (dft_control%apply_embed_pot) energy%total = energy%total + energy%embed_corr
 
