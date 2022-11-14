@@ -81,7 +81,6 @@ MODULE mp2
                                               deallocate_mo_set,&
                                               get_mo_set,&
                                               init_mo_set,&
-                                              mo_set_p_type,&
                                               mo_set_type
    USE qs_scf_methods,                  ONLY: eigensolver,&
                                               eigensolver_symm
@@ -147,7 +146,7 @@ CONTAINS
       TYPE(hfx_container_type), POINTER                  :: maxval_container
       TYPE(hfx_type), POINTER                            :: actual_x_data
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos_mp2
+      TYPE(mo_set_type), ALLOCATABLE, DIMENSION(:)       :: mos_mp2
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp2_biel_type)                                :: mp2_biel
       TYPE(mp2_type), POINTER                            :: mp2_env
@@ -338,7 +337,6 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
          cholesky_method = cholesky_inverse
       END IF
 
-      NULLIFY (mos_mp2)
       ALLOCATE (mos_mp2(nspins))
       ALLOCATE (nelec(nspins))
       DO ispin = 1, nspins
@@ -356,8 +354,7 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
 
          CALL get_mo_set(mo_set=mos(ispin), maxocc=maxocc, nelectron=nelec(ispin))
 
-         ALLOCATE (mos_mp2(ispin)%mo_set)
-         CALL allocate_mo_set(mo_set=mos_mp2(ispin)%mo_set, &
+         CALL allocate_mo_set(mo_set=mos_mp2(ispin), &
                               nao=nao, &
                               nmo=nao, &
                               nelectron=nelec(ispin), &
@@ -365,12 +362,12 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
                               maxocc=maxocc, &
                               flexible_electron_count=dft_control%relax_multiplicity)
 
-         CALL get_mo_set(mos_mp2(ispin)%mo_set, nao=nao)
+         CALL get_mo_set(mos_mp2(ispin), nao=nao)
          CALL cp_fm_struct_create(fm_struct, nrow_global=nao, &
                                   ncol_global=nao, para_env=para_env, &
                                   context=blacs_env)
 
-         CALL init_mo_set(mos_mp2(ispin)%mo_set, &
+         CALL init_mo_set(mos_mp2(ispin), &
                           fm_struct=fm_struct, &
                           name="mp2_mos")
          CALL cp_fm_struct_release(fm_struct)
@@ -379,7 +376,7 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
 
             ! diagonalize KS matrix
             CALL eigensolver(matrix_ks_fm=fm_matrix_ks, &
-                             mo_set=mos_mp2(ispin)%mo_set, &
+                             mo_set=mos_mp2(ispin), &
                              ortho=fm_matrix_s, &
                              work=fm_matrix_work, &
                              cholesky_method=cholesky_method, &
@@ -390,7 +387,7 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
          ELSE IF (cholesky_method == cholesky_off) THEN
 
             CALL eigensolver_symm(matrix_ks_fm=fm_matrix_ks, &
-                                  mo_set=mos_mp2(ispin)%mo_set, &
+                                  mo_set=mos_mp2(ispin), &
                                   ortho=fm_matrix_s, &
                                   work=fm_matrix_work, &
                                   do_level_shift=.FALSE., &
@@ -480,7 +477,7 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
 
          DO ispin = 1, nspins
             ! get the alpha coeff and eigenvalues
-            CALL get_mo_set(mo_set=mos_mp2(ispin)%mo_set, &
+            CALL get_mo_set(mo_set=mos_mp2(ispin), &
                             eigenvalues=mo_eigenvalues, &
                             mo_coeff=mo_coeff)
 
@@ -552,7 +549,7 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
 
          DO ispin = 1, nspins
             ! get the alpha coeff and eigenvalues
-            CALL get_mo_set(mo_set=mos_mp2(ispin)%mo_set, &
+            CALL get_mo_set(mo_set=mos_mp2(ispin), &
                             eigenvalues=mo_eigenvalues, &
                             mo_coeff=mo_coeff)
 
@@ -684,8 +681,7 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
       energy%total = energy%total + Emp2
 
       DO ispin = 1, nspins
-         CALL deallocate_mo_set(mo_set=mos_mp2(ispin)%mo_set)
-         DEALLOCATE (mos_mp2(ispin)%mo_set)
+         CALL deallocate_mo_set(mo_set=mos_mp2(ispin))
       END DO
       DEALLOCATE (mos_mp2)
 

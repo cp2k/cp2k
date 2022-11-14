@@ -88,7 +88,6 @@ MODULE mp2_gpw
                                               qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type,&
                                               mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
                                               release_neighbor_list_sets
@@ -136,7 +135,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp2_type)                                     :: mp2_env
       REAL(KIND=dp), INTENT(OUT)                         :: Emp2, Emp2_Cou, Emp2_EX, Emp2_S, Emp2_T
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos_mp2
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos_mp2
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: unit_nr
       LOGICAL, INTENT(IN)                                :: calc_forces, calc_ex
@@ -235,11 +234,11 @@ CONTAINS
       ELSE
          CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, mos=mos)
       END IF
-      CALL get_mo_set(mo_set=mos_mp2(1)%mo_set, nao=dimen)
+      CALL get_mo_set(mo_set=mos_mp2(1), nao=dimen)
       NULLIFY (mo_coeff)
       ALLOCATE (homo(nspins), Eigenval(dimen, nspins), mo_coeff(nspins))
       DO ispin = 1, nspins
-         CALL get_mo_set(mo_set=mos_mp2(ispin)%mo_set, &
+         CALL get_mo_set(mo_set=mos_mp2(ispin), &
                          eigenvalues=mo_eigenvalues, nmo=nmo, homo=homo(ispin), &
                          mo_coeff=mo_coeff(ispin)%matrix)
          Eigenval(:, ispin) = mo_eigenvalues(:)

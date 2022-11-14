@@ -72,7 +72,6 @@ MODULE rpa_gw_sigma_x
    USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type,&
                                               mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
@@ -114,7 +113,7 @@ CONTAINS
    SUBROUTINE compute_vec_Sigma_x_minus_vxc_gw(qs_env, mp2_env, mos_mp2, energy_ex, energy_xc_admm, t3, unit_nr)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp2_type)                                     :: mp2_env
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos_mp2
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos_mp2
       REAL(KIND=dp), INTENT(OUT)                         :: energy_ex, energy_xc_admm(2), t3
       INTEGER, INTENT(IN)                                :: unit_nr
 
@@ -519,7 +518,7 @@ CONTAINS
          ! Transform matrix_sigma_x_minus_vxc to MO basis
          DO ispin = 1, nspins
 
-            CALL get_mo_set(mo_set=mos_mp2(ispin)%mo_set, &
+            CALL get_mo_set(mo_set=mos_mp2(ispin), &
                             mo_coeff=mo_coeff, &
                             nmo=nmo, &
                             homo=homo, &
