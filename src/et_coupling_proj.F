@@ -1525,7 +1525,8 @@ CONTAINS
          END IF
       END IF
 
-      ! Memory allocation
+      ! Memory allocation (Use deallocate_mo_set to prevent accidental memory leaks)
+      CALL deallocate_mo_set(ec%block(id)%mo(spin))
       CALL allocate_mo_set(ec%block(id)%mo(spin), n_ao, n_mo, n_el, REAL(n_el, dp), mx_occ, 0.0_dp)
       mo => ec%block(id)%mo(spin)
 

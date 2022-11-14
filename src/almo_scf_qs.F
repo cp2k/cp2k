@@ -63,6 +63,7 @@ MODULE almo_scf_qs
                                               qs_ks_env_type,&
                                               set_ks_env
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
+                                              deallocate_mo_set,&
                                               init_mo_set,&
                                               mo_set_type
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
@@ -601,6 +602,8 @@ CONTAINS
 
          ! Currently only fm version of mo_set is usable.
          ! First transform the matrix_t to fm version
+         ! Empty the containers to prevent memory leaks
+         CALL deallocate_mo_set(mos(ispin))
          CALL allocate_mo_set(mo_set=mos(ispin), &
                               nao=nrow_fm, &
                               nmo=ncol_fm, &
