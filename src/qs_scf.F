@@ -132,7 +132,6 @@ MODULE qs_scf
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                               duplicate_mo_set,&
                                               get_mo_set,&
-                                              mo_set_p_type,&
                                               mo_set_type,&
                                               reassign_allocated_mos
    USE qs_ot,                           ONLY: qs_ot_new_preconditioner
@@ -1238,7 +1237,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_rmpv
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos_stashed
+      TYPE(mo_set_type), ALLOCATABLE, DIMENSION(:)       :: mos_stashed
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(qs_energy_type), POINTER                      :: energy_qs
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -1246,7 +1245,7 @@ CONTAINS
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
 
-      NULLIFY (energy, gradient, p_rmpv, rho_ao_kp, mos, rho, mos_stashed, &
+      NULLIFY (energy, gradient, p_rmpv, rho_ao_kp, mos, rho, &
                ks_env, scf_env, scf_control, dft_control, cdft_control, &
                inv_jacobian, para_env, tmp_logger, energy_qs)
       logger => cp_get_default_logger()
@@ -1287,8 +1286,7 @@ CONTAINS
             nspins = dft_control%nspins
             ALLOCATE (mos_stashed(nspins))
             DO ispin = 1, nspins
-               ALLOCATE (mos_stashed(ispin)%mo_set)
-               CALL duplicate_mo_set(mos_stashed(ispin)%mo_set, mos(ispin))
+               CALL duplicate_mo_set(mos_stashed(ispin), mos(ispin))
             END DO
             CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
             p_rmpv => rho_ao_kp(:, 1)
@@ -1360,7 +1358,7 @@ CONTAINS
                   cdft_control%total_steps = nsteps
                   DO ispin = 1, nspins
                      CALL deallocate_mo_set(mos(ispin))
-                     CALL duplicate_mo_set(mos(ispin), mos_stashed(ispin)%mo_set)
+                     CALL duplicate_mo_set(mos(ispin), mos_stashed(ispin))
                      CALL calculate_density_matrix(mos(ispin), &
                                                    p_rmpv(ispin)%matrix)
                   END DO
@@ -1383,8 +1381,7 @@ CONTAINS
             scf_control%outer_scf%cdft_opt_control%broyden_update = .FALSE.
             ! Release temporary storage
             DO ispin = 1, nspins
-               CALL deallocate_mo_set(mos_stashed(ispin)%mo_set)
-               DEALLOCATE (mos_stashed(ispin)%mo_set)
+               CALL deallocate_mo_set(mos_stashed(ispin))
             END DO
             DEALLOCATE (mos_stashed, jacobian, gradient, energy, coeff, step_multiplier, dh)
             IF (output_unit > 0) THEN
@@ -1437,7 +1434,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_rmpv
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos_ls, mos_stashed
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(qs_energy_type), POINTER                      :: energy_qs
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -1448,9 +1444,9 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (energy, gradient, p_rmpv, rho_ao_kp, mos, rho, &
-               mos_stashed, ks_env, scf_env, scf_control, dft_control, &
+               ks_env, scf_env, scf_control, dft_control, &
                cdft_control, inv_jacobian, para_env, &
-               tmp_logger, energy_qs, mos_ls)
+               tmp_logger, energy_qs)
       logger => cp_get_default_logger()
 
       CPASSERT(ASSOCIATED(qs_env))
@@ -1479,222 +1475,220 @@ CONTAINS
          END SELECT
       END SELECT
       IF (do_linesearch) THEN
-         cdft_control => dft_control%qs_control%cdft_control
-         IF (.NOT. ASSOCIATED(cdft_control)) &
-            CALL cp_abort(__LOCATION__, &
-                          "Optimizers that perform a line search can"// &
-                          " only be used together with a valid CDFT constraint")
-         CPASSERT(ASSOCIATED(scf_env%outer_scf%inv_jacobian))
-         CPASSERT(ASSOCIATED(scf_control%outer_scf%cdft_opt_control))
-         alpha = scf_control%outer_scf%cdft_opt_control%newton_step_save
-         iter_count = scf_env%outer_scf%iter_count
-         ! Redirect output from line search procedure to a new file by creating a temporary logger
-         project_name = logger%iter_info%project_name
-         CALL create_tmp_logger(para_env, project_name, "-LineSearch.out", output_unit, tmp_logger)
-         ! Save last converged state so we can roll back to it (mo_coeff and some outer_loop variables)
-         nspins = dft_control%nspins
-         ALLOCATE (mos_stashed(nspins))
-         DO ispin = 1, nspins
-            ALLOCATE (mos_stashed(ispin)%mo_set)
-            CALL duplicate_mo_set(mos_stashed(ispin)%mo_set, mos(ispin))
-         END DO
-         CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
-         p_rmpv => rho_ao_kp(:, 1)
-         nsteps = cdft_control%total_steps
-         ! Allocate work
-         nvar = SIZE(scf_env%outer_scf%variables, 1)
-         max_scf = scf_control%outer_scf%max_scf + 1
-         max_linesearch = scf_control%outer_scf%cdft_opt_control%max_ls
-         continue_ls = scf_control%outer_scf%cdft_opt_control%continue_ls
-         factor = scf_control%outer_scf%cdft_opt_control%factor_ls
-         continue_ls_exit = .FALSE.
-         found_solution = .FALSE.
-         ALLOCATE (gradient(nvar, max_scf))
-         gradient = scf_env%outer_scf%gradient
-         ALLOCATE (energy(max_scf))
-         energy = scf_env%outer_scf%energy
-         reached_maxls = .FALSE.
-         ! Broyden optimizers: perform update of inv_jacobian if necessary
-         IF (scf_control%outer_scf%cdft_opt_control%broyden_update) THEN
-            CALL outer_loop_optimize(scf_env, scf_control)
-            ! Reset the variables and prevent a reupdate of inv_jacobian
-            scf_env%outer_scf%variables(:, iter_count + 1) = 0
-            scf_control%outer_scf%cdft_opt_control%broyden_update = .FALSE.
-         END IF
-         ! Print some info
-         IF (output_unit > 0) THEN
-            WRITE (output_unit, FMT="(/,A)") &
-               " ================================== LINE SEARCH STARTED  =================================="
-            WRITE (output_unit, FMT="(A,I5,A)") &
-               " Evaluating optimal step size for optimizer using a maximum of", max_linesearch, " steps"
-            IF (continue_ls) THEN
-               WRITE (output_unit, FMT="(A)") &
-                  " Line search continues until best step size is found or max steps are reached"
+         BLOCK
+            TYPE(mo_set_type), DIMENSION(:), ALLOCATABLE :: mos_ls, mos_stashed
+            cdft_control => dft_control%qs_control%cdft_control
+            IF (.NOT. ASSOCIATED(cdft_control)) &
+               CALL cp_abort(__LOCATION__, &
+                             "Optimizers that perform a line search can"// &
+                             " only be used together with a valid CDFT constraint")
+            CPASSERT(ASSOCIATED(scf_env%outer_scf%inv_jacobian))
+            CPASSERT(ASSOCIATED(scf_control%outer_scf%cdft_opt_control))
+            alpha = scf_control%outer_scf%cdft_opt_control%newton_step_save
+            iter_count = scf_env%outer_scf%iter_count
+            ! Redirect output from line search procedure to a new file by creating a temporary logger
+            project_name = logger%iter_info%project_name
+            CALL create_tmp_logger(para_env, project_name, "-LineSearch.out", output_unit, tmp_logger)
+            ! Save last converged state so we can roll back to it (mo_coeff and some outer_loop variables)
+            nspins = dft_control%nspins
+            ALLOCATE (mos_stashed(nspins))
+            DO ispin = 1, nspins
+               CALL duplicate_mo_set(mos_stashed(ispin), mos(ispin))
+            END DO
+            CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
+            p_rmpv => rho_ao_kp(:, 1)
+            nsteps = cdft_control%total_steps
+            ! Allocate work
+            nvar = SIZE(scf_env%outer_scf%variables, 1)
+            max_scf = scf_control%outer_scf%max_scf + 1
+            max_linesearch = scf_control%outer_scf%cdft_opt_control%max_ls
+            continue_ls = scf_control%outer_scf%cdft_opt_control%continue_ls
+            factor = scf_control%outer_scf%cdft_opt_control%factor_ls
+            continue_ls_exit = .FALSE.
+            found_solution = .FALSE.
+            ALLOCATE (gradient(nvar, max_scf))
+            gradient = scf_env%outer_scf%gradient
+            ALLOCATE (energy(max_scf))
+            energy = scf_env%outer_scf%energy
+            reached_maxls = .FALSE.
+            ! Broyden optimizers: perform update of inv_jacobian if necessary
+            IF (scf_control%outer_scf%cdft_opt_control%broyden_update) THEN
+               CALL outer_loop_optimize(scf_env, scf_control)
+               ! Reset the variables and prevent a reupdate of inv_jacobian
+               scf_env%outer_scf%variables(:, iter_count + 1) = 0
+               scf_control%outer_scf%cdft_opt_control%broyden_update = .FALSE.
             END IF
-            WRITE (output_unit, '(/,A,F5.3)') &
-               " Initial step size: ", alpha
-            WRITE (output_unit, '(/,A,F5.3)') &
-               " Step size update factor: ", factor
-            WRITE (output_unit, '(/,A,I10,A,I10)') &
-               " Energy evaluation: ", cdft_control%ienergy, ", CDFT SCF iteration: ", iter_count
-         END IF
-         ! Perform backtracking line search
-         CALL cp_add_default_logger(tmp_logger)
-         DO i = 1, max_linesearch
+            ! Print some info
             IF (output_unit > 0) THEN
-               WRITE (output_unit, FMT="(A)") " "
-               WRITE (output_unit, FMT="(A)") " #####################################"
-               WRITE (output_unit, '(A,I10,A)') &
-                  " ###  Line search step: ", i, " ###"
-               WRITE (output_unit, FMT="(A)") " #####################################"
-            END IF
-            inv_jacobian => scf_env%outer_scf%inv_jacobian
-            ! Newton update of CDFT variables with a step size of alpha
-            scf_env%outer_scf%variables(:, iter_count + 1) = scf_env%outer_scf%variables(:, iter_count) - alpha* &
-                                                             MATMUL(inv_jacobian, scf_env%outer_scf%gradient(:, iter_count))
-            ! With updated CDFT variables, perform SCF
-            CALL outer_loop_update_qs_env(qs_env, scf_env)
-            CALL qs_ks_did_change(ks_env, potential_changed=.TRUE.)
-            CALL outer_loop_switch(scf_env, scf_control, cdft_control, cdft2ot)
-            CALL scf_env_do_scf(scf_env=scf_env, scf_control=scf_control, qs_env=qs_env, &
-                                converged=converged, should_stop=should_stop, total_scf_steps=tsteps)
-            CALL outer_loop_switch(scf_env, scf_control, cdft_control, ot2cdft)
-            ! Update (iter_count + 1) element of gradient and print constraint info
-            scf_env%outer_scf%iter_count = scf_env%outer_scf%iter_count + 1
-            CALL outer_loop_gradient(qs_env, scf_env)
-            CALL qs_scf_cdft_info(output_unit, scf_control, scf_env, cdft_control, &
-                                  energy_qs, cdft_control%total_steps, &
-                                  should_stop=.FALSE., outer_loop_converged=.FALSE., cdft_loop=.FALSE.)
-            scf_env%outer_scf%iter_count = scf_env%outer_scf%iter_count - 1
-            ! Store sign of initial gradient for each variable for continue_ls
-            IF (continue_ls .AND. .NOT. ALLOCATED(positive_sign)) THEN
-               ALLOCATE (positive_sign(nvar))
-               DO ispin = 1, nvar
-                  positive_sign(ispin) = scf_env%outer_scf%gradient(ispin, iter_count + 1) .GE. 0.0_dp
-               END DO
-            END IF
-            ! Check if the L2 norm of the gradient decreased
-            inv_jacobian => scf_env%outer_scf%inv_jacobian
-            IF (dnrm2(nvar, scf_env%outer_scf%gradient(:, iter_count + 1), 1) .LT. &
-                dnrm2(nvar, scf_env%outer_scf%gradient(:, iter_count), 1)) THEN
-               ! Optimal step size found
-               IF (.NOT. continue_ls) THEN
-                  should_exit = .TRUE.
-               ELSE
-                  ! But line search continues for at least one more iteration in an attempt to find a better solution
-                  ! if max number of steps is not exceeded
-                  IF (found_solution) THEN
-                     ! Check if the norm also decreased w.r.t. to previously found solution
-                     IF (dnrm2(nvar, scf_env%outer_scf%gradient(:, iter_count + 1), 1) .GT. norm_ls) THEN
-                        ! Norm increased => accept previous solution and exit
-                        continue_ls_exit = .TRUE.
-                     END IF
-                  END IF
-                  ! Store current state and the value of alpha
-                  IF (.NOT. continue_ls_exit) THEN
-                     should_exit = .FALSE.
-                     alpha_ls = alpha
-                     found_solution = .TRUE.
-                     norm_ls = dnrm2(nvar, scf_env%outer_scf%gradient(:, iter_count + 1), 1)
-                     ! Check if the sign of the gradient has changed for all variables (w.r.t initial gradient)
-                     ! In this case we should exit because further line search steps will just increase the norm
-                     sign_changed = .TRUE.
-                     DO ispin = 1, nvar
-                        sign_changed = sign_changed .AND. (positive_sign(ispin) .NEQV. &
-                                                           scf_env%outer_scf%gradient(ispin, iter_count + 1) .GE. 0.0_dp)
-                     END DO
-                     IF (.NOT. ASSOCIATED(mos_ls)) THEN
-                        ALLOCATE (mos_ls(nspins))
-                     ELSE
-                        DO ispin = 1, nspins
-                           CALL deallocate_mo_set(mos_ls(ispin)%mo_set)
-                           DEALLOCATE (mos_ls(ispin)%mo_set)
-                        END DO
-                     END IF
-                     DO ispin = 1, nspins
-                        ALLOCATE (mos_ls(ispin)%mo_set)
-                        CALL duplicate_mo_set(mos_ls(ispin)%mo_set, mos(ispin))
-                     END DO
-                     alpha = alpha*factor
-                     ! Exit on last iteration
-                     IF (i == max_linesearch) continue_ls_exit = .TRUE.
-                     ! Exit if constraint target is satisfied to requested tolerance
-                     IF (SQRT(MAXVAL(scf_env%outer_scf%gradient(:, scf_env%outer_scf%iter_count + 1)**2)) .LT. &
-                         scf_control%outer_scf%eps_scf) &
-                        continue_ls_exit = .TRUE.
-                     ! Exit if line search jumped over the optimal step length
-                     IF (sign_changed) continue_ls_exit = .TRUE.
-                  END IF
+               WRITE (output_unit, FMT="(/,A)") &
+                  " ================================== LINE SEARCH STARTED  =================================="
+               WRITE (output_unit, FMT="(A,I5,A)") &
+                  " Evaluating optimal step size for optimizer using a maximum of", max_linesearch, " steps"
+               IF (continue_ls) THEN
+                  WRITE (output_unit, FMT="(A)") &
+                     " Line search continues until best step size is found or max steps are reached"
                END IF
-            ELSE
-               ! Gradient increased => alpha is too large (if the gradient function is smooth)
-               should_exit = .FALSE.
-               ! Update alpha using Armijo's scheme
-               alpha = alpha*factor
+               WRITE (output_unit, '(/,A,F5.3)') &
+                  " Initial step size: ", alpha
+               WRITE (output_unit, '(/,A,F5.3)') &
+                  " Step size update factor: ", factor
+               WRITE (output_unit, '(/,A,I10,A,I10)') &
+                  " Energy evaluation: ", cdft_control%ienergy, ", CDFT SCF iteration: ", iter_count
             END IF
-            IF (continue_ls_exit) THEN
-               ! Continuation of line search did not yield a better alpha, use previously located solution and exit
-               alpha = alpha_ls
+            ! Perform backtracking line search
+            CALL cp_add_default_logger(tmp_logger)
+            DO i = 1, max_linesearch
+               IF (output_unit > 0) THEN
+                  WRITE (output_unit, FMT="(A)") " "
+                  WRITE (output_unit, FMT="(A)") " #####################################"
+                  WRITE (output_unit, '(A,I10,A)') &
+                     " ###  Line search step: ", i, " ###"
+                  WRITE (output_unit, FMT="(A)") " #####################################"
+               END IF
+               inv_jacobian => scf_env%outer_scf%inv_jacobian
+               ! Newton update of CDFT variables with a step size of alpha
+               scf_env%outer_scf%variables(:, iter_count + 1) = scf_env%outer_scf%variables(:, iter_count) - alpha* &
+                                                                MATMUL(inv_jacobian, scf_env%outer_scf%gradient(:, iter_count))
+               ! With updated CDFT variables, perform SCF
+               CALL outer_loop_update_qs_env(qs_env, scf_env)
+               CALL qs_ks_did_change(ks_env, potential_changed=.TRUE.)
+               CALL outer_loop_switch(scf_env, scf_control, cdft_control, cdft2ot)
+               CALL scf_env_do_scf(scf_env=scf_env, scf_control=scf_control, qs_env=qs_env, &
+                                   converged=converged, should_stop=should_stop, total_scf_steps=tsteps)
+               CALL outer_loop_switch(scf_env, scf_control, cdft_control, ot2cdft)
+               ! Update (iter_count + 1) element of gradient and print constraint info
+               scf_env%outer_scf%iter_count = scf_env%outer_scf%iter_count + 1
+               CALL outer_loop_gradient(qs_env, scf_env)
+               CALL qs_scf_cdft_info(output_unit, scf_control, scf_env, cdft_control, &
+                                     energy_qs, cdft_control%total_steps, &
+                                     should_stop=.FALSE., outer_loop_converged=.FALSE., cdft_loop=.FALSE.)
+               scf_env%outer_scf%iter_count = scf_env%outer_scf%iter_count - 1
+               ! Store sign of initial gradient for each variable for continue_ls
+               IF (continue_ls .AND. .NOT. ALLOCATED(positive_sign)) THEN
+                  ALLOCATE (positive_sign(nvar))
+                  DO ispin = 1, nvar
+                     positive_sign(ispin) = scf_env%outer_scf%gradient(ispin, iter_count + 1) .GE. 0.0_dp
+                  END DO
+               END IF
+               ! Check if the L2 norm of the gradient decreased
+               inv_jacobian => scf_env%outer_scf%inv_jacobian
+               IF (dnrm2(nvar, scf_env%outer_scf%gradient(:, iter_count + 1), 1) .LT. &
+                   dnrm2(nvar, scf_env%outer_scf%gradient(:, iter_count), 1)) THEN
+                  ! Optimal step size found
+                  IF (.NOT. continue_ls) THEN
+                     should_exit = .TRUE.
+                  ELSE
+                     ! But line search continues for at least one more iteration in an attempt to find a better solution
+                     ! if max number of steps is not exceeded
+                     IF (found_solution) THEN
+                        ! Check if the norm also decreased w.r.t. to previously found solution
+                        IF (dnrm2(nvar, scf_env%outer_scf%gradient(:, iter_count + 1), 1) .GT. norm_ls) THEN
+                           ! Norm increased => accept previous solution and exit
+                           continue_ls_exit = .TRUE.
+                        END IF
+                     END IF
+                     ! Store current state and the value of alpha
+                     IF (.NOT. continue_ls_exit) THEN
+                        should_exit = .FALSE.
+                        alpha_ls = alpha
+                        found_solution = .TRUE.
+                        norm_ls = dnrm2(nvar, scf_env%outer_scf%gradient(:, iter_count + 1), 1)
+                        ! Check if the sign of the gradient has changed for all variables (w.r.t initial gradient)
+                        ! In this case we should exit because further line search steps will just increase the norm
+                        sign_changed = .TRUE.
+                        DO ispin = 1, nvar
+                           sign_changed = sign_changed .AND. (positive_sign(ispin) .NEQV. &
+                                                              scf_env%outer_scf%gradient(ispin, iter_count + 1) .GE. 0.0_dp)
+                        END DO
+                        IF (.NOT. ALLOCATED(mos_ls)) THEN
+                           ALLOCATE (mos_ls(nspins))
+                        ELSE
+                           DO ispin = 1, nspins
+                              CALL deallocate_mo_set(mos_ls(ispin))
+                           END DO
+                        END IF
+                        DO ispin = 1, nspins
+                           CALL duplicate_mo_set(mos_ls(ispin), mos(ispin))
+                        END DO
+                        alpha = alpha*factor
+                        ! Exit on last iteration
+                        IF (i == max_linesearch) continue_ls_exit = .TRUE.
+                        ! Exit if constraint target is satisfied to requested tolerance
+                        IF (SQRT(MAXVAL(scf_env%outer_scf%gradient(:, scf_env%outer_scf%iter_count + 1)**2)) .LT. &
+                            scf_control%outer_scf%eps_scf) &
+                           continue_ls_exit = .TRUE.
+                        ! Exit if line search jumped over the optimal step length
+                        IF (sign_changed) continue_ls_exit = .TRUE.
+                     END IF
+                  END IF
+               ELSE
+                  ! Gradient increased => alpha is too large (if the gradient function is smooth)
+                  should_exit = .FALSE.
+                  ! Update alpha using Armijo's scheme
+                  alpha = alpha*factor
+               END IF
+               IF (continue_ls_exit) THEN
+                  ! Continuation of line search did not yield a better alpha, use previously located solution and exit
+                  alpha = alpha_ls
+                  DO ispin = 1, nspins
+                     CALL deallocate_mo_set(mos(ispin))
+                     CALL duplicate_mo_set(mos(ispin), mos_ls(ispin))
+                     CALL calculate_density_matrix(mos(ispin), &
+                                                   p_rmpv(ispin)%matrix)
+                     CALL deallocate_mo_set(mos_ls(ispin))
+                  END DO
+                  CALL qs_rho_update_rho(rho, qs_env=qs_env)
+                  CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
+                  DEALLOCATE (mos_ls)
+                  should_exit = .TRUE.
+               END IF
+               ! Reached max steps and SCF converged: continue with last iterated step size
+               IF (.NOT. should_exit .AND. &
+                   (i == max_linesearch .AND. converged .AND. .NOT. found_solution)) THEN
+                  should_exit = .TRUE.
+                  reached_maxls = .TRUE.
+                  alpha = alpha*(1.0_dp/factor)
+               END IF
+               ! Reset outer SCF environment to last converged state
+               scf_env%outer_scf%variables(:, iter_count + 1) = 0.0_dp
+               scf_env%outer_scf%gradient = gradient
+               scf_env%outer_scf%energy = energy
+               ! Exit line search if a suitable step size was found
+               IF (should_exit) EXIT
+               ! Reset the electronic structure
+               cdft_control%total_steps = nsteps
                DO ispin = 1, nspins
                   CALL deallocate_mo_set(mos(ispin))
-                  CALL duplicate_mo_set(mos(ispin), mos_ls(ispin)%mo_set)
+                  CALL duplicate_mo_set(mos(ispin), mos_stashed(ispin))
                   CALL calculate_density_matrix(mos(ispin), &
                                                 p_rmpv(ispin)%matrix)
-                  CALL deallocate_mo_set(mos_ls(ispin)%mo_set)
-                  DEALLOCATE (mos_ls(ispin)%mo_set)
                END DO
                CALL qs_rho_update_rho(rho, qs_env=qs_env)
                CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
-               DEALLOCATE (mos_ls)
-               should_exit = .TRUE.
-            END IF
-            ! Reached max steps and SCF converged: continue with last iterated step size
-            IF (.NOT. should_exit .AND. &
-                (i == max_linesearch .AND. converged .AND. .NOT. found_solution)) THEN
-               should_exit = .TRUE.
-               reached_maxls = .TRUE.
-               alpha = alpha*(1.0_dp/factor)
-            END IF
-            ! Reset outer SCF environment to last converged state
-            scf_env%outer_scf%variables(:, iter_count + 1) = 0.0_dp
-            scf_env%outer_scf%gradient = gradient
-            scf_env%outer_scf%energy = energy
-            ! Exit line search if a suitable step size was found
-            IF (should_exit) EXIT
-            ! Reset the electronic structure
-            cdft_control%total_steps = nsteps
-            DO ispin = 1, nspins
-               CALL deallocate_mo_set(mos(ispin))
-               CALL duplicate_mo_set(mos(ispin), mos_stashed(ispin)%mo_set)
-               CALL calculate_density_matrix(mos(ispin), &
-                                             p_rmpv(ispin)%matrix)
             END DO
-            CALL qs_rho_update_rho(rho, qs_env=qs_env)
-            CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
-         END DO
-         scf_control%outer_scf%cdft_opt_control%newton_step = alpha
-         IF (.NOT. should_exit) THEN
-            CALL cp_warn(__LOCATION__, &
-                         "Line search did not converge. CDFT SCF proceeds with fixed step size.")
-            scf_control%outer_scf%cdft_opt_control%newton_step = scf_control%outer_scf%cdft_opt_control%newton_step_save
-         END IF
-         IF (reached_maxls) &
-            CALL cp_warn(__LOCATION__, &
-                         "Line search did not converge. CDFT SCF proceeds with lasted iterated step size.")
-         CALL cp_rm_default_logger()
-         CALL cp_logger_release(tmp_logger)
-         ! Release temporary storage
-         DO ispin = 1, nspins
-            CALL deallocate_mo_set(mos_stashed(ispin)%mo_set)
-            DEALLOCATE (mos_stashed(ispin)%mo_set)
-         END DO
-         DEALLOCATE (mos_stashed, gradient, energy)
-         IF (ALLOCATED(positive_sign)) DEALLOCATE (positive_sign)
-         IF (output_unit > 0) THEN
-            WRITE (output_unit, FMT="(/,A)") &
-               " ================================== LINE SEARCH COMPLETE =================================="
-            CALL close_file(unit_number=output_unit)
-         END IF
+            scf_control%outer_scf%cdft_opt_control%newton_step = alpha
+            IF (.NOT. should_exit) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "Line search did not converge. CDFT SCF proceeds with fixed step size.")
+               scf_control%outer_scf%cdft_opt_control%newton_step = scf_control%outer_scf%cdft_opt_control%newton_step_save
+            END IF
+            IF (reached_maxls) &
+               CALL cp_warn(__LOCATION__, &
+                            "Line search did not converge. CDFT SCF proceeds with lasted iterated step size.")
+            CALL cp_rm_default_logger()
+            CALL cp_logger_release(tmp_logger)
+            ! Release temporary storage
+            DO ispin = 1, nspins
+               CALL deallocate_mo_set(mos_stashed(ispin))
+            END DO
+            DEALLOCATE (mos_stashed, gradient, energy)
+            IF (ALLOCATED(positive_sign)) DEALLOCATE (positive_sign)
+            IF (output_unit > 0) THEN
+               WRITE (output_unit, FMT="(/,A)") &
+                  " ================================== LINE SEARCH COMPLETE =================================="
+               CALL close_file(unit_number=output_unit)
+            END IF
+         END BLOCK
       END IF
 
       CALL timestop(handle)

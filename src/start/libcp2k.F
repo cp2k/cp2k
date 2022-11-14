@@ -487,7 +487,7 @@ CONTAINS
          IF (.NOT. ASSOCIATED(active_space_env)) &
             EXIT try
 
-         CALL get_mo_set(active_space_env%mos_active(1)%mo_set, nmo=nmo)
+         CALL get_mo_set(active_space_env%mos_active(1), nmo=nmo)
       END BLOCK try
 
       CALL f_env_rm_defaults(f_env, ierr)
@@ -527,7 +527,7 @@ CONTAINS
          IF (.NOT. ASSOCIATED(active_space_env)) &
             EXIT try
 
-         CALL get_mo_set(active_space_env%mos_active(1)%mo_set, nmo=norb)
+         CALL get_mo_set(active_space_env%mos_active(1), nmo=norb)
 
          IF (buf_len < norb*norb) &
             EXIT try

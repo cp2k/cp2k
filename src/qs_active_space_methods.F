@@ -124,7 +124,6 @@ MODULE qs_active_space_methods
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               get_mo_set,&
                                               init_mo_set,&
-                                              mo_set_p_type,&
                                               mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_ot_eigensolver,               ONLY: ot_eigensolver
@@ -405,17 +404,12 @@ CONTAINS
       ! ALLOCATE (active_space_env%mos_inactive(nspins))
       ! DO ispin = 1, nspins
       !    nmo = nao
-      !    ALLOCATE (mo_set)
-      !    CALL allocate_mo_set(mo_set, nao, nmo, 0, 0.0_dp, maxocc, 0.0_dp)
-      !    CALL init_mo_set(mo_set, fm_ref=fm_ref, name="Active Space MO")
-      !    active_space_env%mos_active(ispin)%mo_set => mo_set
-      !    mo_set => active_space_env%mos_inactive(ispin)%mo_set
+      !    CALL allocate_mo_set(active_space_env%mos_active(ispin), nao, nmo, 0, 0.0_dp, maxocc, 0.0_dp)
+      !    CALL init_mo_set(active_space_env%mos_active(ispin), fm_ref=fm_ref, name="Active Space MO")
       !    nmo = nao
       !    nel = active_space_env%nelec_inactive_spinwise(ispin)
-      !    ALLOCATE (mo_set)
-      !    CALL allocate_mo_set(mo_set, nao, nmo, nel, REAL(nel, KIND=dp), maxocc, 0.0_dp)
-      !    CALL init_mo_set(mo_set, fm_ref=fm_ref, name="Inactive Space MO")
-      !    active_space_env%mos_inactive(ispin)%mo_set => mo_set
+      !    CALL allocate_mo_set(active_space_env%mos_inactive(ispin), nao, nmo, nel, REAL(nel, KIND=dp), maxocc, 0.0_dp)
+      !    CALL init_mo_set(active_space_env%mos_inactive(ispin), fm_ref=fm_ref, name="Inactive Space MO")
       ! END DO
 
       CALL section_vals_val_get(as_input, "ORBITAL_SELECTION", i_val=mselect)
@@ -527,21 +521,17 @@ CONTAINS
          ALLOCATE (active_space_env%mos_active(nspins))
          ALLOCATE (active_space_env%mos_inactive(nspins))
          DO ispin = 1, nspins
-            ALLOCATE (mo_set)
-            CALL allocate_mo_set(mo_set, nao, nmo, 0, 0.0_dp, maxocc, 0.0_dp)
+            CALL allocate_mo_set(active_space_env%mos_active(ispin), nao, nmo, 0, 0.0_dp, maxocc, 0.0_dp)
             CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
                                      nrow_global=nrow_global, ncol_global=nmo)
-            CALL init_mo_set(mo_set, fm_struct=fm_struct_tmp, name="Active Space MO")
+            CALL init_mo_set(active_space_env%mos_active(ispin), fm_struct=fm_struct_tmp, name="Active Space MO")
             CALL cp_fm_struct_release(fm_struct_tmp)
-            active_space_env%mos_active(ispin)%mo_set => mo_set
             nel = active_space_env%nelec_inactive_spinwise(ispin)
-            ALLOCATE (mo_set)
-            CALL allocate_mo_set(mo_set, nao, nmo, nel, REAL(nel, KIND=dp), maxocc, 0.0_dp)
+            CALL allocate_mo_set(active_space_env%mos_inactive(ispin), nao, nmo, nel, REAL(nel, KIND=dp), maxocc, 0.0_dp)
             CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
                                      nrow_global=nrow_global, ncol_global=nmo)
-            CALL init_mo_set(mo_set, fm_struct=fm_struct_tmp, name="Inactive Space MO")
+            CALL init_mo_set(active_space_env%mos_inactive(ispin), fm_struct=fm_struct_tmp, name="Inactive Space MO")
             CALL cp_fm_struct_release(fm_struct_tmp)
-            active_space_env%mos_inactive(ispin)%mo_set => mo_set
          END DO
 
          ! create canonical orbitals
@@ -590,7 +580,7 @@ CONTAINS
                CALL calculate_subspace_eigenvalues(fm_dummy, ks_matrix(ispin)%matrix, &
                                                    evals_arg=eigenvalues(:, ispin), do_rotation=.TRUE.)
                ! copy inactive orbitals
-               mo_set => active_space_env%mos_inactive(ispin)%mo_set
+               mo_set => active_space_env%mos_inactive(ispin)
                CALL get_mo_set(mo_set, mo_coeff=fm_target)
                DO i = 1, SIZE(active_space_env%inactive_orbitals, 1)
                   m = active_space_env%inactive_orbitals(i, ispin)
@@ -599,7 +589,7 @@ CONTAINS
                   mo_set%occupation_numbers(m) = 1.0
                END DO
                ! copy active orbitals
-               mo_set => active_space_env%mos_active(ispin)%mo_set
+               mo_set => active_space_env%mos_active(ispin)
                CALL get_mo_set(mo_set, mo_coeff=fm_target)
                ncol = nactive_orb(ispin)
                DO i = 1, SIZE(active_space_env%active_orbitals, 1)
@@ -698,22 +688,17 @@ CONTAINS
                CALL get_mo_set(mos(ispin), mo_coeff=fm_ref, nao=nao, nmo=nmo)
                CALL cp_fm_get_info(fm_ref, context=context, para_env=para_env, &
                                    nrow_global=nrow_global)
-               ALLOCATE (mo_set)
-               CALL allocate_mo_set(mo_set, nao, max_orb_ind, 0, 0.0_dp, maxocc, 0.0_dp)
+               CALL allocate_mo_set(active_space_env%mos_active(ispin), nao, max_orb_ind, 0, 0.0_dp, maxocc, 0.0_dp)
                CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
                                         nrow_global=nrow_global, ncol_global=max_orb_ind)
-               CALL init_mo_set(mo_set, fm_struct=fm_struct_tmp, name="Active Space MO")
+               CALL init_mo_set(active_space_env%mos_active(ispin), fm_struct=fm_struct_tmp, name="Active Space MO")
                CALL cp_fm_struct_release(fm_struct_tmp)
-               active_space_env%mos_active(ispin)%mo_set => mo_set
-               mo_set => active_space_env%mos_inactive(ispin)%mo_set
                nel = active_space_env%nelec_inactive_spinwise(ispin)
-               ALLOCATE (mo_set)
-               CALL allocate_mo_set(mo_set, nao, max_orb_ind, nel, REAL(nel, KIND=dp), maxocc, 0.0_dp)
+               CALL allocate_mo_set(active_space_env%mos_inactive(ispin), nao, max_orb_ind, nel, REAL(nel, KIND=dp), maxocc, 0.0_dp)
                CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
                                         nrow_global=nrow_global, ncol_global=max_orb_ind)
-               CALL init_mo_set(mo_set, fm_struct=fm_struct_tmp, name="Inactive Space MO")
+               CALL init_mo_set(active_space_env%mos_inactive(ispin), fm_struct=fm_struct_tmp, name="Inactive Space MO")
                CALL cp_fm_struct_release(fm_struct_tmp)
-               active_space_env%mos_inactive(ispin)%mo_set => mo_set
             END DO
 
             nmo = 0
@@ -770,9 +755,9 @@ CONTAINS
                CALL calculate_subspace_eigenvalues(fm_dummy, ks_matrix(ispin)%matrix, &
                                                    evals_arg=eigenvalues(:, ispin), do_rotation=.TRUE.)
 
-               mo_set_active => active_space_env%mos_active(ispin)%mo_set
+               mo_set_active => active_space_env%mos_active(ispin)
                CALL get_mo_set(mo_set_active, mo_coeff=fm_target_active)
-               mo_set_inactive => active_space_env%mos_inactive(ispin)%mo_set
+               mo_set_inactive => active_space_env%mos_inactive(ispin)
                CALL get_mo_set(mo_set_inactive, mo_coeff=fm_target_inactive)
 
                ! copy orbitals
@@ -922,7 +907,7 @@ CONTAINS
       DO ispin = 1, nspins
          ALLOCATE (denmat)
          CALL dbcsr_copy(denmat, rho_ao(ispin)%matrix)
-         mo_set => active_space_env%mos_inactive(ispin)%mo_set
+         mo_set => active_space_env%mos_inactive(ispin)
          CALL calculate_density_matrix(mo_set, denmat)
          active_space_env%pmat_inactive(ispin)%matrix => denmat
       END DO
@@ -1011,7 +996,7 @@ CONTAINS
       m = (nspins*(nspins + 1))/2
       ALLOCATE (active_space_env%eri%eri(m))
       DO i = 1, m
-         CALL get_mo_set(active_space_env%mos_active(1)%mo_set, nmo=nmo)
+         CALL get_mo_set(active_space_env%mos_active(1), nmo=nmo)
          ALLOCATE (active_space_env%eri%eri(i)%csr_mat)
          eri_mat => active_space_env%eri%eri(i)%csr_mat
          IF (i == 1) THEN
@@ -1075,7 +1060,7 @@ CONTAINS
       nspins = active_space_env%nspins
       ALLOCATE (active_space_env%p_active(nspins))
       DO isp = 1, nspins
-         mo_set => active_space_env%mos_active(isp)%mo_set
+         mo_set => active_space_env%mos_active(isp)
          CALL get_mo_set(mo_set, mo_coeff=mo_coeff, nmo=nmo)
          NULLIFY (active_space_env%p_active(isp)%matrix)
          ALLOCATE (active_space_env%p_active(isp)%matrix)
@@ -1150,7 +1135,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_operators(mos, qs_env, active_space_env)
 
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(active_space_type), POINTER                   :: active_space_env
 
@@ -1179,7 +1164,7 @@ CONTAINS
       END IF
       ALLOCATE (active_space_env%ks_sub(nspins))
       DO is = 1, nspins
-         CALL get_mo_set(mo_set=mos(is)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
+         CALL get_mo_set(mo_set=mos(is), mo_coeff=mo_coeff, nmo=nmo)
          IF (.NOT. ASSOCIATED(active_space_env%ks_sub(is)%matrix)) ALLOCATE (active_space_env%ks_sub(is)%matrix)
          CALL subspace_operator(mo_coeff, nmo, ks_matrix(is, 1)%matrix, active_space_env%ks_sub(is)%matrix)
       END DO
@@ -1197,7 +1182,7 @@ CONTAINS
       IF (ASSOCIATED(matrix_vxc)) THEN
          ALLOCATE (active_space_env%vxc_sub(nspins))
          DO is = 1, nspins
-            CALL get_mo_set(mo_set=mos(is)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
+            CALL get_mo_set(mo_set=mos(is), mo_coeff=mo_coeff, nmo=nmo)
             IF (.NOT. ASSOCIATED(active_space_env%vxc_sub(is)%matrix)) ALLOCATE (active_space_env%vxc_sub(is)%matrix)
             CALL subspace_operator(mo_coeff, nmo, matrix_vxc(is)%matrix, active_space_env%vxc_sub(is)%matrix)
          END DO
@@ -1218,7 +1203,7 @@ CONTAINS
       END IF
       ALLOCATE (active_space_env%h_sub(nspins))
       DO is = 1, nspins
-         CALL get_mo_set(mo_set=mos(is)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
+         CALL get_mo_set(mo_set=mos(is), mo_coeff=mo_coeff, nmo=nmo)
          IF (.NOT. ASSOCIATED(active_space_env%h_sub(is)%matrix)) ALLOCATE (active_space_env%h_sub(is)%matrix)
          CALL subspace_operator(mo_coeff, nmo, h_matrix(1, 1)%matrix, active_space_env%h_sub(is)%matrix)
       END DO
@@ -1312,7 +1297,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_eri_gpw(mos, orbitals, eri_env, qs_env, iw)
 
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
       INTEGER, DIMENSION(:, :), POINTER                  :: orbitals
       TYPE(eri_type)                                     :: eri_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -1441,7 +1426,7 @@ CONTAINS
          rsize = 0.0_dp
          nmo = 0
          DO ispin = 1, nspins
-            CALL get_mo_set(mo_set=mos(ispin)%mo_set, nmo=nx)
+            CALL get_mo_set(mo_set=mos(ispin), nmo=nx)
             nmo = MAX(nmo, nx)
             rsize = REAL(SIZE(wfn_r%cr3d), KIND=dp)*nx
          END DO
@@ -1451,7 +1436,7 @@ CONTAINS
          END IF
          ALLOCATE (wfn_a(nmo, nspins))
          DO ispin = 1, nspins
-            CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
+            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
             DO i1 = 1, SIZE(orbitals, 1)
                iwfn = orbitals(i1, ispin)
                CALL pw_pool_create_pw(auxbas_pw_pool, wfn_a(iwfn, ispin), &
@@ -1478,7 +1463,7 @@ CONTAINS
       ! calculate the integrals
       intcount = 0
       DO isp1 = 1, nspins
-         CALL get_mo_set(mo_set=mos(isp1)%mo_set, nmo=nmo1)
+         CALL get_mo_set(mo_set=mos(isp1), nmo=nmo1)
          nmm = (nmo1*(nmo1 + 1))/2
          irange = get_irange_csr(nmm, eri_env%eri(1)%csr_mat%mp_group)
          DO i1 = 1, SIZE(orbitals, 1)
@@ -1518,7 +1503,7 @@ CONTAINS
                   CPABORT("Not available")
                ELSEIF (eri_env%method == eri_method_full_gpw) THEN
                   DO isp2 = isp1, nspins
-                     CALL get_mo_set(mo_set=mos(isp1)%mo_set, nmo=nmo2)
+                     CALL get_mo_set(mo_set=mos(isp1), nmo=nmo2)
                      nx = (nmo2*(nmo2 + 1))/2
                      ALLOCATE (eri(nx), eri_index(nx))
                      icount2 = 0
@@ -1573,7 +1558,7 @@ CONTAINS
 
       IF (eri_env%eri_gpw%store_wfn) THEN
          DO ispin = 1, nspins
-            CALL get_mo_set(mo_set=mos(ispin)%mo_set, nmo=nmo)
+            CALL get_mo_set(mo_set=mos(ispin), nmo=nmo)
             DO i1 = 1, SIZE(orbitals, 1)
                iwfn = orbitals(i1, ispin)
                CALL pw_release(wfn_a(iwfn, ispin))
@@ -1771,7 +1756,7 @@ CONTAINS
    SUBROUTINE print_orbital_cubes(input, qs_env, mos)
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mo_set_p_type), DIMENSION(:)                  :: mos
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
 
       CHARACTER(LEN=default_path_length)                 :: filebody, filename, title
       INTEGER                                            :: i, imo, isp, nmo, str(3), unit_nr
@@ -1823,21 +1808,21 @@ CONTAINS
       dft_section => section_vals_get_subs_vals(scf_input, "DFT")
       !
       DO isp = 1, SIZE(mos)
-         CALL get_mo_set(mo_set=mos(isp)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
+         CALL get_mo_set(mo_set=mos(isp), mo_coeff=mo_coeff, nmo=nmo)
 
          IF (SIZE(mos) > 1) THEN
             SELECT CASE (isp)
             CASE (1)
-               CALL write_mo_set_to_output_unit(mos(isp)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
+               CALL write_mo_set_to_output_unit(mos(isp), atomic_kind_set, qs_kind_set, particle_set, &
                                                 dft_section, 4, 0, final_mos=.TRUE., spin="ALPHA")
             CASE (2)
-               CALL write_mo_set_to_output_unit(mos(isp)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
+               CALL write_mo_set_to_output_unit(mos(isp), atomic_kind_set, qs_kind_set, particle_set, &
                                                 dft_section, 4, 0, final_mos=.TRUE., spin="BETA")
             CASE DEFAULT
                CPABORT("Invalid spin")
             END SELECT
          ELSE
-            CALL write_mo_set_to_output_unit(mos(isp)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
+            CALL write_mo_set_to_output_unit(mos(isp), atomic_kind_set, qs_kind_set, particle_set, &
                                              dft_section, 4, 0, final_mos=.TRUE.)
          END IF
 
@@ -2084,9 +2069,9 @@ CONTAINS
       nspins = active_space_env%nspins
 
       IF (nspins == 1) THEN
-         CALL get_mo_set(active_space_env%mos_active(1)%mo_set, nmo=norb)
+         CALL get_mo_set(active_space_env%mos_active(1), nmo=norb)
          NULLIFY (mo_coef)
-         CALL get_mo_set(active_space_env%mos_active(1)%mo_set, mo_coeff=mo_coef)
+         CALL get_mo_set(active_space_env%mos_active(1), mo_coeff=mo_coef)
          !
          ! Loop over ERI, calculate subspace HF energy and Fock matrix
          !
@@ -2132,7 +2117,7 @@ CONTAINS
          END DO
       ELSE
 
-         CALL get_mo_set(active_space_env%mos_active(1)%mo_set, nmo=norb)
+         CALL get_mo_set(active_space_env%mos_active(1), nmo=norb)
          !
          ! Loop over ERI, calculate subspace HF energy and Fock matrix
          !
@@ -2468,7 +2453,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dbcsr_type), POINTER                          :: pinact
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_rho_type), POINTER                         :: rho
 
@@ -2492,7 +2477,7 @@ CONTAINS
          ! calclulate SQRT(P): P = U*U
          CALL cp_fm_sqrt(lamat)
          ! R = C * U
-         CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=fm_active, nao=nao, nmo=nmo)
+         CALL get_mo_set(mos(ispin), mo_coeff=fm_active, nao=nao, nmo=nmo)
          CALL cp_fm_create(vec, fm_active%matrix_struct)
          CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, fm_active, lamat, 0.0_dp, vec)
          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(ispin)%matrix, &
@@ -2544,7 +2529,7 @@ CONTAINS
                ! calclulate SQRT(P): P = U*U
                CALL cp_fm_sqrt(lamat)
                ! R = C * U
-               CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=fm_active, nao=nao, nmo=nmo)
+               CALL get_mo_set(mos(ispin), mo_coeff=fm_active, nao=nao, nmo=nmo)
                CALL cp_fm_create(vec, fm_active%matrix_struct)
                CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, fm_active, lamat, 0.0_dp, vec)
                CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(ispin)%matrix, &

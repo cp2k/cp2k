@@ -70,7 +70,6 @@ MODULE optimize_basis
                                               deallocate_mo_set,&
                                               get_mo_set,&
                                               init_mo_set,&
-                                              mo_set_p_type,&
                                               mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
                                               release_neighbor_list_sets
@@ -273,7 +272,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s_aux, matrix_s_aux_orb
       TYPE(f_env_type), POINTER                          :: f_env
       TYPE(force_env_type), POINTER                      :: force_env
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos_aux
+      TYPE(mo_set_type), ALLOCATABLE, DIMENSION(:)       :: mos_aux
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_aux, sab_aux_orb
@@ -327,15 +326,14 @@ CONTAINS
          CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
          CALL get_qs_kind_set(qs_kind_set, nsgf=nao, basis_type=basis_type)
          DO ispin = 1, nspins
-            ALLOCATE (mos_aux(ispin)%mo_set)
             CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, maxocc=maxocc, nelectron=nelectron, &
                             n_el_f=n_el_f, nmo=nmo, flexible_electron_count=flexible_electron_count)
             CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nmo, &
                                      context=mo_coeff%matrix_struct%context, &
                                      para_env=mo_coeff%matrix_struct%para_env)
-            CALL allocate_mo_set(mos_aux(ispin)%mo_set, nao, nmo, nelectron, &
+            CALL allocate_mo_set(mos_aux(ispin), nao, nmo, nelectron, &
                                  n_el_f, maxocc, flexible_electron_count)
-            CALL init_mo_set(mo_set=mos_aux(ispin)%mo_set, fm_struct=fm_struct, name="MO_AUX")
+            CALL init_mo_set(mo_set=mos_aux(ispin), fm_struct=fm_struct, name="MO_AUX")
             CALL cp_fm_struct_release(fm_struct)
          END DO
 
@@ -345,8 +343,7 @@ CONTAINS
                                f_vec(my_id), energy(my_id), cond_vec(my_id))
 
          DO ispin = 1, nspins
-            CALL deallocate_mo_set(mos_aux(ispin)%mo_set)
-            DEALLOCATE (mos_aux(ispin)%mo_set)
+            CALL deallocate_mo_set(mos_aux(ispin))
          END DO
          DEALLOCATE (mos_aux)
          IF (ASSOCIATED(matrix_s_aux)) CALL dbcsr_deallocate_matrix_set(matrix_s_aux)
