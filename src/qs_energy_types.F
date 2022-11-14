@@ -52,10 +52,10 @@ MODULE qs_energy_types
                        dft_plus_u = 0.0_dp, & ! DFT+U energy contribution
                        sccs_hartree = 0.0_dp, & ! SCCS Hartree energy of solute + solvent
                        sccs_pol = 0.0_dp, & ! SCCS polarisation energy
-                       sccs_mpc = 0.0_dp, & ! Makov-Payne energy correction for charged supercells
                        sccs_cav = 0.0_dp, & ! SCCS cavitation energy
                        sccs_dis = 0.0_dp, & ! SCCS dispersion free energy
                        sccs_rep = 0.0_dp, & ! SCCS repulsion free energy
+                       sccs_sol = 0.0_dp, & ! SCCS solvation free energy
                        ktS = 0.0_dp, & ! electronic entropic contribution
                        efermi = 0.0_dp, & ! Fermi energy
                        dftb3 = 0.0_dp, & ! DFTB 3rd order correction
@@ -179,10 +179,10 @@ CONTAINS
          qs_energy%dft_plus_u = 0.0_dp
          qs_energy%sccs_hartree = 0.0_dp
          qs_energy%sccs_pol = 0.0_dp
-         qs_energy%sccs_mpc = 0.0_dp
          qs_energy%sccs_cav = 0.0_dp
          qs_energy%sccs_dis = 0.0_dp
          qs_energy%sccs_rep = 0.0_dp
+         qs_energy%sccs_sol = 0.0_dp
          qs_energy%dftb3 = 0.0_dp
          qs_energy%kTS = 0.0_dp
          qs_energy%mp2 = 0.0_dp

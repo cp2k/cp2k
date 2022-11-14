@@ -23,6 +23,7 @@
 !>      - Cube file dump of the polarisation potential (20.12.2013,MK)
 !>      - Calculation of volume and surface of the cavity (21.12.2013,MK)
 !>      - Functional derivative of the cavitation energy (28.12.2013,MK)
+!>      - Update printout (11.11.2022,MK)
 ! **************************************************************************************************
 
 MODULE qs_sccs
@@ -68,11 +69,12 @@ MODULE qs_sccs
                                               pw_copy,&
                                               pw_derive,&
                                               pw_integral_ab,&
-                                              pw_scale,&
                                               pw_transfer,&
                                               pw_zero
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
-   USE pw_poisson_types,                ONLY: pw_poisson_type
+   USE pw_poisson_types,                ONLY: pw_poisson_analytic,&
+                                              pw_poisson_mt,&
+                                              pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_p_type,&
@@ -106,7 +108,7 @@ MODULE qs_sccs
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_sccs'
 
-   PUBLIC :: sccs
+   PUBLIC :: print_sccs_results, sccs
 
 CONTAINS
 
@@ -137,16 +139,15 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: mpi_filename
       CHARACTER(LEN=default_string_length)               :: cube_path, filename, my_pos_cube, &
                                                             print_path
-      INTEGER                                            :: cube_unit, di, dj, handle, i, ispin, &
-                                                            iter, j, k, nspin, output_unit, &
-                                                            print_level
+      INTEGER                                            :: cube_unit, handle, i, ispin, iter, j, k, &
+                                                            nspin, output_unit, print_level
       INTEGER(KIND=int_8)                                :: ngpts
       INTEGER, DIMENSION(3)                              :: lb, ub
       LOGICAL                                            :: append_cube, calculate_stress_tensor, &
                                                             mpi_io, should_output
       REAL(KIND=dp) :: cavity_surface, cavity_volume, cell_volume, dphi2, dvol, e_tot, &
-         epsilon_solvent, f, norm_drho2, polarisation_charge, rho_delta, rho_delta_avg, &
-         rho_delta_max, rho_iter_new, tot_rho_elec, tot_rho_solute
+         epsilon_solvent, f, polarisation_charge, rho_delta, rho_delta_avg, rho_delta_max, &
+         rho_iter_new, tot_rho_elec, tot_rho_solute
       REAL(KIND=dp), DIMENSION(3)                        :: abc
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -239,6 +240,7 @@ CONTAINS
                energy%sccs_cav = 0.0_dp
                energy%sccs_dis = 0.0_dp
                energy%sccs_rep = 0.0_dp
+               energy%sccs_sol = 0.0_dp
                energy%sccs_hartree = energy%hartree
                CALL timestop(handle)
                RETURN
@@ -346,7 +348,7 @@ CONTAINS
          cavity_surface = 0.0_dp
          cavity_volume = 0.0_dp
 
-         IF (should_output .AND. (ABS(epsilon_solvent - 1.0_dp) > epstol)) THEN
+         IF (ABS(epsilon_solvent - 1.0_dp) > epstol) THEN
 
             BLOCK
                TYPE(pw_type) :: theta, norm_drho_elec
@@ -452,55 +454,6 @@ CONTAINS
                cavity_surface = accurate_sum(theta%cr3d)*dvol
                CALL mp_sum(cavity_surface, para_env%group)
 
-               IF (sccs_control%gamma_solvent > 0.0_dp) THEN
-
-                  CALL cp_warn(__LOCATION__, &
-                               "Experimental feature requested: The contribution from the "// &
-                               "cavitation energy is added as an extra potential term to the "// &
-                               "Kohn-Sham potential")
-
-                  ! Calculate the second derivatives of the electronic density in r-space
-                  DO di = 1, 3
-                     DO dj = 1, 3
-                        CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                               d2rho_elec(dj, di), &
-                                               use_data=REALDATA3D, &
-                                               in_space=REALSPACE)
-                     END DO
-                     CALL derive(drho_elec(di), d2rho_elec(:, di), sccs_derivative_fft, pw_env, &
-                                 input)
-                  END DO
-
-                  ! Calculate the contribution of the cavitation energy to the Kohn-Sham potential
-!$OMP       PARALLEL DO DEFAULT(NONE) &
-!$OMP                   PRIVATE(di,dj,i,j,k,norm_drho2) &
-!$OMP                   SHARED(d2rho_elec,drho_elec,lb,norm_drho_elec,sccs_control) &
-!$OMP                   SHARED(theta,ub,v_sccs)
-                  DO k = lb(3), ub(3)
-                     DO j = lb(2), ub(2)
-                        DO i = lb(1), ub(1)
-                           norm_drho2 = norm_drho_elec%cr3d(i, j, k)*norm_drho_elec%cr3d(i, j, k)
-                           DO di = 1, 3
-                              DO dj = 1, 3
-                                 v_sccs%cr3d(i, j, k) = sccs_control%gamma_solvent*theta%cr3d(i, j, k)* &
-                                                        (drho_elec(di)%cr3d(i, j, k)* &
-                                                         drho_elec(dj)%cr3d(i, j, k)* &
-                                                         d2rho_elec(di, dj)%cr3d(i, j, k)/norm_drho2 - &
-                                                         d2rho_elec(di, di)%cr3d(i, j, k))/norm_drho2
-                              END DO
-                           END DO
-                        END DO
-                     END DO
-                  END DO
-!$OMP       END PARALLEL DO
-                  CALL pw_scale(v_sccs, dvol)
-                  DO di = 1, 3
-                     DO dj = 1, 3
-                        CALL pw_pool_give_back_pw(auxbas_pw_pool, d2rho_elec(dj, di))
-                     END DO
-                  END DO
-               END IF
-
                ! Release storage
                CALL pw_pool_give_back_pw(auxbas_pw_pool, theta)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, norm_drho_elec)
@@ -509,7 +462,7 @@ CONTAINS
                END DO
             END BLOCK
 
-         END IF
+         END IF ! epsilon_solvent > 1
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_elec)
       END BLOCK
@@ -525,6 +478,18 @@ CONTAINS
          CALL pw_transfer(rho_tot_gspace, rho_solute)
          tot_rho_solute = accurate_sum(rho_solute%cr3d)*dvol
          CALL mp_sum(tot_rho_solute, para_env%group)
+
+         ! Check total charge
+         IF (ABS(tot_rho_solute) >= 1.0E-6_dp) THEN
+            IF ((poisson_env%parameters%solver /= pw_poisson_analytic) .AND. &
+                (poisson_env%parameters%solver /= pw_poisson_mt)) THEN
+               WRITE (UNIT=message, FMT="(A,SP,F0.6,A)") &
+                  "The system (solute) has a non-negligible charge of ", -tot_rho_solute, &
+                  ". It is recommended to use non-periodic boundary conditions (PERIODIC none) "// &
+                  "combined with an appropriate Poisson solver (POISSON_SOLVER MT or analytic)"
+               CPWARN(message)
+            END IF
+         END IF
 
          ! Reassign work storage to rho_tot_zero, because rho_elec is no longer needed
          CALL pw_pool_create_pw(auxbas_pw_pool, &
@@ -626,6 +591,10 @@ CONTAINS
                   WRITE (UNIT=output_unit, FMT="(T3,A,/,T3,A,I0,A)") &
                      "SCCS| Maximum number of SCCS iterations reached", &
                      "SCCS| Iteration cycle did not converge in ", sccs_control%max_iter, " steps"
+               ELSE
+                  WRITE (UNIT=message, FMT="(A,I0,A)") &
+                     "The SCCS iteration cycle did not converge in ", sccs_control%max_iter, " steps"
+                  CPWARN(message)
                END IF
                EXIT iter_loop
             END IF
@@ -835,52 +804,22 @@ CONTAINS
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot)
       END BLOCK
 
-      ! Calculate the Makov-Payne energy correction for charged systems with PBC
-      ! Madelung energy of a simple cubic lattice of point charges immersed in neutralising jellium
-      energy%sccs_mpc = -0.5_dp*2.8373_dp*tot_rho_solute**2/MINVAL(abc(1:3))
-
       ! Calculate additional solvation terms
       energy%sccs_cav = sccs_control%gamma_solvent*cavity_surface
       energy%sccs_dis = sccs_control%beta_solvent*cavity_volume
       energy%sccs_rep = sccs_control%alpha_solvent*cavity_surface
+      ! Calculate solvation free energy: \delta G^el + (alpha + gamma)*S + beta*V
+      energy%sccs_sol = energy%sccs_pol + energy%sccs_rep + energy%sccs_cav + energy%sccs_dis
 
       IF (should_output .AND. (output_unit > 0)) THEN
          WRITE (UNIT=output_unit, FMT="(T3,A)") &
             "SCCS|"
          WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.12)") &
             "SCCS| Polarisation charge", polarisation_charge
-         WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.12)") &
-            !MK "SCCS| Total interaction energy [a.u.]", e_tot, &
-            "SCCS| Hartree energy of solute and solvent [a.u.]", energy%sccs_hartree, &
-            "SCCS| Hartree energy of the solute only [a.u.]", energy%hartree
-         WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.12,/,T3,A,T61,F20.3)") &
-            "SCCS| Polarisation energy    [a.u.]", energy%sccs_pol, &
-            "SCCS|                        [kcal/mol]", &
-            cp_unit_from_cp2k(energy%sccs_pol, "kcalmol")
-         IF (ABS(tot_rho_solute) > 1.0E-7) THEN
-            WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.12,/,T3,A,T61,F20.3)") &
-               "SCCS| Makov-Payne correction [a.u.]", energy%sccs_mpc, &
-               "SCCS|                        [kcal/mol]", &
-               cp_unit_from_cp2k(energy%sccs_mpc, "kcalmol")
-         END IF
-         IF (ABS(sccs_control%gamma_solvent) > 0.0_dp) THEN
-            WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.12,/,T3,A,T61,F20.3)") &
-               "SCCS| Cavitation energy      [a.u.]", energy%sccs_cav, &
-               "SCCS|                        [kcal/mol]", &
-               cp_unit_from_cp2k(energy%sccs_cav, "kcalmol")
-         END IF
-         IF (ABS(sccs_control%beta_solvent) > 0.0_dp) THEN
-            WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.12,/,T3,A,T61,F20.3)") &
-               "SCCS| Dispersion free energy [a.u.]", energy%sccs_dis, &
-               "SCCS|                        [kcal/mol]", &
-               cp_unit_from_cp2k(energy%sccs_dis, "kcalmol")
-         END IF
-         IF (ABS(sccs_control%alpha_solvent) > 0.0_dp) THEN
-            WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.12,/,T3,A,T61,F20.3)") &
-               "SCCS| Repulsion free energy  [a.u.]", energy%sccs_rep, &
-               "SCCS|                        [kcal/mol]", &
-               cp_unit_from_cp2k(energy%sccs_rep, "kcalmol")
-         END IF
+         !MK   "SCCS| Total interaction energy [a.u.]", e_tot
+         WRITE (UNIT=output_unit, FMT="(T3,A)") &
+            "SCCS|"
+         CALL print_sccs_results(energy, sccs_control, output_unit)
       END IF
 
       ! Calculate SCCS contribution to the Kohn-Sham potential
@@ -1311,5 +1250,47 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE surface_fattebert_gygi
+
+! **************************************************************************************************
+!> \brief      Print SCCS results
+!> \param energy ...
+!> \param sccs_control ...
+!> \param output_unit ...
+!> \par History:
+!>      - Creation (11.11.2022,MK)
+!> \author     Matthias Krack (MK)
+!> \version    1.0
+! **************************************************************************************************
+   SUBROUTINE print_sccs_results(energy, sccs_control, output_unit)
+
+      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(sccs_control_type), POINTER                   :: sccs_control
+      INTEGER, INTENT(IN)                                :: output_unit
+
+      IF (output_unit > 0) THEN
+         CPASSERT(ASSOCIATED(energy))
+         CPASSERT(ASSOCIATED(sccs_control))
+         WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
+            "SCCS| Hartree energy of solute and solvent [Hartree]", energy%sccs_hartree, &
+            "SCCS| Hartree energy of the solute only    [Hartree]", energy%hartree
+         WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14,/,T3,A,T61,F20.3)") &
+            "SCCS| Polarisation energy                  [Hartree]", energy%sccs_pol, &
+            "SCCS|                                      [kcal/mol]", &
+            cp_unit_from_cp2k(energy%sccs_pol, "kcalmol"), &
+            "SCCS| Cavitation energy                    [Hartree]", energy%sccs_cav, &
+            "SCCS|                                      [kcal/mol]", &
+            cp_unit_from_cp2k(energy%sccs_cav, "kcalmol"), &
+            "SCCS| Dispersion free energy               [Hartree]", energy%sccs_dis, &
+            "SCCS|                                      [kcal/mol]", &
+            cp_unit_from_cp2k(energy%sccs_dis, "kcalmol"), &
+            "SCCS| Repulsion free energy                [Hartree]", energy%sccs_rep, &
+            "SCCS|                                      [kcal/mol]", &
+            cp_unit_from_cp2k(energy%sccs_rep, "kcalmol"), &
+            "SCCS| Solvation free energy                [Hartree]", energy%sccs_sol, &
+            "SCCS|                                      [kcal/mol]", &
+            cp_unit_from_cp2k(energy%sccs_sol, "kcalmol")
+      END IF
+
+   END SUBROUTINE print_sccs_results
 
 END MODULE qs_sccs

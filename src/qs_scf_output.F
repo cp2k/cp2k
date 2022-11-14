@@ -78,6 +78,7 @@ MODULE qs_scf_output
    USE qs_ot_eigensolver,               ONLY: ot_eigensolver
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE qs_sccs,                         ONLY: print_sccs_results
    USE qs_scf_types,                    ONLY: ot_method_nr,&
                                               qs_scf_env_type,&
                                               special_diag_method_nr
@@ -550,6 +551,7 @@ CONTAINS
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 !>      10.2019 print dipole moment [SGh]
+!>      11.2022 print SCCS results [MK]
 ! **************************************************************************************************
    SUBROUTINE qs_scf_print_scf_summary(output_unit, rho, qs_charges, energy, nelectron_total, &
                                        dft_control, qmmm, qs_env, gapw, gapw_xc)
@@ -733,12 +735,8 @@ CONTAINS
                "DFT+U energy:", energy%dft_plus_u
          END IF
          IF (dft_control%do_sccs) THEN
-            WRITE (UNIT=output_unit, FMT="(/,T3,A,T56,F25.14)") &
-               "SCCS| Hartree energy of solute and solvent [Hartree]", energy%sccs_hartree
-            WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14,/,T3,A,T61,F20.3)") &
-               "SCCS| Polarisation energy                  [Hartree]", energy%sccs_pol, &
-               "SCCS|                                      [kcal/mol]", &
-               cp_unit_from_cp2k(energy%sccs_pol, "kcalmol")
+            WRITE (UNIT=output_unit, FMT="(A)") ""
+            CALL print_sccs_results(energy, dft_control%sccs_control, output_unit)
          END IF
          IF (qmmm) THEN
             WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
