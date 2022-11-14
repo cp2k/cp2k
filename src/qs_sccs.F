@@ -353,7 +353,6 @@ CONTAINS
             BLOCK
                TYPE(pw_type) :: theta, norm_drho_elec
                TYPE(pw_type), DIMENSION(3)                        :: drho_elec
-               TYPE(pw_type), DIMENSION(3, 3)                     :: d2rho_elec
                CALL pw_pool_create_pw(auxbas_pw_pool, &
                                       theta, &
                                       use_data=REALDATA3D, &
