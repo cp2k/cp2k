@@ -111,7 +111,6 @@ MODULE xas_tdp_methods
                                               duplicate_mo_set,&
                                               get_mo_set,&
                                               init_mo_set,&
-                                              mo_set_p_type,&
                                               mo_set_type
    USE qs_operators_ao,                 ONLY: p_xyz_ao,&
                                               rRc_xyz_ao
@@ -571,7 +570,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: tmp_basis
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
@@ -735,7 +734,7 @@ CONTAINS
          nspins = 1; IF (do_uks) nspins = 2
 
          DO ispin = 1, nspins
-            CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, eigenvalues=mo_evals)
+            CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, eigenvalues=mo_evals)
             CALL calculate_subspace_eigenvalues(mo_coeff, matrix_ks(ispin)%matrix, evals_arg=mo_evals)
          END DO
       END IF
@@ -756,11 +755,11 @@ CONTAINS
       loc_section => xas_tdp_control%loc_subsection
 !     getting the number of MOs
       CALL get_qs_env(qs_env, mos=mos)
-      CALL get_mo_set(mos(1)%mo_set, nmo=n_mo(1), homo=homo(1), nao=nao)
+      CALL get_mo_set(mos(1), nmo=n_mo(1), homo=homo(1), nao=nao)
       n_mo(2) = n_mo(1)
       homo(2) = homo(1)
       nspins = 1
-      IF (do_os) CALL get_mo_set(mos(2)%mo_set, nmo=n_mo(2), homo=homo(2))
+      IF (do_os) CALL get_mo_set(mos(2), nmo=n_mo(2), homo=homo(2))
       IF (do_uks) nspins = 2 !in roks, same MOs for both spins
 
       ! by default, all (doubly occupied) homo are localized
@@ -1359,7 +1358,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       NULLIFY (mos, mo_coeff, matrix_ks, para_env, blacs_env, lmo_struct, ks_struct)
 
@@ -1373,7 +1372,7 @@ CONTAINS
          DO iat = 1, xas_tdp_env%nex_atoms
 
             ! get the MOs
-            CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao)
+            CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nao=nao)
 
             ! count how many MOs are associated to this atom and create a fm/struct
             nlmo = COUNT(xas_tdp_env%mos_of_ex_atoms(:, iat, ispin) == 1)
@@ -1473,7 +1472,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(gto_basis_set_type), POINTER                  :: kind_basis_set, sto_to_gto_basis_set
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(sto_basis_set_type), POINTER                  :: sto_basis_set
@@ -1576,7 +1575,7 @@ CONTAINS
 
       DO ispin = 1, nspins
 
-         CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao)
+         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nao=nao)
          overlap = 0.0_dp
 
          my_mo = 0
@@ -1635,7 +1634,7 @@ CONTAINS
          CALL cp_fm_create(donor_state%gs_coeffs, gs_struct)
 
          DO ispin = 1, nspins
-            CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff)
+            CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
             DO i = 1, n_states
                CALL cp_fm_to_fm_submat(msource=mo_coeff, mtarget=donor_state%gs_coeffs, nrow=nao, &
                                        ncol=1, s_firstrow=1, s_firstcol=my_mos(i, ispin), &
@@ -1665,7 +1664,7 @@ CONTAINS
 
 !           Canonical MO, no change in eigenvalues, only diagonal elements
             DO ispin = 1, nspins
-               CALL get_mo_set(mos(ispin)%mo_set, eigenvalues=mo_evals)
+               CALL get_mo_set(mos(ispin), eigenvalues=mo_evals)
                DO i = 1, n_states
                   donor_state%energy_evals(i, ispin) = mo_evals(my_mos(i, ispin))
 
@@ -2468,7 +2467,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, restart_mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -2476,7 +2475,7 @@ CONTAINS
 
       NULLIFY (atomic_kind_set, particle_set, qs_kind_set, mo_set, lr_evals, lr_coeffs)
       NULLIFY (mo_struct, para_env, blacs_env, fm_struct, matrix_s, print_key, logger)
-      NULLIFY (bounds, state_list, list, restart_mos, mos)
+      NULLIFY (bounds, state_list, list, mos)
 
       !Tests on what to do
       logger => cp_get_default_logger()
@@ -2543,45 +2542,44 @@ CONTAINS
 
       !Dump the TDDFT excited state AMEW wavefunction into a file for restart in RTP
       IF (do_wfn_restart) THEN
-         IF (.NOT. (nspins == 1 .AND. donor_state%state_type == xas_1s_type)) THEN
-            CPABORT("RESTART.wfn file only available for RKS K-edge XAS spectroscopy")
-         END IF
+         BLOCK
+            TYPE(mo_set_type), DIMENSION(2) :: restart_mos
+            IF (.NOT. (nspins == 1 .AND. donor_state%state_type == xas_1s_type)) THEN
+               CPABORT("RESTART.wfn file only available for RKS K-edge XAS spectroscopy")
+            END IF
 
-         CALL section_vals_val_get(xas_tdp_section, "PRINT%RESTART_WFN%EXCITED_STATE_INDEX", n_rep_val=n_rep)
+            CALL section_vals_val_get(xas_tdp_section, "PRINT%RESTART_WFN%EXCITED_STATE_INDEX", n_rep_val=n_rep)
 
-         DO irep = 1, n_rep
-            CALL section_vals_val_get(xas_tdp_section, "PRINT%RESTART_WFN%EXCITED_STATE_INDEX", &
-                                      i_rep_val=irep, i_val=ex_state_idx)
-            CPASSERT(ex_state_idx <= SIZE(lr_evals))
+            DO irep = 1, n_rep
+               CALL section_vals_val_get(xas_tdp_section, "PRINT%RESTART_WFN%EXCITED_STATE_INDEX", &
+                                         i_rep_val=irep, i_val=ex_state_idx)
+               CPASSERT(ex_state_idx <= SIZE(lr_evals))
 
-            ALLOCATE (restart_mos(2))
-            DO ispin = 1, 2
-               ALLOCATE (restart_mos(ispin)%mo_set)
-               CALL duplicate_mo_set(restart_mos(ispin)%mo_set, mos(1)%mo_set)
+               DO ispin = 1, 2
+                  CALL duplicate_mo_set(restart_mos(ispin), mos(1))
+               END DO
+
+               CALL cp_fm_to_fm_submat(msource=lr_coeffs, mtarget=restart_mos(1)%mo_coeff, nrow=nao, &
+                                       ncol=1, s_firstrow=1, s_firstcol=ex_state_idx, t_firstrow=1, &
+                                       t_firstcol=donor_state%mo_indices(1, 1))
+
+               xas_mittle = 'xasat'//TRIM(ADJUSTL(cp_to_string(donor_state%at_index)))//'_'//TRIM(domo)// &
+                            '_'//TRIM(excite)//'_idx'//TRIM(ADJUSTL(cp_to_string(ex_state_idx)))
+               output_unit = cp_print_key_unit_nr(logger, xas_tdp_section, "PRINT%RESTART_WFN", &
+                                                  extension=".wfn", file_status="REPLACE", &
+                                                  file_action="WRITE", file_form="UNFORMATTED", &
+                                                  middle_name=xas_mittle)
+
+               CALL write_mo_set_low(restart_mos, particle_set=particle_set, &
+                                     qs_kind_set=qs_kind_set, ires=output_unit)
+
+               CALL cp_print_key_finished_output(output_unit, logger, xas_tdp_section, "PRINT%RESTART_WFN")
+
+               DO ispin = 1, 2
+                  CALL deallocate_mo_set(restart_mos(ispin))
+               END DO
             END DO
-
-            CALL cp_fm_to_fm_submat(msource=lr_coeffs, mtarget=restart_mos(1)%mo_set%mo_coeff, nrow=nao, &
-                                    ncol=1, s_firstrow=1, s_firstcol=ex_state_idx, t_firstrow=1, &
-                                    t_firstcol=donor_state%mo_indices(1, 1))
-
-            xas_mittle = 'xasat'//TRIM(ADJUSTL(cp_to_string(donor_state%at_index)))//'_'//TRIM(domo)// &
-                         '_'//TRIM(excite)//'_idx'//TRIM(ADJUSTL(cp_to_string(ex_state_idx)))
-            output_unit = cp_print_key_unit_nr(logger, xas_tdp_section, "PRINT%RESTART_WFN", &
-                                               extension=".wfn", file_status="REPLACE", &
-                                               file_action="WRITE", file_form="UNFORMATTED", &
-                                               middle_name=xas_mittle)
-
-            CALL write_mo_set_low(restart_mos, particle_set=particle_set, &
-                                  qs_kind_set=qs_kind_set, ires=output_unit)
-
-            CALL cp_print_key_finished_output(output_unit, logger, xas_tdp_section, "PRINT%RESTART_WFN")
-
-            DO ispin = 1, 2
-               CALL deallocate_mo_set(restart_mos(ispin)%mo_set)
-               DEALLOCATE (restart_mos(ispin)%mo_set)
-            END DO
-            DEALLOCATE (restart_mos)
-         END DO
+         END BLOCK
       END IF
 
       !PDOS related stuff
@@ -3228,7 +3226,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), POINTER                    :: lr_evals
       TYPE(cp_fm_type), POINTER                          :: lr_coeffs
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(section_vals_type), POINTER                   :: print_key
 
       NULLIFY (logger, lr_coeffs, lr_evals, print_key, mos)
@@ -3313,7 +3311,7 @@ CONTAINS
       !The MOs as well (because the may have been localized)
       CALL get_qs_env(qs_env, mos=mos)
       DO ispin = 1, nspins
-         CALL cp_fm_write_unformatted(mos(ispin)%mo_set%mo_coeff, rst_unit)
+         CALL cp_fm_write_unformatted(mos(ispin)%mo_coeff, rst_unit)
       END DO
 
       !closing
@@ -3349,7 +3347,7 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: lr_coeffs
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       NULLIFY (lr_evals, lr_coeffs, para_env, fm_struct, blacs_env, mos)
 
@@ -3416,7 +3414,7 @@ CONTAINS
       !read MO coeffs and replace in qs_env
       CALL get_qs_env(qs_env, mos=mos)
       DO ispin = 1, nspins
-         CALL cp_fm_read_unformatted(mos(ispin)%mo_set%mo_coeff, rst_unit)
+         CALL cp_fm_read_unformatted(mos(ispin)%mo_coeff, rst_unit)
       END DO
 
       !closing file

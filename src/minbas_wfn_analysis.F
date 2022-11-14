@@ -83,7 +83,6 @@ MODULE minbas_wfn_analysis
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               deallocate_mo_set,&
                                               get_mo_set,&
-                                              mo_set_p_type,&
                                               mo_set_type,&
                                               set_mo_set
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
@@ -134,8 +133,8 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: psmat, sinv, smao, smaox, spmat
       TYPE(dbcsr_type), POINTER                          :: smat
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mbas, mos
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type), ALLOCATABLE, DIMENSION(:)       :: mbas
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -178,7 +177,7 @@ CONTAINS
       CALL minbas_calculation(qs_env, mos, quambo, mao=mao_coef, iounit=unit_nr, &
                               full_ortho=full_ortho, eps_filter=eps_filter)
       IF (ASSOCIATED(quambo)) THEN
-         CALL get_mo_set(mo_set=mos(1)%mo_set, nao=nao, nmo=nmo)
+         CALL get_mo_set(mo_set=mos(1), nao=nao, nmo=nmo)
          CALL get_qs_env(qs_env=qs_env, ks_env=ks_env)
          CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, natom=natom)
          CALL get_ks_env(ks_env=ks_env, particle_set=particle_set, dbcsr_dist=dbcsr_dist)
@@ -246,7 +245,7 @@ CONTAINS
             CALL dbcsr_create(smaox, name="S*QM*SINV", template=smao)
             CALL dbcsr_multiply("N", "N", 1.0_dp, smao, sinv, 0.0_dp, smaox)
             CALL copy_dbcsr_to_fm(smaox, fm1)
-            CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=fm_mos, homo=homo)
+            CALL get_mo_set(mos(ispin), mo_coeff=fm_mos, homo=homo)
             CALL parallel_gemm("T", "N", nmao, nmo, nao, 1.0_dp, fm1, fm_mos, 0.0_dp, fm2)
             CALL cp_dbcsr_sm_fm_multiply(sqmat(ispin)%matrix, fm2, fm3, nmo)
             CALL parallel_gemm("T", "N", nmo, nmo, nmao, 1.0_dp, fm2, fm3, 0.0_dp, fm4)
@@ -254,7 +253,7 @@ CONTAINS
             ! fm2 are the projected MOs (in MAO basis); orthogonalize the occupied subspace
             CALL make_basis_lowdin(vmatrix=fm2, ncol=homo, matrix_s=sqmat(ispin)%matrix)
             ! pmat
-            CALL get_mo_set(mos(ispin)%mo_set, occupation_numbers=occupation_numbers, maxocc=alpha)
+            CALL get_mo_set(mos(ispin), occupation_numbers=occupation_numbers, maxocc=alpha)
             occeq = ALL(occupation_numbers(1:homo) == alpha)
             CALL dbcsr_copy(pqmat(ispin)%matrix, sqmat(ispin)%matrix)
             CALL dbcsr_set(pqmat(ispin)%matrix, 0.0_dp)
@@ -306,7 +305,7 @@ CONTAINS
          END IF
          ! MO expansion completness
          DO ispin = 1, nspin
-            CALL get_mo_set(mos(ispin)%mo_set, homo=homo, nmo=nmo)
+            CALL get_mo_set(mos(ispin), homo=homo, nmo=nmo)
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(/,T2,A,I2)') 'MO expansion in Localized Minimal Basis: Spin ', ispin
                WRITE (unit_nr, '(T64,A)') 'Occupied Orbitals'
@@ -354,30 +353,26 @@ CONTAINS
          ! for printing purposes we now copy the QUAMBOs into MO format
          ALLOCATE (mbas(nspin))
          DO ispin = 1, nspin
-            ALLOCATE (mbas(ispin)%mo_set)
-            CALL allocate_mo_set(mbas(ispin)%mo_set, nao, nmao, nmao, 0.0_dp, 1.0_dp, 0.0_dp)
-            mo_set => mbas(ispin)%mo_set
-            CALL set_mo_set(mo_set, homo=nmao)
-            ALLOCATE (mo_set%eigenvalues(nmao))
-            mo_set%eigenvalues = 0.0_dp
-            ALLOCATE (mo_set%occupation_numbers(nmao))
-            mo_set%occupation_numbers = 1.0_dp
-            CALL cp_fm_create(mo_set%mo_coeff, fm_struct_a)
-            CALL copy_dbcsr_to_fm(quambo(ispin)%matrix, mo_set%mo_coeff)
+            CALL allocate_mo_set(mbas(ispin), nao, nmao, nmao, 0.0_dp, 1.0_dp, 0.0_dp)
+            CALL set_mo_set(mbas(ispin), homo=nmao)
+            ALLOCATE (mbas(ispin)%eigenvalues(nmao))
+            mbas(ispin)%eigenvalues = 0.0_dp
+            ALLOCATE (mbas(ispin)%occupation_numbers(nmao))
+            mbas(ispin)%occupation_numbers = 1.0_dp
+            CALL cp_fm_create(mbas(ispin)%mo_coeff, fm_struct_a)
+            CALL copy_dbcsr_to_fm(quambo(ispin)%matrix, mbas(ispin)%mo_coeff)
          END DO
 
          ! Print basis functions: cube files
          DO ispin = 1, nspin
-            mo_set => mbas(ispin)%mo_set
-            CALL get_mo_set(mo_set, mo_coeff=fm_mos)
+            CALL get_mo_set(mbas(ispin), mo_coeff=fm_mos)
             CALL post_minbas_cubes(qs_env, input_section, fm_mos, ispin)
          END DO
          ! Print basis functions: molden format
          molden_section => section_vals_get_subs_vals(input_section, "MINBAS_MOLDEN")
          CALL write_mos_molden(mbas, qs_kind_set, particle_set, molden_section)
          DO ispin = 1, nspin
-            CALL deallocate_mo_set(mbas(ispin)%mo_set)
-            DEALLOCATE (mbas(ispin)%mo_set)
+            CALL deallocate_mo_set(mbas(ispin))
          END DO
          DEALLOCATE (mbas)
 

@@ -37,7 +37,7 @@ MODULE qs_scf_loop_utils
                                               qs_ks_env_type
    USE qs_mixing_utils,                 ONLY: self_consistency_check
    USE qs_mo_occupation,                ONLY: set_mo_occupation
-   USE qs_mo_types,                     ONLY: mo_set_p_type
+   USE qs_mo_types,                     ONLY: mo_set_type
    USE qs_mom_methods,                  ONLY: do_mom_diag
    USE qs_ot_scf,                       ONLY: ot_scf_destroy,&
                                               ot_scf_mini
@@ -133,7 +133,7 @@ CONTAINS
       LOGICAL                                            :: has_unit_metric, skip_diag_sub
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -275,8 +275,8 @@ CONTAINS
       energy%efermi = 0.0_dp
       CALL get_qs_env(qs_env, mos=mos)
       DO ispin = 1, SIZE(mos)
-         energy%kTS = energy%kTS + mos(ispin)%mo_set%kTS
-         energy%efermi = energy%efermi + mos(ispin)%mo_set%mu
+         energy%kTS = energy%kTS + mos(ispin)%kTS
+         energy%efermi = energy%efermi + mos(ispin)%mu
       END DO
       energy%efermi = energy%efermi/REAL(SIZE(mos), KIND=dp)
 
@@ -305,7 +305,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mo_set_p_type), DIMENSION(:, :), POINTER      :: mos
+      TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos
       TYPE(qs_energy_type), POINTER                      :: energy
 
       CALL timeset(routineN, handle)
@@ -358,8 +358,8 @@ CONTAINS
       energy%efermi = 0.0_dp
       mos => kpoints%kp_env(1)%kpoint_env%mos
       DO ispin = 1, SIZE(mos, 2)
-         energy%kTS = energy%kTS + mos(1, ispin)%mo_set%kTS
-         energy%efermi = energy%efermi + mos(1, ispin)%mo_set%mu
+         energy%kTS = energy%kTS + mos(1, ispin)%kTS
+         energy%efermi = energy%efermi + mos(1, ispin)%mu
       END DO
       energy%efermi = energy%efermi/REAL(SIZE(mos, 2), KIND=dp)
 
@@ -390,7 +390,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(smear_type), POINTER                          :: smear
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), INTENT(INOUT)     :: mos
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs
       REAL(KIND=dp), INTENT(IN)                          :: total_energy
@@ -423,11 +423,11 @@ CONTAINS
                        scf_env%qs_ot_env)
 
       DO ispin = 1, SIZE(mos)
-         CALL set_mo_occupation(mo_set=mos(ispin)%mo_set, smear=smear)
+         CALL set_mo_occupation(mo_set=mos(ispin), smear=smear)
       END DO
 
       DO ispin = 1, SIZE(mos)
-         CALL calculate_density_matrix(mos(ispin)%mo_set, &
+         CALL calculate_density_matrix(mos(ispin), &
                                        rho_ao(ispin)%matrix, &
                                        use_dbcsr=.TRUE.)
       END DO

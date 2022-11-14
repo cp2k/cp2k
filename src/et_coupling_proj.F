@@ -84,7 +84,6 @@ MODULE et_coupling_proj
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               deallocate_mo_set,&
-                                              mo_set_p_type,&
                                               mo_set_type
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
@@ -127,7 +126,7 @@ MODULE et_coupling_proj
       INTEGER                                            :: n_electrons
       INTEGER                                            :: n_ao
       TYPE(et_cpl_atom), DIMENSION(:), POINTER           :: atom
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo
+      TYPE(mo_set_type), DIMENSION(:), POINTER         :: mo
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER        :: hab
    END TYPE et_cpl_block
 
@@ -181,8 +180,7 @@ CONTAINS
                   DEALLOCATE (ec%block(i)%atom)
                IF (ASSOCIATED(ec%block(i)%mo)) THEN
                   DO j = 1, SIZE(ec%block(i)%mo)
-                     CALL deallocate_mo_set(ec%block(i)%mo(j)%mo_set)
-                     DEALLOCATE (ec%block(i)%mo(j)%mo_set)
+                     CALL deallocate_mo_set(ec%block(i)%mo(j))
                   END DO
                   DEALLOCATE (ec%block(i)%mo)
                END IF
@@ -714,7 +712,6 @@ CONTAINS
          ALLOCATE (ec%block(i)%hab(n_spins, ec%n_blocks))
          CPASSERT(ASSOCIATED(ec%block(i)%hab))
          DO j = 1, n_spins
-            NULLIFY (ec%block(i)%mo(j)%mo_set)
             DO k = 1, ec%n_blocks
                NULLIFY (ec%block(i)%hab(j, k)%matrix)
             END DO
@@ -954,10 +951,10 @@ CONTAINS
             n_mo = ec%block(blk)%n_ao
             ALLOCATE (mat_w(j)%matrix)
             CALL cp_fm_create(matrix=mat_w(j)%matrix, &
-                              matrix_struct=ec%block(blk)%mo(j)%mo_set%mo_coeff%matrix_struct, &
+                              matrix_struct=ec%block(blk)%mo(j)%mo_coeff%matrix_struct, &
                               name='BLOCK MOs IN ORTHONORMAL BASIS SET')
             CALL parallel_gemm("N", "N", n_ao, n_mo, n_ao, 1.0_dp, ec%m_transf_inv, &
-                               ec%block(blk)%mo(j)%mo_set%mo_coeff, 0.0_dp, mat_w(j)%matrix)
+                               ec%block(blk)%mo(j)%mo_coeff, 0.0_dp, mat_w(j)%matrix)
          END DO
 
          DO j = 1, n
@@ -1034,7 +1031,7 @@ CONTAINS
 
       ! Routine arguments
       INTEGER, INTENT(IN)                                :: output_unit
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mo
       INTEGER, INTENT(IN)                                :: n_spins
       CHARACTER(LEN=*), INTENT(IN)                       :: label
       INTEGER, INTENT(IN), OPTIONAL                      :: mx_mo_a, mx_mo_b
@@ -1056,26 +1053,26 @@ CONTAINS
          ! Spin-polarized calculation
          IF (n_spins > 1) THEN
 
-            mx_a = mo(1)%mo_set%nmo
+            mx_a = mo(1)%nmo
             IF (PRESENT(mx_mo_a)) &
-               mx_a = MIN(mo(1)%mo_set%nmo, mx_mo_a)
-            mx_b = mo(2)%mo_set%nmo
+               mx_a = MIN(mo(1)%nmo, mx_mo_a)
+            mx_b = mo(2)%nmo
             IF (PRESENT(mx_mo_b)) &
-               mx_b = MIN(mo(2)%mo_set%nmo, mx_mo_b)
+               mx_b = MIN(mo(2)%nmo, mx_mo_b)
             n = MAX(mx_a, mx_b)
 
             DO i = 1, n
                WRITE (output_unit, '(T3,I10)', ADVANCE='no') i
                IF (i <= mx_a) THEN
                   WRITE (output_unit, '(2F12.4)', ADVANCE='no') &
-                     mo(1)%mo_set%occupation_numbers(i), mo(1)%mo_set%eigenvalues(i)
+                     mo(1)%occupation_numbers(i), mo(1)%eigenvalues(i)
                ELSE
                   WRITE (output_unit, '(A)', ADVANCE='no') '                        '
                END IF
                WRITE (output_unit, '(A)', ADVANCE='no') '     '
                IF (i <= mx_b) THEN
                   WRITE (output_unit, '(2F12.4)') &
-                     mo(2)%mo_set%occupation_numbers(i), mo(2)%mo_set%eigenvalues(i)
+                     mo(2)%occupation_numbers(i), mo(2)%eigenvalues(i)
                ELSE
                   WRITE (output_unit, *)
                END IF
@@ -1083,25 +1080,25 @@ CONTAINS
 
             IF (prnt_fm) THEN
                WRITE (output_unit, '(/,T3,I10,F24.4,I10,F19.4)') &
-                  mo(1)%mo_set%nelectron, mo(1)%mo_set%mu, &
-                  mo(2)%mo_set%nelectron, mo(2)%mo_set%mu
+                  mo(1)%nelectron, mo(1)%mu, &
+                  mo(2)%nelectron, mo(2)%mu
             END IF
 
             ! Spin-restricted calculation
          ELSE
 
-            mx_a = mo(1)%mo_set%nmo
+            mx_a = mo(1)%nmo
             IF (PRESENT(mx_mo_a)) &
-               mx_a = MIN(mo(1)%mo_set%nmo, mx_mo_a)
+               mx_a = MIN(mo(1)%nmo, mx_mo_a)
 
             DO i = 1, mx_a
                WRITE (output_unit, '(T3,I10,2F12.4)') &
-                  i, mo(1)%mo_set%occupation_numbers(i), mo(1)%mo_set%eigenvalues(i)
+                  i, mo(1)%occupation_numbers(i), mo(1)%eigenvalues(i)
             END DO
 
             IF (prnt_fm) THEN
                WRITE (output_unit, '(/,T3,I10,F24.4)') &
-                  mo(1)%mo_set%nelectron, mo(1)%mo_set%mu
+                  mo(1)%nelectron, mo(1)%mu
             END IF
 
          END IF
@@ -1126,7 +1123,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                           :: output_unit
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(et_cpl), POINTER                              :: ec
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mo
 
       ! Routine name for debug purposes
 
@@ -1143,7 +1140,7 @@ CONTAINS
 
       n_states = 0
       DO i = 1, SIZE(mo)
-         n_states(i) = mo(i)%mo_set%nmo
+         n_states(i) = mo(i)%nmo
       END DO
       nspins = 1
       IF (n_states(2) > 0) nspins = 2
@@ -1529,9 +1526,8 @@ CONTAINS
       END IF
 
       ! Memory allocation
-      ALLOCATE (ec%block(id)%mo(spin)%mo_set)
-      CALL allocate_mo_set(ec%block(id)%mo(spin)%mo_set, n_ao, n_mo, n_el, REAL(n_el, dp), mx_occ, 0.0_dp)
-      mo => ec%block(id)%mo(spin)%mo_set
+      CALL allocate_mo_set(ec%block(id)%mo(spin), n_ao, n_mo, n_el, REAL(n_el, dp), mx_occ, 0.0_dp)
+      mo => ec%block(id)%mo(spin)
 
       ! State energies
       ALLOCATE (mo%eigenvalues(n_mo))
@@ -1697,7 +1693,7 @@ CONTAINS
             ! Spin states
             DO j = 1, n_spins
 
-               mo => ec%block(i)%mo(j)%mo_set
+               mo => ec%block(i)%mo(j)
 
                CALL section_vals_val_get(mo_sec, keyword_name='MO_LIST', n_rep_val=n)
 
@@ -1769,7 +1765,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_cntrl
       TYPE(et_cpl), POINTER                              :: ec
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: et_proj_sec
@@ -1902,18 +1898,18 @@ CONTAINS
          !<--- Open shell / No K-points ------------------------------------------------>!
 
          ! State eneries of the whole system
-         IF (mo(1)%mo_set%nao /= mo(2)%mo_set%nao) &
+         IF (mo(1)%nao /= mo(2)%nao) &
             CPABORT('different number of alpha/beta AO basis functions')
          IF (master) THEN
             WRITE (output_unit, '(/,T3,A,I10)') &
-               'Number of AO basis functions       = ', mo(1)%mo_set%nao
+               'Number of AO basis functions       = ', mo(1)%nao
             WRITE (output_unit, '(T3,A,I10)') &
-               'Number of alpha states             = ', mo(1)%mo_set%nmo
+               'Number of alpha states             = ', mo(1)%nmo
             WRITE (output_unit, '(T3,A,I10)') &
-               'Number of beta states              = ', mo(2)%mo_set%nmo
+               'Number of beta states              = ', mo(2)%nmo
          END IF
          CALL print_states(output_unit, mo, dft_cntrl%nspins, 'the whole system', fermi=.TRUE.)
-         CALL set_fermi(ec, mo(1)%mo_set%mu, mo(2)%mo_set%mu)
+         CALL set_fermi(ec, mo(1)%mu, mo(2)%mu)
 
          ! KS Hamiltonian
          CALL get_block_hamiltonian(qs_env, ec, fm_s, mat_h, mat_w, n_ao, dft_cntrl%nspins)
@@ -1926,7 +1922,7 @@ CONTAINS
             IF (output_unit > 0) THEN
                CALL print_states(output_unit, ec%block(i)%mo, dft_cntrl%nspins, &
                                  'block '//TRIM(ADJUSTL(cp_to_string(i)))//' states', &
-                                 mx_mo_a=mo(1)%mo_set%nmo, mx_mo_b=mo(2)%mo_set%nmo, fermi=.TRUE.)
+                                 mx_mo_a=mo(1)%nmo, mx_mo_b=mo(2)%nmo, fermi=.TRUE.)
             END IF
             CALL print_mo_coeff(output_unit, qs_env, ec, i, dft_cntrl%nspins)
          END DO
@@ -1943,12 +1939,12 @@ CONTAINS
          ! State eneries of the whole system
          IF (master) THEN
             WRITE (output_unit, '(/,T3,A,I10)') &
-               'Number of AO basis functions       = ', mo(1)%mo_set%nao
+               'Number of AO basis functions       = ', mo(1)%nao
             WRITE (output_unit, '(T3,A,I10)') &
-               'Number of states                   = ', mo(1)%mo_set%nmo
+               'Number of states                   = ', mo(1)%nmo
          END IF
          CALL print_states(output_unit, mo, dft_cntrl%nspins, 'the whole system', fermi=.TRUE.)
-         CALL set_fermi(ec, mo(1)%mo_set%mu)
+         CALL set_fermi(ec, mo(1)%mu)
 
          ! KS Hamiltonian
          CALL get_block_hamiltonian(qs_env, ec, fm_s, mat_h, mat_w, n_ao, dft_cntrl%nspins)
@@ -1961,7 +1957,7 @@ CONTAINS
             IF (output_unit > 0) THEN
                CALL print_states(output_unit, ec%block(i)%mo, dft_cntrl%nspins, &
                                  'block '//TRIM(ADJUSTL(cp_to_string(i)))//' states', &
-                                 mx_mo_a=mo(1)%mo_set%nmo, fermi=.TRUE.)
+                                 mx_mo_a=mo(1)%nmo, fermi=.TRUE.)
             END IF
             CALL print_mo_coeff(output_unit, qs_env, ec, i, dft_cntrl%nspins)
          END DO

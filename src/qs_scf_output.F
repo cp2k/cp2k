@@ -73,7 +73,6 @@ MODULE qs_scf_output
                                               deallocate_mo_set,&
                                               get_mo_set,&
                                               init_mo_set,&
-                                              mo_set_p_type,&
                                               mo_set_type
    USE qs_ot_eigensolver,               ONLY: ot_eigensolver
    USE qs_rho_types,                    ONLY: qs_rho_get,&
@@ -142,14 +141,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qs_scf_initial_info(output_unit, mos, dft_control)
       INTEGER                                            :: output_unit
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
       TYPE(dft_control_type), POINTER                    :: dft_control
 
       INTEGER                                            :: homo, ispin, nao, nelectron_spin, nmo
 
       IF (output_unit > 0) THEN
          DO ispin = 1, dft_control%nspins
-            CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
+            CALL get_mo_set(mo_set=mos(ispin), &
                             homo=homo, &
                             nelectron=nelectron_spin, &
                             nao=nao, &
@@ -208,7 +207,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mo_set_type), POINTER                         :: mo_set_tmp
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(preconditioner_type), POINTER                 :: local_preconditioner
@@ -270,7 +269,7 @@ CONTAINS
          CALL get_qs_env(qs_env, kpoints=kpoints)
          nkp = SIZE(kpoints%kp_env)
       ELSE
-         CALL get_qs_env(qs_env, matrix_ks=ks, matrix_s=s, mos=mos)
+         CALL get_qs_env(qs_env, matrix_ks=ks, matrix_s=s)
          CPASSERT(ASSOCIATED(ks))
          CPASSERT(ASSOCIATED(s))
          nkp = 1
@@ -307,7 +306,7 @@ CONTAINS
                   CALL admm_correct_for_eigenvalues(ispin, admm_env, matrix_ks)
                END IF
 
-               CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
+               CALL get_mo_set(mo_set=mos(ispin), &
                                mo_coeff=mo_coeff, &
                                eigenvalues=mo_eigenvalues, &
                                maxocc=maxocc, &
@@ -398,7 +397,7 @@ CONTAINS
             ELSE
 
                solver_method = "TD"
-               mo_set_tmp => mos(ispin)%mo_set
+               mo_set_tmp => mos(ispin)
 
             END IF ! OT is used
 
@@ -801,7 +800,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_p, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: dft_section, input, scf_section
 

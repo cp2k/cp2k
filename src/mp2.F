@@ -81,7 +81,8 @@ MODULE mp2
                                               deallocate_mo_set,&
                                               get_mo_set,&
                                               init_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_p_type,&
+                                              mo_set_type
    USE qs_scf_methods,                  ONLY: eigensolver,&
                                               eigensolver_symm
    USE qs_scf_types,                    ONLY: qs_scf_env_type
@@ -146,7 +147,8 @@ CONTAINS
       TYPE(hfx_container_type), POINTER                  :: maxval_container
       TYPE(hfx_type), POINTER                            :: actual_x_data
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_mp2
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos_mp2
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp2_biel_type)                                :: mp2_biel
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -306,7 +308,7 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
          max_nset = MAX(max_nset, basis_parameter(ikind)%nset)
       END DO
 
-      CALL get_mo_set(mo_set=mos(1)%mo_set, nao=nao)
+      CALL get_mo_set(mo_set=mos(1), nao=nao)
 
       ! diagonalize the KS matrix in order to have the full set of MO's
       ! get S and KS matrices in fm_type (create also a working array)
@@ -352,7 +354,7 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
             CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, matrix_ks(ispin)%matrix)
          END IF
 
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, maxocc=maxocc, nelectron=nelec(ispin))
+         CALL get_mo_set(mo_set=mos(ispin), maxocc=maxocc, nelectron=nelec(ispin))
 
          ALLOCATE (mos_mp2(ispin)%mo_set)
          CALL allocate_mo_set(mo_set=mos_mp2(ispin)%mo_set, &
@@ -783,7 +785,7 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
    PURE SUBROUTINE get_gamma(matrix_s, matrix_ks, mos, matrix_s_kp, matrix_ks_transl, kpoints)
 
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_ks
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, matrix_ks_transl
       TYPE(kpoint_type), POINTER                         :: kpoints
 

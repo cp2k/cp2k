@@ -35,7 +35,6 @@ MODULE qs_mom_methods
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type,&
                                               mo_set_type,&
                                               set_mo_set
    USE qs_scf_diagonalization,          ONLY: general_eigenproblem
@@ -114,7 +113,7 @@ CONTAINS
 !>      01.2016 created [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE mom_reoccupy_orbitals(mo_set, deocc_orb_set, occ_orb_set, spin)
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type), INTENT(INOUT)                   :: mo_set
       INTEGER, DIMENSION(:), POINTER                     :: deocc_orb_set, occ_orb_set
       CHARACTER(len=*), INTENT(in)                       :: spin
 
@@ -239,7 +238,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE do_mom_guess(nspins, mos, scf_control, p_rmpv)
       INTEGER, INTENT(in)                                :: nspins
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), INTENT(INOUT)     :: mos
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_rmpv
 
@@ -296,7 +295,7 @@ CONTAINS
       ! check if the molecular orbitals are actually there
       ! by finding at least one MO coefficient > 0
       DO ispin = 1, nspins
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
+         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
          CALL cp_fm_maxabsval(mo_coeff, maxa)
          ! is_mo |= maxa > 0.0_dp
          IF (maxa > 0.0_dp) THEN
@@ -310,13 +309,13 @@ CONTAINS
 
       ! proceed alpha orbitals
       IF (nspins >= 1) &
-         CALL mom_reoccupy_orbitals(mos(1)%mo_set, &
+         CALL mom_reoccupy_orbitals(mos(1), &
                                     scf_control%diagonalization%mom_deoccA, &
                                     scf_control%diagonalization%mom_occA, 'alpha')
 
       ! proceed beta orbitals (if any)
       IF (nspins >= 2) &
-         CALL mom_reoccupy_orbitals(mos(2)%mo_set, &
+         CALL mom_reoccupy_orbitals(mos(2), &
                                     scf_control%diagonalization%mom_deoccB, &
                                     scf_control%diagonalization%mom_occB, 'beta')
 
@@ -325,7 +324,7 @@ CONTAINS
       ! obtained from atomic guess
       IF (is_mo) THEN
          DO ispin = 1, nspins
-            CALL calculate_density_matrix(mos(ispin)%mo_set, p_rmpv(ispin)%matrix)
+            CALL calculate_density_matrix(mos(ispin), p_rmpv(ispin)%matrix)
          END DO
       END IF
 
@@ -374,7 +373,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE do_mom_diag(scf_env, mos, matrix_ks, matrix_s, scf_control, scf_section, diis_step)
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), INTENT(INOUT)     :: mos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: scf_section
@@ -406,7 +405,7 @@ CONTAINS
             ALLOCATE (scf_env%mom_ref_mo_coeff(nspins))
             DO ispin = 1, nspins
                NULLIFY (ao_mo_fmstruct, scf_env%mom_ref_mo_coeff(ispin)%matrix)
-               CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, occupation_numbers=occ_nums)
+               CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, occupation_numbers=occ_nums)
                CALL cp_fm_get_info(mo_coeff, matrix_struct=ao_mo_fmstruct)
                ALLOCATE (scf_env%mom_ref_mo_coeff(ispin)%matrix)
                CALL cp_fm_create(scf_env%mom_ref_mo_coeff(ispin)%matrix, ao_mo_fmstruct)
@@ -424,7 +423,7 @@ CONTAINS
             ALLOCATE (scf_env%mom_overlap(nspins))
             DO ispin = 1, nspins
                NULLIFY (blacs_env, mo_mo_fmstruct, scf_env%mom_overlap(ispin)%matrix)
-               CALL get_mo_set(mo_set=mos(ispin)%mo_set, nmo=nmo, mo_coeff=mo_coeff)
+               CALL get_mo_set(mo_set=mos(ispin), nmo=nmo, mo_coeff=mo_coeff)
                CALL cp_fm_get_info(mo_coeff, context=blacs_env)
                CALL cp_fm_struct_create(mo_mo_fmstruct, nrow_global=nmo, ncol_global=nmo, context=blacs_env)
                ALLOCATE (scf_env%mom_overlap(ispin)%matrix)
@@ -438,7 +437,7 @@ CONTAINS
             ALLOCATE (scf_env%mom_s_mo_coeff(nspins))
             DO ispin = 1, nspins
                NULLIFY (ao_mo_fmstruct, scf_env%mom_s_mo_coeff(ispin)%matrix)
-               CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
+               CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
                CALL cp_fm_get_info(mo_coeff, matrix_struct=ao_mo_fmstruct)
                ALLOCATE (scf_env%mom_s_mo_coeff(ispin)%matrix)
                CALL cp_fm_create(scf_env%mom_s_mo_coeff(ispin)%matrix, ao_mo_fmstruct)
@@ -448,7 +447,7 @@ CONTAINS
          ! Original Maximum Overlap Method: keep orbitals from the previous SCF iteration
          IF (scf_control%diagonalization%mom_type == momtype_mom) THEN
             DO ispin = 1, nspins
-               CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, occupation_numbers=occ_nums)
+               CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, occupation_numbers=occ_nums)
                CALL cp_fm_to_fm(mo_coeff, scf_env%mom_ref_mo_coeff(ispin)%matrix)
                CALL cp_fm_column_scale(scf_env%mom_ref_mo_coeff(ispin)%matrix, occ_nums)
             END DO
@@ -462,7 +461,7 @@ CONTAINS
          DO ispin = 1, nspins
 
             ! TO DO: sparse-matrix variant; check if use_mo_coeff_b is set, and if yes use mo_coeff_b instead
-            CALL get_mo_set(mo_set=mos(ispin)%mo_set, maxocc=maxocc, mo_coeff=mo_coeff, &
+            CALL get_mo_set(mo_set=mos(ispin), maxocc=maxocc, mo_coeff=mo_coeff, &
                             nao=nao, nmo=nmo, occupation_numbers=occ_nums)
 
             mo_coeff_ref => scf_env%mom_ref_mo_coeff(ispin)%matrix
@@ -522,13 +521,13 @@ CONTAINS
                IF (occ_nums(homo) > 0.0_dp) EXIT
             END DO
 
-            CALL set_mo_set(mo_set=mos(ispin)%mo_set, homo=homo, lfomo=lfomo)
+            CALL set_mo_set(mo_set=mos(ispin), homo=homo, lfomo=lfomo)
          END DO
       END IF
 
       ! recompute density matrix
       DO ispin = 1, nspins
-         CALL calculate_density_matrix(mos(ispin)%mo_set, scf_env%p_mix_new(ispin, 1)%matrix)
+         CALL calculate_density_matrix(mos(ispin), scf_env%p_mix_new(ispin, 1)%matrix)
       END DO
 
       CALL timestop(handle)

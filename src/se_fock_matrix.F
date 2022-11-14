@@ -44,7 +44,7 @@ MODULE se_fock_matrix
                                               qs_environment_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE se_fock_matrix_coulomb,          ONLY: build_fock_matrix_coul_lr_r3,&
@@ -95,7 +95,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, matrix_h, matrix_p, mo_derivs
       TYPE(dbcsr_type), POINTER                          :: mo_coeff
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_array
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -243,9 +243,9 @@ CONTAINS
          IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy) THEN
             CALL get_qs_env(qs_env, mo_derivs=mo_derivs, mos=mo_array)
             DO ispin = 1, SIZE(mo_derivs)
-               CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, &
+               CALL get_mo_set(mo_set=mo_array(ispin), &
                                mo_coeff_b=mo_coeff, occupation_numbers=occupation_numbers)
-               IF (.NOT. mo_array(ispin)%mo_set%use_mo_coeff_b) THEN
+               IF (.NOT. mo_array(ispin)%use_mo_coeff_b) THEN
                   CPABORT("")
                END IF
                CALL dbcsr_get_info(mo_coeff, nfullcols_total=ncol_global)

@@ -1460,7 +1460,7 @@ CONTAINS
       CALL get_qs_env(qs_env, &
                       kpoints=kpoint)
 
-      mo_set => kpoint%kp_env(1)%kpoint_env%mos(1, 1)%mo_set
+      mo_set => kpoint%kp_env(1)%kpoint_env%mos(1, 1)
       CALL get_mo_set(mo_set, nmo=nmo)
 
       CALL get_kpoint_info(kpoint, kp_range=kp_range)
@@ -1475,7 +1475,7 @@ CONTAINS
          kp => kpoint%kp_env(ikpgr)%kpoint_env
          nspin = SIZE(kp%mos, 2)
          DO ispin = 1, nspin
-            mo_set => kp%mos(1, ispin)%mo_set
+            mo_set => kp%mos(1, ispin)
             CALL get_mo_set(mo_set, eigenvalues=eigenvalues, homo=homo)
             e_homo_temp = eigenvalues(homo)
             e_lumo_temp = eigenvalues(homo + 1)

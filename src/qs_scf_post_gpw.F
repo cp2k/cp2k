@@ -164,7 +164,7 @@ MODULE qs_scf_post_gpw
                                               make_mo_eig
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_moments,                      ONLY: qs_moment_berry_phase,&
                                               qs_moment_locop
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
@@ -266,7 +266,7 @@ CONTAINS
                                                             mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: kinetic_m, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -479,7 +479,7 @@ CONTAINS
                END IF
             END IF
             DO ispin = 1, dft_control%nspins
-               CALL get_mo_set(mo_set=mos(ispin)%mo_set, eigenvalues=mo_eigenvalues, homo=homo)
+               CALL get_mo_set(mo_set=mos(ispin), eigenvalues=mo_eigenvalues, homo=homo)
                homo_lumo(ispin, 1) = mo_eigenvalues(homo)
             END DO
             has_homo = .TRUE.
@@ -487,7 +487,7 @@ CONTAINS
          IF (do_mo_cubes .AND. nhomo /= 0) THEN
             DO ispin = 1, dft_control%nspins
                ! Prints the cube files of OCCUPIED ORBITALS
-               CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, &
+               CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, &
                                eigenvalues=mo_eigenvalues, homo=homo, nmo=nmo)
                CALL qs_scf_post_occ_cubes(input, dft_section, dft_control, logger, qs_env, &
                                           mo_coeff, wf_g, wf_r, particles, homo, ispin)
@@ -510,7 +510,7 @@ CONTAINS
             ALLOCATE (occupied_evals(dft_control%nspins))
             ALLOCATE (homo_localized(dft_control%nspins))
             DO ispin = 1, dft_control%nspins
-               CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, &
+               CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, &
                                eigenvalues=mo_eigenvalues)
                occupied_orbs(ispin)%matrix => mo_coeff
                occupied_evals(ispin)%array => mo_eigenvalues
@@ -563,7 +563,7 @@ CONTAINS
          compute_lumos = compute_lumos .OR. p_loc_lumo
 
          DO ispin = 1, dft_control%nspins
-            CALL get_mo_set(mo_set=mos(ispin)%mo_set, homo=homo, nmo=nmo)
+            CALL get_mo_set(mo_set=mos(ispin), homo=homo, nmo=nmo)
             compute_lumos = compute_lumos .AND. homo == nmo
          END DO
 
@@ -572,7 +572,7 @@ CONTAINS
             nlumo = section_get_ival(dft_section, "PRINT%MO_CUBES%NLUMO")
             DO ispin = 1, dft_control%nspins
 
-               CALL get_mo_set(mo_set=mos(ispin)%mo_set, homo=homo, nmo=nmo, eigenvalues=mo_eigenvalues)
+               CALL get_mo_set(mo_set=mos(ispin), homo=homo, nmo=nmo, eigenvalues=mo_eigenvalues)
                IF (nlumo > nmo - homo) THEN
                   ! this case not yet implemented
                ELSE
@@ -585,7 +585,7 @@ CONTAINS
                   IF (output_unit > 0) WRITE (output_unit, '(4(1X,1F16.8))') mo_eigenvalues(homo + 1:homo + nlumo)
 
                   ! Prints the cube files of UNOCCUPIED ORBITALS
-                  CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
+                  CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
                   CALL qs_scf_post_unocc_cubes(input, dft_section, dft_control, logger, qs_env, &
                                                mo_coeff, wf_g, wf_r, particles, nlumo, homo, ispin, lumo=homo + 1)
                END IF
@@ -612,7 +612,7 @@ CONTAINS
             DO ispin = 1, dft_control%nspins
                has_lumo = .TRUE.
                homo_lumo(ispin, 2) = unoccupied_evals(ispin)%array(1)
-               CALL get_mo_set(mo_set=mos(ispin)%mo_set, homo=homo)
+               CALL get_mo_set(mo_set=mos(ispin), homo=homo)
                IF (check_write) THEN
                   IF (p_loc_lumo .AND. nlumo .NE. -1) nlumos = MIN(nlumo, nlumos)
                   ! Prints the cube files of UNOCCUPIED ORBITALS
@@ -675,7 +675,7 @@ CONTAINS
             ALLOCATE (mixed_evals(dft_control%nspins))
             ALLOCATE (mixed_localized(dft_control%nspins))
             DO ispin = 1, dft_control%nspins
-               CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, &
+               CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, &
                                eigenvalues=mo_eigenvalues)
                mixed_orbs(ispin)%matrix => mo_coeff
                mixed_evals(ispin)%array => mo_eigenvalues
@@ -868,7 +868,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(preconditioner_type), POINTER                 :: local_preconditioner
       TYPE(scf_control_type), POINTER                    :: scf_control
 
@@ -895,7 +895,7 @@ CONTAINS
          IF (output_unit > 0) WRITE (output_unit, *) " "
          IF (output_unit > 0) WRITE (output_unit, *) " Lowest Eigenvalues of the unoccupied subspace spin ", ispin
          IF (output_unit > 0) WRITE (output_unit, FMT='(1X,A)') "-----------------------------------------------------"
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, homo=homo, nao=nao, nmo=nmo)
+         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, homo=homo, nao=nao, nmo=nmo)
          CALL cp_fm_get_info(mo_coeff, nrow_global=n)
          nlumos = MAX(1, MIN(nlumo, nao - nmo))
          IF (nlumo == -1) nlumos = nao - nmo
@@ -1423,9 +1423,9 @@ CONTAINS
             DO ispin = 1, dft_control%nspins
                ALLOCATE (my_mos(ispin)%matrix)
                CALL cp_fm_create(matrix=my_mos(ispin)%matrix, &
-                                 matrix_struct=qs_env%mos(ispin)%mo_set%mo_coeff%matrix_struct, &
+                                 matrix_struct=qs_env%mos(ispin)%mo_coeff%matrix_struct, &
                                  name="FIRST_RUN_COEFF"//TRIM(ADJUSTL(cp_to_string(ispin)))//"MATRIX")
-               CALL cp_fm_to_fm(qs_env%mos(ispin)%mo_set%mo_coeff, &
+               CALL cp_fm_to_fm(qs_env%mos(ispin)%mo_coeff, &
                                 my_mos(ispin)%matrix)
             END DO
             CALL set_et_coupling_type(qs_env%et_coupling, et_mo_coeff=my_mos)
@@ -1569,7 +1569,7 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: fm_s, fm_work
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(section_vals_type), POINTER                   :: print_key
 
@@ -1583,7 +1583,7 @@ CONTAINS
          CALL get_qs_env(qs_env, energy=energy, matrix_s=matrix_s, mos=mos)
 
          ! set up the two needed full matrices, using mo_coeff as a template
-         CALL get_mo_set(mo_set=mos(1)%mo_set, mo_coeff=mo_coeff, nao=nao)
+         CALL get_mo_set(mo_set=mos(1), mo_coeff=mo_coeff, nao=nao)
          CALL cp_fm_struct_create(fmstruct=ao_ao_fmstruct, &
                                   nrow_global=nao, ncol_global=nao, &
                                   template_fmstruct=mo_coeff%matrix_struct)
@@ -1704,7 +1704,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_deriv
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -1774,7 +1774,7 @@ CONTAINS
                CALL calculate_dos_kp(kpoints, qs_env, dft_section)
             ELSE
                CALL get_qs_env(qs_env, mos=mos)
-               CALL calculate_dos(mos, qs_env, dft_section)
+               CALL calculate_dos(mos, dft_section)
             END IF
          END IF
 
@@ -1794,7 +1794,7 @@ CONTAINS
                   END IF
                   IF (PRESENT(scf_env)) THEN
                      IF (scf_env%method == ot_method_nr) THEN
-                        CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, &
+                        CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, &
                                         eigenvalues=mo_eigenvalues)
                         IF (ASSOCIATED(qs_env%mo_derivs)) THEN
                            mo_coeff_deriv => qs_env%mo_derivs(ispin)%matrix
@@ -1804,14 +1804,14 @@ CONTAINS
                         CALL calculate_subspace_eigenvalues(mo_coeff, ks_rmpv(ispin)%matrix, mo_eigenvalues, &
                                                             do_rotation=.TRUE., &
                                                             co_rotate_dbcsr=mo_coeff_deriv)
-                        CALL set_mo_occupation(mo_set=mos(ispin)%mo_set)
+                        CALL set_mo_occupation(mo_set=mos(ispin))
                      END IF
                   END IF
                   IF (dft_control%nspins == 2) THEN
-                     CALL calculate_projected_dos(mos(ispin)%mo_set, atomic_kind_set, &
+                     CALL calculate_projected_dos(mos(ispin), atomic_kind_set, &
                                                   qs_kind_set, particle_set, qs_env, dft_section, ispin=ispin)
                   ELSE
-                     CALL calculate_projected_dos(mos(ispin)%mo_set, atomic_kind_set, &
+                     CALL calculate_projected_dos(mos(ispin), atomic_kind_set, &
                                                   qs_kind_set, particle_set, qs_env, dft_section)
                   END IF
                   ! With ADMM, we have to undo the modification of the Kohn-Sham matrix
@@ -1848,7 +1848,7 @@ CONTAINS
          ELSE
             all_equal = .TRUE.
             DO ispin = 1, dft_control%nspins
-               CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
+               CALL get_mo_set(mo_set=mos(ispin), &
                                occupation_numbers=occupation_numbers, &
                                homo=homo, &
                                nmo=nmo, &

@@ -115,7 +115,7 @@ MODULE mp2_cphf
                                               set_ks_env
    USE qs_linres_types,                 ONLY: linres_control_create,&
                                               linres_control_type
-   USE qs_mo_types,                     ONLY: mo_set_p_type
+   USE qs_mo_types,                     ONLY: mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_overlap,                      ONLY: build_overlap_matrix
    USE qs_p_env_methods,                ONLY: p_env_check_i_alloc,&
@@ -1369,7 +1369,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(linres_control_type), POINTER                 :: linres_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb, sac_ppl, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -1981,7 +1981,7 @@ CONTAINS
 
       ! Finish matrix_w_mp2 with occ-occ block
       DO ispin = 1, nspins
-         CALL calculate_whz_matrix(mos(ispin)%mo_set%mo_coeff, p_env%kpp1(ispin)%matrix, &
+         CALL calculate_whz_matrix(mos(ispin)%mo_coeff, p_env%kpp1(ispin)%matrix, &
                                    p_env%w1(1)%matrix, 1.0_dp)
       END DO
 

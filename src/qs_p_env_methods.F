@@ -88,7 +88,7 @@ MODULE qs_p_env_methods
    USE qs_local_rho_types,              ONLY: local_rho_set_create
    USE qs_matrix_pools,                 ONLY: mpools_get
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_p_env_types,                  ONLY: qs_p_env_type
    USE qs_rho0_ggrid,                   ONLY: rho0_s_grid_create
@@ -220,7 +220,7 @@ CONTAINS
       p_env%n_mo = 0
       p_env%n_ao = 0
       DO spin = 1, n_spins
-         CALL get_mo_set(qs_env%mos(spin)%mo_set, mo_coeff=qs_env_c)
+         CALL get_mo_set(qs_env%mos(spin), mo_coeff=qs_env_c)
          CALL cp_fm_get_info(qs_env_c, &
                              ncol_global=n_mo, nrow_global=n_ao)
          p_env%n_mo(spin) = n_mo
@@ -494,7 +494,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -524,8 +524,7 @@ CONTAINS
                       ao_mo_fm_pools=ao_mo_fm_pools)
       ALLOCATE (psi0(n_spins))
       DO spin = 1, n_spins
-         CALL get_mo_set(mos(spin)%mo_set, &
-                         mo_coeff=mo_coeff)
+         CALL get_mo_set(mos(spin), mo_coeff=mo_coeff)
          CALL cp_fm_create(psi0(spin), mo_coeff%matrix_struct)
          CALL cp_fm_to_fm(mo_coeff, psi0(spin))
       END DO
@@ -586,7 +585,7 @@ CONTAINS
                n_cols=p_env%n_mo(spin))
 
             ! updates P
-            CALL get_mo_set(mos(spin)%mo_set, lfomo=lfomo, &
+            CALL get_mo_set(mos(spin), lfomo=lfomo, &
                             nmo=nmo, maxocc=maxocc)
             IF (lfomo > nmo) THEN
                CALL dbcsr_set(rho_ao(spin)%matrix, 0.0_dp)

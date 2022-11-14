@@ -168,7 +168,7 @@ MODULE qs_environment
                                               set_ks_env
    USE qs_local_rho_types,              ONLY: local_rho_type
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_rho0_ggrid,                   ONLY: rho0_s_grid_create
    USE qs_rho0_methods,                 ONLY: init_rho0
    USE qs_rho0_types,                   ONLY: rho0_mpole_type
@@ -548,7 +548,7 @@ CONTAINS
                                                             ri_xas_basis, tmp_basis_set
       TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(lri_environment_type), POINTER                :: lri_env
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_last_converged
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_last_converged
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(mp2_type), POINTER                            :: mp2_env
@@ -1539,8 +1539,7 @@ CONTAINS
       ELSE
          ALLOCATE (mos(dft_control%nspins))
          DO ispin = 1, dft_control%nspins
-            ALLOCATE (mos(ispin)%mo_set)
-            CALL allocate_mo_set(mo_set=mos(ispin)%mo_set, &
+            CALL allocate_mo_set(mo_set=mos(ispin), &
                                  nao=n_ao, &
                                  nmo=n_mo(ispin), &
                                  nelectron=nelectron_spin(ispin), &
@@ -1556,8 +1555,7 @@ CONTAINS
       IF (dft_control%switch_surf_dip) THEN
          ALLOCATE (mos_last_converged(dft_control%nspins))
          DO ispin = 1, dft_control%nspins
-            ALLOCATE (mos_last_converged(ispin)%mo_set)
-            CALL allocate_mo_set(mo_set=mos_last_converged(ispin)%mo_set, &
+            CALL allocate_mo_set(mo_set=mos_last_converged(ispin), &
                                  nao=n_ao, &
                                  nmo=n_mo(ispin), &
                                  nelectron=nelectron_spin(ispin), &

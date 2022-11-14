@@ -223,7 +223,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: denmat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: pro_basis_set
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mo_set_type), POINTER                         :: mo_set, mo_set_active, mo_set_inactive
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(preconditioner_type), POINTER                 :: local_preconditioner
@@ -398,11 +398,7 @@ CONTAINS
 
       ! CALL get_qs_env(qs_env, mos=mos)
       !
-      ! IF (.NOT. ASSOCIATED(mos(1)%mo_set)) THEN
-      !    CALL cp_abort(__LOCATION__, "A reference MO set has to be available when determining"// &
-      !                  " the active space orbitals.")
-      ! END IF
-      ! CALL get_mo_set(mos(1)%mo_set, mo_coeff=fm_ref, nao=nao)
+      ! CALL get_mo_set(mos(1), mo_coeff=fm_ref, nao=nao)
       ! maxocc = 2.0_dp
       ! IF (nspins > 1) maxocc = 1.0_dp
       ! ALLOCATE (active_space_env%mos_active(nspins))
@@ -488,14 +484,9 @@ CONTAINS
       CASE (casci_canonical)
          CALL get_qs_env(qs_env, mos=mos)
 
-         IF (.NOT. ASSOCIATED(mos(1)%mo_set)) THEN
-            CALL cp_abort(__LOCATION__, "A reference MO set has to be available when determining"// &
-                          " the active space orbitals.")
-         END IF
-
          nmo = 0
          DO ispin = 1, nspins
-            CALL get_mo_set(mos(ispin)%mo_set, nmo=m)
+            CALL get_mo_set(mos(ispin), nmo=m)
             ! IF (m < ninactive_orb(ispin) + nactive_orb(ispin)) THEN
             !    CPABORT("Not enough canonical orbitals available.")
             ! END IF
@@ -524,7 +515,7 @@ CONTAINS
             END DO
          END DO
 
-         CALL get_mo_set(mos(1)%mo_set, mo_coeff=fm_ref, nao=nao, nmo=nmo)
+         CALL get_mo_set(mos(1), mo_coeff=fm_ref, nao=nao, nmo=nmo)
          CALL cp_fm_get_info(fm_ref, context=context, para_env=para_env, &
                              nrow_global=nrow_global)
          nvirt = max_orb_ind - nmo
@@ -566,7 +557,7 @@ CONTAINS
             CALL get_qs_env(qs_env, matrix_ks=ks_matrix, matrix_s=s_matrix, scf_control=scf_control)
 
             DO ispin = 1, nspins
-               CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=fm_ref, nmo=nmo)
+               CALL get_mo_set(mos(ispin), mo_coeff=fm_ref, nmo=nmo)
 
                NULLIFY (evals_virt)
                ALLOCATE (evals_virt(nvirt))
@@ -699,17 +690,12 @@ CONTAINS
 
             CALL get_qs_env(qs_env, mos=mos)
 
-            IF (.NOT. ASSOCIATED(mos(1)%mo_set)) THEN
-               CALL cp_abort(__LOCATION__, "A reference MO set has to be available when determining"// &
-                             " the active space orbitals.")
-            END IF
-
             maxocc = 2.0_dp
             IF (nspins > 1) maxocc = 1.0_dp
             ALLOCATE (active_space_env%mos_active(nspins))
             ALLOCATE (active_space_env%mos_inactive(nspins))
             DO ispin = 1, nspins
-               CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=fm_ref, nao=nao, nmo=nmo)
+               CALL get_mo_set(mos(ispin), mo_coeff=fm_ref, nao=nao, nmo=nmo)
                CALL cp_fm_get_info(fm_ref, context=context, para_env=para_env, &
                                    nrow_global=nrow_global)
                ALLOCATE (mo_set)
@@ -732,7 +718,7 @@ CONTAINS
 
             nmo = 0
             DO ispin = 1, nspins
-               CALL get_mo_set(mos(ispin)%mo_set, nmo=m)
+               CALL get_mo_set(mos(ispin), nmo=m)
                ! IF (m < max_orb_ind) THEN
                !    CPABORT("Not enough canonical orbitals available.")
                ! END IF
@@ -749,7 +735,7 @@ CONTAINS
                focc = 1
             END IF
             DO ispin = 1, nspins
-               CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=fm_ref, nmo=nmo)
+               CALL get_mo_set(mos(ispin), mo_coeff=fm_ref, nmo=nmo)
                nvirt = max_orb_ind - nmo
                nvirt = MAX(nvirt, 0)
 
@@ -849,7 +835,7 @@ CONTAINS
          ALLOCATE (mos_localized(nspins))
          CALL get_qs_env(qs_env, mos=mos)
          DO ispin = 1, nspins
-            CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
+            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
             ALLOCATE (mos_localized(ispin)%matrix)
             CALL cp_fm_create(mos_localized(ispin)%matrix, mo_coeff%matrix_struct)
             CALL cp_fm_to_fm(mo_coeff, mos_localized(ispin)%matrix)

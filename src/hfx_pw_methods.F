@@ -58,7 +58,7 @@ MODULE hfx_pw_methods
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -107,7 +107,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_b
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_array
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_grid_type), POINTER                        :: grid
@@ -130,7 +130,7 @@ CONTAINS
                          atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set)
 
          ! limit the blocksize by the number of orbitals
-         CALL get_mo_set(mo_set=mo_array(1)%mo_set, mo_coeff=mo_coeff)
+         CALL get_mo_set(mo_set=mo_array(1), mo_coeff=mo_coeff)
          CALL cp_fm_get_info(mo_coeff, ncol_global=norb)
          blocksize = MAX(1, MIN(blocksize, norb))
 
@@ -196,9 +196,9 @@ CONTAINS
          exchange_energy = 0.0_dp
 
          DO ispin = 1, SIZE(mo_array)
-            CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, mo_coeff=mo_coeff, mo_coeff_b=mo_coeff_b)
+            CALL get_mo_set(mo_set=mo_array(ispin), mo_coeff=mo_coeff, mo_coeff_b=mo_coeff_b)
 
-            IF (mo_array(ispin)%mo_set%use_mo_coeff_b) THEN !fm->dbcsr
+            IF (mo_array(ispin)%use_mo_coeff_b) THEN !fm->dbcsr
                CALL copy_dbcsr_to_fm(mo_coeff_b, mo_coeff) !fm->dbcsr
             END IF !fm->dbcsr
 

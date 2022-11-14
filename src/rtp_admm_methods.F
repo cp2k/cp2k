@@ -50,7 +50,7 @@ MODULE rtp_admm_methods
                                               qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_set,&
                                               qs_rho_type
@@ -92,7 +92,7 @@ CONTAINS
                                                             matrix_s_aux_fit, &
                                                             matrix_s_aux_fit_vs_orb
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_aux_fit
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g_aux, rho_r_aux
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
@@ -212,7 +212,7 @@ CONTAINS
       TYPE(admm_control_type), POINTER                   :: admm_control
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux_fit, matrix_s_mixed
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos, mos_aux_fit
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: rtp_coeff_aux_fit
       LOGICAL, INTENT(IN)                                :: geometry_did_change
@@ -281,7 +281,7 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux_fit, matrix_s_mixed
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos, mos_aux_fit
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: rtp_coeff_aux_fit
       LOGICAL, INTENT(IN)                                :: geometry_did_change
@@ -340,8 +340,8 @@ CONTAINS
          IF (nmo == 0) CYCLE
          !! Lambda = C^(T)*B*C
          CALL get_rtp(rtp=rtp, mos_new=mos_new)
-         CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, occupation_numbers=occ_num, nmo=nmo_mos)
-         CALL get_mo_set(mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit, &
+         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, occupation_numbers=occ_num, nmo=nmo_mos)
+         CALL get_mo_set(mos_aux_fit(ispin), mo_coeff=mo_coeff_aux_fit, &
                          occupation_numbers=occ_num_aux)
 
          CALL parallel_gemm('N', 'N', nao_aux_fit, nmo, nao_orb, &

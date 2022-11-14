@@ -45,37 +45,37 @@ MODULE qs_mo_types
 
    TYPE mo_set_type
       ! The actual MO coefficients as a matrix
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      TYPE(dbcsr_type), POINTER                          :: mo_coeff_b
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff => NULL()
+      TYPE(dbcsr_type), POINTER                          :: mo_coeff_b => NULL()
       ! we are using the dbcsr mo_coeff_b
-      LOGICAL                                            :: use_mo_coeff_b
+      LOGICAL                                            :: use_mo_coeff_b = .FALSE.
       ! Number of molecular orbitals (# cols in mo_coeff)
-      INTEGER                                            :: nmo
+      INTEGER                                            :: nmo = -1
       ! Number of atomic orbitals (# rows in mo_coeff)
-      INTEGER                                            :: nao
+      INTEGER                                            :: nao = -1
       ! MO occupation numbers and MO eigenvalues (if eigenstates)
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, &
-                                                            occupation_numbers
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues => NULL(), &
+                                                            occupation_numbers => NULL()
       ! Maximum allowed occupation number of an MO, i.e.
       ! 1 for spin unrestricted (polarized) and 2 for spin restricted
-      REAL(KIND=dp)                                      :: maxocc
+      REAL(KIND=dp)                                      :: maxocc = -1
       ! Number of electrons (taking occupations into account)
-      INTEGER                                            :: nelectron
-      REAL(KIND=dp)                                      :: n_el_f
+      INTEGER                                            :: nelectron = -1
+      REAL(KIND=dp)                                      :: n_el_f = -1.0_dp
       ! Highest orbital with non-zero occupation
-      INTEGER                                            :: homo
+      INTEGER                                            :: homo = -1
       ! lowest non maxocc occupied orbital (e.g. fractional or zero)
-      INTEGER                                            :: lfomo
+      INTEGER                                            :: lfomo = -1
       ! True, if all allocated MOs have the same occupation number.
       ! This is not the case for fractional occupations or for added MOs
       ! with zero occupation.
-      LOGICAL                                            :: uniform_occupation
+      LOGICAL                                            :: uniform_occupation = .FALSE.
       ! The entropic energy contribution
-      REAL(KIND=dp)                                      :: kTS
+      REAL(KIND=dp)                                      :: kTS = -1.0_dp
       ! Fermi energy level
-      REAL(KIND=dp)                                      :: mu
+      REAL(KIND=dp)                                      :: mu = 0.0_dp
       ! Threshold value for multiplicity change
-      REAL(KIND=dp)                                      :: flexible_electron_count
+      REAL(KIND=dp)                                      :: flexible_electron_count = -1.0_dp
    END TYPE mo_set_type
 
    TYPE mo_set_p_type
@@ -106,7 +106,7 @@ CONTAINS
 !> \author Soumya Ghosh
 ! **************************************************************************************************
    SUBROUTINE reassign_allocated_mos(mo_set_new, mo_set_old)
-      TYPE(mo_set_type), POINTER                         :: mo_set_new, mo_set_old
+      TYPE(mo_set_type), INTENT(INOUT)                   :: mo_set_new, mo_set_old
 
       INTEGER                                            :: nmo
 
@@ -314,7 +314,7 @@ CONTAINS
 !>      10.2004 created [Joost VandeVondele]
 ! **************************************************************************************************
    SUBROUTINE mo_set_restrict(mo_array, convert_dbcsr)
-      TYPE(mo_set_p_type), DIMENSION(2), INTENT(IN)      :: mo_array
+      TYPE(mo_set_type), DIMENSION(2), INTENT(IN)        :: mo_array
       LOGICAL, INTENT(in), OPTIONAL                      :: convert_dbcsr
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mo_set_restrict'
@@ -327,16 +327,16 @@ CONTAINS
       my_convert_dbcsr = .FALSE.
       IF (PRESENT(convert_dbcsr)) my_convert_dbcsr = convert_dbcsr
 
-      CPASSERT(mo_array(1)%mo_set%nmo >= mo_array(2)%mo_set%nmo)
+      CPASSERT(mo_array(1)%nmo >= mo_array(2)%nmo)
 
       ! first nmo_beta orbitals are copied from alpha to beta
       IF (my_convert_dbcsr) THEN !fm->dbcsr
-         CALL dbcsr_copy_columns_hack(mo_array(2)%mo_set%mo_coeff_b, mo_array(1)%mo_set%mo_coeff_b, & !fm->dbcsr
-                                      mo_array(2)%mo_set%nmo, 1, 1, & !fm->dbcsr
-                                      para_env=mo_array(1)%mo_set%mo_coeff%matrix_struct%para_env, & !fm->dbcsr
-                                      blacs_env=mo_array(1)%mo_set%mo_coeff%matrix_struct%context) !fm->dbcsr
+         CALL dbcsr_copy_columns_hack(mo_array(2)%mo_coeff_b, mo_array(1)%mo_coeff_b, & !fm->dbcsr
+                                      mo_array(2)%nmo, 1, 1, & !fm->dbcsr
+                                      para_env=mo_array(1)%mo_coeff%matrix_struct%para_env, & !fm->dbcsr
+                                      blacs_env=mo_array(1)%mo_coeff%matrix_struct%context) !fm->dbcsr
       ELSE !fm->dbcsr
-         CALL cp_fm_to_fm(mo_array(1)%mo_set%mo_coeff, mo_array(2)%mo_set%mo_coeff, mo_array(2)%mo_set%nmo)
+         CALL cp_fm_to_fm(mo_array(1)%mo_coeff, mo_array(2)%mo_coeff, mo_array(2)%nmo)
       END IF
 
       CALL timestop(handle)
@@ -356,9 +356,11 @@ CONTAINS
 
       IF (ASSOCIATED(mo_set%eigenvalues)) THEN
          DEALLOCATE (mo_set%eigenvalues)
+         NULLIFY (mo_set%eigenvalues)
       END IF
       IF (ASSOCIATED(mo_set%occupation_numbers)) THEN
          DEALLOCATE (mo_set%occupation_numbers)
+         NULLIFY (mo_set%occupation_numbers)
       END IF
       IF (ASSOCIATED(mo_set%mo_coeff)) THEN
          CALL cp_fm_release(mo_set%mo_coeff)

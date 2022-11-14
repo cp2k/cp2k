@@ -118,7 +118,7 @@ MODULE qs_environment_types
                                               mpools_retain,&
                                               qs_matrix_pools_type
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_oce_types,                    ONLY: deallocate_oce_set,&
                                               oce_matrix_type
@@ -232,7 +232,7 @@ MODULE qs_environment_types
       TYPE(almo_scf_env_type), POINTER                      :: almo_scf_env
       TYPE(transport_env_type), POINTER                     :: transport_env
       TYPE(cell_type), POINTER                              :: super_cell
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER            :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER            :: mos
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER             :: mo_loc_history
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER             :: mo_derivs
       TYPE(scf_control_type), POINTER                       :: scf_control
@@ -304,7 +304,7 @@ MODULE qs_environment_types
       REAL(KIND=dp), DIMENSION(:), POINTER                  :: rhs => NULL()
       REAL(KIND=dp)                                         :: total_zeff_corr, surface_dipole_moment
       LOGICAL                                               :: surface_dipole_switch_off
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER            :: mos_last_converged
+      TYPE(mo_set_type), DIMENSION(:), POINTER            :: mos_last_converged
    END TYPE qs_environment_type
 
 CONTAINS
@@ -503,8 +503,7 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: use_ref_cell
       TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
       TYPE(dft_control_type), OPTIONAL, POINTER          :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: mos
+      TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: sab_orb, sab_all
       LOGICAL, OPTIONAL                                  :: qmmm, qmmm_periodic
@@ -620,8 +619,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: gradient_history, variable_history
       TYPE(pw_type), OPTIONAL, POINTER                   :: embed_pot, spin_embed_pot
       TYPE(polar_env_type), OPTIONAL, POINTER            :: polar_env
-      TYPE(mo_set_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: mos_last_converged
+      TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos_last_converged
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: rhs
 
       TYPE(rho0_mpole_type), POINTER                     :: rho0_m
@@ -1023,8 +1021,7 @@ CONTAINS
 
       TYPE(qs_environment_type), INTENT(INOUT)           :: qs_env
       TYPE(cell_type), OPTIONAL, POINTER                 :: super_cell
-      TYPE(mo_set_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: mos
+      TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos
       LOGICAL, OPTIONAL                                  :: qmmm, qmmm_periodic
       TYPE(ewald_environment_type), OPTIONAL, POINTER    :: ewald_env
       TYPE(ewald_pw_type), OPTIONAL, POINTER             :: ewald_pw
@@ -1093,8 +1090,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: gradient_history, variable_history
       TYPE(pw_type), OPTIONAL, POINTER                   :: embed_pot, spin_embed_pot
       TYPE(polar_env_type), OPTIONAL, POINTER            :: polar_env
-      TYPE(mo_set_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: mos_last_converged
+      TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos_last_converged
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: rhs
 
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -1358,15 +1354,13 @@ CONTAINS
       CALL cell_release(qs_env%super_cell)
       IF (ASSOCIATED(qs_env%mos)) THEN
          DO i = 1, SIZE(qs_env%mos)
-            CALL deallocate_mo_set(qs_env%mos(i)%mo_set)
-            DEALLOCATE (qs_env%mos(i)%mo_set)
+            CALL deallocate_mo_set(qs_env%mos(i))
          END DO
          DEALLOCATE (qs_env%mos)
       END IF
       IF (ASSOCIATED(qs_env%mos_last_converged)) THEN
          DO i = 1, SIZE(qs_env%mos_last_converged)
-            CALL deallocate_mo_set(qs_env%mos_last_converged(i)%mo_set)
-            DEALLOCATE (qs_env%mos_last_converged(i)%mo_set)
+            CALL deallocate_mo_set(qs_env%mos_last_converged(i))
          END DO
          DEALLOCATE (qs_env%mos_last_converged)
       END IF
@@ -1589,8 +1583,7 @@ CONTAINS
 
       IF (ASSOCIATED(qs_env%mos_last_converged)) THEN
          DO i = 1, SIZE(qs_env%mos_last_converged)
-            CALL deallocate_mo_set(qs_env%mos_last_converged(i)%mo_set)
-            DEALLOCATE (qs_env%mos_last_converged(i)%mo_set)
+            CALL deallocate_mo_set(qs_env%mos_last_converged(i))
          END DO
          DEALLOCATE (qs_env%mos_last_converged)
       END IF

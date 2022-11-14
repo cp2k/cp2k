@@ -72,7 +72,7 @@ MODULE qs_linres_op
                                               linres_control_type,&
                                               polar_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_moments,                      ONLY: build_berry_moment_matrix,&
                                               build_local_moment_matrix
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
@@ -346,7 +346,7 @@ CONTAINS
       !
       ! Apply the (r-c)xp operator to the psi0
       !DO ispin = 1,nspins
-      !  CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo, homo=homo)
+      !  CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nmo=nmo, homo=homo)
       !  DO idir = 1,3
       !     CALL cp_fm_set_all(rxp_psi0(ispin,idir)%matrix,0.0_dp)
       !     CALL cp_sm_fm_multiply(op_rmd_ao(idir)%matrix,mo_coeff,&
@@ -461,7 +461,7 @@ CONTAINS
                                                             matrix_pso
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: lr_section
@@ -586,7 +586,7 @@ CONTAINS
       ! multiply by the mos
       DO ispin = 1, nspins
          !
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
+         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
          CALL cp_fm_get_info(mo_coeff, ncol_global=nmo)
          !
          ! EFG
@@ -700,7 +700,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dbcsr_type), POINTER                          :: cosmat, sinmat
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(polar_env_type), POINTER                      :: polar_env
 
       CALL timeset(routineN, handle)
@@ -741,7 +741,7 @@ CONTAINS
          ! A bit to allocate for the wavefunction
          DO ispin = 1, dft_control%nspins
             NULLIFY (tmp_fm_struct, mo_coeff)
-            CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
+            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=nmo)
             CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, &
                                      ncol_global=nmo, para_env=para_env, context=mo_coeff%matrix_struct%context)
             DO i = 1, SIZE(op_fm_set, 1)
@@ -773,7 +773,7 @@ CONTAINS
             CALL build_berry_moment_matrix(qs_env, cosmat, sinmat, kvec)
 
             DO ispin = 1, dft_control%nspins ! spin
-               CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, mo_coeff=mo_coeff, nmo=nmo)
+               CALL get_mo_set(mo_set=mos(ispin), nao=nao, mo_coeff=mo_coeff, nmo=nmo)
 
                CALL cp_dbcsr_sm_fm_multiply(cosmat, mo_coeff, opvec(1, ispin)%matrix, ncol=nmo)
                CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff, opvec(1, ispin)%matrix, 0.0_dp, &
@@ -800,7 +800,7 @@ CONTAINS
             ! Compute the derivative and add the result to mo_derivatives
             DO ispin = 1, dft_control%nspins
                CALL cp_cfm_get_info(eigrmat(ispin)%matrix, ncol_local=tmp_dim)
-               CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, nmo=nmo, maxocc=maxocc)
+               CALL get_mo_set(mo_set=mos(ispin), nao=nao, nmo=nmo, maxocc=maxocc)
                DO z = 1, tmp_dim
                   inv_work(1, i, ispin)%matrix%local_data(:, z) = REAL(inv_mat(i, ispin)%matrix%local_data(:, z), dp)
                   inv_work(2, i, ispin)%matrix%local_data(:, z) = AIMAG(inv_mat(i, ispin)%matrix%local_data(:, z))
@@ -880,7 +880,7 @@ CONTAINS
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dipmat, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(polar_env_type), POINTER                      :: polar_env
 
@@ -931,7 +931,7 @@ CONTAINS
 
          ! Compute the derivative and add the result to mo_derivatives
          DO ispin = 1, dft_control%nspins ! spin
-            CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
+            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
             DO i = 1, 3
                CALL cp_dbcsr_sm_fm_multiply(dipmat(i)%matrix, mo_coeff, &
                                             dBerry_psi0(i, ispin)%matrix, ncol=nmo)
@@ -972,7 +972,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dipmat, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(polar_env_type), POINTER                      :: polar_env
 
       CALL timeset(routineN, handle)
@@ -1002,7 +1002,7 @@ CONTAINS
 
          ! Compute the derivative and add the result to mo_derivatives
          DO ispin = 1, dft_control%nspins ! spin
-            CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
+            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
             DO i = 1, 3
                CALL cp_dbcsr_sm_fm_multiply(dipmat(i)%matrix, mo_coeff, &
                                             dBerry_psi0(i, ispin)%matrix, ncol=nmo)
@@ -1049,7 +1049,7 @@ CONTAINS
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dipmat, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(polar_env_type), POINTER                      :: polar_env
 
@@ -1093,7 +1093,7 @@ CONTAINS
 
          ! Compute the derivative and add the result to mo_derivatives
          DO ispin = 1, dft_control%nspins ! spin
-            CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
+            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
             DO i = 1, 3
                CALL cp_dbcsr_sm_fm_multiply(dipmat(i)%matrix, mo_coeff, &
                                             dBerry_psi0(i, ispin)%matrix, ncol=nmo)

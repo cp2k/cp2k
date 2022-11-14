@@ -158,7 +158,7 @@ MODULE energy_corrections
                                               make_basis_sm
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                               get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_moments,                      ONLY: build_local_moment_matrix
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_neighbor_lists,               ONLY: atom2d_build,&
@@ -3283,7 +3283,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: basis_set, harris_basis
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(preconditioner_type), POINTER                 :: local_preconditioner
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -3372,7 +3372,7 @@ CONTAINS
       END SELECT
 
       DO ispin = 1, nspins
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
+         CALL get_mo_set(mo_set=mos(ispin), &
                          mo_coeff=mo_coeff, &
                          nmo=nmo, &
                          nao=nao, &
@@ -3405,9 +3405,9 @@ CONTAINS
                                   matrix_h=matrix_ks(ispin, 1)%matrix, &
                                   matrix_s=matrix_s(ispin, 1)%matrix, &
                                   convert_precond_to_dbcsr=.TRUE., &
-                                  mo_set=mos(ispin)%mo_set, energy_gap=0.2_dp)
+                                  mo_set=mos(ispin), energy_gap=0.2_dp)
 
-         CALL get_mo_set(mos(ispin)%mo_set, &
+         CALL get_mo_set(mos(ispin), &
                          mo_coeff=mo_coeff, &
                          eigenvalues=eigenvalues, &
                          nmo=nmo, &
@@ -3427,27 +3427,25 @@ CONTAINS
          DEALLOCATE (local_preconditioner)
 
          !fm->dbcsr
-         CALL copy_fm_to_dbcsr(mos(ispin)%mo_set%mo_coeff, &
-                               mos(ispin)%mo_set%mo_coeff_b)
+         CALL copy_fm_to_dbcsr(mos(ispin)%mo_coeff, &
+                               mos(ispin)%mo_coeff_b)
       END DO
 
       ! Calculate density matrix from MOs
       DO ispin = 1, nspins
-         CALL calculate_density_matrix(mos(ispin)%mo_set, matrix_p(ispin, 1)%matrix)
+         CALL calculate_density_matrix(mos(ispin), matrix_p(ispin, 1)%matrix)
 
-         CALL calculate_w_matrix(mos(ispin)%mo_set, matrix_w(ispin, 1)%matrix)
+         CALL calculate_w_matrix(mos(ispin), matrix_w(ispin, 1)%matrix)
       END DO
 
       ! Get rid of MO environment again
       IF (dft_control%qs_control%do_ls_scf) THEN
          DO ispin = 1, nspins
-            CALL deallocate_mo_set(mos(ispin)%mo_set)
-            DEALLOCATE (mos(ispin)%mo_set)
+            CALL deallocate_mo_set(mos(ispin))
          END DO
          IF (ASSOCIATED(qs_env%mos)) THEN
             DO ispin = 1, SIZE(qs_env%mos)
-               CALL deallocate_mo_set(qs_env%mos(ispin)%mo_set)
-               DEALLOCATE (qs_env%mos(ispin)%mo_set)
+               CALL deallocate_mo_set(qs_env%mos(ispin))
             END DO
             DEALLOCATE (qs_env%mos)
          END IF

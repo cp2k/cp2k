@@ -120,7 +120,7 @@ MODULE qs_scf_post_tb
                                               make_mo_eig
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_ot_eigensolver,               ONLY: ot_eigensolver
    USE qs_pdos,                         ONLY: calculate_projected_dos
    USE qs_rho_methods,                  ONLY: qs_rho_rebuild
@@ -196,7 +196,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_deriv
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_kind
@@ -405,7 +405,7 @@ CONTAINS
                CALL calculate_dos_kp(kpoints, qs_env, dft_section)
             ELSE
                CALL get_qs_env(qs_env, mos=mos)
-               CALL calculate_dos(mos, qs_env, dft_section)
+               CALL calculate_dos(mos, dft_section)
             END IF
          END IF
       END IF
@@ -420,7 +420,7 @@ CONTAINS
                CALL get_qs_env(qs_env, mos=mos, matrix_ks=ks_rmpv)
                DO ispin = 1, dft_control%nspins
                   IF (scf_env%method == ot_method_nr) THEN
-                     CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, &
+                     CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, &
                                      eigenvalues=mo_eigenvalues)
                      IF (ASSOCIATED(qs_env%mo_derivs)) THEN
                         mo_coeff_deriv => qs_env%mo_derivs(ispin)%matrix
@@ -430,13 +430,13 @@ CONTAINS
                      CALL calculate_subspace_eigenvalues(mo_coeff, ks_rmpv(ispin)%matrix, mo_eigenvalues, &
                                                          do_rotation=.TRUE., &
                                                          co_rotate_dbcsr=mo_coeff_deriv)
-                     CALL set_mo_occupation(mo_set=mos(ispin)%mo_set)
+                     CALL set_mo_occupation(mo_set=mos(ispin))
                   END IF
                   IF (dft_control%nspins == 2) THEN
-                     CALL calculate_projected_dos(mos(ispin)%mo_set, atomic_kind_set, &
+                     CALL calculate_projected_dos(mos(ispin), atomic_kind_set, &
                                                   qs_kind_set, particle_set, qs_env, dft_section, ispin=ispin)
                   ELSE
-                     CALL calculate_projected_dos(mos(ispin)%mo_set, atomic_kind_set, &
+                     CALL calculate_projected_dos(mos(ispin), atomic_kind_set, &
                                                   qs_kind_set, particle_set, qs_env, dft_section)
                   END IF
                END DO
@@ -578,7 +578,7 @@ CONTAINS
                                   scf_control=scf_control, matrix_ks=ks_rmpv)
                   CALL make_mo_eig(mos, dft_control%nspins, ks_rmpv, scf_control, mo_derivs)
                   DO ispin = 1, dft_control%nspins
-                     CALL get_mo_set(mo_set=mos(ispin)%mo_set, eigenvalues=mo_eigenvalues, homo=homo)
+                     CALL get_mo_set(mo_set=mos(ispin), eigenvalues=mo_eigenvalues, homo=homo)
                      homo_lumo(ispin, 1) = mo_eigenvalues(homo)
                   END DO
                   has_homo = .TRUE.
@@ -807,7 +807,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: wfn_mix_section
@@ -819,7 +819,7 @@ CONTAINS
 
       wfn_mix_section => section_vals_get_subs_vals(dft_section, "PRINT%WFN_MIX")
 
-      CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff, nao=nao)
+      CALL get_mo_set(mos(1), mo_coeff=mo_coeff, nao=nao)
 
       CALL cp_fm_struct_create(fmstruct=ao_ao_fmstruct, nrow_global=nao, ncol_global=nao, &
                                template_fmstruct=mo_coeff%matrix_struct)
@@ -833,7 +833,7 @@ CONTAINS
       CALL cp_fm_cholesky_decompose(S_tmp)
 
       DO ispin = 1, SIZE(mos)
-         CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, eigenvalues=mo_eigenvalues, nmo=nmo)
+         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, eigenvalues=mo_eigenvalues, nmo=nmo)
          CALL cp_fm_struct_create(fmstruct=ao_lumo_struct, nrow_global=nao, ncol_global=nao - nmo, &
                                   template_fmstruct=mo_coeff%matrix_struct)
 
@@ -892,7 +892,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(preconditioner_type), POINTER                 :: local_preconditioner
       TYPE(scf_control_type), POINTER                    :: scf_control
 
@@ -916,7 +916,7 @@ CONTAINS
          IF (iounit > 0) WRITE (iounit, *) " "
          IF (iounit > 0) WRITE (iounit, *) " Lowest Eigenvalues of the unoccupied subspace spin ", ispin
          IF (iounit > 0) WRITE (iounit, FMT='(1X,A)') "-----------------------------------------------------"
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, homo=homo, nao=nao, nmo=nmo)
+         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, homo=homo, nao=nao, nmo=nmo)
          CALL cp_fm_get_info(mo_coeff, nrow_global=n)
          nlumos = MAX(1, MIN(nlumo, nao - nmo))
          IF (nlumo == -1) nlumos = nao - nmo
@@ -1463,7 +1463,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, mo_derivs
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -1483,7 +1483,7 @@ CONTAINS
       NULLIFY (mo_eigenvalues)
       homo = 0
       DO ispin = 1, dft_control%nspins
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, eigenvalues=mo_eigenvalues, homo=shomo)
+         CALL get_mo_set(mo_set=mos(ispin), eigenvalues=mo_eigenvalues, homo=shomo)
          homo_lumo(ispin, 1) = mo_eigenvalues(shomo)
          homo = MAX(homo, shomo)
       END DO
@@ -1542,7 +1542,7 @@ CONTAINS
       IF (nhomo >= 0) THEN
          DO ispin = 1, dft_control%nspins
             ! Prints the cube files of OCCUPIED ORBITALS
-            CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, &
+            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, &
                             eigenvalues=mo_eigenvalues, homo=homo, nmo=nmo)
             IF (write_cube) THEN
                DO i = 1, nlist
@@ -1567,7 +1567,7 @@ CONTAINS
       IF (nlumo /= 0) THEN
          DO ispin = 1, dft_control%nspins
             ! Prints the cube files of UNOCCUPIED ORBITALS
-            CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, &
+            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, &
                             eigenvalues=mo_eigenvalues, homo=homo, nmo=nmo)
             IF (write_cube) THEN
                ifirst = homo + 1

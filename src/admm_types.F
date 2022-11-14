@@ -40,7 +40,7 @@ MODULE admm_types
                                               local_rho_type
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                               get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
                                               release_neighbor_list_sets
    USE qs_oce_types,                    ONLY: deallocate_oce_set,&
@@ -170,7 +170,7 @@ MODULE admm_types
       LOGICAL                                  :: do_gapw = .FALSE.
       TYPE(admm_dm_type), POINTER              :: admm_dm => Null()
 
-      TYPE(mo_set_p_type), DIMENSION(:), &
+      TYPE(mo_set_type), DIMENSION(:), &
          POINTER                               :: mos_aux_fit
       TYPE(neighbor_list_set_p_type), &
          DIMENSION(:), POINTER                 :: sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb
@@ -203,7 +203,7 @@ CONTAINS
    SUBROUTINE admm_env_create(admm_env, admm_control, mos, para_env, natoms, nao_aux_fit)
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(admm_control_type), POINTER                   :: admm_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: natoms, nao_aux_fit
 
@@ -218,7 +218,7 @@ CONTAINS
       ALLOCATE (admm_env)
 
       nspins = SIZE(mos)
-      CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff, nmo=nmo, nao=nao_orb)
+      CALL get_mo_set(mos(1), mo_coeff=mo_coeff, nmo=nmo, nao=nao_orb)
       admm_env%nmo = 0
       admm_env%nao_aux_fit = nao_aux_fit
       admm_env%nao_orb = nao_orb
@@ -296,7 +296,7 @@ CONTAINS
       ALLOCATE (admm_env%P_tilde(nspins))
 
       DO ispin = 1, nspins
-         CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
+         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
          admm_env%nmo(ispin) = nmo
          CALL cp_fm_struct_create(fm_struct_aux_nmo, &
                                   context=mo_coeff%matrix_struct%context, &
@@ -559,8 +559,7 @@ CONTAINS
 
       IF (ASSOCIATED(admm_env%mos_aux_fit)) THEN
          DO ispin = 1, SIZE(admm_env%mos_aux_fit)
-            CALL deallocate_mo_set(admm_env%mos_aux_fit(ispin)%mo_set)
-            DEALLOCATE (admm_env%mos_aux_fit(ispin)%mo_set)
+            CALL deallocate_mo_set(admm_env%mos_aux_fit(ispin))
          END DO
          DEALLOCATE (admm_env%mos_aux_fit)
       END IF
@@ -654,8 +653,7 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: mo_derivs_aux_fit
-      TYPE(mo_set_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: mos_aux_fit
+      TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos_aux_fit
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: sab_aux_fit, sab_aux_fit_asymm, &
                                                             sab_aux_fit_vs_orb
@@ -717,8 +715,7 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: mo_derivs_aux_fit
-      TYPE(mo_set_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: mos_aux_fit
+      TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos_aux_fit
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: sab_aux_fit, sab_aux_fit_asymm, &
                                                             sab_aux_fit_vs_orb

@@ -52,7 +52,7 @@ MODULE qs_mo_methods
    USE physcon,                         ONLY: evolt
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE scf_control_types,               ONLY: scf_control_type
 #include "./base/base_uses.f90"
 
@@ -684,7 +684,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_orthonormality(orthonormality, mo_array, matrix_s)
       REAL(KIND=dp)                                      :: orthonormality
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mo_array
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_s
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_orthonormality'
@@ -706,31 +706,31 @@ CONTAINS
       DO ispin = 1, nspin
          IF (PRESENT(matrix_s)) THEN
             ! get S*C
-            CALL cp_fm_create(svec, mo_array(ispin)%mo_set%mo_coeff%matrix_struct)
-            CALL cp_fm_get_info(mo_array(ispin)%mo_set%mo_coeff, &
+            CALL cp_fm_create(svec, mo_array(ispin)%mo_coeff%matrix_struct)
+            CALL cp_fm_get_info(mo_array(ispin)%mo_coeff, &
                                 nrow_global=n, ncol_global=k)
-            CALL cp_dbcsr_sm_fm_multiply(matrix_s, mo_array(ispin)%mo_set%mo_coeff, &
+            CALL cp_dbcsr_sm_fm_multiply(matrix_s, mo_array(ispin)%mo_coeff, &
                                          svec, k)
             ! get C^T (S*C)
             CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=k, ncol_global=k, &
-                                     para_env=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%para_env, &
-                                     context=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%context)
+                                     para_env=mo_array(ispin)%mo_coeff%matrix_struct%para_env, &
+                                     context=mo_array(ispin)%mo_coeff%matrix_struct%context)
             CALL cp_fm_create(overlap, tmp_fm_struct)
             CALL cp_fm_struct_release(tmp_fm_struct)
-            CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, mo_array(ispin)%mo_set%mo_coeff, &
+            CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, mo_array(ispin)%mo_coeff, &
                                svec, 0.0_dp, overlap)
             CALL cp_fm_release(svec)
          ELSE
             ! orthogonal basis C^T C
-            CALL cp_fm_get_info(mo_array(ispin)%mo_set%mo_coeff, &
+            CALL cp_fm_get_info(mo_array(ispin)%mo_coeff, &
                                 nrow_global=n, ncol_global=k)
             CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=k, ncol_global=k, &
-                                     para_env=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%para_env, &
-                                     context=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%context)
+                                     para_env=mo_array(ispin)%mo_coeff%matrix_struct%para_env, &
+                                     context=mo_array(ispin)%mo_coeff%matrix_struct%context)
             CALL cp_fm_create(overlap, tmp_fm_struct)
             CALL cp_fm_struct_release(tmp_fm_struct)
-            CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, mo_array(ispin)%mo_set%mo_coeff, &
-                               mo_array(ispin)%mo_set%mo_coeff, 0.0_dp, overlap)
+            CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, mo_array(ispin)%mo_coeff, &
+                               mo_array(ispin)%mo_coeff, 0.0_dp, overlap)
          END IF
          CALL cp_fm_get_info(overlap, nrow_local=nrow_local, ncol_local=ncol_local, &
                              row_indices=row_indices, col_indices=col_indices)
@@ -743,7 +743,7 @@ CONTAINS
          END DO
          CALL cp_fm_release(overlap)
       END DO
-      CALL mp_max(max_alpha, mo_array(1)%mo_set%mo_coeff%matrix_struct%para_env%group)
+      CALL mp_max(max_alpha, mo_array(1)%mo_coeff%matrix_struct%para_env%group)
       orthonormality = max_alpha
       ! write(*,*) "max deviation from orthonormalization ",orthonormality
 
@@ -762,7 +762,7 @@ CONTAINS
 !> \param mo_mag_max ...
 ! **************************************************************************************************
    SUBROUTINE calculate_magnitude(mo_array, mo_mag_min, mo_mag_max)
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mo_array
       REAL(KIND=dp)                                      :: mo_mag_min, mo_mag_max
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_magnitude'
@@ -780,17 +780,17 @@ CONTAINS
       mo_mag_min = HUGE(0.0_dp)
       mo_mag_max = -HUGE(0.0_dp)
       DO ispin = 1, nspin
-         CALL cp_fm_get_info(mo_array(ispin)%mo_set%mo_coeff, &
+         CALL cp_fm_get_info(mo_array(ispin)%mo_coeff, &
                              nrow_global=n, ncol_global=k)
          ALLOCATE (evals(k))
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=k, ncol_global=k, &
-                                  para_env=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%para_env, &
-                                  context=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%context)
+                                  para_env=mo_array(ispin)%mo_coeff%matrix_struct%para_env, &
+                                  context=mo_array(ispin)%mo_coeff%matrix_struct%context)
          CALL cp_fm_create(overlap, tmp_fm_struct)
          CALL cp_fm_create(evecs, tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
-         CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, mo_array(ispin)%mo_set%mo_coeff, &
-                            mo_array(ispin)%mo_set%mo_coeff, 0.0_dp, overlap)
+         CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, mo_array(ispin)%mo_coeff, &
+                            mo_array(ispin)%mo_coeff, 0.0_dp, overlap)
          CALL choose_eigv_solver(overlap, evecs, evals)
          mo_mag_min = MIN(MINVAL(evals), mo_mag_min)
          mo_mag_max = MAX(MAXVAL(evals), mo_mag_max)
@@ -816,7 +816,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE make_mo_eig(mos, nspins, ks_rmpv, scf_control, mo_derivs, admm_env)
 
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), INTENT(INOUT)     :: mos
       INTEGER, INTENT(IN)                                :: nspins
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv
       TYPE(scf_control_type), POINTER                    :: scf_control
@@ -836,7 +836,7 @@ CONTAINS
       output_unit = cp_logger_get_default_io_unit()
 
       DO ispin = 1, nspins
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, &
+         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, &
                          eigenvalues=mo_eigenvalues, homo=homo, nmo=nmo)
          IF (output_unit > 0) WRITE (output_unit, *) " "
          IF (output_unit > 0) WRITE (output_unit, *) " Eigenvalues of the occupied subspace spin ", ispin
@@ -870,9 +870,9 @@ CONTAINS
             IF (output_unit > 0) WRITE (output_unit, '(4(1X,1F16.8))') mo_eigenvalues(1:homo)
          END IF
          IF (.NOT. scf_control%diagonalization%mom) &
-            CALL set_mo_occupation(mo_set=mos(ispin)%mo_set, smear=scf_control%smear)
+            CALL set_mo_occupation(mo_set=mos(ispin), smear=scf_control%smear)
          IF (output_unit > 0) WRITE (output_unit, '(T2,A,F12.6)') &
-            "Fermi Energy [eV] :", mos(ispin)%mo_set%mu*evolt
+            "Fermi Energy [eV] :", mos(ispin)%mu*evolt
       END DO
 
       CALL timestop(handle)

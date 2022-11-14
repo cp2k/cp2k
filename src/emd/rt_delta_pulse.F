@@ -69,7 +69,7 @@ MODULE rt_delta_pulse
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_moments,                      ONLY: build_berry_moment_matrix,&
                                               build_local_magmom_matrix,&
                                               build_local_moment_matrix
@@ -120,7 +120,7 @@ CONTAINS
                                                             S_chol, virtuals
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_r, matrix_rv, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -228,7 +228,7 @@ CONTAINS
          CALL cp_fm_cholesky_restore(mat_tmp, nao, S_chol, eigenvectors, "SOLVE")
 
          ! virtuals
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, nmo=nmo)
+         CALL get_mo_set(mo_set=mos(ispin), nmo=nmo)
          nvirt = nao - nmo
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=fm_struct%para_env, context=fm_struct%context, &
                                   nrow_global=nao, ncol_global=nvirt)
@@ -327,7 +327,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dbcsr_type), POINTER                          :: cosmat, sinmat
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(rtp_control_type), POINTER                    :: rtp_control
 
@@ -367,9 +367,9 @@ CONTAINS
 
       DO i = 1, SIZE(mos)
          ! apply exponentials to mo coefficients
-         CALL get_mo_set(mos(i)%mo_set, nao=nao, nmo=nmo)
-         CALL cp_dbcsr_sm_fm_multiply(cosmat, mos(i)%mo_set%mo_coeff, mos_new(2*i - 1)%matrix, ncol=nmo)
-         CALL cp_dbcsr_sm_fm_multiply(sinmat, mos(i)%mo_set%mo_coeff, mos_new(2*i)%matrix, ncol=nmo)
+         CALL get_mo_set(mos(i), nao=nao, nmo=nmo)
+         CALL cp_dbcsr_sm_fm_multiply(cosmat, mos(i)%mo_coeff, mos_new(2*i - 1)%matrix, ncol=nmo)
+         CALL cp_dbcsr_sm_fm_multiply(sinmat, mos(i)%mo_coeff, mos_new(2*i)%matrix, ncol=nmo)
 
          CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, S_inv_fm, mos_new(2*i - 1)%matrix, 0.0_dp, mos_old(2*i - 1)%matrix)
          CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, S_inv_fm, mos_new(2*i)%matrix, 0.0_dp, mos_old(2*i)%matrix)
@@ -410,7 +410,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_mag, matrix_nl, &
                                                             matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_all, sab_orb, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -505,7 +505,7 @@ CONTAINS
          CALL cp_fm_triangular_multiply(S_chol, eigenvectors, invert_tr=.TRUE.)
 
          ! virtuals
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, nmo=nmo)
+         CALL get_mo_set(mo_set=mos(ispin), nao=nao, nmo=nmo)
          nvirt = nao - nmo
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=rtp%ao_ao_fmstruct%para_env, context=rtp%ao_ao_fmstruct%context, &
                                   nrow_global=nrow_global, ncol_global=nvirt)
@@ -585,7 +585,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       NULLIFY (para_env, blacs_env, dft_control, matrix_s, mos)
       CALL get_qs_env(qs_env, &
@@ -606,7 +606,7 @@ CONTAINS
       CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, S_fm)
 
       DO ispin = 1, nspins
-         CALL get_mo_set(mos(ispin)%mo_set, nmo=nmo)
+         CALL get_mo_set(mos(ispin), nmo=nmo)
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                   nrow_global=nmo, ncol_global=nmo)
          CALL cp_fm_create(oo_1, matrix_struct=fm_struct_tmp, name="oo_1")

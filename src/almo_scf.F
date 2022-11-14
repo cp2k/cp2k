@@ -93,7 +93,7 @@ MODULE almo_scf
    USE qs_initial_guess,                ONLY: calculate_mopac_dm
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_scf_post_scf,                 ONLY: qs_scf_compute_properties
@@ -2113,7 +2113,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_w
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: matrix_t_processed
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
 
       CALL timeset(routineN, handle)
@@ -2176,7 +2176,7 @@ CONTAINS
       DO ispin = 1, almo_scf_env%nspins
          ! Currently only fm version of mo_set is usable.
          ! First transform the matrix_t to fm version
-         CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff)
+         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
          CALL copy_dbcsr_to_fm(matrix_t_processed(ispin), mo_coeff)
          CALL dbcsr_release(matrix_t_processed(ispin))
       END DO

@@ -106,7 +106,7 @@ MODULE qs_tddfpt2_forces
                                               local_rho_set_release,&
                                               local_rho_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_oce_types,                    ONLY: oce_matrix_type
    USE qs_overlap,                      ONLY: build_overlap_matrix
@@ -1258,7 +1258,7 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: cvec, umat
       TYPE(cp_fm_type), POINTER                          :: omos, rvecs, scmat
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       CALL timeset(routineN, handle)
 
@@ -1266,7 +1266,7 @@ CONTAINS
       nspins = dft_control%nspins
 
       DO ispin = 1, nspins
-         CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=omos)
+         CALL get_mo_set(mos(ispin), mo_coeff=omos)
          scmat => work%S_C0(ispin)%matrix
          rvecs => cpmos(ispin)%matrix
          CALL cp_fm_get_info(rvecs, nrow_global=nao, ncol_global=norb)

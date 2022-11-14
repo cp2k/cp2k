@@ -81,7 +81,6 @@ MODULE admm_methods
                                               local_rho_set_release,&
                                               local_rho_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type,&
                                               mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_overlap,                      ONLY: build_overlap_force
@@ -134,7 +133,7 @@ CONTAINS
                                                             matrix_s_aux_fit_vs_orb, rho_ao, &
                                                             rho_ao_aux
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_aux_fit
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g_aux, rho_r_aux
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
@@ -169,8 +168,8 @@ CONTAINS
 
       ! convert mos from full to dbcsr matrices
       DO ispin = 1, dft_control%nspins
-         IF (mos(ispin)%mo_set%use_mo_coeff_b) THEN
-            CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b, mos(ispin)%mo_set%mo_coeff)
+         IF (mos(ispin)%use_mo_coeff_b) THEN
+            CALL copy_dbcsr_to_fm(mos(ispin)%mo_coeff_b, mos(ispin)%mo_coeff)
          END IF
       END DO
 
@@ -190,7 +189,7 @@ CONTAINS
 
             ! Here, the auxiliary DM gets calculated and is written into rho_aux_fit%...
             CALL calculate_dm_mo_no_diag(admm_env, &
-                                         mo_set=mos(ispin)%mo_set, &
+                                         mo_set=mos(ispin), &
                                          overlap_matrix=matrix_s_aux_fit(1)%matrix, &
                                          density_matrix=rho_ao_aux(ispin)%matrix, &
                                          overlap_matrix_large=matrix_s(1)%matrix, &
@@ -201,7 +200,7 @@ CONTAINS
 
          IF (admm_env%purification_method == do_admm_purify_cauchy) &
             CALL purify_dm_cauchy(admm_env, &
-                                  mo_set=mos_aux_fit(ispin)%mo_set, &
+                                  mo_set=mos_aux_fit(ispin), &
                                   density_matrix=rho_ao_aux(ispin)%matrix, &
                                   ispin=ispin, &
                                   blocked=admm_env%block_dm)
@@ -349,7 +348,7 @@ CONTAINS
                                    mo_derivs_aux_fit, matrix_ks_aux_fit)
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff, mo_coeff_aux_fit
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_derivs, mo_derivs_aux_fit
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit
@@ -392,7 +391,7 @@ CONTAINS
 
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux_fit, matrix_s_mixed
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos, mos_aux_fit
       LOGICAL, INTENT(IN)                                :: geometry_did_change
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_fit_mo_coeffs'
@@ -433,7 +432,7 @@ CONTAINS
                             mos, geometry_did_change, blocked)
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux_fit, matrix_s_mixed
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
       LOGICAL, INTENT(IN)                                :: geometry_did_change, blocked
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fit_mo_coeffs'
@@ -521,7 +520,7 @@ CONTAINS
    SUBROUTINE purify_mo_cholesky(admm_env, mos, mos_aux_fit)
 
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos, mos_aux_fit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'purify_mo_cholesky'
 
@@ -540,8 +539,8 @@ CONTAINS
          nmo = admm_env%nmo(ispin)
          IF (nmo == 0) CYCLE
          !! Lambda = C^(T)*B*C
-         CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff)
-         CALL get_mo_set(mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit)
+         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
+         CALL get_mo_set(mos_aux_fit(ispin), mo_coeff=mo_coeff_aux_fit)
          CALL parallel_gemm('N', 'N', nao_orb, nmo, nao_orb, &
                             1.0_dp, admm_env%B, mo_coeff, 0.0_dp, &
                             admm_env%work_orb_nmo(ispin)%matrix)
@@ -582,7 +581,7 @@ CONTAINS
    SUBROUTINE purify_mo_diag(admm_env, mos, mos_aux_fit)
 
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos, mos_aux_fit
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'purify_mo_diag'
 
@@ -602,8 +601,8 @@ CONTAINS
          nmo = admm_env%nmo(ispin)
          IF (nmo == 0) CYCLE
          !! Lambda = C^(T)*B*C
-         CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff)
-         CALL get_mo_set(mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit)
+         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
+         CALL get_mo_set(mos_aux_fit(ispin), mo_coeff=mo_coeff_aux_fit)
          CALL parallel_gemm('N', 'N', nao_orb, nmo, nao_orb, &
                             1.0_dp, admm_env%B, mo_coeff, 0.0_dp, &
                             admm_env%work_orb_nmo(ispin)%matrix)
@@ -647,7 +646,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE purify_mo_none(admm_env, mos, mos_aux_fit)
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos, mos_aux_fit
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'purify_mo_none'
 
@@ -664,8 +663,8 @@ CONTAINS
 
       DO ispin = 1, nspins
          nmo = admm_env%nmo(ispin)
-         CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, occupation_numbers=occ_num, nmo=nmo_mos)
-         CALL get_mo_set(mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit, &
+         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, occupation_numbers=occ_num, nmo=nmo_mos)
+         CALL get_mo_set(mos_aux_fit(ispin), mo_coeff=mo_coeff_aux_fit, &
                          occupation_numbers=occ_num_aux)
 
          CALL parallel_gemm('N', 'N', nao_aux_fit, nmo, nao_orb, &
@@ -695,7 +694,7 @@ CONTAINS
    SUBROUTINE purify_dm_cauchy(admm_env, mo_set, density_matrix, ispin, blocked)
 
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(dbcsr_type), POINTER                          :: density_matrix
       INTEGER                                            :: ispin
       LOGICAL, INTENT(IN)                                :: blocked
@@ -795,7 +794,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_aux_fit
       TYPE(dbcsr_type), POINTER                          :: matrix_k_tilde
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       CALL timeset(routineN, handle)
       NULLIFY (admm_env, dft_control, matrix_ks, matrix_ks_aux_fit, mos, mo_coeff)
@@ -811,7 +810,7 @@ CONTAINS
          nao_aux_fit = admm_env%nao_aux_fit
          nao_orb = admm_env%nao_orb
          nmo = admm_env%nmo(ispin)
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
+         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
 
          IF (.NOT. admm_env%block_dm) THEN
             !** Get P from mo_coeffs, otherwise we have troubles with occupation numbers ...
@@ -949,7 +948,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_aux_fit
       TYPE(dbcsr_type), POINTER                          :: matrix_k_tilde
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_aux_fit
 
       CALL timeset(routineN, handle)
       NULLIFY (admm_env, dft_control, matrix_ks, matrix_ks_aux_fit, mos, mos_aux_fit, &
@@ -966,8 +965,8 @@ CONTAINS
          nao_aux_fit = admm_env%nao_aux_fit
          nao_orb = admm_env%nao_orb
          nmo = admm_env%nmo(ispin)
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
-         CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit)
+         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
+         CALL get_mo_set(mo_set=mos_aux_fit(ispin), mo_coeff=mo_coeff_aux_fit)
 
          !! Calculate Lambda^{-2}
          CALL cp_fm_to_fm(admm_env%lambda(ispin)%matrix, admm_env%work_nmo_nmo1(ispin)%matrix)
@@ -1092,7 +1091,7 @@ CONTAINS
                                    mo_derivs_aux_fit, matrix_ks_aux_fit)
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff, mo_coeff_aux_fit
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_derivs, mo_derivs_aux_fit
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit
@@ -1679,7 +1678,7 @@ CONTAINS
                                       matrix_ks_aux_fit)
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff_aux_fit
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit
 
@@ -1731,7 +1730,7 @@ CONTAINS
    SUBROUTINE merge_mo_derivs_no_diag(ispin, admm_env, mo_set, mo_derivs, matrix_ks_aux_fit)
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit
 
@@ -1802,7 +1801,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_derivs_aux_fit, mo_derivs_fm
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array, mos_aux_fit
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_array, mos_aux_fit
 
       NULLIFY (mo_array, mos_aux_fit, matrix_ks_aux_fit, mo_coeff_aux_fit, &
                mo_derivs_aux_fit, mo_derivs_fm, mo_coeff)
@@ -1814,17 +1813,17 @@ CONTAINS
       nspins = SIZE(mo_derivs)
       ALLOCATE (mo_derivs_fm(nspins))
       DO ispin = 1, nspins
-         CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, mo_coeff=mo_coeff)
+         CALL get_mo_set(mo_set=mo_array(ispin), mo_coeff=mo_coeff)
          ALLOCATE (mo_derivs_fm(ispin)%matrix)
          CALL cp_fm_create(mo_derivs_fm(ispin)%matrix, mo_coeff%matrix_struct)
       END DO
 
       DO ispin = 1, nspins
-         CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, mo_coeff=mo_coeff)
-         CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit)
+         CALL get_mo_set(mo_set=mo_array(ispin), mo_coeff=mo_coeff)
+         CALL get_mo_set(mo_set=mos_aux_fit(ispin), mo_coeff=mo_coeff_aux_fit)
 
          CALL copy_dbcsr_to_fm(mo_derivs(ispin)%matrix, mo_derivs_fm(ispin)%matrix)
-         CALL admm_mo_merge_derivs(ispin, admm_env, mo_array(ispin)%mo_set, mo_coeff, mo_coeff_aux_fit, &
+         CALL admm_mo_merge_derivs(ispin, admm_env, mo_array(ispin), mo_coeff, mo_coeff_aux_fit, &
                                    mo_derivs_fm, mo_derivs_aux_fit, matrix_ks_aux_fit)
          CALL copy_fm_to_dbcsr(mo_derivs_fm(ispin)%matrix, mo_derivs(ispin)%matrix)
       END DO
@@ -1850,7 +1849,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit, matrix_s_aux_fit, &
                                                             matrix_s_aux_fit_vs_orb
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_aux_fit
       TYPE(mo_set_type), POINTER                         :: mo_set
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
@@ -1867,11 +1866,11 @@ CONTAINS
          CALL get_admm_env(admm_env, matrix_s_aux_fit=matrix_s_aux_fit, mos_aux_fit=mos_aux_fit, &
                            matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb, matrix_ks_aux_fit=matrix_ks_aux_fit)
          DO ispin = 1, dft_control%nspins
-            mo_set => mos(ispin)%mo_set
+            mo_set => mos(ispin)
             CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff)
             ! if no purification we need to calculate the H matrix for forces
             IF (admm_env%purification_method == do_admm_purify_none) THEN
-               CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit)
+               CALL get_mo_set(mo_set=mos_aux_fit(ispin), mo_coeff=mo_coeff_aux_fit)
                CALL calc_aux_mo_derivs_none(ispin, qs_env%admm_env, mo_set, &
                                             mo_coeff_aux_fit, matrix_ks_aux_fit)
             END IF
@@ -2027,7 +2026,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: matrix_rho_aux_desymm_tmp, matrix_w_q, &
                                                             matrix_w_s
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -2087,7 +2086,7 @@ CONTAINS
 
       DO ispin = 1, dft_control%nspins
          nmo = admm_env%nmo(ispin)
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
+         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
 
          ! *** S'^(-T)*H'
          IF (.NOT. admm_env%purification_method == do_admm_purify_none) THEN
@@ -2336,7 +2335,7 @@ CONTAINS
    SUBROUTINE calculate_dm_mo_no_diag(admm_env, mo_set, density_matrix, overlap_matrix, &
                                       density_matrix_large, overlap_matrix_large, ispin)
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(dbcsr_type), POINTER                          :: density_matrix, overlap_matrix, &
                                                             density_matrix_large, &
                                                             overlap_matrix_large
@@ -2463,7 +2462,7 @@ CONTAINS
 !> \param x ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION delta(x)
+   ELEMENTAL FUNCTION delta(x)
       REAL(KIND=dp), INTENT(IN)                          :: x
       REAL(KIND=dp)                                      :: delta
 
@@ -2480,7 +2479,7 @@ CONTAINS
 !> \param x ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION Heaviside(x)
+   ELEMENTAL FUNCTION Heaviside(x)
       REAL(KIND=dp), INTENT(IN)                          :: x
       REAL(KIND=dp)                                      :: Heaviside
 

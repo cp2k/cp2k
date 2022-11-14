@@ -52,7 +52,7 @@ MODULE rt_propagation_utils
                                               qs_ks_env_type
    USE qs_mo_io,                        ONLY: read_mo_set_from_restart,&
                                               read_rt_mos_from_restart
-   USE qs_mo_types,                     ONLY: mo_set_p_type
+   USE qs_mo_types,                     ONLY: mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_overlap,                      ONLY: build_overlap_matrix
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
@@ -235,7 +235,7 @@ CONTAINS
       TYPE(dbcsr_distribution_type)                      :: dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_rmpv, rho_new, rho_old
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_array
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho_struct
@@ -270,19 +270,19 @@ CONTAINS
          CALL read_mo_set_from_restart(mo_array, atomic_kind_set, qs_kind_set, particle_set, para_env, &
                                        id_nr=id_nr, multiplicity=dft_control%multiplicity, dft_section=dft_section)
          DO ispin = 1, nspin
-            CALL calculate_density_matrix(mo_array(ispin)%mo_set, p_rmpv(ispin)%matrix)
+            CALL calculate_density_matrix(mo_array(ispin), p_rmpv(ispin)%matrix)
          END DO
          IF (rtp%linear_scaling) THEN
             CALL get_rtp(rtp=rtp, rho_old=rho_old, rho_new=rho_new)
             DO ispin = 1, nspin
                re = 2*ispin - 1
                im = 2*ispin
-               CALL cp_fm_get_info(mo_array(ispin)%mo_set%mo_coeff, ncol_global=ncol)
+               CALL cp_fm_get_info(mo_array(ispin)%mo_coeff, ncol_global=ncol)
                alpha = 1.0_dp
                IF (SIZE(mo_array) == 1) alpha = 2*alpha
                CALL cp_dbcsr_plus_fm_fm_t( &
                   sparse_matrix=rho_old(re)%matrix, &
-                  matrix_v=mo_array(ispin)%mo_set%mo_coeff, matrix_g=mo_array(ispin)%mo_set%mo_coeff, ncol=ncol, &
+                  matrix_v=mo_array(ispin)%mo_coeff, matrix_g=mo_array(ispin)%mo_coeff, ncol=ncol, &
                   keep_sparsity=.FALSE., alpha=alpha)
             END DO
             DO i = 1, nspin
@@ -292,7 +292,7 @@ CONTAINS
          ELSE
             CALL get_rtp(rtp=rtp, mos_old=mos_old)
             DO i = 1, SIZE(qs_env%mos)
-               CALL cp_fm_to_fm(mo_array(i)%mo_set%mo_coeff, mos_old(2*i - 1)%matrix)
+               CALL cp_fm_to_fm(mo_array(i)%mo_coeff, mos_old(2*i - 1)%matrix)
                CALL cp_fm_set_all(mos_old(2*i)%matrix, zero, zero)
             END DO
          END IF
@@ -327,7 +327,7 @@ CONTAINS
             CALL read_rt_mos_from_restart(mo_array, mos_old, atomic_kind_set, qs_kind_set, particle_set, para_env, &
                                           id_nr, dft_control%multiplicity, dft_section)
             DO ispin = 1, nspin
-               CALL calculate_density_matrix(mo_array(ispin)%mo_set, &
+               CALL calculate_density_matrix(mo_array(ispin), &
                                              p_rmpv(ispin)%matrix)
             END DO
          END IF
@@ -354,7 +354,7 @@ CONTAINS
       TYPE(cp_fm_p_type)                                 :: mos_occ
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao, rho_ao_im
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(rt_prop_type), POINTER                        :: rtp
@@ -376,17 +376,17 @@ CONTAINS
          CALL cp_fm_get_info(mos_new(re)%matrix, ncol_global=ncol)
          ALLOCATE (mos_occ%matrix)
          CALL cp_fm_create(mos_occ%matrix, &
-                           matrix_struct=mos(i)%mo_set%mo_coeff%matrix_struct, &
+                           matrix_struct=mos(i)%mo_coeff%matrix_struct, &
                            name="mos_occ")
          CALL cp_fm_to_fm(mos_new(re)%matrix, mos_occ%matrix)
-         CALL cp_fm_column_scale(mos_occ%matrix, mos(i)%mo_set%occupation_numbers/alpha)
+         CALL cp_fm_column_scale(mos_occ%matrix, mos(i)%occupation_numbers/alpha)
          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(i)%matrix, &
                                     matrix_v=mos_occ%matrix, &
                                     ncol=ncol, &
                                     alpha=alpha)
          ! It is actually complex conjugate but i*i=-1 therefore it must be added
          CALL cp_fm_to_fm(mos_new(im)%matrix, mos_occ%matrix)
-         CALL cp_fm_column_scale(mos_occ%matrix, mos(i)%mo_set%occupation_numbers/alpha)
+         CALL cp_fm_column_scale(mos_occ%matrix, mos(i)%occupation_numbers/alpha)
          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(i)%matrix, &
                                     matrix_v=mos_occ%matrix, &
                                     ncol=ncol, &
@@ -472,7 +472,7 @@ CONTAINS
       LOGICAL                                            :: my_keep_sparsity
       REAL(KIND=dp)                                      :: alpha
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new, mos_occ
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       CALL get_rtp(rtp=rtp, mos_new=mos_new)
 
@@ -486,17 +486,17 @@ CONTAINS
          alpha = 3.0_dp - REAL(SIZE(matrix_p_im), dp)
          ALLOCATE (mos_occ(re)%matrix, mos_occ(im)%matrix)
          CALL cp_fm_create(mos_occ(re)%matrix, &
-                           matrix_struct=mos(i)%mo_set%mo_coeff%matrix_struct, &
+                           matrix_struct=mos(i)%mo_coeff%matrix_struct, &
                            name="mos_occ")
          CALL cp_fm_create(mos_occ(im)%matrix, &
-                           matrix_struct=mos(i)%mo_set%mo_coeff%matrix_struct, &
+                           matrix_struct=mos(i)%mo_coeff%matrix_struct, &
                            name="mos_occ")
          CALL dbcsr_set(matrix_p_im(i)%matrix, 0.0_dp)
          CALL cp_fm_get_info(mos_new(re)%matrix, ncol_global=ncol)
          CALL cp_fm_to_fm(mos_new(re)%matrix, mos_occ(re)%matrix)
-         CALL cp_fm_column_scale(mos_occ(re)%matrix, mos(i)%mo_set%occupation_numbers/alpha)
+         CALL cp_fm_column_scale(mos_occ(re)%matrix, mos(i)%occupation_numbers/alpha)
          CALL cp_fm_to_fm(mos_new(im)%matrix, mos_occ(im)%matrix)
-         CALL cp_fm_column_scale(mos_occ(im)%matrix, mos(i)%mo_set%occupation_numbers/alpha)
+         CALL cp_fm_column_scale(mos_occ(im)%matrix, mos(i)%occupation_numbers/alpha)
          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=matrix_p_im(i)%matrix, &
                                     matrix_v=mos_occ(im)%matrix, &
                                     matrix_g=mos_occ(re)%matrix, &

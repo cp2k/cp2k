@@ -73,6 +73,7 @@ MODULE xas_tdp_correction
                                               duplicate_mo_set,&
                                               get_mo_set,&
                                               mo_set_p_type,&
+                                              mo_set_type,&
                                               reassign_allocated_mos
    USE util,                            ONLY: get_limit
    USE xas_tdp_kernel,                  ONLY: contract2_AO_to_doMO,&
@@ -131,7 +132,8 @@ CONTAINS
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:)          :: ja_X, oI_Y
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: mo_template
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: backup_mos, mos
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: backup_mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(section_vals_type), POINTER                   :: xc_fun_empty, xc_fun_original, xc_section
 
       NULLIFY (xc_fun_empty, xc_fun_original, xc_section, backup_mos, mos, dft_control, dbcsr_work, &
@@ -171,7 +173,7 @@ CONTAINS
       ALLOCATE (lumo_struct(nspins), lumo_coeffs(nspins))
 
       DO ispin = 1, nspins
-         CALL get_mo_set(mos(ispin)%mo_set, homo=nhomo(ispin), nao=nao)
+         CALL get_mo_set(mos(ispin), homo=nhomo(ispin), nao=nao)
          nlumo(ispin) = nao - nhomo(ispin)
 
          CALL cp_fm_struct_create(lumo_struct(ispin)%struct, para_env=para_env, context=blacs_env, &
@@ -197,7 +199,7 @@ CONTAINS
          ALLOCATE (homo_coeffs(ispin)%matrix)
          CALL cp_fm_create(homo_coeffs(ispin)%matrix, homo_struct(ispin)%struct)
 
-         CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff)
+         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
          CALL cp_fm_to_fm_submat(mo_coeff, homo_coeffs(ispin)%matrix, nrow=nao, ncol=nonloc, s_firstrow=1, &
                                  s_firstcol=xas_tdp_control%n_search + 1, t_firstrow=1, t_firstcol=locat + 1)
 
@@ -244,7 +246,7 @@ CONTAINS
             ALLOCATE (backup_mos(SIZE(mos)))
             DO i = 1, SIZE(mos)
                ALLOCATE (backup_mos(i)%mo_set)
-               CALL duplicate_mo_set(backup_mos(i)%mo_set, mos(i)%mo_set)
+               CALL duplicate_mo_set(backup_mos(i)%mo_set, mos(i))
             END DO
          END IF
 
@@ -283,7 +285,7 @@ CONTAINS
             CALL create_admm_xc_section(qs_env%x_data, xc_section, admm_env)
 
             DO i = 1, SIZE(mos)
-               CALL reassign_allocated_mos(mos(i)%mo_set, backup_mos(i)%mo_set)
+               CALL reassign_allocated_mos(mos(i), backup_mos(i)%mo_set)
                CALL deallocate_mo_set(backup_mos(i)%mo_set)
                DEALLOCATE (backup_mos(i)%mo_set)
             END DO

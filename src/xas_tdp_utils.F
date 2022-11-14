@@ -70,7 +70,7 @@ MODULE xas_tdp_utils
                                               qs_environment_type
    USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_ot_eigensolver,               ONLY: ot_eigensolver
    USE xas_tdp_kernel,                  ONLY: kernel_coulomb_xc,&
                                               kernel_exchange
@@ -844,7 +844,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: pblock
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_iterator_type)                          :: iter
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       NULLIFY (mos, mo_coeff, pblock)
 
@@ -895,14 +895,14 @@ CONTAINS
       CALL get_qs_env(qs_env, mos=mos)
       nhomo = 0
       DO ispin = 1, nspins
-         CALL get_mo_set(mos(ispin)%mo_set, homo=nhomo(ispin))
+         CALL get_mo_set(mos(ispin), homo=nhomo(ispin))
       END DO
 
       start_row = 0
       start_col = 0
       DO i = 1, nspins
          ispin = i; IF (do_sf) ispin = 3 - i
-         CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff)
+         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
 
          DO ido_mo = 1, ndo_mo
 
@@ -1533,7 +1533,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: dbcsr_ovlp, dbcsr_prod, dbcsr_sc, &
                                                             dbcsr_sf, dbcsr_tmp, dbcsr_work, &
                                                             orb_soc_x, orb_soc_y, orb_soc_z
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       NULLIFY (gs_coeffs, sc_coeffs, sf_coeffs, matrix_s, orb_soc_x, orb_soc_y, orb_soc_z, mos)
       NULLIFY (full_struct, para_env, blacs_env, mo_coeff, sc_evals, sf_evals, vec_struct, prod_struct)
@@ -1650,7 +1650,7 @@ CONTAINS
       ! occupied MOs are taken into account
 
       !start with the alpha MOs
-      CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff, homo=homo)
+      CALL get_mo_set(mos(1), mo_coeff=mo_coeff, homo=homo)
       ALLOCATE (diag(homo))
       CALL cp_fm_get_info(mo_coeff, matrix_struct=vec_struct)
       CALL cp_fm_struct_create(prod_struct, context=blacs_env, para_env=para_env, &
@@ -1671,7 +1671,7 @@ CONTAINS
       NULLIFY (vec_struct)
 
       ! Now do the same with the beta gs coeffs
-      CALL get_mo_set(mos(2)%mo_set, mo_coeff=mo_coeff, homo=homo)
+      CALL get_mo_set(mos(2), mo_coeff=mo_coeff, homo=homo)
       ALLOCATE (diag(homo))
       CALL cp_fm_get_info(mo_coeff, matrix_struct=vec_struct)
       CALL cp_fm_struct_create(prod_struct, context=blacs_env, para_env=para_env, &
@@ -2372,7 +2372,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: ao_op_i, dbcsr_ovlp, dbcsr_prod, &
                                                             dbcsr_sc, dbcsr_sf, dbcsr_tmp, &
                                                             dbcsr_work
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       NULLIFY (matrix_s, para_env, blacs_env, full_struct, vec_struct, prod_struct, mos)
       NULLIFY (mo_coeff, ao_op_i, tmp_struct)
@@ -2411,7 +2411,7 @@ CONTAINS
       ALLOCATE (gsgs_op(dim_op))
 
       !start with the alpha MOs
-      CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff, homo=homo)
+      CALL get_mo_set(mos(1), mo_coeff=mo_coeff, homo=homo)
       ALLOCATE (diag(homo))
       CALL cp_fm_get_info(mo_coeff, matrix_struct=vec_struct)
       CALL cp_fm_struct_create(prod_struct, context=blacs_env, para_env=para_env, &
@@ -2437,7 +2437,7 @@ CONTAINS
       NULLIFY (vec_struct)
 
       !then beta orbitals
-      CALL get_mo_set(mos(2)%mo_set, mo_coeff=mo_coeff, homo=homo)
+      CALL get_mo_set(mos(2), mo_coeff=mo_coeff, homo=homo)
       ALLOCATE (diag(homo))
       CALL cp_fm_get_info(mo_coeff, matrix_struct=vec_struct)
       CALL cp_fm_struct_create(prod_struct, context=blacs_env, para_env=para_env, &
@@ -2605,7 +2605,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: ao_op_i, dbcsr_ovlp, dbcsr_prod, &
                                                             dbcsr_sg, dbcsr_tmp, dbcsr_tp, &
                                                             dbcsr_work
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       NULLIFY (gs_coeffs, sg_coeffs, matrix_s, full_struct, prod_struct, vec_struct, blacs_env)
       NULLIFY (para_env, mo_coeff, mos, gsgs_struct, std_struct, tmp_struct, sggs_struct)
@@ -2638,7 +2638,7 @@ CONTAINS
       END DO !i
 
 !  Deal with the GS-GS contribution <0|0> = 2*sum_j <phi_j|op|phi_j>
-      CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff, nao=nao, homo=homo)
+      CALL get_mo_set(mos(1), mo_coeff=mo_coeff, nao=nao, homo=homo)
       CALL cp_fm_struct_create(gsgs_struct, context=blacs_env, para_env=para_env, &
                                nrow_global=homo, ncol_global=homo)
       CALL cp_fm_get_info(mo_coeff, matrix_struct=std_struct)

@@ -37,7 +37,7 @@ MODULE optimize_dmfet_potential
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -118,14 +118,14 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       ! Read the input
       CALL read_opt_dmfet_section(opt_dmfet, opt_dmfet_section)
 
       ! Get the orbital coefficients
       CALL get_qs_env(qs_env=qs_env, mos=mos, para_env=para_env)
-      CALL get_mo_set(mo_set=mos(1)%mo_set, mo_coeff=mo_coeff, nao=nao)
+      CALL get_mo_set(mo_set=mos(1), mo_coeff=mo_coeff, nao=nao)
 
       ! Make cp_fm matrices
       NULLIFY (blacs_env)
@@ -258,7 +258,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: coeff
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       CALL timeset(routineN, handle)
 
@@ -267,7 +267,7 @@ CONTAINS
 
       ! Get the orbital coefficients
       CALL get_qs_env(qs_env=qs_env, mos=mos)
-      CALL get_mo_set(mo_set=mos(1)%mo_set, mo_coeff=mo_coeff, nao=nao, homo=homo)
+      CALL get_mo_set(mo_set=mos(1), mo_coeff=mo_coeff, nao=nao, homo=homo)
 
       ! Build the density matrix
       CALL parallel_gemm(transa="N", transb="T", m=nao, n=nao, &
@@ -277,7 +277,7 @@ CONTAINS
 
       ! Open shell
       IF (open_shell) THEN
-         CALL get_mo_set(mo_set=mos(2)%mo_set, mo_coeff=mo_coeff, nao=nao, homo=homo)
+         CALL get_mo_set(mo_set=mos(2), mo_coeff=mo_coeff, nao=nao, homo=homo)
 
          ! Build the density matrix
          CALL parallel_gemm(transa="N", transb="T", m=nao, n=nao, &

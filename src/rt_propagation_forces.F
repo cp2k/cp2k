@@ -41,7 +41,7 @@ MODULE rt_propagation_forces
                                               qs_force_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_overlap,                      ONLY: build_overlap_force
    USE rt_propagation_types,            ONLY: get_rtp,&
@@ -99,7 +99,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: db_mo_tmp1, db_mo_tmp2, db_mos_im, &
                                                             db_mos_re
       TYPE(dbcsr_type), POINTER                          :: rho_im_sparse, tmp_dbcsr
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(rt_prop_type), POINTER                        :: rtp
@@ -128,9 +128,9 @@ CONTAINS
       DO ispin = 1, SIZE(SinvH)
          re = 2*ispin - 1
          im = 2*ispin
-         alpha = mos(ispin)%mo_set%maxocc
+         alpha = mos(ispin)%maxocc
 
-         CALL get_mo_set(mos(ispin)%mo_set, nao=nao, nmo=nmo)
+         CALL get_mo_set(mos(ispin), nao=nao, nmo=nmo)
 
          NULLIFY (col_blk_size)
          CALL dbcsr_get_info(SinvB(ispin)%matrix, distribution=SinvB_dist, row_blk_size=row_blk_size)

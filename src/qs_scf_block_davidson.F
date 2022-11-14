@@ -79,7 +79,7 @@ CONTAINS
                                       preconditioner)
 
       TYPE(davidson_type)                                :: bdav_env
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(dbcsr_type), POINTER                          :: matrix_h, matrix_s
       INTEGER, INTENT(IN)                                :: output_unit
       TYPE(preconditioner_type), OPTIONAL, POINTER       :: preconditioner
@@ -475,7 +475,7 @@ CONTAINS
                                              preconditioner)
 
       TYPE(davidson_type)                                :: bdav_env
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(dbcsr_type), POINTER                          :: matrix_h, matrix_s
       INTEGER, INTENT(IN)                                :: output_unit
       TYPE(preconditioner_type), OPTIONAL, POINTER       :: preconditioner

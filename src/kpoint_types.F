@@ -37,7 +37,7 @@ MODULE kpoint_types
    USE qs_matrix_pools,                 ONLY: mpools_release,&
                                               qs_matrix_pools_type
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE string_utilities,                ONLY: uppercase
 #include "./base/base_uses.f90"
@@ -72,7 +72,7 @@ MODULE kpoint_types
       REAL(KIND=dp)                                     :: wkp
       REAL(KIND=dp), DIMENSION(3)                       :: xkp
       LOGICAL                                           :: is_local
-      TYPE(mo_set_p_type), DIMENSION(:, :), POINTER     :: mos
+      TYPE(mo_set_type), DIMENSION(:, :), POINTER     :: mos
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER      :: pmat
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER      :: wmat
    END TYPE kpoint_env_type
@@ -696,8 +696,7 @@ CONTAINS
          IF (ASSOCIATED(kp_env%mos)) THEN
             DO is = 1, SIZE(kp_env%mos, 2)
                DO ic = 1, SIZE(kp_env%mos, 1)
-                  CALL deallocate_mo_set(kp_env%mos(ic, is)%mo_set)
-                  DEALLOCATE (kp_env%mos(ic, is)%mo_set)
+                  CALL deallocate_mo_set(kp_env%mos(ic, is))
                END DO
             END DO
             DEALLOCATE (kp_env%mos)
@@ -745,7 +744,7 @@ CONTAINS
       REAL(KIND=dp), OPTIONAL                            :: wkp
       REAL(KIND=dp), DIMENSION(3), OPTIONAL              :: xkp
       LOGICAL, OPTIONAL                                  :: is_local
-      TYPE(mo_set_p_type), DIMENSION(:, :), OPTIONAL, &
+      TYPE(mo_set_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: mos
 
       IF (PRESENT(nkpoint)) nkpoint = kpoint_env%nkpoint

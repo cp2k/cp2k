@@ -79,7 +79,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_dm_sparse(mo_set, density_matrix, use_dbcsr, retain_sparsity)
 
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(dbcsr_type), POINTER                          :: density_matrix
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_dbcsr, retain_sparsity
 
@@ -159,7 +159,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_w_matrix_1(mo_set, w_matrix)
 
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(dbcsr_type), POINTER                          :: w_matrix
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_1'
@@ -209,7 +209,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_w_matrix_ot(mo_set, mo_deriv, w_matrix, s_matrix)
 
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(dbcsr_type), POINTER                          :: mo_deriv, w_matrix, s_matrix
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_ot'
@@ -308,7 +308,7 @@ CONTAINS
 !> \author 04.05.06,MK
 ! **************************************************************************************************
    SUBROUTINE calculate_w_matrix_roks(mo_set, matrix_ks, matrix_p, matrix_w)
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(dbcsr_type), POINTER                          :: matrix_ks, matrix_p, matrix_w
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_roks'
@@ -363,7 +363,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_wz_matrix(mo_set, psi1, ks_matrix, w_matrix)
 
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(cp_fm_type), INTENT(IN)                       :: psi1
       TYPE(dbcsr_type), POINTER                          :: ks_matrix, w_matrix
 

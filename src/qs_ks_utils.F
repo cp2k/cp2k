@@ -116,7 +116,7 @@ MODULE qs_ks_utils
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE task_list_types,                 ONLY: task_list_type
@@ -171,7 +171,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_h, matrix_p, mo_derivs, rho_ao
       TYPE(dbcsr_type), POINTER                          :: dbcsr_deriv, fm_deriv, fm_scaled, &
                                                             mo_coeff
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_array
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: xc_pw_pool
       TYPE(pw_type)                                      :: work_v_rspace
@@ -206,9 +206,9 @@ CONTAINS
       CPASSERT(SIZE(mo_array, 1) == 2)
       Nspin = 2
       ! we want uniform occupations
-      CALL get_mo_set(mo_set=mo_array(1)%mo_set, uniform_occupation=uniform_occupation)
+      CALL get_mo_set(mo_set=mo_array(1), uniform_occupation=uniform_occupation)
       CPASSERT(uniform_occupation)
-      CALL get_mo_set(mo_set=mo_array(2)%mo_set, mo_coeff_b=mo_coeff, uniform_occupation=uniform_occupation)
+      CALL get_mo_set(mo_set=mo_array(2), mo_coeff_b=mo_coeff, uniform_occupation=uniform_occupation)
       CPASSERT(uniform_occupation)
 
       NULLIFY (dbcsr_deriv)
@@ -217,9 +217,9 @@ CONTAINS
       CALL dbcsr_set(dbcsr_deriv, 0.0_dp)
 
       ! basic info
-      CALL get_mo_set(mo_set=mo_array(1)%mo_set, mo_coeff_b=mo_coeff)
+      CALL get_mo_set(mo_set=mo_array(1), mo_coeff_b=mo_coeff)
       CALL dbcsr_get_info(mo_coeff, nfullcols_total=k_alpha)
-      CALL get_mo_set(mo_set=mo_array(2)%mo_set, mo_coeff_b=mo_coeff)
+      CALL get_mo_set(mo_set=mo_array(2), mo_coeff_b=mo_coeff)
       CALL dbcsr_get_info(mo_coeff, nfullcols_total=k_beta)
 
       ! read the input
@@ -289,7 +289,7 @@ CONTAINS
 
       ! get mo matrices needed to construct the density matrices
       ! we will base all on the alpha spin matrix, obviously possible in ROKS
-      CALL get_mo_set(mo_set=mo_array(1)%mo_set, mo_coeff_b=mo_coeff)
+      CALL get_mo_set(mo_set=mo_array(1), mo_coeff_b=mo_coeff)
       NULLIFY (fm_scaled, fm_deriv)
       CALL dbcsr_init_p(fm_scaled)
       CALL dbcsr_init_p(fm_deriv)
@@ -417,7 +417,7 @@ CONTAINS
       TYPE(dbcsr_p_type)                                 :: orb_density_matrix_p, orb_h_p
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs, rho_ao, tmp_dbcsr
       TYPE(dbcsr_type), POINTER                          :: orb_density_matrix, orb_h
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_array
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: xc_pw_pool
       TYPE(pw_type)                                      :: work_v_gspace, work_v_rspace
@@ -451,9 +451,9 @@ CONTAINS
       xc_section => section_vals_get_subs_vals(input, "DFT%XC")
 
       DO i = 1, SIZE(mo_array) !fm->dbcsr
-         IF (mo_array(i)%mo_set%use_mo_coeff_b) THEN !fm->dbcsr
-            CALL copy_dbcsr_to_fm(mo_array(i)%mo_set%mo_coeff_b, &
-                                  mo_array(i)%mo_set%mo_coeff) !fm->dbcsr
+         IF (mo_array(i)%use_mo_coeff_b) THEN !fm->dbcsr
+            CALL copy_dbcsr_to_fm(mo_array(i)%mo_coeff_b, &
+                                  mo_array(i)%mo_coeff) !fm->dbcsr
          END IF !fm->dbcsr
       END DO !fm->dbcsr
 
@@ -462,9 +462,9 @@ CONTAINS
       ! we have two spins
       CPASSERT(SIZE(mo_array, 1) == 2)
       ! we want uniform occupations
-      CALL get_mo_set(mo_set=mo_array(1)%mo_set, uniform_occupation=uniform_occupation)
+      CALL get_mo_set(mo_set=mo_array(1), uniform_occupation=uniform_occupation)
       CPASSERT(uniform_occupation)
-      CALL get_mo_set(mo_set=mo_array(2)%mo_set, mo_coeff=mo_coeff, uniform_occupation=uniform_occupation)
+      CALL get_mo_set(mo_set=mo_array(2), mo_coeff=mo_coeff, uniform_occupation=uniform_occupation)
       CPASSERT(uniform_occupation)
 
       NULLIFY (tmp_dbcsr)
@@ -481,11 +481,11 @@ CONTAINS
       SELECT CASE (dft_control%sic_list_id)
       CASE (sic_list_all)
 
-         CALL get_mo_set(mo_set=mo_array(1)%mo_set, mo_coeff=mo_coeff)
+         CALL get_mo_set(mo_set=mo_array(1), mo_coeff=mo_coeff)
          CALL cp_fm_get_info(mo_coeff, ncol_global=k_alpha)
 
          IF (SIZE(mo_array, 1) > 1) THEN
-            CALL get_mo_set(mo_set=mo_array(2)%mo_set, mo_coeff=mo_coeff)
+            CALL get_mo_set(mo_set=mo_array(2), mo_coeff=mo_coeff)
             CALL cp_fm_get_info(mo_coeff, ncol_global=k_beta)
          END IF
 
@@ -517,10 +517,10 @@ CONTAINS
          CPASSERT(SIZE(mo_derivs, 1) == 1)
          CPASSERT(dft_control%restricted)
 
-         CALL get_mo_set(mo_set=mo_array(1)%mo_set, mo_coeff=mo_coeff)
+         CALL get_mo_set(mo_set=mo_array(1), mo_coeff=mo_coeff)
          CALL cp_fm_get_info(mo_coeff, ncol_global=k_alpha)
 
-         CALL get_mo_set(mo_set=mo_array(2)%mo_set, mo_coeff=mo_coeff)
+         CALL get_mo_set(mo_set=mo_array(2), mo_coeff=mo_coeff)
          CALL cp_fm_get_info(mo_coeff, ncol_global=k_beta)
 
          Norb = k_alpha - k_beta
@@ -571,7 +571,7 @@ CONTAINS
       CALL dbcsr_set(orb_h, 0.0_dp)
       orb_h_p%matrix => orb_h
 
-      CALL get_mo_set(mo_set=mo_array(1)%mo_set, mo_coeff=mo_coeff)
+      CALL get_mo_set(mo_set=mo_array(1), mo_coeff=mo_coeff)
 
       CALL cp_fm_struct_create(fm_struct_tmp, ncol_global=1, &
                                template_fmstruct=mo_coeff%matrix_struct)
@@ -581,7 +581,7 @@ CONTAINS
 
       ALLOCATE (mo_derivs_local(SIZE(mo_array, 1)))
       DO I = 1, SIZE(mo_array, 1)
-         CALL get_mo_set(mo_set=mo_array(i)%mo_set, mo_coeff=mo_coeff)
+         CALL get_mo_set(mo_set=mo_array(i), mo_coeff=mo_coeff)
          ALLOCATE (mo_derivs_local(I)%matrix)
          CALL cp_fm_create(mo_derivs_local(I)%matrix, mo_coeff%matrix_struct)
       END DO
@@ -600,7 +600,7 @@ CONTAINS
       ! now apply to SIC correction to each selected orbital
       DO iorb = 1, Norb
          ! extract the proper orbital from the mo_coeff
-         CALL get_mo_set(mo_set=mo_array(sic_orbital_list(1, iorb))%mo_set, mo_coeff=mo_coeff)
+         CALL get_mo_set(mo_set=mo_array(sic_orbital_list(1, iorb)), mo_coeff=mo_coeff)
          CALL cp_fm_to_fm(mo_coeff, matrix_v, 1, sic_orbital_list(2, iorb), 1)
 
          ! construct the density matrix and the corresponding density
@@ -715,7 +715,7 @@ CONTAINS
       INTEGER                                            :: i, nelec, nelec_a, nelec_b, nforce
       REAL(kind=dp)                                      :: ener, full_scaling, scaling
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: store_forces
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_array
       TYPE(pw_type)                                      :: work_rho, work_v
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -749,8 +749,8 @@ CONTAINS
       CASE (sic_ad)
          ! find out how many elecs we have
          CALL get_qs_env(qs_env, mos=mo_array)
-         CALL get_mo_set(mo_set=mo_array(1)%mo_set, nelectron=nelec_a)
-         CALL get_mo_set(mo_set=mo_array(2)%mo_set, nelectron=nelec_b)
+         CALL get_mo_set(mo_set=mo_array(1), nelectron=nelec_a)
+         CALL get_mo_set(mo_set=mo_array(2), nelectron=nelec_b)
          nelec = nelec_a + nelec_b
          CALL pw_copy(rho_g(1), work_rho)
          CALL pw_axpy(rho_g(2), work_rho)

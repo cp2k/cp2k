@@ -68,7 +68,7 @@ MODULE qs_efield_berry
                                               get_qs_kind_set,&
                                               qs_kind_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_moments,                      ONLY: build_berry_moment_matrix
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                               neighbor_list_iterate,&
@@ -223,7 +223,7 @@ CONTAINS
       TYPE(efield_berry_type), POINTER                   :: efield
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -297,7 +297,7 @@ CONTAINS
       NULLIFY (mos)
       CALL get_qs_env(qs_env=qs_env, mos=mos)
       DO ispin = 1, dft_control%nspins
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, maxocc=occ, uniform_occupation=uniform)
+         CALL get_mo_set(mo_set=mos(ispin), maxocc=occ, uniform_occupation=uniform)
          IF (.NOT. uniform) THEN
             CPABORT("Berry phase moments for non uniform MOs' occupation numbers not implemented")
          END IF
@@ -317,7 +317,7 @@ CONTAINS
       ! Allocate temp matrices for the wavefunction derivatives
       DO ispin = 1, dft_control%nspins
          NULLIFY (tmp_fm_struct, mo_coeff)
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
+         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=nmo)
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, &
                                   ncol_global=nmo, para_env=para_env, context=mo_coeff%matrix_struct%context)
          ALLOCATE (mo_derivs_tmp(ispin)%matrix, mo_coeff_tmp(ispin)%matrix)
@@ -369,11 +369,11 @@ CONTAINS
             !evaluate the expression needed for the derivative (S_berry * C  and [C^T S_berry C]^-1)
             !first step S_berry * C  and C^T S_berry C
             DO ispin = 1, dft_control%nspins ! spin
-               IF (mos(ispin)%mo_set%use_mo_coeff_b) THEN
-                  CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, mo_coeff_b=mo_coeff_b, nmo=nmo)
+               IF (mos(ispin)%use_mo_coeff_b) THEN
+                  CALL get_mo_set(mo_set=mos(ispin), nao=nao, mo_coeff_b=mo_coeff_b, nmo=nmo)
                   CALL copy_dbcsr_to_fm(mo_coeff_b, mo_coeff_tmp(ispin)%matrix)
                ELSE
-                  CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, mo_coeff=mo_coeff_tmp(ispin)%matrix, nmo=nmo)
+                  CALL get_mo_set(mo_set=mos(ispin), nao=nao, mo_coeff=mo_coeff_tmp(ispin)%matrix, nmo=nmo)
                END IF
                CALL cp_dbcsr_sm_fm_multiply(cosmat, mo_coeff_tmp(ispin)%matrix, opvec(1, ispin)%matrix, ncol=nmo)
                CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff_tmp(ispin)%matrix, opvec(1, ispin)%matrix, 0.0_dp, &
@@ -400,7 +400,7 @@ CONTAINS
                DO ispin = 1, dft_control%nspins
                   inv_work(1, ispin)%matrix%local_data(:, :) = REAL(inv_mat(ispin)%matrix%local_data(:, :), dp)
                   inv_work(2, ispin)%matrix%local_data(:, :) = AIMAG(inv_mat(ispin)%matrix%local_data(:, :))
-                  CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, nmo=nmo)
+                  CALL get_mo_set(mo_set=mos(ispin), nao=nao, nmo=nmo)
                   CALL parallel_gemm("N", "N", nao, nmo, nmo, focc, opvec(1, ispin)%matrix, inv_work(2, ispin)%matrix, &
                                      1.0_dp, mo_derivs_tmp(ispin)%matrix)
                   CALL parallel_gemm("N", "N", nao, nmo, nmo, -focc, opvec(2, ispin)%matrix, inv_work(1, ispin)%matrix, &
@@ -419,7 +419,7 @@ CONTAINS
                DO ispin = 1, dft_control%nspins
                   CALL dbcsr_set(tempmat(1, ispin)%matrix, 0.0_dp)
                   CALL dbcsr_set(tempmat(2, ispin)%matrix, 0.0_dp)
-                  CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, nmo=nmo)
+                  CALL get_mo_set(mo_set=mos(ispin), nao=nao, nmo=nmo)
                 CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, mo_coeff_tmp(ispin)%matrix, inv_work(1, ispin)%matrix, 0.0_dp, &
                                      opvec(1, ispin)%matrix)
                 CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, mo_coeff_tmp(ispin)%matrix, inv_work(2, ispin)%matrix, 0.0_dp, &
@@ -712,7 +712,7 @@ CONTAINS
       TYPE(efield_berry_type), POINTER                   :: efield
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -785,7 +785,7 @@ CONTAINS
       NULLIFY (mos)
       CALL get_qs_env(qs_env=qs_env, mos=mos)
       DO ispin = 1, dft_control%nspins
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, maxocc=occ, uniform_occupation=uniform)
+         CALL get_mo_set(mo_set=mos(ispin), maxocc=occ, uniform_occupation=uniform)
          IF (.NOT. uniform) THEN
             CPABORT("Berry phase moments for non uniform MO occupation numbers not implemented")
          END IF
@@ -805,7 +805,7 @@ CONTAINS
       ! Allocate temp matrices for the wavefunction derivatives
       DO ispin = 1, dft_control%nspins
          NULLIFY (tmp_fm_struct, mo_coeff)
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
+         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=nmo)
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, &
                                   ncol_global=nmo, para_env=para_env, context=mo_coeff%matrix_struct%context)
          ALLOCATE (mo_coeff_tmp(ispin)%matrix)
@@ -858,11 +858,11 @@ CONTAINS
          !evaluate the expression needed for the derivative (S_berry * C  and [C^T S_berry C]^-1)
          !first step S_berry * C  and C^T S_berry C
          DO ispin = 1, dft_control%nspins ! spin
-            IF (mos(ispin)%mo_set%use_mo_coeff_b) THEN
-               CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, mo_coeff_b=mo_coeff_b, nmo=nmo)
+            IF (mos(ispin)%use_mo_coeff_b) THEN
+               CALL get_mo_set(mo_set=mos(ispin), nao=nao, mo_coeff_b=mo_coeff_b, nmo=nmo)
                CALL copy_dbcsr_to_fm(mo_coeff_b, mo_coeff_tmp(ispin)%matrix)
             ELSE
-               CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, mo_coeff=mo_coeff_tmp(ispin)%matrix, nmo=nmo)
+               CALL get_mo_set(mo_set=mos(ispin), nao=nao, mo_coeff=mo_coeff_tmp(ispin)%matrix, nmo=nmo)
             END IF
             CALL cp_dbcsr_sm_fm_multiply(cosmat, mo_coeff_tmp(ispin)%matrix, opvec(1, ispin)%matrix, ncol=nmo)
             CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff_tmp(ispin)%matrix, opvec(1, ispin)%matrix, 0.0_dp, &
@@ -888,7 +888,7 @@ CONTAINS
             DO ispin = 1, dft_control%nspins
                inv_work(1, ispin)%matrix%local_data(:, :) = REAL(inv_mat(ispin)%matrix%local_data(:, :), dp)
                inv_work(2, ispin)%matrix%local_data(:, :) = AIMAG(inv_mat(ispin)%matrix%local_data(:, :))
-               CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, nmo=nmo)
+               CALL get_mo_set(mo_set=mos(ispin), nao=nao, nmo=nmo)
                DO i = 1, 3
                   focc = hmat(idir, i)
                   CALL parallel_gemm("N", "N", nao, nmo, nmo, focc, opvec(1, ispin)%matrix, inv_work(2, ispin)%matrix, &
@@ -910,7 +910,7 @@ CONTAINS
             DO ispin = 1, dft_control%nspins
                CALL dbcsr_set(tempmat(1, ispin)%matrix, 0.0_dp)
                CALL dbcsr_set(tempmat(2, ispin)%matrix, 0.0_dp)
-               CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, nmo=nmo)
+               CALL get_mo_set(mo_set=mos(ispin), nao=nao, nmo=nmo)
                CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, mo_coeff_tmp(ispin)%matrix, inv_work(1, ispin)%matrix, 0.0_dp, &
                                   opvec(1, ispin)%matrix)
                CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, mo_coeff_tmp(ispin)%matrix, inv_work(2, ispin)%matrix, 0.0_dp, &

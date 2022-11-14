@@ -34,7 +34,7 @@ MODULE qs_ks_apply_restraints
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE s_square_methods,                ONLY: s2_restraint
@@ -198,7 +198,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mo_derivs
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs, smat
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_array
 
       NULLIFY (fm_mo_derivs, mo_array, mo_coeff, mo_derivs)
 
@@ -215,7 +215,7 @@ CONTAINS
 
          ALLOCATE (fm_mo_derivs(SIZE(mo_derivs, 1))) !fm->dbcsr
          DO i = 1, SIZE(mo_derivs, 1) !fm->dbcsr
-            CALL get_mo_set(mo_set=mo_array(i)%mo_set, mo_coeff=mo_coeff) !fm->dbcsr
+            CALL get_mo_set(mo_set=mo_array(i), mo_coeff=mo_coeff) !fm->dbcsr
             ALLOCATE (fm_mo_derivs(i)%matrix)
             CALL cp_fm_create(fm_mo_derivs(i)%matrix, mo_coeff%matrix_struct) !fm->dbcsr
             CALL copy_dbcsr_to_fm(mo_derivs(i)%matrix, fm_mo_derivs(i)%matrix) !fm->dbcsr

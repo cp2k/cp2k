@@ -115,7 +115,7 @@ MODULE mixed_cdft_methods
                                               make_basis_sm
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               deallocate_mo_set,&
-                                              mo_set_p_type,&
+                                              mo_set_type,&
                                               set_mo_set
    USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                               rs2pw,&
@@ -2074,12 +2074,12 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys_mix
       TYPE(dbcsr_type), POINTER                          :: mixed_matrix_s
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_set
+      TYPE(mo_set_type), ALLOCATABLE, DIMENSION(:)       :: mo_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: force_env_section, mixed_cdft_section
 
-      NULLIFY (mixed_cdft_section, subsys_mix, mo_set, particle_set, qs_kind_set, atomic_kind_set, &
+      NULLIFY (mixed_cdft_section, subsys_mix, particle_set, qs_kind_set, atomic_kind_set, &
                mixed_mo_coeff, mixed_matrix_s, force_env_section)
       logger => cp_get_default_logger()
 
@@ -2101,18 +2101,17 @@ CONTAINS
       DO ispin = 1, nspins
          nao = nrow_mo(ispin)
          nmo = ncol_mo(ispin)
-         ALLOCATE (mo_set(ispin)%mo_set)
          ! Only OT with fully occupied orbitals is implicitly supported
-         CALL allocate_mo_set(mo_set(ispin)%mo_set, nao=nao, nmo=nmo, nelectron=INT(maxocc*nmo), &
+         CALL allocate_mo_set(mo_set(ispin), nao=nao, nmo=nmo, nelectron=INT(maxocc*nmo), &
                               n_el_f=REAL(maxocc*nmo, dp), maxocc=maxocc, &
                               flexible_electron_count=0.0_dp)
-         CALL set_mo_set(mo_set(ispin)%mo_set, uniform_occupation=.TRUE., homo=nmo)
-         ALLOCATE (mo_set(ispin)%mo_set%mo_coeff)
-         CALL cp_fm_create(matrix=mo_set(ispin)%mo_set%mo_coeff, &
+         CALL set_mo_set(mo_set(ispin), uniform_occupation=.TRUE., homo=nmo)
+         ALLOCATE (mo_set(ispin)%mo_coeff)
+         CALL cp_fm_create(matrix=mo_set(ispin)%mo_coeff, &
                            matrix_struct=mixed_mo_coeff(1, ispin)%matrix%matrix_struct, &
                            name="GS_MO_COEFF"//TRIM(ADJUSTL(cp_to_string(ispin)))//"MATRIX")
-         ALLOCATE (mo_set(ispin)%mo_set%eigenvalues(nmo))
-         ALLOCATE (mo_set(ispin)%mo_set%occupation_numbers(nmo))
+         ALLOCATE (mo_set(ispin)%eigenvalues(nmo))
+         ALLOCATE (mo_set(ispin)%occupation_numbers(nmo))
       END DO
       ! Read wfn file (note we assume that the basis set is the same)
       IF (force_env%mixed_env%do_mixed_qmmm_cdft) &
@@ -2144,9 +2143,9 @@ CONTAINS
       ! Orthonormalize wfn
       DO ispin = 1, nspins
          IF (mixed_cdft%has_unit_metric) THEN
-            CALL make_basis_simple(mo_set(ispin)%mo_set%mo_coeff, ncol_mo(ispin))
+            CALL make_basis_simple(mo_set(ispin)%mo_coeff, ncol_mo(ispin))
          ELSE
-            CALL make_basis_sm(mo_set(ispin)%mo_set%mo_coeff, ncol_mo(ispin), mixed_matrix_s)
+            CALL make_basis_sm(mo_set(ispin)%mo_coeff, ncol_mo(ispin), mixed_matrix_s)
          END IF
       END DO
       ! Calculate MO overlaps between reference state (R) and CDFT state pairs I/J
@@ -2170,7 +2169,7 @@ CONTAINS
          DO ipermutation = 1, npermutations
             CALL map_permutation_to_states(nforce_eval, ipermutation, istate, jstate)
             ! S*C_r
-            CALL cp_dbcsr_sm_fm_multiply(mixed_matrix_s, mo_set(ispin)%mo_set%mo_coeff, &
+            CALL cp_dbcsr_sm_fm_multiply(mixed_matrix_s, mo_set(ispin)%mo_coeff, &
                                          mo_tmp, nmo, 1.0_dp, 0.0_dp)
             ! C_i^T * (S*C_r)
             CALL cp_fm_set_all(mo_overlap_wfn, alpha=0.0_dp)
@@ -2188,8 +2187,7 @@ CONTAINS
          CALL cp_fm_release(mo_overlap_wfn)
          CALL cp_fm_release(inverse_mat)
          CALL cp_fm_release(mo_tmp)
-         CALL deallocate_mo_set(mo_set(ispin)%mo_set)
-         DEALLOCATE (mo_set(ispin)%mo_set)
+         CALL deallocate_mo_set(mo_set(ispin))
       END DO
       DEALLOCATE (mo_set)
       DO ipermutation = 1, npermutations

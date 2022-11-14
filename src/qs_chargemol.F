@@ -52,7 +52,7 @@ MODULE qs_chargemol
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
-   USE qs_mo_types,                     ONLY: mo_set_p_type
+   USE qs_mo_types,                     ONLY: mo_set_type
    USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE qs_subsys_types,                 ONLY: qs_subsys_type
    USE scf_control_types,               ONLY: scf_control_type
@@ -106,7 +106,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(kpoint_type), POINTER                         :: kpoint_env
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -177,15 +177,15 @@ CONTAINS
 
          nspins = SIZE(mos)
          IF (nspins == 1) THEN
-            nelec_alpha = mos(1)%mo_set%nelectron/2
+            nelec_alpha = mos(1)%nelectron/2
             nelec_beta = nelec_alpha
          ELSE
-            nelec_alpha = mos(1)%mo_set%nelectron
-            nelec_beta = mos(2)%mo_set%nelectron
+            nelec_alpha = mos(1)%nelectron
+            nelec_beta = mos(2)%nelectron
          END IF
 
          IF (dft_control%roks) THEN
-            IF (mos(1)%mo_set%homo > mos(2)%mo_set%homo) THEN
+            IF (mos(1)%homo > mos(2)%homo) THEN
                roks_high = 1
                roks_low = 2
             ELSE
@@ -272,10 +272,10 @@ CONTAINS
          WRITE (iwfx, "(A)") "<Number of Occupied Molecular Orbitals>"
          noccup = 0
          IF (dft_control%roks .AND. nspins == 2) THEN
-            noccup = MAX(mos(1)%mo_set%homo, mos(2)%mo_set%homo)
+            noccup = MAX(mos(1)%homo, mos(2)%homo)
          ELSE
             DO ispin = 1, dft_control%nspins
-               noccup = noccup + mos(ispin)%mo_set%homo
+               noccup = noccup + mos(ispin)%homo
             END DO
          END IF
          WRITE (iwfx, "(2I6)") noccup
@@ -566,20 +566,20 @@ CONTAINS
          WRITE (iwfx, "(A)") "<Molecular Orbital Occupation Numbers>"
          IF (.NOT. dft_control%roks) THEN
             DO ispin = 1, nspins
-               DO imo = 1, mos(ispin)%mo_set%homo
+               DO imo = 1, mos(ispin)%homo
                   WRITE (iwfx, "(f8.6)") &
-                     mos(ispin)%mo_set%occupation_numbers(imo)
+                     mos(ispin)%occupation_numbers(imo)
                END DO
             END DO
          ELSE
-            DO imo = 1, mos(roks_low)%mo_set%homo
+            DO imo = 1, mos(roks_low)%homo
                WRITE (iwfx, "(*(f8.6,1x))") &
-                  mos(roks_low)%mo_set%occupation_numbers(imo) &
-                  + mos(roks_low)%mo_set%occupation_numbers(imo)
+                  mos(roks_low)%occupation_numbers(imo) &
+                  + mos(roks_low)%occupation_numbers(imo)
             END DO
-            DO imo = mos(roks_low)%mo_set%homo + 1, mos(roks_high)%mo_set%homo
+            DO imo = mos(roks_low)%homo + 1, mos(roks_high)%homo
                WRITE (iwfx, "(f8.6)") &
-                  mos(roks_high)%mo_set%occupation_numbers(imo)
+                  mos(roks_high)%occupation_numbers(imo)
             END DO
          END IF
          WRITE (iwfx, "(A,/)") "</Molecular Orbital Occupation Numbers>"
@@ -589,8 +589,8 @@ CONTAINS
          ! !===========================================================================!
          WRITE (iwfx, "(A)") "<Molecular Orbital Energies>"
          DO ispin = 1, nspins
-            DO imo = 1, mos(ispin)%mo_set%homo
-               WRITE (iwfx, "(ES20.10)") mos(ispin)%mo_set%eigenvalues(imo)
+            DO imo = 1, mos(ispin)%homo
+               WRITE (iwfx, "(ES20.10)") mos(ispin)%eigenvalues(imo)
             END DO
          END DO
          WRITE (iwfx, "(A,/)") "</Molecular Orbital Energies>"
@@ -600,7 +600,7 @@ CONTAINS
          ! nonesense for ROKS
          ! !===========================================================================!
          WRITE (iwfx, "(A)") "<Molecular Orbital Spin Types>"
-         DO imo = 1, mos(1)%mo_set%homo
+         DO imo = 1, mos(1)%homo
             IF (nspins == 1) THEN
                WRITE (iwfx, '(A15)') "Alpha and Beta"
             ELSEIF (dft_control%uks) THEN
@@ -611,7 +611,7 @@ CONTAINS
             END IF
          END DO
          IF (nspins == 2) THEN
-            DO imo = 1, mos(2)%mo_set%homo
+            DO imo = 1, mos(2)%homo
                WRITE (iwfx, '(A5)') "Beta"
             END DO
          END IF
@@ -623,7 +623,7 @@ CONTAINS
          IF (periodic) THEN
             WRITE (iwfx, "(A)") "<Kpoint Index for Orbitals>"
             DO ispin = 1, nspins
-               DO imo = 1, mos(ispin)%mo_set%homo
+               DO imo = 1, mos(ispin)%homo
                   WRITE (iwfx, "(I6)") 1
                END DO
             END DO
@@ -637,25 +637,25 @@ CONTAINS
          NULLIFY (orb_basis_set)
          NULLIFY (gcc)
 
-         IF (mos(1)%mo_set%use_mo_coeff_b) THEN
+         IF (mos(1)%use_mo_coeff_b) THEN
             DO ispin = 1, SIZE(mos)
-               IF (.NOT. ASSOCIATED(mos(ispin)%mo_set%mo_coeff_b)) THEN
+               IF (.NOT. ASSOCIATED(mos(ispin)%mo_coeff_b)) THEN
                   CPASSERT(.FALSE.)
                END IF
-               CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b, &
-                                     mos(ispin)%mo_set%mo_coeff)
+               CALL copy_dbcsr_to_fm(mos(ispin)%mo_coeff_b, &
+                                     mos(ispin)%mo_coeff)
             END DO
          END IF
 
          DO ispin = 1, nspins
-            CALL cp_fm_get_info(mos(ispin)%mo_set%mo_coeff, &
+            CALL cp_fm_get_info(mos(ispin)%mo_coeff, &
                                 nrow_global=nrow_global, &
                                 ncol_global=ncol_global)
 
             ALLOCATE (smatrix(nrow_global, ncol_global))
             smatrix = 0.0_dp
 
-            CALL cp_fm_get_submatrix(mos(ispin)%mo_set%mo_coeff, smatrix)
+            CALL cp_fm_get_submatrix(mos(ispin)%mo_coeff, smatrix)
 
             CALL get_qs_kind_set(qs_kind_set, ncgf=ncgf, nsgf=nsgf)
 
@@ -679,7 +679,7 @@ CONTAINS
                   DO iset = 1, nset
                      DO ishell = 1, nshell(iset)
                         lshell = l(ishell, iset)
-                        CALL dgemm("T", "N", nco(lshell), mos(ispin)%mo_set%nmo, &
+                        CALL dgemm("T", "N", nco(lshell), mos(ispin)%nmo, &
                                    nso(lshell), 1.0_dp, &
                                    orbtramat(lshell)%c2s, nso(lshell), &
                                    smatrix(isgf, 1), nsgf, 0.0_dp, &
@@ -705,13 +705,13 @@ CONTAINS
             END DO ! iatom
 
             ! Now write MO coefficients in terms of cartesian primitives
-            DO imo = 1, mos(ispin)%mo_set%homo
+            DO imo = 1, mos(ispin)%homo
 
                WRITE (iwfx, "(A)") "<MO Number>"
                IF (nspins == 1 .OR. ispin == 1) THEN
                   WRITE (iwfx, "(I6)") imo
                ELSE
-                  WRITE (iwfx, "(I6)") imo + mos(1)%mo_set%homo
+                  WRITE (iwfx, "(I6)") imo + mos(1)%homo
                END IF
                WRITE (iwfx, "(A)") "</MO Number>"
 

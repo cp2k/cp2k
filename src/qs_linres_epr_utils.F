@@ -55,7 +55,7 @@ MODULE qs_linres_epr_utils
                                               nablavks_atom_type,&
                                               set_epr_env
    USE qs_matrix_pools,                 ONLY: qs_matrix_pools_type
-   USE qs_mo_types,                     ONLY: mo_set_p_type
+   USE qs_mo_types,                     ONLY: mo_set_type
    USE qs_rho_atom_types,               ONLY: deallocate_rho_atom_set
    USE qs_rho_types,                    ONLY: qs_rho_clear,&
                                               qs_rho_create,&
@@ -96,7 +96,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(nablavks_atom_type), DIMENSION(:), POINTER    :: nablavks_atom_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env

@@ -1695,7 +1695,7 @@ CONTAINS
 
          DO ikp = 1, kpoints_Sigma%nkp
 
-            ev => kpoints_Sigma%kp_env(ikp)%kpoint_env%mos(1, 1)%mo_set%eigenvalues
+            ev => kpoints_Sigma%kp_env(ikp)%kpoint_env%mos(1, 1)%eigenvalues
 
             Eigenval_kp(:, ikp, 1) = ev(:)
 
@@ -1861,8 +1861,8 @@ CONTAINS
 
          kp => kpoints%kp_env(ikp)%kpoint_env
 
-         CALL get_mo_set(kp%mos(1, 1)%mo_set, mo_coeff=rmos, eigenvalues=eigenvalues)
-         CALL get_mo_set(kp%mos(2, 1)%mo_set, mo_coeff=imos)
+         CALL get_mo_set(kp%mos(1, 1), mo_coeff=rmos, eigenvalues=eigenvalues)
+         CALL get_mo_set(kp%mos(2, 1), mo_coeff=imos)
 
          IF (scf_env%cholesky_method == cholesky_off) THEN
             CALL cp_cfm_geeig_canon(cksmat, csmat, cmos, eigenvalues, cwork, scf_control%eps_eigval)
@@ -1872,7 +1872,7 @@ CONTAINS
 
          CALL cp_cfm_to_fm(cmos, rmos, imos)
 
-         kp%mos(2, 1)%mo_set%eigenvalues = eigenvalues
+         kp%mos(2, 1)%eigenvalues = eigenvalues
 
       END DO
 

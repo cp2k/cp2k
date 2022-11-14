@@ -2224,10 +2224,10 @@ CONTAINS
          ELSE
 
             ! get mo coeff at the ikp
-            CALL copy_fm_to_dbcsr(kpoints%kp_env(ikp)%kpoint_env%mos(1, 1)%mo_set%mo_coeff, &
+            CALL copy_fm_to_dbcsr(kpoints%kp_env(ikp)%kpoint_env%mos(1, 1)%mo_coeff, &
                                   mat_mo_coeff_re, keep_sparsity=.FALSE.)
 
-            CALL copy_fm_to_dbcsr(kpoints%kp_env(ikp)%kpoint_env%mos(2, 1)%mo_set%mo_coeff, &
+            CALL copy_fm_to_dbcsr(kpoints%kp_env(ikp)%kpoint_env%mos(2, 1)%mo_coeff, &
                                   mat_mo_coeff_im, keep_sparsity=.FALSE.)
 
             CALL dbcsr_desymmetrize(cosmat, cosmat_desymm)
@@ -5132,13 +5132,13 @@ CONTAINS
       DO ikp = 1, nkp_Sigma
 
          ASSOCIATE (mos => kpoints_Sigma%kp_env(ikp)%kpoint_env%mos)
-         IF (ASSOCIATED(mos(1, 1)%mo_set%mo_coeff)) THEN
-            CALL cp_fm_copy_general(mos(1, 1)%mo_set%mo_coeff, fm_tmp_re, para_env)
+         IF (ASSOCIATED(mos(1, 1)%mo_coeff)) THEN
+            CALL cp_fm_copy_general(mos(1, 1)%mo_coeff, fm_tmp_re, para_env)
          ELSE
             CALL cp_fm_copy_general(fm_dummy, fm_tmp_re, para_env)
          END IF
-         IF (ASSOCIATED(mos(2, 1)%mo_set%mo_coeff)) THEN
-            CALL cp_fm_copy_general(mos(2, 1)%mo_set%mo_coeff, fm_tmp_im, para_env)
+         IF (ASSOCIATED(mos(2, 1)%mo_coeff)) THEN
+            CALL cp_fm_copy_general(mos(2, 1)%mo_coeff, fm_tmp_im, para_env)
          ELSE
             CALL cp_fm_copy_general(fm_dummy, fm_tmp_im, para_env)
          END IF
@@ -5254,7 +5254,7 @@ CONTAINS
       CALL dbcsr_get_info(mat_self_energy_ao_ao, nfullrows_total=nmo)
       ALLOCATE (diag_self_energy(nmo))
 
-      matrix_struct => kpoints_Sigma%kp_env(1)%kpoint_env%mos(1, 1)%mo_set%mo_coeff%matrix_struct
+      matrix_struct => kpoints_Sigma%kp_env(1)%kpoint_env%mos(1, 1)%mo_coeff%matrix_struct
 
       CALL cp_cfm_create(cfm_self_energy_ao_ao, matrix_struct)
       CALL cp_cfm_create(cfm_self_energy_ao_mo, matrix_struct)
@@ -5271,8 +5271,8 @@ CONTAINS
          CALL dbcsr_to_cfm(mat_self_energy_ao_ao_kp_re(ikp)%matrix, &
                            mat_self_energy_ao_ao_kp_im(ikp)%matrix, cfm_self_energy_ao_ao)
 
-         CALL cp_fm_to_cfm(kpoints_Sigma%kp_env(ikp)%kpoint_env%mos(1, 1)%mo_set%mo_coeff, &
-                           kpoints_Sigma%kp_env(ikp)%kpoint_env%mos(2, 1)%mo_set%mo_coeff, cfm_mo_coeff)
+         CALL cp_fm_to_cfm(kpoints_Sigma%kp_env(ikp)%kpoint_env%mos(1, 1)%mo_coeff, &
+                           kpoints_Sigma%kp_env(ikp)%kpoint_env%mos(2, 1)%mo_coeff, cfm_mo_coeff)
 
          CALL parallel_gemm('N', 'N', nmo, nmo, nmo, z_one, cfm_self_energy_ao_ao, cfm_mo_coeff, &
                             z_zero, cfm_self_energy_ao_mo)

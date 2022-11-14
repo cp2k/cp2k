@@ -804,7 +804,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      mo_set => kpoints%kp_env(1)%kpoint_env%mos(1, 1)%mo_set
+      mo_set => kpoints%kp_env(1)%kpoint_env%mos(1, 1)
       CALL get_mo_set(mo_set, nmo=nmo)
 
       nspins = SIZE(matrix_sigma_x_minus_vxc, 1)
@@ -849,8 +849,8 @@ CONTAINS
             CALL cp_cfm_scale_and_add_fm(z_one, cfm_sigma_x_minus_vxc, gaussi, fwork_im)
 
             ! get real part (1) and imag. part (2) of the mo coeffs
-            mo_set_re => kp%mos(1, ispin)%mo_set
-            mo_set_im => kp%mos(2, ispin)%mo_set
+            mo_set_re => kp%mos(1, ispin)
+            mo_set_im => kp%mos(2, ispin)
 
             CALL cp_cfm_scale_and_add_fm(z_zero, cfm_mos, z_one, mo_set_re%mo_coeff)
             CALL cp_cfm_scale_and_add_fm(z_one, cfm_mos, gaussi, mo_set_im%mo_coeff)
@@ -894,7 +894,7 @@ CONTAINS
 
       ! also adjust in the case of kpoints too big gw_corr_lev_occ and gw_corr_lev_virt
       DO ispin = 1, nspins
-         CALL get_mo_set(mo_set=kpoints%kp_env(1)%kpoint_env%mos(ispin, 1)%mo_set, &
+         CALL get_mo_set(mo_set=kpoints%kp_env(1)%kpoint_env%mos(ispin, 1), &
                          homo=homo, nao=dimen)
          gw_corr_lev_occ = mp2_env%ri_g0w0%corr_mos_occ
          gw_corr_lev_virt = mp2_env%ri_g0w0%corr_mos_virt

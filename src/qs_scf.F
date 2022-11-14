@@ -133,6 +133,7 @@ MODULE qs_scf
                                               duplicate_mo_set,&
                                               get_mo_set,&
                                               mo_set_p_type,&
+                                              mo_set_type,&
                                               reassign_allocated_mos
    USE qs_ot,                           ONLY: qs_ot_new_preconditioner
    USE qs_ot_scf,                       ONLY: ot_scf_init,&
@@ -357,7 +358,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(energy_correction_type), POINTER              :: ec_env
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_last_converged
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_last_converged
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_charges_type), POINTER                     :: qs_charges
@@ -412,7 +413,7 @@ CONTAINS
       IF (dft_control%switch_surf_dip) THEN
          CALL get_qs_env(qs_env, mos_last_converged=mos_last_converged)
          DO ispin = 1, dft_control%nspins
-            CALL reassign_allocated_mos(mos(ispin)%mo_set, mos_last_converged(ispin)%mo_set)
+            CALL reassign_allocated_mos(mos(ispin), mos_last_converged(ispin))
          END DO
          IF (output_unit > 0) WRITE (UNIT=output_unit, FMT="(/,/,T2,A)") &
             "COPIED mos_last_converged ---> mos"
@@ -572,7 +573,7 @@ CONTAINS
             IF ((dft_control%switch_surf_dip) .AND. (outer_loop_converged) .AND. &
                 (dft_control%surf_dip_correct_switch)) THEN
                DO ispin = 1, dft_control%nspins
-                  CALL reassign_allocated_mos(mos_last_converged(ispin)%mo_set, mos(ispin)%mo_set)
+                  CALL reassign_allocated_mos(mos_last_converged(ispin), mos(ispin))
                END DO
                IF (output_unit > 0) WRITE (UNIT=output_unit, FMT="(/,/,T2,A)") &
                   "COPIED mos ---> mos_last_converged"
@@ -611,11 +612,11 @@ CONTAINS
 
       ! if needed copy mo_coeff dbcsr->fm for later use in post_scf!fm->dbcsr
       DO ispin = 1, SIZE(mos) !fm -> dbcsr
-         IF (mos(ispin)%mo_set%use_mo_coeff_b) THEN !fm->dbcsr
-            IF (.NOT. ASSOCIATED(mos(ispin)%mo_set%mo_coeff_b)) & !fm->dbcsr
+         IF (mos(ispin)%use_mo_coeff_b) THEN !fm->dbcsr
+            IF (.NOT. ASSOCIATED(mos(ispin)%mo_coeff_b)) & !fm->dbcsr
                CPABORT("mo_coeff_b is not allocated") !fm->dbcsr
-            CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b, & !fm->dbcsr
-                                  mos(ispin)%mo_set%mo_coeff) !fm -> dbcsr
+            CALL copy_dbcsr_to_fm(mos(ispin)%mo_coeff_b, & !fm->dbcsr
+                                  mos(ispin)%mo_coeff) !fm -> dbcsr
          END IF !fm->dbcsr
       END DO !fm -> dbcsr
 
@@ -648,7 +649,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dbcsr_type), POINTER                          :: orthogonality_metric
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(scf_control_type), POINTER                    :: scf_control
 
       CALL timeset(routineN, handle)
@@ -665,8 +666,8 @@ CONTAINS
 
       ! if using mo_coeff_b then copy to fm
       DO ispin = 1, SIZE(mos) !fm->dbcsr
-         IF (mos(1)%mo_set%use_mo_coeff_b) THEN !fm->dbcsr
-            CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b, mos(ispin)%mo_set%mo_coeff) !fm->dbcsr
+         IF (mos(1)%use_mo_coeff_b) THEN !fm->dbcsr
+            CALL copy_dbcsr_to_fm(mos(ispin)%mo_coeff_b, mos(ispin)%mo_coeff) !fm->dbcsr
          END IF !fm->dbcsr
       END DO !fm->dbcsr
 
@@ -674,7 +675,7 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          ! do not reset mo_occupations if the maximum overlap method is in use
          IF (.NOT. scf_control%diagonalization%mom) &
-            CALL set_mo_occupation(mo_set=mos(ispin)%mo_set, &
+            CALL set_mo_occupation(mo_set=mos(ispin), &
                                    smear=scf_control%smear)
       END DO
 
@@ -747,7 +748,7 @@ CONTAINS
             IF (scf_control%outer_scf%have_scf .AND. .NOT. dft_control%restricted) THEN
                IF (scf_env%outer_scf%iter_count > 0) THEN
                   DO ispin = 1, dft_control%nspins
-                     CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
+                     CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
                      IF (has_unit_metric) THEN
                         CALL make_basis_simple(mo_coeff, nmo)
                      ELSE
@@ -848,7 +849,7 @@ CONTAINS
          ! if we have non-uniform occupations we should be using rotation
          do_rotation = scf_env%qs_ot_env(1)%settings%do_rotation
          DO ispin = 1, SIZE(mos)
-            IF (.NOT. mos(ispin)%mo_set%uniform_occupation) THEN
+            IF (.NOT. mos(ispin)%uniform_occupation) THEN
                CPASSERT(do_rotation)
             END IF
          END DO
@@ -985,7 +986,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -1111,9 +1112,9 @@ CONTAINS
          DO ispin = 1, dft_control%nspins
             ALLOCATE (cdft_control%mo_coeff(ispin)%matrix)
             CALL cp_fm_create(matrix=cdft_control%mo_coeff(ispin)%matrix, &
-                              matrix_struct=qs_env%mos(ispin)%mo_set%mo_coeff%matrix_struct, &
+                              matrix_struct=qs_env%mos(ispin)%mo_coeff%matrix_struct, &
                               name="MO_COEFF_A"//TRIM(ADJUSTL(cp_to_string(ispin)))//"MATRIX")
-            CALL cp_fm_to_fm(qs_env%mos(ispin)%mo_set%mo_coeff, &
+            CALL cp_fm_to_fm(qs_env%mos(ispin)%mo_coeff, &
                              cdft_control%mo_coeff(ispin)%matrix)
          END DO
          ! Density matrix
@@ -1131,13 +1132,13 @@ CONTAINS
          ! Copy occupation numbers if non-uniform occupation
          uniform_occupation = .TRUE.
          DO ispin = 1, dft_control%nspins
-            CALL get_mo_set(mo_set=mos(ispin)%mo_set, uniform_occupation=my_uocc)
+            CALL get_mo_set(mo_set=mos(ispin), uniform_occupation=my_uocc)
             uniform_occupation = uniform_occupation .AND. my_uocc
          END DO
          IF (.NOT. uniform_occupation) THEN
             ALLOCATE (cdft_control%occupations(dft_control%nspins))
             DO ispin = 1, dft_control%nspins
-               CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
+               CALL get_mo_set(mo_set=mos(ispin), &
                                nmo=nmo, &
                                occupation_numbers=mo_occupations)
                ALLOCATE (cdft_control%occupations(ispin)%array(nmo))
@@ -1237,7 +1238,8 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_rmpv
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_stashed
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos_stashed
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(qs_energy_type), POINTER                      :: energy_qs
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -1286,7 +1288,7 @@ CONTAINS
             ALLOCATE (mos_stashed(nspins))
             DO ispin = 1, nspins
                ALLOCATE (mos_stashed(ispin)%mo_set)
-               CALL duplicate_mo_set(mos_stashed(ispin)%mo_set, mos(ispin)%mo_set)
+               CALL duplicate_mo_set(mos_stashed(ispin)%mo_set, mos(ispin))
             END DO
             CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
             p_rmpv => rho_ao_kp(:, 1)
@@ -1357,9 +1359,9 @@ CONTAINS
                   scf_env%outer_scf%energy = energy
                   cdft_control%total_steps = nsteps
                   DO ispin = 1, nspins
-                     CALL deallocate_mo_set(mos(ispin)%mo_set)
-                     CALL duplicate_mo_set(mos(ispin)%mo_set, mos_stashed(ispin)%mo_set)
-                     CALL calculate_density_matrix(mos(ispin)%mo_set, &
+                     CALL deallocate_mo_set(mos(ispin))
+                     CALL duplicate_mo_set(mos(ispin), mos_stashed(ispin)%mo_set)
+                     CALL calculate_density_matrix(mos(ispin), &
                                                    p_rmpv(ispin)%matrix)
                   END DO
                   CALL qs_rho_update_rho(rho, qs_env=qs_env)
@@ -1435,7 +1437,8 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_rmpv
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_ls, mos_stashed
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos_ls, mos_stashed
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(qs_energy_type), POINTER                      :: energy_qs
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -1493,7 +1496,7 @@ CONTAINS
          ALLOCATE (mos_stashed(nspins))
          DO ispin = 1, nspins
             ALLOCATE (mos_stashed(ispin)%mo_set)
-            CALL duplicate_mo_set(mos_stashed(ispin)%mo_set, mos(ispin)%mo_set)
+            CALL duplicate_mo_set(mos_stashed(ispin)%mo_set, mos(ispin))
          END DO
          CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
          p_rmpv => rho_ao_kp(:, 1)
@@ -1610,7 +1613,7 @@ CONTAINS
                      END IF
                      DO ispin = 1, nspins
                         ALLOCATE (mos_ls(ispin)%mo_set)
-                        CALL duplicate_mo_set(mos_ls(ispin)%mo_set, mos(ispin)%mo_set)
+                        CALL duplicate_mo_set(mos_ls(ispin)%mo_set, mos(ispin))
                      END DO
                      alpha = alpha*factor
                      ! Exit on last iteration
@@ -1633,9 +1636,9 @@ CONTAINS
                ! Continuation of line search did not yield a better alpha, use previously located solution and exit
                alpha = alpha_ls
                DO ispin = 1, nspins
-                  CALL deallocate_mo_set(mos(ispin)%mo_set)
-                  CALL duplicate_mo_set(mos(ispin)%mo_set, mos_ls(ispin)%mo_set)
-                  CALL calculate_density_matrix(mos(ispin)%mo_set, &
+                  CALL deallocate_mo_set(mos(ispin))
+                  CALL duplicate_mo_set(mos(ispin), mos_ls(ispin)%mo_set)
+                  CALL calculate_density_matrix(mos(ispin), &
                                                 p_rmpv(ispin)%matrix)
                   CALL deallocate_mo_set(mos_ls(ispin)%mo_set)
                   DEALLOCATE (mos_ls(ispin)%mo_set)
@@ -1661,9 +1664,9 @@ CONTAINS
             ! Reset the electronic structure
             cdft_control%total_steps = nsteps
             DO ispin = 1, nspins
-               CALL deallocate_mo_set(mos(ispin)%mo_set)
-               CALL duplicate_mo_set(mos(ispin)%mo_set, mos_stashed(ispin)%mo_set)
-               CALL calculate_density_matrix(mos(ispin)%mo_set, &
+               CALL deallocate_mo_set(mos(ispin))
+               CALL duplicate_mo_set(mos(ispin), mos_stashed(ispin)%mo_set)
+               CALL calculate_density_matrix(mos(ispin), &
                                              p_rmpv(ispin)%matrix)
             END DO
             CALL qs_rho_update_rho(rho, qs_env=qs_env)

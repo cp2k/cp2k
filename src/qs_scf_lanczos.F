@@ -32,7 +32,7 @@ MODULE qs_scf_lanczos
    USE message_passing,                 ONLY: mp_sum
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_scf_types,                    ONLY: krylov_space_type
    USE scf_control_types,               ONLY: scf_control_type
 #include "./base/base_uses.f90"
@@ -62,7 +62,7 @@ CONTAINS
 
       TYPE(krylov_space_type), POINTER                   :: krylov_space
       TYPE(scf_control_type), POINTER                    :: scf_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'krylov_space_allocate'
 
@@ -91,7 +91,7 @@ CONTAINS
          ALLOCATE (krylov_space%c_vec(nspin))
          max_nmo = 0
          DO ispin = 1, nspin
-            CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
+            CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=nmo)
             ALLOCATE (krylov_space%mo_conv(ispin)%matrix, krylov_space%mo_refine(ispin)%matrix)
             CALL cp_fm_create(krylov_space%mo_conv(ispin)%matrix, mo_coeff%matrix_struct)
             CALL cp_fm_create(krylov_space%mo_refine(ispin)%matrix, mo_coeff%matrix_struct)

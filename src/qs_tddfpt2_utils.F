@@ -64,7 +64,6 @@ MODULE qs_tddfpt2_utils
                                               deallocate_mo_set,&
                                               get_mo_set,&
                                               init_mo_set,&
-                                              mo_set_p_type,&
                                               mo_set_type
    USE qs_scf_methods,                  ONLY: eigensolver
    USE qs_scf_post_gpw,                 ONLY: make_lumo_gpw
@@ -121,7 +120,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mos_virt_spin
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(section_vals_type), POINTER                   :: print_section
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
@@ -153,7 +152,7 @@ CONTAINS
             ! number of already computed unoccupied orbitals (added_mos) .
             nmo_virt = HUGE(0)
             DO ispin = 1, nspins
-               CALL get_mo_set(mos(ispin)%mo_set, nmo=nmo_avail, homo=nmo_occ)
+               CALL get_mo_set(mos(ispin), nmo=nmo_avail, homo=nmo_occ)
                nmo_virt = MIN(nmo_virt, nmo_avail - nmo_occ)
             END DO
             ! number of unoccupied orbitals to compute
@@ -179,7 +178,7 @@ CONTAINS
          ELSE
             NULLIFY (mos_virt_spin)
          END IF
-         CALL tddfpt_init_ground_state_mos(gs_mos=gs_mos(ispin), mo_set=mos(ispin)%mo_set, &
+         CALL tddfpt_init_ground_state_mos(gs_mos=gs_mos(ispin), mo_set=mos(ispin), &
                                            nlumo=tddfpt_control%nlumo, &
                                            blacs_env=blacs_env, cholesky_method=cholesky_restore, &
                                            matrix_ks=matrix_ks(ispin)%matrix, matrix_s=matrix_s(1)%matrix, &
@@ -245,7 +244,7 @@ CONTAINS
    SUBROUTINE tddfpt_init_ground_state_mos(gs_mos, mo_set, nlumo, blacs_env, cholesky_method, matrix_ks, matrix_s, &
                                            mos_virt, evals_virt)
       TYPE(tddfpt_ground_state_mos)                      :: gs_mos
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       INTEGER, INTENT(in)                                :: nlumo
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       INTEGER, INTENT(in)                                :: cholesky_method
@@ -707,7 +706,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dbcsr_type), POINTER                          :: smat
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       CALL timeset(routineN, handle)
 

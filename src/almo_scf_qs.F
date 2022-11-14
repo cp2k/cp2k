@@ -64,7 +64,7 @@ MODULE almo_scf_qs
                                               set_ks_env
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               init_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                               neighbor_list_iterate,&
                                               neighbor_list_iterator_create,&
@@ -580,7 +580,7 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type)                                   :: mo_fm_copy
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
 
       CALL timeset(routineN, handle)
@@ -601,8 +601,7 @@ CONTAINS
 
          ! Currently only fm version of mo_set is usable.
          ! First transform the matrix_t to fm version
-         IF (.NOT. ASSOCIATED(mos(ispin)%mo_set)) ALLOCATE (mos(ispin)%mo_set)
-         CALL allocate_mo_set(mo_set=mos(ispin)%mo_set, &
+         CALL allocate_mo_set(mo_set=mos(ispin), &
                               nao=nrow_fm, &
                               nmo=ncol_fm, &
                               nelectron=almo_scf_env%nelectrons_total, &
@@ -618,7 +617,7 @@ CONTAINS
          CALL cp_fm_struct_release(fm_struct_tmp)
          !CALL copy_dbcsr_to_fm(almo_scf_env%matrix_t(ispin), mo_fm_copy)
 
-         CALL init_mo_set(mos(ispin)%mo_set, fm_ref=mo_fm_copy, name='fm_mo')
+         CALL init_mo_set(mos(ispin), fm_ref=mo_fm_copy, name='fm_mo')
 
          CALL cp_fm_release(mo_fm_copy)
 

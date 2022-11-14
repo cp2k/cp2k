@@ -49,7 +49,7 @@ MODULE optbas_fenv_manipulation
    USE qs_matrix_pools,                 ONLY: mpools_get
    USE qs_mo_io,                        ONLY: read_mo_set_from_restart
    USE qs_mo_types,                     ONLY: init_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
@@ -162,7 +162,7 @@ CONTAINS
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: dft_section
@@ -179,8 +179,8 @@ CONTAINS
 
       CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
       DO ispin = 1, dft_control%nspins
-         IF (.NOT. ASSOCIATED(mos(ispin)%mo_set%mo_coeff)) THEN
-            CALL init_mo_set(mos(ispin)%mo_set, &
+         IF (.NOT. ASSOCIATED(mos(ispin)%mo_coeff)) THEN
+            CALL init_mo_set(mos(ispin), &
                              fm_pool=ao_mo_fm_pools(ispin)%pool, &
                              name="qs_env%mo"//TRIM(ADJUSTL(cp_to_string(ispin))))
          END IF
@@ -210,7 +210,7 @@ CONTAINS
       CALL get_qs_env(qs_env, rho=rho, dft_control=dft_control)
       CALL qs_rho_get(rho, rho_ao=rho_ao)
       DO ispin = 1, dft_control%nspins
-         CALL calculate_density_matrix(qs_env%mos(ispin)%mo_set, rho_ao(ispin)%matrix)
+         CALL calculate_density_matrix(qs_env%mos(ispin), rho_ao(ispin)%matrix)
       END DO
       CALL qs_rho_update_rho(rho, qs_env)
       CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
