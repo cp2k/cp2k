@@ -482,11 +482,11 @@ CONTAINS
       CALL dbcsr_set(matrix_ks_nosym, 0.0_dp)
       CALL dbcsr_desymmetrize(matrix_ks_aux_fit(ispin)%matrix, matrix_ks_nosym)
 
-      CALL copy_dbcsr_to_fm(matrix_ks_nosym, admm_env%K(ispin)%matrix)
+      CALL copy_dbcsr_to_fm(matrix_ks_nosym, admm_env%K(ispin))
 
       !! K*A
       CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, &
-                         1.0_dp, admm_env%K(ispin)%matrix, admm_env%A, 0.0_dp, &
+                         1.0_dp, admm_env%K(ispin), admm_env%A, 0.0_dp, &
                          admm_env%work_aux_orb)
       !! A^T*K*A
       CALL parallel_gemm('T', 'N', nao_orb, nao_orb, nao_aux_fit, &

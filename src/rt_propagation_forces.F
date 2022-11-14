@@ -23,8 +23,9 @@ MODULE rt_propagation_forces
                                               dbcsr_create_dist_r_unrot
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_p_type
-   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
+                                              cp_fm_p_type,&
+                                              cp_fm_release,&
+                                              cp_fm_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_distribution_release, &
         dbcsr_distribution_type, dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
@@ -381,9 +382,9 @@ CONTAINS
                                                             re
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: admm_force
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: tmp_aux_aux, tmp_aux_mo, tmp_aux_mo1, &
-                                                            tmp_aux_nao
       TYPE(cp_fm_struct_type), POINTER                   :: mstruct
+      TYPE(cp_fm_type), DIMENSION(2)                     :: tmp_aux_aux, tmp_aux_mo, tmp_aux_mo1, &
+                                                            tmp_aux_nao
       TYPE(dbcsr_type), POINTER                          :: matrix_w_q, matrix_w_s
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_aux_fit_asymm, sab_aux_fit_vs_orb
@@ -405,51 +406,56 @@ CONTAINS
       CALL dbcsr_copy(matrix_w_q, matrix_s_aux_fit_vs_orb(1)%matrix, &
                       "W MATRIX AUX Q")
 
+      DO jspin = 1, 2
+         CALL cp_fm_create(tmp_aux_aux(jspin), admm_env%work_aux_aux%matrix_struct, name="taa")
+         CALL cp_fm_create(tmp_aux_nao(jspin), admm_env%work_aux_orb%matrix_struct, name="tao")
+      END DO
+
       DO ispin = 1, SIZE(KS_aux_re)
          re = 2*ispin - 1; im = 2*ispin
          naux = admm_env%nao_aux_fit; nmo = admm_env%nmo(ispin); nao = admm_env%nao_orb
 
-         mstruct => admm_env%work_aux_nmo(ispin)%matrix%matrix_struct
-         ALLOCATE (tmp_aux_aux(2), tmp_aux_nao(2), tmp_aux_mo(2), tmp_aux_mo1(2))
+         mstruct => admm_env%work_aux_nmo(ispin)%matrix_struct
          DO jspin = 1, 2
-            ALLOCATE (tmp_aux_aux(jspin)%matrix, tmp_aux_nao(jspin)%matrix, &
-                      tmp_aux_mo(jspin)%matrix, tmp_aux_mo1(jspin)%matrix)
-            CALL cp_fm_create(tmp_aux_aux(jspin)%matrix, admm_env%work_aux_aux%matrix_struct, name="taa")
-            CALL cp_fm_create(tmp_aux_nao(jspin)%matrix, admm_env%work_aux_orb%matrix_struct, name="tao")
-            CALL cp_fm_create(tmp_aux_mo(jspin)%matrix, mstruct, name="tam")
-            CALL cp_fm_create(tmp_aux_mo1(jspin)%matrix, mstruct, name="tam")
+            CALL cp_fm_create(tmp_aux_mo(jspin), mstruct, name="tam")
+            CALL cp_fm_create(tmp_aux_mo1(jspin), mstruct, name="tam")
          END DO
 
 ! First calculate H=KS_aux*C~, real part ends on work_aux_aux2, imaginary part ends at work_aux_aux3
-         CALL cp_dbcsr_sm_fm_multiply(KS_aux_re(ispin)%matrix, mos_admm(re)%matrix, tmp_aux_mo(re)%matrix, nmo, 4.0_dp, 0.0_dp)
-         CALL cp_dbcsr_sm_fm_multiply(KS_aux_re(ispin)%matrix, mos_admm(im)%matrix, tmp_aux_mo(im)%matrix, nmo, 4.0_dp, 0.0_dp)
-         CALL cp_dbcsr_sm_fm_multiply(KS_aux_im(ispin)%matrix, mos_admm(im)%matrix, tmp_aux_mo(re)%matrix, nmo, -4.0_dp, 1.0_dp)
-         CALL cp_dbcsr_sm_fm_multiply(KS_aux_im(ispin)%matrix, mos_admm(re)%matrix, tmp_aux_mo(im)%matrix, nmo, 4.0_dp, 1.0_dp)
+         CALL cp_dbcsr_sm_fm_multiply(KS_aux_re(ispin)%matrix, mos_admm(re)%matrix, tmp_aux_mo(re), nmo, 4.0_dp, 0.0_dp)
+         CALL cp_dbcsr_sm_fm_multiply(KS_aux_re(ispin)%matrix, mos_admm(im)%matrix, tmp_aux_mo(im), nmo, 4.0_dp, 0.0_dp)
+         CALL cp_dbcsr_sm_fm_multiply(KS_aux_im(ispin)%matrix, mos_admm(im)%matrix, tmp_aux_mo(re), nmo, -4.0_dp, 1.0_dp)
+         CALL cp_dbcsr_sm_fm_multiply(KS_aux_im(ispin)%matrix, mos_admm(re)%matrix, tmp_aux_mo(im), nmo, 4.0_dp, 1.0_dp)
 
 ! Next step compute S-1*H
-        CALL parallel_gemm('N', 'N', naux, nmo, naux, 1.0_dp, admm_env%S_inv, tmp_aux_mo(re)%matrix, 0.0_dp, tmp_aux_mo1(re)%matrix)
-        CALL parallel_gemm('N', 'N', naux, nmo, naux, 1.0_dp, admm_env%S_inv, tmp_aux_mo(im)%matrix, 0.0_dp, tmp_aux_mo1(im)%matrix)
+         CALL parallel_gemm('N', 'N', naux, nmo, naux, 1.0_dp, admm_env%S_inv, tmp_aux_mo(re), 0.0_dp, tmp_aux_mo1(re))
+         CALL parallel_gemm('N', 'N', naux, nmo, naux, 1.0_dp, admm_env%S_inv, tmp_aux_mo(im), 0.0_dp, tmp_aux_mo1(im))
 
 ! Here we go on with Ws=S-1*H * C^H (take care of sign of the imaginary part!!!)
 
-         CALL parallel_gemm("N", "T", naux, nao, nmo, -1.0_dp, tmp_aux_mo1(re)%matrix, mos(re)%matrix, 0.0_dp, &
-                            tmp_aux_nao(re)%matrix)
-         CALL parallel_gemm("N", "T", naux, nao, nmo, -1.0_dp, tmp_aux_mo1(im)%matrix, mos(im)%matrix, 1.0_dp, &
-                            tmp_aux_nao(re)%matrix)
-         CALL parallel_gemm("N", "T", naux, nao, nmo, 1.0_dp, tmp_aux_mo1(re)%matrix, mos(im)%matrix, 0.0_dp, &
-                            tmp_aux_nao(im)%matrix)
-         CALL parallel_gemm("N", "T", naux, nao, nmo, -1.0_dp, tmp_aux_mo1(im)%matrix, mos(re)%matrix, 1.0_dp, &
-                            tmp_aux_nao(im)%matrix)
+         CALL parallel_gemm("N", "T", naux, nao, nmo, -1.0_dp, tmp_aux_mo1(re), mos(re)%matrix, 0.0_dp, &
+                            tmp_aux_nao(re))
+         CALL parallel_gemm("N", "T", naux, nao, nmo, -1.0_dp, tmp_aux_mo1(im), mos(im)%matrix, 1.0_dp, &
+                            tmp_aux_nao(re))
+         CALL parallel_gemm("N", "T", naux, nao, nmo, 1.0_dp, tmp_aux_mo1(re), mos(im)%matrix, 0.0_dp, &
+                            tmp_aux_nao(im))
+         CALL parallel_gemm("N", "T", naux, nao, nmo, -1.0_dp, tmp_aux_mo1(im), mos(re)%matrix, 1.0_dp, &
+                            tmp_aux_nao(im))
 
 ! Let's do the final bit  Wq=S-1*H * C^H * A^T
-         CALL parallel_gemm('N', 'T', naux, naux, nao, -1.0_dp, tmp_aux_nao(re)%matrix, admm_env%A, 0.0_dp, tmp_aux_aux(re)%matrix)
-         CALL parallel_gemm('N', 'T', naux, naux, nao, -1.0_dp, tmp_aux_nao(im)%matrix, admm_env%A, 0.0_dp, tmp_aux_aux(im)%matrix)
+         CALL parallel_gemm('N', 'T', naux, naux, nao, -1.0_dp, tmp_aux_nao(re), admm_env%A, 0.0_dp, tmp_aux_aux(re))
+         CALL parallel_gemm('N', 'T', naux, naux, nao, -1.0_dp, tmp_aux_nao(im), admm_env%A, 0.0_dp, tmp_aux_aux(im))
 
          ! *** copy to sparse matrix
-         CALL copy_fm_to_dbcsr(tmp_aux_nao(re)%matrix, matrix_w_q, keep_sparsity=.TRUE.)
+         CALL copy_fm_to_dbcsr(tmp_aux_nao(re), matrix_w_q, keep_sparsity=.TRUE.)
 
          ! *** copy to sparse matrix
-         CALL copy_fm_to_dbcsr(tmp_aux_aux(re)%matrix, matrix_w_s, keep_sparsity=.TRUE.)
+         CALL copy_fm_to_dbcsr(tmp_aux_aux(re), matrix_w_s, keep_sparsity=.TRUE.)
+
+         DO jspin = 1, 2
+            CALL cp_fm_release(tmp_aux_mo(jspin))
+            CALL cp_fm_release(tmp_aux_mo1(jspin))
+         END DO
 
 ! *** This can be done in one call w_total = w_alpha + w_beta
          ! allocate force vector
@@ -471,10 +477,11 @@ CONTAINS
          ! *** Deallocated weighted density matrices
          CALL dbcsr_deallocate_matrix(matrix_w_s)
          CALL dbcsr_deallocate_matrix(matrix_w_q)
-         CALL cp_fm_vect_dealloc(tmp_aux_aux)
-         CALL cp_fm_vect_dealloc(tmp_aux_nao)
-         CALL cp_fm_vect_dealloc(tmp_aux_mo)
-         CALL cp_fm_vect_dealloc(tmp_aux_mo1)
+      END DO
+
+      DO jspin = 1, 2
+         CALL cp_fm_release(tmp_aux_aux(jspin))
+         CALL cp_fm_release(tmp_aux_nao(jspin))
       END DO
 
    END SUBROUTINE rt_admm_forces_none

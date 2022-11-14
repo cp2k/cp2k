@@ -253,8 +253,7 @@ CONTAINS
             ALLOCATE (admm_env%mo_derivs_aux_fit(dft_control%nspins))
             DO ispin = 1, dft_control%nspins
                CALL get_mo_set(admm_env%mos_aux_fit(ispin), mo_coeff=mo_coeff_aux_fit)
-               ALLOCATE (admm_env%mo_derivs_aux_fit(ispin)%matrix)
-               CALL cp_fm_create(admm_env%mo_derivs_aux_fit(ispin)%matrix, mo_coeff_aux_fit%matrix_struct)
+               CALL cp_fm_create(admm_env%mo_derivs_aux_fit(ispin), mo_coeff_aux_fit%matrix_struct)
             END DO
          END IF
 
