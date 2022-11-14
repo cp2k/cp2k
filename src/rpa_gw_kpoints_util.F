@@ -167,7 +167,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_W
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_W
       TYPE(cp_fm_type)                                   :: fm_mat_RI_global_work
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_SinvVSinv
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_SiVtrSi
@@ -1025,7 +1025,7 @@ CONTAINS
                                            para_env, kpoints, qs_env, wkp_W, mat_SinvVSinv, do_W_and_not_V, &
                                            fm_mat_SiVtrSi_re, fm_mat_SiVtrSi_im)
 
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_W_tau
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_W_tau
       TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_L_re, fm_mat_L_im
       INTEGER, INTENT(IN)                                :: dimen_RI, num_integ_points, jquad, ikp
@@ -1079,7 +1079,7 @@ CONTAINS
       CALL cp_cfm_scale_and_add_fm(z_zero, cfm_mat_L, z_one, fm_mat_L_re)
       CALL cp_cfm_scale_and_add_fm(z_one, cfm_mat_L, gaussi, fm_mat_L_im)
 
-      CALL cp_fm_create(fm_mat_work_global, fm_mat_W_tau(1)%matrix%matrix_struct)
+      CALL cp_fm_create(fm_mat_work_global, fm_mat_W_tau(1)%matrix_struct)
       CALL cp_fm_set_all(fm_mat_work_global, 0.0_dp)
 
       CALL cp_fm_create(fm_mat_work_local, cfm_mat_Q%matrix_struct)
@@ -1214,10 +1214,10 @@ CONTAINS
                weight = weights_cos_tf_w_to_t(iquad, jquad)*COS(tau*omega)
 
                IF (jquad == 1 .AND. ikp == 1) THEN
-                  CALL cp_fm_set_all(matrix=fm_mat_W_tau(iquad)%matrix, alpha=0.0_dp)
+                  CALL cp_fm_set_all(matrix=fm_mat_W_tau(iquad), alpha=0.0_dp)
                END IF
 
-               CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_mat_W_tau(iquad)%matrix, beta=weight, matrix_b=fm_mat_work_global)
+               CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_mat_W_tau(iquad), beta=weight, matrix_b=fm_mat_work_global)
 
             END DO
 
@@ -1238,10 +1238,10 @@ CONTAINS
                   weight = weights_cos_tf_w_to_t(iquad, jquad)*COS(tau*omega)
 
                   IF (jquad == 1 .AND. jkp == 1) THEN
-                     CALL cp_fm_set_all(matrix=fm_mat_W_tau(iquad)%matrix, alpha=0.0_dp)
+                     CALL cp_fm_set_all(matrix=fm_mat_W_tau(iquad), alpha=0.0_dp)
                   END IF
 
-                  CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_mat_W_tau(iquad)%matrix, beta=weight, &
+                  CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_mat_W_tau(iquad), beta=weight, &
                                            matrix_b=fm_mat_work_global)
 
                END DO
@@ -1903,7 +1903,7 @@ CONTAINS
 
    END SUBROUTINE create_kp_and_calc_kp_orbitals
 
-   ! **************************************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
 !> \param mat_kp ...

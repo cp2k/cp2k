@@ -241,9 +241,9 @@ CONTAINS
       REAL(KIND=dp) :: allowed_memory, avail_mem, E_Range, Emax, Emin, mem_for_iaK, mem_for_QK, &
          mem_min, mem_per_group, mem_per_rank, mem_per_repl, mem_real
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Eigenval_kp
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: fm_mat_Q, fm_mat_Q_gemm, fm_mat_S, &
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_Q, fm_mat_Q_gemm, fm_mat_S, &
                                                             fm_mat_S_gw
-      TYPE(cp_fm_p_type), DIMENSION(1)                   :: fm_mat_R_gw, fm_mat_S_ab_bse, &
+      TYPE(cp_fm_type), DIMENSION(1)                     :: fm_mat_R_gw, fm_mat_S_ab_bse, &
                                                             fm_mat_S_ij_bse
       TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
       TYPE(two_dim_real_array), ALLOCATABLE, &
@@ -553,15 +553,8 @@ CONTAINS
 
       IF (do_im_time) THEN
          ALLOCATE (fm_mat_Q(nspins), fm_mat_Q_gemm(1), fm_mat_S(1))
-         DO ispin = 1, nspins
-            NULLIFY (fm_mat_Q(ispin)%matrix)
-         END DO
-         NULLIFY (fm_mat_Q_gemm(1)%matrix, fm_mat_S(1)%matrix)
       ELSE
          ALLOCATE (fm_mat_Q(nspins), fm_mat_Q_gemm(nspins), fm_mat_S(nspins))
-         DO ispin = 1, nspins
-            NULLIFY (fm_mat_Q(ispin)%matrix, fm_mat_Q_gemm(ispin)%matrix, fm_mat_S(ispin)%matrix)
-         END DO
       END IF
 
       CALL create_integ_mat(BIb_C_2D, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
@@ -585,7 +578,7 @@ CONTAINS
                                [my_nm_gw_size, my_nm_gw_size], [my_nm_gw_start, my_nm_gw_start], [my_nm_gw_end, my_nm_gw_end], &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
                                para_env_RPA, fm_mat_S_gw, nrow_block_mat, ncol_block_mat, &
-                               fm_mat_Q(1)%matrix%matrix_struct%context, fm_mat_Q(1)%matrix%matrix_struct%context, &
+                               fm_mat_Q(1)%matrix_struct%context, fm_mat_Q(1)%matrix_struct%context, &
                                fm_mat_Q=fm_mat_R_gw)
          DEALLOCATE (BIb_C_2D_gw)
 
@@ -600,7 +593,7 @@ CONTAINS
                                [my_ij_comb_bse_size], [my_ij_comb_bse_start], [my_ij_comb_bse_end], &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
                                para_env_RPA, fm_mat_S_ij_bse, nrow_block_mat, ncol_block_mat, &
-                               fm_mat_Q(1)%matrix%matrix_struct%context, fm_mat_Q(1)%matrix%matrix_struct%context)
+                               fm_mat_Q(1)%matrix_struct%context, fm_mat_Q(1)%matrix_struct%context)
 
          CALL create_integ_mat(BIb_C_2D_bse_ab, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
                                dimen_RI_red, [dimen_virt_square], color_rpa_group, &
@@ -608,7 +601,7 @@ CONTAINS
                                [my_ab_comb_bse_size], [my_ab_comb_bse_start], [my_ab_comb_bse_end], &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
                                para_env_RPA, fm_mat_S_ab_bse, nrow_block_mat, ncol_block_mat, &
-                               fm_mat_Q(1)%matrix%matrix_struct%context, fm_mat_Q(1)%matrix%matrix_struct%context)
+                               fm_mat_Q(1)%matrix_struct%context, fm_mat_Q(1)%matrix_struct%context)
 
       END IF
 
@@ -622,8 +615,8 @@ CONTAINS
       CALL rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
                        homo, virtual, dimen_RI, dimen_RI_red, dimen_ia, dimen_nm_gw, &
                        Eigenval_kp, num_integ_points, num_integ_group, color_rpa_group, &
-                       fm_matrix_PQ, fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw(1)%matrix, &
-                       fm_mat_S_ij_bse(1)%matrix, fm_mat_S_ab_bse(1)%matrix, &
+                       fm_matrix_PQ, fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw(1), &
+                       fm_mat_S_ij_bse(1), fm_mat_S_ab_bse(1), &
                        my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, &
                        do_minimax_quad, &
                        do_im_time, mo_coeff, &
@@ -641,34 +634,27 @@ CONTAINS
 
       IF (.NOT. do_im_time) THEN
          DO ispin = 1, SIZE(fm_mat_Q_gemm)
-            CALL cp_fm_release(fm_mat_Q_gemm(ispin)%matrix)
-            CALL cp_fm_release(fm_mat_S(ispin)%matrix)
-            DEALLOCATE (fm_mat_Q_gemm(ispin)%matrix, fm_mat_S(ispin)%matrix)
+            CALL cp_fm_release(fm_mat_Q_gemm(ispin))
+            CALL cp_fm_release(fm_mat_S(ispin))
          END DO
          DEALLOCATE (fm_mat_Q_gemm, fm_mat_S)
       END IF
       DO ispin = 1, SIZE(fm_mat_Q)
-         IF (ASSOCIATED(fm_mat_Q(ispin)%matrix)) THEN
-            CALL cp_fm_release(fm_mat_Q(ispin)%matrix)
-            DEALLOCATE (fm_mat_Q(ispin)%matrix)
-         END IF
+         CALL cp_fm_release(fm_mat_Q(ispin))
       END DO
       DEALLOCATE (fm_mat_Q)
 
       IF (my_do_gw .AND. .NOT. do_im_time) THEN
          DO ispin = 1, SIZE(fm_mat_S_gw)
-            CALL cp_fm_release(fm_mat_S_gw(ispin)%matrix)
-            DEALLOCATE (fm_mat_S_gw(ispin)%matrix)
+            CALL cp_fm_release(fm_mat_S_gw(ispin))
          END DO
          DEALLOCATE (fm_mat_S_gw)
-         CALL cp_fm_release(fm_mat_R_gw(1)%matrix)
-         DEALLOCATE (fm_mat_R_gw(1)%matrix)
+         CALL cp_fm_release(fm_mat_R_gw(1))
       END IF
 
       IF (do_bse) THEN
-         CALL cp_fm_release(fm_mat_S_ij_bse(1)%matrix)
-         CALL cp_fm_release(fm_mat_S_ab_bse(1)%matrix)
-         DEALLOCATE (fm_mat_S_ij_bse(1)%matrix, fm_mat_S_ab_bse(1)%matrix)
+         CALL cp_fm_release(fm_mat_S_ij_bse(1))
+         CALL cp_fm_release(fm_mat_S_ab_bse(1))
       END IF
 
       IF (mp2_env%ri_rpa%do_ri_axk) THEN
@@ -830,12 +816,12 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: my_group_L_size, my_group_L_start, &
                                                             my_group_L_end
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_RPA
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: fm_mat_S
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_mat_S
       INTEGER, INTENT(INOUT)                             :: nrow_block_mat, ncol_block_mat
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env_ext, blacs_env_ext_S
       INTEGER, INTENT(IN), OPTIONAL                      :: dimen_ia_for_block_size
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_im_time
-      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL         :: fm_mat_Q_gemm, fm_mat_Q
+      TYPE(cp_fm_type), DIMENSION(:), OPTIONAL           :: fm_mat_Q_gemm, fm_mat_Q
       TYPE(qs_environment_type), INTENT(IN), OPTIONAL, &
          POINTER                                         :: qs_env
 
@@ -940,10 +926,9 @@ CONTAINS
             group_grid_2_mepos(mepos_in_RPA_group, para_env_sub%mepos) = para_env_RPA%mepos
             CALL mp_sum(group_grid_2_mepos, para_env_RPA%group)
 
-            ALLOCATE (fm_mat_S(ispin)%matrix)
             CALL array2fm(BIb_C_2D(ispin)%array, fm_struct, my_group_L_start, my_group_L_end, &
                           my_ia_start(ispin), my_ia_end(ispin), gd_L, gd_ia, &
-                          group_grid_2_mepos, ngroup, para_env_sub%num_pe, fm_mat_S(ispin)%matrix, &
+                          group_grid_2_mepos, ngroup, para_env_sub%num_pe, fm_mat_S(ispin), &
                           integ_group_size, color_rpa_group)
 
             DEALLOCATE (group_grid_2_mepos)
@@ -958,7 +943,7 @@ CONTAINS
             IF (para_env_RPA%num_pe /= para_env%num_pe) THEN
                sub_sub_color = para_env_RPA%mepos
                CALL cp_para_env_split(para_env_exchange, para_env, sub_sub_color)
-               CALL mp_sum(fm_mat_S(ispin)%matrix%local_data, para_env_exchange%group)
+               CALL mp_sum(fm_mat_S(ispin)%local_data, para_env_exchange%group)
                CALL cp_para_env_release(para_env_exchange)
             END IF
          END DO
@@ -971,8 +956,7 @@ CONTAINS
                                   ncol_global=dimen_RI, para_env=para_env_RPA, &
                                   nrow_block=nrow_block_mat, ncol_block=ncol_block_mat, force_block=.TRUE.)
          DO ispin = 1, SIZE(fm_mat_Q_gemm)
-            ALLOCATE (fm_mat_Q_gemm(ispin)%matrix)
-            CALL cp_fm_create(fm_mat_Q_gemm(ispin)%matrix, fm_struct, name="fm_mat_Q_gemm")
+            CALL cp_fm_create(fm_mat_Q_gemm(ispin), fm_struct, name="fm_mat_Q_gemm")
          END DO
          CALL cp_fm_struct_release(fm_struct)
       END IF
@@ -990,8 +974,7 @@ CONTAINS
          CALL cp_fm_struct_create(fm_struct, context=blacs_env_Q, nrow_global=dimen_RI, &
                                   ncol_global=dimen_RI, para_env=para_env_RPA)
          DO ispin = 1, SIZE(fm_mat_Q)
-            ALLOCATE (fm_mat_Q(ispin)%matrix)
-            CALL cp_fm_create(fm_mat_Q(ispin)%matrix, fm_struct, name="fm_mat_Q")
+            CALL cp_fm_create(fm_mat_Q(ispin), fm_struct, name="fm_mat_Q")
          END DO
 
          CALL cp_fm_struct_release(fm_struct)
@@ -1090,9 +1073,9 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: num_integ_points, num_integ_group, &
                                                             color_rpa_group
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_PQ
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, &
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, &
                                                             fm_mat_S_gw
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_mat_R_gw, fm_mat_S_ij_bse, &
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_R_gw, fm_mat_S_ij_bse, &
                                                             fm_mat_S_ab_bse
       LOGICAL, INTENT(IN)                                :: my_do_gw, do_bse
       INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_occ, gw_corr_lev_virt
@@ -1150,12 +1133,12 @@ CONTAINS
          B_bar_ijQ_bse_local, B_iaQ_bse_local, Eigenval_last, Eigenval_scf, vec_Sigma_x_gw
       TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:, :)  :: cfm_mat_W_kp_tau
       TYPE(cp_cfm_type)                                  :: cfm_mat_Q
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: fm_mat_S_gw_work, fm_mat_W, &
-                                                            fm_mo_coeff_occ, fm_mo_coeff_virt
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L, fm_mat_SiVtrSi
       TYPE(cp_fm_type) :: fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, fm_mat_RI_global_work, &
          fm_mat_work, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, &
          fm_scaled_dm_virt_tau
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_S_gw_work, fm_mat_W, &
+                                                            fm_mo_coeff_occ, fm_mo_coeff_virt
       TYPE(dbcsr_p_type)                                 :: mat_dm, mat_L, mat_M_P_munu_occ, &
                                                             mat_M_P_munu_virt, mat_P_global_copy, &
                                                             mat_SinvVSinv
@@ -1229,7 +1212,7 @@ CONTAINS
          min_bsize = mp2_env%ri_rpa_im_time%min_bsize
 
          CALL alloc_im_time(qs_env, para_env, dimen_RI, dimen_RI_red, &
-                            num_integ_points, nspins, fm_mat_Q(1)%matrix, fm_mo_coeff_occ, fm_mo_coeff_virt, &
+                            num_integ_points, nspins, fm_mat_Q(1), fm_mo_coeff_occ, fm_mo_coeff_virt, &
                             fm_matrix_L_RI_metric, fm_matrix_Sinv_Vtrunc_Sinv, mat_P_global, &
                             t_3c_O, matrix_s, kpoints, eps_filter_im_time, &
                             cut_memory, nkp, num_cells_dm, num_3c_repl, &
@@ -1261,7 +1244,7 @@ CONTAINS
                CALL allocate_matrices_gw_im_time(gw_corr_lev_occ, gw_corr_lev_virt, homo, nmo, &
                                                  num_integ_points, unit_nr, &
                                                  RI_blk_sizes, do_ic_model, &
-                                                 para_env, fm_mat_W, fm_mat_Q(1)%matrix, &
+                                                 para_env, fm_mat_W, fm_mat_Q(1), &
                                                  mo_coeff, &
                                                  t_3c_overl_int_ao_mo, t_3c_O_mo_compressed, t_3c_O_mo_ind, &
                                                  t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
@@ -1337,19 +1320,19 @@ CONTAINS
             eps_min_trans = mp2_env%ri_g0w0%eps_min_trans
             max_iter_bse = mp2_env%ri_g0w0%max_iter_bse
 
-            CALL cp_fm_create(fm_mat_Q_static_bse_gemm, fm_mat_Q_gemm(1)%matrix%matrix_struct)
-            CALL cp_fm_to_fm(fm_mat_Q_gemm(1)%matrix, fm_mat_Q_static_bse_gemm)
+            CALL cp_fm_create(fm_mat_Q_static_bse_gemm, fm_mat_Q_gemm(1)%matrix_struct)
+            CALL cp_fm_to_fm(fm_mat_Q_gemm(1), fm_mat_Q_static_bse_gemm)
             CALL cp_fm_set_all(fm_mat_Q_static_bse_gemm, 0.0_dp)
 
-            CALL cp_fm_create(fm_mat_Q_static_bse, fm_mat_Q(1)%matrix%matrix_struct)
-            CALL cp_fm_to_fm(fm_mat_Q_gemm(1)%matrix, fm_mat_Q_static_bse)
+            CALL cp_fm_create(fm_mat_Q_static_bse, fm_mat_Q(1)%matrix_struct)
+            CALL cp_fm_to_fm(fm_mat_Q_gemm(1), fm_mat_Q_static_bse)
             CALL cp_fm_set_all(fm_mat_Q_static_bse, 0.0_dp)
 
          END IF
 
       END IF
 
-      IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_create(rpa_grad, fm_mat_Q(1)%matrix, &
+      IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_create(rpa_grad, fm_mat_Q(1), &
                                                                    fm_mat_S, homo, virtual, mp2_env, Eigenval(:, 1, :), &
                                                                    unit_nr, do_ri_sos_laplace_mp2)
 
@@ -1401,7 +1384,7 @@ CONTAINS
 
             ! compute the matrix Q(it) and Fourier transform it directly to mat_P_omega(iw)
             CALL compute_mat_P_omega(mat_P_omega(:, :, 1), fm_scaled_dm_occ_tau, &
-                                     fm_scaled_dm_virt_tau, fm_mo_coeff_occ(1)%matrix, fm_mo_coeff_virt(1)%matrix, &
+                                     fm_scaled_dm_virt_tau, fm_mo_coeff_occ(1), fm_mo_coeff_virt(1), &
                                      fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
                                      mat_P_global, matrix_s, 1, &
                                      t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
@@ -1420,8 +1403,8 @@ CONTAINS
             IF (my_open_shell) THEN
                CALL zero_mat_P_omega(mat_P_omega(:, :, 2))
                CALL compute_mat_P_omega(mat_P_omega(:, :, 2), fm_scaled_dm_occ_tau, &
-                                        fm_scaled_dm_virt_tau, fm_mo_coeff_occ(2)%matrix, &
-                                        fm_mo_coeff_virt(2)%matrix, &
+                                        fm_scaled_dm_virt_tau, fm_mo_coeff_occ(2), &
+                                        fm_mo_coeff_virt(2), &
                                         fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
                                         mat_P_global, matrix_s, 2, &
                                         t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
@@ -1473,7 +1456,7 @@ CONTAINS
                   DO ispin = 1, SIZE(mat_P_omega, 3)
                      CALL contract_P_omega_with_mat_L(mat_P_omega(jquad, 1, ispin)%matrix, mat_L%matrix, mat_work, &
                                                       eps_filter_im_time, fm_mat_work, dimen_RI, dimen_RI_red, &
-                                                      fm_mat_L(1, 1)%matrix, fm_mat_Q(ispin)%matrix)
+                                                      fm_mat_L(1, 1)%matrix, fm_mat_Q(ispin))
                   END DO
                END IF
 
@@ -1485,32 +1468,32 @@ CONTAINS
                IF (first_cycle .AND. count_ev_sc_gw > 1) THEN
                   IF (iter_sc_gw0 == 1) THEN
                      DO ispin = 1, nspins
-                        CALL remove_scaling_factor_rpa(fm_mat_S(ispin)%matrix, virtual(ispin), &
+                        CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual(ispin), &
                                                        Eigenval_last(:, 1, ispin), homo(ispin), omega_old)
                      END DO
                   ELSE
                      DO ispin = 1, nspins
-                        CALL remove_scaling_factor_rpa(fm_mat_S(ispin)%matrix, virtual(ispin), &
+                        CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual(ispin), &
                                                        Eigenval_scf(:, 1, ispin), homo(ispin), omega_old)
                      END DO
                   END IF
                END IF
 
-               CALL calc_mat_Q(fm_mat_S(1)%matrix, do_ri_sos_laplace_mp2, first_cycle, iter_sc_GW0, virtual(1), &
+               CALL calc_mat_Q(fm_mat_S(1), do_ri_sos_laplace_mp2, first_cycle, iter_sc_GW0, virtual(1), &
                                Eigenval(:, 1, 1), Eigenval_scf(:, 1, 1), &
-                               homo(1), omega, omega_old, jquad, mm_style, dimen_RI_red, dimen_ia(1), alpha, fm_mat_Q(1)%matrix, &
-                               fm_mat_Q_gemm(1)%matrix, do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter)
+                               homo(1), omega, omega_old, jquad, mm_style, dimen_RI_red, dimen_ia(1), alpha, fm_mat_Q(1), &
+                               fm_mat_Q_gemm(1), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter)
 
                IF (my_open_shell) THEN
-                  CALL calc_mat_Q(fm_mat_S(2)%matrix, do_ri_sos_laplace_mp2, first_cycle, iter_sc_GW0, virtual(2), &
+                  CALL calc_mat_Q(fm_mat_S(2), do_ri_sos_laplace_mp2, first_cycle, iter_sc_GW0, virtual(2), &
                                   Eigenval(:, 1, 2), Eigenval_scf(:, 1, 2), &
                                   homo(2), omega, omega_old, jquad, mm_style, &
-                                  dimen_RI_red, dimen_ia(2), alpha, fm_mat_Q(2)%matrix, fm_mat_Q_gemm(2)%matrix, do_bse, &
+                                  dimen_RI_red, dimen_ia(2), alpha, fm_mat_Q(2), fm_mat_Q_gemm(2), do_bse, &
                                   fm_mat_Q_static_bse_gemm, dgemm_counter)
 
                   ! For SOS-MP2 we need both matrices separately
                   IF (.NOT. do_ri_sos_laplace_mp2) THEN
-                     CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_mat_Q(1)%matrix, beta=1.0_dp, matrix_b=fm_mat_Q(2)%matrix)
+                     CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_mat_Q(1), beta=1.0_dp, matrix_b=fm_mat_Q(2))
                   END IF
 
                END IF ! open shell
@@ -1519,8 +1502,8 @@ CONTAINS
 
             ! Calculate AXK energy correction
             IF (mp2_env%ri_rpa%do_ri_axk) THEN
-               CALL compute_axk_ener(qs_env, fm_mat_Q(1)%matrix, fm_mat_Q_gemm(1)%matrix, dimen_RI_red, dimen_ia(1), para_env_sub, &
-                                     para_env_RPA, Eigenval(:, 1, 1), fm_mat_S(1)%matrix, homo(1), virtual(1), omega, &
+               CALL compute_axk_ener(qs_env, fm_mat_Q(1), fm_mat_Q_gemm(1), dimen_RI_red, dimen_ia(1), para_env_sub, &
+                                     para_env_RPA, Eigenval(:, 1, 1), fm_mat_S(1), homo(1), virtual(1), omega, &
                                      mp2_env, mat_munu, unit_nr, e_axk_corr)
 
                ! Evaluate the final AXK energy correction
@@ -1534,9 +1517,9 @@ CONTAINS
                                                            fm_mat_Q, fm_mat_Q_gemm, dgemm_counter, fm_mat_S, omega, homo, virtual, &
                                                                                        Eigenval(:, 1, :), tau_wj(jquad))
             ELSE
-               IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_copy_Q(fm_mat_Q(1)%matrix, rpa_grad)
+               IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_copy_Q(fm_mat_Q(1), rpa_grad)
 
-               CALL Q_trace_and_add_unit_matrix(dimen_RI_red, trace_Qomega, fm_mat_Q(1)%matrix, para_env_RPA)
+               CALL Q_trace_and_add_unit_matrix(dimen_RI_red, trace_Qomega, fm_mat_Q(1), para_env_RPA)
 
                IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
                   CALL invert_eps_compute_W_and_Erpa_kp(dimen_RI, num_integ_points, jquad, nkp, count_ev_sc_GW, para_env, &
@@ -1546,7 +1529,7 @@ CONTAINS
                                                         mat_P_omega(:, :, 1), mat_P_omega_kp, qs_env, eps_filter_im_time, unit_nr, &
                                                   kpoints, fm_mat_L, fm_mat_W, fm_mat_RI_global_work, mat_SinvVSinv, fm_mat_SiVtrSi)
                ELSE
-                  CALL compute_Erpa_by_freq_int(dimen_RI_red, trace_Qomega, fm_mat_Q(1)%matrix, para_env_RPA, Erpa, wj(jquad))
+                  CALL compute_Erpa_by_freq_int(dimen_RI_red, trace_Qomega, fm_mat_Q(1), para_env_RPA, Erpa, wj(jquad))
                END IF
 
                IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_matrix_operations(mp2_env, rpa_grad, do_ri_sos_laplace_mp2, &
@@ -1568,7 +1551,7 @@ CONTAINS
                IF (do_im_time) THEN
                   ! only for molecules
                   IF (.NOT. (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma)) THEN
-                     CALL compute_W_cubic_GW(fm_mat_W, fm_mat_Q(1)%matrix, fm_mat_work, dimen_RI, fm_mat_L, num_integ_points, &
+                     CALL compute_W_cubic_GW(fm_mat_W, fm_mat_Q(1), fm_mat_work, dimen_RI, fm_mat_L, num_integ_points, &
                                              tj, tau_tj, weights_cos_tf_w_to_t, jquad, omega)
                   END IF
                ELSE
@@ -1577,7 +1560,7 @@ CONTAINS
                                               do_bse, do_im_time, do_periodic, first_cycle_periodic_correction, &
                                               fermi_level_offset, &
                                               omega, Eigenval(:, 1, :), delta_corr, vec_omega_fit_gw, vec_W_gw, wj, &
-                                              fm_mat_Q(1)%matrix, fm_mat_Q_static_bse, fm_mat_R_gw, fm_mat_S_gw, &
+                                              fm_mat_Q(1), fm_mat_Q_static_bse, fm_mat_R_gw, fm_mat_S_gw, &
                                               fm_mat_S_gw_work, mo_coeff(1)%matrix, para_env, &
                                               para_env_RPA, matrix_berry_im_mo_mo, matrix_berry_re_mo_mo, &
                                               kpoints, qs_env, mp2_env)
@@ -1733,7 +1716,7 @@ CONTAINS
 
       ! postprocessing after GW for Bethe-Salpeter
       IF (do_bse) THEN
-         CALL mult_B_with_W_and_fill_local_3c_arrays(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S(1)%matrix, fm_mat_Q_static_bse, &
+         CALL mult_B_with_W_and_fill_local_3c_arrays(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S(1), fm_mat_Q_static_bse, &
                                                      fm_mat_Q_static_bse_gemm, &
                                                      B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
                                                      B_iaQ_bse_local, dimen_RI_red, homo(1), virtual(1), dimen_ia(1), &

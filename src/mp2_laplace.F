@@ -13,7 +13,6 @@
 MODULE mp2_laplace
 !
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_type
    USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
@@ -79,7 +78,7 @@ CONTAINS
 !> \param tau_wjquad ...
 ! **************************************************************************************************
    SUBROUTINE SOS_MP2_postprocessing(fm_mat_Q, Erpa, tau_wjquad)
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_Q
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_Q
       REAL(KIND=dp), INTENT(INOUT)                       :: Erpa
       REAL(KIND=dp), INTENT(IN)                          :: tau_wjquad
 
@@ -91,14 +90,14 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! get info of fm_mat_Q
-      CALL cp_fm_get_info(matrix=fm_mat_Q(1)%matrix, &
+      CALL cp_fm_get_info(matrix=fm_mat_Q(1), &
                           ncol_local=ncol_local)
 
       ! calculate the trace of the product Q*Q
       trace_XX = 0.0_dp
       DO jjB = 1, ncol_local
-         trace_XX = trace_XX + DOT_PRODUCT(fm_mat_Q(1)%matrix%local_data(:, jjB), &
-                                           fm_mat_Q(SIZE(fm_mat_Q))%matrix%local_data(:, jjB))
+         trace_XX = trace_XX + DOT_PRODUCT(fm_mat_Q(1)%local_data(:, jjB), &
+                                           fm_mat_Q(SIZE(fm_mat_Q))%local_data(:, jjB))
       END DO
 
       Erpa = Erpa - trace_XX*tau_wjquad

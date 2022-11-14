@@ -13,7 +13,6 @@
 ! **************************************************************************************************
 MODULE mp2_grids
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
@@ -312,7 +311,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Eigenval
       INTEGER, INTENT(IN)                                :: num_integ_points, num_integ_group, &
                                                             color_rpa_group
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_S
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
       LOGICAL, INTENT(IN)                                :: my_do_gw
       REAL(KIND=dp), INTENT(IN)                          :: ext_scaling
       REAL(KIND=dp), INTENT(OUT)                         :: a_scaling
@@ -385,7 +384,7 @@ CONTAINS
                                                             color_rpa_group
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: tj_ext, wj_ext
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_S
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_scaling_factor'
 
@@ -413,13 +412,12 @@ CONTAINS
       END DO
 
       CALL calc_ia_ia_integrals(para_env_RPA, homo(1), virtual(1), ncol_local, right_term_ref, Eigenval(:, 1, 1), &
-                                D_ia, iaia_RI, M_ia, fm_mat_S(1)%matrix, &
-                                para_env_col)
+                                D_ia, iaia_RI, M_ia, fm_mat_S(1), para_env_col)
 
       ! In the open shell case do point 1-2-3 for the beta spin
       IF (my_open_shell) THEN
          CALL calc_ia_ia_integrals(para_env_RPA, homo(2), virtual(2), ncol_local_beta, right_term_ref_beta, Eigenval(:, 1, 2), &
-                                   D_ia_beta, iaia_RI_beta, M_ia_beta, fm_mat_S(2)%matrix, para_env_col_beta)
+                                   D_ia_beta, iaia_RI_beta, M_ia_beta, fm_mat_S(2), para_env_col_beta)
 
          right_term_ref = right_term_ref + right_term_ref_beta
       END IF

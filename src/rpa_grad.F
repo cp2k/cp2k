@@ -24,8 +24,8 @@ MODULE rpa_grad
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_p_type, cp_fm_release, &
-        cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat_general, cp_fm_type
+        cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_release, cp_fm_set_all, &
+        cp_fm_to_fm, cp_fm_to_fm_submat_general, cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -165,7 +165,7 @@ CONTAINS
                               homo, virtual, mp2_env, Eigenval, unit_nr, do_ri_sos_laplace_mp2)
       TYPE(rpa_grad_type), INTENT(OUT)                   :: rpa_grad
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_S
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
@@ -185,7 +185,7 @@ CONTAINS
 
       ALLOCATE (rpa_grad%fm_Y(nspins))
       DO ispin = 1, nspins
-         CALL cp_fm_create(rpa_grad%fm_Y(ispin), fm_mat_S(ispin)%matrix%matrix_struct)
+         CALL cp_fm_create(rpa_grad%fm_Y(ispin), fm_mat_S(ispin)%matrix_struct)
 
       END DO
 
@@ -219,7 +219,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       REAL(KIND=dp), INTENT(IN)                          :: eps_degenerate
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_S
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'sos_mp2_work_type_create'
 
@@ -237,7 +237,7 @@ CONTAINS
             "MO_INFO| Number of ij pairs below EPS_CANONICAL:", SIZE(sos_mp2_work_occ(ispin)%pair_list, 2)
          ALLOCATE (sos_mp2_work_occ(ispin)%P(homo(ispin) + SIZE(sos_mp2_work_occ(ispin)%pair_list, 2)))
          sos_mp2_work_occ(ispin)%P = 0.0_dp
-         CALL prepare_comm_Pij(sos_mp2_work_occ(ispin), virtual(ispin), fm_mat_S(ispin)%matrix)
+         CALL prepare_comm_Pij(sos_mp2_work_occ(ispin), virtual(ispin), fm_mat_S(ispin))
 
          CALL create_list_nearly_degen_pairs(Eigenval(homo(ispin) + 1:, ispin), &
                                              eps_degenerate, sos_mp2_work_virt(ispin)%pair_list)
@@ -245,7 +245,7 @@ CONTAINS
             "MO_INFO| Number of ab pairs below EPS_CANONICAL:", SIZE(sos_mp2_work_virt(ispin)%pair_list, 2)
          ALLOCATE (sos_mp2_work_virt(ispin)%P(virtual(ispin) + SIZE(sos_mp2_work_virt(ispin)%pair_list, 2)))
          sos_mp2_work_virt(ispin)%P = 0.0_dp
-         CALL prepare_comm_Pab(sos_mp2_work_virt(ispin), virtual(ispin), fm_mat_S(ispin)%matrix)
+         CALL prepare_comm_Pab(sos_mp2_work_virt(ispin), virtual(ispin), fm_mat_S(ispin))
       END DO
 
       CALL timestop(handle)
@@ -263,7 +263,7 @@ CONTAINS
    SUBROUTINE rpa_work_type_create(rpa_work, fm_mat_Q, fm_mat_S, homo, virtual)
       TYPE(rpa_grad_work_type), INTENT(OUT)              :: rpa_work
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_S
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rpa_work_type_create'
@@ -279,7 +279,7 @@ CONTAINS
 
       CALL cp_fm_create(rpa_work%fm_mat_Q_copy, matrix_struct=fm_mat_Q%matrix_struct)
 
-      CALL get_blacs_info(fm_mat_S(1)%matrix%matrix_struct%context, &
+      CALL get_blacs_info(fm_mat_S(1)%matrix_struct%context, &
                           number_of_process_columns=num_pe_col, my_process_column=my_pcol)
 
       nspins = SIZE(fm_mat_S)
@@ -309,7 +309,7 @@ CONTAINS
          CALL create_group_dist(rpa_work%gd_homo(ispin), proc_homo, homo(ispin))
          CALL create_group_dist(rpa_work%gd_virtual(ispin), proc_virtual, virtual(ispin))
 
-         CALL cp_fm_struct_get(fm_mat_S(ispin)%matrix%matrix_struct, ncol_local=ncol_local, col_indices=col_indices, &
+         CALL cp_fm_struct_get(fm_mat_S(ispin)%matrix_struct, ncol_local=ncol_local, col_indices=col_indices, &
                                first_p_pos=first_p_pos, ncol_block=ncol_block)
          first_p_pos_col = first_p_pos(2)
 
@@ -735,9 +735,9 @@ CONTAINS
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(rpa_grad_type), INTENT(INOUT)                 :: rpa_grad
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_Q, fm_mat_Q_gemm
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_Q, fm_mat_Q_gemm
       TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_S
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
       REAL(KIND=dp), INTENT(IN)                          :: omega
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
@@ -758,18 +758,18 @@ CONTAINS
 
       nspins = SIZE(fm_mat_Q)
 
-      CALL cp_fm_get_info(fm_mat_Q(1)%matrix, nrow_global=dimen_RI, nrow_local=nrow_local, ncol_local=ncol_local, &
+      CALL cp_fm_get_info(fm_mat_Q(1), nrow_global=dimen_RI, nrow_local=nrow_local, ncol_local=ncol_local, &
                           col_indices=col_indices, row_indices=row_indices)
 
       IF (mp2_env%ri_grad%dot_blksize == -1) mp2_env%ri_grad%dot_blksize = nrow_local
 
       IF (.NOT. do_ri_sos_laplace_mp2) THEN
-         CALL cp_fm_create(fm_work_PQ, fm_mat_Q(1)%matrix%matrix_struct)
+         CALL cp_fm_create(fm_work_PQ, fm_mat_Q(1)%matrix_struct)
 
          ! calculate [1+Q(iw')]^-1
-         CALL cp_fm_cholesky_invert(fm_mat_Q(1)%matrix)
+         CALL cp_fm_cholesky_invert(fm_mat_Q(1))
          ! symmetrize the result, fm_work_PQ is only a work matrix
-         CALL cp_fm_upper_to_full(fm_mat_Q(1)%matrix, fm_work_PQ)
+         CALL cp_fm_upper_to_full(fm_mat_Q(1), fm_work_PQ)
 
          CALL cp_fm_release(fm_work_PQ)
 
@@ -777,7 +777,7 @@ CONTAINS
             col_global = col_indices(col_local)
             DO row_local = 1, nrow_local
             IF (col_global == row_indices(row_local)) THEN
-               fm_mat_Q(1)%matrix%local_data(row_local, col_local) = fm_mat_Q(1)%matrix%local_data(row_local, col_local) - 1.0_dp
+               fm_mat_Q(1)%local_data(row_local, col_local) = fm_mat_Q(1)%local_data(row_local, col_local) - 1.0_dp
                EXIT
             END IF
             END DO
@@ -786,13 +786,13 @@ CONTAINS
          CALL timeset(routineN//"_PQ", handle2)
          CALL dgemm_counter_start(dgemm_counter)
          CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=weight, &
-                            matrix_a=rpa_grad%rpa_work%fm_mat_Q_copy, matrix_b=fm_mat_Q(1)%matrix, beta=1.0_dp, &
+                            matrix_a=rpa_grad%rpa_work%fm_mat_Q_copy, matrix_b=fm_mat_Q(1), beta=1.0_dp, &
                             matrix_c=rpa_grad%fm_Gamma_PQ)
          CALL dgemm_counter_stop(dgemm_counter, dimen_RI, dimen_RI, dimen_RI)
          CALL timestop(handle2)
 
-         CALL cp_fm_to_fm_submat_general(fm_mat_Q(1)%matrix, fm_mat_Q_gemm(1)%matrix, dimen_RI, dimen_RI, 1, 1, 1, 1, &
-                                         fm_mat_Q_gemm(1)%matrix%matrix_struct%context%group)
+         CALL cp_fm_to_fm_submat_general(fm_mat_Q(1), fm_mat_Q_gemm(1), dimen_RI, dimen_RI, 1, 1, 1, 1, &
+                                         fm_mat_Q_gemm(1)%matrix_struct%context%group)
       END IF
 
       DO ispin = 1, nspins
@@ -808,32 +808,32 @@ CONTAINS
             CALL timeset(routineN//"_PQ", handle2)
             CALL dgemm_counter_start(dgemm_counter)
             CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=weight, &
-                               matrix_a=fm_mat_Q(ispin)%matrix, matrix_b=fm_mat_Q(jspin)%matrix, beta=1.0_dp, &
+                               matrix_a=fm_mat_Q(ispin), matrix_b=fm_mat_Q(jspin), beta=1.0_dp, &
                                matrix_c=rpa_grad%fm_Gamma_PQ)
             CALL dgemm_counter_stop(dgemm_counter, dimen_RI, dimen_RI, dimen_RI)
             CALL timestop(handle2)
 
-            CALL cp_fm_to_fm_submat_general(fm_mat_Q(jspin)%matrix, fm_mat_Q_gemm(jspin)%matrix, dimen_RI, dimen_RI, 1, 1, 1, 1, &
-                                            fm_mat_Q_gemm(jspin)%matrix%matrix_struct%context%group)
+            CALL cp_fm_to_fm_submat_general(fm_mat_Q(jspin), fm_mat_Q_gemm(jspin), dimen_RI, dimen_RI, 1, 1, 1, 1, &
+                                            fm_mat_Q_gemm(jspin)%matrix_struct%context%group)
          ELSE
-            CALL calc_fm_mat_S_rpa(fm_mat_S(ispin)%matrix, .TRUE., virtual(ispin), Eigenval(:, ispin), &
+            CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virtual(ispin), Eigenval(:, ispin), &
                                    homo(ispin), omega, 0.0_dp)
          END IF
 
          CALL timeset(routineN//"_contr_S", handle2)
          CALL cp_fm_create(fm_work_iaP, rpa_grad%fm_Y(ispin)%matrix_struct)
 
-         CALL cp_fm_get_info(fm_mat_S(ispin)%matrix, ncol_global=dimen_ia)
+         CALL cp_fm_get_info(fm_mat_S(ispin), ncol_global=dimen_ia)
 
          CALL dgemm_counter_start(dgemm_counter)
          CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_ia, k=dimen_RI, alpha=1.0_dp, &
-                            matrix_a=fm_mat_Q_gemm(jspin)%matrix, matrix_b=fm_mat_S(ispin)%matrix, beta=0.0_dp, &
+                            matrix_a=fm_mat_Q_gemm(jspin), matrix_b=fm_mat_S(ispin), beta=0.0_dp, &
                             matrix_c=fm_work_iaP)
          CALL dgemm_counter_stop(dgemm_counter, dimen_ia, dimen_RI, dimen_RI)
          CALL timestop(handle2)
 
          IF (do_ri_sos_laplace_mp2) THEN
-            CALL calc_P_sos_mp2(homo(ispin), fm_mat_S(ispin)%matrix, fm_work_iaP, &
+            CALL calc_P_sos_mp2(homo(ispin), fm_mat_S(ispin), fm_work_iaP, &
                                 rpa_grad%sos_mp2_work_occ(ispin), rpa_grad%sos_mp2_work_virt(ispin), &
                                 omega, weight, virtual(ispin), Eigenval(:, ispin), mp2_env%ri_grad%dot_blksize)
 
@@ -854,20 +854,20 @@ CONTAINS
             CALL cp_fm_release(fm_work_iaP)
 
             CALL redistribute_fm_mat_S(rpa_grad%rpa_work%index2send(:, ispin), rpa_grad%rpa_work%index2recv(:, ispin), &
-                                       fm_mat_S(ispin)%matrix, mat_S_3D, &
+                                       fm_mat_S(ispin), mat_S_3D, &
                                        rpa_grad%rpa_work%gd_homo(ispin), rpa_grad%rpa_work%gd_virtual(ispin), &
                                        rpa_grad%rpa_work%mepos)
 
             ! Now collect the density matrix
             CALL calc_P_rpa(mat_S_3D, mat_work_iaP_3D, rpa_grad%rpa_work%gd_homo(ispin), rpa_grad%rpa_work%gd_virtual(ispin), &
                             rpa_grad%rpa_work%grid, rpa_grad%rpa_work%mepos, &
-                            fm_mat_S(ispin)%matrix%matrix_struct, &
+                            fm_mat_S(ispin)%matrix_struct, &
                             rpa_grad%rpa_work%P_ij(ispin)%array, rpa_grad%rpa_work%P_ab(ispin)%array, &
                             weight, omega, Eigenval(:, ispin), homo(ispin), mp2_env)
 
             DEALLOCATE (mat_work_iaP_3D, mat_S_3D)
 
-            CALL remove_scaling_factor_rpa(fm_mat_S(ispin)%matrix, virtual(ispin), Eigenval(:, ispin), homo(ispin), omega)
+            CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual(ispin), Eigenval(:, ispin), homo(ispin), omega)
 
          END IF
 
