@@ -2,13 +2,13 @@
 #
 # CP2K Darwin arch file for a serial aarch64 (arm64) binary
 #
-# Tested with: GNU 12.2.0, FFTW 3.3.10, LIBINT 2.6.0,
+# Tested with: GNU 12.2.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
 #              LIBXC 6.0.0, OpenBLAS 0.3.21, SPGLIB 1.16.2
-#          on: Apple M1 (macOS Monterey 12.4)
+#          on: Apple M1 (macOS Ventura 13.0.1)
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Author: Matthias Krack (19.10.2022)
+# Author: Matthias Krack (16.11.2022)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -18,17 +18,15 @@
    fi; \
    this_file=${BASH_SOURCE##*/}; \
    cd tools/toolchain; \
-   if $(command -v brew >&- 2>&-); then \
+   if $(command -v brew >/dev/null 2>&1); then \
       brew install cmake; \
       brew install gcc; \
-      brew install fftw; \
-      brew install openblas; \
    else \
       echo "ERROR: Homebrew installation not found"; \
       cd ../..; \
       return 1; \
    fi; \
-   ./install_cp2k_toolchain.sh -j8 --mpi-mode=no --no-arch-files --with-cmake=system --with-gcc=system --with-fftw=system --with-libvori=no --with-libxsmm=no --with-openblas=system; \
+   ./install_cp2k_toolchain.sh -j8 --mpi-mode=no --no-arch-files --with-cmake=system --with-gcc=system --with-libxsmm=no; \
    source ./install/setup; \
    cd ../..; \
    echo; \
@@ -41,11 +39,12 @@
 
 # Set options
 DO_CHECKS      := no
-USE_ACCELERATE := no
+TARGET_CPU     := native
 USE_FFTW       := 3.3.10
 USE_LIBINT     := 2.6.0
-#USE_LIBVORI    := 220621
+USE_LIBVORI    := 220621
 USE_LIBXC      := 6.0.0
+USE_OPENBLAS   := 0.3.21
 USE_SPGLIB     := 1.16.2
 
 LMAX           := 5
@@ -57,7 +56,7 @@ FC             := gfortran
 LD             := gfortran
 AR             := ar -r -s
 
-CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -mtune=native
+CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -mtune=$(TARGET_CPU)
 
 DFLAGS         += -D__MAX_CONTR=$(strip $(MAX_CONTR))
 DFLAGS         += -D__NO_STATM_ACCESS
@@ -130,22 +129,18 @@ endif
 
 ifneq ($(USE_FFTW),)
    USE_FFTW       := $(strip $(USE_FFTW))
-   FFTW_ROOT      := /opt/homebrew
-   FFTW_INC       := $(FFTW_ROOT)/include
-   FFTW_LIB       := $(FFTW_ROOT)/lib
+   FFTW_INC       := $(INSTALL_PATH)/fftw-$(USE_FFTW)/include
+   FFTW_LIB       := $(INSTALL_PATH)/fftw-$(USE_FFTW)/lib
    CFLAGS         += -I$(FFTW_INC)
    DFLAGS         += -D__FFTW3
    LIBS           += $(FFTW_LIB)/libfftw3_omp.a
    LIBS           += $(FFTW_LIB)/libfftw3.a
 endif
 
-ifeq ($(USE_ACCELERATE), yes)
-   DFLAGS         += -D__ACCELERATE
-   LIBS           += -framework Accelerate
-else
-   OPENBLAS_ROOT  := /opt/homebrew
-   OPENBLAS_INC   := $(OPENBLAS_ROOT)/include
-   OPENBLAS_LIB   := $(OPENBLAS_ROOT)/lib
+ifneq ($(USE_OPENBLAS),)
+   USE_OPENBLAS   := $(strip $(USE_OPENBLAS))
+   OPENBLAS_INC   := $(INSTALL_PATH)/openblas-$(USE_OPENBLAS)/include
+   OPENBLAS_LIB   := $(INSTALL_PATH)/openblas-$(USE_OPENBLAS)/lib
    CFLAGS         += -I$(OPENBLAS_INC)
    LIBS           += $(OPENBLAS_LIB)/libopenblas.a
 endif
