@@ -302,7 +302,7 @@ with_spla="__DONTUSE__"
 with_cosma="__INSTALL__"
 with_libvori="__INSTALL__"
 # for MPI, we try to detect system MPI variant
-if (command -v mpirun >&- 2>&-); then
+if (command -v mpirun > /dev/null 2>&1); then
   # check if we are dealing with openmpi, mpich or intelmpi
   if (mpirun --version 2>&1 | grep -s -q "HYDRA"); then
     echo "MPI is detected and it appears to be MPICH"
