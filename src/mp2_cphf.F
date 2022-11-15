@@ -185,10 +185,10 @@ CONTAINS
                                                             do_exx, do_hfx, restore_p_screen
       REAL(KIND=dp)                                      :: focc
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: L_jb, mo_coeff_o, mo_coeff_v, P_ia, &
-                                                            P_mo, W_mo
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type)                                   :: fm_back, fm_G_mu_nu
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: L_jb, mo_coeff_o, mo_coeff_v, P_ia, &
+                                                            P_mo, W_Mo
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_p_mp2, &
                                                             matrix_p_mp2_admm, matrix_s, P_mu_nu, &
                                                             rho1_ao, rho_ao, rho_ao_aux_fit
@@ -223,15 +223,10 @@ CONTAINS
       nspins = dft_control%nspins
       alpha_beta = (nspins == 2)
 
-      ! mp2 matrices
-      ALLOCATE (P_mo(nspins), W_mo(nspins), L_jb(nspins))
+      CALL MOVE_ALLOC(mp2_env%ri_grad%P_mo, P_mo)
+      CALL MOVE_ALLOC(mp2_env%ri_grad%W_mo, W_mo)
+      CALL MOVE_ALLOC(mp2_env%ri_grad%L_jb, L_jb)
 
-      ! Pack helper matrices
-      DO ispin = 1, nspins
-         P_mo(ispin)%matrix => mp2_env%ri_grad%P_mo(ispin)%matrix
-         W_mo(ispin)%matrix => mp2_env%ri_grad%W_mo(ispin)%matrix
-         L_jb(ispin)%matrix => mp2_env%ri_grad%L_jb(ispin)%matrix
-      END DO
       ALLOCATE (virtual(nspins))
       virtual(:) = dimen - homo(:)
 
@@ -254,26 +249,24 @@ CONTAINS
 
       ALLOCATE (mo_coeff_o(nspins), mo_coeff_v(nspins))
       DO ispin = 1, nspins
-         NULLIFY (mo_coeff_o(ispin)%matrix, fm_struct_tmp)
+         NULLIFY (fm_struct_tmp)
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                   nrow_global=dimen, ncol_global=homo(ispin))
-         ALLOCATE (mo_coeff_o(ispin)%matrix)
-         CALL cp_fm_create(mo_coeff_o(ispin)%matrix, fm_struct_tmp, name="mo_coeff_o")
+         CALL cp_fm_create(mo_coeff_o(ispin), fm_struct_tmp, name="mo_coeff_o")
          CALL cp_fm_struct_release(fm_struct_tmp)
-         CALL cp_fm_set_all(mo_coeff_o(ispin)%matrix, 0.0_dp)
-         CALL cp_fm_to_fm_submat(msource=mo_coeff(ispin)%matrix, mtarget=mo_coeff_o(ispin)%matrix, &
+         CALL cp_fm_set_all(mo_coeff_o(ispin), 0.0_dp)
+         CALL cp_fm_to_fm_submat(msource=mo_coeff(ispin)%matrix, mtarget=mo_coeff_o(ispin), &
                                  nrow=dimen, ncol=homo(ispin), &
                                  s_firstrow=1, s_firstcol=1, &
                                  t_firstrow=1, t_firstcol=1)
 
-         NULLIFY (mo_coeff_v(ispin)%matrix, fm_struct_tmp)
+         NULLIFY (fm_struct_tmp)
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                   nrow_global=dimen, ncol_global=virtual(ispin))
-         ALLOCATE (mo_coeff_v(ispin)%matrix)
-         CALL cp_fm_create(mo_coeff_v(ispin)%matrix, fm_struct_tmp, name="mo_coeff_v")
+         CALL cp_fm_create(mo_coeff_v(ispin), fm_struct_tmp, name="mo_coeff_v")
          CALL cp_fm_struct_release(fm_struct_tmp)
-         CALL cp_fm_set_all(mo_coeff_v(ispin)%matrix, 0.0_dp)
-         CALL cp_fm_to_fm_submat(msource=mo_coeff(ispin)%matrix, mtarget=mo_coeff_v(ispin)%matrix, &
+         CALL cp_fm_set_all(mo_coeff_v(ispin), 0.0_dp)
+         CALL cp_fm_to_fm_submat(msource=mo_coeff(ispin)%matrix, mtarget=mo_coeff_v(ispin), &
                                  nrow=dimen, ncol=virtual(ispin), &
                                  s_firstrow=1, s_firstcol=homo(ispin) + 1, &
                                  t_firstrow=1, t_firstcol=1)
@@ -348,11 +341,11 @@ CONTAINS
             CALL dbcsr_add(P_mu_nu(ispin)%matrix, matrix_ks(ispin)%matrix, 1.0_dp, -1.0_dp)
             CALL copy_dbcsr_to_fm(matrix=P_mu_nu(ispin)%matrix, fm=fm_G_mu_nu)
             CALL parallel_gemm("N", "N", dimen, homo(ispin), dimen, 1.0_dp, &
-                               fm_G_mu_nu, mo_coeff_o(ispin)%matrix, 0.0_dp, fm_back)
+                               fm_G_mu_nu, mo_coeff_o(ispin), 0.0_dp, fm_back)
             CALL parallel_gemm("T", "N", homo(ispin), virtual(ispin), dimen, focc, &
-                               fm_back, mo_coeff_v(ispin)%matrix, 1.0_dp, L_jb(ispin)%matrix)
+                               fm_back, mo_coeff_v(ispin), 1.0_dp, L_jb(ispin))
             CALL parallel_gemm("T", "N", homo(ispin), homo(ispin), dimen, -focc, &
-                               fm_back, mo_coeff_o(ispin)%matrix, 1.0_dp, W_mo(ispin)%matrix)
+                               fm_back, mo_coeff_o(ispin), 1.0_dp, W_mo(ispin))
          END DO
       END IF
 
@@ -399,13 +392,12 @@ CONTAINS
       ! P_ia will contain the solution of these equations
       ALLOCATE (P_ia(nspins))
       DO ispin = 1, nspins
-         NULLIFY (P_ia(ispin)%matrix, fm_struct_tmp)
+         NULLIFY (fm_struct_tmp)
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                   nrow_global=homo(ispin), ncol_global=virtual(ispin))
-         ALLOCATE (P_ia(ispin)%matrix)
-         CALL cp_fm_create(P_ia(ispin)%matrix, fm_struct_tmp, name="P_ia")
+         CALL cp_fm_create(P_ia(ispin), fm_struct_tmp, name="P_ia")
          CALL cp_fm_struct_release(fm_struct_tmp)
-         CALL cp_fm_set_all(P_ia(ispin)%matrix, 0.0_dp)
+         CALL cp_fm_set_all(P_ia(ispin), 0.0_dp)
       END DO
 
       CALL solve_z_vector_eq_low(qs_env, mp2_env, homo, virtual, dimen, unit_nr, nspins, &
@@ -415,31 +407,29 @@ CONTAINS
       ! release fm stuff
       CALL cp_fm_release(fm_G_mu_nu)
       DO ispin = 1, nspins
-         CALL cp_fm_release(L_jb(ispin)%matrix)
-         CALL cp_fm_release(mo_coeff_o(ispin)%matrix)
-         CALL cp_fm_release(mo_coeff_v(ispin)%matrix)
-         DEALLOCATE (L_jb(ispin)%matrix, mo_coeff_o(ispin)%matrix, mo_coeff_v(ispin)%matrix)
+         CALL cp_fm_release(L_jb(ispin))
+         CALL cp_fm_release(mo_coeff_o(ispin))
+         CALL cp_fm_release(mo_coeff_v(ispin))
       END DO
       DEALLOCATE (L_jb, mo_coeff_o, mo_coeff_v)
 
       DO ispin = 1, nspins
          ! update the MP2-MO density matrix with the occ-virt block
-         CALL cp_fm_to_fm_submat(msource=P_ia(ispin)%matrix, mtarget=P_mo(ispin)%matrix, &
+         CALL cp_fm_to_fm_submat(msource=P_ia(ispin), mtarget=P_mo(ispin), &
                                  nrow=homo(ispin), ncol=virtual(ispin), &
                                  s_firstrow=1, s_firstcol=1, &
                                  t_firstrow=1, t_firstcol=homo(ispin) + 1)
-         CALL cp_fm_release(P_ia(ispin)%matrix)
-         DEALLOCATE (P_ia(ispin)%matrix)
+         CALL cp_fm_release(P_ia(ispin))
          ! transpose P_MO matrix (easy way to symmetrize)
          CALL cp_fm_set_all(fm_back, 0.0_dp)
          ! P_mo now is ready
-         CALL cp_fm_upper_to_full(matrix=P_mo(ispin)%matrix, work=fm_back)
+         CALL cp_fm_upper_to_full(matrix=P_mo(ispin), work=fm_back)
       END DO
       DEALLOCATE (P_ia)
 
       ! do the final update to the energy weighted matrix W_MO
       DO ispin = 1, nspins
-         CALL cp_fm_get_info(matrix=W_mo(ispin)%matrix, &
+         CALL cp_fm_get_info(matrix=W_mo(ispin), &
                              nrow_local=nrow_local, &
                              ncol_local=ncol_local, &
                              row_indices=row_indices, &
@@ -449,24 +439,24 @@ CONTAINS
             IF (j_global <= homo(ispin)) THEN
                DO iiB = 1, nrow_local
                   i_global = row_indices(iiB)
-                  W_mo(ispin)%matrix%local_data(iiB, jjB) = W_mo(ispin)%matrix%local_data(iiB, jjB) &
-                                                            - P_mo(ispin)%matrix%local_data(iiB, jjB)*Eigenval(j_global, ispin)
-                  IF (i_global == j_global .AND. nspins == 1) W_mo(ispin)%matrix%local_data(iiB, jjB) = &
-                     W_mo(ispin)%matrix%local_data(iiB, jjB) - 2.0_dp*Eigenval(j_global, ispin)
-                  IF (i_global == j_global .AND. nspins == 2) W_mo(ispin)%matrix%local_data(iiB, jjB) = &
-                     W_mo(ispin)%matrix%local_data(iiB, jjB) - Eigenval(j_global, ispin)
+                  W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
+                                                     - P_mo(ispin)%local_data(iiB, jjB)*Eigenval(j_global, ispin)
+                  IF (i_global == j_global .AND. nspins == 1) W_mo(ispin)%local_data(iiB, jjB) = &
+                     W_mo(ispin)%local_data(iiB, jjB) - 2.0_dp*Eigenval(j_global, ispin)
+                  IF (i_global == j_global .AND. nspins == 2) W_mo(ispin)%local_data(iiB, jjB) = &
+                     W_mo(ispin)%local_data(iiB, jjB) - Eigenval(j_global, ispin)
                END DO
             ELSE
                DO iiB = 1, nrow_local
                   i_global = row_indices(iiB)
                   IF (i_global <= homo(ispin)) THEN
                      ! virt-occ
-                     W_mo(ispin)%matrix%local_data(iiB, jjB) = W_mo(ispin)%matrix%local_data(iiB, jjB) &
-                                                               - P_mo(ispin)%matrix%local_data(iiB, jjB)*Eigenval(i_global, ispin)
+                     W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
+                                                        - P_mo(ispin)%local_data(iiB, jjB)*Eigenval(i_global, ispin)
                   ELSE
                      ! virt-virt
-                     W_mo(ispin)%matrix%local_data(iiB, jjB) = W_mo(ispin)%matrix%local_data(iiB, jjB) &
-                                                               - P_mo(ispin)%matrix%local_data(iiB, jjB)*Eigenval(j_global, ispin)
+                     W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
+                                                        - P_mo(ispin)%local_data(iiB, jjB)*Eigenval(j_global, ispin)
                   END IF
                END DO
             END IF
@@ -484,9 +474,8 @@ CONTAINS
       ! backtnsform the collected parts of the energy-weighted density matrix into AO basis
       DO ispin = 1, nspins
          CALL parallel_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
-                            mo_coeff(ispin)%matrix, W_mo(ispin)%matrix, 0.0_dp, fm_back)
-         CALL cp_fm_release(W_mo(ispin)%matrix)
-         DEALLOCATE (W_mo(ispin)%matrix)
+                            mo_coeff(ispin)%matrix, W_mo(ispin), 0.0_dp, fm_back)
+         CALL cp_fm_release(W_mo(ispin))
          CALL cp_dbcsr_plus_fm_fm_t(p_env%w1(1)%matrix, fm_back, mo_coeff(ispin)%matrix, dimen, 1.0_dp, .TRUE., 1)
       END DO
       DEALLOCATE (W_mo)
@@ -497,9 +486,8 @@ CONTAINS
          CALL dbcsr_set(p_env%p1(ispin)%matrix, 0.0_dp)
 
          CALL parallel_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
-                            mo_coeff(ispin)%matrix, P_mo(ispin)%matrix, 0.0_dp, fm_back)
-         CALL cp_fm_release(P_mo(ispin)%matrix)
-         DEALLOCATE (P_mo(ispin)%matrix)
+                            mo_coeff(ispin)%matrix, P_mo(ispin), 0.0_dp, fm_back)
+         CALL cp_fm_release(P_mo(ispin))
          CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff(ispin)%matrix, dimen, 1.0_dp, .TRUE.)
 
          CALL dbcsr_copy(rho1_ao(ispin)%matrix, p_env%p1(ispin)%matrix)
@@ -571,13 +559,14 @@ CONTAINS
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       INTEGER, INTENT(IN)                                :: nspins, dimen
       INTEGER, DIMENSION(nspins), INTENT(IN)             :: virtual, homo
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff_o, mo_coeff_v
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
+      TYPE(cp_fm_type), DIMENSION(nspins), INTENT(IN)    :: mo_coeff_o, mo_coeff_v
+      REAL(KIND=dp), DIMENSION(dimen, nspins), &
+         INTENT(IN)                                      :: Eigenval
       TYPE(qs_p_env_type)                                :: p_env
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mo
+      TYPE(cp_fm_type), DIMENSION(nspins), INTENT(IN)    :: fm_mo
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_ao, fm_back
       INTEGER, INTENT(IN)                                :: transf_type_in
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: fm_mo_out
+      TYPE(cp_fm_type), DIMENSION(nspins), INTENT(IN)    :: fm_mo_out
       LOGICAL, INTENT(IN), OPTIONAL                      :: recalc_hfx_integrals
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cphf_like_update'
@@ -585,7 +574,6 @@ CONTAINS
       INTEGER                                            :: handle, i_global, iiB, ispin, j_global, &
                                                             jjB, ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      TYPE(cp_fm_type), POINTER                          :: mat_in, mat_out
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho1_ao
 
       CALL timeset(routineN, handle)
@@ -596,35 +584,36 @@ CONTAINS
       DO ispin = 1, nspins
          CALL dbcsr_set(p_env%p1(ispin)%matrix, 0.0_dp)
 
-         mat_in => fm_mo(ispin)%matrix
+         ASSOCIATE (mat_in => fm_mo(ispin))
 
-         ! perform back transformation
-         SELECT CASE (transf_type_in)
-         CASE (1)
-            ! occ-occ block
-            CALL parallel_gemm('N', 'N', dimen, homo(ispin), homo(ispin), 1.0_dp, &
-                               mo_coeff_o(ispin)%matrix, mat_in, 0.0_dp, fm_back)
-            CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_o(ispin)%matrix, homo(ispin), 1.0_dp, .TRUE.)
-            ! virt-virt block
-            CALL parallel_gemm('N', 'N', dimen, virtual(ispin), virtual(ispin), 1.0_dp, &
-                               mo_coeff_v(ispin)%matrix, mat_in, 0.0_dp, fm_back, &
-                               b_first_col=homo(ispin) + 1, &
-                               b_first_row=homo(ispin) + 1)
-            CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_v(ispin)%matrix, virtual(ispin), 1.0_dp, .TRUE.)
+            ! perform back transformation
+            SELECT CASE (transf_type_in)
+            CASE (1)
+               ! occ-occ block
+               CALL parallel_gemm('N', 'N', dimen, homo(ispin), homo(ispin), 1.0_dp, &
+                                  mo_coeff_o(ispin), mat_in, 0.0_dp, fm_back)
+               CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_o(ispin), homo(ispin), 1.0_dp, .TRUE.)
+               ! virt-virt block
+               CALL parallel_gemm('N', 'N', dimen, virtual(ispin), virtual(ispin), 1.0_dp, &
+                                  mo_coeff_v(ispin), mat_in, 0.0_dp, fm_back, &
+                                  b_first_col=homo(ispin) + 1, &
+                                  b_first_row=homo(ispin) + 1)
+               CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_v(ispin), virtual(ispin), 1.0_dp, .TRUE.)
 
-         CASE (3)
-            ! virt-occ blocks
-            CALL parallel_gemm('N', 'N', dimen, virtual(ispin), homo(ispin), 1.0_dp, &
-                               mo_coeff_o(ispin)%matrix, mat_in, 0.0_dp, fm_back)
-            CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_v(ispin)%matrix, virtual(ispin), 1.0_dp, .TRUE.)
-            ! and symmetrize (here again multiply instead of transposing)
-            CALL parallel_gemm('N', 'T', dimen, homo(ispin), virtual(ispin), 1.0_dp, &
-                               mo_coeff_v(ispin)%matrix, mat_in, 0.0_dp, fm_back)
-            CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_o(ispin)%matrix, homo(ispin), 1.0_dp, .TRUE.)
+            CASE (3)
+               ! virt-occ blocks
+               CALL parallel_gemm('N', 'N', dimen, virtual(ispin), homo(ispin), 1.0_dp, &
+                                  mo_coeff_o(ispin), mat_in, 0.0_dp, fm_back)
+               CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_v(ispin), virtual(ispin), 1.0_dp, .TRUE.)
+               ! and symmetrize (here again multiply instead of transposing)
+               CALL parallel_gemm('N', 'T', dimen, homo(ispin), virtual(ispin), 1.0_dp, &
+                                  mo_coeff_v(ispin), mat_in, 0.0_dp, fm_back)
+               CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_o(ispin), homo(ispin), 1.0_dp, .TRUE.)
 
-         CASE DEFAULT
-            ! nothing
-         END SELECT
+            CASE DEFAULT
+               ! nothing
+            END SELECT
+         END ASSOCIATE
 
          CALL dbcsr_copy(rho1_ao(ispin)%matrix, p_env%p1(ispin)%matrix)
       END DO
@@ -634,12 +623,8 @@ CONTAINS
       IF (transf_type_in == 3) THEN
          DO ispin = 1, nspins
 
-            ! Add Fock contribution to Lagrangian
-            mat_out => fm_mo_out(ispin)%matrix
-            mat_in => fm_mo(ispin)%matrix
             ! scale for the orbital energy differences for the diagonal elements
-            mat_out%local_data(:, :) = mat_in%local_data(:, :)
-            CALL cp_fm_get_info(matrix=mat_out, &
+            CALL cp_fm_get_info(matrix=fm_mo_out(ispin), &
                                 nrow_local=nrow_local, &
                                 ncol_local=ncol_local, &
                                 row_indices=row_indices, &
@@ -648,8 +633,8 @@ CONTAINS
                j_global = col_indices(jjB)
                DO iiB = 1, nrow_local
                   i_global = row_indices(iiB)
-                  mat_out%local_data(iiB, jjB) = mat_out%local_data(iiB, jjB)* &
-                                                 (Eigenval(j_global + homo(ispin), ispin) - Eigenval(i_global, ispin))
+                  fm_mo_out(ispin)%local_data(iiB, jjB) = fm_mo(ispin)%local_data(iiB, jjB)* &
+                                                          (Eigenval(j_global + homo(ispin), ispin) - Eigenval(i_global, ispin))
                END DO
             END DO
          END DO
@@ -664,16 +649,16 @@ CONTAINS
          CALL cp_fm_set_all(fm_back, 0.0_dp)
          CALL cp_fm_upper_to_full(fm_ao, fm_back)
 
-         mat_out => fm_mo_out(ispin)%matrix
+         ASSOCIATE (mat_out => fm_mo_out(ispin))
 
-         ! transform to MO basis, here we always sum the result into the input matrix
+            ! transform to MO basis, here we always sum the result into the input matrix
 
-         ! occ-virt block
-         CALL parallel_gemm('T', 'N', homo(ispin), dimen, dimen, 1.0_dp, &
-                            mo_coeff_o(ispin)%matrix, fm_ao, 0.0_dp, fm_back)
-         CALL parallel_gemm('N', 'N', homo(ispin), virtual(ispin), dimen, 1.0_dp, &
-                            fm_back, mo_coeff_v(ispin)%matrix, 1.0_dp, mat_out)
-
+            ! occ-virt block
+            CALL parallel_gemm('T', 'N', homo(ispin), dimen, dimen, 1.0_dp, &
+                               mo_coeff_o(ispin), fm_ao, 0.0_dp, fm_back)
+            CALL parallel_gemm('N', 'N', homo(ispin), virtual(ispin), dimen, 1.0_dp, &
+                               fm_back, mo_coeff_v(ispin), 1.0_dp, mat_out)
+         END ASSOCIATE
       END DO
 
       CALL timestop(handle)
@@ -707,36 +692,36 @@ CONTAINS
       TYPE(mp2_type), INTENT(IN)                         :: mp2_env
       INTEGER, INTENT(IN)                                :: nspins, unit_nr, dimen
       INTEGER, DIMENSION(nspins), INTENT(IN)             :: virtual, homo
-      TYPE(cp_fm_p_type), DIMENSION(nspins), INTENT(IN)  :: mo_coeff_o, mo_coeff_v
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
+      TYPE(cp_fm_type), DIMENSION(nspins), INTENT(IN)    :: mo_coeff_o, mo_coeff_v
+      REAL(KIND=dp), DIMENSION(dimen, nspins), &
+         INTENT(IN)                                      :: Eigenval
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: L_jb
+      TYPE(cp_fm_type), DIMENSION(dimen), INTENT(IN)     :: L_jb
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_G_mu_nu, fm_back
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: P_ia
+      TYPE(cp_fm_type), DIMENSION(nspins), INTENT(IN)    :: P_ia
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_z_vector_eq_low'
 
       INTEGER                                            :: handle, i_global, iiB, ispin, j_global, &
                                                             jjB, ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: precond
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: precond
 
       CALL timeset(routineN, handle)
 
       ! Pople method
       ! change sign to L_jb
       DO ispin = 1, nspins
-         L_jb(ispin)%matrix%local_data(:, :) = -L_jb(ispin)%matrix%local_data(:, :)
+         L_jb(ispin)%local_data(:, :) = -L_jb(ispin)%local_data(:, :)
       END DO
 
       ! create fm structure
       ALLOCATE (precond(nspins))
       DO ispin = 1, nspins
          ! create preconditioner (for now only orbital energy differences)
-         ALLOCATE (precond(ispin)%matrix)
-         CALL cp_fm_create(precond(ispin)%matrix, P_ia(ispin)%matrix%matrix_struct, name="precond")
-         CALL cp_fm_set_all(precond(ispin)%matrix, 1.0_dp)
-         CALL cp_fm_get_info(matrix=precond(ispin)%matrix, &
+         CALL cp_fm_create(precond(ispin), P_ia(ispin)%matrix_struct, name="precond")
+         CALL cp_fm_set_all(precond(ispin), 1.0_dp)
+         CALL cp_fm_get_info(matrix=precond(ispin), &
                              nrow_local=nrow_local, &
                              ncol_local=ncol_local, &
                              row_indices=row_indices, &
@@ -745,13 +730,13 @@ CONTAINS
             j_global = col_indices(jjB)
             DO iiB = 1, nrow_local
                i_global = row_indices(iiB)
-               precond(ispin)%matrix%local_data(iiB, jjB) = Eigenval(j_global + homo(ispin), ispin) - Eigenval(i_global, ispin)
+               precond(ispin)%local_data(iiB, jjB) = Eigenval(j_global + homo(ispin), ispin) - Eigenval(i_global, ispin)
             END DO
          END DO
       END DO
 
       DO ispin = 1, nspins
-         precond(ispin)%matrix%local_data(:, :) = 1.0_dp/precond(ispin)%matrix%local_data(:, :)
+         precond(ispin)%local_data(:, :) = 1.0_dp/precond(ispin)%local_data(:, :)
       END DO
 
       SELECT CASE (mp2_env%ri_grad%z_solver_method)
@@ -768,8 +753,7 @@ CONTAINS
       END SELECT
 
       DO ispin = 1, nspins
-         CALL cp_fm_release(precond(ispin)%matrix)
-         DEALLOCATE (precond(ispin)%matrix)
+         CALL cp_fm_release(precond(ispin))
       END DO
       DEALLOCATE (precond)
 
@@ -803,13 +787,13 @@ CONTAINS
       TYPE(mp2_type), INTENT(IN)                         :: mp2_env
       INTEGER, INTENT(IN)                                :: nspins, unit_nr, dimen
       INTEGER, DIMENSION(nspins), INTENT(IN)             :: virtual, homo
-      TYPE(cp_fm_p_type), DIMENSION(nspins), INTENT(IN)  :: mo_coeff_o, mo_coeff_v
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
+      TYPE(cp_fm_type), DIMENSION(nspins), INTENT(IN)    :: mo_coeff_o, mo_coeff_v
+      REAL(KIND=dp), DIMENSION(dimen, nspins), &
+         INTENT(IN)                                      :: Eigenval
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: L_jb
+      TYPE(cp_fm_type), DIMENSION(nspins), INTENT(IN)    :: L_jb
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_G_mu_nu, fm_back
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: P_ia
-      TYPE(cp_fm_p_type), DIMENSION(nspins), INTENT(IN)  :: precond
+      TYPE(cp_fm_type), DIMENSION(nspins), INTENT(IN)    :: P_ia, precond
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_z_vector_pople'
 
@@ -819,10 +803,10 @@ CONTAINS
       REAL(KIND=dp)                                      :: conv, eps_conv, scale_cphf, t1, t2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: proj_bi_xj, temp_vals, x_norm, xi_b
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: A_small, b_small, xi_Axi
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: b_i, residual
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: Ax, xn
       TYPE(cp_fm_struct_p_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: fm_struct_tmp
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: b_i, residual
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: Ax, xn
 
       CALL timeset(routineN, handle)
 
@@ -841,18 +825,16 @@ CONTAINS
 
          ALLOCATE (fm_struct_tmp(nspins), b_i(nspins), residual(nspins))
          DO ispin = 1, nspins
-            fm_struct_tmp(ispin)%struct => P_ia(ispin)%matrix%matrix_struct
+            fm_struct_tmp(ispin)%struct => P_ia(ispin)%matrix_struct
 
-            ALLOCATE (b_i(ispin)%matrix)
-            CALL cp_fm_create(b_i(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="b_i")
-            CALL cp_fm_set_all(b_i(ispin)%matrix, 0.0_dp)
-            b_i(ispin)%matrix%local_data(:, :) = precond(ispin)%matrix%local_data(:, :)*L_jb(ispin)%matrix%local_data(:, :)
+            CALL cp_fm_create(b_i(ispin), fm_struct_tmp(ispin)%struct, name="b_i")
+            CALL cp_fm_set_all(b_i(ispin), 0.0_dp)
+            b_i(ispin)%local_data(:, :) = precond(ispin)%local_data(:, :)*L_jb(ispin)%local_data(:, :)
 
             ! create the residual vector (r), we check convergence on the norm of
             ! this vector r=(Ax-b)
-            ALLOCATE (residual(ispin)%matrix)
-            CALL cp_fm_create(residual(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="residual")
-            CALL cp_fm_set_all(residual(ispin)%matrix, 0.0_dp)
+            CALL cp_fm_create(residual(ispin), fm_struct_tmp(ispin)%struct, name="residual")
+            CALL cp_fm_set_all(residual(ispin), 0.0_dp)
          END DO
 
          IF (unit_nr > 0) THEN
@@ -883,9 +865,8 @@ CONTAINS
 
             ! create and update x_i (orthogonalization with previous vectors)
             DO ispin = 1, nspins
-               ALLOCATE (xn(ispin, iiter)%matrix)
-               CALL cp_fm_create(xn(ispin, iiter)%matrix, fm_struct_tmp(ispin)%struct, name="xi")
-               CALL cp_fm_set_all(xn(ispin, iiter)%matrix, 0.0_dp)
+               CALL cp_fm_create(xn(ispin, iiter), fm_struct_tmp(ispin)%struct, name="xi")
+               CALL cp_fm_set_all(xn(ispin, iiter), 0.0_dp)
             END DO
 
             ALLOCATE (proj_bi_xj(iiter - 1))
@@ -898,19 +879,18 @@ CONTAINS
 
             ! update actual x_i
             DO ispin = 1, nspins
-               xn(ispin, iiter)%matrix%local_data(:, :) = scale_cphf*b_i(ispin)%matrix%local_data(:, :)
+               xn(ispin, iiter)%local_data(:, :) = scale_cphf*b_i(ispin)%local_data(:, :)
                DO iiB = 1, iiter - 1
-                  xn(ispin, iiter)%matrix%local_data(:, :) = xn(ispin, iiter)%matrix%local_data(:, :) - &
-                                                             xn(ispin, iiB)%matrix%local_data(:, :)*proj_bi_xj(iiB)
+                  xn(ispin, iiter)%local_data(:, :) = xn(ispin, iiter)%local_data(:, :) - &
+                                                      xn(ispin, iiB)%local_data(:, :)*proj_bi_xj(iiB)
                END DO
             END DO
             DEALLOCATE (proj_bi_xj)
 
             ! create Ax(iiter) that will store the matrix vector product for this cycle
             DO ispin = 1, nspins
-               ALLOCATE (Ax(ispin, iiter)%matrix)
-               CALL cp_fm_create(Ax(ispin, iiter)%matrix, fm_struct_tmp(ispin)%struct, name="Ai")
-               CALL cp_fm_set_all(Ax(ispin, iiter)%matrix, 0.0_dp)
+               CALL cp_fm_create(Ax(ispin, iiter), fm_struct_tmp(ispin)%struct, name="Ai")
+               CALL cp_fm_set_all(Ax(ispin, iiter), 0.0_dp)
             END DO
 
             CALL cphf_like_update(qs_env, homo, virtual, dimen, nspins, &
@@ -955,16 +935,16 @@ CONTAINS
 
             ! check for convergence
             DO ispin = 1, nspins
-               CALL cp_fm_set_all(residual(ispin)%matrix, 0.0_dp)
+               CALL cp_fm_set_all(residual(ispin), 0.0_dp)
                DO iiB = 1, iiter
-                  residual(ispin)%matrix%local_data(:, :) = &
-                     residual(ispin)%matrix%local_data(:, :) + &
-                     b_small(iiB, 1)*Ax(ispin, iiB)%matrix%local_data(:, :)
+                  residual(ispin)%local_data(:, :) = &
+                     residual(ispin)%local_data(:, :) + &
+                     b_small(iiB, 1)*Ax(ispin, iiB)%local_data(:, :)
                END DO
 
-               residual(ispin)%matrix%local_data(:, :) = &
-                  residual(ispin)%matrix%local_data(:, :) - &
-                  L_jb(ispin)%matrix%local_data(:, :)
+               residual(ispin)%local_data(:, :) = &
+                  residual(ispin)%local_data(:, :) - &
+                  L_jb(ispin)%local_data(:, :)
             END DO
 
             conv = SQRT(accurate_dot_product_spin(residual, residual))
@@ -983,9 +963,9 @@ CONTAINS
 
             ! update b_i for the next round
             DO ispin = 1, nspins
-               b_i(ispin)%matrix%local_data(:, :) = b_i(ispin)%matrix%local_data(:, :) &
-                                                    + precond(ispin)%matrix%local_data(:, :) &
-                                                    *Ax(ispin, iiter)%matrix%local_data(:, :)
+               b_i(ispin)%local_data(:, :) = b_i(ispin)%local_data(:, :) &
+                                             + precond(ispin)%local_data(:, :) &
+                                             *Ax(ispin, iiter)%local_data(:, :)
             END DO
 
             scale_cphf = 1.0_dp
@@ -1004,8 +984,8 @@ CONTAINS
          ! store solution into P_ia
          DO iiter = 1, cycle_counter
             DO ispin = 1, nspins
-               P_ia(ispin)%matrix%local_data(:, :) = P_ia(ispin)%matrix%local_data(:, :) + &
-                                                     b_small(iiter, 1)*xn(ispin, iiter)%matrix%local_data(:, :)
+               P_ia(ispin)%local_data(:, :) = P_ia(ispin)%local_data(:, :) + &
+                                              b_small(iiter, 1)*xn(ispin, iiter)%local_data(:, :)
             END DO
          END DO
 
@@ -1015,14 +995,12 @@ CONTAINS
          DEALLOCATE (xi_Axi)
 
          DO ispin = 1, nspins
-            CALL cp_fm_release(b_i(ispin)%matrix)
-            CALL cp_fm_release(residual(ispin)%matrix)
-            DEALLOCATE (b_i(ispin)%matrix, residual(ispin)%matrix)
+            CALL cp_fm_release(b_i(ispin))
+            CALL cp_fm_release(residual(ispin))
 
             DO iiter = 1, cycle_counter
-               CALL cp_fm_release(Ax(ispin, iiter)%matrix)
-               CALL cp_fm_release(xn(ispin, iiter)%matrix)
-               DEALLOCATE (Ax(ispin, iiter)%matrix, xn(ispin, iiter)%matrix)
+               CALL cp_fm_release(Ax(ispin, iiter))
+               CALL cp_fm_release(xn(ispin, iiter))
             END DO
          END DO
          DEALLOCATE (b_i, residual, Ax, xn, fm_struct_tmp)
@@ -1064,13 +1042,13 @@ CONTAINS
       TYPE(mp2_type), INTENT(IN)                         :: mp2_env
       INTEGER, INTENT(IN)                                :: nspins, unit_nr, dimen
       INTEGER, DIMENSION(nspins), INTENT(IN)             :: virtual, homo
-      TYPE(cp_fm_p_type), DIMENSION(nspins), INTENT(IN)  :: mo_coeff_o, mo_coeff_v
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
+      TYPE(cp_fm_type), DIMENSION(nspins), INTENT(IN)    :: mo_coeff_o, mo_coeff_v
+      REAL(KIND=dp), DIMENSION(dimen, nspins), &
+         INTENT(IN)                                      :: Eigenval
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: L_jb
+      TYPE(cp_fm_type), DIMENSION(nspins), INTENT(IN)    :: L_jb
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_G_mu_nu, fm_back
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: P_ia
-      TYPE(cp_fm_p_type), DIMENSION(nspins), INTENT(IN)  :: precond
+      TYPE(cp_fm_type), DIMENSION(nspins), INTENT(IN)    :: P_ia, precond
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'solve_z_vector_cg'
 
@@ -1081,10 +1059,10 @@ CONTAINS
          residual_dot_diff_search_vec_new, residual_dot_diff_search_vec_old, &
          residual_dot_search_vec, residual_new_dot_diff_search_vec_old, scale_result, &
          scale_search, scale_step_size, search_vec_dot_A_search_vec, t1, t2
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: A_dot_search_vector, diff_search_vector, &
-                                                            residual, search_vector
       TYPE(cp_fm_struct_p_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: fm_struct_tmp
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: A_dot_search_vector, diff_search_vector, &
+                                                            residual, search_vector
 
       CALL timeset(routineN, handle)
 
@@ -1124,23 +1102,19 @@ CONTAINS
       ALLOCATE (fm_struct_tmp(nspins), residual(nspins), diff_search_vector(nspins), &
                 search_vector(nspins), A_dot_search_vector(nspins))
       DO ispin = 1, nspins
-         fm_struct_tmp(ispin)%struct => P_ia(ispin)%matrix%matrix_struct
+         fm_struct_tmp(ispin)%struct => P_ia(ispin)%matrix_struct
 
-         ALLOCATE (residual(ispin)%matrix)
-         CALL cp_fm_create(residual(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="residual")
-         CALL cp_fm_set_all(residual(ispin)%matrix, 0.0_dp)
+         CALL cp_fm_create(residual(ispin), fm_struct_tmp(ispin)%struct, name="residual")
+         CALL cp_fm_set_all(residual(ispin), 0.0_dp)
 
-         ALLOCATE (diff_search_vector(ispin)%matrix)
-         CALL cp_fm_create(diff_search_vector(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="difference search vector")
-         CALL cp_fm_set_all(diff_search_vector(ispin)%matrix, 0.0_dp)
+         CALL cp_fm_create(diff_search_vector(ispin), fm_struct_tmp(ispin)%struct, name="difference search vector")
+         CALL cp_fm_set_all(diff_search_vector(ispin), 0.0_dp)
 
-         ALLOCATE (search_vector(ispin)%matrix)
-         CALL cp_fm_create(search_vector(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="search vector")
-         CALL cp_fm_set_all(search_vector(ispin)%matrix, 0.0_dp)
+         CALL cp_fm_create(search_vector(ispin), fm_struct_tmp(ispin)%struct, name="search vector")
+         CALL cp_fm_set_all(search_vector(ispin), 0.0_dp)
 
-         ALLOCATE (A_dot_search_vector(ispin)%matrix)
-         CALL cp_fm_create(A_dot_search_vector(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="A times search vector")
-         CALL cp_fm_set_all(A_dot_search_vector(ispin)%matrix, 0.0_dp)
+         CALL cp_fm_create(A_dot_search_vector(ispin), fm_struct_tmp(ispin)%struct, name="A times search vector")
+         CALL cp_fm_set_all(A_dot_search_vector(ispin), 0.0_dp)
       END DO
 
       converged = .FALSE.
@@ -1167,20 +1141,20 @@ CONTAINS
                   do_restart = .FALSE.
 
                   DO ispin = 1, nspins
-                     CALL cp_fm_set_all(residual(ispin)%matrix, 0.0_dp)
+                     CALL cp_fm_set_all(residual(ispin), 0.0_dp)
                   END DO
                END IF
 
                DO ispin = 1, nspins
-                  residual(ispin)%matrix%local_data(:, :) = L_jb(ispin)%matrix%local_data(:, :) &
-                                                            - residual(ispin)%matrix%local_data(:, :)
+                  residual(ispin)%local_data(:, :) = L_jb(ispin)%local_data(:, :) &
+                                                     - residual(ispin)%local_data(:, :)
                END DO
             END IF
 
             DO ispin = 1, nspins
-               diff_search_vector(ispin)%matrix%local_data(:, :) = &
-                  precond(ispin)%matrix%local_data(:, :)*residual(ispin)%matrix%local_data(:, :)
-               search_vector(ispin)%matrix%local_data(:, :) = diff_search_vector(ispin)%matrix%local_data(:, :)
+               diff_search_vector(ispin)%local_data(:, :) = &
+                  precond(ispin)%local_data(:, :)*residual(ispin)%local_data(:, :)
+               search_vector(ispin)%local_data(:, :) = diff_search_vector(ispin)%local_data(:, :)
             END DO
 
             restart_counter = 1
@@ -1215,15 +1189,15 @@ CONTAINS
          END IF
 
          DO ispin = 1, nspins
-            P_ia(ispin)%matrix%local_data(:, :) = P_ia(ispin)%matrix%local_data(:, :) &
-                                                  + scale_result*search_vector(ispin)%matrix%local_data(:, :)
+            P_ia(ispin)%local_data(:, :) = P_ia(ispin)%local_data(:, :) &
+                                           + scale_result*search_vector(ispin)%local_data(:, :)
          END DO
 
          IF (.NOT. mp2_env%ri_grad%recalc_residual) THEN
 
             DO ispin = 1, nspins
-               residual(ispin)%matrix%local_data(:, :) = residual(ispin)%matrix%local_data(:, :) &
-                                                         - scale_result*A_dot_search_vector(ispin)%matrix%local_data(:, :)
+               residual(ispin)%local_data(:, :) = residual(ispin)%local_data(:, :) &
+                                                  - scale_result*A_dot_search_vector(ispin)%local_data(:, :)
             END DO
          ELSE
             CALL cphf_like_update(qs_env, homo, virtual, dimen, nspins, &
@@ -1233,7 +1207,7 @@ CONTAINS
                                   residual)
 
             DO ispin = 1, nspins
-             residual(ispin)%matrix%local_data(:, :) = L_jb(ispin)%matrix%local_data(:, :) - residual(ispin)%matrix%local_data(:, :)
+               residual(ispin)%local_data(:, :) = L_jb(ispin)%local_data(:, :) - residual(ispin)%local_data(:, :)
             END DO
          END IF
 
@@ -1256,21 +1230,21 @@ CONTAINS
 
          IF (z_solver_method == z_solver_richardson) THEN
             DO ispin = 1, nspins
-               search_vector(ispin)%matrix%local_data(:, :) = &
-                  scale_step_size*precond(ispin)%matrix%local_data(:, :)*residual(ispin)%matrix%local_data(:, :)
+               search_vector(ispin)%local_data(:, :) = &
+                  scale_step_size*precond(ispin)%local_data(:, :)*residual(ispin)%local_data(:, :)
             END DO
          ELSE IF (z_solver_method == z_solver_sd) THEN
             DO ispin = 1, nspins
-               search_vector(ispin)%matrix%local_data(:, :) = &
-                  precond(ispin)%matrix%local_data(:, :)*residual(ispin)%matrix%local_data(:, :)
+               search_vector(ispin)%local_data(:, :) = &
+                  precond(ispin)%local_data(:, :)*residual(ispin)%local_data(:, :)
             END DO
          ELSE
             IF (mp2_env%ri_grad%polak_ribiere) &
                residual_new_dot_diff_search_vec_old = accurate_dot_product_spin(residual, diff_search_vector)
 
             DO ispin = 1, nspins
-               diff_search_vector(ispin)%matrix%local_data(:, :) = &
-                  precond(ispin)%matrix%local_data(:, :)*residual(ispin)%matrix%local_data(:, :)
+               diff_search_vector(ispin)%local_data(:, :) = &
+                  precond(ispin)%local_data(:, :)*residual(ispin)%local_data(:, :)
             END DO
 
             residual_dot_diff_search_vec_new = accurate_dot_product_spin(residual, diff_search_vector)
@@ -1280,8 +1254,8 @@ CONTAINS
                scale_search - residual_new_dot_diff_search_vec_old/residual_dot_diff_search_vec_old
 
             DO ispin = 1, nspins
-               search_vector(ispin)%matrix%local_data(:, :) = scale_search*search_vector(ispin)%matrix%local_data(:, :) &
-                                                              + diff_search_vector(ispin)%matrix%local_data(:, :)
+               search_vector(ispin)%local_data(:, :) = scale_search*search_vector(ispin)%local_data(:, :) &
+                                                       + diff_search_vector(ispin)%local_data(:, :)
             END DO
 
             ! Make new to old
@@ -1306,12 +1280,10 @@ CONTAINS
       END IF
 
       DO ispin = 1, nspins
-         CALL cp_fm_release(residual(ispin)%matrix)
-         CALL cp_fm_release(diff_search_vector(ispin)%matrix)
-         CALL cp_fm_release(search_vector(ispin)%matrix)
-         CALL cp_fm_release(A_dot_search_vector(ispin)%matrix)
-         DEALLOCATE (residual(ispin)%matrix, diff_search_vector(ispin)%matrix, &
-                     search_vector(ispin)%matrix, A_dot_search_vector(ispin)%matrix)
+         CALL cp_fm_release(residual(ispin))
+         CALL cp_fm_release(diff_search_vector(ispin))
+         CALL cp_fm_release(search_vector(ispin))
+         CALL cp_fm_release(A_dot_search_vector(ispin))
       END DO
       DEALLOCATE (residual, diff_search_vector, search_vector, A_dot_search_vector, fm_struct_tmp)
 
@@ -1326,16 +1298,16 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    FUNCTION accurate_dot_product_spin(matrix1, matrix2) RESULT(dotproduct)
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: matrix1, matrix2
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: matrix1, matrix2
       REAL(KIND=dp)                                      :: dotproduct
 
       INTEGER                                            :: ispin
 
       dotproduct = 0.0_dp
       DO ispin = 1, SIZE(matrix1)
-         dotproduct = dotproduct + accurate_dot_product(matrix1(ispin)%matrix%local_data, matrix2(ispin)%matrix%local_data)
+         dotproduct = dotproduct + accurate_dot_product(matrix1(ispin)%local_data, matrix2(ispin)%local_data)
       END DO
-      CALL mp_sum(dotproduct, matrix1(1)%matrix%matrix_struct%para_env%group)
+      CALL mp_sum(dotproduct, matrix1(1)%matrix_struct%para_env%group)
 
    END FUNCTION accurate_dot_product_spin
 

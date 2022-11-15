@@ -14,7 +14,7 @@
 MODULE mp2_types
    USE cp_eri_mme_interface,            ONLY: cp_eri_mme_finalize,&
                                               cp_eri_mme_param
-   USE cp_fm_types,                     ONLY: cp_fm_p_type
+   USE cp_fm_types,                     ONLY: cp_fm_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_type
    USE hfx_types,                       ONLY: hfx_release,&
@@ -225,7 +225,7 @@ MODULE mp2_types
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: operator_half, PQ_half, Gamma_PQ, Gamma_PQ_2
       TYPE(dbcsr_p_type), DIMENSION(:, :), ALLOCATABLE :: G_P_ia
       TYPE(dbcsr_p_type), DIMENSION(:), ALLOCATABLE :: mo_coeff_o, mo_coeff_v
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:) :: P_mo, W_mo, L_jb
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:) :: P_mo, W_mo, L_jb
       REAL(KIND=dp) :: cphf_eps_conv, scale_step_size
       INTEGER :: cphf_max_num_iter, z_solver_method, cphf_restart
       LOGICAL :: enforce_decrease, recalc_residual, polak_ribiere
