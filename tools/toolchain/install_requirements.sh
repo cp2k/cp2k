@@ -9,10 +9,10 @@ fi
 
 BASE_IMAGE=$1
 
-if [[ ${BASE_IMAGE} == ubuntu* ]]; then
+if [[ ${BASE_IMAGE} == *ubuntu* ]]; then
   ./install_requirements_ubuntu.sh
 
-elif [[ ${BASE_IMAGE} == fedora* ]]; then
+elif [[ ${BASE_IMAGE} == *fedora* ]]; then
   ./install_requirements_fedora.sh
 
 else
