@@ -58,6 +58,10 @@ def main() -> None:
         f.write(toolchain_ubuntu_nompi(base_image="i386/debian:11", libvori=False))
         f.write(regtest("ssmp"))
 
+    with OutputFile("Dockerfile.test_arm64-psmp", args.check) as f:
+        f.write(toolchain_full(base_image="arm64v8/ubuntu:22.04", with_libxsmm="no"))
+        f.write(regtest("psmp"))
+
     with OutputFile(f"Dockerfile.test_performance", args.check) as f:
         f.write(toolchain_full() + performance())
 
