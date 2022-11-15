@@ -27,7 +27,6 @@ MODULE rpa_rse
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_diag,&
                                               cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm_submat,&
@@ -97,7 +96,7 @@ CONTAINS
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       TYPE(dft_control_type), INTENT(IN), POINTER        :: dft_control
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       INTEGER, INTENT(IN)                                :: nmo
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
@@ -128,7 +127,7 @@ CONTAINS
       beta = (nspins == 2)
 
       ! Pick the diagonal terms
-      CALL cp_fm_get_info(matrix=mo_coeff(1)%matrix, &
+      CALL cp_fm_get_info(matrix=mo_coeff(1), &
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local, &
                           row_indices=row_indices, &
@@ -211,7 +210,7 @@ CONTAINS
       IF (beta) coeff = 0.5_dp
       DO ispin = 1, nspins
          CALL parallel_gemm(transa='N', transb='T', m=dimen, n=dimen, k=dimen, alpha=coeff, &
-                            matrix_a=mo_coeff(ispin)%matrix, matrix_b=mo_coeff(ispin)%matrix, &
+                            matrix_a=mo_coeff(ispin), matrix_b=mo_coeff(ispin), &
                             beta=0.0_dp, matrix_c=fm_P_mu_nu(ispin))
       END DO
 
@@ -313,7 +312,7 @@ CONTAINS
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       INTEGER, INTENT(IN)                                :: dimen
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       TYPE(section_vals_type), INTENT(IN), POINTER       :: hfx_sections
       INTEGER, INTENT(IN)                                :: n_rep_hf
       TYPE(qs_rho_type), INTENT(IN), POINTER             :: rho_work
@@ -387,11 +386,11 @@ CONTAINS
 
          ! First index
          CALL parallel_gemm('T', 'N', dimen, dimen, dimen, 1.0_dp, &
-                            mo_coeff(is)%matrix, fm_X_ao, 0.0_dp, fm_X_ao_mo)
+                            mo_coeff(is), fm_X_ao, 0.0_dp, fm_X_ao_mo)
 
          ! Second index
          CALL parallel_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
-                            fm_X_ao_mo, mo_coeff(is)%matrix, 1.0_dp, fm_X_mo(is))
+                            fm_X_ao_mo, mo_coeff(is), 1.0_dp, fm_X_mo(is))
 
       END DO
       CALL ri_rpa_post_hfx(qs_env)
@@ -419,8 +418,7 @@ CONTAINS
    SUBROUTINE xc_contribution(qs_env, fm_XC_ao, fm_XC_ao_mo, fm_XC_mo, mo_coeff, dimen)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_XC_ao, fm_XC_ao_mo
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_XC_mo
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_XC_mo, mo_coeff
       INTEGER, INTENT(IN)                                :: dimen
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'xc_contribution'
@@ -458,11 +456,11 @@ CONTAINS
 
          ! First index
          CALL parallel_gemm('T', 'N', dimen, dimen, dimen, 1.0_dp, &
-                            mo_coeff(i)%matrix, fm_XC_ao, 0.0_dp, fm_XC_ao_mo)
+                            mo_coeff(i), fm_XC_ao, 0.0_dp, fm_XC_ao_mo)
 
          ! Second index
          CALL parallel_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
-                            fm_XC_ao_mo, mo_coeff(i)%matrix, 1.0_dp, fm_XC_mo(i))
+                            fm_XC_ao_mo, mo_coeff(i), 1.0_dp, fm_XC_mo(i))
 
       END DO
 

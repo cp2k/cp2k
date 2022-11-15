@@ -37,9 +37,14 @@ MODULE rpa_gw
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_copy_general, cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_p_type, &
-        cp_fm_release, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
+                                              cp_fm_create,&
+                                              cp_fm_get_diag,&
+                                              cp_fm_get_info,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_filter, &
@@ -169,7 +174,7 @@ CONTAINS
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: fm_mat_W
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       TYPE(dbt_type)                                     :: t_3c_overl_int_ao_mo
       TYPE(hfx_compression_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: t_3c_O_mo_compressed
@@ -207,7 +212,7 @@ CONTAINS
                                       t_3c_overl_int_ao_mo, t_3c_O_mo_compressed(1), t_3c_O_mo_ind(1)%array, &
                                       t_3c_overl_int_gw_RI(1), t_3c_overl_int_gw_AO(1), &
                                       starts_array_mc, ends_array_mc, &
-                                      mo_coeff(1)%matrix, matrix_s, &
+                                      mo_coeff(1), matrix_s, &
                                       gw_corr_lev_occ(1), gw_corr_lev_virt(1), homo(1), nmo, &
                                       para_env, &
                                       do_ic_model, &
@@ -221,7 +226,7 @@ CONTAINS
                                          t_3c_overl_int_ao_mo_beta, t_3c_O_mo_compressed(2), t_3c_O_mo_ind(2)%array, &
                                          t_3c_overl_int_gw_RI(2), t_3c_overl_int_gw_AO(2), &
                                          starts_array_mc, ends_array_mc, &
-                                         mo_coeff(2)%matrix, matrix_s, &
+                                         mo_coeff(2), matrix_s, &
                                          gw_corr_lev_occ(2), gw_corr_lev_virt(2), homo(2), nmo, &
                                          para_env, &
                                          do_ic_model, &
@@ -926,7 +931,7 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_W
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q, fm_mat_work
       INTEGER, INTENT(IN)                                :: dimen_RI
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: fm_mat_L
       INTEGER, INTENT(IN)                                :: num_integ_points
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: tj, tau_tj
@@ -969,10 +974,10 @@ CONTAINS
       END DO
 
       ! multiply with L from the left and the right to get the screened Coulomb interaction
-      CALL parallel_gemm('T', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_L(1, 1)%matrix, fm_mat_Q, &
+      CALL parallel_gemm('T', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_L(1, 1), fm_mat_Q, &
                          0.0_dp, fm_mat_work)
 
-      CALL parallel_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_work, fm_mat_L(1, 1)%matrix, &
+      CALL parallel_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_work, fm_mat_L(1, 1), &
                          0.0_dp, fm_mat_Q)
 
       ! Fourier transform from w to t

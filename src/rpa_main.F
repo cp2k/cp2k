@@ -30,7 +30,6 @@ MODULE rpa_main
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -196,9 +195,9 @@ CONTAINS
       TYPE(group_dist_d1_type), DIMENSION(:), &
          INTENT(INOUT)                                   :: gd_B_virtual
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: gd_B_all, gd_B_occ_bse, gd_B_virt_bse
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_PQ
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, &
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_L_RI_metric, &
                                                             fm_matrix_Sinv_Vtrunc_Sinv
       TYPE(kpoint_type), POINTER                         :: kpoints
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
@@ -1080,8 +1079,8 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: my_do_gw, do_bse
       INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_occ, gw_corr_lev_virt
       LOGICAL, INTENT(IN)                                :: do_minimax_quad, do_im_time
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, &
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_L_RI_metric, &
                                                             fm_matrix_Sinv_Vtrunc_Sinv
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_munu
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_P_global
@@ -1133,12 +1132,12 @@ CONTAINS
          B_bar_ijQ_bse_local, B_iaQ_bse_local, Eigenval_last, Eigenval_scf, vec_Sigma_x_gw
       TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:, :)  :: cfm_mat_W_kp_tau
       TYPE(cp_cfm_type)                                  :: cfm_mat_Q
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L, fm_mat_SiVtrSi
       TYPE(cp_fm_type) :: fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, fm_mat_RI_global_work, &
          fm_mat_work, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, &
          fm_scaled_dm_virt_tau
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_S_gw_work, fm_mat_W, &
                                                             fm_mo_coeff_occ, fm_mo_coeff_virt
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_mat_L, fm_mat_SiVtrSi
       TYPE(dbcsr_p_type)                                 :: mat_dm, mat_L, mat_M_P_munu_occ, &
                                                             mat_M_P_munu_virt, mat_P_global_copy, &
                                                             mat_SinvVSinv
@@ -1456,7 +1455,7 @@ CONTAINS
                   DO ispin = 1, SIZE(mat_P_omega, 3)
                      CALL contract_P_omega_with_mat_L(mat_P_omega(jquad, 1, ispin)%matrix, mat_L%matrix, mat_work, &
                                                       eps_filter_im_time, fm_mat_work, dimen_RI, dimen_RI_red, &
-                                                      fm_mat_L(1, 1)%matrix, fm_mat_Q(ispin))
+                                                      fm_mat_L(1, 1), fm_mat_Q(ispin))
                   END DO
                END IF
 
@@ -1561,7 +1560,7 @@ CONTAINS
                                               fermi_level_offset, &
                                               omega, Eigenval(:, 1, :), delta_corr, vec_omega_fit_gw, vec_W_gw, wj, &
                                               fm_mat_Q(1), fm_mat_Q_static_bse, fm_mat_R_gw, fm_mat_S_gw, &
-                                              fm_mat_S_gw_work, mo_coeff(1)%matrix, para_env, &
+                                              fm_mat_S_gw_work, mo_coeff(1), para_env, &
                                               para_env_RPA, matrix_berry_im_mo_mo, matrix_berry_re_mo_mo, &
                                               kpoints, qs_env, mp2_env)
                END IF
@@ -1671,7 +1670,7 @@ CONTAINS
                                      weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, &
                                      fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_mo_coeff_occ, &
                                      fm_mo_coeff_virt, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
-                                     mo_coeff(1)%matrix, fm_mat_W, para_env, para_env_RPA, mat_dm, mat_SinvVSinv, &
+                                     mo_coeff(1), fm_mat_W, para_env, para_env_RPA, mat_dm, mat_SinvVSinv, &
                                      t_3c_O, t_3c_M, t_3c_overl_int_ao_mo, t_3c_O_compressed, t_3c_O_mo_compressed, &
                                      t_3c_O_ind, t_3c_O_mo_ind, &
                                      t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &

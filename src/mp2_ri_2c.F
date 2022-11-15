@@ -43,9 +43,14 @@ MODULE mp2_ri_2c
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_copy_general, cp_fm_create, cp_fm_get_info, cp_fm_indxg2p, cp_fm_p_type, &
-        cp_fm_release, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
+                                              cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_indxg2p,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -172,7 +177,7 @@ CONTAINS
       TYPE(group_dist_d1_type), INTENT(OUT)              :: gd_array
       LOGICAL, INTENT(IN)                                :: calc_PQ_cond_num, do_svd
       TYPE(libint_potential_type)                        :: potential, ri_metric
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, &
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_L_RI_metric, &
                                                             fm_matrix_Sinv_Vtrunc_Sinv
       LOGICAL, INTENT(IN)                                :: do_im_time, do_kpoints
       REAL(KIND=dp), INTENT(IN)                          :: mp2_eps_pgf_orb_S
@@ -187,9 +192,9 @@ CONTAINS
       INTEGER                                            :: handle, i_real_imag, i_size, j_size, &
                                                             num_small_eigen
       REAL(KIND=dp)                                      :: cond_num, eps_pgf_orb_old
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_kpoints
       TYPE(cp_fm_type)                                   :: fm_matrix_L, fm_matrix_S_inv_work, &
                                                             fm_matrix_V
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_L_kpoints
       TYPE(cp_para_env_type), POINTER                    :: para_env_L
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(libint_potential_type)                        :: trunc_coulomb
@@ -239,11 +244,10 @@ CONTAINS
             CALL release_group_dist(gd_array)
 
             ALLOCATE (fm_matrix_L_RI_metric(1, 1))
-            ALLOCATE (fm_matrix_L_RI_metric(1, 1)%matrix)
 
             ! Calculate matrix of RI operator (for overlap metric: S), store it in fm_matrix_L_RI_metric
             CALL compute_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
-                                      fm_matrix_L_RI_metric(1, 1)%matrix, ngroup, color_sub, dimen_RI, &
+                                      fm_matrix_L_RI_metric(1, 1), ngroup, color_sub, dimen_RI, &
                                       my_group_L_size, my_group_L_start, my_group_L_end, &
                                       gd_array, calc_PQ_cond_num, cond_num, &
                                       num_small_eigen, ri_metric, sab_orb_sub, &
@@ -277,26 +281,26 @@ CONTAINS
             CALL decomp_mat_L(fm_matrix_L, do_svd, num_small_eigen, cond_num, .FALSE., gd_array, ngroup, &
                               dimen_RI, dimen_RI_red, para_env)
 
-            CALL decomp_mat_L(fm_matrix_L_RI_metric(1, 1)%matrix, .FALSE., num_small_eigen, cond_num, .TRUE., &
+            CALL decomp_mat_L(fm_matrix_L_RI_metric(1, 1), .FALSE., num_small_eigen, cond_num, .TRUE., &
                               gd_array, ngroup, dimen_RI, dimen_RI_red, para_env)
 
-            CALL cp_fm_create(fm_matrix_S_inv_work, fm_matrix_L_RI_metric(1, 1)%matrix%matrix_struct)
+            CALL cp_fm_create(fm_matrix_S_inv_work, fm_matrix_L_RI_metric(1, 1)%matrix_struct)
             CALL cp_fm_set_all(fm_matrix_S_inv_work, 0.0_dp)
 
-            CALL parallel_gemm('N', 'T', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_matrix_L_RI_metric(1, 1)%matrix, &
-                               fm_matrix_L_RI_metric(1, 1)%matrix, 0.0_dp, fm_matrix_S_inv_work)
+            CALL parallel_gemm('N', 'T', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_matrix_L_RI_metric(1, 1), &
+                               fm_matrix_L_RI_metric(1, 1), 0.0_dp, fm_matrix_S_inv_work)
 
             IF (do_svd) THEN
                ! We have to reset the size of fm_matrix_L_RI_metric
-               CALL reset_size_matrix(fm_matrix_L_RI_metric(1, 1)%matrix, dimen_RI_red, fm_matrix_L%matrix_struct)
+               CALL reset_size_matrix(fm_matrix_L_RI_metric(1, 1), dimen_RI_red, fm_matrix_L%matrix_struct)
 
                ! L (=fm_matrix_L_RI_metric) = S^(-1)*chol_dec(V)
                CALL parallel_gemm('T', 'N', dimen_RI, dimen_RI_red, dimen_RI, 1.0_dp, fm_matrix_S_inv_work, fm_matrix_L, &
-                                  0.0_dp, fm_matrix_L_RI_metric(1, 1)%matrix)
+                                  0.0_dp, fm_matrix_L_RI_metric(1, 1))
             ELSE
                ! L (=fm_matrix_L_RI_metric) = S^(-1)*chol_dec(V)
                CALL parallel_gemm('T', 'T', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_matrix_S_inv_work, fm_matrix_L, &
-                                  0.0_dp, fm_matrix_L_RI_metric(1, 1)%matrix)
+                                  0.0_dp, fm_matrix_L_RI_metric(1, 1))
             END IF
 
             ! clean the S_inv matrix
@@ -305,11 +309,10 @@ CONTAINS
 
          IF (.NOT. do_im_time) THEN
 
-            CALL cp_fm_to_fm(fm_matrix_L_RI_metric(1, 1)%matrix, fm_matrix_L)
+            CALL cp_fm_to_fm(fm_matrix_L_RI_metric(1, 1), fm_matrix_L)
             DO j_size = 1, SIZE(fm_matrix_L_RI_metric, 1)
             DO i_size = 1, SIZE(fm_matrix_L_RI_metric, 2)
-               CALL cp_fm_release(fm_matrix_L_RI_metric(i_size, j_size)%matrix)
-               DEALLOCATE (fm_matrix_L_RI_metric(i_size, j_size)%matrix)
+               CALL cp_fm_release(fm_matrix_L_RI_metric(i_size, j_size))
             END DO
             END DO
             DEALLOCATE (fm_matrix_L_RI_metric)
@@ -322,8 +325,7 @@ CONTAINS
 
          DO i_size = 1, SIZE(fm_matrix_L_kpoints, 1)
          DO i_real_imag = 1, SIZE(fm_matrix_L_kpoints, 2)
-            CALL cp_fm_release(fm_matrix_L_kpoints(i_size, i_real_imag)%matrix)
-            DEALLOCATE (fm_matrix_L_kpoints(i_size, i_real_imag)%matrix)
+            CALL cp_fm_release(fm_matrix_L_kpoints(i_size, i_real_imag))
          END DO
          END DO
 
@@ -418,7 +420,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE compute_V_by_lattice_sum(qs_env, fm_matrix_L_kpoints, fm_matrix_L_RI_metric, kpoints)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_kpoints, &
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_L_kpoints, &
                                                             fm_matrix_L_RI_metric
       TYPE(kpoint_type), POINTER                         :: kpoints
 
@@ -454,14 +456,12 @@ CONTAINS
 
       nkp = kpoints%nkp
 
-      NULLIFY (fm_matrix_L_kpoints)
       ALLOCATE (fm_matrix_L_kpoints(nkp, 2))
       DO ikp = 1, nkp
          DO i_real_imag = 1, 2
-            ALLOCATE (fm_matrix_L_kpoints(ikp, i_real_imag)%matrix)
-            CALL cp_fm_create(fm_matrix_L_kpoints(ikp, i_real_imag)%matrix, &
-                              fm_matrix_L_RI_metric(1, i_real_imag)%matrix%matrix_struct)
-            CALL cp_fm_set_all(fm_matrix_L_kpoints(ikp, i_real_imag)%matrix, 0.0_dp)
+            CALL cp_fm_create(fm_matrix_L_kpoints(ikp, i_real_imag), &
+                              fm_matrix_L_RI_metric(1, i_real_imag)%matrix_struct)
+            CALL cp_fm_set_all(fm_matrix_L_kpoints(ikp, i_real_imag), 0.0_dp)
          END DO
       END DO
 
@@ -501,8 +501,8 @@ CONTAINS
 
       DO ikp = 1, nkp
 
-         CALL copy_dbcsr_to_fm(matrix_v_RI_kp(ikp, 1)%matrix, fm_matrix_L_kpoints(ikp, 1)%matrix)
-         CALL copy_dbcsr_to_fm(matrix_v_RI_kp(ikp, 2)%matrix, fm_matrix_L_kpoints(ikp, 2)%matrix)
+         CALL copy_dbcsr_to_fm(matrix_v_RI_kp(ikp, 1)%matrix, fm_matrix_L_kpoints(ikp, 1))
+         CALL copy_dbcsr_to_fm(matrix_v_RI_kp(ikp, 2)%matrix, fm_matrix_L_kpoints(ikp, 2))
 
       END DO
 
@@ -561,7 +561,7 @@ CONTAINS
                                  ri_metric, do_kpoints, kpoints, put_mat_KS_env)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_L_RI_metric
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_L
       INTEGER, INTENT(IN)                                :: dimen_RI
       TYPE(libint_potential_type)                        :: ri_metric
@@ -671,9 +671,8 @@ CONTAINS
       ALLOCATE (fm_matrix_L_RI_metric(nkp, n_real_imag))
       DO i_size = 1, nkp
          DO i_real_imag = 1, n_real_imag
-            ALLOCATE (fm_matrix_L_RI_metric(i_size, i_real_imag)%matrix)
-            CALL cp_fm_create(fm_matrix_L_RI_metric(i_size, i_real_imag)%matrix, fm_matrix_L%matrix_struct)
-            CALL cp_fm_set_all(fm_matrix_L_RI_metric(i_size, i_real_imag)%matrix, 0.0_dp)
+            CALL cp_fm_create(fm_matrix_L_RI_metric(i_size, i_real_imag), fm_matrix_L%matrix_struct)
+            CALL cp_fm_set_all(fm_matrix_L_RI_metric(i_size, i_real_imag), 0.0_dp)
          END DO
       END DO
 
@@ -710,14 +709,14 @@ CONTAINS
 
             CALL cp_fm_set_all(fm_matrix_S_global, 0.0_dp)
             CALL copy_dbcsr_to_fm(tmpmat, fm_matrix_S_global)
-            CALL cp_fm_copy_general(fm_matrix_S_global, fm_matrix_L_RI_metric(ikp, 1)%matrix, para_env)
+            CALL cp_fm_copy_general(fm_matrix_S_global, fm_matrix_L_RI_metric(ikp, 1), para_env)
 
             CALL dbcsr_set(tmpmat, 0.0_dp)
             CALL dbcsr_desymmetrize(cmatrix, tmpmat)
 
             CALL cp_fm_set_all(fm_matrix_S_global, 0.0_dp)
             CALL copy_dbcsr_to_fm(tmpmat, fm_matrix_S_global)
-            CALL cp_fm_copy_general(fm_matrix_S_global, fm_matrix_L_RI_metric(ikp, 2)%matrix, para_env)
+            CALL cp_fm_copy_general(fm_matrix_S_global, fm_matrix_L_RI_metric(ikp, 2), para_env)
 
          END DO
 
@@ -736,7 +735,7 @@ CONTAINS
 
          CALL copy_dbcsr_to_fm(matrix_s_RI_aux_desymm, fm_matrix_S_global)
 
-         CALL cp_fm_copy_general(fm_matrix_S_global, fm_matrix_L_RI_metric(1, 1)%matrix, para_env)
+         CALL cp_fm_copy_general(fm_matrix_S_global, fm_matrix_L_RI_metric(1, 1), para_env)
 
          CALL dbcsr_deallocate_matrix(matrix_s_RI_aux_desymm)
 
@@ -1461,7 +1460,7 @@ CONTAINS
                                                          fm_matrix_Sinv_Vtrunc_Sinv, dimen_RI, kpoints, &
                                                          eps_eigval_S)
 
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, &
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: fm_matrix_L_RI_metric, &
                                                             fm_matrix_L_kpoints, &
                                                             fm_matrix_Sinv_Vtrunc_Sinv
       INTEGER, INTENT(IN)                                :: dimen_RI
@@ -1480,7 +1479,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL cp_fm_get_info(fm_matrix_L_RI_metric(1, 1)%matrix, matrix_struct=matrix_struct)
+      CALL cp_fm_get_info(fm_matrix_L_RI_metric(1, 1), matrix_struct=matrix_struct)
 
       CALL cp_cfm_create(cfm_matrix_S_tmp, matrix_struct)
       CALL cp_cfm_create(cfm_matrix_S_inv_tmp, matrix_struct)
@@ -1492,14 +1491,14 @@ CONTAINS
 
       DO ikp = 1, nkp
 
-         CALL cp_cfm_scale_and_add_fm(czero, cfm_matrix_S_tmp, cone, fm_matrix_L_RI_metric(ikp, 1)%matrix)
-         CALL cp_cfm_scale_and_add_fm(cone, cfm_matrix_S_tmp, ione, fm_matrix_L_RI_metric(ikp, 2)%matrix)
+         CALL cp_cfm_scale_and_add_fm(czero, cfm_matrix_S_tmp, cone, fm_matrix_L_RI_metric(ikp, 1))
+         CALL cp_cfm_scale_and_add_fm(cone, cfm_matrix_S_tmp, ione, fm_matrix_L_RI_metric(ikp, 2))
 
-         CALL cp_cfm_scale_and_add_fm(czero, cfm_matrix_L_tmp, cone, fm_matrix_L_kpoints(ikp, 1)%matrix)
-         CALL cp_cfm_scale_and_add_fm(cone, cfm_matrix_L_tmp, ione, fm_matrix_L_kpoints(ikp, 2)%matrix)
+         CALL cp_cfm_scale_and_add_fm(czero, cfm_matrix_L_tmp, cone, fm_matrix_L_kpoints(ikp, 1))
+         CALL cp_cfm_scale_and_add_fm(cone, cfm_matrix_L_tmp, ione, fm_matrix_L_kpoints(ikp, 2))
 
-         CALL cp_cfm_scale_and_add_fm(czero, cfm_matrix_Vtrunc_tmp, cone, fm_matrix_Sinv_Vtrunc_Sinv(ikp, 1)%matrix)
-         CALL cp_cfm_scale_and_add_fm(cone, cfm_matrix_Vtrunc_tmp, ione, fm_matrix_Sinv_Vtrunc_Sinv(ikp, 2)%matrix)
+         CALL cp_cfm_scale_and_add_fm(czero, cfm_matrix_Vtrunc_tmp, cone, fm_matrix_Sinv_Vtrunc_Sinv(ikp, 1))
+         CALL cp_cfm_scale_and_add_fm(cone, cfm_matrix_Vtrunc_tmp, ione, fm_matrix_Sinv_Vtrunc_Sinv(ikp, 2))
 
          CALL cp_cfm_matrix_exponential(cfm_matrix_S_tmp, cfm_matrix_S_inv_tmp, threshold=eps_eigval_S, exponent=-0.5_dp)
 
@@ -1514,7 +1513,7 @@ CONTAINS
                             czero, cfm_matrix_K_tmp)
 
          ! move
-         CALL cp_cfm_to_fm(cfm_matrix_K_tmp, fm_matrix_L_RI_metric(ikp, 1)%matrix, fm_matrix_L_RI_metric(ikp, 2)%matrix)
+         CALL cp_cfm_to_fm(cfm_matrix_K_tmp, fm_matrix_L_RI_metric(ikp, 1), fm_matrix_L_RI_metric(ikp, 2))
 
          ! S^(-1)*V_trunc
          CALL parallel_gemm("N", "C", dimen_RI, dimen_RI, dimen_RI, cone, cfm_matrix_Vtrunc_tmp, cfm_matrix_S_inv_tmp, &
@@ -1525,8 +1524,8 @@ CONTAINS
                             czero, cfm_matrix_Vtrunc_tmp)
 
          ! move
-         CALL cp_cfm_to_fm(cfm_matrix_Vtrunc_tmp, fm_matrix_Sinv_Vtrunc_Sinv(ikp, 1)%matrix, &
-                           fm_matrix_Sinv_Vtrunc_Sinv(ikp, 2)%matrix)
+         CALL cp_cfm_to_fm(cfm_matrix_Vtrunc_tmp, fm_matrix_Sinv_Vtrunc_Sinv(ikp, 1), &
+                           fm_matrix_Sinv_Vtrunc_Sinv(ikp, 2))
 
       END DO
 

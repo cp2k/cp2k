@@ -23,8 +23,8 @@ MODULE mp2_ri_grad
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_indxl2g, cp_fm_p_type, &
-        cp_fm_release, cp_fm_set_all, cp_fm_to_fm_submat, cp_fm_type
+        cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_indxl2g, cp_fm_release, &
+        cp_fm_set_all, cp_fm_to_fm_submat, cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -122,7 +122,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_coeff
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       INTEGER, INTENT(IN)                                :: nmo
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
       INTEGER, INTENT(IN)                                :: dimen_RI
@@ -373,7 +373,7 @@ CONTAINS
                                         G_P_ia(:, L_counter), matrix_P_inu, &
                                         mo_coeff_v, mo_coeff_o, eps_filter)
 
-            CALL integrate_potential_forces_2c(rho_r, LLL, mo_coeff(1)%matrix, rho_g, atomic_kind_set, &
+            CALL integrate_potential_forces_2c(rho_r, LLL, mo_coeff(1), rho_g, atomic_kind_set, &
                                                qs_kind_set, particle_set, cell, pw_env_sub, poisson_env, &
                                                pot_g, mp2_env%potential_parameter, use_virial, &
                                                rho_g_copy, dvg, kind_of, atom_of_kind, G_PQ_local(:, L_counter), &
@@ -381,7 +381,7 @@ CONTAINS
 
             IF (.NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) THEN
 
-               CALL integrate_potential_forces_2c(rho_r, LLL, mo_coeff(1)%matrix, rho_g, atomic_kind_set, &
+               CALL integrate_potential_forces_2c(rho_r, LLL, mo_coeff(1), rho_g, atomic_kind_set, &
                                                   qs_kind_set, particle_set, cell, pw_env_sub, poisson_env, &
                                                   pot_g, mp2_env%ri_metric, use_virial, &
                                                   rho_g_copy, dvg, kind_of, atom_of_kind, G_PQ_local_2(:, L_counter), &
@@ -486,7 +486,7 @@ CONTAINS
       IF (alpha_beta) factor = 0.50_dp
 
       DO ispin = 1, nspins
-         CALL create_W_P(qs_env, mp2_env, mo_coeff(ispin)%matrix, homo(ispin), virtual(ispin), dimen, para_env, &
+         CALL create_W_P(qs_env, mp2_env, mo_coeff(ispin), homo(ispin), virtual(ispin), dimen, para_env, &
                          para_env_sub, Eigenval(:, ispin), L1_mu_i(ispin), L2_nu_a(ispin), &
                          factor, ispin)
       END DO

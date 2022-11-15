@@ -32,7 +32,6 @@ MODULE mp2_cphf
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm_submat,&
@@ -168,8 +167,7 @@ CONTAINS
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       TYPE(dft_control_type), INTENT(IN), POINTER        :: dft_control
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN), &
-         POINTER                                         :: mo_coeff
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       INTEGER, INTENT(IN)                                :: nmo
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
@@ -255,7 +253,7 @@ CONTAINS
          CALL cp_fm_create(mo_coeff_o(ispin), fm_struct_tmp, name="mo_coeff_o")
          CALL cp_fm_struct_release(fm_struct_tmp)
          CALL cp_fm_set_all(mo_coeff_o(ispin), 0.0_dp)
-         CALL cp_fm_to_fm_submat(msource=mo_coeff(ispin)%matrix, mtarget=mo_coeff_o(ispin), &
+         CALL cp_fm_to_fm_submat(msource=mo_coeff(ispin), mtarget=mo_coeff_o(ispin), &
                                  nrow=dimen, ncol=homo(ispin), &
                                  s_firstrow=1, s_firstcol=1, &
                                  t_firstrow=1, t_firstcol=1)
@@ -266,7 +264,7 @@ CONTAINS
          CALL cp_fm_create(mo_coeff_v(ispin), fm_struct_tmp, name="mo_coeff_v")
          CALL cp_fm_struct_release(fm_struct_tmp)
          CALL cp_fm_set_all(mo_coeff_v(ispin), 0.0_dp)
-         CALL cp_fm_to_fm_submat(msource=mo_coeff(ispin)%matrix, mtarget=mo_coeff_v(ispin), &
+         CALL cp_fm_to_fm_submat(msource=mo_coeff(ispin), mtarget=mo_coeff_v(ispin), &
                                  nrow=dimen, ncol=virtual(ispin), &
                                  s_firstrow=1, s_firstcol=homo(ispin) + 1, &
                                  t_firstrow=1, t_firstcol=1)
@@ -474,9 +472,9 @@ CONTAINS
       ! backtnsform the collected parts of the energy-weighted density matrix into AO basis
       DO ispin = 1, nspins
          CALL parallel_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
-                            mo_coeff(ispin)%matrix, W_mo(ispin), 0.0_dp, fm_back)
+                            mo_coeff(ispin), W_mo(ispin), 0.0_dp, fm_back)
          CALL cp_fm_release(W_mo(ispin))
-         CALL cp_dbcsr_plus_fm_fm_t(p_env%w1(1)%matrix, fm_back, mo_coeff(ispin)%matrix, dimen, 1.0_dp, .TRUE., 1)
+         CALL cp_dbcsr_plus_fm_fm_t(p_env%w1(1)%matrix, fm_back, mo_coeff(ispin), dimen, 1.0_dp, .TRUE., 1)
       END DO
       DEALLOCATE (W_mo)
 
@@ -486,9 +484,9 @@ CONTAINS
          CALL dbcsr_set(p_env%p1(ispin)%matrix, 0.0_dp)
 
          CALL parallel_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
-                            mo_coeff(ispin)%matrix, P_mo(ispin), 0.0_dp, fm_back)
+                            mo_coeff(ispin), P_mo(ispin), 0.0_dp, fm_back)
          CALL cp_fm_release(P_mo(ispin))
-         CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff(ispin)%matrix, dimen, 1.0_dp, .TRUE.)
+         CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff(ispin), dimen, 1.0_dp, .TRUE.)
 
          CALL dbcsr_copy(rho1_ao(ispin)%matrix, p_env%p1(ispin)%matrix)
       END DO
