@@ -3,7 +3,7 @@
 # author: Ole Schuett
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 import argparse
 import io
 
@@ -28,7 +28,8 @@ def main() -> None:
 
     with OutputFile(f"Dockerfile.test_openmpi-psmp", args.check) as f:
         # Also testing --with-gcc=install here, see github.com/cp2k/cp2k/issues/2062 .
-        f.write(toolchain_full(mpi_mode="openmpi", gcc="install") + regtest("psmp"))
+        f.write(toolchain_full(mpi_mode="openmpi", with_gcc="install"))
+        f.write(regtest("psmp"))
 
     with OutputFile(f"Dockerfile.test_intel-psmp", args.check) as f:
         f.write(toolchain_intel() + regtest("psmp"))
@@ -398,13 +399,11 @@ RUN echo "\nSummary: Compilation works fine.\nStatus: OK\n"
 
 # ======================================================================================
 def toolchain_full(
-    base_image: str = "ubuntu:22.04",
-    mpi_mode: str = "mpich",
-    gcc: str = "system",
-    target_cpu: str = "native",
+    base_image: str = "ubuntu:22.04", with_gcc: str = "system", **kwargs: str
 ) -> str:
-    args = dict(install_all="", mpi_mode=mpi_mode, target_cpu=target_cpu, with_gcc=gcc)
-    return f"\nFROM {base_image}\n\n" + install_toolchain(base_image=base_image, **args)
+    return f"\nFROM {base_image}\n\n" + install_toolchain(
+        base_image=base_image, install_all="", with_gcc=with_gcc, **kwargs
+    )
 
 
 # ======================================================================================
@@ -625,7 +624,7 @@ RUN hipconfig
 
 
 # ======================================================================================
-def install_toolchain(base_image: str, **kwargs: Optional[str]) -> str:
+def install_toolchain(base_image: str, **kwargs: str) -> str:
     install_args = []
     for k, v in kwargs.items():
         k = k.replace("_", "-")
