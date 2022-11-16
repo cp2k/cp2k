@@ -141,8 +141,8 @@ case "${with_spfft}" in
     fi
     SPFFT_ROOT="${pkg_install_dir}"
     SPFFT_CFLAGS="-I'${pkg_install_dir}/include'"
-    SPFFT_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
-    SPFFT_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath='${pkg_install_dir}/lib/cuda'"
+    SPFFT_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
+    SPFFT_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath,'${pkg_install_dir}/lib/cuda'"
     ;;
   __SYSTEM__)
     echo "==================== Finding spfft from system paths ===================="
@@ -164,7 +164,7 @@ case "${with_spfft}" in
     check_dir "${SPFFT_LIBDIR}"
     check_dir "${pkg_install_dir}/include"
     SPFFT_CFLAGS="-I'${pkg_install_dir}/include'"
-    SPFFT_LDFLAGS="-L'${SPFFT_LIBDIR}' -Wl,-rpath='${SPFFT_LIBDIR}'"
+    SPFFT_LDFLAGS="-L'${SPFFT_LIBDIR}' -Wl,-rpath,'${SPFFT_LIBDIR}'"
     ;;
 esac
 if [ "$with_spfft" != "__DONTUSE__" ]; then

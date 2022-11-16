@@ -60,7 +60,7 @@ case "${with_ptscotch}" in
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage5/$(basename ${SCRIPT_NAME})"
     fi
     SCOTCH_CFLAGS="-I'${pkg_install_dir}/include'"
-    SCOTCH_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+    SCOTCH_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding PT-Scotch from system paths ===================="
@@ -82,7 +82,7 @@ case "${with_ptscotch}" in
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
     SCOTCH_CFLAGS="-I'${pkg_install_dir}/include'"
-    SCOTCH_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+    SCOTCH_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
 esac
 if [ "$with_ptscotch" != "__DONTUSE__" ]; then

@@ -135,7 +135,7 @@ case "${with_quip}" in
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage6/$(basename ${SCRIPT_NAME})"
     fi
     QUIP_CFLAGS="-I'${pkg_install_dir}/include'"
-    QUIP_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+    QUIP_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding Quip_DIST from system paths ===================="
@@ -156,7 +156,7 @@ case "${with_quip}" in
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
     QUIP_CFLAGS="-I'${pkg_install_dir}/include'"
-    QUIP_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+    QUIP_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
 esac
 if [ "${with_quip}" != "__DONTUSE__" ]; then

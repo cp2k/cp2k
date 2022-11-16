@@ -92,7 +92,7 @@ case "$with_pexsi" in
     fi
     PEXSI_CFLAGS="-I'${pkg_install_dir}/include'"
 
-    PEXSI_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+    PEXSI_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding Pexsi_DIST from system paths ===================="

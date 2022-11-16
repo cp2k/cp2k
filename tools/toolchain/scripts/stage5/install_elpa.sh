@@ -139,7 +139,7 @@ case "$with_elpa" in
     fi
     [ "$enable_openmp" != "yes" ] && elpa_dir_openmp=""
     ELPA_CFLAGS="-I'${pkg_install_dir}/IF_CUDA(nvidia|cpu)/include/elpa${elpa_dir_openmp}-${elpa_ver}/modules' -I'${pkg_install_dir}/IF_CUDA(nvidia|cpu)/include/elpa${elpa_dir_openmp}-${elpa_ver}/elpa'"
-    ELPA_LDFLAGS="-L'${pkg_install_dir}/IF_CUDA(nvidia|cpu)/lib' -Wl,-rpath='${pkg_install_dir}/IF_CUDA(nvidia|cpu)/lib'"
+    ELPA_LDFLAGS="-L'${pkg_install_dir}/IF_CUDA(nvidia|cpu)/lib' -Wl,-rpath,'${pkg_install_dir}/IF_CUDA(nvidia|cpu)/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding ELPA from system paths ===================="
@@ -173,7 +173,7 @@ case "$with_elpa" in
       echo "Cannot find elpa_openmp-* from path $user_include_path"
       exit 1
     fi
-    ELPA_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+    ELPA_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
 esac
 if [ "$with_elpa" != "__DONTUSE__" ]; then

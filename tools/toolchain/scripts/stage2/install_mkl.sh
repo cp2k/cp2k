@@ -95,7 +95,7 @@ if [ "${with_mkl}" != "__DONTUSE__" ]; then
   esac
 
   # set the correct lib flags from MLK link adviser
-  MKL_LIBS="-L${mkl_lib_dir} -Wl,-rpath=${mkl_lib_dir} ${mkl_scalapack_lib}"
+  MKL_LIBS="-L${mkl_lib_dir} -Wl,-rpath,${mkl_lib_dir} ${mkl_scalapack_lib}"
   MKL_LIBS+=" -Wl,--start-group -lmkl_gf_lp64 -lmkl_sequential -lmkl_core"
   MKL_LIBS+=" ${mkl_blacs_lib} -Wl,--end-group -lpthread -lm -ldl"
   # setup_mkl disables using separate FFTW library (see below)

@@ -126,11 +126,11 @@ case "$with_cosma" in
 
     # Check if COSMA is compiled with 64bits and set up COSMA_LIBDIR accordingly.
     COSMA_LIBDIR="${pkg_install_dir}/lib"
-    COSMA_LDFLAGS="-L'${COSMA_LIBDIR}' -Wl,-rpath='${COSMA_LIBDIR}'"
+    COSMA_LDFLAGS="-L'${COSMA_LIBDIR}' -Wl,-rpath,'${COSMA_LIBDIR}'"
     COSMA_CUDA_LIBDIR="${pkg_install_dir}-cuda/lib"
-    COSMA_CUDA_LDFLAGS="-L'${COSMA_CUDA_LIBDIR}' -Wl,-rpath='${COSMA_CUDA_LIBDIR}'"
+    COSMA_CUDA_LDFLAGS="-L'${COSMA_CUDA_LIBDIR}' -Wl,-rpath,'${COSMA_CUDA_LIBDIR}'"
     COSMA_HIP_LIBDIR="${pkg_install_dir}-cuda/lib"
-    COSMA_HIP_LDFLAGS="-L'${COSMA_HIP_LIBDIR}' -Wl,-rpath='${COSMA_HIP_LIBDIR}'"
+    COSMA_HIP_LDFLAGS="-L'${COSMA_HIP_LIBDIR}' -Wl,-rpath,'${COSMA_HIP_LIBDIR}'"
     ;;
   __SYSTEM__)
     echo "==================== Finding COSMA from system paths ===================="
@@ -152,7 +152,7 @@ case "$with_cosma" in
     check_dir "$pkg_install_dir/include"
 
     COSMA_CFLAGS="-I'${pkg_install_dir}/include'"
-    COSMA_LDFLAGS="-L'${COSMA_LIBDIR}' -Wl,-rpath='${COSMA_LIBDIR}'"
+    COSMA_LDFLAGS="-L'${COSMA_LIBDIR}' -Wl,-rpath,'${COSMA_LIBDIR}'"
     ;;
 esac
 if [ "$with_cosma" != "__DONTUSE__" ]; then

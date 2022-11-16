@@ -183,11 +183,11 @@ case "$with_sirius" in
         install -d ${pkg_install_dir}/include/cuda
         install -m 644 src/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
         install -m 644 src/mod_files/*.mod ${pkg_install_dir}/include/cuda >> install.log 2>&1
-        SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath='${pkg_install_dir}/lib/cuda'"
+        SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath,'${pkg_install_dir}/lib/cuda'"
         cd ..
       fi
       SIRIUS_CFLAGS="-I'${pkg_install_dir}/include/cuda'"
-      SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+      SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})"
     fi
     ;;
@@ -243,8 +243,8 @@ case "$with_sirius" in
 esac
 if [ "$with_sirius" != "__DONTUSE__" ]; then
   SIRIUS_LIBS="-lsirius IF_CUDA(-lcusolver|)"
-  SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath='${pkg_install_dir}/lib/cuda'"
-  SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+  SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath,'${pkg_install_dir}/lib/cuda'"
+  SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
   SIRIUS_CFLAGS="-I'${pkg_install_dir}/include'"
   if [ "$with_sirius" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_sirius"
@@ -261,8 +261,8 @@ EOF
   cat << EOF >> "${BUILDDIR}/setup_sirius"
 export SIRIUS_CFLAGS="IF_CUDA(-I${pkg_install_dir}/include/cuda|-I${pkg_install_dir}/include)"
 export SIRIUS_FFLAGS="IF_CUDA(-I${pkg_install_dir}/include/cuda|-I${pkg_install_dir}/include)"
-export SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
-export SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath='${pkg_install_dir}/lib/cuda'"
+export SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
+export SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath,'${pkg_install_dir}/lib/cuda'"
 export SIRIUS_LIBS="${SIRIUS_LIBS}"
 export CP_DFLAGS="\${CP_DFLAGS} IF_MPI("-D__SIRIUS"|)"
 export CP_CFLAGS="\${CP_CFLAGS} IF_MPI("\${SIRIUS_CFLAGS}"|)"

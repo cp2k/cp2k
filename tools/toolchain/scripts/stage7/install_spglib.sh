@@ -54,7 +54,7 @@ case "$with_spglib" in
     fi
 
     SPGLIB_CFLAGS="-I${pkg_install_dir}/include"
-    SPGLIB_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+    SPGLIB_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     if [ -d "${pkg_install_dir}/lib64" ]; then
       ln -sf lib64 ${pkg_install_dir}/lib
       cd ${pkg_install_dir}
@@ -74,7 +74,7 @@ case "$with_spglib" in
     check_dir "$pkg_install_dir/lib"
     check_dir "$pkg_install_dir/include"
     SPGLIB_CFLAGS="-I'${pkg_install_dir}/include'"
-    SPGLIB_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+    SPGLIB_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
 esac
 if [ "$with_spglib" != "__DONTUSE__" ]; then

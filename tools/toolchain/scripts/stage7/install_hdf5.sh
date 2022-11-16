@@ -49,7 +49,7 @@ case "$with_hdf5" in
     fi
 
     HDF5_CFLAGS="-I${pkg_install_dir}/include"
-    HDF5_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+    HDF5_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding hdf5 from system paths ===================="

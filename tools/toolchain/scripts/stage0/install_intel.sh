@@ -49,7 +49,7 @@ case "${with_intel}" in
     F90="${FC}"
     F77="${FC}"
     INTEL_CFLAGS="-I'${pkg_install_dir}/include'"
-    INTEL_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+    INTEL_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
 esac
 if [ "${with_intel}" != "__DONTUSE__" ]; then

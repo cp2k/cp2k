@@ -75,7 +75,7 @@ case "${with_mpich}" in
     MPIF90="${MPIFC}"
     MPIF77="${MPIFC}"
     MPICH_CFLAGS="-I'${pkg_install_dir}/include'"
-    MPICH_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+    MPICH_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding MPICH from system paths ===================="
@@ -111,7 +111,7 @@ case "${with_mpich}" in
     MPIF90="${MPIFC}"
     MPIF77="${MPIFC}"
     MPICH_CFLAGS="-I'${pkg_install_dir}/include'"
-    MPICH_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+    MPICH_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
 esac
 if [ "${with_mpich}" != "__DONTUSE__" ]; then

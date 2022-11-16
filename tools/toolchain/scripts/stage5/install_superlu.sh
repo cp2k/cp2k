@@ -57,7 +57,7 @@ case "$with_superlu" in
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage5/$(basename ${SCRIPT_NAME})"
     fi
     SUPERLU_CFLAGS="-I'${pkg_install_dir}/include'"
-    SUPERLU_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+    SUPERLU_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding SuperLU_DIST from system paths ===================="
@@ -73,7 +73,7 @@ case "$with_superlu" in
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
     SUPERLU_CFLAGS="-I'${pkg_install_dir}/include'"
-    SUPERLU_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+    SUPERLU_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
 esac
 if [ "$with_superlu" != "__DONTUSE__" ]; then

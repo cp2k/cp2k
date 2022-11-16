@@ -104,7 +104,7 @@ case "${with_openblas}" in
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage2/$(basename ${SCRIPT_NAME})"
     fi
     OPENBLAS_CFLAGS="-I'${pkg_install_dir}/include'"
-    OPENBLAS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+    OPENBLAS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     OPENBLAS_ROOT="${pkg_install_dir}"
     OPENBLAS_LIBS="-lopenblas"
     ;;
@@ -127,7 +127,7 @@ case "${with_openblas}" in
     check_dir "${pkg_install_dir}/include"
     check_dir "${pkg_install_dir}/lib"
     OPENBLAS_CFLAGS="-I'${pkg_install_dir}/include'"
-    OPENBLAS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+    OPENBLAS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     OPENBLAS_LIBS="-lopenblas"
     # detect separate omp builds
     (__libdir="${pkg_install_dir}/lib" LIB_PATHS="__libdir" check_lib -lopenblas_openmp 2> /dev/null) &&
