@@ -1,6 +1,7 @@
 #!/bin/bash
 #
 # CP2K Darwin arch file for a parallel arm64 binary
+# (https://www.cp2k.org/howto:compile_on_macos)
 #
 # Tested with: GNU 12.2.0, MPICH 3.4.3,
 #              ScaLAPACK 2.1.0, OpenBLAS 0.3.21, FFTW 3.3.10, LIBINT 2.6.0,
@@ -27,8 +28,10 @@
       brew install coreutils; \
       brew install gcc; \
       brew install pkg-config; \
+      brew install wget; \
    else \
       echo "ERROR: Homebrew installation not found"; \
+      echo '  Run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'; \
       cd ../..; \
       return 1; \
    fi; \
@@ -39,8 +42,6 @@
    echo "Check the output above for error messages and consistency!"; \
    echo "If everything is OK, you can build a CP2K production binary with"; \
    echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.}"; \
-   echo "Alternatively, you can add further checks, e.g. for regression testing, with"; \
-   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} DO_CHECKS=yes"; \
    return
 
 # Set options
@@ -89,8 +90,6 @@ endif
 # Settings for regression testing
 ifeq ($(DO_CHECKS), yes)
    DFLAGS         += -D__CHECK_DIAG
-#  CFLAGS_DEBUG   := -fsanitize=address
-#  CFLAGS_DEBUG   := -fsanitize=leak
    FCFLAGS_DEBUG  := -fcheck=bounds,do,recursion,pointer
    FCFLAGS_DEBUG  += -fcheck=all,no-array-temps
    FCFLAGS_DEBUG  += -ffpe-trap=invalid,overflow,zero
@@ -289,7 +288,7 @@ ifneq ($(USE_GSL),)
    endif
 endif
 
-CFLAGS         += $(DFLAGS) $(CFLAGS_DEBUG)
+CFLAGS         += $(DFLAGS)
 
 FCFLAGS        := $(CFLAGS) $(FCFLAGS_DEBUG) $(WFLAGS)
 FCFLAGS        += -fallow-argument-mismatch
