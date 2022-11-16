@@ -1,10 +1,10 @@
 #!/bin/bash
 #
-# CP2K Darwin arch file for a serial aarch64 (arm64) binary
+# CP2K Darwin arch file for a serial arm64 binary
 #
 # Tested with: GNU 12.2.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
 #              LIBXC 6.0.0, OpenBLAS 0.3.21, SPGLIB 1.16.2
-#          on: Apple M1 (macOS Ventura 13.0.1)
+# on an Apple M1 (macOS Ventura 13.0.1)
 #
 # Usage: Source this arch file and then run make as instructed.
 #
@@ -18,23 +18,26 @@
    fi; \
    this_file=${BASH_SOURCE##*/}; \
    cd tools/toolchain; \
+   [[ -z "${target_cpu}" ]] && target_cpu="native"; \
    if $(command -v brew >/dev/null 2>&1); then \
       brew install cmake; \
+      brew install coreutils; \
       brew install gcc; \
+      brew install pkg-config; \
    else \
       echo "ERROR: Homebrew installation not found"; \
       cd ../..; \
       return 1; \
    fi; \
-   ./install_cp2k_toolchain.sh -j8 --mpi-mode=no --no-arch-files --with-cmake=system --with-gcc=system --with-libxsmm=no; \
+   ./install_cp2k_toolchain.sh --mpi-mode=no --no-arch-files --target-cpu=${target_cpu} --with-cmake=system --with-gcc=system --with-libxsmm=no; \
    source ./install/setup; \
    cd ../..; \
    echo; \
    echo "Check the output above for error messages and consistency!"; \
    echo "If everything is OK, you can build a CP2K production binary with"; \
-   echo "   make -j8 ARCH=${this_file%.*} VERSION=${this_file##*.}"; \
+   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.}"; \
    echo "Alternatively, you can add further checks, e.g. for regression testing, with"; \
-   echo "   make -j8 ARCH=${this_file%.*} VERSION=${this_file##*.} DO_CHECKS=yes"; \
+   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} DO_CHECKS=yes"; \
    return
 
 # Set options
