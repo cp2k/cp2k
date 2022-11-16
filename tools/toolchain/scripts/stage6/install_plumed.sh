@@ -65,7 +65,7 @@ case "$with_plumed" in
       make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage6/$(basename ${SCRIPT_NAME})"
     fi
-    PLUMED_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+    PLUMED_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding PLUMED from system paths ===================="
@@ -78,7 +78,7 @@ case "$with_plumed" in
     echo "==================== Linking PLUMED to user paths ===================="
     pkg_install_dir="$with_plumed"
     check_dir "${pkg_install_dir}/lib"
-    PLUMED_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+    PLUMED_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
 esac
 

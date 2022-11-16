@@ -144,6 +144,8 @@ get_nprocs() {
     echo ${NPROCS_OVERWRITE} | sed 's/^0*//'
   elif $(command -v nproc > /dev/null 2>&1); then
     echo $(nproc --all)
+  elif $(command -v sysctl > /dev/null 2>&1); then
+    echo $(sysctl -n hw.ncpu)
   else
     echo 1
   fi
@@ -298,7 +300,7 @@ add_lib_from_paths() {
     fi
     echo "Found lib directory $__found_target"
     eval __ldflags=\$"${__ldflags_name}"
-    __ldflags="${__ldflags} -L'${__found_target}' -Wl,-rpath='${__found_target}'"
+    __ldflags="${__ldflags} -L'${__found_target}' -Wl,-rpath,'${__found_target}'"
     # remove possible duplicates
     __ldflags="$(unique $__ldflags)"
     # must escape all quotes again before the last eval, as

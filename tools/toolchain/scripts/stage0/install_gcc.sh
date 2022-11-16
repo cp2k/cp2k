@@ -112,7 +112,7 @@ case "${with_gcc}" in
     F90="${FC}"
     F77="${FC}"
     GCC_CFLAGS="-I'${pkg_install_dir}/include'"
-    GCC_LDFLAGS="-L'${pkg_install_dir}/lib64' -L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib64' -Wl,-rpath='${pkg_install_dir}/lib64'"
+    GCC_LDFLAGS="-L'${pkg_install_dir}/lib64' -L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib64' -Wl,-rpath,'${pkg_install_dir}/lib64'"
     ;;
   __SYSTEM__)
     echo "==================== Finding GCC from system paths ===================="
@@ -140,7 +140,7 @@ case "${with_gcc}" in
     F90="${FC}"
     F77="${FC}"
     GCC_CFLAGS="-I'${pkg_install_dir}/include'"
-    GCC_LDFLAGS="-L'${pkg_install_dir}/lib64' -L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib64' -Wl,-rpath='${pkg_install_dir}/lib64'"
+    GCC_LDFLAGS="-L'${pkg_install_dir}/lib64' -L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib64' -Wl,-rpath,'${pkg_install_dir}/lib64'"
     ;;
 esac
 if [ "${ENABLE_TSAN}" = "__TRUE__" ]; then

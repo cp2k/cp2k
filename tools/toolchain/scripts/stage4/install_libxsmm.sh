@@ -73,7 +73,7 @@ EOF
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage4/$(basename ${SCRIPT_NAME})"
     fi
     LIBXSMM_CFLAGS="-I'${pkg_install_dir}/include'"
-    LIBXSMM_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+    LIBXSMM_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding Libxsmm from system paths ===================="
@@ -91,7 +91,7 @@ EOF
     check_dir "${pkg_install_dir}/include"
     check_dir "${pkg_install_dir}/lib"
     LIBXSMM_CFLAGS="-I'${pkg_install_dir}/include'"
-    LIBXSMM_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+    LIBXSMM_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
 esac
 if [ "$with_libxsmm" != "__DONTUSE__" ]; then

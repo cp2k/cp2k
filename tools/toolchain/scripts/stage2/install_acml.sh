@@ -39,7 +39,7 @@ case "$with_acml" in
     pkg_install_dir="$with_acml"
     check_dir "${pkg_install_dir}/lib"
     ACML_CFLAGS="-I'${pkg_install_dir}/include'"
-    ACML_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+    ACML_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
 esac
 if [ "$with_acml" != "__DONTUSE__" ]; then

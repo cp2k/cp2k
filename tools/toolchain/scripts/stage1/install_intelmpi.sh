@@ -70,7 +70,7 @@ case "${with_intelmpi}" in
     MPIF77="${MPIFC}"
     # include path is already handled by compiler wrapper scripts (can cause wrong mpi.mod with GNU Fortran)
     #INTELMPI_CFLAGS="-I'${pkg_install_dir}/include'"
-    INTELMPI_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+    INTELMPI_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
 esac
 if [ "${with_intelmpi}" != "__DONTUSE__" ]; then

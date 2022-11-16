@@ -55,7 +55,7 @@ case "${with_libvori:=__INSTALL__}" in
 
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage7/$(basename "${SCRIPT_NAME}")"
     fi
-    LIBVORI_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+    LIBVORI_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding libvori from system paths ===================="
@@ -73,7 +73,7 @@ case "${with_libvori:=__INSTALL__}" in
     [ -d "${pkg_install_dir}/lib64" ] && LIBVORI_LIBDIR="${pkg_install_dir}/lib64"
 
     check_dir "${LIBVORI_LIBDIR}"
-    LIBVORI_LDFLAGS="-L'${LIBVORI_LIBDIR}' -Wl,-rpath='${LIBVORI_LIBDIR}'"
+    LIBVORI_LDFLAGS="-L'${LIBVORI_LIBDIR}' -Wl,-rpath,'${LIBVORI_LIBDIR}'"
     ;;
 esac
 

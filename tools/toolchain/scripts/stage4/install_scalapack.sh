@@ -66,7 +66,7 @@ case "$with_scalapack" in
       popd > /dev/null
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage4/$(basename ${SCRIPT_NAME})"
     fi
-    SCALAPACK_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+    SCALAPACK_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding ScaLAPACK from system paths ===================="
@@ -79,7 +79,7 @@ case "$with_scalapack" in
     echo "==================== Linking ScaLAPACK to user paths ===================="
     pkg_install_dir="$with_scalapack"
     check_dir "${pkg_install_dir}/lib"
-    SCALAPACK_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+    SCALAPACK_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
 esac
 if [ "$with_scalapack" != "__DONTUSE__" ]; then
