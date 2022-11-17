@@ -41,7 +41,6 @@ MODULE rpa_gw_kpoints_util
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
                                               cp_fm_create,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
@@ -166,11 +165,11 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter_im_time
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_W
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: fm_mat_L
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_W
       TYPE(cp_fm_type)                                   :: fm_mat_RI_global_work
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_SinvVSinv
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_SiVtrSi
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: fm_mat_SiVtrSi
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'invert_eps_compute_W_and_Erpa_kp'
 
@@ -205,8 +204,8 @@ CONTAINS
          ! 1. remove all spurious negative eigenvalues from P(iw,k), multiplication Q(iw,k) = K^H(k)P(iw,k)K(k)
          CALL compute_Q_kp_RPA(cfm_mat_Q, &
                                mat_P_omega_kp, &
-                               fm_mat_L(ikp, 1)%matrix, &
-                               fm_mat_L(ikp, 2)%matrix, &
+                               fm_mat_L(ikp, 1), &
+                               fm_mat_L(ikp, 2), &
                                fm_mat_RI_global_work, &
                                dimen_RI, ikp, nkp, ikp_local, para_env, &
                                qs_env%mp2_env%ri_rpa_im_time%make_chi_pos_definite)
@@ -227,14 +226,14 @@ CONTAINS
                CALL get_dummys(tj_dummy, tau_tj_dummy, weights_cos_tf_w_to_t_dummy)
 
                CALL compute_Wc_real_space_tau_GW(fm_mat_W, cfm_mat_Q, &
-                                                 fm_mat_L(ikp, 1)%matrix, &
-                                                 fm_mat_L(ikp, 2)%matrix, &
+                                                 fm_mat_L(ikp, 1), &
+                                                 fm_mat_L(ikp, 2), &
                                                  dimen_RI, 1, 1, &
                                                  ikp, tj_dummy, tau_tj_dummy, weights_cos_tf_w_to_t_dummy, &
                                                  ikp_local, para_env, kpoints, qs_env, wkp_V, &
                                                  mat_SinvVSinv, do_W_and_not_V=.FALSE., &
-                                                 fm_mat_SiVtrSi_re=fm_mat_SiVtrSi(ikp, 1)%matrix, &
-                                                 fm_mat_SiVtrSi_im=fm_mat_SiVtrSi(ikp, 2)%matrix)
+                                                 fm_mat_SiVtrSi_re=fm_mat_SiVtrSi(ikp, 1), &
+                                                 fm_mat_SiVtrSi_im=fm_mat_SiVtrSi(ikp, 2))
 
                CALL release_dummys(tj_dummy, tau_tj_dummy, weights_cos_tf_w_to_t_dummy)
 
@@ -242,8 +241,8 @@ CONTAINS
             IF (do_kpoints_from_Gamma) THEN
 
                CALL compute_Wc_real_space_tau_GW(fm_mat_W, cfm_mat_Q, &
-                                                 fm_mat_L(ikp, 1)%matrix, &
-                                                 fm_mat_L(ikp, 2)%matrix, &
+                                                 fm_mat_L(ikp, 1), &
+                                                 fm_mat_L(ikp, 2), &
                                                  dimen_RI, num_integ_points, jquad, &
                                                  ikp, tj, tau_tj, weights_cos_tf_w_to_t, &
                                                  ikp_local, para_env, kpoints, qs_env, wkp_W, &
@@ -254,8 +253,8 @@ CONTAINS
             IF (do_kpoints_cubic_RPA) THEN
 
                CALL compute_Wc_kp_tau_GW(cfm_mat_W_kp_tau, cfm_mat_Q, &
-                                         fm_mat_L(ikp, 1)%matrix, &
-                                         fm_mat_L(ikp, 2)%matrix, &
+                                         fm_mat_L(ikp, 1), &
+                                         fm_mat_L(ikp, 2), &
                                          dimen_RI, num_integ_points, jquad, &
                                          ikp, tj, tau_tj, &
                                          weights_cos_tf_w_to_t)
@@ -1025,7 +1024,7 @@ CONTAINS
                                            para_env, kpoints, qs_env, wkp_W, mat_SinvVSinv, do_W_and_not_V, &
                                            fm_mat_SiVtrSi_re, fm_mat_SiVtrSi_im)
 
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_W_tau
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_W_tau
       TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_L_re, fm_mat_L_im
       INTEGER, INTENT(IN)                                :: dimen_RI, num_integ_points, jquad, ikp
@@ -1079,7 +1078,7 @@ CONTAINS
       CALL cp_cfm_scale_and_add_fm(z_zero, cfm_mat_L, z_one, fm_mat_L_re)
       CALL cp_cfm_scale_and_add_fm(z_one, cfm_mat_L, gaussi, fm_mat_L_im)
 
-      CALL cp_fm_create(fm_mat_work_global, fm_mat_W_tau(1)%matrix%matrix_struct)
+      CALL cp_fm_create(fm_mat_work_global, fm_mat_W_tau(1)%matrix_struct)
       CALL cp_fm_set_all(fm_mat_work_global, 0.0_dp)
 
       CALL cp_fm_create(fm_mat_work_local, cfm_mat_Q%matrix_struct)
@@ -1214,10 +1213,10 @@ CONTAINS
                weight = weights_cos_tf_w_to_t(iquad, jquad)*COS(tau*omega)
 
                IF (jquad == 1 .AND. ikp == 1) THEN
-                  CALL cp_fm_set_all(matrix=fm_mat_W_tau(iquad)%matrix, alpha=0.0_dp)
+                  CALL cp_fm_set_all(matrix=fm_mat_W_tau(iquad), alpha=0.0_dp)
                END IF
 
-               CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_mat_W_tau(iquad)%matrix, beta=weight, matrix_b=fm_mat_work_global)
+               CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_mat_W_tau(iquad), beta=weight, matrix_b=fm_mat_work_global)
 
             END DO
 
@@ -1238,10 +1237,10 @@ CONTAINS
                   weight = weights_cos_tf_w_to_t(iquad, jquad)*COS(tau*omega)
 
                   IF (jquad == 1 .AND. jkp == 1) THEN
-                     CALL cp_fm_set_all(matrix=fm_mat_W_tau(iquad)%matrix, alpha=0.0_dp)
+                     CALL cp_fm_set_all(matrix=fm_mat_W_tau(iquad), alpha=0.0_dp)
                   END IF
 
-                  CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_mat_W_tau(iquad)%matrix, beta=weight, &
+                  CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_mat_W_tau(iquad), beta=weight, &
                                            matrix_b=fm_mat_work_global)
 
                END DO
@@ -1695,7 +1694,7 @@ CONTAINS
 
          DO ikp = 1, kpoints_Sigma%nkp
 
-            ev => kpoints_Sigma%kp_env(ikp)%kpoint_env%mos(1, 1)%mo_set%eigenvalues
+            ev => kpoints_Sigma%kp_env(ikp)%kpoint_env%mos(1, 1)%eigenvalues
 
             Eigenval_kp(:, ikp, 1) = ev(:)
 
@@ -1861,8 +1860,8 @@ CONTAINS
 
          kp => kpoints%kp_env(ikp)%kpoint_env
 
-         CALL get_mo_set(kp%mos(1, 1)%mo_set, mo_coeff=rmos, eigenvalues=eigenvalues)
-         CALL get_mo_set(kp%mos(2, 1)%mo_set, mo_coeff=imos)
+         CALL get_mo_set(kp%mos(1, 1), mo_coeff=rmos, eigenvalues=eigenvalues)
+         CALL get_mo_set(kp%mos(2, 1), mo_coeff=imos)
 
          IF (scf_env%cholesky_method == cholesky_off) THEN
             CALL cp_cfm_geeig_canon(cksmat, csmat, cmos, eigenvalues, cwork, scf_control%eps_eigval)
@@ -1872,7 +1871,7 @@ CONTAINS
 
          CALL cp_cfm_to_fm(cmos, rmos, imos)
 
-         kp%mos(2, 1)%mo_set%eigenvalues = eigenvalues
+         kp%mos(2, 1)%eigenvalues = eigenvalues
 
       END DO
 
@@ -1903,7 +1902,7 @@ CONTAINS
 
    END SUBROUTINE create_kp_and_calc_kp_orbitals
 
-   ! **************************************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
 !> \param mat_kp ...

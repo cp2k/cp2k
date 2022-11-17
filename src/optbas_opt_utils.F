@@ -46,7 +46,7 @@ MODULE optbas_opt_utils
                                               qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_neighbor_lists,               ONLY: atom2d_build,&
                                               atom2d_cleanup,&
@@ -78,7 +78,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE evaluate_optvals(mos, mos_aux_fit, matrix_ks, Q, Snew, S_inv_orb, &
                                fval, energy, S_cond_number)
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos, mos_aux_fit
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(dbcsr_type), POINTER                          :: Q, Snew
       TYPE(cp_fm_type), INTENT(IN)                       :: S_inv_orb
@@ -115,8 +115,8 @@ CONTAINS
       fval = 0.0_dp
       energy = 0.0_dp
       DO ispin = 1, nspins
-         CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff)
-         CALL get_mo_set(mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit)
+         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
+         CALL get_mo_set(mos_aux_fit(ispin), mo_coeff=mo_coeff_aux_fit)
          CALL cp_fm_get_info(mo_coeff, ncol_global=nmo)
          CALL cp_fm_create(tmp1, matrix_struct=mo_coeff%matrix_struct)
          CALL cp_dbcsr_sm_fm_multiply(Qt, mo_coeff_aux_fit, tmp1, nmo)
@@ -154,7 +154,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fit_mo_coeffs(saux, sauxorb, mos, mosaux)
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: saux, sauxorb
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mosaux
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos, mosaux
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'fit_mo_coeffs'
       REAL(KIND=dp), PARAMETER                           :: threshold = 1.E-12_dp
@@ -169,7 +169,7 @@ CONTAINS
 
       CALL dbcsr_get_info(saux(1)%matrix, nfullrows_total=naux)
       CALL dbcsr_get_info(sauxorb(1)%matrix, nfullcols_total=norb)
-      CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff)
+      CALL get_mo_set(mos(1), mo_coeff=mo_coeff)
 
       CALL cp_fm_struct_create(fm_struct, nrow_global=naux, ncol_global=naux, &
                                context=mo_coeff%matrix_struct%context, &
@@ -182,8 +182,8 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct)
       nspins = SIZE(mos)
       DO ispin = 1, nspins
-         CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff)
-         CALL get_mo_set(mosaux(ispin)%mo_set, mo_coeff=mo_coeff_aux)
+         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
+         CALL get_mo_set(mosaux(ispin), mo_coeff=mo_coeff_aux)
          CALL cp_fm_get_info(mo_coeff, ncol_global=nmo)
          CALL cp_fm_create(tmp1, matrix_struct=mo_coeff_aux%matrix_struct)
          CALL cp_fm_create(tmp2, matrix_struct=mo_coeff_aux%matrix_struct)

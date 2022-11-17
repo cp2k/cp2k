@@ -252,22 +252,15 @@ CONTAINS
          CALL cp_dbcsr_plus_fm_fm_t(matrix_px1(ispin)%matrix, &
                                     matrix_v=evect(ispin)%matrix, &
                                     matrix_g=gs_mos(ispin)%mos_occ, &
-                                    ncol=norb, alpha=focc)
-         CALL cp_dbcsr_plus_fm_fm_t(matrix_px1(ispin)%matrix, &
-                                    matrix_v=gs_mos(ispin)%mos_occ, &
-                                    matrix_g=evect(ispin)%matrix, &
-                                    ncol=norb, alpha=focc)
+                                    ncol=norb, alpha=2.0_dp*focc, symmetry_mode=1)
 
          CALL dbcsr_set(matrix_px1_asymm(ispin)%matrix, 0.0_dp)
          CALL cp_fm_get_info(evect(ispin)%matrix, ncol_global=norb)
          CALL cp_dbcsr_plus_fm_fm_t(matrix_px1_asymm(ispin)%matrix, &
-                                    matrix_v=evect(ispin)%matrix, &
-                                    matrix_g=gs_mos(ispin)%mos_occ, &
-                                    ncol=norb, alpha=-focc)
-         CALL cp_dbcsr_plus_fm_fm_t(matrix_px1_asymm(ispin)%matrix, &
                                     matrix_v=gs_mos(ispin)%mos_occ, &
                                     matrix_g=evect(ispin)%matrix, &
-                                    ncol=norb, alpha=focc)
+                                    ncol=norb, alpha=2.0_dp*focc, &
+                                    symmetry_mode=-1)
       END DO
       !
       CALL get_qs_env(qs_env, ks_env=ks_env, pw_env=pw_env, para_env=para_env)
@@ -1048,9 +1041,7 @@ CONTAINS
                                          norb, alpha=-focc, beta=1.0_dp)
             !
             CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=mos, matrix_g=vcvec, &
-                                       ncol=norb, alpha=1.0_dp)
-            CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=vcvec, matrix_g=mos, &
-                                       ncol=norb, alpha=1.0_dp)
+                                       ncol=norb, alpha=2.0_dp, symmetry_mode=1)
          END IF
          !
          IF (myfun /= xc_none) THEN
@@ -1063,9 +1054,7 @@ CONTAINS
                                          norb, alpha=-focc, beta=1.0_dp)
             !
             CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=mos, matrix_g=vcvec, &
-                                       ncol=norb, alpha=1.0_dp)
-            CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=vcvec, matrix_g=mos, &
-                                       ncol=norb, alpha=1.0_dp)
+                                       ncol=norb, alpha=2.0_dp, symmetry_mode=1)
             !
             CALL cp_dbcsr_sm_fm_multiply(matrix_gx(ispin)%matrix, mos, &
                                          cpmos(ispin)%matrix, norb, alpha=focc, beta=1.0_dp)
@@ -1074,9 +1063,7 @@ CONTAINS
             CALL parallel_gemm("T", "N", norb, norb, nao, 1.0_dp, mos, vcvec, 0.0_dp, cvcmat)
             CALL parallel_gemm("N", "N", nao, norb, norb, 1.0_dp, mos, cvcmat, 0.0_dp, vcvec)
             CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=mos, matrix_g=vcvec, &
-                                       ncol=norb, alpha=0.5_dp)
-            CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=vcvec, matrix_g=mos, &
-                                       ncol=norb, alpha=0.5_dp)
+                                       ncol=norb, alpha=1.0_dp, symmetry_mode=1)
          END IF
          !
          IF (do_hfx) THEN
@@ -1093,9 +1080,7 @@ CONTAINS
                                          norb, alpha=-focc, beta=1.0_dp)
             !
             CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=mos, matrix_g=vcvec, &
-                                       ncol=norb, alpha=1.0_dp)
-            CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=vcvec, matrix_g=mos, &
-                                       ncol=norb, alpha=1.0_dp)
+                                       ncol=norb, alpha=2.0_dp, symmetry_mode=1)
          END IF
          !
          CALL cp_fm_release(vcvec)
@@ -1386,7 +1371,9 @@ CONTAINS
             CALL cp_fm_get_info(work%S_C0_C0T(ispin)%matrix, matrix_struct=fmstruct)
             CALL cp_fm_create(t0matrix, matrix_struct=fmstruct, name="T0 SCRATCH")
             CALL cp_fm_create(t1matrix, matrix_struct=fmstruct, name="T1 SCRATCH")
+            ALLOCATE (ucmatrix)
             CALL fm_pool_create_fm(work%fm_pool_ao_mo_occ(ispin)%pool, ucmatrix)
+            ALLOCATE (uxmatrix)
             CALL fm_pool_create_fm(work%fm_pool_ao_mo_occ(ispin)%pool, uxmatrix)
             ct => work%ctransformed(ispin)%matrix
             CALL cp_fm_to_fm(ct, cvec)
@@ -1409,11 +1396,11 @@ CONTAINS
             CALL parallel_gemm('N', 'N', nsgf, nsgf, nsgf, spinfac, work%S_eigenvectors, t1matrix, &
                                0.0_dp, t0matrix)
             CALL cp_dbcsr_plus_fm_fm_t(matrix_plo(ispin)%matrix, matrix_v=t0matrix, &
-                                       matrix_g=work%S_eigenvectors, ncol=nsgf, alpha=1.0_dp)
-            CALL cp_dbcsr_plus_fm_fm_t(matrix_plo(ispin)%matrix, matrix_v=work%S_eigenvectors, &
-                                       matrix_g=t0matrix, ncol=nsgf, alpha=1.0_dp)
+                                       matrix_g=work%S_eigenvectors, ncol=nsgf, alpha=2.0_dp, symmetry_mode=1)
             CALL fm_pool_give_back_fm(work%fm_pool_ao_mo_occ(ispin)%pool, ucmatrix)
+            DEALLOCATE (ucmatrix)
             CALL fm_pool_give_back_fm(work%fm_pool_ao_mo_occ(ispin)%pool, uxmatrix)
+            DEALLOCATE (uxmatrix)
             CALL cp_fm_release(t0matrix)
             CALL cp_fm_release(t1matrix)
             !
@@ -1441,9 +1428,7 @@ CONTAINS
             ! wx1
             alpha = 2.0_dp
             CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=gs_mos(ispin)%mos_occ, &
-                                       matrix_g=vcvec, ncol=norb, alpha=alpha)
-            CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=vcvec, &
-                                       matrix_g=gs_mos(ispin)%mos_occ, ncol=norb, alpha=alpha)
+                                       matrix_g=vcvec, ncol=norb, alpha=2.0_dp*alpha, symmetry_mode=1)
             CALL cp_fm_release(vcvec)
             CALL cp_fm_release(cvcmat)
             DEALLOCATE (atom_of_kind, kind_of)
@@ -1531,7 +1516,9 @@ CONTAINS
             CALL cp_fm_get_info(work%S_C0_C0T(ispin)%matrix, matrix_struct=fmstruct)
             CALL cp_fm_create(t0matrix, matrix_struct=fmstruct, name="T0 SCRATCH")
             CALL cp_fm_create(t1matrix, matrix_struct=fmstruct, name="T1 SCRATCH")
+            ALLOCATE (ucmatrix)
             CALL fm_pool_create_fm(work%fm_pool_ao_mo_occ(ispin)%pool, ucmatrix)
+            ALLOCATE (uxmatrix)
             CALL fm_pool_create_fm(work%fm_pool_ao_mo_occ(ispin)%pool, uxmatrix)
             ct => work%ctransformed(ispin)%matrix
             CALL cp_dbcsr_sm_fm_multiply(pdens, ct, cvec, norb, 1.0_dp, 0.0_dp)
@@ -1551,11 +1538,11 @@ CONTAINS
             CALL parallel_gemm('N', 'N', nsgf, nsgf, nsgf, -1.0_dp, work%S_eigenvectors, t1matrix, &
                                0.0_dp, t0matrix)
             CALL cp_dbcsr_plus_fm_fm_t(matrix_plo(ispin)%matrix, matrix_v=t0matrix, &
-                                       matrix_g=work%S_eigenvectors, ncol=nsgf, alpha=1.0_dp)
-            CALL cp_dbcsr_plus_fm_fm_t(matrix_plo(ispin)%matrix, matrix_v=work%S_eigenvectors, &
-                                       matrix_g=t0matrix, ncol=nsgf, alpha=1.0_dp)
+                                       matrix_g=work%S_eigenvectors, ncol=nsgf, alpha=2.0_dp, symmetry_mode=1)
             CALL fm_pool_give_back_fm(work%fm_pool_ao_mo_occ(ispin)%pool, ucmatrix)
+            DEALLOCATE (ucmatrix)
             CALL fm_pool_give_back_fm(work%fm_pool_ao_mo_occ(ispin)%pool, uxmatrix)
+            DEALLOCATE (uxmatrix)
             CALL cp_fm_release(t0matrix)
             CALL cp_fm_release(t1matrix)
 
@@ -1586,10 +1573,7 @@ CONTAINS
             END IF
             CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=gs_mos(ispin)%mos_occ, &
                                        matrix_g=vcvec, &
-                                       ncol=norb, alpha=alpha)
-            CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=vcvec, &
-                                       matrix_g=gs_mos(ispin)%mos_occ, &
-                                       ncol=norb, alpha=alpha)
+                                       ncol=norb, alpha=2.0_dp*alpha, symmetry_mode=1)
             CALL cp_fm_release(vcvec)
             CALL cp_fm_release(cvcmat)
             !

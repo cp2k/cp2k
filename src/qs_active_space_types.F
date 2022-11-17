@@ -22,7 +22,7 @@ MODULE qs_active_space_types
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -88,8 +88,8 @@ MODULE qs_active_space_types
       REAL(KIND=dp)                 :: energy_active
       LOGICAL                       :: read_p_act
       CHARACTER(LEN=default_path_length)                 :: p_act_filename
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER  :: mos_active
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER  :: mos_inactive
+      TYPE(mo_set_type), DIMENSION(:), POINTER  :: mos_active
+      TYPE(mo_set_type), DIMENSION(:), POINTER  :: mos_inactive
       TYPE(eri_type)                :: eri
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: p_active
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: ks_sub
@@ -163,14 +163,14 @@ CONTAINS
 
          IF (ASSOCIATED(active_space_env%mos_active)) THEN
             DO imo = 1, SIZE(active_space_env%mos_active)
-               CALL deallocate_mo_set(active_space_env%mos_active(imo)%mo_set)
+               CALL deallocate_mo_set(active_space_env%mos_active(imo))
             END DO
             DEALLOCATE (active_space_env%mos_active)
          END IF
 
          IF (ASSOCIATED(active_space_env%mos_inactive)) THEN
             DO imo = 1, SIZE(active_space_env%mos_inactive)
-               CALL deallocate_mo_set(active_space_env%mos_inactive(imo)%mo_set)
+               CALL deallocate_mo_set(active_space_env%mos_inactive(imo))
             END DO
             DEALLOCATE (active_space_env%mos_inactive)
          END IF

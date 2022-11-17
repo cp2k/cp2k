@@ -68,7 +68,7 @@ MODULE xc_pot_saop
                                               local_rho_set_release,&
                                               local_rho_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_oce_types,                    ONLY: oce_matrix_type
    USE qs_rho_atom_methods,             ONLY: allocate_rho_atom_internals,&
@@ -146,7 +146,7 @@ CONTAINS
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: single_mo_coeff
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: orbital_density_matrix, rho_struct_ao
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: molecular_orbitals
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: molecular_orbitals
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: orbital, orbital_g
@@ -317,7 +317,7 @@ CONTAINS
 
       DO ispin = 1, nspins
 
-         CALL get_mo_set(molecular_orbitals(ispin)%mo_set, &
+         CALL get_mo_set(molecular_orbitals(ispin), &
                          mo_coeff=mo_coeff, &
                          eigenvalues=mo_eigenvalues, &
                          homo=homo)
@@ -344,7 +344,6 @@ CONTAINS
             CALL dbcsr_set(orbital_density_matrix(ispin)%matrix, 0.0_dp)
             CALL cp_dbcsr_plus_fm_fm_t(orbital_density_matrix(ispin)%matrix, &
                                        matrix_v=single_mo_coeff(ispin), &
-                                       matrix_g=single_mo_coeff(ispin), &
                                        ncol=ncol(ispin), &
                                        alpha=1.0_dp)
             CALL pw_zero(orbital)
@@ -383,7 +382,7 @@ CONTAINS
 
       DO ispin = 1, nspins
 
-         CALL get_mo_set(molecular_orbitals(ispin)%mo_set, &
+         CALL get_mo_set(molecular_orbitals(ispin), &
                          mo_coeff=mo_coeff, &
                          eigenvalues=mo_eigenvalues, &
                          homo=homo)
@@ -413,7 +412,6 @@ CONTAINS
             CALL dbcsr_set(orbital_density_matrix(ispin)%matrix, 0.0_dp)
             CALL cp_dbcsr_plus_fm_fm_t(orbital_density_matrix(ispin)%matrix, &
                                        matrix_v=single_mo_coeff(ispin), &
-                                       matrix_g=single_mo_coeff(ispin), &
                                        ncol=ncol(ispin), &
                                        alpha=1.0_dp)
             CALL pw_zero(orbital)
@@ -534,7 +532,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(local_rho_type), POINTER                      :: local_rho_set
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: molecular_orbitals
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: molecular_orbitals
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab
       TYPE(oce_matrix_type), POINTER                     :: oce
@@ -612,7 +610,7 @@ CONTAINS
       CALL dbcsr_allocate_matrix_set(orbital_density_matrix, nspins)
 
       DO ispin = 1, nspins
-         CALL get_mo_set(molecular_orbitals(ispin)%mo_set, &
+         CALL get_mo_set(molecular_orbitals(ispin), &
                          mo_coeff=mo_coeff(ispin)%matrix, &
                          eigenvalues=mo_eigenvalues(ispin)%array, &
                          homo=homo(ispin))
@@ -815,7 +813,6 @@ CONTAINS
                   CALL dbcsr_set(orbital_density_matrix(ispin)%matrix, 0.0_dp)
                   CALL cp_dbcsr_plus_fm_fm_t(orbital_density_matrix(ispin)%matrix, &
                                              matrix_v=single_mo_coeff(ispin), &
-                                             matrix_g=single_mo_coeff(ispin), &
                                              ncol=ncol(ispin), &
                                              alpha=1.0_dp)
 
@@ -923,7 +920,6 @@ CONTAINS
                   CALL dbcsr_set(orbital_density_matrix(ispin)%matrix, 0.0_dp)
                   CALL cp_dbcsr_plus_fm_fm_t(orbital_density_matrix(ispin)%matrix, &
                                              matrix_v=single_mo_coeff(ispin), &
-                                             matrix_g=single_mo_coeff(ispin), &
                                              ncol=ncol(ispin), &
                                              alpha=1.0_dp)
 

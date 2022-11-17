@@ -85,7 +85,7 @@ MODULE qs_scf_initialization
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               init_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_outer_scf,                    ONLY: outer_loop_extrapolate,&
                                               outer_loop_switch,&
                                               outer_loop_variables_count
@@ -419,7 +419,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
       TYPE(dbcsr_type), POINTER                          :: ref_matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(scf_control_type), POINTER                    :: scf_control
 
       CALL timeset(routineN, handle)
@@ -437,7 +437,7 @@ CONTAINS
       ! create an ao_ao parallel matrix structure
       ao_mo_fmstruct => fm_pool_get_el_struct(ao_mo_fm_pools(1)%pool)
       CALL cp_fm_struct_get(ao_mo_fmstruct, nrow_block=nrow_block)
-      CALL get_mo_set(mos(1)%mo_set, nao=nao)
+      CALL get_mo_set(mos(1), nao=nao)
       CALL cp_fm_struct_create(fmstruct=ao_ao_fmstruct, &
                                nrow_block=nrow_block, &
                                ncol_block=nrow_block, &
@@ -548,8 +548,8 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_b
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_last_converged
-      TYPE(mo_set_p_type), DIMENSION(:, :), POINTER      :: mos_k
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_last_converged
+      TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos_k
       TYPE(xas_environment_type), POINTER                :: xas_env
 
       CALL timeset(routineN, handle)
@@ -572,16 +572,16 @@ CONTAINS
 !   *** finish initialization of the MOs ***
       CPASSERT(ASSOCIATED(mos))
       DO ispin = 1, SIZE(mos)
-         CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, mo_coeff_b=mo_coeff_b)
+         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, mo_coeff_b=mo_coeff_b)
          IF (.NOT. ASSOCIATED(mo_coeff)) THEN
-            CALL init_mo_set(mos(ispin)%mo_set, &
+            CALL init_mo_set(mos(ispin), &
                              fm_pool=ao_mo_fm_pools(ispin)%pool, &
                              name="qs_env%mo"//TRIM(ADJUSTL(cp_to_string(ispin))))
          END IF
          IF (.NOT. ASSOCIATED(mo_coeff_b)) THEN
-            CALL cp_fm_get_info(mos(ispin)%mo_set%mo_coeff, ncol_global=nmo)
-            CALL dbcsr_init_p(mos(ispin)%mo_set%mo_coeff_b)
-            CALL cp_dbcsr_m_by_n_from_row_template(mos(ispin)%mo_set%mo_coeff_b, template=matrix_s(1, 1)%matrix, n=nmo, &
+            CALL cp_fm_get_info(mos(ispin)%mo_coeff, ncol_global=nmo)
+            CALL dbcsr_init_p(mos(ispin)%mo_coeff_b)
+            CALL cp_dbcsr_m_by_n_from_row_template(mos(ispin)%mo_coeff_b, template=matrix_s(1, 1)%matrix, n=nmo, &
                                                    sym=dbcsr_type_no_symmetry)
          END IF
       END DO
@@ -591,7 +591,7 @@ CONTAINS
          IF (.NOT. ASSOCIATED(mo_derivs)) THEN
             ALLOCATE (mo_derivs(nmo_mat))
             DO ispin = 1, nmo_mat
-               CALL get_mo_set(mos(ispin)%mo_set, mo_coeff_b=mo_coeff_b)
+               CALL get_mo_set(mos(ispin), mo_coeff_b=mo_coeff_b)
                NULLIFY (mo_derivs(ispin)%matrix)
                CALL dbcsr_init_p(mo_derivs(ispin)%matrix)
                CALL dbcsr_create(mo_derivs(ispin)%matrix, template=mo_coeff_b, &
@@ -614,10 +614,10 @@ CONTAINS
       IF (dft_control%switch_surf_dip) THEN
          CPASSERT(ASSOCIATED(mos_last_converged))
          DO ispin = 1, SIZE(mos_last_converged)
-            CALL get_mo_set(mos_last_converged(ispin)%mo_set, mo_coeff=mo_coeff_last)
+            CALL get_mo_set(mos_last_converged(ispin), mo_coeff=mo_coeff_last)
             IF (.NOT. ASSOCIATED(mo_coeff_last)) THEN
-               CALL init_mo_set(mos_last_converged(ispin)%mo_set, &
-                                fm_ref=mos(ispin)%mo_set%mo_coeff, &
+               CALL init_mo_set(mos_last_converged(ispin), &
+                                fm_ref=mos(ispin)%mo_coeff, &
                                 name="qs_env%mos_last_converged"//TRIM(ADJUSTL(cp_to_string(ispin))))
             END IF
          END DO
@@ -643,9 +643,9 @@ CONTAINS
             CPASSERT(ASSOCIATED(mos_k))
             DO ispin = 1, SIZE(mos_k, 2)
                DO ic = 1, SIZE(mos_k, 1)
-                  CALL get_mo_set(mos_k(ic, ispin)%mo_set, mo_coeff=mo_coeff, mo_coeff_b=mo_coeff_b)
+                  CALL get_mo_set(mos_k(ic, ispin), mo_coeff=mo_coeff, mo_coeff_b=mo_coeff_b)
                   IF (.NOT. ASSOCIATED(mo_coeff)) THEN
-                     CALL init_mo_set(mos_k(ic, ispin)%mo_set, &
+                     CALL init_mo_set(mos_k(ic, ispin), &
                                       fm_pool=ao_mo_fm_pools(ispin)%pool, &
                                       name="kpoints_"//TRIM(ADJUSTL(cp_to_string(ikk)))// &
                                       "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))))
@@ -743,7 +743,7 @@ CONTAINS
       LOGICAL                                            :: do_kpoints, need_coeff_b, not_se_or_tb
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints, dft_control=dft_control, mos=mos)
       not_se_or_tb = .NOT. (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb .OR. &
@@ -797,7 +797,7 @@ CONTAINS
                CALL block_davidson_env_create(scf_env%block_davidson_env, dft_control%nspins, &
                                               scf_section)
             DO ispin = 1, dft_control%nspins
-               CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
+               CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=nmo)
                CALL block_davidson_allocate(scf_env%block_davidson_env(ispin), mo_coeff, nao, nmo)
             END DO
             need_coeff_b = .TRUE.
@@ -839,7 +839,7 @@ CONTAINS
          CPABORT("OT or DIAGONALIZATION have to be set")
       END IF
       DO ispin = 1, dft_control%nspins
-         mos(ispin)%mo_set%use_mo_coeff_b = need_coeff_b
+         mos(ispin)%use_mo_coeff_b = need_coeff_b
       END DO
 
    END SUBROUTINE qs_scf_ensure_diagonalization
@@ -874,7 +874,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -948,7 +948,7 @@ CONTAINS
          END IF
       END IF
 
-      CALL get_mo_set(mo_set=mos(1)%mo_set, nao=nao)
+      CALL get_mo_set(mo_set=mos(1), nao=nao)
 
       ! DFT+U methods based on Lowdin charges need S^(1/2)
       IF (dft_control%dft_plus_u) THEN
@@ -1054,7 +1054,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
 
@@ -1081,11 +1081,9 @@ CONTAINS
              (scf_env%method == ot_method_nr) .AND. &
              (.NOT. (extrapolation_method_nr == wfi_use_guess_method_nr))) THEN
             DO ispin = 1, SIZE(mos)
-               CALL get_mo_set(mos(ispin)%mo_set, &
-                               mo_coeff=mo_coeff, nmo=nmo)
-               CALL reorthogonalize_vectors(qs_env, &
-                                            v_matrix=mo_coeff, n_col=nmo)
-               CALL set_mo_occupation(mo_set=mos(ispin)%mo_set, &
+               CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
+               CALL reorthogonalize_vectors(qs_env, v_matrix=mo_coeff, n_col=nmo)
+               CALL set_mo_occupation(mo_set=mos(ispin), &
                                       smear=scf_control%smear)
             END DO
          END IF
@@ -1128,9 +1126,9 @@ CONTAINS
       END IF
 
       DO ispin = 1, SIZE(mos) !fm->dbcsr
-         IF (mos(ispin)%mo_set%use_mo_coeff_b) THEN
-            CALL copy_fm_to_dbcsr(mos(ispin)%mo_set%mo_coeff, &
-                                  mos(ispin)%mo_set%mo_coeff_b) !fm->dbcsr
+         IF (mos(ispin)%use_mo_coeff_b) THEN
+            CALL copy_fm_to_dbcsr(mos(ispin)%mo_coeff, &
+                                  mos(ispin)%mo_coeff_b) !fm->dbcsr
          END IF
       END DO !fm->dbcsr
 

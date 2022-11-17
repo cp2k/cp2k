@@ -28,7 +28,7 @@ MODULE qs_matrix_pools
                                               cp_fm_struct_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -138,7 +138,7 @@ CONTAINS
    SUBROUTINE mpools_get(mpools, ao_mo_fm_pools, ao_ao_fm_pools, &
                          mo_mo_fm_pools, ao_mosub_fm_pools, mosub_mosub_fm_pools, &
                          maxao_maxmo_fm_pool, maxao_maxao_fm_pool, maxmo_maxmo_fm_pool)
-      TYPE(qs_matrix_pools_type), POINTER                :: mpools
+      TYPE(qs_matrix_pools_type), INTENT(IN)             :: mpools
       TYPE(cp_fm_pool_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ao_mo_fm_pools, ao_ao_fm_pools, &
                                                             mo_mo_fm_pools, ao_mosub_fm_pools, &
@@ -209,7 +209,7 @@ CONTAINS
    SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env, &
                                       nmosub)
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, DIMENSION(2), INTENT(IN), OPTIONAL        :: nmosub
@@ -234,7 +234,6 @@ CONTAINS
          IF (nmosub(1) > 0) prepare_subset = .TRUE.
       END IF
 
-      CPASSERT(ASSOCIATED(mos))
       IF (.NOT. ASSOCIATED(mpools)) THEN
          CALL mpools_create(mpools)
       END IF
@@ -304,10 +303,10 @@ CONTAINS
 
       END IF ! prepare_subset
 
-      CALL get_mo_set(mos(1)%mo_set, nao=nao, nmo=min_nmo)
+      CALL get_mo_set(mos(1), nao=nao, nmo=min_nmo)
       max_nmo = min_nmo
       DO ispin = 2, SIZE(mos)
-         CALL get_mo_set(mos(ispin)%mo_set, nmo=nmo)
+         CALL get_mo_set(mos(ispin), nmo=nmo)
          IF (max_nmo < nmo) THEN
             CPABORT("the mo with the most orbitals must be the first ")
          END IF
@@ -323,7 +322,7 @@ CONTAINS
             fmstruct => fm_pool_get_el_struct(mpools%ao_ao_fm_pools(ispin)%pool)
             CALL cp_fm_struct_get(fmstruct, nrow_global=nrg, &
                                   ncol_global=ncg)
-            CALL get_mo_set(mos(1)%mo_set, nao=nao, nmo=nmo)
+            CALL get_mo_set(mos(1), nao=nao, nmo=nmo)
             should_rebuild = nao /= nrg .OR. nao /= ncg
          END IF
       END DO
@@ -355,7 +354,7 @@ CONTAINS
                                               %pool)
             CALL cp_fm_struct_get(fmstruct, nrow_global=nrg, &
                                   ncol_global=ncg)
-            CALL get_mo_set(mos(1)%mo_set, nao=nao, nmo=nmo)
+            CALL get_mo_set(mos(1), nao=nao, nmo=nmo)
             should_rebuild = nao /= nrg .OR. nmo /= ncg
          END IF
       END DO
@@ -378,7 +377,7 @@ CONTAINS
             END DO
          ELSE
             DO ispin = 1, SIZE(mos)
-               CALL get_mo_set(mos(ispin)%mo_set, nmo=nmo, nao=nao)
+               CALL get_mo_set(mos(ispin), nmo=nmo, nao=nao)
                CALL cp_fm_struct_create(fmstruct, nrow_global=nao, &
                                         ncol_global=nmo, para_env=para_env, &
                                         context=blacs_env, &
@@ -400,7 +399,7 @@ CONTAINS
             fmstruct => fm_pool_get_el_struct(p_att)
             CALL cp_fm_struct_get(fmstruct, nrow_global=nrg, &
                                   ncol_global=ncg)
-            CALL get_mo_set(mos(1)%mo_set, nao=nao, nmo=nmo)
+            CALL get_mo_set(mos(1), nao=nao, nmo=nmo)
             should_rebuild = nmo /= nrg .OR. nmo /= ncg
          END IF
       END DO
@@ -425,7 +424,7 @@ CONTAINS
          ELSE
             DO ispin = 1, SIZE(mos)
                NULLIFY (mpools%mo_mo_fm_pools(ispin)%pool)
-               CALL get_mo_set(mos(ispin)%mo_set, nmo=nmo, nao=nao)
+               CALL get_mo_set(mos(ispin), nmo=nmo, nao=nao)
                CALL cp_fm_struct_create(fmstruct, nrow_global=nmo, &
                                         ncol_global=nmo, para_env=para_env, &
                                         context=blacs_env, &
@@ -449,7 +448,7 @@ CONTAINS
                                                  %pool)
                CALL cp_fm_struct_get(fmstruct, nrow_global=nrg, &
                                      ncol_global=ncg)
-               CALL get_mo_set(mos(1)%mo_set, nao=nao)
+               CALL get_mo_set(mos(1), nao=nao)
                should_rebuild = nao /= nrg .OR. nmosub(ispin) /= ncg
             END IF
          END DO
@@ -472,7 +471,7 @@ CONTAINS
                END DO
             ELSE
                DO ispin = 1, SIZE(mos)
-                  CALL get_mo_set(mos(ispin)%mo_set, nao=nao)
+                  CALL get_mo_set(mos(ispin), nao=nao)
                   CALL cp_fm_struct_create(fmstruct, nrow_global=nao, &
                                            ncol_global=nmosub(1), para_env=para_env, &
                                            context=blacs_env, &

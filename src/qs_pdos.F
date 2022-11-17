@@ -143,7 +143,7 @@ CONTAINS
    SUBROUTINE calculate_projected_dos(mo_set, atomic_kind_set, qs_kind_set, particle_set, qs_env, &
                                       dft_section, ispin, xas_mittle, external_matrix_shalf)
 
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -938,7 +938,7 @@ CONTAINS
                                   nvirt, ispin)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       REAL(KIND=dp), DIMENSION(:), POINTER               :: evals_virt
       TYPE(cp_fm_type), INTENT(OUT)                      :: mo_virt
       INTEGER, INTENT(IN)                                :: nvirt, ispin

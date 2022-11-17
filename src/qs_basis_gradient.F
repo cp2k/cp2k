@@ -46,7 +46,7 @@ MODULE qs_basis_gradient
    USE qs_mixing_utils,                 ONLY: mixing_allocate
    USE qs_mo_methods,                   ONLY: make_basis_sm
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
@@ -283,7 +283,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(section_vals_type), POINTER                   :: input
@@ -313,11 +313,11 @@ CONTAINS
       CALL get_qs_env(qs_env, mos=mos, rho=rho, matrix_s_kp=matrix_s_kp)
       CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
       DO ispin = 1, SIZE(mos)
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
+         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
          ! reorthogonalize MOs
          CALL make_basis_sm(mo_coeff, nmo, matrix_s_kp(1, 1)%matrix)
          ! update density matrix
-         CALL calculate_density_matrix(mos(ispin)%mo_set, rho_ao_kp(ispin, 1)%matrix)
+         CALL calculate_density_matrix(mos(ispin), rho_ao_kp(ispin, 1)%matrix)
       END DO
       CALL qs_rho_set(rho, rho_r_valid=.FALSE., drho_r_valid=.FALSE., rho_g_valid=.FALSE., &
                       drho_g_valid=.FALSE., tau_r_valid=.FALSE., tau_g_valid=.FALSE.)

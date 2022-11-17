@@ -118,7 +118,7 @@ MODULE qs_ks_methods
         sic_explicit_orbitals, sum_up_and_integrate
    USE qs_local_rho_types,              ONLY: local_rho_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
    USE qs_rho_types,                    ONLY: qs_rho_get,&
@@ -986,7 +986,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: mo_derivs2_tmp1, mo_derivs2_tmp2
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_b
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_array
 
       NULLIFY (dft_control, mo_array, mo_coeff, mo_coeff_b, occupation_numbers)
 
@@ -996,7 +996,7 @@ CONTAINS
 
       DO ispin = 1, SIZE(mo_derivs)
 
-         CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, mo_coeff=mo_coeff, &
+         CALL get_mo_set(mo_set=mo_array(ispin), mo_coeff=mo_coeff, &
                          mo_coeff_b=mo_coeff_b, occupation_numbers=occupation_numbers)
          CALL dbcsr_multiply('n', 'n', 1.0_dp, ks_matrix(ispin)%matrix, mo_coeff_b, &
                              0.0_dp, mo_derivs(ispin)%matrix)
@@ -1009,14 +1009,14 @@ CONTAINS
 
             ! uniform_occupation is needed for this case, otherwise we can no
             ! reconstruct things in ot, since we irreversibly sum
-            CALL get_mo_set(mo_set=mo_array(1)%mo_set, uniform_occupation=uniform_occupation)
+            CALL get_mo_set(mo_set=mo_array(1), uniform_occupation=uniform_occupation)
             CPASSERT(uniform_occupation)
-            CALL get_mo_set(mo_set=mo_array(2)%mo_set, uniform_occupation=uniform_occupation)
+            CALL get_mo_set(mo_set=mo_array(2), uniform_occupation=uniform_occupation)
             CPASSERT(uniform_occupation)
 
             ! The beta-spin might have fewer orbitals than alpa-spin...
             ! create tempoary matrices with beta_nmo columns
-            CALL get_mo_set(mo_set=mo_array(2)%mo_set, mo_coeff_b=mo_coeff_b)
+            CALL get_mo_set(mo_set=mo_array(2), mo_coeff_b=mo_coeff_b)
             CALL dbcsr_create(mo_derivs2_tmp1, template=mo_coeff_b)
 
             ! calculate beta derivatives
@@ -1028,9 +1028,9 @@ CONTAINS
 
             ! copy into larger matrix, fills the first beta_nmo columns
             CALL dbcsr_copy_columns_hack(mo_derivs2_tmp2, mo_derivs2_tmp1, &
-                                         mo_array(2)%mo_set%nmo, 1, 1, &
-                                         para_env=mo_array(1)%mo_set%mo_coeff%matrix_struct%para_env, &
-                                         blacs_env=mo_array(1)%mo_set%mo_coeff%matrix_struct%context)
+                                         mo_array(2)%nmo, 1, 1, &
+                                         para_env=mo_array(1)%mo_coeff%matrix_struct%para_env, &
+                                         blacs_env=mo_array(1)%mo_coeff%matrix_struct%context)
 
             ! add beta contribution to alpa mo_derivs
             CALL dbcsr_add(mo_derivs(1)%matrix, mo_derivs2_tmp2, 1.0_dp, 1.0_dp)

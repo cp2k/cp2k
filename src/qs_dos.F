@@ -32,7 +32,6 @@ MODULE qs_dos
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type,&
                                               mo_set_type
 #include "./base/base_uses.f90"
 
@@ -51,17 +50,15 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Compute and write density of states
 !> \param mos ...
-!> \param qs_env ...
 !> \param dft_section ...
 !> \date    26.02.2008
 !> \par History:
 !> \author  JGH
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE calculate_dos(mos, qs_env, dft_section)
+   SUBROUTINE calculate_dos(mos, dft_section)
 
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(section_vals_type), POINTER                   :: dft_section
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'calculate_dos'
@@ -76,9 +73,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation_numbers
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(mo_set_type), POINTER                         :: mo_set
-
-      CPASSERT(ASSOCIATED(qs_env))
-      MARK_USED(qs_env)
 
       NULLIFY (logger)
       logger => cp_get_default_logger()
@@ -108,7 +102,7 @@ CONTAINS
       emax = -1.e10_dp
       nspins = SIZE(mos)
       DO ispin = 1, nspins
-         mo_set => mos(ispin)%mo_set
+         mo_set => mos(ispin)
          CALL get_mo_set(mo_set=mo_set, nmo=nmo(ispin), mu=e_fermi(ispin))
          eigenvalues => mo_set%eigenvalues
          e1 = MINVAL(eigenvalues(1:nmo(ispin)))
@@ -124,7 +118,7 @@ CONTAINS
          occval = 0.0_dp
          ehist = 0.0_dp
          DO ispin = 1, nspins
-            mo_set => mos(ispin)%mo_set
+            mo_set => mos(ispin)
             occupation_numbers => mo_set%occupation_numbers
             eigenvalues => mo_set%eigenvalues
             DO i = 1, nmo(ispin)
@@ -146,7 +140,7 @@ CONTAINS
          occval = 0.0_dp
          ehist = 0.0_dp
          DO ispin = 1, nspins
-            mo_set => mos(ispin)%mo_set
+            mo_set => mos(ispin)
             occupation_numbers => mo_set%occupation_numbers
             eigenvalues => mo_set%eigenvalues
             DO i = 1, nmo(ispin)
@@ -228,7 +222,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:, :), POINTER      :: mos
+      TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos
       TYPE(mo_set_type), POINTER                         :: mo_set
 
       NULLIFY (logger)
@@ -269,7 +263,7 @@ CONTAINS
             mos => kpoints%kp_env(ik)%kpoint_env%mos
             CPASSERT(ASSOCIATED(mos))
             DO ispin = 1, nspins
-               mo_set => mos(1, ispin)%mo_set
+               mo_set => mos(1, ispin)
                CALL get_mo_set(mo_set=mo_set, nmo=nmo_kp)
                eigenvalues => mo_set%eigenvalues
                e1 = MINVAL(eigenvalues(1:nmo_kp))
@@ -295,7 +289,7 @@ CONTAINS
             mos => kpoints%kp_env(ik)%kpoint_env%mos
             wkp = kpoints%kp_env(ik)%kpoint_env%wkp
             DO ispin = 1, nspins
-               mo_set => mos(1, ispin)%mo_set
+               mo_set => mos(1, ispin)
                occupation_numbers => mo_set%occupation_numbers
                eigenvalues => mo_set%eigenvalues
                DO i = 1, nmo(ispin)

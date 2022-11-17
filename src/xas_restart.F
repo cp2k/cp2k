@@ -58,7 +58,7 @@ MODULE xas_restart
                                               write_mo_set_low
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type,&
+                                              mo_set_type,&
                                               set_mo_set
    USE qs_rho_atom_types,               ONLY: rho_atom_type
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
@@ -126,7 +126,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       CALL timeset(routineN, handle)
 
@@ -198,11 +198,11 @@ CONTAINS
          CALL set_xas_env(xas_env=xas_env, xas_estate=xas_estate_read)
          estate = xas_estate_read
 
-         CALL get_mo_set(mo_set=mos(my_spin)%mo_set, nao=nao)
+         CALL get_mo_set(mo_set=mos(my_spin), nao=nao)
          ALLOCATE (vecbuffer(1, nao))
 
          DO ispin = 1, SIZE(mos)
-            CALL get_mo_set(mo_set=mos(ispin)%mo_set, nmo=nmo, eigenvalues=eigenvalues, &
+            CALL get_mo_set(mo_set=mos(ispin), nmo=nmo, eigenvalues=eigenvalues, &
                             occupation_numbers=occupation_numbers, mo_coeff=mo_coeff, nelectron=nelectron)
             eigenvalues = 0.0_dp
             occupation_numbers = 0.0_dp
@@ -255,7 +255,7 @@ CONTAINS
 !      DO ispin = 1,nspin
 !      ! ortho so that one can restart for different positions (basis sets?)
 !         NULLIFY(mo_coeff)
-!         CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff,homo=homo)
+!         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff,homo=homo)
 !         CALL make_basis_sm(mo_coeff,homo,matrix_s(1)%matrix)
 !      END DO
       END IF !file_exist
@@ -295,7 +295,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), POINTER                    :: eigenvalues, occupation_numbers
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: print_key
@@ -341,7 +341,7 @@ CONTAINS
             WRITE (rst_unit) xas_estate
          END IF
          DO ispin = 1, SIZE(mos)
-            CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo, &
+            CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=nmo, &
                             eigenvalues=eigenvalues, occupation_numbers=occupation_numbers)
             IF ((rst_unit > 0)) THEN
                WRITE (rst_unit) nao, nmo
@@ -398,7 +398,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
       TYPE(xas_environment_type), POINTER                :: xas_env
@@ -418,16 +418,16 @@ CONTAINS
       DO ispin = 1, SIZE(mos)
          IF (ispin == my_spin) THEN
             IF (xas_env%homo_occ == 0) THEN
-               CALL get_mo_set(mos(ispin)%mo_set, nelectron=nelectron)
+               CALL get_mo_set(mos(ispin), nelectron=nelectron)
                nelectron = nelectron - 1
-               CALL set_mo_set(mos(ispin)%mo_set, nelectron=nelectron)
+               CALL set_mo_set(mos(ispin), nelectron=nelectron)
             END IF
-            CALL set_mo_occupation(mo_set=qs_env%mos(ispin)%mo_set, smear=scf_control%smear, &
+            CALL set_mo_occupation(mo_set=qs_env%mos(ispin), smear=scf_control%smear, &
                                    xas_env=xas_env)
          ELSE
-            CALL set_mo_occupation(mo_set=qs_env%mos(ispin)%mo_set, smear=scf_control%smear)
+            CALL set_mo_occupation(mo_set=qs_env%mos(ispin), smear=scf_control%smear)
          END IF
-         CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set, &
+         CALL calculate_density_matrix(mo_set=mos(ispin), &
                                        density_matrix=rho_ao(ispin)%matrix)
       END DO
 
@@ -464,7 +464,7 @@ CONTAINS
    SUBROUTINE find_excited_core_orbital(xas_env, mos, matrix_s)
 
       TYPE(xas_environment_type), POINTER                :: xas_env
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
 
       INTEGER                                            :: i, ic_max, ir_max, m, my_spin, n, nao, &
@@ -483,7 +483,7 @@ CONTAINS
                        xas_estate=xas_estate, occ_estate=occ_estate, spin_channel=my_spin)
       CPASSERT(ASSOCIATED(excvec_overlap))
 
-      CALL get_mo_set(mos(my_spin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo, &
+      CALL get_mo_set(mos(my_spin), mo_coeff=mo_coeff, nao=nao, nmo=nmo, &
                       eigenvalues=eigenvalues, occupation_numbers=occupation_numbers)
       ALLOCATE (vecbuffer(1, nao))
       vecbuffer = 0.0_dp

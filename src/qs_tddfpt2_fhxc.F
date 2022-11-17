@@ -165,11 +165,7 @@ CONTAINS
                   CALL cp_dbcsr_plus_fm_fm_t(rho_ia_ao(ispin)%matrix, &
                                              matrix_v=sub_env%mos_occ(ispin)%matrix, &
                                              matrix_g=work_matrices%evects_sub(ispin, ivect)%matrix, &
-                                             ncol=nactive(ispin), alpha=0.5_dp)
-                  CALL cp_dbcsr_plus_fm_fm_t(rho_ia_ao(ispin)%matrix, &
-                                             matrix_v=work_matrices%evects_sub(ispin, ivect)%matrix, &
-                                             matrix_g=sub_env%mos_occ(ispin)%matrix, &
-                                             ncol=nactive(ispin), alpha=0.5_dp)
+                                             ncol=nactive(ispin), symmetry_mode=1)
                END DO
             ELSE
                ! skip trial vectors which are assigned to different parallel groups
@@ -181,11 +177,7 @@ CONTAINS
                CALL cp_dbcsr_plus_fm_fm_t(rho_ia_ao(ispin)%matrix, &
                                           matrix_v=sub_env%mos_occ(ispin)%matrix, &
                                           matrix_g=evects(ispin, ivect)%matrix, &
-                                          ncol=nactive(ispin), alpha=0.5_dp)
-               CALL cp_dbcsr_plus_fm_fm_t(rho_ia_ao(ispin)%matrix, &
-                                          matrix_v=evects(ispin, ivect)%matrix, &
-                                          matrix_g=sub_env%mos_occ(ispin)%matrix, &
-                                          ncol=nactive(ispin), alpha=0.5_dp)
+                                          ncol=nactive(ispin), symmetry_mode=1)
             END DO
          END IF
 

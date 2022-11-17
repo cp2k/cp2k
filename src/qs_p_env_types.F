@@ -13,7 +13,7 @@
 ! **************************************************************************************************
 MODULE qs_p_env_types
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
-   USE cp_fm_types,                     ONLY: cp_fm_p_type
+   USE cp_fm_types,                     ONLY: cp_fm_type
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE hartree_local_types,             ONLY: hartree_local_release,&
@@ -63,10 +63,10 @@ MODULE qs_p_env_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER                    :: p1 => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER                    :: p1_admm => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER                    :: w1 => NULL()
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER                    :: m_epsilon => NULL()
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER                    :: psi0d => NULL()
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER                    :: S_psi0 => NULL()
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER                    :: Smo_inv => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER                    :: m_epsilon => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER                    :: psi0d => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER                    :: S_psi0 => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER                    :: Smo_inv => NULL()
       TYPE(qs_rho_type), POINTER :: rho1 => NULL()
       TYPE(qs_rho_type), POINTER :: rho1_xc => NULL()
       TYPE(qs_rho_type), POINTER :: rho1_admm => NULL()
@@ -78,7 +78,7 @@ MODULE qs_p_env_types
       TYPE(local_rho_type), POINTER                                :: local_rho_set_admm => NULL()
 
       ! Linear Response Modules
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER                    :: PS_psi0 => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER                    :: PS_psi0 => NULL()
 
       ! preconditioner matrix should be symmetric and positive definite
       LOGICAL                                                      :: new_preconditioner

@@ -37,7 +37,7 @@ MODULE molden_utils
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
-   USE qs_mo_types,                     ONLY: mo_set_p_type
+   USE qs_mo_types,                     ONLY: mo_set_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -62,7 +62,7 @@ CONTAINS
 !> \author MattW, IainB
 ! **************************************************************************************************
    SUBROUTINE write_mos_molden(mos, qs_kind_set, particle_set, print_section)
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: print_section
@@ -102,15 +102,15 @@ CONTAINS
 
          CALL section_vals_val_get(print_section, "GTO_KIND", i_val=gto_kind)
 
-         IF (mos(1)%mo_set%use_mo_coeff_b) THEN
+         IF (mos(1)%use_mo_coeff_b) THEN
             ! we are using the dbcsr mo_coeff
             ! we copy it to the fm anyway
             DO ispin = 1, SIZE(mos)
-               IF (.NOT. ASSOCIATED(mos(ispin)%mo_set%mo_coeff_b)) THEN
+               IF (.NOT. ASSOCIATED(mos(ispin)%mo_coeff_b)) THEN
                   CPASSERT(.FALSE.)
                END IF
-               CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b, &
-                                     mos(ispin)%mo_set%mo_coeff) !fm->dbcsr
+               CALL copy_dbcsr_to_fm(mos(ispin)%mo_coeff_b, &
+                                     mos(ispin)%mo_coeff) !fm->dbcsr
             END DO
          END IF
 
@@ -226,11 +226,11 @@ CONTAINS
          END IF
 
          DO ispin = 1, SIZE(mos)
-            CALL cp_fm_get_info(mos(ispin)%mo_set%mo_coeff, &
+            CALL cp_fm_get_info(mos(ispin)%mo_coeff, &
                                 nrow_global=nrow_global, &
                                 ncol_global=ncol_global)
             ALLOCATE (smatrix(nrow_global, ncol_global))
-            CALL cp_fm_get_submatrix(mos(ispin)%mo_set%mo_coeff, smatrix)
+            CALL cp_fm_get_submatrix(mos(ispin)%mo_coeff, smatrix)
 
             IF (iw > 0) THEN
                IF (gto_kind == gto_cartesian) THEN
@@ -257,7 +257,7 @@ CONTAINS
                         DO iset = 1, nset
                            DO ishell = 1, nshell(iset)
                               lshell = l(ishell, iset)
-                              CALL dgemm("T", "N", nco(lshell), mos(ispin)%mo_set%nmo, nso(lshell), 1.0_dp, &
+                              CALL dgemm("T", "N", nco(lshell), mos(ispin)%nmo, nso(lshell), 1.0_dp, &
                                          orbtramat(lshell)%c2s, nso(lshell), &
                                          smatrix(isgf, 1), nsgf, 0.0_dp, &
                                          cmatrix(icgf, 1), ncgf)
@@ -269,7 +269,7 @@ CONTAINS
                   END DO ! iatom
                END IF
 
-               DO icol = 1, mos(ispin)%mo_set%nmo
+               DO icol = 1, mos(ispin)%nmo
                   ! index of the first basis function for the given atom, set, and shell
                   irow = 1
 
@@ -278,13 +278,13 @@ CONTAINS
                   ! cannot be exported, so we need to renumber atomic orbitals
                   irow_in = 1
 
-                  WRITE (iw, '(A,ES20.10)') 'Ene=', mos(ispin)%mo_set%eigenvalues(icol)
+                  WRITE (iw, '(A,ES20.10)') 'Ene=', mos(ispin)%eigenvalues(icol)
                   IF (ispin < 2) THEN
                      WRITE (iw, '(A)') 'Spin= Alpha'
                   ELSE
                      WRITE (iw, '(A)') 'Spin= Beta'
                   END IF
-                  WRITE (iw, '(A,F12.7)') 'Occup=', mos(ispin)%mo_set%occupation_numbers(icol)
+                  WRITE (iw, '(A,F12.7)') 'Occup=', mos(ispin)%occupation_numbers(icol)
 
                   DO iatom = 1, SIZE(particle_set)
                      NULLIFY (orb_basis_set)

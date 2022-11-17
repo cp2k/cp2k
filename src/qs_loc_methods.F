@@ -116,7 +116,7 @@ MODULE qs_loc_methods
    USE qs_mo_methods,                   ONLY: make_basis_simple,&
                                               make_basis_sm
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_moments,                      ONLY: build_local_moment_matrix
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
@@ -371,6 +371,7 @@ CONTAINS
 
       !   Copy the overlap sparse matrix in a full matrix
       CALL mpools_get(qs_env%mpools, ao_ao_fm_pools=ao_ao_fm_pools)
+      ALLOCATE (ov_fm)
       CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool, ov_fm, name=" ")
       CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, ov_fm)
 
@@ -681,7 +682,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: refmatrix, tmatrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(localized_wfn_control_type), POINTER          :: localized_wfn_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -759,7 +760,7 @@ CONTAINS
 
       DO ispin = s_spin, l_spin
 
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, nmo=nmo)
+         CALL get_mo_set(mo_set=mos(ispin), nao=nao, nmo=nmo)
          loc_method = localized_wfn_control%localization_method
 
          SELECT CASE (localized_wfn_control%operator_type)
@@ -772,7 +773,7 @@ CONTAINS
                CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmosub, &
                                         ncol_global=nmosub, para_env=para_env, context=ext_mo_coeff%matrix_struct%context)
             ELSE
-               CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
+               CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
                CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmosub, &
                                         ncol_global=nmosub, para_env=para_env, context=mo_coeff%matrix_struct%context)
             END IF
@@ -792,7 +793,7 @@ CONTAINS
             IF (localized_wfn_control%do_mixed) THEN
                IF (nextra > 0) THEN
                   norextra = nmo - nmosub
-                  CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
+                  CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
                   CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                            ncol_global=norextra, para_env=para_env, context=mo_coeff%matrix_struct%context)
                   CALL cp_fm_create(vectors_2, tmp_fm_struct)
@@ -922,7 +923,7 @@ CONTAINS
 
          ! give back the localized orbitals
          IF (.NOT. PRESENT(ext_mo_coeff)) THEN
-            CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
+            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
          END IF
 
          lb = localized_wfn_control%lu_bound_states(1, ispin)

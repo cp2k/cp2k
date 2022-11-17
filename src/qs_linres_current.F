@@ -106,7 +106,7 @@ MODULE qs_linres_current
                                               get_current_env
    USE qs_matrix_pools,                 ONLY: qs_matrix_pools_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                               neighbor_list_iterate,&
                                               neighbor_list_iterator_create,&
@@ -209,7 +209,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: density_matrix0, density_matrix_a, &
                                                             density_matrix_ii, density_matrix_iii
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_all
       TYPE(particle_list_type), POINTER                  :: particles
@@ -336,7 +336,7 @@ CONTAINS
          mo_coeff => psi0_order(ispin)%matrix
          !maxocc = max_occ(ispin)
          !
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, maxocc=maxocc)
+         CALL get_mo_set(mo_set=mos(ispin), maxocc=maxocc)
          !
          !
          ! Build the first density matrix
@@ -2298,7 +2298,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: op_mom_ao, op_p_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_mom_der_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_all, sab_orb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -2458,7 +2458,7 @@ CONTAINS
          ! get ground state MOS
          nmo = nstates(ispin)
          mo_coeff => psi0_order(ispin)%matrix
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, maxocc=maxocc)
+         CALL get_mo_set(mo_set=mos(ispin), maxocc=maxocc)
          !
          ! Initialize the temporary vector chi
          chi = 0.0_dp
@@ -2725,7 +2725,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: op_mom_ao, op_p_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_mom_der_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_all, sab_orb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -2844,7 +2844,7 @@ CONTAINS
          ! get ground state MOS
          nmo = nstates(ispin)
          mo_coeff => psi0_order(ispin)%matrix
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, maxocc=maxocc)
+         CALL get_mo_set(mo_set=mos(ispin), maxocc=maxocc)
          !
          ! Create buffer matrix
          CALL cp_fm_create(buf, mo_coeff%matrix_struct)

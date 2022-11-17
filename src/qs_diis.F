@@ -51,7 +51,7 @@ MODULE qs_diis
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE string_utilities,                ONLY: compress
 #include "./base/base_uses.f90"
 
@@ -212,7 +212,7 @@ CONTAINS
                              diis_step, eps_diis, nmixing, s_matrix, scf_section, roks)
 
       TYPE(qs_diis_buffer_type), POINTER                 :: diis_buffer
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mo_array
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: kc
       TYPE(cp_fm_type), INTENT(IN)                       :: sc
       REAL(KIND=dp), INTENT(IN)                          :: delta
@@ -283,7 +283,7 @@ CONTAINS
 
       DO ispin = 1, nspin
 
-         CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, &
+         CALL get_mo_set(mo_set=mo_array(ispin), &
                          nao=nao, &
                          nmo=nmo, &
                          homo=homo, &
@@ -302,7 +302,7 @@ CONTAINS
 
             ALLOCATE (occ(nmo))
 
-            CALL get_mo_set(mo_set=mo_array(2)%mo_set, &
+            CALL get_mo_set(mo_set=mo_array(2), &
                             occupation_numbers=occb)
 
             DO imo = 1, nmo

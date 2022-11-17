@@ -80,7 +80,7 @@ MODULE qs_loc_utils
                                               rotate_orbitals
    USE qs_mo_methods,                   ONLY: make_mo_eig
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                               neighbor_list_iterate,&
                                               neighbor_list_iterator_create,&
@@ -469,7 +469,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(distribution_1d_type), POINTER                :: local_molecules
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CALL timeset(routineN, handle)
@@ -490,7 +490,7 @@ CONTAINS
          ALLOCATE (moloc_coeff(s_spin:l_spin))
          DO ispin = s_spin, l_spin
             NULLIFY (tmp_fm_struct, mo_coeff)
-            CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
+            CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=nmo)
             nmosub = localized_wfn_control%nloc_states(ispin)
             CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                      ncol_global=nmosub, para_env=para_env, context=mo_coeff%matrix_struct%context)
@@ -512,7 +512,7 @@ CONTAINS
          ! Copy the submatrix
 
          DO ispin = s_spin, l_spin
-            CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, &
+            CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, &
                             occupation_numbers=occupations, nao=nao, nmo=nmo)
             lb = localized_wfn_control%lu_bound_states(1, ispin)
             ub = localized_wfn_control%lu_bound_states(2, ispin)
@@ -583,7 +583,7 @@ CONTAINS
          ! Prepare the operators
          NULLIFY (tmp_fm_struct, mo_coeff)
          nmosub = MAXVAL(localized_wfn_control%nloc_states)
-         CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff)
+         CALL get_mo_set(mos(1), mo_coeff=mo_coeff)
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmosub, &
                                   ncol_global=nmosub, para_env=para_env, context=mo_coeff%matrix_struct%context)
 
@@ -610,7 +610,7 @@ CONTAINS
             ALLOCATE (qs_loc_env%op_fm_set(natoms, 1))
             CALL set_qs_loc_env(qs_loc_env=qs_loc_env, dim_op=natoms)
             DO ispin = 1, SIZE(qs_loc_env%op_fm_set, 2)
-               CALL get_mo_set(mos(ispin)%mo_set, nmo=nmo)
+               CALL get_mo_set(mos(ispin), nmo=nmo)
                DO iatom = 1, natoms
                   ALLOCATE (qs_loc_env%op_fm_set(iatom, ispin)%matrix)
 
@@ -914,7 +914,7 @@ CONTAINS
                                 do_homo, evals, do_mixed)
       TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(section_vals_type), POINTER                   :: section
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_array
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: coeff_localized
       LOGICAL, INTENT(IN)                                :: do_homo
       TYPE(cp_1d_r_p_type), DIMENSION(:), OPTIONAL, &
@@ -985,11 +985,11 @@ CONTAINS
                   WRITE (rst_unit) qs_loc_env%localized_wfn_control%loc_states(1:nloc, ispin)
                   IF (do_homo .OR. my_do_mixed) THEN
                      WRITE (rst_unit) nmo, &
-                        mo_array(ispin)%mo_set%homo, &
-                        mo_array(ispin)%mo_set%lfomo, &
-                        mo_array(ispin)%mo_set%nelectron
-                     WRITE (rst_unit) mo_array(ispin)%mo_set%eigenvalues(1:nmo), &
-                        mo_array(ispin)%mo_set%occupation_numbers(1:nmo)
+                        mo_array(ispin)%homo, &
+                        mo_array(ispin)%lfomo, &
+                        mo_array(ispin)%nelectron
+                     WRITE (rst_unit) mo_array(ispin)%eigenvalues(1:nmo), &
+                        mo_array(ispin)%occupation_numbers(1:nmo)
                   ELSE
                      WRITE (rst_unit) nmo
                      WRITE (rst_unit) evals(ispin)%array(1:nmo)
@@ -1027,7 +1027,7 @@ CONTAINS
                                do_homo, restart_found, evals, do_mixed)
 
       TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_localized
       TYPE(section_vals_type), POINTER                   :: section, section2
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -1055,7 +1055,7 @@ CONTAINS
       logger => cp_get_default_logger()
 
       nspin = SIZE(mos_localized)
-      nao = mos(1)%mo_set%nao
+      nao = mos(1)%nao
       rst_unit = -1
 
       group = para_env%group
@@ -1132,7 +1132,7 @@ CONTAINS
 
          DO ispin = 1, nspin
             IF (do_homo .OR. do_mixed) THEN
-               nmo = mos(ispin)%mo_set%nmo
+               nmo = mos(ispin)%nmo
             ELSE
                nmo = SIZE(evals(ispin)%array, 1)
             END IF
@@ -1162,8 +1162,8 @@ CONTAINS
 
                nmo = MIN(nmo, nmo_read)
                IF (do_homo .OR. do_mixed) THEN
-                  mos(ispin)%mo_set%eigenvalues(1:nmo) = eig_read(1:nmo)
-                  mos(ispin)%mo_set%occupation_numbers(1:nmo) = occ_read(1:nmo)
+                  mos(ispin)%eigenvalues(1:nmo) = eig_read(1:nmo)
+                  mos(ispin)%occupation_numbers(1:nmo) = occ_read(1:nmo)
                   DEALLOCATE (eig_read, occ_read)
                ELSE
                   evals(ispin)%array(1:nmo) = eig_read(1:nmo)
@@ -1172,8 +1172,8 @@ CONTAINS
 
             END IF
             IF (do_homo .OR. do_mixed) THEN
-               CALL mp_bcast(mos(ispin)%mo_set%eigenvalues, source, group)
-               CALL mp_bcast(mos(ispin)%mo_set%occupation_numbers, source, group)
+               CALL mp_bcast(mos(ispin)%eigenvalues, source, group)
+               CALL mp_bcast(mos(ispin)%occupation_numbers, source, group)
             ELSE
                CALL mp_bcast(evals(ispin)%array, source, group)
             END IF
@@ -1288,7 +1288,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, mo_derivs
       TYPE(localized_wfn_control_type), POINTER          :: localized_wfn_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: loc_print_section
 
@@ -1351,7 +1351,7 @@ CONTAINS
                localized_wfn_control%loc_restart = restart_found
                localized_wfn_control%set_of_states = state_loc_mixed
                DO ispin = 1, nspin
-                  CALL get_mo_set(mos(ispin)%mo_set, homo=homo, occupation_numbers=occupation, &
+                  CALL get_mo_set(mos(ispin), homo=homo, occupation_numbers=occupation, &
                                   maxocc=maxocc)
                   nextra = localized_wfn_control%nextra
                   nocc = homo
@@ -1374,7 +1374,7 @@ CONTAINS
          IF (.NOT. restart_found) THEN
             nmoloc = 0
             DO ispin = 1, nspin
-               CALL get_mo_set(mos(ispin)%mo_set, nmo=n_mo(ispin), nelectron=nelectron, homo=homo, nao=nao, &
+               CALL get_mo_set(mos(ispin), nmo=n_mo(ispin), nelectron=nelectron, homo=homo, nao=nao, &
                                mo_coeff=mo_coeff, eigenvalues=mo_eigenvalues, occupation_numbers=occupation, &
                                maxocc=maxocc)
                ! Get eigenstates (only needed if not already calculated before)

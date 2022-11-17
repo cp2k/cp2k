@@ -90,7 +90,7 @@ MODULE optimize_embedding_potential
    USE qs_kinetic,                      ONLY: build_kinetic_matrix
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
@@ -1779,7 +1779,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -1795,7 +1795,7 @@ CONTAINS
                       cell=cell, &
                       atomic_kind_set=atomic_kind_set, &
                       pw_env=pw_env, mos=mos, para_env=para_env)
-      CALL get_mo_set(mo_set=mos(1)%mo_set, mo_coeff=mo_coeff)
+      CALL get_mo_set(mo_set=mos(1), mo_coeff=mo_coeff)
 
       ! Get plane waves pool
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)

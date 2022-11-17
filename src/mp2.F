@@ -77,15 +77,11 @@ MODULE mp2
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
-   USE qs_matrix_pools,                 ONLY: mpools_create,&
-                                              mpools_rebuild_fm_pools,&
-                                              mpools_release,&
-                                              qs_matrix_pools_type
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               deallocate_mo_set,&
                                               get_mo_set,&
                                               init_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_scf_methods,                  ONLY: eigensolver,&
                                               eigensolver_symm
    USE qs_scf_types,                    ONLY: qs_scf_env_type
@@ -150,13 +146,13 @@ CONTAINS
       TYPE(hfx_container_type), POINTER                  :: maxval_container
       TYPE(hfx_type), POINTER                            :: actual_x_data
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_mp2
+      TYPE(mo_set_type), ALLOCATABLE, DIMENSION(:)       :: mos_mp2
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp2_biel_type)                                :: mp2_biel
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(qs_matrix_pools_type), POINTER                :: my_mpools
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input
@@ -311,7 +307,7 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
          max_nset = MAX(max_nset, basis_parameter(ikind)%nset)
       END DO
 
-      CALL get_mo_set(mo_set=mos(1)%mo_set, nao=nao)
+      CALL get_mo_set(mo_set=mos(1), nao=nao)
 
       ! diagonalize the KS matrix in order to have the full set of MO's
       ! get S and KS matrices in fm_type (create also a working array)
@@ -341,29 +337,8 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
          cholesky_method = cholesky_inverse
       END IF
 
-      NULLIFY (mos_mp2)
       ALLOCATE (mos_mp2(nspins))
       ALLOCATE (nelec(nspins))
-      DO ispin = 1, nspins
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, maxocc=maxocc, nelectron=nelec(ispin))
-
-         NULLIFY (mos_mp2(ispin)%mo_set)
-         CALL allocate_mo_set(mo_set=mos_mp2(ispin)%mo_set, &
-                              nao=nao, &
-                              nmo=nao, &
-                              nelectron=nelec(ispin), &
-                              n_el_f=REAL(nelec(ispin), dp), &
-                              maxocc=maxocc, &
-                              flexible_electron_count=dft_control%relax_multiplicity)
-      END DO
-
-      NULLIFY (my_mpools)
-      CALL mpools_create(mpools=my_mpools)
-      CALL mpools_rebuild_fm_pools(mpools=my_mpools, &
-                                   mos=mos_mp2, &
-                                   blacs_env=blacs_env, &
-                                   para_env=para_env)
-
       DO ispin = 1, nspins
 
          ! If ADMM we should make the ks matrix up-to-date
@@ -377,15 +352,31 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
             CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, matrix_ks(ispin)%matrix)
          END IF
 
-         CALL init_mo_set(mos_mp2(ispin)%mo_set, &
-                          fm_pool=my_mpools%ao_mo_fm_pools(ispin)%pool, &
+         CALL get_mo_set(mo_set=mos(ispin), maxocc=maxocc, nelectron=nelec(ispin))
+
+         CALL allocate_mo_set(mo_set=mos_mp2(ispin), &
+                              nao=nao, &
+                              nmo=nao, &
+                              nelectron=nelec(ispin), &
+                              n_el_f=REAL(nelec(ispin), dp), &
+                              maxocc=maxocc, &
+                              flexible_electron_count=dft_control%relax_multiplicity)
+
+         CALL get_mo_set(mos_mp2(ispin), nao=nao)
+         CALL cp_fm_struct_create(fm_struct, nrow_global=nao, &
+                                  ncol_global=nao, para_env=para_env, &
+                                  context=blacs_env)
+
+         CALL init_mo_set(mos_mp2(ispin), &
+                          fm_struct=fm_struct, &
                           name="mp2_mos")
+         CALL cp_fm_struct_release(fm_struct)
 
          IF (cholesky_method == cholesky_inverse) THEN
 
             ! diagonalize KS matrix
             CALL eigensolver(matrix_ks_fm=fm_matrix_ks, &
-                             mo_set=mos_mp2(ispin)%mo_set, &
+                             mo_set=mos_mp2(ispin), &
                              ortho=fm_matrix_s, &
                              work=fm_matrix_work, &
                              cholesky_method=cholesky_method, &
@@ -396,7 +387,7 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
          ELSE IF (cholesky_method == cholesky_off) THEN
 
             CALL eigensolver_symm(matrix_ks_fm=fm_matrix_ks, &
-                                  mo_set=mos_mp2(ispin)%mo_set, &
+                                  mo_set=mos_mp2(ispin), &
                                   ortho=fm_matrix_s, &
                                   work=fm_matrix_work, &
                                   do_level_shift=.FALSE., &
@@ -411,7 +402,6 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
       CALL cp_fm_release(fm_matrix_s)
       CALL cp_fm_release(fm_matrix_ks)
       CALL cp_fm_release(fm_matrix_work)
-      CALL mpools_release(mpools=my_mpools)
 
       hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%HF")
 
@@ -487,7 +477,7 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
 
          DO ispin = 1, nspins
             ! get the alpha coeff and eigenvalues
-            CALL get_mo_set(mo_set=mos_mp2(ispin)%mo_set, &
+            CALL get_mo_set(mo_set=mos_mp2(ispin), &
                             eigenvalues=mo_eigenvalues, &
                             mo_coeff=mo_coeff)
 
@@ -559,7 +549,7 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
 
          DO ispin = 1, nspins
             ! get the alpha coeff and eigenvalues
-            CALL get_mo_set(mo_set=mos_mp2(ispin)%mo_set, &
+            CALL get_mo_set(mo_set=mos_mp2(ispin), &
                             eigenvalues=mo_eigenvalues, &
                             mo_coeff=mo_coeff)
 
@@ -691,7 +681,7 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
       energy%total = energy%total + Emp2
 
       DO ispin = 1, nspins
-         CALL deallocate_mo_set(mo_set=mos_mp2(ispin)%mo_set)
+         CALL deallocate_mo_set(mo_set=mos_mp2(ispin))
       END DO
       DEALLOCATE (mos_mp2)
 
@@ -791,7 +781,7 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
    PURE SUBROUTINE get_gamma(matrix_s, matrix_ks, mos, matrix_s_kp, matrix_ks_transl, kpoints)
 
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_ks
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, matrix_ks_transl
       TYPE(kpoint_type), POINTER                         :: kpoints
 

@@ -30,8 +30,8 @@ MODULE qs_ot_scf
    USE kinds,                           ONLY: dp
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type,&
-                                              mo_set_restrict
+                                              mo_set_restrict,&
+                                              mo_set_type
    USE qs_ot,                           ONLY: qs_ot_get_orbitals,&
                                               qs_ot_get_orbitals_ref,&
                                               qs_ot_get_p
@@ -124,7 +124,7 @@ CONTAINS
    SUBROUTINE ot_scf_mini(mo_array, matrix_dedc, smear, matrix_s, energy, &
                           energy_only, delta, qs_ot_env)
 
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
+      TYPE(mo_set_type), DIMENSION(:), INTENT(INOUT)     :: mo_array
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_dedc
       TYPE(smear_type), POINTER                          :: smear
       TYPE(dbcsr_type), POINTER                          :: matrix_s
@@ -158,7 +158,7 @@ CONTAINS
       END IF
 
       DO ispin = 1, nspin
-         CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, occupation_numbers=occupation_numbers(ispin)%array)
+         CALL get_mo_set(mo_set=mo_array(ispin), occupation_numbers=occupation_numbers(ispin)%array)
          ALLOCATE (scaling_factor(ispin)%array(SIZE(occupation_numbers(ispin)%array)))
          scaling_factor(ispin)%array = 2.0_dp*occupation_numbers(ispin)%array
          IF (qs_ot_env(1)%settings%do_ener) THEN
@@ -179,7 +179,7 @@ CONTAINS
       IF (.NOT. energy_only) THEN
          IF (qs_ot_env(1)%settings%do_rotation) THEN
             DO ispin = 1, SIZE(qs_ot_env)
-               CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, mo_coeff_b=mo_coeff)
+               CALL get_mo_set(mo_set=mo_array(ispin), mo_coeff_b=mo_coeff)
                CALL dbcsr_get_info(mo_coeff, nfullrows_total=n, nfullcols_total=k)
                CALL dbcsr_multiply('T', 'N', 1.0_dp, mo_coeff, matrix_dedc(ispin)%matrix, &
                                    0.0_dp, qs_ot_env(ispin)%rot_mat_chc)
@@ -198,7 +198,7 @@ CONTAINS
                DO ispin = 1, SIZE(mo_array)
                   CALL dbcsr_get_diag(qs_ot_env(ispin)%rot_mat_chc, expectation_values(ispin)%array)
                   qs_ot_env(ispin)%ener_gx = expectation_values(ispin)%array
-                  CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set, &
+                  CALL set_mo_occupation(mo_set=mo_array(ispin), &
                                          smear=smear, eval_deriv=qs_ot_env(ispin)%ener_gx)
                END DO
             END IF
@@ -280,7 +280,7 @@ CONTAINS
 
       ! generate the orbitals using the new matrix_x
       DO ispin = 1, SIZE(qs_ot_env)
-         CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, mo_coeff_b=mo_coeff)
+         CALL get_mo_set(mo_set=mo_array(ispin), mo_coeff_b=mo_coeff)
          CALL dbcsr_get_info(mo_coeff, nfullrows_total=n, nfullcols_total=k)
          SELECT CASE (qs_ot_env(1)%settings%ot_algorithm)
          CASE ("TOD")
@@ -309,8 +309,8 @@ CONTAINS
       !
       IF (qs_ot_env(1)%settings%do_ener) THEN
          DO ispin = 1, SIZE(mo_array)
-            mo_array(ispin)%mo_set%eigenvalues = qs_ot_env(ispin)%ener_x
-            CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set, &
+            mo_array(ispin)%eigenvalues = qs_ot_env(ispin)%ener_x
+            CALL set_mo_occupation(mo_set=mo_array(ispin), &
                                    smear=smear)
          END DO
       END IF
@@ -350,7 +350,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE ot_scf_init(mo_array, matrix_s, qs_ot_env, matrix_ks, broyden_adaptive_sigma)
 
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mo_array
       TYPE(dbcsr_type), POINTER                          :: matrix_s
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
       TYPE(dbcsr_type), POINTER                          :: matrix_ks
@@ -366,13 +366,13 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       DO ispin = 1, SIZE(mo_array)
-         IF (.NOT. ASSOCIATED(mo_array(ispin)%mo_set%mo_coeff_b)) THEN
+         IF (.NOT. ASSOCIATED(mo_array(ispin)%mo_coeff_b)) THEN
             CPABORT("Shouldn't get there")
             ! we do ot then copy fm to dbcsr
             ! allocate that somewhere else ! fm -> dbcsr
-            CALL dbcsr_init_p(mo_array(ispin)%mo_set%mo_coeff_b)
-            CALL cp_dbcsr_m_by_n_from_row_template(mo_array(ispin)%mo_set%mo_coeff_b, template=matrix_ks, &
-                                                   n=mo_array(ispin)%mo_set%nmo, &
+            CALL dbcsr_init_p(mo_array(ispin)%mo_coeff_b)
+            CALL cp_dbcsr_m_by_n_from_row_template(mo_array(ispin)%mo_coeff_b, template=matrix_ks, &
+                                                   n=mo_array(ispin)%nmo, &
                                                    sym=dbcsr_type_no_symmetry)
          END IF
       END DO
@@ -390,7 +390,7 @@ CONTAINS
       DO ispin = 1, nspin
 
          NULLIFY (mo_coeff)
-         CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, mo_coeff_b=mo_coeff, mo_coeff=mo_coeff_fm)
+         CALL get_mo_set(mo_set=mo_array(ispin), mo_coeff_b=mo_coeff, mo_coeff=mo_coeff_fm)
          CALL copy_fm_to_dbcsr(mo_coeff_fm, mo_coeff) !fm -> dbcsr
 
          CALL dbcsr_get_info(mo_coeff, nfullrows_total=n, nfullcols_total=k)
@@ -419,9 +419,9 @@ CONTAINS
          END IF
 
          IF (qs_ot_env(ispin)%settings%do_ener) THEN
-            is_equal = SIZE(qs_ot_env(ispin)%ener_x) == SIZE(mo_array(ispin)%mo_set%eigenvalues)
+            is_equal = SIZE(qs_ot_env(ispin)%ener_x) == SIZE(mo_array(ispin)%eigenvalues)
             CPASSERT(is_equal)
-            qs_ot_env(ispin)%ener_x = mo_array(ispin)%mo_set%eigenvalues
+            qs_ot_env(ispin)%ener_x = mo_array(ispin)%eigenvalues
          END IF
 
          SELECT CASE (qs_ot_env(1)%settings%ot_algorithm)

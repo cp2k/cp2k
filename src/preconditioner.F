@@ -45,7 +45,6 @@ MODULE preconditioner
                                               qs_environment_type
    USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type,&
                                               mo_set_type
 #include "./base/base_uses.f90"
 
@@ -100,7 +99,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: precon_type, solver_type
       TYPE(dbcsr_type), POINTER                          :: matrix_h
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_s, matrix_t
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       REAL(KIND=dp)                                      :: energy_gap
       LOGICAL, INTENT(IN), OPTIONAL                      :: convert_precond_to_dbcsr
       INTEGER, INTENT(IN), OPTIONAL                      :: chol_type
@@ -290,7 +289,7 @@ CONTAINS
                                      convert_to_dbcsr, chol_type)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner
       INTEGER, INTENT(IN)                                :: prec_type, solver_type
@@ -348,8 +347,8 @@ CONTAINS
 
          do_co_rotate = ASSOCIATED(qs_env%mo_derivs)
          DO ispin = 1, nspins
-            CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff_b=mo_coeff_b, mo_coeff=mo_coeff)
-            use_mo_coeff_b = mos(ispin)%mo_set%use_mo_coeff_b
+            CALL get_mo_set(mo_set=mos(ispin), mo_coeff_b=mo_coeff_b, mo_coeff=mo_coeff)
+            use_mo_coeff_b = mos(ispin)%use_mo_coeff_b
             IF (use_mo_coeff_b .AND. do_co_rotate) THEN
                CALL calculate_subspace_eigenvalues(mo_coeff_b, matrix_ks(ispin)%matrix, &
                                                    do_rotation=.TRUE., &
@@ -383,7 +382,7 @@ CONTAINS
                                         prec_type, &
                                         solver_type, &
                                         matrix_h=matrix_ks(icall)%matrix, &
-                                        mo_set=mos(icall)%mo_set, &
+                                        mo_set=mos(icall), &
                                         energy_gap=energy_gap, &
                                         convert_precond_to_dbcsr=my_convert_to_dbcsr)
             ELSE
@@ -393,7 +392,7 @@ CONTAINS
                                         matrix_h=matrix_ks(icall)%matrix, &
                                         matrix_s=matrix_s(1)%matrix, &
                                         matrix_t=matrix_t, &
-                                        mo_set=mos(icall)%mo_set, &
+                                        mo_set=mos(icall), &
                                         energy_gap=energy_gap, &
                                         convert_precond_to_dbcsr=my_convert_to_dbcsr, chol_type=chol_type)
             END IF

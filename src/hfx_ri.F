@@ -102,7 +102,6 @@ MODULE hfx_ri
    USE qs_loc_utils,                    ONLY: qs_loc_control_init,&
                                               qs_loc_init
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type,&
                                               mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
                                               release_neighbor_list_sets
@@ -922,8 +921,8 @@ CONTAINS
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
       REAL(KIND=dp), INTENT(OUT)                         :: ehfx
-      TYPE(mo_set_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: mos
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN), &
+         OPTIONAL                                        :: mos
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
       LOGICAL, INTENT(IN)                                :: geometry_did_change
       INTEGER, INTENT(IN)                                :: nspins
@@ -946,7 +945,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: my_ks_matrix, my_rho_ao
       TYPE(dbcsr_type), DIMENSION(2)                     :: mo_coeff_b
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_b_tmp
-      TYPE(mo_set_type), POINTER                         :: mo_set
 
       CALL timeset(routineN, handle)
 
@@ -1001,15 +999,14 @@ CONTAINS
          END IF
          DO ispin = 1, nspins
             NULLIFY (mo_coeff_b_tmp)
-            mo_set => mos(ispin)%mo_set
-            CPASSERT(mo_set%uniform_occupation)
-            CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff, eigenvalues=mo_eigenvalues, mo_coeff_b=mo_coeff_b_tmp)
+            CPASSERT(mos(ispin)%uniform_occupation)
+            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, eigenvalues=mo_eigenvalues, mo_coeff_b=mo_coeff_b_tmp)
 
             IF (.NOT. ri_data%do_loc) THEN
-               IF (.NOT. mo_set%use_mo_coeff_b) CALL copy_fm_to_dbcsr(mo_coeff, mo_coeff_b_tmp)
+               IF (.NOT. mos(ispin)%use_mo_coeff_b) CALL copy_fm_to_dbcsr(mo_coeff, mo_coeff_b_tmp)
                CALL dbcsr_copy(mo_coeff_b(ispin), mo_coeff_b_tmp)
             ELSE
-               IF (mo_set%use_mo_coeff_b) CALL copy_dbcsr_to_fm(mo_coeff_b_tmp, mo_coeff)
+               IF (mos(ispin)%use_mo_coeff_b) CALL copy_dbcsr_to_fm(mo_coeff_b_tmp, mo_coeff)
                CALL dbcsr_create(mo_coeff_b(ispin), template=mo_coeff_b_tmp)
             END IF
 
@@ -1042,12 +1039,11 @@ CONTAINS
          END IF
 
          DO ispin = 1, nspins
-            mo_set => mos(ispin)%mo_set
             IF (ri_data%do_loc) THEN
                CALL copy_fm_to_dbcsr(moloc_coeff(ispin)%matrix, mo_coeff_b(ispin))
             END IF
-            CALL dbcsr_scale(mo_coeff_b(ispin), SQRT(mo_set%maxocc))
-            homo(ispin) = mo_set%homo
+            CALL dbcsr_scale(mo_coeff_b(ispin), SQRT(mos(ispin)%maxocc))
+            homo(ispin) = mos(ispin)%homo
          END DO
 
          IF (ri_data%do_loc) THEN
@@ -2917,8 +2913,8 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: hf_fraction
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL      :: rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL         :: rho_ao_resp
-      TYPE(mo_set_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: mos
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN), &
+         OPTIONAL                                        :: mos
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_virial, resp_only
       REAL(dp), INTENT(IN), OPTIONAL                     :: rescale_factor
 
@@ -2933,7 +2929,6 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_type), DIMENSION(2)                     :: mo_coeff_b
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_b_tmp
-      TYPE(mo_set_type), POINTER                         :: mo_set
 
       CALL timeset(routineN, handle)
 
@@ -2947,15 +2942,14 @@ CONTAINS
          END IF
          DO ispin = 1, nspins
             NULLIFY (mo_coeff_b_tmp)
-            mo_set => mos(ispin)%mo_set
-            CPASSERT(mo_set%uniform_occupation)
-            CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff, eigenvalues=mo_eigenvalues, mo_coeff_b=mo_coeff_b_tmp)
+            CPASSERT(mos(ispin)%uniform_occupation)
+            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, eigenvalues=mo_eigenvalues, mo_coeff_b=mo_coeff_b_tmp)
 
             IF (.NOT. ri_data%do_loc) THEN
-               IF (.NOT. mo_set%use_mo_coeff_b) CALL copy_fm_to_dbcsr(mo_coeff, mo_coeff_b_tmp)
+               IF (.NOT. mos(ispin)%use_mo_coeff_b) CALL copy_fm_to_dbcsr(mo_coeff, mo_coeff_b_tmp)
                CALL dbcsr_copy(mo_coeff_b(ispin), mo_coeff_b_tmp)
             ELSE
-               IF (mo_set%use_mo_coeff_b) CALL copy_dbcsr_to_fm(mo_coeff_b_tmp, mo_coeff)
+               IF (mos(ispin)%use_mo_coeff_b) CALL copy_dbcsr_to_fm(mo_coeff_b_tmp, mo_coeff)
                CALL dbcsr_create(mo_coeff_b(ispin), template=mo_coeff_b_tmp)
             END IF
 
@@ -2989,12 +2983,11 @@ CONTAINS
          END IF
 
          DO ispin = 1, nspins
-            mo_set => mos(ispin)%mo_set
             IF (ri_data%do_loc) THEN
                CALL copy_fm_to_dbcsr(moloc_coeff(ispin)%matrix, mo_coeff_b(ispin))
             END IF
-            CALL dbcsr_scale(mo_coeff_b(ispin), SQRT(mo_set%maxocc))
-            homo(ispin) = mo_set%homo
+            CALL dbcsr_scale(mo_coeff_b(ispin), SQRT(mos(ispin)%maxocc))
+            homo(ispin) = mos(ispin)%homo
          END DO
 
          IF (ri_data%do_loc) THEN

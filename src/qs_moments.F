@@ -81,7 +81,7 @@ MODULE qs_moments
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                               neighbor_list_iterate,&
                                               neighbor_list_iterator_create,&
@@ -1265,7 +1265,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: cosmat, sinmat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_1d_type), POINTER                :: local_particles
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -1327,7 +1327,7 @@ CONTAINS
       nmotot = 0
       DO ispin = 1, dft_control%nspins
          NULLIFY (tmp_fm_struct, mo_coeff)
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
+         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=nmo)
          nmotot = nmotot + nmo
          ALLOCATE (opvec(ispin)%matrix)
          CALL cp_fm_create(opvec(ispin)%matrix, mo_coeff%matrix_struct)
@@ -1344,7 +1344,7 @@ CONTAINS
 
       ! occupation
       DO ispin = 1, dft_control%nspins
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, maxocc=occ, uniform_occupation=uniform)
+         CALL get_mo_set(mo_set=mos(ispin), maxocc=occ, uniform_occupation=uniform)
          IF (.NOT. uniform) THEN
             CPWARN("Berry phase moments for non uniform MOs' occupation numbers not implemented")
          END IF
@@ -1638,7 +1638,7 @@ CONTAINS
    SUBROUTINE op_orbbas(cosmat, sinmat, mos, op_fm_set, opvec)
 
       TYPE(dbcsr_type), POINTER                          :: cosmat, sinmat
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: op_fm_set
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: opvec
 
@@ -1646,7 +1646,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
 
       DO i = 1, SIZE(op_fm_set, 2) ! spin
-         CALL get_mo_set(mo_set=mos(i)%mo_set, nao=nao, mo_coeff=mo_coeff, nmo=nmo)
+         CALL get_mo_set(mo_set=mos(i), nao=nao, mo_coeff=mo_coeff, nmo=nmo)
          CALL cp_dbcsr_sm_fm_multiply(cosmat, mo_coeff, opvec(i)%matrix, ncol=nmo)
          CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff, opvec(i)%matrix, 0.0_dp, &
                             op_fm_set(1, i)%matrix)
@@ -1668,7 +1668,7 @@ CONTAINS
    SUBROUTINE op_orbbas_rtp(cosmat, sinmat, mos, op_fm_set, mos_new)
 
       TYPE(dbcsr_type), POINTER                          :: cosmat, sinmat
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: op_fm_set
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new
 
@@ -1679,7 +1679,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
 
       DO i = 1, SIZE(op_fm_set, 2) ! spin
-         CALL get_mo_set(mo_set=mos(i)%mo_set, nao=nao, mo_coeff=mo_coeff, nmo=nmo)
+         CALL get_mo_set(mo_set=mos(i), nao=nao, mo_coeff=mo_coeff, nmo=nmo)
          CALL cp_fm_get_info(mos_new(2*i)%matrix, ncol_local=lcol, ncol_global=nmo)
          double_col = .TRUE.
          double_row = .FALSE.

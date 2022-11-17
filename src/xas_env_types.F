@@ -19,7 +19,7 @@ MODULE xas_env_types
    USE cp_array_utils,                  ONLY: cp_2d_r_p_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
-                                              fm_pool_give_back_fm
+                                              fm_pools_give_back_fm_vect
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_type
@@ -346,13 +346,8 @@ CONTAINS
       IF (ASSOCIATED(xas_env%unoccupied_evals)) THEN
          DEALLOCATE (xas_env%unoccupied_evals)
       END IF
-      IF (ASSOCIATED(xas_env%groundstate_coeff)) THEN
-         DO i = 1, SIZE(xas_env%groundstate_coeff)
-            CALL fm_pool_give_back_fm(xas_env%ao_mo_fm_pools(i)%pool, &
-                                      xas_env%groundstate_coeff(i)%matrix)
-         END DO
-         DEALLOCATE (xas_env%groundstate_coeff)
-      END IF
+      CALL fm_pools_give_back_fm_vect(xas_env%ao_mo_fm_pools, &
+                                      xas_env%groundstate_coeff)
       IF (ASSOCIATED(xas_env%dip_fm_set)) THEN
          DO i = 1, SIZE(xas_env%dip_fm_set, 2)
             DO j = 1, SIZE(xas_env%dip_fm_set, 1)

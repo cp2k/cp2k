@@ -31,7 +31,6 @@ MODULE qs_matrix_w
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type,&
                                               mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
@@ -76,7 +75,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, matrix_w_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
@@ -100,7 +99,7 @@ CONTAINS
                             mos=mos, &
                             kpoints=kpoints)
 
-            CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff, nao=nao)
+            CALL get_mo_set(mos(1), mo_coeff=mo_coeff, nao=nao)
             CALL cp_fm_struct_create(fmstruct=ao_ao_fmstruct, nrow_global=nao, ncol_global=nao, &
                                      template_fmstruct=mo_coeff%matrix_struct)
 
@@ -138,7 +137,7 @@ CONTAINS
 
             nspin = SIZE(mos)
             DO ispin = 1, nspin
-               mo_set => mos(ispin)%mo_set
+               mo_set => mos(ispin)
                IF (dft_control%roks) THEN
                   IF (scf_control%use_ot) THEN
                      IF (ispin > 1) THEN

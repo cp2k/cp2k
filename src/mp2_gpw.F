@@ -28,7 +28,6 @@ MODULE mp2_gpw
                                               cp_dbcsr_m_by_n_from_row_template
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: &
@@ -88,7 +87,7 @@ MODULE mp2_gpw
                                               qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
                                               release_neighbor_list_sets
    USE qs_neighbor_lists,               ONLY: atom2d_build,&
@@ -135,7 +134,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp2_type)                                     :: mp2_env
       REAL(KIND=dp), INTENT(OUT)                         :: Emp2, Emp2_Cou, Emp2_EX, Emp2_S, Emp2_T
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos_mp2
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos_mp2
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: unit_nr
       LOGICAL, INTENT(IN)                                :: calc_forces, calc_ex
@@ -163,10 +162,11 @@ CONTAINS
          DIMENSION(:, :, :)                              :: t_3c_O_ind
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub, blacs_env_sub_mat_munu
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_coeff
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, &
-                                                            fm_matrix_Sinv_Vtrunc_Sinv
       TYPE(cp_fm_type)                                   :: fm_matrix_PQ
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: mo_coeff
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_L_RI_metric, &
+                                                            fm_matrix_Sinv_Vtrunc_Sinv
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff_ptr
       TYPE(cp_logger_type), POINTER                      :: logger, logger_sub
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
       TYPE(dbcsr_p_type)                                 :: mat_munu, mat_P_global
@@ -185,7 +185,7 @@ CONTAINS
          DIMENSION(:, :, :)                              :: t_3c_O_compressed
       TYPE(kpoint_type), POINTER                         :: kpoints, kpoints_from_DFT
       TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -234,13 +234,13 @@ CONTAINS
       ELSE
          CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, mos=mos)
       END IF
-      CALL get_mo_set(mo_set=mos_mp2(1)%mo_set, nao=dimen)
-      NULLIFY (mo_coeff)
+      CALL get_mo_set(mo_set=mos_mp2(1), nao=dimen)
       ALLOCATE (homo(nspins), Eigenval(dimen, nspins), mo_coeff(nspins))
       DO ispin = 1, nspins
-         CALL get_mo_set(mo_set=mos_mp2(ispin)%mo_set, &
+         CALL get_mo_set(mo_set=mos_mp2(ispin), &
                          eigenvalues=mo_eigenvalues, nmo=nmo, homo=homo(ispin), &
-                         mo_coeff=mo_coeff(ispin)%matrix)
+                         mo_coeff=mo_coeff_ptr)
+         mo_coeff(ispin) = mo_coeff_ptr
          Eigenval(:, ispin) = mo_eigenvalues(:)
       END DO
 
@@ -363,7 +363,7 @@ CONTAINS
          ! output the two part of the C matrix (virtual, occupied)
          DO ispin = 1, nspins
 
-            CALL replicate_mat_to_subgroup(mp2_env, para_env, para_env_sub, mo_coeff(ispin)%matrix, dimen, homo(ispin), mat_munu, &
+            CALL replicate_mat_to_subgroup(mp2_env, para_env, para_env_sub, mo_coeff(ispin), dimen, homo(ispin), mat_munu, &
                                            mo_coeff_o(ispin)%matrix, mo_coeff_v(ispin)%matrix, &
                                            mo_coeff_all(ispin)%matrix, mo_coeff_gw(ispin)%matrix, &
                                            my_do_gw, gw_corr_lev_occ(ispin), gw_corr_lev_virt(ispin))
@@ -421,7 +421,7 @@ CONTAINS
             CALL mp2_gpw_compute( &
                Emp2, Emp2_Cou, Emp2_EX, qs_env, para_env, para_env_sub, color_sub, &
                cell, particle_set, &
-               atomic_kind_set, qs_kind_set, mo_coeff(1)%matrix, Eigenval(:, 1), nmo, homo(1), mat_munu, &
+               atomic_kind_set, qs_kind_set, mo_coeff(1), Eigenval(:, 1), nmo, homo(1), mat_munu, &
                sab_orb_sub, mo_coeff_o(1)%matrix, mo_coeff_v(1)%matrix, mp2_env%mp2_gpw%eps_filter, unit_nr, &
                mp2_env%mp2_memory, calc_ex, blacs_env_sub, &
                homo(2), mo_coeff_o(2)%matrix, mo_coeff_v(2)%matrix, Eigenval(:, 2), Emp2_AB)
@@ -431,7 +431,7 @@ CONTAINS
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A)') 'Beta (ia|'
             CALL mp2_gpw_compute( &
                Emp2_BB, Emp2_Cou_BB, Emp2_EX_BB, qs_env, para_env, para_env_sub, color_sub, cell, particle_set, &
-               atomic_kind_set, qs_kind_set, mo_coeff(2)%matrix, Eigenval(:, 2), nmo, homo(2), mat_munu, &
+               atomic_kind_set, qs_kind_set, mo_coeff(2), Eigenval(:, 2), nmo, homo(2), mat_munu, &
                sab_orb_sub, mo_coeff_o(2)%matrix, mo_coeff_v(2)%matrix, mp2_env%mp2_gpw%eps_filter, unit_nr, &
                mp2_env%mp2_memory, calc_ex, blacs_env_sub)
 
@@ -453,7 +453,7 @@ CONTAINS
             ! closed shell case
             CALL mp2_gpw_compute( &
                Emp2, Emp2_Cou, Emp2_EX, qs_env, para_env, para_env_sub, color_sub, cell, particle_set, &
-               atomic_kind_set, qs_kind_set, mo_coeff(1)%matrix, Eigenval(:, 1), nmo, homo(1), mat_munu, &
+               atomic_kind_set, qs_kind_set, mo_coeff(1), Eigenval(:, 1), nmo, homo(1), mat_munu, &
                sab_orb_sub, mo_coeff_o(1)%matrix, mo_coeff_v(1)%matrix, mp2_env%mp2_gpw%eps_filter, unit_nr, &
                mp2_env%mp2_memory, calc_ex, blacs_env_sub)
          END IF

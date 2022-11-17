@@ -113,7 +113,7 @@ CONTAINS
                                        pw_env_sub, external_vector, poisson_env, rho_r, pot_g, &
                                        potential_parameter, mat_munu, qs_env, task_list_sub)
 
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: mo_coeff
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       TYPE(pw_type), INTENT(INOUT)                       :: psi_L, rho_g
       TYPE(atomic_kind_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: atomic_kind_set

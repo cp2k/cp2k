@@ -109,12 +109,12 @@ CONTAINS
       DO i = 1, dft_control%nspins
          mo_mo_fmstruct => fm_pool_get_el_struct(mo_mo_fm_pools(i)%pool)
 
-         CALL get_mo_set(mo_set=qs_env%mos(i)%mo_set, &
+         CALL get_mo_set(mo_set=qs_env%mos(i), &
                          nao=nao, &
                          nmo=nmo)
 
          CALL cp_fm_create(matrix=tmp2, &
-                           matrix_struct=qs_env%mos(i)%mo_set%mo_coeff%matrix_struct, &
+                           matrix_struct=qs_env%mos(i)%mo_coeff%matrix_struct, &
                            name="ET_TMP"//TRIM(ADJUSTL(cp_to_string(2)))//"MATRIX")
          CALL cp_fm_create(matrix=inverse_mat, &
                            matrix_struct=mo_mo_fmstruct, &
@@ -138,7 +138,7 @@ CONTAINS
          CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, qs_env%et_coupling%et_mo_coeff(i)%matrix, &
                                       tmp2, nmo, 1.0_dp, 0.0_dp)
          CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
-                            qs_env%mos(i)%mo_set%mo_coeff, &
+                            qs_env%mos(i)%mo_coeff, &
                             tmp2, 0.0_dp, SMO)
 
 !    calculate the MO-representation of the restraint matrix A
@@ -148,13 +148,13 @@ CONTAINS
                                       tmp2, nmo, 1.0_dp, 0.0_dp)
 
          CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
-                            qs_env%mos(i)%mo_set%mo_coeff, &
+                            qs_env%mos(i)%mo_coeff, &
                             tmp2, 0.0_dp, rest_MO(1)%matrix)
 
 !    calculate the MO-representation of the restraint matrix D
 
          CALL cp_dbcsr_sm_fm_multiply(qs_env%et_coupling%rest_mat(2)%matrix, &
-                                      qs_env%mos(i)%mo_set%mo_coeff, &
+                                      qs_env%mos(i)%mo_coeff, &
                                       tmp2, nmo, 1.0_dp, 0.0_dp)
 
          CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &

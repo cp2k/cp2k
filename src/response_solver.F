@@ -126,7 +126,7 @@ MODULE response_solver
    USE qs_mo_methods,                   ONLY: make_basis_sm
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                               get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_overlap,                      ONLY: build_overlap_matrix
    USE qs_p_env_methods,                ONLY: p_env_create,&
@@ -196,7 +196,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_s_aux, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -280,7 +280,7 @@ CONTAINS
          CALL qs_rho_get(rho, rho_ao=rho_ao)
 
          DO ispin = 1, nspins
-            CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
+            CALL get_mo_set(mo_set=mos(ispin), &
                             mo_coeff=mo_coeff, &
                             nmo=nmo, nao=nao, homo=homo)
 
@@ -353,7 +353,7 @@ CONTAINS
          CALL get_qs_env(qs_env, mos=mos)
          ALLOCATE (cpmos(nspins))
          DO ispin = 1, nspins
-            CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
+            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
             CALL cp_fm_get_info(mo_coeff, matrix_struct=fm_struct)
             ALLOCATE (cpmos(ispin)%matrix)
             CALL cp_fm_create(cpmos(ispin)%matrix, fm_struct)
@@ -363,7 +363,7 @@ CONTAINS
          focc = 2.0_dp
          IF (nspins == 1) focc = 4.0_dp
          DO ispin = 1, nspins
-            CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
+            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
             CALL cp_fm_set_all(cpmos(ispin)%matrix, 0.0_dp)
             CALL cp_dbcsr_sm_fm_multiply(ec_env%matrix_hz(ispin)%matrix, mo_coeff, &
                                          cpmos(ispin)%matrix, nmo, &
@@ -435,11 +435,11 @@ CONTAINS
       ! Get rid of MO environment again
       IF (dft_control%qs_control%do_ls_scf) THEN
          DO ispin = 1, nspins
-            CALL deallocate_mo_set(mos(ispin)%mo_set)
+            CALL deallocate_mo_set(mos(ispin))
          END DO
          IF (ASSOCIATED(qs_env%mos)) THEN
             DO ispin = 1, SIZE(qs_env%mos)
-               CALL deallocate_mo_set(qs_env%mos(ispin)%mo_set)
+               CALL deallocate_mo_set(qs_env%mos(ispin))
             END DO
             DEALLOCATE (qs_env%mos)
          END IF
@@ -565,7 +565,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       CALL timeset(routineN, handle)
 
@@ -580,7 +580,7 @@ CONTAINS
       ! psi1 : The "perturbed" linear response orbitals
       ALLOCATE (psi0(nspins), psi1(nspins))
       DO ispin = 1, nspins
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
+         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
          psi0(ispin)%matrix => mo_coeff
          CALL cp_fm_get_info(mo_coeff, matrix_struct=fm_struct)
          ALLOCATE (psi1(ispin)%matrix)
@@ -623,7 +623,7 @@ CONTAINS
 
       ! Calculate Wz = 0.5*(psi1*eps*psi0^T + psi0*eps*psi1^T)
       DO ispin = 1, nspins
-         CALL calculate_wz_matrix(mos(ispin)%mo_set, psi1(ispin)%matrix, matrix_ks(ispin)%matrix, &
+         CALL calculate_wz_matrix(mos(ispin), psi1(ispin)%matrix, matrix_ks(ispin)%matrix, &
                                   p_env%w1(ispin)%matrix)
       END DO
       DO ispin = 1, nspins
@@ -668,7 +668,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, matrix_s_aux
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
 
@@ -714,7 +714,7 @@ CONTAINS
       ! psi1 : The "perturbed" linear response orbitals
       ALLOCATE (psi0(nspins), psi1(nspins))
       DO ispin = 1, nspins
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
+         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
          psi0(ispin)%matrix => mo_coeff
          CALL cp_fm_get_info(mo_coeff, matrix_struct=fm_struct)
          ALLOCATE (psi1(ispin)%matrix)
@@ -779,7 +779,7 @@ CONTAINS
       ! Calculate Wz = 0.5*(psi1*eps*psi0^T + psi0*eps*psi1^T)
       CALL get_qs_env(qs_env, matrix_ks=matrix_ks)
       DO ispin = 1, nspins
-         CALL calculate_wz_matrix(mos(ispin)%mo_set, psi1(ispin)%matrix, matrix_ks(ispin)%matrix, &
+         CALL calculate_wz_matrix(mos(ispin), psi1(ispin)%matrix, matrix_ks(ispin)%matrix, &
                                   p_env%w1(ispin)%matrix)
       END DO
       IF (PRESENT(p1_mat)) THEN
@@ -859,7 +859,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(kg_environment_type), POINTER                 :: kg_env
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb, sac_ae, sac_ppl, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -2061,7 +2061,7 @@ CONTAINS
          IF (nspins == 1) focc = 2.0_dp
          CALL get_qs_env(qs_env, mos=mos)
          DO ispin = 1, nspins
-            CALL calculate_whz_matrix(mos(ispin)%mo_set%mo_coeff, matrix_hz(ispin)%matrix, &
+            CALL calculate_whz_matrix(mos(ispin)%mo_coeff, matrix_hz(ispin)%matrix, &
                                       matrix_wz(ispin)%matrix, focc)
          END DO
       END IF
@@ -2151,7 +2151,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
       TYPE(dbcsr_type), POINTER                          :: s_matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -2284,7 +2284,7 @@ CONTAINS
       IF (nspins == 1) focc = 1.0_dp
       CALL get_qs_env(qs_env, mos=mos)
       DO ispin = 1, nspins
-         CALL calculate_whz_matrix(mos(ispin)%mo_set%mo_coeff, matrix_hz(ispin)%matrix, &
+         CALL calculate_whz_matrix(mos(ispin)%mo_coeff, matrix_hz(ispin)%matrix, &
                                    matrix_wz(ispin)%matrix, focc)
       END DO
       IF (nspins == 2) THEN

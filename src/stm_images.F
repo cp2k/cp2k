@@ -58,7 +58,7 @@ MODULE stm_images
                                               qs_environment_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
 #include "./base/base_uses.f90"
@@ -115,7 +115,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dbcsr_type), POINTER                          :: stm_density_ao
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -180,13 +180,13 @@ CONTAINS
       ALLOCATE (occupation(nspin))
       DO ispin = 1, nspin
          IF (nadd_unocc(ispin) == 0) THEN
-            CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, &
+            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, &
                             eigenvalues=mo_eigenvalues, nmo=nmo, mu=efermi, occupation_numbers=mo_occ)
             mo_arrays(ispin)%matrix => mo_coeff
             evals(ispin)%array => mo_eigenvalues
             occupation(ispin)%array => mo_occ
          ELSE
-            CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, &
+            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, &
                             eigenvalues=mo_eigenvalues, nmo=nmo, mu=efermi, occupation_numbers=mo_occ)
             ndim = nmo + nadd_unocc(ispin)
             ALLOCATE (evals(ispin)%array(ndim))

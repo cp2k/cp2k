@@ -54,7 +54,6 @@ MODULE rpa_im_time
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type,&
                                               mo_set_type
    USE qs_tensors,                      ONLY: decompress_tensor,&
                                               get_tensor_occupancy
@@ -898,7 +897,7 @@ CONTAINS
       CPASSERT(kpoint%use_real_wfn .EQV. .FALSE.)
 
       ! work matrix
-      mo_set => kpoint%kp_env(1)%kpoint_env%mos(1, 1)%mo_set
+      mo_set => kpoint%kp_env(1)%kpoint_env%mos(1, 1)
       CALL get_mo_set(mo_set, nao=nao, nmo=nmo)
 
       ! if this CPASSERT is triggered, please add all virtual MOs to SCF section,
@@ -917,7 +916,7 @@ CONTAINS
          kp => kpoint%kp_env(ikpgr)%kpoint_env
          nspin = SIZE(kp%mos, 2)
          DO ispin = 1, nspin
-            mo_set => kp%mos(1, ispin)%mo_set
+            mo_set => kp%mos(1, ispin)
             CALL get_mo_set(mo_set, eigenvalues=eigenvalues)
             rpmat => kp%wmat(1, ispin)%matrix
             cpmat => kp%wmat(2, ispin)%matrix
@@ -949,7 +948,7 @@ CONTAINS
 
             ! Re(c)*Re(c)
             CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, mo_set%mo_coeff, fwork, 0.0_dp, rpmat)
-            mo_set => kp%mos(2, ispin)%mo_set
+            mo_set => kp%mos(2, ispin)
             ! Im(c)*Re(c)
             CALL parallel_gemm("N", "T", nao, nao, nmo, -1.0_dp, mo_set%mo_coeff, fwork, 0.0_dp, cpmat)
             ! Re(c)*Im(c)
@@ -1027,7 +1026,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_dm_global_work, matrix_s_kp
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       CALL timeset(routineN, handle)
 
@@ -1146,7 +1145,7 @@ CONTAINS
       INTEGER                                            :: handle, iquad, jspin, nspin, num_cells_dm
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_dm_global_work, matrix_s_kp
       TYPE(kpoint_type), POINTER                         :: kpoints_G
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       CALL timeset(routineN, handle)
 
@@ -1269,7 +1268,7 @@ CONTAINS
 
       nspin = SIZE(mat_dm_global_work, 1)
 
-      mo_set => kpoints_G%kp_env(1)%kpoint_env%mos(1, 1)%mo_set
+      mo_set => kpoints_G%kp_env(1)%kpoint_env%mos(1, 1)
       CALL get_mo_set(mo_set, nao=nao)
 
       ALLOCATE (atom_from_ao_index(nao))

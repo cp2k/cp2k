@@ -682,18 +682,24 @@ CONTAINS
 !> \param alpha ...
 !> \param keep_sparsity Determines if the sparsity of sparse_matrix is retained
 !>        by default it is TRUE
+!> \param symmetry_mode There are the following modes
+!>        1:     sparse_matrix += 0.5*alpha*(v*g^T+g^T*v)    (symmetric update)
+!>        -1:    sparse_matrix += 0.5*alpha*(v*g^T-g^T*v)    (skewsymmetric update)
+!>        else:  sparse_matrix += alpha*v*g^T                (no symmetry, default)
+!>        saves some redistribution steps
 ! **************************************************************************************************
-   SUBROUTINE cp_dbcsr_plus_fm_fm_t(sparse_matrix, matrix_v, matrix_g, ncol, alpha, keep_sparsity)
+   SUBROUTINE cp_dbcsr_plus_fm_fm_t(sparse_matrix, matrix_v, matrix_g, ncol, alpha, keep_sparsity, symmetry_mode)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: sparse_matrix
       TYPE(cp_fm_type), INTENT(IN)                       :: matrix_v
       TYPE(cp_fm_type), OPTIONAL, INTENT(IN)             :: matrix_g
       INTEGER, INTENT(IN)                                :: ncol
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: alpha
       LOGICAL, INTENT(IN), OPTIONAL                      :: keep_sparsity
+      INTEGER, INTENT(IN), OPTIONAL :: symmetry_mode
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_plus_fm_fm_t_native'
 
-      INTEGER                                            :: npcols, k, nao, timing_handle, data_type
+      INTEGER                                            :: npcols, k, nao, timing_handle, data_type, my_symmetry_mode
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size_left, &
                                                             col_dist_left, row_blk_size, row_dist
       LOGICAL                                            :: check_product, my_keep_sparsity
@@ -710,6 +716,10 @@ CONTAINS
 
       my_keep_sparsity = .TRUE.
       IF (PRESENT(keep_sparsity)) my_keep_sparsity = keep_sparsity
+
+      my_symmetry_mode = 0
+      IF (PRESENT(symmetry_mode)) my_symmetry_mode = symmetry_mode
+
       NULLIFY (col_dist_left)
 
       IF (ncol .GT. 0) THEN
@@ -755,10 +765,33 @@ CONTAINS
          my_alpha = 1.0_dp
          IF (PRESENT(alpha)) my_alpha = alpha
          IF (PRESENT(matrix_g)) THEN
-            CALL dbcsr_multiply("N", "T", my_alpha, mat_v, mat_g, &
-                                1.0_dp, sparse_matrix, &
-                                retain_sparsity=my_keep_sparsity, &
-                                last_k=ncol)
+            IF (my_symmetry_mode == 1) THEN
+               ! Symmetric mode
+               CALL dbcsr_multiply("N", "T", 0.5_dp*my_alpha, mat_v, mat_g, &
+                                   1.0_dp, sparse_matrix, &
+                                   retain_sparsity=my_keep_sparsity, &
+                                   last_k=ncol)
+               CALL dbcsr_multiply("N", "T", 0.5_dp*my_alpha, mat_g, mat_v, &
+                                   1.0_dp, sparse_matrix, &
+                                   retain_sparsity=my_keep_sparsity, &
+                                   last_k=ncol)
+            ELSE IF (my_symmetry_mode == -1) THEN
+               ! Skewsymmetric mode
+               CALL dbcsr_multiply("N", "T", 0.5_dp*my_alpha, mat_v, mat_g, &
+                                   1.0_dp, sparse_matrix, &
+                                   retain_sparsity=my_keep_sparsity, &
+                                   last_k=ncol)
+               CALL dbcsr_multiply("N", "T", -0.5_dp*my_alpha, mat_g, mat_v, &
+                                   1.0_dp, sparse_matrix, &
+                                   retain_sparsity=my_keep_sparsity, &
+                                   last_k=ncol)
+            ELSE
+               ! Normal mode
+               CALL dbcsr_multiply("N", "T", my_alpha, mat_v, mat_g, &
+                                   1.0_dp, sparse_matrix, &
+                                   retain_sparsity=my_keep_sparsity, &
+                                   last_k=ncol)
+            END IF
          ELSE
             CALL dbcsr_multiply("N", "T", my_alpha, mat_v, mat_v, &
                                 1.0_dp, sparse_matrix, &
@@ -768,8 +801,20 @@ CONTAINS
 
          IF (check_product) THEN
             IF (PRESENT(matrix_g)) THEN
-               CALL cp_fm_gemm("N", "T", nao, nao, ncol, my_alpha, matrix_v, matrix_g, &
-                               1.0_dp, fm_matrix)
+               IF (my_symmetry_mode == 1) THEN
+                  CALL cp_fm_gemm("N", "T", nao, nao, ncol, 0.5_dp*my_alpha, matrix_v, matrix_g, &
+                                  1.0_dp, fm_matrix)
+                  CALL cp_fm_gemm("N", "T", nao, nao, ncol, 0.5_dp*my_alpha, matrix_g, matrix_v, &
+                                  1.0_dp, fm_matrix)
+               ELSE IF (my_symmetry_mode == -1) THEN
+                  CALL cp_fm_gemm("N", "T", nao, nao, ncol, 0.5_dp*my_alpha, matrix_v, matrix_g, &
+                                  1.0_dp, fm_matrix)
+                  CALL cp_fm_gemm("N", "T", nao, nao, ncol, -0.5_dp*my_alpha, matrix_g, matrix_v, &
+                                  1.0_dp, fm_matrix)
+               ELSE
+                  CALL cp_fm_gemm("N", "T", nao, nao, ncol, my_alpha, matrix_v, matrix_g, &
+                                  1.0_dp, fm_matrix)
+               END IF
             ELSE
                CALL cp_fm_gemm("N", "T", nao, nao, ncol, my_alpha, matrix_v, matrix_v, &
                                1.0_dp, fm_matrix)

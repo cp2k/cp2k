@@ -67,7 +67,7 @@ MODULE rt_propagation
    USE qs_ks_types,                     ONLY: qs_ks_did_change
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               init_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE rt_delta_pulse,                  ONLY: apply_delta_pulse,&
                                               apply_delta_pulse_mag,&
                                               apply_delta_pulse_periodic
@@ -203,7 +203,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new, mos_old
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, rho_new, rho_old
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(rtp_control_type), POINTER                    :: rtp_control
 
@@ -242,7 +242,7 @@ CONTAINS
                CALL apply_delta_pulse_mag(qs_env, mos_old, mos_new)
             ELSE
                DO i = 1, SIZE(mos)
-                  CALL cp_fm_to_fm(mos(i)%mo_set%mo_coeff, mos_old(2*i - 1)%matrix)
+                  CALL cp_fm_to_fm(mos(i)%mo_coeff, mos_old(2*i - 1)%matrix)
                   CALL cp_fm_set_all(mos_old(2*i)%matrix, zero, zero)
                END DO
             END IF
@@ -469,9 +469,9 @@ CONTAINS
          CALL qs_energies_init(qs_env, .FALSE.)
          IF (.NOT. rtp_control%linear_scaling .OR. rtp_control%initial_wfn == use_restart_wfn) THEN
             DO ispin = 1, SIZE(qs_env%mos)
-               CALL get_mo_set(qs_env%mos(ispin)%mo_set, mo_coeff=mo_coeff, homo=homo)
+               CALL get_mo_set(qs_env%mos(ispin), mo_coeff=mo_coeff, homo=homo)
                IF (.NOT. ASSOCIATED(mo_coeff)) THEN
-                  CALL init_mo_set(qs_env%mos(ispin)%mo_set, &
+                  CALL init_mo_set(qs_env%mos(ispin), &
                                    qs_env%mpools%ao_mo_fm_pools(ispin)%pool, &
                                    name="qs_env%mo"//TRIM(ADJUSTL(cp_to_string(ispin))))
                END IF
@@ -481,12 +481,12 @@ CONTAINS
                CALL get_qs_env(qs_env, blacs_env=blacs_env, para_env=para_env, qs_kind_set=qs_kind_set)
                CALL get_qs_kind_set(qs_kind_set, nsgf=nao_aux_fit, basis_type="AUX_FIT")
                DO ispin = 1, SIZE(qs_env%admm_env%mos_aux_fit)
-                  CALL get_mo_set(mo_set=qs_env%mos(ispin)%mo_set, nmo=nmo)
+                  CALL get_mo_set(mo_set=qs_env%mos(ispin), nmo=nmo)
                   CALL cp_fm_struct_create(aux_fit_fm_struct, context=blacs_env, para_env=para_env, &
                                            nrow_global=nao_aux_fit, ncol_global=nmo)
-                  CALL get_mo_set(qs_env%admm_env%mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit, homo=homo)
+                  CALL get_mo_set(qs_env%admm_env%mos_aux_fit(ispin), mo_coeff=mo_coeff_aux_fit, homo=homo)
                   IF (.NOT. ASSOCIATED(mo_coeff_aux_fit)) THEN
-                     CALL init_mo_set(qs_env%admm_env%mos_aux_fit(ispin)%mo_set, &
+                     CALL init_mo_set(qs_env%admm_env%mos_aux_fit(ispin), &
                                       fm_struct=aux_fit_fm_struct, &
                                       name="qs_env%mo_aux_fit"//TRIM(ADJUSTL(cp_to_string(ispin))))
                   END IF

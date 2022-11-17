@@ -167,7 +167,7 @@ CONTAINS
                           cholesky_method, do_level_shift, &
                           level_shift, matrix_u_fm, use_jacobi)
       TYPE(cp_fm_type), INTENT(IN)                       :: matrix_ks_fm
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(cp_fm_type), INTENT(IN)                       :: ortho, work
       INTEGER, INTENT(inout)                             :: cholesky_method
       LOGICAL, INTENT(in)                                :: do_level_shift
@@ -268,7 +268,7 @@ CONTAINS
    SUBROUTINE eigensolver_dbcsr(matrix_ks, matrix_ks_fm, mo_set, ortho_dbcsr, ksbuf1, ksbuf2)
       TYPE(dbcsr_type), POINTER                          :: matrix_ks
       TYPE(cp_fm_type), INTENT(IN)                       :: matrix_ks_fm
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(dbcsr_type), POINTER                          :: ortho_dbcsr, ksbuf1, ksbuf2
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'eigensolver_dbcsr'
@@ -327,7 +327,7 @@ CONTAINS
    SUBROUTINE eigensolver_symm(matrix_ks_fm, mo_set, ortho, work, do_level_shift, &
                                level_shift, matrix_u_fm, use_jacobi, jacobi_threshold)
       TYPE(cp_fm_type), INTENT(IN)                       :: matrix_ks_fm
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(cp_fm_type), INTENT(IN)                       :: ortho, work
       LOGICAL, INTENT(IN)                                :: do_level_shift
       REAL(KIND=dp), INTENT(IN)                          :: level_shift
@@ -405,7 +405,7 @@ CONTAINS
                                  level_shift, use_jacobi, jacobi_threshold)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: matrix_ks
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(cp_fm_type), INTENT(IN)                       :: work
       LOGICAL, INTENT(IN)                                :: do_level_shift
       REAL(KIND=dp), INTENT(IN)                          :: level_shift
@@ -743,7 +743,7 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE correct_mo_eigenvalues(mo_eigenvalues, homo, nmo, level_shift)
+   PURE SUBROUTINE correct_mo_eigenvalues(mo_eigenvalues, homo, nmo, level_shift)
 
       REAL(kind=dp), DIMENSION(:), INTENT(inout)         :: mo_eigenvalues
       INTEGER, INTENT(in)                                :: homo, nmo

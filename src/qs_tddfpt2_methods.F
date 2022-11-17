@@ -64,7 +64,7 @@ MODULE qs_tddfpt2_methods
                                               kernel_env_type,&
                                               release_kernel_env
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_scf_methods,                  ONLY: eigensolver
    USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE qs_tddfpt2_densities,            ONLY: tddfpt_construct_aux_fit_density,&
@@ -157,7 +157,7 @@ CONTAINS
       TYPE(excited_energy_type), POINTER                 :: ex_env
       TYPE(full_kernel_env_type), TARGET                 :: full_kernel_env, kernel_env_admm_aux
       TYPE(kernel_env_type)                              :: kernel_env
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(section_vals_type), POINTER                   :: lri_section, tddfpt_print_section, &
                                                             tddfpt_section, xc_section
@@ -332,6 +332,7 @@ CONTAINS
       DO istate = 1, nstates
          DO ispin = 1, nspins
             NULLIFY (evects(ispin, istate)%matrix, S_evects(ispin, istate)%matrix)
+            ALLOCATE (S_evects(ispin, istate)%matrix)
             CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, S_evects(ispin, istate)%matrix)
          END DO
       END DO
@@ -852,7 +853,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(cp_fm_p_type), DIMENSION(:, :)                :: evects
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: fingerprint
       INTEGER, INTENT(INOUT)                             :: my_state
 
@@ -883,7 +884,7 @@ CONTAINS
       END DO
       ALLOCATE (psi0(nspins))
       DO ispin = 1, nspins
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
+         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
          psi0(ispin)%matrix => mo_coeff
       END DO
       !

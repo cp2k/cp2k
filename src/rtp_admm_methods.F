@@ -50,7 +50,7 @@ MODULE rtp_admm_methods
                                               qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_set,&
                                               qs_rho_type
@@ -92,7 +92,7 @@ CONTAINS
                                                             matrix_s_aux_fit, &
                                                             matrix_s_aux_fit_vs_orb
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_aux_fit
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g_aux, rho_r_aux
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
@@ -212,7 +212,7 @@ CONTAINS
       TYPE(admm_control_type), POINTER                   :: admm_control
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux_fit, matrix_s_mixed
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos, mos_aux_fit
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: rtp_coeff_aux_fit
       LOGICAL, INTENT(IN)                                :: geometry_did_change
@@ -281,7 +281,7 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux_fit, matrix_s_mixed
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos, mos_aux_fit
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: rtp_coeff_aux_fit
       LOGICAL, INTENT(IN)                                :: geometry_did_change
@@ -340,8 +340,8 @@ CONTAINS
          IF (nmo == 0) CYCLE
          !! Lambda = C^(T)*B*C
          CALL get_rtp(rtp=rtp, mos_new=mos_new)
-         CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, occupation_numbers=occ_num, nmo=nmo_mos)
-         CALL get_mo_set(mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit, &
+         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, occupation_numbers=occ_num, nmo=nmo_mos)
+         CALL get_mo_set(mos_aux_fit(ispin), mo_coeff=mo_coeff_aux_fit, &
                          occupation_numbers=occ_num_aux)
 
          CALL parallel_gemm('N', 'N', nao_aux_fit, nmo, nao_orb, &
@@ -386,14 +386,12 @@ CONTAINS
       CALL cp_fm_get_info(rtp_coeff_aux_fit(re)%matrix, ncol_global=ncol)
       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux, &
                                  matrix_v=rtp_coeff_aux_fit(re)%matrix, &
-                                 matrix_g=rtp_coeff_aux_fit(re)%matrix, &
                                  ncol=ncol, &
                                  alpha=alpha)
 
       ! It is actually complex conjugate but i*i=-1 therefore it must be added
       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux, &
                                  matrix_v=rtp_coeff_aux_fit(im)%matrix, &
-                                 matrix_g=rtp_coeff_aux_fit(im)%matrix, &
                                  ncol=ncol, &
                                  alpha=alpha)
 
@@ -403,13 +401,8 @@ CONTAINS
                                  matrix_v=rtp_coeff_aux_fit(im)%matrix, &
                                  matrix_g=rtp_coeff_aux_fit(re)%matrix, &
                                  ncol=ncol, &
-                                 alpha=alpha)
-      alpha = -alpha
-      CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux_im, &
-                                 matrix_v=rtp_coeff_aux_fit(re)%matrix, &
-                                 matrix_g=rtp_coeff_aux_fit(im)%matrix, &
-                                 ncol=ncol, &
-                                 alpha=alpha)
+                                 alpha=2.0_dp*alpha, &
+                                 symmetry_mode=-1)
 
       CALL timestop(handle)
 
@@ -489,11 +482,11 @@ CONTAINS
       CALL dbcsr_set(matrix_ks_nosym, 0.0_dp)
       CALL dbcsr_desymmetrize(matrix_ks_aux_fit(ispin)%matrix, matrix_ks_nosym)
 
-      CALL copy_dbcsr_to_fm(matrix_ks_nosym, admm_env%K(ispin)%matrix)
+      CALL copy_dbcsr_to_fm(matrix_ks_nosym, admm_env%K(ispin))
 
       !! K*A
       CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, &
-                         1.0_dp, admm_env%K(ispin)%matrix, admm_env%A, 0.0_dp, &
+                         1.0_dp, admm_env%K(ispin), admm_env%A, 0.0_dp, &
                          admm_env%work_aux_orb)
       !! A^T*K*A
       CALL parallel_gemm('T', 'N', nao_orb, nao_orb, nao_aux_fit, &

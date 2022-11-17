@@ -70,19 +70,19 @@ CONTAINS
 
             CALL dbcsr_copy(work, ks_matrix)
             CALL dbcsr_set(work, 0.0_dp)
-            CALL copy_fm_to_dbcsr(admm_env%ks_to_be_merged(ispin)%matrix, work, keep_sparsity=.TRUE.)
+            CALL copy_fm_to_dbcsr(admm_env%ks_to_be_merged(ispin), work, keep_sparsity=.TRUE.)
 
             CALL dbcsr_add(ks_matrix, work, 1.0_dp, -1.0_dp)
 
             ! ** calculate A^T*H_tilde*A
             CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, &
-                               1.0_dp, admm_env%K(ispin)%matrix, admm_env%A, 0.0_dp, &
+                               1.0_dp, admm_env%K(ispin), admm_env%A, 0.0_dp, &
                                admm_env%work_aux_orb)
             CALL parallel_gemm('T', 'N', nao_orb, nao_orb, nao_aux_fit, &
                                1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, &
-                               admm_env%H_corr(ispin)%matrix)
+                               admm_env%H_corr(ispin))
 
-            CALL copy_fm_to_dbcsr(admm_env%H_corr(ispin)%matrix, work, keep_sparsity=.TRUE.)
+            CALL copy_fm_to_dbcsr(admm_env%H_corr(ispin), work, keep_sparsity=.TRUE.)
 
             CALL dbcsr_add(ks_matrix, work, 1.0_dp, 1.0_dp)
             CALL dbcsr_deallocate_matrix(work)
@@ -95,17 +95,17 @@ CONTAINS
 
             CALL dbcsr_copy(work, ks_matrix)
             CALL dbcsr_set(work, 0.0_dp)
-            CALL copy_fm_to_dbcsr(admm_env%ks_to_be_merged(ispin)%matrix, work, keep_sparsity=.TRUE.)
+            CALL copy_fm_to_dbcsr(admm_env%ks_to_be_merged(ispin), work, keep_sparsity=.TRUE.)
 
             ! ** calculate A^T*H_tilde*A
             CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, &
-                               1.0_dp, admm_env%K(ispin)%matrix, admm_env%A, 0.0_dp, &
+                               1.0_dp, admm_env%K(ispin), admm_env%A, 0.0_dp, &
                                admm_env%work_aux_orb)
             CALL parallel_gemm('T', 'N', nao_orb, nao_orb, nao_aux_fit, &
                                1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, &
-                               admm_env%H_corr(ispin)%matrix)
+                               admm_env%H_corr(ispin))
 
-            CALL copy_fm_to_dbcsr(admm_env%H_corr(ispin)%matrix, work, keep_sparsity=.TRUE.)
+            CALL copy_fm_to_dbcsr(admm_env%H_corr(ispin), work, keep_sparsity=.TRUE.)
 
             CALL dbcsr_add(ks_matrix, work, 1.0_dp, 1.0_dp)
             CALL dbcsr_deallocate_matrix(work)
@@ -144,14 +144,14 @@ CONTAINS
 
             CALL dbcsr_copy(work, ks_matrix)
             CALL dbcsr_set(work, 0.0_dp)
-            CALL copy_fm_to_dbcsr(admm_env%H_corr(ispin)%matrix, work, keep_sparsity=.TRUE.)
+            CALL copy_fm_to_dbcsr(admm_env%H_corr(ispin), work, keep_sparsity=.TRUE.)
 
             CALL dbcsr_add(ks_matrix, work, 1.0_dp, -1.0_dp)
 
-            CALL copy_fm_to_dbcsr(admm_env%H_corr(ispin)%matrix, work, keep_sparsity=.TRUE.)
+            CALL copy_fm_to_dbcsr(admm_env%H_corr(ispin), work, keep_sparsity=.TRUE.)
 
             CALL dbcsr_set(work, 0.0_dp)
-            CALL copy_fm_to_dbcsr(admm_env%ks_to_be_merged(ispin)%matrix, work, keep_sparsity=.TRUE.)
+            CALL copy_fm_to_dbcsr(admm_env%ks_to_be_merged(ispin), work, keep_sparsity=.TRUE.)
 
             CALL dbcsr_add(ks_matrix, work, 1.0_dp, 1.0_dp)
             CALL dbcsr_deallocate_matrix(work)
@@ -164,7 +164,7 @@ CONTAINS
             CALL dbcsr_copy(work, ks_matrix)
             CALL dbcsr_set(work, 0.0_dp)
 
-            CALL copy_fm_to_dbcsr(admm_env%H_corr(ispin)%matrix, work, keep_sparsity=.TRUE.)
+            CALL copy_fm_to_dbcsr(admm_env%H_corr(ispin), work, keep_sparsity=.TRUE.)
 
             CALL dbcsr_add(ks_matrix, work, 1.0_dp, -1.0_dp)
             CALL dbcsr_deallocate_matrix(work)

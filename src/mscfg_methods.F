@@ -57,7 +57,7 @@ MODULE mscfg_methods
                                               qs_env_release,&
                                               qs_environment_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -154,7 +154,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys, subsys_loc
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_of_frag
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_of_frag
       TYPE(molecular_scf_guess_env_type), POINTER        :: mscfg_env
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(qs_energy_type), POINTER                      :: qs_energy
@@ -204,7 +204,7 @@ CONTAINS
             !! Get total number of MOs
             CALL get_qs_env(qs_env, mos=mos)
             IF (SIZE(mos) .GT. 1) CPABORT("Unrestricted ALMO methods are NYI") !! Unrestricted ALMO is not implemented yet
-            CALL get_mo_set(mo_set=mos(1)%mo_set, nmo=nmo)
+            CALL get_mo_set(mo_set=mos(1), nmo=nmo)
             !! Initialize storage of MO energies for ALMO smearing
             CPASSERT(ASSOCIATED(almo_scf_env))
             ALLOCATE (almo_scf_env%mo_energies(nmo, SIZE(mos)))
@@ -318,13 +318,13 @@ CONTAINS
                !! Manually add compatibility between ALMO SCF and diag SCF (used for smearing compatibility)
                !! MOs are required to compute ALMO orbitals, but not stored with diag SCF algorithm...
                !! RS-WARNING: Should be properly fixed, this is just a raw fix.
-               CALL copy_fm_to_dbcsr(mos_of_frag(imo)%mo_set%mo_coeff, &
-                                     mos_of_frag(imo)%mo_set%mo_coeff_b)
+               CALL copy_fm_to_dbcsr(mos_of_frag(imo)%mo_coeff, &
+                                     mos_of_frag(imo)%mo_coeff_b)
                IF (smear_almo_scf) THEN
                   !! Store MOs energies for ALMO smearing purpose
-                  nmo_of_frag = SIZE(mos_of_frag(imo)%mo_set%eigenvalues)
+                  nmo_of_frag = SIZE(mos_of_frag(imo)%eigenvalues)
                   almo_scf_env%mo_energies(nb_eigenval_stored + 1:nb_eigenval_stored + nmo_of_frag, imo) &
-                     = mos_of_frag(imo)%mo_set%eigenvalues(:)
+                     = mos_of_frag(imo)%eigenvalues(:)
                   !! update stored energies offset. Assumes nmosets_of_frag == 1 (general smearing ALMO assumption)
                   nb_eigenval_stored = nb_eigenval_stored + nmo_of_frag
                END IF
@@ -332,10 +332,10 @@ CONTAINS
 
             ! the matrices have been allocated already - copy the results there
             CALL dbcsr_create(mscfg_env%mos_of_frag(ifrag, imo), &
-                              template=mos_of_frag(imo)%mo_set%mo_coeff_b, &
+                              template=mos_of_frag(imo)%mo_coeff_b, &
                               matrix_type=dbcsr_type_no_symmetry)
             CALL dbcsr_copy(mscfg_env%mos_of_frag(ifrag, imo), &
-                            mos_of_frag(imo)%mo_set%mo_coeff_b)
+                            mos_of_frag(imo)%mo_coeff_b)
          END DO
          !
          ! Clean up

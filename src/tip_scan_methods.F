@@ -45,7 +45,7 @@ MODULE tip_scan_methods
                                               set_ks_env
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                               duplicate_mo_set,&
-                                              mo_set_p_type,&
+                                              mo_set_type,&
                                               reassign_allocated_mos
    USE qs_scf,                          ONLY: scf
    USE tip_scan_types,                  ONLY: read_scanning_section,&
@@ -86,7 +86,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: rpos
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_ref
+      TYPE(mo_set_type), ALLOCATABLE, DIMENSION(:)       :: mos_ref
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: sf, vref
@@ -146,7 +147,7 @@ CONTAINS
          nset = SIZE(mos)
          ALLOCATE (mos_ref(nset))
          DO iset = 1, nset
-            CALL duplicate_mo_set(mos_ref(iset)%mo_set, mos(iset)%mo_set)
+            CALL duplicate_mo_set(mos_ref(iset), mos(iset))
          END DO
 
          nscan = scan_env%num_scan_points
@@ -172,7 +173,7 @@ CONTAINS
             ! reset MOs
             CALL get_qs_env(qs_env, mos=mos)
             DO iset = 1, nset
-               CALL reassign_allocated_mos(mos(iset)%mo_set, mos_ref(iset)%mo_set)
+               CALL reassign_allocated_mos(mos(iset), mos_ref(iset))
             END DO
 
             ! Calculate electronic structure
@@ -210,8 +211,8 @@ CONTAINS
          ! reset MOs
          CALL get_qs_env(qs_env, mos=mos)
          DO iset = 1, nset
-            CALL reassign_allocated_mos(mos(iset)%mo_set, mos_ref(iset)%mo_set)
-            CALL deallocate_mo_set(mos_ref(iset)%mo_set)
+            CALL reassign_allocated_mos(mos(iset), mos_ref(iset))
+            CALL deallocate_mo_set(mos_ref(iset))
          END DO
          DEALLOCATE (mos_ref)
       END IF

@@ -47,7 +47,7 @@ MODULE rt_propagator_init
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_mo_types,                     ONLY: mo_set_p_type
+   USE qs_mo_types,                     ONLY: mo_set_type
    USE rt_make_propagators,             ONLY: compute_exponential,&
                                               compute_exponential_sparse,&
                                               propagate_arnoldi
@@ -415,7 +415,7 @@ CONTAINS
    SUBROUTINE rt_initialize_rho_from_mos(rtp, mos)
 
       TYPE(rt_prop_type), POINTER                        :: rtp
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       INTEGER                                            :: ispin, ncol, re
       REAL(KIND=dp)                                      :: alpha
@@ -427,10 +427,10 @@ CONTAINS
          re = 2*ispin - 1
          alpha = 3.0_dp - REAL(SIZE(mos), dp)
          CALL dbcsr_set(rho_old(re)%matrix, 0.0_dp)
-         CALL cp_fm_get_info(mos(ispin)%mo_set%mo_coeff, ncol_global=ncol)
-         CALL cp_fm_column_scale(mos(ispin)%mo_set%mo_coeff, mos(ispin)%mo_set%occupation_numbers/alpha)
+         CALL cp_fm_get_info(mos(ispin)%mo_coeff, ncol_global=ncol)
+         CALL cp_fm_column_scale(mos(ispin)%mo_coeff, mos(ispin)%occupation_numbers/alpha)
          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_old(re)%matrix, &
-                                    matrix_v=mos(ispin)%mo_set%mo_coeff, ncol=ncol, alpha=alpha, keep_sparsity=.FALSE.)
+                                    matrix_v=mos(ispin)%mo_coeff, ncol=ncol, alpha=alpha, keep_sparsity=.FALSE.)
          CALL dbcsr_filter(rho_old(re)%matrix, eps=rtp%filter_eps)
          CALL dbcsr_copy(rho_new(re)%matrix, rho_old(re)%matrix)
       END DO

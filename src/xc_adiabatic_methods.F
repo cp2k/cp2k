@@ -20,7 +20,7 @@ MODULE xc_adiabatic_methods
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -70,7 +70,7 @@ CONTAINS
       REAL(dp) :: a, b, c, c1, da_dDFA, da_ddW0, da_dEx1, da_dEx2, db_dDFA, db_ddW0, db_dEx1, &
          db_dEx2, dc_dDFA, dc_ddW0, dc_dEx1, dc_dEx2, dExc_da, dExc_db, dExc_dc, dfa_energy, &
          swap_value
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       do_swap_hf = .FALSE.
       !! Assume the first HF section is the Coulomb one
@@ -85,10 +85,10 @@ CONTAINS
       c1 = 0.23163_dp
 
       CALL get_qs_env(qs_env=qs_env, mos=mos)
-      CALL get_mo_set(mo_set=mos(1)%mo_set, nelectron=nelec_a)
+      CALL get_mo_set(mo_set=mos(1), nelectron=nelec_a)
       nspins = SIZE(mos)
       IF (nspins == 2) THEN
-         CALL get_mo_set(mo_set=mos(2)%mo_set, nelectron=nelec_b)
+         CALL get_mo_set(mo_set=mos(2), nelectron=nelec_b)
       ELSE
          nelec_b = 0
       END IF

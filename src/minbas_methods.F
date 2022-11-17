@@ -47,7 +47,7 @@ MODULE minbas_methods
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -73,7 +73,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE minbas_calculation(qs_env, mos, quambo, mao, iounit, full_ortho, eps_filter)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: quambo
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: mao
@@ -142,7 +142,7 @@ CONTAINS
          IF (col_blk_sizes(iab) < 0) &
             CPABORT("Number of MAOs has to be specified in KIND section for all elements")
       END DO
-      CALL get_mo_set(mo_set=mos(1)%mo_set, nao=nao, nmo=nmo)
+      CALL get_mo_set(mo_set=mos(1), nao=nao, nmo=nmo)
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A,T71,I10)') 'Total Number of Atomic Basis Set Functions   :', nao
@@ -151,7 +151,7 @@ CONTAINS
             WRITE (unit_nr, '(T2,A,T71,I10)') 'Total Number of Molecular Orbitals available :', nmo
          ELSE
             DO ispin = 1, nspin
-               CALL get_mo_set(mo_set=mos(ispin)%mo_set, nmo=nmx)
+               CALL get_mo_set(mo_set=mos(ispin), nmo=nmx)
                WRITE (unit_nr, '(T2,A,i2,T71,I10)') &
                   'Total Number of Molecular Orbitals available for Spin ', ispin, nmx
             END DO
@@ -159,7 +159,7 @@ CONTAINS
       END IF
       CPASSERT(nmao <= nao)
       DO ispin = 1, nspin
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, nmo=nmx)
+         CALL get_mo_set(mo_set=mos(ispin), nmo=nmx)
          IF (nmx /= nmo) EXIT
       END DO
       do_minbas = .TRUE.
@@ -226,10 +226,10 @@ CONTAINS
             CALL dbcsr_multiply("N", "N", 1.0_dp, smat, mao_coef(ispin)%matrix, 0.0_dp, smao)
             ! a(nj)* = C(vn)(T) * SMAO(vj)
             CALL copy_dbcsr_to_fm(smao, fm1)
-            CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=fm_mos)
+            CALL get_mo_set(mos(ispin), mo_coeff=fm_mos)
             CALL parallel_gemm("T", "N", nmo, nmao, nao, 1.0_dp, fm_mos, fm1, 0.0_dp, fm2)
             CALL dbcsr_release(smao)
-            CALL get_mo_set(mo_set=mos(ispin)%mo_set, homo=homo)
+            CALL get_mo_set(mo_set=mos(ispin), homo=homo)
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T2,A,T51,A,i2,T71,I10)') 'MOs in Occupied Valence Set', 'Spin ', ispin, homo
             END IF

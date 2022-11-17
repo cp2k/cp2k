@@ -298,7 +298,7 @@ CONTAINS
 
       ALLOCATE (work_matrices%S_C0(nspins))
       DO ispin = 1, nspins
-         NULLIFY (work_matrices%S_C0(ispin)%matrix)
+         ALLOCATE (work_matrices%S_C0(ispin)%matrix)
          CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, work_matrices%S_C0(ispin)%matrix)
 
          CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, gs_mos(ispin)%mos_occ, work_matrices%S_C0(ispin)%matrix, &
@@ -574,7 +574,7 @@ CONTAINS
 
       ALLOCATE (work_matrices%S_C0(nspins))
       DO ispin = 1, nspins
-         NULLIFY (work_matrices%S_C0(ispin)%matrix)
+         ALLOCATE (work_matrices%S_C0(ispin)%matrix)
          CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, work_matrices%S_C0(ispin)%matrix)
 
          CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, gs_mos(ispin)%mos_occ, work_matrices%S_C0(ispin)%matrix, &

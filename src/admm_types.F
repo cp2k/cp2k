@@ -23,7 +23,6 @@ MODULE admm_types
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -40,7 +39,7 @@ MODULE admm_types
                                               local_rho_type
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                               get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
                                               release_neighbor_list_sets
    USE qs_oce_types,                    ONLY: deallocate_oce_set,&
@@ -125,7 +124,7 @@ MODULE admm_types
                                                   work_aux_aux4 => Null(), &
                                                   work_aux_aux5 => Null()
 
-      TYPE(cp_fm_p_type), DIMENSION(:), &
+      TYPE(cp_fm_type), DIMENSION(:), &
          POINTER                                :: lambda => Null(), &
                                                    lambda_inv => Null(), &
                                                    lambda_inv_sqrt => Null(), &
@@ -170,7 +169,7 @@ MODULE admm_types
       LOGICAL                                  :: do_gapw = .FALSE.
       TYPE(admm_dm_type), POINTER              :: admm_dm => Null()
 
-      TYPE(mo_set_p_type), DIMENSION(:), &
+      TYPE(mo_set_type), DIMENSION(:), &
          POINTER                               :: mos_aux_fit
       TYPE(neighbor_list_set_p_type), &
          DIMENSION(:), POINTER                 :: sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb
@@ -180,7 +179,7 @@ MODULE admm_types
                                                   matrix_s_aux_fit, matrix_s_aux_fit_vs_orb
       TYPE(qs_rho_type), POINTER               :: rho_aux_fit, rho_aux_fit_buffer
       TYPE(task_list_type), POINTER            :: task_list_aux_fit
-      TYPE(cp_fm_p_type), DIMENSION(:), &
+      TYPE(cp_fm_type), DIMENSION(:), &
          POINTER                               :: mo_derivs_aux_fit
 
    END TYPE
@@ -203,7 +202,7 @@ CONTAINS
    SUBROUTINE admm_env_create(admm_env, admm_control, mos, para_env, natoms, nao_aux_fit)
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(admm_control_type), POINTER                   :: admm_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: natoms, nao_aux_fit
 
@@ -218,7 +217,7 @@ CONTAINS
       ALLOCATE (admm_env)
 
       nspins = SIZE(mos)
-      CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff, nmo=nmo, nao=nao_orb)
+      CALL get_mo_set(mos(1), mo_coeff=mo_coeff, nmo=nmo, nao=nao_orb)
       admm_env%nmo = 0
       admm_env%nao_aux_fit = nao_aux_fit
       admm_env%nao_orb = nao_orb
@@ -296,7 +295,7 @@ CONTAINS
       ALLOCATE (admm_env%P_tilde(nspins))
 
       DO ispin = 1, nspins
-         CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
+         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
          admm_env%nmo(ispin) = nmo
          CALL cp_fm_struct_create(fm_struct_aux_nmo, &
                                   context=mo_coeff%matrix_struct%context, &
@@ -314,73 +313,28 @@ CONTAINS
                                   ncol_global=nmo, &
                                   para_env=para_env)
 
-         NULLIFY (admm_env%work_orb_nmo(ispin)%matrix, &
-                  admm_env%work_nmo_nmo1(ispin)%matrix, &
-                  admm_env%R_schur_R_t(ispin)%matrix, &
-                  admm_env%work_nmo_nmo2(ispin)%matrix, &
-                  admm_env%lambda(ispin)%matrix, &
-                  admm_env%lambda_inv(ispin)%matrix, &
-                  admm_env%lambda_inv_sqrt(ispin)%matrix, &
-                  admm_env%R(ispin)%matrix, &
-                  admm_env%R_purify(ispin)%matrix, &
-                  admm_env%K(ispin)%matrix, &
-                  admm_env%H(ispin)%matrix, &
-                  admm_env%H_corr(ispin)%matrix, &
-                  admm_env%M(ispin)%matrix, &
-                  admm_env%M_purify(ispin)%matrix, &
-                  admm_env%P_to_be_purified(ispin)%matrix, &
-                  admm_env%work_aux_nmo(ispin)%matrix, &
-                  admm_env%work_aux_nmo2(ispin)%matrix, &
-                  admm_env%mo_derivs_tmp(ispin)%matrix)
-         ALLOCATE (admm_env%work_orb_nmo(ispin)%matrix, &
-                   admm_env%work_nmo_nmo1(ispin)%matrix, &
-                   admm_env%R_schur_R_t(ispin)%matrix, &
-                   admm_env%work_nmo_nmo2(ispin)%matrix, &
-                   admm_env%lambda(ispin)%matrix, &
-                   admm_env%lambda_inv(ispin)%matrix, &
-                   admm_env%lambda_inv_sqrt(ispin)%matrix, &
-                   admm_env%R(ispin)%matrix, &
-                   admm_env%R_purify(ispin)%matrix, &
-                   admm_env%K(ispin)%matrix, &
-                   admm_env%H(ispin)%matrix, &
-                   admm_env%H_corr(ispin)%matrix, &
-                   admm_env%M(ispin)%matrix, &
-                   admm_env%M_purify(ispin)%matrix, &
-                   admm_env%P_to_be_purified(ispin)%matrix, &
-                   admm_env%work_aux_nmo(ispin)%matrix, &
-                   admm_env%work_aux_nmo2(ispin)%matrix, &
-                   admm_env%mo_derivs_tmp(ispin)%matrix)
-         CALL cp_fm_create(admm_env%work_orb_nmo(ispin)%matrix, fm_struct_orb_nmo, name="work_orb_nmo")
-         CALL cp_fm_create(admm_env%work_nmo_nmo1(ispin)%matrix, fm_struct_nmo_nmo, name="work_nmo_nmo1")
-         CALL cp_fm_create(admm_env%R_schur_R_t(ispin)%matrix, fm_struct_nmo_nmo, name="R_schur_R_t")
-         CALL cp_fm_create(admm_env%work_nmo_nmo2(ispin)%matrix, fm_struct_nmo_nmo, name="work_nmo_nmo2")
-         CALL cp_fm_create(admm_env%lambda(ispin)%matrix, fm_struct_nmo_nmo, name="lambda")
-         CALL cp_fm_create(admm_env%lambda_inv(ispin)%matrix, fm_struct_nmo_nmo, name="lambda_inv")
-         CALL cp_fm_create(admm_env%lambda_inv_sqrt(ispin)%matrix, fm_struct_nmo_nmo, name="lambda_inv_sqrt")
-         CALL cp_fm_create(admm_env%R(ispin)%matrix, fm_struct_nmo_nmo, name="R")
-         CALL cp_fm_create(admm_env%R_purify(ispin)%matrix, fm_struct_aux_aux, name="R_purify")
-         CALL cp_fm_create(admm_env%K(ispin)%matrix, fm_struct_aux_aux, name="K")
-         CALL cp_fm_create(admm_env%H(ispin)%matrix, fm_struct_aux_nmo, name="H")
-         CALL cp_fm_create(admm_env%H_corr(ispin)%matrix, fm_struct_orb_orb, name="H_corr")
-         CALL cp_fm_create(admm_env%M(ispin)%matrix, fm_struct_nmo_nmo, name="M")
-         CALL cp_fm_create(admm_env%M_purify(ispin)%matrix, fm_struct_aux_aux, name="M aux")
-         CALL cp_fm_create(admm_env%P_to_be_purified(ispin)%matrix, fm_struct_aux_aux, name="P_to_be_purified")
-         CALL cp_fm_create(admm_env%work_aux_nmo(ispin)%matrix, fm_struct_aux_nmo, name="work_aux_nmo")
-         CALL cp_fm_create(admm_env%work_aux_nmo2(ispin)%matrix, fm_struct_aux_nmo, name="work_aux_nmo2")
-         CALL cp_fm_create(admm_env%mo_derivs_tmp(ispin)%matrix, fm_struct_orb_nmo, name="mo_derivs_tmp")
-
-         NULLIFY (admm_env%lambda_inv2(ispin)%matrix, &
-                  admm_env%C_hat(ispin)%matrix, &
-                  admm_env%P_tilde(ispin)%matrix, &
-                  admm_env%ks_to_be_merged(ispin)%matrix)
-         ALLOCATE (admm_env%lambda_inv2(ispin)%matrix, &
-                   admm_env%C_hat(ispin)%matrix, &
-                   admm_env%P_tilde(ispin)%matrix, &
-                   admm_env%ks_to_be_merged(ispin)%matrix)
-         CALL cp_fm_create(admm_env%lambda_inv2(ispin)%matrix, fm_struct_nmo_nmo, name="lambda_inv2")
-         CALL cp_fm_create(admm_env%C_hat(ispin)%matrix, fm_struct_aux_nmo, name="C_hat")
-         CALL cp_fm_create(admm_env%P_tilde(ispin)%matrix, fm_struct_aux_aux, name="P_tilde")
-         CALL cp_fm_create(admm_env%ks_to_be_merged(ispin)%matrix, fm_struct_orb_orb, name="KS_to_be_merged ")
+         CALL cp_fm_create(admm_env%work_orb_nmo(ispin), fm_struct_orb_nmo, name="work_orb_nmo")
+         CALL cp_fm_create(admm_env%work_nmo_nmo1(ispin), fm_struct_nmo_nmo, name="work_nmo_nmo1")
+         CALL cp_fm_create(admm_env%R_schur_R_t(ispin), fm_struct_nmo_nmo, name="R_schur_R_t")
+         CALL cp_fm_create(admm_env%work_nmo_nmo2(ispin), fm_struct_nmo_nmo, name="work_nmo_nmo2")
+         CALL cp_fm_create(admm_env%lambda(ispin), fm_struct_nmo_nmo, name="lambda")
+         CALL cp_fm_create(admm_env%lambda_inv(ispin), fm_struct_nmo_nmo, name="lambda_inv")
+         CALL cp_fm_create(admm_env%lambda_inv_sqrt(ispin), fm_struct_nmo_nmo, name="lambda_inv_sqrt")
+         CALL cp_fm_create(admm_env%R(ispin), fm_struct_nmo_nmo, name="R")
+         CALL cp_fm_create(admm_env%R_purify(ispin), fm_struct_aux_aux, name="R_purify")
+         CALL cp_fm_create(admm_env%K(ispin), fm_struct_aux_aux, name="K")
+         CALL cp_fm_create(admm_env%H(ispin), fm_struct_aux_nmo, name="H")
+         CALL cp_fm_create(admm_env%H_corr(ispin), fm_struct_orb_orb, name="H_corr")
+         CALL cp_fm_create(admm_env%M(ispin), fm_struct_nmo_nmo, name="M")
+         CALL cp_fm_create(admm_env%M_purify(ispin), fm_struct_aux_aux, name="M aux")
+         CALL cp_fm_create(admm_env%P_to_be_purified(ispin), fm_struct_aux_aux, name="P_to_be_purified")
+         CALL cp_fm_create(admm_env%work_aux_nmo(ispin), fm_struct_aux_nmo, name="work_aux_nmo")
+         CALL cp_fm_create(admm_env%work_aux_nmo2(ispin), fm_struct_aux_nmo, name="work_aux_nmo2")
+         CALL cp_fm_create(admm_env%mo_derivs_tmp(ispin), fm_struct_orb_nmo, name="mo_derivs_tmp")
+         CALL cp_fm_create(admm_env%lambda_inv2(ispin), fm_struct_nmo_nmo, name="lambda_inv2")
+         CALL cp_fm_create(admm_env%C_hat(ispin), fm_struct_aux_nmo, name="C_hat")
+         CALL cp_fm_create(admm_env%P_tilde(ispin), fm_struct_aux_aux, name="P_tilde")
+         CALL cp_fm_create(admm_env%ks_to_be_merged(ispin), fm_struct_orb_orb, name="KS_to_be_merged ")
 
          ALLOCATE (admm_env%eigvals_lambda(ispin)%eigvals)
          ALLOCATE (admm_env%eigvals_P_to_be_purified(ispin)%eigvals)
@@ -470,51 +424,29 @@ CONTAINS
                   admm_env%work_aux_aux, admm_env%work_aux_aux2, admm_env%work_aux_aux3, &
                   admm_env%work_aux_aux4, admm_env%work_aux_aux5)
       DO ispin = 1, SIZE(admm_env%lambda)
-         CALL cp_fm_release(admm_env%lambda(ispin)%matrix)
-         CALL cp_fm_release(admm_env%lambda_inv(ispin)%matrix)
-         CALL cp_fm_release(admm_env%lambda_inv_sqrt(ispin)%matrix)
-         CALL cp_fm_release(admm_env%lambda_inv2(ispin)%matrix)
-         CALL cp_fm_release(admm_env%C_hat(ispin)%matrix)
-         CALL cp_fm_release(admm_env%P_tilde(ispin)%matrix)
-         CALL cp_fm_release(admm_env%R(ispin)%matrix)
-         CALL cp_fm_release(admm_env%R_purify(ispin)%matrix)
-         CALL cp_fm_release(admm_env%H(ispin)%matrix)
-         CALL cp_fm_release(admm_env%H_corr(ispin)%matrix)
-         CALL cp_fm_release(admm_env%K(ispin)%matrix)
-         CALL cp_fm_release(admm_env%M(ispin)%matrix)
-         CALL cp_fm_release(admm_env%M_purify(ispin)%matrix)
-         CALL cp_fm_release(admm_env%P_to_be_purified(ispin)%matrix)
-         CALL cp_fm_release(admm_env%work_orb_nmo(ispin)%matrix)
-         CALL cp_fm_release(admm_env%work_nmo_nmo1(ispin)%matrix)
-         CALL cp_fm_release(admm_env%R_schur_R_t(ispin)%matrix)
-         CALL cp_fm_release(admm_env%work_nmo_nmo2(ispin)%matrix)
-         CALL cp_fm_release(admm_env%work_aux_nmo(ispin)%matrix)
-         CALL cp_fm_release(admm_env%work_aux_nmo2(ispin)%matrix)
-         CALL cp_fm_release(admm_env%mo_derivs_tmp(ispin)%matrix)
-         CALL cp_fm_release(admm_env%ks_to_be_merged(ispin)%matrix)
-         CALL cp_fm_release(admm_env%lambda_inv2(ispin)%matrix)
-         DEALLOCATE (admm_env%work_orb_nmo(ispin)%matrix, &
-                     admm_env%work_nmo_nmo1(ispin)%matrix, &
-                     admm_env%R_schur_R_t(ispin)%matrix, &
-                     admm_env%work_nmo_nmo2(ispin)%matrix, &
-                     admm_env%lambda(ispin)%matrix, &
-                     admm_env%lambda_inv(ispin)%matrix, &
-                     admm_env%lambda_inv_sqrt(ispin)%matrix, &
-                     admm_env%R(ispin)%matrix, &
-                     admm_env%R_purify(ispin)%matrix, &
-                     admm_env%K(ispin)%matrix, &
-                     admm_env%H(ispin)%matrix, &
-                     admm_env%H_corr(ispin)%matrix, &
-                     admm_env%M(ispin)%matrix, &
-                     admm_env%M_purify(ispin)%matrix, &
-                     admm_env%P_to_be_purified(ispin)%matrix, &
-                     admm_env%work_aux_nmo(ispin)%matrix, &
-                     admm_env%work_aux_nmo2(ispin)%matrix, &
-                     admm_env%mo_derivs_tmp(ispin)%matrix)
-         DEALLOCATE (admm_env%lambda_inv2(ispin)%matrix, &
-                     admm_env%C_hat(ispin)%matrix, &
-                     admm_env%P_tilde(ispin)%matrix, &
-                     admm_env%ks_to_be_merged(ispin)%matrix)
+         CALL cp_fm_release(admm_env%lambda(ispin))
+         CALL cp_fm_release(admm_env%lambda_inv(ispin))
+         CALL cp_fm_release(admm_env%lambda_inv_sqrt(ispin))
+         CALL cp_fm_release(admm_env%lambda_inv2(ispin))
+         CALL cp_fm_release(admm_env%C_hat(ispin))
+         CALL cp_fm_release(admm_env%P_tilde(ispin))
+         CALL cp_fm_release(admm_env%R(ispin))
+         CALL cp_fm_release(admm_env%R_purify(ispin))
+         CALL cp_fm_release(admm_env%H(ispin))
+         CALL cp_fm_release(admm_env%H_corr(ispin))
+         CALL cp_fm_release(admm_env%K(ispin))
+         CALL cp_fm_release(admm_env%M(ispin))
+         CALL cp_fm_release(admm_env%M_purify(ispin))
+         CALL cp_fm_release(admm_env%P_to_be_purified(ispin))
+         CALL cp_fm_release(admm_env%work_orb_nmo(ispin))
+         CALL cp_fm_release(admm_env%work_nmo_nmo1(ispin))
+         CALL cp_fm_release(admm_env%R_schur_R_t(ispin))
+         CALL cp_fm_release(admm_env%work_nmo_nmo2(ispin))
+         CALL cp_fm_release(admm_env%work_aux_nmo(ispin))
+         CALL cp_fm_release(admm_env%work_aux_nmo2(ispin))
+         CALL cp_fm_release(admm_env%mo_derivs_tmp(ispin))
+         CALL cp_fm_release(admm_env%ks_to_be_merged(ispin))
+         CALL cp_fm_release(admm_env%lambda_inv2(ispin))
 
          DEALLOCATE (admm_env%eigvals_lambda(ispin)%eigvals%data)
          DEALLOCATE (admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data)
@@ -559,14 +491,13 @@ CONTAINS
 
       IF (ASSOCIATED(admm_env%mos_aux_fit)) THEN
          DO ispin = 1, SIZE(admm_env%mos_aux_fit)
-            IF (ASSOCIATED(admm_env%mos_aux_fit(ispin)%mo_set)) CALL deallocate_mo_set(admm_env%mos_aux_fit(ispin)%mo_set)
+            CALL deallocate_mo_set(admm_env%mos_aux_fit(ispin))
          END DO
          DEALLOCATE (admm_env%mos_aux_fit)
       END IF
       IF (ASSOCIATED(admm_env%mo_derivs_aux_fit)) THEN
          DO ispin = 1, SIZE(admm_env%mo_derivs_aux_fit)
-            CALL cp_fm_release(admm_env%mo_derivs_aux_fit(ispin)%matrix)
-            DEALLOCATE (admm_env%mo_derivs_aux_fit(ispin)%matrix)
+            CALL cp_fm_release(admm_env%mo_derivs_aux_fit(ispin))
          END DO
          DEALLOCATE (admm_env%mo_derivs_aux_fit)
       END IF
@@ -650,11 +581,9 @@ CONTAINS
                            matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, rho_aux_fit, &
                            rho_aux_fit_buffer, admm_dm)
 
-      TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: mo_derivs_aux_fit
-      TYPE(mo_set_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: mos_aux_fit
+      TYPE(admm_type), INTENT(IN)                        :: admm_env
+      TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: mo_derivs_aux_fit
+      TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos_aux_fit
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: sab_aux_fit, sab_aux_fit_asymm, &
                                                             sab_aux_fit_vs_orb
@@ -667,8 +596,6 @@ CONTAINS
                                                             matrix_ks_aux_fit_hfx
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho_aux_fit, rho_aux_fit_buffer
       TYPE(admm_dm_type), OPTIONAL, POINTER              :: admm_dm
-
-      CPASSERT(ASSOCIATED(admm_env))
 
       IF (PRESENT(mo_derivs_aux_fit)) mo_derivs_aux_fit => admm_env%mo_derivs_aux_fit
       IF (PRESENT(mos_aux_fit)) mos_aux_fit => admm_env%mos_aux_fit
@@ -713,11 +640,9 @@ CONTAINS
                            matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, rho_aux_fit, &
                            rho_aux_fit_buffer, admm_dm)
 
-      TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: mo_derivs_aux_fit
-      TYPE(mo_set_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: mos_aux_fit
+      TYPE(admm_type), INTENT(INOUT)                     :: admm_env
+      TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: mo_derivs_aux_fit
+      TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos_aux_fit
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: sab_aux_fit, sab_aux_fit_asymm, &
                                                             sab_aux_fit_vs_orb
@@ -730,8 +655,6 @@ CONTAINS
                                                             matrix_ks_aux_fit_hfx
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho_aux_fit, rho_aux_fit_buffer
       TYPE(admm_dm_type), OPTIONAL, POINTER              :: admm_dm
-
-      CPASSERT(ASSOCIATED(admm_env))
 
       IF (PRESENT(mo_derivs_aux_fit)) admm_env%mo_derivs_aux_fit => mo_derivs_aux_fit
       IF (PRESENT(mos_aux_fit)) admm_env%mos_aux_fit => mos_aux_fit

@@ -185,7 +185,7 @@ CONTAINS
             CALL cp_fm_set_all(matrices(i, spin)%matrix, 0.0_dp)
          END DO
 
-         CALL get_mo_set(qs_env%mos(spin)%mo_set, eigenvalues=orbital_eigenvalues)
+         CALL get_mo_set(qs_env%mos(spin), eigenvalues=orbital_eigenvalues)
 
          n_lumos = tddfpt_control%lumos(spin)%matrix%matrix_struct%ncol_global
 

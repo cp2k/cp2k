@@ -72,7 +72,6 @@ MODULE rpa_gw_sigma_x
    USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type,&
                                               mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
@@ -114,7 +113,7 @@ CONTAINS
    SUBROUTINE compute_vec_Sigma_x_minus_vxc_gw(qs_env, mp2_env, mos_mp2, energy_ex, energy_xc_admm, t3, unit_nr)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp2_type)                                     :: mp2_env
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos_mp2
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos_mp2
       REAL(KIND=dp), INTENT(OUT)                         :: energy_ex, energy_xc_admm(2), t3
       INTEGER, INTENT(IN)                                :: unit_nr
 
@@ -519,7 +518,7 @@ CONTAINS
          ! Transform matrix_sigma_x_minus_vxc to MO basis
          DO ispin = 1, nspins
 
-            CALL get_mo_set(mo_set=mos_mp2(ispin)%mo_set, &
+            CALL get_mo_set(mo_set=mos_mp2(ispin), &
                             mo_coeff=mo_coeff, &
                             nmo=nmo, &
                             homo=homo, &
@@ -804,7 +803,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      mo_set => kpoints%kp_env(1)%kpoint_env%mos(1, 1)%mo_set
+      mo_set => kpoints%kp_env(1)%kpoint_env%mos(1, 1)
       CALL get_mo_set(mo_set, nmo=nmo)
 
       nspins = SIZE(matrix_sigma_x_minus_vxc, 1)
@@ -849,8 +848,8 @@ CONTAINS
             CALL cp_cfm_scale_and_add_fm(z_one, cfm_sigma_x_minus_vxc, gaussi, fwork_im)
 
             ! get real part (1) and imag. part (2) of the mo coeffs
-            mo_set_re => kp%mos(1, ispin)%mo_set
-            mo_set_im => kp%mos(2, ispin)%mo_set
+            mo_set_re => kp%mos(1, ispin)
+            mo_set_im => kp%mos(2, ispin)
 
             CALL cp_cfm_scale_and_add_fm(z_zero, cfm_mos, z_one, mo_set_re%mo_coeff)
             CALL cp_cfm_scale_and_add_fm(z_one, cfm_mos, gaussi, mo_set_im%mo_coeff)
@@ -894,7 +893,7 @@ CONTAINS
 
       ! also adjust in the case of kpoints too big gw_corr_lev_occ and gw_corr_lev_virt
       DO ispin = 1, nspins
-         CALL get_mo_set(mo_set=kpoints%kp_env(1)%kpoint_env%mos(ispin, 1)%mo_set, &
+         CALL get_mo_set(mo_set=kpoints%kp_env(1)%kpoint_env%mos(ispin, 1), &
                          homo=homo, nao=dimen)
          gw_corr_lev_occ = mp2_env%ri_g0w0%corr_mos_occ
          gw_corr_lev_virt = mp2_env%ri_g0w0%corr_mos_virt

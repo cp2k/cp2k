@@ -71,7 +71,7 @@ MODULE qs_wannier90
                                               qs_environment_type
    USE qs_gamma2kp,                     ONLY: create_kp_from_gamma
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_type
    USE qs_moments,                      ONLY: build_berry_kpoint_matrix
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_scf_diagonalization,          ONLY: do_general_diag_kp
@@ -190,7 +190,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: kpoint
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -263,7 +263,7 @@ CONTAINS
       END DO
       ! number of bands in calculation
       CALL get_qs_env(qs_env, mos=mos)
-      CALL get_mo_set(mo_set=mos(1)%mo_set, nao=nao, nmo=num_bands_tot)
+      CALL get_mo_set(mo_set=mos(1), nao=nao, nmo=num_bands_tot)
       num_bands_tot = MIN(nao, num_bands_tot + nadd)
       num_bands = num_wann
       num_atoms = SIZE(particle_set)
@@ -419,7 +419,7 @@ CONTAINS
       END DO
       ! work matrices for MOs (all group)
       kp => kpoint%kp_env(1)%kpoint_env
-      CALL get_mo_set(kp%mos(1, 1)%mo_set, nmo=nmo)
+      CALL get_mo_set(kp%mos(1, 1), nmo=nmo)
       NULLIFY (matrix_struct_work)
       CALL cp_fm_struct_create(matrix_struct_work, nrow_global=nao, &
                                ncol_global=nmo, &
@@ -461,8 +461,8 @@ CONTAINS
                ikk = ik - kpoint%kp_range(1) + 1
                kp => kpoint%kp_env(ikk)%kpoint_env
                CPASSERT(SIZE(kp%mos, 1) == 2)
-               fmr => kp%mos(1, ispin)%mo_set%mo_coeff
-               fmi => kp%mos(2, ispin)%mo_set%mo_coeff
+               fmr => kp%mos(1, ispin)%mo_coeff
+               fmi => kp%mos(2, ispin)%mo_coeff
                CALL cp_fm_copy_general(fmr, fmk1(1)%matrix, para_env)
                CALL cp_fm_copy_general(fmi, fmk1(2)%matrix, para_env)
             ELSE
@@ -479,8 +479,8 @@ CONTAINS
                   ikk = ik2 - kpoint%kp_range(1) + 1
                   kp => kpoint%kp_env(ikk)%kpoint_env
                   CPASSERT(SIZE(kp%mos, 1) == 2)
-                  fmr => kp%mos(1, ispin)%mo_set%mo_coeff
-                  fmi => kp%mos(2, ispin)%mo_set%mo_coeff
+                  fmr => kp%mos(1, ispin)%mo_coeff
+                  fmi => kp%mos(2, ispin)%mo_coeff
                   CALL cp_fm_copy_general(fmr, fmk2(1)%matrix, para_env)
                   CALL cp_fm_copy_general(fmi, fmk2(2)%matrix, para_env)
                ELSE
@@ -561,7 +561,7 @@ CONTAINS
       ! Print eigenvalues
       nspins = dft_control%nspins
       kp => kpoint%kp_env(1)%kpoint_env
-      CALL get_mo_set(kp%mos(1, 1)%mo_set, nmo=nmo)
+      CALL get_mo_set(kp%mos(1, 1), nmo=nmo)
       ALLOCATE (eigval(nmo))
       CALL get_kpoint_info(kpoint, nkp=nkp, kp_range=kp_range, xkp=xkp)
       IF (para_env%ionode) THEN
@@ -577,7 +577,7 @@ CONTAINS
             IF (my_kpgrp) THEN
                ikpgr = ik - kp_range(1) + 1
                kp => kpoint%kp_env(ikpgr)%kpoint_env
-               CALL get_mo_set(kp%mos(1, ispin)%mo_set, eigenvalues=eigenvalues)
+               CALL get_mo_set(kp%mos(1, ispin), eigenvalues=eigenvalues)
                eigval(1:nmo) = eigenvalues(1:nmo)
             ELSE
                eigval(1:nmo) = 0.0_dp
