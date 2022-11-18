@@ -297,7 +297,7 @@ CONTAINS
 #if defined(__SCALAPACK)
       REAL(KIND=dp)                            :: fake_local_data(1, 1)
       INTEGER                                  :: fake_descriptor(9), mepos_old, &
-                                                  io_unit, ngroups, ncol_block
+                                                  io_unit, ngroups, ncol_block, blksize, nrow_block
       TYPE(cp_fm_struct_type), POINTER         :: fm_struct_new
       TYPE(cp_para_env_type), POINTER          :: para_env
       TYPE(cp_logger_type), POINTER            :: logger
@@ -326,6 +326,8 @@ CONTAINS
       para_env => matrix%matrix_struct%para_env
       mepos_old = para_env%mepos
       ncol_block = -1 ! normally we also want to adjust the block size according to the optimal # of CPUs
+      nrow_block = -1
+      blksize = -1
 
       rdinfo%matrix_order = matrix%matrix_struct%nrow_global
       rdinfo%num_pe_old = para_env%num_pe
@@ -355,12 +357,22 @@ CONTAINS
             ! calculated number of processors such that no block has 0 columns wouldn't match (see #578):
             ! if the automatically chosen block size is larger than the present one we would still end
             ! up with empty processors
-            CALL cp_fm_get_info(matrix, ncol_block=ncol_block)
          END IF
+
+         CALL cp_fm_get_info(matrix, ncol_block=ncol_block, nrow_block=nrow_block)
+
+         ! On GPUs, ELPA requires the block size to be a power of 2
+         blksize = 1
+         DO WHILE (2*blksize <= MIN(nrow_block, ncol_block))
+            blksize = blksize*2
+         END DO
+         nrow_block = blksize
+         ncol_block = blksize
       END IF
 
-      ! finally, only redistribute if we're going to use less CPUs than before
-      rdinfo%redistribute = (rdinfo%num_pe_old > rdinfo%num_pe_new)
+      ! finally, only redistribute if we're going to use less CPUs than before or changed the block size
+      rdinfo%redistribute = (rdinfo%num_pe_old > rdinfo%num_pe_new) .OR. (blksize >= 0 .AND. &
+                                   ((blksize /= matrix%matrix_struct%ncol_block) .OR. (blksize /= matrix%matrix_struct%nrow_block)))
 
       IF (work_redistribute%should_print .AND. io_unit > 0) THEN
          IF (is_elpa) THEN
@@ -400,11 +412,19 @@ CONTAINS
 
             ! create new matrix
             NULLIFY (fm_struct_new)
-            CALL cp_fm_struct_create(fmstruct=fm_struct_new, &
-                                     para_env=work_redistribute%para_env_new, &
-                                     context=work_redistribute%blacs_env_new, &
-                                     nrow_global=rdinfo%matrix_order, ncol_global=rdinfo%matrix_order, &
-                                     ncol_block=ncol_block)
+            IF (nrow_block == -1 .OR. ncol_block == -1) THEN
+               CALL cp_fm_struct_create(fmstruct=fm_struct_new, &
+                                        para_env=work_redistribute%para_env_new, &
+                                        context=work_redistribute%blacs_env_new, &
+                                        nrow_global=rdinfo%matrix_order, ncol_global=rdinfo%matrix_order, &
+                                        ncol_block=ncol_block, nrow_block=nrow_block)
+            ELSE
+               CALL cp_fm_struct_create(fmstruct=fm_struct_new, &
+                                        para_env=work_redistribute%para_env_new, &
+                                        context=work_redistribute%blacs_env_new, &
+                                        nrow_global=rdinfo%matrix_order, ncol_global=rdinfo%matrix_order, &
+                                        ncol_block=ncol_block, nrow_block=nrow_block, force_block=.TRUE.)
+            END IF
             CALL cp_fm_create(matrix_new, matrix_struct=fm_struct_new, name="yevd_new_mat")
             CALL cp_fm_create(eigenvectors_new, matrix_struct=fm_struct_new, name="yevd_new_vec")
             CALL cp_fm_struct_release(fm_struct_new)
