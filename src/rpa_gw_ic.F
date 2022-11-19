@@ -242,7 +242,7 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE) REDUCTION(+:Delta_Sigma_Neaton_prv) &
 !$OMP SHARED(t3c_1,t3c_2,mo_bounds) &
 !$OMP PRIVATE(iter,ind,bsize,boff,block_1,block_2,found) &
-!$OMP PRIVATE(n_start_block,n_start,n_end_block,n_end)
+!$OMP PRIVATE(n,n_start_block,n_start,n_end_block,n_end)
       CALL dbt_iterator_start(iter, t3c_1)
       DO WHILE (dbt_iterator_blocks_left(iter))
          CALL dbt_iterator_next_block(iter, ind, blk_size=bsize, blk_offset=boff)
