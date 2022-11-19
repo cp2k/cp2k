@@ -1401,6 +1401,39 @@ CONTAINS
          END SUBROUTINE
 
 ! **************************************************************************************************
+!> \brief local number of blocks along dimension idim
+!> \author Patrick Seewald
+! **************************************************************************************************
+         PURE FUNCTION dbt_nblks_local(tensor, idim)
+            TYPE(dbt_type), INTENT(IN) :: tensor
+            INTEGER, INTENT(IN) :: idim
+            INTEGER :: dbt_nblks_local
+
+            IF (idim > ndims_tensor(tensor)) THEN
+               dbt_nblks_local = 0
+            ELSE
+               dbt_nblks_local = tensor%nblks_local(idim)
+            END IF
+
+         END FUNCTION
+
+! **************************************************************************************************
+!> \brief total numbers of blocks along dimension idim
+!> \author Patrick Seewald
+! **************************************************************************************************
+         PURE FUNCTION dbt_nblks_total(tensor, idim)
+            TYPE(dbt_type), INTENT(IN) :: tensor
+            INTEGER, INTENT(IN) :: idim
+            INTEGER :: dbt_nblks_total
+
+            IF (idim > ndims_tensor(tensor)) THEN
+               dbt_nblks_total = 0
+            ELSE
+               dbt_nblks_total = tensor%nd_index_blk%dims_nd(idim)
+            END IF
+         END FUNCTION
+
+! **************************************************************************************************
 !> \brief As block_get_info but for tensors
 !> \param nblks_total number of blocks along each dimension
 !> \param nfull_total number of elements along each dimension
@@ -1542,39 +1575,6 @@ CONTAINS
             TYPE(dbt_type), INTENT(IN) :: tensor
             INTEGER(KIND=int_8)            :: dbt_get_nze_total
             dbt_get_nze_total = dbt_tas_get_nze_total(tensor%matrix_rep)
-         END FUNCTION
-
-! **************************************************************************************************
-!> \brief local number of blocks along dimension idim
-!> \author Patrick Seewald
-! **************************************************************************************************
-         PURE FUNCTION dbt_nblks_local(tensor, idim)
-            TYPE(dbt_type), INTENT(IN) :: tensor
-            INTEGER, INTENT(IN) :: idim
-            INTEGER :: dbt_nblks_local
-
-            IF (idim > ndims_tensor(tensor)) THEN
-               dbt_nblks_local = 0
-            ELSE
-               dbt_nblks_local = tensor%nblks_local(idim)
-            END IF
-
-         END FUNCTION
-
-! **************************************************************************************************
-!> \brief total numbers of blocks along dimension idim
-!> \author Patrick Seewald
-! **************************************************************************************************
-         PURE FUNCTION dbt_nblks_total(tensor, idim)
-            TYPE(dbt_type), INTENT(IN) :: tensor
-            INTEGER, INTENT(IN) :: idim
-            INTEGER :: dbt_nblks_total
-
-            IF (idim > ndims_tensor(tensor)) THEN
-               dbt_nblks_total = 0
-            ELSE
-               dbt_nblks_total = tensor%nd_index_blk%dims_nd(idim)
-            END IF
          END FUNCTION
 
 ! **************************************************************************************************
