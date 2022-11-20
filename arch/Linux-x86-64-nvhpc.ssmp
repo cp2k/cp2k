@@ -1,0 +1,11 @@
+CC          = nvc
+CXX         = nvc++
+AR          = ar -r
+FC          = nvfortran
+LD          = nvfortran
+
+CFLAGS      = -mp --diag_suppress=const_var_in_C_const_expr,unrecognized_gcc_pragma,code_is_unreachable
+FCFLAGS     = -mp -Mbackslash -silent
+CXXFLAGS    = -mp
+LDFLAGS     = -mp
+LIBS        = -lopenblas -fortranlibs -c++libs
