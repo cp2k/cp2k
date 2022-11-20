@@ -34,6 +34,9 @@ def main() -> None:
     with OutputFile(f"Dockerfile.test_intel-psmp", args.check) as f:
         f.write(toolchain_intel() + regtest("psmp"))
 
+    with OutputFile(f"Dockerfile.test_nvhpc", args.check) as f:
+        f.write(toolchain_nvhpc())
+
     with OutputFile(f"Dockerfile.test_minimal", args.check) as f:
         f.write(toolchain_full() + regtest("sdbg", "minimal"))
 
@@ -472,6 +475,54 @@ ENV I_MPI_FABRICS='shm'
         with_spfft="no",  # Spawns infinite chain of mpiicpc sub-processes.
         with_sirius="no",  # Requires spfft.
     )
+
+
+# ======================================================================================
+def toolchain_nvhpc() -> str:
+    return rf"""
+FROM ubuntu:22.04
+
+# Install Ubuntu packages.
+RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+    apt-transport-https \
+    ca-certificates \
+    dirmngr \
+    gnupg2 \
+    libopenblas-dev \
+    make \
+    nano \
+    python3 \
+    wget \
+   && rm -rf /var/lib/apt/lists/*
+
+RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/hpc-sdk/ubuntu/DEB-GPG-KEY-NVIDIA-HPC-SDK
+RUN echo 'deb https://developer.download.nvidia.com/hpc-sdk/ubuntu/amd64 /' > /etc/apt/sources.list.d/nvhpc.list
+
+# Install NVIDIA's HPC SDK but only keep the compilers to reduce Docker image size.
+RUN apt-get update -qq && \
+    apt-get install -qq --no-install-recommends nvhpc-22-11 && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm -rf /opt/nvidia/hpc_sdk/Linux_x86_64/22.11/math_libs && \
+    rm -rf /opt/nvidia/hpc_sdk/Linux_x86_64/22.11/comm_libs && \
+    rm -rf /opt/nvidia/hpc_sdk/Linux_x86_64/22.11/profilers && \
+    rm -rf /opt/nvidia/hpc_sdk/Linux_x86_64/22.11/cuda
+
+ENV PATH ${{PATH}}:/opt/nvidia/hpc_sdk/Linux_x86_64/22.11/compilers/bin
+
+# Install CP2K using Linux-x86-64-nvhpc.ssmp.
+WORKDIR /opt/cp2k
+COPY ./Makefile .
+COPY ./src ./src
+COPY ./exts ./exts
+COPY ./data ./data
+COPY ./tests ./tests
+COPY ./tools/build_utils ./tools/build_utils
+COPY ./tools/regtesting ./tools/regtesting
+COPY ./arch/Linux-x86-64-nvhpc.ssmp /opt/cp2k/arch/
+
+# This takes over an hour!
+RUN make -j ARCH=Linux-x86-64-nvhpc VERSION=ssmp cp2k
+"""
 
 
 # ======================================================================================
