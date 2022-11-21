@@ -374,7 +374,7 @@ def install_cp2k_cmake() -> str:
 
     return rf"""
 # temporary solution we build dbcsr without using the cloned repo. It will eventually be moved inside the toolchain
-COPY ./tools/docker/scripts/install_dbcsr.sh ./scripts
+COPY ./tools/docker/scripts/install_dbcsr.sh ./scripts/
 RUN  ./scripts/install_dbcsr.sh && rm -rf ./build
 
 # Install CP2K using CMake.

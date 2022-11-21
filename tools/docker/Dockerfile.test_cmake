@@ -56,8 +56,8 @@ RUN  ./scripts/stage8/install_stage8.sh && rm -rf ./build
 
 COPY ./tools/build_utils/fypp /bin/fypp
 
-COPY ./tools/toolchain/scripts/stage9/ ./scripts/stage9/
-RUN  ./scripts/stage9/install_stage9.sh && rm -rf ./build
+COPY ./tools/docker/scripts/install_dbcsr.sh ./scripts/
+RUN  ./scripts/install_dbcsr.sh && rm -rf ./build
 
 COPY ./tools/toolchain/scripts/arch_base.tmpl \
      ./tools/toolchain/scripts/generate_arch_files.sh \
@@ -73,17 +73,6 @@ COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
 COPY ./cp2k.pc.in .
 WORKDIR ./build
-#RUN /bin/bash -c " \
-#    echo 'Compiling dbcsr...' && \
-#    source /opt/cp2k-toolchain/install/setup && \
-#    cd ../exts/dbcsr && \
-#    ls /bin/fypp && \
-#    ls && \
-#    mkdir build && cd build && \
-#    cmake -DCMAKE_INSTALL_PREFIX=/opt/cp2k-toolchain/install/dbcsr .. && \
-#    make -j && \
-#    make install && \\ 
-#    cd ../../.."
 RUN /bin/bash -c " \
     echo 'Compiling cp2k...' && \
     ls /opt/cp2k-toolchain/install/scalapack-2.2.1 && \

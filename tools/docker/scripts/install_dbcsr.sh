@@ -4,7 +4,7 @@
 # shellcheck disable=all
 
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
-SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
 DBCSR_ver="2.4.1"
 DBCSR_sha256="e5c545ec16688027537f7865976b905c0783d038ec289e65635e63e961330601"
@@ -57,7 +57,7 @@ else
   make -j $(get_nprocs) #> make.log 2>&1
   make install          #> install.log 2>&1
   cd ..
-  write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage9/$(basename ${SCRIPT_NAME})"
+  write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
   DBCSR_CFLAGS="-I'${pkg_install_dir}/include'"
   DBCSR_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
 fi
