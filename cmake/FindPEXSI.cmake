@@ -16,8 +16,18 @@ find_package(ptscotch)
 
 cp2k_set_default_paths(PEXSI "PEXSI")
 
-cp2k_find_libraries(PEXSI pexsi)
-cp2k_include_dirs(PEXSI "pexsi.h pexsi/pexsi.h")
+cp2k_find_libraries(PEXSI "pexsi")
+cp2k_include_dirs(PEXSI "pexsi.hpp")
+
+find_file(CP2K_PEXSI_MOD_FILE NAMES "f_ppexsi_interface.mod" PATCHS
+                                    "${CP2K_PEXSI_PREFIX}/include")
+
+if(NOT CP2K_PEXSI_MOD_FILE)
+  message(
+    FATAL_ERROR
+      "The pexsi library needs to be compiled with fortran support. Either recompile pexsi or disable it."
+  )
+endif()
 
 find_package_handle_standard_args(PEXSI DEFAULT_MSG CP2K_PEXSI_INCLUDE_DIRS
                                   CP2K_PEXSI_LINK_LIBRARIES)
