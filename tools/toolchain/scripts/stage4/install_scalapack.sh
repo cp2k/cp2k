@@ -9,9 +9,6 @@ SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 scalapack_ver="2.2.1"
 scalapack_sha256="4aede775fdb28fa44b331875730bcd5bab130caaec225fadeccf424c8fcb55aa"
 scalapack_pkg="scalapack-${scalapack_ver}.tgz"
-patches=(
-  "${SCRIPT_DIR}/stage4/scalapack-${scalapack_ver}-gcc10.patch"
-)
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -39,18 +36,11 @@ case "$with_scalapack" in
       if [ -f ${scalapack_pkg} ]; then
         echo "${scalapack_pkg} is found"
       else
-	wget https://github.com/Reference-ScaLAPACK/scalapack/archive/refs/tags/v2.2.1.tar.gz -O "${scalapack_pkg}"
-        #download_pkg_from_cp2k_org "${scalapack_sha256}" "${scalapack_pkg}"
+        download_pkg_from_cp2k_org "${scalapack_sha256}" "${scalapack_pkg}"
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d scalapack-${scalapack_ver} ] && rm -rf scalapack-${scalapack_ver}
       tar -xzf ${scalapack_pkg}
-
-      pushd "scalapack-${scalapack_ver}" > /dev/null
-      #for patch in "${patches[@]}"; do
-      #  patch -p1 < "${patch}" >> patch.log 2>&1
-      #done
-      popd > /dev/null
 
       mkdir -p "scalapack-${scalapack_ver}/build"
       pushd "scalapack-${scalapack_ver}/build" > /dev/null
@@ -60,8 +50,8 @@ case "$with_scalapack" in
         -DCMAKE_INSTALL_LIBDIR="lib" \
         -DBUILD_SHARED_LIBS=NO \
         -DCMAKE_BUILD_TYPE=Release .. \
-	-DBUILD_TESTING=NO \
-	-DSCALAPACK_BUILD_TESTS=NO \
+        -DBUILD_TESTING=NO \
+        -DSCALAPACK_BUILD_TESTS=NO \
         > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
       make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
       make install >> make.log 2>&1 || tail -n ${LOG_LINES} make.log

@@ -373,28 +373,32 @@ def install_cp2k_cmake() -> str:
     # TODO: This is a draft and does not yet actually work.
 
     return rf"""
+# temporary solution we build dbcsr without using the cloned repo. It will eventually be moved inside the toolchain
+COPY ./tools/docker/scripts/install_dbcsr.sh ./scripts
+RUN  ./scripts/install_dbcsr.sh && rm -rf ./build
+
 # Install CP2K using CMake.
+
 WORKDIR /opt/cp2k
 COPY ./src ./src
 COPY ./exts ./exts
 COPY ./tools/build_utils ./tools/build_utils
 COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
+COPY ./cp2k.pc.in .
 WORKDIR ./build
 RUN /bin/bash -c " \
-    echo 'Compiling dbcsr...' && \
-    source /opt/cp2k-toolchain/install/setup && \
-    cmake ../exts/dbcsr && \
-    make -j"
-RUN /bin/bash -c " \
     echo 'Compiling cp2k...' && \
+    ls /opt/cp2k-toolchain/install/scalapack-2.2.1 && \
+    ls /opt/cp2k-toolchain/install/fftw-3.3.10/lib && \
     source /opt/cp2k-toolchain/install/setup && \
-    export PKG_CONFIG_PATH=/opt/cp2k-toolchain/install/openblas-0.3.21/lib/pkgconfig && \
-    cmake -DCP2K_USE_LIBXSMM=NO -DSCALAPACK_ROOT=/opt/cp2k-toolchain/install/scalapack-2.1.0 .. && \
+    export PKG_CONFIG_PATH=/opt/cp2k-toolchain/install/openblas-0.3.21/lib/pkgconfig:/opt/cp2k-toolchain/install/libxc-6.0.0/lib/pkgconfig:/opt/cp2k-toolchain/install/fftw-3.3.10/lib/pkgconfig:/opt/cp2k-toolchain/install/libint-v2.6.0-cp2k-lmax-5/lib/pkgconfig && \
+    cmake -DCP2K_USE_COSMA=OFF -DCP2K_USE_LIBXSMM=NO -DSCALAPACK_ROOT=/opt/cp2k-toolchain/install/scalapack-2.2.1 -DCP2K_BLAS_VENDOR=OpenBLAS -DLibXC_ROOT=/opt/cp2k-toolchain/install/libxc-6.0.0 -DLibint2_ROOT=/opt/cp2k-toolchain/install/libint-v2.6.0-cp2k-lmax-5 -DDBCSR_ROOT=/opt/cp2k-toolchain/install/DBCSR-2.4.1 -DCP2K_USE_SPGLIB=ON -DCP2K_USE_LIBINT2=NO -DCP2K_USE_LIBXC=ON .. && \
     make -j"
 COPY ./data ./data
 COPY ./tests ./tests
 COPY ./tools/regtesting ./tools/regtesting
+
 RUN echo "\nSummary: Compilation works fine.\nStatus: OK\n"
 
 #EOF
