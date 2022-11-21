@@ -1088,7 +1088,8 @@ CONTAINS
                                   buffer_3D(P_start:P_end, :, my_i), stripesize, &
                                   -1.0_dp, buffer_compens_2D, my_a_size, mp2_env%local_gemm_ctx)
 
-                  CALL kahan_step(buffer_compens_1D(1:recv_a_size*my_a_size), P_ab)
+                  CALL kahan_step(buffer_compens_1D(1:recv_a_size*my_a_size), &
+                                  P_ab((recv_a_start - 1)*my_a_size + 1:recv_a_end*my_a_size))
                END DO
             END DO
             CALL timestop(handle2)
@@ -1119,7 +1120,8 @@ CONTAINS
                                   buffer_3D(P_start:P_end, :, my_i), stripesize, &
                                   -1.0_dp, buffer_compens_2D, my_a_size, mp2_env%local_gemm_ctx)
 
-                  CALL kahan_step(buffer_compens_1D(1:recv_a_size*my_a_size), P_ab)
+                  CALL kahan_step(buffer_compens_1D(1:recv_a_size*my_a_size), &
+                                  P_ab((recv_a_start - 1)*my_a_size + 1:recv_a_end*my_a_size))
                END DO
             END DO
             CALL timestop(handle2)
@@ -1198,7 +1200,8 @@ CONTAINS
                                   buffer_3D(P_start:P_end, my_a, :), stripesize, &
                                   -1.0_dp, buffer_compens_2D(:, 1:recv_i_start), my_i_size, mp2_env%local_gemm_ctx)
 
-                  CALL kahan_step(buffer_compens_1D(1:recv_i_size*my_i_size), P_ij)
+                  CALL kahan_step(buffer_compens_1D(1:recv_i_size*my_i_size), &
+                                  P_ij((recv_i_start - 1)*my_i_size + 1:recv_i_end*my_i_size))
                END DO
             END DO
             CALL timestop(handle2)
@@ -1231,7 +1234,8 @@ CONTAINS
                                   buffer_3D(P_start:P_end, my_a, :), stripesize, &
                                   -1.0_dp, buffer_compens_2D(:, 1:recv_i_start), my_i_size, mp2_env%local_gemm_ctx)
 
-                  CALL kahan_step(buffer_compens_1D(1:recv_i_size*my_i_size), P_ij)
+                  CALL kahan_step(buffer_compens_1D(1:recv_i_size*my_i_size), &
+                                  P_ij((recv_i_start - 1)*my_i_size + 1:recv_i_end*my_i_size))
                END DO
             END DO
             CALL timestop(handle2)
