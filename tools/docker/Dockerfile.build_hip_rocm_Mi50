@@ -3,7 +3,7 @@
 # Usage: docker build -f ./Dockerfile.build_hip_rocm_Mi50 ../../
 #
 
-FROM rocm/dev-ubuntu-20.04:4.5.2-complete
+FROM rocm/dev-ubuntu-22.04:5.3.2-complete
 
 # Install some Ubuntu packages.
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \

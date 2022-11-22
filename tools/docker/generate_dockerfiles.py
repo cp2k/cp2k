@@ -559,7 +559,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
 # ======================================================================================
 def toolchain_hip_cuda(gpu_ver: str) -> str:
     return rf"""
-FROM nvidia/cuda:11.3.1-devel-ubuntu20.04
+FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
 
 # Setup CUDA environment.
 ENV CUDA_PATH /usr/local/cuda
@@ -662,7 +662,7 @@ RUN hipconfig
 # ======================================================================================
 def toolchain_hip_rocm(gpu_ver: str) -> str:
     return rf"""
-FROM rocm/dev-ubuntu-20.04:4.5.2-complete
+FROM rocm/dev-ubuntu-22.04:5.3.2-complete
 
 # Install some Ubuntu packages.
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
