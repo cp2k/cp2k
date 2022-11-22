@@ -25,7 +25,7 @@ if(CP2K_SCALAPACK_VENDOR STREQUAL "GENERIC")
     message("                                                                 ")
     message(
       WARNING
-        "You may want to use mkl implementation of scalapack. To do this add -DSCALAPACK_VENDOR=MKL to the cmake command line"
+        "You may want to use mkl implementation of scalapack. To do this add -DCP2K_SCALAPACK_VENDOR=MKL to the cmake command line"
     )
   endif()
 
@@ -36,7 +36,7 @@ if(CP2K_SCALAPACK_VENDOR STREQUAL "GENERIC")
     message("                                                                 ")
     message(
       WARNING
-        "You may want to use Cray implementation of scalapack. To do this add -DSCALAPACK_VENDOR=SCI to the cmake command line"
+        "You may want to use Cray implementation of scalapack. To do this add -DCP2K_SCALAPACK_VENDOR=SCI to the cmake command line"
     )
     message("                                                                 ")
     message("                                                                 ")

@@ -52,8 +52,8 @@ if(GIT_DESC)
   string(REGEX REPLACE "^([0-9\\-]+) .*" "\\1" VERSION_DATE
                        "${GIT_COMMIT_DATE}")
 else()
-  set(VERSION_MAJOR 21)
-  set(VERSION_MINOR 10)
+  set(VERSION_MAJOR 22)
+  set(VERSION_MINOR 11)
   set(VERSION_PATCH 00)
 endif()
 
@@ -101,7 +101,8 @@ endforeach()
 # OPTIONS
 
 option(CMAKE_POSITION_INDEPENDENT_CODE "Enable position independent code" ON)
-
+option(CP2K_DEBUG_MODE "Enable several additional options for debugging cp2k."
+       OFF)
 option(CP2K_USE_SIRIUS "Enable plane wave dft calculations with sirius" OFF)
 option(CP2K_USE_FFTW3 "Use fftw3 for the calculating fast fourier transforms"
        ON)
@@ -114,21 +115,20 @@ option(CP2K_USE_VORI "Enable libvori support" OFF)
 option(CP2K_USE_PEXSI "Enable pexsi support" OFF)
 option(CP2K_USE_QUIP "Enable quip support" OFF)
 option(CP2K_USE_SPGLIB "Enable spglib support" ON)
-
 option(CP2K_USE_LIBXC "Enable libxc support" ON)
-
 option(CP2K_USE_STATIC_BLAS "Link against static version of BLAS/LAPACK" OFF)
-
 option(CP2K_USE_SPLA
        "Use SPLA offloading gemm feature to the GPU if it is beneficial. " OFF)
-
 option(CP2K_USE_METIS "enable metis library support" OFF)
-
 option(CP2K_USE_LIBXSMM "Use libxsmm for small gemms (supports x86 platforms)"
        ON)
 
 cmake_dependent_option(CP2K_ENABLE_ELPA_OPENMP_SUPPORT
                        "Enable elpa openmp support" OFF "CP2K_USE_ELPA" OFF)
+cmake_dependent_option(CP2K_ENABLE_FFTW3_OPENMP_SUPPORT
+                       "Enable FFTW openmp support" ON "CP2K_USE_FFTW3" OFF)
+cmake_dependent_option(CP2K_ENABLE_FFTW3_THREADS_SUPPORT
+                       "Enable FFTW THREADS support" OFF "CP2K_USE_FFTW3" OFF)
 
 set(CP2K_SCALAPACK_VENDOR_LIST "MKL" "SCI" "GENERIC")
 set(CP2K_SCALAPACK_VENDOR
@@ -168,9 +168,6 @@ set_property(
   CACHE CP2K_WITH_GPU PROPERTY STRINGS ${CP2K_SUPPORTED_CUDA_ARCHITECTURES}
                                ${CP2K_SUPPORTED_HIP_ARCHITECTURES})
 
-option(CP2K_DEBUG_MODE OFF
-       "Enable several additional options for debugging cp2k.")
-
 set(CP2K_USE_ACCEL
     "NONE"
     CACHE STRING "Set hardware acceleartion support: CUDA, HIP")
@@ -189,14 +186,13 @@ cmake_dependent_option(
 #
 # ##############################################################################
 
-cmake_dependent_option(CP2K_DEBUG_MODE OFF "Enable CP2K debug options"
-                       "NOT CP2K_USE_ACCEL MATCHES \"NONE\" " OFF)
 cmake_dependent_option(
   CP2K_DISABLE_GRID_GPU
   OFF
   "disable the hardware accelerated backend for grid related functions. It is only effective when general gpu support is enabled."
   "CP2K_DEBUG_MODE"
   OFF)
+
 cmake_dependent_option(
   CP2K_DISABLE_PW_GPU
   OFF
@@ -213,15 +209,13 @@ cmake_dependent_option(
   CP2K_DBCSR_CPU_ONLY "Use DBCSR compiled without GPU support." OFF
   "CP2K_DEBUG_MODE" OFF)
 
-set(CMAKE_POSITION_INDEPENDENT_CODE ${CP2K_SET_POSITION_INDEPENDENT_CODE})
-
-find_package(PkgConfig)
-
-# =================================== Python this module looks preferably for
-# version 3 of Python. If not found, version 2 is searched. In CMake 3.15, if a
-# python virtual environment is activated, it will search the virtual
-# environment for a python interpreter before searching elsewhere in the system.
-# In CMake <3.15, the system is searched before the virtual environment.
+# Python
+#
+# this module looks preferably for version 3 of Python. If not found, version 2
+# is searched. In CMake 3.15, if a python virtual environment is activated, it
+# will search the virtual environment for a python interpreter before searching
+# elsewhere in the system. In CMake <3.15, the system is searched before the
+# virtual environment.
 
 if(NOT Python_EXECUTABLE)
   # If the python interpreter isn't specified as a command line option, look for
@@ -254,9 +248,8 @@ add_custom_target(
     -DGIT_HASH_CACHE=${GIT_HASH_CACHE} -P ${CURRENT_LIST_DIR}/CheckGit.cmake
   BYPRODUCTS ${post_configure_file})
 
-# =================================== MPI
+# MPI
 
-# if (CP2K_USE_MPI)
 get_property(REQUIRED_MPI_COMPONENTS GLOBAL PROPERTY ENABLED_LANGUAGES)
 list(REMOVE_ITEM REQUIRED_MPI_COMPONENTS CUDA) # CUDA does not have an MPI
 # component
@@ -285,10 +278,11 @@ if("${MPI_Fortran_LIBRARY_VERSION_STRING}" MATCHES "Open MPI v2.1"
       " Please use a newer version of OpenMPI or switch to MPICH if you plan on using MPI-RMA."
   )
 endif()
-# endif () =================================== BLAS & LAPACK, PkgConfig
+
+# BLAS & LAPACK, PkgConfig
 find_package(Lapack REQUIRED) # also calls find_package(BLAS)
 
-# =================================== SMM (Small Matrix-Matrix multiplication)
+# SMM (Small Matrix-Matrix multiplication)
 if(CP2K_USE_LIBXSMM)
   find_package(LibXSMM REQUIRED)
   message(STATUS "-- Using libxsmm for Small Matrix Multiplication")
@@ -298,9 +292,7 @@ endif()
 # turn it off
 find_package(SCALAPACK REQUIRED)
 
-# ================================== CUDA / ROCM easy for cuda a moving target
-# for hip
-# ======================================
+# CUDA / ROCM easy for cuda a moving target for hip
 
 if((CP2K_USE_ACCEL MATCHES CUDA) OR (CP2K_USE_ACCEL MATCHES HIP))
   set(CP2K_GPU_ARCH_NUMBER_K20X 35)
@@ -357,7 +349,7 @@ if(CP2K_USE_ACCEL MATCHES "CUDA")
   endif()
 
   set(CP2K_USE_CUDA ON)
-  message(STATUS "-- CUDA compiler and libraries found")
+  message(STATUS ``"-- CUDA compiler and libraries found")
 elseif(CP2K_USE_ACCEL MATCHES "HIP")
   enable_language(HIP)
   # Find hip
@@ -397,7 +389,7 @@ if(CP2K_USE_LIBXC)
 endif()
 
 if(CP2K_USE_COSMA)
-  find_package(cosma REQUIRED)
+  find_package(cosma REQUIRED HINTS "${COSMA_ROOT}" "$ENV(COSMA_ROOT)")
   get_target_property(COSMA_INCLUDE_DIRS cosma::cosma
                       INTERFACE_INCLUDE_DIRECTORIES)
   if(NOT COSMA_INCLUDE_DIRS)
@@ -406,10 +398,11 @@ if(CP2K_USE_COSMA)
 
   # check that cosma::cosma_pxgemm and cosma::cosma_prefixed_pxgemm exist
   if(NOT TARGET cosma::cosma_pxgemm OR NOT TARGET cosma::cosma_prefixed_pxgemm)
-    message(ERROR " COSMA needs tor be build with scalapack offloading support")
+    message(ERROR_ERROR
+            " COSMA needs tor be build with scalapack offloading support")
     message(
-      FATAL
-      " COSTA_SCALAPACK and COSMA_SCALAPACK should probably be set properly")
+      FATAL_ERROR
+        " COSTA_SCALAPACK and COSMA_SCALAPACK should probably be set properly")
   endif()
 endif()
 
@@ -417,28 +410,44 @@ if(CP2K_USE_VORI)
   find_package(LibVORI REQUIRED)
 endif()
 
-# =================================== CP2K_FFTW3
-# ===========================================
+# FFTW3
 
 if(CP2K_USE_FFTW3)
   find_package(Fftw REQUIRED)
+  if(CP2K_ENABLE_FFTW3_THREADS_SUPPORT AND CP2K_ENABLE_FFTW3_OPENMP_SUPPORT)
+    message(
+      FATAL_ERROR
+        "Fftw3 threads and openmp supports can not be used at the same time")
+  endif()
+
+  if((CP2K_ENABLE_FFTW3_THREADS_SUPPORT) AND (NOT TARGET
+                                              CP2K_FFTW3::fftw3_threads))
+    message(
+      FATAL_ERROR
+        "fftw3 was compiled without multithreading support (--enable-threads option in fftw build system)."
+    )
+  endif()
+
+  if((CP2K_ENABLE_FFTW3_OPENMP_SUPPORT) AND (NOT TARGET CP2K_FFTW3::fftw3_omp))
+    message(
+      FATAL_ERROR
+        "fftw3 was compiled without openmp support  (--enable-openmp option in fftw build system)."
+    )
+  endif()
 endif()
 
-# ==================================== QUIP
-# ===========================================
+# QUIP
 if(CP2K_USE_QUIP)
   find_package(Quip REQUIRED)
 endif()
 
-# ==================================== libint
-# =========================================
+# libint
 
 if(CP2K_USE_LIBINT2)
   find_package(Libint2 REQUIRED)
 endif()
 
-# ==================================== spglib
-# =========================================
+# spglib
 
 if(CP2K_USE_SPGLIB)
   find_package(LibSPG REQUIRED)
@@ -455,13 +464,12 @@ if(CP2K_USE_SPLA)
   if(NOT SPLA_GPU_BACKEND AND CP2K_USE_GEMM_OFFLOADING)
     set(CP2K_USE_GEMM_OFFLOADING OFF)
     message(
-      ERROR
-      "SPLA should be compiled with GPU support if the gemm offloading is requested. Use -DCP2K_USE_GEMM_OFFLOADING=OFF othrwise"
+      FATAL_ERROR
+        "SPLA should be compiled with GPU support if the gemm offloading is requested. Use -DCP2K_USE_GEMM_OFFLOADING=OFF otherwise"
     )
   endif()
 endif()
-# =================================== SIRIUS
-# ==========================================
+# SIRIUS
 
 if(CP2K_USE_SIRIUS)
   find_package(sirius REQUIRED)
@@ -493,7 +501,6 @@ if(CP2K_USE_PLUMED)
   find_package(Plumed REQUIRED)
 endif()
 
-# =================================================================================================
 # OPTION HANDLING
 
 # make sure that the default build type is RELEASE
