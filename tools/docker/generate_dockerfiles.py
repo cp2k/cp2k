@@ -373,6 +373,8 @@ def install_cp2k_cmake() -> str:
     # TODO: This is a draft and does not yet actually work.
 
     return rf"""
+
+COPY ./tools/build_utils/fypp /bin/fypp
 # temporary solution we build dbcsr without using the cloned repo. It will eventually be moved inside the toolchain
 COPY ./tools/docker/scripts/install_dbcsr.sh ./scripts/
 RUN  ./scripts/install_dbcsr.sh && rm -rf ./build
@@ -393,7 +395,7 @@ RUN /bin/bash -c " \
     ls /opt/cp2k-toolchain/install/fftw-3.3.10/lib && \
     source /opt/cp2k-toolchain/install/setup && \
     export PKG_CONFIG_PATH=/opt/cp2k-toolchain/install/libxsmm-1.17/lib:/opt/cp2k-toolchain/install/openblas-0.3.21/lib/pkgconfig:/opt/cp2k-toolchain/install/libxc-6.0.0/lib/pkgconfig:/opt/cp2k-toolchain/install/fftw-3.3.10/lib/pkgconfig:/opt/cp2k-toolchain/install/libint-v2.6.0-cp2k-lmax-5/lib/pkgconfig:/opt/cp2k-toolchain/install/plumed-2.8.0/lib/pkgconfig:/opt/cp2k-toolchain/install/superlu_dist-6.1.0/lib/pkgconfig && \
-    cmake -DCP2K_USE_COSMA=OFF -DCP2K_USE_LIBXSMM=NO -DSCALAPACK_ROOT=/opt/cp2k-toolchain/install/scalapack-2.2.1 -DCP2K_BLAS_VENDOR=OpenBLAS -DLibXC_ROOT=/opt/cp2k-toolchain/install/libxc-6.0.0 -DLibint2_ROOT=/opt/cp2k-toolchain/install/libint-v2.6.0-cp2k-lmax-5 -DDBCSR_ROOT=/opt/cp2k-toolchain/install/DBCSR-2.4.1 -DCP2K_USE_SPGLIB=ON -DCP2K_USE_LIBINT2=ON -DCP2K_USE_LIBXC=ON .. && \
+    cmake -DCP2K_USE_COSMA=OFF -DCP2K_USE_LIBXSMM=NO -DSCALAPACK_ROOT=/opt/cp2k-toolchain/install/scalapack-2.2.1 -DCP2K_BLAS_VENDOR=OpenBLAS -DLibXC_ROOT=/opt/cp2k-toolchain/install/libxc-6.0.0 -DLibint2_ROOT=/opt/cp2k-toolchain/install/libint-v2.6.0-cp2k-lmax-5 -DDBCSR_ROOT=/opt/cp2k-toolchain/install/DBCSR-2.4.1 -DCP2K_USE_SPGLIB=ON -DCP2K_USE_LIBINT2=NO -DCP2K_USE_LIBXC=ON -DLibSPG_ROOT=/opt/cp2k-toolchain/install/spglib-1.16.2 .. && \
     make -j"
 COPY ./data ./data
 COPY ./tests ./tests
@@ -716,7 +718,7 @@ class OutputFile:
         output_path = Path(__file__).parent / self.filename
         if self.check:
             assert output_path.read_text(encoding="utf8") == self.content.getvalue()
-            print(f"File {output_path} is consisted with generator script.")
+            print(f"File {output_path} is consistent with generator script.")
         else:
             output_path.write_text(self.content.getvalue(), encoding="utf8")
             print(f"Wrote {output_path}")
