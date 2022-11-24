@@ -200,6 +200,7 @@ CONTAINS
 !> \author Manuel Guidon
 ! **************************************************************************************************
    SUBROUTINE admm_env_create(admm_env, admm_control, mos, para_env, natoms, nao_aux_fit)
+
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(admm_control_type), POINTER                   :: admm_control
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
@@ -352,7 +353,8 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct_orb_aux)
       CALL cp_fm_struct_release(fm_struct_orb_orb)
 
-      ! copy settings from admm_control
+      ! Copy settings from admm_control
+      CPASSERT(ASSOCIATED(admm_control))
       admm_env%purification_method = admm_control%purification_method
       admm_env%scaling_model = admm_control%scaling_model
       admm_env%aux_exch_func = admm_control%aux_exch_func
@@ -365,7 +367,7 @@ CONTAINS
 
       IF ((admm_control%method == do_admm_blocking_purify_full) .OR. &
           (admm_control%method == do_admm_blocked_projection)) THEN
-         ! create block map
+         ! Create block map
          ALLOCATE (admm_env%block_map(natoms, natoms))
          admm_env%block_map(:, :) = 0
          DO iblock = 1, SIZE(admm_control%blocks)
@@ -398,9 +400,12 @@ CONTAINS
 !> \author Manuel Guidon
 ! **************************************************************************************************
    SUBROUTINE admm_env_release(admm_env)
+
       TYPE(admm_type), POINTER                           :: admm_env
 
       INTEGER                                            :: ispin
+
+      CPASSERT(ASSOCIATED(admm_env))
 
       CALL cp_fm_release(admm_env%S)
       CALL cp_fm_release(admm_env%S_inv)
@@ -581,7 +586,7 @@ CONTAINS
                            matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, rho_aux_fit, &
                            rho_aux_fit_buffer, admm_dm)
 
-      TYPE(admm_type), INTENT(IN)                        :: admm_env
+      TYPE(admm_type), INTENT(IN), POINTER               :: admm_env
       TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: mo_derivs_aux_fit
       TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos_aux_fit
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -596,6 +601,8 @@ CONTAINS
                                                             matrix_ks_aux_fit_hfx
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho_aux_fit, rho_aux_fit_buffer
       TYPE(admm_dm_type), OPTIONAL, POINTER              :: admm_dm
+
+      CPASSERT(ASSOCIATED(admm_env))
 
       IF (PRESENT(mo_derivs_aux_fit)) mo_derivs_aux_fit => admm_env%mo_derivs_aux_fit
       IF (PRESENT(mos_aux_fit)) mos_aux_fit => admm_env%mos_aux_fit
@@ -640,7 +647,7 @@ CONTAINS
                            matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, rho_aux_fit, &
                            rho_aux_fit_buffer, admm_dm)
 
-      TYPE(admm_type), INTENT(INOUT)                     :: admm_env
+      TYPE(admm_type), INTENT(INOUT), POINTER            :: admm_env
       TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: mo_derivs_aux_fit
       TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos_aux_fit
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -655,6 +662,8 @@ CONTAINS
                                                             matrix_ks_aux_fit_hfx
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho_aux_fit, rho_aux_fit_buffer
       TYPE(admm_dm_type), OPTIONAL, POINTER              :: admm_dm
+
+      CPASSERT(ASSOCIATED(admm_env))
 
       IF (PRESENT(mo_derivs_aux_fit)) admm_env%mo_derivs_aux_fit => mo_derivs_aux_fit
       IF (PRESENT(mos_aux_fit)) admm_env%mos_aux_fit => mos_aux_fit
