@@ -145,8 +145,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(dbcsr_type), POINTER                          :: template
       LOGICAL, INTENT(IN)                                :: linear_scaling
-      TYPE(mo_set_type), DIMENSION(:), INTENT(IN), &
-         POINTER                                         :: mos_aux
+      TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos_aux
 
       INTEGER                                            :: i, j, nao, nrow_block, nspin
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
@@ -197,6 +196,11 @@ CONTAINS
          ALLOCATE (rtp%mos%next(2*nspin))
          NULLIFY (rtp%mos%admm)
          IF (dft_control%do_admm) THEN
+            IF (PRESENT(mos_aux)) THEN
+               CPASSERT(ASSOCIATED(mos_aux))
+            ELSE
+               CPABORT("The optional argument mos_aux is missing which is required with ADMM")
+            END IF
             ALLOCATE (rtp%mos%admm(2*nspin))
          END IF
          DO i = 1, nspin
