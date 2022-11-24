@@ -1176,7 +1176,25 @@ CONTAINS
          END IF
       END DO
 
-      DO proc_shift = 0, grid(2) - 1
+      proc_send = mepos(2)*grid(1) + mepos(1)
+      proc_recv = mepos(2)*grid(1) + mepos(1)
+
+      ! Both pointers point to the same memory but we need the first for communication, the second one for dgemm
+      buffer_3D(1)%array(1:my_P_size, 1:my_a_size, 1:my_i_size) => buffer_1D(1:INT(my_P_size, KIND=int_8)*my_a_size*my_i_size)
+
+      CALL timeset(routineN//"_comm_i", handle2)
+      CALL mp_sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
+                       buffer_3D(1)%array, blacs2mpi(my_prow, proc_recv), &
+                       para_env%group, tag)
+      CALL timestop(handle2)
+
+      CALL calc_P_rpa_i(P_ij((my_i_start - 1)*my_i_size + 1:my_i_end*my_i_size), &
+                        mat_S_3D, buffer_3D(1)%array, &
+                        mp2_env%ri_grad%dot_blksize, buffer_compens_1D, mp2_env%local_gemm_ctx, &
+                        Eigenval(homo + my_a_start:homo + my_a_end), Eigenval(my_i_start:my_i_end), &
+                        Eigenval(my_i_start:my_i_end), omega, weight)
+
+      DO proc_shift = 1, grid(2) - 1
          proc_i_send = MODULO(mepos(2) + proc_shift, grid(2))
          proc_i_recv = MODULO(mepos(2) - proc_shift, grid(2))
 
@@ -1309,6 +1327,11 @@ CONTAINS
          DO my_i = 1, my_i_size
          DO my_a = 1, my_a_size
             mat_S(:, my_a, my_i) = mat_S(:, my_a, my_i)*((my_eval_virt(my_a) - my_eval_occ(my_i))/omega)
+         END DO
+         END DO
+         DO my_i = 1, recv_i_size
+         DO my_a = 1, my_a_size
+            mat_work(:, my_a, my_i) = mat_work(:, my_a, my_i)*((my_eval_virt(my_a) - recv_eval_occ(my_i))/omega)
          END DO
          END DO
          CALL timestop(handle)
