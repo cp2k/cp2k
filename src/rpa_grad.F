@@ -107,6 +107,9 @@ MODULE rpa_grad
       TYPE(rpa_grad_work_type) :: rpa_work
    END TYPE
 
+   INTEGER, PARAMETER :: spla_threshold = 128*128*128*2
+   INTEGER, PARAMETER :: blksize_threshold = 4
+
 CONTAINS
 
 ! **************************************************************************************************
@@ -1023,18 +1026,16 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! We allocate it at every step to reduce potential memory conflicts with COSMA
-      IF (mp2_env%ri_grad%dot_blksize >= 8) THEN
+      IF (mp2_env%ri_grad%dot_blksize >= blksize_threshold) THEN
          IF (.NOT. c_associated(mp2_env%local_gemm_ctx)) THEN
             CALL local_gemm_create(mp2_env%local_gemm_ctx, LOCAL_GEMM_PU_GPU)
-            CALL local_gemm_set_op_threshold_gpu(mp2_env%local_gemm_ctx, 128*128*128*2)
+            CALL local_gemm_set_op_threshold_gpu(mp2_env%local_gemm_ctx, spla_threshold)
          END IF
       END IF
 
       tag = 47
 
       my_P_size = SIZE(mat_work_iaP_3D, 1)
-
-      IF (mp2_env%ri_grad%dot_blksize == -1) mp2_env%ri_grad%dot_blksize = my_P_size
 
       CALL cp_fm_struct_get(fm_struct_S, para_env=para_env)
       CALL get_blacs_info(fm_struct_S%context, my_process_row=my_prow, blacs2mpi=blacs2mpi, para_env=para_env)
@@ -1051,7 +1052,7 @@ CONTAINS
                               INT(maxsize(gd_virtual), KIND=int_8)*my_i_size)*my_P_size))
 
       ! Allocate buffers for vector version of kahan summation
-      IF (mp2_env%ri_grad%dot_blksize >= 8) THEN
+      IF (mp2_env%ri_grad%dot_blksize >= blksize_threshold) THEN
          ALLOCATE (buffer_compens_1D(MAX(my_a_size*maxsize(gd_virtual), my_i_size*maxsize(gd_homo))))
       END IF
 
@@ -1072,7 +1073,7 @@ CONTAINS
                           para_env%group, tag)
          CALL timestop(handle2)
 
-         IF (mp2_env%ri_grad%dot_blksize >= 8) THEN
+         IF (mp2_env%ri_grad%dot_blksize >= blksize_threshold) THEN
             buffer_compens_2D(1:my_a_size, 1:recv_a_size) => buffer_compens_1D(1:my_a_size*recv_a_size)
 
             buffer_compens_2D = 0.0_dp
@@ -1192,7 +1193,7 @@ CONTAINS
                            Eigenval(recv_i_start:recv_i_end), omega, weight)
       END DO
 
-      IF (mp2_env%ri_grad%dot_blksize >= 8) THEN
+      IF (mp2_env%ri_grad%dot_blksize >= blksize_threshold) THEN
          ! release memory allocated by local_gemm when run on GPU. local_gemm_ctx is null on cpu only runs
          CALL local_gemm_destroy(mp2_env%local_gemm_ctx)
          mp2_env%local_gemm_ctx = C_NULL_PTR
@@ -1239,7 +1240,7 @@ CONTAINS
       my_a_size = SIZE(mat_S, 2)
       my_P_size = SIZE(mat_S, 1)
 
-      IF (dot_blksize >= 8) THEN
+      IF (dot_blksize >= blksize_threshold) THEN
          buffer_2D(1:my_i_size, 1:recv_i_size) => buffer_1D(1:my_i_size*recv_i_size)
          buffer_2D = 0.0_dp
 
