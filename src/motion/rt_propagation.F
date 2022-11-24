@@ -462,6 +462,7 @@ CONTAINS
          qs_env%run_rtp = .TRUE.
          ALLOCATE (qs_env%rtp)
          CALL get_qs_env(qs_env, matrix_s=matrix_s)
+         CPASSERT(ASSOCIATED(qs_env%admm_env))
          CALL rt_prop_create(qs_env%rtp, qs_env%mos, qs_env%mpools, dft_control, matrix_s(1)%matrix, &
                              rtp_control%linear_scaling, qs_env%admm_env%mos_aux_fit)
 
