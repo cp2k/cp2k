@@ -968,6 +968,9 @@ CONTAINS
 !> \param final_mos ...
 !> \param spin ...
 !> \param solver_method ...
+!> \param rtp ...
+!> \param cpart ...
+!> \param sim_step ...
 !> \date    15.05.2001
 !> \par History:
 !>       - Optionally print Cartesian MOs (20.04.2005, MK)
@@ -980,7 +983,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE write_mo_set_to_output_unit(mo_set, atomic_kind_set, qs_kind_set, particle_set, &
                                           dft_section, before, kpoint, final_mos, spin, &
-                                          solver_method)
+                                          solver_method, rtp, cpart, sim_step)
 
       TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -991,17 +994,21 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: final_mos
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: spin
       CHARACTER(LEN=2), INTENT(IN), OPTIONAL             :: solver_method
+      LOGICAL, INTENT(IN), OPTIONAL                      :: rtp
+      INTEGER, INTENT(IN), OPTIONAL                      :: cpart, sim_step
 
       CHARACTER(LEN=12)                                  :: symbol
       CHARACTER(LEN=12), DIMENSION(:), POINTER           :: bcgf_symbol
       CHARACTER(LEN=14)                                  :: fmtstr5
-      CHARACTER(LEN=15)                                  :: energy_str, orbital_str, vector_str
+      CHARACTER(LEN=15)                                  :: energy_str, orbital_str, step_string
       CHARACTER(LEN=2)                                   :: element_symbol, my_solver_method
       CHARACTER(LEN=2*default_string_length)             :: name
+      CHARACTER(LEN=21)                                  :: vector_str
       CHARACTER(LEN=22)                                  :: fmtstr4
       CHARACTER(LEN=24)                                  :: fmtstr2
       CHARACTER(LEN=25)                                  :: fmtstr1
       CHARACTER(LEN=29)                                  :: fmtstr6
+      CHARACTER(LEN=4)                                   :: reim
       CHARACTER(LEN=40)                                  :: fmtstr3
       CHARACTER(LEN=6), DIMENSION(:), POINTER            :: bsgf_symbol
       INTEGER :: after, first_mo, from, iatom, icgf, ico, icol, ikind, imo, irow, iset, isgf, &
@@ -1009,9 +1016,10 @@ CONTAINS
          nrow_global, nset, nsgf, right, scf_step, to, width
       INTEGER, DIMENSION(:), POINTER                     :: mo_index_range, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l
-      LOGICAL                                            :: ionode, my_final, print_cartesian, &
-                                                            print_eigvals, print_eigvecs, &
-                                                            print_occup, should_output
+      LOGICAL                                            :: ionode, my_final, my_rtp, &
+                                                            print_cartesian, print_eigvals, &
+                                                            print_eigvecs, print_occup, &
+                                                            should_output
       REAL(KIND=dp)                                      :: gap
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cmatrix, smatrix
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -1041,12 +1049,38 @@ CONTAINS
          my_final = .FALSE.
       END IF
 
+      ! complex MOS for RTP, no eigenvalues
+      my_rtp = .FALSE.
+      IF (PRESENT(rtp)) THEN
+         my_rtp = rtp
+      END IF
+
       should_output = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, &
                                                        "PRINT%MO"), cp_p_file) .OR. my_final
 
       IF ((.NOT. should_output) .OR. (.NOT. (print_eigvals .OR. print_eigvecs .OR. print_occup))) RETURN
 
-      scf_step = MAX(0, logger%iter_info%iteration(logger%iter_info%n_rlevel) - 1)
+      IF (my_rtp) THEN
+         CPASSERT(PRESENT(sim_step))
+         CPASSERT(PRESENT(cpart))
+         scf_step = sim_step
+         IF (cpart == 0) THEN
+            reim = "IMAG"
+         ELSE
+            reim = "REAL"
+         END IF
+         print_eigvals = .FALSE.
+      ELSE
+         scf_step = MAX(0, logger%iter_info%iteration(logger%iter_info%n_rlevel) - 1)
+      END IF
+
+      IF (.NOT. my_final) THEN
+         IF (.NOT. my_rtp) THEN
+            step_string = " AFTER SCF STEP"
+         ELSE
+            step_string = " AFTER RTP STEP"
+         END IF
+      END IF
 
       IF (PRESENT(solver_method)) THEN
          my_solver_method = solver_method
@@ -1105,6 +1139,11 @@ CONTAINS
          ELSE
             energy_str = "ENERGIES"
             vector_str = "COEFFICIENTS"
+         END IF
+
+         IF (my_rtp) THEN
+            energy_str = "ZEROS"
+            vector_str = TRIM(reim)//" RTP COEFFICIENTS"
          END IF
 
          IF (print_eigvecs) THEN
@@ -1168,13 +1207,13 @@ CONTAINS
                    TRIM(orbital_str)//" "//TRIM(vector_str)
 
             IF (.NOT. my_final) &
-               WRITE (UNIT=name, FMT="(A,1X,I0)") TRIM(name)//" AFTER SCF STEP", scf_step
+               WRITE (UNIT=name, FMT="(A,1X,I0)") TRIM(name)//step_string, scf_step
 
          ELSE IF (print_occup .OR. print_eigvals) THEN
             name = TRIM(energy_str)//" AND OCCUPATION NUMBERS"
 
             IF (.NOT. my_final) &
-               WRITE (UNIT=name, FMT="(A,1X,I0)") TRIM(name)//" AFTER SCF STEP", scf_step
+               WRITE (UNIT=name, FMT="(A,1X,I0)") TRIM(name)//step_string, scf_step
          END IF ! print_eigvecs
 
          ! Print headline
@@ -1358,12 +1397,14 @@ CONTAINS
 
          END IF ! print_eigvecs
 
-         fmtstr6 = "(A,T18,F17.  ,A,T41,F17.  ,A)"
-         WRITE (UNIT=fmtstr6(12:13), FMT="(I2)") after
-         WRITE (UNIT=fmtstr6(25:26), FMT="(I2)") after
-         WRITE (UNIT=iw, FMT=fmtstr6) &
-            " MO| E(Fermi):", mo_set%mu, " a.u.", mo_set%mu*evolt, " eV"
-         IF ((mo_set%homo > 0)) THEN
+         IF (.NOT. my_rtp) THEN
+            fmtstr6 = "(A,T18,F17.  ,A,T41,F17.  ,A)"
+            WRITE (UNIT=fmtstr6(12:13), FMT="(I2)") after
+            WRITE (UNIT=fmtstr6(25:26), FMT="(I2)") after
+            WRITE (UNIT=iw, FMT=fmtstr6) &
+               " MO| E(Fermi):", mo_set%mu, " a.u.", mo_set%mu*evolt, " eV"
+         END IF
+         IF ((mo_set%homo > 0) .AND. .NOT. my_rtp) THEN
             IF ((mo_set%occupation_numbers(mo_set%homo) == mo_set%maxocc) .AND. (last_mo > mo_set%homo)) THEN
                gap = mo_set%eigenvalues(mo_set%homo + 1) - &
                      mo_set%eigenvalues(mo_set%homo)
