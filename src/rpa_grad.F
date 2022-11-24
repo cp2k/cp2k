@@ -15,7 +15,8 @@ MODULE rpa_grad
                                               C_PTR,&
                                               c_associated
    USE cp_array_utils,                  ONLY: cp_1d_r_cp_type,&
-                                              cp_2d_r_cp_type
+                                              cp_2d_r_cp_type,&
+                                              cp_3d_r_cp_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type,&
                                               get_blacs_info
    USE cp_fm_basic_linalg,              ONLY: cp_fm_geadd,&
@@ -1014,13 +1015,15 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_P_rpa'
 
       INTEGER :: handle, handle2, my_a, my_a_end, my_a_size, my_a_start, my_i, my_i_end, &
-         my_i_size, my_i_start, my_P_size, my_prow, P_end, P_start, proc_a_recv, proc_a_send, &
-         proc_i_recv, proc_i_send, proc_recv, proc_send, proc_shift, recv_a, recv_a_end, &
-         recv_a_size, recv_a_start, recv_i_end, recv_i_size, recv_i_start, stripesize, tag
+         my_i_size, my_i_start, my_P_size, my_prow, number_of_parallel_channels, P_end, P_start, &
+         proc_a_recv, proc_a_send, proc_i_recv, proc_i_send, proc_recv, proc_send, proc_shift, &
+         recv_a, recv_a_end, recv_a_size, recv_a_start, recv_i_end, recv_i_size, recv_i_start, &
+         stripesize, tag
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: buffer_1D, buffer_compens_1D
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: buffer_compens_2D
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: buffer_3D, mat_S_3D
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: mat_S_3D
+      TYPE(cp_3d_r_cp_type), ALLOCATABLE, DIMENSION(:)   :: buffer_3D
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
@@ -1048,8 +1051,12 @@ CONTAINS
       ! Fortran 2008 does allow pointer remapping independently of the ranks but GCC 7 does not properly support it
       mat_S_3D(1:my_P_size, 1:my_a_size, 1:my_i_size) => mat_S_1D(1:INT(my_P_size, int_8)*my_a_size*my_i_size)
 
-      ALLOCATE (buffer_1D(MAX(INT(maxsize(gd_homo), KIND=int_8)*my_a_size, &
-                              INT(maxsize(gd_virtual), KIND=int_8)*my_i_size)*my_P_size))
+      number_of_parallel_channels = 1
+
+      ALLOCATE (buffer_1D(number_of_parallel_channels*MAX(INT(maxsize(gd_homo), KIND=int_8)*my_a_size, &
+                                                          INT(maxsize(gd_virtual), KIND=int_8)*my_i_size)*my_P_size))
+
+      ALLOCATE (buffer_3D(number_of_parallel_channels))
 
       ! Allocate buffers for vector version of kahan summation
       IF (mp2_env%ri_grad%dot_blksize >= blksize_threshold) THEN
@@ -1065,11 +1072,12 @@ CONTAINS
 
          CALL get_group_dist(gd_virtual, proc_a_recv, recv_a_start, recv_a_end, recv_a_size)
 
-         buffer_3D(1:my_P_size, 1:recv_a_size, 1:my_i_size) => buffer_1D(1:INT(my_P_size, KIND=int_8)*recv_a_size*my_i_size)
+         buffer_3D(1)%array(1:my_P_size, 1:recv_a_size, 1:my_i_size) => &
+            buffer_1D(1:INT(my_P_size, KIND=int_8)*recv_a_size*my_i_size)
 
          CALL timeset(routineN//"_comm_a", handle2)
          CALL mp_sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
-                          buffer_3D, blacs2mpi(my_prow, proc_recv), &
+                          buffer_3D(1)%array, blacs2mpi(my_prow, proc_recv), &
                           para_env%group, tag)
          CALL timestop(handle2)
 
@@ -1087,7 +1095,7 @@ CONTAINS
 
                   CALL local_gemm("T", "N", my_a_size, recv_a_size, stripesize, &
                                   -weight, mat_S_3D(P_start:P_end, :, my_i), stripesize, &
-                                  buffer_3D(P_start:P_end, :, my_i), stripesize, &
+                                  buffer_3D(1)%array(P_start:P_end, :, my_i), stripesize, &
                                   -1.0_dp, buffer_compens_2D, my_a_size, mp2_env%local_gemm_ctx)
 
                   CALL kahan_step(buffer_compens_1D(1:recv_a_size*my_a_size), &
@@ -1104,8 +1112,8 @@ CONTAINS
                                             (omega/(Eigenval(homo + my_a + my_a_start - 1) - Eigenval(my_i + my_i_start - 1)))
                END DO
                DO my_a = 1, recv_a_size
-                  buffer_3D(:, my_a, my_i) = buffer_3D(:, my_a, my_i)* &
-                                             (omega/(Eigenval(homo + my_a + recv_a_start - 1) - Eigenval(my_i + my_i_start - 1)))
+                  buffer_3D(1)%array(:, my_a, my_i) = buffer_3D(1)%array(:, my_a, my_i)* &
+                                                (omega/(Eigenval(homo + my_a + recv_a_start - 1) - Eigenval(my_i + my_i_start - 1)))
                END DO
             END DO
             CALL timestop(handle2)
@@ -1119,7 +1127,7 @@ CONTAINS
                   ! Repeat contraction
                   CALL local_gemm("T", "N", my_a_size, recv_a_size, stripesize, &
                                   weight, mat_S_3D(P_start:P_end, :, my_i), stripesize, &
-                                  buffer_3D(P_start:P_end, :, my_i), stripesize, &
+                                  buffer_3D(1)%array(P_start:P_end, :, my_i), stripesize, &
                                   -1.0_dp, buffer_compens_2D, my_a_size, mp2_env%local_gemm_ctx)
 
                   CALL kahan_step(buffer_compens_1D(1:recv_a_size*my_a_size), &
@@ -1136,8 +1144,8 @@ CONTAINS
                                             ((Eigenval(homo + my_a + my_a_start - 1) - Eigenval(my_i + my_i_start - 1))/omega)
                END DO
                DO my_a = 1, recv_a_size
-                  buffer_3D(:, my_a, my_i) = buffer_3D(:, my_a, my_i)* &
-                                             ((Eigenval(homo + my_a + recv_a_start - 1) - Eigenval(my_i + my_i_start - 1))/omega)
+                  buffer_3D(1)%array(:, my_a, my_i) = buffer_3D(1)%array(:, my_a, my_i)* &
+                                                ((Eigenval(homo + my_a + recv_a_start - 1) - Eigenval(my_i + my_i_start - 1))/omega)
                END DO
             END DO
             CALL timestop(handle2)
@@ -1157,7 +1165,7 @@ CONTAINS
                   tmp = 0.0_dp
                   DO my_i = 1, my_i_size
                      e_i = -Eigenval(my_i_start - 1 + my_i)
-                     tmp = tmp + accurate_dot_product(mat_S_3D(:, my_a, my_i), buffer_3D(:, recv_a, my_i)) &
+                     tmp = tmp + accurate_dot_product(mat_S_3D(:, my_a, my_i), buffer_3D(1)%array(:, recv_a, my_i)) &
                            *(1.0_dp + omega2/((e_a + e_i)*(e_b + e_i)))
                   END DO
                 P_ab(my_a + my_a_size*(recv_a_start - 2 + recv_a)) = P_ab(my_a + my_a_size*(recv_a_start - 2 + recv_a)) - weight*tmp
@@ -1178,16 +1186,16 @@ CONTAINS
          CALL get_group_dist(gd_homo, proc_i_recv, recv_i_start, recv_i_end, recv_i_size)
 
          ! Both pointers point to the same memory but we need the first for communication, the second one for dgemm
-         buffer_3D(1:my_P_size, 1:my_a_size, 1:recv_i_size) => buffer_1D(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
+        buffer_3D(1)%array(1:my_P_size, 1:my_a_size, 1:recv_i_size) => buffer_1D(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
 
          CALL timeset(routineN//"_comm_i", handle2)
          CALL mp_sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
-                          buffer_3D, blacs2mpi(my_prow, proc_recv), &
+                          buffer_3D(1)%array, blacs2mpi(my_prow, proc_recv), &
                           para_env%group, tag)
          CALL timestop(handle2)
 
          CALL calc_P_rpa_i(P_ij((recv_i_start - 1)*my_i_size + 1:recv_i_end*my_i_size), &
-                           mat_S_3D, buffer_3D, &
+                           mat_S_3D, buffer_3D(1)%array, &
                            mp2_env%ri_grad%dot_blksize, buffer_compens_1D, mp2_env%local_gemm_ctx, &
                            Eigenval(homo + my_a_start:homo + my_a_end), Eigenval(my_i_start:my_i_end), &
                            Eigenval(recv_i_start:recv_i_end), omega, weight)
@@ -1199,6 +1207,9 @@ CONTAINS
          mp2_env%local_gemm_ctx = C_NULL_PTR
          DEALLOCATE (buffer_compens_1D)
       END IF
+
+      DEALLOCATE (buffer_3D)
+      DEALLOCATE (buffer_1D)
 
       CALL timestop(handle)
 
