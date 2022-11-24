@@ -1370,8 +1370,6 @@ CONTAINS
             IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(/T3,A,T66,i15)") &
                "MEMORY_INFO| Memory cut:", cut_memory
             IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T66,ES15.2)") &
-               "SPARSITY_INFO| Eps pgf orb for imaginary time:", mp2_env%mp2_gpw%eps_grid
-            IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T66,ES15.2)") &
                "SPARSITY_INFO| Eps filter for M virt/occ tensors:", eps_filter
             IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T66,ES15.2)") &
                "SPARSITY_INFO| Eps filter for P matrix:", eps_filter_im_time
@@ -1620,7 +1618,7 @@ CONTAINS
                                              tau_tj, tau_wj, cut_memory, Pspin, Qspin, my_open_shell, &
                                              unit_nr, dbcsr_time, dbcsr_nflop, mp2_env, qs_env)
             END IF
-            CALL calc_post_loop_forces(force_data, qs_env)
+            CALL calc_post_loop_forces(force_data, unit_nr, qs_env)
          END IF !laplace SOS-MP2
 
          IF (calc_forces .AND. do_im_time .AND. .NOT. do_ri_sos_laplace_mp2) THEN
@@ -1635,7 +1633,7 @@ CONTAINS
                                          wj, tau_tj, cut_memory, ispin, my_open_shell, unit_nr, dbcsr_time, &
                                          dbcsr_nflop, mp2_env, qs_env)
             END DO
-            CALL calc_post_loop_forces(force_data, qs_env)
+            CALL calc_post_loop_forces(force_data, unit_nr, qs_env)
          END IF
 
          IF (do_im_time) THEN

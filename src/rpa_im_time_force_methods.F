@@ -41,7 +41,6 @@ MODULE rpa_im_time_force_methods
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
-   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -2029,6 +2028,7 @@ CONTAINS
 
             END DO !k_mem
          END DO !j_mem
+
          CALL dbt_copy(t_3c_8, t_3c_help_1, move_data=.TRUE.)
 
          pref = 1.0_dp*fac
@@ -2098,17 +2098,18 @@ CONTAINS
 !>        terms collected during the said loop. This inludes the z-vector equation and its reponse
 !>        forces, as well as the force coming from the trace with the derivative of the KS matrix
 !> \param force_data ...
+!> \param unit_nr ...
 !> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE calc_post_loop_forces(force_data, qs_env)
+   SUBROUTINE calc_post_loop_forces(force_data, unit_nr, qs_env)
 
       TYPE(im_time_force_type), INTENT(INOUT)            :: force_data
+      INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calc_post_loop_forces'
 
-      INTEGER                                            :: handle, ispin, nao, nao_aux, nocc, &
-                                                            nspins, unit_nr
+      INTEGER                                            :: handle, ispin, nao, nao_aux, nocc, nspins
       LOGICAL                                            :: do_exx
       REAL(dp)                                           :: focc
       TYPE(admm_type), POINTER                           :: admm_env
@@ -2151,7 +2152,6 @@ CONTAINS
 
       CALL set_qs_env(qs_env, linres_control=linres_control)
 
-      unit_nr = cp_logger_get_default_io_unit()
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, *)
          WRITE (unit_nr, '(T3,A)') 'MP2_CPHF| Iterative solution of Z-Vector equations'
