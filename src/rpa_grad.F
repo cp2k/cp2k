@@ -1014,14 +1014,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_P_rpa'
 
-      INTEGER :: handle, handle2, my_a, my_a_end, my_a_size, my_a_start, my_i, my_i_end, &
-         my_i_size, my_i_start, my_P_size, my_prow, number_of_parallel_channels, P_end, P_start, &
-         proc_a_recv, proc_a_send, proc_i_recv, proc_i_send, proc_recv, proc_send, proc_shift, &
-         recv_a, recv_a_end, recv_a_size, recv_a_start, recv_i_end, recv_i_size, recv_i_start, &
-         stripesize, tag
+      INTEGER :: handle, handle2, my_a_end, my_a_size, my_a_start, my_i_end, my_i_size, &
+         my_i_start, my_P_size, my_prow, number_of_parallel_channels, proc_a_recv, proc_a_send, &
+         proc_i_recv, proc_i_send, proc_recv, proc_send, proc_shift, recv_a_end, recv_a_size, &
+         recv_a_start, recv_i_end, recv_i_size, recv_i_start, tag
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: buffer_1D, buffer_compens_1D
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: buffer_compens_2D
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: mat_S_3D
       TYPE(cp_3d_r_cp_type), ALLOCATABLE, DIMENSION(:)   :: buffer_3D
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -1081,99 +1079,12 @@ CONTAINS
                           para_env%group, tag)
          CALL timestop(handle2)
 
-         IF (mp2_env%ri_grad%dot_blksize >= blksize_threshold) THEN
-            buffer_compens_2D(1:my_a_size, 1:recv_a_size) => buffer_compens_1D(1:my_a_size*recv_a_size)
+         CALL calc_P_rpa_a(P_ab((recv_a_start - 1)*my_a_size + 1:recv_a_end*my_a_size), &
+                           mat_S_3D, buffer_3D(1)%array, &
+                           mp2_env%ri_grad%dot_blksize, buffer_compens_1D, mp2_env%local_gemm_ctx, &
+                           Eigenval(homo + my_a_start:homo + my_a_end), Eigenval(my_i_start:my_i_end), &
+                           Eigenval(homo + recv_a_start:homo + recv_a_end), omega, weight)
 
-            buffer_compens_2D = 0.0_dp
-
-            CALL timeset(routineN//"_dgemm_a", handle2)
-            ! This loop imitates the actual tensor contraction
-            DO my_i = 1, my_i_size
-               DO P_start = 1, my_P_size, mp2_env%ri_grad%dot_blksize
-                  stripesize = MIN(mp2_env%ri_grad%dot_blksize, my_P_size - P_start + 1)
-                  P_end = P_start + stripesize - 1
-
-                  CALL local_gemm("T", "N", my_a_size, recv_a_size, stripesize, &
-                                  -weight, mat_S_3D(P_start:P_end, :, my_i), stripesize, &
-                                  buffer_3D(1)%array(P_start:P_end, :, my_i), stripesize, &
-                                  -1.0_dp, buffer_compens_2D, my_a_size, mp2_env%local_gemm_ctx)
-
-                  CALL kahan_step(buffer_compens_1D(1:recv_a_size*my_a_size), &
-                                  P_ab((recv_a_start - 1)*my_a_size + 1:recv_a_end*my_a_size))
-               END DO
-            END DO
-            CALL timestop(handle2)
-
-            CALL timeset(routineN//"_scale_a", handle2)
-            DO my_i = 1, my_i_size
-               ! Scale both matrices
-               DO my_a = 1, my_a_size
-                  mat_S_3D(:, my_a, my_i) = mat_S_3D(:, my_a, my_i)* &
-                                            (omega/(Eigenval(homo + my_a + my_a_start - 1) - Eigenval(my_i + my_i_start - 1)))
-               END DO
-               DO my_a = 1, recv_a_size
-                  buffer_3D(1)%array(:, my_a, my_i) = buffer_3D(1)%array(:, my_a, my_i)* &
-                                                (omega/(Eigenval(homo + my_a + recv_a_start - 1) - Eigenval(my_i + my_i_start - 1)))
-               END DO
-            END DO
-            CALL timestop(handle2)
-
-            CALL timeset(routineN//"_dgemm_a", handle2)
-            DO my_i = 1, my_i_size
-               DO P_start = 1, my_P_size, mp2_env%ri_grad%dot_blksize
-                  stripesize = MIN(mp2_env%ri_grad%dot_blksize, my_P_size - P_start + 1)
-                  P_end = P_start + stripesize - 1
-
-                  ! Repeat contraction
-                  CALL local_gemm("T", "N", my_a_size, recv_a_size, stripesize, &
-                                  weight, mat_S_3D(P_start:P_end, :, my_i), stripesize, &
-                                  buffer_3D(1)%array(P_start:P_end, :, my_i), stripesize, &
-                                  -1.0_dp, buffer_compens_2D, my_a_size, mp2_env%local_gemm_ctx)
-
-                  CALL kahan_step(buffer_compens_1D(1:recv_a_size*my_a_size), &
-                                  P_ab((recv_a_start - 1)*my_a_size + 1:recv_a_end*my_a_size))
-               END DO
-            END DO
-            CALL timestop(handle2)
-
-            CALL timeset(routineN//"_scale_a", handle2)
-            ! Remove scaling of mat_S for later
-            DO my_i = 1, my_i_size
-               DO my_a = 1, my_a_size
-                  mat_S_3D(:, my_a, my_i) = mat_S_3D(:, my_a, my_i)* &
-                                            ((Eigenval(homo + my_a + my_a_start - 1) - Eigenval(my_i + my_i_start - 1))/omega)
-               END DO
-               DO my_a = 1, recv_a_size
-                  buffer_3D(1)%array(:, my_a, my_i) = buffer_3D(1)%array(:, my_a, my_i)* &
-                                                ((Eigenval(homo + my_a + recv_a_start - 1) - Eigenval(my_i + my_i_start - 1))/omega)
-               END DO
-            END DO
-            CALL timestop(handle2)
-         ELSE
-            BLOCK
-               REAL(KIND=dp) :: tmp, e_i, e_a, e_b, omega2
-               CALL timeset(routineN//"_accurate_a", handle2)
-               omega2 = -omega**2
-!$OMP PARALLEL DO COLLAPSE(2) DEFAULT(NONE)&
-!$OMP SHARED(my_a_size,recv_a_size,my_i_size,mat_S_3D,homo,Eigenval,omega2,my_a_start,&
-!$OMP        recv_a_start,P_ab,weight,buffer_3D,my_i_start,mp2_env)&
-!$OMP PRIVATE(tmp,my_a,recv_a,my_i,e_a,e_b,e_i)
-               DO my_a = 1, my_a_size
-               DO recv_a = 1, recv_a_size
-                  e_a = Eigenval(homo + my_a_start - 1 + my_a)
-                  e_b = Eigenval(homo + recv_a_start - 1 + recv_a)
-                  tmp = 0.0_dp
-                  DO my_i = 1, my_i_size
-                     e_i = -Eigenval(my_i_start - 1 + my_i)
-                     tmp = tmp + accurate_dot_product(mat_S_3D(:, my_a, my_i), buffer_3D(1)%array(:, recv_a, my_i)) &
-                           *(1.0_dp + omega2/((e_a + e_i)*(e_b + e_i)))
-                  END DO
-                P_ab(my_a + my_a_size*(recv_a_start - 2 + recv_a)) = P_ab(my_a + my_a_size*(recv_a_start - 2 + recv_a)) - weight*tmp
-               END DO
-               END DO
-               CALL timestop(handle2)
-            END BLOCK
-         END IF
       END DO
 
       CALL calc_P_rpa_i(P_ij((my_i_start - 1)*my_i_size + 1:my_i_end*my_i_size), &
@@ -1220,6 +1131,133 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param P_ab ...
+!> \param mat_S ...
+!> \param mat_work ...
+!> \param dot_blksize ...
+!> \param buffer_1D ...
+!> \param local_gemm_ctx ...
+!> \param my_eval_virt ...
+!> \param my_eval_occ ...
+!> \param recv_eval_virt ...
+!> \param omega ...
+!> \param weight ...
+! **************************************************************************************************
+   SUBROUTINE calc_P_rpa_a(P_ab, mat_S, mat_work, dot_blksize, buffer_1D, local_gemm_ctx, &
+                           my_eval_virt, my_eval_occ, recv_eval_virt, omega, weight)
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: P_ab
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: mat_S, mat_work
+      INTEGER, INTENT(IN)                                :: dot_blksize
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), TARGET :: buffer_1D
+      TYPE(C_PTR), INTENT(INOUT)                         :: local_gemm_ctx
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: my_eval_virt, my_eval_occ, recv_eval_virt
+      REAL(KIND=dp), INTENT(IN)                          :: omega, weight
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_P_rpa_a'
+
+      INTEGER                                            :: handle, my_a, my_a_size, my_i, &
+                                                            my_i_size, my_P_size, P_end, P_start, &
+                                                            recv_a_size, stripesize
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: buffer_2D
+
+      my_i_size = SIZE(mat_S, 3)
+      recv_a_size = SIZE(mat_work, 2)
+      my_a_size = SIZE(mat_S, 2)
+      my_P_size = SIZE(mat_S, 1)
+
+      IF (dot_blksize >= blksize_threshold) THEN
+         buffer_2D(1:my_a_size, 1:recv_a_size) => buffer_1D(1:my_a_size*recv_a_size)
+
+         buffer_2D = 0.0_dp
+
+         CALL timeset(routineN//"_dgemm", handle)
+         ! This loop imitates the actual tensor contraction
+         DO my_i = 1, my_i_size
+            DO P_start = 1, my_P_size, dot_blksize
+               stripesize = MIN(dot_blksize, my_P_size - P_start + 1)
+               P_end = P_start + stripesize - 1
+
+               CALL local_gemm("T", "N", my_a_size, recv_a_size, stripesize, &
+                               -weight, mat_S(P_start:P_end, :, my_i), stripesize, &
+                               mat_work(P_start:P_end, :, my_i), stripesize, &
+                               -1.0_dp, buffer_2D, my_a_size, local_gemm_ctx)
+
+               CALL kahan_step(buffer_1D(1:recv_a_size*my_a_size), P_ab)
+            END DO
+         END DO
+         CALL timestop(handle)
+
+         CALL timeset(routineN//"_scale", handle)
+         DO my_i = 1, my_i_size
+            ! Scale both matrices
+            DO my_a = 1, my_a_size
+               mat_S(:, my_a, my_i) = mat_S(:, my_a, my_i)*(omega/(my_eval_virt(my_a) - my_eval_occ(my_i)))
+            END DO
+            DO my_a = 1, recv_a_size
+               mat_work(:, my_a, my_i) = mat_work(:, my_a, my_i)*(omega/(recv_eval_virt(my_a) - my_eval_occ(my_i)))
+            END DO
+         END DO
+         CALL timestop(handle)
+
+         CALL timeset(routineN//"_dgemm", handle)
+         DO my_i = 1, my_i_size
+            DO P_start = 1, my_P_size, dot_blksize
+               stripesize = MIN(dot_blksize, my_P_size - P_start + 1)
+               P_end = P_start + stripesize - 1
+
+               ! Repeat contraction
+               CALL local_gemm("T", "N", my_a_size, recv_a_size, stripesize, &
+                               weight, mat_S(P_start:P_end, :, my_i), stripesize, &
+                               mat_work(P_start:P_end, :, my_i), stripesize, &
+                               -1.0_dp, buffer_2D, my_a_size, local_gemm_ctx)
+
+               CALL kahan_step(buffer_1D(1:recv_a_size*my_a_size), P_ab)
+            END DO
+         END DO
+         CALL timestop(handle)
+
+         CALL timeset(routineN//"_scale", handle)
+         ! Remove scaling of mat_S for later
+         DO my_i = 1, my_i_size
+            DO my_a = 1, my_a_size
+               mat_S(:, my_a, my_i) = mat_S(:, my_a, my_i)*((my_eval_virt(my_a) - my_eval_occ(my_i))/omega)
+            END DO
+            DO my_a = 1, recv_a_size
+               mat_work(:, my_a, my_i) = mat_work(:, my_a, my_i)*((recv_eval_virt(my_a) - my_eval_occ(my_i))/omega)
+            END DO
+         END DO
+         CALL timestop(handle)
+      ELSE
+         BLOCK
+            INTEGER :: recv_a
+            REAL(KIND=dp) :: tmp, e_i, e_a, e_b, omega2
+            CALL timeset(routineN//"_accurate", handle)
+            omega2 = -omega**2
+!$OMP PARALLEL DO COLLAPSE(2) DEFAULT(NONE)&
+!$OMP SHARED(my_a_size,recv_a_size,my_i_size,mat_S,my_eval_virt,recv_eval_virt,my_eval_occ,omega2,&
+!$OMP        P_ab,weight,mat_work)&
+!$OMP PRIVATE(tmp,my_a,recv_a,my_i,e_a,e_b,e_i)
+            DO my_a = 1, my_a_size
+            DO recv_a = 1, recv_a_size
+               e_a = my_eval_virt(my_a)
+               e_b = recv_eval_virt(recv_a)
+               tmp = 0.0_dp
+               DO my_i = 1, my_i_size
+                  e_i = -my_eval_occ(my_i)
+                  tmp = tmp + accurate_dot_product(mat_S(:, my_a, my_i), mat_work(:, recv_a, my_i)) &
+                        *(1.0_dp + omega2/((e_a + e_i)*(e_b + e_i)))
+               END DO
+               P_ab(my_a + my_a_size*(recv_a - 1)) = P_ab(my_a + my_a_size*(recv_a - 1)) - weight*tmp
+            END DO
+            END DO
+            CALL timestop(handle)
+         END BLOCK
+      END IF
+
+   END SUBROUTINE calc_P_rpa_a
 
 ! **************************************************************************************************
 !> \brief ...
