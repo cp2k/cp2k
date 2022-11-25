@@ -1061,7 +1061,13 @@ CONTAINS
          ALLOCATE (buffer_compens_1D(MAX(my_a_size*maxsize(gd_virtual), my_i_size*maxsize(gd_homo))))
       END IF
 
-      DO proc_shift = 0, grid(1) - 1
+      CALL calc_P_rpa_a(P_ab((my_a_start - 1)*my_a_size + 1:my_a_end*my_a_size), &
+                        mat_S_3D, mat_work_iaP_3D, &
+                        mp2_env%ri_grad%dot_blksize, buffer_compens_1D, mp2_env%local_gemm_ctx, &
+                        Eigenval(homo + my_a_start:homo + my_a_end), Eigenval(my_i_start:my_i_end), &
+                        Eigenval(homo + my_a_start:homo + my_a_end), omega, weight)
+
+      DO proc_shift = 1, grid(1) - 1
          proc_a_send = MODULO(mepos(1) + proc_shift, grid(1))
          proc_a_recv = MODULO(mepos(1) - proc_shift, grid(1))
 
