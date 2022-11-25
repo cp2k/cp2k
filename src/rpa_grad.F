@@ -1182,11 +1182,7 @@ CONTAINS
       ! Both pointers point to the same memory but we need the first for communication, the second one for dgemm
       buffer_3D(1)%array(1:my_P_size, 1:my_a_size, 1:my_i_size) => buffer_1D(1:INT(my_P_size, KIND=int_8)*my_a_size*my_i_size)
 
-      CALL timeset(routineN//"_comm_i", handle2)
-      CALL mp_sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
-                       buffer_3D(1)%array, blacs2mpi(my_prow, proc_recv), &
-                       para_env%group, tag)
-      CALL timestop(handle2)
+      buffer_3D(1)%array = mat_work_iaP_3D
 
       CALL calc_P_rpa_i(P_ij((my_i_start - 1)*my_i_size + 1:my_i_end*my_i_size), &
                         mat_S_3D, buffer_3D(1)%array, &
