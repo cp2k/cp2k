@@ -13,6 +13,10 @@ ENV ROCM_VER 4.5.2
 ENV HIP_DIR /opt/HIP-rocm-4.5.2
 ENV HIPAMD_DIR /opt/hipamd-rocm-4.5.2
 
+# Disable JIT cache as there seems to be an issue with file locking on overlayfs.
+# See also https://github.com/cp2k/cp2k/pull/2337
+ENV CUDA_CACHE_DISABLE 1
+
 RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true \
     && apt-get update -qq && apt-get install -qq --no-install-recommends \
     ca-certificates \
