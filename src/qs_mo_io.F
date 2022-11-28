@@ -31,10 +31,10 @@ MODULE qs_mo_io
                                               open_file
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_get_submatrix,&
-                                              cp_fm_p_type,&
                                               cp_fm_set_all,&
                                               cp_fm_set_submatrix,&
                                               cp_fm_to_fm,&
+                                              cp_fm_type,&
                                               cp_fm_write_unformatted
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
@@ -231,7 +231,7 @@ CONTAINS
                                       qs_kind_set)
 
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mo_array
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: rt_mos
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: rt_mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: dft_section
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -286,8 +286,8 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       INTEGER                                            :: ires
-      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: rt_mos
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN), &
+         OPTIONAL                                        :: rt_mos
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_mo_set_low'
 
@@ -403,7 +403,7 @@ CONTAINS
          END IF
          IF (PRESENT(rt_mos)) THEN
             DO imat = 2*ispin - 1, 2*ispin
-               CALL cp_fm_write_unformatted(rt_mos(imat)%matrix, ires)
+               CALL cp_fm_write_unformatted(rt_mos(imat), ires)
             END DO
          ELSE
             CALL cp_fm_write_unformatted(mo_array(ispin)%mo_coeff, ires)
@@ -583,7 +583,7 @@ CONTAINS
                                        particle_set, para_env, id_nr, multiplicity, dft_section)
 
       TYPE(mo_set_type), DIMENSION(:), INTENT(INOUT)     :: mo_array
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: rt_mos
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: rt_mos
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -665,8 +665,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       INTEGER, INTENT(IN)                                :: natom, rst_unit
       INTEGER, INTENT(in), OPTIONAL                      :: multiplicity
-      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: rt_mos
+      TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: rt_mos
       LOGICAL, INTENT(OUT), OPTIONAL                     :: natom_mismatch
 
       INTEGER :: group, homo, homo_read, i, iatom, ikind, imat, irow, iset, iset_read, ishell, &
@@ -824,7 +823,7 @@ CONTAINS
                      vecbuffer(1, :) = 0.0_dp
                   END IF
                   CALL mp_bcast(vecbuffer, source, group)
-                  CALL cp_fm_set_submatrix(rt_mos(imat)%matrix, &
+                  CALL cp_fm_set_submatrix(rt_mos(imat), &
                                            vecbuffer, 1, i, nao, 1, transpose=.TRUE.)
                END DO
             END DO

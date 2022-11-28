@@ -696,11 +696,11 @@ CONTAINS
 
    SUBROUTINE arnoldi(mos_old, mos_new, eps_exp, Hre, Him, mos_next, narn_old)
 
-      TYPE(cp_fm_p_type), DIMENSION(2)                   :: mos_old, mos_new
+      TYPE(cp_fm_type), DIMENSION(2)                     :: mos_old, mos_new
       REAL(KIND=dp), INTENT(in)                          :: eps_exp
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: Hre
       TYPE(cp_fm_type), INTENT(IN)                       :: Him
-      TYPE(cp_fm_p_type), DIMENSION(2), OPTIONAL         :: mos_next
+      TYPE(cp_fm_type), DIMENSION(2), OPTIONAL           :: mos_next
       INTEGER, INTENT(inout)                             :: narn_old
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'arnoldi'
@@ -722,9 +722,9 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
-      para_env => mos_new(1)%matrix%matrix_struct%para_env
+      para_env => mos_new(1)%matrix_struct%para_env
 
-      CALL cp_fm_get_info(mos_old(1)%matrix, ncol_local=ncol_local, col_indices=col_indices, &
+      CALL cp_fm_get_info(mos_old(1), ncol_local=ncol_local, col_indices=col_indices, &
                           nrow_global=nao, ncol_global=nmo, matrix_struct=mo_struct)
       narnoldi = MIN(18, nao)
 
@@ -752,8 +752,8 @@ CONTAINS
       norm1 = 0.0_dp
 !$OMP PARALLEL DO PRIVATE(icol_local) DEFAULT(NONE) SHARED(V_mats,norm1,mos_old,ncol_local)
       DO icol_local = 1, ncol_local
-         V_mats(1)%matrix%local_data(:, icol_local) = mos_old(1)%matrix%local_data(:, icol_local)
-         V_mats(1)%matrix%local_data(:, icol_local + ncol_local) = mos_old(2)%matrix%local_data(:, icol_local)
+         V_mats(1)%matrix%local_data(:, icol_local) = mos_old(1)%local_data(:, icol_local)
+         V_mats(1)%matrix%local_data(:, icol_local + ncol_local) = mos_old(2)%local_data(:, icol_local)
          norm1(icol_local) = SUM(V_mats(1)%matrix%local_data(:, icol_local)**2) &
                              + SUM(V_mats(1)%matrix%local_data(:, icol_local + ncol_local)**2)
       END DO
@@ -776,9 +776,9 @@ CONTAINS
 
 !$OMP PARALLEL DO PRIVATE(icol_local) DEFAULT(NONE) SHARED(mos_new,V_mats,ncol_local,i)
          DO icol_local = 1, ncol_local
-            mos_new(1)%matrix%local_data(:, icol_local) = V_mats(i)%matrix%local_data(:, icol_local)
+            mos_new(1)%local_data(:, icol_local) = V_mats(i)%matrix%local_data(:, icol_local)
             V_mats(i)%matrix%local_data(:, icol_local) = -V_mats(i)%matrix%local_data(:, icol_local + ncol_local)
-            V_mats(i)%matrix%local_data(:, icol_local + ncol_local) = mos_new(1)%matrix%local_data(:, icol_local)
+            V_mats(i)%matrix%local_data(:, icol_local + ncol_local) = mos_new(1)%local_data(:, icol_local)
          END DO
 
          IF (PRESENT(Hre)) THEN
@@ -906,15 +906,15 @@ CONTAINS
 
             IF (conv_norm .LT. eps_exp .OR. i .GT. narnoldi) THEN
 
-               mos_new(1)%matrix%local_data = rzero
-               mos_new(2)%matrix%local_data = rzero
+               mos_new(1)%local_data = rzero
+               mos_new(2)%local_data = rzero
                DO icol_local = 1, ncol_local
                   DO idim = 1, mydim
                      prefac = H_approx(idim, 1, icol_local)*norm1(icol_local)
-                     mos_new(1)%matrix%local_data(:, icol_local) = mos_new(1)%matrix%local_data(:, icol_local) + &
-                                                                   V_mats(idim)%matrix%local_data(:, icol_local)*prefac
-                     mos_new(2)%matrix%local_data(:, icol_local) = mos_new(2)%matrix%local_data(:, icol_local) + &
-                                                                   V_mats(idim)%matrix%local_data(:, icol_local + ncol_local)*prefac
+                     mos_new(1)%local_data(:, icol_local) = mos_new(1)%local_data(:, icol_local) + &
+                                                            V_mats(idim)%matrix%local_data(:, icol_local)*prefac
+                     mos_new(2)%local_data(:, icol_local) = mos_new(2)%local_data(:, icol_local) + &
+                                                            V_mats(idim)%matrix%local_data(:, icol_local + ncol_local)*prefac
                   END DO
                END DO
 
@@ -932,16 +932,16 @@ CONTAINS
                         END DO
                      END DO
                   END DO
-                  mos_next(1)%matrix%local_data = rzero
-                  mos_next(2)%matrix%local_data = rzero
+                  mos_next(1)%local_data = rzero
+                  mos_next(2)%local_data = rzero
                   DO icol_local = 1, ncol_local
                      DO idim = 1, mydim
                         prefac = H_approx(idim, 1, icol_local)*norm1(icol_local)
-                        mos_next(1)%matrix%local_data(:, icol_local) = &
-                           mos_next(1)%matrix%local_data(:, icol_local) + &
+                        mos_next(1)%local_data(:, icol_local) = &
+                           mos_next(1)%local_data(:, icol_local) + &
                            V_mats(idim)%matrix%local_data(:, icol_local)*prefac
-                        mos_next(2)%matrix%local_data(:, icol_local) = &
-                           mos_next(2)%matrix%local_data(:, icol_local) + &
+                        mos_next(2)%local_data(:, icol_local) = &
+                           mos_next(2)%local_data(:, icol_local) + &
                            V_mats(idim)%matrix%local_data(:, icol_local + ncol_local)*prefac
                      END DO
                   END DO
