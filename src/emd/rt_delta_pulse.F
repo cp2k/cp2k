@@ -43,12 +43,10 @@ MODULE rt_delta_pulse
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_get_info, &
@@ -100,7 +98,7 @@ CONTAINS
 
    SUBROUTINE apply_delta_pulse_periodic(qs_env, mos_old, mos_new)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_old, mos_new
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_old, mos_new
 
       CHARACTER(len=*), PARAMETER :: routineN = 'apply_delta_pulse_periodic'
 
@@ -237,7 +235,7 @@ CONTAINS
          CALL cp_fm_to_fm(eigenvectors, virtuals, nvirt, nmo + 1, 1)
 
          ! occupied
-         CALL cp_fm_to_fm(eigenvectors, mos_old(2*ispin - 1)%matrix, nmo, 1, 1)
+         CALL cp_fm_to_fm(eigenvectors, mos_old(2*ispin - 1), nmo, 1, 1)
 
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=fm_struct%para_env, context=fm_struct%context, &
                                   nrow_global=nvirt, ncol_global=nmo)
@@ -245,30 +243,30 @@ CONTAINS
          CALL cp_fm_struct_release(fm_struct_tmp)
 
          ! the momentum operator (in a given direction)
-         CALL cp_fm_set_all(mos_new(2*ispin - 1)%matrix, 0.0_dp)
+         CALL cp_fm_set_all(mos_new(2*ispin - 1), 0.0_dp)
 
          DO idir = 1, 3
             factor = kvec(idir)
             IF (factor .NE. 0.0_dp) THEN
                IF (.NOT. len_rep) THEN
-                  CALL cp_dbcsr_sm_fm_multiply(matrix_s(idir + 1)%matrix, mos_old(2*ispin - 1)%matrix, &
-                                               mos_old(2*ispin)%matrix, ncol=nmo)
+                  CALL cp_dbcsr_sm_fm_multiply(matrix_s(idir + 1)%matrix, mos_old(2*ispin - 1), &
+                                               mos_old(2*ispin), ncol=nmo)
                ELSE
-                  CALL cp_dbcsr_sm_fm_multiply(matrix_r(idir)%matrix, mos_old(2*ispin - 1)%matrix, &
-                                               mos_old(2*ispin)%matrix, ncol=nmo)
+                  CALL cp_dbcsr_sm_fm_multiply(matrix_r(idir)%matrix, mos_old(2*ispin - 1), &
+                                               mos_old(2*ispin), ncol=nmo)
                END IF
 
-               CALL cp_fm_scale_and_add(1.0_dp, mos_new(2*ispin - 1)%matrix, factor, mos_old(2*ispin)%matrix)
+               CALL cp_fm_scale_and_add(1.0_dp, mos_new(2*ispin - 1), factor, mos_old(2*ispin))
                IF (com_nl) THEN
-                  CALL cp_fm_set_all(mos_old(2*ispin)%matrix, 0.0_dp)
-                  CALL cp_dbcsr_sm_fm_multiply(matrix_rv(idir)%matrix, mos_old(2*ispin - 1)%matrix, &
-                                               mos_old(2*ispin)%matrix, ncol=nmo)
-                  CALL cp_fm_scale_and_add(1.0_dp, mos_new(2*ispin - 1)%matrix, factor, mos_old(2*ispin)%matrix)
+                  CALL cp_fm_set_all(mos_old(2*ispin), 0.0_dp)
+                  CALL cp_dbcsr_sm_fm_multiply(matrix_rv(idir)%matrix, mos_old(2*ispin - 1), &
+                                               mos_old(2*ispin), ncol=nmo)
+                  CALL cp_fm_scale_and_add(1.0_dp, mos_new(2*ispin - 1), factor, mos_old(2*ispin))
                END IF
             END IF
          END DO
 
-         CALL parallel_gemm('T', 'N', nvirt, nmo, nao, 1.0_dp, virtuals, mos_new(2*ispin - 1)%matrix, 0.0_dp, momentum)
+         CALL parallel_gemm('T', 'N', nvirt, nmo, nao, 1.0_dp, virtuals, mos_new(2*ispin - 1), 0.0_dp, momentum)
 
          ! the tricky bit ... rescale by the eigenvalue difference
          IF (.NOT. len_rep) THEN
@@ -285,8 +283,8 @@ CONTAINS
          DEALLOCATE (eigenvalues)
 
          ! now obtain the initial condition in mos_old
-         CALL cp_fm_to_fm(eigenvectors, mos_old(2*ispin - 1)%matrix, nmo, 1, 1)
-         CALL parallel_gemm("N", "N", nao, nmo, nvirt, 1.0_dp, virtuals, momentum, 0.0_dp, mos_old(2*ispin)%matrix)
+         CALL cp_fm_to_fm(eigenvectors, mos_old(2*ispin - 1), nmo, 1, 1)
+         CALL parallel_gemm("N", "N", nao, nmo, nvirt, 1.0_dp, virtuals, momentum, 0.0_dp, mos_old(2*ispin))
 
          CALL cp_fm_release(virtuals)
          CALL cp_fm_release(momentum)
@@ -316,7 +314,7 @@ CONTAINS
 
    SUBROUTINE apply_delta_pulse(qs_env, mos_old, mos_new)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_old, mos_new
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_old, mos_new
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_delta_pulse'
 
@@ -368,11 +366,11 @@ CONTAINS
       DO i = 1, SIZE(mos)
          ! apply exponentials to mo coefficients
          CALL get_mo_set(mos(i), nao=nao, nmo=nmo)
-         CALL cp_dbcsr_sm_fm_multiply(cosmat, mos(i)%mo_coeff, mos_new(2*i - 1)%matrix, ncol=nmo)
-         CALL cp_dbcsr_sm_fm_multiply(sinmat, mos(i)%mo_coeff, mos_new(2*i)%matrix, ncol=nmo)
+         CALL cp_dbcsr_sm_fm_multiply(cosmat, mos(i)%mo_coeff, mos_new(2*i - 1), ncol=nmo)
+         CALL cp_dbcsr_sm_fm_multiply(sinmat, mos(i)%mo_coeff, mos_new(2*i), ncol=nmo)
 
-         CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, S_inv_fm, mos_new(2*i - 1)%matrix, 0.0_dp, mos_old(2*i - 1)%matrix)
-         CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, S_inv_fm, mos_new(2*i)%matrix, 0.0_dp, mos_old(2*i)%matrix)
+         CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, S_inv_fm, mos_new(2*i - 1), 0.0_dp, mos_old(2*i - 1))
+         CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, S_inv_fm, mos_new(2*i), 0.0_dp, mos_old(2*i))
       END DO
 
       CALL cp_fm_release(S_inv_fm)
@@ -394,7 +392,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE apply_delta_pulse_mag(qs_env, mos_old, mos_new)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_old, mos_new
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_old, mos_new
 
       CHARACTER(len=*), PARAMETER :: routineN = 'apply_delta_pulse_mag'
 
@@ -514,7 +512,7 @@ CONTAINS
          CALL cp_fm_to_fm(eigenvectors, virtuals, nvirt, nmo + 1, 1)
 
          ! occupied
-         CALL cp_fm_to_fm(eigenvectors, mos_old(2*ispin - 1)%matrix, nmo, 1, 1)
+         CALL cp_fm_to_fm(eigenvectors, mos_old(2*ispin - 1), nmo, 1, 1)
 
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=rtp%ao_ao_fmstruct%para_env, context=rtp%ao_ao_fmstruct%context, &
                                   nrow_global=nvirt, ncol_global=nmo)
@@ -522,7 +520,7 @@ CONTAINS
          CALL cp_fm_struct_release(fm_struct_tmp)
 
          ! apply perturbation
-         CALL cp_fm_set_all(mos_new(2*ispin - 1)%matrix, 0.0_dp)
+         CALL cp_fm_set_all(mos_new(2*ispin - 1), 0.0_dp)
 
          ! the prefactor (strength of the magnetic field, should be divided by 2c)
          kvec(:) = cell%h_inv(1, :)*dft_control%rtp_control%delta_pulse_direction(1) + &
@@ -533,19 +531,19 @@ CONTAINS
          DO idir = 1, 3
             factor = kvec(idir)/2         ! divide by two b.c. of pre-factor for magnetic term
             IF (factor .NE. 0.0_dp) THEN
-               CALL cp_dbcsr_sm_fm_multiply(matrix_mag(idir)%matrix, mos_old(2*ispin - 1)%matrix, &
-                                            mos_old(2*ispin)%matrix, ncol=nmo)
-               CALL cp_fm_scale_and_add(1.0_dp, mos_new(2*ispin - 1)%matrix, factor, mos_old(2*ispin)%matrix)
+               CALL cp_dbcsr_sm_fm_multiply(matrix_mag(idir)%matrix, mos_old(2*ispin - 1), &
+                                            mos_old(2*ispin), ncol=nmo)
+               CALL cp_fm_scale_and_add(1.0_dp, mos_new(2*ispin - 1), factor, mos_old(2*ispin))
             END IF
          END DO
 
-         CALL parallel_gemm('T', 'N', nvirt, nmo, nao, 1.0_dp, virtuals, mos_new(2*ispin - 1)%matrix, 0.0_dp, perturbation)
+         CALL parallel_gemm('T', 'N', nvirt, nmo, nao, 1.0_dp, virtuals, mos_new(2*ispin - 1), 0.0_dp, perturbation)
 
          DEALLOCATE (eigenvalues)
 
          ! now obtain the initial condition in mos_old
-         CALL cp_fm_to_fm(eigenvectors, mos_old(2*ispin - 1)%matrix, nmo, 1, 1)
-         CALL parallel_gemm("N", "N", nao, nmo, nvirt, 1.0_dp, virtuals, perturbation, 0.0_dp, mos_old(2*ispin)%matrix)
+         CALL cp_fm_to_fm(eigenvectors, mos_old(2*ispin - 1), nmo, 1, 1)
+         CALL parallel_gemm("N", "N", nao, nmo, nvirt, 1.0_dp, virtuals, perturbation, 0.0_dp, mos_old(2*ispin))
 
          CALL cp_fm_release(virtuals)
          CALL cp_fm_release(perturbation)
@@ -571,7 +569,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE orthonormalize_complex_mos(qs_env, coeffs)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT), &
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT), &
          POINTER                                         :: coeffs
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: eigenvalues_sqrt
@@ -579,9 +577,9 @@ CONTAINS
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_cfm_type)                                  :: oo_c, oo_v, oo_vt
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: coeffs_tmp
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type)                                   :: oo_1, oo_2, S_fm, tmp
+      TYPE(cp_fm_type), DIMENSION(2)                     :: coeffs_tmp
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -595,7 +593,7 @@ CONTAINS
                       mos=mos, &
                       para_env=para_env)
       nspins = dft_control%nspins
-      CALL cp_fm_get_info(coeffs(1)%matrix, nrow_global=nao)
+      CALL cp_fm_get_info(coeffs(1), nrow_global=nao)
 
       ! get overlap matrix
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nao, &
@@ -613,16 +611,16 @@ CONTAINS
          CALL cp_fm_create(oo_2, matrix_struct=fm_struct_tmp, name="oo_2")
          CALL cp_fm_struct_release(fm_struct_tmp)
 
-         CALL cp_fm_create(tmp, matrix_struct=coeffs(2*ispin - 1)%matrix%matrix_struct, name="tmp_mat")
+         CALL cp_fm_create(tmp, matrix_struct=coeffs(2*ispin - 1)%matrix_struct, name="tmp_mat")
          ! get the complex overlap matrix in MO basis
          ! x^T S x + y^T S y + i (-y^TS x+x^T S y)
-         CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, S_fm, coeffs(2*ispin - 1)%matrix, 0.0_dp, tmp)
-         CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, coeffs(2*ispin - 1)%matrix, tmp, 0.0_dp, oo_1)
-         CALL parallel_gemm("T", "N", nmo, nmo, nao, -1.0_dp, coeffs(2*ispin)%matrix, tmp, 0.0_dp, oo_2)
+         CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, S_fm, coeffs(2*ispin - 1), 0.0_dp, tmp)
+         CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, coeffs(2*ispin - 1), tmp, 0.0_dp, oo_1)
+         CALL parallel_gemm("T", "N", nmo, nmo, nao, -1.0_dp, coeffs(2*ispin), tmp, 0.0_dp, oo_2)
 
-         CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, S_fm, coeffs(2*ispin)%matrix, 0.0_dp, tmp)
-         CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, coeffs(2*ispin)%matrix, tmp, 1.0_dp, oo_1)
-         CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, coeffs(2*ispin - 1)%matrix, tmp, 1.0_dp, oo_2)
+         CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, S_fm, coeffs(2*ispin), 0.0_dp, tmp)
+         CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, coeffs(2*ispin), tmp, 1.0_dp, oo_1)
+         CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, coeffs(2*ispin - 1), tmp, 1.0_dp, oo_2)
          CALL cp_fm_release(tmp)
 
          ! complex Löwdin
@@ -648,27 +646,25 @@ CONTAINS
          CALL cp_cfm_release(oo_vt)
 
          ! transform coefficients accordingly
-         NULLIFY (coeffs_tmp)
-         ALLOCATE (coeffs_tmp(2))
          DO j = 1, 2
-            NULLIFY (coeffs_tmp(j)%matrix)
-            ALLOCATE (coeffs_tmp(j)%matrix)
-            CALL cp_fm_create(coeffs_tmp(j)%matrix, matrix_struct=coeffs(2*(ispin - 1) + j)%matrix%matrix_struct)
+            CALL cp_fm_create(coeffs_tmp(j), matrix_struct=coeffs(2*(ispin - 1) + j)%matrix_struct)
          END DO
 
          ! indices for coeffs_tmp
          re = 1
          im = 2
-         CALL parallel_gemm("N", "N", nao, nmo, nmo, one, coeffs(2*ispin - 1)%matrix, oo_1, zero, coeffs_tmp(re)%matrix)
-         CALL parallel_gemm("N", "N", nao, nmo, nmo, one, coeffs(2*ispin - 1)%matrix, oo_2, zero, coeffs_tmp(im)%matrix)
+         CALL parallel_gemm("N", "N", nao, nmo, nmo, one, coeffs(2*ispin - 1), oo_1, zero, coeffs_tmp(re))
+         CALL parallel_gemm("N", "N", nao, nmo, nmo, one, coeffs(2*ispin - 1), oo_2, zero, coeffs_tmp(im))
 
-         CALL parallel_gemm("N", "N", nao, nmo, nmo, -one, coeffs(2*ispin)%matrix, oo_2, zero, coeffs(2*ispin - 1)%matrix)
-         CALL cp_fm_scale_and_add(one, coeffs(2*ispin - 1)%matrix, one, coeffs_tmp(re)%matrix)
+         CALL parallel_gemm("N", "N", nao, nmo, nmo, -one, coeffs(2*ispin), oo_2, zero, coeffs(2*ispin - 1))
+         CALL cp_fm_scale_and_add(one, coeffs(2*ispin - 1), one, coeffs_tmp(re))
 
-         CALL parallel_gemm("N", "N", nao, nmo, nmo, one, coeffs(2*ispin)%matrix, oo_1, one, coeffs_tmp(im)%matrix)
-         CALL cp_fm_to_fm(coeffs_tmp(im)%matrix, coeffs(2*ispin)%matrix)
+         CALL parallel_gemm("N", "N", nao, nmo, nmo, one, coeffs(2*ispin), oo_1, one, coeffs_tmp(im))
+         CALL cp_fm_to_fm(coeffs_tmp(im), coeffs(2*ispin))
 
-         CALL cp_fm_vect_dealloc(coeffs_tmp)
+         DO j = 1, 2
+            CALL cp_fm_release(coeffs_tmp(j))
+         END DO
          CALL cp_fm_release(oo_1)
          CALL cp_fm_release(oo_2)
       END DO

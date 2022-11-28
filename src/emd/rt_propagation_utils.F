@@ -19,10 +19,10 @@ MODULE rt_propagation_utils
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
-                                              cp_fm_to_fm
+                                              cp_fm_to_fm,&
+                                              cp_fm_type
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
@@ -229,7 +229,7 @@ CONTAINS
                                                             unit_nr
       REAL(KIND=dp)                                      :: alpha, cs_pos
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new, mos_old
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new, mos_old
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type)                      :: dist
@@ -292,8 +292,8 @@ CONTAINS
          ELSE
             CALL get_rtp(rtp=rtp, mos_old=mos_old)
             DO i = 1, SIZE(qs_env%mos)
-               CALL cp_fm_to_fm(mo_array(i)%mo_coeff, mos_old(2*i - 1)%matrix)
-               CALL cp_fm_set_all(mos_old(2*i)%matrix, zero, zero)
+               CALL cp_fm_to_fm(mo_array(i)%mo_coeff, mos_old(2*i - 1))
+               CALL cp_fm_set_all(mos_old(2*i), zero, zero)
             END DO
          END IF
       CASE (use_rt_restart)
@@ -351,8 +351,8 @@ CONTAINS
 
       INTEGER                                            :: handle, i, im, ncol, re
       REAL(KIND=dp)                                      :: alpha
-      TYPE(cp_fm_p_type)                                 :: mos_occ
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new
+      TYPE(cp_fm_type)                                   :: mos_occ
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao, rho_ao_im
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -373,26 +373,24 @@ CONTAINS
          re = 2*i - 1; im = 2*i
          alpha = 3*one - REAL(SIZE(mos_new)/2, dp)
          CALL dbcsr_set(rho_ao(i)%matrix, zero)
-         CALL cp_fm_get_info(mos_new(re)%matrix, ncol_global=ncol)
-         ALLOCATE (mos_occ%matrix)
-         CALL cp_fm_create(mos_occ%matrix, &
+         CALL cp_fm_get_info(mos_new(re), ncol_global=ncol)
+         CALL cp_fm_create(mos_occ, &
                            matrix_struct=mos(i)%mo_coeff%matrix_struct, &
                            name="mos_occ")
-         CALL cp_fm_to_fm(mos_new(re)%matrix, mos_occ%matrix)
-         CALL cp_fm_column_scale(mos_occ%matrix, mos(i)%occupation_numbers/alpha)
+         CALL cp_fm_to_fm(mos_new(re), mos_occ)
+         CALL cp_fm_column_scale(mos_occ, mos(i)%occupation_numbers/alpha)
          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(i)%matrix, &
-                                    matrix_v=mos_occ%matrix, &
+                                    matrix_v=mos_occ, &
                                     ncol=ncol, &
                                     alpha=alpha)
          ! It is actually complex conjugate but i*i=-1 therefore it must be added
-         CALL cp_fm_to_fm(mos_new(im)%matrix, mos_occ%matrix)
-         CALL cp_fm_column_scale(mos_occ%matrix, mos(i)%occupation_numbers/alpha)
+         CALL cp_fm_to_fm(mos_new(im), mos_occ)
+         CALL cp_fm_column_scale(mos_occ, mos(i)%occupation_numbers/alpha)
          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(i)%matrix, &
-                                    matrix_v=mos_occ%matrix, &
+                                    matrix_v=mos_occ, &
                                     ncol=ncol, &
                                     alpha=alpha)
-         CALL cp_fm_release(mos_occ%matrix)
-         DEALLOCATE (mos_occ%matrix)
+         CALL cp_fm_release(mos_occ)
       END DO
       CALL qs_rho_update_rho(rho, qs_env)
 
@@ -471,7 +469,7 @@ CONTAINS
       INTEGER                                            :: i, im, ncol, re
       LOGICAL                                            :: my_keep_sparsity
       REAL(KIND=dp)                                      :: alpha
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new, mos_occ
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new, mos_occ
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       CALL get_rtp(rtp=rtp, mos_new=mos_new)
@@ -484,22 +482,21 @@ CONTAINS
       DO i = 1, SIZE(mos_new)/2
          re = 2*i - 1; im = 2*i
          alpha = 3.0_dp - REAL(SIZE(matrix_p_im), dp)
-         ALLOCATE (mos_occ(re)%matrix, mos_occ(im)%matrix)
-         CALL cp_fm_create(mos_occ(re)%matrix, &
+         CALL cp_fm_create(mos_occ(re), &
                            matrix_struct=mos(i)%mo_coeff%matrix_struct, &
                            name="mos_occ")
-         CALL cp_fm_create(mos_occ(im)%matrix, &
+         CALL cp_fm_create(mos_occ(im), &
                            matrix_struct=mos(i)%mo_coeff%matrix_struct, &
                            name="mos_occ")
          CALL dbcsr_set(matrix_p_im(i)%matrix, 0.0_dp)
-         CALL cp_fm_get_info(mos_new(re)%matrix, ncol_global=ncol)
-         CALL cp_fm_to_fm(mos_new(re)%matrix, mos_occ(re)%matrix)
-         CALL cp_fm_column_scale(mos_occ(re)%matrix, mos(i)%occupation_numbers/alpha)
-         CALL cp_fm_to_fm(mos_new(im)%matrix, mos_occ(im)%matrix)
-         CALL cp_fm_column_scale(mos_occ(im)%matrix, mos(i)%occupation_numbers/alpha)
+         CALL cp_fm_get_info(mos_new(re), ncol_global=ncol)
+         CALL cp_fm_to_fm(mos_new(re), mos_occ(re))
+         CALL cp_fm_column_scale(mos_occ(re), mos(i)%occupation_numbers/alpha)
+         CALL cp_fm_to_fm(mos_new(im), mos_occ(im))
+         CALL cp_fm_column_scale(mos_occ(im), mos(i)%occupation_numbers/alpha)
          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=matrix_p_im(i)%matrix, &
-                                    matrix_v=mos_occ(im)%matrix, &
-                                    matrix_g=mos_occ(re)%matrix, &
+                                    matrix_v=mos_occ(im), &
+                                    matrix_g=mos_occ(re), &
                                     ncol=ncol, &
                                     keep_sparsity=my_keep_sparsity, &
                                     alpha=2.0_dp*alpha, &

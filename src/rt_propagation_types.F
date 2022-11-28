@@ -34,7 +34,8 @@ MODULE rt_propagation_types
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_p_type,&
-                                              cp_fm_release
+                                              cp_fm_release,&
+                                              cp_fm_type
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_log_handling,                 ONLY: cp_to_string
    USE dbcsr_api,                       ONLY: dbcsr_create,&
@@ -68,10 +69,10 @@ MODULE rt_propagation_types
    END TYPE rtp_history_type
 
    TYPE rtp_mos_type
-      TYPE(cp_fm_p_type), POINTER, DIMENSION(:)     :: new
-      TYPE(cp_fm_p_type), POINTER, DIMENSION(:)     :: old
-      TYPE(cp_fm_p_type), POINTER, DIMENSION(:)     :: next
-      TYPE(cp_fm_p_type), POINTER, DIMENSION(:)     :: admm
+      TYPE(cp_fm_type), POINTER, DIMENSION(:)     :: new
+      TYPE(cp_fm_type), POINTER, DIMENSION(:)     :: old
+      TYPE(cp_fm_type), POINTER, DIMENSION(:)     :: next
+      TYPE(cp_fm_type), POINTER, DIMENSION(:)     :: admm
    END TYPE rtp_mos_type
 
    TYPE rt_prop_type
@@ -205,25 +206,17 @@ CONTAINS
          END IF
          DO i = 1, nspin
             DO j = 1, 2
-               NULLIFY (rtp%mos%old(2*(i - 1) + j)%matrix)
-               NULLIFY (rtp%mos%new(2*(i - 1) + j)%matrix)
-               NULLIFY (rtp%mos%next(2*(i - 1) + j)%matrix)
-               ALLOCATE (rtp%mos%old(2*(i - 1) + j)%matrix)
-               ALLOCATE (rtp%mos%new(2*(i - 1) + j)%matrix)
-               ALLOCATE (rtp%mos%next(2*(i - 1) + j)%matrix)
-               CALL cp_fm_create(rtp%mos%old(2*(i - 1) + j)%matrix, &
+               CALL cp_fm_create(rtp%mos%old(2*(i - 1) + j), &
                                  matrix_struct=mos(i)%mo_coeff%matrix_struct, &
                                  name="mos_old"//TRIM(ADJUSTL(cp_to_string(2*(i - 1) + j))))
-               CALL cp_fm_create(rtp%mos%new(2*(i - 1) + j)%matrix, &
+               CALL cp_fm_create(rtp%mos%new(2*(i - 1) + j), &
                                  matrix_struct=mos(i)%mo_coeff%matrix_struct, &
                                  name="mos_new"//TRIM(ADJUSTL(cp_to_string(2*(i - 1) + j))))
-               CALL cp_fm_create(rtp%mos%next(2*(i - 1) + j)%matrix, &
+               CALL cp_fm_create(rtp%mos%next(2*(i - 1) + j), &
                                  matrix_struct=mos(i)%mo_coeff%matrix_struct, &
                                  name="mos_next"//TRIM(ADJUSTL(cp_to_string(2*(i - 1) + j))))
                IF (dft_control%do_admm) THEN
-                  NULLIFY (rtp%mos%admm(2*(i - 1) + j)%matrix)
-                  ALLOCATE (rtp%mos%admm(2*(i - 1) + j)%matrix)
-                  CALL cp_fm_create(rtp%mos%admm(2*(i - 1) + j)%matrix, &
+                  CALL cp_fm_create(rtp%mos%admm(2*(i - 1) + j), &
                                     matrix_struct=mos_aux(i)%mo_coeff%matrix_struct, &
                                     name="mos_admm"//TRIM(ADJUSTL(cp_to_string(2*(i - 1) + j))))
                END IF
@@ -328,13 +321,12 @@ CONTAINS
                       S_inv, S_half, S_minus_half, B_mat, C_mat, propagator_matrix, mixing, mixing_factor, &
                       S_der, dt, nsteps, SinvH, SinvB, admm_mos)
 
-      TYPE(rt_prop_type), POINTER                        :: rtp
+      TYPE(rt_prop_type), INTENT(IN)                     :: rtp
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: exp_H_old, exp_H_new, H_last_iter, &
                                                             rho_old, rho_next, rho_new
       TYPE(rtp_mos_type), OPTIONAL, POINTER              :: mos
-      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: mos_new, mos_old, mos_next
+      TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: mos_new, mos_old, mos_next
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: S_inv, S_half, S_minus_half, B_mat
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: C_mat, propagator_matrix
@@ -346,10 +338,8 @@ CONTAINS
       INTEGER, INTENT(out), OPTIONAL                     :: nsteps
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: SinvH, SinvB
-      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: admm_mos
+      TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: admm_mos
 
-      CPASSERT(ASSOCIATED(rtp))
       IF (PRESENT(exp_H_old)) exp_H_old => rtp%exp_H_old
       IF (PRESENT(exp_H_new)) exp_H_new => rtp%exp_H_new
       IF (PRESENT(H_last_iter)) H_last_iter => rtp%H_last_iter
@@ -467,7 +457,7 @@ CONTAINS
                   NULLIFY (history%mo_history(i, j)%matrix)
                   ALLOCATE (history%mo_history(i, j)%matrix)
                   CALL cp_fm_create(history%mo_history(i, j)%matrix, &
-                                    matrix_struct=rtp%mos%new(i)%matrix%matrix_struct, &
+                                    matrix_struct=rtp%mos%new(i)%matrix_struct, &
                                     name="mo_hist"//TRIM(ADJUSTL(cp_to_string(i))))
                END DO
             END DO

@@ -1255,9 +1255,10 @@ CONTAINS
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: eigrmat
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new, opvec
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: opvec
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: op_fm_set
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
+      TYPE(cp_fm_type), DIMENSION(:)                     :: mos_new
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_result_type), POINTER                      :: results
@@ -1670,7 +1671,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: cosmat, sinmat
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: op_fm_set
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new
 
       INTEGER                                            :: i, icol, lcol, nao, newdim, nmo
       LOGICAL                                            :: double_col, double_row
@@ -1680,12 +1681,12 @@ CONTAINS
 
       DO i = 1, SIZE(op_fm_set, 2) ! spin
          CALL get_mo_set(mo_set=mos(i), nao=nao, mo_coeff=mo_coeff, nmo=nmo)
-         CALL cp_fm_get_info(mos_new(2*i)%matrix, ncol_local=lcol, ncol_global=nmo)
+         CALL cp_fm_get_info(mos_new(2*i), ncol_local=lcol, ncol_global=nmo)
          double_col = .TRUE.
          double_row = .FALSE.
          CALL cp_fm_struct_double(newstruct, &
-                                  mos_new(2*i)%matrix%matrix_struct, &
-                                  mos_new(2*i)%matrix%matrix_struct%context, &
+                                  mos_new(2*i)%matrix_struct, &
+                                  mos_new(2*i)%matrix_struct%context, &
                                   double_col, &
                                   double_row)
 
@@ -1696,8 +1697,8 @@ CONTAINS
 
          CALL cp_fm_set_all(work, 0.0_dp, 0.0_dp)
          DO icol = 1, lcol
-            work%local_data(:, icol) = mos_new(2*i - 1)%matrix%local_data(:, icol)
-            work%local_data(:, icol + lcol) = mos_new(2*i)%matrix%local_data(:, icol)
+            work%local_data(:, icol) = mos_new(2*i - 1)%local_data(:, icol)
+            work%local_data(:, icol + lcol) = mos_new(2*i)%local_data(:, icol)
          END DO
 
          CALL cp_dbcsr_sm_fm_multiply(cosmat, work, work1, ncol=newdim)
@@ -1719,7 +1720,7 @@ CONTAINS
 
          CALL cp_fm_create(work1, matrix_struct=newstruct1)
 
-         CALL parallel_gemm("T", "N", nmo, newdim, nao, 1.0_dp, mos_new(2*i - 1)%matrix, &
+         CALL parallel_gemm("T", "N", nmo, newdim, nao, 1.0_dp, mos_new(2*i - 1), &
                             work, 0.0_dp, work1)
 
          DO icol = 1, lcol
@@ -1727,7 +1728,7 @@ CONTAINS
             op_fm_set(2, i)%matrix%local_data(:, icol) = work1%local_data(:, icol + lcol)
          END DO
 
-         CALL parallel_gemm("T", "N", nmo, newdim, nao, 1.0_dp, mos_new(2*i)%matrix, &
+         CALL parallel_gemm("T", "N", nmo, newdim, nao, 1.0_dp, mos_new(2*i), &
                             work, 0.0_dp, work1)
 
          DO icol = 1, lcol

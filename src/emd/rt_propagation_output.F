@@ -124,7 +124,7 @@ CONTAINS
       REAL(dp)                                           :: orthonormality, tot_rho_r
       REAL(KIND=dp), DIMENSION(:), POINTER               :: qs_tot_rho_r
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, P_im, rho_new
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -267,7 +267,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE write_rtp_mos_to_output_unit(qs_env, mos_new)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new
 
       CHARACTER(len=*), PARAMETER :: routineN = 'write_rtp_mos_to_output_unit'
 
@@ -312,7 +312,7 @@ CONTAINS
                               flexible_electron_count=flexible_electron_count)
 
          WRITE (name, FMT="(A,I6)") "RTP MO SET, SPIN ", ispin
-         CALL init_mo_set(mo_set_rtp, fm_ref=mos_new(2*ispin - 1)%matrix, name=name)
+         CALL init_mo_set(mo_set_rtp, fm_ref=mos_new(2*ispin - 1), name=name)
 
          IF (nspins > 1) THEN
             IF (ispin == 1) THEN
@@ -326,7 +326,7 @@ CONTAINS
 
          !loop for real (odd) and imaginary (even) parts
          DO i = 1, 0, -1
-            CALL cp_fm_to_fm(mos_new(2*ispin - i)%matrix, mo_set_rtp%mo_coeff)
+            CALL cp_fm_to_fm(mos_new(2*ispin - i), mo_set_rtp%mo_coeff)
             CALL write_mo_set_to_output_unit(mo_set_rtp, atomic_kind_set, qs_kind_set, particle_set, &
                                           dft_section, 4, 0, rtp=.TRUE., spin=TRIM(spin), cpart=MOD(i, 2), sim_step=qs_env%sim_step)
          END DO
@@ -348,7 +348,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rt_calculate_orthonormality(orthonormality, mos_new, matrix_s)
       REAL(KIND=dp), INTENT(out)                         :: orthonormality
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_s
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rt_calculate_orthonormality'
@@ -371,26 +371,26 @@ CONTAINS
          re = ispin*2 - 1
          im = ispin*2
          ! get S*C
-         CALL cp_fm_create(svec_re, mos_new(im)%matrix%matrix_struct)
-         CALL cp_fm_create(svec_im, mos_new(im)%matrix%matrix_struct)
-         CALL cp_fm_get_info(mos_new(im)%matrix, &
+         CALL cp_fm_create(svec_re, mos_new(im)%matrix_struct)
+         CALL cp_fm_create(svec_im, mos_new(im)%matrix_struct)
+         CALL cp_fm_get_info(mos_new(im), &
                              nrow_global=n, ncol_global=k)
-         CALL cp_dbcsr_sm_fm_multiply(matrix_s, mos_new(re)%matrix, &
+         CALL cp_dbcsr_sm_fm_multiply(matrix_s, mos_new(re), &
                                       svec_re, k)
-         CALL cp_dbcsr_sm_fm_multiply(matrix_s, mos_new(im)%matrix, &
+         CALL cp_dbcsr_sm_fm_multiply(matrix_s, mos_new(im), &
                                       svec_im, k)
 
          ! get C^T (S*C)
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=k, ncol_global=k, &
-                                  para_env=mos_new(re)%matrix%matrix_struct%para_env, &
-                                  context=mos_new(re)%matrix%matrix_struct%context)
+                                  para_env=mos_new(re)%matrix_struct%para_env, &
+                                  context=mos_new(re)%matrix_struct%context)
          CALL cp_fm_create(overlap_re, tmp_fm_struct)
 
          CALL cp_fm_struct_release(tmp_fm_struct)
 
-         CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, mos_new(re)%matrix, &
+         CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, mos_new(re), &
                             svec_re, 0.0_dp, overlap_re)
-         CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, mos_new(im)%matrix, &
+         CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, mos_new(im), &
                             svec_im, 1.0_dp, overlap_re)
 
          CALL cp_fm_release(svec_re)
@@ -407,8 +407,8 @@ CONTAINS
          END DO
          CALL cp_fm_release(overlap_re)
       END DO
-      CALL mp_max(max_alpha, mos_new(1)%matrix%matrix_struct%para_env%group)
-      CALL mp_max(max_beta, mos_new(1)%matrix%matrix_struct%para_env%group)
+      CALL mp_max(max_alpha, mos_new(1)%matrix_struct%para_env%group)
+      CALL mp_max(max_beta, mos_new(1)%matrix_struct%para_env%group)
       orthonormality = max_alpha
 
       CALL timestop(handle)
@@ -438,9 +438,9 @@ CONTAINS
                                                             lrow, nao, newdim, nmo, nspin, re
       LOGICAL                                            :: double_col, double_row
       REAL(KIND=dp)                                      :: alpha, max_alpha
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new
       TYPE(cp_fm_struct_type), POINTER                   :: newstruct, newstruct1, tmp_fm_struct
       TYPE(cp_fm_type)                                   :: work, work1, work2
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new
 
       NULLIFY (tmp_fm_struct)
 
@@ -452,7 +452,7 @@ CONTAINS
       max_alpha = 0.0_dp
 
       DO i = 1, SIZE(mos_new)
-         CALL cp_fm_scale_and_add(-one, delta_mos(i)%matrix, one, mos_new(i)%matrix)
+         CALL cp_fm_scale_and_add(-one, delta_mos(i)%matrix, one, mos_new(i))
       END DO
 
       DO ispin = 1, nspin

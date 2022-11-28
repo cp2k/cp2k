@@ -19,7 +19,8 @@ MODULE rt_make_propagators
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_to_fm
+                                              cp_fm_to_fm,&
+                                              cp_fm_type
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_create,&
@@ -77,7 +78,7 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
       INTEGER                                            :: handle, i, im, nmo, re
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new, mos_next, mos_old
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new, mos_next, mos_old
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: exp_H_new, exp_H_old, propagator_matrix
 
       CALL timeset(routineN, handle)
@@ -92,32 +93,32 @@ CONTAINS
          re = 2*i - 1
          im = 2*i
 
-         CALL cp_fm_get_info(mos_new(re)%matrix, ncol_global=nmo)
+         CALL cp_fm_get_info(mos_new(re), ncol_global=nmo)
          !Save some work by computing the first half of the propagation only once in case of ETRS
          !For EM this matrix has to be the initial matrix, thus a copy is enough
          IF (rtp%iter == 1) THEN
             IF (rtp_control%propagator == do_etrs) THEN
-               CALL cp_dbcsr_sm_fm_multiply(exp_H_old(re)%matrix, mos_old(re)%matrix, &
-                                            mos_next(re)%matrix, nmo, alpha=one, beta=zero)
-               CALL cp_dbcsr_sm_fm_multiply(exp_H_old(im)%matrix, mos_old(im)%matrix, &
-                                            mos_next(re)%matrix, nmo, alpha=-one, beta=one)
-               CALL cp_dbcsr_sm_fm_multiply(exp_H_old(re)%matrix, mos_old(im)%matrix, &
-                                            mos_next(im)%matrix, nmo, alpha=one, beta=zero)
-               CALL cp_dbcsr_sm_fm_multiply(exp_H_old(im)%matrix, mos_old(re)%matrix, &
-                                            mos_next(im)%matrix, nmo, alpha=one, beta=one)
+               CALL cp_dbcsr_sm_fm_multiply(exp_H_old(re)%matrix, mos_old(re), &
+                                            mos_next(re), nmo, alpha=one, beta=zero)
+               CALL cp_dbcsr_sm_fm_multiply(exp_H_old(im)%matrix, mos_old(im), &
+                                            mos_next(re), nmo, alpha=-one, beta=one)
+               CALL cp_dbcsr_sm_fm_multiply(exp_H_old(re)%matrix, mos_old(im), &
+                                            mos_next(im), nmo, alpha=one, beta=zero)
+               CALL cp_dbcsr_sm_fm_multiply(exp_H_old(im)%matrix, mos_old(re), &
+                                            mos_next(im), nmo, alpha=one, beta=one)
             ELSE
-               CALL cp_fm_to_fm(mos_old(re)%matrix, mos_next(re)%matrix)
-               CALL cp_fm_to_fm(mos_old(im)%matrix, mos_next(im)%matrix)
+               CALL cp_fm_to_fm(mos_old(re), mos_next(re))
+               CALL cp_fm_to_fm(mos_old(im), mos_next(im))
             END IF
          END IF
-         CALL cp_dbcsr_sm_fm_multiply(exp_H_new(re)%matrix, mos_next(re)%matrix, &
-                                      mos_new(re)%matrix, nmo, alpha=one, beta=zero)
-         CALL cp_dbcsr_sm_fm_multiply(exp_H_new(im)%matrix, mos_next(im)%matrix, &
-                                      mos_new(re)%matrix, nmo, alpha=-one, beta=one)
-         CALL cp_dbcsr_sm_fm_multiply(exp_H_new(re)%matrix, mos_next(im)%matrix, &
-                                      mos_new(im)%matrix, nmo, alpha=one, beta=zero)
-         CALL cp_dbcsr_sm_fm_multiply(exp_H_new(im)%matrix, mos_next(re)%matrix, &
-                                      mos_new(im)%matrix, nmo, alpha=one, beta=one)
+         CALL cp_dbcsr_sm_fm_multiply(exp_H_new(re)%matrix, mos_next(re), &
+                                      mos_new(re), nmo, alpha=one, beta=zero)
+         CALL cp_dbcsr_sm_fm_multiply(exp_H_new(im)%matrix, mos_next(im), &
+                                      mos_new(re), nmo, alpha=-one, beta=one)
+         CALL cp_dbcsr_sm_fm_multiply(exp_H_new(re)%matrix, mos_next(im), &
+                                      mos_new(im), nmo, alpha=one, beta=zero)
+         CALL cp_dbcsr_sm_fm_multiply(exp_H_new(im)%matrix, mos_next(re), &
+                                      mos_new(im), nmo, alpha=one, beta=one)
       END DO
 
       CALL timestop(handle)
@@ -204,8 +205,8 @@ CONTAINS
 
       INTEGER                                            :: handle, i, im, ispin, nspin, re
       REAL(dp)                                           :: eps_arnoldi, t
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new, mos_next, mos_old, &
-                                                            propagator_matrix_fm
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: propagator_matrix_fm
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new, mos_next, mos_old
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: propagator_matrix
 
       CALL timeset(routineN, handle)
@@ -220,7 +221,7 @@ CONTAINS
       ! ready on mos_old and only need to perform the second half propagatioon
       IF (rtp_control%propagator == do_etrs .AND. rtp%iter == 1) THEN
          DO i = 1, SIZE(mos_new)
-            CALL cp_fm_to_fm(mos_next(i)%matrix, mos_old(i)%matrix)
+            CALL cp_fm_to_fm(mos_next(i), mos_old(i))
          END DO
       END IF
 

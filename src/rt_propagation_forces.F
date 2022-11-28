@@ -23,7 +23,6 @@ MODULE rt_propagation_forces
                                               dbcsr_create_dist_r_unrot
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_type
    USE dbcsr_api,                       ONLY: &
@@ -94,7 +93,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
       REAL(KIND=dp)                                      :: alpha
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new
       TYPE(dbcsr_distribution_type)                      :: dist, SinvB_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: C_mat, S_der, SinvB, SinvH
       TYPE(dbcsr_type)                                   :: db_mo_tmp1, db_mo_tmp2, db_mos_im, &
@@ -143,8 +142,8 @@ CONTAINS
          CALL dbcsr_create(db_mo_tmp1, template=db_mos_re)
          CALL dbcsr_create(db_mo_tmp2, template=db_mos_re)
 
-         CALL copy_fm_to_dbcsr(mos_new(im)%matrix, db_mos_im)
-         CALL copy_fm_to_dbcsr(mos_new(re)%matrix, db_mos_re)
+         CALL copy_fm_to_dbcsr(mos_new(im), db_mos_im)
+         CALL copy_fm_to_dbcsr(mos_new(re), db_mos_re)
 
          CALL dbcsr_multiply("N", "N", alpha, SinvB(ispin)%matrix, db_mos_im, 0.0_dp, db_mo_tmp1)
          CALL dbcsr_multiply("N", "N", alpha, SinvH(ispin)%matrix, db_mos_re, 1.0_dp, db_mo_tmp1)
@@ -339,7 +338,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos, mos_admm
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos, mos_admm
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: KS_aux_im, KS_aux_re, matrix_s_aux_fit, &
                                                             matrix_s_aux_fit_vs_orb
       TYPE(rt_prop_type), POINTER                        :: rtp
@@ -376,7 +375,7 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: KS_aux_re, KS_aux_im, matrix_s_aux_fit, &
                                                             matrix_s_aux_fit_vs_orb
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_admm, mos
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_admm, mos
 
       INTEGER                                            :: im, ispin, jspin, nao, natom, naux, nmo, &
                                                             re
@@ -422,10 +421,10 @@ CONTAINS
          END DO
 
 ! First calculate H=KS_aux*C~, real part ends on work_aux_aux2, imaginary part ends at work_aux_aux3
-         CALL cp_dbcsr_sm_fm_multiply(KS_aux_re(ispin)%matrix, mos_admm(re)%matrix, tmp_aux_mo(re), nmo, 4.0_dp, 0.0_dp)
-         CALL cp_dbcsr_sm_fm_multiply(KS_aux_re(ispin)%matrix, mos_admm(im)%matrix, tmp_aux_mo(im), nmo, 4.0_dp, 0.0_dp)
-         CALL cp_dbcsr_sm_fm_multiply(KS_aux_im(ispin)%matrix, mos_admm(im)%matrix, tmp_aux_mo(re), nmo, -4.0_dp, 1.0_dp)
-         CALL cp_dbcsr_sm_fm_multiply(KS_aux_im(ispin)%matrix, mos_admm(re)%matrix, tmp_aux_mo(im), nmo, 4.0_dp, 1.0_dp)
+         CALL cp_dbcsr_sm_fm_multiply(KS_aux_re(ispin)%matrix, mos_admm(re), tmp_aux_mo(re), nmo, 4.0_dp, 0.0_dp)
+         CALL cp_dbcsr_sm_fm_multiply(KS_aux_re(ispin)%matrix, mos_admm(im), tmp_aux_mo(im), nmo, 4.0_dp, 0.0_dp)
+         CALL cp_dbcsr_sm_fm_multiply(KS_aux_im(ispin)%matrix, mos_admm(im), tmp_aux_mo(re), nmo, -4.0_dp, 1.0_dp)
+         CALL cp_dbcsr_sm_fm_multiply(KS_aux_im(ispin)%matrix, mos_admm(re), tmp_aux_mo(im), nmo, 4.0_dp, 1.0_dp)
 
 ! Next step compute S-1*H
          CALL parallel_gemm('N', 'N', naux, nmo, naux, 1.0_dp, admm_env%S_inv, tmp_aux_mo(re), 0.0_dp, tmp_aux_mo1(re))
@@ -433,13 +432,13 @@ CONTAINS
 
 ! Here we go on with Ws=S-1*H * C^H (take care of sign of the imaginary part!!!)
 
-         CALL parallel_gemm("N", "T", naux, nao, nmo, -1.0_dp, tmp_aux_mo1(re), mos(re)%matrix, 0.0_dp, &
+         CALL parallel_gemm("N", "T", naux, nao, nmo, -1.0_dp, tmp_aux_mo1(re), mos(re), 0.0_dp, &
                             tmp_aux_nao(re))
-         CALL parallel_gemm("N", "T", naux, nao, nmo, -1.0_dp, tmp_aux_mo1(im), mos(im)%matrix, 1.0_dp, &
+         CALL parallel_gemm("N", "T", naux, nao, nmo, -1.0_dp, tmp_aux_mo1(im), mos(im), 1.0_dp, &
                             tmp_aux_nao(re))
-         CALL parallel_gemm("N", "T", naux, nao, nmo, 1.0_dp, tmp_aux_mo1(re), mos(im)%matrix, 0.0_dp, &
+         CALL parallel_gemm("N", "T", naux, nao, nmo, 1.0_dp, tmp_aux_mo1(re), mos(im), 0.0_dp, &
                             tmp_aux_nao(im))
-         CALL parallel_gemm("N", "T", naux, nao, nmo, -1.0_dp, tmp_aux_mo1(im), mos(re)%matrix, 1.0_dp, &
+         CALL parallel_gemm("N", "T", naux, nao, nmo, -1.0_dp, tmp_aux_mo1(im), mos(re), 1.0_dp, &
                             tmp_aux_nao(im))
 
 ! Let's do the final bit  Wq=S-1*H * C^H * A^T
