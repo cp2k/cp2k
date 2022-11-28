@@ -27,6 +27,7 @@ apt-get install -qq --no-install-recommends \
   python3-wheel \
   python3-pip \
   python3-dev \
+  python3-reentry \
   postgresql \
   libpq-dev \
   rabbitmq-server \
@@ -50,7 +51,7 @@ for i in "${MPI_INSTALL_DIR}"/*; do ln -sf "$i" /usr/bin/; done
 echo -e "\n========== Installing AiiDA-CP2K plugin =========="
 git clone --quiet https://github.com/aiidateam/aiida-cp2k.git /opt/aiida-cp2k/
 cd /opt/aiida-cp2k/
-pip3 install './[test]'
+pip3 install './[dev]'
 
 echo -e "\n========== Configuring AiiDA =========="
 AS_UBUNTU_USER="sudo -u ubuntu -H"
