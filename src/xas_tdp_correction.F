@@ -36,7 +36,6 @@ MODULE xas_tdp_correction
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_diag,&
                                               cp_fm_get_submatrix,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_to_fm_submat,&
@@ -119,12 +118,12 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_1d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: homo_evals, lumo_evals
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: all_coeffs, homo_coeffs, lumo_coeffs
       TYPE(cp_fm_struct_p_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: all_struct, homo_struct, lumo_struct
       TYPE(cp_fm_struct_type), POINTER                   :: hoho_struct, lulu_struct
       TYPE(cp_fm_type)                                   :: hoho_fock, hoho_work, homo_work, &
                                                             lulu_fock, lulu_work, lumo_work
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: all_coeffs, homo_coeffs, lumo_coeffs
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_work, fock_matrix, matrix_ks
@@ -177,9 +176,8 @@ CONTAINS
          CALL cp_fm_struct_create(lumo_struct(ispin)%struct, para_env=para_env, context=blacs_env, &
                                   ncol_global=nlumo(ispin), nrow_global=nao)
 
-         ALLOCATE (lumo_coeffs(ispin)%matrix)
-         CALL cp_fm_create(lumo_coeffs(ispin)%matrix, lumo_struct(ispin)%struct)
-         CALL cp_fm_to_fm(xas_tdp_env%lumo_evecs(ispin), lumo_coeffs(ispin)%matrix)
+         CALL cp_fm_create(lumo_coeffs(ispin), lumo_struct(ispin)%struct)
+         CALL cp_fm_to_fm(xas_tdp_env%lumo_evecs(ispin), lumo_coeffs(ispin))
       END DO
 
       !2) get the HOMO coeffs. Reminder: keep all non-localized MOs + those localized on core atom
@@ -194,18 +192,17 @@ CONTAINS
 
          CALL cp_fm_struct_create(homo_struct(ispin)%struct, para_env=para_env, context=blacs_env, &
                                   ncol_global=locat + nonloc, nrow_global=nao)
-         ALLOCATE (homo_coeffs(ispin)%matrix)
-         CALL cp_fm_create(homo_coeffs(ispin)%matrix, homo_struct(ispin)%struct)
+         CALL cp_fm_create(homo_coeffs(ispin), homo_struct(ispin)%struct)
 
          CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
-         CALL cp_fm_to_fm_submat(mo_coeff, homo_coeffs(ispin)%matrix, nrow=nao, ncol=nonloc, s_firstrow=1, &
+         CALL cp_fm_to_fm_submat(mo_coeff, homo_coeffs(ispin), nrow=nao, ncol=nonloc, s_firstrow=1, &
                                  s_firstcol=xas_tdp_control%n_search + 1, t_firstrow=1, t_firstcol=locat + 1)
 
          !this bit is taken from xas_tdp_methods
          ilocat = 1
          DO iloc = 1, xas_tdp_control%n_search
             IF (xas_tdp_env%mos_of_ex_atoms(iloc, ex_idx, ispin) == -1) CYCLE
-            CALL cp_fm_to_fm_submat(mo_coeff, homo_coeffs(ispin)%matrix, nrow=nao, ncol=1, s_firstrow=1, &
+            CALL cp_fm_to_fm_submat(mo_coeff, homo_coeffs(ispin), nrow=nao, ncol=1, s_firstrow=1, &
                                     s_firstcol=iloc, t_firstrow=1, t_firstcol=ilocat)
             !keep track of donor MO index
             IF (iloc == donor_state%mo_indices(1, ispin)) first_domo(ispin) = ilocat !first donor MO
@@ -317,22 +314,22 @@ CONTAINS
             CALL cp_fm_create(hoho_fock, hoho_struct)
             NULLIFY (homo_evals(ispin)%array)
             ALLOCATE (homo_evals(ispin)%array(nhomo(ispin)))
-            CALL cp_dbcsr_sm_fm_multiply(fock_matrix(ispin)%matrix, homo_coeffs(ispin)%matrix, &
+            CALL cp_dbcsr_sm_fm_multiply(fock_matrix(ispin)%matrix, homo_coeffs(ispin), &
                                          homo_work, ncol=nhomo(ispin))
-            CALL parallel_gemm('T', 'N', nhomo(ispin), nhomo(ispin), nao, 1.0_dp, homo_coeffs(ispin)%matrix, &
+            CALL parallel_gemm('T', 'N', nhomo(ispin), nhomo(ispin), nao, 1.0_dp, homo_coeffs(ispin), &
                                homo_work, 0.0_dp, hoho_fock)
 
             !diagonalize and get pseudo-canonical MOs
             CALL choose_eigv_solver(hoho_fock, hoho_work, homo_evals(ispin)%array)
-            CALL parallel_gemm('N', 'N', nao, nhomo(ispin), nhomo(ispin), 1.0_dp, homo_coeffs(ispin)%matrix, &
+            CALL parallel_gemm('N', 'N', nao, nhomo(ispin), nhomo(ispin), 1.0_dp, homo_coeffs(ispin), &
                                hoho_work, 0.0_dp, homo_work)
-            CALL cp_fm_to_fm(homo_work, homo_coeffs(ispin)%matrix)
+            CALL cp_fm_to_fm(homo_work, homo_coeffs(ispin))
 
             !overwrite the donor_state's contract coeffs with those
             contract_coeffs_backup(:, (ispin - 1)*ndo_mo + 1:ispin*ndo_mo) = &
                donor_state%contract_coeffs(:, (ispin - 1)*ndo_mo + 1:ispin*ndo_mo)
             start_sgf = SUM(nsgf_blk(1:exat - 1)) + 1
-            CALL cp_fm_get_submatrix(homo_coeffs(ispin)%matrix, &
+            CALL cp_fm_get_submatrix(homo_coeffs(ispin), &
                                      donor_state%contract_coeffs(:, (ispin - 1)*ndo_mo + 1:ispin*ndo_mo), &
                                      start_row=start_sgf, start_col=first_domo(ispin), &
                                      n_rows=nsgf_blk(exat), n_cols=ndo_mo)
@@ -341,16 +338,16 @@ CONTAINS
             CALL cp_fm_create(lulu_fock, lulu_struct)
             NULLIFY (lumo_evals(ispin)%array)
             ALLOCATE (lumo_evals(ispin)%array(nlumo(ispin)))
-            CALL cp_dbcsr_sm_fm_multiply(fock_matrix(ispin)%matrix, lumo_coeffs(ispin)%matrix, &
+            CALL cp_dbcsr_sm_fm_multiply(fock_matrix(ispin)%matrix, lumo_coeffs(ispin), &
                                          lumo_work, ncol=nlumo(ispin))
-            CALL parallel_gemm('T', 'N', nlumo(ispin), nlumo(ispin), nao, 1.0_dp, lumo_coeffs(ispin)%matrix, &
+            CALL parallel_gemm('T', 'N', nlumo(ispin), nlumo(ispin), nao, 1.0_dp, lumo_coeffs(ispin), &
                                lumo_work, 0.0_dp, lulu_fock)
 
             !diagonalize and get pseudo-canonical MOs
             CALL choose_eigv_solver(lulu_fock, lulu_work, lumo_evals(ispin)%array)
-            CALL parallel_gemm('N', 'N', nao, nlumo(ispin), nlumo(ispin), 1.0_dp, lumo_coeffs(ispin)%matrix, &
+            CALL parallel_gemm('N', 'N', nao, nlumo(ispin), nlumo(ispin), 1.0_dp, lumo_coeffs(ispin), &
                                lulu_work, 0.0_dp, lumo_work)
-            CALL cp_fm_to_fm(lumo_work, lumo_coeffs(ispin)%matrix)
+            CALL cp_fm_to_fm(lumo_work, lumo_coeffs(ispin))
 
             CALL cp_fm_release(lulu_fock)
             CALL cp_fm_release(hoho_fock)
@@ -359,16 +356,16 @@ CONTAINS
 
             !Compute their Fock matrix diagonal
             ALLOCATE (homo_evals(ispin)%array(nhomo(ispin)))
-            CALL cp_dbcsr_sm_fm_multiply(fock_matrix(ispin)%matrix, homo_coeffs(ispin)%matrix, &
+            CALL cp_dbcsr_sm_fm_multiply(fock_matrix(ispin)%matrix, homo_coeffs(ispin), &
                                          homo_work, ncol=nhomo(ispin))
-            CALL parallel_gemm('T', 'N', nhomo(ispin), nhomo(ispin), nao, 1.0_dp, homo_coeffs(ispin)%matrix, &
+            CALL parallel_gemm('T', 'N', nhomo(ispin), nhomo(ispin), nao, 1.0_dp, homo_coeffs(ispin), &
                                homo_work, 0.0_dp, hoho_work)
             CALL cp_fm_get_diag(hoho_work, homo_evals(ispin)%array)
 
             ALLOCATE (lumo_evals(ispin)%array(nlumo(ispin)))
-            CALL cp_dbcsr_sm_fm_multiply(fock_matrix(ispin)%matrix, lumo_coeffs(ispin)%matrix, &
+            CALL cp_dbcsr_sm_fm_multiply(fock_matrix(ispin)%matrix, lumo_coeffs(ispin), &
                                          lumo_work, ncol=nlumo(ispin))
-            CALL parallel_gemm('T', 'N', nlumo(ispin), nlumo(ispin), nao, 1.0_dp, lumo_coeffs(ispin)%matrix, &
+            CALL parallel_gemm('T', 'N', nlumo(ispin), nlumo(ispin), nao, 1.0_dp, lumo_coeffs(ispin), &
                                lumo_work, 0.0_dp, lulu_work)
             CALL cp_fm_get_diag(lulu_work, lumo_evals(ispin)%array)
 
@@ -383,11 +380,10 @@ CONTAINS
          !Put back homo and lumo coeffs together, to fit tensor structure
          CALL cp_fm_struct_create(all_struct(ispin)%struct, para_env=para_env, context=blacs_env, &
                                   ncol_global=nhomo(ispin) + nlumo(ispin), nrow_global=nao)
-         ALLOCATE (all_coeffs(ispin)%matrix)
-         CALL cp_fm_create(all_coeffs(ispin)%matrix, all_struct(ispin)%struct)
-         CALL cp_fm_to_fm(homo_coeffs(ispin)%matrix, all_coeffs(ispin)%matrix, ncol=nhomo(ispin), &
+         CALL cp_fm_create(all_coeffs(ispin), all_struct(ispin)%struct)
+         CALL cp_fm_to_fm(homo_coeffs(ispin), all_coeffs(ispin), ncol=nhomo(ispin), &
                           source_start=1, target_start=1)
-         CALL cp_fm_to_fm(lumo_coeffs(ispin)%matrix, all_coeffs(ispin)%matrix, ncol=nlumo(ispin), &
+         CALL cp_fm_to_fm(lumo_coeffs(ispin), all_coeffs(ispin), ncol=nlumo(ispin), &
                           source_start=1, target_start=nhomo(ispin) + 1)
 
       END DO !ispin
@@ -398,10 +394,9 @@ CONTAINS
 
       !intermediate clean-up
       DO ispin = 1, nspins
-         CALL cp_fm_release(all_coeffs(ispin)%matrix)
-         CALL cp_fm_release(homo_coeffs(ispin)%matrix)
-         CALL cp_fm_release(lumo_coeffs(ispin)%matrix)
-         DEALLOCATE (all_coeffs(ispin)%matrix, homo_coeffs(ispin)%matrix, lumo_coeffs(ispin)%matrix)
+         CALL cp_fm_release(all_coeffs(ispin))
+         CALL cp_fm_release(homo_coeffs(ispin))
+         CALL cp_fm_release(lumo_coeffs(ispin))
          CALL cp_fm_struct_release(all_struct(ispin)%struct)
          CALL cp_fm_struct_release(lumo_struct(ispin)%struct)
          CALL cp_fm_struct_release(homo_struct(ispin)%struct)
@@ -1061,7 +1056,7 @@ CONTAINS
          INTENT(INOUT)                                   :: ja_X, oI_Y
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: ja_Io_template
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: mo_coeffs
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: mo_coeffs
       INTEGER, INTENT(IN)                                :: nocc(2), nvirt(2)
       TYPE(donor_state_type), POINTER                    :: donor_state
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
@@ -1146,7 +1141,7 @@ CONTAINS
 
          CALL dbcsr_create(dbcsr_mo_coeffs, name="MO coeffs", matrix_type="N", dist=mat_dist, &
                            row_blk_size=ao_blk_size, col_blk_size=mo_blk_size(ispin)%array)
-         CALL copy_fm_to_dbcsr(mo_coeffs(ispin)%matrix, dbcsr_mo_coeffs)
+         CALL copy_fm_to_dbcsr(mo_coeffs(ispin), dbcsr_mo_coeffs)
 
          CALL dbt_create(dbcsr_mo_coeffs, t_mo_coeffs)
          CALL dbt_copy_matrix_to_tensor(dbcsr_mo_coeffs, t_mo_coeffs)
