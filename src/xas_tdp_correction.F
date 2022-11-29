@@ -179,7 +179,7 @@ CONTAINS
 
          ALLOCATE (lumo_coeffs(ispin)%matrix)
          CALL cp_fm_create(lumo_coeffs(ispin)%matrix, lumo_struct(ispin)%struct)
-         CALL cp_fm_to_fm(xas_tdp_env%lumo_evecs(ispin)%matrix, lumo_coeffs(ispin)%matrix)
+         CALL cp_fm_to_fm(xas_tdp_env%lumo_evecs(ispin), lumo_coeffs(ispin)%matrix)
       END DO
 
       !2) get the HOMO coeffs. Reminder: keep all non-localized MOs + those localized on core atom

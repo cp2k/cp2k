@@ -859,7 +859,7 @@ CONTAINS
       do_os = xas_tdp_control%do_uks .OR. xas_tdp_control%do_roks
       nspins = 1; IF (do_os) nspins = 2
       ndo_mo = donor_state%ndo_mo
-      CALL cp_fm_get_info(xas_tdp_env%lumo_evecs(1)%matrix, nrow_global=nao)
+      CALL cp_fm_get_info(xas_tdp_env%lumo_evecs(1), nrow_global=nao)
       CALL get_qs_env(qs_env, natom=natom, nelectron_spin=nelec_spin)
 
       !Compute the number of guesses for each spins
@@ -880,7 +880,7 @@ CONTAINS
       DO ispin = 1, nspins
          DO ido_mo = 1, ndo_mo
 
-            CALL cp_fm_to_fm_submat(msource=xas_tdp_env%lumo_evecs(ispin)%matrix, mtarget=guess, &
+            CALL cp_fm_to_fm_submat(msource=xas_tdp_env%lumo_evecs(ispin), mtarget=guess, &
                                     nrow=nao, ncol=nlumo(ispin), s_firstrow=1, s_firstcol=1, &
                                     t_firstrow=start_row + 1, t_firstcol=start_col + 1)
 

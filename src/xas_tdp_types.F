@@ -17,8 +17,7 @@ MODULE xas_tdp_types
                                               cp_2d_r_p_type,&
                                               cp_3d_r_p_type
    USE cp_files,                        ONLY: file_exists
-   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release,&
+   USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -221,7 +220,7 @@ MODULE xas_tdp_types
       TYPE(dbcsr_p_type), DIMENSION(:), &
          POINTER   :: orb_soc
       TYPE(cp_fm_type), POINTER               :: matrix_shalf
-      TYPE(cp_fm_p_type), DIMENSION(:), &
+      TYPE(cp_fm_type), DIMENSION(:), &
          POINTER                              :: lumo_evecs
 
       TYPE(cp_1d_r_p_type), DIMENSION(:), &
@@ -846,8 +845,7 @@ CONTAINS
          END IF
          IF (ASSOCIATED(xas_tdp_env%lumo_evecs)) THEN
             DO i = 1, SIZE(xas_tdp_env%lumo_evecs)
-               CALL cp_fm_release(xas_tdp_env%lumo_evecs(i)%matrix)
-               DEALLOCATE (xas_tdp_env%lumo_evecs(i)%matrix)
+               CALL cp_fm_release(xas_tdp_env%lumo_evecs(i))
             END DO
             DEALLOCATE (xas_tdp_env%lumo_evecs)
          END IF
