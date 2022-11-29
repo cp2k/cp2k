@@ -30,7 +30,8 @@ MODULE cp_files
              open_file, &
              get_unit_number, &
              file_exists, &
-             get_data_dir
+             get_data_dir, &
+             discover_file
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_files'
 

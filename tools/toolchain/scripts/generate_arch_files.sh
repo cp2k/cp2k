@@ -118,7 +118,7 @@ LDFLAGS="IF_STATIC(${STATIC_FLAGS}|) \$(FCFLAGS) ${CP_LDFLAGS}"
 # add standard libs
 LIBS="${CP_LIBS} -lstdc++"
 
-CXXFLAGS+=" --std=c++11 \$(DFLAGS) -Wno-deprecated-declarations"
+CXXFLAGS+=" --std=c++14 \$(DFLAGS) -Wno-deprecated-declarations"
 # CUDA handling
 if [ "${ENABLE_CUDA}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
   CUDA_LIBS="-lcudart -lnvrtc -lcuda -lcufft -lcublas -lrt IF_DEBUG(-lnvToolsExt|)"

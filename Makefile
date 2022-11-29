@@ -96,6 +96,9 @@ ifneq ($(filter nvcc hipcc, $(notdir $(OFFLOAD_CC))),)
 OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . -name "*.cu")
 endif
 
+# Begrudgingly tolerated because PyTorch has no C API.
+OBJ_SRC_FILES += $(SRCDIR)/torch_c_api.cpp
+
 # Included files used by Fypp preprocessor
 INCLUDED_SRC_FILES = $(notdir $(shell find $(SRCDIR) -name "*.fypp"))
 
@@ -481,6 +484,7 @@ vpath %.h     $(ALL_SRC_DIRS)
 vpath %.f90   $(ALL_SRC_DIRS)
 vpath %.cu    $(ALL_SRC_DIRS)
 vpath %.c     $(ALL_SRC_DIRS)
+vpath %.cpp   $(ALL_SRC_DIRS)
 
 #
 # Add additional dependency of cp2k_info.F to git-HEAD.
@@ -529,6 +533,10 @@ FYPPFLAGS ?= -n
 
 %.o: %.C
 	@echo "Error: C++ is not supported: $<"; false
+
+# Begrudgingly tolerated because PyTorch has no C API.
+torch_c_api.o: torch_c_api.cpp
+	$(CXX) -c $(CXXFLAGS) $<
 
 ifneq ($(LIBDIR),)
 $(LIBDIR)/%:
