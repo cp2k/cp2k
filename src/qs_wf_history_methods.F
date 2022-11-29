@@ -184,7 +184,7 @@ CONTAINS
          END IF
          DO ispin = 1, nspins
             CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
-            CALL cp_fm_to_fm(mo_coeff, snapshot%wf(ispin)%matrix)
+            CALL cp_fm_to_fm(mo_coeff, snapshot%wf(ispin))
          END DO
       ELSE
          CALL fm_pools_give_back_fm_vect(ao_mo_pools, snapshot%wf)
@@ -661,12 +661,12 @@ CONTAINS
                             nmo=nmo)
             CALL cp_fm_scale_and_add(alpha=0.0_dp, &
                                      matrix_a=mo_coeff, &
-                                     matrix_b=t1_state%wf(ispin)%matrix, &
+                                     matrix_b=t1_state%wf(ispin), &
                                      beta=(t2 - t0)/(t1 - t0))
             ! this copy should be unnecessary
             CALL cp_fm_scale_and_add(alpha=1.0_dp, &
                                      matrix_a=mo_coeff, &
-                                     beta=(t1 - t2)/(t1 - t0), matrix_b=t0_state%wf(ispin)%matrix)
+                                     beta=(t1 - t2)/(t1 - t0), matrix_b=t0_state%wf(ispin))
             CALL reorthogonalize_vectors(qs_env, &
                                          v_matrix=mo_coeff, &
                                          n_col=nmo)
@@ -764,15 +764,15 @@ CONTAINS
             CALL cp_fm_struct_release(matrix_struct_new)
 
             IF (use_overlap) THEN
-               CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap, t1_state%wf(ispin)%matrix, mo_coeff, k)
-               CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, t0_state%wf(ispin)%matrix, mo_coeff, 0.0_dp, csc)
+               CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap, t1_state%wf(ispin), mo_coeff, k)
+               CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, t0_state%wf(ispin), mo_coeff, 0.0_dp, csc)
             ELSE
-               CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, t0_state%wf(ispin)%matrix, &
-                                  t1_state%wf(ispin)%matrix, 0.0_dp, csc)
+               CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, t0_state%wf(ispin), &
+                                  t1_state%wf(ispin), 0.0_dp, csc)
             END IF
-            CALL parallel_gemm('N', 'N', n, k, k, 1.0_dp, t0_state%wf(ispin)%matrix, csc, 0.0_dp, mo_coeff)
+            CALL parallel_gemm('N', 'N', n, k, k, 1.0_dp, t0_state%wf(ispin), csc, 0.0_dp, mo_coeff)
             CALL cp_fm_release(csc)
-            CALL cp_fm_scale_and_add(-1.0_dp, mo_coeff, 2.0_dp, t1_state%wf(ispin)%matrix)
+            CALL cp_fm_scale_and_add(-1.0_dp, mo_coeff, 2.0_dp, t1_state%wf(ispin))
             CALL reorthogonalize_vectors(qs_env, &
                                          v_matrix=mo_coeff, &
                                          n_col=k)
@@ -813,20 +813,20 @@ CONTAINS
             CALL cp_fm_struct_release(matrix_struct_new)
             ! first the most recent
             t1_state => wfi_get_snapshot(wf_history, wf_index=1)
-            CALL cp_fm_to_fm(t1_state%wf(ispin)%matrix, mo_coeff)
+            CALL cp_fm_to_fm(t1_state%wf(ispin), mo_coeff)
             alpha = nvec
             CALL cp_fm_scale(alpha, mo_coeff)
             CALL qs_rho_get(rho, rho_ao=rho_ao)
             DO i = 2, nvec
                t0_state => wfi_get_snapshot(wf_history, wf_index=i)
                IF (use_overlap) THEN
-                  CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap, t1_state%wf(ispin)%matrix, fm_tmp, k)
-                  CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, t0_state%wf(ispin)%matrix, fm_tmp, 0.0_dp, csc)
+                  CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap, t1_state%wf(ispin), fm_tmp, k)
+                  CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, t0_state%wf(ispin), fm_tmp, 0.0_dp, csc)
                ELSE
-                  CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, t0_state%wf(ispin)%matrix, &
-                                     t1_state%wf(ispin)%matrix, 0.0_dp, csc)
+                  CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, t0_state%wf(ispin), &
+                                     t1_state%wf(ispin), 0.0_dp, csc)
                END IF
-               CALL parallel_gemm('N', 'N', n, k, k, 1.0_dp, t0_state%wf(ispin)%matrix, csc, 0.0_dp, fm_tmp)
+               CALL parallel_gemm('N', 'N', n, k, k, 1.0_dp, t0_state%wf(ispin), csc, 0.0_dp, fm_tmp)
                alpha = -1.0_dp*alpha*REAL(nvec - i + 1, dp)/REAL(i, dp)
                CALL cp_fm_scale_and_add(1.0_dp, mo_coeff, alpha, fm_tmp)
             END DO
@@ -882,7 +882,7 @@ CONTAINS
             ! first the most recent
             t1_state => wfi_get_snapshot(wf_history, &
                                          wf_index=1)
-            CALL cp_fm_to_fm(t1_state%wf(ispin)%matrix, mo_coeff)
+            CALL cp_fm_to_fm(t1_state%wf(ispin), mo_coeff)
             alpha = REAL(4*nvec - 2, KIND=dp)/REAL(nvec + 1, KIND=dp)
             IF ((io_unit > 0) .AND. (print_level > low_print_level)) THEN
                WRITE (UNIT=io_unit, FMT="(/,T2,A,/,/,T3,A,I0,/,/,T3,A2,I0,A4,F10.6)") &
@@ -895,13 +895,13 @@ CONTAINS
             DO i = 2, nvec
                t0_state => wfi_get_snapshot(wf_history, wf_index=i)
                IF (use_overlap) THEN
-                  CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap, t1_state%wf(ispin)%matrix, fm_tmp, k)
-                  CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, t0_state%wf(ispin)%matrix, fm_tmp, 0.0_dp, csc)
+                  CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap, t1_state%wf(ispin), fm_tmp, k)
+                  CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, t0_state%wf(ispin), fm_tmp, 0.0_dp, csc)
                ELSE
-                  CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, t0_state%wf(ispin)%matrix, &
-                                     t1_state%wf(ispin)%matrix, 0.0_dp, csc)
+                  CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, t0_state%wf(ispin), &
+                                     t1_state%wf(ispin), 0.0_dp, csc)
                END IF
-               CALL parallel_gemm('N', 'N', n, k, k, 1.0_dp, t0_state%wf(ispin)%matrix, csc, 0.0_dp, fm_tmp)
+               CALL parallel_gemm('N', 'N', n, k, k, 1.0_dp, t0_state%wf(ispin), csc, 0.0_dp, fm_tmp)
                alpha = (-1.0_dp)**(i + 1)*REAL(i, KIND=dp)* &
                        binomial(2*nvec, nvec - i)/binomial(2*nvec - 2, nvec - 1)
                IF ((io_unit > 0) .AND. (print_level > low_print_level)) THEN

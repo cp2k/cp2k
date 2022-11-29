@@ -15,8 +15,8 @@
 ! **************************************************************************************************
 MODULE qs_wf_history_types
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
-   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release
+   USE cp_fm_types,                     ONLY: cp_fm_release,&
+                                              cp_fm_type
    USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix,&
                                               dbcsr_p_type,&
                                               dbcsr_type
@@ -55,7 +55,7 @@ MODULE qs_wf_history_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE qs_wf_snapshot_type
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: wf
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: wf
       TYPE(pw_type), DIMENSION(:), POINTER :: rho_r
       TYPE(pw_type), DIMENSION(:), POINTER :: rho_g
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: rho_ao
@@ -128,8 +128,7 @@ CONTAINS
 
       IF (ASSOCIATED(snapshot%wf)) THEN
          DO i = 1, SIZE(snapshot%wf)
-            CALL cp_fm_release(snapshot%wf(i)%matrix)
-            DEALLOCATE (snapshot%wf(i)%matrix)
+            CALL cp_fm_release(snapshot%wf(i))
          END DO
          DEALLOCATE (snapshot%wf)
       END IF
