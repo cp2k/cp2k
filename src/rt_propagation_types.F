@@ -33,7 +33,6 @@ MODULE rt_propagation_types
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_type
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
@@ -65,7 +64,7 @@ MODULE rt_propagation_types
    TYPE rtp_history_type
       TYPE(dbcsr_p_type), POINTER, DIMENSION(:, :)               :: rho_history
       TYPE(dbcsr_p_type), POINTER, DIMENSION(:)                 :: s_history
-      TYPE(cp_fm_p_type), POINTER, DIMENSION(:, :)                :: mo_history
+      TYPE(cp_fm_type), POINTER, DIMENSION(:, :)                :: mo_history
    END TYPE rtp_history_type
 
    TYPE rtp_mos_type
@@ -454,9 +453,7 @@ CONTAINS
             ALLOCATE (history%mo_history(nmat, aspc_order))
             DO i = 1, nmat
                DO j = 1, aspc_order
-                  NULLIFY (history%mo_history(i, j)%matrix)
-                  ALLOCATE (history%mo_history(i, j)%matrix)
-                  CALL cp_fm_create(history%mo_history(i, j)%matrix, &
+                  CALL cp_fm_create(history%mo_history(i, j), &
                                     matrix_struct=rtp%mos%new(i)%matrix_struct, &
                                     name="mo_hist"//TRIM(ADJUSTL(cp_to_string(i))))
                END DO
@@ -486,8 +483,7 @@ CONTAINS
       IF (ASSOCIATED(rtp%history%mo_history)) THEN
          DO i = 1, SIZE(rtp%history%mo_history, 1)
             DO j = 1, SIZE(rtp%history%mo_history, 2)
-               CALL cp_fm_release(rtp%history%mo_history(i, j)%matrix)
-               DEALLOCATE (rtp%history%mo_history(i, j)%matrix)
+               CALL cp_fm_release(rtp%history%mo_history(i, j))
             END DO
          END DO
          DEALLOCATE (rtp%history%mo_history)

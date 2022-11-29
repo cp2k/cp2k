@@ -23,7 +23,6 @@ MODULE rt_propagation_output
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -428,7 +427,7 @@ CONTAINS
 
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(dbcsr_type), POINTER                          :: matrix_s
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: delta_mos
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: delta_mos
       REAL(dp), INTENT(out)                              :: delta_eps
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'rt_convergence'
@@ -452,7 +451,7 @@ CONTAINS
       max_alpha = 0.0_dp
 
       DO i = 1, SIZE(mos_new)
-         CALL cp_fm_scale_and_add(-one, delta_mos(i)%matrix, one, mos_new(i))
+         CALL cp_fm_scale_and_add(-one, delta_mos(i), one, mos_new(i))
       END DO
 
       DO ispin = 1, nspin
@@ -462,23 +461,23 @@ CONTAINS
          double_col = .TRUE.
          double_row = .FALSE.
          CALL cp_fm_struct_double(newstruct, &
-                                  delta_mos(re)%matrix%matrix_struct, &
-                                  delta_mos(re)%matrix%matrix_struct%context, &
+                                  delta_mos(re)%matrix_struct, &
+                                  delta_mos(re)%matrix_struct%context, &
                                   double_col, &
                                   double_row)
 
          CALL cp_fm_create(work, matrix_struct=newstruct)
          CALL cp_fm_create(work1, matrix_struct=newstruct)
 
-         CALL cp_fm_get_info(delta_mos(re)%matrix, ncol_local=lcol, ncol_global=nmo, &
+         CALL cp_fm_get_info(delta_mos(re), ncol_local=lcol, ncol_global=nmo, &
                              nrow_global=nao)
          CALL cp_fm_get_info(work, ncol_global=newdim)
 
          CALL cp_fm_set_all(work, zero, zero)
 
          DO icol = 1, lcol
-            work%local_data(:, icol) = delta_mos(re)%matrix%local_data(:, icol)
-            work%local_data(:, icol + lcol) = delta_mos(im)%matrix%local_data(:, icol)
+            work%local_data(:, icol) = delta_mos(re)%local_data(:, icol)
+            work%local_data(:, icol + lcol) = delta_mos(im)%local_data(:, icol)
          END DO
 
          CALL cp_dbcsr_sm_fm_multiply(matrix_s, work, work1, ncol=newdim)
@@ -486,21 +485,21 @@ CONTAINS
          CALL cp_fm_release(work)
 
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, ncol_global=nmo, &
-                                  para_env=delta_mos(re)%matrix%matrix_struct%para_env, &
-                                  context=delta_mos(re)%matrix%matrix_struct%context)
+                                  para_env=delta_mos(re)%matrix_struct%para_env, &
+                                  context=delta_mos(re)%matrix_struct%context)
          CALL cp_fm_struct_double(newstruct1, &
                                   tmp_fm_struct, &
-                                  delta_mos(re)%matrix%matrix_struct%context, &
+                                  delta_mos(re)%matrix_struct%context, &
                                   double_col, &
                                   double_row)
 
          CALL cp_fm_create(work, matrix_struct=newstruct1)
          CALL cp_fm_create(work2, matrix_struct=newstruct1)
 
-         CALL parallel_gemm("T", "N", nmo, newdim, nao, one, delta_mos(re)%matrix, &
+         CALL parallel_gemm("T", "N", nmo, newdim, nao, one, delta_mos(re), &
                             work1, zero, work)
 
-         CALL parallel_gemm("T", "N", nmo, newdim, nao, one, delta_mos(im)%matrix, &
+         CALL parallel_gemm("T", "N", nmo, newdim, nao, one, delta_mos(im), &
                             work1, zero, work2)
 
          CALL cp_fm_get_info(work, nrow_local=lrow)
@@ -521,7 +520,7 @@ CONTAINS
 
       END DO
 
-      CALL mp_max(max_alpha, delta_mos(1)%matrix%matrix_struct%para_env%group)
+      CALL mp_max(max_alpha, delta_mos(1)%matrix_struct%para_env%group)
       delta_eps = SQRT(max_alpha)
 
       CALL timestop(handle)

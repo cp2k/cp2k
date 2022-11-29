@@ -31,7 +31,6 @@ MODULE rt_propagation_methods
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -107,8 +106,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'propagation_step'
 
       INTEGER                                            :: aspc_order, handle, i, im, re, unit_nr
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: delta_mos
-      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: delta_mos, mos_new
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: delta_P, H_last_iter, ks_mix, ks_mix_im, &
                                                             matrix_ks, matrix_ks_im, matrix_s, &
@@ -171,11 +169,10 @@ CONTAINS
          CALL get_rtp(rtp=rtp, mos_new=mos_new)
          ALLOCATE (delta_mos(SIZE(mos_new)))
          DO i = 1, SIZE(mos_new)
-            ALLOCATE (delta_mos(i)%matrix)
-            CALL cp_fm_create(delta_mos(i)%matrix, &
+            CALL cp_fm_create(delta_mos(i), &
                               matrix_struct=mos_new(i)%matrix_struct, &
                               name="delta_mos"//TRIM(ADJUSTL(cp_to_string(i))))
-            CALL cp_fm_to_fm(mos_new(i), delta_mos(i)%matrix)
+            CALL cp_fm_to_fm(mos_new(i), delta_mos(i))
          END DO
       END IF
 
@@ -273,7 +270,7 @@ CONTAINS
    SUBROUTINE step_finalize(qs_env, rtp_control, delta_mos, delta_P)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(rtp_control_type), POINTER                    :: rtp_control
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: delta_mos
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: delta_mos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: delta_P
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'step_finalize'
@@ -673,10 +670,10 @@ CONTAINS
                                                             nmat
       REAL(KIND=dp)                                      :: alpha
       TYPE(cp_cfm_type)                                  :: cfm_tmp, cfm_tmp1, csc
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: mo_hist
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, matrix_struct_new
       TYPE(cp_fm_type)                                   :: fm_tmp, fm_tmp1, fm_tmp2
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: mo_hist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_new, s_hist
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_hist
 
@@ -716,9 +713,9 @@ CONTAINS
                        binomial(2*naspc, naspc - iaspc)/binomial(2*naspc - 2, naspc - 1)
                ihist = MOD(rtp%istep - iaspc, aspc_order) + 1
                IF (iaspc == 1) THEN
-                  CALL cp_fm_scale_and_add(zero, mos_new(imat), alpha, mo_hist(imat, ihist)%matrix)
+                  CALL cp_fm_scale_and_add(zero, mos_new(imat), alpha, mo_hist(imat, ihist))
                ELSE
-                  CALL cp_fm_scale_and_add(one, mos_new(imat), alpha, mo_hist(imat, ihist)%matrix)
+                  CALL cp_fm_scale_and_add(one, mos_new(imat), alpha, mo_hist(imat, ihist))
                END IF
             END DO
          END DO
@@ -818,7 +815,7 @@ CONTAINS
          END DO
       ELSE
          DO i = 1, SIZE(mos)
-            CALL cp_fm_to_fm(mos(i), rtp%history%mo_history(i, ihist)%matrix)
+            CALL cp_fm_to_fm(mos(i), rtp%history%mo_history(i, ihist))
          END DO
          IF (PRESENT(s_mat)) THEN
             IF (ASSOCIATED(rtp%history%s_history(ihist)%matrix)) THEN ! the sparsity might be different
