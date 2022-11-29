@@ -320,7 +320,12 @@ SIRIUS is a domain specific library for electronic structure calculations.
   please see <https://brehm-research.de/bqb> for more information as well as
   the `bqbtool` to inspect BQB files.
 
-### 2t. ROCM/HIP (Support for AMD GPU)
+### 2t. Torch (Machine Learning Framework needed for NequIP)
+
+- The C++ API of PyTorch can be downloaded from https://pytorch.org/get-started/locally/.
+- Add `-D__LIBTORCH` to the DFLAGS to enable support for libtorch.
+
+### 2u. ROCM/HIP (Support for AMD GPU)
 
 The code for the HIP based grid backend was developed and tested on Mi100 but
 should work out of the box on Nvidia hardware as well.
@@ -349,7 +354,7 @@ should work out of the box on Nvidia hardware as well.
 - Use `-D__OFFLOAD_PROFILING` to turn on the AMD ROC TX and Tracer libray.
   It requires to link `-lroctx64 -lroctracer64`.
 
-### 2u. OpenCL Devices
+### 2v. OpenCL Devices
 
 OpenCL devices are currently supported for DBCSR and can cover GPUs and other devices.
 Kernels can be automatically tuned like for the CUDA/HIP backend in DBCSR.
@@ -394,7 +399,7 @@ Note: the OpenCL backend uses some functionality from LIBXSMM (dependency).
 - Refer to <https://cp2k.github.io/dbcsr/> for, e.g., environment variables,
   or how to tune kernels (auto tuned parameters).
 
-### 2v. matrix-matrix multiplication offloading on GPU using SPLA
+### 2w. matrix-matrix multiplication offloading on GPU using SPLA
 
 The SPLA library is a hard dependency of SIRIUS but can also be used as a
 standalone library. It provides a generic interface to the blas gemm family with
@@ -408,7 +413,7 @@ internal criteria to decide if it is worth to do the operation on GPU or not.
 Calls to `offload_dgemm` also accept pointers on GPU or a combination of them.
 
 <!---
-### 2w. LibMaxwell (External Maxwell Solver)
+### 2x. LibMaxwell (External Maxwell Solver)
 
 - LibMaxwell is a library to solve the time-dependent Maxwell equations
   and use the resulting electric field in MD runs or real-time propagation.
