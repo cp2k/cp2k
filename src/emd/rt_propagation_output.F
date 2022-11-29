@@ -273,7 +273,8 @@ CONTAINS
 
       CHARACTER(LEN=10)                                  :: spin
       CHARACTER(LEN=2*default_string_length)             :: name
-      INTEGER                                            :: i, ispin, nao, nelectron, nmo, nspins
+      INTEGER                                            :: handle, i, ispin, nao, nelectron, nmo, &
+                                                            nspins
       REAL(KIND=dp)                                      :: flexible_electron_count, maxocc, n_el_f
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(mo_set_type)                                  :: mo_set_rtp
@@ -283,6 +284,8 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: dft_section, input
 
       NULLIFY (atomic_kind_set, particle_set, qs_kind_set, input, mos)
+
+      CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, &
                       atomic_kind_set=atomic_kind_set, &
@@ -308,7 +311,7 @@ CONTAINS
                               maxocc=maxocc, &
                               flexible_electron_count=flexible_electron_count)
 
-         WRITE (name, fmt="(a,I6)") "RTP MO SET, SPIN ", ispin
+         WRITE (name, FMT="(A,I6)") "RTP MO SET, SPIN ", ispin
          CALL init_mo_set(mo_set_rtp, fm_ref=mos_new(2*ispin - 1)%matrix, name=name)
 
          IF (nspins > 1) THEN
@@ -330,6 +333,8 @@ CONTAINS
 
          CALL deallocate_mo_set(mo_set_rtp)
       END DO
+
+      CALL timestop(handle)
 
    END SUBROUTINE write_rtp_mos_to_output_unit
 
@@ -658,7 +663,7 @@ CONTAINS
       DO ispin = 1, SIZE(rho)/2
          re = 2*ispin - 1
          im = 2*ispin
-         eps = MAX(filter_eps, 10E-12_dp)
+         eps = MAX(filter_eps, 1.0E-11_dp)
          DO WHILE (eps < 1.1_dp)
             CALL dbcsr_filter(tmp(re)%matrix, eps)
             occ = dbcsr_get_occupation(tmp(re)%matrix)
@@ -666,13 +671,13 @@ CONTAINS
                ispin, " eps ", eps, " real: ", occ
             eps = eps*10
          END DO
-         eps = MAX(filter_eps, 10E-12_dp)
+         eps = MAX(filter_eps, 1.0E-11_dp)
          DO WHILE (eps < 1.1_dp)
             CALL dbcsr_filter(tmp(im)%matrix, eps)
             occ = dbcsr_get_occupation(tmp(im)%matrix)
             IF (unit_nr > 0) WRITE (unit_nr, FMT="((T3,A,I1,A,F15.12,A,T61,F20.10))") "Occupation of rho spin ", &
                ispin, " eps ", eps, " imag: ", occ
-            eps = eps*10
+            eps = eps*10.0_dp
          END DO
       END DO
       CALL dbcsr_deallocate_matrix_set(tmp)
