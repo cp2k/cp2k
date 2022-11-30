@@ -55,11 +55,13 @@ if [[ "${git_sha}" != "<N/A>" ]] && command -v git > /dev/null 2>&1; then
 fi
 
 echo "--------------------------- Resource limits ------------------------------"
+uname -mrs
 case "$(uname -s)" in
   Linux)
     prlimit
     ;;
   Darwin)
+    sw_vers
     launchctl limit
     ;;
 esac
