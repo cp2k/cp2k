@@ -62,7 +62,13 @@ def main() -> None:
         f.write(regtest("ssmp"))
 
     with OutputFile("Dockerfile.test_arm64-psmp", args.check) as f:
-        f.write(toolchain_full(base_image="arm64v8/ubuntu:22.04", with_libxsmm="no"))
+        f.write(
+            toolchain_full(
+                base_image="arm64v8/ubuntu:22.04",
+                with_libxsmm="no",
+                with_libtorch="no",
+            )
+        )
         f.write(regtest("psmp"))
 
     with OutputFile(f"Dockerfile.test_performance", args.check) as f:

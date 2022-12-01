@@ -24,6 +24,7 @@ RUN ./install_cp2k_toolchain.sh \
     --install-all \
     --with-gcc=system \
     --with-libxsmm=no \
+    --with-libtorch=no \
     --dry-run
 
 # Dry-run leaves behind config files for the followup install scripts.
