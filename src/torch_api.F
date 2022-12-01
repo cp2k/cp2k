@@ -99,6 +99,9 @@ CONTAINS
                                                    source=source)
 #else
             CPABORT("CP2K compiled without the Torch library.")
+            MARK_USED(dict)
+            MARK_USED(key)
+            MARK_USED(source)
 #endif
          END SUBROUTINE torch_dict_insert_${typename}$_${ndims}$d
 
@@ -147,6 +150,9 @@ CONTAINS
             CALL C_F_POINTER(dest_c, dest, shape=sizes_f)
 #else
             CPABORT("CP2K compiled without the Torch library.")
+            MARK_USED(dict)
+            MARK_USED(key)
+            MARK_USED(dest)
 #endif
          END SUBROUTINE torch_dict_get_${typename}$_${ndims}$d
 
@@ -173,6 +179,7 @@ CONTAINS
       CPASSERT(C_ASSOCIATED(dict%c_ptr))
 #else
       CPABORT("CP2K was compiled without Torch library.")
+      MARK_USED(dict)
 #endif
    END SUBROUTINE torch_dict_create
 
@@ -196,6 +203,7 @@ CONTAINS
       dict%c_ptr = C_NULL_PTR
 #else
       CPABORT("CP2K was compiled without Torch library.")
+      MARK_USED(dict)
 #endif
    END SUBROUTINE torch_dict_release
 
@@ -221,6 +229,8 @@ CONTAINS
       CPASSERT(C_ASSOCIATED(model%c_ptr))
 #else
       CPABORT("CP2K was compiled without Torch library.")
+      MARK_USED(model)
+      MARK_USED(filename)
 #endif
    END SUBROUTINE torch_model_load
 
@@ -251,6 +261,9 @@ CONTAINS
                               outputs=outputs%c_ptr)
 #else
       CPABORT("CP2K was compiled without Torch library.")
+      MARK_USED(model)
+      MARK_USED(inputs)
+      MARK_USED(outputs)
 #endif
    END SUBROUTINE torch_model_eval
 
@@ -274,6 +287,7 @@ CONTAINS
       model%c_ptr = C_NULL_PTR
 #else
       CPABORT("CP2K was compiled without Torch library.")
+      MARK_USED(model)
 #endif
    END SUBROUTINE torch_model_release
 
@@ -323,6 +337,9 @@ CONTAINS
       DEALLOCATE (content_f) ! Was allocated on the C side.
 #else
       CPABORT("CP2K was compiled without Torch library.")
+      MARK_USED(filename)
+      MARK_USED(key)
+      MARK_USED(res)
 #endif
    END FUNCTION torch_model_read_metadata
 

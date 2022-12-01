@@ -218,6 +218,8 @@ The --with-PKG options follow the rules:
                           Default = install
   --with-libvori          Enable libvori for the Voronoi integration (and the BQB compressed trajectory format)
                           Default = install
+  --with-libtorch         Enable libtorch the machine learning framework needed for NequIP.
+                          Default = no
 
 FURTHER INSTRUCTIONS
 
@@ -255,7 +257,7 @@ mpi_list="mpich openmpi intelmpi"
 math_list="mkl acml openblas"
 lib_list="fftw libint libxc libxsmm cosma scalapack elpa plumed \
           spfft spla ptscotch superlu pexsi quip gsl spglib hdf5 libvdwxc sirius
-          libvori"
+          libvori libtorch"
 package_list="${tool_list} ${mpi_list} ${math_list} ${lib_list}"
 # ------------------------------------------------------------------------
 
@@ -301,6 +303,7 @@ with_spfft="__DONTUSE__"
 with_spla="__DONTUSE__"
 with_cosma="__INSTALL__"
 with_libvori="__INSTALL__"
+with_libtorch="__DONTUSE__"
 # for MPI, we try to detect system MPI variant
 if (command -v mpirun > /dev/null 2>&1); then
   # check if we are dealing with openmpi, mpich or intelmpi
@@ -604,6 +607,9 @@ while [ $# -ge 1 ]; do
       ;;
     --with-libvori*)
       with_libvori=$(read_with "${1}")
+      ;;
+    --with-libtorch*)
+      with_libtorch=$(read_with "${1}")
       ;;
     --with-spla*)
       with_spla=$(read_with "${1}")

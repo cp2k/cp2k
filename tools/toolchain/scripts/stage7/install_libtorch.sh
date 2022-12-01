@@ -23,7 +23,7 @@ source "${INSTALLDIR}"/toolchain.env
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
-case "${with_libtorch:=__INSTALL__}" in
+case "${with_libtorch}" in
   __INSTALL__)
     echo "==================== Installing libtorch ===================="
     pkg_install_dir="${INSTALLDIR}/libtorch-${libtorch_ver}"

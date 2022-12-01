@@ -177,7 +177,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       HIP_FLAGS+="-fPIE -D__HIP_PLATFORM_AMD__ -g --offload-arch=gfx906 -O3 --std=c++11 -Wall -Wextra -Werror \$(DFLAGS)"
       LIBS+=" IF_HIP(-lamdhip64 -lhipfft -lhipblas -lrocblas IF_DEBUG(-lroctx64 -lroctracer64|)|)"
       DFLAGS+=" IF_HIP(-D__HIP_PLATFORM_AMD__ -D__OFFLOAD_HIP IF_DEBUG(-D__OFFLOAD_PROFILING|)|)  -D__DBCSR_ACC"
-      CXXFLAGS+=" -fopenmp -std=c++11 -Wall -Wextra -Werror"
+      CXXFLAGS+=" -fopenmp -Wall -Wextra -Werror"
       ;;
     Mi100)
       check_lib -lamdhip64 "hip"
@@ -193,7 +193,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       HIP_FLAGS+="-fPIE -D__HIP_PLATFORM_AMD__ -g --offload-arch=gfx908 -O3 --std=c++11 -Wall -Wextra -Werror \$(DFLAGS)"
       LIBS+=" IF_HIP(-lamdhip64 -lhipfft -lhipblas -lrocblas IF_DEBUG(-lroctx64 -lroctracer64|)|)"
       DFLAGS+=" IF_HIP(-D__HIP_PLATFORM_AMD__ -D__OFFLOAD_HIP IF_DEBUG(-D__OFFLOAD_PROFILING|)|) -D__DBCSR_ACC"
-      CXXFLAGS+=" -fopenmp -std=c++11 -Wall -Wextra -Werror"
+      CXXFLAGS+=" -fopenmp -Wall -Wextra -Werror"
       ;;
     Mi250)
       check_lib -lamdhip64 "hip"
@@ -209,7 +209,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       HIP_FLAGS+="-fPIE -D__HIP_PLATFORM_AMD__ -g --offload-arch=gfx90a -O3 --std=c++11 -Wall -Wextra -Werror \$(DFLAGS)"
       LIBS+=" IF_HIP(-lamdhip64 -lhipfft -lhipblas -lrocblas IF_DEBUG(-lroctx64 -lroctracer64|)|)"
       DFLAGS+=" IF_HIP(-D__HIP_PLATFORM_AMD__ -D__OFFLOAD_HIP IF_DEBUG(-D__OFFLOAD_PROFILING|)|) -D__DBCSR_ACC"
-      CXXFLAGS+=" -fopenmp -std=c++11 -Wall -Wextra -Werror"
+      CXXFLAGS+=" -fopenmp -Wall -Wextra -Werror"
       ;;
     *)
       check_command nvcc "cuda"
