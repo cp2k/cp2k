@@ -55,8 +55,8 @@ MODULE rpa_grad
    USE machine,                         ONLY: m_flush
    USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: &
-        mp_allgather, mp_alltoall, mp_isend, mp_recv, mp_request_null, mp_send, mp_sendrecv, &
-        mp_sum, mp_sync, mp_waitall
+        mp_allgather, mp_alltoall, mp_irecv, mp_isend, mp_recv, mp_request_null, mp_send, &
+        mp_sendrecv, mp_sum, mp_sync, mp_wait, mp_waitall
    USE mp2_laplace,                     ONLY: calc_fm_mat_s_laplace
    USE mp2_ri_grad_util,                ONLY: array2fm,&
                                               create_dbcsr_gamma,&
@@ -1024,7 +1024,7 @@ CONTAINS
          proc_i_recv, proc_i_send, proc_recv, proc_send, proc_shift, recv_a_end, recv_a_size, &
          recv_a_start, recv_i_end, recv_i_size, recv_i_start, tag
       INTEGER(KIND=int_8)                                :: number_of_elements_per_blk
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: send_requests
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: procs_recv, recv_requests, send_requests
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: buffer_compens_1D
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: mat_S_3D
@@ -1066,7 +1066,9 @@ CONTAINS
          ALLOCATE (buffer_1D(proc_shift)%array(number_of_elements_per_blk))
       END DO
 
+      WRITE (*, *) number_of_parallel_channels
       ALLOCATE (buffer_3D(0:number_of_parallel_channels - 1))
+      CPASSERT(ALLOCATED(buffer_3D))
 
       ! Allocate buffers for vector version of kahan summation
       IF (mp2_env%ri_grad%dot_blksize >= blksize_threshold) THEN
@@ -1074,11 +1076,34 @@ CONTAINS
       END IF
 
       IF (number_of_parallel_channels > 1) THEN
+         ALLOCATE (procs_recv(0:MAXVAL(grid) - 1))
+         ALLOCATE (recv_requests(0:MAXVAL(grid) - 1))
          ALLOCATE (send_requests(MAXVAL(grid) - 1))
       END IF
 
       IF (number_of_parallel_channels > 1 .AND. grid(1) > 1) THEN
          CALL timeset(routineN//"_comm_a", handle2)
+         recv_requests(:) = mp_request_null
+         procs_recv(:) = -1
+         DO proc_shift = 0, grid(1) - 1
+            proc_a_recv = MODULO(mepos(1) - proc_shift, grid(1))
+            proc_recv = mepos(2)*grid(1) + proc_a_recv
+
+            CALL get_group_dist(gd_virtual, proc_a_recv, recv_a_start, recv_a_end, recv_a_size)
+
+            buffer_3D(proc_shift)%array(1:my_P_size, 1:recv_a_size, 1:my_i_size) => &
+               buffer_1D(proc_shift)%array(1:INT(my_P_size, KIND=int_8)*recv_a_size*my_i_size)
+
+            IF (proc_shift > 0) THEN
+               CALL mp_irecv(buffer_3D(proc_shift)%array, blacs2mpi(my_prow, proc_recv), &
+                             para_env%group, recv_requests(proc_shift), tag)
+            ELSE
+               buffer_3D(0)%array = mat_work_iaP_3D
+            END IF
+
+            procs_recv(proc_shift) = proc_a_recv
+         END DO
+
          send_requests(:) = mp_request_null
          DO proc_shift = 1, grid(1) - 1
             proc_a_send = MODULO(mepos(1) + proc_shift, grid(1))
@@ -1088,11 +1113,13 @@ CONTAINS
                           para_env%group, send_requests(proc_shift), tag)
          END DO
          CALL timestop(handle2)
-      END IF
+      ELSE
+         buffer_3D(0)%array(1:my_P_size, 1:my_a_size, 1:my_i_size) => &
+            buffer_1D(0)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*my_i_size)
 
-      buffer_3D(0)%array(1:my_P_size, 1:my_a_size, 1:my_i_size) => &
-         buffer_1D(0)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*my_i_size)
-      buffer_3D(0)%array = mat_work_iaP_3D
+         buffer_3D(0)%array = mat_work_iaP_3D
+      END IF
+      WRITE (*, *) SIZE(buffer_3D(0)%array, 1), SIZE(buffer_3D(0)%array, 2), SIZE(buffer_3D(0)%array, 3)
 
       CALL calc_P_rpa_a(P_ab((my_a_start - 1)*my_a_size + 1:my_a_end*my_a_size), &
                         mat_S_3D, buffer_3D(0)%array, &
@@ -1101,23 +1128,22 @@ CONTAINS
                         Eigenval(homo + my_a_start:homo + my_a_end), omega, weight)
 
       DO proc_shift = 1, grid(1) - 1
-         proc_a_send = MODULO(mepos(1) + proc_shift, grid(1))
-         proc_a_recv = MODULO(mepos(1) - proc_shift, grid(1))
-
-         proc_send = mepos(2)*grid(1) + proc_a_send
-         proc_recv = mepos(2)*grid(1) + proc_a_recv
-
-         CALL get_group_dist(gd_virtual, proc_a_recv, recv_a_start, recv_a_end, recv_a_size)
-
          CALL timeset(routineN//"_comm_a", handle2)
          IF (number_of_parallel_channels > 1) THEN
-            buffer_3D(proc_shift)%array(1:my_P_size, 1:recv_a_size, 1:my_i_size) => &
-               buffer_1D(proc_shift)%array(1:INT(my_P_size, KIND=int_8)*recv_a_size*my_i_size)
+            CALL mp_wait(recv_requests(proc_shift))
 
-            CALL mp_recv(buffer_3D(proc_shift)%array, blacs2mpi(my_prow, proc_recv), &
-                         tag, para_env%group)
+            CALL get_group_dist(gd_virtual, procs_recv(proc_shift), recv_a_start, recv_a_end, recv_a_size)
+
             completed = proc_shift
          ELSE
+            proc_a_send = MODULO(mepos(1) + proc_shift, grid(1))
+            proc_a_recv = MODULO(mepos(1) - proc_shift, grid(1))
+
+            proc_send = mepos(2)*grid(1) + proc_a_send
+            proc_recv = mepos(2)*grid(1) + proc_a_recv
+
+            CALL get_group_dist(gd_virtual, proc_a_recv, recv_a_start, recv_a_end, recv_a_size)
+
             buffer_3D(0)%array(1:my_P_size, 1:recv_a_size, 1:my_i_size) => &
                buffer_1D(0)%array(1:INT(my_P_size, KIND=int_8)*recv_a_size*my_i_size)
 
@@ -1149,6 +1175,11 @@ CONTAINS
             CALL mp_isend(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
                           para_env%group, send_requests(proc_shift), tag)
          END DO
+      ELSE
+         buffer_3D(0)%array(1:my_P_size, 1:my_a_size, 1:my_i_size) => &
+            buffer_1D(0)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*my_i_size)
+
+         buffer_3D(0)%array = mat_work_iaP_3D
       END IF
 
       buffer_3D(0)%array(1:my_P_size, 1:my_a_size, 1:my_i_size) => &
@@ -1203,6 +1234,8 @@ CONTAINS
       END IF
 
       IF (number_of_parallel_channels > 1) THEN
+         DEALLOCATE (procs_recv)
+         DEALLOCATE (recv_requests)
          DEALLOCATE (send_requests)
       END IF
 
