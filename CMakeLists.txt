@@ -22,40 +22,14 @@ endif()
 
 # =================================================================================================
 # PROJECT AND VERSION
-include(GetGitRevisionDescription)
 include(CMakeDependentOption)
 cmake_policy(SET CMP0048 NEW)
 
-git_describe(GIT_DESC)
-
-if(GIT_DESC)
-  string(REGEX REPLACE "^v([0-9]+)\\..*" "\\1" VERSION_MAJOR "${GIT_DESC}")
-  string(REGEX REPLACE "^v[0-9]+\\.([0-9]+).*" "\\1" VERSION_MINOR
-                       "${GIT_DESC}")
-  string(REGEX REPLACE "^v[0-9]+\\.[0-9]+\\.([0-9]+).*" "\\1" VERSION_PATCH
-                       "${GIT_DESC}")
-  string(REGEX REPLACE "^v[0-9]+\\.[0-9]+\\.[0-9]+(.*)" "\\1" VERSION_GIT
-                       "${GIT_DESC}")
-
-  git_local_changes(GIT_STATE)
-  if("${GIT_STATE}" STREQUAL "DIRTY")
-    set(VERSION_GIT "${VERSION_GIT}-dirty")
-  endif()
-
-  execute_process(
-    COMMAND git log -1 --format=%ai
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE GIT_COMMIT_DATE
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-  # take only the date from the git timestamp:
-  string(REGEX REPLACE "^([0-9\\-]+) .*" "\\1" VERSION_DATE
-                       "${GIT_COMMIT_DATE}")
-else()
-  set(VERSION_MAJOR 22)
-  set(VERSION_MINOR 11)
-  set(VERSION_PATCH 00)
-endif()
+set(VERSION_MAJOR 22)
+# anything above 12 is to indicate that it is devel-branch. The git hash commit
+# is the only important information to give. It is retrieved few lines below.
+set(VERSION_MINOR 99)
+set(VERSION_PATCH 00)
 
 project(
   cp2k
