@@ -367,18 +367,20 @@ ifneq ($(USE_OPENBLAS),)
    endif
 endif
 
-ifneq ($(USE_LIBTORCH),)
-   USE_LIBTORCH   := $(strip $(USE_LIBTORCH))
-   LIBTORCH_INC   := $(INSTALL_PATH)/libtorch-$(USE_LIBTORCH)/include
-   LIBTORCH_LIB   := $(INSTALL_PATH)/libtorch-$(USE_LIBTORCH)/lib
-   CFLAGS         += -I$(LIBTORCH_INC)
-   DFLAGS         += -D__LIBTORCH
-   LIBS           += -Wl,-rpath=$(LIBTORCH_LIB) -L$(LIBTORCH_LIB) -lc10 -ltorch_cpu -ltorch
+ifeq ($(shell [ $(shell ldd --version | head -n 1 | cut -d. -f2) -ge 27 ] && echo yes), yes)
+   ifneq ($(USE_LIBTORCH),)
+      USE_LIBTORCH   := $(strip $(USE_LIBTORCH))
+      LIBTORCH_INC   := $(INSTALL_PATH)/libtorch-$(USE_LIBTORCH)/include
+      LIBTORCH_LIB   := $(INSTALL_PATH)/libtorch-$(USE_LIBTORCH)/lib
+      CFLAGS         += -I$(LIBTORCH_INC)
+      DFLAGS         += -D__LIBTORCH
+      LIBS           += -Wl,-rpath=$(LIBTORCH_LIB) -L$(LIBTORCH_LIB) -lc10 -ltorch_cpu -ltorch
+   endif
 endif
 
 CFLAGS         += $(DFLAGS) $(CFLAGS_DEBUG)
 
-CXXFLAGS       += $(CFLAGS) --std=c++14
+CXXFLAGS       := $(CFLAGS) --std=c++14
 
 FCFLAGS        := $(CFLAGS) $(FCFLAGS_DEBUG) $(WFLAGS)
 ifeq ($(shell [ $(shell gcc -dumpversion | cut -d. -f1) -gt 9 ] && echo yes), yes)
