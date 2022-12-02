@@ -1,10 +1,3 @@
-#!-------------------------------------------------------------------------------------------------!
-#!   CP2K: A general program to perform molecular dynamics simulations                             !
-#!   Copyright 2000-2022 CP2K developers group <https://cp2k.org>                                  !
-#!                                                                                                 !
-#!   SPDX-License-Identifier: GPL-2.0-or-later                                                     !
-#!-------------------------------------------------------------------------------------------------!
-
 # * Returns a version string from Git
 #
 # These functions force a re-configure on each git commit so that you can trust
