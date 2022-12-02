@@ -54,17 +54,28 @@ if [[ "${git_sha}" != "<N/A>" ]] && command -v git > /dev/null 2>&1; then
     "${git_sha}"
 fi
 
-echo "--------------------------- Resource limits ------------------------------"
+echo "------------------------- System information -----------------------------"
 uname -mrs
+case "$(uname -s)" in
+  Linux)
+    ldd --version | head -n 1
+    ;;
+  Darwin)
+    sw_vers
+    ;;
+esac
+echo ""
+
+echo "--------------------------- Resource limits ------------------------------"
 case "$(uname -s)" in
   Linux)
     prlimit
     ;;
   Darwin)
-    sw_vers
     launchctl limit
     ;;
 esac
+echo ""
 
 echo "--------------------------- SELinux --------------------------------------"
 if [[ -f /usr/sbin/getenforce ]]; then
@@ -72,6 +83,7 @@ if [[ -f /usr/sbin/getenforce ]]; then
 else
   echo "No SELinux installation found"
 fi
+echo ""
 
 echo "--------------------------- ARCH-file ------------------------------------"
 cat "./arch/${ARCH}.${VERSION}"
