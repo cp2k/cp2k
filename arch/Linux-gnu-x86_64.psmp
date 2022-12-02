@@ -367,7 +367,7 @@ ifneq ($(USE_OPENBLAS),)
    endif
 endif
 
-ifeq ($(shell [ $(shell ldd --version | head -n 1 | cut -d. -f2) -ge 27 ] && echo yes), yes)
+ifeq ($(shell [ $(shell ldd --version | head -n 1 | tr -s '.' '\n' | tail -n 1) -ge 27 ] && echo yes), yes)
    ifneq ($(USE_LIBTORCH),)
       USE_LIBTORCH   := $(strip $(USE_LIBTORCH))
       LIBTORCH_INC   := $(INSTALL_PATH)/libtorch-$(USE_LIBTORCH)/include
