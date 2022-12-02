@@ -1070,8 +1070,12 @@ CONTAINS
          ALLOCATE (buffer_compens_1D(MAX(my_a_size*maxsize(gd_virtual), my_i_size*maxsize(gd_homo))))
       END IF
 
+      buffer_3D(1)%array(1:my_P_size, 1:my_a_size, 1:my_i_size) => &
+         buffer_1D(1:INT(my_P_size, KIND=int_8)*my_a_size*my_i_size)
+      buffer_3D(1)%array = mat_work_iaP_3D
+
       CALL calc_P_rpa_a(P_ab((my_a_start - 1)*my_a_size + 1:my_a_end*my_a_size), &
-                        mat_S_3D, mat_work_iaP_3D, &
+                        mat_S_3D, buffer_3D(1)%array, &
                         mp2_env%ri_grad%dot_blksize, buffer_compens_1D, mp2_env%local_gemm_ctx, &
                         Eigenval(homo + my_a_start:homo + my_a_end), Eigenval(my_i_start:my_i_end), &
                         Eigenval(homo + my_a_start:homo + my_a_end), omega, weight)
@@ -1102,8 +1106,12 @@ CONTAINS
 
       END DO
 
+      buffer_3D(1)%array(1:my_P_size, 1:my_a_size, 1:my_i_size) => &
+         buffer_1D(1:INT(my_P_size, KIND=int_8)*my_a_size*my_i_size)
+      buffer_3D(1)%array = mat_work_iaP_3D
+
       CALL calc_P_rpa_i(P_ij((my_i_start - 1)*my_i_size + 1:my_i_end*my_i_size), &
-                        mat_S_3D, mat_work_iaP_3D, &
+                        mat_S_3D, buffer_3D(1)%array, &
                         mp2_env%ri_grad%dot_blksize, buffer_compens_1D, mp2_env%local_gemm_ctx, &
                         Eigenval(homo + my_a_start:homo + my_a_end), Eigenval(my_i_start:my_i_end), &
                         Eigenval(my_i_start:my_i_end), omega, weight)
@@ -1118,7 +1126,8 @@ CONTAINS
          CALL get_group_dist(gd_homo, proc_i_recv, recv_i_start, recv_i_end, recv_i_size)
 
          ! Both pointers point to the same memory but we need the first for communication, the second one for dgemm
-        buffer_3D(1)%array(1:my_P_size, 1:my_a_size, 1:recv_i_size) => buffer_1D(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
+         buffer_3D(1)%array(1:my_P_size, 1:my_a_size, 1:recv_i_size) => &
+            buffer_1D(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
 
          CALL timeset(routineN//"_comm_i", handle2)
          CALL mp_sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
