@@ -13,6 +13,8 @@ PROGRAM nequip_unittest
                                               int_8,&
                                               sp
    USE mathlib,                         ONLY: inv_3x3
+   USE physcon,                         ONLY: angstrom,&
+                                              evolt
    USE torch_api,                       ONLY: &
         torch_cuda_is_available, torch_dict_create, torch_dict_get, torch_dict_insert, &
         torch_dict_release, torch_dict_type, torch_model_eval, torch_model_load, &
@@ -30,7 +32,7 @@ PROGRAM nequip_unittest
 
    ! Inputs.
    INTEGER, PARAMETER  :: natoms = 96
-   INTEGER :: nedges
+   INTEGER :: iatom, nedges
    REAL(sp), DIMENSION(3, natoms) :: pos
    REAL(dp), DIMENSION(3, 3):: cell, hinv
    INTEGER(kind=int_8), DIMENSION(natoms):: atom_types
@@ -183,7 +185,11 @@ PROGRAM nequip_unittest
    CALL torch_dict_get(outputs, "total_energy", total_energy)
    CALL torch_dict_get(outputs, "atomic_energy", atomic_energy)
    CALL torch_dict_get(outputs, "forces", forces)
-   WRITE (*, *) "Total Energy: ", total_energy(1, 1)
+   WRITE (*, *) "Total Energy [Hartree] : ", total_energy(1, 1)/evolt
+   WRITE (*, *) "FORCES: [Hartree/Bohr]: "
+   DO iatom = 1, natoms
+      WRITE (*, *) forces(:, iatom)*angstrom/evolt
+   END DO
    CPASSERT(ABS(-14985.615_dp - REAL(total_energy(1, 1), kind=dp)) < 2e-3_dp)
 
    CALL torch_dict_release(inputs)

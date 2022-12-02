@@ -72,7 +72,7 @@ MODULE bibliography
                             Kantorovich2008a, Wellendorff2012, Niklasson2014, Borstnik2014, &
                             Rayson2009, Grimme2011, Fattebert2002, Andreussi2012, &
                             Khaliullin2007, Khaliullin2008, Merlot2014, Lin2009, Lin2013, &
-                            QUIP_ref, DelBen2015, Souza2002, Umari2002, Stengel2009, &
+                            QUIP_ref, Batzner2022, DelBen2015, Souza2002, Umari2002, Stengel2009, &
                             Luber2014, Berghold2011, DelBen2015b, Campana2009, &
                             Schiffmann2015, Bruck2014, Rappe1992, Ceriotti2012, &
                             Ceriotti2010, Walewski2014, Monkhorst1976, MacDonald1978, &
@@ -206,6 +206,26 @@ CONTAINS
                          "PY 2014", &
                          "ER"), &
                          DOI="")
+
+      CALL add_reference(key=Batzner2022, ISI_record=s2a( &
+                         "PT J", &
+                         "AU Batzner, S", &
+                         "   Musaelian, A", &
+                         "   Sun, L", &
+                         "   Geiger, M", &
+                         "   Mailoa, JP", &
+                         "   Kornbluth, M", &
+                         "   Molinari, N", &
+                         "   Smidt, TE", &
+                         "   Kozinsky, B", &
+                         "TI E(3)-equivariant graph neural networks for data-efficient", &
+                         "    and accurate interatomic potentials", &
+                         "SO Nature Communications", &
+                         "PY 2022", &
+                         "VL 13", &
+                         "IS 1", &
+                         "ER"), &
+                         DOI="10.1038/s41467-022-29939-5")
 
       CALL add_reference(key=VandenCic2006, ISI_record=s2a( &
                          "AU Vanden-Eijnden, E", &

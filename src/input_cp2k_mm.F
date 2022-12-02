@@ -15,8 +15,8 @@
 ! **************************************************************************************************
 MODULE input_cp2k_mm
    USE bibliography,                    ONLY: &
-        Clabaut2020, Clabaut2021, Devynck2012, Dick1958, Foiles1986, Mitchell1993, QUIP_ref, &
-        Siepmann1995, Tersoff1988, Tosi1964a, Tosi1964b, Yamada2000
+        Batzner2022, Clabaut2020, Clabaut2021, Devynck2012, Dick1958, Foiles1986, Mitchell1993, &
+        QUIP_ref, Siepmann1995, Tersoff1988, Tosi1964a, Tosi1964b, Yamada2000
    USE cp_output_handling,              ONLY: cp_print_key_section_create,&
                                               debug_print_level,&
                                               high_print_level,&
@@ -1170,6 +1170,10 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_NEQUIP_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       CALL create_Goodwin_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -1450,6 +1454,68 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_QUIP_section
+
+! **************************************************************************************************
+!> \brief This section specifies the input parameters for NEQUIP  potential type
+!> \param section the section to create
+!> \author teo
+! **************************************************************************************************
+   SUBROUTINE create_NEQUIP_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="NEQUIP", &
+                          description="This section specifies the input parameters for NEQUIP potential type. "// &
+                          "neural network potentials "// &
+                          "to achieve correlated-wavefunction-like accuracy. "// &
+                          "Requires linking with libtorch library from <a href=""https://pytorch.org/cppdocs/installing.html"" "// &
+                          "target=""_blank"">https://pytorch.org/cppdocs/installing.html</a> .", &
+                          citations=(/Batzner2022/), n_keywords=1, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
+                          description="Defines the atomic kinds involved in the NEQUIP potential. "// &
+                          "Provide a list of each element.", &
+                          usage="ATOMS {KIND 1} {KIND 2} .. {KIND N}", type_of_var=char_t, &
+                          n_var=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="PARM_FILE_NAME", &
+                          variants=(/"PARMFILE"/), &
+                          description="Specifies the filename that contains the NEQUIP model.", &
+                          usage="PARM_FILE_NAME {FILENAME}", default_lc_val="model.pth")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="UNIT_COORDS", &
+                          description="Units of coordinates in the NEQUIP model.pth file.", &
+                          usage="UNIT angstrom", default_c_val="angstrom")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="UNIT_ENERGY", &
+                          description="Units of energy in the NEQUIP model.pth file.", &
+                          usage="UNIT hartree", default_c_val="hartree")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="UNIT_FORCES", &
+                          description="Units of the forces in the NEQUIP model.pth file.", &
+                          usage="UNIT hartree/bohr", default_c_val="hartree/bohr")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="UNIT_CELL", &
+                          description="Units of the cell vectors in the NEQUIP model.pth file.", &
+                          usage="UNIT angstrom", default_c_val="angstrom")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_NEQUIP_section
 
 ! **************************************************************************************************
 !> \brief This section specifies the input parameters for Lennard-Jones potential type
