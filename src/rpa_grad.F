@@ -1205,17 +1205,8 @@ CONTAINS
          END DO
          CALL timestop(handle)
 
-         CALL timeset(routineN//"_scale", handle)
-         DO my_i = 1, my_i_size
-            ! Scale both matrices
-            DO my_a = 1, my_a_size
-               mat_S(:, my_a, my_i) = mat_S(:, my_a, my_i)*(omega/(my_eval_virt(my_a) - my_eval_occ(my_i)))
-            END DO
-            DO my_a = 1, recv_a_size
-               mat_work(:, my_a, my_i) = mat_work(:, my_a, my_i)*(omega/(recv_eval_virt(my_a) - my_eval_occ(my_i)))
-            END DO
-         END DO
-         CALL timestop(handle)
+         CALL scale_mat_S(mat_S, omega, my_eval_virt, my_eval_occ)
+         CALL scale_mat_S(mat_work, omega, recv_eval_virt, my_eval_occ)
 
          CALL timeset(routineN//"_dgemm", handle)
          DO my_i = 1, my_i_size
@@ -1331,20 +1322,8 @@ CONTAINS
          END DO
          CALL timestop(handle)
 
-         CALL timeset(routineN//"_scale", handle)
-         ! Scale both matrices
-         DO my_i = 1, my_i_size
-         DO my_a = 1, my_a_size
-            mat_S(:, my_a, my_i) = mat_S(:, my_a, my_i)* &
-                                   (omega/(my_eval_virt(my_a) - my_eval_occ(my_i)))
-         END DO
-         END DO
-         DO my_i = 1, recv_i_size
-         DO my_a = 1, my_a_size
-            mat_work(:, my_a, my_i) = mat_work(:, my_a, my_i)*(omega/(my_eval_virt(my_a) - recv_eval_occ(my_i)))
-         END DO
-         END DO
-         CALL timestop(handle)
+         CALL scale_mat_S(mat_S, omega, my_eval_virt, my_eval_occ)
+         CALL scale_mat_S(mat_work, omega, my_eval_virt, recv_eval_occ)
 
          CALL timeset(routineN//"_dgemm", handle)
          DO my_a = 1, my_a_size
@@ -1438,6 +1417,36 @@ CONTAINS
          compens(i) = (s - my_p) - my_compens
          P(i) = s
       END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param mat_S ...
+!> \param omega ...
+!> \param eval_virt ...
+!> \param eval_occ ...
+! **************************************************************************************************
+   SUBROUTINE scale_mat_S(mat_S, omega, eval_virt, eval_occ)
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: mat_S
+      REAL(KIND=dp), INTENT(IN)                          :: omega
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eval_virt, eval_occ
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'scale_mat_S'
+
+      INTEGER                                            :: handle, my_a, my_i
+
+      CALL timeset(routineN, handle)
+
+!$OMP PARALLEL DO DEFAULT(NONE) SHARED(mat_S,omega,eval_virt,eval_occ) PRIVATE(my_i,my_a)
+      DO my_i = 1, SIZE(mat_S, 3)
+         DO my_a = 1, SIZE(mat_S, 2)
+            mat_S(:, my_a, my_i) = mat_S(:, my_a, my_i)*(omega/(eval_virt(my_a) - eval_occ(my_i)))
+         END DO
+      END DO
+!$OMP END PARALLEL DO
 
       CALL timestop(handle)
 
