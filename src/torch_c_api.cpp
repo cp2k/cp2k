@@ -156,7 +156,7 @@ void torch_c_model_read_metadata(const char *filename, const char *key,
   torch::jit::load(filename, torch::kCPU, extra_files);
   const std::string &content_str = extra_files[key];
   *length = content_str.length();
-  *content = (char *)malloc(content_str.length() * sizeof(char));
+  *content = (char *)malloc(content_str.length() + 1); // +1 for null terminator
   strcpy(*content, content_str.c_str());
 }
 
