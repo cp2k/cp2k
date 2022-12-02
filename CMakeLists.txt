@@ -116,6 +116,7 @@ option(CP2K_USE_PEXSI "Enable pexsi support" OFF)
 option(CP2K_USE_QUIP "Enable quip support" OFF)
 option(CP2K_USE_SPGLIB "Enable spglib support" ON)
 option(CP2K_USE_LIBXC "Enable libxc support" ON)
+option(CP2K_USE_LIBTORCH "Enable libtorch support" OFF)
 option(CP2K_USE_STATIC_BLAS "Link against static version of BLAS/LAPACK" OFF)
 option(CP2K_USE_SPLA
        "Use SPLA offloading gemm feature to the GPU if it is beneficial. " OFF)
@@ -501,6 +502,10 @@ if(CP2K_USE_PLUMED)
   find_package(Plumed REQUIRED)
 endif()
 
+if(CP2K_USE_LIBTORCH)
+  find_package(Torch REQUIRED)
+endif()
+
 # OPTION HANDLING
 
 # make sure that the default build type is RELEASE
@@ -601,6 +606,12 @@ if(CP2K_USE_LIBXC)
   )
   message(STATUS "   - include directories : " ${CP2K_LIBXC_INCLUDE_DIRS})
   message(STATUS "   - libraries :           " ${CP2K_LIBXC_LINK_LIBRARIES})
+endif()
+
+if(CP2K_USE_LIBTORCH)
+  message(STATUS " ")
+  message(STATUS "- LIBTORCH")
+  message(STATUS "   - libraries :           " ${CP2K_LIBTORCH_LIBRARIES})
 endif()
 
 if(CP2K_USE_FFTW3)
@@ -768,6 +779,10 @@ endif()
 
 if(NOT CP2K_USE_SUPERLU)
   message(STATUS "   - SUPERLU")
+endif()
+
+if(NOT CP2K_USE_LIBTORCH)
+  message(STATUS "   - libtorch")
 endif()
 
 message(
