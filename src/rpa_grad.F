@@ -1019,14 +1019,16 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_P_rpa'
 
-      INTEGER :: handle, handle2, my_a_end, my_a_size, my_a_start, my_i_end, my_i_size, &
+      INTEGER :: completed, handle, handle2, my_a_end, my_a_size, my_a_start, my_i_end, my_i_size, &
          my_i_start, my_P_size, my_prow, number_of_parallel_channels, proc_a_recv, proc_a_send, &
          proc_i_recv, proc_i_send, proc_recv, proc_send, proc_shift, recv_a_end, recv_a_size, &
          recv_a_start, recv_i_end, recv_i_size, recv_i_start, tag
+      INTEGER(KIND=int_8)                                :: number_of_elements_per_blk
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: send_requests
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: buffer_1D, buffer_compens_1D
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: buffer_compens_1D
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: mat_S_3D
+      TYPE(cp_1d_r_cp_type), ALLOCATABLE, DIMENSION(:)   :: buffer_1D
       TYPE(cp_3d_r_cp_type), ALLOCATABLE, DIMENSION(:)   :: buffer_3D
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
@@ -1055,13 +1057,16 @@ CONTAINS
       ! Fortran 2008 does allow pointer remapping independently of the ranks but GCC 7 does not properly support it
       mat_S_3D(1:my_P_size, 1:my_a_size, 1:my_i_size) => mat_S_1D(1:INT(my_P_size, int_8)*my_a_size*my_i_size)
 
-      number_of_parallel_channels = 2
-      number_of_parallel_channels = MIN(number_of_parallel_channels, MAXVAL(grid))
+      number_of_parallel_channels = MAXVAL(grid)
+      number_of_elements_per_blk = MAX(INT(maxsize(gd_homo), KIND=int_8)*my_a_size, &
+                                       INT(maxsize(gd_virtual), KIND=int_8)*my_i_size)*my_P_size
 
-      ALLOCATE (buffer_1D(number_of_parallel_channels*MAX(INT(maxsize(gd_homo), KIND=int_8)*my_a_size, &
-                                                          INT(maxsize(gd_virtual), KIND=int_8)*my_i_size)*my_P_size))
+      ALLOCATE (buffer_1D(0:number_of_parallel_channels - 1))
+      DO proc_shift = 0, MAXVAL(grid) - 1
+         ALLOCATE (buffer_1D(proc_shift)%array(number_of_elements_per_blk))
+      END DO
 
-      ALLOCATE (buffer_3D(number_of_parallel_channels))
+      ALLOCATE (buffer_3D(0:number_of_parallel_channels - 1))
 
       ! Allocate buffers for vector version of kahan summation
       IF (mp2_env%ri_grad%dot_blksize >= blksize_threshold) THEN
@@ -1073,6 +1078,7 @@ CONTAINS
       END IF
 
       IF (number_of_parallel_channels > 1 .AND. grid(1) > 1) THEN
+         CALL timeset(routineN//"_comm_a", handle2)
          send_requests(:) = mp_request_null
          DO proc_shift = 1, grid(1) - 1
             proc_a_send = MODULO(mepos(1) + proc_shift, grid(1))
@@ -1081,14 +1087,15 @@ CONTAINS
             CALL mp_isend(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
                           para_env%group, send_requests(proc_shift), tag)
          END DO
+         CALL timestop(handle2)
       END IF
 
-      buffer_3D(1)%array(1:my_P_size, 1:my_a_size, 1:my_i_size) => &
-         buffer_1D(1:INT(my_P_size, KIND=int_8)*my_a_size*my_i_size)
-      buffer_3D(1)%array = mat_work_iaP_3D
+      buffer_3D(0)%array(1:my_P_size, 1:my_a_size, 1:my_i_size) => &
+         buffer_1D(0)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*my_i_size)
+      buffer_3D(0)%array = mat_work_iaP_3D
 
       CALL calc_P_rpa_a(P_ab((my_a_start - 1)*my_a_size + 1:my_a_end*my_a_size), &
-                        mat_S_3D, buffer_3D(1)%array, &
+                        mat_S_3D, buffer_3D(0)%array, &
                         mp2_env%ri_grad%dot_blksize, buffer_compens_1D, mp2_env%local_gemm_ctx, &
                         Eigenval(homo + my_a_start:homo + my_a_end), Eigenval(my_i_start:my_i_end), &
                         Eigenval(homo + my_a_start:homo + my_a_end), omega, weight)
@@ -1102,22 +1109,27 @@ CONTAINS
 
          CALL get_group_dist(gd_virtual, proc_a_recv, recv_a_start, recv_a_end, recv_a_size)
 
-         buffer_3D(1)%array(1:my_P_size, 1:recv_a_size, 1:my_i_size) => &
-            buffer_1D(1:INT(my_P_size, KIND=int_8)*recv_a_size*my_i_size)
-
          CALL timeset(routineN//"_comm_a", handle2)
          IF (number_of_parallel_channels > 1) THEN
-            CALL mp_recv(buffer_3D(1)%array, blacs2mpi(my_prow, proc_recv), &
+            buffer_3D(proc_shift)%array(1:my_P_size, 1:recv_a_size, 1:my_i_size) => &
+               buffer_1D(proc_shift)%array(1:INT(my_P_size, KIND=int_8)*recv_a_size*my_i_size)
+
+            CALL mp_recv(buffer_3D(proc_shift)%array, blacs2mpi(my_prow, proc_recv), &
                          tag, para_env%group)
+            completed = proc_shift
          ELSE
+            buffer_3D(0)%array(1:my_P_size, 1:recv_a_size, 1:my_i_size) => &
+               buffer_1D(0)%array(1:INT(my_P_size, KIND=int_8)*recv_a_size*my_i_size)
+
             CALL mp_sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
-                             buffer_3D(1)%array, blacs2mpi(my_prow, proc_recv), &
+                             buffer_3D(0)%array, blacs2mpi(my_prow, proc_recv), &
                              para_env%group, tag)
+            completed = 0
          END IF
          CALL timestop(handle2)
 
          CALL calc_P_rpa_a(P_ab((recv_a_start - 1)*my_a_size + 1:recv_a_end*my_a_size), &
-                           mat_S_3D, buffer_3D(1)%array, &
+                           mat_S_3D, buffer_3D(completed)%array, &
                            mp2_env%ri_grad%dot_blksize, buffer_compens_1D, mp2_env%local_gemm_ctx, &
                            Eigenval(homo + my_a_start:homo + my_a_end), Eigenval(my_i_start:my_i_end), &
                            Eigenval(homo + recv_a_start:homo + recv_a_end), omega, weight)
@@ -1139,12 +1151,12 @@ CONTAINS
          END DO
       END IF
 
-      buffer_3D(1)%array(1:my_P_size, 1:my_a_size, 1:my_i_size) => &
-         buffer_1D(1:INT(my_P_size, KIND=int_8)*my_a_size*my_i_size)
-      buffer_3D(1)%array = mat_work_iaP_3D
+      buffer_3D(0)%array(1:my_P_size, 1:my_a_size, 1:my_i_size) => &
+         buffer_1D(0)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*my_i_size)
+      buffer_3D(0)%array = mat_work_iaP_3D
 
       CALL calc_P_rpa_i(P_ij((my_i_start - 1)*my_i_size + 1:my_i_end*my_i_size), &
-                        mat_S_3D, buffer_3D(1)%array, &
+                        mat_S_3D, buffer_3D(0)%array, &
                         mp2_env%ri_grad%dot_blksize, buffer_compens_1D, mp2_env%local_gemm_ctx, &
                         Eigenval(homo + my_a_start:homo + my_a_end), Eigenval(my_i_start:my_i_end), &
                         Eigenval(my_i_start:my_i_end), omega, weight)
@@ -1158,23 +1170,29 @@ CONTAINS
 
          CALL get_group_dist(gd_homo, proc_i_recv, recv_i_start, recv_i_end, recv_i_size)
 
-         ! Both pointers point to the same memory but we need the first for communication, the second one for dgemm
-         buffer_3D(1)%array(1:my_P_size, 1:my_a_size, 1:recv_i_size) => &
-            buffer_1D(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
-
          CALL timeset(routineN//"_comm_i", handle2)
          IF (number_of_parallel_channels > 1) THEN
-            CALL mp_recv(buffer_3D(1)%array, blacs2mpi(my_prow, proc_recv), &
+            ! Both pointers point to the same memory but we need the first for communication, the second one for dgemm
+            buffer_3D(proc_shift)%array(1:my_P_size, 1:my_a_size, 1:recv_i_size) => &
+               buffer_1D(proc_shift)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
+
+            CALL mp_recv(buffer_3D(proc_shift)%array, blacs2mpi(my_prow, proc_recv), &
                          tag, para_env%group)
+            completed = proc_shift
          ELSE
+            ! Both pointers point to the same memory but we need the first for communication, the second one for dgemm
+            buffer_3D(0)%array(1:my_P_size, 1:my_a_size, 1:recv_i_size) => &
+               buffer_1D(0)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
+
             CALL mp_sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
-                             buffer_3D(1)%array, blacs2mpi(my_prow, proc_recv), &
+                             buffer_3D(0)%array, blacs2mpi(my_prow, proc_recv), &
                              para_env%group, tag)
+            completed = 0
          END IF
          CALL timestop(handle2)
 
          CALL calc_P_rpa_i(P_ij((recv_i_start - 1)*my_i_size + 1:recv_i_end*my_i_size), &
-                           mat_S_3D, buffer_3D(1)%array, &
+                           mat_S_3D, buffer_3D(completed)%array, &
                            mp2_env%ri_grad%dot_blksize, buffer_compens_1D, mp2_env%local_gemm_ctx, &
                            Eigenval(homo + my_a_start:homo + my_a_end), Eigenval(my_i_start:my_i_end), &
                            Eigenval(recv_i_start:recv_i_end), omega, weight)
@@ -1195,8 +1213,11 @@ CONTAINS
          DEALLOCATE (buffer_compens_1D)
       END IF
 
-      DEALLOCATE (buffer_3D)
-      DEALLOCATE (buffer_1D)
+      DO proc_shift = 0, MAXVAL(grid) - 1
+         NULLIFY (buffer_3D(proc_shift)%array)
+         DEALLOCATE (buffer_1D(proc_shift)%array)
+      END DO
+      DEALLOCATE (buffer_3D, buffer_1D)
 
       CALL timestop(handle)
 
