@@ -1225,17 +1225,8 @@ CONTAINS
          END DO
          CALL timestop(handle)
 
-         CALL timeset(routineN//"_scale", handle)
-         ! Remove scaling of mat_S for later
-         DO my_i = 1, my_i_size
-            DO my_a = 1, my_a_size
-               mat_S(:, my_a, my_i) = mat_S(:, my_a, my_i)*((my_eval_virt(my_a) - my_eval_occ(my_i))/omega)
-            END DO
-            DO my_a = 1, recv_a_size
-               mat_work(:, my_a, my_i) = mat_work(:, my_a, my_i)*((recv_eval_virt(my_a) - my_eval_occ(my_i))/omega)
-            END DO
-         END DO
-         CALL timestop(handle)
+         CALL remove_scaling_mat_S(mat_S, omega, my_eval_virt, my_eval_occ)
+         CALL remove_scaling_mat_S(mat_work, omega, recv_eval_virt, my_eval_occ)
       ELSE
          BLOCK
             INTEGER :: recv_a
@@ -1342,19 +1333,8 @@ CONTAINS
          END DO
          CALL timestop(handle)
 
-         CALL timeset(routineN//"_scale", handle)
-         ! Remove scaling factor of mat_S for later
-         DO my_i = 1, my_i_size
-         DO my_a = 1, my_a_size
-            mat_S(:, my_a, my_i) = mat_S(:, my_a, my_i)*((my_eval_virt(my_a) - my_eval_occ(my_i))/omega)
-         END DO
-         END DO
-         DO my_i = 1, recv_i_size
-         DO my_a = 1, my_a_size
-            mat_work(:, my_a, my_i) = mat_work(:, my_a, my_i)*((my_eval_virt(my_a) - recv_eval_occ(my_i))/omega)
-         END DO
-         END DO
-         CALL timestop(handle)
+         CALL remove_scaling_mat_S(mat_S, omega, my_eval_virt, my_eval_occ)
+         CALL remove_scaling_mat_S(mat_work, omega, my_eval_virt, recv_eval_occ)
       ELSE
          BLOCK
             REAL(KIND=dp) :: tmp, e_i, e_a, e_j, omega2
@@ -1444,6 +1424,39 @@ CONTAINS
       DO my_i = 1, SIZE(mat_S, 3)
          DO my_a = 1, SIZE(mat_S, 2)
             mat_S(:, my_a, my_i) = mat_S(:, my_a, my_i)*(omega/(eval_virt(my_a) - eval_occ(my_i)))
+         END DO
+      END DO
+!$OMP END PARALLEL DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param mat_S ...
+!> \param omega ...
+!> \param eval_virt ...
+!> \param eval_occ ...
+! **************************************************************************************************
+   SUBROUTINE remove_scaling_mat_S(mat_S, omega, eval_virt, eval_occ)
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: mat_S
+      REAL(KIND=dp), INTENT(IN)                          :: omega
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eval_virt, eval_occ
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_scaling_mat_S'
+
+      INTEGER                                            :: handle, my_a, my_i
+      REAL(KIND=dp)                                      :: omega1
+
+      CALL timeset(routineN, handle)
+
+      omega1 = 1.0/omega
+
+!$OMP PARALLEL DO DEFAULT(NONE) SHARED(mat_S,omega1,eval_virt,eval_occ) PRIVATE(my_i,my_a)
+      DO my_i = 1, SIZE(mat_S, 3)
+         DO my_a = 1, SIZE(mat_S, 2)
+            mat_S(:, my_a, my_i) = mat_S(:, my_a, my_i)*(omega1*(eval_virt(my_a) - eval_occ(my_i)))
          END DO
       END DO
 !$OMP END PARALLEL DO
