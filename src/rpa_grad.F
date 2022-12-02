@@ -52,13 +52,15 @@ MODULE rpa_grad
                                               local_gemm_create,&
                                               local_gemm_destroy,&
                                               local_gemm_set_op_threshold_gpu
+   USE machine,                         ONLY: m_flush
    USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: mp_allgather,&
                                               mp_alltoall,&
                                               mp_recv,&
                                               mp_send,&
                                               mp_sendrecv,&
-                                              mp_sum
+                                              mp_sum,&
+                                              mp_sync
    USE mp2_laplace,                     ONLY: calc_fm_mat_s_laplace
    USE mp2_ri_grad_util,                ONLY: array2fm,&
                                               create_dbcsr_gamma,&
@@ -181,7 +183,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_grad_create'
 
-      INTEGER                                            :: handle, ispin, nspins
+      INTEGER                                            :: handle, ispin, nrow_local, nspins
 
       CALL timeset(routineN, handle)
 
@@ -193,7 +195,6 @@ CONTAINS
       ALLOCATE (rpa_grad%fm_Y(nspins))
       DO ispin = 1, nspins
          CALL cp_fm_create(rpa_grad%fm_Y(ispin), fm_mat_S(ispin)%matrix_struct)
-
       END DO
 
       IF (do_ri_sos_laplace_mp2) THEN
@@ -202,6 +203,16 @@ CONTAINS
       ELSE
          CALL rpa_work_type_create(rpa_grad%rpa_work, fm_mat_Q, fm_mat_S, homo, virtual)
       END IF
+
+      ! Set blocksize
+      CALL cp_fm_struct_get(fm_mat_S(1)%matrix_struct, nrow_local=nrow_local)
+      IF (mp2_env%ri_grad%dot_blksize < 1) mp2_env%ri_grad%dot_blksize = nrow_local
+      mp2_env%ri_grad%dot_blksize = MIN(mp2_env%ri_grad%dot_blksize, nrow_local)
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T3,A,T75,I6)') 'GRAD_INFO| Block size for the contraction:', mp2_env%ri_grad%dot_blksize
+         CALL m_flush(unit_nr)
+      END IF
+      CALL mp_sync(fm_mat_S(1)%matrix_struct%para_env%group)
 
       CALL timestop(handle)
 
@@ -771,8 +782,6 @@ CONTAINS
       CALL cp_fm_get_info(fm_mat_Q(1), nrow_global=dimen_RI, nrow_local=nrow_local, ncol_local=ncol_local, &
                           col_indices=col_indices, row_indices=row_indices)
 
-      IF (mp2_env%ri_grad%dot_blksize == -1) mp2_env%ri_grad%dot_blksize = nrow_local
-
       IF (.NOT. do_ri_sos_laplace_mp2) THEN
          CALL cp_fm_create(fm_work_PQ, fm_mat_Q(1)%matrix_struct)
 
@@ -809,8 +818,8 @@ CONTAINS
          IF (do_ri_sos_laplace_mp2) THEN
             ! The spin of the other Q matrix is always the other spin
             jspin = nspins - ispin + 1
-! or the first matrix in the case of RPA
          ELSE
+            ! or the first matrix in the case of RPA
             jspin = 1
          END IF
 
