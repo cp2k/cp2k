@@ -56,7 +56,7 @@ MODULE rpa_grad
    USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: &
         mp_allgather, mp_alltoall, mp_irecv, mp_isend, mp_recv, mp_request_null, mp_send, &
-        mp_sendrecv, mp_sum, mp_sync, mp_wait, mp_waitall
+        mp_sendrecv, mp_sum, mp_sync, mp_waitall, mp_waitany
    USE mp2_laplace,                     ONLY: calc_fm_mat_s_laplace
    USE mp2_ri_grad_util,                ONLY: array2fm,&
                                               create_dbcsr_gamma,&
@@ -1130,11 +1130,12 @@ CONTAINS
       DO proc_shift = 1, grid(1) - 1
          CALL timeset(routineN//"_comm_a", handle2)
          IF (number_of_parallel_channels > 1) THEN
-            CALL mp_wait(recv_requests(proc_shift))
+            CALL mp_waitany(recv_requests, completed)
 
-            CALL get_group_dist(gd_virtual, procs_recv(proc_shift), recv_a_start, recv_a_end, recv_a_size)
+            ! Beware the numbering convention of MPI in Fortran
+            completed = completed - 1
 
-            completed = proc_shift
+            CALL get_group_dist(gd_virtual, procs_recv(completed), recv_a_start, recv_a_end, recv_a_size)
          ELSE
             proc_a_send = MODULO(mepos(1) + proc_shift, grid(1))
             proc_a_recv = MODULO(mepos(1) - proc_shift, grid(1))
