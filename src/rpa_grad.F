@@ -54,13 +54,9 @@ MODULE rpa_grad
                                               local_gemm_set_op_threshold_gpu
    USE machine,                         ONLY: m_flush
    USE mathconstants,                   ONLY: pi
-   USE message_passing,                 ONLY: mp_allgather,&
-                                              mp_alltoall,&
-                                              mp_recv,&
-                                              mp_send,&
-                                              mp_sendrecv,&
-                                              mp_sum,&
-                                              mp_sync
+   USE message_passing,                 ONLY: &
+        mp_allgather, mp_alltoall, mp_isend, mp_recv, mp_request_null, mp_send, mp_sendrecv, &
+        mp_sum, mp_sync, mp_waitall
    USE mp2_laplace,                     ONLY: calc_fm_mat_s_laplace
    USE mp2_ri_grad_util,                ONLY: array2fm,&
                                               create_dbcsr_gamma,&
@@ -1027,6 +1023,7 @@ CONTAINS
          my_i_start, my_P_size, my_prow, number_of_parallel_channels, proc_a_recv, proc_a_send, &
          proc_i_recv, proc_i_send, proc_recv, proc_send, proc_shift, recv_a_end, recv_a_size, &
          recv_a_start, recv_i_end, recv_i_size, recv_i_start, tag
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: send_requests
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: buffer_1D, buffer_compens_1D
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: mat_S_3D
@@ -1058,7 +1055,8 @@ CONTAINS
       ! Fortran 2008 does allow pointer remapping independently of the ranks but GCC 7 does not properly support it
       mat_S_3D(1:my_P_size, 1:my_a_size, 1:my_i_size) => mat_S_1D(1:INT(my_P_size, int_8)*my_a_size*my_i_size)
 
-      number_of_parallel_channels = 1
+      number_of_parallel_channels = 2
+      number_of_parallel_channels = MIN(number_of_parallel_channels, MAXVAL(grid))
 
       ALLOCATE (buffer_1D(number_of_parallel_channels*MAX(INT(maxsize(gd_homo), KIND=int_8)*my_a_size, &
                                                           INT(maxsize(gd_virtual), KIND=int_8)*my_i_size)*my_P_size))
@@ -1068,6 +1066,21 @@ CONTAINS
       ! Allocate buffers for vector version of kahan summation
       IF (mp2_env%ri_grad%dot_blksize >= blksize_threshold) THEN
          ALLOCATE (buffer_compens_1D(MAX(my_a_size*maxsize(gd_virtual), my_i_size*maxsize(gd_homo))))
+      END IF
+
+      IF (number_of_parallel_channels > 1) THEN
+         ALLOCATE (send_requests(MAXVAL(grid) - 1))
+      END IF
+
+      IF (number_of_parallel_channels > 1 .AND. grid(1) > 1) THEN
+         send_requests(:) = mp_request_null
+         DO proc_shift = 1, grid(1) - 1
+            proc_a_send = MODULO(mepos(1) + proc_shift, grid(1))
+            proc_send = mepos(2)*grid(1) + proc_a_send
+
+            CALL mp_isend(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
+                          para_env%group, send_requests(proc_shift), tag)
+         END DO
       END IF
 
       buffer_3D(1)%array(1:my_P_size, 1:my_a_size, 1:my_i_size) => &
@@ -1093,9 +1106,14 @@ CONTAINS
             buffer_1D(1:INT(my_P_size, KIND=int_8)*recv_a_size*my_i_size)
 
          CALL timeset(routineN//"_comm_a", handle2)
-         CALL mp_sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
-                          buffer_3D(1)%array, blacs2mpi(my_prow, proc_recv), &
-                          para_env%group, tag)
+         IF (number_of_parallel_channels > 1) THEN
+            CALL mp_recv(buffer_3D(1)%array, blacs2mpi(my_prow, proc_recv), &
+                         tag, para_env%group)
+         ELSE
+            CALL mp_sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
+                             buffer_3D(1)%array, blacs2mpi(my_prow, proc_recv), &
+                             para_env%group, tag)
+         END IF
          CALL timestop(handle2)
 
          CALL calc_P_rpa_a(P_ab((recv_a_start - 1)*my_a_size + 1:recv_a_end*my_a_size), &
@@ -1105,6 +1123,21 @@ CONTAINS
                            Eigenval(homo + recv_a_start:homo + recv_a_end), omega, weight)
 
       END DO
+
+      IF (number_of_parallel_channels > 1 .AND. grid(1) > 1) THEN
+         CALL mp_waitall(send_requests)
+      END IF
+
+      IF (number_of_parallel_channels > 1 .AND. grid(2) > 1) THEN
+         send_requests(:) = mp_request_null
+         DO proc_shift = 1, grid(2) - 1
+            proc_i_send = MODULO(mepos(2) + proc_shift, grid(2))
+            proc_send = proc_i_send*grid(1) + mepos(1)
+
+            CALL mp_isend(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
+                          para_env%group, send_requests(proc_shift), tag)
+         END DO
+      END IF
 
       buffer_3D(1)%array(1:my_P_size, 1:my_a_size, 1:my_i_size) => &
          buffer_1D(1:INT(my_P_size, KIND=int_8)*my_a_size*my_i_size)
@@ -1130,9 +1163,14 @@ CONTAINS
             buffer_1D(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
 
          CALL timeset(routineN//"_comm_i", handle2)
-         CALL mp_sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
-                          buffer_3D(1)%array, blacs2mpi(my_prow, proc_recv), &
-                          para_env%group, tag)
+         IF (number_of_parallel_channels > 1) THEN
+            CALL mp_recv(buffer_3D(1)%array, blacs2mpi(my_prow, proc_recv), &
+                         tag, para_env%group)
+         ELSE
+            CALL mp_sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
+                             buffer_3D(1)%array, blacs2mpi(my_prow, proc_recv), &
+                             para_env%group, tag)
+         END IF
          CALL timestop(handle2)
 
          CALL calc_P_rpa_i(P_ij((recv_i_start - 1)*my_i_size + 1:recv_i_end*my_i_size), &
@@ -1141,6 +1179,14 @@ CONTAINS
                            Eigenval(homo + my_a_start:homo + my_a_end), Eigenval(my_i_start:my_i_end), &
                            Eigenval(recv_i_start:recv_i_end), omega, weight)
       END DO
+
+      IF (number_of_parallel_channels > 1 .AND. grid(2) > 1) THEN
+         CALL mp_waitall(send_requests)
+      END IF
+
+      IF (number_of_parallel_channels > 1) THEN
+         DEALLOCATE (send_requests)
+      END IF
 
       IF (mp2_env%ri_grad%dot_blksize >= blksize_threshold) THEN
          ! release memory allocated by local_gemm when run on GPU. local_gemm_ctx is null on cpu only runs
