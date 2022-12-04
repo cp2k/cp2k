@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 MODULE torch_api
    USE ISO_C_BINDING, ONLY: C_ASSOCIATED, &
+                            C_BOOL, &
                             C_CHAR, &
                             C_FLOAT, &
                             C_F_POINTER, &
@@ -52,6 +53,7 @@ MODULE torch_api
    PUBLIC :: torch_dict_insert, torch_dict_get
    PUBLIC :: torch_model_type, torch_model_load, torch_model_eval, torch_model_release
    PUBLIC :: torch_model_read_metadata
+   PUBLIC :: torch_cuda_is_available
 
 CONTAINS
 
@@ -342,5 +344,27 @@ CONTAINS
       MARK_USED(res)
 #endif
    END FUNCTION torch_model_read_metadata
+
+! **************************************************************************************************
+!> \brief Returns true iff the Torch CUDA backend is available.
+!> \author Ole Schuett
+! **************************************************************************************************
+   FUNCTION torch_cuda_is_available() RESULT(res)
+      LOGICAL                                            :: res
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         FUNCTION torch_c_cuda_is_available() BIND(C, name="torch_c_cuda_is_available")
+            IMPORT :: C_BOOL
+            LOGICAL(C_BOOL)                           :: torch_c_cuda_is_available
+         END FUNCTION torch_c_cuda_is_available
+      END INTERFACE
+
+      res = torch_c_cuda_is_available()
+#else
+      CPABORT("CP2K was compiled without Torch library.")
+      MARK_USED(res)
+#endif
+   END FUNCTION torch_cuda_is_available
 
 END MODULE torch_api

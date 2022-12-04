@@ -14,9 +14,9 @@ PROGRAM nequip_unittest
                                               sp
    USE mathlib,                         ONLY: inv_3x3
    USE torch_api,                       ONLY: &
-        torch_dict_create, torch_dict_get, torch_dict_insert, torch_dict_release, torch_dict_type, &
-        torch_model_eval, torch_model_load, torch_model_read_metadata, torch_model_release, &
-        torch_model_type
+        torch_cuda_is_available, torch_dict_create, torch_dict_get, torch_dict_insert, &
+        torch_dict_release, torch_dict_type, torch_model_eval, torch_model_load, &
+        torch_model_read_metadata, torch_model_release, torch_model_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -153,6 +153,8 @@ PROGRAM nequip_unittest
    atom_types(:64) = 0 ! Hydrogen
    atom_types(65:) = 1 ! Oxygen
 
+   WRITE (*, *) "CUDA is available: ", torch_cuda_is_available()
+
    filename = discover_file('NequIP/water.pth')
    WRITE (*, *) "Loading NequIP model from: "//TRIM(filename)
    CALL torch_model_load(model, filename)
@@ -182,7 +184,7 @@ PROGRAM nequip_unittest
    CALL torch_dict_get(outputs, "atomic_energy", atomic_energy)
    CALL torch_dict_get(outputs, "forces", forces)
    WRITE (*, *) "Total Energy: ", total_energy(1, 1)
-   CPASSERT(ABS(-14985.61621_dp - REAL(total_energy(1, 1), kind=dp)) < 1e-3_dp)
+   CPASSERT(ABS(-14985.615_dp - REAL(total_energy(1, 1), kind=dp)) < 2e-3_dp)
 
    CALL torch_dict_release(inputs)
    CALL torch_dict_release(outputs)

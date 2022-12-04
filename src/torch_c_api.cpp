@@ -7,10 +7,19 @@
 
 #if defined(__LIBTORCH)
 
+#include <torch/csrc/api/include/torch/cuda.h>
 #include <torch/script.h>
 
 typedef c10::Dict<std::string, torch::Tensor> torch_c_dict_t;
 typedef torch::jit::Module torch_c_model_t;
+
+/*******************************************************************************
+ * \brief Internal helper for selecting the CUDA device when available.
+ * \author Ole Schuett
+ ******************************************************************************/
+static torch::Device get_device() {
+  return (torch::cuda::is_available()) ? torch::kCUDA : torch::kCPU;
+}
 
 /*******************************************************************************
  * \brief Internal helper for retrieving arrays from Torch dictionary.
@@ -21,7 +30,7 @@ static void torch_c_dict_get(const torch_c_dict_t *dict, const char *key,
                              const int ndims, int64_t sizes[], T **dest) {
 
   assert(dict->contains(key));
-  const torch::Tensor tensor = dict->at(key);
+  const torch::Tensor tensor = dict->at(key).cpu();
 
   assert(tensor.ndimension() == ndims);
   int64_t size_flat = 1;
@@ -53,7 +62,7 @@ void torch_c_dict_insert_float(torch_c_dict_t *dict, const char *key,
   const auto options = torch::TensorOptions().dtype(torch::kFloat32);
   const auto sizes_ref = c10::IntArrayRef(sizes, ndims);
   const torch::Tensor tensor = torch::from_blob(source, sizes_ref, options);
-  dict->insert(key, tensor);
+  dict->insert(key, tensor.to(get_device()));
 }
 
 /*******************************************************************************
@@ -67,7 +76,7 @@ void torch_c_dict_insert_int64(torch_c_dict_t *dict, const char *key,
   const auto options = torch::TensorOptions().dtype(torch::kInt64);
   const auto sizes_ref = c10::IntArrayRef(sizes, ndims);
   const torch::Tensor tensor = torch::from_blob(source, sizes_ref, options);
-  dict->insert(key, tensor);
+  dict->insert(key, tensor.to(get_device()));
 }
 
 /*******************************************************************************
@@ -113,8 +122,9 @@ void torch_c_dict_release(torch_c_dict_t *dict) { delete (dict); }
  * \author Ole Schuett
  ******************************************************************************/
 void torch_c_model_load(torch_c_model_t **model_out, const char *filename) {
+
   torch::jit::Module *model = new torch::jit::Module();
-  *model = torch::jit::load(filename);
+  *model = torch::jit::load(filename, get_device());
   model->eval();
 
   assert(*model_out == NULL);
@@ -159,6 +169,12 @@ void torch_c_model_read_metadata(const char *filename, const char *key,
   *content = (char *)malloc(content_str.length() + 1); // +1 for null terminator
   strcpy(*content, content_str.c_str());
 }
+
+/*******************************************************************************
+ * \brief Returns true iff the Torch CUDA backend is available.
+ * \author Ole Schuett
+ ******************************************************************************/
+bool torch_c_cuda_is_available() { return torch::cuda::is_available(); }
 
 #ifdef __cplusplus
 }
