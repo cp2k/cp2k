@@ -1084,10 +1084,19 @@ CONTAINS
                                    r_val=qs_control%dftb_control%rcdisp)
          CALL section_vals_val_get(dftb_parameter, "COORDINATION_CUTOFF", &
                                    r_val=qs_control%dftb_control%epscn)
+         CALL section_vals_val_get(dftb_parameter, "D2_EXP_PRE", &
+                                   r_val=qs_control%dftb_control%exp_pre)
+         CALL section_vals_val_get(dftb_parameter, "D2_SCALING", &
+                                   r_val=qs_control%dftb_control%scaling)
          CALL section_vals_val_get(dftb_parameter, "D3_SCALING", r_vals=scal)
          qs_control%dftb_control%sd3(1) = scal(1)
          qs_control%dftb_control%sd3(2) = scal(2)
          qs_control%dftb_control%sd3(3) = scal(3)
+         CALL section_vals_val_get(dftb_parameter, "D3BJ_SCALING", r_vals=scal)
+         qs_control%dftb_control%sd3bj(1) = scal(1)
+         qs_control%dftb_control%sd3bj(2) = scal(2)
+         qs_control%dftb_control%sd3bj(3) = scal(3)
+         qs_control%dftb_control%sd3bj(4) = scal(4)
          CALL section_vals_val_get(dftb_parameter, "DISPERSION_PARAMETER_FILE", &
                                    c_val=qs_control%dftb_control%dispersion_parameter_file)
 

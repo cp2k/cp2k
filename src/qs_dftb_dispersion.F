@@ -17,7 +17,9 @@ MODULE qs_dftb_dispersion
    USE cp_control_types,                ONLY: dft_control_type,&
                                               dftb_control_type
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE input_constants,                 ONLY: dispersion_d3,&
+   USE input_constants,                 ONLY: dispersion_d2,&
+                                              dispersion_d3,&
+                                              dispersion_d3bj,&
                                               dispersion_uff
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
@@ -81,7 +83,7 @@ CONTAINS
          SELECT CASE (dftb_control%dispersion_type)
          CASE (dispersion_uff)
             CALL calculate_dispersion_uff(qs_env, para_env, calculate_forces)
-         CASE (dispersion_d3)
+         CASE (dispersion_d3, dispersion_d3bj, dispersion_d2)
             CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env)
             CALL calculate_dispersion_pairpot(qs_env, dispersion_env, &
                                               energy%dispersion, calculate_forces)

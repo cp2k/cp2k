@@ -90,7 +90,8 @@ MODULE qs_dispersion_pairpot
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dispersion_pairpot'
 
    PUBLIC :: qs_dispersion_pairpot_init, calculate_dispersion_pairpot, &
-             qs_scaling_init, qs_scaling_dftd3, qs_scaling_dftd3bj
+             qs_scaling_init, qs_scaling_dftd3, qs_scaling_dftd3bj, &
+             qs_dispersion_setcn
 
    TYPE dcnum_type
       INTEGER                                :: neighbors
@@ -350,6 +351,62 @@ CONTAINS
    END SUBROUTINE qs_dispersion_pairpot_init
 
 ! **************************************************************************************************
+!> \brief ...
+!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
+!> \param dispersion_env ...
+!> \param para_env ...
+! **************************************************************************************************
+   SUBROUTINE qs_dispersion_setcn(atomic_kind_set, qs_kind_set, dispersion_env, para_env)
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_dispersion_setcn'
+
+      CHARACTER(LEN=default_string_length)               :: filename
+      INTEGER                                            :: i, ikind, max_elem, maxc, nkind
+      REAL(KIND=dp)                                      :: dum
+      TYPE(qs_atom_dispersion_type), POINTER             :: disp
+
+      nkind = SIZE(atomic_kind_set)
+      IF (dispersion_env%type /= xc_vdw_fun_pairpot) THEN
+         DO ikind = 1, nkind
+            ALLOCATE (disp)
+            disp%type = dftd3_pp
+            disp%defined = .TRUE.
+            CALL set_qs_kind(qs_kind_set(ikind), dispersion=disp)
+         END DO
+      END IF
+
+      max_elem = 94
+      maxc = 5
+      dispersion_env%max_elem = max_elem
+      dispersion_env%maxc = maxc
+      ALLOCATE (dispersion_env%maxci(max_elem))
+      ALLOCATE (dispersion_env%c6ab(max_elem, max_elem, maxc, maxc, 3))
+      ALLOCATE (dispersion_env%r0ab(max_elem, max_elem))
+      ALLOCATE (dispersion_env%rcov(max_elem))
+      ALLOCATE (dispersion_env%r2r4(max_elem))
+      ALLOCATE (dispersion_env%cn(max_elem))
+      ! get filename of parameter file
+      filename = dispersion_env%parameter_file_name
+      CALL dftd3_c6_param(dispersion_env%c6ab, dispersion_env%maxci, filename, para_env)
+      CALL setr0ab(dispersion_env%r0ab, dispersion_env%rcov, dispersion_env%r2r4)
+      ! the default coordination numbers
+      CALL setcn(dispersion_env%cn)
+      DO i = 1, max_elem
+         dum = 0.5_dp*dispersion_env%r2r4(i)*REAL(i, dp)**0.5_dp
+         dispersion_env%r2r4(i) = SQRT(dum)
+      END DO
+      dispersion_env%k1 = 16.0_dp
+      dispersion_env%k2 = 4._dp/3._dp
+      dispersion_env%k3 = -4._dp
+      dispersion_env%rcov = dispersion_env%k2*dispersion_env%rcov*bohr
+      dispersion_env%alp = 14._dp
+
+   END SUBROUTINE qs_dispersion_setcn
 
 ! **************************************************************************************************
 !> \brief ...
