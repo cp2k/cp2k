@@ -39,16 +39,10 @@ MODULE helium_io
    USE helium_types,                    ONLY: &
         e_id_interact, e_id_kinetic, e_id_potential, e_id_thermo, e_id_total, e_id_virial, &
         helium_solvent_p_type, helium_solvent_type, rho_num
-   USE input_constants,                 ONLY: fmt_id_pdb,&
-                                              fmt_id_xyz,&
-                                              helium_cell_shape_cube,&
-                                              helium_cell_shape_octahedron,&
-                                              helium_sampling_ceperley,&
-                                              helium_sampling_worm,&
-                                              helium_solute_intpot_mwater,&
-                                              helium_solute_intpot_none,&
-                                              perm_cycle,&
-                                              perm_plain
+   USE input_constants,                 ONLY: &
+        fmt_id_pdb, fmt_id_xyz, helium_cell_shape_cube, helium_cell_shape_octahedron,&
+        helium_sampling_ceperley, helium_sampling_worm, helium_solute_intpot_mwater,&
+        helium_solute_intpot_none, perm_cycle, perm_plain
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
