@@ -1123,20 +1123,10 @@ CONTAINS
          CALL section_vals_val_get(xtb_parameter, "PARAM_FILE_NAME", &
                                    c_val=qs_control%xtb_control%parameter_file_name)
          ! D3 Dispersion
-         CALL section_vals_val_get(xtb_parameter, "DISPERSION_TYPE", &
-                                   i_val=qs_control%xtb_control%dispersion_type)
          CALL section_vals_val_get(xtb_parameter, "DISPERSION_RADIUS", &
                                    r_val=qs_control%xtb_control%rcdisp)
          CALL section_vals_val_get(xtb_parameter, "COORDINATION_CUTOFF", &
                                    r_val=qs_control%xtb_control%epscn)
-         CALL section_vals_val_get(xtb_parameter, "D2_SCALING", &
-                                   r_val=qs_control%xtb_control%d2_scaling)
-         CALL section_vals_val_get(xtb_parameter, "D2_EXP_PRE", &
-                                   r_val=qs_control%xtb_control%d2_exp_pre)
-         CALL section_vals_val_get(xtb_parameter, "D3_SCALING", r_vals=scal)
-         qs_control%xtb_control%s6 = scal(1)
-         qs_control%xtb_control%sr6 = scal(2)
-         qs_control%xtb_control%s8 = scal(3)
          CALL section_vals_val_get(xtb_parameter, "D3BJ_SCALING", r_vals=scal)
          qs_control%xtb_control%s6 = scal(1)
          qs_control%xtb_control%s8 = scal(2)

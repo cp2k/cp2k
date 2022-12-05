@@ -108,14 +108,11 @@ MODULE cp_control_types
       CHARACTER(LEN=default_path_length)   :: parameter_file_path
       CHARACTER(LEN=default_path_length)   :: parameter_file_name
       !
-      INTEGER                              :: dispersion_type
       CHARACTER(LEN=default_path_length)   :: dispersion_parameter_file
       REAL(KIND=dp)                        :: epscn
       REAL(KIND=dp)                        :: rcdisp
-      REAL(KIND=dp)                        :: s6, sr6, s8
+      REAL(KIND=dp)                        :: s6, s8
       REAL(KIND=dp)                        :: a1, a2
-      REAL(KIND=dp)                        :: d2_exp_pre
-      REAL(KIND=dp)                        :: d2_scaling
       !
       REAL(KIND=dp)                        :: ks, kp, kd, ksp, k2sh
       REAL(KIND=dp)                        :: kg, kf

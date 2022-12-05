@@ -21,7 +21,6 @@ MODULE input_cp2k_tb
    USE input_constants,                 ONLY: dispersion_d2,&
                                               dispersion_d3,&
                                               dispersion_d3bj,&
-                                              dispersion_none,&
                                               dispersion_uff,&
                                               slater
    USE input_cp2k_mm,                   ONLY: create_GENPOT_section
@@ -362,20 +361,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="DISPERSION_TYPE", &
-                          description="Use dispersion correction of the specified type."// &
-                          " Dispersion correction has to be switched on in the DFTB section.", &
-                          usage="DISPERSION_TYPE (UFF|D3|D3(BJ)|D2)", &
-                          enum_c_vals=s2a("NONE", "D3", "D3(BJ)", "D2"), &
-                          enum_i_vals=(/dispersion_none, dispersion_d3, dispersion_d3bj, dispersion_d2/), &
-                          enum_desc=s2a("Disable pair potential dispersion corrections.", &
-                                        "Uses the Grimme D3 method (simplified) for a pair potential dispersion correction.", &
-                                        "Uses the Grimme D3 method (simplified) with Becke-Johnson attenuation.", &
-                                        "Uses the Grimme D2 method for pair potential dispersion correction."), &
-                          default_i_val=dispersion_d3bj)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="DISPERSION_PARAMETER_FILE", &
                           description="Specify file that contains the atomic dispersion "// &
                           "parameters for the D3 method", &
@@ -396,12 +381,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="D3_SCALING", &
-                          description="Scaling parameters (s6,sr6,s8) for the D3 dispersion method,", &
-                          usage="D3_SCALING 1.0 1.0 1.0", n_var=3, default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp/))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="D3BJ_SCALING", &
                           description="Scaling parameters (s6,s8) for the D3 dispersion method.", &
                           usage="D3BJ_SCALING 1.0 2.4", n_var=2, default_r_vals=(/1.0_dp, 2.4_dp/))
@@ -411,18 +390,6 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="D3BJ_PARAM", &
                           description="Becke-Johnson parameters (a1, a2 for the D3 dispersion method.", &
                           usage="D3BJ_PARAM 0.63 5.0", n_var=2, default_r_vals=(/0.63_dp, 5.0_dp/))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="D2_SCALING", &
-                          description="Scaling parameter for the D2 dispersion method,", &
-                          usage="D2_SCALING 1.0", default_r_val=1.0_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="D2_EXP_PRE", &
-                          description="Exp prefactor for damping for the D2 dispersion method,", &
-                          usage="D2_EXP_PRE 2.0", default_r_val=2.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
