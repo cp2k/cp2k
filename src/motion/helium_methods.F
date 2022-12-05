@@ -585,6 +585,11 @@ CONTAINS
 
                CALL section_vals_val_get(helium_section, "WORM%ALLOW_OPEN", &
                                          l_val=helium_env(k)%helium%worm_allow_open)
+               IF (helium_env(k)%helium%atoms == 1) THEN
+                  IF (helium_env(k)%helium%worm_allow_open) THEN
+                     CPWARN("Default enabled open state sampling for only 1 He might be inefficient.")
+                  END IF
+               END IF
 
                CALL section_vals_val_get(helium_section, "WORM%MAX_OPEN_CYCLES", &
                                          i_val=helium_env(k)%helium%worm_max_open_cycles)

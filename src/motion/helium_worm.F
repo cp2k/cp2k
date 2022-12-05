@@ -226,6 +226,7 @@ CONTAINS
                   nMC = helium%iter_rot
                   ncycle = 0
                   helium%pos = helium%savepos
+                  helium%work = helium%pos
                   helium%permutation = helium%savepermutation
                   helium%iperm = helium%saveiperm
                   CPWARN("Trapped in open state, reset helium to closed state from last MD step.")
@@ -2752,6 +2753,10 @@ CONTAINS
                                                      helium%pos(:, iatom, endbead), l + 1)
       END DO
       forwarddensmatsum = SUM(forwarddensmat)
+      IF (forwarddensmatsum == 0.0_dp) THEN
+         ac = 0
+         RETURN
+      END IF
 
       ! Select an atom with its corresponding probability
       rtmp = helium%rng_stream_uniform%next()*forwarddensmatsum
@@ -2762,6 +2767,10 @@ CONTAINS
       END DO
       ! just for numerical safety
       fendatom = MIN(fendatom, natoms)
+      IF (fendatom == excludeatom) THEN
+         ac = 0
+         RETURN
+      END IF
 
       ! ensure detailed balance
       IF (endbead > startbead) THEN
