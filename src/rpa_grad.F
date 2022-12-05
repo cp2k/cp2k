@@ -1202,6 +1202,27 @@ CONTAINS
       END IF
 
       IF (number_of_parallel_channels > 1 .AND. grid(2) > 1) THEN
+         recv_requests(:) = mp_request_null
+         procs_recv(:) = -1
+         DO proc_shift = 0, MIN(grid(2), number_of_parallel_channels) - 1
+            proc_i_recv = MODULO(mepos(2) - proc_shift, grid(2))
+            proc_recv = proc_i_recv*grid(1) + mepos(1)
+
+            CALL get_group_dist(gd_homo, proc_i_recv, recv_i_start, recv_i_end, recv_i_size)
+
+            buffer_3D(proc_shift)%array(1:my_P_size, 1:my_a_size, 1:recv_i_size) => &
+               buffer_1D(proc_shift)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
+
+            IF (proc_shift > 0) THEN
+               CALL mp_irecv(buffer_3D(proc_shift)%array, blacs2mpi(my_prow, proc_recv), &
+                             para_env%group, recv_requests(proc_shift), tag)
+            ELSE
+               buffer_3D(0)%array = mat_work_iaP_3D
+            END IF
+
+            procs_recv(proc_shift) = proc_i_recv
+         END DO
+
          send_requests(:) = mp_request_null
          DO proc_shift = 1, grid(2) - 1
             proc_i_send = MODULO(mepos(2) + proc_shift, grid(2))
@@ -1228,32 +1249,44 @@ CONTAINS
                         Eigenval(my_i_start:my_i_end), omega, weight)
 
       DO proc_shift = 1, grid(2) - 1
-         proc_i_send = MODULO(mepos(2) + proc_shift, grid(2))
-         proc_i_recv = MODULO(mepos(2) - proc_shift, grid(2))
-
-         proc_send = proc_i_send*grid(1) + mepos(1)
-         proc_recv = proc_i_recv*grid(1) + mepos(1)
-
-         CALL get_group_dist(gd_homo, proc_i_recv, recv_i_start, recv_i_end, recv_i_size)
-
          CALL timeset(routineN//"_comm_i", handle2)
          IF (number_of_parallel_channels > 1) THEN
-            ! Both pointers point to the same memory but we need the first for communication, the second one for dgemm
-            buffer_3D(MOD(proc_shift, number_of_parallel_channels))%array(1:my_P_size, 1:my_a_size, 1:recv_i_size) => &
-               buffer_1D(MOD(proc_shift, number_of_parallel_channels))%array(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
+            IF (number_of_parallel_channels + proc_shift <= grid(2)) THEN
+               proc_i_recv = MODULO(mepos(2) - proc_shift - number_of_parallel_channels + 1, grid(2))
+               proc_recv = proc_i_recv*grid(1) + mepos(1)
 
-            CALL mp_recv(buffer_3D(MOD(proc_shift, number_of_parallel_channels))%array, blacs2mpi(my_prow, proc_recv), &
-                         tag, para_env%group)
-            completed = MOD(proc_shift, number_of_parallel_channels)
+               CALL get_group_dist(gd_homo, proc_i_recv, recv_i_start, recv_a_end, recv_i_size)
+
+               buffer_3D(completed)%array(1:my_P_size, 1:my_a_size, 1:recv_i_size) => &
+                  buffer_1D(completed)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
+
+               CALL mp_irecv(buffer_3D(completed)%array, blacs2mpi(my_prow, proc_recv), &
+                             para_env%group, recv_requests(completed), tag)
+
+               procs_recv(completed) = proc_i_recv
+            END IF
+
+            CALL mp_waitany(recv_requests, completed)
+
+            ! Beware the numbering convention of MPI in Fortran
+            completed = completed - 1
+
+            CALL get_group_dist(gd_homo, procs_recv(completed), recv_i_start, recv_i_end, recv_i_size)
          ELSE
-            ! Both pointers point to the same memory but we need the first for communication, the second one for dgemm
-            buffer_3D(0)%array(1:my_P_size, 1:my_a_size, 1:recv_i_size) => &
-               buffer_1D(0)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
+            proc_i_send = MODULO(mepos(2) + proc_shift, grid(2))
+            proc_i_recv = MODULO(mepos(2) - proc_shift, grid(2))
 
-            CALL mp_sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
-                             buffer_3D(0)%array, blacs2mpi(my_prow, proc_recv), &
-                             para_env%group, tag)
-            completed = 0
+            proc_send = proc_i_send*grid(1) + mepos(1)
+            proc_recv = proc_i_recv*grid(1) + mepos(1)
+
+            CALL get_group_dist(gd_homo, proc_i_recv, recv_i_start, recv_i_end, recv_i_size)
+
+            CALL mp_waitany(recv_requests, completed)
+
+            ! Beware the numbering convention of MPI in Fortran
+            completed = completed - 1
+
+            CALL get_group_dist(gd_homo, procs_recv(completed), recv_i_start, recv_i_end, recv_i_size)
          END IF
          CALL timestop(handle2)
 
