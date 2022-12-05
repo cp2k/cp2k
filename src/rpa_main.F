@@ -1268,7 +1268,7 @@ CONTAINS
 
       ALLOCATE (e_fermi(nspins))
       IF (do_minimax_quad .OR. do_ri_sos_laplace_mp2) THEN
-         do_print = .NOT. do_ic_model .AND. (.NOT. qs_env%mp2_env%ri_rpa_im_time%keep_quad)
+         do_print = .NOT. do_ic_model
          CALL get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, do_im_time, &
                                do_ri_sos_laplace_mp2, do_print, &
                                tau_tj, tau_wj, qs_env, do_gw_im_time, &
