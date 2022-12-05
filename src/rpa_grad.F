@@ -746,9 +746,10 @@ CONTAINS
 !> \param virtual ...
 !> \param Eigenval ...
 !> \param weight ...
+!> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE rpa_grad_matrix_operations(mp2_env, rpa_grad, do_ri_sos_laplace_mp2, fm_mat_Q, fm_mat_Q_gemm, &
-                                         dgemm_counter, fm_mat_S, omega, homo, virtual, Eigenval, weight)
+                                         dgemm_counter, fm_mat_S, omega, homo, virtual, Eigenval, weight, unit_nr)
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(rpa_grad_type), INTENT(INOUT)                 :: rpa_grad
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2
@@ -759,6 +760,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       REAL(KIND=dp), INTENT(IN)                          :: weight
+      INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rpa_grad_matrix_operations'
 
@@ -878,7 +880,7 @@ CONTAINS
                             rpa_grad%rpa_work%grid, rpa_grad%rpa_work%mepos, &
                             fm_mat_S(ispin)%matrix_struct, &
                             rpa_grad%rpa_work%P_ij_1D(ispin)%array, rpa_grad%rpa_work%P_ab_1D(ispin)%array, &
-                            weight, omega, Eigenval(:, ispin), homo(ispin), mp2_env)
+                            weight, omega, Eigenval(:, ispin), homo(ispin), unit_nr, mp2_env)
 
             DEALLOCATE (mat_work_iaP_3D, mat_S_3D)
 
@@ -1002,10 +1004,11 @@ CONTAINS
 !> \param omega ...
 !> \param Eigenval ...
 !> \param homo ...
+!> \param unit_nr ...
 !> \param mp2_env ...
 ! **************************************************************************************************
    SUBROUTINE calc_P_rpa(mat_S_1D, mat_work_iaP_3D, gd_homo, gd_virtual, grid, mepos, &
-                         fm_struct_S, P_ij, P_ab, weight, omega, Eigenval, homo, mp2_env)
+                         fm_struct_S, P_ij, P_ab, weight, omega, Eigenval, homo, unit_nr, mp2_env)
       REAL(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET :: mat_S_1D
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: mat_work_iaP_3D
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_homo, gd_virtual
@@ -1014,7 +1017,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:)                        :: P_ij, P_ab
       REAL(KIND=dp), INTENT(IN)                          :: weight, omega
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
-      INTEGER, INTENT(IN)                                :: homo
+      INTEGER, INTENT(IN)                                :: homo, unit_nr
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_P_rpa'
@@ -1060,6 +1063,12 @@ CONTAINS
       number_of_parallel_channels = MAXVAL(grid)
       number_of_elements_per_blk = MAX(INT(maxsize(gd_homo), KIND=int_8)*my_a_size, &
                                        INT(maxsize(gd_virtual), KIND=int_8)*my_i_size)*my_P_size
+
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T3,A,T75,I6)') 'GRAD_INFO| Number of parallel communication channels:', number_of_parallel_channels
+         CALL m_flush(unit_nr)
+      END IF
+      CALL mp_sync(para_env%group)
 
       ALLOCATE (buffer_1D(0:number_of_parallel_channels - 1))
       DO proc_shift = 0, MAXVAL(grid) - 1

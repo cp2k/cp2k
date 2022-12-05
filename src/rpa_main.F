@@ -1513,7 +1513,7 @@ CONTAINS
 
                IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_matrix_operations(mp2_env, rpa_grad, do_ri_sos_laplace_mp2, &
                                                            fm_mat_Q, fm_mat_Q_gemm, dgemm_counter, fm_mat_S, omega, homo, virtual, &
-                                                                                       Eigenval(:, 1, :), tau_wj(jquad))
+                                                                                       Eigenval(:, 1, :), tau_wj(jquad), unit_nr)
             ELSE
                IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_copy_Q(fm_mat_Q(1), rpa_grad)
 
@@ -1532,7 +1532,7 @@ CONTAINS
 
                IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_matrix_operations(mp2_env, rpa_grad, do_ri_sos_laplace_mp2, &
                                                            fm_mat_Q, fm_mat_Q_gemm, dgemm_counter, fm_mat_S, omega, homo, virtual, &
-                                                                                       Eigenval(:, 1, :), wj(jquad))
+                                                                                       Eigenval(:, 1, :), wj(jquad), unit_nr)
             END IF ! do_ri_sos_laplace_mp2
 
             ! save omega and reset the first_cycle flag
