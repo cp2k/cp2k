@@ -1071,7 +1071,7 @@ CONTAINS
       CALL mp_sync(para_env%group)
 
       ALLOCATE (buffer_1D(0:number_of_parallel_channels - 1))
-      DO proc_shift = 0, MAXVAL(grid) - 1
+      DO proc_shift = 0, number_of_parallel_channels - 1
          ALLOCATE (buffer_1D(proc_shift)%array(number_of_elements_per_blk))
       END DO
 
@@ -1085,8 +1085,8 @@ CONTAINS
       END IF
 
       IF (number_of_parallel_channels > 1) THEN
-         ALLOCATE (procs_recv(0:MAXVAL(grid) - 1))
-         ALLOCATE (recv_requests(0:MAXVAL(grid) - 1))
+         ALLOCATE (procs_recv(0:number_of_parallel_channels - 1))
+         ALLOCATE (recv_requests(0:number_of_parallel_channels - 1))
          ALLOCATE (send_requests(MAXVAL(grid) - 1))
       END IF
 
@@ -1094,7 +1094,7 @@ CONTAINS
          CALL timeset(routineN//"_comm_a", handle2)
          recv_requests(:) = mp_request_null
          procs_recv(:) = -1
-         DO proc_shift = 0, grid(1) - 1
+         DO proc_shift = 0, MIN(grid(1), number_of_parallel_channels) - 1
             proc_a_recv = MODULO(mepos(1) - proc_shift, grid(1))
             proc_recv = mepos(2)*grid(1) + proc_a_recv
 
@@ -1256,7 +1256,7 @@ CONTAINS
          DEALLOCATE (buffer_compens_1D)
       END IF
 
-      DO proc_shift = 0, MAXVAL(grid) - 1
+      DO proc_shift = 0, number_of_parallel_channels - 1
          NULLIFY (buffer_3D(proc_shift)%array)
          DEALLOCATE (buffer_1D(proc_shift)%array)
       END DO
