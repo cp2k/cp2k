@@ -712,7 +712,7 @@ CONTAINS
          pref(:) = helium%density*helium%beads*helium%atoms
          ! Correct for He-He-RDF
          IF (helium%rdf_he_he) THEN
-            pref(1) = pref(1)/helium%atoms*(helium%atoms - 1)
+            pref(1) = pref(1)/helium%atoms*MAX(helium%atoms - 1, 1)
          END IF
       ELSE
          ! Non-periodic case has density of 0, use integral for normalzation
@@ -727,7 +727,7 @@ CONTAINS
          pref(:) = pref(:)/helium%atoms
          ! Correct for He-He-RDF
          IF (helium%rdf_he_he) THEN
-            pref(1) = pref(1)*helium%atoms/(helium%atoms - 1)
+            pref(1) = pref(1)*helium%atoms/MAX(helium%atoms - 1, 1)
          END IF
       END IF
       ! Volume integral first:
