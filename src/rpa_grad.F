@@ -52,10 +52,11 @@ MODULE rpa_grad
                                               local_gemm_create,&
                                               local_gemm_destroy,&
                                               local_gemm_set_op_threshold_gpu
-   USE machine,                         ONLY: m_flush
+   USE machine,                         ONLY: m_flush,&
+                                              m_memory
    USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: &
-        mp_allgather, mp_alltoall, mp_irecv, mp_isend, mp_recv, mp_request_null, mp_send, &
+        mp_allgather, mp_alltoall, mp_irecv, mp_isend, mp_min, mp_recv, mp_request_null, mp_send, &
         mp_sendrecv, mp_sum, mp_sync, mp_waitall, mp_waitany
    USE mp2_laplace,                     ONLY: calc_fm_mat_s_laplace
    USE mp2_ri_grad_util,                ONLY: array2fm,&
@@ -1026,9 +1027,10 @@ CONTAINS
          my_i_start, my_P_size, my_prow, number_of_parallel_channels, proc_a_recv, proc_a_send, &
          proc_i_recv, proc_i_send, proc_recv, proc_send, proc_shift, recv_a_end, recv_a_size, &
          recv_a_start, recv_i_end, recv_i_size, recv_i_start, tag
-      INTEGER(KIND=int_8)                                :: number_of_elements_per_blk
+      INTEGER(KIND=int_8)                                :: mem, number_of_elements_per_blk
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: procs_recv, recv_requests, send_requests
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
+      REAL(KIND=dp)                                      :: mem_per_block, mem_real
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: buffer_compens_1D
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: mat_S_3D
       TYPE(cp_1d_r_cp_type), ALLOCATABLE, DIMENSION(:)   :: buffer_1D
@@ -1060,9 +1062,15 @@ CONTAINS
       ! Fortran 2008 does allow pointer remapping independently of the ranks but GCC 7 does not properly support it
       mat_S_3D(1:my_P_size, 1:my_a_size, 1:my_i_size) => mat_S_1D(1:INT(my_P_size, int_8)*my_a_size*my_i_size)
 
-      number_of_parallel_channels = MIN(2, MAXVAL(grid)) !MAXVAL(grid)
       number_of_elements_per_blk = MAX(INT(maxsize(gd_homo), KIND=int_8)*my_a_size, &
                                        INT(maxsize(gd_virtual), KIND=int_8)*my_i_size)*my_P_size
+
+      ! Determine the available memory and estimate the number of possible parallel communication channels
+      CALL m_memory(mem)
+      mem_real = REAL(mem, KIND=dp)
+      CALL mp_min(mem_real, para_env%group)
+      mem_per_block = REAL(number_of_elements_per_blk, KIND=dp)*8.0_dp
+      number_of_parallel_channels = MAX(1, MIN(MAXVAL(grid), FLOOR(mem_real/mem_per_block)))
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A,T75,I6)') 'GRAD_INFO| Number of parallel communication channels:', number_of_parallel_channels
