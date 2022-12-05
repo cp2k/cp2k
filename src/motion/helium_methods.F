@@ -587,7 +587,7 @@ CONTAINS
                                          l_val=helium_env(k)%helium%worm_allow_open)
                IF (helium_env(k)%helium%atoms == 1) THEN
                   IF (helium_env(k)%helium%worm_allow_open) THEN
-                     msg_str = "Default enabled open state sampling "\\ &
+                     msg_str = "Default enabled open state sampling "// &
                                "for only 1 He might be inefficient."
                      CPWARN(msg_str)
                   END IF
