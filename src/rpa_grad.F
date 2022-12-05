@@ -1060,7 +1060,7 @@ CONTAINS
       ! Fortran 2008 does allow pointer remapping independently of the ranks but GCC 7 does not properly support it
       mat_S_3D(1:my_P_size, 1:my_a_size, 1:my_i_size) => mat_S_1D(1:INT(my_P_size, int_8)*my_a_size*my_i_size)
 
-      number_of_parallel_channels = MAXVAL(grid)
+      number_of_parallel_channels = MIN(2, MAXVAL(grid)) !MAXVAL(grid)
       number_of_elements_per_blk = MAX(INT(maxsize(gd_homo), KIND=int_8)*my_a_size, &
                                        INT(maxsize(gd_virtual), KIND=int_8)*my_i_size)*my_P_size
 
@@ -1130,6 +1130,8 @@ CONTAINS
       END IF
       WRITE (*, *) SIZE(buffer_3D(0)%array, 1), SIZE(buffer_3D(0)%array, 2), SIZE(buffer_3D(0)%array, 3)
 
+      completed = 0
+
       CALL calc_P_rpa_a(P_ab((my_a_start - 1)*my_a_size + 1:my_a_end*my_a_size), &
                         mat_S_3D, buffer_3D(0)%array, &
                         mp2_env%ri_grad%dot_blksize, buffer_compens_1D, mp2_env%local_gemm_ctx, &
@@ -1139,6 +1141,21 @@ CONTAINS
       DO proc_shift = 1, grid(1) - 1
          CALL timeset(routineN//"_comm_a", handle2)
          IF (number_of_parallel_channels > 1) THEN
+            IF (number_of_parallel_channels + proc_shift <= grid(1)) THEN
+               proc_a_recv = MODULO(mepos(1) - proc_shift - number_of_parallel_channels + 1, grid(1))
+               proc_recv = mepos(2)*grid(1) + proc_a_recv
+
+               CALL get_group_dist(gd_virtual, proc_a_recv, recv_a_start, recv_a_end, recv_a_size)
+
+               buffer_3D(completed)%array(1:my_P_size, 1:recv_a_size, 1:my_i_size) => &
+                  buffer_1D(completed)%array(1:INT(my_P_size, KIND=int_8)*recv_a_size*my_i_size)
+
+               CALL mp_irecv(buffer_3D(completed)%array, blacs2mpi(my_prow, proc_recv), &
+                             para_env%group, recv_requests(completed), tag)
+
+               procs_recv(completed) = proc_a_recv
+            END IF
+
             CALL mp_waitany(recv_requests, completed)
 
             ! Beware the numbering convention of MPI in Fortran
@@ -1214,12 +1231,12 @@ CONTAINS
          CALL timeset(routineN//"_comm_i", handle2)
          IF (number_of_parallel_channels > 1) THEN
             ! Both pointers point to the same memory but we need the first for communication, the second one for dgemm
-            buffer_3D(proc_shift)%array(1:my_P_size, 1:my_a_size, 1:recv_i_size) => &
-               buffer_1D(proc_shift)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
+            buffer_3D(MOD(proc_shift, number_of_parallel_channels))%array(1:my_P_size, 1:my_a_size, 1:recv_i_size) => &
+               buffer_1D(MOD(proc_shift, number_of_parallel_channels))%array(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
 
-            CALL mp_recv(buffer_3D(proc_shift)%array, blacs2mpi(my_prow, proc_recv), &
+            CALL mp_recv(buffer_3D(MOD(proc_shift, number_of_parallel_channels))%array, blacs2mpi(my_prow, proc_recv), &
                          tag, para_env%group)
-            completed = proc_shift
+            completed = MOD(proc_shift, number_of_parallel_channels)
          ELSE
             ! Both pointers point to the same memory but we need the first for communication, the second one for dgemm
             buffer_3D(0)%array(1:my_P_size, 1:my_a_size, 1:recv_i_size) => &
