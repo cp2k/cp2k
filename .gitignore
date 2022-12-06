@@ -377,3 +377,7 @@ tests/Fist/regtest-quip/Quip_Cu_LJ.inp
 tools/toolchain/run_toolchain.sh
 tests/Fist/regtest-6/Si_tersoff.inp
 tests/Fist/regtest-quip/Quip_Cu_LJ.inp
+tests/Fist/regtest-nequip/water.pth
+tests/Fist/regtest-nequip/water1.pth
+tests/Fist/regtest-nequip/water2.pth
+tests/Fist/regtest-nequip/water3.pth

@@ -67,7 +67,7 @@ MODULE force_fields_input
         ft_type, ftd_type, gal21_type, gal_type, gp_type, gw_type, ip_type, ipbv_pot_type, &
         lj_charmm_type, no_potential_single_allocation, pair_potential_p_type, &
         pair_potential_reallocate, potential_single_allocation, quip_type, siepmann_type, &
-        tab_pot_type, tab_type, tersoff_type, wl_type, nequip_type
+        tab_pot_type, tab_type, tersoff_type, wl_type, nequip_type, nequip_pot_type
    USE shell_potential_types,           ONLY: shell_p_create,&
                                               shell_p_type
    USE string_utilities,                ONLY: uppercase
@@ -695,17 +695,9 @@ CONTAINS
       TYPE(pair_potential_p_type), POINTER               :: nonbonded
       TYPE(section_vals_type), POINTER                   :: section
       INTEGER, INTENT(IN)                                :: start
-      
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: atm_names      
-
-      INTEGER                                            :: isec, n_items      
-
-      ! Torch objects.
-!      TYPE(torch_model_type)                             :: model
-!      TYPE(torch_dict_type)                              :: inputs, outputs
-      CHARACTER(LEN=default_path_length) :: filename!, cutoff_str, nequip_version
-
+      INTEGER                                            :: isec, n_items
 
       CALL section_vals_get(section, n_repetition=n_items)
       DO isec = 1, n_items
@@ -719,22 +711,15 @@ CONTAINS
          CALL section_vals_val_get(section, "PARM_FILE_NAME", i_rep_section=isec, &
                                    c_val=nonbonded%pot(start + isec)%pot%set(1)%nequip%nequip_file_name)
 
-         WRITE(*, *) "ciccio nequip_file_name ", TRIM(nonbonded%pot(start + isec)%pot%set(1)%nequip%nequip_file_name)
-         filename =  nonbonded%pot(start + isec)%pot%set(1)%nequip%nequip_file_name
-         WRITE(*, *) "ciccio nequip_type ", nequip_type
-!         nonbonded%pot(start + isec)%pot%rcutsq = 0.0_dp
+         if (isec == 1) THEN
+            CALL read_nequip_data(nonbonded%pot(start + isec)%pot%set(1)%nequip)
+!            WRITE(*, *) "NequIP cutoff ",  nonbonded%pot(start + isec)%pot%set(1)%nequip%rcut
+            nonbonded%pot(start + isec)%pot%rcutsq = nonbonded%pot(start + isec)%pot%set(1)%nequip%rcutsq
+         END IF
       END DO
-      
-      WRITE(*,*) "nequip_file_name ",TRIM(filename)
-!      filename = nonbonded%pot(start + isec)%pot%set(1)%nequip%nequip_file_name
-!      CALL torch_model_load(model,filename)
-!      cutoff_str = torch_model_read_metadata(&
-!            filename, "r_max")
-!      nequip_version = torch_model_read_metadata(&
-!                  filename, "nequip_version")
 
    END SUBROUTINE read_nequip_section
-   
+
 ! **************************************************************************************************
 !> \brief Reads the LJ section
 !> \param nonbonded ...
@@ -2304,6 +2289,27 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE read_eam_data
+
+! **************************************************************************************************
+!> \brief reads NequIP potential from .pth file
+!> \param eam ...
+!> \param mm_section ...
+! **************************************************************************************************
+   SUBROUTINE read_nequip_data(nequip)
+      TYPE(nequip_pot_type), POINTER                     :: nequip
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_nequip_data'
+      TYPE(torch_model_type)                             :: model
+      CHARACTER(LEN=default_path_length)                 :: cutoff_str
+
+      WRITE (*, *) "Reading NequIP data from: ", TRIM(nequip%nequip_file_name)
+      CALL torch_model_load(model,nequip%nequip_file_name)
+      nequip%nequip_version = torch_model_read_metadata(nequip%nequip_file_name, "nequip_version")
+      WRITE (*, *) "NequIP version: ", TRIM(nequip%nequip_version)
+      cutoff_str = torch_model_read_metadata(nequip%nequip_file_name, "r_max")
+      READ (cutoff_str, *) nequip%rcutsq
+      nequip%rcutsq = nequip%rcutsq * nequip%rcutsq
+
+   END SUBROUTINE read_nequip_data
 
 ! **************************************************************************************************
 !> \brief reads TABPOT potential from file

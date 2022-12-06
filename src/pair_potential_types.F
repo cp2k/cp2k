@@ -178,7 +178,8 @@ MODULE pair_potential_types
 
 ! **************************************************************************************************
    TYPE nequip_pot_type
-      CHARACTER(LEN=default_path_length)     :: nequip_file_name
+      CHARACTER(LEN=default_path_length)     :: nequip_file_name, nequip_version
+      REAL(KIND=dp)                          :: rcutsq
    END TYPE nequip_pot_type
 
 ! **************************************************************************************************
@@ -1736,6 +1737,8 @@ CONTAINS
       IF (ASSOCIATED(nequip_dest)) CALL pair_potential_nequip_release(nequip_dest)
       CALL pair_potential_nequip_create(nequip_dest)
       nequip_dest%nequip_file_name = nequip_source%nequip_file_name
+      nequip_dest%nequip_version = nequip_source%nequip_version
+      nequip_dest%rcutsq = nequip_source%rcutsq
    END SUBROUTINE pair_potential_nequip_copy
 
 ! **************************************************************************************************
@@ -1748,6 +1751,8 @@ CONTAINS
 
       IF (.NOT. ASSOCIATED(nequip)) RETURN
       nequip%nequip_file_name = 'NULL'
+      nequip%rcutsq = 0.0_dp
+      nequip%nequip_version = 'NULL'
    END SUBROUTINE pair_potential_nequip_clean
 
 ! **************************************************************************************************

@@ -208,8 +208,9 @@ CONTAINS
                cvi = neighbor_kind_pair%cell_vector
                pot => potparm%pot(ikind, jkind)%pot
                DO i = 1, SIZE(pot%type)
-                  IF (pot%type(i) /= tersoff_type) CYCLE
-!                  rab2_max = pot%set(i)%tersoff%rcutsq
+                  IF (pot%type(i) /= nequip_type) CYCLE
+                  rab2_max = pot%set(i)%nequip%rcutsq
+                  WRITE(*, *) "cutoff manybody_potential ", rab2_max
                   cell_v = MATMUL(cell%hmat, cvi)
                   pot => potparm%pot(ikind, jkind)%pot
                   nequip => pot%set(i)%nequip
