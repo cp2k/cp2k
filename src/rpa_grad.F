@@ -1083,9 +1083,7 @@ CONTAINS
          ALLOCATE (buffer_1D(proc_shift)%array(number_of_elements_per_blk))
       END DO
 
-      WRITE (*, *) number_of_parallel_channels
       ALLOCATE (buffer_3D(0:number_of_parallel_channels - 1))
-      CPASSERT(ALLOCATED(buffer_3D))
 
       ! Allocate buffers for vector version of kahan summation
       IF (mp2_env%ri_grad%dot_blksize >= blksize_threshold) THEN
@@ -1136,7 +1134,6 @@ CONTAINS
 
          buffer_3D(0)%array = mat_work_iaP_3D
       END IF
-      WRITE (*, *) SIZE(buffer_3D(0)%array, 1), SIZE(buffer_3D(0)%array, 2), SIZE(buffer_3D(0)%array, 3)
 
       completed = 0
 
