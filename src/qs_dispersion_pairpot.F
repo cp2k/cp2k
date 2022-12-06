@@ -363,8 +363,6 @@ CONTAINS
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_dispersion_setcn'
-
       CHARACTER(LEN=default_string_length)               :: filename
       INTEGER                                            :: i, ikind, max_elem, maxc, nkind
       REAL(KIND=dp)                                      :: dum
