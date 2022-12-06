@@ -1268,7 +1268,7 @@ CONTAINS
 
       ALLOCATE (e_fermi(nspins))
       IF (do_minimax_quad .OR. do_ri_sos_laplace_mp2) THEN
-         do_print = .NOT. do_ic_model .AND. (.NOT. qs_env%mp2_env%ri_rpa_im_time%keep_quad)
+         do_print = .NOT. do_ic_model
          CALL get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, do_im_time, &
                                do_ri_sos_laplace_mp2, do_print, &
                                tau_tj, tau_wj, qs_env, do_gw_im_time, &
@@ -1513,7 +1513,7 @@ CONTAINS
 
                IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_matrix_operations(mp2_env, rpa_grad, do_ri_sos_laplace_mp2, &
                                                            fm_mat_Q, fm_mat_Q_gemm, dgemm_counter, fm_mat_S, omega, homo, virtual, &
-                                                                                       Eigenval(:, 1, :), tau_wj(jquad))
+                                                                                       Eigenval(:, 1, :), tau_wj(jquad), unit_nr)
             ELSE
                IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_copy_Q(fm_mat_Q(1), rpa_grad)
 
@@ -1532,7 +1532,7 @@ CONTAINS
 
                IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_matrix_operations(mp2_env, rpa_grad, do_ri_sos_laplace_mp2, &
                                                            fm_mat_Q, fm_mat_Q_gemm, dgemm_counter, fm_mat_S, omega, homo, virtual, &
-                                                                                       Eigenval(:, 1, :), wj(jquad))
+                                                                                       Eigenval(:, 1, :), wj(jquad), unit_nr)
             END IF ! do_ri_sos_laplace_mp2
 
             ! save omega and reset the first_cycle flag
