@@ -58,7 +58,7 @@ MODULE force_fields_input
    USE input_val_types,                 ONLY: val_get,&
                                               val_type
    USE kinds,                           ONLY: default_string_length,&
-                                              dp
+                                              default_path_length, dp
    USE mathconstants,                   ONLY: pi
    USE mathlib,                         ONLY: invert_matrix
    USE memory_utilities,                ONLY: reallocate
@@ -71,6 +71,9 @@ MODULE force_fields_input
    USE shell_potential_types,           ONLY: shell_p_create,&
                                               shell_p_type
    USE string_utilities,                ONLY: uppercase
+   USE torch_api,                       ONLY: torch_model_type, torch_model_load, &
+                                              torch_model_read_metadata
+
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -696,7 +699,13 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: atm_names      
 
-      INTEGER                                            :: isec, n_items
+      INTEGER                                            :: isec, n_items      
+
+      ! Torch objects.
+!      TYPE(torch_model_type)                             :: model
+!      TYPE(torch_dict_type)                              :: inputs, outputs
+      CHARACTER(LEN=default_path_length) :: filename!, cutoff_str, nequip_version
+
 
       CALL section_vals_get(section, n_repetition=n_items)
       DO isec = 1, n_items
@@ -710,11 +719,20 @@ CONTAINS
          CALL section_vals_val_get(section, "PARM_FILE_NAME", i_rep_section=isec, &
                                    c_val=nonbonded%pot(start + isec)%pot%set(1)%nequip%nequip_file_name)
 
-         WRITE(*, *) "ciccio nequip_file_name ", nonbonded%pot(start + isec)%pot%set(1)%nequip%nequip_file_name
+         WRITE(*, *) "ciccio nequip_file_name ", TRIM(nonbonded%pot(start + isec)%pot%set(1)%nequip%nequip_file_name)
+         filename =  nonbonded%pot(start + isec)%pot%set(1)%nequip%nequip_file_name
          WRITE(*, *) "ciccio nequip_type ", nequip_type
-
-         nonbonded%pot(start + isec)%pot%rcutsq = 0.0_dp
+!         nonbonded%pot(start + isec)%pot%rcutsq = 0.0_dp
       END DO
+      
+      WRITE(*,*) "nequip_file_name ",TRIM(filename)
+!      filename = nonbonded%pot(start + isec)%pot%set(1)%nequip%nequip_file_name
+!      CALL torch_model_load(model,filename)
+!      cutoff_str = torch_model_read_metadata(&
+!            filename, "r_max")
+!      nequip_version = torch_model_read_metadata(&
+!                  filename, "nequip_version")
+
    END SUBROUTINE read_nequip_section
    
 ! **************************************************************************************************
