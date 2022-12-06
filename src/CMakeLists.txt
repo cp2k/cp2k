@@ -1450,7 +1450,7 @@ target_compile_definitions(
          $<$<BOOL:${CP2K_USE_SIRIUS}>:__SIRIUS>
          $<$<BOOL:${CP2K_USE_SPLA}>:__SPLA>
          $<$<BOOL:${CP2K_USE_SpFFT}>:__SPFFT>
-         $<$<BOOL:${CP2K_USE_GEMM_OFFLOADING}>:__OFFLOAD_GEMM>
+         $<$<BOOL:${CP2K_USE_SPLA_GEMM_OFFLOADING}>:__OFFLOAD_GEMM>
          $<$<BOOL:${CP2K_USE_ELPA}>:__ELPA>
          $<$<BOOL:${CP2K_USE_LIBXC}>:__LIBXC>
          $<$<BOOL:${CP2K_USE_FFTW3}>:__FFTW3>
