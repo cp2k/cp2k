@@ -1188,6 +1188,7 @@ CONTAINS
             IF (iter_sc_GW0 .NE. 1) iter_evGW = iter_sc_GW0
          END IF
       ELSE
+         ext_scaling = 0.0_dp
          iter_evGW = 1
          iter_sc_GW0 = 1
       END IF

@@ -2790,10 +2790,9 @@ CONTAINS
          !Storing results
          CALL cp_fm_struct_create(lumo_struct, para_env=para_env, context=blacs_env, &
                                   nrow_global=nao, ncol_global=nlumo(ispin))
-         ALLOCATE (xas_tdp_env%lumo_evecs(ispin)%matrix)
-         CALL cp_fm_create(xas_tdp_env%lumo_evecs(ispin)%matrix, lumo_struct)
+         CALL cp_fm_create(xas_tdp_env%lumo_evecs(ispin), lumo_struct)
 
-         CALL cp_fm_to_fm_submat(evecs, xas_tdp_env%lumo_evecs(ispin)%matrix, nrow=nao, &
+         CALL cp_fm_to_fm_submat(evecs, xas_tdp_env%lumo_evecs(ispin), nrow=nao, &
                                  ncol=nlumo(ispin), s_firstrow=1, s_firstcol=nocc(ispin) + 1, &
                                  t_firstrow=1, t_firstcol=1)
 

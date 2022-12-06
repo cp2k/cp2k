@@ -20,8 +20,7 @@ MODULE xas_env_types
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               fm_pools_give_back_fm_vect
-   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release,&
+   USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE kinds,                           ONLY: dp
@@ -89,8 +88,8 @@ MODULE xas_env_types
       REAL(dp), DIMENSION(:, :), POINTER :: centers_wfn
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER :: stogto_overlap
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER :: my_gto_basis
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: groundstate_coeff
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER :: dip_fm_set
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: groundstate_coeff
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER :: dip_fm_set
       TYPE(cp_fm_pool_p_type), DIMENSION(:), &
          POINTER                                   :: ao_mo_fm_pools
       TYPE(cp_fm_type), POINTER :: excvec_coeff
@@ -161,11 +160,10 @@ CONTAINS
                                                             mykind_of_kind
       INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: state_of_atom
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: spectrum
-      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: groundstate_coeff
+      TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: groundstate_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ostrength_sm
-      TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
+      TYPE(cp_fm_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: dip_fm_set
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: excvec_coeff, excvec_overlap, &
                                                             unoccupied_orbs
@@ -351,8 +349,7 @@ CONTAINS
       IF (ASSOCIATED(xas_env%dip_fm_set)) THEN
          DO i = 1, SIZE(xas_env%dip_fm_set, 2)
             DO j = 1, SIZE(xas_env%dip_fm_set, 1)
-               CALL cp_fm_release(xas_env%dip_fm_set(j, i)%matrix)
-               DEALLOCATE (xas_env%dip_fm_set(j, i)%matrix)
+               CALL cp_fm_release(xas_env%dip_fm_set(j, i))
             END DO
          END DO
          DEALLOCATE (xas_env%dip_fm_set)
