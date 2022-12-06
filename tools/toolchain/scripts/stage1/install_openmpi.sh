@@ -42,16 +42,18 @@ case "${with_openmpi}" in
       [ -d openmpi-${openmpi_ver} ] && rm -rf openmpi-${openmpi_ver}
       tar -xzf ${openmpi_pkg}
       cd openmpi-${openmpi_ver}
-      # can have issue with older glibc libraries, in which case
-      # we need to add the -fgnu89-inline to CFLAGS. We can check
-      # the version of glibc using ldd --version, as ldd is part of
-      # glibc package
-      glibc_version=$(ldd --version | awk '/ldd/{print $NF}')
-      glibc_major_ver=${glibc_version%%.*}
-      glibc_minor_ver=${glibc_version##*.}
-      if [ $glibc_major_ver -lt 2 ] ||
-        [ $glibc_major_ver -eq 2 -a $glibc_minor_ver -lt 12 ]; then
-        CFLAGS="${CFLAGS} -fgnu89-inline"
+      if [ "${OPENBLAS_ARCH}" = "x86_64" ]; then
+        # can have issue with older glibc libraries, in which case
+        # we need to add the -fgnu89-inline to CFLAGS. We can check
+        # the version of glibc using ldd --version, as ldd is part of
+        # glibc package
+        glibc_version=$(ldd --version | awk '/ldd/{print $NF}')
+        glibc_major_ver=${glibc_version%%.*}
+        glibc_minor_ver=${glibc_version##*.}
+        if [ $glibc_major_ver -lt 2 ] ||
+          [ $glibc_major_ver -eq 2 -a $glibc_minor_ver -lt 12 ]; then
+          CFLAGS="${CFLAGS} -fgnu89-inline"
+        fi
       fi
       if [ $(command -v srun) ]; then
         echo "Slurm installation found. OpenMPI will be configured with --with-pmi."
