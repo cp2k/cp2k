@@ -119,9 +119,9 @@ there are several freely available alternatives:
   - Recently a [ScaLAPACK installer](http://www.netlib.org/scalapack/scalapack_installer.tgz)
     has been added that simplifies the installation.
 
-CP2K assumes that the MPI library implements MPI version 3. If you have an older
-version of MPI (e.g., MPI 2.0) available you must define `-D__MPI_VERSION=2` in
-the arch file.
+CP2K assumes that the MPI library implements MPI version 3. Older
+version of MPI (e.g., MPI 2.0) are not supported and the flag `-D__MPI_VERSION` in
+the arch file will be ignored.
 
 ### 2f. FFTW (optional, improved performance of FFTs)
 

@@ -64,7 +64,6 @@ case "${with_openmpi}" in
       ./configure CFLAGS="${CFLAGS}" \
         --prefix=${pkg_install_dir} \
         --libdir="${pkg_install_dir}/lib" \
-        --enable-mpi1-compatibility \
         ${EXTRA_CONFIGURE_FLAGS} \
         > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
       make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
