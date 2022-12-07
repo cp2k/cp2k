@@ -1087,7 +1087,7 @@ CONTAINS
 
       ! Allocate buffers for vector version of kahan summation
       IF (mp2_env%ri_grad%dot_blksize >= blksize_threshold) THEN
-         ALLOCATE (buffer_compens_1D(MAX(my_a_size*maxsize(gd_virtual), my_i_size*maxsize(gd_homo))))
+         ALLOCATE (buffer_compens_1D(2*MAX(my_a_size*maxsize(gd_virtual), my_i_size*maxsize(gd_homo))))
       END IF
 
       IF (number_of_parallel_channels > 1) THEN
@@ -1338,7 +1338,7 @@ CONTAINS
    SUBROUTINE calc_P_rpa_a(P_ab, mat_S, mat_work, dot_blksize, buffer_1D, local_gemm_ctx, &
                            my_eval_virt, my_eval_occ, recv_eval_virt, omega, weight)
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: P_ab
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: mat_S, mat_work
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: mat_S, mat_work
       INTEGER, INTENT(IN)                                :: dot_blksize
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), TARGET :: buffer_1D
       TYPE(C_PTR), INTENT(INOUT)                         :: local_gemm_ctx
@@ -1350,7 +1350,7 @@ CONTAINS
       INTEGER                                            :: handle, my_a, my_a_size, my_i, &
                                                             my_i_size, my_P_size, P_end, P_start, &
                                                             recv_a_size, stripesize
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: buffer_2D
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: buffer_compens, buffer_unscaled
 
       my_i_size = SIZE(mat_S, 3)
       recv_a_size = SIZE(mat_work, 2)
@@ -1358,11 +1358,10 @@ CONTAINS
       my_P_size = SIZE(mat_S, 1)
 
       IF (dot_blksize >= blksize_threshold) THEN
-         buffer_2D(1:my_a_size, 1:recv_a_size) => buffer_1D(1:my_a_size*recv_a_size)
+         buffer_compens(1:my_a_size, 1:recv_a_size) => buffer_1D(1:my_a_size*recv_a_size)
+         buffer_compens = 0.0_dp
+         buffer_unscaled(1:my_a_size, 1:recv_a_size) => buffer_1D(my_a_size*recv_a_size + 1:2*my_a_size*recv_a_size)
 
-         buffer_2D = 0.0_dp
-
-         CALL timeset(routineN//"_dgemm", handle)
          ! This loop imitates the actual tensor contraction
          DO my_i = 1, my_i_size
             DO P_start = 1, my_P_size, dot_blksize
@@ -1372,35 +1371,14 @@ CONTAINS
                CALL local_gemm("T", "N", my_a_size, recv_a_size, stripesize, &
                                -weight, mat_S(P_start:P_end, :, my_i), stripesize, &
                                mat_work(P_start:P_end, :, my_i), stripesize, &
-                               -1.0_dp, buffer_2D, my_a_size, local_gemm_ctx)
+                               0.0_dp, buffer_unscaled, my_a_size, local_gemm_ctx)
+
+               CALL scale_buffer_and_add_compens_virt(buffer_unscaled, buffer_compens, omega, &
+                                                      my_eval_virt, recv_eval_virt, my_eval_occ(my_i))
 
                CALL kahan_step(buffer_1D(1:recv_a_size*my_a_size), P_ab)
             END DO
          END DO
-         CALL timestop(handle)
-
-         CALL scale_mat_S(mat_S, omega, my_eval_virt, my_eval_occ)
-         CALL scale_mat_S(mat_work, omega, recv_eval_virt, my_eval_occ)
-
-         CALL timeset(routineN//"_dgemm", handle)
-         DO my_i = 1, my_i_size
-            DO P_start = 1, my_P_size, dot_blksize
-               stripesize = MIN(dot_blksize, my_P_size - P_start + 1)
-               P_end = P_start + stripesize - 1
-
-               ! Repeat contraction
-               CALL local_gemm("T", "N", my_a_size, recv_a_size, stripesize, &
-                               weight, mat_S(P_start:P_end, :, my_i), stripesize, &
-                               mat_work(P_start:P_end, :, my_i), stripesize, &
-                               -1.0_dp, buffer_2D, my_a_size, local_gemm_ctx)
-
-               CALL kahan_step(buffer_1D(1:recv_a_size*my_a_size), P_ab)
-            END DO
-         END DO
-         CALL timestop(handle)
-
-         CALL remove_scaling_mat_S(mat_S, omega, my_eval_virt, my_eval_occ)
-         CALL remove_scaling_mat_S(mat_work, omega, recv_eval_virt, my_eval_occ)
       ELSE
          BLOCK
             INTEGER :: recv_a
@@ -1459,7 +1437,7 @@ CONTAINS
       INTEGER                                            :: handle, my_a, my_a_size, my_i, &
                                                             my_i_size, my_P_size, P_end, P_start, &
                                                             recv_i_size, stripesize
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: buffer_2D
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: buffer_compens, buffer_unscaled
 
       my_i_size = SIZE(mat_S, 3)
       recv_i_size = SIZE(mat_work, 3)
@@ -1467,10 +1445,10 @@ CONTAINS
       my_P_size = SIZE(mat_S, 1)
 
       IF (dot_blksize >= blksize_threshold) THEN
-         buffer_2D(1:my_i_size, 1:recv_i_size) => buffer_1D(1:my_i_size*recv_i_size)
-         buffer_2D = 0.0_dp
+         buffer_compens(1:my_i_size, 1:recv_i_size) => buffer_1D(1:my_i_size*recv_i_size)
+         buffer_compens = 0.0_dp
+         buffer_unscaled(1:my_i_size, 1:recv_i_size) => buffer_1D(my_i_size*recv_i_size+1:2*my_i_size*recv_i_size)
 
-         CALL timeset(routineN//"_dgemm", handle)
          ! This loop imitates the actual tensor contraction
          DO my_a = 1, my_a_size
             DO P_start = 1, my_P_size, dot_blksize
@@ -1480,35 +1458,14 @@ CONTAINS
                CALL local_gemm("T", "N", my_i_size, recv_i_size, stripesize, &
                                weight, mat_S(P_start:P_end, my_a, :), stripesize, &
                                mat_work(P_start:P_end, my_a, :), stripesize, &
-                               -1.0_dp, buffer_2D, my_i_size, local_gemm_ctx)
+                               0.0_dp, buffer_unscaled, my_i_size, local_gemm_ctx)
+
+               CALL scale_buffer_and_add_compens_occ(buffer_unscaled, buffer_compens, omega, &
+                                                     my_eval_occ, recv_eval_occ, my_eval_virt(my_a))
 
                CALL kahan_step(buffer_1D(1:recv_i_size*my_i_size), P_ij)
             END DO
          END DO
-         CALL timestop(handle)
-
-         CALL scale_mat_S(mat_S, omega, my_eval_virt, my_eval_occ)
-         CALL scale_mat_S(mat_work, omega, my_eval_virt, recv_eval_occ)
-
-         CALL timeset(routineN//"_dgemm", handle)
-         DO my_a = 1, my_a_size
-            DO P_start = 1, my_P_size, dot_blksize
-               stripesize = MIN(dot_blksize, my_P_size - P_start + 1)
-               P_end = P_start + stripesize - 1
-
-               ! Repeat contraction
-               CALL local_gemm("T", "N", my_i_size, recv_i_size, stripesize, &
-                               -weight, mat_S(P_start:P_end, my_a, :), stripesize, &
-                               mat_work(P_start:P_end, my_a, :), stripesize, &
-                               -1.0_dp, buffer_2D, my_i_size, local_gemm_ctx)
-
-               CALL kahan_step(buffer_1D(1:recv_i_size*my_i_size), P_ij)
-            END DO
-         END DO
-         CALL timestop(handle)
-
-         CALL remove_scaling_mat_S(mat_S, omega, my_eval_virt, my_eval_occ)
-         CALL remove_scaling_mat_S(mat_work, omega, my_eval_virt, recv_eval_occ)
       ELSE
          BLOCK
             REAL(KIND=dp) :: tmp, e_i, e_a, e_j, omega2
@@ -1578,66 +1535,79 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param mat_S ...
+!> \param buffer_unscaled ...
+!> \param buffer_compens ...
 !> \param omega ...
-!> \param eval_virt ...
-!> \param eval_occ ...
+!> \param my_eval_virt ...
+!> \param recv_eval_virt ...
+!> \param my_eval_occ ...
 ! **************************************************************************************************
-   SUBROUTINE scale_mat_S(mat_S, omega, eval_virt, eval_occ)
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: mat_S
+   SUBROUTINE scale_buffer_and_add_compens_virt(buffer_unscaled, buffer_compens, omega, &
+                                                my_eval_virt, recv_eval_virt, my_eval_occ)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: buffer_unscaled
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: buffer_compens
       REAL(KIND=dp), INTENT(IN)                          :: omega
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eval_virt, eval_occ
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: my_eval_virt, recv_eval_virt
+      REAL(KIND=dp), INTENT(IN)                          :: my_eval_occ
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'scale_mat_S'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_buffer_and_add_compens_virt'
 
-      INTEGER                                            :: handle, my_a, my_i
+      INTEGER                                            :: handle, my_a, my_b
 
       CALL timeset(routineN, handle)
 
-!$OMP PARALLEL DO DEFAULT(NONE) SHARED(mat_S,omega,eval_virt,eval_occ) PRIVATE(my_i,my_a)
-      DO my_i = 1, SIZE(mat_S, 3)
-         DO my_a = 1, SIZE(mat_S, 2)
-            mat_S(:, my_a, my_i) = mat_S(:, my_a, my_i)*(omega/(eval_virt(my_a) - eval_occ(my_i)))
+!$OMP PARALLEL DO DEFAULT(NONE) SHARED(buffer_unscaled,buffer_compens,omega,&
+!$OMP                                  my_eval_virt,recv_eval_virt,my_eval_occ) PRIVATE(my_a,my_b)
+      DO my_b = 1, SIZE(buffer_compens, 2)
+         DO my_a = 1, SIZE(buffer_compens, 1)
+            buffer_compens(my_a, my_b) = buffer_unscaled(my_a, my_b) &
+                                    *(1.0_dp - omega**2/((my_eval_virt(my_a) - my_eval_occ)*(recv_eval_virt(my_b) - my_eval_occ))) &
+                                         - buffer_compens(my_a, my_b)
          END DO
       END DO
 !$OMP END PARALLEL DO
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE scale_buffer_and_add_compens_virt
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param mat_S ...
+!> \param buffer_unscaled ...
+!> \param buffer_compens ...
 !> \param omega ...
-!> \param eval_virt ...
-!> \param eval_occ ...
+!> \param my_eval_occ ...
+!> \param recv_eval_occ ...
+!> \param my_eval_virt ...
 ! **************************************************************************************************
-   SUBROUTINE remove_scaling_mat_S(mat_S, omega, eval_virt, eval_occ)
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: mat_S
+   SUBROUTINE scale_buffer_and_add_compens_occ(buffer_unscaled, buffer_compens, omega, &
+                                               my_eval_occ, recv_eval_occ, my_eval_virt)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: buffer_unscaled
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: buffer_compens
       REAL(KIND=dp), INTENT(IN)                          :: omega
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eval_virt, eval_occ
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: my_eval_occ, recv_eval_occ
+      REAL(KIND=dp), INTENT(IN)                          :: my_eval_virt
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_scaling_mat_S'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_buffer_and_add_compens_occ'
 
-      INTEGER                                            :: handle, my_a, my_i
-      REAL(KIND=dp)                                      :: omega1
+      INTEGER                                            :: handle, my_i, my_j
 
       CALL timeset(routineN, handle)
 
-      omega1 = 1.0/omega
-
-!$OMP PARALLEL DO DEFAULT(NONE) SHARED(mat_S,omega1,eval_virt,eval_occ) PRIVATE(my_i,my_a)
-      DO my_i = 1, SIZE(mat_S, 3)
-         DO my_a = 1, SIZE(mat_S, 2)
-            mat_S(:, my_a, my_i) = mat_S(:, my_a, my_i)*(omega1*(eval_virt(my_a) - eval_occ(my_i)))
+!$OMP PARALLEL DO DEFAULT(NONE) SHARED(buffer_compens,buffer_unscaled,omega,&
+!$OMP        my_eval_virt,my_eval_occ,recv_eval_occ) PRIVATE(my_i,my_j)
+      DO my_j = 1, SIZE(buffer_compens, 2)
+         DO my_i = 1, SIZE(buffer_compens, 1)
+            buffer_compens(my_i, my_j) = buffer_unscaled(my_i, my_j) &
+                                    *(1.0_dp - omega**2/((my_eval_virt - my_eval_occ(my_i))*(my_eval_virt - recv_eval_occ(my_j)))) &
+                                         - buffer_compens(my_i, my_j)
          END DO
       END DO
 !$OMP END PARALLEL DO
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE scale_buffer_and_add_compens_occ
 
 ! **************************************************************************************************
 !> \brief ...
