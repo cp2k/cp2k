@@ -1067,6 +1067,7 @@ CONTAINS
       CALL mp_min(mem_real, para_env%group)
       mem_per_block = REAL(number_of_elements_per_blk, KIND=dp)*8.0_dp
       number_of_parallel_channels = MAX(1, MIN(MAXVAL(grid), FLOOR(mem_real/mem_per_block)))
+number_of_parallel_channels = 1
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A,T75,I6)') 'GRAD_INFO| Number of parallel communication channels:', number_of_parallel_channels
@@ -1231,10 +1232,6 @@ CONTAINS
          buffer_3D(0)%array = mat_work_iaP_3D
       END IF
 
-      buffer_3D(0)%array(1:my_P_size, 1:my_a_size, 1:my_i_size) => &
-         buffer_1D(0)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*my_i_size)
-      buffer_3D(0)%array = mat_work_iaP_3D
-
       CALL calc_P_rpa_i(P_ij(:, my_i_start:my_i_end), &
                         mat_S_3D, buffer_3D(0)%array, &
                         mp2_env%ri_grad%dot_blksize, buffer_compens_1D, mp2_env%local_gemm_ctx, &
@@ -1274,12 +1271,13 @@ CONTAINS
 
             CALL get_group_dist(gd_homo, proc_i_recv, recv_i_start, recv_i_end, recv_i_size)
 
-            CALL mp_waitany(recv_requests, completed)
+            buffer_3D(0)%array(1:my_P_size, 1:my_a_size, 1:recv_i_size) => &
+               buffer_1D(0)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
 
-            ! Beware the numbering convention of MPI in Fortran
-            completed = completed - 1
-
-            CALL get_group_dist(gd_homo, procs_recv(completed), recv_i_start, recv_i_end, recv_i_size)
+            CALL mp_sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
+                             buffer_3D(0)%array, blacs2mpi(my_prow, proc_recv), &
+                             para_env%group, tag)
+            completed = 0
          END IF
          CALL timestop(handle2)
 
