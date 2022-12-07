@@ -1067,7 +1067,6 @@ CONTAINS
       CALL mp_min(mem_real, para_env%group)
       mem_per_block = REAL(number_of_elements_per_blk, KIND=dp)*8.0_dp
       number_of_parallel_channels = MAX(1, MIN(MAXVAL(grid), FLOOR(mem_real/mem_per_block)))
-number_of_parallel_channels = 1
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A,T75,I6)') 'GRAD_INFO| Number of parallel communication channels:', number_of_parallel_channels
@@ -1441,7 +1440,7 @@ number_of_parallel_channels = 1
       IF (dot_blksize >= blksize_threshold) THEN
          buffer_compens(1:my_i_size, 1:recv_i_size) => buffer_1D(1:my_i_size*recv_i_size)
          buffer_compens = 0.0_dp
-         buffer_unscaled(1:my_i_size, 1:recv_i_size) => buffer_1D(my_i_size*recv_i_size+1:2*my_i_size*recv_i_size)
+         buffer_unscaled(1:my_i_size, 1:recv_i_size) => buffer_1D(my_i_size*recv_i_size + 1:2*my_i_size*recv_i_size)
 
          ! This loop imitates the actual tensor contraction
          DO my_a = 1, my_a_size
