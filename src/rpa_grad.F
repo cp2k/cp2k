@@ -1348,24 +1348,28 @@ CONTAINS
       ELSE
          BLOCK
             INTEGER :: recv_a
-            REAL(KIND=dp) :: tmp, e_i, e_a, e_b, omega2
+            REAL(KIND=dp) :: tmp, e_i, e_a, e_b, omega2, my_compens, my_p, s
             CALL timeset(routineN//"_accurate", handle)
             omega2 = -omega**2
 !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(NONE)&
 !$OMP SHARED(my_a_size,recv_a_size,my_i_size,mat_S,my_eval_virt,recv_eval_virt,my_eval_occ,omega2,&
 !$OMP        P_ab,weight,mat_work)&
-!$OMP PRIVATE(tmp,my_a,recv_a,my_i,e_a,e_b,e_i)
+!$OMP PRIVATE(tmp,my_a,recv_a,my_i,e_a,e_b,e_i,my_compens,my_p,s)
             DO my_a = 1, my_a_size
             DO recv_a = 1, recv_a_size
                e_a = my_eval_virt(my_a)
                e_b = recv_eval_virt(recv_a)
-               tmp = 0.0_dp
+               my_p = P_ab(my_a, recv_a)
+               my_compens = 0.0_dp
                DO my_i = 1, my_i_size
                   e_i = -my_eval_occ(my_i)
-                  tmp = tmp + accurate_dot_product(mat_S(:, my_a, my_i), mat_work(:, recv_a, my_i)) &
-                        *(1.0_dp + omega2/((e_a + e_i)*(e_b + e_i)))
+                  tmp = -weight*accurate_dot_product(mat_S(:, my_a, my_i), mat_work(:, recv_a, my_i)) &
+                        *(1.0_dp + omega2/((e_a + e_i)*(e_b + e_i))) - my_compens
+                  s = my_p + tmp
+                  my_compens = (s - my_p) - tmp
+                  my_p = s
                END DO
-               P_ab(my_a, recv_a) = P_ab(my_a, recv_a) - weight*tmp
+               P_ab(my_a, recv_a) = my_p
             END DO
             END DO
             CALL timestop(handle)
@@ -1434,25 +1438,29 @@ CONTAINS
          END DO
       ELSE
          BLOCK
-            REAL(KIND=dp) :: tmp, e_i, e_a, e_j, omega2
+            REAL(KIND=dp) :: tmp, e_i, e_a, e_j, omega2, my_compens, my_p, s
             INTEGER :: recv_i
             CALL timeset(routineN//"_accurate", handle)
             omega2 = -omega**2
 !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(NONE)&
 !$OMP SHARED(my_a_size,recv_i_size,my_i_size,mat_S,my_eval_occ,my_eval_virt,omega2,&
 !$OMP        recv_eval_occ,P_ij,weight,mat_work)&
-!$OMP PRIVATE(tmp,my_a,recv_i,my_i,e_i,e_j,e_a)
+!$OMP PRIVATE(tmp,my_a,recv_i,my_i,e_i,e_j,e_a,my_compens,my_p,s)
             DO my_i = 1, my_i_size
             DO recv_i = 1, recv_i_size
                e_i = my_eval_occ(my_i)
                e_j = recv_eval_occ(recv_i)
-               tmp = 0.0_dp
+               my_p = P_ij(my_i, recv_i)
+               my_compens = 0.0_dp
                DO my_a = 1, my_a_size
                   e_a = my_eval_virt(my_a)
-                  tmp = tmp + accurate_dot_product(mat_S(:, my_a, my_i), mat_work(:, my_a, recv_i)) &
-                        *(1.0_dp + omega2/((e_a - e_i)*(e_a - e_j)))
+                  tmp = weight*accurate_dot_product(mat_S(:, my_a, my_i), mat_work(:, my_a, recv_i)) &
+                        *(1.0_dp + omega2/((e_a - e_i)*(e_a - e_j))) - my_compens
+                  s = my_p + tmp
+                  my_compens = (s - my_p) - tmp
+                  my_p = s
                END DO
-               P_ij(my_i, recv_i) = P_ij(my_i, recv_i) + weight*tmp
+               P_ij(my_i, recv_i) = my_p
             END DO
             END DO
             CALL timestop(handle)
