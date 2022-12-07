@@ -1066,7 +1066,7 @@ CONTAINS
       mem_real = REAL(mem, KIND=dp)
       CALL mp_min(mem_real, para_env%group)
       mem_per_block = REAL(number_of_elements_per_blk, KIND=dp)*8.0_dp
-      number_of_parallel_channels = MAX(1, MIN(MAXVAL(grid), FLOOR(mem_real/mem_per_block)))
+      number_of_parallel_channels = MAX(1, MIN(MAXVAL(grid) - 1, FLOOR(mem_real/mem_per_block)))
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A,T75,I6)') 'GRAD_INFO| Number of parallel communication channels:', number_of_parallel_channels
@@ -1074,12 +1074,12 @@ CONTAINS
       END IF
       CALL mp_sync(para_env%group)
 
-      ALLOCATE (buffer_1D(0:number_of_parallel_channels - 1))
-      DO proc_shift = 0, number_of_parallel_channels - 1
+      ALLOCATE (buffer_1D(number_of_parallel_channels))
+      DO proc_shift = 1, number_of_parallel_channels
          ALLOCATE (buffer_1D(proc_shift)%array(number_of_elements_per_blk))
       END DO
 
-      ALLOCATE (buffer_3D(0:number_of_parallel_channels - 1))
+      ALLOCATE (buffer_3D(number_of_parallel_channels))
 
       ! Allocate buffers for vector version of kahan summation
       IF (mp2_env%ri_grad%dot_blksize >= blksize_threshold) THEN
@@ -1087,8 +1087,8 @@ CONTAINS
       END IF
 
       IF (number_of_parallel_channels > 1) THEN
-         ALLOCATE (procs_recv(0:number_of_parallel_channels - 1))
-         ALLOCATE (recv_requests(0:number_of_parallel_channels - 1))
+         ALLOCATE (procs_recv(number_of_parallel_channels))
+         ALLOCATE (recv_requests(number_of_parallel_channels))
          ALLOCATE (send_requests(MAXVAL(grid) - 1))
       END IF
 
@@ -1096,7 +1096,7 @@ CONTAINS
          CALL timeset(routineN//"_comm_a", handle2)
          recv_requests(:) = mp_request_null
          procs_recv(:) = -1
-         DO proc_shift = 0, MIN(grid(1), number_of_parallel_channels) - 1
+         DO proc_shift = 1, MIN(grid(1) - 1, number_of_parallel_channels)
             proc_a_recv = MODULO(mepos(1) - proc_shift, grid(1))
             proc_recv = mepos(2)*grid(1) + proc_a_recv
 
@@ -1105,12 +1105,8 @@ CONTAINS
             buffer_3D(proc_shift)%array(1:my_P_size, 1:recv_a_size, 1:my_i_size) => &
                buffer_1D(proc_shift)%array(1:INT(my_P_size, KIND=int_8)*recv_a_size*my_i_size)
 
-            IF (proc_shift > 0) THEN
-               CALL mp_irecv(buffer_3D(proc_shift)%array, blacs2mpi(my_prow, proc_recv), &
-                             para_env%group, recv_requests(proc_shift), tag)
-            ELSE
-               buffer_3D(0)%array = mat_work_iaP_3D
-            END IF
+            CALL mp_irecv(buffer_3D(proc_shift)%array, blacs2mpi(my_prow, proc_recv), &
+                          para_env%group, recv_requests(proc_shift), tag)
 
             procs_recv(proc_shift) = proc_a_recv
          END DO
@@ -1124,17 +1120,10 @@ CONTAINS
                           para_env%group, send_requests(proc_shift), tag)
          END DO
          CALL timestop(handle2)
-      ELSE
-         buffer_3D(0)%array(1:my_P_size, 1:my_a_size, 1:my_i_size) => &
-            buffer_1D(0)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*my_i_size)
-
-         buffer_3D(0)%array = mat_work_iaP_3D
       END IF
 
-      completed = 0
-
       CALL calc_P_rpa_a(P_ab(:, my_a_start:my_a_end), &
-                        mat_S_3D, buffer_3D(0)%array, &
+                        mat_S_3D, mat_work_iaP_3D, &
                         mp2_env%ri_grad%dot_blksize, buffer_compens_1D, mp2_env%local_gemm_ctx, &
                         Eigenval(homo + my_a_start:homo + my_a_end), Eigenval(my_i_start:my_i_end), &
                         Eigenval(homo + my_a_start:homo + my_a_end), omega, weight)
@@ -1142,25 +1131,7 @@ CONTAINS
       DO proc_shift = 1, grid(1) - 1
          CALL timeset(routineN//"_comm_a", handle2)
          IF (number_of_parallel_channels > 1) THEN
-            IF (number_of_parallel_channels + proc_shift <= grid(1)) THEN
-               proc_a_recv = MODULO(mepos(1) - proc_shift - number_of_parallel_channels + 1, grid(1))
-               proc_recv = mepos(2)*grid(1) + proc_a_recv
-
-               CALL get_group_dist(gd_virtual, proc_a_recv, recv_a_start, recv_a_end, recv_a_size)
-
-               buffer_3D(completed)%array(1:my_P_size, 1:recv_a_size, 1:my_i_size) => &
-                  buffer_1D(completed)%array(1:INT(my_P_size, KIND=int_8)*recv_a_size*my_i_size)
-
-               CALL mp_irecv(buffer_3D(completed)%array, blacs2mpi(my_prow, proc_recv), &
-                             para_env%group, recv_requests(completed), tag)
-
-               procs_recv(completed) = proc_a_recv
-            END IF
-
             CALL mp_waitany(recv_requests, completed)
-
-            ! Beware the numbering convention of MPI in Fortran
-            completed = completed - 1
 
             CALL get_group_dist(gd_virtual, procs_recv(completed), recv_a_start, recv_a_end, recv_a_size)
          ELSE
@@ -1172,13 +1143,13 @@ CONTAINS
 
             CALL get_group_dist(gd_virtual, proc_a_recv, recv_a_start, recv_a_end, recv_a_size)
 
-            buffer_3D(0)%array(1:my_P_size, 1:recv_a_size, 1:my_i_size) => &
-               buffer_1D(0)%array(1:INT(my_P_size, KIND=int_8)*recv_a_size*my_i_size)
+            buffer_3D(1)%array(1:my_P_size, 1:recv_a_size, 1:my_i_size) => &
+               buffer_1D(1)%array(1:INT(my_P_size, KIND=int_8)*recv_a_size*my_i_size)
 
             CALL mp_sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
-                             buffer_3D(0)%array, blacs2mpi(my_prow, proc_recv), &
+                             buffer_3D(1)%array, blacs2mpi(my_prow, proc_recv), &
                              para_env%group, tag)
-            completed = 0
+            completed = 1
          END IF
          CALL timestop(handle2)
 
@@ -1188,6 +1159,20 @@ CONTAINS
                            Eigenval(homo + my_a_start:homo + my_a_end), Eigenval(my_i_start:my_i_end), &
                            Eigenval(homo + recv_a_start:homo + recv_a_end), omega, weight)
 
+         IF (number_of_parallel_channels > 1 .AND. number_of_parallel_channels + proc_shift < grid(1)) THEN
+            proc_a_recv = MODULO(mepos(1) - proc_shift - number_of_parallel_channels + 1, grid(1))
+            proc_recv = mepos(2)*grid(1) + proc_a_recv
+
+            CALL get_group_dist(gd_virtual, proc_a_recv, recv_a_start, recv_a_end, recv_a_size)
+
+            buffer_3D(completed)%array(1:my_P_size, 1:recv_a_size, 1:my_i_size) => &
+               buffer_1D(completed)%array(1:INT(my_P_size, KIND=int_8)*recv_a_size*my_i_size)
+
+            CALL mp_irecv(buffer_3D(completed)%array, blacs2mpi(my_prow, proc_recv), &
+                          para_env%group, recv_requests(completed), tag)
+
+            procs_recv(completed) = proc_a_recv
+         END IF
       END DO
 
       IF (number_of_parallel_channels > 1 .AND. grid(1) > 1) THEN
@@ -1197,7 +1182,7 @@ CONTAINS
       IF (number_of_parallel_channels > 1 .AND. grid(2) > 1) THEN
          recv_requests(:) = mp_request_null
          procs_recv(:) = -1
-         DO proc_shift = 0, MIN(grid(2), number_of_parallel_channels) - 1
+         DO proc_shift = 1, MIN(grid(2) - 1, number_of_parallel_channels)
             proc_i_recv = MODULO(mepos(2) - proc_shift, grid(2))
             proc_recv = proc_i_recv*grid(1) + mepos(1)
 
@@ -1206,12 +1191,8 @@ CONTAINS
             buffer_3D(proc_shift)%array(1:my_P_size, 1:my_a_size, 1:recv_i_size) => &
                buffer_1D(proc_shift)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
 
-            IF (proc_shift > 0) THEN
-               CALL mp_irecv(buffer_3D(proc_shift)%array, blacs2mpi(my_prow, proc_recv), &
-                             para_env%group, recv_requests(proc_shift), tag)
-            ELSE
-               buffer_3D(0)%array = mat_work_iaP_3D
-            END IF
+            CALL mp_irecv(buffer_3D(proc_shift)%array, blacs2mpi(my_prow, proc_recv), &
+                          para_env%group, recv_requests(proc_shift), tag)
 
             procs_recv(proc_shift) = proc_i_recv
          END DO
@@ -1224,15 +1205,10 @@ CONTAINS
             CALL mp_isend(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
                           para_env%group, send_requests(proc_shift), tag)
          END DO
-      ELSE
-         buffer_3D(0)%array(1:my_P_size, 1:my_a_size, 1:my_i_size) => &
-            buffer_1D(0)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*my_i_size)
-
-         buffer_3D(0)%array = mat_work_iaP_3D
       END IF
 
       CALL calc_P_rpa_i(P_ij(:, my_i_start:my_i_end), &
-                        mat_S_3D, buffer_3D(0)%array, &
+                        mat_S_3D, mat_work_iaP_3D, &
                         mp2_env%ri_grad%dot_blksize, buffer_compens_1D, mp2_env%local_gemm_ctx, &
                         Eigenval(homo + my_a_start:homo + my_a_end), Eigenval(my_i_start:my_i_end), &
                         Eigenval(my_i_start:my_i_end), omega, weight)
@@ -1240,25 +1216,7 @@ CONTAINS
       DO proc_shift = 1, grid(2) - 1
          CALL timeset(routineN//"_comm_i", handle2)
          IF (number_of_parallel_channels > 1) THEN
-            IF (number_of_parallel_channels + proc_shift <= grid(2)) THEN
-               proc_i_recv = MODULO(mepos(2) - proc_shift - number_of_parallel_channels + 1, grid(2))
-               proc_recv = proc_i_recv*grid(1) + mepos(1)
-
-               CALL get_group_dist(gd_homo, proc_i_recv, recv_i_start, recv_a_end, recv_i_size)
-
-               buffer_3D(completed)%array(1:my_P_size, 1:my_a_size, 1:recv_i_size) => &
-                  buffer_1D(completed)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
-
-               CALL mp_irecv(buffer_3D(completed)%array, blacs2mpi(my_prow, proc_recv), &
-                             para_env%group, recv_requests(completed), tag)
-
-               procs_recv(completed) = proc_i_recv
-            END IF
-
             CALL mp_waitany(recv_requests, completed)
-
-            ! Beware the numbering convention of MPI in Fortran
-            completed = completed - 1
 
             CALL get_group_dist(gd_homo, procs_recv(completed), recv_i_start, recv_i_end, recv_i_size)
          ELSE
@@ -1270,13 +1228,13 @@ CONTAINS
 
             CALL get_group_dist(gd_homo, proc_i_recv, recv_i_start, recv_i_end, recv_i_size)
 
-            buffer_3D(0)%array(1:my_P_size, 1:my_a_size, 1:recv_i_size) => &
-               buffer_1D(0)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
+            buffer_3D(1)%array(1:my_P_size, 1:my_a_size, 1:recv_i_size) => &
+               buffer_1D(1)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
 
             CALL mp_sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
-                             buffer_3D(0)%array, blacs2mpi(my_prow, proc_recv), &
+                             buffer_3D(1)%array, blacs2mpi(my_prow, proc_recv), &
                              para_env%group, tag)
-            completed = 0
+            completed = 1
          END IF
          CALL timestop(handle2)
 
@@ -1285,6 +1243,21 @@ CONTAINS
                            mp2_env%ri_grad%dot_blksize, buffer_compens_1D, mp2_env%local_gemm_ctx, &
                            Eigenval(homo + my_a_start:homo + my_a_end), Eigenval(my_i_start:my_i_end), &
                            Eigenval(recv_i_start:recv_i_end), omega, weight)
+
+         IF (number_of_parallel_channels > 1 .AND. number_of_parallel_channels + proc_shift < grid(2)) THEN
+            proc_i_recv = MODULO(mepos(2) - proc_shift - number_of_parallel_channels + 1, grid(2))
+            proc_recv = proc_i_recv*grid(1) + mepos(1)
+
+            CALL get_group_dist(gd_homo, proc_i_recv, recv_i_start, recv_a_end, recv_i_size)
+
+            buffer_3D(completed)%array(1:my_P_size, 1:my_a_size, 1:recv_i_size) => &
+               buffer_1D(completed)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
+
+            CALL mp_irecv(buffer_3D(completed)%array, blacs2mpi(my_prow, proc_recv), &
+                          para_env%group, recv_requests(completed), tag)
+
+            procs_recv(completed) = proc_i_recv
+         END IF
       END DO
 
       IF (number_of_parallel_channels > 1 .AND. grid(2) > 1) THEN
@@ -1304,7 +1277,7 @@ CONTAINS
          DEALLOCATE (buffer_compens_1D)
       END IF
 
-      DO proc_shift = 0, number_of_parallel_channels - 1
+      DO proc_shift = 1, number_of_parallel_channels
          NULLIFY (buffer_3D(proc_shift)%array)
          DEALLOCATE (buffer_1D(proc_shift)%array)
       END DO
