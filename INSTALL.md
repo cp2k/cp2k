@@ -120,7 +120,7 @@ there are several freely available alternatives:
     has been added that simplifies the installation.
 
 CP2K assumes that the MPI library implements MPI version 3. Older
-version of MPI (e.g., MPI 2.0) are not supported and the flag `-D__MPI_VERSION` in
+versions of MPI (e.g., MPI 2.0) are not supported and the old flag `-D__MPI_VERSION` in
 the arch file will be ignored.
 
 ### 2f. FFTW (optional, improved performance of FFTs)
