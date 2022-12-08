@@ -121,7 +121,6 @@ message_passing.fypp: Rank mismatch between actual argument at (1) and actual ar
 message_passing.fypp: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-3)
 message_passing.fypp: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-4)
 message_passing.fypp: Type mismatch between actual argument at (1) and actual argument at (2) (COMPLEX(8)/COMPLEX(4)).
-message_passing.F: Flag '__MPI_VERSION' not mentioned in cp2k_flags()
 mltfftsg_tools.F: Found WRITE statement with hardcoded unit in "ctrig"
 mode_selective.F: Found READ with unchecked STAT in "bfgs_guess"
 nequip_unittest.F: Found WRITE statement with hardcoded unit in "nequip_unittest"

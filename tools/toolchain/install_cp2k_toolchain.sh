@@ -847,7 +847,7 @@ if [ "${ENABLE_CRAY}" = "__TRUE__" ]; then
         export MPI_CFLAGS
         export MPI_LDFLAGS
         export MPI_LIBS=" "
-        export CP_DFLAGS="${CP_DFLAGS} IF_MPI(-D__parallel -D__MPI_VERSION=3|)"
+        export CP_DFLAGS="${CP_DFLAGS} IF_MPI(-D__parallel|)"
       fi
       ;;
     openmpi)
@@ -857,7 +857,7 @@ if [ "${ENABLE_CRAY}" = "__TRUE__" ]; then
         export MPI_CFLAGS
         export MPI_LDFLAGS
         export MPI_LIBS="-lmpi -lmpi_cxx"
-        export CP_DFLAGS="${CP_DFLAGS} IF_MPI(-D__parallel -D__MPI_VERSION=3|)"
+        export CP_DFLAGS="${CP_DFLAGS} IF_MPI(-D__parallel|)"
       fi
       ;;
     intelmpi)
@@ -869,7 +869,7 @@ if [ "${ENABLE_CRAY}" = "__TRUE__" ]; then
         export MPI_CFLAGS
         export MPI_LDFLAGS
         export MPI_LIBS="-lmpi -lmpi_cxx"
-        export CP_DFLAGS="${CP_DFLAGS} IF_MPI(-D__parallel -D__MPI_VERSION=3|)"
+        export CP_DFLAGS="${CP_DFLAGS} IF_MPI(-D__parallel|)"
       fi
       ;;
   esac

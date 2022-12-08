@@ -137,13 +137,6 @@ if [ "${with_openmpi}" != "__DONTUSE__" ]; then
     OPENMPI_LIBS+=" -l${lib}"
     OPENMPI_LDFLAGS="${OPENMPI_LDFLAGS//-l${lib}/}"
   done
-  # old versions didn't support MPI 3, so adjust __MPI_VERSION accordingly (needed e.g. for pexsi)
-  if [[ "$major_version" =~ ^[0-9]+$ ]] && ([ $major_version -lt 1 ] ||
-    [ $major_version -eq 1 -a ${minor_version} -lt 7 ]); then
-    mpi2_dflags="-D__MPI_VERSION=2"
-  else
-    mpi2_dflags=""
-  fi
   cat << EOF > "${BUILDDIR}/setup_openmpi"
 export MPI_MODE="${MPI_MODE}"
 export MPIRUN="${MPIRUN}"
@@ -158,7 +151,7 @@ export OPENMPI_LIBS="${OPENMPI_LIBS}"
 export MPI_CFLAGS="${OPENMPI_CFLAGS}"
 export MPI_LDFLAGS="${OPENMPI_LDFLAGS}"
 export MPI_LIBS="${OPENMPI_LIBS}"
-export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__parallel ${mpi2_dflags}|)"
+export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__parallel}|)"
 export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(${OPENMPI_CFLAGS}|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${OPENMPI_LDFLAGS}|)"
 export CP_LIBS="\${CP_LIBS} IF_MPI(${OPENMPI_LIBS}|)"
