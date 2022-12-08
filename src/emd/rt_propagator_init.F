@@ -431,7 +431,7 @@ CONTAINS
          CALL cp_fm_column_scale(mos(ispin)%mo_coeff, mos(ispin)%occupation_numbers/alpha)
          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_old(re)%matrix, &
                                     matrix_v=mos(ispin)%mo_coeff, ncol=ncol, alpha=alpha, keep_sparsity=.FALSE.)
-         CALL dbcsr_filter(rho_old(re)%matrix, eps=rtp%filter_eps)
+         CALL dbcsr_filter(rho_old(re)%matrix, rtp%filter_eps)
          CALL dbcsr_copy(rho_new(re)%matrix, rho_old(re)%matrix)
       END DO
 

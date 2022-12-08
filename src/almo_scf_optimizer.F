@@ -6299,7 +6299,7 @@ CONTAINS
          CALL dbcsr_scale(m_tmp_no_2, &
                           envelope_amplitude)
          CALL dbcsr_set(m_tmp_no_3, 0.0_dp)
-         CALL dbcsr_filter(m_tmp_no_3, eps=eps_filter)
+         CALL dbcsr_filter(m_tmp_no_3, eps_filter)
          CALL dbcsr_hadamard_product(m_tmp_no_1, &
                                      m_tmp_no_2, &
                                      m_tmp_no_3, &
@@ -6312,7 +6312,7 @@ CONTAINS
                                      m_quench_t, &
                                      m_grad_out)
       END IF
-      CALL dbcsr_filter(m_grad_out, eps=eps_filter)
+      CALL dbcsr_filter(m_grad_out, eps_filter)
 
       CALL dbcsr_release(m_tmp_no_1)
       CALL dbcsr_release(m_tmp_no_2)
@@ -6907,7 +6907,7 @@ CONTAINS
             overlap_sqrti=m_sig_sqrti_ii_out)
       END IF
 
-      CALL dbcsr_filter(m_t_out, eps=eps_filter)
+      CALL dbcsr_filter(m_t_out, eps_filter)
 
       CALL dbcsr_release(m_tmp_no_1)
       CALL dbcsr_release(m_tmp_oo_1)
@@ -7127,7 +7127,7 @@ CONTAINS
                                           upper_to_full=.TRUE.)
          END IF !skip_inversion
 
-         CALL dbcsr_filter(m_prec_out, eps=eps_filter)
+         CALL dbcsr_filter(m_prec_out, eps_filter)
 
       ELSE
 
@@ -7186,7 +7186,7 @@ CONTAINS
       !!!        blacs_env=almo_scf_env%blacs_env,&
       !!!        upper_to_full=.TRUE.)
       !!!CALL dbcsr_filter(prec_vv,&
-      !!!        eps=almo_scf_env%eps_filter)
+      !!!        almo_scf_env%eps_filter)
       !!!
 
       ! re-create the matrix because desymmetrize is buggy -
@@ -7222,7 +7222,7 @@ CONTAINS
       !CALL dbcsr_desymmetrize(almo_scf_env%matrix_sigma(ispin),&
       !        prec_oo)
       !CALL dbcsr_filter(prec_oo,&
-      !        eps=almo_scf_env%eps_filter)
+      !        almo_scf_env%eps_filter)
 
       !! invert using cholesky
       !CALL dbcsr_create(prec_oo_inv,&
@@ -9322,7 +9322,7 @@ CONTAINS
                                        para_env=almo_scf_env%para_env, &
                                        blacs_env=almo_scf_env%blacs_env, &
                                        upper_to_full=.TRUE.)
-         CALL dbcsr_filter(m_s_inv, eps=almo_scf_env%eps_filter)
+         CALL dbcsr_filter(m_s_inv, almo_scf_env%eps_filter)
 
       END IF ! s_inv
 
@@ -9784,7 +9784,7 @@ CONTAINS
                                                       blacs_env=almo_scf_env%blacs_env, &
                                                       upper_to_full=.TRUE.)
                         CALL dbcsr_filter(m_model_hessian_inv(ispin), &
-                                          eps=almo_scf_env%eps_filter)
+                                          almo_scf_env%eps_filter)
                      END DO
 
                   ELSE
