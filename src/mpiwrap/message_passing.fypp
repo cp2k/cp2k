@@ -2563,6 +2563,7 @@
 !> \param ierr ...
 !> \author Alfio Lazzaro
 ! **************************************************************************************************
+#if defined(__parallel)
    SUBROUTINE mp_iallgatherv_${nametype1}$v_internal(msgout, scount, msgin, rsize, rcount, rdispl, gid, request, ierr)
       ${type1}$, INTENT(IN)                      :: msgout(:)
       ${type1}$, INTENT(OUT)                     :: msgin(:)
@@ -2574,6 +2575,7 @@
                            rdispl, ${mpi_type1}$, gid, request, ierr)
 
    END SUBROUTINE mp_iallgatherv_${nametype1}$v_internal
+#endif
 
 ! **************************************************************************************************
 !> \brief Sums a vector and partitions the result among processes
@@ -3490,12 +3492,14 @@
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_rget_${nametype1}$v'
 
       INTEGER                                  :: ierr, handle
+#if defined(__parallel)
       INTEGER                                  :: len, &
                                                   handle_origin_datatype, &
                                                   handle_target_datatype, &
                                                   origin_len, target_len
       LOGICAL                                  :: do_local_copy
       INTEGER(kind=mpi_address_kind)           :: disp_aint
+#endif
 
       ierr = 0
       CALL mp_timeset(routineN, handle)
