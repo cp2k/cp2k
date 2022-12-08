@@ -1072,6 +1072,7 @@ CONTAINS
          WRITE (unit_nr, '(T3,A,T75,I6)') 'GRAD_INFO| Number of parallel communication channels:', number_of_parallel_channels
          CALL m_flush(unit_nr)
       END IF
+      CALL mp_sync(para_env%group)
 
       ALLOCATE (buffer_1D(number_of_parallel_channels))
       DO proc_shift = 1, number_of_parallel_channels
@@ -1317,6 +1318,8 @@ CONTAINS
                                                             recv_a_size, stripesize
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: buffer_compens, buffer_unscaled
 
+      CALL timeset(routineN, handle)
+
       my_i_size = SIZE(mat_S, 3)
       recv_a_size = SIZE(mat_work, 2)
       my_a_size = SIZE(mat_S, 2)
@@ -1348,7 +1351,6 @@ CONTAINS
          BLOCK
             INTEGER :: recv_a
             REAL(KIND=dp) :: tmp, e_i, e_a, e_b, omega2, my_compens, my_p, s
-            CALL timeset(routineN//"_accurate", handle)
             omega2 = -omega**2
 !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(NONE)&
 !$OMP SHARED(my_a_size,recv_a_size,my_i_size,mat_S,my_eval_virt,recv_eval_virt,my_eval_occ,omega2,&
@@ -1371,9 +1373,10 @@ CONTAINS
                P_ab(my_a, recv_a) = my_p
             END DO
             END DO
-            CALL timestop(handle)
          END BLOCK
       END IF
+
+      CALL timestop(handle)
 
    END SUBROUTINE calc_P_rpa_a
 
@@ -1408,6 +1411,8 @@ CONTAINS
                                                             recv_i_size, stripesize
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: buffer_compens, buffer_unscaled
 
+      CALL timeset(routineN, handle)
+
       my_i_size = SIZE(mat_S, 3)
       recv_i_size = SIZE(mat_work, 3)
       my_a_size = SIZE(mat_S, 2)
@@ -1439,7 +1444,6 @@ CONTAINS
          BLOCK
             REAL(KIND=dp) :: tmp, e_i, e_a, e_j, omega2, my_compens, my_p, s
             INTEGER :: recv_i
-            CALL timeset(routineN//"_accurate", handle)
             omega2 = -omega**2
 !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(NONE)&
 !$OMP SHARED(my_a_size,recv_i_size,my_i_size,mat_S,my_eval_occ,my_eval_virt,omega2,&
@@ -1462,9 +1466,10 @@ CONTAINS
                P_ij(my_i, recv_i) = my_p
             END DO
             END DO
-            CALL timestop(handle)
          END BLOCK
       END IF
+
+      CALL timestop(handle)
 
    END SUBROUTINE calc_P_rpa_i
 
