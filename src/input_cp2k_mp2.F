@@ -471,7 +471,7 @@ CONTAINS
          "are calculated in batches of the size given by this keyword. Larger block sizes "// &
          "improve the performance but reduce the numerical accuracy. Recommended block sizes are multiples of the number of "// &
          "doubles per cache line (usually 8). Ignored with MP2 gradients. Set it to -1 to prevent blocking.", &
-         default_i_val=32)
+         default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
