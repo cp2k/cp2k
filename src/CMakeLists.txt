@@ -1433,7 +1433,6 @@ target_link_libraries(cp2k PUBLIC cp2k_link_libs)
 target_compile_definitions(
   cp2k
   PUBLIC __parallel
-         __MPI_VERSION=${MPI_Fortran_VERSION_MAJOR}
          __SCALAPACK
          __COMPILE_DATE=\"${CP2K_TIMESTAMP}\"
          __COMPILE_HOST=\"${CP2K_HOST_NAME}\"
