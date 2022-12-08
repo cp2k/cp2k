@@ -15,7 +15,6 @@ MODULE rpa_grad
                                               C_PTR,&
                                               c_associated
    USE cp_array_utils,                  ONLY: cp_1d_r_cp_type,&
-                                              cp_2d_r_cp_type,&
                                               cp_3d_r_cp_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type,&
                                               get_blacs_info
@@ -65,7 +64,8 @@ MODULE rpa_grad
                                               prepare_redistribution
    USE mp2_types,                       ONLY: mp2_type,&
                                               one_dim_int_array,&
-                                              two_dim_int_array
+                                              two_dim_int_array,&
+                                              two_dim_real_array
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -95,8 +95,7 @@ MODULE rpa_grad
       TYPE(two_dim_int_array), DIMENSION(:, :), ALLOCATABLE :: index2recv
       TYPE(group_dist_d1_type), DIMENSION(:), ALLOCATABLE :: gd_homo, gd_virtual
       INTEGER, DIMENSION(2) :: grid, mepos
-      TYPE(cp_1d_r_cp_type), DIMENSION(:), ALLOCATABLE :: P_ij_1D, P_ab_1D
-      TYPE(cp_2d_r_cp_type), DIMENSION(:), ALLOCATABLE :: P_ij_2D, P_ab_2D
+      TYPE(two_dim_real_array), DIMENSION(:), ALLOCATABLE :: P_ij, P_ab
    END TYPE
 
    TYPE rpa_grad_type
@@ -303,8 +302,7 @@ CONTAINS
                 rpa_work%index2recv(0:num_pe_col - 1, nspins), &
                 rpa_work%gd_homo(nspins), rpa_work%gd_virtual(nspins), &
                 data2send(0:num_pe_col - 1), data2recv(0:num_pe_col - 1), &
-                rpa_work%P_ij_1D(nspins), rpa_work%P_ab_1D(nspins), &
-                rpa_work%P_ij_2D(nspins), rpa_work%P_ab_2D(nspins))
+                rpa_work%P_ij(nspins), rpa_work%P_ab(nspins))
 
       ! Determine new process grid
       proc_homo = MAX(1, CEILING(SQRT(REAL(num_pe_col, KIND=dp))))
@@ -394,12 +392,10 @@ CONTAINS
          END DO
          END DO
 
-         ALLOCATE (rpa_work%P_ij_1D(ispin)%array(my_i_size*homo(ispin)), &
-                   rpa_work%P_ab_1D(ispin)%array(my_a_size*virtual(ispin)))
-         rpa_work%P_ij_1D(ispin)%array = 0.0_dp
-         rpa_work%P_ab_1D(ispin)%array = 0.0_dp
-         rpa_work%P_ij_2D(ispin)%array(1:my_i_size, 1:homo(ispin)) => rpa_work%P_ij_1D(ispin)%array(1:my_i_size*homo(ispin))
-         rpa_work%P_ab_2D(ispin)%array(1:my_a_size, 1:virtual(ispin)) => rpa_work%P_ab_1D(ispin)%array(1:my_a_size*virtual(ispin))
+         ALLOCATE (rpa_work%P_ij(ispin)%array(my_i_size, homo(ispin)), &
+                   rpa_work%P_ab(ispin)%array(my_a_size, virtual(ispin)))
+         rpa_work%P_ij(ispin)%array(:, :) = 0.0_dp
+         rpa_work%P_ab(ispin)%array(:, :) = 0.0_dp
 
       END DO
 
@@ -880,7 +876,7 @@ CONTAINS
             CALL calc_P_rpa(mat_S_3D, mat_work_iaP_3D, rpa_grad%rpa_work%gd_homo(ispin), rpa_grad%rpa_work%gd_virtual(ispin), &
                             rpa_grad%rpa_work%grid, rpa_grad%rpa_work%mepos, &
                             fm_mat_S(ispin)%matrix_struct, &
-                            rpa_grad%rpa_work%P_ij_1D(ispin)%array, rpa_grad%rpa_work%P_ab_1D(ispin)%array, &
+                            rpa_grad%rpa_work%P_ij(ispin)%array, rpa_grad%rpa_work%P_ab(ispin)%array, &
                             weight, omega, Eigenval(:, ispin), homo(ispin), unit_nr, mp2_env)
 
             DEALLOCATE (mat_work_iaP_3D, mat_S_3D)
@@ -1015,7 +1011,7 @@ CONTAINS
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_homo, gd_virtual
       INTEGER, DIMENSION(2), INTENT(IN)                  :: grid, mepos
       TYPE(cp_fm_struct_type), INTENT(IN), POINTER       :: fm_struct_S
-      REAL(KIND=dp), DIMENSION(:)                        :: P_ij, P_ab
+      REAL(KIND=dp), DIMENSION(:, :)                     :: P_ij, P_ab
       REAL(KIND=dp), INTENT(IN)                          :: weight, omega
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       INTEGER, INTENT(IN)                                :: homo, unit_nr
@@ -1068,9 +1064,9 @@ CONTAINS
       ! Determine the available memory and estimate the number of possible parallel communication channels
       CALL m_memory(mem)
       mem_real = REAL(mem, KIND=dp)
-      CALL mp_min(mem_real, para_env%group)
       mem_per_block = REAL(number_of_elements_per_blk, KIND=dp)*8.0_dp
-      number_of_parallel_channels = MAX(1, MIN(MAXVAL(grid), FLOOR(mem_real/mem_per_block)))
+      number_of_parallel_channels = MAX(1, MIN(MAXVAL(grid) - 1, FLOOR(mem_real/mem_per_block)))
+      CALL mp_min(number_of_parallel_channels, para_env%group)
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A,T75,I6)') 'GRAD_INFO| Number of parallel communication channels:', number_of_parallel_channels
@@ -1078,23 +1074,21 @@ CONTAINS
       END IF
       CALL mp_sync(para_env%group)
 
-      ALLOCATE (buffer_1D(0:number_of_parallel_channels - 1))
-      DO proc_shift = 0, number_of_parallel_channels - 1
+      ALLOCATE (buffer_1D(number_of_parallel_channels))
+      DO proc_shift = 1, number_of_parallel_channels
          ALLOCATE (buffer_1D(proc_shift)%array(number_of_elements_per_blk))
       END DO
 
-      WRITE (*, *) number_of_parallel_channels
-      ALLOCATE (buffer_3D(0:number_of_parallel_channels - 1))
-      CPASSERT(ALLOCATED(buffer_3D))
+      ALLOCATE (buffer_3D(number_of_parallel_channels))
 
       ! Allocate buffers for vector version of kahan summation
       IF (mp2_env%ri_grad%dot_blksize >= blksize_threshold) THEN
-         ALLOCATE (buffer_compens_1D(MAX(my_a_size*maxsize(gd_virtual), my_i_size*maxsize(gd_homo))))
+         ALLOCATE (buffer_compens_1D(2*MAX(my_a_size*maxsize(gd_virtual), my_i_size*maxsize(gd_homo))))
       END IF
 
       IF (number_of_parallel_channels > 1) THEN
-         ALLOCATE (procs_recv(0:number_of_parallel_channels - 1))
-         ALLOCATE (recv_requests(0:number_of_parallel_channels - 1))
+         ALLOCATE (procs_recv(number_of_parallel_channels))
+         ALLOCATE (recv_requests(number_of_parallel_channels))
          ALLOCATE (send_requests(MAXVAL(grid) - 1))
       END IF
 
@@ -1102,7 +1096,7 @@ CONTAINS
          CALL timeset(routineN//"_comm_a", handle2)
          recv_requests(:) = mp_request_null
          procs_recv(:) = -1
-         DO proc_shift = 0, MIN(grid(1), number_of_parallel_channels) - 1
+         DO proc_shift = 1, MIN(grid(1) - 1, number_of_parallel_channels)
             proc_a_recv = MODULO(mepos(1) - proc_shift, grid(1))
             proc_recv = mepos(2)*grid(1) + proc_a_recv
 
@@ -1111,12 +1105,8 @@ CONTAINS
             buffer_3D(proc_shift)%array(1:my_P_size, 1:recv_a_size, 1:my_i_size) => &
                buffer_1D(proc_shift)%array(1:INT(my_P_size, KIND=int_8)*recv_a_size*my_i_size)
 
-            IF (proc_shift > 0) THEN
-               CALL mp_irecv(buffer_3D(proc_shift)%array, blacs2mpi(my_prow, proc_recv), &
-                             para_env%group, recv_requests(proc_shift), tag)
-            ELSE
-               buffer_3D(0)%array = mat_work_iaP_3D
-            END IF
+            CALL mp_irecv(buffer_3D(proc_shift)%array, blacs2mpi(my_prow, proc_recv), &
+                          para_env%group, recv_requests(proc_shift), tag)
 
             procs_recv(proc_shift) = proc_a_recv
          END DO
@@ -1130,18 +1120,10 @@ CONTAINS
                           para_env%group, send_requests(proc_shift), tag)
          END DO
          CALL timestop(handle2)
-      ELSE
-         buffer_3D(0)%array(1:my_P_size, 1:my_a_size, 1:my_i_size) => &
-            buffer_1D(0)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*my_i_size)
-
-         buffer_3D(0)%array = mat_work_iaP_3D
       END IF
-      WRITE (*, *) SIZE(buffer_3D(0)%array, 1), SIZE(buffer_3D(0)%array, 2), SIZE(buffer_3D(0)%array, 3)
 
-      completed = 0
-
-      CALL calc_P_rpa_a(P_ab((my_a_start - 1)*my_a_size + 1:my_a_end*my_a_size), &
-                        mat_S_3D, buffer_3D(0)%array, &
+      CALL calc_P_rpa_a(P_ab(:, my_a_start:my_a_end), &
+                        mat_S_3D, mat_work_iaP_3D, &
                         mp2_env%ri_grad%dot_blksize, buffer_compens_1D, mp2_env%local_gemm_ctx, &
                         Eigenval(homo + my_a_start:homo + my_a_end), Eigenval(my_i_start:my_i_end), &
                         Eigenval(homo + my_a_start:homo + my_a_end), omega, weight)
@@ -1149,25 +1131,7 @@ CONTAINS
       DO proc_shift = 1, grid(1) - 1
          CALL timeset(routineN//"_comm_a", handle2)
          IF (number_of_parallel_channels > 1) THEN
-            IF (number_of_parallel_channels + proc_shift <= grid(1)) THEN
-               proc_a_recv = MODULO(mepos(1) - proc_shift - number_of_parallel_channels + 1, grid(1))
-               proc_recv = mepos(2)*grid(1) + proc_a_recv
-
-               CALL get_group_dist(gd_virtual, proc_a_recv, recv_a_start, recv_a_end, recv_a_size)
-
-               buffer_3D(completed)%array(1:my_P_size, 1:recv_a_size, 1:my_i_size) => &
-                  buffer_1D(completed)%array(1:INT(my_P_size, KIND=int_8)*recv_a_size*my_i_size)
-
-               CALL mp_irecv(buffer_3D(completed)%array, blacs2mpi(my_prow, proc_recv), &
-                             para_env%group, recv_requests(completed), tag)
-
-               procs_recv(completed) = proc_a_recv
-            END IF
-
             CALL mp_waitany(recv_requests, completed)
-
-            ! Beware the numbering convention of MPI in Fortran
-            completed = completed - 1
 
             CALL get_group_dist(gd_virtual, procs_recv(completed), recv_a_start, recv_a_end, recv_a_size)
          ELSE
@@ -1179,22 +1143,36 @@ CONTAINS
 
             CALL get_group_dist(gd_virtual, proc_a_recv, recv_a_start, recv_a_end, recv_a_size)
 
-            buffer_3D(0)%array(1:my_P_size, 1:recv_a_size, 1:my_i_size) => &
-               buffer_1D(0)%array(1:INT(my_P_size, KIND=int_8)*recv_a_size*my_i_size)
+            buffer_3D(1)%array(1:my_P_size, 1:recv_a_size, 1:my_i_size) => &
+               buffer_1D(1)%array(1:INT(my_P_size, KIND=int_8)*recv_a_size*my_i_size)
 
             CALL mp_sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
-                             buffer_3D(0)%array, blacs2mpi(my_prow, proc_recv), &
+                             buffer_3D(1)%array, blacs2mpi(my_prow, proc_recv), &
                              para_env%group, tag)
-            completed = 0
+            completed = 1
          END IF
          CALL timestop(handle2)
 
-         CALL calc_P_rpa_a(P_ab((recv_a_start - 1)*my_a_size + 1:recv_a_end*my_a_size), &
+         CALL calc_P_rpa_a(P_ab(:, recv_a_start:recv_a_end), &
                            mat_S_3D, buffer_3D(completed)%array, &
                            mp2_env%ri_grad%dot_blksize, buffer_compens_1D, mp2_env%local_gemm_ctx, &
                            Eigenval(homo + my_a_start:homo + my_a_end), Eigenval(my_i_start:my_i_end), &
                            Eigenval(homo + recv_a_start:homo + recv_a_end), omega, weight)
 
+         IF (number_of_parallel_channels > 1 .AND. number_of_parallel_channels + proc_shift < grid(1)) THEN
+            proc_a_recv = MODULO(mepos(1) - proc_shift - number_of_parallel_channels, grid(1))
+            proc_recv = mepos(2)*grid(1) + proc_a_recv
+
+            CALL get_group_dist(gd_virtual, proc_a_recv, recv_a_start, recv_a_end, recv_a_size)
+
+            buffer_3D(completed)%array(1:my_P_size, 1:recv_a_size, 1:my_i_size) => &
+               buffer_1D(completed)%array(1:INT(my_P_size, KIND=int_8)*recv_a_size*my_i_size)
+
+            CALL mp_irecv(buffer_3D(completed)%array, blacs2mpi(my_prow, proc_recv), &
+                          para_env%group, recv_requests(completed), tag)
+
+            procs_recv(completed) = proc_a_recv
+         END IF
       END DO
 
       IF (number_of_parallel_channels > 1 .AND. grid(1) > 1) THEN
@@ -1204,7 +1182,7 @@ CONTAINS
       IF (number_of_parallel_channels > 1 .AND. grid(2) > 1) THEN
          recv_requests(:) = mp_request_null
          procs_recv(:) = -1
-         DO proc_shift = 0, MIN(grid(2), number_of_parallel_channels) - 1
+         DO proc_shift = 1, MIN(grid(2) - 1, number_of_parallel_channels)
             proc_i_recv = MODULO(mepos(2) - proc_shift, grid(2))
             proc_recv = proc_i_recv*grid(1) + mepos(1)
 
@@ -1213,12 +1191,8 @@ CONTAINS
             buffer_3D(proc_shift)%array(1:my_P_size, 1:my_a_size, 1:recv_i_size) => &
                buffer_1D(proc_shift)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
 
-            IF (proc_shift > 0) THEN
-               CALL mp_irecv(buffer_3D(proc_shift)%array, blacs2mpi(my_prow, proc_recv), &
-                             para_env%group, recv_requests(proc_shift), tag)
-            ELSE
-               buffer_3D(0)%array = mat_work_iaP_3D
-            END IF
+            CALL mp_irecv(buffer_3D(proc_shift)%array, blacs2mpi(my_prow, proc_recv), &
+                          para_env%group, recv_requests(proc_shift), tag)
 
             procs_recv(proc_shift) = proc_i_recv
          END DO
@@ -1231,19 +1205,10 @@ CONTAINS
             CALL mp_isend(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
                           para_env%group, send_requests(proc_shift), tag)
          END DO
-      ELSE
-         buffer_3D(0)%array(1:my_P_size, 1:my_a_size, 1:my_i_size) => &
-            buffer_1D(0)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*my_i_size)
-
-         buffer_3D(0)%array = mat_work_iaP_3D
       END IF
 
-      buffer_3D(0)%array(1:my_P_size, 1:my_a_size, 1:my_i_size) => &
-         buffer_1D(0)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*my_i_size)
-      buffer_3D(0)%array = mat_work_iaP_3D
-
-      CALL calc_P_rpa_i(P_ij((my_i_start - 1)*my_i_size + 1:my_i_end*my_i_size), &
-                        mat_S_3D, buffer_3D(0)%array, &
+      CALL calc_P_rpa_i(P_ij(:, my_i_start:my_i_end), &
+                        mat_S_3D, mat_work_iaP_3D, &
                         mp2_env%ri_grad%dot_blksize, buffer_compens_1D, mp2_env%local_gemm_ctx, &
                         Eigenval(homo + my_a_start:homo + my_a_end), Eigenval(my_i_start:my_i_end), &
                         Eigenval(my_i_start:my_i_end), omega, weight)
@@ -1251,25 +1216,7 @@ CONTAINS
       DO proc_shift = 1, grid(2) - 1
          CALL timeset(routineN//"_comm_i", handle2)
          IF (number_of_parallel_channels > 1) THEN
-            IF (number_of_parallel_channels + proc_shift <= grid(2)) THEN
-               proc_i_recv = MODULO(mepos(2) - proc_shift - number_of_parallel_channels + 1, grid(2))
-               proc_recv = proc_i_recv*grid(1) + mepos(1)
-
-               CALL get_group_dist(gd_homo, proc_i_recv, recv_i_start, recv_a_end, recv_i_size)
-
-               buffer_3D(completed)%array(1:my_P_size, 1:my_a_size, 1:recv_i_size) => &
-                  buffer_1D(completed)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
-
-               CALL mp_irecv(buffer_3D(completed)%array, blacs2mpi(my_prow, proc_recv), &
-                             para_env%group, recv_requests(completed), tag)
-
-               procs_recv(completed) = proc_i_recv
-            END IF
-
             CALL mp_waitany(recv_requests, completed)
-
-            ! Beware the numbering convention of MPI in Fortran
-            completed = completed - 1
 
             CALL get_group_dist(gd_homo, procs_recv(completed), recv_i_start, recv_i_end, recv_i_size)
          ELSE
@@ -1281,20 +1228,36 @@ CONTAINS
 
             CALL get_group_dist(gd_homo, proc_i_recv, recv_i_start, recv_i_end, recv_i_size)
 
-            CALL mp_waitany(recv_requests, completed)
+            buffer_3D(1)%array(1:my_P_size, 1:my_a_size, 1:recv_i_size) => &
+               buffer_1D(1)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
 
-            ! Beware the numbering convention of MPI in Fortran
-            completed = completed - 1
-
-            CALL get_group_dist(gd_homo, procs_recv(completed), recv_i_start, recv_i_end, recv_i_size)
+            CALL mp_sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
+                             buffer_3D(1)%array, blacs2mpi(my_prow, proc_recv), &
+                             para_env%group, tag)
+            completed = 1
          END IF
          CALL timestop(handle2)
 
-         CALL calc_P_rpa_i(P_ij((recv_i_start - 1)*my_i_size + 1:recv_i_end*my_i_size), &
+         CALL calc_P_rpa_i(P_ij(:, recv_i_start:recv_i_end), &
                            mat_S_3D, buffer_3D(completed)%array, &
                            mp2_env%ri_grad%dot_blksize, buffer_compens_1D, mp2_env%local_gemm_ctx, &
                            Eigenval(homo + my_a_start:homo + my_a_end), Eigenval(my_i_start:my_i_end), &
                            Eigenval(recv_i_start:recv_i_end), omega, weight)
+
+         IF (number_of_parallel_channels > 1 .AND. number_of_parallel_channels + proc_shift < grid(2)) THEN
+            proc_i_recv = MODULO(mepos(2) - proc_shift - number_of_parallel_channels, grid(2))
+            proc_recv = proc_i_recv*grid(1) + mepos(1)
+
+            CALL get_group_dist(gd_homo, proc_i_recv, recv_i_start, recv_a_end, recv_i_size)
+
+            buffer_3D(completed)%array(1:my_P_size, 1:my_a_size, 1:recv_i_size) => &
+               buffer_1D(completed)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
+
+            CALL mp_irecv(buffer_3D(completed)%array, blacs2mpi(my_prow, proc_recv), &
+                          para_env%group, recv_requests(completed), tag)
+
+            procs_recv(completed) = proc_i_recv
+         END IF
       END DO
 
       IF (number_of_parallel_channels > 1 .AND. grid(2) > 1) THEN
@@ -1314,7 +1277,7 @@ CONTAINS
          DEALLOCATE (buffer_compens_1D)
       END IF
 
-      DO proc_shift = 0, number_of_parallel_channels - 1
+      DO proc_shift = 1, number_of_parallel_channels
          NULLIFY (buffer_3D(proc_shift)%array)
          DEALLOCATE (buffer_1D(proc_shift)%array)
       END DO
@@ -1340,8 +1303,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calc_P_rpa_a(P_ab, mat_S, mat_work, dot_blksize, buffer_1D, local_gemm_ctx, &
                            my_eval_virt, my_eval_occ, recv_eval_virt, omega, weight)
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: P_ab
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: mat_S, mat_work
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: P_ab
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: mat_S, mat_work
       INTEGER, INTENT(IN)                                :: dot_blksize
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), TARGET :: buffer_1D
       TYPE(C_PTR), INTENT(INOUT)                         :: local_gemm_ctx
@@ -1353,7 +1316,9 @@ CONTAINS
       INTEGER                                            :: handle, my_a, my_a_size, my_i, &
                                                             my_i_size, my_P_size, P_end, P_start, &
                                                             recv_a_size, stripesize
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: buffer_2D
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: buffer_compens, buffer_unscaled
+
+      CALL timeset(routineN, handle)
 
       my_i_size = SIZE(mat_S, 3)
       recv_a_size = SIZE(mat_work, 2)
@@ -1361,11 +1326,10 @@ CONTAINS
       my_P_size = SIZE(mat_S, 1)
 
       IF (dot_blksize >= blksize_threshold) THEN
-         buffer_2D(1:my_a_size, 1:recv_a_size) => buffer_1D(1:my_a_size*recv_a_size)
+         buffer_compens(1:my_a_size, 1:recv_a_size) => buffer_1D(1:my_a_size*recv_a_size)
+         buffer_compens = 0.0_dp
+         buffer_unscaled(1:my_a_size, 1:recv_a_size) => buffer_1D(my_a_size*recv_a_size + 1:2*my_a_size*recv_a_size)
 
-         buffer_2D = 0.0_dp
-
-         CALL timeset(routineN//"_dgemm", handle)
          ! This loop imitates the actual tensor contraction
          DO my_i = 1, my_i_size
             DO P_start = 1, my_P_size, dot_blksize
@@ -1375,61 +1339,44 @@ CONTAINS
                CALL local_gemm("T", "N", my_a_size, recv_a_size, stripesize, &
                                -weight, mat_S(P_start:P_end, :, my_i), stripesize, &
                                mat_work(P_start:P_end, :, my_i), stripesize, &
-                               -1.0_dp, buffer_2D, my_a_size, local_gemm_ctx)
+                               0.0_dp, buffer_unscaled, my_a_size, local_gemm_ctx)
 
-               CALL kahan_step(buffer_1D(1:recv_a_size*my_a_size), P_ab)
+               CALL scale_buffer_and_add_compens_virt(buffer_unscaled, buffer_compens, omega, &
+                                                      my_eval_virt, recv_eval_virt, my_eval_occ(my_i))
+
+               CALL kahan_step(buffer_compens, P_ab)
             END DO
          END DO
-         CALL timestop(handle)
-
-         CALL scale_mat_S(mat_S, omega, my_eval_virt, my_eval_occ)
-         CALL scale_mat_S(mat_work, omega, recv_eval_virt, my_eval_occ)
-
-         CALL timeset(routineN//"_dgemm", handle)
-         DO my_i = 1, my_i_size
-            DO P_start = 1, my_P_size, dot_blksize
-               stripesize = MIN(dot_blksize, my_P_size - P_start + 1)
-               P_end = P_start + stripesize - 1
-
-               ! Repeat contraction
-               CALL local_gemm("T", "N", my_a_size, recv_a_size, stripesize, &
-                               weight, mat_S(P_start:P_end, :, my_i), stripesize, &
-                               mat_work(P_start:P_end, :, my_i), stripesize, &
-                               -1.0_dp, buffer_2D, my_a_size, local_gemm_ctx)
-
-               CALL kahan_step(buffer_1D(1:recv_a_size*my_a_size), P_ab)
-            END DO
-         END DO
-         CALL timestop(handle)
-
-         CALL remove_scaling_mat_S(mat_S, omega, my_eval_virt, my_eval_occ)
-         CALL remove_scaling_mat_S(mat_work, omega, recv_eval_virt, my_eval_occ)
       ELSE
          BLOCK
             INTEGER :: recv_a
-            REAL(KIND=dp) :: tmp, e_i, e_a, e_b, omega2
-            CALL timeset(routineN//"_accurate", handle)
+            REAL(KIND=dp) :: tmp, e_i, e_a, e_b, omega2, my_compens, my_p, s
             omega2 = -omega**2
 !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(NONE)&
 !$OMP SHARED(my_a_size,recv_a_size,my_i_size,mat_S,my_eval_virt,recv_eval_virt,my_eval_occ,omega2,&
 !$OMP        P_ab,weight,mat_work)&
-!$OMP PRIVATE(tmp,my_a,recv_a,my_i,e_a,e_b,e_i)
+!$OMP PRIVATE(tmp,my_a,recv_a,my_i,e_a,e_b,e_i,my_compens,my_p,s)
             DO my_a = 1, my_a_size
             DO recv_a = 1, recv_a_size
                e_a = my_eval_virt(my_a)
                e_b = recv_eval_virt(recv_a)
-               tmp = 0.0_dp
+               my_p = P_ab(my_a, recv_a)
+               my_compens = 0.0_dp
                DO my_i = 1, my_i_size
                   e_i = -my_eval_occ(my_i)
-                  tmp = tmp + accurate_dot_product(mat_S(:, my_a, my_i), mat_work(:, recv_a, my_i)) &
-                        *(1.0_dp + omega2/((e_a + e_i)*(e_b + e_i)))
+                  tmp = -weight*accurate_dot_product(mat_S(:, my_a, my_i), mat_work(:, recv_a, my_i)) &
+                        *(1.0_dp + omega2/((e_a + e_i)*(e_b + e_i))) - my_compens
+                  s = my_p + tmp
+                  my_compens = (s - my_p) - tmp
+                  my_p = s
                END DO
-               P_ab(my_a + my_a_size*(recv_a - 1)) = P_ab(my_a + my_a_size*(recv_a - 1)) - weight*tmp
+               P_ab(my_a, recv_a) = my_p
             END DO
             END DO
-            CALL timestop(handle)
          END BLOCK
       END IF
+
+      CALL timestop(handle)
 
    END SUBROUTINE calc_P_rpa_a
 
@@ -1449,7 +1396,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calc_P_rpa_i(P_ij, mat_S, mat_work, dot_blksize, buffer_1D, local_gemm_ctx, &
                            my_eval_virt, my_eval_occ, recv_eval_occ, omega, weight)
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: P_ij
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: P_ij
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: mat_S, mat_work
       INTEGER, INTENT(IN)                                :: dot_blksize
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), TARGET :: buffer_1D
@@ -1462,7 +1409,9 @@ CONTAINS
       INTEGER                                            :: handle, my_a, my_a_size, my_i, &
                                                             my_i_size, my_P_size, P_end, P_start, &
                                                             recv_i_size, stripesize
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: buffer_2D
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: buffer_compens, buffer_unscaled
+
+      CALL timeset(routineN, handle)
 
       my_i_size = SIZE(mat_S, 3)
       recv_i_size = SIZE(mat_work, 3)
@@ -1470,10 +1419,10 @@ CONTAINS
       my_P_size = SIZE(mat_S, 1)
 
       IF (dot_blksize >= blksize_threshold) THEN
-         buffer_2D(1:my_i_size, 1:recv_i_size) => buffer_1D(1:my_i_size*recv_i_size)
-         buffer_2D = 0.0_dp
+         buffer_compens(1:my_i_size, 1:recv_i_size) => buffer_1D(1:my_i_size*recv_i_size)
+         buffer_compens = 0.0_dp
+         buffer_unscaled(1:my_i_size, 1:recv_i_size) => buffer_1D(my_i_size*recv_i_size + 1:2*my_i_size*recv_i_size)
 
-         CALL timeset(routineN//"_dgemm", handle)
          ! This loop imitates the actual tensor contraction
          DO my_a = 1, my_a_size
             DO P_start = 1, my_P_size, dot_blksize
@@ -1483,61 +1432,44 @@ CONTAINS
                CALL local_gemm("T", "N", my_i_size, recv_i_size, stripesize, &
                                weight, mat_S(P_start:P_end, my_a, :), stripesize, &
                                mat_work(P_start:P_end, my_a, :), stripesize, &
-                               -1.0_dp, buffer_2D, my_i_size, local_gemm_ctx)
+                               0.0_dp, buffer_unscaled, my_i_size, local_gemm_ctx)
 
-               CALL kahan_step(buffer_1D(1:recv_i_size*my_i_size), P_ij)
+               CALL scale_buffer_and_add_compens_occ(buffer_unscaled, buffer_compens, omega, &
+                                                     my_eval_occ, recv_eval_occ, my_eval_virt(my_a))
+
+               CALL kahan_step(buffer_compens, P_ij)
             END DO
          END DO
-         CALL timestop(handle)
-
-         CALL scale_mat_S(mat_S, omega, my_eval_virt, my_eval_occ)
-         CALL scale_mat_S(mat_work, omega, my_eval_virt, recv_eval_occ)
-
-         CALL timeset(routineN//"_dgemm", handle)
-         DO my_a = 1, my_a_size
-            DO P_start = 1, my_P_size, dot_blksize
-               stripesize = MIN(dot_blksize, my_P_size - P_start + 1)
-               P_end = P_start + stripesize - 1
-
-               ! Repeat contraction
-               CALL local_gemm("T", "N", my_i_size, recv_i_size, stripesize, &
-                               -weight, mat_S(P_start:P_end, my_a, :), stripesize, &
-                               mat_work(P_start:P_end, my_a, :), stripesize, &
-                               -1.0_dp, buffer_2D, my_i_size, local_gemm_ctx)
-
-               CALL kahan_step(buffer_1D(1:recv_i_size*my_i_size), P_ij)
-            END DO
-         END DO
-         CALL timestop(handle)
-
-         CALL remove_scaling_mat_S(mat_S, omega, my_eval_virt, my_eval_occ)
-         CALL remove_scaling_mat_S(mat_work, omega, my_eval_virt, recv_eval_occ)
       ELSE
          BLOCK
-            REAL(KIND=dp) :: tmp, e_i, e_a, e_j, omega2
+            REAL(KIND=dp) :: tmp, e_i, e_a, e_j, omega2, my_compens, my_p, s
             INTEGER :: recv_i
-            CALL timeset(routineN//"_accurate", handle)
             omega2 = -omega**2
 !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(NONE)&
 !$OMP SHARED(my_a_size,recv_i_size,my_i_size,mat_S,my_eval_occ,my_eval_virt,omega2,&
 !$OMP        recv_eval_occ,P_ij,weight,mat_work)&
-!$OMP PRIVATE(tmp,my_a,recv_i,my_i,e_i,e_j,e_a)
+!$OMP PRIVATE(tmp,my_a,recv_i,my_i,e_i,e_j,e_a,my_compens,my_p,s)
             DO my_i = 1, my_i_size
             DO recv_i = 1, recv_i_size
                e_i = my_eval_occ(my_i)
                e_j = recv_eval_occ(recv_i)
-               tmp = 0.0_dp
+               my_p = P_ij(my_i, recv_i)
+               my_compens = 0.0_dp
                DO my_a = 1, my_a_size
                   e_a = my_eval_virt(my_a)
-                  tmp = tmp + accurate_dot_product(mat_S(:, my_a, my_i), mat_work(:, my_a, recv_i)) &
-                        *(1.0_dp + omega2/((e_a - e_i)*(e_a - e_j)))
+                  tmp = weight*accurate_dot_product(mat_S(:, my_a, my_i), mat_work(:, my_a, recv_i)) &
+                        *(1.0_dp + omega2/((e_a - e_i)*(e_a - e_j))) - my_compens
+                  s = my_p + tmp
+                  my_compens = (s - my_p) - tmp
+                  my_p = s
                END DO
-               P_ij(my_i + my_i_size*(recv_i - 1)) = P_ij(my_i + my_i_size*(recv_i - 1)) + weight*tmp
+               P_ij(my_i, recv_i) = my_p
             END DO
             END DO
-            CALL timestop(handle)
          END BLOCK
       END IF
+
+      CALL timestop(handle)
 
    END SUBROUTINE calc_P_rpa_i
 
@@ -1547,60 +1479,23 @@ CONTAINS
 !> \param P ...
 ! **************************************************************************************************
    SUBROUTINE kahan_step(compens, P)
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: compens, P
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: compens, P
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'kahan_step'
-      INTEGER, PARAMETER                                 :: blocksize = 4
 
       INTEGER                                            :: handle, i, j
       REAL(KIND=dp)                                      :: my_compens, my_p, s
 
       CALL timeset(routineN, handle)
 
-!$OMP PARALLEL DO DEFAULT(NONE) SHARED(P,compens) PRIVATE(i,my_p,my_compens,s, j)
-      DO i = 1, SIZE(compens)/blocksize*blocksize, blocksize
-         DO j = i, i + (blocksize - 1)
-            my_p = P(j)
-            my_compens = compens(j)
+!$OMP PARALLEL DO DEFAULT(NONE) SHARED(P,compens) PRIVATE(i,my_p,my_compens,s, j) COLLAPSE(2)
+      DO j = 1, SIZE(compens, 2)
+         DO i = 1, SIZE(compens, 1)
+            my_p = P(i, j)
+            my_compens = compens(i, j)
             s = my_p + my_compens
-            compens(j) = (s - my_p) - my_compens
-            P(j) = s
-         END DO
-      END DO
-      DO i = SIZE(compens)/4*4 + 1, SIZE(compens)
-         my_p = P(i)
-         my_compens = compens(i)
-         s = my_p + my_compens
-         compens(i) = (s - my_p) - my_compens
-         P(i) = s
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param mat_S ...
-!> \param omega ...
-!> \param eval_virt ...
-!> \param eval_occ ...
-! **************************************************************************************************
-   SUBROUTINE scale_mat_S(mat_S, omega, eval_virt, eval_occ)
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: mat_S
-      REAL(KIND=dp), INTENT(IN)                          :: omega
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eval_virt, eval_occ
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'scale_mat_S'
-
-      INTEGER                                            :: handle, my_a, my_i
-
-      CALL timeset(routineN, handle)
-
-!$OMP PARALLEL DO DEFAULT(NONE) SHARED(mat_S,omega,eval_virt,eval_occ) PRIVATE(my_i,my_a)
-      DO my_i = 1, SIZE(mat_S, 3)
-         DO my_a = 1, SIZE(mat_S, 2)
-            mat_S(:, my_a, my_i) = mat_S(:, my_a, my_i)*(omega/(eval_virt(my_a) - eval_occ(my_i)))
+            compens(i, j) = (s - my_p) - my_compens
+            P(i, j) = s
          END DO
       END DO
 !$OMP END PARALLEL DO
@@ -1611,36 +1506,79 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param mat_S ...
+!> \param buffer_unscaled ...
+!> \param buffer_compens ...
 !> \param omega ...
-!> \param eval_virt ...
-!> \param eval_occ ...
+!> \param my_eval_virt ...
+!> \param recv_eval_virt ...
+!> \param my_eval_occ ...
 ! **************************************************************************************************
-   SUBROUTINE remove_scaling_mat_S(mat_S, omega, eval_virt, eval_occ)
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: mat_S
+   SUBROUTINE scale_buffer_and_add_compens_virt(buffer_unscaled, buffer_compens, omega, &
+                                                my_eval_virt, recv_eval_virt, my_eval_occ)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: buffer_unscaled
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: buffer_compens
       REAL(KIND=dp), INTENT(IN)                          :: omega
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eval_virt, eval_occ
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: my_eval_virt, recv_eval_virt
+      REAL(KIND=dp), INTENT(IN)                          :: my_eval_occ
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_scaling_mat_S'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_buffer_and_add_compens_virt'
 
-      INTEGER                                            :: handle, my_a, my_i
-      REAL(KIND=dp)                                      :: omega1
+      INTEGER                                            :: handle, my_a, my_b
 
       CALL timeset(routineN, handle)
 
-      omega1 = 1.0/omega
-
-!$OMP PARALLEL DO DEFAULT(NONE) SHARED(mat_S,omega1,eval_virt,eval_occ) PRIVATE(my_i,my_a)
-      DO my_i = 1, SIZE(mat_S, 3)
-         DO my_a = 1, SIZE(mat_S, 2)
-            mat_S(:, my_a, my_i) = mat_S(:, my_a, my_i)*(omega1*(eval_virt(my_a) - eval_occ(my_i)))
+!$OMP PARALLEL DO DEFAULT(NONE) SHARED(buffer_unscaled,buffer_compens,omega,&
+!$OMP                                  my_eval_virt,recv_eval_virt,my_eval_occ) PRIVATE(my_a,my_b)
+      DO my_b = 1, SIZE(buffer_compens, 2)
+         DO my_a = 1, SIZE(buffer_compens, 1)
+            buffer_compens(my_a, my_b) = buffer_unscaled(my_a, my_b) &
+                                    *(1.0_dp - omega**2/((my_eval_virt(my_a) - my_eval_occ)*(recv_eval_virt(my_b) - my_eval_occ))) &
+                                         - buffer_compens(my_a, my_b)
          END DO
       END DO
 !$OMP END PARALLEL DO
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE scale_buffer_and_add_compens_virt
+
+! **************************************************************************************************
+!> \brief ...
+!> \param buffer_unscaled ...
+!> \param buffer_compens ...
+!> \param omega ...
+!> \param my_eval_occ ...
+!> \param recv_eval_occ ...
+!> \param my_eval_virt ...
+! **************************************************************************************************
+   SUBROUTINE scale_buffer_and_add_compens_occ(buffer_unscaled, buffer_compens, omega, &
+                                               my_eval_occ, recv_eval_occ, my_eval_virt)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: buffer_unscaled
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: buffer_compens
+      REAL(KIND=dp), INTENT(IN)                          :: omega
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: my_eval_occ, recv_eval_occ
+      REAL(KIND=dp), INTENT(IN)                          :: my_eval_virt
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_buffer_and_add_compens_occ'
+
+      INTEGER                                            :: handle, my_i, my_j
+
+      CALL timeset(routineN, handle)
+
+!$OMP PARALLEL DO DEFAULT(NONE) SHARED(buffer_compens,buffer_unscaled,omega,&
+!$OMP        my_eval_virt,my_eval_occ,recv_eval_occ) PRIVATE(my_i,my_j)
+      DO my_j = 1, SIZE(buffer_compens, 2)
+         DO my_i = 1, SIZE(buffer_compens, 1)
+            buffer_compens(my_i, my_j) = buffer_unscaled(my_i, my_j) &
+                                    *(1.0_dp - omega**2/((my_eval_virt - my_eval_occ(my_i))*(my_eval_virt - recv_eval_occ(my_j)))) &
+                                         - buffer_compens(my_i, my_j)
+         END DO
+      END DO
+!$OMP END PARALLEL DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE scale_buffer_and_add_compens_occ
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2519,9 +2457,8 @@ CONTAINS
 
          ALLOCATE (mp2_env%ri_grad%P_ij(ispin)%array(homo(ispin), homo(ispin)))
          mp2_env%ri_grad%P_ij(ispin)%array = 0.0_dp
-         mp2_env%ri_grad%P_ij(ispin)%array(my_i_start:my_i_end, :) = my_scale*rpa_work%P_ij_2D(ispin)%array
-         DEALLOCATE (rpa_work%P_ij_2D(ispin)%array)
-         NULLIFY (rpa_work%P_ij_1D(ispin)%array, rpa_work%P_ij_2D(ispin)%array)
+         mp2_env%ri_grad%P_ij(ispin)%array(my_i_start:my_i_end, :) = my_scale*rpa_work%P_ij(ispin)%array
+         DEALLOCATE (rpa_work%P_ij(ispin)%array)
          CALL mp_sum(mp2_env%ri_grad%P_ij(ispin)%array, para_env%group)
 
          ! Symmetrize P_ij
@@ -2552,7 +2489,7 @@ CONTAINS
          recv_end = MIN(my_B_size, my_a_end - my_B_start + 1)
 
          mp2_env%ri_grad%P_ab(ispin)%array(recv_start:recv_end, :) = &
-            my_scale*rpa_work%P_ab_2D(ispin)%array(send_start:send_end, :)
+            my_scale*rpa_work%P_ab(ispin)%array(send_start:send_end, :)
 
          IF (para_env_sub%num_pe > 1) THEN
             size_send_buffer = 0
@@ -2588,7 +2525,7 @@ CONTAINS
                ! Calculate local indices of the common range of own matrix and send process
                send_start = MAX(1, send_a_start - my_a_start + 1)
                send_end = MIN(my_a_size, send_a_end - my_a_start + 1)
-               buffer_send(1:MAX(send_end - send_start + 1, 0), :) = rpa_work%P_ab_2D(ispin)%array(send_start:send_end, :)
+               buffer_send(1:MAX(send_end - send_start + 1, 0), :) = rpa_work%P_ab(ispin)%array(send_start:send_end, :)
 
                ! Same for recv process but with reverse positions
                recv_start = MAX(1, recv_a_start - my_B_start + 1)
@@ -2606,8 +2543,7 @@ CONTAINS
             IF (ALLOCATED(buffer_send)) DEALLOCATE (buffer_send)
             IF (ALLOCATED(buffer_recv)) DEALLOCATE (buffer_recv)
          END IF
-         DEALLOCATE (rpa_work%P_ab_2D(ispin)%array)
-         NULLIFY (rpa_work%P_ab_1D(ispin)%array, rpa_work%P_ab_2D(ispin)%array)
+         DEALLOCATE (rpa_work%P_ab(ispin)%array)
 
          CALL release_group_dist(gd_a_sub)
 
@@ -2658,8 +2594,7 @@ CONTAINS
          CALL release_group_dist(gd_virtual_sub)
 
       END DO
-      DEALLOCATE (rpa_work%gd_homo, rpa_work%gd_virtual, rpa_work%P_ij_1D, rpa_work%P_ij_2D, &
-                  rpa_work%P_ab_1D, rpa_work%P_ab_2D)
+      DEALLOCATE (rpa_work%gd_homo, rpa_work%gd_virtual, rpa_work%P_ij, rpa_work%P_ab)
       IF (nspins == 1) THEN
          mp2_env%ri_grad%P_ij(1)%array(:, :) = 2.0_dp*mp2_env%ri_grad%P_ij(1)%array
          mp2_env%ri_grad%P_ab(1)%array(:, :) = 2.0_dp*mp2_env%ri_grad%P_ab(1)%array
