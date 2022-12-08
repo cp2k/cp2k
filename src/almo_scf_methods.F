@@ -1755,8 +1755,7 @@ CONTAINS
                                           para_env=para_env, &
                                           blacs_env=blacs_env, &
                                           upper_to_full=.TRUE.)
-            CALL dbcsr_filter(sigma_inv, &
-                              eps=eps_filter)
+            CALL dbcsr_filter(sigma_inv, eps_filter)
          CASE DEFAULT
             CPABORT("Illegal MO overalp inversion algorithm")
          END SELECT

@@ -366,6 +366,180 @@ CONTAINS
          END FUNCTION
 
 ! **************************************************************************************************
+!> \brief load balancing criterion whether to accept process grid dimension based on total number of
+!>        cores and tensor dimension
+!> \param pdims_avail available process grid dimensions (total number of cores)
+!> \param pdim process grid dimension to test
+!> \param tdim tensor dimension corresponding to pdim
+!> \param lb_ratio load imbalance acceptance factor
+!> \author Patrick Seewald
+! **************************************************************************************************
+         PURE FUNCTION accept_pdims_loadbalancing(pdims_avail, pdim, tdim, lb_ratio)
+            INTEGER, INTENT(IN) :: pdims_avail
+            INTEGER, INTENT(IN) :: pdim
+            INTEGER, INTENT(IN) :: tdim
+            REAL(dp), INTENT(IN) :: lb_ratio
+            LOGICAL :: accept_pdims_loadbalancing
+
+            accept_pdims_loadbalancing = .FALSE.
+            IF (MOD(pdims_avail, pdim) == 0) THEN
+               IF (REAL(tdim, dp)*lb_ratio < REAL(pdim, dp)) THEN
+                  IF (MOD(tdim, pdim) == 0) accept_pdims_loadbalancing = .TRUE.
+               ELSE
+                  accept_pdims_loadbalancing = .TRUE.
+               END IF
+            END IF
+
+         END FUNCTION
+
+! **************************************************************************************************
+!> \brief Create process grid dimensions corresponding to one dimension of the matrix representation
+!>        of a tensor, imposing that no process grid dimension is greater than the corresponding
+!>        tensor dimension.
+!> \param nodes Total number of nodes available for this matrix dimension
+!> \param dims process grid dimension corresponding to tensor_dims
+!> \param tensor_dims tensor dimensions
+!> \param lb_ratio load imbalance acceptance factor
+!> \author Patrick Seewald
+! **************************************************************************************************
+         RECURSIVE SUBROUTINE dbt_mp_dims_create(nodes, dims, tensor_dims, lb_ratio)
+            INTEGER, INTENT(IN) :: nodes
+            INTEGER, DIMENSION(:), INTENT(INOUT) :: dims
+            INTEGER, DIMENSION(:), INTENT(IN) :: tensor_dims
+            REAL(dp), INTENT(IN), OPTIONAL :: lb_ratio
+
+            INTEGER, DIMENSION(:), ALLOCATABLE :: tensor_dims_sorted, sort_indices, dims_store
+            REAL(dp), DIMENSION(:), ALLOCATABLE :: sort_key
+            INTEGER :: pdims_rem, idim, pdim
+            REAL(dp) :: lb_ratio_prv
+
+            IF (PRESENT(lb_ratio)) THEN
+               lb_ratio_prv = lb_ratio
+            ELSE
+               lb_ratio_prv = 0.1_dp
+            END IF
+
+            ALLOCATE (dims_store, source=dims)
+
+            ! get default process grid dimensions
+            IF (any(dims == 0)) THEN
+               CALL mp_dims_create(nodes, dims)
+            END IF
+
+            ! sort dimensions such that problematic grid dimensions (those who should be corrected) come first
+            ALLOCATE (sort_key(SIZE(tensor_dims)))
+            sort_key(:) = REAL(tensor_dims, dp)/dims
+
+            ALLOCATE (tensor_dims_sorted, source=tensor_dims)
+            ALLOCATE (sort_indices(SIZE(sort_key)))
+            CALL sort(sort_key, SIZE(sort_key), sort_indices)
+            tensor_dims_sorted(:) = tensor_dims_sorted(sort_indices)
+            dims(:) = dims(sort_indices)
+
+            ! remaining number of nodes
+            pdims_rem = nodes
+
+            DO idim = 1, SIZE(tensor_dims_sorted)
+               IF (.NOT. accept_pdims_loadbalancing(pdims_rem, dims(idim), tensor_dims_sorted(idim), lb_ratio_prv)) THEN
+                  pdim = tensor_dims_sorted(idim)
+                  DO WHILE (.NOT. accept_pdims_loadbalancing(pdims_rem, pdim, tensor_dims_sorted(idim), lb_ratio_prv))
+                     pdim = pdim - 1
+                  END DO
+                  dims(idim) = pdim
+                  pdims_rem = pdims_rem/dims(idim)
+
+                  IF (idim .NE. SIZE(tensor_dims_sorted)) THEN
+                     dims(idim + 1:) = 0
+                     CALL mp_dims_create(pdims_rem, dims(idim + 1:))
+                  ELSEIF (lb_ratio_prv < 0.5_dp) THEN
+                     ! resort to a less strict load imbalance factor
+                     dims(:) = dims_store
+                     CALL dbt_mp_dims_create(nodes, dims, tensor_dims, 0.5_dp)
+                     RETURN
+                  ELSE
+                     ! resort to default process grid dimensions
+                     dims(:) = dims_store
+                     CALL mp_dims_create(nodes, dims)
+                     RETURN
+                  END IF
+
+               ELSE
+                  pdims_rem = pdims_rem/dims(idim)
+               END IF
+            END DO
+
+            dims(sort_indices) = dims
+
+         END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Create an n-dimensional process grid.
+!>        We can not use a n-dimensional MPI cartesian grid for tensors since the mapping between
+!>        n-dim. and 2-dim. index allows for an arbitrary reordering of tensor index. Therefore we
+!>        can not use n-dim. MPI Cartesian grid because it may not be consistent with the respective
+!>        2d grid. The 2d Cartesian MPI grid is the reference grid (since tensor data is stored as
+!>        DBM matrix) and this routine creates an object that is a n-dim. interface to this grid.
+!>        map1_2d and map2_2d don't need to be specified (correctly), grid may be redefined in
+!>        dbt_distribution_new. Note that pgrid is equivalent to a MPI cartesian grid only
+!>        if map1_2d and map2_2d don't reorder indices (which is the case if
+!>        [map1_2d, map2_2d] == [1, 2, ..., ndims]). Otherwise the mapping of grid coordinates to
+!>        processes depends on the ordering of the indices and is not equivalent to a MPI cartesian
+!>        grid.
+!> \param mp_comm simple MPI Communicator
+!> \param dims grid dimensions - if entries are 0, dimensions are chosen automatically.
+!> \param pgrid n-dimensional grid object
+!> \param map1_2d which nd-indices map to first matrix index and in which order
+!> \param map2_2d which nd-indices map to first matrix index and in which order
+!> \param tensor_dims tensor block dimensions. If present, process grid dimensions are created such
+!>                    that good load balancing is ensured even if some of the tensor dimensions are
+!>                    small (i.e. on the same order or smaller than nproc**(1/ndim) where ndim is
+!>                    the tensor rank)
+!> \param nsplit impose a constant split factor
+!> \param dimsplit which matrix dimension to split
+!> \author Patrick Seewald
+! **************************************************************************************************
+         SUBROUTINE dbt_pgrid_create_expert(mp_comm, dims, pgrid, map1_2d, map2_2d, tensor_dims, nsplit, dimsplit)
+            INTEGER, INTENT(IN) :: mp_comm
+            INTEGER, DIMENSION(:), INTENT(INOUT) :: dims
+            TYPE(dbt_pgrid_type), INTENT(OUT) :: pgrid
+            INTEGER, DIMENSION(:), INTENT(IN) :: map1_2d, map2_2d
+            INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL :: tensor_dims
+            INTEGER, INTENT(IN), OPTIONAL :: nsplit, dimsplit
+            INTEGER :: nproc, iproc, ndims, handle
+            INTEGER, DIMENSION(2) :: pdims_2d, pos
+            TYPE(dbt_tas_split_info) :: info
+
+            CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_pgrid_create_expert'
+
+            CALL timeset(routineN, handle)
+
+            ndims = SIZE(dims)
+
+            CALL mp_environ(nproc, iproc, mp_comm)
+            IF (ANY(dims == 0)) THEN
+               IF (.NOT. PRESENT(tensor_dims)) THEN
+                  CALL mp_dims_create(nproc, dims)
+               ELSE
+                  CALL dbt_mp_dims_create(nproc, dims, tensor_dims)
+               END IF
+            END IF
+            CALL create_nd_to_2d_mapping(pgrid%nd_index_grid, dims, map1_2d, map2_2d, base=0, col_major=.FALSE.)
+            CALL dbt_get_mapping_info(pgrid%nd_index_grid, dims_2d=pdims_2d)
+            CALL mp_cart_create(mp_comm, 2, pdims_2d, pos, pgrid%mp_comm_2d)
+
+            IF (PRESENT(nsplit)) THEN
+               CPASSERT(PRESENT(dimsplit))
+               CALL dbt_tas_create_split(info, pgrid%mp_comm_2d, dimsplit, nsplit, opt_nsplit=.FALSE.)
+               ALLOCATE (pgrid%tas_split_info, SOURCE=info)
+            END IF
+
+            ! store number of MPI ranks because we need it for PURE function dbt_max_nblks_local
+            pgrid%nproc = nproc
+
+            CALL timestop(handle)
+         END SUBROUTINE
+
+! **************************************************************************************************
 !> \brief Create a default nd process topology that is consistent with a given 2d topology.
 !>        Purpose: a nd tensor defined on the returned process grid can be represented as a DBM
 !>        matrix with the given 2d topology.
@@ -453,113 +627,6 @@ CONTAINS
          END FUNCTION
 
 ! **************************************************************************************************
-!> \brief Create process grid dimensions corresponding to one dimension of the matrix representation
-!>        of a tensor, imposing that no process grid dimension is greater than the corresponding
-!>        tensor dimension.
-!> \param nodes Total number of nodes available for this matrix dimension
-!> \param dims process grid dimension corresponding to tensor_dims
-!> \param tensor_dims tensor dimensions
-!> \param lb_ratio load imbalance acceptance factor
-!> \author Patrick Seewald
-! **************************************************************************************************
-         RECURSIVE SUBROUTINE dbt_mp_dims_create(nodes, dims, tensor_dims, lb_ratio)
-            INTEGER, INTENT(IN) :: nodes
-            INTEGER, DIMENSION(:), INTENT(INOUT) :: dims
-            INTEGER, DIMENSION(:), INTENT(IN) :: tensor_dims
-            REAL(dp), INTENT(IN), OPTIONAL :: lb_ratio
-
-            INTEGER, DIMENSION(:), ALLOCATABLE :: tensor_dims_sorted, sort_indices, dims_store
-            REAL(dp), DIMENSION(:), ALLOCATABLE :: sort_key
-            INTEGER :: pdims_rem, idim, pdim
-            REAL(dp) :: lb_ratio_prv
-
-            IF (PRESENT(lb_ratio)) THEN
-               lb_ratio_prv = lb_ratio
-            ELSE
-               lb_ratio_prv = 0.1_dp
-            END IF
-
-            ALLOCATE (dims_store, source=dims)
-
-            ! get default process grid dimensions
-            IF (any(dims == 0)) THEN
-               CALL mp_dims_create(nodes, dims)
-            END IF
-
-            ! sort dimensions such that problematic grid dimensions (those who should be corrected) come first
-            ALLOCATE (sort_key(SIZE(tensor_dims)))
-            sort_key(:) = REAL(tensor_dims, dp)/dims
-
-            ALLOCATE (tensor_dims_sorted, source=tensor_dims)
-            ALLOCATE (sort_indices(SIZE(sort_key)))
-            CALL sort(sort_key, SIZE(sort_key), sort_indices)
-            tensor_dims_sorted(:) = tensor_dims_sorted(sort_indices)
-            dims(:) = dims(sort_indices)
-
-            ! remaining number of nodes
-            pdims_rem = nodes
-
-            DO idim = 1, SIZE(tensor_dims_sorted)
-               IF (.NOT. accept_pdims_loadbalancing(pdims_rem, dims(idim), tensor_dims_sorted(idim), lb_ratio_prv)) THEN
-                  pdim = tensor_dims_sorted(idim)
-                  DO WHILE (.NOT. accept_pdims_loadbalancing(pdims_rem, pdim, tensor_dims_sorted(idim), lb_ratio_prv))
-                     pdim = pdim - 1
-                  END DO
-                  dims(idim) = pdim
-                  pdims_rem = pdims_rem/dims(idim)
-
-                  IF (idim .NE. SIZE(tensor_dims_sorted)) THEN
-                     dims(idim + 1:) = 0
-                     CALL mp_dims_create(pdims_rem, dims(idim + 1:))
-                  ELSEIF (lb_ratio_prv < 0.5_dp) THEN
-                     ! resort to a less strict load imbalance factor
-                     dims(:) = dims_store
-                     CALL dbt_mp_dims_create(nodes, dims, tensor_dims, 0.5_dp)
-                     RETURN
-                  ELSE
-                     ! resort to default process grid dimensions
-                     dims(:) = dims_store
-                     CALL mp_dims_create(nodes, dims)
-                     RETURN
-                  END IF
-
-               ELSE
-                  pdims_rem = pdims_rem/dims(idim)
-               END IF
-            END DO
-
-            dims(sort_indices) = dims
-
-         END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief load balancing criterion whether to accept process grid dimension based on total number of
-!>        cores and tensor dimension
-!> \param pdims_avail available process grid dimensions (total number of cores)
-!> \param pdim process grid dimension to test
-!> \param tdim tensor dimension corresponding to pdim
-!> \param lb_ratio load imbalance acceptance factor
-!> \author Patrick Seewald
-! **************************************************************************************************
-         PURE FUNCTION accept_pdims_loadbalancing(pdims_avail, pdim, tdim, lb_ratio)
-            INTEGER, INTENT(IN) :: pdims_avail
-            INTEGER, INTENT(IN) :: pdim
-            INTEGER, INTENT(IN) :: tdim
-            REAL(dp), INTENT(IN) :: lb_ratio
-            LOGICAL :: accept_pdims_loadbalancing
-
-            accept_pdims_loadbalancing = .FALSE.
-            IF (MOD(pdims_avail, pdim) == 0) THEN
-               IF (REAL(tdim, dp)*lb_ratio < REAL(pdim, dp)) THEN
-                  IF (MOD(tdim, pdim) == 0) accept_pdims_loadbalancing = .TRUE.
-               ELSE
-                  accept_pdims_loadbalancing = .TRUE.
-               END IF
-            END IF
-
-         END FUNCTION
-
-! **************************************************************************************************
 !> \brief Release the MPI communicator.
 !> \author Patrick Seewald
 ! **************************************************************************************************
@@ -570,23 +637,45 @@ CONTAINS
          END SUBROUTINE dbt_nd_mp_free
 
 ! **************************************************************************************************
-!> \brief Create a tensor distribution.
-!> \param pgrid process grid
-!> \param nd_dist_i distribution vectors for all tensor dimensions
+!> \brief remap a process grid (needed when mapping between tensor and matrix index is changed)
+!> \param map1_2d new mapping
+!> \param map2_2d new mapping
 !> \author Patrick Seewald
 ! **************************************************************************************************
-         SUBROUTINE dbt_distribution_new(dist, pgrid, ${varlist("nd_dist")}$)
-            TYPE(dbt_distribution_type), INTENT(OUT)    :: dist
-            TYPE(dbt_pgrid_type), INTENT(IN)            :: pgrid
-            INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL     :: ${varlist("nd_dist")}$
-            INTEGER, DIMENSION(ndims_mapping_row(pgrid%nd_index_grid)) :: map1_2d
-            INTEGER, DIMENSION(ndims_mapping_column(pgrid%nd_index_grid)) :: map2_2d
-            INTEGER :: ndims
+         SUBROUTINE dbt_pgrid_remap(pgrid_in, map1_2d, map2_2d, pgrid_out)
+            TYPE(dbt_pgrid_type), INTENT(IN) :: pgrid_in
+            INTEGER, DIMENSION(:), INTENT(IN) :: map1_2d, map2_2d
+            TYPE(dbt_pgrid_type), INTENT(OUT) :: pgrid_out
+            INTEGER, DIMENSION(:), ALLOCATABLE :: dims
+            INTEGER, DIMENSION(ndims_mapping_row(pgrid_in%nd_index_grid)) :: map1_2d_old
+            INTEGER, DIMENSION(ndims_mapping_column(pgrid_in%nd_index_grid)) :: map2_2d_old
 
-            CALL dbt_get_mapping_info(pgrid%nd_index_grid, map1_2d=map1_2d, map2_2d=map2_2d, ndim_nd=ndims)
+            ALLOCATE (dims(SIZE(map1_2d) + SIZE(map2_2d)))
+            CALL dbt_get_mapping_info(pgrid_in%nd_index_grid, dims_nd=dims, map1_2d=map1_2d_old, map2_2d=map2_2d_old)
+            CALL dbt_pgrid_create_expert(pgrid_in%mp_comm_2d, dims, pgrid_out, map1_2d=map1_2d, map2_2d=map2_2d)
+            IF (array_eq_i(map1_2d_old, map1_2d) .AND. array_eq_i(map2_2d_old, map2_2d)) THEN
+               IF (ALLOCATED(pgrid_in%tas_split_info)) THEN
+                  ALLOCATE (pgrid_out%tas_split_info, SOURCE=pgrid_in%tas_split_info)
+                  CALL dbt_tas_info_hold(pgrid_out%tas_split_info)
+               END IF
+            END IF
+         END SUBROUTINE
 
-            CALL dbt_distribution_new_expert(dist, pgrid, map1_2d, map2_2d, ${varlist("nd_dist")}$)
+! **************************************************************************************************
+!> \brief as mp_environ but for special pgrid type
+!> \author Patrick Seewald
+! **************************************************************************************************
+         SUBROUTINE mp_environ_pgrid(pgrid, dims, task_coor)
+            TYPE(dbt_pgrid_type), INTENT(IN) :: pgrid
+            INTEGER, DIMENSION(ndims_mapping(pgrid%nd_index_grid)), INTENT(OUT) :: dims
+            INTEGER, DIMENSION(ndims_mapping(pgrid%nd_index_grid)), INTENT(OUT) :: task_coor
+            INTEGER, DIMENSION(2)                                          :: dims_2d, task_coor_2d
+            INTEGER :: nproc
 
+            CALL mp_environ(nproc, dims_2d, task_coor_2d, pgrid%mp_comm_2d)
+            CALL mp_environ(nproc, dims_2d, task_coor_2d, pgrid%mp_comm_2d)
+            CALL dbt_get_mapping_info(pgrid%nd_index_grid, dims_nd=dims)
+            task_coor = get_nd_indices_pgrid(pgrid%nd_index_grid, task_coor_2d)
          END SUBROUTINE
 
 ! **************************************************************************************************
@@ -617,7 +706,7 @@ CONTAINS
             LOGICAL                                         :: need_pgrid_remap
             INTEGER, DIMENSION(ndims_mapping_row(pgrid%nd_index_grid)) :: map1_2d_check
             INTEGER, DIMENSION(ndims_mapping_column(pgrid%nd_index_grid)) :: map2_2d_check
-            CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_distribution_new'
+            CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_distribution_new_expert'
 
             CALL timeset(routineN, handle)
             ndims = SIZE(map1_2d) + SIZE(map2_2d)
@@ -691,6 +780,48 @@ CONTAINS
          END SUBROUTINE
 
 ! **************************************************************************************************
+!> \brief Create a tensor distribution.
+!> \param pgrid process grid
+!> \param nd_dist_i distribution vectors for all tensor dimensions
+!> \author Patrick Seewald
+! **************************************************************************************************
+         SUBROUTINE dbt_distribution_new(dist, pgrid, ${varlist("nd_dist")}$)
+            TYPE(dbt_distribution_type), INTENT(OUT)    :: dist
+            TYPE(dbt_pgrid_type), INTENT(IN)            :: pgrid
+            INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL     :: ${varlist("nd_dist")}$
+            INTEGER, DIMENSION(ndims_mapping_row(pgrid%nd_index_grid)) :: map1_2d
+            INTEGER, DIMENSION(ndims_mapping_column(pgrid%nd_index_grid)) :: map2_2d
+            INTEGER :: ndims
+
+            CALL dbt_get_mapping_info(pgrid%nd_index_grid, map1_2d=map1_2d, map2_2d=map2_2d, ndim_nd=ndims)
+
+            CALL dbt_distribution_new_expert(dist, pgrid, map1_2d, map2_2d, ${varlist("nd_dist")}$)
+
+         END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief destroy process grid
+!> \param keep_comm  if .TRUE. communicator is not freed
+!> \author Patrick Seewald
+! **************************************************************************************************
+         SUBROUTINE dbt_pgrid_destroy(pgrid, keep_comm)
+            TYPE(dbt_pgrid_type), INTENT(INOUT) :: pgrid
+            LOGICAL, INTENT(IN), OPTIONAL           :: keep_comm
+            LOGICAL :: keep_comm_prv
+            IF (PRESENT(keep_comm)) THEN
+               keep_comm_prv = keep_comm
+            ELSE
+               keep_comm_prv = .FALSE.
+            END IF
+            IF (.NOT. keep_comm_prv) CALL mp_comm_free(pgrid%mp_comm_2d)
+            CALL destroy_nd_to_2d_mapping(pgrid%nd_index_grid)
+            IF (ALLOCATED(pgrid%tas_split_info) .AND. .NOT. keep_comm_prv) THEN
+               CALL dbt_tas_release_info(pgrid%tas_split_info)
+               DEALLOCATE (pgrid%tas_split_info)
+            END IF
+         END SUBROUTINE
+
+! **************************************************************************************************
 !> \brief Destroy tensor distribution
 !> \author Patrick Seewald
 ! **************************************************************************************************
@@ -757,6 +888,24 @@ CONTAINS
             dbt_distribution%nd_dist = tensor%nd_dist
             dbt_distribution%refcount => dbt_distribution%refcount
          END FUNCTION
+
+! **************************************************************************************************
+!> \author Patrick Seewald
+! **************************************************************************************************
+         SUBROUTINE dbt_distribution_remap(dist_in, map1_2d, map2_2d, dist_out)
+            TYPE(dbt_distribution_type), INTENT(IN)    :: dist_in
+            INTEGER, DIMENSION(:), INTENT(IN) :: map1_2d, map2_2d
+            TYPE(dbt_distribution_type), INTENT(OUT)    :: dist_out
+            INTEGER, DIMENSION(:), ALLOCATABLE :: ${varlist("dist")}$
+            INTEGER :: ndims
+            ndims = SIZE(map1_2d) + SIZE(map2_2d)
+            #:for ndim in range(1, maxdim+1)
+               IF (ndims == ${ndim}$) THEN
+                  CALL get_arrays(dist_in%nd_dist, ${varlist("dist", nmax=ndim)}$)
+                  CALL dbt_distribution_new_expert(dist_out, dist_in%pgrid, map1_2d, map2_2d, ${varlist("dist", nmax=ndim)}$)
+               END IF
+            #:endfor
+         END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief create a tensor.
@@ -890,6 +1039,53 @@ CONTAINS
             ref => tensor%refcount
             ref = ref + 1
 
+         END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief how many tensor dimensions are mapped to matrix row
+!> \author Patrick Seewald
+! **************************************************************************************************
+         PURE FUNCTION ndims_matrix_row(tensor)
+            TYPE(dbt_type), INTENT(IN) :: tensor
+            INTEGER(int_8) :: ndims_matrix_row
+
+            ndims_matrix_row = ndims_mapping_row(tensor%nd_index_blk)
+
+         END FUNCTION
+
+! **************************************************************************************************
+!> \brief how many tensor dimensions are mapped to matrix column
+!> \author Patrick Seewald
+! **************************************************************************************************
+         PURE FUNCTION ndims_matrix_column(tensor)
+            TYPE(dbt_type), INTENT(IN) :: tensor
+            INTEGER(int_8) :: ndims_matrix_column
+
+            ndims_matrix_column = ndims_mapping_column(tensor%nd_index_blk)
+         END FUNCTION
+
+! **************************************************************************************************
+!> \brief tensor rank
+!> \author Patrick Seewald
+! **************************************************************************************************
+         PURE FUNCTION ndims_tensor(tensor)
+            TYPE(dbt_type), INTENT(IN) :: tensor
+            INTEGER                        :: ndims_tensor
+
+            ndims_tensor = tensor%nd_index%ndim_nd
+         END FUNCTION
+
+! **************************************************************************************************
+!> \brief tensor dimensions
+!> \author Patrick Seewald
+! **************************************************************************************************
+         SUBROUTINE dims_tensor(tensor, dims)
+            TYPE(dbt_type), INTENT(IN)              :: tensor
+            INTEGER, DIMENSION(ndims_tensor(tensor)), &
+               INTENT(OUT)                              :: dims
+
+            CPASSERT(tensor%valid)
+            dims = tensor%nd_index%dims_nd
          END SUBROUTINE
 
 ! **************************************************************************************************
@@ -1094,30 +1290,6 @@ CONTAINS
          END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief tensor rank
-!> \author Patrick Seewald
-! **************************************************************************************************
-         PURE FUNCTION ndims_tensor(tensor)
-            TYPE(dbt_type), INTENT(IN) :: tensor
-            INTEGER                        :: ndims_tensor
-
-            ndims_tensor = tensor%nd_index%ndim_nd
-         END FUNCTION
-
-! **************************************************************************************************
-!> \brief tensor dimensions
-!> \author Patrick Seewald
-! **************************************************************************************************
-         SUBROUTINE dims_tensor(tensor, dims)
-            TYPE(dbt_type), INTENT(IN)              :: tensor
-            INTEGER, DIMENSION(ndims_tensor(tensor)), &
-               INTENT(OUT)                              :: dims
-
-            CPASSERT(tensor%valid)
-            dims = tensor%nd_index%dims_nd
-         END SUBROUTINE
-
-! **************************************************************************************************
 !> \brief tensor block dimensions
 !> \author Patrick Seewald
 ! **************************************************************************************************
@@ -1200,126 +1372,12 @@ CONTAINS
          END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief Create an n-dimensional process grid.
-!>        We can not use a n-dimensional MPI cartesian grid for tensors since the mapping between
-!>        n-dim. and 2-dim. index allows for an arbitrary reordering of tensor index. Therefore we
-!>        can not use n-dim. MPI Cartesian grid because it may not be consistent with the respective
-!>        2d grid. The 2d Cartesian MPI grid is the reference grid (since tensor data is stored as
-!>        DBM matrix) and this routine creates an object that is a n-dim. interface to this grid.
-!>        map1_2d and map2_2d don't need to be specified (correctly), grid may be redefined in
-!>        dbt_distribution_new. Note that pgrid is equivalent to a MPI cartesian grid only
-!>        if map1_2d and map2_2d don't reorder indices (which is the case if
-!>        [map1_2d, map2_2d] == [1, 2, ..., ndims]). Otherwise the mapping of grid coordinates to
-!>        processes depends on the ordering of the indices and is not equivalent to a MPI cartesian
-!>        grid.
-!> \param mp_comm simple MPI Communicator
-!> \param dims grid dimensions - if entries are 0, dimensions are chosen automatically.
-!> \param pgrid n-dimensional grid object
-!> \param map1_2d which nd-indices map to first matrix index and in which order
-!> \param map2_2d which nd-indices map to first matrix index and in which order
-!> \param tensor_dims tensor block dimensions. If present, process grid dimensions are created such
-!>                    that good load balancing is ensured even if some of the tensor dimensions are
-!>                    small (i.e. on the same order or smaller than nproc**(1/ndim) where ndim is
-!>                    the tensor rank)
-!> \param nsplit impose a constant split factor
-!> \param dimsplit which matrix dimension to split
-!> \author Patrick Seewald
-! **************************************************************************************************
-         SUBROUTINE dbt_pgrid_create_expert(mp_comm, dims, pgrid, map1_2d, map2_2d, tensor_dims, nsplit, dimsplit)
-            INTEGER, INTENT(IN) :: mp_comm
-            INTEGER, DIMENSION(:), INTENT(INOUT) :: dims
-            TYPE(dbt_pgrid_type), INTENT(OUT) :: pgrid
-            INTEGER, DIMENSION(:), INTENT(IN) :: map1_2d, map2_2d
-            INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL :: tensor_dims
-            INTEGER, INTENT(IN), OPTIONAL :: nsplit, dimsplit
-            INTEGER :: nproc, iproc, ndims, handle
-            INTEGER, DIMENSION(2) :: pdims_2d, pos
-            TYPE(dbt_tas_split_info) :: info
-
-            CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_pgrid_create'
-
-            CALL timeset(routineN, handle)
-
-            ndims = SIZE(dims)
-
-            CALL mp_environ(nproc, iproc, mp_comm)
-            IF (ANY(dims == 0)) THEN
-               IF (.NOT. PRESENT(tensor_dims)) THEN
-                  CALL mp_dims_create(nproc, dims)
-               ELSE
-                  CALL dbt_mp_dims_create(nproc, dims, tensor_dims)
-               END IF
-            END IF
-            CALL create_nd_to_2d_mapping(pgrid%nd_index_grid, dims, map1_2d, map2_2d, base=0, col_major=.FALSE.)
-            CALL dbt_get_mapping_info(pgrid%nd_index_grid, dims_2d=pdims_2d)
-            CALL mp_cart_create(mp_comm, 2, pdims_2d, pos, pgrid%mp_comm_2d)
-
-            IF (PRESENT(nsplit)) THEN
-               CPASSERT(PRESENT(dimsplit))
-               CALL dbt_tas_create_split(info, pgrid%mp_comm_2d, dimsplit, nsplit, opt_nsplit=.FALSE.)
-               ALLOCATE (pgrid%tas_split_info, SOURCE=info)
-            END IF
-
-            ! store number of MPI ranks because we need it for PURE function dbt_max_nblks_local
-            pgrid%nproc = nproc
-
-            CALL timestop(handle)
-         END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief destroy process grid
-!> \param keep_comm  if .TRUE. communicator is not freed
-!> \author Patrick Seewald
-! **************************************************************************************************
-         SUBROUTINE dbt_pgrid_destroy(pgrid, keep_comm)
-            TYPE(dbt_pgrid_type), INTENT(INOUT) :: pgrid
-            LOGICAL, INTENT(IN), OPTIONAL           :: keep_comm
-            LOGICAL :: keep_comm_prv
-            IF (PRESENT(keep_comm)) THEN
-               keep_comm_prv = keep_comm
-            ELSE
-               keep_comm_prv = .FALSE.
-            END IF
-            IF (.NOT. keep_comm_prv) CALL mp_comm_free(pgrid%mp_comm_2d)
-            CALL destroy_nd_to_2d_mapping(pgrid%nd_index_grid)
-            IF (ALLOCATED(pgrid%tas_split_info) .AND. .NOT. keep_comm_prv) THEN
-               CALL dbt_tas_release_info(pgrid%tas_split_info)
-               DEALLOCATE (pgrid%tas_split_info)
-            END IF
-         END SUBROUTINE
-
-! **************************************************************************************************
 !> \brief freeze current split factor such that it is never changed during contraction
 !> \author Patrick Seewald
 ! **************************************************************************************************
          SUBROUTINE dbt_pgrid_set_strict_split(pgrid)
             TYPE(dbt_pgrid_type), INTENT(INOUT) :: pgrid
             IF (ALLOCATED(pgrid%tas_split_info)) CALL dbt_tas_set_strict_split(pgrid%tas_split_info)
-         END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief remap a process grid (needed when mapping between tensor and matrix index is changed)
-!> \param map1_2d new mapping
-!> \param map2_2d new mapping
-!> \author Patrick Seewald
-! **************************************************************************************************
-         SUBROUTINE dbt_pgrid_remap(pgrid_in, map1_2d, map2_2d, pgrid_out)
-            TYPE(dbt_pgrid_type), INTENT(IN) :: pgrid_in
-            INTEGER, DIMENSION(:), INTENT(IN) :: map1_2d, map2_2d
-            TYPE(dbt_pgrid_type), INTENT(OUT) :: pgrid_out
-            INTEGER, DIMENSION(:), ALLOCATABLE :: dims
-            INTEGER, DIMENSION(ndims_mapping_row(pgrid_in%nd_index_grid)) :: map1_2d_old
-            INTEGER, DIMENSION(ndims_mapping_column(pgrid_in%nd_index_grid)) :: map2_2d_old
-
-            ALLOCATE (dims(SIZE(map1_2d) + SIZE(map2_2d)))
-            CALL dbt_get_mapping_info(pgrid_in%nd_index_grid, dims_nd=dims, map1_2d=map1_2d_old, map2_2d=map2_2d_old)
-            CALL dbt_pgrid_create_expert(pgrid_in%mp_comm_2d, dims, pgrid_out, map1_2d=map1_2d, map2_2d=map2_2d)
-            IF (array_eq_i(map1_2d_old, map1_2d) .AND. array_eq_i(map2_2d_old, map2_2d)) THEN
-               IF (ALLOCATED(pgrid_in%tas_split_info)) THEN
-                  ALLOCATE (pgrid_out%tas_split_info, SOURCE=pgrid_in%tas_split_info)
-                  CALL dbt_tas_info_hold(pgrid_out%tas_split_info)
-               END IF
-            END IF
          END SUBROUTINE
 
 ! **************************************************************************************************
@@ -1351,41 +1409,6 @@ CONTAINS
             END IF
             CALL dbt_pgrid_destroy(pgrid)
             pgrid = pgrid_tmp
-         END SUBROUTINE
-
-! **************************************************************************************************
-!> \author Patrick Seewald
-! **************************************************************************************************
-         SUBROUTINE dbt_distribution_remap(dist_in, map1_2d, map2_2d, dist_out)
-            TYPE(dbt_distribution_type), INTENT(IN)    :: dist_in
-            INTEGER, DIMENSION(:), INTENT(IN) :: map1_2d, map2_2d
-            TYPE(dbt_distribution_type), INTENT(OUT)    :: dist_out
-            INTEGER, DIMENSION(:), ALLOCATABLE :: ${varlist("dist")}$
-            INTEGER :: ndims
-            ndims = SIZE(map1_2d) + SIZE(map2_2d)
-            #:for ndim in range(1, maxdim+1)
-               IF (ndims == ${ndim}$) THEN
-                  CALL get_arrays(dist_in%nd_dist, ${varlist("dist", nmax=ndim)}$)
-                  CALL dbt_distribution_new_expert(dist_out, dist_in%pgrid, map1_2d, map2_2d, ${varlist("dist", nmax=ndim)}$)
-               END IF
-            #:endfor
-         END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief as mp_environ but for special pgrid type
-!> \author Patrick Seewald
-! **************************************************************************************************
-         SUBROUTINE mp_environ_pgrid(pgrid, dims, task_coor)
-            TYPE(dbt_pgrid_type), INTENT(IN) :: pgrid
-            INTEGER, DIMENSION(ndims_mapping(pgrid%nd_index_grid)), INTENT(OUT) :: dims
-            INTEGER, DIMENSION(ndims_mapping(pgrid%nd_index_grid)), INTENT(OUT) :: task_coor
-            INTEGER, DIMENSION(2)                                          :: dims_2d, task_coor_2d
-            INTEGER :: nproc
-
-            CALL mp_environ(nproc, dims_2d, task_coor_2d, pgrid%mp_comm_2d)
-            CALL mp_environ(nproc, dims_2d, task_coor_2d, pgrid%mp_comm_2d)
-            CALL dbt_get_mapping_info(pgrid%nd_index_grid, dims_nd=dims)
-            task_coor = get_nd_indices_pgrid(pgrid%nd_index_grid, task_coor_2d)
          END SUBROUTINE
 
 ! **************************************************************************************************
@@ -1595,29 +1618,6 @@ CONTAINS
                blk_size(:) = get_array_elements(tensor%blk_sizes, ind)
                dbt_blk_size = blk_size(idim)
             END IF
-         END FUNCTION
-
-! **************************************************************************************************
-!> \brief how many tensor dimensions are mapped to matrix row
-!> \author Patrick Seewald
-! **************************************************************************************************
-         PURE FUNCTION ndims_matrix_row(tensor)
-            TYPE(dbt_type), INTENT(IN) :: tensor
-            INTEGER(int_8) :: ndims_matrix_row
-
-            ndims_matrix_row = ndims_mapping_row(tensor%nd_index_blk)
-
-         END FUNCTION
-
-! **************************************************************************************************
-!> \brief how many tensor dimensions are mapped to matrix column
-!> \author Patrick Seewald
-! **************************************************************************************************
-         PURE FUNCTION ndims_matrix_column(tensor)
-            TYPE(dbt_type), INTENT(IN) :: tensor
-            INTEGER(int_8) :: ndims_matrix_column
-
-            ndims_matrix_column = ndims_mapping_column(tensor%nd_index_blk)
          END FUNCTION
 
 ! **************************************************************************************************
