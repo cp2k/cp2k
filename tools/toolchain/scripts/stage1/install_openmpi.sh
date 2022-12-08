@@ -61,6 +61,7 @@ case "${with_openmpi}" in
       else
         EXTRA_CONFIGURE_FLAGS=""
       fi
+      # We still require MPI-1.0-compatability for PTSCOTCH
       ./configure CFLAGS="${CFLAGS}" \
         --prefix=${pkg_install_dir} \
         --libdir="${pkg_install_dir}/lib" \

@@ -30,10 +30,6 @@ MODULE message_passing
 
 #include "../base/base_uses.f90"
 
-#if defined(__parallel) && !defined(__MPI_VERSION)
-#define __MPI_VERSION 3
-#endif
-
 #if defined(__parallel)
    USE mpi
 ! subroutines: unfortunately, mpi implementations do not provide interfaces for all subroutines (problems with types and ranks explosion),
@@ -81,11 +77,7 @@ MODULE message_passing
    ! Set max allocatable memory by MPI to 2 GiByte
    INTEGER(KIND=MPI_ADDRESS_KIND), PARAMETER, PRIVATE :: mp_max_memory_size = HUGE(INT(1, KIND=int_4))
 
-#if __MPI_VERSION > 2
    INTEGER, PARAMETER, PUBLIC :: mp_max_library_version_string = MPI_MAX_LIBRARY_VERSION_STRING
-#else
-   INTEGER, PARAMETER, PUBLIC :: mp_max_library_version_string = 1
-#endif
 
    INTEGER, PARAMETER, PUBLIC :: file_offset = MPI_OFFSET_KIND
    INTEGER, PARAMETER, PUBLIC :: address_kind = MPI_ADDRESS_KIND
@@ -757,11 +749,7 @@ CONTAINS
 !$       END IF
 !$OMP END MASTER
 !$    END IF
-#if __MPI_VERSION > 2
       CALL mpi_comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN, ierr)
-#else
-      CALL mpi_errhandler_set(MPI_COMM_WORLD, MPI_ERRORS_RETURN, ierr)
-#endif
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_set_errhandler @ mp_world_init")
       mp_comm = MPI_COMM_WORLD
       debug_comm_count = 1
@@ -1150,15 +1138,9 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-#if __MPI_VERSION > 2
       CALL mpi_ibarrier(group, request, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_ibarrier @ mp_isync")
       CALL add_perf(perf_id=26, count=1)
-#else
-      MARK_USED(group)
-      MARK_USED(request)
-      CPABORT("mp_isum requires MPI-3 standard")
-#endif
 #else
       MARK_USED(group)
       request = mp_request_null
@@ -2125,7 +2107,6 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-#if __MPI_VERSION > 2
       CALL mpi_comm_rank(MPI_COMM_WORLD, rank, ierr)
       IF (ierr /= mpi_success) CALL mp_stop(ierr, routineN)
       CALL mpi_comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, rank, MPI_INFO_NULL, comm, ierr)
@@ -2134,9 +2115,6 @@ CONTAINS
       IF (ierr /= mpi_success) CALL mp_stop(ierr, routineN)
       CALL mpi_comm_free(comm, ierr)
       IF (ierr /= mpi_success) CALL mp_stop(ierr, routineN)
-#else
-      CPABORT("mp_get_node_global_rank requires MPI-3 standard")
-#endif
 #else
       node_rank = 0
 #endif
@@ -3039,19 +3017,12 @@ CONTAINS
       ierr = 0
       msglen = SIZE(msg)
 #if defined(__parallel)
-#if __MPI_VERSION > 2
       IF (msglen .GT. 0) THEN
          CALL mpi_iallreduce(MPI_IN_PLACE, msg, msglen, MPI_LOGICAL, MPI_LOR, gid, request, ierr)
          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
       ELSE
          request = mp_request_null
       END IF
-#else
-      MARK_USED(msg)
-      MARK_USED(gid)
-      MARK_USED(request)
-      CPABORT("mp_isum requires MPI-3 standard")
-#endif
 #else
       MARK_USED(msg)
       MARK_USED(gid)
@@ -3080,14 +3051,8 @@ CONTAINS
       version = ''
 
 #if defined(__parallel)
-#if __MPI_VERSION > 2
       CALL mpi_get_library_version(version, resultlen, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_get_library_version @ "//routineN)
-#else
-      MARK_USED(version)
-      MARK_USED(resultlen)
-      CPABORT("mp_get_library_version requires MPI-3 standard")
-#endif
 #else
       MARK_USED(version)
       resultlen = 0
@@ -4112,13 +4077,8 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-#if __MPI_VERSION > 2
       CALL mpi_win_flush_all(win, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_flush_all @ "//routineN)
-#else
-      MARK_USED(win)
-      CPABORT("mp_win_flush_all requires MPI-3 standard")
-#endif
 #else
       MARK_USED(win)
 #endif
@@ -4141,12 +4101,7 @@ CONTAINS
 
 #if defined(__parallel)
 
-#if __MPI_VERSION > 2
       CALL mpi_win_lock_all(MPI_MODE_NOCHECK, win, ierr)
-#else
-      MARK_USED(win)
-      CPABORT("mp_win_lock_all requires MPI-3 standard")
-#endif
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_lock_all @ "//routineN)
 
       CALL add_perf(perf_id=19, count=1)
@@ -4172,12 +4127,7 @@ CONTAINS
 
 #if defined(__parallel)
 
-#if __MPI_VERSION > 2
       CALL mpi_win_unlock_all(win, ierr)
-#else
-      MARK_USED(win)
-      CPABORT("mp_win_unlock_all requires MPI-3 standard")
-#endif
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_unlock_all @ "//routineN)
 
       CALL add_perf(perf_id=19, count=1)

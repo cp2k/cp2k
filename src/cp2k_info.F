@@ -115,11 +115,7 @@ CONTAINS
 #endif
 #if defined(__parallel)
       flags = TRIM(flags)//" parallel"
-#if !defined(__MPI_VERSION) || (__MPI_VERSION > 2)
       flags = TRIM(flags)//" mpi3"
-#else
-      flags = TRIM(flags)//" mpi2"
-#endif
 #endif
 #if defined(__SCALAPACK)
       flags = TRIM(flags)//" scalapack"
