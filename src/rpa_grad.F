@@ -1160,7 +1160,7 @@ CONTAINS
                            Eigenval(homo + recv_a_start:homo + recv_a_end), omega, weight)
 
          IF (number_of_parallel_channels > 1 .AND. number_of_parallel_channels + proc_shift < grid(1)) THEN
-            proc_a_recv = MODULO(mepos(1) - proc_shift - number_of_parallel_channels + 1, grid(1))
+            proc_a_recv = MODULO(mepos(1) - proc_shift - number_of_parallel_channels, grid(1))
             proc_recv = mepos(2)*grid(1) + proc_a_recv
 
             CALL get_group_dist(gd_virtual, proc_a_recv, recv_a_start, recv_a_end, recv_a_size)
@@ -1245,7 +1245,7 @@ CONTAINS
                            Eigenval(recv_i_start:recv_i_end), omega, weight)
 
          IF (number_of_parallel_channels > 1 .AND. number_of_parallel_channels + proc_shift < grid(2)) THEN
-            proc_i_recv = MODULO(mepos(2) - proc_shift - number_of_parallel_channels + 1, grid(2))
+            proc_i_recv = MODULO(mepos(2) - proc_shift - number_of_parallel_channels, grid(2))
             proc_recv = proc_i_recv*grid(1) + mepos(1)
 
             CALL get_group_dist(gd_homo, proc_i_recv, recv_i_start, recv_a_end, recv_i_size)
