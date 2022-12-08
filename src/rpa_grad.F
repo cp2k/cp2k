@@ -1064,15 +1064,14 @@ CONTAINS
       ! Determine the available memory and estimate the number of possible parallel communication channels
       CALL m_memory(mem)
       mem_real = REAL(mem, KIND=dp)
-      CALL mp_min(mem_real, para_env%group)
       mem_per_block = REAL(number_of_elements_per_blk, KIND=dp)*8.0_dp
       number_of_parallel_channels = MAX(1, MIN(MAXVAL(grid) - 1, FLOOR(mem_real/mem_per_block)))
+      CALL mp_min(number_of_parallel_channels, para_env%group)
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A,T75,I6)') 'GRAD_INFO| Number of parallel communication channels:', number_of_parallel_channels
          CALL m_flush(unit_nr)
       END IF
-      CALL mp_sync(para_env%group)
 
       ALLOCATE (buffer_1D(number_of_parallel_channels))
       DO proc_shift = 1, number_of_parallel_channels
