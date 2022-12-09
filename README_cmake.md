@@ -184,8 +184,8 @@ recently. While CUDA support will be detected, the cuda maths libraries may not.
 - HIP : CMAKE support of ROCM is still under development and is known to fail
 from time to time. Update to ROCM 5.3.x or above to solve the issue.
 
-- BLAS / LAPACK / SCALAPACK : use the options 'CP2K_BLAS_VENDOR' and
-'CP2K_SCALPACK_VENDOR' if you know that 'MKL' or 'SCI' (cray libsci) are
-present. '-DCP2k_BLAS_VENDOR=OpenBLAS' will also help CMake to find OpenBLAS if
+- BLAS / LAPACK / SCALAPACK : use the options `CP2K_BLAS_VENDOR` and
+`CP2K_SCALPACK_VENDOR` if you know that `MKL` or `SCI` (cray libsci) are
+present. `-DCP2k_BLAS_VENDOR=OpenBLAS` will also help CMake to find OpenBLAS if
 it is used. Detecting the scalapack library might also fail if the user
 environment is not properly set up.
