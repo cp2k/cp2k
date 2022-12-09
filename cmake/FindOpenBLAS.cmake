@@ -24,24 +24,31 @@ endif()
 # find_package(OPENBLAS QUIET)
 
 if(NOT CP2K_OPENBLAS_FOUND)
+  set(CP2K_OPENBLAS64_ROOT ${CP2K_OPENBLAS_ROOT})
+  set(CP2K_OPENBLA_THREADS_ROOT ${CP2K_OPENBLAS_ROOT})
   cp2k_find_libraries(OPENBLAS "openblas")
   cp2k_find_libraries(OPENBLAS64 "openblas64")
-  cp2k_find_libraries(OPENBLAS_THREADS "openblas_threads")
-  cp2k_find_libraries(OPENBLAS_THREADS "openblas64_threads")
-  cp2k_find_libraries(OPENBLAS_THREADS "openblas64_omp")
-  cp2k_find_libraries(OPENBLAS_THREADS "openblas_omp")
+  cp2k_find_libraries(OPENBLAS_THREADS "openblas_threads;openblas_omp")
+  cp2k_find_libraries(OPENBLAS_THREADS64 "openblas64_threads;openblas64_omp")
 endif()
 
 cp2k_include_dirs(OPENBLAS "cblas.h")
 
 # check if found
-find_package_handle_standard_args(
-  OpenBLAS REQUIRED_VARS CP2K_OPENBLAS_INCLUDE_DIRS
-                         CP2K_OPENBLAS_LINK_LIBRARIES)
+if(CP2K_OPENBLAS_INCLUDE_DIRS)
+  find_package_handle_standard_args(
+    OpenBLAS REQUIRED_VARS CP2K_OPENBLAS_INCLUDE_DIRS
+                           CP2K_OPENBLAS_LINK_LIBRARIES)
+else()
+  find_package_handle_standard_args(OpenBLAS
+                                    REQUIRED_VARS CP2K_OPENBLAS_LINK_LIBRARIES)
+endif()
 
 # add target to link against
-if(CP2K_OPENBLAS_FOUND AND NOT TARGET CP2K_OpenBLAS::openblas)
-  add_library(CP2K_OpenBLAS::openblas INTERFACE IMPORTED)
+if(CP2K_OPENBLAS_FOUND)
+  if(NOT TARGET CP2K_OpenBLAS::openblas)
+    add_library(CP2K_OpenBLAS::openblas INTERFACE IMPORTED)
+  endif()
   set_property(
     TARGET CP2K_OpenBLAS::openblas PROPERTY INTERFACE_LINK_LIBRARIES
                                             ${CP2K_OPENBLAS_LINK_LIBRARIES})

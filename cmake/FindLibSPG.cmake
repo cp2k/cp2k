@@ -25,7 +25,7 @@ if(NOT CP2K_LIBSPG_FOUND)
 endif()
 
 if(NOT DEFINED CP2K_LIBSPG_INCLUDE_DIRS)
-  cp2k_include_dirs(LIBXSMM "spglib.h")
+  cp2k_include_dirs(LIBSPG "spglib.h")
 endif()
 
 if(CP2K_LIBSPG_INCLUDE_DIRS)

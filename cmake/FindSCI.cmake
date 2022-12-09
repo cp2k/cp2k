@@ -19,9 +19,9 @@ cp2k_set_default_paths(LIBSCI "SCI")
 # we might need to change the logic a little here since the cp2k_find_library
 # function expect to have CP2K_package_PREFIX set.
 
-set(CP2K_LIBSCI_MP_PREFIX "${CP2K_LIBSCI_PREFIX}")
-set(CP2K_LIBSCI_MPI_PREFIX "${CP2K_LIBSCI_PREFIX}")
-set(CP2K_LIBSCI_MPI_MP_PREFIX "${CP2K_LIBSCI_PREFIX}")
+set(CP2K_LIBSCI_MP_ROOT "${CP2K_LIBSCI_ROOT}")
+set(CP2K_LIBSCI_MPI_ROOT "${CP2K_LIBSCI_ROOT}")
+set(CP2K_LIBSCI_MPI_MP_ROOT "${CP2K_LIBSCI_ROOT}")
 
 set(_sci_lib "sci_gnu")
 

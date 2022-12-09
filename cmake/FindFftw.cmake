@@ -26,9 +26,9 @@ endif()
 
 foreach(_lib fftw3 fftw3f fftw3l fftw3q)
   if(NOT CP2K_${__lib_up}_FOUND)
-    set(CP2K_${__lib_up}_PREFIX "${CP2k_FFTW3_PREFIX}")
+    set(CP2K_${__lib_up}_ROOT "${CP2k_FFTW3_ROOT}")
     cp2k_find_libraries("${__lib_up}" "${_lib}")
-    unset(CP2K_${__lib_up}_PREFIX CACHE)
+    unset(CP2K_${__lib_up}_ROOT CACHE)
   endif()
 
   # OMP variant
@@ -36,9 +36,9 @@ foreach(_lib fftw3 fftw3f fftw3l fftw3q)
     string(TOUPPER "${_lib}_${_subtype}" _sub_lib)
 
     # yeah not super deep
-    set(CP2K_${_sub_lib}_PREFIX "${CP2K_FFTW3_PREFIX}")
+    set(CP2K_${_sub_lib}_ROOT "${CP2K_FFTW3_ROOT}")
     cp2k_find_libraries("${_sub_lib}" "${_lib}_${_subtype}")
-    unset(CP2K_${_sub_lib}_PREFIX CACHE)
+    unset(CP2K_${_sub_lib}_ROOT CACHE)
   endforeach()
 endforeach()
 
@@ -73,9 +73,10 @@ foreach(lib_name "fftw3" "fftw3l" "fftw3q" "fftw3f")
 
     foreach(sub_type "threads" "mpi" "omp")
       string(TOUPPER "${lib_name}_${sub_type}" __libs)
-      if(CP2K_${__libs}_FOUND AND NOT TARGET
-                                  CP2K_FFTW3::${lib_name}_${sub_type})
-        add_library(CP2K_FFTW3::${lib_name}_${sub_type} INTERFACE IMPORTED)
+      if(CP2K_${__libs}_FOUND)
+        if(NOT TARGET CP2K_FFTW3::${lib_name}_${sub_type})
+          add_library(CP2K_FFTW3::${lib_name}_${sub_type} INTERFACE IMPORTED)
+        endif()
         set_target_properties(
           CP2K_FFTW3::${lib_name}_${sub_type}
           PROPERTIES INTERFACE_LINK_LIBRARIES
@@ -88,10 +89,10 @@ endforeach()
 set(CP2K_FFTW3_FOUND ON)
 mark_as_advanced(
   CP2K_FFTW3_FOUND
-  CP2K_FFTW3_PREFIX
+  CP2K_FFTW3_ROOT
   CP2K_FFTW3_INCLUDE_DIRS
   CP2K_FFTW3_MPI
-  FFTW3_OMP
+  CP2K_FFTW3_OMP
   CP2K_FFTW3_THREADS
   CP2K_FFTW3Q_OMP
   CP2K_FFTW3Q_THREADS

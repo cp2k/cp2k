@@ -16,7 +16,7 @@ include(FindPackageHandleStandardArgs)
 cp2k_set_default_paths(BLIS "BLIS")
 
 if(DEFINED AOCL_ROOT)
-  list(CP2K_BLIS_PREFIX "${AOCL_ROOT}" "$ENV{AOCL_ROOT}")
+  list(CP2K_BLIS_ROOT "${AOCL_ROOT}" "$ENV{AOCL_ROOT}")
 endif()
 
 # one day blis will have a pkg-config file

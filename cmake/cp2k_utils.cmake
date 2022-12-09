@@ -38,7 +38,7 @@ function(cp2k_set_default_paths _varname _package_name)
       set(CP2K_${_varname}_PREFIX_TMP "/usr")
     endif()
   endif()
-  set(CP2K_${_varname}_PREFIX
+  set(CP2K_${_varname}_ROOT
       "${CP2K_${_varname}_PREFIX_TMP}"
       PARENT_SCOPE)
 
@@ -50,8 +50,8 @@ function(cp2k_find_libraries _package_name _library_name)
 
   find_library(
     CP2K_${_package_name}_LIBRARIES_TMP
-    NAMES "${_library_name}"
-    PATHS "${CP2K_${_package_name}_PREFIX}"
+    NAMES ${_library_name}
+    PATHS "${CP2K_${_package_name}_ROOT}"
     PATH_SUFFIXES "lib" "lib64")
   if(CP2K_${_package_name}_LIBRARIES_TMP)
     set(CP2K_${_package_name}_LINK_LIBRARIES
@@ -71,11 +71,11 @@ endfunction()
 function(cp2k_include_dirs _package_name _library_include_file)
   find_path(
     CP2K_${_package_name}_INCLUDE_DIRS_TMP
-    NAMES "${_lib_include_file}"
-    PATHS "${CP2K_${_package_name}_PREFIX}"
-    HINTS "${CP2K_${_package_name}_PREFIX}"
-    PATH_SUFFIXES "include" "include/${_pacakge_name}" "${_package_name}"
-    NO_DEFAULT_PATH)
+    NAMES ${_library_include_file}
+    PATHS "${CP2K_${_package_name}_ROOT}"
+    HINTS "${CP2K_${_package_name}_ROOT}"
+    PATH_SUFFIXES "include" "include/${_pacakge_name}" "${_package_name}")
+
   set(CP2K_${_package_name}_INCLUDE_DIRS
       "${CP2K_${_package_name}_INCLUDE_DIRS_TMP}"
       PARENT_SCOPE)
