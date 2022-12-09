@@ -161,7 +161,7 @@ cmake -DCP2K_INSTALL_PREFIX=/myprefix -DCP2K_BLAS_VENDOR=openblas
 -DCP2K_SCALAPACK_VENDOR=GENERIC -DCP2K_USE_ACCEL=CUDA -DCP2K_WITH_GPU=A100 ..
 ```
 
-if HIP is needed than
+if HIP is needed then
 
 ```shell
 cmake -DCP2K_INSTALL_PREFIX=/myprefix -DCP2K_BLAS_VENDOR=openblas
