@@ -5,9 +5,9 @@ detect CP2K dependencies and configure the compilation process. Dependencies
 should be installed independently either with a distribution package manager,
 easybuild, or spack to name a few.
 
-It is easier to build and install all manually build dependencies in a single
+It is easier to build and install all manually built dependencies in a single
 directory ideally where CP2K will also be installed. CMake will have less
-difficulties to find the `FindPACKAGE.CMake` files and dependent libraries. CMake
+difficulties to find the `FindPACKAGE.cmake` files and dependent libraries. CMake
 will also use environment variables such as `ORNL_FFTW3_ROOT`, etc. Usually a
 standard prefix is used in HPC environments. If known just add it in the
 `cmake/cp2k_utils.cmake` file.
@@ -23,13 +23,13 @@ The CMake build system requires a minimum set of dependencies:
 
 Major vendors implementations of BLAS, LAPACK, and scalapack are supported. The
 build system was tested with MKL, cray libsci, openblas, flexiblas but it should
-also work with blis, or ATLAS. Corresponding `findPACKAGE.cmake` are included but
+also work with blis, or ATLAS. Corresponding `FindPACKAGE.cmake` are included but
 they still need testing.
 
 Options turned on by default are `CP2K_USE_LIBXSMM`, `CP2K_USE_FFTW3`,
 `CP2K_USE_LIBXC`, `CP2K_USE_COSMA`, and `CP2K_USE_LIBINT2`. Additionally MPI, DBCSR,
-OPENMP, SCALAPACK, and BLAS/LAPACK are mandatory and can not be turned off. he
-arguement `-DCP2K_USE_OPTION=ON, OFF` can be added to the `cmake` command line
+OPENMP, SCALAPACK, and BLAS/LAPACK are mandatory and can not be turned off. The
+arguement `-DCP2K_USE_OPTION=ON, OFF` can be added to the `cmake` command line to
 turn `ON` or `OFF` a specific option. The list of currently supported optional
 dependencies is
 
@@ -45,7 +45,7 @@ dependencies is
 
 - `CP2K_USE_SUPERLU = OFF`: detection should work but needs improvement
 
-- `CP2K_USE_COSMA = ON` : Add [cosma](https://github.com/eth-cscs/COSMA) dropin
+- `CP2K_USE_COSMA = ON` : add [cosma](https://github.com/eth-cscs/COSMA) drop-in
   replacement for sclapack pdgemnm
 
 - `CP2K_USE_LIBINT2 = ON`: add [libint2](https://github.com/evaleev/libint) support 
@@ -58,9 +58,9 @@ dependencies is
 
 - `CP2K_USE_SPGLIB = ON`: everything alright
 
-- `CP2K_USE_LIBXC = ON`: everything is fine, use pkgconfig by default (ideally
-  the library should be built with CMake, if so we can get rid off the
-  `FindLibxc.cmake`). If you installed LIBXC in a non-standard location,
+- `CP2K_USE_LIBXC = ON`: everything is fine, use `pkg-config` by default (ideally
+  the library should be built with CMake, if so we can get rid of the
+  `FindLibXC.cmake`). If you installed LIBXC in a non-standard location,
   modify the `PKG_CONFIG_PATH` variable accordingly.
 
 - `CP2K_USE_SPLA = OFF`: enable spla off-loading capabilities (use CMake modules
@@ -73,14 +73,14 @@ dependencies is
   installed libxsmm in a non-standard location, modify the `PKG_CONFIG_PATH` variable
   accordingly.
 
-- `CP2K_USE_ACCEL = NONE, CUDA, HIP`: enable gpu support
+- `CP2K_USE_ACCEL = NONE, CUDA, HIP`: enable GPU support
 
 - `CP2K_BLAS_VENDOR = auto`: CMake will search for the most common blas / lapack
   implementations. If possible indicate which implementation you are using. Supported 
   values are: `auto` (default), `MKL`, `SCI`, `OpenBLAS`, `FlexiBLAS`, `Armpl`.
 
-- `CP2K_SCALAPACK_VENDOR = MKL, SCI, GENERIC`: similar to the option previous
-  option but for scalapack
+- `CP2K_SCALAPACK_VENDOR = MKL, SCI, GENERIC`: similar to the previous option but for
+  scalapack
 
 - `CP2K_BLAS_THREADING = sequential, openmp, etc...`: leave the default value (or
   use it at your own peril)
@@ -101,7 +101,7 @@ command line.
 
 While compiling CP2K with CUDA support should not pose problems (finding
 libcublas and libcufft might fail though with the nvidia hpc sdk), we should
-expect issues when compiling the hip support.
+expect issues when compiling the HIP support.
 
 ROCM 5.0.x is known to have a bug in the CMake configuration files. It is
 possible to go around this but at the expense of time. The build system was not
@@ -115,12 +115,12 @@ DBCSR should be tunred off otherwise a crash should be expected.
 
 CP2K expect by default a single threaded version of blas and lapack. The option
 `-DCP2K_BLAS_THREADING` can change this behavior. Be careful when tweaking this
-specific option as many implementations of blas / lapack are easier threaded or
+specific option as many implementations of blas / lapack are either threaded or
 (exclusive) sequential but not both. I think the only exception to this is MKL.
 Also note that CP2K dependencies will most likely have the same issue (COSMA
-with cray-libsci for instance)
+with cray-libsci for instance).
 
-## typical examples of CMake use
+## Typical examples of CMake use
 
 The following list gives several examples of CMake command lines. Just add
 `-DCP2K_USE_SIRIUS=ON` to add support of SIRIUS in CP2K
@@ -136,8 +136,6 @@ make
 ```
 
 - MKL
-
-the command line is
 
 ```shell
 cmake -DCP2K_INSTALL_PREFIX=/myprefix -DCP2K_BLAS_VENDOR=MKL
@@ -161,7 +159,7 @@ cmake -DCP2K_INSTALL_PREFIX=/myprefix -DCP2K_BLAS_VENDOR=openblas
 -DCP2K_SCALAPACK_VENDOR=GENERIC -DCP2K_USE_ACCEL=CUDA -DCP2K_WITH_GPU=A100 ..
 ```
 
-if HIP is needed then
+If HIP is needed then
 
 ```shell
 cmake -DCP2K_INSTALL_PREFIX=/myprefix -DCP2K_BLAS_VENDOR=openblas
@@ -181,9 +179,9 @@ command line, error message, and operating systems.
 What is known to fail sometimes
 
 - Nvidia HPC SDK: The location of the cuda maths libraries has changed
-recently. While CUDA support will be detected, the cuda maths libraries may not.
+recently. While CUDA support will be detected, the CUDA maths libraries may not.
 
-- HIP : CMAKE support of ROCM is still under development and is known to fail
+- HIP : CMake support of ROCM is still under development and is known to fail
 from time to time. Update to ROCM 5.3.x or above to solve the issue.
 
 - BLAS / LAPACK / SCALAPACK : use the options `CP2K_BLAS_VENDOR` and
