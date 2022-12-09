@@ -68,14 +68,14 @@ function(cp2k_find_libraries _package_name _library_name)
   unset(CP2K_${_package_name}_LIBRARIES_TMP CACHE)
 endfunction()
 
-function(cp2k_include_dirs _package_name _library_include_file)
+function(cp2k_include_dirs _package_name _library_include_file)  
   find_path(
     CP2K_${_package_name}_INCLUDE_DIRS_TMP
-    NAMES "${_lib_include_file}"
+    NAMES "${_library_include_file}"
     PATHS "${CP2K_${_package_name}_PREFIX}"
     HINTS "${CP2K_${_package_name}_PREFIX}"
-    PATH_SUFFIXES "include" "include/${_pacakge_name}" "${_package_name}"
-    NO_DEFAULT_PATH)
+    PATH_SUFFIXES "include" "include/${_pacakge_name}" "${_package_name}")
+
   set(CP2K_${_package_name}_INCLUDE_DIRS
       "${CP2K_${_package_name}_INCLUDE_DIRS_TMP}"
       PARENT_SCOPE)
