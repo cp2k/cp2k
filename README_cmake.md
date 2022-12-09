@@ -151,18 +151,18 @@ MPICC=cc MPICXX=CC cmake -DCP2K_INSTALL_PREFIX=/myprefix
 
 ## CUDA / HIP
 
-Let us consider the case where openblas and netlib scalapack are installed
+Let us consider the case where OpenBLAS and netlib scalapack are installed
 (openmpi or mpich)
 
 ```shell
-cmake -DCP2K_INSTALL_PREFIX=/myprefix -DCP2K_BLAS_VENDOR=openblas
+cmake -DCP2K_INSTALL_PREFIX=/myprefix -DCP2K_BLAS_VENDOR=OpenBLAS
 -DCP2K_SCALAPACK_VENDOR=GENERIC -DCP2K_USE_ACCEL=CUDA -DCP2K_WITH_GPU=A100 ..
 ```
 
 If HIP is needed then
 
 ```shell
-cmake -DCP2K_INSTALL_PREFIX=/myprefix -DCP2K_BLAS_VENDOR=openblas
+cmake -DCP2K_INSTALL_PREFIX=/myprefix -DCP2K_BLAS_VENDOR=OpenBLAS
 -DCP2K_SCALAPACK_VENDOR=GENERIC -DCP2K_USE_ACCEL=HIP -DCP2K_WITH_GPU=Mi250 ..
 ```
 
