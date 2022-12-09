@@ -29,12 +29,14 @@ MODULE manybody_nequip
    USE cp_para_types,                   ONLY: cp_para_env_type
 
    USE util,                            ONLY: sort
+   USE physcon,                         ONLY: angstrom
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
 
    PRIVATE
-   PUBLIC :: setup_nequip_arrays, destroy_nequip_arrays!, &
+   PUBLIC :: setup_nequip_arrays, destroy_nequip_arrays, &
+            nequip_energy_store_force_virial
 !             nequip_forces, nequip_energy
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'manybody_nequip'
 
@@ -183,44 +185,47 @@ CONTAINS
 !>      Fast implementation of the nequip potential - [tlaino] 2007
 !> \author Teodoro Laino - University of Zurich
 ! **************************************************************************************************
-
-   SUBROUTINE nequip_energy_store_force_virial(particle_set, cell, atomic_kind_set, potparm, &
-                                             fist_nonbond_env, pot_nequip, para_env)
+   SUBROUTINE nequip_energy_store_force_virial(nonbonded, particle_set, cell, atomic_kind_set, &
+                                             potparm, nequip, glob_loc_list_a, r_last_update_pbc)                                             
 
 !                                             (nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, cell)
-
+      TYPE(nequip_pot_type), POINTER                     :: nequip
       TYPE(particle_type), POINTER                       :: particle_set(:)
       TYPE(fist_neighbor_type), POINTER                  :: nonbonded
       TYPE(pair_potential_pp_type), POINTER              :: potparm
-      INTEGER, DIMENSION(:, :), POINTER                  :: glob_loc_list
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: glob_cell_v
+!      INTEGER, DIMENSION(:, :), POINTER                  :: glob_loc_list
+!      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: glob_cell_v
       INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a
       TYPE(cell_type), POINTER                           :: cell
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'nequip_energy_store_force_virial'
 
-      INTEGER                                            :: handle, i, iend, igrp, ikind, ilist, &
-                                                            ipair, istart, jkind, nkinds, npairs, &
-                                                            npairs_tot
-      INTEGER, DIMENSION(:), POINTER                     :: work_list, work_list2
+!      INTEGER                                            :: handle, nkinds, npairs_tot
+      INTEGER                                            :: i, iend, igrp, ikind, ilist, &
+                                                            ipair, istart, jkind, npairs
+      INTEGER, DIMENSION(:), POINTER                     :: work_list!, work_list2
       INTEGER, DIMENSION(:, :), POINTER                  :: list, sort_list
       REAL(KIND=dp), DIMENSION(3)                        :: cell_v, cvi
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rwork_list
+!      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rwork_list
       TYPE(neighbor_kind_pairs_type), POINTER            :: neighbor_kind_pair
       TYPE(pair_potential_single_type), POINTER          :: pot
 
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind_set(:)
-      TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
-      REAL(kind=dp)                                      :: pot_nequip
-      TYPE(cp_para_env_type), OPTIONAL, &
-         POINTER                                         :: para_env
+!      TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
+!      REAL(kind=dp)                                      :: pot_nequip
+!      TYPE(cp_para_env_type), OPTIONAL, &
+!         POINTER                                         :: para_env
       
-      INTEGER                                            :: iat, iat_use, n_atoms_use
+      INTEGER                                            :: iat, iat_use, n_atoms_use, atom_a, atom_b, &
+                                                            ifirst, ilast, iunique, nunique, junique, &
+                                                            mpair, nloc_size, n_atoms, nedges
       LOGICAL, ALLOCATABLE                               :: use_atom(:)
 
       REAL(kind=dp), ALLOCATABLE                         :: force(:, :), pos(:, :)
+      REAL(kind=dp)                                      :: lattice(3, 3), rij(3), drij, rab2_max, pot_loc
       CHARACTER(len=2), ALLOCATABLE                      :: elem_symbol(:)
       TYPE(pos_type), DIMENSION(:), POINTER              :: r_last_update_pbc
+      
 
 !      IF (output_unit > 0) THEN
 !         WRITE (output_unit, '(/,T2,"ENERGY| Total FORCE_EVAL ( ",A," ) energy [a.u.]: ",T55,F26.15)') &
@@ -228,6 +233,12 @@ CONTAINS
 !      END IF
 !         WRITE(*, *) "glob_cell_v ", SIZE(glob_cell_v) , glob_cell_v
 !         WRITE(*, *) "cell ", cell
+
+      n_atoms = SIZE(particle_set)
+      ALLOCATE (use_atom(n_atoms))
+      use_atom = .FALSE.
+
+      WRITE(*,*) "entering loop over kind"
 
       DO ikind = 1, SIZE(atomic_kind_set)
       DO jkind = 1, SIZE(atomic_kind_set)
@@ -254,6 +265,7 @@ CONTAINS
       END DO
       lattice = cell%hmat*angstrom
 
+      nedges = 0
       DO ilist = 1, nonbonded%nlists
          neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
          npairs = neighbor_kind_pair%npairs
@@ -266,9 +278,10 @@ CONTAINS
             list => neighbor_kind_pair%list
             cvi = neighbor_kind_pair%cell_vector
             pot => potparm%pot(ikind, jkind)%pot
+            WRITE(*,*) "istart, iend: ", istart, iend
             DO i = 1, SIZE(pot%type)
                IF (pot%type(i) /= nequip_type) CYCLE
-               rab2_max = pot%set(i)%nequip%rcutsq
+               rab2_max = pot%set(i)%nequip%rcutsq/(angstrom*angstrom)
                WRITE(*, *) "cutoff manybody_potential ", rab2_max
                cell_v = MATMUL(cell%hmat, cvi)
                pot => potparm%pot(ikind, jkind)%pot
@@ -311,8 +324,13 @@ CONTAINS
                         ! Energy terms
                         pot_loc = 0.0_dp
                         rij(:) = r_last_update_pbc(atom_b)%r(:) - r_last_update_pbc(atom_a)%r(:) + cell_v
+                        WRITE(*,*) "r_last_update_pbc: ", r_last_update_pbc(atom_b)%r(:) 
                         drij = DOT_PRODUCT(rij, rij)
                         ipair = ipair + 1
+                        IF (drij <= rab2_max) THEN
+                           WRITE(*, *) "calc rij: ", drij
+                           nedges = nedges + 1
+                        END IF
 !                           IF (drij > rab2_max) CYCLE
 !                           drij = SQRT(drij)
 !                           CALL tersoff_energy(pot_loc, tersoff, r_last_update_pbc, atom_a, atom_b, nloc_size, &
@@ -327,6 +345,8 @@ CONTAINS
             END DO
          END DO Kind_Group_Loop_Nequip
       END DO   
+      WRITE(*, *) "nequip nedges: ", nedges 
+      WRITE(*, *) "nequip npairs: ", npairs      
    END SUBROUTINE nequip_energy_store_force_virial
 
 END MODULE manybody_nequip
