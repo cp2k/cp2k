@@ -22,7 +22,7 @@ The CMake build system requires a minimum set of dependencies:
 - CMake
 
 Major vendors implementations of BLAS, LAPACK, and scalapack are supported. The
-build system was tested with MKL, cray libsci, openblas, flexiblas but it should
+build system was tested with MKL, cray libsci, OpenBLAS, flexiblas but it should
 also work with blis, or ATLAS. Corresponding `FindPACKAGE.cmake` are included but
 they still need testing.
 
