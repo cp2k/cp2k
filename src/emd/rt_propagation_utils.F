@@ -12,6 +12,8 @@
 
 MODULE rt_propagation_utils
    USE atomic_kind_types,               ONLY: atomic_kind_type
+   USE cell_types,                      ONLY: cell_type
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rtp_control_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
@@ -27,7 +29,12 @@ MODULE rt_propagation_utils
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
+   USE cp_output_handling,              ONLY: cp_p_file,&
+                                              cp_print_key_finished_output,&
+                                              cp_print_key_should_output,&
+                                              cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_binary_read, dbcsr_checksum, dbcsr_copy, dbcsr_copy_into_existing, &
         dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_distribution_type, &
@@ -36,13 +43,34 @@ MODULE rt_propagation_utils
         dbcsr_set, dbcsr_type
    USE input_constants,                 ONLY: use_restart_wfn,&
                                               use_rt_restart
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                              section_vals_type
+   USE input_section_types,             ONLY: section_get_ival,&
+                                              section_get_ivals,&
+                                              section_get_lval,&
+                                              section_vals_get_subs_vals,&
+                                              section_vals_type,&
+                                              section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: zero
+   USE memory_utilities,                ONLY: reallocate
    USE orbital_pointers,                ONLY: ncoset
+   USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
+   USE pw_env_types,                    ONLY: pw_env_get,&
+                                              pw_env_type
+   USE pw_methods,                      ONLY: pw_multiply,&
+                                              pw_zero
+   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                              pw_pool_give_back_pw,&
+                                              pw_pool_p_type,&
+                                              pw_pool_type
+   USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                              REALDATA3D,&
+                                              REALSPACE,&
+                                              RECIPROCALSPACE,&
+                                              pw_type
+   USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_dftb_matrices,                ONLY: build_dftb_overlap
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -51,14 +79,21 @@ MODULE rt_propagation_utils
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type
    USE qs_mo_io,                        ONLY: read_mo_set_from_restart,&
-                                              read_rt_mos_from_restart
-   USE qs_mo_types,                     ONLY: mo_set_type
+                                              read_rt_mos_from_restart,&
+                                              write_mo_set_to_output_unit
+   USE qs_mo_types,                     ONLY: allocate_mo_set,&
+                                              deallocate_mo_set,&
+                                              get_mo_set,&
+                                              init_mo_set,&
+                                              mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_overlap,                      ONLY: build_overlap_matrix
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_set,&
                                               qs_rho_type
+   USE qs_subsys_types,                 ONLY: qs_subsys_get,&
+                                              qs_subsys_type
    USE rt_propagation_types,            ONLY: get_rtp,&
                                               rt_prop_type
 #include "../base/base_uses.f90"
@@ -70,7 +105,9 @@ MODULE rt_propagation_utils
              calc_S_derivs, &
              calc_update_rho, &
              calc_update_rho_sparse, &
-             calculate_P_imaginary
+             calculate_P_imaginary, &
+             write_rtp_mos_to_output_unit, &
+             write_rtp_mo_cubes
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_utils'
 
@@ -505,5 +542,267 @@ CONTAINS
       CALL cp_fm_vect_dealloc(mos_occ)
 
    END SUBROUTINE calculate_P_imaginary
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param rtp ...
+! **************************************************************************************************
+   SUBROUTINE write_rtp_mos_to_output_unit(qs_env, rtp)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(rt_prop_type), POINTER                        :: rtp
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_rtp_mos_to_output_unit'
+
+      CHARACTER(LEN=10)                                  :: spin
+      CHARACTER(LEN=2*default_string_length)             :: name
+      INTEGER                                            :: handle, i, ispin, nao, nelectron, nmo, &
+                                                            nspins
+      LOGICAL                                            :: print_eigvecs, print_mo_info
+      REAL(KIND=dp)                                      :: flexible_electron_count, maxocc, n_el_f
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(mo_set_type)                                  :: mo_set_rtp
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(section_vals_type), POINTER                   :: dft_section, input
+
+      NULLIFY (atomic_kind_set, particle_set, qs_kind_set, input, mos, dft_section)
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, &
+                      atomic_kind_set=atomic_kind_set, &
+                      qs_kind_set=qs_kind_set, &
+                      particle_set=particle_set, &
+                      input=input, &
+                      mos=mos)
+      ! Quick return, if no printout of MO information is requested
+      dft_section => section_vals_get_subs_vals(input, "DFT")
+      CALL section_vals_val_get(dft_section, "PRINT%MO%EIGENVECTORS", l_val=print_eigvecs)
+
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
+      print_mo_info = (cp_print_key_should_output(logger%iter_info, &
+                                                  dft_section, "PRINT%MO") /= 0) .OR. &
+                      (qs_env%sim_step == 1)
+
+      IF ((.NOT. print_mo_info) .OR. (.NOT. print_eigvecs)) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      CALL get_rtp(rtp=rtp, mos_new=mos_new)
+
+      nspins = SIZE(mos_new)/2
+
+      DO ispin = 1, nspins
+         ! initiate mo_set
+         CALL get_mo_set(mo_set=mos(ispin), nao=nao, nmo=nmo, nelectron=nelectron, &
+                         n_el_f=n_el_f, maxocc=maxocc, flexible_electron_count=flexible_electron_count)
+
+         CALL allocate_mo_set(mo_set_rtp, &
+                              nao=nao, &
+                              nmo=nmo, &
+                              nelectron=nelectron, &
+                              n_el_f=n_el_f, &
+                              maxocc=maxocc, &
+                              flexible_electron_count=flexible_electron_count)
+
+         WRITE (name, FMT="(A,I6)") "RTP MO SET, SPIN ", ispin
+         CALL init_mo_set(mo_set_rtp, fm_ref=mos_new(2*ispin - 1), name=name)
+
+         IF (nspins > 1) THEN
+            IF (ispin == 1) THEN
+               spin = "ALPHA SPIN"
+            ELSE
+               spin = "BETA SPIN"
+            END IF
+         ELSE
+            spin = ""
+         END IF
+
+         !loop for real (odd) and imaginary (even) parts
+         DO i = 1, 0, -1
+            CALL cp_fm_to_fm(mos_new(2*ispin - i), mo_set_rtp%mo_coeff)
+            CALL write_mo_set_to_output_unit(mo_set_rtp, atomic_kind_set, qs_kind_set, particle_set, &
+                                          dft_section, 4, 0, rtp=.TRUE., spin=TRIM(spin), cpart=MOD(i, 2), sim_step=qs_env%sim_step)
+         END DO
+
+         CALL deallocate_mo_set(mo_set_rtp)
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE write_rtp_mos_to_output_unit
+
+! **************************************************************************************************
+!> \brief Write the time dependent amplitude of the MOs in real grid.
+!>        Very close to qs_scf_post_gpw/qs_scf_post_occ_cubes subroutine.
+!> \param qs_env ...
+!> \param rtp ...
+!> \author Guillaume Le Breton (11.22)
+! **************************************************************************************************
+   SUBROUTINE write_rtp_mo_cubes(qs_env, rtp)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(rt_prop_type), POINTER                        :: rtp
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_rtp_mo_cubes'
+
+      CHARACTER(LEN=default_path_length)                 :: filename, my_pos_cube, title
+      INTEGER                                            :: handle, homo, i, ir, ispin, ivector, &
+                                                            n_rep, nhomo, nlist, nspins, &
+                                                            rt_time_step, unit_nr
+      INTEGER, DIMENSION(:), POINTER                     :: list, list_index
+      LOGICAL                                            :: append_cube, do_kpoints, mpi_io
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: density_r, wf_g, wf_r
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_subsys_type), POINTER                      :: subsys
+      TYPE(section_vals_type), POINTER                   :: dft_section, input
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (logger, auxbas_pw_pool, pw_pools, pw_env)
+
+      ! Get all the info from qs:
+      CALL get_qs_env(qs_env, do_kpoints=do_kpoints, &
+                      input=input)
+
+      ! Kill the run in the case of K points
+      IF (do_kpoints) THEN
+         CPABORT("K points not handled yet for printing MO_CUBE")
+      END IF
+
+      dft_section => section_vals_get_subs_vals(input, "DFT")
+      logger => cp_get_default_logger()
+
+      ! Quick return if no print required
+      IF (.NOT. BTEST(cp_print_key_should_output(logger%iter_info, dft_section, &
+                                                 "PRINT%MO_CUBES"), cp_p_file)) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, &
+                      mos=mos, &
+                      blacs_env=blacs_env, &
+                      qs_kind_set=qs_kind_set, &
+                      pw_env=pw_env, &
+                      subsys=subsys, &
+                      para_env=para_env, &
+                      particle_set=particle_set, &
+                      dft_control=dft_control)
+      CALL qs_subsys_get(subsys, particles=particles)
+
+      nspins = dft_control%nspins
+      rt_time_step = qs_env%sim_step
+
+      ! Setup the grids needed to compute a wavefunction given a vector
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
+                      pw_pools=pw_pools)
+      CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, &
+                             use_data=REALDATA3D, &
+                             in_space=REALSPACE)
+      CALL pw_pool_create_pw(auxbas_pw_pool, wf_g, &
+                             use_data=COMPLEXDATA1D, &
+                             in_space=RECIPROCALSPACE)
+      CALL pw_pool_create_pw(auxbas_pw_pool, density_r, &
+                             use_data=REALDATA3D, &
+                             in_space=REALSPACE)
+      CALL get_rtp(rtp=rtp, mos_new=mos_new)
+
+      DO ispin = 1, nspins
+         CALL get_mo_set(mo_set=mos(ispin), homo=homo)
+
+         nhomo = section_get_ival(dft_section, "PRINT%MO_CUBES%NHOMO")
+         append_cube = section_get_lval(dft_section, "PRINT%MO_CUBES%APPEND")
+         my_pos_cube = "REWIND"
+         IF (append_cube) THEN
+            my_pos_cube = "APPEND"
+         END IF
+         CALL section_vals_val_get(dft_section, "PRINT%MO_CUBES%HOMO_LIST", n_rep_val=n_rep)
+         IF (n_rep > 0) THEN ! write the cubes of the list
+            nlist = 0
+            DO ir = 1, n_rep
+               NULLIFY (list)
+               CALL section_vals_val_get(dft_section, "PRINT%MO_CUBES%HOMO_LIST", i_rep_val=ir, &
+                                         i_vals=list)
+               IF (ASSOCIATED(list)) THEN
+                  CALL reallocate(list_index, 1, nlist + SIZE(list))
+                  DO i = 1, SIZE(list)
+                     list_index(i + nlist) = list(i)
+                  END DO
+                  nlist = nlist + SIZE(list)
+               END IF
+            END DO
+         ELSE
+
+            IF (nhomo == -1) nhomo = homo
+            nlist = homo - MAX(1, homo - nhomo + 1) + 1
+            ALLOCATE (list_index(nlist))
+            DO i = 1, nlist
+               list_index(i) = MAX(1, homo - nhomo + 1) + i - 1
+            END DO
+         END IF
+         DO i = 1, nlist
+            ivector = list_index(i)
+            CALL get_qs_env(qs_env=qs_env, &
+                            atomic_kind_set=atomic_kind_set, &
+                            qs_kind_set=qs_kind_set, &
+                            cell=cell, &
+                            particle_set=particle_set, &
+                            pw_env=pw_env)
+
+            ! density_r contains the density of the MOs
+            CALL pw_zero(density_r)
+            mo_coeff => mos_new(2*ispin - 1)!Real coeff
+            CALL calculate_wavefunction(mo_coeff, ivector, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
+                                        cell, dft_control, particle_set, pw_env)
+            ! Adding the real part
+            CALL pw_multiply(density_r, wf_r, wf_r, 1.0_dp)
+
+            mo_coeff => mos_new(2*ispin) !Im coeff
+            CALL calculate_wavefunction(mo_coeff, ivector, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
+                                        cell, dft_control, particle_set, pw_env)
+            ! Adding the im part
+            CALL pw_multiply(density_r, wf_r, wf_r, 1.0_dp)
+
+            WRITE (filename, '(a4,I5.5,a1,I1.1)') "WFN_", ivector, "_", ispin
+            mpi_io = .TRUE.
+            unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%MO_CUBES", extension=".cube", &
+                                           middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
+                                           mpi_io=mpi_io)
+            WRITE (title, *) "DENSITY ", ivector, " spin ", ispin, " i.e. HOMO - ", ivector - homo
+            CALL cp_pw_to_cube(density_r, unit_nr, title, particles=particles, &
+                               stride=section_get_ivals(dft_section, "PRINT%MO_CUBES%STRIDE"), mpi_io=mpi_io)
+            CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MO_CUBES", mpi_io=mpi_io)
+         END DO
+         IF (ASSOCIATED(list_index)) DEALLOCATE (list_index)
+      END DO
+
+      ! Deallocate grids needed to compute wavefunctions
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, density_r)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE write_rtp_mo_cubes
 
 END MODULE rt_propagation_utils
