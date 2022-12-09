@@ -120,24 +120,31 @@ with cray-libsci for instance)
 The following list gives several examples of cmake command lines. Just add
 `-DCP2K_USE_SIRIUS=ON` to add support of SIRIUS in cp2k
 
-`shell cmake -DCP2K_INSTALL_PREFIX=/myprefix ..`
+```shell
+cmake -DCP2K_INSTALL_PREFIX=/myprefix ..
+```
 
 then
 
-`shell make`
+```shell 
+make
+```
 
 - MKL
 
 the command line is
 
-````shell cmake -DCP2K_INSTALL_PREFIX=/myprefix -DCP2K_BLAS_VENDOR=MKL
--DCP2K_SCALAPACK_VENDOR=MKL ..```
+```shell
+cmake -DCP2K_INSTALL_PREFIX=/myprefix -DCP2K_BLAS_VENDOR=MKL
+-DCP2K_SCALAPACK_VENDOR=MKL ..
+```
 
 - Cray environments (with cray-libsci)
 
 ```shell
 MPICC=cc MPICXX=CC cmake -DCP2K_INSTALL_PREFIX=/myprefix
--DCP2K_BLAS_VENDOR=SCI -DCP2K_SCALAPACK_VENDOR=SCI .. ```
+-DCP2K_BLAS_VENDOR=SCI -DCP2K_SCALAPACK_VENDOR=SCI ..
+```
 
 ## CUDA / HIP
 
@@ -146,13 +153,15 @@ Let us consider the case where openblas and netlib scalapack are installed
 
 ```shell
 cmake -DCP2K_INSTALL_PREFIX=/myprefix -DCP2K_BLAS_VENDOR=openblas
--DCP2K_SCALAPACK_VENDOR=GENERIC -DCP2K_USE_ACCEL=CUDA -DCP2K_WITH_GPU=A100 ..```
+-DCP2K_SCALAPACK_VENDOR=GENERIC -DCP2K_USE_ACCEL=CUDA -DCP2K_WITH_GPU=A100 ..
+```
 
 if HIP is needed than
 
 ```shell
 cmake -DCP2K_INSTALL_PREFIX=/myprefix -DCP2K_BLAS_VENDOR=openblas
--DCP2K_SCALAPACK_VENDOR=GENERIC -DCP2K_USE_ACCEL=HIP -DCP2K_WITH_GPU=Mi250 ..```
+-DCP2K_SCALAPACK_VENDOR=GENERIC -DCP2K_USE_ACCEL=HIP -DCP2K_WITH_GPU=Mi250 ..
+```
 
 ## troubleshooting
 
@@ -177,4 +186,3 @@ from time to time. Update to ROCM 5.3.x or above to solve the issue.
 present. '-DCP2k_BLAS_VENDOR=OpenBLAS' will also help cmake to find OpenBLAS if
 it is used. Detecting the scalapack library might also fail if the user
 environment is not properly set up.
-````
