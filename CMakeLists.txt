@@ -361,7 +361,7 @@ if(CP2K_USE_ELPA)
 endif()
 
 if(CP2K_USE_LIBXC)
-  find_package(LibXC 6.0.0 REQUIRED)
+  find_package(LibXC 6 REQUIRED EXACT)
 endif()
 
 if(CP2K_USE_COSMA)

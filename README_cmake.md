@@ -36,9 +36,9 @@ dependencies is
 - `CP2K_USE_SIRIUS = OFF`: add [SIRIUS](https://github.com/electronic-structure/SIRIUS)
   support to CP2K
 
-- `CP2K_USE_FFTW3 = ON`: add support of fftw3
+- `CP2K_USE_FFTW3 = ON`: add support of [fftw3](https://www.fftw.org)
 
-- `CP2K_USE_ELPA = OFF`: add elpa support. WARNING: Expect the
+- `CP2K_USE_ELPA = OFF`: add [elpa](https://elpa.mpcdf.mpg.de) support. WARNING: Expect the
   detection to fail at that stage
 
 - `CP2K_USE_PEXSI = OFF`
@@ -48,8 +48,8 @@ dependencies is
 - `CP2K_USE_COSMA = ON` : Add [cosma](https://github.com/eth-cscs/COSMA) dropin
   replacement for sclapack pdgemnm
 
-- `CP2K_USE_LIBINT2 = ON`: add libint2 support (detection works ok, module files
-  may not be found at compilation time though)
+- `CP2K_USE_LIBINT2 = ON`: add [libint2](https://github.com/evaleev/libint) support 
+  (detection works ok, module files may not be found at compilation time though)
 
 - `CP2K_USE_VORI = OFF`: detection is fine compilation might fail at linking time
   (investigating why)
@@ -68,8 +68,10 @@ dependencies is
 
 - `CP2K_USE_METIS = OFF`:
 
-- `CP2K_USE_LIBXSMM = ON`: use libxsmm library for small matrices operations.
-  detection based on pkg-config
+- `CP2K_USE_LIBXSMM = ON`: use [libxsmm](https://libxsmm.readthedocs.io/en/latest/)
+  library for small matrices operations. Detection based on `pkg-config`. If you 
+  installed libxsmm in a non-standard location, modify the `PKG_CONFIG_PATH` variable
+  accordingly.
 
 - `CP2K_USE_ACCEL = NONE, CUDA, HIP`: enable gpu support
 
