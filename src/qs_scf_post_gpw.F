@@ -210,8 +210,9 @@ MODULE qs_scf_post_gpw
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_post_gpw'
    PUBLIC :: scf_post_calculation_gpw, &
              qs_scf_post_moments, &
-             write_available_results, &
+             write_mo_dependent_results, &
              write_mo_free_results
+
    PUBLIC :: make_lumo_gpw
 
 ! **************************************************************************************************
