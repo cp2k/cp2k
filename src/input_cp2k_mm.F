@@ -1512,6 +1512,13 @@ CONTAINS
 
       NULLIFY (keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
+                          description="Defines the atomic kind involved in the nonbond potential", &
+                          usage="ATOMS {KIND1} {KIND2}", type_of_var=char_t, &
+                          n_var=2)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="EPSILON", &
                           description="Defines the EPSILON parameter of the LJ potential", &
                           usage="EPSILON {real}", type_of_var=real_t, &

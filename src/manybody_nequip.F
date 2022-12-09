@@ -269,6 +269,7 @@ CONTAINS
       DO ilist = 1, nonbonded%nlists
          neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
          npairs = neighbor_kind_pair%npairs
+         WRITE(*, *) "npairs, nonbonded%nlists ", npairs, nonbonded%nlists
          IF (npairs == 0) CYCLE
          Kind_Group_Loop_Nequip: DO igrp = 1, neighbor_kind_pair%ngrp_kind
             istart = neighbor_kind_pair%grp_kind_start(igrp)
@@ -324,7 +325,7 @@ CONTAINS
                         ! Energy terms
                         pot_loc = 0.0_dp
                         rij(:) = r_last_update_pbc(atom_b)%r(:) - r_last_update_pbc(atom_a)%r(:) + cell_v
-                        WRITE(*,*) "r_last_update_pbc: ", r_last_update_pbc(atom_b)%r(:) 
+                        WRITE(*,*) "r_last_update_pbc: ", r_last_update_pbc(atom_a)%r(:)*angstrom
                         drij = DOT_PRODUCT(rij, rij)
                         ipair = ipair + 1
                         IF (drij <= rab2_max) THEN

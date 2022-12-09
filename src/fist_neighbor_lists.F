@@ -669,7 +669,9 @@ CONTAINS
       nneighbor = 0
       conv = cp_unit_from_cp2k(1.0_dp, TRIM(unit_str))
       DO iab = 1, SIZE(nonbonded%neighbor_kind_pairs)
+         WRITE(*,*) "fist_neighbor_lists, iab: ", iab
          neighbor_kind_pair => nonbonded%neighbor_kind_pairs(iab)
+         WRITE(*,*) "fist_neighbor_lists, neighbor_kind_pair%npairs ", neighbor_kind_pair%npairs
          cell_v = MATMUL(cell%hmat, REAL(neighbor_kind_pair%cell_vector, KIND=dp))
          DO ilist = 1, neighbor_kind_pair%npairs
             nneighbor = nneighbor + 1

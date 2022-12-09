@@ -381,3 +381,10 @@ tests/Fist/regtest-nequip/water.pth
 tests/Fist/regtest-nequip/water1.pth
 tests/Fist/regtest-nequip/water2.pth
 tests/Fist/regtest-nequip/water3.pth
+tests/Fist/H2O-32_NPT.inp
+tests/Fist/H2O-32_SPME_ENERGY_NEIGHBOR.inp
+tests/Fist/water_1.inp
+tests/Fist/regtest-nequip/water-1_0.mmLog
+tests/Fist/H2O-32_NPT.inp
+tests/Fist/water_1.inp
+tests/Fist/water_1.inp
