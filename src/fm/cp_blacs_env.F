@@ -24,7 +24,8 @@ MODULE cp_blacs_env
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: gcd
-   USE message_passing,                 ONLY: mp_comm_type,&
+   USE message_passing,                 ONLY: mp_comm_null,&
+                                              mp_comm_type,&
                                               mp_sum
 #include "../base/base_uses.f90"
 
@@ -62,7 +63,7 @@ MODULE cp_blacs_env
 ! **************************************************************************************************
    TYPE cp_blacs_env_type
       INTEGER, DIMENSION(2) :: mepos, num_pe
-      TYPE(mp_comm_type) :: group
+      TYPE(mp_comm_type) :: group = mp_comm_null
       INTEGER :: my_pid, n_pid, ref_count
       TYPE(cp_para_env_type), POINTER :: para_env
       INTEGER, DIMENSION(:, :), POINTER :: blacs2mpi

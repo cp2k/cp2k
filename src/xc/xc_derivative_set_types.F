@@ -17,8 +17,7 @@ MODULE xc_derivative_set_types
                                               cp_sll_xc_deriv_next,&
                                               cp_sll_xc_deriv_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_comm_self,&
-                                              mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_self
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_create,&
                                               pw_grid_release
@@ -121,7 +120,6 @@ CONTAINS
       TYPE(pw_pool_type), OPTIONAL, POINTER              :: pw_pool
       INTEGER, DIMENSION(2, 3), INTENT(IN), OPTIONAL     :: local_bounds
 
-      TYPE(mp_comm_type)                                 :: mp_comm
       TYPE(pw_grid_type), POINTER                        :: pw_grid
 
       NULLIFY (pw_grid)
@@ -137,8 +135,7 @@ CONTAINS
       ELSE
          !FM ugly hack, should be replaced by a pool only for 3d arrays
          CPASSERT(PRESENT(local_bounds))
-         CALL mp_comm%set_handle(mp_comm_self)
-         CALL pw_grid_create(pw_grid, mp_comm)
+         CALL pw_grid_create(pw_grid, mp_comm_self)
          pw_grid%bounds_local = local_bounds
          NULLIFY (derivative_set%pw_pool)
          CALL pw_pool_create(derivative_set%pw_pool, pw_grid)

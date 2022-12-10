@@ -2753,13 +2753,13 @@ CONTAINS
          DEALLOCATE (fft_scratch%rbuf6)
       END IF
 
-      IF (fft_scratch%cart_sub_comm(1)%get_handle() .NE. mp_comm_null) THEN
+      IF (fft_scratch%cart_sub_comm(1)%get_handle() .NE. mp_comm_null%get_handle()) THEN
          CALL mp_comm_free(fft_scratch%cart_sub_comm(1))
       END IF
-      IF (fft_scratch%cart_sub_comm(2)%get_handle() .NE. mp_comm_null) THEN
+      IF (fft_scratch%cart_sub_comm(2)%get_handle() .NE. mp_comm_null%get_handle()) THEN
          CALL mp_comm_free(fft_scratch%cart_sub_comm(2))
       END IF
-      CALL fft_scratch%cart_sub_comm%set_handle(mp_comm_null)
+      fft_scratch%cart_sub_comm = mp_comm_null
 
       CALL fft_destroy_plan(fft_scratch%fft_plan(1))
       CALL fft_destroy_plan(fft_scratch%fft_plan(2))

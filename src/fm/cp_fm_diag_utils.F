@@ -123,7 +123,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_redistribute_work_init()
 
-      CALL work_redistribute%subgroup%set_handle(mp_comm_null)
+      work_redistribute%subgroup = mp_comm_null
       NULLIFY (work_redistribute%group_distribution)
       NULLIFY (work_redistribute%group_partition)
       NULLIFY (work_redistribute%blacs_env_new)

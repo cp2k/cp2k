@@ -228,7 +228,7 @@ CONTAINS
             ! get the default system wide communicator
             CALL mp_world_init(mpi_comm_default)
          ELSE
-            CALL mpi_comm_default%set_handle(mp_comm_world)
+            mpi_comm_default = mp_comm_world
          END IF
 
          CALL string_table_allocate()

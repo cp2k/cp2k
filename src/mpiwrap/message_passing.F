@@ -67,9 +67,9 @@ MODULE message_passing
    LOGICAL, PARAMETER :: cp2k_is_parallel = .TRUE.
    INTEGER, PARAMETER, PUBLIC :: mp_any_tag = MPI_ANY_TAG
    INTEGER, PARAMETER, PUBLIC :: mp_any_source = MPI_ANY_SOURCE
-   INTEGER, PARAMETER, PUBLIC :: mp_comm_null = MPI_COMM_NULL
-   INTEGER, PARAMETER, PUBLIC :: mp_comm_self = MPI_COMM_SELF
-   INTEGER, PARAMETER, PUBLIC :: mp_comm_world = MPI_COMM_WORLD
+   INTEGER, PARAMETER :: mp_comm_null_handle = MPI_COMM_NULL
+   INTEGER, PARAMETER :: mp_comm_self_handle = MPI_COMM_SELF
+   INTEGER, PARAMETER :: mp_comm_world_handle = MPI_COMM_WORLD
    INTEGER, PARAMETER, PUBLIC :: mp_request_null = MPI_REQUEST_NULL
    INTEGER, PARAMETER, PUBLIC :: mp_win_null = MPI_WIN_NULL
    INTEGER, PARAMETER, PUBLIC :: mp_status_size = MPI_STATUS_SIZE
@@ -91,9 +91,9 @@ MODULE message_passing
    LOGICAL, PARAMETER :: cp2k_is_parallel = .FALSE.
    INTEGER, PARAMETER, PUBLIC :: mp_any_tag = -1
    INTEGER, PARAMETER, PUBLIC :: mp_any_source = -2
-   INTEGER, PARAMETER, PUBLIC :: mp_comm_null = -3
-   INTEGER, PARAMETER, PUBLIC :: mp_comm_self = -11
-   INTEGER, PARAMETER, PUBLIC :: mp_comm_world = -12
+   INTEGER, PARAMETER :: mp_comm_null_handle = -3
+   INTEGER, PARAMETER :: mp_comm_self_handle = -11
+   INTEGER, PARAMETER :: mp_comm_world_handle = -12
    INTEGER, PARAMETER, PUBLIC :: mp_request_null = -4
    INTEGER, PARAMETER, PUBLIC :: mp_win_null = -5
    INTEGER, PARAMETER, PUBLIC :: mp_status_size = -6
@@ -108,7 +108,6 @@ MODULE message_passing
    INTEGER, PARAMETER, PUBLIC :: file_amode_rdwr = 8
    INTEGER, PARAMETER, PUBLIC :: file_amode_excl = 64
    INTEGER, PARAMETER, PUBLIC :: file_amode_append = 128
-
 #endif
 
    ! we need to fix this to a given number (crossing fingers)
@@ -122,6 +121,21 @@ MODULE message_passing
    ! internal reference counter used to debug communicator leaks
    INTEGER, PRIVATE, SAVE :: debug_comm_count
 #endif
+
+   PUBLIC :: mp_comm_type
+
+   TYPE mp_comm_type
+      PRIVATE
+      INTEGER :: handle = mp_comm_null_handle
+   CONTAINS
+      PROCEDURE :: set_handle => mp_comm_type_set_handle
+      PROCEDURE :: get_handle => mp_comm_type_get_handle
+   END TYPE
+
+   ! The actual constants
+   TYPE(mp_comm_type), PARAMETER, PUBLIC :: mp_comm_null = mp_comm_type(mp_comm_null_handle)
+   TYPE(mp_comm_type), PARAMETER, PUBLIC :: mp_comm_self = mp_comm_type(mp_comm_self_handle)
+   TYPE(mp_comm_type), PARAMETER, PUBLIC :: mp_comm_world = mp_comm_type(mp_comm_world_handle)
 
    ! init and error
    PUBLIC :: mp_world_init, mp_world_finalize
@@ -190,16 +204,6 @@ MODULE message_passing
    PUBLIC :: mp_file_write_all_chv
 
    PUBLIC :: mp_get_library_version
-
-   PUBLIC :: mp_comm_type
-
-   TYPE mp_comm_type
-      PRIVATE
-      INTEGER :: handle = mp_comm_null
-   CONTAINS
-      PROCEDURE :: set_handle => mp_comm_type_set_handle
-      PROCEDURE :: get_handle => mp_comm_type_get_handle
-   END TYPE
 
    ! assumed to be private
 
@@ -775,11 +779,9 @@ CONTAINS
 !$    END IF
       CALL mpi_comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_set_errhandler @ mp_world_init")
-      mp_comm%handle = MPI_COMM_WORLD
       debug_comm_count = 1
-#else
-      mp_comm%handle = 0
 #endif
+      mp_comm = mp_comm_world
       CALL add_mp_perf_env()
    END SUBROUTINE mp_world_init
 
@@ -1340,7 +1342,7 @@ CONTAINS
 #else
       pos(1:ndims) = 0
       dims = 1
-      comm_cart%handle = 0
+      comm_cart = mp_comm_self
 #endif
       CALL mp_timestop(handle)
 
@@ -1450,6 +1452,7 @@ CONTAINS
 #else
       MARK_USED(comm)
       MARK_USED(rdim)
+      sub_comm = mp_comm_self
 #endif
       CALL mp_timestop(handle)
 
@@ -1476,7 +1479,7 @@ CONTAINS
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_free @ mp_comm_free")
       debug_comm_count = debug_comm_count - 1
 #else
-      comm%handle = mp_comm_null
+      comm = mp_comm_null
 #endif
       CALL mp_timestop(handle)
 

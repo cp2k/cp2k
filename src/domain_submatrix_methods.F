@@ -94,7 +94,7 @@ CONTAINS
       subm%nrows = -1
       subm%ncols = -1
       subm%nnodes = -1
-      CALL subm%group%set_handle(mp_comm_null)
+      subm%group = mp_comm_null
 
    END SUBROUTINE init_submatrices_0d
 
@@ -113,7 +113,7 @@ CONTAINS
       subm(:)%nrows = -1
       subm(:)%ncols = -1
       subm(:)%nnodes = -1
-      CALL subm(:)%group%set_handle(mp_comm_null)
+      subm(:)%group = mp_comm_null
 
    END SUBROUTINE init_submatrices_1d
 
@@ -132,7 +132,7 @@ CONTAINS
       subm(:, :)%nrows = -1
       subm(:, :)%ncols = -1
       subm(:, :)%nnodes = -1
-      CALL subm(:, :)%group%set_handle(mp_comm_null)
+      subm(:, :)%group = mp_comm_null
 
    END SUBROUTINE init_submatrices_2d
 
@@ -403,7 +403,7 @@ CONTAINS
       subm%nrows = -1
       subm%ncols = -1
       subm%nnodes = -1
-      CALL subm%group%set_handle(mp_comm_null)
+      subm%group = mp_comm_null
 
       IF (ALLOCATED(subm%dbcsr_row)) THEN
          DEALLOCATE (subm%dbcsr_row)
