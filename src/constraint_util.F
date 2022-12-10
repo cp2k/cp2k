@@ -15,7 +15,8 @@ MODULE constraint_util
    USE colvar_methods,                  ONLY: colvar_eval_mol_f
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_sum
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_sum
    USE molecule_kind_types,             ONLY: colvar_constraint_type,&
                                               fixd_constraint_type,&
                                               g3x3_constraint_type,&
@@ -202,7 +203,7 @@ CONTAINS
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind_set(:)
       TYPE(particle_type), POINTER                       :: particle_set(:)
       TYPE(virial_type), INTENT(INOUT)                   :: virial
-      INTEGER, INTENT(IN)                                :: group
+      TYPE(mp_comm_type), INTENT(IN)                     :: group
 
       INTEGER                                            :: first_atom, i, ikind, imol, ng3x3, &
                                                             ng4x6, nkind, nmol_per_kind
@@ -633,7 +634,7 @@ CONTAINS
 !>      Teodoro Laino [tlaino] 2007
 ! **************************************************************************************************
    SUBROUTINE update_temporary_set(group, pos, vel)
-      INTEGER, INTENT(IN)                                :: group
+      TYPE(mp_comm_type), INTENT(IN)                     :: group
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          OPTIONAL                                        :: pos, vel
 

@@ -55,7 +55,8 @@ MODULE distribution_methods
    USE mathconstants,                   ONLY: pi
    USE mathlib,                         ONLY: gcd,&
                                               lcm
-   USE message_passing,                 ONLY: mp_sum,&
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_sum,&
                                               mp_sync
    USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                               get_molecule_kind_set,&
@@ -121,7 +122,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'distribute_molecules_1d'
 
-      INTEGER :: atom_a, bin, group, handle, iatom, imolecule, imolecule_kind, imolecule_local, &
+      INTEGER :: atom_a, bin, handle, iatom, imolecule, imolecule_kind, imolecule_local, &
          imolecule_prev_kind, iparticle_kind, ipe, iw, kind_a, molecule_a, mype, n, natom, nbins, &
          nload, nmolecule, nmolecule_kind, nparticle_kind, npe, nsgf, output_unit
       INTEGER(int_8)                                     :: bin_price
@@ -133,6 +134,7 @@ CONTAINS
       TYPE(cp_heap_type)                                 :: bin_heap_count, bin_heap_fill
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
+      TYPE(mp_comm_type)                                 :: group
 
 ! integer n_local_molecules
 ! integer, allocatable :: all_local_molecules(:)
@@ -489,10 +491,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'distribute_molecules_2d'
 
-      INTEGER :: cluster_price, cost_model, group, handle, iatom, iatom_mol, iatom_one, ikind, &
-         imol, imolecule, imolecule_kind, iparticle_kind, ipcol, iprow, iw, kind_a, mypcol, &
-         myprow, n, natom, natom_mol, nclusters, nmolecule, nmolecule_kind, nparticle_kind, npcol, &
-         nprow, nsgf, output_unit
+      INTEGER :: cluster_price, cost_model, handle, iatom, iatom_mol, iatom_one, ikind, imol, &
+         imolecule, imolecule_kind, iparticle_kind, ipcol, iprow, iw, kind_a, mypcol, myprow, n, &
+         natom, natom_mol, nclusters, nmolecule, nmolecule_kind, nparticle_kind, npcol, nprow, &
+         nsgf, output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cluster_list, cluster_prices, &
                                                             nparticle_local_col, &
                                                             nparticle_local_row, work
@@ -508,6 +510,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
+      TYPE(mp_comm_type)                                 :: group
       TYPE(section_vals_type), POINTER                   :: distribution_section
 
 !...

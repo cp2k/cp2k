@@ -168,7 +168,7 @@ CONTAINS
 
       ! create context of simulation
       CALL pwdft_env_get(pwdft_env, para_env=para_env)
-      sirius_mpi_comm = para_env%group
+      sirius_mpi_comm = para_env%group%get_handle()
       CALL sirius_create_context(sirius_mpi_comm, sctx)
 
 !     the "fun" starts.

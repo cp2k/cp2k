@@ -14,6 +14,7 @@ MODULE pw_grid_types
 
    USE kinds,                           ONLY: dp,&
                                               int_8
+   USE message_passing,                 ONLY: mp_comm_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -38,7 +39,7 @@ MODULE pw_grid_types
       INTEGER :: mode ! 0 = local = PW_MODE_LOCAL ; 1 = distributed = PW_MODE_DISTRIBUTED
       LOGICAL :: ray_distribution ! block or pencil distribution
       LOGICAL :: blocked ! block or pencil distribution
-      INTEGER :: group ! MPI group id
+      TYPE(mp_comm_type) :: group ! MPI group
       INTEGER :: my_pos ! Position within group
       INTEGER :: group_size ! # of Processors in group
       LOGICAL :: group_head ! Master process within group
@@ -46,7 +47,7 @@ MODULE pw_grid_types
       INTEGER, DIMENSION(:, :, :), POINTER :: yzp ! g-space rays (xy,k,pe)
       INTEGER, DIMENSION(:, :), POINTER :: yzq ! local inverse pointer of yzp
       INTEGER, DIMENSION(:), POINTER :: nyzray ! number of g-space rays (pe)
-      INTEGER :: rs_group ! real space group (2-dim cart)
+      TYPE(mp_comm_type) :: rs_group ! real space group (2-dim cart)
       INTEGER :: rs_mpo ! real space group position
       INTEGER, DIMENSION(2) :: rs_dims ! real space group dimensions
       INTEGER, DIMENSION(2) :: rs_pos ! real space group positions in grid

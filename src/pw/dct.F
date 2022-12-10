@@ -19,6 +19,7 @@ MODULE dct
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_allgather,&
                                               mp_cart_rank,&
+                                              mp_comm_type,&
                                               mp_irecv,&
                                               mp_isend,&
                                               mp_request_null,&
@@ -276,12 +277,13 @@ CONTAINS
 
       INTEGER                                            :: group_size, handle, i, j, k, &
                                                             maxn_sendrecv, rs_dim1, rs_dim2, &
-                                                            rs_group, rs_mpo, tmp_size1, tmp_size2
+                                                            rs_mpo, tmp_size1, tmp_size2
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: src_pos1_onesdd, src_pos2_onesdd, &
                                                             tmp1_arr, tmp2_arr
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: dests_shrink_all, src_pos1, src_pos2, &
                                                             srcs_coord, srcs_expand_all
       INTEGER, DIMENSION(2)                              :: rs_dims, rs_pos
+      TYPE(mp_comm_type)                                 :: rs_group
 
       CALL timeset(routineN, handle)
 
@@ -531,13 +533,14 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_expand'
 
       INTEGER :: group_size, handle, i, ind, lb1, lb1_loc, lb1_new, lb2, lb2_loc, lb2_new, lb3, &
-         lb3_loc, lb3_new, loc, maxn_sendrecv, rs_group, rs_mpo, ub1, ub1_loc, ub1_new, ub2, &
-         ub2_loc, ub2_new, ub3, ub3_loc, ub3_new
+         lb3_loc, lb3_new, loc, maxn_sendrecv, rs_mpo, ub1, ub1_loc, ub1_new, ub2, ub2_loc, &
+         ub2_new, ub3, ub3_loc, ub3_new
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dest_hist, recv_reqs, send_reqs, src_hist
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: pcs_bnds
       INTEGER, DIMENSION(2, 3)                           :: bounds_local_new
       REAL(dp), DIMENSION(:, :, :), POINTER              :: catd, catd_flipdbf, cr3d_xpndd, send_msg
       TYPE(dct_msg_type), DIMENSION(:), POINTER          :: pcs, recv_msgs
+      TYPE(mp_comm_type)                                 :: rs_group
       TYPE(pw_grid_type), POINTER                        :: pw_grid
 
       CALL timeset(routineN, handle)
@@ -716,12 +719,13 @@ CONTAINS
 
       COMPLEX(dp), DIMENSION(:, :, :), POINTER           :: cc3d
       INTEGER :: group_size, handle, i, in_space, in_use, lb1_orig, lb1_xpnd, lb2_orig, lb2_xpnd, &
-         lb3_orig, lb3_xpnd, maxn_sendrecv, recv_req, rs_group, rs_mpo, send_lb1, send_lb2, &
-         send_lb3, send_req, send_ub1, send_ub2, send_ub3, ub1_orig, ub1_xpnd, ub2_orig, ub2_xpnd, &
-         ub3_orig, ub3_xpnd
+         lb3_orig, lb3_xpnd, maxn_sendrecv, recv_req, rs_mpo, send_lb1, send_lb2, send_lb3, &
+         send_req, send_ub1, send_ub2, send_ub3, ub1_orig, ub1_xpnd, ub2_orig, ub2_xpnd, ub3_orig, &
+         ub3_xpnd
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: bounds_local_all
       INTEGER, DIMENSION(2, 3)                           :: bounds_local_xpnd
       REAL(dp), DIMENSION(:, :, :), POINTER              :: cr3d, send_crmsg
+      TYPE(mp_comm_type)                                 :: rs_group
       TYPE(pw_grid_type), POINTER                        :: pw_grid_orig
 
       CALL timeset(routineN, handle)
@@ -1064,13 +1068,14 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'expansion_bounds'
 
       INTEGER                                            :: group_size, handle, i, lb1_new, lb2_new, &
-                                                            lb3_new, loc, maxn_sendrecv, rs_group, &
-                                                            rs_mpo, ub1_new, ub2_new, ub3_new
+                                                            lb3_new, loc, maxn_sendrecv, rs_mpo, &
+                                                            ub1_new, ub2_new, ub3_new
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: src_hist
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: bounds_local_all, bounds_local_new_all, &
                                                             pcs_bnds
       INTEGER, DIMENSION(2, 3)                           :: bounds, bounds_local
       INTEGER, DIMENSION(3)                              :: npts_new, shf_yesno, shift
+      TYPE(mp_comm_type)                                 :: rs_group
 
       CALL timeset(routineN, handle)
 

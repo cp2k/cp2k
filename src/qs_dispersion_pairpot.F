@@ -48,6 +48,7 @@ MODULE qs_dispersion_pairpot
    USE mathconstants,                   ONLY: twopi
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_bcast,&
+                                              mp_comm_type,&
                                               mp_max,&
                                               mp_shift,&
                                               mp_sum
@@ -3357,11 +3358,11 @@ CONTAINS
       TYPE(dcnum_type), DIMENSION(:)                     :: dcnum
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      INTEGER                                            :: group, i, ia, ipe, jn, n, natom, ntmax, &
-                                                            ntot
+      INTEGER                                            :: i, ia, ipe, jn, n, natom, ntmax, ntot
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: list, nloc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dvals
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rik
+      TYPE(mp_comm_type)                                 :: group
 
 ! we only have to do something if this is a parallel run
 

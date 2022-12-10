@@ -21,6 +21,7 @@ MODULE dbt_tas_split
                                               mp_comm_dup,&
                                               mp_comm_free,&
                                               mp_comm_split_direct,&
+                                              mp_comm_type,&
                                               mp_dims_create,&
                                               mp_environ
    USE util,                            ONLY: sort
@@ -74,17 +75,20 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbt_tas_create_split_rows_or_cols(split_info, mp_comm, ngroup, igroup, split_rowcol, own_comm)
       TYPE(dbt_tas_split_info), INTENT(OUT)              :: split_info
-      INTEGER, INTENT(IN)                                :: mp_comm
+      TYPE(mp_comm_type), INTENT(IN)                     :: mp_comm
       INTEGER, INTENT(INOUT)                             :: ngroup
       INTEGER, INTENT(IN)                                :: igroup, split_rowcol
       LOGICAL, INTENT(IN), OPTIONAL                      :: own_comm
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_tas_create_split_rows_or_cols'
 
-      INTEGER :: handle, igroup_check, iproc, iproc_group, iproc_group_check, mp_comm_group, &
-         numproc, numproc_group, numproc_group_check
+      INTEGER                                            :: handle, igroup_check, iproc, &
+                                                            iproc_group, iproc_group_check, &
+                                                            numproc, numproc_group, &
+                                                            numproc_group_check
       INTEGER, DIMENSION(2)                              :: pcoord, pcoord_group, pdims, pdims_group
       LOGICAL                                            :: own_comm_prv, to_assert
+      TYPE(mp_comm_type)                                 :: mp_comm_group
 
       CALL timeset(routineN, handle)
 
@@ -153,8 +157,9 @@ CONTAINS
 !> \author Patrick Seewald
 ! **************************************************************************************************
    FUNCTION dbt_tas_mp_comm(mp_comm, split_rowcol, nsplit)
-      INTEGER, INTENT(IN)                                :: mp_comm, split_rowcol, nsplit
-      INTEGER                                            :: dbt_tas_mp_comm
+      TYPE(mp_comm_type), INTENT(IN)                     :: mp_comm
+      INTEGER, INTENT(IN)                                :: split_rowcol, nsplit
+      TYPE(mp_comm_type)                                 :: dbt_tas_mp_comm
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dbt_tas_mp_comm'
 
@@ -302,9 +307,9 @@ CONTAINS
 !> \author Patrick Seewald
 ! **************************************************************************************************
    FUNCTION dbt_tas_mp_comm_from_matrix_sizes(mp_comm, nblkrows, nblkcols) RESULT(mp_comm_new)
-      INTEGER, INTENT(IN)                                :: mp_comm
+      TYPE(mp_comm_type), INTENT(IN)                     :: mp_comm
       INTEGER(KIND=int_8), INTENT(IN)                    :: nblkrows, nblkcols
-      INTEGER                                            :: mp_comm_new
+      TYPE(mp_comm_type)                                 :: mp_comm_new
 
       INTEGER                                            :: nsplit, split_rowcol
 
@@ -331,7 +336,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbt_tas_create_split(split_info, mp_comm, split_rowcol, nsplit, own_comm, opt_nsplit)
       TYPE(dbt_tas_split_info), INTENT(OUT)              :: split_info
-      INTEGER, INTENT(IN)                                :: mp_comm, split_rowcol, nsplit
+      TYPE(mp_comm_type), INTENT(IN)                     :: mp_comm
+      INTEGER, INTENT(IN)                                :: split_rowcol, nsplit
       LOGICAL, INTENT(IN), OPTIONAL                      :: own_comm, opt_nsplit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_tas_create_split'
@@ -423,8 +429,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbt_tas_get_split_info(info, mp_comm, nsplit, igroup, mp_comm_group, split_rowcol, pgrid_offset)
       TYPE(dbt_tas_split_info), INTENT(IN)               :: info
-      INTEGER, INTENT(OUT), OPTIONAL                     :: mp_comm, nsplit, igroup, mp_comm_group, &
-                                                            split_rowcol
+      TYPE(mp_comm_type), INTENT(OUT), OPTIONAL          :: mp_comm
+      INTEGER, INTENT(OUT), OPTIONAL                     :: nsplit, igroup
+      TYPE(mp_comm_type), INTENT(OUT), OPTIONAL          :: mp_comm_group
+      INTEGER, INTENT(OUT), OPTIONAL                     :: split_rowcol
       INTEGER, DIMENSION(2), INTENT(OUT), OPTIONAL       :: pgrid_offset
 
       IF (PRESENT(mp_comm)) mp_comm = info%mp_comm

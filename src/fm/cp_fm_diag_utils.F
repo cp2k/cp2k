@@ -34,7 +34,9 @@ MODULE cp_fm_diag_utils
    USE mathlib,                         ONLY: gcd
    USE message_passing,                 ONLY: mp_bcast,&
                                               mp_comm_free,&
+                                              mp_comm_null,&
                                               mp_comm_split,&
+                                              mp_comm_type,&
                                               mp_sync
 #include "../base/base_uses.f90"
 
@@ -63,7 +65,7 @@ MODULE cp_fm_diag_utils
       LOGICAL                                  :: should_print
       LOGICAL                                  :: elpa_force_redistribute
       ! Temporaries
-      INTEGER                                  :: subgroup
+      TYPE(mp_comm_type)                       :: subgroup
       INTEGER, DIMENSION(:), POINTER           :: group_distribution, &
                                                   group_partition
       TYPE(cp_blacs_env_type), POINTER         :: blacs_env_new
@@ -121,7 +123,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_redistribute_work_init()
 
-      work_redistribute%subgroup = -1
+      CALL work_redistribute%subgroup%set_handle(mp_comm_null)
       NULLIFY (work_redistribute%group_distribution)
       NULLIFY (work_redistribute%group_partition)
       NULLIFY (work_redistribute%blacs_env_new)

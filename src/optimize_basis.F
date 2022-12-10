@@ -41,6 +41,7 @@ MODULE optimize_basis
                                               mp_bcast,&
                                               mp_comm_free,&
                                               mp_comm_split,&
+                                              mp_comm_type,&
                                               mp_sum,&
                                               mp_sync
    USE optbas_fenv_manipulation,        ONLY: allocate_mo_sets,&
@@ -129,9 +130,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'driver_para_opt_basis'
 
-      INTEGER                                            :: handle, n_groups_created, opt_group
+      INTEGER                                            :: handle, n_groups_created
       INTEGER, DIMENSION(:), POINTER                     :: group_distribution_p
       INTEGER, DIMENSION(0:para_env%num_pe-1), TARGET    :: group_distribution
+      TYPE(mp_comm_type)                                 :: opt_group
 
       CALL timeset(routineN, handle)
       group_distribution_p => group_distribution
@@ -162,7 +164,7 @@ CONTAINS
       TYPE(basis_optimization_type)                      :: opt_bas
       TYPE(section_type), POINTER                        :: input_declaration
       TYPE(cp_para_env_type), POINTER                    :: para_env_top
-      INTEGER                                            :: mpi_comm_opt
+      TYPE(mp_comm_type), INTENT(IN)                     :: mpi_comm_opt
 
       CHARACTER(len=*), PARAMETER :: routineN = 'driver_optimization_para_low'
 
@@ -402,7 +404,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: input_declaration
       TYPE(cp_fm_type), DIMENSION(:), INTENT(OUT)        :: matrix_S_inv
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER                                            :: mpi_comm_opt
+      TYPE(mp_comm_type)                                 :: mpi_comm_opt
 
       CHARACTER(len=*), PARAMETER :: routineN = 'init_training_force_envs'
 

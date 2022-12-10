@@ -67,7 +67,8 @@ MODULE qs_tddfpt2_properties
    USE mathconstants,                   ONLY: twopi,&
                                               z_one,&
                                               z_zero
-   USE message_passing,                 ONLY: mp_irecv,&
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_irecv,&
                                               mp_isend,&
                                               mp_sum,&
                                               mp_wait
@@ -1227,16 +1228,18 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'vec_product'
 
-      INTEGER                                            :: blk, group, handle, icol, irow
+      INTEGER                                            :: blk, group_handle, handle, icol, irow
       LOGICAL                                            :: found
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vba, vbb
       TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(mp_comm_type)                                 :: group
 
       CALL timeset(routineN, handle)
 
       res = 0.0_dp
 
-      CALL dbcsr_get_info(va, group=group)
+      CALL dbcsr_get_info(va, group=group_handle)
+      CALL group%set_handle(group_handle)
       CALL dbcsr_iterator_start(iter, va)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, irow, icol, vba, blk)

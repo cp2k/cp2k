@@ -63,6 +63,7 @@ MODULE qs_initial_guess
    USE kpoint_io,                       ONLY: read_kpoints_restart
    USE kpoint_types,                    ONLY: kpoint_type
    USE message_passing,                 ONLY: mp_bcast,&
+                                              mp_comm_type,&
                                               mp_sum
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
@@ -139,10 +140,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_first_density_matrix'
 
       CHARACTER(LEN=default_path_length)                 :: file_name, filename
-      INTEGER :: atom_a, blk, density_guess, group, handle, homo, i, iatom, ic, icol, id_nr, &
-         ikind, irow, iseed(4), ispin, istart_col, istart_row, j, last_read, n, n_cols, n_rows, &
-         nao, natom, natoms, natoms_tmp, nblocks, nelectron, nmo, nmo_tmp, not_read, nsgf, nspin, &
-         nvec, ounit, safe_density_guess, size_atomic_kind_set, z
+      INTEGER :: atom_a, blk, density_guess, handle, homo, i, iatom, ic, icol, id_nr, ikind, irow, &
+         iseed(4), ispin, istart_col, istart_row, j, last_read, n, n_cols, n_rows, nao, natom, &
+         natoms, natoms_tmp, nblocks, nelectron, nmo, nmo_tmp, not_read, nsgf, nspin, nvec, ounit, &
+         safe_density_guess, size_atomic_kind_set, z
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, kind_of, last_sgf
       INTEGER, DIMENSION(2)                              :: nelectron_spin
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, elec_conf, nelec_kind, &
@@ -174,6 +175,7 @@ CONTAINS
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_array, mos_last_converged
+      TYPE(mp_comm_type)                                 :: group
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
@@ -1171,10 +1173,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_mopac_dm'
 
-      INTEGER                                            :: atom_a, group, handle, iatom, ikind, &
-                                                            iset, isgf, isgfa, ishell, ispin, la, &
-                                                            maxl, maxll, na, nao, natom, ncount, &
-                                                            nset, nsgf, z
+      INTEGER                                            :: atom_a, handle, iatom, ikind, iset, &
+                                                            isgf, isgfa, ishell, ispin, la, maxl, &
+                                                            maxll, na, nao, natom, ncount, nset, &
+                                                            nsgf, z
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf
       INTEGER, DIMENSION(25)                             :: laox, naox
       INTEGER, DIMENSION(5)                              :: occupation
@@ -1189,6 +1191,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: matrix_p
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      TYPE(mp_comm_type)                                 :: group
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
       TYPE(xtb_atom_type), POINTER                       :: xtb_kind
 

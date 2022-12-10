@@ -67,6 +67,7 @@ MODULE hfx_types
                                               m_getcwd
    USE mathlib,                         ONLY: erfc_cutoff
    USE message_passing,                 ONLY: mp_cart_create,&
+                                              mp_comm_type,&
                                               mp_environ
    USE orbital_pointers,                ONLY: nco,&
                                               ncoset,&
@@ -1187,7 +1188,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_ri_init'
 
       INTEGER                                            :: handle, i_mem, iproc, j_mem, MO_dim, &
-                                                            mp_comm_3d, natom, nkind, nproc
+                                                            natom, nkind, nproc
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bsizes_AO_store, bsizes_RI_store, dist1, &
                                                             dist2, dist3, dist_AO_1, dist_AO_2, &
                                                             dist_RI
@@ -1197,6 +1198,7 @@ CONTAINS
       TYPE(distribution_3d_type)                         :: dist_3d
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: basis_set_AO, basis_set_RI
+      TYPE(mp_comm_type)                                 :: mp_comm_3d
 
       CALL timeset(routineN, handle)
 

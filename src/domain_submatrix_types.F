@@ -13,6 +13,7 @@
 ! **************************************************************************************************
 MODULE domain_submatrix_types
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_comm_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -40,7 +41,7 @@ MODULE domain_submatrix_types
       INTEGER, DIMENSION(:), ALLOCATABLE            :: size_brow
       INTEGER, DIMENSION(:), ALLOCATABLE            :: size_bcol
       INTEGER                                       :: nnodes
-      INTEGER                                       :: groupid
+      TYPE(mp_comm_type)                            :: group
    END TYPE domain_submatrix_type
 
    TYPE domain_map_type

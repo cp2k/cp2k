@@ -61,7 +61,8 @@ MODULE helium_methods
    USE message_passing,                 ONLY: mp_allgather,&
                                               mp_bcast,&
                                               mp_comm_free,&
-                                              mp_comm_split_direct
+                                              mp_comm_split_direct,&
+                                              mp_comm_type
    USE parallel_rng_types,              ONLY: GAUSSIAN,&
                                               UNIFORM,&
                                               rng_stream_p_type,&
@@ -113,8 +114,8 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: msg_str, potential_file_name
       INTEGER                                            :: color_sub, handle, i, input_unit, isize, &
-                                                            itmp, j, k, mepos, new_comm, nlines, &
-                                                            ntab, num_env, pdx
+                                                            itmp, j, k, mepos, nlines, ntab, &
+                                                            num_env, pdx
       INTEGER, DIMENSION(:), POINTER                     :: env_all
       LOGICAL                                            :: expl_cell, expl_dens, expl_nats, &
                                                             expl_pot, explicit, ltmp
@@ -122,6 +123,7 @@ CONTAINS
                                                             tcheck, x1, x_spline
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pot_transfer
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(mp_comm_type)                                 :: new_comm
       TYPE(section_vals_type), POINTER                   :: helium_section, input_worm
 
       CALL timeset(routineN, handle)

@@ -44,6 +44,7 @@ MODULE dbt_tas_reshape_ops
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE message_passing,                 ONLY: mp_alltoall,&
+                                              mp_comm_type,&
                                               mp_environ,&
                                               mp_irecv,&
                                               mp_isend,&
@@ -85,8 +86,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dbt_tas_reshape'
 
       INTEGER                                            :: a, b, bcount, handle, handle2, iproc, &
-                                                            mp_comm, mynode, nblk, &
-                                                            nblk_per_thread, ndata, numnodes
+                                                            mynode, nblk, nblk_per_thread, ndata, &
+                                                            numnodes
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:, :)  :: blks_to_allocate, index_recv
       INTEGER(KIND=int_8), DIMENSION(2)                  :: blk_index
       INTEGER(kind=omp_lock_kind), ALLOCATABLE, &
@@ -101,6 +102,7 @@ CONTAINS
       TYPE(dbt_buffer_type), ALLOCATABLE, DIMENSION(:)   :: buffer_recv, buffer_send
       TYPE(dbt_tas_iterator)                             :: iter
       TYPE(dbt_tas_split_info)                           :: info
+      TYPE(mp_comm_type)                                 :: mp_comm
 
       CALL timeset(routineN, handle)
 
@@ -284,7 +286,7 @@ CONTAINS
       TYPE(dbt_tas_blk_size_repl), TARGET :: repl_blksize
       TYPE(dbt_tas_blk_size_arb), TARGET :: dir_blksize
       TYPE(dbt_tas_distribution_type) :: dist
-      INTEGER :: mp_comm, numnodes, mynode, ngroup
+      INTEGER :: numnodes, mynode, ngroup
       INTEGER(kind=omp_lock_kind), ALLOCATABLE, DIMENSION(:) :: locks
       TYPE(dbt_buffer_type), ALLOCATABLE, DIMENSION(:) :: buffer_recv, buffer_send
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_blocks_recv, num_blocks_send, &
@@ -300,6 +302,7 @@ CONTAINS
       LOGICAL :: nodata_prv, move_prv
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:, :) :: index_recv
       INTEGER :: ndata
+      TYPE(mp_comm_type) :: mp_comm
 
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: block
 
@@ -504,8 +507,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dbt_tas_merge'
 
       INTEGER                                            :: a, b, bcount, handle, handle2, iproc, &
-                                                            mp_comm, mynode, nblk, &
-                                                            nblk_per_thread, ndata, numnodes
+                                                            mynode, nblk, nblk_per_thread, ndata, &
+                                                            numnodes
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:, :)  :: index_recv
       INTEGER(KIND=int_8), DIMENSION(2)                  :: blk_index_i8
       INTEGER(kind=omp_lock_kind), ALLOCATABLE, &
@@ -521,6 +524,7 @@ CONTAINS
       TYPE(dbm_iterator)                                 :: iter
       TYPE(dbt_buffer_type), ALLOCATABLE, DIMENSION(:)   :: buffer_recv, buffer_send
       TYPE(dbt_tas_split_info)                           :: info
+      TYPE(mp_comm_type)                                 :: mp_comm
 
 !!
 
@@ -831,7 +835,7 @@ CONTAINS
 !> \author Patrick Seewald
 ! **************************************************************************************************
    SUBROUTINE dbt_tas_communicate_buffer(mp_comm, buffer_recv, buffer_send, req_array)
-      INTEGER, INTENT(IN)                                :: mp_comm
+      TYPE(mp_comm_type), INTENT(IN)                     :: mp_comm
       TYPE(dbt_buffer_type), DIMENSION(0:), &
          INTENT(INOUT)                                   :: buffer_recv, buffer_send
       INTEGER, DIMENSION(:, :), INTENT(OUT)              :: req_array

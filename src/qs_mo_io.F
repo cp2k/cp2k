@@ -59,7 +59,8 @@ MODULE qs_mo_io
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_bcast
+   USE message_passing,                 ONLY: mp_bcast,&
+                                              mp_comm_type
    USE orbital_pointers,                ONLY: indco,&
                                               nco,&
                                               nso
@@ -505,10 +506,11 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mo_set_from_restart'
 
       CHARACTER(LEN=default_path_length)                 :: file_name
-      INTEGER                                            :: group, handle, ispin, natom, nspin, &
+      INTEGER                                            :: handle, ispin, natom, nspin, &
                                                             restart_unit, source
       LOGICAL                                            :: exist, my_cdft
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(mp_comm_type)                                 :: group
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
@@ -594,10 +596,11 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_rt_mos_from_restart'
 
       CHARACTER(LEN=default_path_length)                 :: file_name
-      INTEGER                                            :: group, handle, ispin, natom, nspin, &
+      INTEGER                                            :: handle, ispin, natom, nspin, &
                                                             restart_unit, source
       LOGICAL                                            :: exist
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(mp_comm_type)                                 :: group
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
@@ -668,7 +671,7 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: rt_mos
       LOGICAL, INTENT(OUT), OPTIONAL                     :: natom_mismatch
 
-      INTEGER :: group, homo, homo_read, i, iatom, ikind, imat, irow, iset, iset_read, ishell, &
+      INTEGER :: homo, homo_read, i, iatom, ikind, imat, irow, iset, iset_read, ishell, &
          ishell_read, iso, ispin, lfomo_read, lmax, lshell, my_mult, nao, nao_read, natom_read, &
          nelectron, nelectron_read, nmo, nmo_read, nnshell, nset, nset_max, nshell_max, nspin, &
          nspin_read, offset_read, source
@@ -680,6 +683,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vecbuffer, vecbuffer_read
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      TYPE(mp_comm_type)                                 :: group
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_parameter
 
       logger => cp_get_default_logger()

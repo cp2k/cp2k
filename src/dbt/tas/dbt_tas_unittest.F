@@ -31,6 +31,7 @@ PROGRAM dbt_tas_unittest
                                               int_8
    USE machine,                         ONLY: default_output_unit
    USE message_passing,                 ONLY: mp_comm_free,&
+                                              mp_comm_type,&
                                               mp_environ,&
                                               mp_world_finalize,&
                                               mp_world_init
@@ -46,8 +47,8 @@ PROGRAM dbt_tas_unittest
    INTEGER, DIMENSION(n)          :: bsize_n
    INTEGER, DIMENSION(k)          :: bsize_k
    REAL(KIND=dp), PARAMETER   :: sparsity = 0.1
-   INTEGER                        :: mp_comm, numnodes, mynode, io_unit
-   INTEGER                        :: mp_comm_A, mp_comm_At, mp_comm_B, mp_comm_Bt, mp_comm_C, mp_comm_Ct
+   INTEGER                        :: numnodes, mynode, io_unit
+   TYPE(mp_comm_type)             :: mp_comm, mp_comm_A, mp_comm_At, mp_comm_B, mp_comm_Bt, mp_comm_C, mp_comm_Ct
    REAL(KIND=dp), PARAMETER   :: filter_eps = 1.0E-08
 
    CALL mp_world_init(mp_comm)
@@ -62,7 +63,7 @@ PROGRAM dbt_tas_unittest
    io_unit = -1
    IF (mynode .EQ. 0) io_unit = default_output_unit
 
-   CALL dbcsr_init_lib(mp_comm, io_unit) ! Needed for DBM_VALIDATE_AGAINST_DBCSR.
+   CALL dbcsr_init_lib(mp_comm%get_handle(), io_unit) ! Needed for DBM_VALIDATE_AGAINST_DBCSR.
    CALL dbm_library_init()
 
    CALL dbt_tas_reset_randmat_seed()

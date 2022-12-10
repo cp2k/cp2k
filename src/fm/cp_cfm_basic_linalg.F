@@ -23,7 +23,8 @@ MODULE cp_cfm_basic_linalg
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: z_one,&
                                               z_zero
-   USE message_passing,                 ONLY: mp_prod,&
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_prod,&
                                               mp_sum
 #include "../base/base_uses.f90"
 
@@ -194,7 +195,7 @@ CONTAINS
 
       ELSE
          CPASSERT(PRESENT(matrix_b))
-         IF (matrix_a%matrix_struct%context%group /= matrix_b%matrix_struct%context%group) &
+         IF (matrix_a%matrix_struct%context%group%get_handle() /= matrix_b%matrix_struct%context%group%get_handle()) &
             CPABORT("matrixes must be in the same blacs context")
 
          IF (cp_fm_struct_equivalent(matrix_a%matrix_struct, &
@@ -301,7 +302,7 @@ CONTAINS
          END IF
 
       ELSE
-         IF (matrix_a%matrix_struct%context%group /= matrix_b%matrix_struct%context%group) &
+         IF (matrix_a%matrix_struct%context%group%get_handle() /= matrix_b%matrix_struct%context%group%get_handle()) &
             CPABORT("matrices must be in the same blacs context")
 
          IF (cp_fm_struct_equivalent(matrix_a%matrix_struct, &
@@ -952,9 +953,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_trace'
 
-      INTEGER                                            :: group, handle, mypcol, myprow, &
-                                                            ncol_local, npcol, nprow, nrow_local
+      INTEGER                                            :: handle, mypcol, myprow, ncol_local, &
+                                                            npcol, nprow, nrow_local
       TYPE(cp_blacs_env_type), POINTER                   :: context
+      TYPE(mp_comm_type)                                 :: group
 
       CALL timeset(routineN, handle)
 

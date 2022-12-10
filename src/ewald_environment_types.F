@@ -35,6 +35,7 @@ MODULE ewald_environment_types
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: twopi
+   USE message_passing,                 ONLY: mp_comm_type
    USE pw_grid_info,                    ONLY: pw_grid_n_for_fft
    USE pw_poisson_types,                ONLY: do_ewald_ewald,&
                                               do_ewald_none,&
@@ -123,7 +124,8 @@ CONTAINS
       TYPE(ewald_environment_type), INTENT(IN)           :: ewald_env
       INTEGER, OPTIONAL                                  :: ewald_type
       REAL(KIND=dp), OPTIONAL                            :: alpha, eps_pol, epsilon
-      INTEGER, OPTIONAL                                  :: gmax(3), ns_max, o_spline, group
+      INTEGER, OPTIONAL                                  :: gmax(3), ns_max, o_spline
+      TYPE(mp_comm_type), INTENT(OUT), OPTIONAL          :: group
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(section_vals_type), OPTIONAL, POINTER         :: poisson_section
       REAL(KIND=dp), OPTIONAL                            :: precs, rcut

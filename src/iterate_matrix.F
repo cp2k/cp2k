@@ -35,7 +35,7 @@ MODULE iterate_matrix
                       m_walltime
    USE mathconstants, ONLY: ifac
    USE mathlib, ONLY: abnormal_value
-   USE message_passing, ONLY: mp_sum
+   USE message_passing, ONLY: mp_sum, mp_comm_type
    USE submatrix_dissection, ONLY: submatrix_dissection_type
 #include "./base/base_uses.f90"
 
@@ -84,7 +84,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'determinant'
 
-      INTEGER                                            :: group, handle, i, max_iter_lanczos, &
+      INTEGER                                            :: handle, i, max_iter_lanczos, &
                                                             nsize, order_lanczos, sign_iter, &
                                                             unit_nr
       INTEGER(KIND=int_8)                                :: flop1
@@ -117,11 +117,16 @@ CONTAINS
                         matrix_type=dbcsr_type_no_symmetry)
 
       ! compute the product of the diagonal elements
-      CALL dbcsr_get_info(matrix, nfullrows_total=nsize, group=group)
-      ALLOCATE (diagonal(nsize))
-      CALL dbcsr_get_diag(matrix, diagonal)
-      CALL mp_sum(diagonal, group)
-      det = PRODUCT(diagonal)
+      BLOCK
+         TYPE(mp_comm_type) :: group
+         INTEGER :: group_handle
+         CALL dbcsr_get_info(matrix, nfullrows_total=nsize, group=group_handle)
+         CALL group%set_handle(group_handle)
+         ALLOCATE (diagonal(nsize))
+         CALL dbcsr_get_diag(matrix, diagonal)
+         CALL mp_sum(diagonal, group)
+         det = PRODUCT(diagonal)
+      END BLOCK
 
       ! create diagonal SQRTI matrix
       diagonal(:) = 1.0_dp/(SQRT(diagonal(:)))
@@ -1444,7 +1449,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sign_submatrix_mu_adjust'
 
-      INTEGER                                            :: group, handle, i, j, myrank, nblkcols, &
+      INTEGER                                            :: group_handle, handle, i, j, myrank, nblkcols, &
                                                             sm_size, unit_nr, sm_firstcol, sm_lastcol
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: my_sms
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: sm, sm_sign, tmp
@@ -1454,6 +1459,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: trace, increment, new_mu, mu_low, mu_high
       TYPE(eigbuf), DIMENSION(:), ALLOCATABLE            :: eigbufs
       LOGICAL                                            :: has_mu_low, has_mu_high
+      TYPE(mp_comm_type) :: group
 
       REAL(KIND=dp), PARAMETER                           :: initial_increment = 0.01_dp
 
@@ -1463,8 +1469,10 @@ CONTAINS
       logger => cp_get_default_logger()
       unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
 
-      CALL dbcsr_get_info(matrix=matrix, nblkcols_total=nblkcols, distribution=dist, group=group)
+      CALL dbcsr_get_info(matrix=matrix, nblkcols_total=nblkcols, distribution=dist, group=group_handle)
       CALL dbcsr_distribution_get(dist=dist, mynode=myrank)
+
+      CALL group%set_handle(group_handle)
 
       CALL dissection%init(matrix)
       CALL dissection%get_sm_ids_for_rank(myrank, my_sms)

@@ -65,6 +65,7 @@ MODULE qs_active_space_methods
    USE mathconstants,                   ONLY: fourpi
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_bcast,&
+                                              mp_comm_type,&
                                               mp_sum
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
@@ -1011,7 +1012,7 @@ CONTAINS
          END IF
          nn1 = (n1*(n1 + 1))/2
          nn2 = (n2*(n2 + 1))/2
-         CALL dbcsr_csr_create(eri_mat, nn1, nn2, 0_int_8, 0, 0, para_env%group)
+         CALL dbcsr_csr_create(eri_mat, nn1, nn2, 0_int_8, 0, 0, para_env%group%get_handle())
          active_space_env%eri%norb = nmo
       END DO
 
@@ -1319,6 +1320,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_comm_type)                                 :: mp_group
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb_sub
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -1465,7 +1467,8 @@ CONTAINS
       DO isp1 = 1, nspins
          CALL get_mo_set(mo_set=mos(isp1), nmo=nmo1)
          nmm = (nmo1*(nmo1 + 1))/2
-         irange = get_irange_csr(nmm, eri_env%eri(1)%csr_mat%mp_group)
+         CALL mp_group%set_handle(eri_env%eri(1)%csr_mat%mp_group)
+         irange = get_irange_csr(nmm, mp_group)
          DO i1 = 1, SIZE(orbitals, 1)
             iwa1 = orbitals(i1, isp1)
             IF (eri_env%eri_gpw%store_wfn) THEN
@@ -2201,11 +2204,13 @@ CONTAINS
                                                             irptr, m1, m2, nindex, nmo_total, norb
       INTEGER, DIMENSION(2)                              :: irange
       REAL(dp)                                           :: erint
+      TYPE(mp_comm_type)                                 :: mp_group
 
       norb = SIZE(active_orbitals, 1)
       nmo_total = SIZE(p_mat, 1)
       nindex = (nmo_total*(nmo_total + 1))/2
-      irange = get_irange_csr(nindex, eri%mp_group)
+      CALL mp_group%set_handle(eri%mp_group)
+      irange = get_irange_csr(nindex, mp_group)
       DO m1 = 1, norb
          i1 = active_orbitals(m1, 1)
          DO m2 = m1, norb
@@ -2253,7 +2258,7 @@ CONTAINS
             ks_ref(i2, i1) = ks_ref(i1, i2)
          END DO
       END DO
-      CALL mp_sum(ks_ref, eri%mp_group)
+      CALL mp_sum(ks_ref, mp_group)
 
    END SUBROUTINE build_subspace_fock_matrix
 
@@ -2279,11 +2284,13 @@ CONTAINS
                                                             norb, spin1, spin2
       INTEGER, DIMENSION(2)                              :: irange
       REAL(dp)                                           :: erint
+      TYPE(mp_comm_type)                                 :: mp_group
 
       norb = SIZE(active_orbitals, 1)
       nmo_total = SIZE(p_a_mat, 1)
       nindex = (nmo_total*(nmo_total + 1))/2
-      irange = get_irange_csr(nindex, eri_aa%mp_group)
+      CALL mp_group%set_handle(eri_aa%mp_group)
+      irange = get_irange_csr(nindex, mp_group)
       IF (tr_mixed_eri) THEN
          spin1 = 2
          spin2 = 1
@@ -2332,7 +2339,8 @@ CONTAINS
       END DO
       !
 
-      irange = get_irange_csr(nindex, eri_ab%mp_group)
+      CALL mp_group%set_handle(eri_ab%mp_group)
+      irange = get_irange_csr(nindex, mp_group)
       DO m1 = 1, norb
          i1 = active_orbitals(m1, 1)
          DO m2 = m1, norb
@@ -2365,7 +2373,8 @@ CONTAINS
             ks_a_ref(i2, i1) = ks_a_ref(i1, i2)
          END DO
       END DO
-      CALL mp_sum(ks_a_ref, eri_aa%mp_group)
+      CALL mp_group%set_handle(eri_aa%mp_group)
+      CALL mp_sum(ks_a_ref, mp_group)
 
    END SUBROUTINE build_subspace_spin_fock_matrix
 

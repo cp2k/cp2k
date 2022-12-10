@@ -55,7 +55,8 @@ MODULE qs_tddfpt2_subgroups
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_comm_split
+   USE message_passing,                 ONLY: mp_comm_split,&
+                                              mp_comm_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
@@ -110,7 +111,7 @@ MODULE qs_tddfpt2_subgroups
       !> can still be accessed; in this case they simply point to the corresponding global variables
       LOGICAL                                            :: is_split
       !> MPI communicator of the current parallel group
-      INTEGER                                            :: mpi_comm
+      TYPE(mp_comm_type)                                 :: mpi_comm
       !> number of parallel groups
       INTEGER                                            :: ngroups
       !> group_distribution(0:ngroups-1) : a process with rank 'i' belongs to the parallel group

@@ -27,6 +27,7 @@ MODULE spme
                                               ewald_pw_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi
+   USE message_passing,                 ONLY: mp_comm_type
    USE particle_types,                  ONLY: particle_type
    USE pme_tools,                       ONLY: get_center,&
                                               set_list
@@ -108,9 +109,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'spme_evaluate'
 
-      INTEGER                                            :: group, handle, i, ig, ipart, j, n, &
-                                                            ncore, npart, nshell, o_spline, p1, &
-                                                            p1_shell
+      INTEGER                                            :: handle, i, ig, ipart, j, n, ncore, &
+                                                            npart, nshell, o_spline, p1, p1_shell
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: center, core_center, shell_center
       INTEGER, DIMENSION(3)                              :: nd, npts
       LOGICAL                                            :: do_shell
@@ -120,6 +120,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: fat
       REAL(KIND=dp), DIMENSION(3, 3)                     :: f_stress, h_stress
       TYPE(greens_fn_type), POINTER                      :: green
+      TYPE(mp_comm_type)                                 :: group
       TYPE(pw_grid_type), POINTER                        :: grid_spme
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: pw_pool
@@ -479,14 +480,15 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'spme_potential'
 
-      INTEGER                                            :: group, handle, ipart, n, npart_a, &
-                                                            npart_b, o_spline, p1
+      INTEGER                                            :: handle, ipart, n, npart_a, npart_b, &
+                                                            o_spline, p1
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: center
       INTEGER, DIMENSION(3)                              :: npts
       REAL(KIND=dp)                                      :: alpha, dvols, fat1
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: delta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rhos
       TYPE(greens_fn_type), POINTER                      :: green
+      TYPE(mp_comm_type)                                 :: group
       TYPE(pw_grid_type), POINTER                        :: grid_spme
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: pw_pool
@@ -624,8 +626,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'spme_forces'
 
-      INTEGER                                            :: group, handle, i, ipart, n, npart_a, &
-                                                            npart_b, o_spline, p1
+      INTEGER                                            :: handle, i, ipart, n, npart_a, npart_b, &
+                                                            o_spline, p1
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: center
       INTEGER, DIMENSION(3)                              :: npts
       REAL(KIND=dp)                                      :: alpha, dvols
@@ -633,6 +635,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rhos
       REAL(KIND=dp), DIMENSION(3)                        :: fat
       TYPE(greens_fn_type), POINTER                      :: green
+      TYPE(mp_comm_type)                                 :: group
       TYPE(pw_grid_type), POINTER                        :: grid_spme
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: pw_pool

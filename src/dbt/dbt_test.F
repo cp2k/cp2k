@@ -41,6 +41,7 @@ MODULE dbt_test
    USE dbt_index, ONLY: &
       combine_tensor_index, get_2d_indices_tensor, dbt_get_mapping_info
    USE dbt_tas_test, ONLY: dbt_tas_checksum
+   USE message_passing, ONLY: mp_comm_type
 
 #include "../base/base_uses.f90"
 
@@ -186,7 +187,7 @@ CONTAINS
       INTEGER, INTENT(IN)                         :: ndims
       INTEGER, INTENT(IN)                         :: unit_nr
       LOGICAL, INTENT(IN)                         :: verbose
-      INTEGER, INTENT(IN)                         :: mp_comm
+      TYPE(mp_comm_type), INTENT(IN)              :: mp_comm
       TYPE(dbt_distribution_type)             :: dist1, dist2
       TYPE(dbt_type)                          :: tensor1, tensor2
       INTEGER                                     :: isep, iblk
@@ -373,7 +374,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbt_setup_test_tensor(tensor, mp_comm, enumerate, ${varlist("blk_ind")}$)
       TYPE(dbt_type), INTENT(INOUT)                  :: tensor
-      INTEGER, INTENT(IN)                                :: mp_comm
+      TYPE(mp_comm_type), INTENT(IN)                     :: mp_comm
       LOGICAL, INTENT(IN)                                :: enumerate
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: ${varlist("blk_ind")}$
       INTEGER                                            :: numnodes, mynode
@@ -593,7 +594,8 @@ CONTAINS
                OPTIONAL                          :: bounds_3
             LOGICAL, INTENT(IN), OPTIONAL        :: log_verbose
             LOGICAL, INTENT(IN), OPTIONAL        :: write_int
-            INTEGER                              :: io_unit, mynode, numnodes, mp_comm
+            INTEGER                              :: io_unit, mynode, numnodes
+            TYPE(mp_comm_type) :: mp_comm
             INTEGER, DIMENSION(:), ALLOCATABLE   :: size_1, size_2, size_3, &
                                                     order_t1, order_t2, order_t3
             INTEGER, DIMENSION(2, ndims_tensor(tensor_1)) :: bounds_t1

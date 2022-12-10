@@ -32,6 +32,7 @@ MODULE dbt_tas_test
                                               int_8
    USE message_passing,                 ONLY: mp_cart_create,&
                                               mp_comm_free,&
+                                              mp_comm_type,&
                                               mp_environ
 #include "../../base/base_uses.f90"
 
@@ -69,8 +70,8 @@ CONTAINS
    SUBROUTINE dbt_tas_setup_test_matrix(matrix, mp_comm_out, mp_comm, nrows, ncols, rbsizes, &
                                         cbsizes, dist_splitsize, name, sparsity, reuse_comm)
       TYPE(dbt_tas_type), INTENT(OUT)                    :: matrix
-      INTEGER, INTENT(OUT)                               :: mp_comm_out
-      INTEGER, INTENT(IN)                                :: mp_comm
+      TYPE(mp_comm_type), INTENT(OUT)                    :: mp_comm_out
+      TYPE(mp_comm_type), INTENT(IN)                     :: mp_comm
       INTEGER(KIND=int_8), INTENT(IN)                    :: nrows, ncols
       INTEGER, DIMENSION(nrows), INTENT(IN)              :: rbsizes
       INTEGER, DIMENSION(ncols), INTENT(IN)              :: cbsizes
@@ -187,7 +188,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: filter_eps
       INTEGER, INTENT(IN), OPTIONAL                      :: io_unit
 
-      INTEGER                                            :: comm_dbm, handle1, handle2, mp_comm
+      INTEGER                                            :: handle1, handle2
       INTEGER, CONTIGUOUS, DIMENSION(:), POINTER :: cd_a, cd_b, cd_c, col_block_sizes_a, &
          col_block_sizes_b, col_block_sizes_c, rd_a, rd_b, rd_c, row_block_sizes_a, &
          row_block_sizes_b, row_block_sizes_c
@@ -195,6 +196,7 @@ CONTAINS
       TYPE(dbm_distribution_obj)                         :: dist_a, dist_b, dist_c
       TYPE(dbm_type)                                     :: dbm_a, dbm_a_mm, dbm_b, dbm_b_mm, dbm_c, &
                                                             dbm_c_mm
+      TYPE(mp_comm_type)                                 :: comm_dbm, mp_comm
 
 !
 ! TODO: Dedup with code in dbt_tas_test_mm.
@@ -325,8 +327,7 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: test_tol = 1.0E-10_dp
 
       CHARACTER(LEN=8)                                   :: status_str
-      INTEGER                                            :: comm_dbm, io_unit, mp_comm, mynode, &
-                                                            numnodes
+      INTEGER                                            :: io_unit, mynode, numnodes
       INTEGER, CONTIGUOUS, DIMENSION(:), POINTER :: cd_a, cd_b, cd_c, col_block_sizes_a, &
          col_block_sizes_b, col_block_sizes_c, rd_a, rd_b, rd_c, row_block_sizes_a, &
          row_block_sizes_b, row_block_sizes_c
@@ -336,6 +337,7 @@ CONTAINS
       TYPE(dbm_distribution_obj)                         :: dist_a, dist_b, dist_c
       TYPE(dbm_type)                                     :: dbm_a, dbm_a_mm, dbm_b, dbm_b_mm, dbm_c, &
                                                             dbm_c_mm, dbm_c_mm_check
+      TYPE(mp_comm_type)                                 :: comm_dbm, mp_comm
 
 !
 ! TODO: Dedup with code in dbt_tas_benchmark_mm.

@@ -12,7 +12,8 @@
 MODULE ps_wavelet_kernel
 
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_alltoall
+   USE message_passing,                 ONLY: mp_alltoall,&
+                                              mp_comm_type
    USE ps_wavelet_base,                 ONLY: scramble_unpack
    USE ps_wavelet_fft3d,                ONLY: ctrig,&
                                               ctrig_length,&
@@ -83,7 +84,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(in)                          :: hx, hy, hz
       INTEGER, INTENT(in)                                :: itype_scf, iproc, nproc
       REAL(KIND=dp), POINTER                             :: kernel(:)
-      INTEGER, INTENT(in)                                :: mpi_group
+      TYPE(mp_comm_type), INTENT(in)                     :: mpi_group
 
       INTEGER                                            :: m1, m2, m3, md1, md2, md3, n1, n2, n3, &
                                                             nd1, nd2, nd3, nlimd, nlimk
@@ -225,7 +226,7 @@ CONTAINS
       REAL(KIND=dp), &
          DIMENSION(nker1, nker2, nker3/nproc), &
          INTENT(out)                                     :: karray
-      INTEGER, INTENT(in)                                :: mpi_group
+      TYPE(mp_comm_type), INTENT(in)                     :: mpi_group
 
       INTEGER, PARAMETER                                 :: n_points = 2**6, ncache_optimal = 8*1024
 
@@ -843,7 +844,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: itype_scf, iproc, nproc
       REAL(KIND=dp), DIMENSION(n1k, n2k, n3k/nproc), &
          INTENT(out)                                     :: karray
-      INTEGER, INTENT(in)                                :: mpi_group
+      TYPE(mp_comm_type), INTENT(in)                     :: mpi_group
 
       INTEGER, PARAMETER                                 :: n_gauss = 89, n_points = 2**6
       REAL(KIND=dp), PARAMETER                           :: p0_ref = 1._dp
@@ -1103,7 +1104,7 @@ CONTAINS
          INTENT(in)                                      :: zf
       REAL(KIND=dp), DIMENSION(nk1, nk2, nk3/nproc), &
          INTENT(inout)                                   :: zr
-      INTEGER, INTENT(in)                                :: mpi_group
+      TYPE(mp_comm_type), INTENT(in)                     :: mpi_group
 
       INTEGER, PARAMETER                                 :: ncache_optimal = 8*1024
 

@@ -109,8 +109,8 @@ MODULE cp2k_runs
    USE mc_run,                          ONLY: do_mon_car
    USE md_run,                          ONLY: qs_mol_dyn
    USE message_passing,                 ONLY: &
-        mp_any_source, mp_bcast, mp_comm_dup, mp_comm_free, mp_comm_split, mp_environ, mp_max, &
-        mp_recv, mp_send, mp_sum, mp_sync
+        mp_any_source, mp_bcast, mp_comm_dup, mp_comm_free, mp_comm_split, mp_comm_type, &
+        mp_environ, mp_max, mp_recv, mp_send, mp_sum, mp_sync
    USE mscfg_methods,                   ONLY: do_mol_loop,&
                                               loop_over_molecules
    USE neb_methods,                     ONLY: neb
@@ -177,7 +177,8 @@ CONTAINS
    RECURSIVE SUBROUTINE cp2k_run(input_declaration, input_file_name, output_unit, mpi_comm, initial_variables)
       TYPE(section_type), POINTER                        :: input_declaration
       CHARACTER(LEN=*), INTENT(IN)                       :: input_file_name
-      INTEGER, INTENT(IN)                                :: output_unit, mpi_comm
+      INTEGER, INTENT(IN)                                :: output_unit
+      TYPE(mp_comm_type)                                 :: mpi_comm
       CHARACTER(len=default_path_length), &
          DIMENSION(:, :), INTENT(IN)                     :: initial_variables
 
@@ -200,13 +201,13 @@ CONTAINS
 
 #if defined(__DBCSR_ACC)
       IF (offload_get_device_count() > 0) THEN
-         CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit, &
+         CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit, &
                              accdrv_active_device_id=offload_get_chosen_device())
       ELSE
-         CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit)
+         CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit)
       END IF
 #else
-      CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit)
+      CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit)
 #endif
 
       CALL pw_gpu_init()
@@ -284,13 +285,13 @@ CONTAINS
          CALL farming_run(input_declaration, root_section, para_env, initial_variables)
 #if defined(__DBCSR_ACC)
          IF (offload_get_device_count() > 0) THEN
-            CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit, &
+            CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit, &
                                 accdrv_active_device_id=offload_get_chosen_device())
          ELSE
-            CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit)
+            CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit)
          END IF
 #else
-         CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit)
+         CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit)
 #endif
 
          CALL pw_gpu_init()
@@ -485,9 +486,9 @@ CONTAINS
       CHARACTER(LEN=default_path_length)       :: output_file
       CHARACTER(LEN=default_string_length)     :: str
       INTEGER :: dest, handle, i, i_job_to_restart, ierr, ijob, ijob_current, &
-                 ijob_end, ijob_start, iunit, n_jobs_to_run, new_group, new_output_unit, &
+                 ijob_end, ijob_start, iunit, n_jobs_to_run, new_output_unit, &
                  new_rank, new_size, ngroups, num_slaves, output_unit, primus_slave, &
-                 slave_group, slave_rank, source, tag, todo
+                 slave_rank, source, tag, todo
       INTEGER, DIMENSION(:), POINTER           :: group_distribution, &
                                                   master_slave_partition, &
                                                   slave_distribution, &
@@ -501,6 +502,7 @@ CONTAINS
       TYPE(farming_env_type), POINTER          :: farming_env
       TYPE(section_type), POINTER              :: g_section
       TYPE(section_vals_type), POINTER         :: g_data
+      TYPE(mp_comm_type) :: slave_group, new_group
 
       ! the primus of all slaves, talks to the master on topics concerning all slaves
       CALL timeset(routineN, handle)
@@ -971,7 +973,7 @@ CONTAINS
       CHARACTER(len=*), INTENT(in)                       :: input_file_path, output_file_path
       CHARACTER(len=default_path_length), &
          DIMENSION(:, :), INTENT(IN)                     :: initial_variables
-      INTEGER, INTENT(in), OPTIONAL                      :: mpi_comm
+      TYPE(mp_comm_type), INTENT(in), OPTIONAL           :: mpi_comm
 
       INTEGER                                            :: unit_nr
       TYPE(cp_para_env_type), POINTER                    :: para_env

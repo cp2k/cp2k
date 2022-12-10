@@ -51,7 +51,8 @@ MODULE constraint
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_sum
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_sum
    USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                               get_molecule_kind_set,&
                                               molecule_kind_type
@@ -109,7 +110,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: log_unit, lagrange_mult
       LOGICAL, INTENT(IN)                                :: dump_lm
       TYPE(cell_type), POINTER                           :: cell
-      INTEGER, INTENT(in)                                :: group
+      TYPE(mp_comm_type), INTENT(in)                     :: group
       TYPE(distribution_1d_type), POINTER                :: local_particles
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'shake_control'
@@ -236,7 +237,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: log_unit, lagrange_mult
       LOGICAL, INTENT(IN)                                :: dump_lm
       TYPE(cell_type), POINTER                           :: cell
-      INTEGER, INTENT(in)                                :: group
+      TYPE(mp_comm_type), INTENT(in)                     :: group
       TYPE(distribution_1d_type), POINTER                :: local_particles
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rattle_control'
@@ -355,7 +356,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: roll_tol
       INTEGER, INTENT(INOUT)                             :: iroll
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vector_r, vector_v
-      INTEGER, INTENT(IN)                                :: group
+      TYPE(mp_comm_type), INTENT(IN)                     :: group
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: u
       TYPE(cell_type), POINTER                           :: cell
@@ -623,7 +624,7 @@ CONTAINS
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
       TYPE(global_constraint_type), POINTER              :: gci
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind_set(:)
-      INTEGER, INTENT(IN)                                :: group
+      TYPE(mp_comm_type), INTENT(IN)                     :: group
       CHARACTER(LEN=1), INTENT(IN)                       :: id_type
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_lagrange_mult'

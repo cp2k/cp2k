@@ -81,7 +81,8 @@ MODULE almo_scf
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE mathlib,                         ONLY: binomial
-   USE message_passing,                 ONLY: mp_sum
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_sum
    USE molecule_types,                  ONLY: get_molecule_set_info,&
                                               molecule_type
    USE mscfg_types,                     ONLY: get_matrix_from_submatrices,&
@@ -1923,10 +1924,8 @@ CONTAINS
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: matrix
 
-      INTEGER                                            :: iblock_col, iblock_col_size, iblock_row, &
-                                                            iblock_row_size, icol, irow, ispin, &
-                                                            Ncols, Nrows, nspins, para_group, &
-                                                            unit_nr
+      INTEGER :: iblock_col, iblock_col_size, iblock_row, iblock_row_size, icol, irow, ispin, &
+         Ncols, Nrows, nspins, para_group_handle, unit_nr
       LOGICAL                                            :: element_by_element
       REAL(KIND=dp)                                      :: energy, eps_local, eps_start, &
                                                             max_element, spin_factor
@@ -1935,6 +1934,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: matrix_p_tmp, matrix_t_tmp
+      TYPE(mp_comm_type)                                 :: para_group
 
       ! define the output_unit
       logger => cp_get_default_logger()
@@ -2032,9 +2032,10 @@ CONTAINS
             CALL dbcsr_finalize(matrix_t_tmp(ispin))
             CALL dbcsr_filter(matrix_t_tmp(ispin), eps_local)
 
-            CALL dbcsr_get_info(matrix_t_tmp(ispin), group=para_group, &
+            CALL dbcsr_get_info(matrix_t_tmp(ispin), group=para_group_handle, &
                                 nfullrows_total=Nrows, &
                                 nfullcols_total=Ncols)
+            CALL para_group%set_handle(para_group_handle)
             CALL mp_sum(retained(ispin), para_group)
 
             !devide by the total no. elements

@@ -74,6 +74,7 @@ MODULE library_tests
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE message_passing,                 ONLY: mp_bcast,&
+                                              mp_comm_type,&
                                               mp_max,&
                                               mp_sum,&
                                               mp_sync,&
@@ -1040,7 +1041,7 @@ CONTAINS
       INTEGER                                            :: iw
       TYPE(section_vals_type), POINTER                   :: eigensolver_section
 
-      INTEGER                                            :: diag_method, group, i, i_loop, i_rep, &
+      INTEGER                                            :: diag_method, i, i_loop, i_rep, &
                                                             init_method, j, n, n_loop, n_rep, &
                                                             neig, source, unit_number
       REAL(KIND=dp)                                      :: t1, t2
@@ -1049,6 +1050,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
       TYPE(cp_fm_type)                                   :: eigenvectors, matrix, work
+      TYPE(mp_comm_type)                                 :: group
       TYPE(rng_stream_type), ALLOCATABLE                 :: rng_stream
 
       group = para_env%group
@@ -1466,7 +1468,7 @@ CONTAINS
                                    i_rep_section=i_rep, r_val=filter_eps)
          CALL section_vals_val_get(input_section, "ALWAYS_CHECKSUM", i_rep_section=i_rep, l_val=always_checksum)
 
-         CALL dbcsr_run_tests(para_env%group, iw, nproc, &
+         CALL dbcsr_run_tests(para_env%group%get_handle(), iw, nproc, &
                               (/m, n, k/), &
                               (/transa_p, transb_p/), &
                               bs_m, bs_n, bs_k, &

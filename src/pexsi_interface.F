@@ -31,6 +31,7 @@ MODULE pexsi_interface
    USE kinds, ONLY: int_8, &
                     real_8
    USE ISO_C_BINDING, ONLY: C_INTPTR_T
+   USE message_passing, ONLY: mp_comm_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -268,7 +269,8 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    FUNCTION cp_pexsi_plan_initialize(comm, numProcRow, numProcCol, outputFileIndex)
-      INTEGER, INTENT(IN)                      :: comm, numProcRow, numProcCol, &
+      TYPE(mp_comm_type), INTENT(IN) :: comm
+      INTEGER, INTENT(IN)                      :: numProcRow, numProcCol, &
                                                   outputFileIndex
       INTEGER(KIND=C_INTPTR_T)                 :: cp_pexsi_plan_initialize
 
@@ -277,7 +279,7 @@ CONTAINS
       INTEGER                                  :: info, handle
 
       CALL timeset(routineN, handle)
-      cp_pexsi_plan_initialize = f_ppexsi_plan_initialize(comm, numProcRow, &
+      cp_pexsi_plan_initialize = f_ppexsi_plan_initialize(comm%get_handle(), numProcRow, &
                                                           numProcCol, outputFileIndex, info)
       IF (info .NE. 0) &
          CPABORT("Pexsi returned an error. Consider logPEXSI0 for details.")

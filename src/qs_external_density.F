@@ -20,7 +20,8 @@ MODULE qs_external_density
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_recv,&
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_recv,&
                                               mp_send,&
                                               mp_sync
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -62,9 +63,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'external_read_density'
 
       CHARACTER(LEN=default_string_length)               :: filename
-      INTEGER                                            :: extunit, gid, handle, i, igrid_level, &
-                                                            ip, j, k, master, my_rank, nat, ndum, &
-                                                            num_pe, tag
+      INTEGER                                            :: extunit, handle, i, igrid_level, ip, j, &
+                                                            k, master, my_rank, nat, ndum, num_pe, &
+                                                            tag
       INTEGER, DIMENSION(3)                              :: lbounds, lbounds_local, npoints, &
                                                             npoints_local, ubounds, ubounds_local
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: buffer
@@ -73,6 +74,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
+      TYPE(mp_comm_type)                                 :: gid
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_ext_g, rho_ext_r
       TYPE(qs_rho_type), POINTER                         :: rho_external

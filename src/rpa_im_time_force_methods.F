@@ -87,6 +87,7 @@ MODULE rpa_im_time_force_methods
                                               m_walltime
    USE mathconstants,                   ONLY: fourpi
    USE message_passing,                 ONLY: mp_cart_create,&
+                                              mp_comm_type,&
                                               mp_sum,&
                                               mp_sync
    USE mp2_eri,                         ONLY: integrate_set_2c
@@ -201,8 +202,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'init_im_time_forces'
 
       INTEGER                                            :: handle, i_mem, i_xyz, ibasis, ispin, &
-                                                            mp_comm_t3c, n_dependent, n_mem, &
-                                                            n_rep, natom, nkind, nspins
+                                                            n_dependent, n_mem, n_rep, natom, &
+                                                            nkind, nspins
       INTEGER(int_8)                                     :: nze, nze_tot
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1, dist2, dist_AO_1, dist_AO_2, &
                                                             dist_RI, dummy_end, dummy_start, &
@@ -232,6 +233,7 @@ CONTAINS
          DIMENSION(:), TARGET                            :: basis_set_ao, basis_set_ri_aux
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis, ri_basis
       TYPE(libint_potential_type)                        :: identity_pot
+      TYPE(mp_comm_type)                                 :: mp_comm_t3c
       TYPE(neighbor_list_3c_type)                        :: nl_3c
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: nl_2c
@@ -2660,7 +2662,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL dbcsr_distribution_new(dbcsr_dist, group=para_env%group, pgrid=pgrid, row_dist=row_dist, col_dist=col_dist)
+      CALL dbcsr_distribution_new(dbcsr_dist, group=para_env%group%get_handle(), pgrid=pgrid, row_dist=row_dist, col_dist=col_dist)
 
       !The temporary DBCSR integrals and derivatives matrices in this flat distribution
       CALL dbcsr_create(tmp_G_PQ, template=G_PQ, matrix_type=dbcsr_type_no_symmetry, dist=dbcsr_dist)

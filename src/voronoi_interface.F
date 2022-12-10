@@ -49,7 +49,7 @@ MODULE voronoi_interface
       file_amode_rdonly, file_offset, mp_bcast, mp_file_close, mp_file_descriptor_type, &
       mp_file_get_position, mp_file_open, mp_file_read_all_chv, mp_file_type_free, &
       mp_file_type_hindexed_make_chv, mp_file_type_set_view_chv, mp_file_write_all_chv, &
-      mp_file_write_at, mp_maxloc, mp_recv, mp_send, mp_sum, mp_sync, mpi_character_size
+      mp_file_write_at, mp_maxloc, mp_recv, mp_send, mp_sum, mp_sync, mpi_character_size, mp_comm_type
    USE input_constants, ONLY: &
       voro_radii_unity, voro_radii_vdw, voro_radii_cov, voro_radii_user, &
       bqb_opt_off, bqb_opt_quick, bqb_opt_normal, bqb_opt_patient, bqb_opt_exhaustive, do_method_gapw
@@ -326,10 +326,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'entry_voronoi_or_bqb'
       INTEGER                                            :: handle, iounit, L1, L2, L3, U1, U2, &
-                                                            U3, ret, i, my_rank, num_pe, gid, tag, &
+                                                            U3, ret, i, my_rank, num_pe, tag, &
                                                             nkind, natom, ikind, iat, ord, source, dest, &
                                                             ip, i1, i2, reffac, radius_type, bqb_optimize, &
                                                             bqb_history, nspins, jitter_seed
+      TYPE(mp_comm_type) :: gid
       LOGICAL                                            :: outemp, bqb_skip_first, voro_skip_first, &
                                                             bqb_store_step, bqb_check, voro_sanity, &
                                                             bqb_overwrite, vori_overwrite, ionode, molprop, &

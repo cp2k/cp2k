@@ -38,7 +38,8 @@
 ! **************************************************************************************************
 MODULE t_sh_p_s_c
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_bcast
+   USE message_passing,                 ONLY: mp_bcast,&
+                                              mp_comm_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1109,7 +1110,8 @@ CONTAINS
 !> \param group ...
 ! **************************************************************************************************
    SUBROUTINE INIT(Nder, iunit, mepos, group)
-      INTEGER, INTENT(IN)                                :: Nder, iunit, mepos, group
+      INTEGER, INTENT(IN)                                :: Nder, iunit, mepos
+      TYPE(mp_comm_type), INTENT(IN)                     :: group
 
       INTEGER                                            :: I
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: chunk

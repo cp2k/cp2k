@@ -51,7 +51,8 @@ MODULE rt_propagation_output
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE machine,                         ONLY: m_flush
-   USE message_passing,                 ONLY: mp_max
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_max
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
@@ -461,13 +462,14 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'rt_convergence_density'
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
-      INTEGER                                            :: col_atom, group, handle, i, ispin, &
-                                                            row_atom
+      INTEGER                                            :: col_atom, group_handle, handle, i, &
+                                                            ispin, row_atom
       REAL(dp)                                           :: alpha, max_alpha
       REAL(dp), DIMENSION(:), POINTER                    :: block_values
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_new
       TYPE(dbcsr_type), POINTER                          :: tmp
+      TYPE(mp_comm_type)                                 :: group
 
       CALL timeset(routineN, handle)
 
@@ -504,7 +506,8 @@ CONTAINS
          END DO
          CALL dbcsr_iterator_stop(iter)
       END DO
-      CALL dbcsr_get_info(delta_P(1)%matrix, group=group)
+      CALL dbcsr_get_info(delta_P(1)%matrix, group=group_handle)
+      CALL group%set_handle(group_handle)
       CALL mp_max(max_alpha, group)
       delta_eps = SQRT(max_alpha)
       CALL dbcsr_deallocate_matrix(tmp)

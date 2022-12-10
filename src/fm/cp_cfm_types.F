@@ -24,8 +24,8 @@ MODULE cp_cfm_types
    USE mathconstants,                   ONLY: z_one,&
                                               z_zero
    USE message_passing,                 ONLY: &
-        cp2k_is_parallel, mp_allgather, mp_any_source, mp_bcast, mp_irecv, mp_isend, mp_proc_null, &
-        mp_request_null, mp_sum, mp_waitall
+        cp2k_is_parallel, mp_allgather, mp_any_source, mp_bcast, mp_comm_type, mp_irecv, mp_isend, &
+        mp_proc_null, mp_request_null, mp_sum, mp_waitall
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -882,8 +882,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_start_copy_general'
 
-      INTEGER :: dest_p_i, dest_q_j, global_comm, global_rank, global_size, handle, i, j, k, &
-         mpi_rank, ncol_block_dest, ncol_block_src, ncol_local_recv, ncol_local_send, ncols, &
+      INTEGER :: dest_p_i, dest_q_j, global_rank, global_size, handle, i, j, k, mpi_rank, &
+         ncol_block_dest, ncol_block_src, ncol_local_recv, ncol_local_send, ncols, &
          nrow_block_dest, nrow_block_src, nrow_local_recv, nrow_local_send, nrows, p, q, &
          recv_rank, recv_size, send_rank, send_size
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: all_ranks, dest2global, dest_p, dest_q, &
@@ -896,6 +896,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: recv_col_indices, recv_row_indices, &
                                                             send_col_indices, send_row_indices
       TYPE(cp_fm_struct_type), POINTER                   :: recv_dist, send_dist
+      TYPE(mp_comm_type)                                 :: global_comm
 
       CALL timeset(routineN, handle)
 

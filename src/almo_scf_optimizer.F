@@ -93,7 +93,8 @@ MODULE almo_scf_optimizer
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
-   USE message_passing,                 ONLY: mp_sum
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_sum
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -880,7 +881,7 @@ CONTAINS
       CHARACTER(LEN=20)                                  :: iter_type
       INTEGER :: cg_iteration, dim_op, fixed_line_search_niter, handle, idim0, ielem, ispin, &
          iteration, line_search_iteration, max_iter, my_special_case, ndomains, nmo, nspins, &
-         outer_iteration, outer_max_iter, para_group, prec_type, reim, unit_nr
+         outer_iteration, outer_max_iter, para_group_handle, prec_type, reim, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nocc
       LOGICAL :: blissful_neglect, converged, just_started, line_search, normalize_orbitals, &
          optimize_theta, outer_prepare_to_exit, penalty_occ_local, penalty_occ_vol, &
@@ -902,6 +903,7 @@ CONTAINS
          STsiginv_0, tempNOcc, tempNOcc_1, tempOccOcc
       TYPE(domain_submatrix_type), ALLOCATABLE, &
          DIMENSION(:, :)                                 :: bad_modes_projector_down, domain_r_down
+      TYPE(mp_comm_type)                                 :: para_group
 
       CALL timeset(routineN, handle)
 
@@ -1315,7 +1317,8 @@ CONTAINS
                   ALLOCATE (z2(nmo))
                   ALLOCATE (reim_diag(nmo))
 
-                  CALL dbcsr_get_info(tempOccOcc(ispin), group=para_group)
+                  CALL dbcsr_get_info(tempOccOcc(ispin), group=para_group_handle)
+                  CALL para_group%set_handle(para_group_handle)
 
                   DO idim0 = 1, SIZE(op_sm_set_qs, 2) ! this loop is over miller ind
 
@@ -2020,7 +2023,7 @@ CONTAINS
       CHARACTER(LEN=30)                                  :: iter_type, print_string
       INTEGER :: cg_iteration, dim_op, handle, iatom, idim0, isgf, ispin, iteration, &
          line_search_iteration, linear_search_type, max_iter, natom, ncol, nspins, &
-         outer_iteration, outer_max_iter, para_group, prec_type, reim, unit_nr
+         outer_iteration, outer_max_iter, para_group_handle, prec_type, reim, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf, nocc, nsgf
       LOGICAL                                            :: converged, d_bfgs, just_started, l_bfgs, &
                                                             line_search, outer_prepare_to_exit, &
@@ -2043,6 +2046,7 @@ CONTAINS
          tempOccOcc2, tempOccOcc3
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:, :, :)  :: m_B0
       TYPE(lbfgs_history_type)                           :: nlmo_lbfgs_history
+      TYPE(mp_comm_type)                                 :: para_group
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
@@ -2413,7 +2417,8 @@ CONTAINS
 
             DO ispin = 1, nspins
 
-               CALL dbcsr_get_info(m_sig_sqrti_ii(ispin), group=para_group)
+               CALL dbcsr_get_info(m_sig_sqrti_ii(ispin), group=para_group_handle)
+               CALL para_group%set_handle(para_group_handle)
 
                ! compute diagonal (a^t.sigma0.a)^(-1/2)
                CALL dbcsr_multiply("N", "N", 1.0_dp, &
@@ -6474,10 +6479,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'compute_obj_nlmos'
 
-      INTEGER                                            :: handle, idim0, ielem, para_group, reim
+      INTEGER                                            :: handle, idim0, ielem, para_group_handle, &
+                                                            reim
       REAL(KIND=dp)                                      :: det1, fval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: reim_diag, z2
       TYPE(dbcsr_type)                                   :: tempNOcc1, tempOccOcc1, tempOccOcc2
+      TYPE(mp_comm_type)                                 :: para_group
 
       CALL timeset(routineN, handle)
 
@@ -6496,7 +6503,8 @@ CONTAINS
       ALLOCATE (z2(nocc))
       ALLOCATE (reim_diag(nocc))
 
-      CALL dbcsr_get_info(tempOccOcc2, group=para_group)
+      CALL dbcsr_get_info(tempOccOcc2, group=para_group_handle)
+      CALL para_group%set_handle(para_group_handle)
 
       DO idim0 = 1, SIZE(m_B0, 2) ! this loop is over miller ind
 

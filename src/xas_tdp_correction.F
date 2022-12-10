@@ -1136,7 +1136,7 @@ CONTAINS
          CALL dbt_default_distvec(nblk_aos, SIZE(mat_pgrid, 1), ao_blk_size, ao_row_dist)
          CALL dbt_default_distvec(nblk_mos(ispin), SIZE(mat_pgrid, 2), mo_blk_size(ispin)%array, &
                                   mo_col_dist(ispin)%array)
-         CALL dbcsr_distribution_new(mat_dist, group=para_env%group, pgrid=mat_pgrid, &
+         CALL dbcsr_distribution_new(mat_dist, group=para_env%group%get_handle(), pgrid=mat_pgrid, &
                                      row_dist=ao_row_dist, col_dist=mo_col_dist(ispin)%array)
 
          CALL dbcsr_create(dbcsr_mo_coeffs, name="MO coeffs", matrix_type="N", dist=mat_dist, &

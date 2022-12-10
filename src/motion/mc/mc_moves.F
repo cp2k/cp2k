@@ -46,7 +46,8 @@ MODULE mc_moves
                                               mc_moves_type,&
                                               mc_simpar_type
    USE md_run,                          ONLY: qs_mol_dyn
-   USE message_passing,                 ONLY: mp_bcast
+   USE message_passing,                 ONLY: mp_bcast,&
+                                              mp_comm_type
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_kind_types,             ONLY: bend_type,&
                                               bond_type,&
@@ -152,7 +153,7 @@ CONTAINS
       CHARACTER(default_string_length)                   :: name
       CHARACTER(default_string_length), DIMENSION(:), &
          POINTER                                         :: names
-      INTEGER :: atom_number, end_atom, end_mol, group, handle, imol_type, imolecule, ipart, jbox, &
+      INTEGER :: atom_number, end_atom, end_mol, handle, imol_type, imolecule, ipart, jbox, &
          molecule_number, nunits_mol, source, start_mol
       INTEGER, DIMENSION(:), POINTER                     :: mol_type, nunits
       INTEGER, DIMENSION(:, :), POINTER                  :: nchains
@@ -165,6 +166,7 @@ CONTAINS
       TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info
       TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind, molecule_kind_test
+      TYPE(mp_comm_type)                                 :: group
       TYPE(particle_list_type), POINTER                  :: particles
 
 ! begin the timing of the subroutine
@@ -444,7 +446,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mc_molecule_translation'
 
-      INTEGER :: atom_number, end_atom, end_mol, group, handle, imolecule, ipart, iparticle, jbox, &
+      INTEGER :: atom_number, end_atom, end_mol, handle, imolecule, ipart, iparticle, jbox, &
          molecule_number, move_direction, nunits_mol, source, start_mol
       INTEGER, DIMENSION(:), POINTER                     :: mol_type, nunits, nunits_tot
       INTEGER, DIMENSION(:, :), POINTER                  :: nchains
@@ -456,6 +458,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: r_old
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info
+      TYPE(mp_comm_type)                                 :: group
       TYPE(particle_list_type), POINTER                  :: particles
 
 !   *** Local Counters ***
@@ -666,8 +669,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mc_molecule_rotation'
 
-      INTEGER :: atom_number, dir, end_atom, end_mol, group, handle, ii, imolecule, ipart, iunit, &
-         jbox, molecule_number, nunits_mol, source, start_mol
+      INTEGER :: atom_number, dir, end_atom, end_mol, handle, ii, imolecule, ipart, iunit, jbox, &
+         molecule_number, nunits_mol, source, start_mol
       INTEGER, DIMENSION(:), POINTER                     :: mol_type, nunits, nunits_tot
       INTEGER, DIMENSION(:, :), POINTER                  :: nchains
       LOGICAL                                            :: ionode, lbias, loverlap, lx, ly
@@ -679,6 +682,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: r_old
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info
+      TYPE(mp_comm_type)                                 :: group
       TYPE(particle_list_type), POINTER                  :: particles
 
 ! begin the timing of the subroutine
@@ -972,9 +976,8 @@ CONTAINS
 
       CHARACTER(LEN=200)                                 :: fft_lib
       CHARACTER(LEN=40)                                  :: dat_file
-      INTEGER :: cl, end_atom, end_mol, group, handle, iatom, idim, imolecule, iside, &
-         iside_change, iunit, jbox, nunits_mol, output_unit, print_level, source, start_atom, &
-         start_mol
+      INTEGER :: cl, end_atom, end_mol, handle, iatom, idim, imolecule, iside, iside_change, &
+         iunit, jbox, nunits_mol, output_unit, print_level, source, start_atom, start_mol
       INTEGER, DIMENSION(:), POINTER                     :: mol_type, nunits, nunits_tot
       INTEGER, DIMENSION(:, :), POINTER                  :: nchains
       LOGICAL                                            :: ionode, ldiscrete, lincrease, loverlap, &
@@ -990,6 +993,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: oldsys
       TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info
+      TYPE(mp_comm_type)                                 :: group
       TYPE(particle_list_type), POINTER                  :: particles_old
 
 ! begin the timing of the subroutine
@@ -1313,8 +1317,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'change_bond_length'
 
-      INTEGER                                            :: bond_number, group, handle, i, iatom, &
-                                                            ibond, ipart, natom, nbond, source
+      INTEGER                                            :: bond_number, handle, i, iatom, ibond, &
+                                                            ipart, natom, nbond, source
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_a, atom_b, counter
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: connection, connectivity
       INTEGER, DIMENSION(:), POINTER                     :: nunits
@@ -1325,6 +1329,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(1:3)                      :: bond_a, bond_b
       TYPE(bond_type), DIMENSION(:), POINTER             :: bond_list
       TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info
+      TYPE(mp_comm_type)                                 :: group
 
 ! begin the timing of the subroutine
 
@@ -1479,9 +1484,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'change_bond_angle'
 
-      INTEGER                                            :: bend_number, group, handle, i, iatom, &
-                                                            ibond, ipart, natom, nbend, nbond, &
-                                                            source
+      INTEGER                                            :: bend_number, handle, i, iatom, ibond, &
+                                                            ipart, natom, nbend, nbond, source
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_a, atom_c, counter
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: connection, connectivity
       INTEGER, DIMENSION(:), POINTER                     :: nunits
@@ -1494,6 +1498,7 @@ CONTAINS
       TYPE(bend_type), DIMENSION(:), POINTER             :: bend_list
       TYPE(bond_type), DIMENSION(:), POINTER             :: bond_list
       TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info
+      TYPE(mp_comm_type)                                 :: group
 
 ! begin the timing of the subroutine
 
@@ -1738,9 +1743,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'change_dihedral'
 
-      INTEGER                                            :: group, handle, i, iatom, ibond, ipart, &
-                                                            natom, nbond, ntorsion, source, &
-                                                            torsion_number
+      INTEGER                                            :: handle, i, iatom, ibond, ipart, natom, &
+                                                            nbond, ntorsion, source, torsion_number
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_a, atom_d, counter
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: connection, connectivity
       INTEGER, DIMENSION(:), POINTER                     :: nunits
@@ -1752,6 +1756,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(1:3)                      :: bond_a, temp
       TYPE(bond_type), DIMENSION(:), POINTER             :: bond_list
       TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info
+      TYPE(mp_comm_type)                                 :: group
       TYPE(torsion_type), DIMENSION(:), POINTER          :: torsion_list
 
 ! begin the timing of the subroutine
@@ -1958,8 +1963,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'mc_avbmc_move'
 
-      INTEGER                                            :: end_mol, group, handle, ipart, jbox, &
-                                                            natom, nswapmoves, source, start_mol
+      INTEGER                                            :: end_mol, handle, ipart, jbox, natom, &
+                                                            nswapmoves, source, start_mol
       INTEGER, DIMENSION(:), POINTER                     :: avbmc_atom, mol_type, nunits, nunits_tot
       INTEGER, DIMENSION(:, :), POINTER                  :: nchains
       LOGICAL                                            :: ionode, lbias, ldum, lin, loverlap
@@ -1975,6 +1980,7 @@ CONTAINS
       TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info
       TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
+      TYPE(mp_comm_type)                                 :: group
       TYPE(particle_list_type), POINTER                  :: particles, particles_force
 
       rdum = 1.0_dp
@@ -2354,7 +2360,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mc_hmc_move'
 
-      INTEGER                                            :: group, handle, iatom, source
+      INTEGER                                            :: handle, iatom, source
       INTEGER, DIMENSION(:), POINTER                     :: nunits_tot
       LOGICAL                                            :: ionode
       REAL(KIND=dp)                                      :: BETA, energy_term, exp_max_val, &
@@ -2363,6 +2369,7 @@ CONTAINS
       TYPE(cp_subsys_type), POINTER                      :: oldsys
       TYPE(mc_ekin_type), POINTER                        :: hmc_ekin
       TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info
+      TYPE(mp_comm_type)                                 :: group
       TYPE(particle_list_type), POINTER                  :: particles_old
 
 ! begin the timing of the subroutine
@@ -2489,8 +2496,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mc_cluster_translation'
 
-      INTEGER :: cstart, end_mol, group, handle, imol, ipart, iparticle, iunit, jbox, jpart, &
-         junit, move_direction, nend, nunit, source, start_mol, total_clus, total_clusafmo
+      INTEGER :: cstart, end_mol, handle, imol, ipart, iparticle, iunit, jbox, jpart, junit, &
+         move_direction, nend, nunit, source, start_mol, total_clus, total_clusafmo
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: cluster
       INTEGER, DIMENSION(:), POINTER                     :: mol_type, nunits, nunits_tot
       INTEGER, DIMENSION(:, :), POINTER                  :: nchains
@@ -2501,6 +2508,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: r_old
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info
+      TYPE(mp_comm_type)                                 :: group
       TYPE(particle_list_type), POINTER                  :: particles
 
 !   *** Local Counters ***

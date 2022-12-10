@@ -43,7 +43,8 @@ MODULE tmc_setup
    USE message_passing,                 ONLY: mp_bcast,&
                                               mp_comm_dup,&
                                               mp_comm_free,&
-                                              mp_comm_split_direct
+                                              mp_comm_split_direct,&
+                                              mp_comm_type
    USE parallel_rng_types,              ONLY: UNIFORM,&
                                               rng_stream_type
    USE physcon,                         ONLY: au2a => angstrom,&
@@ -356,9 +357,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'do_analyze_files'
 
-      INTEGER                                            :: comm, dir_ind, handle, my_mpi_world, &
-                                                            nr_dim, output_unit, temp
+      INTEGER                                            :: dir_ind, handle, nr_dim, output_unit, &
+                                                            temp
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(mp_comm_type)                                 :: comm, my_mpi_world
       TYPE(tmc_ana_list_type), DIMENSION(:), POINTER     :: ana_list
       TYPE(tmc_env_type), POINTER                        :: tmc_env
       TYPE(tree_type), POINTER                           :: elem
@@ -809,10 +811,11 @@ CONTAINS
       INTEGER                                            :: ana_on_the_fly
       LOGICAL                                            :: success
 
-      INTEGER :: cc_group, cc_group_rank, comm_tmp, master_ana_group, master_ana_rank, &
+      INTEGER :: cc_group, cc_group_rank, master_ana_group, master_ana_rank, &
          master_first_e_worker_g, master_first_e_worker_r, master_worker_group, &
-         master_worker_rank, my_mpi_undefined, my_mpi_world, total_used
+         master_worker_rank, my_mpi_undefined, total_used
       LOGICAL                                            :: flag, master
+      TYPE(mp_comm_type)                                 :: comm_tmp, my_mpi_world
 
       CPASSERT(ASSOCIATED(tmc_comp_set))
       CPASSERT(ASSOCIATED(para_env))

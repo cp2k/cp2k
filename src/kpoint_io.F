@@ -37,7 +37,8 @@ MODULE kpoint_io
    USE kinds,                           ONLY: default_path_length
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
-   USE message_passing,                 ONLY: mp_bcast
+   USE message_passing,                 ONLY: mp_bcast,&
+                                              mp_comm_type
    USE orbital_pointers,                ONLY: nso
    USE particle_types,                  ONLY: particle_type
    USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
@@ -309,9 +310,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_kpoints_restart'
 
       CHARACTER(LEN=default_path_length)                 :: file_name
-      INTEGER                                            :: group, handle, restart_unit, source
+      INTEGER                                            :: handle, restart_unit, source
       LOGICAL                                            :: exist
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(mp_comm_type)                                 :: group
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
@@ -376,11 +378,14 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: natom, rst_unit
       LOGICAL, INTENT(OUT)                               :: natom_mismatch
 
-      INTEGER :: group, ic, image, ispin, nao, nao_read, natom_read, ni, nimages, nset_max, &
-         nshell_max, nspin, nspin_read, source, version_read
+      INTEGER                                            :: ic, image, ispin, nao, nao_read, &
+                                                            natom_read, ni, nimages, nset_max, &
+                                                            nshell_max, nspin, nspin_read, source, &
+                                                            version_read
       INTEGER, DIMENSION(3)                              :: cell
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: natom_match
+      TYPE(mp_comm_type)                                 :: group
 
       group = para_env%group
       source = para_env%source

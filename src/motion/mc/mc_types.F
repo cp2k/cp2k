@@ -44,6 +44,7 @@ MODULE mc_types
                                               default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: pi
+   USE message_passing,                 ONLY: mp_comm_type
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_p_type
    USE molecule_kind_types,             ONLY: atom_type,&
                                               get_molecule_kind,&
@@ -94,7 +95,7 @@ MODULE mc_types
       INTEGER :: diff
       INTEGER :: nstart
       INTEGER :: source
-      INTEGER :: group
+      TYPE(mp_comm_type) :: group
       INTEGER :: iprint
       LOGICAL :: ldiscrete
       LOGICAL :: lbias
@@ -401,7 +402,8 @@ CONTAINS
       TYPE(mc_simpar_type), POINTER                      :: mc_par
       INTEGER, INTENT(OUT), OPTIONAL                     :: nstep, nvirial, iuptrans, iupcltrans, &
                                                             iupvolume, nmoves, nswapmoves, rm, cl, &
-                                                            diff, nstart, source, group
+                                                            diff, nstart, source
+      TYPE(mp_comm_type), INTENT(OUT), OPTIONAL          :: group
       LOGICAL, INTENT(OUT), OPTIONAL                     :: lbias, ionode, lrestart, lstop
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: rmvolume, rmcltrans
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: rmbond, rmangle, rmrot, rmtrans
@@ -687,7 +689,9 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: exp_max_val, exp_min_val, min_val, &
                                                             max_val, pmhmc, pmhmc_box
       LOGICAL, INTENT(IN), OPTIONAL                      :: lhmc, ionode
-      INTEGER, INTENT(IN), OPTIONAL                      :: source, group, rand2skip
+      INTEGER, INTENT(IN), OPTIONAL                      :: source
+      TYPE(mp_comm_type), INTENT(IN), OPTIONAL           :: group
+      INTEGER, INTENT(IN), OPTIONAL                      :: rand2skip
 
       INTEGER                                            :: iparm
 

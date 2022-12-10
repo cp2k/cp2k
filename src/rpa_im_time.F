@@ -47,7 +47,8 @@ MODULE rpa_im_time
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE mathconstants,                   ONLY: twopi
-   USE message_passing,                 ONLY: mp_sync
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_sync
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
@@ -178,9 +179,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_mat_P_omega'
 
-      INTEGER :: comm_2d, handle, handle2, handle3, i, i_cell, i_cell_R_1, i_cell_R_1_minus_S, &
-         i_cell_R_1_minus_T, i_cell_R_2, i_cell_R_2_minus_S_minus_T, i_cell_S, i_cell_T, i_mem, &
-         iquad, j, j_mem, jquad, num_3c_repl, num_cells_dm, unit_nr_dbcsr
+      INTEGER :: comm_2d_handle, handle, handle2, handle3, i, i_cell, i_cell_R_1, &
+         i_cell_R_1_minus_S, i_cell_R_1_minus_T, i_cell_R_2, i_cell_R_2_minus_S_minus_T, i_cell_S, &
+         i_cell_T, i_mem, iquad, j, j_mem, jquad, num_3c_repl, num_cells_dm, unit_nr_dbcsr
       INTEGER(int_8)                                     :: nze, nze_dm_occ, nze_dm_virt, nze_M_occ, &
                                                             nze_M_virt, nze_O
       INTEGER(KIND=int_8)                                :: flops_1_occ, flops_1_virt, flops_2
@@ -206,6 +207,7 @@ CONTAINS
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:)          :: t_dm_occ, t_dm_virt
       TYPE(dbt_type), &
          DIMENSION(SIZE(t_3c_O, 1), SIZE(t_3c_O, 2))     :: t_3c_O_occ, t_3c_O_virt
+      TYPE(mp_comm_type)                                 :: comm_2d
 
       CALL timeset(routineN, handle)
 
@@ -251,7 +253,8 @@ CONTAINS
          ALLOCATE (t_dm_virt(num_cells_dm))
          ALLOCATE (t_dm_occ(num_cells_dm))
          CALL dbcsr_get_info(mat_P_global%matrix, distribution=dist_P)
-         CALL dbcsr_distribution_get(dist_P, group=comm_2d, nprows=pdims_2d(1), npcols=pdims_2d(2))
+         CALL dbcsr_distribution_get(dist_P, group=comm_2d_handle, nprows=pdims_2d(1), npcols=pdims_2d(2))
+         CALL comm_2d%set_handle(comm_2d_handle)
 
          pgrid_2d = dbt_nd_mp_comm(comm_2d, [1], [2], pdims_2d=pdims_2d)
          ALLOCATE (size_P(dbt_nblks_total(t_3c_M, 1)))

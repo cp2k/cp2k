@@ -18,7 +18,8 @@ MODULE pao_param
         dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_type
    USE dm_ls_scf_types,                 ONLY: ls_mstruct_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_max
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_max
    USE pao_input,                       ONLY: pao_exp_param,&
                                               pao_fock_param,&
                                               pao_gth_param,&
@@ -301,11 +302,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_assert_unitary'
 
-      INTEGER                                            :: acol, arow, group, handle, i, iatom, M, N
+      INTEGER                                            :: acol, arow, group_handle, handle, i, &
+                                                            iatom, M, N
       INTEGER, DIMENSION(:), POINTER                     :: blk_sizes_pao, blk_sizes_pri
       REAL(dp)                                           :: delta_max
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_test, tmp1, tmp2
       TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(mp_comm_type)                                 :: group
 
       IF (pao%check_unitary_tol < 0.0_dp) RETURN ! no checking
 
@@ -339,7 +342,8 @@ CONTAINS
       CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
 
-      CALL dbcsr_get_info(pao%matrix_U, group=group)
+      CALL dbcsr_get_info(pao%matrix_U, group=group_handle)
+      CALL group%set_handle(group_handle)
       CALL mp_max(delta_max, group)
       IF (pao%iw > 0) WRITE (pao%iw, *) 'PAO| checked unitaryness, max delta:', delta_max
       IF (delta_max > pao%check_unitary_tol) &

@@ -63,6 +63,7 @@ MODULE kpoint_methods
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_cart_create,&
                                               mp_cart_sub,&
+                                              mp_comm_type,&
                                               mp_max,&
                                               mp_sum
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -272,9 +273,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_env_initialize'
 
-      INTEGER                                            :: comm_cart, comm_inter_kp, comm_kp, &
-                                                            handle, igr, ik, ikk, ngr, niogrp, &
-                                                            nkp, nkp_grp, nkp_loc, npe, unit_nr
+      INTEGER                                            :: handle, igr, ik, ikk, ngr, niogrp, nkp, &
+                                                            nkp_grp, nkp_loc, npe, unit_nr
       INTEGER, DIMENSION(2)                              :: dims, pos
       LOGICAL, DIMENSION(2)                              :: rdim
       TYPE(cp_para_cart_type), POINTER                   :: cart
@@ -282,6 +282,7 @@ CONTAINS
                                                             para_env_inter_kp, para_env_kp
       TYPE(kpoint_env_p_type), DIMENSION(:), POINTER     :: kp_env
       TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(mp_comm_type)                                 :: comm_cart, comm_inter_kp, comm_kp
 
       CALL timeset(routineN, handle)
 

@@ -45,7 +45,7 @@ MODULE task_list_methods
                               mp_alltoall, &
                               mp_bcast, &
                               mp_sum, &
-                              mp_sum_partial
+                              mp_sum_partial, mp_comm_type
    USE particle_types, ONLY: particle_type
    USE particle_methods, ONLY: get_particle_set
    USE pw_env_types, ONLY: pw_env_get, &
@@ -1155,7 +1155,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE optimize_load_list(list, group, my_pos)
       INTEGER, DIMENSION(:, :, 0:)                       :: list
-      INTEGER, INTENT(IN)                                :: group, my_pos
+      TYPE(mp_comm_type), INTENT(IN) :: group
+      INTEGER, INTENT(IN)                                :: my_pos
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'optimize_load_list'
       INTEGER, PARAMETER                                 :: rank_of_root = 0
@@ -2523,7 +2524,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: src_matrices
       TYPE(offload_buffer_type), INTENT(INOUT)           :: dest_buffer
       TYPE(task_list_type), INTENT(IN)                   :: task_list
-      INTEGER, INTENT(IN)                                :: group
+      TYPE(mp_comm_type), INTENT(IN)                     :: group
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_scatter_matrices'
 
@@ -2558,7 +2559,7 @@ CONTAINS
       TYPE(offload_buffer_type), INTENT(IN)              :: src_buffer
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: dest_matrices
       TYPE(task_list_type), INTENT(IN)                   :: task_list
-      INTEGER, INTENT(IN)                                :: group
+      TYPE(mp_comm_type), INTENT(IN)                     :: group
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_gather_matrices'
 

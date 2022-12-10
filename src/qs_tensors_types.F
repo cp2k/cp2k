@@ -34,6 +34,7 @@ MODULE qs_tensors_types
                                               distribution_2d_type
    USE message_passing,                 ONLY: mp_cart_sub,&
                                               mp_comm_free,&
+                                              mp_comm_type,&
                                               mp_environ
    USE particle_types,                  ONLY: particle_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_iterator_p_type,&
@@ -58,7 +59,7 @@ MODULE qs_tensors_types
 
    TYPE distribution_3d_type
       TYPE(distribution_2d_type), POINTER :: dist_2d_1 => NULL(), dist_2d_2 => NULL()
-      INTEGER :: comm_3d, comm_2d_1, comm_2d_2
+      TYPE(mp_comm_type) :: comm_3d, comm_2d_1, comm_2d_2
       LOGICAL :: owns_comm
    END TYPE distribution_3d_type
 
@@ -94,15 +95,15 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: dist1, dist2, dist3
       INTEGER, INTENT(IN)                                :: nkind
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      INTEGER, INTENT(IN)                                :: mp_comm_3d
+      TYPE(mp_comm_type), INTENT(IN)                     :: mp_comm_3d
       LOGICAL, INTENT(IN), OPTIONAL                      :: own_comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'distribution_3d_create'
 
-      INTEGER                                            :: comm_2d_1, comm_2d_2, handle, nproc_1, &
-                                                            nproc_2
+      INTEGER                                            :: handle, nproc_1, nproc_2
       INTEGER, DIMENSION(2)                              :: mp_coor_1, mp_coor_2, mp_dims_1, &
                                                             mp_dims_2
+      TYPE(mp_comm_type)                                 :: comm_2d_1, comm_2d_2
 
       CALL timeset(routineN, handle)
 
@@ -168,7 +169,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: dist1, dist2
       INTEGER, INTENT(IN)                                :: nkind
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      INTEGER, INTENT(IN)                                :: mp_comm_2d
+      TYPE(mp_comm_type), INTENT(IN)                     :: mp_comm_2d
 
       CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_create'
 

@@ -26,8 +26,8 @@ MODULE realspace_grid_types
    USE machine,                         ONLY: m_memory
    USE mathlib,                         ONLY: det_3x3
    USE message_passing,                 ONLY: &
-        mp_comm_dup, mp_comm_free, mp_environ, mp_irecv, mp_isend, mp_isendrecv, mp_max, mp_min, &
-        mp_request_null, mp_sum, mp_sync, mp_waitall, mp_waitany
+        mp_comm_dup, mp_comm_free, mp_comm_null, mp_comm_type, mp_environ, mp_irecv, mp_isend, &
+        mp_isendrecv, mp_max, mp_min, mp_request_null, mp_sum, mp_sync, mp_waitall, mp_waitany
    USE offload_api,                     ONLY: offload_buffer_type,&
                                               offload_create_buffer,&
                                               offload_free_buffer
@@ -109,7 +109,7 @@ MODULE realspace_grid_types
       LOGICAL :: distributed ! whether the rs grid is distributed
       ! these MPI related quantities are only meaningful depending on how the grid has been laid out
       ! they are most useful for fully distributed grids, where they reflect the topology of the grid
-      INTEGER :: group
+      TYPE(mp_comm_type) :: group
       INTEGER :: my_pos
       LOGICAL :: group_head
       INTEGER :: group_size
@@ -253,7 +253,7 @@ CONTAINS
          END IF
          desc%parallel = .FALSE.
          desc%distributed = .FALSE.
-         desc%group = -1
+         CALL desc%group%set_handle(mp_comm_null)
          desc%group_size = 1
          desc%group_head = .TRUE.
          desc%group_dim = 1
@@ -820,15 +820,16 @@ CONTAINS
       TYPE(pw_type), INTENT(IN)                          :: pw
       INTEGER, INTENT(IN)                                :: dir
 
-      INTEGER                                            :: dest, group, i, ii, im, ip, ix, iy, iz, &
-                                                            j, jm, k, km, mepos, nma, nn, np, &
-                                                            req(2), s(3), source
+      INTEGER                                            :: dest, i, ii, im, ip, ix, iy, iz, j, jm, &
+                                                            k, km, mepos, nma, nn, np, req(2), &
+                                                            s(3), source
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rcount
       INTEGER, DIMENSION(3)                              :: lb, ub
       INTEGER, DIMENSION(:, :), POINTER                  :: pbo
       INTEGER, DIMENSION(:, :, :), POINTER               :: bo
       REAL(KIND=dp), DIMENSION(:), POINTER               :: recvbuf, sendbuf, swapptr
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grid
+      TYPE(mp_comm_type)                                 :: group
 
       np = pw%pw_grid%para%group_size
       bo => pw%pw_grid%para%bo(1:2, 1:3, 0:np - 1, 1)

@@ -19,7 +19,8 @@
 MODULE particle_types
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_sum
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_sum
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -120,7 +121,7 @@ CONTAINS
    SUBROUTINE update_particle_set(particle_set, int_group, pos, vel, for, add)
 
       TYPE(particle_type), INTENT(INOUT)                 :: particle_set(:)
-      INTEGER, INTENT(IN)                                :: int_group
+      TYPE(mp_comm_type), INTENT(IN)                     :: int_group
       REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: pos(:, :), vel(:, :), for(:, :)
       LOGICAL, INTENT(IN), OPTIONAL                      :: add
 

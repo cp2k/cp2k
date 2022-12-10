@@ -35,7 +35,8 @@ MODULE fist_nonbond_force
    USE machine,                         ONLY: m_memory
    USE mathconstants,                   ONLY: oorootpi,&
                                               sqrthalf
-   USE message_passing,                 ONLY: mp_sum
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_sum
    USE pair_potential_coulomb,          ONLY: potential_coulomb
    USE pair_potential_types,            ONLY: &
         gal21_type, gal_type, nosh_nosh, nosh_sh, pair_potential_pp_type, &
@@ -660,8 +661,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'bonded_correct_gaussian'
 
-      INTEGER :: atom_a, atom_b, group, handle, iatom, iend, igrp, ilist, ipair, istart, kind_a, &
-         kind_b, natoms_per_kind, nkind, npairs, shell_a, shell_b
+      INTEGER :: atom_a, atom_b, handle, iatom, iend, igrp, ilist, ipair, istart, kind_a, kind_b, &
+         natoms_per_kind, nkind, npairs, shell_a, shell_b
       INTEGER, DIMENSION(:, :), POINTER                  :: list
       LOGICAL                                            :: a_is_shell, b_is_shell, do_multipoles, &
                                                             full_nl, shell_adiabatic
@@ -672,6 +673,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: ij_kind_full_fac
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(fist_neighbor_type), POINTER                  :: nonbonded
+      TYPE(mp_comm_type)                                 :: group
       TYPE(neighbor_kind_pairs_type), POINTER            :: neighbor_kind_pair
       TYPE(pair_potential_pp_type), POINTER              :: potparm, potparm14
       TYPE(pair_potential_single_type), POINTER          :: pot

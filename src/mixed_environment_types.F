@@ -34,6 +34,7 @@ MODULE mixed_environment_types
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
+   USE message_passing,                 ONLY: mp_comm_type
    USE mixed_cdft_types,                ONLY: mixed_cdft_type,&
                                               mixed_cdft_type_release
    USE mixed_energy_types,              ONLY: deallocate_mixed_energy,&
@@ -70,7 +71,8 @@ MODULE mixed_environment_types
       TYPE(section_vals_type), POINTER                 :: input
       REAL(KIND=dp), DIMENSION(:), POINTER             :: energies
       ! Parallelization of multiple force_eval
-      INTEGER                                          :: new_group, ngroups
+      TYPE(mp_comm_type) :: new_group
+      INTEGER                                          :: ngroups
       INTEGER, DIMENSION(:), POINTER                   :: group_distribution
       TYPE(cp_para_env_p_type), DIMENSION(:), POINTER  :: sub_para_env
       TYPE(cp_logger_p_type), DIMENSION(:), POINTER    :: sub_logger

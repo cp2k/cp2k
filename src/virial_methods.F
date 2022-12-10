@@ -22,7 +22,8 @@ MODULE virial_methods
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: det_3x3,&
                                               jacobi
-   USE message_passing,                 ONLY: mp_sum
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_sum
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: pascal
@@ -82,7 +83,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(virial_type), INTENT(INOUT)                   :: virial
-      INTEGER, INTENT(IN)                                :: igroup
+      TYPE(mp_comm_type), INTENT(IN)                     :: igroup
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'virial_evaluate'
 

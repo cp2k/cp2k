@@ -32,6 +32,7 @@ MODULE pme
                                               ewald_pw_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi
+   USE message_passing,                 ONLY: mp_comm_type
    USE particle_types,                  ONLY: particle_type
    USE pme_tools,                       ONLY: get_center,&
                                               set_list
@@ -111,14 +112,15 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pme_evaluate'
 
-      INTEGER                                            :: group, handle, i, ig, ipart, j, nd(3), &
-                                                            npart, nshell, p1, p2
+      INTEGER                                            :: handle, i, ig, ipart, j, nd(3), npart, &
+                                                            nshell, p1, p2
       LOGICAL                                            :: is1_core, is2_core
       REAL(KIND=dp)                                      :: alpha, dvols, fat1, ffa, ffb
       REAL(KIND=dp), DIMENSION(3)                        :: fat
       REAL(KIND=dp), DIMENSION(3, 3)                     :: f_stress, h_stress
       TYPE(dg_rho0_type), POINTER                        :: dg_rho0
       TYPE(dg_type), POINTER                             :: dg
+      TYPE(mp_comm_type)                                 :: group
       TYPE(pw_grid_type), POINTER                        :: grid_b, grid_s
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: pw_big_pool, pw_small_pool

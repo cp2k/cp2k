@@ -29,7 +29,7 @@ MODULE arnoldi_methods
    USE kinds, ONLY: real_4, &
                     real_8
    USE message_passing, ONLY: mp_bcast, &
-                              mp_sum
+                              mp_sum, mp_comm_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -355,7 +355,7 @@ CONTAINS
          TYPE(arnoldi_data_type)                 :: arnoldi_data
 
          INTEGER                                  :: i, iseed(4), row_size, col_size, &
-                                                     nrow_local, ncol_local, pcol_group, &
+                                                     nrow_local, ncol_local, &
                                                      row, col
          REAL(${type_prec}$)                        :: rnorm
          TYPE(dbcsr_iterator_type)                     :: iter
@@ -366,6 +366,7 @@ CONTAINS
          LOGICAL                                  :: local_comp
          TYPE(arnoldi_data_${nametype1}$_type), POINTER            :: ar_data
          TYPE(arnoldi_control_type), POINTER           :: control
+         TYPE(mp_comm_type)                       :: pcol_group
 
          control => get_control(arnoldi_data)
          pcol_group = control%pcol_group
@@ -663,7 +664,8 @@ CONTAINS
                                                    j, local_history, reorth_mat, local_comp, pcol_group)
          ${type_nametype1}$, DIMENSION(:)      :: h_vec, s_vec, f_vec, w_vec
          ${type_nametype1}$, DIMENSION(:, :)    :: local_history, reorth_mat
-         INTEGER                                          :: nrow_local, j, pcol_group
+         INTEGER                                          :: nrow_local, j
+         TYPE(mp_comm_type), INTENT(IN)                   :: pcol_group
          LOGICAL                                          :: local_comp
 
          CHARACTER(LEN=*), PARAMETER :: routineN = 'Gram_Schmidt_ortho_${nametype1}$'
@@ -701,7 +703,8 @@ CONTAINS
                                            local_history, reorth_mat, local_comp, pcol_group)
          ${type_nametype1}$, DIMENSION(:)      :: h_vec, s_vec, f_vec
          ${type_nametype1}$, DIMENSION(:, :)    :: local_history, reorth_mat
-         INTEGER                                          :: nrow_local, j, pcol_group
+         INTEGER                                          :: nrow_local, j
+         TYPE(mp_comm_type), INTENT(IN)           :: pcol_group
 
          CHARACTER(LEN=*), PARAMETER :: routineN = 'DGKS_ortho_${nametype1}$'
          LOGICAL                                          :: local_comp
@@ -732,7 +735,7 @@ CONTAINS
          ${type_nametype1}$, DIMENSION(:)           :: vec
          REAL(${type_prec}$)                        :: rnorm
          ${type_nametype1}$                         :: norm
-         INTEGER                                  :: pcol_group
+         TYPE(mp_comm_type), INTENT(IN)             :: pcol_group
 
          ! the norm is computed along the processor column
          norm = DOT_PRODUCT(vec, vec)
@@ -758,7 +761,7 @@ CONTAINS
          TYPE(arnoldi_data_type)                 :: arnoldi_data
 
          INTEGER                                  :: iseed(4), row_size, col_size, &
-                                                     nrow_local, ncol_local, pcol_group, &
+                                                     nrow_local, ncol_local, &
                                                      row, col
          REAL(${type_prec}$)                        :: rnorm
          TYPE(dbcsr_iterator_type)                     :: iter
@@ -769,6 +772,7 @@ CONTAINS
          LOGICAL                                  :: local_comp
          TYPE(arnoldi_data_${nametype1}$_type), POINTER            :: ar_data
          TYPE(arnoldi_control_type), POINTER           :: control
+         TYPE(mp_comm_type)                         :: pcol_group
 
          control => get_control(arnoldi_data)
          pcol_group = control%pcol_group
@@ -847,12 +851,13 @@ CONTAINS
          TYPE(m_x_v_vectors_type)                :: vectors
          TYPE(arnoldi_data_type)                 :: arnoldi_data
 
-         INTEGER                                  :: j, ncol_local, nrow_local, pcol_group
+         INTEGER                                  :: j, ncol_local, nrow_local
          TYPE(arnoldi_control_type), POINTER           :: control
          TYPE(arnoldi_data_${nametype1}$_type), POINTER            :: ar_data
          ${type_nametype1}$                         :: norm
          ${type_nametype1}$, ALLOCATABLE, DIMENSION(:)      :: h_vec, s_vec, v_vec, w_vec
          ${type_nametype1}$, ALLOCATABLE, DIMENSION(:, :)    :: Zmat, CZmat, BZmat
+         TYPE(mp_comm_type)                           :: pcol_group
 
          ar_data => get_data_${nametype1}$ (arnoldi_data)
          control => get_control(arnoldi_data)

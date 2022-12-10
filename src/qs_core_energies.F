@@ -25,7 +25,8 @@ MODULE qs_core_energies
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: oorootpi,&
                                               twopi
-   USE message_passing,                 ONLY: mp_sum
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_sum
    USE particle_types,                  ONLY: particle_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -201,8 +202,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ecore_overlap'
 
-      INTEGER                                            :: atom_a, atom_b, group, handle, iatom, &
-                                                            ikind, jatom, jkind, natom, nkind
+      INTEGER                                            :: atom_a, atom_b, handle, iatom, ikind, &
+                                                            jatom, jkind, natom, nkind
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       LOGICAL                                            :: atenergy, only_molecule, use_virial
       REAL(KIND=dp)                                      :: aab, dab, eab, ecore_overlap, f, fab, &
@@ -212,6 +213,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_loc
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
+      TYPE(mp_comm_type)                                 :: group
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
