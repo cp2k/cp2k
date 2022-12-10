@@ -28,8 +28,7 @@ MODULE ewald_pw_types
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
-   USE message_passing,                 ONLY: mp_comm_self,&
-                                              mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_self
    USE pw_grid_types,                   ONLY: HALFSPACE,&
                                               pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_create,&
@@ -138,7 +137,6 @@ CONTAINS
                                                             norm
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(mp_comm_type)                                 :: comm_self
       TYPE(pw_grid_type), POINTER                        :: pw_big_grid, pw_small_grid
       TYPE(pw_poisson_parameter_type)                    :: poisson_params
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
@@ -165,14 +163,12 @@ CONTAINS
 
       rs_grid_section => section_vals_get_subs_vals(poisson_section, "EWALD%RS_GRID")
 
-      CALL comm_self%set_handle(mp_comm_self)
-
       SELECT CASE (ewald_type)
       CASE (do_ewald_ewald)
          ! set up Classic EWALD sum
          logger => cp_get_default_logger()
          output_unit = cp_print_key_unit_nr(logger, print_section, "", extension=".Log")
-         CALL pw_grid_create(pw_big_grid, comm_self)
+         CALL pw_grid_create(pw_big_grid, mp_comm_self)
 
          IF (ANY(gmax == 2*(gmax/2))) THEN
             CPABORT("gmax has to be odd.")
@@ -194,7 +190,7 @@ CONTAINS
          IF (.NOT. ASSOCIATED(ewald_pw%poisson_env)) THEN
             CALL pw_poisson_create(ewald_pw%poisson_env)
          END IF
-         CALL pw_grid_create(pw_small_grid, comm_self)
+         CALL pw_grid_create(pw_small_grid, mp_comm_self)
          CALL pw_grid_create(pw_big_grid, para_env%group)
          IF (ns_max == 2*(ns_max/2)) THEN
             CPABORT("ns_max has to be odd.")

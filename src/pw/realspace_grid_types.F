@@ -253,7 +253,7 @@ CONTAINS
          END IF
          desc%parallel = .FALSE.
          desc%distributed = .FALSE.
-         CALL desc%group%set_handle(mp_comm_null)
+         desc%group = mp_comm_null
          desc%group_size = 1
          desc%group_head = .TRUE.
          desc%group_dim = 1

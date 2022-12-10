@@ -836,7 +836,7 @@ CONTAINS
          CPASSERT(pw_grid%ngpts < HUGE(pw_grid%ngpts_local))
          pw_grid%ngpts_local = INT(pw_grid%ngpts)
          pw_grid%para%rs_dims = 1
-         CALL mp_comm_old%set_handle(mp_comm_self)
+         mp_comm_old = mp_comm_self
          CALL mp_cart_create(mp_comm_old, 2, &
                              pw_grid%para%rs_dims, &
                              pw_grid%para%rs_pos, &
