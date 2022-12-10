@@ -21,7 +21,8 @@ MODULE gaussian_gridlevels
                                               section_vals_type
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE message_passing,                 ONLY: mp_sum
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_sum
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -86,9 +87,10 @@ CONTAINS
       TYPE(gridlevel_info_type)                          :: gridlevel_info
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
 
-      INTEGER                                            :: group, i, output_unit
+      INTEGER                                            :: i, output_unit
       LOGICAL                                            :: do_io
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(mp_comm_type)                                 :: group
 
       NULLIFY (logger)
       logger => cp_get_default_logger()

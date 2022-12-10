@@ -55,6 +55,7 @@ MODULE almo_scf_methods
                                               matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: binomial
+   USE message_passing,                 ONLY: mp_comm_type
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
 
@@ -3237,11 +3238,13 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: copy1
       TYPE(domain_submatrix_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: subm_nn, subm_no
+      TYPE(mp_comm_type)                                 :: group
 
       CALL timeset(routineN, handle)
 
       ndomains = dbcsr_nblkcols_total(dpattern)
       CALL dbcsr_get_info(dpattern, group=GroupID)
+      CALL group%set_handle(groupid)
 
       ALLOCATE (subm_no(ndomains), subm_nn(ndomains))
       CALL init_submatrices(subm_no)
@@ -3249,11 +3252,11 @@ CONTAINS
 
       !CALL dbcsr_print(matrix_nn)
       !CALL construct_submatrices(matrix_nn,subm_nn,dpattern,map,select_row_col)
-      !CALL print_submatrices(subm_nn,GroupID)
+      !CALL print_submatrices(subm_nn,Group)
 
       !CALL dbcsr_print(matrix_no)
       CALL construct_submatrices(matrix_no, subm_no, dpattern, map, node_of_domain, select_row)
-      CALL print_submatrices(subm_no, GroupID)
+      CALL print_submatrices(subm_no, group)
 
       CALL dbcsr_create(copy1, template=matrix_no)
       CALL dbcsr_copy(copy1, matrix_no)

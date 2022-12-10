@@ -24,7 +24,8 @@ MODULE pao_param_gth
    USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
-   USE message_passing,                 ONLY: mp_min,&
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_min,&
                                               mp_sum
    USE orbital_pointers,                ONLY: init_orbital_pointers
    USE pao_param_fock,                  ONLY: pao_calc_U_block_fock
@@ -156,20 +157,22 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_gth_preconditioner'
 
-      INTEGER                                            :: acol, arow, group, handle, i, iatom, &
-                                                            ioffset, j, jatom, joffset, m, n, &
-                                                            natoms
+      INTEGER                                            :: acol, arow, group_handle, handle, i, &
+                                                            iatom, ioffset, j, jatom, joffset, m, &
+                                                            n, natoms
       LOGICAL                                            :: arnoldi_converged, converged, found
       REAL(dp)                                           :: eval_max, eval_min
       REAL(dp), DIMENSION(:, :), POINTER                 :: block, block_overlap, block_V_term
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_type)                                   :: matrix_gth_overlap
       TYPE(ls_scf_env_type), POINTER                     :: ls_scf_env
+      TYPE(mp_comm_type)                                 :: group
 
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, ls_scf_env=ls_scf_env)
-      CALL dbcsr_get_info(pao%matrix_V_terms, group=group)
+      CALL dbcsr_get_info(pao%matrix_V_terms, group=group_handle)
+      CALL group%set_handle(group_handle)
       natoms = SIZE(nterms)
 
       CALL dbcsr_create(matrix_gth_overlap, &
@@ -250,8 +253,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_calc_U_gth'
 
-      INTEGER                                            :: acol, arow, group, handle, iatom, idx, &
-                                                            iterm, n, natoms
+      INTEGER                                            :: acol, arow, group_handle, handle, iatom, &
+                                                            idx, iterm, n, natoms
       INTEGER, DIMENSION(:), POINTER                     :: nterms
       LOGICAL                                            :: found
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: gaps
@@ -260,10 +263,12 @@ CONTAINS
                                                             block_V, block_V_term, block_X, &
                                                             vec_V_terms
       TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(mp_comm_type)                                 :: group
 
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_get_info(pao%matrix_X, row_blk_size=nterms, group=group)
+      CALL dbcsr_get_info(pao%matrix_X, row_blk_size=nterms, group=group_handle)
+      CALL group%set_handle(group_handle)
       natoms = SIZE(nterms)
       ALLOCATE (gaps(natoms))
       gaps(:) = HUGE(dp)

@@ -14,7 +14,8 @@ MODULE grid_api
         C_ASSOCIATED, C_BOOL, C_CHAR, C_DOUBLE, C_FUNLOC, C_FUNPTR, C_INT, C_LOC, C_LONG, &
         C_NULL_PTR, C_PTR
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_sum
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_sum
    USE offload_api,                     ONLY: offload_buffer_type
    USE realspace_grid_types,            ONLY: realspace_grid_type
    USE string_utilities,                ONLY: strlcpy_c2f
@@ -1188,7 +1189,8 @@ CONTAINS
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE grid_library_print_stats(mpi_comm, output_unit)
-      INTEGER, INTENT(IN)                                :: mpi_comm, output_unit
+      TYPE(mp_comm_type)                                 :: mpi_comm
+      INTEGER, INTENT(IN)                                :: output_unit
 
       INTERFACE
          SUBROUTINE grid_library_print_stats_c(mpi_sum_func, mpi_comm, print_func, output_unit) &
@@ -1203,7 +1205,7 @@ CONTAINS
 
       ! Since Fortran units and mpi groups can't be used from C, we pass function pointers instead.
       CALL grid_library_print_stats_c(mpi_sum_func=C_FUNLOC(mpi_sum_func), &
-                                      mpi_comm=mpi_comm, &
+                                      mpi_comm=mpi_comm%get_handle(), &
                                       print_func=C_FUNLOC(print_func), &
                                       output_unit=output_unit)
 
@@ -1219,7 +1221,12 @@ CONTAINS
       INTEGER(KIND=C_LONG), INTENT(INOUT)                :: number
       INTEGER(KIND=C_INT), INTENT(IN), VALUE             :: mpi_comm
 
-      CALL mp_sum(number, mpi_comm)
+      TYPE(mp_comm_type)                                 :: my_mpi_comm
+
+      ! Convert the handle to the default integer kind and convert it to the communicator type
+      CALL my_mpi_comm%set_handle(INT(mpi_comm))
+
+      CALL mp_sum(number, my_mpi_comm)
    END SUBROUTINE mpi_sum_func
 
 ! **************************************************************************************************

@@ -40,6 +40,7 @@ MODULE dbt_tas_base
                                               dp,&
                                               int_8
    USE message_passing,                 ONLY: mp_cart_rank,&
+                                              mp_comm_type,&
                                               mp_environ,&
                                               mp_sum
 #include "../../base/base_uses.f90"
@@ -346,7 +347,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbt_tas_distribution_new(dist, mp_comm, row_dist, col_dist, split_info, nosplit)
       TYPE(dbt_tas_distribution_type), INTENT(OUT)       :: dist
-      INTEGER, INTENT(IN)                                :: mp_comm
+      TYPE(mp_comm_type), INTENT(IN)                     :: mp_comm
 
       CLASS(dbt_tas_distribution), INTENT(IN)        :: row_dist, col_dist
       TYPE(dbt_tas_split_info), INTENT(IN), OPTIONAL :: split_info

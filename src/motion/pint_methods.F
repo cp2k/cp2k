@@ -85,7 +85,8 @@ MODULE pint_methods
    USE mathconstants,                   ONLY: twopi
    USE mathlib,                         ONLY: gcd
    USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_comm_self
+                                              mp_comm_self,&
+                                              mp_comm_type
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_list_types,             ONLY: molecule_list_type
@@ -1219,6 +1220,7 @@ CONTAINS
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(mp_comm_type)                                 :: comm_self
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: input_section
@@ -1234,6 +1236,8 @@ CONTAINS
          NULLIFY (atomic_kinds, local_particles, particles)
          NULLIFY (local_molecules, molecules, molecule_kinds, gci)
          NULLIFY (atomic_kind_set, molecule_kind_set, particle_set, molecule_set)
+
+         CALL comm_self%set_handle(mp_comm_self)
 
          CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id, f_env=f_env)
          CALL force_env_get(force_env=f_env%force_env, subsys=subsys)
@@ -1495,7 +1499,7 @@ CONTAINS
                                       pint_env%simpar%info_constraint, &
                                       pint_env%simpar%lagrange_multipliers, &
                                       .FALSE., &
-                                      cell, mp_comm_self, &
+                                      cell, comm_self, &
                                       local_particles)
                   DO i = 1, nparticle
                      DO j = 1, 3
@@ -1530,7 +1534,7 @@ CONTAINS
                                    pint_env%simpar%info_constraint, &
                                    pint_env%simpar%lagrange_multipliers, &
                                    .FALSE., &
-                                   cell, mp_comm_self, &
+                                   cell, comm_self, &
                                    local_particles)
             END IF
             ! Broadcast updated velocities to other nodes
@@ -1949,6 +1953,7 @@ CONTAINS
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(mp_comm_type)                                 :: comm_self
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
@@ -1960,6 +1965,8 @@ CONTAINS
       dti2 = dti/2._dp
       tdti = 2.*dti
       dti22 = dti**2/2._dp
+
+      CALL comm_self%set_handle(mp_comm_self)
 
       ! Get constraint info, if needed
       ! Create a force environment which will be identical to
@@ -2127,7 +2134,7 @@ CONTAINS
                                      pint_env%simpar%info_constraint, &
                                      pint_env%simpar%lagrange_multipliers, &
                                      pint_env%simpar%dump_lm, cell, &
-                                     mp_comm_self, local_particles)
+                                     comm_self, local_particles)
                END IF
                ! Positions and velocities of centroid were constrained by SHAKE
                CALL mp_bcast(pos, &
@@ -2312,7 +2319,7 @@ CONTAINS
                                          pint_env%simpar%info_constraint, &
                                          pint_env%simpar%lagrange_multipliers, &
                                          pint_env%simpar%dump_lm, cell, &
-                                         mp_comm_self, local_particles)
+                                         comm_self, local_particles)
                   END IF
                   ! Velocities of centroid were constrained by RATTLE
                   ! Broadcast updated velocities to other nodes
@@ -2433,7 +2440,7 @@ CONTAINS
                                         pint_env%simpar%info_constraint, &
                                         pint_env%simpar%lagrange_multipliers, &
                                         pint_env%simpar%dump_lm, cell, &
-                                        mp_comm_self, local_particles)
+                                        comm_self, local_particles)
                      DO i = 1, nparticle
                         DO j = 1, 3
                            pint_env%x(ib, j + (i - 1)*3) = pos(j, i)
@@ -2472,7 +2479,7 @@ CONTAINS
                                      pint_env%simpar%info_constraint, &
                                      pint_env%simpar%lagrange_multipliers, &
                                      pint_env%simpar%dump_lm, cell, &
-                                     mp_comm_self, local_particles)
+                                     comm_self, local_particles)
                END IF
                ! Broadcast positions and velocities to all nodes
                CALL mp_bcast(pos, &
@@ -2566,7 +2573,7 @@ CONTAINS
                                          pint_env%simpar%info_constraint, &
                                          pint_env%simpar%lagrange_multipliers, &
                                          pint_env%simpar%dump_lm, cell, &
-                                         mp_comm_self, local_particles)
+                                         comm_self, local_particles)
                      DO i = 1, nparticle
                         DO j = 1, 3
                            pint_env%v(ib, j + (i - 1)*3) = vel(j, i)
@@ -2597,7 +2604,7 @@ CONTAINS
                                       pint_env%simpar%info_constraint, &
                                       pint_env%simpar%lagrange_multipliers, &
                                       pint_env%simpar%dump_lm, cell, &
-                                      mp_comm_self, local_particles)
+                                      comm_self, local_particles)
                END IF
                ! Velocities of centroid were constrained by RATTLE
                ! Broadcast updated velocities to other nodes

@@ -20,7 +20,8 @@ MODULE negf_matrix_utils
         dbcsr_add, dbcsr_copy, dbcsr_deallocate_matrix, dbcsr_get_block_p, dbcsr_get_info, &
         dbcsr_init_p, dbcsr_p_type, dbcsr_set, dbcsr_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_irecv,&
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_irecv,&
                                               mp_isend,&
                                               mp_sum,&
                                               mp_wait
@@ -184,7 +185,7 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN)                       :: fm
       INTEGER, DIMENSION(:), INTENT(in)                  :: atomlist_row, atomlist_col
       TYPE(qs_subsys_type), POINTER                      :: subsys
-      INTEGER, INTENT(in)                                :: mpi_comm_global
+      TYPE(mp_comm_type), INTENT(in)                     :: mpi_comm_global
       LOGICAL, INTENT(in)                                :: do_upper_diag, do_lower
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_copy_sym_dbcsr_to_fm_submat'
@@ -301,7 +302,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), INTENT(in)               :: index_to_cell
       INTEGER, DIMENSION(:), INTENT(in)                  :: atom_list0, atom_list1
       TYPE(qs_subsys_type), POINTER                      :: subsys
-      INTEGER, INTENT(in)                                :: mpi_comm_global
+      TYPE(mp_comm_type), INTENT(in)                     :: mpi_comm_global
       INTEGER, DIMENSION(:, :), INTENT(inout)            :: is_same_cell
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_ref
 

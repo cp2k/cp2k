@@ -29,14 +29,9 @@ MODULE swarm_mpi
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length
    USE machine,                         ONLY: default_output_unit
-   USE message_passing,                 ONLY: mp_any_source,&
-                                              mp_bcast,&
-                                              mp_comm_free,&
-                                              mp_comm_split,&
-                                              mp_comm_split_direct,&
-                                              mp_environ,&
-                                              mp_sum,&
-                                              mp_sync
+   USE message_passing,                 ONLY: &
+        mp_any_source, mp_bcast, mp_comm_free, mp_comm_split, mp_comm_split_direct, mp_comm_type, &
+        mp_environ, mp_sum, mp_sync
    USE swarm_message,                   ONLY: swarm_message_get,&
                                               swarm_message_mpi_bcast,&
                                               swarm_message_mpi_recv,&
@@ -82,12 +77,12 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iw
 
       INTEGER                                            :: n_groups_created, pe_per_worker, &
-                                                            subgroup, subgroup_rank, &
-                                                            subgroup_size, worker_group
+                                                            subgroup_rank, subgroup_size
       LOGICAL                                            :: im_the_master
       INTEGER, DIMENSION(:), POINTER                     :: group_distribution_p
       INTEGER, DIMENSION(0:world_para_env%num_pe-2), &
          TARGET                                          :: group_distribution
+      TYPE(mp_comm_type)                                 :: subgroup, worker_group
 
 ! ====== Setup of MPI-Groups ======
 

@@ -74,7 +74,8 @@ MODULE mc_ensembles
                                               mc_moves_p_type,&
                                               mc_simulation_parameters_p_type,&
                                               set_mc_par
-   USE message_passing,                 ONLY: mp_bcast
+   USE message_passing,                 ONLY: mp_bcast,&
+                                              mp_comm_type
    USE parallel_rng_types,              ONLY: rng_stream_type
    USE particle_list_types,             ONLY: particle_list_p_type,&
                                               particle_list_type
@@ -135,11 +136,11 @@ CONTAINS
       INTEGER, DIMENSION(1:nboxes)                       :: box_flag, cl, data_unit, diff, istep, &
                                                             move_unit, rm
       INTEGER, DIMENSION(1:3, 1:2)                       :: discrete_array
-      INTEGER :: atom_number, box_number, cell_unit, com_crd, com_ene, com_mol, end_mol, group, &
-         handle, ibox, idum, imol_type, imolecule, imove, iparticle, iprint, itype, iunit, &
-         iuptrans, iupvolume, iw, jbox, jdum, molecule_type, molecule_type_swap, &
-         molecule_type_target, nchain_total, nmol_types, nmoves, nnstep, nstart, nstep, source, &
-         start_atom, start_atom_swap, start_atom_target, start_mol
+      INTEGER :: atom_number, box_number, cell_unit, com_crd, com_ene, com_mol, end_mol, handle, &
+         ibox, idum, imol_type, imolecule, imove, iparticle, iprint, itype, iunit, iuptrans, &
+         iupvolume, iw, jbox, jdum, molecule_type, molecule_type_swap, molecule_type_target, &
+         nchain_total, nmol_types, nmoves, nnstep, nstart, nstep, source, start_atom, &
+         start_atom_swap, start_atom_target, start_mol
       CHARACTER(LEN=default_string_length)               :: unit_str
       CHARACTER(LEN=40), DIMENSION(1:nboxes)             :: cell_file, coords_file, data_file, &
                                                             displacement_file, energy_file, &
@@ -171,6 +172,7 @@ CONTAINS
       TYPE(mc_moves_p_type), DIMENSION(:, :), POINTER    :: move_updates, moves
       TYPE(mc_simulation_parameters_p_type), &
          DIMENSION(:), POINTER                           :: mc_par
+      TYPE(mp_comm_type)                                 :: group
       TYPE(particle_list_p_type), DIMENSION(:), POINTER  :: particles_old
       TYPE(particle_list_type), POINTER                  :: particles_bias
       TYPE(section_vals_type), POINTER                   :: root_section
@@ -1178,8 +1180,8 @@ CONTAINS
       TYPE(mc_environment_p_type), DIMENSION(:), POINTER :: mc_env
       TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 
-      INTEGER :: current_division, end_atom, group, ibin, idivision, iparticle, iprint, itemp, &
-         iunit, ivirial, iw, nbins, nchain_total, nintegral_divisions, nmol_types, nvirial, &
+      INTEGER :: current_division, end_atom, ibin, idivision, iparticle, iprint, itemp, iunit, &
+         ivirial, iw, nbins, nchain_total, nintegral_divisions, nmol_types, nvirial, &
          nvirial_temps, source, start_atom
       INTEGER, DIMENSION(:), POINTER                     :: mol_type, nunits, nunits_tot
       INTEGER, DIMENSION(:, :), POINTER                  :: nchains
@@ -1196,6 +1198,7 @@ CONTAINS
       TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info
       TYPE(mc_simulation_parameters_p_type), &
          DIMENSION(:), POINTER                           :: mc_par
+      TYPE(mp_comm_type)                                 :: group
       TYPE(particle_list_p_type), DIMENSION(:), POINTER  :: particles
 
 ! these are current magic numbers for how we compute the virial...

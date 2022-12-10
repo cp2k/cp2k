@@ -12,7 +12,7 @@ MODULE dbm_api
                     dp, &
                     int_8
    USE message_passing, ONLY: mp_cart_rank, &
-                              mp_environ
+                              mp_environ, mp_comm_type
    USE string_utilities, ONLY: strlcpy_c2f
 
 ! Uncomment the following line to enable validation.
@@ -63,7 +63,6 @@ MODULE dbm_api
    USE dbcsr_work_operations, ONLY: dbcsr_create, &
                                     dbcsr_finalize
    USE dbcsr_data_methods, ONLY: dbcsr_scalar
-
 #endif
 
 #include "../base/base_uses.f90"
@@ -1293,7 +1292,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbm_distribution_new(dist, mp_comm, row_dist_block, col_dist_block)
       TYPE(dbm_distribution_obj), INTENT(OUT)            :: dist
-      INTEGER, INTENT(IN)                                :: mp_comm
+      TYPE(mp_comm_type), INTENT(IN)                     :: mp_comm
       INTEGER, CONTIGUOUS, DIMENSION(:), INTENT(IN), &
          POINTER                                         :: row_dist_block, col_dist_block
 
@@ -1312,7 +1311,7 @@ CONTAINS
 
       CPASSERT(.NOT. C_ASSOCIATED(dist%c_ptr))
       CALL dbm_distribution_new_c(dist=dist%c_ptr, &
-                                  fortran_comm=mp_comm, &
+                                  fortran_comm=mp_comm%get_handle(), &
                                   nrows=SIZE(row_dist_block), &
                                   ncols=SIZE(col_dist_block), &
                                   row_dist=row_dist_block, &
@@ -1509,7 +1508,8 @@ CONTAINS
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE dbm_library_print_stats(mpi_comm, output_unit)
-      INTEGER, INTENT(IN)                                :: mpi_comm, output_unit
+      TYPE(mp_comm_type), INTENT(IN)                     :: mpi_comm
+      INTEGER, INTENT(IN)                                :: output_unit
 
       INTERFACE
          SUBROUTINE dbm_library_print_stats_c(mpi_comm, print_func, output_unit) &
@@ -1522,7 +1522,7 @@ CONTAINS
       END INTERFACE
 
       ! Since Fortran units groups can't be used from C, we pass a function pointer instead.
-      CALL dbm_library_print_stats_c(mpi_comm=mpi_comm, &
+      CALL dbm_library_print_stats_c(mpi_comm=mpi_comm%get_handle(), &
                                      print_func=C_FUNLOC(print_func), &
                                      output_unit=output_unit)
 

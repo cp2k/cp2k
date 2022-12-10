@@ -44,7 +44,7 @@ MODULE dbcsr_vector
                     real_4, &
                     real_8
    USE message_passing, ONLY: mp_bcast, &
-                              mp_sum
+                              mp_sum, mp_comm_type
 
 #include "../base/base_uses.f90"
 
@@ -591,10 +591,11 @@ CONTAINS
          CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_matrix_vector_mult'
 
          INTEGER                                  :: col, mypcol, &
-                                                     myprow, &
-                                                     ncols, pcol_group, nrows, &
-                                                     prow_group, row, &
+                                                     myprow, prow_handle, pcol_handle, &
+                                                     ncols, nrows, &
+                                                     row, &
                                                      handle, handle1, ithread
+         TYPE(mp_comm_type) :: prow_group, pcol_group
          ${type}$, DIMENSION(:), POINTER          :: data_vec
          ${type}$, DIMENSION(:, :), POINTER       :: data_d, vec_res
          TYPE(dbcsr_distribution_type)            :: dist
@@ -607,7 +608,10 @@ CONTAINS
 
 ! Collect some data about the parallel environment. We will use them later to move the vector around
          CALL dbcsr_get_info(matrix, distribution=dist)
-         CALL dbcsr_distribution_get(dist, prow_group=prow_group, pcol_group=pcol_group, myprow=myprow, mypcol=mypcol)
+         CALL dbcsr_distribution_get(dist, prow_group=prow_handle, pcol_group=pcol_handle, myprow=myprow, mypcol=mypcol)
+
+         CALL prow_group%set_handle(prow_handle)
+         CALL pcol_group%set_handle(pcol_handle)
 
          CALL create_fast_row_vec_access(work_row, fast_vec_row)
          CALL create_fast_col_vec_access(work_col, fast_vec_col)
@@ -702,10 +706,11 @@ CONTAINS
          CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_matrixT_vector_mult'
 
          INTEGER                                  :: col, col_size, mypcol, &
-                                                     myprow, &
-                                                     ncols, pcol_group, nrows, &
-                                                     prow_group, row, row_size, &
+                                                     myprow, pcol_handle, prow_handle, &
+                                                     ncols, nrows, &
+                                                     row, row_size, &
                                                      handle, handle1, ithread
+         TYPE(mp_comm_type) :: pcol_group, prow_group
          ${type}$, DIMENSION(:), POINTER          :: data_vec
          ${type}$, DIMENSION(:, :), POINTER       :: data_d, vec_bl, vec_res
          TYPE(dbcsr_distribution_type)            :: dist
@@ -719,7 +724,10 @@ CONTAINS
 
 ! Collect some data about the parallel environment. We will use them later to move the vector around
          CALL dbcsr_get_info(matrix, distribution=dist)
-         CALL dbcsr_distribution_get(dist, prow_group=prow_group, pcol_group=pcol_group, myprow=myprow, mypcol=mypcol)
+         CALL dbcsr_distribution_get(dist, prow_group=prow_handle, pcol_group=pcol_handle, myprow=myprow, mypcol=mypcol)
+
+         CALL prow_group%set_handle(prow_handle)
+         CALL pcol_group%set_handle(pcol_handle)
 
          CALL create_fast_row_vec_access(work_row, fast_vec_row)
          CALL create_fast_col_vec_access(work_col, fast_vec_col)
@@ -810,8 +818,9 @@ CONTAINS
          CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_col_vec_to_rep_row'
 
          INTEGER                                  :: col, mypcol, myprow, ncols, &
-                                                     nrows, pcol_group, &
-                                                     prow_group, row, handle
+                                                     nrows, pcol_handle, prow_handle, &
+                                                     row, handle
+         TYPE(mp_comm_type) :: pcol_group, prow_group
          INTEGER, DIMENSION(:), POINTER           :: local_cols, row_dist
          ${type}$, DIMENSION(:), POINTER          :: data_vec, data_vec_rep
          ${type}$, DIMENSION(:, :), POINTER       :: vec_row
@@ -823,10 +832,13 @@ CONTAINS
 ! get information about the parallel environment
          CALL dbcsr_get_info(vec_in, distribution=dist_in)
          CALL dbcsr_distribution_get(dist_in, &
-                                     prow_group=prow_group, &
-                                     pcol_group=pcol_group, &
+                                     prow_group=prow_handle, &
+                                     pcol_group=pcol_handle, &
                                      myprow=myprow, &
                                      mypcol=mypcol)
+
+         CALL prow_group%set_handle(prow_handle)
+         CALL pcol_group%set_handle(pcol_handle)
 
 ! Get the vector which tells us which blocks are local to which processor row in the col vec
          CALL dbcsr_get_info(rep_col_vec, distribution=dist_rep_col)
@@ -880,9 +892,10 @@ CONTAINS
          CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_rep_row_to_rep_col_vec'
 
          INTEGER                                  :: col, mypcol, myprow, ncols, &
-                                                     nrows, pcol_group, &
-                                                     prow_group, row, handle
+                                                     nrows, prow_handle, pcol_handle, &
+                                                     row, handle
          INTEGER, DIMENSION(:), POINTER           :: col_dist
+         TYPE(mp_comm_type) :: pcol_group, prow_group
          ${type}$, DIMENSION(:), POINTER          :: data_vec_rep
          ${type}$, DIMENSION(:, :), POINTER       :: vec_col
          TYPE(dbcsr_distribution_type)            :: dist_rep_row, dist_rep_col
@@ -893,10 +906,13 @@ CONTAINS
 ! get information about the parallel environment
          CALL dbcsr_get_info(matrix=rep_col_vec, distribution=dist_rep_col)
          CALL dbcsr_distribution_get(dist_rep_col, &
-                                     prow_group=prow_group, &
-                                     pcol_group=pcol_group, &
+                                     prow_group=prow_handle, &
+                                     pcol_group=pcol_handle, &
                                      myprow=myprow, &
                                      mypcol=mypcol)
+
+         CALL prow_group%set_handle(prow_handle)
+         CALL pcol_group%set_handle(pcol_handle)
 
 ! Get the vector which tells us which blocks are local to which processor col in the row vec
          CALL dbcsr_get_info(matrix=rep_row_vec, distribution=dist_rep_row)
@@ -1046,14 +1062,15 @@ CONTAINS
 
          INTEGER                                  :: col, mypcol, &
                                                      myprow, &
-                                                     pcol_group, nrows, ncols, &
-                                                     prow_group, row, &
+                                                     nrows, ncols, &
+                                                     row, prow_handle, pcol_handle, &
                                                      handle, handle1, ithread, vec_dim
          ${type}$, DIMENSION(:), POINTER          :: data_vec
          ${type}$, DIMENSION(:, :), POINTER       :: data_d, vec_res
          TYPE(dbcsr_distribution_type)            :: dist
          TYPE(dbcsr_iterator_type)                :: iter
          TYPE(dbcsr_type)                         :: result_row, result_col
+         TYPE(mp_comm_type) :: prow_group, pcol_group
 
          TYPE(fast_vec_access_type)               :: fast_vec_row, fast_vec_col, res_fast_vec_row, res_fast_vec_col
          INTEGER                                  :: prow, pcol, rprow, rpcol
@@ -1070,7 +1087,10 @@ CONTAINS
 
 ! Collect some data about the parallel environment. We will use them later to move the vector around
          CALL dbcsr_get_info(matrix=matrix, distribution=dist)
-         CALL dbcsr_distribution_get(dist, prow_group=prow_group, pcol_group=pcol_group, myprow=myprow, mypcol=mypcol)
+         CALL dbcsr_distribution_get(dist, prow_group=prow_handle, pcol_group=pcol_handle, myprow=myprow, mypcol=mypcol)
+
+         CALL prow_group%set_handle(prow_handle)
+         CALL pcol_group%set_handle(pcol_handle)
 
          CALL create_fast_row_vec_access(work_row, fast_vec_row)
          CALL create_fast_col_vec_access(work_col, fast_vec_col)

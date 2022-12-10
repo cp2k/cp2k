@@ -18,6 +18,7 @@ MODULE al_system_dynamics
    USE extended_system_types,           ONLY: map_info_type
    USE force_env_types,                 ONLY: force_env_type
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_comm_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: get_molecule,&
                                               molecule_type
@@ -58,7 +59,7 @@ CONTAINS
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
       TYPE(particle_type), POINTER                       :: particle_set(:)
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
-      INTEGER, INTENT(IN)                                :: group
+      TYPE(mp_comm_type), INTENT(IN)                     :: group
       REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: vel(:, :)
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'al_particles'

@@ -437,7 +437,7 @@ CONTAINS
                   CALL cp_blacs_env_write(distribution_2d%blacs_env, unit_nr=unit_nr)
                ELSE
                   WRITE (unit=unit_nr, fmt="('    blacs_env=<blacs_env id=',i6,'>')") &
-                     distribution_2d%blacs_env%group
+                     distribution_2d%blacs_env%group%get_handle()
                END IF
             ELSE
                WRITE (unit=unit_nr, fmt="('    blacs_env=*null*')")

@@ -48,6 +48,7 @@ MODULE tmc_worker
                                               force_env_get_natom
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE message_passing,                 ONLY: mp_comm_type
    USE molecule_list_types,             ONLY: molecule_list_type
    USE particle_list_types,             ONLY: particle_list_type
    USE tmc_analysis,                    ONLY: analysis_init,&
@@ -855,7 +856,7 @@ CONTAINS
 !> \author Mandes 10.2013
 ! **************************************************************************************************
    SUBROUTINE set_intermediate_info_comm(comm, env_id)
-      INTEGER, INTENT(IN)                                :: comm
+      TYPE(mp_comm_type), INTENT(IN)                     :: comm
       INTEGER                                            :: env_id
 
       CHARACTER(LEN=default_string_length)               :: description
@@ -877,7 +878,7 @@ CONTAINS
                        "employing this force environment! ")
 
       ! set the information
-      values(1) = REAL(comm, KIND=dp)
+      values(1) = REAL(comm%get_handle(), KIND=dp)
       values(2) = REAL(MASTER_COMM_ID, KIND=dp)
       values(3) = REAL(TMC_STAT_SCF_STEP_ENER_RECEIVE, KIND=dp)
       description = "[EXT_SCF_ENER_COMM]"

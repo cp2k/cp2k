@@ -8,7 +8,7 @@
 PROGRAM parallel_rng_types_TEST
    USE message_passing, ONLY: mp_world_finalize, &
                               mp_world_init, &
-                              mp_environ
+                              mp_environ, mp_comm_type
    USE kinds, ONLY: dp
    USE machine, ONLY: m_walltime, &
                       default_output_unit
@@ -22,9 +22,10 @@ PROGRAM parallel_rng_types_TEST
 
    IMPLICIT NONE
 
-   INTEGER                          :: mpi_comm, i, nsamples, nargs, stat, mepos, num_pe
+   INTEGER                          :: i, nsamples, nargs, stat, mepos, num_pe
    LOGICAL                          :: ionode
    REAL(KIND=dp)                    :: t, tend, tmax, tmin, tstart, tsum, tsum2
+   TYPE(mp_comm_type) :: mpi_comm
    TYPE(rng_stream_type)            :: rng_stream
    CHARACTER(len=32)                :: arg
 
@@ -42,7 +43,7 @@ PROGRAM parallel_rng_types_TEST
    END IF
 
    CALL mp_world_init(mpi_comm)
-   CALL mp_environ(numtask=num_pe, taskid=mepos, groupid=mpi_comm)
+   CALL mp_environ(numtask=num_pe, taskid=mepos, group=mpi_comm)
    ionode = mepos == 0
 
    CALL check_rng(default_output_unit, ionode)

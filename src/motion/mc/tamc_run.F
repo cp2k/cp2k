@@ -85,6 +85,7 @@ MODULE tamc_run
                                               md_environment_type,&
                                               set_md_env
    USE md_run,                          ONLY: qs_mol_dyn
+   USE message_passing,                 ONLY: mp_comm_type
    USE metadynamics_types,              ONLY: meta_env_type,&
                                               metavar_type,&
                                               set_meta_env
@@ -1131,7 +1132,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mc_hmc_move'
 
-      INTEGER                                            :: group, handle, iatom, j, nAtoms, source
+      INTEGER                                            :: handle, iatom, j, nAtoms, source
       LOGICAL                                            :: ionode, localise
       REAL(KIND=dp)                                      :: BETA, energy_term, exp_max_val, &
                                                             exp_min_val, new_energy, new_epx, &
@@ -1139,6 +1140,7 @@ CONTAINS
       TYPE(cp_subsys_type), POINTER                      :: oldsys
       TYPE(mc_ekin_type), POINTER                        :: hmc_ekin
       TYPE(meta_env_type), POINTER                       :: meta_env_saved
+      TYPE(mp_comm_type)                                 :: group
       TYPE(particle_list_type), POINTER                  :: particles_set
       TYPE(section_vals_type), POINTER                   :: dft_section, input
 

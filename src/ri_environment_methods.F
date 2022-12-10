@@ -38,7 +38,8 @@ MODULE ri_environment_methods
                                               lri_density_type,&
                                               lri_environment_type,&
                                               lri_kind_type
-   USE message_passing,                 ONLY: mp_sum
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_sum
    USE pw_types,                        ONLY: pw_type
    USE qs_collocate_density,            ONLY: calculate_lri_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -593,15 +594,17 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ri_matvec'
 
       CHARACTER                                          :: matrix_type
-      INTEGER                                            :: group, handle, iatom, jatom, m1, m2, mb, &
-                                                            n1, n2, nb
+      INTEGER                                            :: group_handle, handle, iatom, jatom, m1, &
+                                                            m2, mb, n1, n2, nb
       LOGICAL                                            :: symm
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
       TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(mp_comm_type)                                 :: group
 
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_get_info(mat, matrix_type=matrix_type, group=group)
+      CALL dbcsr_get_info(mat, matrix_type=matrix_type, group=group_handle)
+      CALL group%set_handle(group_handle)
 
       SELECT CASE (matrix_type)
       CASE (dbcsr_type_no_symmetry)

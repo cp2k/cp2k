@@ -24,7 +24,8 @@ MODULE cp_blacs_env
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: gcd
-   USE message_passing,                 ONLY: mp_sum
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_sum
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -61,7 +62,8 @@ MODULE cp_blacs_env
 ! **************************************************************************************************
    TYPE cp_blacs_env_type
       INTEGER, DIMENSION(2) :: mepos, num_pe
-      INTEGER :: group, my_pid, n_pid, ref_count
+      TYPE(mp_comm_type) :: group
+      INTEGER :: my_pid, n_pid, ref_count
       TYPE(cp_para_env_type), POINTER :: para_env
       INTEGER, DIMENSION(:, :), POINTER :: blacs2mpi
       INTEGER, DIMENSION(:, :), POINTER :: mpi2blacs
@@ -155,7 +157,6 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(blacs_env))
 
       ALLOCATE (blacs_env)
-      blacs_env%group = 0
       blacs_env%ref_count = 1
       blacs_env%mepos(:) = 0
       blacs_env%num_pe(:) = 1
@@ -305,7 +306,7 @@ CONTAINS
 
       IF (ASSOCIATED(blacs_env)) THEN
          WRITE (unit=unit_nr, fmt="('  group=',i10,', ref_count=',i10,',')", &
-                iostat=iostat) blacs_env%group, blacs_env%ref_count
+                iostat=iostat) blacs_env%group%get_handle(), blacs_env%ref_count
          CPASSERT(iostat == 0)
          WRITE (unit=unit_nr, fmt="('  mepos=(',i8,',',i8,'),')", &
                 iostat=iostat) blacs_env%mepos(1), blacs_env%mepos(2)
@@ -323,7 +324,7 @@ CONTAINS
          END IF
          IF (ASSOCIATED(blacs_env%para_env)) THEN
             WRITE (unit=unit_nr, fmt="('  para_env=<cp_para_env id=',i6,'>,')") &
-               blacs_env%para_env%group
+               blacs_env%para_env%group%get_handle()
          ELSE
             WRITE (unit=unit_nr, fmt="('  para_env=*null*')")
          END IF

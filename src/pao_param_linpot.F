@@ -21,7 +21,8 @@ MODULE pao_param_linpot
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: diamat_all
-   USE message_passing,                 ONLY: mp_min,&
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_min,&
                                               mp_sum,&
                                               mp_sync
    USE pao_input,                       ONLY: pao_fock_param,&
@@ -359,8 +360,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_calc_U_linpot'
 
-      INTEGER                                            :: acol, arow, group, handle, iatom, kterm, &
-                                                            n, natoms, nterms
+      INTEGER                                            :: acol, arow, group_handle, handle, iatom, &
+                                                            kterm, n, natoms, nterms
       LOGICAL                                            :: found
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: gaps
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: evals
@@ -371,6 +372,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :, :), POINTER              :: M_blocks
       REAL(KIND=dp)                                      :: regu_energy
       TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(mp_comm_type)                                 :: group
 
       CALL timeset(routineN, handle)
 
@@ -381,7 +383,8 @@ CONTAINS
       evals(:, :) = 0.0_dp
       gaps(:) = HUGE(1.0_dp)
       regu_energy = 0.0_dp
-      CALL dbcsr_get_info(pao%matrix_U, group=group)
+      CALL dbcsr_get_info(pao%matrix_U, group=group_handle)
+      CALL group%set_handle(group_handle)
 
       CALL dbcsr_iterator_start(iter, pao%matrix_X)
       DO WHILE (dbcsr_iterator_blocks_left(iter))

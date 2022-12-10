@@ -24,6 +24,7 @@ MODULE cp_external_control
                                               dp
    USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_bcast,&
+                                              mp_comm_type,&
                                               mp_probe
 #include "./base/base_uses.f90"
 
@@ -36,7 +37,7 @@ MODULE cp_external_control
    PUBLIC :: external_control
    PUBLIC :: set_external_comm
 
-   INTEGER, SAVE :: external_comm = -1
+   TYPE(mp_comm_type), SAVE :: external_comm
    INTEGER, SAVE :: external_master_id = -1
    INTEGER, SAVE :: scf_energy_message_tag = -1
    INTEGER, SAVE :: exit_tag = -1
@@ -55,7 +56,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE set_external_comm(comm, in_external_master_id, &
                                 in_scf_energy_message_tag, in_exit_tag)
-      INTEGER, INTENT(IN)                                :: comm, in_external_master_id
+      TYPE(mp_comm_type), INTENT(IN)                     :: comm
+      INTEGER, INTENT(IN)                                :: in_external_master_id
       INTEGER, INTENT(IN), OPTIONAL                      :: in_scf_energy_message_tag, in_exit_tag
 
       CPASSERT(in_external_master_id .GE. 0)

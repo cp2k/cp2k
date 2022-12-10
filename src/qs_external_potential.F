@@ -30,7 +30,8 @@ MODULE qs_external_potential
                                               default_string_length,&
                                               dp
    USE maxwell_solver_interface,        ONLY: maxwell_solver
-   USE message_passing,                 ONLY: mp_bcast
+   USE message_passing,                 ONLY: mp_bcast,&
+                                              mp_comm_type
    USE particle_types,                  ONLY: particle_type
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
    USE pw_types,                        ONLY: pw_type
@@ -303,9 +304,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'interpolate_external_potential'
 
       INTEGER                                            :: buffer_i, buffer_j, buffer_k, &
-                                                            data_source, fd_extra_point, gid, &
-                                                            handle, i, i_pbc, ip, j, j_pbc, k, &
-                                                            k_pbc, my_rank, num_pe, tag
+                                                            data_source, fd_extra_point, handle, &
+                                                            i, i_pbc, ip, j, j_pbc, k, k_pbc, &
+                                                            my_rank, num_pe, tag
       INTEGER, DIMENSION(3)                              :: lbounds, lbounds_local, lower_inds, &
                                                             ubounds, ubounds_local, upper_inds
       LOGICAL                                            :: check, my_force
@@ -313,6 +314,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: grid_buffer
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: dgrid
       REAL(KIND=dp), DIMENSION(3)                        :: dr, subgrid_origin
+      TYPE(mp_comm_type)                                 :: gid
 
       CALL timeset(routineN, handle)
       my_force = .FALSE.
@@ -416,7 +418,7 @@ CONTAINS
 !> \param dr    step size for finite difference
 !> \param dgrid derivatives of grid
 ! **************************************************************************************************
-   SUBROUTINE d_finite_difference(grid, dr, dgrid)
+   PURE SUBROUTINE d_finite_difference(grid, dr, dgrid)
       REAL(KIND=dp), DIMENSION(0:, 0:, 0:), INTENT(IN)   :: grid
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: dr
       REAL(KIND=dp), DIMENSION(1:, 1:, 1:, :), &
@@ -444,10 +446,10 @@ CONTAINS
 !> \param dr          step size
 !> \return interpolated value of external potential
 ! **************************************************************************************************
-   FUNCTION trilinear_interpolation(r, subgrid, origin, dr) RESULT(value_at_r)
-      REAL(KIND=dp), DIMENSION(3)                        :: r
-      REAL(KIND=dp), DIMENSION(:, :, :)                  :: subgrid
-      REAL(KIND=dp), DIMENSION(3)                        :: origin, dr
+   PURE FUNCTION trilinear_interpolation(r, subgrid, origin, dr) RESULT(value_at_r)
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: r
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: subgrid
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: origin, dr
       REAL(KIND=dp)                                      :: value_at_r
 
       REAL(KIND=dp), DIMENSION(3)                        :: norm_r, norm_r_rev
@@ -472,8 +474,9 @@ CONTAINS
 !> \param upbound ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION pbc_index(i, lowbound, upbound)
-      INTEGER                                            :: i, lowbound, upbound, pbc_index
+   ELEMENTAL FUNCTION pbc_index(i, lowbound, upbound)
+      INTEGER, INTENT(IN)                                :: i, lowbound, upbound
+      INTEGER                                            :: pbc_index
 
       IF (i < lowbound) THEN
          pbc_index = upbound + i - lowbound + 1

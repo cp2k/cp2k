@@ -56,6 +56,7 @@ MODULE dbt_tas_mm
                                               int_8
    USE message_passing,                 ONLY: mp_cart_create,&
                                               mp_comm_free,&
+                                              mp_comm_type,&
                                               mp_environ,&
                                               mp_max,&
                                               mp_sum,&
@@ -124,10 +125,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dbt_tas_multiply'
 
-      INTEGER :: batched_repl, comm_tmp, handle, handle2, handle3, handle4, iproc, max_mm_dim, &
-         max_mm_dim_batched, mp_comm, mp_comm_group, mp_comm_mm, mp_comm_opt, nsplit, &
-         nsplit_batched, nsplit_opt, numproc, numproc_sub, split_a, split_b, split_c, split_rc, &
-         unit_nr_prv
+      INTEGER :: batched_repl, handle, handle2, handle3, handle4, iproc, max_mm_dim, &
+         max_mm_dim_batched, nsplit, nsplit_batched, nsplit_opt, numproc, numproc_sub, split_a, &
+         split_b, split_c, split_rc, unit_nr_prv
       INTEGER(KIND=int_8)                                :: nze_a, nze_b, nze_c, nze_c_sum
       INTEGER(KIND=int_8), DIMENSION(2)                  :: dims_a, dims_b, dims_c
       INTEGER(KIND=int_8), DIMENSION(3)                  :: dims
@@ -139,6 +139,8 @@ CONTAINS
       TYPE(dbt_tas_split_info)                           :: info, info_a, info_b, info_c
       TYPE(dbt_tas_type), POINTER                        :: matrix_a_rep, matrix_a_rs, matrix_b_rep, &
                                                             matrix_b_rs, matrix_c_rep, matrix_c_rs
+      TYPE(mp_comm_type)                                 :: comm_tmp, mp_comm, mp_comm_group, &
+                                                            mp_comm_mm, mp_comm_opt
 
       CALL timeset(routineN, handle)
       CALL mp_sync(matrix_a%dist%info%mp_comm)
@@ -831,7 +833,7 @@ CONTAINS
 !> \author Patrick Seewald
 ! **************************************************************************************************
    SUBROUTINE reshape_mm_small(mp_comm, matrix_in, matrix_out, transposed, nodata, move_data)
-      INTEGER, INTENT(IN)                                :: mp_comm
+      TYPE(mp_comm_type), INTENT(IN)                     :: mp_comm
       TYPE(dbt_tas_type), INTENT(INOUT)                  :: matrix_in
       TYPE(dbt_tas_type), INTENT(OUT)                    :: matrix_out
       LOGICAL, INTENT(IN)                                :: transposed
@@ -916,13 +918,13 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: split_rc_1, split_rc_2
       LOGICAL, INTENT(IN), OPTIONAL                      :: nodata1, nodata2
       LOGICAL, INTENT(INOUT), OPTIONAL                   :: move_data_1, move_data_2
-      INTEGER, INTENT(OUT), OPTIONAL                     :: comm_new
+      TYPE(mp_comm_type), INTENT(OUT), OPTIONAL          :: comm_new
       INTEGER, INTENT(IN), OPTIONAL                      :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reshape_mm_compatible'
 
-      INTEGER                                            :: handle, mp_comm, nsplit_prv, numnodes, &
-                                                            ref, split_rc_ref, unit_nr_prv
+      INTEGER                                            :: handle, nsplit_prv, numnodes, ref, &
+                                                            split_rc_ref, unit_nr_prv
       INTEGER(KIND=int_8)                                :: d1, d2, nze1, nze2
       INTEGER(KIND=int_8), DIMENSION(2)                  :: dims1, dims2, dims_ref
       INTEGER, DIMENSION(2)                              :: pcoord, pdims
@@ -933,6 +935,7 @@ CONTAINS
                                                             row_dist_2
       TYPE(dbt_tas_distribution_type)                    :: dist_1, dist_2
       TYPE(dbt_tas_split_info)                           :: split_info
+      TYPE(mp_comm_type)                                 :: mp_comm
 
       CALL timeset(routineN, handle)
       new1 = .FALSE.; new2 = .FALSE.
@@ -1154,11 +1157,12 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: nodata
 
       CHARACTER(len=default_string_length)               :: name
-      INTEGER                                            :: handle, mp_comm, nsplit_new, nsplit_old, &
+      INTEGER                                            :: handle, nsplit_new, nsplit_old, &
                                                             nsplit_prv, split_rc
       LOGICAL                                            :: nodata_prv
       TYPE(dbt_tas_distribution_type)                    :: dist
       TYPE(dbt_tas_split_info)                           :: split_info
+      TYPE(mp_comm_type)                                 :: mp_comm
 
       CLASS(dbt_tas_distribution), ALLOCATABLE :: rdist, cdist
       CLASS(dbt_tas_rowcol_data), ALLOCATABLE  :: rbsize, cbsize
@@ -1324,10 +1328,11 @@ CONTAINS
 
       TYPE(dbt_tas_distribution_type)          :: dist_new
       TYPE(dbt_tas_split_info)                 :: info_template, info_matrix
-      INTEGER                                    :: mp_comm, dim_split_template, dim_split_matrix, &
+      INTEGER                                    :: dim_split_template, dim_split_matrix, &
                                                     numnodes, handle
       INTEGER, DIMENSION(2)                      :: pcoord, pdims
       LOGICAL                                    :: nodata_prv, transposed
+      TYPE(mp_comm_type) :: mp_comm
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reshape_mm_template'
 
       CALL timeset(routineN, handle)
@@ -1410,12 +1415,13 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_tas_estimate_result_nze'
 
-      INTEGER                                            :: col_size, handle, mp_comm, row_size
+      INTEGER                                            :: col_size, handle, row_size
       INTEGER(int_8)                                     :: col, row
       LOGICAL                                            :: retain_sparsity_prv
       TYPE(dbt_tas_iterator)                             :: iter
       TYPE(dbt_tas_type), POINTER                        :: matrix_a_bnorm, matrix_b_bnorm, &
                                                             matrix_c_bnorm
+      TYPE(mp_comm_type)                                 :: mp_comm
 
       CALL timeset(routineN, handle)
 
@@ -1574,7 +1580,7 @@ CONTAINS
 !> \author Patrick Seewald
 ! **************************************************************************************************
    SUBROUTINE convert_to_new_pgrid(mp_comm_cart, matrix_in, matrix_out, move_data, nodata, optimize_pgrid)
-      INTEGER, INTENT(IN)                                :: mp_comm_cart
+      TYPE(mp_comm_type), INTENT(IN)                     :: mp_comm_cart
       TYPE(dbm_type), INTENT(INOUT)                      :: matrix_in
       TYPE(dbm_type), INTENT(OUT)                        :: matrix_out
       LOGICAL, INTENT(IN), OPTIONAL                      :: move_data, nodata, optimize_pgrid

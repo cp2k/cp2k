@@ -46,7 +46,8 @@ MODULE mc_ge_moves
         get_mc_molecule_info, get_mc_par, mc_determine_molecule_info, mc_input_file_type, &
         mc_molecule_info_destroy, mc_molecule_info_type, mc_moves_p_type, &
         mc_simulation_parameters_p_type, set_mc_par
-   USE message_passing,                 ONLY: mp_bcast
+   USE message_passing,                 ONLY: mp_bcast,&
+                                              mp_comm_type
    USE parallel_rng_types,              ONLY: rng_stream_type
    USE particle_list_types,             ONLY: particle_list_p_type,&
                                               particle_list_type
@@ -123,7 +124,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'mc_Quickstep_move'
 
-      INTEGER                                            :: end_mol, group, handle, ibox, iparticle, &
+      INTEGER                                            :: end_mol, handle, ibox, iparticle, &
                                                             iprint, itype, jbox, nmol_types, &
                                                             source, start_mol
       INTEGER, DIMENSION(:, :), POINTER                  :: nchains
@@ -134,6 +135,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(1:nboxes)                 :: bias_energy_old, new_energy
       TYPE(cp_subsys_p_type), DIMENSION(:), POINTER      :: subsys_bias
       TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info
+      TYPE(mp_comm_type)                                 :: group
       TYPE(particle_list_p_type), DIMENSION(:), POINTER  :: particles_bias
 
 ! begin the timing of the subroutine
@@ -445,9 +447,9 @@ CONTAINS
          DIMENSION(:, :), POINTER                        :: atom_names
       CHARACTER(LEN=200)                                 :: fft_lib
       CHARACTER(LEN=40), DIMENSION(1:2)                  :: dat_file
-      INTEGER :: end_mol, group, handle, iatom, ibox, idim, iiatom, imolecule, ins_atoms, &
-         insert_box, ipart, itype, jbox, molecule_type, nmol_types, nswapmoves, print_level, &
-         rem_atoms, remove_box, source, start_atom_ins, start_atom_rem, start_mol
+      INTEGER :: end_mol, handle, iatom, ibox, idim, iiatom, imolecule, ins_atoms, insert_box, &
+         ipart, itype, jbox, molecule_type, nmol_types, nswapmoves, print_level, rem_atoms, &
+         remove_box, source, start_atom_ins, start_atom_rem, start_mol
       INTEGER, DIMENSION(:), POINTER                     :: mol_type, mol_type_test, nunits, &
                                                             nunits_tot
       INTEGER, DIMENSION(:, :), POINTER                  :: nchains, nchains_test
@@ -468,6 +470,7 @@ CONTAINS
       TYPE(force_env_p_type), DIMENSION(:), POINTER      :: test_env, test_env_bias
       TYPE(mc_input_file_type), POINTER                  :: mc_bias_file, mc_input_file
       TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info, mc_molecule_info_test
+      TYPE(mp_comm_type)                                 :: group
       TYPE(particle_list_p_type), DIMENSION(:), POINTER  :: particles_old
       TYPE(particle_list_type), POINTER                  :: particles_insert, particles_remove
 
@@ -1143,8 +1146,8 @@ CONTAINS
 
       CHARACTER(LEN=200)                                 :: fft_lib
       CHARACTER(LEN=40), DIMENSION(1:2)                  :: dat_file
-      INTEGER :: cl, end_atom, end_mol, group, handle, iatom, ibox, imolecule, iside, j, jatom, &
-         jbox, max_atoms, molecule_index, molecule_type, print_level, source, start_atom, start_mol
+      INTEGER :: cl, end_atom, end_mol, handle, iatom, ibox, imolecule, iside, j, jatom, jbox, &
+         max_atoms, molecule_index, molecule_type, print_level, source, start_atom, start_mol
       INTEGER, DIMENSION(:), POINTER                     :: mol_type, nunits, nunits_tot
       INTEGER, DIMENSION(:, :), POINTER                  :: nchains
       LOGICAL                                            :: ionode
@@ -1162,6 +1165,7 @@ CONTAINS
       TYPE(cp_subsys_p_type), DIMENSION(:), POINTER      :: oldsys
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info
+      TYPE(mp_comm_type)                                 :: group
       TYPE(particle_list_p_type), DIMENSION(:), POINTER  :: particles_old
 
 ! begin the timing of the subroutine

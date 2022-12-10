@@ -25,7 +25,8 @@ PROGRAM dbt_unittest
         dbt_pgrid_destroy, dbt_pgrid_type, dbt_type, ndims_tensor
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: default_output_unit
-   USE message_passing,                 ONLY: mp_environ,&
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_environ,&
                                               mp_world_finalize,&
                                               mp_world_init
    USE offload_api,                     ONLY: offload_get_device_count,&
@@ -34,7 +35,8 @@ PROGRAM dbt_unittest
 
    IMPLICIT NONE
 
-   INTEGER                            :: mp_comm, numnodes, mynode, io_unit
+   TYPE(mp_comm_type) :: mp_comm
+   INTEGER                            :: numnodes, mynode, io_unit
    INTEGER                            :: ndims, nblks_alloc, nblks_1, nblks_2, nblks_3, nblks_4, nblks_5, &
                                          nblks_alloc_1, nblks_alloc_2, nblks_alloc_3, nblks_alloc_4, nblks_alloc_5
    INTEGER, DIMENSION(:), ALLOCATABLE :: size_1, size_2, size_3, size_4, size_5, dist1_1, dist1_2, dist1_3, &
@@ -71,7 +73,7 @@ PROGRAM dbt_unittest
    io_unit = -1
    IF (mynode .EQ. 0) io_unit = default_output_unit
 
-   CALL dbcsr_init_lib(mp_comm, io_unit) ! Needed for DBM_VALIDATE_AGAINST_DBCSR.
+   CALL dbcsr_init_lib(mp_comm%get_handle(), io_unit) ! Needed for DBM_VALIDATE_AGAINST_DBCSR.
    CALL dbm_library_init()
 
    CALL dbt_reset_randmat_seed()

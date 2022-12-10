@@ -134,7 +134,7 @@ CONTAINS
             calc_args_str=TRIM(quip%calc_args), &
             calc_args_str_len=LEN_TRIM(quip%calc_args), &
             energy=pot_quip, force=force, virial=virial, &
-            output_unit=output_unit, mpi_communicator=para_env%group)
+            output_unit=output_unit, mpi_communicator=para_env%group%get_handle())
       ELSE
          CALL quip_unified_wrapper( &
             N=n_atoms_use, pos=pos, lattice=lattice, symbol=elem_symbol, &

@@ -21,7 +21,7 @@ MODULE swarm_message
    USE message_passing, ONLY: mp_bcast, &
                               mp_environ, &
                               mp_recv, &
-                              mp_send
+                              mp_send, mp_comm_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -184,7 +184,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE swarm_message_mpi_send(msg, group, dest, tag)
       TYPE(swarm_message_type), INTENT(IN)               :: msg
-      INTEGER, INTENT(IN)                                :: group, dest, tag
+      TYPE(mp_comm_type), INTENT(IN) :: group
+      INTEGER, INTENT(IN)                                :: dest, tag
 
       TYPE(message_entry_type), POINTER                  :: curr_entry
 
@@ -206,7 +207,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE swarm_message_mpi_recv(msg, group, src, tag)
       TYPE(swarm_message_type), INTENT(INOUT)            :: msg
-      INTEGER, INTENT(IN)                                :: group
+      TYPE(mp_comm_type), INTENT(IN)                                :: group
       INTEGER, INTENT(INOUT)                             :: src, tag
 
       INTEGER                                            :: i, length
@@ -232,7 +233,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE swarm_message_mpi_bcast(msg, src, group)
       TYPE(swarm_message_type), INTENT(INOUT)            :: msg
-      INTEGER, INTENT(IN)                                :: src, group
+      INTEGER, INTENT(IN)                                :: src
+      TYPE(mp_comm_type), INTENT(IN) :: group
 
       INTEGER                                            :: i, length, mepos, num_pe
       TYPE(message_entry_type), POINTER                  :: curr_entry
@@ -439,7 +441,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE swarm_message_entry_mpi_send(ENTRY, group, dest, tag)
       TYPE(message_entry_type), INTENT(IN)               :: ENTRY
-      INTEGER, INTENT(IN)                                :: group, dest, tag
+      TYPE(mp_comm_type), INTENT(IN) :: group
+      INTEGER, INTENT(IN)                                :: dest, tag
 
       INTEGER, DIMENSION(default_string_length)          :: value_str_arr
       INTEGER, DIMENSION(key_length)                     :: key_arr
@@ -502,7 +505,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE swarm_message_entry_mpi_recv(ENTRY, group, src, tag)
       TYPE(message_entry_type), INTENT(INOUT)            :: ENTRY
-      INTEGER, INTENT(IN)                                :: group
+      TYPE(mp_comm_type), INTENT(IN)                                :: group
       INTEGER, INTENT(INOUT)                             :: src, tag
 
       INTEGER                                            :: datatype, s
@@ -562,7 +565,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE swarm_message_entry_mpi_bcast(ENTRY, src, group, mepos)
       TYPE(message_entry_type), INTENT(INOUT)            :: ENTRY
-      INTEGER, INTENT(IN)                                :: src, group, mepos
+      INTEGER, INTENT(IN)                                :: src, mepos
+      TYPE(mp_comm_type), INTENT(IN) :: group
 
       INTEGER                                            :: datasize, datatype
       INTEGER, DIMENSION(default_string_length)          :: value_str_arr

@@ -35,7 +35,8 @@ MODULE cp_dbcsr_output
                                               int_8
    USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: symmetrize_matrix
-   USE message_passing,                 ONLY: mp_max,&
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_max,&
                                               mp_sum,&
                                               mp_sync
    USE orbital_pointers,                ONLY: nso
@@ -88,10 +89,11 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: omit_headers
 
       CHARACTER(LEN=60)                                  :: matrix_name
-      INTEGER                                            :: col1, col2, group, ncol_global, &
-                                                            nrow_global, nsgf, row1, row2
+      INTEGER                                            :: col1, col2, ncol_global, nrow_global, &
+                                                            nsgf, row1, row2
       LOGICAL                                            :: my_omit_headers
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: matrix
+      TYPE(mp_comm_type)                                 :: group
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       group = para_env%group
@@ -175,10 +177,10 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: omit_headers
 
       CHARACTER(LEN=default_string_length)               :: matrix_name
-      INTEGER                                            :: col1, col2, dim_col, dim_row, group, &
-                                                            row1, row2
+      INTEGER                                            :: col1, col2, dim_col, dim_row, row1, row2
       LOGICAL                                            :: my_omit_headers, print_sym
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: matrix
+      TYPE(mp_comm_type)                                 :: group
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       group = para_env%group
@@ -353,15 +355,16 @@ CONTAINS
       CHARACTER(LEN=25)                                  :: fmtstr1
       CHARACTER(LEN=35)                                  :: fmtstr2
       CHARACTER(LEN=6), DIMENSION(:), POINTER            :: sgf_symbol
-      INTEGER                                            :: from, group, iatom, icol, ikind, irow, &
-                                                            iset, isgf, ishell, iso, jcol, l, &
-                                                            left, natom, ncol, ndigits, nset, &
-                                                            nsgf, right, to, width
+      INTEGER                                            :: from, iatom, icol, ikind, irow, iset, &
+                                                            isgf, ishell, iso, jcol, l, left, &
+                                                            natom, ncol, ndigits, nset, nsgf, &
+                                                            right, to, width
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf
       INTEGER, DIMENSION(:), POINTER                     :: nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: lshell
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      TYPE(mp_comm_type)                                 :: group
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
@@ -517,8 +520,9 @@ CONTAINS
 
       CHARACTER(LEN=25)                                  :: fmtstr1
       CHARACTER(LEN=35)                                  :: fmtstr2
-      INTEGER                                            :: from, group, icol, irow, jcol, left, &
-                                                            ncol, ndigits, right, to, width
+      INTEGER                                            :: from, icol, irow, jcol, left, ncol, &
+                                                            ndigits, right, to, width
+      TYPE(mp_comm_type)                                 :: group
 
       group = para_env%group
 
@@ -604,14 +608,14 @@ CONTAINS
 
       CHARACTER                                          :: matrix_type
       CHARACTER(LEN=default_string_length)               :: matrix_name
-      INTEGER                                            :: group, handle, ipe, mype, natom, &
-                                                            nblock_max, nelement_max, npe, nrow, &
-                                                            tmp(2)
+      INTEGER                                            :: handle, ipe, mype, natom, nblock_max, &
+                                                            nelement_max, npe, nrow, tmp(2)
       INTEGER(KIND=int_8)                                :: nblock_sum, nblock_tot, nelement_sum
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nblock, nelement
       LOGICAL                                            :: ionode
       REAL(KIND=dp)                                      :: occupation
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(mp_comm_type)                                 :: group
 
       NULLIFY (logger)
       logger => cp_get_default_logger()

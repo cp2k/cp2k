@@ -40,7 +40,8 @@ MODULE cp_parser_types
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               max_line_length
-   USE message_passing,                 ONLY: mp_comm_self
+   USE message_passing,                 ONLY: mp_comm_self,&
+                                              mp_comm_type
    USE string_utilities,                ONLY: compress
 #include "../base/base_uses.f90"
 
@@ -192,9 +193,13 @@ CONTAINS
          parser%para_env => para_env
          CALL cp_para_env_retain(para_env)
       ELSE
-         NULLIFY (parser%para_env)
-         CALL cp_para_env_create(parser%para_env, group=mp_comm_self, source=0, &
-                                 mepos=0, num_pe=1, owns_group=.FALSE.)
+         BLOCK
+            TYPE(mp_comm_type) :: comm_self
+            NULLIFY (parser%para_env)
+            CALL comm_self%set_handle(mp_comm_self)
+            CALL cp_para_env_create(parser%para_env, group=comm_self, source=0, &
+                                    mepos=0, num_pe=1, owns_group=.FALSE.)
+         END BLOCK
       END IF
 
       !   *** Get the logical output unit number for error messages ***

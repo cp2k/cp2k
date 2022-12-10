@@ -40,6 +40,7 @@ MODULE matrix_exp
                                               z_one,&
                                               z_zero
    USE message_passing,                 ONLY: mp_comm_free,&
+                                              mp_comm_type,&
                                               mp_max,&
                                               mp_reordering,&
                                               mp_sum
@@ -706,10 +707,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'arnoldi'
       REAL(KIND=dp), PARAMETER                           :: rone = 1.0_dp, rzero = 0.0_dp
 
-      INTEGER                                            :: col_group, handle, i, icol_local, idim, &
-                                                            info, j, l, mydim, nao, narnoldi, &
-                                                            ncol_local, newdim, nmo, npade, &
-                                                            pade_step
+      INTEGER                                            :: handle, i, icol_local, idim, info, j, l, &
+                                                            mydim, nao, narnoldi, ncol_local, &
+                                                            newdim, nmo, npade, pade_step
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ipivot
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, col_procs
       LOGICAL                                            :: convergence, double_col, double_row
@@ -720,6 +720,7 @@ CONTAINS
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: V_mats
       TYPE(cp_fm_struct_type), POINTER                   :: mo_struct, newstruct
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_comm_type)                                 :: col_group
 
       CALL timeset(routineN, handle)
       para_env => mos_new(1)%matrix_struct%para_env

@@ -20,7 +20,8 @@ MODULE negf_subgroup_types
                                               cp_para_env_release,&
                                               cp_para_env_retain
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE message_passing,                 ONLY: mp_comm_split
+   USE message_passing,                 ONLY: mp_comm_split,&
+                                              mp_comm_type
    USE negf_control_types,              ONLY: negf_control_type
 #include "./base/base_uses.f90"
 
@@ -47,9 +48,9 @@ MODULE negf_subgroup_types
       !> Useful to find out the current group index by accessing the 'group_distribution' array.
       INTEGER                                            :: mepos_global
       !> global MPI communicator
-      INTEGER                                            :: mpi_comm_global
+      TYPE(mp_comm_type)                                 :: mpi_comm_global
       !> MPI communicator of the current parallel group
-      INTEGER                                            :: mpi_comm
+      TYPE(mp_comm_type)                                 :: mpi_comm
       !> group_distribution(0:num_pe) : a process with rank 'i' belongs to the parallel group
       !> with index 'group_distribution(i)'
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: group_distribution

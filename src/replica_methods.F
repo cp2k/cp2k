@@ -51,6 +51,7 @@ MODULE replica_methods
    USE message_passing,                 ONLY: mp_cart_create,&
                                               mp_cart_sub,&
                                               mp_comm_null,&
+                                              mp_comm_type,&
                                               mp_sum
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
@@ -101,8 +102,9 @@ CONTAINS
       LOGICAL, INTENT(in), OPTIONAL                      :: sync_v, keep_wf_history, row_force
 
       CHARACTER(len=default_path_length)                 :: input_file_path, output_file_path
-      INTEGER :: comm_cart, comm_f, comm_inter_rep, forcedim, i, i0, ierr, ip, ir, irep, lp, &
-         my_prep, new_env_id, nparticle, nrep_local, unit_nr
+      INTEGER                                            :: forcedim, i, i0, ierr, ip, ir, irep, lp, &
+                                                            my_prep, new_env_id, nparticle, &
+                                                            nrep_local, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: gridinfo
       INTEGER, DIMENSION(2)                              :: dims, pos
       LOGICAL, DIMENSION(2)                              :: rdim
@@ -110,6 +112,7 @@ CONTAINS
       TYPE(cp_para_cart_type), POINTER                   :: cart
       TYPE(cp_para_env_type), POINTER                    :: para_env_f, para_env_full, &
                                                             para_env_inter_rep
+      TYPE(mp_comm_type)                                 :: comm_cart, comm_f, comm_inter_rep
 
       CPASSERT(.NOT. ASSOCIATED(rep_env))
       CPASSERT(ASSOCIATED(input_declaration))
@@ -130,7 +133,7 @@ CONTAINS
          WRITE (unit_nr, FMT="(T2,A,I0,A)") "REPLICA| ", para_env%num_pe - dims(1)*dims(2), " MPI process(es) will be idle"
       END IF
       CALL mp_cart_create(comm_old=para_env%group, ndims=2, dims=dims, pos=pos, comm_cart=comm_cart)
-      IF (comm_cart /= mp_comm_null) THEN
+      IF (comm_cart%get_handle() /= mp_comm_null) THEN
          CALL cp_cart_create(cart, comm_cart, ndims=2, owns_group=.TRUE.)
          NULLIFY (para_env_full)
          CALL cp_para_env_create(para_env_full, comm_cart, owns_group=.FALSE.)

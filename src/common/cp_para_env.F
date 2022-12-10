@@ -17,6 +17,7 @@ MODULE cp_para_env
                                               cp_para_env_type
    USE message_passing,                 ONLY: mp_comm_free,&
                                               mp_comm_split_direct,&
+                                              mp_comm_type,&
                                               mp_environ
 #include "../base/base_uses.f90"
 
@@ -46,7 +47,7 @@ CONTAINS
    SUBROUTINE cp_para_env_create(para_env, group, source, mepos, num_pe, &
                                  owns_group)
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER, INTENT(in)                                :: group
+      TYPE(mp_comm_type), INTENT(in)                     :: group
       INTEGER, INTENT(in), OPTIONAL                      :: source, mepos, num_pe
       LOGICAL, INTENT(in), OPTIONAL                      :: owns_group
 
@@ -59,7 +60,7 @@ CONTAINS
       IF (PRESENT(source)) para_env%source = source
       IF (PRESENT(owns_group)) para_env%owns_group = owns_group
       IF (.NOT. (PRESENT(mepos) .AND. PRESENT(num_pe))) THEN
-         CALL mp_environ(taskid=para_env%mepos, numtask=para_env%num_pe, groupid=group)
+         CALL mp_environ(taskid=para_env%mepos, numtask=para_env%num_pe, group=group)
       ELSE
          para_env%mepos = mepos
          para_env%num_pe = num_pe
@@ -94,7 +95,7 @@ CONTAINS
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_template
       INTEGER, INTENT(IN)                                :: color
 
-      INTEGER                                            :: comm
+      TYPE(mp_comm_type)                                 :: comm
 
       CPASSERT(para_env_template%ref_count > 0)
       CALL mp_comm_split_direct(para_env_template%group, comm, color)
@@ -141,7 +142,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cart_create(cart, group, ndims, owns_group)
       TYPE(cp_para_cart_type), POINTER                   :: cart
-      INTEGER, INTENT(in)                                :: group, ndims
+      TYPE(mp_comm_type), INTENT(in)                     :: group
+      INTEGER, INTENT(in)                                :: ndims
       LOGICAL, INTENT(in), OPTIONAL                      :: owns_group
 
       CPASSERT(.NOT. ASSOCIATED(cart))
@@ -173,7 +175,7 @@ CONTAINS
       CPASSERT(cart%ref_count > 0)
       CALL mp_environ(cart%group, cart%ndims, cart%num_pe, task_coor=cart%mepos, &
                       periods=cart%periodic)
-      CALL mp_environ(numtask=cart%ntask, taskid=cart%rank, groupid=cart%group)
+      CALL mp_environ(numtask=cart%ntask, taskid=cart%rank, group=cart%group)
    END SUBROUTINE cp_cart_update
 
 ! **************************************************************************************************

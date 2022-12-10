@@ -37,7 +37,8 @@ MODULE integrator_utils
    USE kinds,                           ONLY: dp
    USE md_environment_types,            ONLY: get_md_env,&
                                               md_environment_type
-   USE message_passing,                 ONLY: mp_max,&
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_max,&
                                               mp_sum
    USE molecule_kind_types,             ONLY: local_fixd_constraint_type,&
                                               molecule_kind_type
@@ -528,7 +529,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: gamma1
       TYPE(npt_info_type), INTENT(IN)                    :: npt
       REAL(KIND=dp), INTENT(IN)                          :: dt
-      INTEGER, INTENT(IN)                                :: group
+      TYPE(mp_comm_type), INTENT(IN)                     :: group
 
       INTEGER                                            :: first_atom, ikind, imol, imol_local, &
                                                             ipart, last_atom, nmol_local
@@ -608,7 +609,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: gamma1
       TYPE(npt_info_type), INTENT(IN)                    :: npt
       REAL(KIND=dp), INTENT(IN)                          :: dt
-      INTEGER, INTENT(IN)                                :: group
+      TYPE(mp_comm_type), INTENT(IN)                     :: group
 
       INTEGER                                            :: first_atom, ikind, imol, imol_local, &
                                                             ipart, last_atom, nmol_local
@@ -804,7 +805,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: kin
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: pv_kin
       TYPE(virial_type), INTENT(INOUT)                   :: virial
-      INTEGER, INTENT(IN)                                :: int_group
+      TYPE(mp_comm_type), INTENT(IN)                     :: int_group
 
       INTEGER                                            :: i, iparticle, iparticle_kind, &
                                                             iparticle_local, j, nparticle_local
@@ -878,7 +879,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: kin
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: pv_kin
       TYPE(virial_type), INTENT(INOUT)                   :: virial
-      INTEGER, INTENT(IN)                                :: int_group
+      TYPE(mp_comm_type), INTENT(IN)                     :: int_group
 
       INTEGER                                            :: i, iparticle, iparticle_kind, &
                                                             iparticle_local, j, nparticle_local

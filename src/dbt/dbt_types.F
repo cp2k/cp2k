@@ -39,7 +39,7 @@ MODULE dbt_types
       dbt_tas_create_split, dbt_tas_get_split_info, dbt_tas_set_strict_split
    USE kinds, ONLY: default_string_length, int_8, dp
    USE message_passing, ONLY: &
-      mp_cart_create, mp_cart_rank, mp_environ, mp_dims_create, mp_comm_free, mp_comm_dup, mp_sum, mp_max
+      mp_cart_create, mp_cart_rank, mp_environ, mp_dims_create, mp_comm_free, mp_comm_dup, mp_sum, mp_max, mp_comm_type
    USE dbt_tas_global, ONLY: dbt_tas_distribution, dbt_tas_rowcol_data, dbt_tas_default_distvec
    USE dbt_allocate_wrap, ONLY: allocate_any
    USE dbm_api, ONLY: dbm_scale
@@ -97,7 +97,7 @@ MODULE dbt_types
 
    TYPE dbt_pgrid_type
       TYPE(nd_to_2d_mapping)                  :: nd_index_grid
-      INTEGER                                 :: mp_comm_2d
+      TYPE(mp_comm_type)                      :: mp_comm_2d
       TYPE(dbt_tas_split_info), ALLOCATABLE :: tas_split_info
       INTEGER                                 :: nproc
    END TYPE
@@ -499,7 +499,7 @@ CONTAINS
 !> \author Patrick Seewald
 ! **************************************************************************************************
          SUBROUTINE dbt_pgrid_create_expert(mp_comm, dims, pgrid, map1_2d, map2_2d, tensor_dims, nsplit, dimsplit)
-            INTEGER, INTENT(IN) :: mp_comm
+            TYPE(mp_comm_type), INTENT(IN) :: mp_comm
             INTEGER, DIMENSION(:), INTENT(INOUT) :: dims
             TYPE(dbt_pgrid_type), INTENT(OUT) :: pgrid
             INTEGER, DIMENSION(:), INTENT(IN) :: map1_2d, map2_2d
@@ -558,7 +558,7 @@ CONTAINS
 ! **************************************************************************************************
          FUNCTION dbt_nd_mp_comm(comm_2d, map1_2d, map2_2d, dims_nd, dims1_nd, dims2_nd, pdims_2d, tdims, &
                                  nsplit, dimsplit)
-            INTEGER, INTENT(IN)                               :: comm_2d
+            TYPE(mp_comm_type), INTENT(IN)                               :: comm_2d
             INTEGER, DIMENSION(:), INTENT(IN)                 :: map1_2d, map2_2d
             INTEGER, DIMENSION(SIZE(map1_2d) + SIZE(map2_2d)), &
                INTENT(IN), OPTIONAL                           :: dims_nd
@@ -631,7 +631,7 @@ CONTAINS
 !> \author Patrick Seewald
 ! **************************************************************************************************
          SUBROUTINE dbt_nd_mp_free(mp_comm)
-            INTEGER, INTENT(INOUT)                               :: mp_comm
+            TYPE(mp_comm_type), INTENT(INOUT)                               :: mp_comm
 
             CALL mp_comm_free(mp_comm)
          END SUBROUTINE dbt_nd_mp_free
@@ -693,7 +693,8 @@ CONTAINS
             INTEGER, DIMENSION(:), INTENT(IN)               :: map2_2d
             INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL     :: ${varlist("nd_dist")}$
             LOGICAL, INTENT(IN), OPTIONAL                   :: own_comm
-            INTEGER                                         :: ndims, comm_2d
+            INTEGER                                         :: ndims
+            TYPE(mp_comm_type) :: comm_2d
             INTEGER, DIMENSION(2)                           :: pdims_2d_check, &
                                                                pdims_2d, task_coor_2d
             INTEGER, DIMENSION(SIZE(map1_2d) + SIZE(map2_2d)) :: dims, nblks_nd, task_coor
@@ -1186,12 +1187,12 @@ CONTAINS
 
             CHARACTER(len=default_string_length)        :: name_in
             INTEGER, DIMENSION(2)                       :: order_in
-            INTEGER                                     :: comm_2d
+            TYPE(mp_comm_type)                                     :: comm_2d
             TYPE(dbcsr_distribution_type)               :: matrix_dist
-            TYPE(dbt_distribution_type)        :: dist
+            TYPE(dbt_distribution_type)                 :: dist
             INTEGER, DIMENSION(:), POINTER              :: row_blk_size, col_blk_size
             INTEGER, DIMENSION(:), POINTER              :: col_dist, row_dist
-            INTEGER                                   :: handle
+            INTEGER                                   :: handle, comm_2d_handle
             CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_create_matrix'
             TYPE(dbt_pgrid_type)                  :: comm_nd
             INTEGER, DIMENSION(2)                     :: pdims_2d
@@ -1212,8 +1213,9 @@ CONTAINS
             END IF
 
             CALL dbcsr_get_info(matrix_in, distribution=matrix_dist)
-            CALL dbcsr_distribution_get(matrix_dist, group=comm_2d, row_dist=row_dist, col_dist=col_dist, &
+            CALL dbcsr_distribution_get(matrix_dist, group=comm_2d_handle, row_dist=row_dist, col_dist=col_dist, &
                                         nprows=pdims_2d(1), npcols=pdims_2d(2))
+            CALL comm_2d%set_handle(comm_2d_handle)
             comm_nd = dbt_nd_mp_comm(comm_2d, [order_in(1)], [order_in(2)], pdims_2d=pdims_2d)
 
             CALL dbt_distribution_new_expert( &
@@ -1353,7 +1355,7 @@ CONTAINS
 !> \author Patrick Seewald
 ! **************************************************************************************************
          SUBROUTINE dbt_pgrid_create(mp_comm, dims, pgrid, tensor_dims)
-            INTEGER, INTENT(IN) :: mp_comm
+            TYPE(mp_comm_type), INTENT(IN) :: mp_comm
             INTEGER, DIMENSION(:), INTENT(INOUT) :: dims
             TYPE(dbt_pgrid_type), INTENT(OUT) :: pgrid
             INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL :: tensor_dims

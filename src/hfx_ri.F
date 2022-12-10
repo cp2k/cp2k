@@ -83,6 +83,7 @@ MODULE hfx_ri
                                               int_8
    USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_cart_create,&
+                                              mp_comm_type,&
                                               mp_environ,&
                                               mp_sum,&
                                               mp_sync
@@ -452,8 +453,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_pre_scf_calc_tensors'
 
-      INTEGER                                            :: handle, i_mem, ibasis, mp_comm_t3c, &
-                                                            n_mem, natom, nkind
+      INTEGER                                            :: handle, i_mem, ibasis, n_mem, natom, &
+                                                            nkind
       INTEGER, ALLOCATABLE, DIMENSION(:) :: dist_AO_1, dist_AO_2, dist_RI, &
          ends_array_mc_block_int, ends_array_mc_int, sizes_AO, sizes_RI, &
          starts_array_mc_block_int, starts_array_mc_int
@@ -471,6 +472,7 @@ CONTAINS
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
          DIMENSION(:), TARGET                            :: basis_set_AO, basis_set_RI
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis, ri_basis
+      TYPE(mp_comm_type)                                 :: mp_comm_t3c
       TYPE(neighbor_list_3c_type)                        :: nl_3c
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: nl_2c_pot, nl_2c_RI
@@ -1133,9 +1135,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_update_ks_mo'
 
-      INTEGER                                            :: bsize, bsum, comm_2d, handle, handle2, &
-                                                            i_mem, iblock, iproc, ispin, n_mem, &
-                                                            n_mos, nblock, nproc, unit_nr_dbcsr
+      INTEGER                                            :: bsize, bsum, comm_2d_handle, handle, &
+                                                            handle2, i_mem, iblock, iproc, ispin, &
+                                                            n_mem, n_mos, nblock, nproc, &
+                                                            unit_nr_dbcsr
       INTEGER(int_8)                                     :: nblks, nflop
       INTEGER, ALLOCATABLE, DIMENSION(:) :: batch_ranges_1, batch_ranges_2, dist1, dist2, dist3, &
          mem_end, mem_end_block_1, mem_end_block_2, mem_size, mem_start, mem_start_block_1, &
@@ -1151,6 +1154,7 @@ CONTAINS
       TYPE(dbt_type)                                     :: ks_t, ks_t_mat, mo_coeff_t, &
                                                             mo_coeff_t_split
       TYPE(dbt_type), DIMENSION(1, 1)                    :: t_3c_int_mo_1, t_3c_int_mo_2
+      TYPE(mp_comm_type)                                 :: comm_2d
 
       CALL timeset(routineN, handle)
 
@@ -1192,8 +1196,9 @@ CONTAINS
       ALLOCATE (bounds(2, 1))
 
       CALL dbcsr_get_info(ks_matrix(1, 1)%matrix, distribution=ks_dist)
-      CALL dbcsr_distribution_get(ks_dist, group=comm_2d, nprows=pdims_2d(1), npcols=pdims_2d(2))
+      CALL dbcsr_distribution_get(ks_dist, group=comm_2d_handle, nprows=pdims_2d(1), npcols=pdims_2d(2))
 
+      CALL comm_2d%set_handle(comm_2d_handle)
       pgrid_2d = dbt_nd_mp_comm(comm_2d, [1], [2], pdims_2d=pdims_2d)
 
       CALL create_2c_tensor(ks_t, dist1, dist2, pgrid_2d, ri_data%bsizes_AO_fit, ri_data%bsizes_AO_fit, &
@@ -3036,8 +3041,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'precalc_derivatives'
 
-      INTEGER                                            :: handle, i_mem, i_xyz, ibasis, &
-                                                            mp_comm_t3c, n_mem, nkind
+      INTEGER                                            :: handle, i_mem, i_xyz, ibasis, n_mem, &
+                                                            nkind
       INTEGER(int_8)                                     :: nze, nze_tot
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1, dist2, dist_AO_1, dist_AO_2, &
                                                             dist_RI, dummy_end, dummy_start, &
@@ -3056,6 +3061,7 @@ CONTAINS
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
          DIMENSION(:), TARGET                            :: basis_set_AO, basis_set_RI
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis, ri_basis
+      TYPE(mp_comm_type)                                 :: mp_comm_t3c
       TYPE(neighbor_list_3c_type)                        :: nl_3c
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: nl_2c
@@ -3764,8 +3770,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_RI_density_coeffs'
 
-      INTEGER                                            :: a, b, handle, i_mem, idx, mp_comm_t3c, &
-                                                            n_dependent, n_mem, n_mem_RI, natom, &
+      INTEGER                                            :: a, b, handle, i_mem, idx, n_dependent, &
+                                                            n_mem, n_mem_RI, natom, &
                                                             nblk_per_thread, nblks, nkind
       INTEGER(int_8)                                     :: nze
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: batch_block_end, batch_block_start, &
@@ -3790,6 +3796,7 @@ CONTAINS
       TYPE(dbt_type), DIMENSION(1, 1)                    :: t_3c_int_batched
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_3d_type)                         :: dist_nl3c
+      TYPE(mp_comm_type)                                 :: mp_comm_t3c
       TYPE(neighbor_list_3c_type)                        :: nl_3c
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set

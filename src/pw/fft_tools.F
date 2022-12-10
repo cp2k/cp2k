@@ -43,7 +43,8 @@ MODULE fft_tools
                                               sp
    USE message_passing,                 ONLY: &
         mp_alltoall, mp_cart_coords, mp_cart_rank, mp_cart_sub, mp_comm_compare, mp_comm_free, &
-        mp_comm_null, mp_environ, mp_irecv, mp_isend, mp_rank_compare, mp_sum, mp_sync, mp_waitall
+        mp_comm_null, mp_comm_type, mp_environ, mp_irecv, mp_isend, mp_rank_compare, mp_sum, &
+        mp_sync, mp_waitall
    USE offload_api,                     ONLY: offload_free_pinned_mem,&
                                               offload_malloc_pinned_mem
 
@@ -68,7 +69,7 @@ MODULE fft_tools
       INTEGER                              :: lg = 0, mg = 0
       INTEGER                              :: nbx = 0, nbz = 0
       INTEGER                              :: nmray = 0, nyzray = 0
-      INTEGER                              :: gs_group = 0, rs_group = 0
+      TYPE(mp_comm_type)                   :: gs_group, rs_group
       INTEGER, DIMENSION(2)                :: g_pos = 0, r_pos = 0, r_dim = 0
       INTEGER                              :: numtask = 0
    END TYPE fft_scratch_sizes
@@ -77,10 +78,11 @@ MODULE fft_tools
       INTEGER                              :: fft_scratch_id
       INTEGER                              :: tf_type
       LOGICAL                              :: in_use
-      INTEGER                              :: group
+      TYPE(mp_comm_type)                   :: group
       INTEGER, DIMENSION(3)                :: nfft
       ! to be used in cube_transpose_* routines
-      INTEGER, DIMENSION(2)                :: cart_sub_comm = mp_comm_null, dim, pos
+      TYPE(mp_comm_type), DIMENSION(2)     :: cart_sub_comm
+      INTEGER, DIMENSION(2)                :: dim, pos
       ! to be used in fft3d_s
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER &
          :: ziptr, zoptr
@@ -495,7 +497,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: cin
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)   :: gin
-      INTEGER, INTENT(IN)                                :: gs_group, rs_group
+      TYPE(mp_comm_type), INTENT(IN)                     :: gs_group, rs_group
       INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: yzp
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: nyzray
       INTEGER, DIMENSION(:, :, 0:, :), INTENT(IN)        :: bo
@@ -942,7 +944,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: zin
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)   :: gin
-      INTEGER, INTENT(IN)                                :: group
+      TYPE(mp_comm_type), INTENT(IN)                     :: group
       INTEGER, DIMENSION(:, :, 0:, :), INTENT(IN)        :: bo
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
       INTEGER, INTENT(OUT), OPTIONAL                     :: status
@@ -1366,7 +1368,8 @@ CONTAINS
    SUBROUTINE x_to_yz(sb, group, my_pos, p2p, yzp, nray, bo, tb, fft_scratch)
 
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: sb
-      INTEGER, INTENT(IN)                                :: group, my_pos
+      TYPE(mp_comm_type), INTENT(IN)                     :: group
+      INTEGER, INTENT(IN)                                :: my_pos
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: p2p
       INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: yzp
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: nray
@@ -1475,7 +1478,8 @@ CONTAINS
    SUBROUTINE yz_to_x(tb, group, my_pos, p2p, yzp, nray, bo, sb, fft_scratch)
 
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN)   :: tb
-      INTEGER, INTENT(IN)                                :: group, my_pos
+      TYPE(mp_comm_type), INTENT(IN)                     :: group
+      INTEGER, INTENT(IN)                                :: my_pos
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: p2p
       INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: yzp
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: nray
@@ -1585,7 +1589,7 @@ CONTAINS
    SUBROUTINE yz_to_xz(sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scratch)
 
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: sb
-      INTEGER, INTENT(IN)                                :: group
+      TYPE(mp_comm_type), INTENT(IN)                     :: group
       INTEGER, DIMENSION(2), INTENT(IN)                  :: dims
       INTEGER, INTENT(IN)                                :: my_pos
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: p2p
@@ -1793,7 +1797,7 @@ CONTAINS
    SUBROUTINE xz_to_yz(sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scratch)
 
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: sb
-      INTEGER, INTENT(IN)                                :: group
+      TYPE(mp_comm_type), INTENT(IN)                     :: group
       INTEGER, DIMENSION(2), INTENT(IN)                  :: dims
       INTEGER, INTENT(IN)                                :: my_pos
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: p2p
@@ -1993,14 +1997,13 @@ CONTAINS
 
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: rbuf
       INTEGER                                            :: handle, ip, ipl, ir, is, ixy, iz, mip, &
-                                                            mz, np, nx, ny, nz, sub_group
+                                                            mz, np, nx, ny, nz
       INTEGER, DIMENSION(2)                              :: dim, pos
       INTEGER, DIMENSION(:), POINTER                     :: rcount, rdispl, scount, sdispl
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
 
       CALL timeset(routineN, handle)
 
-      sub_group = fft_scratch%cart_sub_comm(2)
       mip = fft_scratch%mip
       dim = fft_scratch%dim
       pos = fft_scratch%pos
@@ -2039,7 +2042,7 @@ CONTAINS
 
       rbuf => fft_scratch%rbuf1
 
-      CALL mp_alltoall(cin, scount, sdispl, rbuf, rcount, rdispl, sub_group)
+      CALL mp_alltoall(cin, scount, sdispl, rbuf, rcount, rdispl, fft_scratch%cart_sub_comm(2))
 
 !$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) &
 !$OMP             PRIVATE(ip,ipl,nz,iz,is,ir) &
@@ -2080,10 +2083,11 @@ CONTAINS
 
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: rbuf
       INTEGER                                            :: handle, ip, ipl, ir, ixy, iz, mip, mz, &
-                                                            np, nx, ny, nz, sub_group
+                                                            np, nx, ny, nz
       INTEGER, DIMENSION(2)                              :: dim, pos
       INTEGER, DIMENSION(:), POINTER                     :: rcount, rdispl, scount, sdispl
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
+      TYPE(mp_comm_type)                                 :: sub_group
 
       CALL timeset(routineN, handle)
 
@@ -2166,10 +2170,11 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: rbuf
       INTEGER                                            :: handle, ip, ipl, ir, is, ixz, iy, lb, &
                                                             mip, my, my_id, np, num_threads, nx, &
-                                                            ny, nz, sub_group, ub
+                                                            ny, nz, ub
       INTEGER, DIMENSION(2)                              :: dim, pos
       INTEGER, DIMENSION(:), POINTER                     :: rcount, rdispl, scount, sdispl
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
+      TYPE(mp_comm_type)                                 :: sub_group
 
       CALL timeset(routineN, handle)
 
@@ -2266,10 +2271,11 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: rbuf
       INTEGER                                            :: handle, ip, ipl, ir, iy, izx, lb, mip, &
                                                             my, my_id, np, num_threads, nx, ny, &
-                                                            nz, sub_group, ub
+                                                            nz, ub
       INTEGER, DIMENSION(2)                              :: dim, pos
       INTEGER, DIMENSION(:), POINTER                     :: rcount, rdispl, scount, sdispl
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
+      TYPE(mp_comm_type)                                 :: sub_group
 
       CALL timeset(routineN, handle)
 
@@ -2354,7 +2360,7 @@ CONTAINS
    SUBROUTINE cube_transpose_5(cin, group, boin, boout, sout, fft_scratch)
 
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: cin
-      INTEGER, INTENT(IN)                                :: group
+      TYPE(mp_comm_type), INTENT(IN)                     :: group
       INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: boin, boout
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: sout
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
@@ -2447,7 +2453,7 @@ CONTAINS
    SUBROUTINE cube_transpose_6(cin, group, boin, boout, sout, fft_scratch)
 
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: cin
-      INTEGER, INTENT(IN)                                :: group
+      TYPE(mp_comm_type), INTENT(IN)                     :: group
       INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: boin, boout
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: sout
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
@@ -2538,7 +2544,6 @@ CONTAINS
       NULLIFY (fft_scratch_first%fft_scratch_next)
       fft_scratch_first%fft_scratch%fft_scratch_id = 0
       fft_scratch_first%fft_scratch%in_use = .TRUE.
-      fft_scratch_first%fft_scratch%group = 0
       NULLIFY (fft_scratch_first%fft_scratch%ziptr)
       NULLIFY (fft_scratch_first%fft_scratch%zoptr)
       NULLIFY (fft_scratch_first%fft_scratch%p1buf)
@@ -2748,13 +2753,13 @@ CONTAINS
          DEALLOCATE (fft_scratch%rbuf6)
       END IF
 
-      IF (fft_scratch%cart_sub_comm(1) .NE. mp_comm_null) THEN
+      IF (fft_scratch%cart_sub_comm(1)%get_handle() .NE. mp_comm_null) THEN
          CALL mp_comm_free(fft_scratch%cart_sub_comm(1))
       END IF
-      IF (fft_scratch%cart_sub_comm(2) .NE. mp_comm_null) THEN
+      IF (fft_scratch%cart_sub_comm(2)%get_handle() .NE. mp_comm_null) THEN
          CALL mp_comm_free(fft_scratch%cart_sub_comm(2))
       END IF
-      fft_scratch%cart_sub_comm = mp_comm_null
+      CALL fft_scratch%cart_sub_comm%set_handle(mp_comm_null)
 
       CALL fft_destroy_plan(fft_scratch%fft_plan(1))
       CALL fft_destroy_plan(fft_scratch%fft_plan(2))
@@ -2916,7 +2921,7 @@ CONTAINS
                CYCLE
             END IF
             IF (PRESENT(fft_sizes)) THEN
-               IF (fft_sizes%gs_group /= fft_scratch_current%fft_scratch%group) THEN
+               IF (fft_sizes%gs_group%get_handle() /= fft_scratch_current%fft_scratch%group%get_handle()) THEN
                   fft_scratch_last => fft_scratch_current
                   fft_scratch_current => fft_scratch_current%fft_scratch_next
                   CYCLE
@@ -2937,7 +2942,6 @@ CONTAINS
             ! Generate a new scratch set
             ALLOCATE (fft_scratch_new)
             ALLOCATE (fft_scratch_new%fft_scratch)
-            fft_scratch_new%fft_scratch%group = 0
             NULLIFY (fft_scratch_new%fft_scratch%ziptr)
             NULLIFY (fft_scratch_new%fft_scratch%zoptr)
             NULLIFY (fft_scratch_new%fft_scratch%p1buf)
@@ -2976,8 +2980,6 @@ CONTAINS
             DO i = 1, 6
                fft_scratch_new%fft_scratch%fft_plan(i)%valid = .FALSE.
             END DO
-
-            fft_scratch_new%fft_scratch%cart_sub_comm = mp_comm_null
 
             IF (tf_type .NE. 400) THEN
                fft_scratch_new%fft_scratch%sizes = fft_sizes
@@ -3325,7 +3327,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: scount, sdispl
       COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: rq
       INTEGER, DIMENSION(:), POINTER                     :: rcount, rdispl
-      INTEGER, INTENT(IN)                                :: group
+      TYPE(mp_comm_type), INTENT(IN)                     :: group
 
       COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: msgin, msgout
       INTEGER                                            :: ip, n, nr, ns, pos, rn, sn
@@ -3408,8 +3410,8 @@ CONTAINS
       equal = equal .AND. fft_size_1%nmray == fft_size_2%nmray
       equal = equal .AND. fft_size_1%nyzray == fft_size_2%nyzray
 
-      equal = equal .AND. fft_size_1%gs_group == fft_size_2%gs_group
-      equal = equal .AND. fft_size_1%rs_group == fft_size_2%rs_group
+      equal = equal .AND. fft_size_1%gs_group%get_handle() == fft_size_2%gs_group%get_handle()
+      equal = equal .AND. fft_size_1%rs_group%get_handle() == fft_size_2%rs_group%get_handle()
 
       equal = equal .AND. ALL(fft_size_1%g_pos == fft_size_2%g_pos)
       equal = equal .AND. ALL(fft_size_1%r_pos == fft_size_2%r_pos)

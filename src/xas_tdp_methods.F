@@ -77,7 +77,8 @@ MODULE xas_tdp_methods
    USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: get_diag
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_bcast
+   USE message_passing,                 ONLY: mp_bcast,&
+                                              mp_comm_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE parallel_rng_types,              ONLY: UNIFORM,&
                                               rng_stream_type
@@ -3336,7 +3337,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'read_donor_state_restart'
 
-      INTEGER                                            :: group, handle, ispin, nao, nex, nspins, &
+      INTEGER                                            :: handle, ispin, nao, nex, nspins, &
                                                             output_unit, read_params(7), rst_unit, &
                                                             source
       INTEGER, DIMENSION(:, :), POINTER                  :: mo_indices
@@ -3347,6 +3348,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: lr_coeffs
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_comm_type)                                 :: group
 
       NULLIFY (lr_evals, lr_coeffs, para_env, fm_struct, blacs_env, mos)
 

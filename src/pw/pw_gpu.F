@@ -34,6 +34,7 @@ MODULE pw_gpu
         release_fft_scratch, x_to_yz, xz_to_yz, yz_to_x, yz_to_xz
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_comm_compare,&
+                                              mp_comm_type,&
                                               mp_environ,&
                                               mp_rank_compare
    USE pw_grid_types,                   ONLY: FULLSPACE
@@ -231,10 +232,9 @@ CONTAINS
 
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: grays, pbuf, qbuf, rbuf, sbuf
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: tbuf
-      INTEGER                                            :: g_pos, gs_group, handle, iout, lg, lmax, &
-                                                            mg, mmax, mx2, mz2, n1, n2, ngpts, &
-                                                            nmax, numtask, numtask_g, numtask_r, &
-                                                            rp, rs_group
+      INTEGER                                            :: g_pos, handle, iout, lg, lmax, mg, mmax, &
+                                                            mx2, mz2, n1, n2, ngpts, nmax, &
+                                                            numtask, numtask_g, numtask_r, rp
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
       INTEGER, DIMENSION(2)                              :: r_dim, r_pos
       INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
@@ -242,6 +242,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
       TYPE(fft_scratch_sizes)                            :: fft_scratch_size
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
+      TYPE(mp_comm_type)                                 :: gs_group, rs_group
 
 !nyzray(0:)
 !yzp(:,:,0:)
@@ -411,10 +412,9 @@ CONTAINS
 
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: grays, pbuf, qbuf, rbuf, sbuf
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: tbuf
-      INTEGER                                            :: g_pos, gs_group, handle, iout, lg, lmax, &
-                                                            mg, mmax, mx2, mz2, n1, n2, ngpts, &
-                                                            nmax, numtask, numtask_g, numtask_r, &
-                                                            rp, rs_group
+      INTEGER                                            :: g_pos, handle, iout, lg, lmax, mg, mmax, &
+                                                            mx2, mz2, n1, n2, ngpts, nmax, &
+                                                            numtask, numtask_g, numtask_r, rp
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
       INTEGER, DIMENSION(2)                              :: r_dim, r_pos
       INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
@@ -422,6 +422,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
       TYPE(fft_scratch_sizes)                            :: fft_scratch_size
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
+      TYPE(mp_comm_type)                                 :: gs_group, rs_group
 
 !nyzray(0:)
 !yzp(:,:,0:)

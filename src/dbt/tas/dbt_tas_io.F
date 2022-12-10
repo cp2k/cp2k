@@ -31,7 +31,8 @@ MODULE dbt_tas_io
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
-   USE message_passing,                 ONLY: mp_environ,&
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_environ,&
                                               mp_max,&
                                               mp_sum
 #include "../../base/base_uses.f90"
@@ -126,8 +127,10 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: full_info
 
       CHARACTER(default_string_length)                   :: name
-      INTEGER :: icol, igroup, iproc, irow, mp_comm, mp_comm_group, nblock, ndbt_p_max, nelement, &
-         nelement_p_max, ngroup, nproc, split_rowcol, unit_nr_prv
+      INTEGER                                            :: icol, igroup, iproc, irow, nblock, &
+                                                            ndbt_p_max, nelement, nelement_p_max, &
+                                                            ngroup, nproc, split_rowcol, &
+                                                            unit_nr_prv
       INTEGER(KIND=int_8)                                :: ndbt_p_sum, ndbt_s, ndbt_s_max, &
                                                             ndbt_tot, nelement_p_sum, nelement_s, &
                                                             nelement_s_max
@@ -136,6 +139,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: coldist, rowdist
       REAL(KIND=dp)                                      :: occupation
       TYPE(dbm_distribution_obj)                         :: dist
+      TYPE(mp_comm_type)                                 :: mp_comm, mp_comm_group
 
       unit_nr_prv = prep_output_unit(unit_nr)
       IF (unit_nr_prv == 0) RETURN
@@ -216,11 +220,11 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: name
 
       CHARACTER(len=:), ALLOCATABLE                      :: name_prv
-      INTEGER                                            :: groupsize, igroup, mp_comm, &
-                                                            mp_comm_group, mynode, nsplit, &
+      INTEGER                                            :: groupsize, igroup, mynode, nsplit, &
                                                             numnodes, split_rowcol, unit_nr_prv
       INTEGER, DIMENSION(2)                              :: coord, dims, groupcoord, groupdims, &
                                                             pgrid_offset
+      TYPE(mp_comm_type)                                 :: mp_comm, mp_comm_group
 
       unit_nr_prv = prep_output_unit(unit_nr)
       IF (unit_nr_prv == 0) RETURN

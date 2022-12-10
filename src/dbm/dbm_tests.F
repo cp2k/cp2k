@@ -17,6 +17,7 @@ MODULE dbm_tests
    USE machine,                         ONLY: m_flush
    USE message_passing,                 ONLY: mp_cart_create,&
                                               mp_comm_free,&
+                                              mp_comm_type,&
                                               mp_dims_create,&
                                               mp_environ,&
                                               mp_max,&
@@ -56,7 +57,8 @@ CONTAINS
                             bs_m, bs_n, bs_k, sparsities, alpha, beta, &
                             n_loops, eps, retain_sparsity, always_checksum)
 
-      INTEGER, INTENT(IN)                                :: mp_group, io_unit
+      TYPE(mp_comm_type), INTENT(IN)                     :: mp_group
+      INTEGER, INTENT(IN)                                :: io_unit
       INTEGER, DIMENSION(:), INTENT(in)                  :: matrix_sizes
       LOGICAL, DIMENSION(2), INTENT(in)                  :: trs
       INTEGER, DIMENSION(:), POINTER                     :: bs_m, bs_n, bs_k
@@ -68,14 +70,14 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'dbm_run_tests'
 
-      INTEGER                                            :: bmax, bmin, cart_group, handle, mynode, &
-                                                            numnodes
+      INTEGER                                            :: bmax, bmin, handle, mynode, numnodes
       INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_dist_a, col_dist_b, col_dist_c, &
                                                             row_dist_a, row_dist_b, row_dist_c, &
                                                             sizes_k, sizes_m, sizes_n
       INTEGER, DIMENSION(2)                              :: mycoord, npdims
       TYPE(dbm_distribution_obj)                         :: dist_a, dist_b, dist_c
       TYPE(dbm_type), TARGET                             :: matrix_a, matrix_b, matrix_c
+      TYPE(mp_comm_type)                                 :: cart_group
 
       CALL timeset(routineN, handle)
 
@@ -209,7 +211,8 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: retain_sparsity
       INTEGER, INTENT(IN)                                :: n_loops
       REAL(kind=dp), INTENT(in)                          :: eps
-      INTEGER, INTENT(IN)                                :: group, io_unit
+      TYPE(mp_comm_type)                                 :: group
+      INTEGER, INTENT(IN)                                :: io_unit
       LOGICAL, INTENT(in)                                :: always_checksum
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'run_multiply_test'
@@ -272,7 +275,7 @@ CONTAINS
    SUBROUTINE fill_matrix(matrix, sparsity, group)
       TYPE(dbm_type), INTENT(inout)                      :: matrix
       REAL(kind=dp), INTENT(in)                          :: sparsity
-      INTEGER, INTENT(IN)                                :: group
+      TYPE(mp_comm_type), INTENT(IN)                     :: group
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'fill_matrix'
 

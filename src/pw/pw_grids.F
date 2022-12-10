@@ -46,7 +46,8 @@ MODULE pw_grids
                                               inv_3x3
    USE message_passing,                 ONLY: &
         mp_allgather, mp_cart_coords, mp_cart_create, mp_cart_rank, mp_comm_compare, mp_comm_dup, &
-        mp_comm_free, mp_comm_self, mp_dims_create, mp_environ, mp_max, mp_min, mp_sum
+        mp_comm_free, mp_comm_self, mp_comm_type, mp_dims_create, mp_environ, mp_max, mp_min, &
+        mp_sum
    USE offload_api,                     ONLY: offload_activate_chosen_device,&
                                               offload_free_pinned_mem,&
                                               offload_malloc_pinned_mem
@@ -92,7 +93,7 @@ CONTAINS
    SUBROUTINE pw_grid_create(pw_grid, pe_group, local)
 
       TYPE(pw_grid_type), POINTER                        :: pw_grid
-      INTEGER, INTENT(in)                                :: pe_group
+      TYPE(mp_comm_type), INTENT(in)                     :: pe_group
       LOGICAL, INTENT(IN), OPTIONAL                      :: local
 
       LOGICAL                                            :: my_local
@@ -801,6 +802,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: axis_dist_all
       INTEGER, DIMENSION(2, 3)                           :: axis_dist
       LOGICAL                                            :: blocking
+      TYPE(mp_comm_type)                                 :: mp_comm_old
 
 !------------------------------------------------------------------------------
 
@@ -834,7 +836,8 @@ CONTAINS
          CPASSERT(pw_grid%ngpts < HUGE(pw_grid%ngpts_local))
          pw_grid%ngpts_local = INT(pw_grid%ngpts)
          pw_grid%para%rs_dims = 1
-         CALL mp_cart_create(mp_comm_self, 2, &
+         CALL mp_comm_old%set_handle(mp_comm_self)
+         CALL mp_cart_create(mp_comm_old, 2, &
                              pw_grid%para%rs_dims, &
                              pw_grid%para%rs_pos, &
                              pw_grid%para%rs_group)

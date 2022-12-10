@@ -31,6 +31,7 @@ MODULE embed_types
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE lri_environment_types,           ONLY: lri_kind_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_create,&
                                               molecule_kind_list_release,&
                                               molecule_kind_list_type
@@ -122,7 +123,8 @@ MODULE embed_types
       TYPE(section_vals_type), POINTER                 :: input
       REAL(KIND=dp), DIMENSION(:), POINTER             :: energies
       ! Parallelization of multiple force_eval
-      INTEGER                                          :: new_group, ngroups
+      TYPE(mp_comm_type) :: new_group
+      INTEGER                                          :: ngroups
       INTEGER, DIMENSION(:), POINTER                   :: group_distribution
       TYPE(cp_para_env_p_type), DIMENSION(:), POINTER  :: sub_para_env
       TYPE(cp_logger_p_type), DIMENSION(:), POINTER    :: sub_logger

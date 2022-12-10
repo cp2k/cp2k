@@ -61,7 +61,8 @@ MODULE qs_loc_utils
    USE mathconstants,                   ONLY: pi,&
                                               twopi
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_bcast
+   USE message_passing,                 ONLY: mp_bcast,&
+                                              mp_comm_type
    USE orbital_pointers,                ONLY: ncoset
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
@@ -1042,12 +1043,13 @@ CONTAINS
       CHARACTER(LEN=25)                                  :: fname_key
       CHARACTER(LEN=default_path_length)                 :: filename
       CHARACTER(LEN=default_string_length)               :: my_middle
-      INTEGER :: group, handle, homo_read, i, ispin, lfomo_read, max_nloc, n_rep_val, nao, &
+      INTEGER :: handle, homo_read, i, ispin, lfomo_read, max_nloc, n_rep_val, nao, &
          nelectron_read, nloc, nmo, nmo_read, nspin, output_unit, rst_unit, source
       LOGICAL                                            :: file_exists, my_do_mixed
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eig_read, occ_read
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vecbuffer
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(mp_comm_type)                                 :: group
       TYPE(section_vals_type), POINTER                   :: print_key
 
       CALL timeset(routineN, handle)

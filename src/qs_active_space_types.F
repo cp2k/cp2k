@@ -21,6 +21,7 @@ MODULE qs_active_space_types
                                               dbcsr_p_type
    USE kinds,                           ONLY: default_path_length,&
                                               dp
+   USE message_passing,                 ONLY: mp_comm_type
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                               mo_set_type
 #include "./base/base_uses.f90"
@@ -305,8 +306,9 @@ CONTAINS
 !>      04.2016 created [JGH]
 ! **************************************************************************************************
    FUNCTION get_irange_csr(nindex, mp_group) RESULT(irange)
-      USE message_passing, ONLY: mp_environ
-      INTEGER                                            :: nindex, mp_group
+      USE message_passing, ONLY: mp_environ, mp_comm_type
+      INTEGER, INTENT(IN)                                :: nindex
+      TYPE(mp_comm_type), INTENT(IN)                     :: mp_group
       INTEGER, DIMENSION(2)                              :: irange
 
       INTEGER                                            :: numtask, taskid
@@ -357,6 +359,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)       :: colind
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: erival
       REAL(KIND=dp)                            :: erint
+      TYPE(mp_comm_type) :: mp_group
 
       IF (.NOT. PRESENT(spin1)) THEN
          spin1 = nspin
@@ -367,7 +370,8 @@ CONTAINS
 
       ASSOCIATE (eri => this%eri(nspin)%csr_mat, norb => this%norb)
          nindex = (norb*(norb + 1))/2
-         irange = get_irange_csr(nindex, eri%mp_group)
+         CALL mp_group%set_handle(eri%mp_group)
+         irange = get_irange_csr(nindex, mp_group)
          ALLOCATE (erival(nindex), colind(nindex))
 
          nmo = SIZE(active_orbitals, 1)
@@ -390,10 +394,10 @@ CONTAINS
                   nindex = 0
                END IF
 
-               CALL mp_sum(nindex, eri%mp_group)
-               CALL mp_sum(colind(1:nindex), eri%mp_group)
-               CALL mp_sum(erival(1:nindex), eri%mp_group)
-               CALL mp_sync(eri%mp_group)
+               CALL mp_sum(nindex, mp_group)
+               CALL mp_sum(colind(1:nindex), mp_group)
+               CALL mp_sum(erival(1:nindex), mp_group)
+               CALL mp_sync(mp_group)
 
                DO i34l = 1, nindex
                   i34 = colind(i34l)

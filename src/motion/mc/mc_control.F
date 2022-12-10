@@ -42,7 +42,8 @@ MODULE mc_control
                                               mc_molecule_info_type,&
                                               mc_simpar_type,&
                                               set_mc_par
-   USE message_passing,                 ONLY: mp_bcast
+   USE message_passing,                 ONLY: mp_bcast,&
+                                              mp_comm_type
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_kind_types,             ONLY: atom_type,&
                                               get_molecule_kind,&
@@ -181,9 +182,9 @@ CONTAINS
          DIMENSION(:, :), POINTER                        :: atom_names
       CHARACTER(LEN=20)                                  :: ensemble, mc_ensemble
       CHARACTER(LEN=default_path_length)                 :: dat_file, restart_file_name
-      INTEGER                                            :: group, handle, i, ipart, iunit, &
-                                                            nmol_types, nstart, nunits_tot, &
-                                                            print_level, source, unit
+      INTEGER                                            :: handle, i, ipart, iunit, nmol_types, &
+                                                            nstart, nunits_tot, print_level, &
+                                                            source, unit
       INTEGER, DIMENSION(:), POINTER                     :: nchains, nunits
       LOGICAL                                            :: ionode
       REAL(KIND=dp)                                      :: mc_temp, rand, temperature
@@ -193,6 +194,7 @@ CONTAINS
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(mc_input_file_type), POINTER                  :: mc_input_file
       TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info
+      TYPE(mp_comm_type)                                 :: group
       TYPE(particle_list_type), POINTER                  :: particles
 
       CALL timeset(routineN, handle)

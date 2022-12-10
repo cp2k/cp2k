@@ -16,6 +16,7 @@ MODULE arnoldi_types
    USE dbcsr_api,                       ONLY: dbcsr_type
    USE kinds,                           ONLY: real_4,&
                                               real_8
+   USE message_passing,                 ONLY: mp_comm_type
 
    IMPLICIT NONE
 
@@ -24,7 +25,8 @@ MODULE arnoldi_types
 ! Give him everything we have and create some easy to use routines to post process externally
    TYPE arnoldi_control_type
       LOGICAL                                 :: local_comp, converged
-      INTEGER                                 :: myproc, mp_group, pcol_group, prow_group
+      INTEGER                                 :: myproc
+      TYPE(mp_comm_type)                      :: mp_group, pcol_group, prow_group
       INTEGER                                 :: max_iter ! Maximum number of iterations
       INTEGER                                 :: current_step ! In case subspace converged early contains last iteration
       INTEGER                                 :: nval_req

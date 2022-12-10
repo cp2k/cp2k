@@ -24,7 +24,8 @@ MODULE mc_coordinates
                                               get_mc_par,&
                                               mc_molecule_info_type,&
                                               mc_simpar_type
-   USE message_passing,                 ONLY: mp_bcast
+   USE message_passing,                 ONLY: mp_bcast,&
+                                              mp_comm_type
    USE molecule_types,                  ONLY: molecule_type
    USE parallel_rng_types,              ONLY: rng_stream_type
    USE particle_list_types,             ONLY: particle_list_type
@@ -342,7 +343,8 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: old_energy
       LOGICAL, INTENT(IN)                                :: ionode, lremove
       INTEGER, DIMENSION(:), INTENT(IN)                  :: mol_type, nchains
-      INTEGER, INTENT(IN)                                :: source, group
+      INTEGER, INTENT(IN)                                :: source
+      TYPE(mp_comm_type)                                 :: group
       TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
       INTEGER, INTENT(IN), OPTIONAL                      :: avbmc_atom
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: rmin, rmax

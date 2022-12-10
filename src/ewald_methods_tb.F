@@ -23,6 +23,7 @@ MODULE ewald_methods_tb
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi,&
                                               oorootpi
+   USE message_passing,                 ONLY: mp_comm_type
    USE particle_types,                  ONLY: particle_type
    USE pme_tools,                       ONLY: get_center,&
                                               set_list
@@ -97,8 +98,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'tb_spme_evaluate'
 
-      INTEGER                                            :: group, handle, i, ig, ipart, j, n, &
-                                                            npart, o_spline, p1
+      INTEGER                                            :: handle, i, ig, ipart, j, n, npart, &
+                                                            o_spline, p1
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: center
       INTEGER, DIMENSION(3)                              :: nd, npts
       REAL(KIND=dp)                                      :: alpha, dvols, fat(3), ffa, ffb, fint, vgc
@@ -107,6 +108,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: f_stress, h_stress
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(greens_fn_type), POINTER                      :: green
+      TYPE(mp_comm_type)                                 :: group
       TYPE(pw_grid_type), POINTER                        :: grid_spme
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: pw_pool
@@ -438,8 +440,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'tb_spme_zforce'
 
-      INTEGER                                            :: group, handle, i, ipart, n, npart, &
-                                                            o_spline, p1
+      INTEGER                                            :: handle, i, ipart, n, npart, o_spline, p1
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: center
       INTEGER, DIMENSION(3)                              :: npts
       REAL(KIND=dp)                                      :: alpha, dvols, fat(3), fint, vgc
@@ -447,6 +448,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rhos
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(greens_fn_type), POINTER                      :: green
+      TYPE(mp_comm_type)                                 :: group
       TYPE(pw_grid_type), POINTER                        :: grid_spme
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: pw_pool

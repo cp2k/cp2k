@@ -20,7 +20,7 @@ MODULE dbt_io
       blk_dims_tensor, dbt_get_stored_coordinates, dbt_get_nze, dbt_get_nze_total, &
       dbt_pgrid_type, dbt_nblks_total
    USE kinds, ONLY: default_string_length, int_8, dp
-   USE message_passing, ONLY: mp_environ, mp_sum, mp_max
+   USE message_passing, ONLY: mp_environ, mp_sum, mp_max, mp_comm_type
    USE dbt_block, ONLY: &
       dbt_iterator_type, dbt_iterator_next_block, dbt_iterator_start, &
       dbt_iterator_blocks_left, dbt_iterator_stop, dbt_get_block
@@ -125,7 +125,7 @@ CONTAINS
       INTEGER                        :: nproc, myproc, nblock_max, nelement_max
       INTEGER(KIND=int_8)            :: nblock_sum, nelement_sum, nblock_tot
       INTEGER                        :: nblock, nelement, unit_nr_prv
-      INTEGER                        :: mp_comm
+      TYPE(mp_comm_type)             :: mp_comm
       INTEGER, DIMENSION(2)          :: tmp
       INTEGER, DIMENSION(ndims_tensor(tensor)) :: bdims
       REAL(KIND=dp)              :: occupation

@@ -27,7 +27,8 @@ MODULE qs_epr_hyp
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi
-   USE message_passing,                 ONLY: mp_sum,&
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_sum,&
                                               mp_sync
    USE particle_types,                  ONLY: particle_type
    USE periodic_table,                  ONLY: ptable
@@ -82,10 +83,10 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=2)                                   :: element_symbol
-      INTEGER                                            :: bo(2), group, ia, iat, iatom, idir1, &
-                                                            idir2, ig, ikind, ir, iso, jatom, &
-                                                            mepos, natom, natomkind, nkind, &
-                                                            num_pe, output_unit, z
+      INTEGER                                            :: bo(2), ia, iat, iatom, idir1, idir2, ig, &
+                                                            ikind, ir, iso, jatom, mepos, natom, &
+                                                            natomkind, nkind, num_pe, output_unit, &
+                                                            z
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL                                            :: lsd, paw_atom
       REAL(dp)                                           :: arg, esum, hard_radius, hypanisotemp, &
@@ -100,6 +101,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
+      TYPE(mp_comm_type)                                 :: group
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_grid_type), POINTER                        :: pw_grid

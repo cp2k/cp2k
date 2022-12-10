@@ -43,7 +43,7 @@ MODULE ewalds_multipole
                             oorootpi, &
                             pi, &
                             sqrthalf
-   USE message_passing, ONLY: mp_sum
+   USE message_passing, ONLY: mp_sum, mp_comm_type
    USE parallel_rng_types, ONLY: UNIFORM, &
                                  rng_stream_type
    USE particle_types, ONLY: particle_type
@@ -149,7 +149,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_evaluate'
 
-      INTEGER                                            :: group, handle, i, j, size1, size2
+      INTEGER                                            :: handle, i, j, size1, size2
       LOGICAL                                            :: check_debug, check_efield, check_forces, &
                                                             do_task(3)
       LOGICAL, DIMENSION(3, 3)                           :: my_task
@@ -158,6 +158,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: efield0_lr, efield0_sr
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: efield1_lr, efield1_sr, efield2_lr, &
                                                             efield2_sr
+      TYPE(mp_comm_type) :: group
 
       CALL cite_reference(Aguado2003)
       CALL cite_reference(Laino2008)
@@ -664,7 +665,7 @@ CONTAINS
                                                             fac, summe_tmp
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: summe_ef
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: summe_st
-      INTEGER :: gpt, group, handle, iparticle, iparticle_kind, iparticle_local, lp, mp, nnodes, &
+      INTEGER :: gpt, handle, iparticle, iparticle_kind, iparticle_local, lp, mp, nnodes, &
                  node, np, nparticle_kind, nparticle_local
       INTEGER, DIMENSION(:, :), POINTER                  :: bds
       LOGICAL                                            :: do_efield0, do_efield1, do_efield2
@@ -679,6 +680,7 @@ CONTAINS
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       TYPE(structure_factor_type)                        :: exp_igr
+      TYPE(mp_comm_type) :: group
 
       CALL timeset(routineN, handle)
       do_efield0 = do_efield .AND. ASSOCIATED(efield0)
@@ -1093,7 +1095,7 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: f23 = 2.0_dp/3.0_dp, &
                                                             f415 = 4.0_dp/15.0_dp
 
-      INTEGER                                            :: ewald_type, group, i, iparticle, &
+      INTEGER                                            :: ewald_type, i, iparticle, &
                                                             iparticle_kind, iparticle_local, j, &
                                                             nparticle_local
       LOGICAL                                            :: do_efield0, do_efield1, do_efield2, &
@@ -1102,6 +1104,7 @@ CONTAINS
                                                             dipole_self, fac1, fac2, fac3, fac4, &
                                                             q, q_neutg, q_self, q_sum, qu_qu_self, &
                                                             radius
+      TYPE(mp_comm_type) :: group
 
       CALL ewald_env_get(ewald_env, ewald_type=ewald_type, alpha=alpha, &
                          group=group)

@@ -67,6 +67,7 @@ MODULE dbt_methods
       dbt_split_copyback, dbt_make_compatible_blocks, dbt_crop
    USE dbt_io, ONLY: &
       dbt_write_tensor_info, dbt_write_tensor_dist, prep_output_unit, dbt_write_split_info
+   USE message_passing, ONLY: mp_comm_type
 
 #include "../base/base_uses.f90"
 
@@ -605,8 +606,9 @@ CONTAINS
       TYPE(dbt_type), POINTER                    :: tensor_small, tensor_large
 
       LOGICAL                                        :: assert_stmt, tensors_remapped
-      INTEGER                                        :: max_mm_dim, max_tensor, mp_comm, &
-                                                        unit_nr_prv, ref_tensor, mp_comm_opt, handle
+      INTEGER                                        :: max_mm_dim, max_tensor, &
+                                                        unit_nr_prv, ref_tensor, handle
+      TYPE(mp_comm_type) :: mp_comm, mp_comm_opt
       INTEGER, DIMENSION(SIZE(contract_1))           :: contract_1_mod
       INTEGER, DIMENSION(SIZE(notcontract_1))        :: notcontract_1_mod
       INTEGER, DIMENSION(SIZE(contract_2))           :: contract_2_mod
@@ -1181,7 +1183,8 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL               :: optimize_dist
       INTEGER, INTENT(IN), OPTIONAL               :: unit_nr
       INTEGER                                     :: compat1, compat1_old, compat2, compat2_old, &
-                                                     comm_2d, unit_nr_prv
+                                                     unit_nr_prv
+      TYPE(mp_comm_type) :: comm_2d
       TYPE(array_list)                            :: dist_list
       INTEGER, DIMENSION(:), ALLOCATABLE          :: mp_dims
       TYPE(dbt_distribution_type)             :: dist_in
@@ -1580,7 +1583,7 @@ CONTAINS
       TYPE(dbt_type), INTENT(OUT)        :: tensor_out
       CHARACTER(len=*), INTENT(IN), OPTIONAL :: name
       LOGICAL, INTENT(IN), OPTIONAL          :: nodata, move_data
-      INTEGER, INTENT(IN), OPTIONAL          :: comm_2d
+      TYPE(mp_comm_type), INTENT(IN), OPTIONAL          :: comm_2d
       TYPE(array_list), INTENT(IN), OPTIONAL :: dist1, dist2
       INTEGER, DIMENSION(SIZE(map1_2d)), OPTIONAL :: mp_dims_1
       INTEGER, DIMENSION(SIZE(map2_2d)), OPTIONAL :: mp_dims_2
@@ -1588,7 +1591,8 @@ CONTAINS
       INTEGER, DIMENSION(:), ALLOCATABLE     :: ${varlist("blk_sizes")}$, &
                                                 ${varlist("nd_dist")}$
       TYPE(dbt_distribution_type)        :: dist
-      INTEGER                                :: comm_2d_prv, handle, i
+      TYPE(mp_comm_type) :: comm_2d_prv
+      INTEGER                                :: handle, i
       INTEGER, DIMENSION(ndims_tensor(tensor_in)) :: pdims, myploc
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_remap'
       LOGICAL                               :: nodata_prv
@@ -2129,7 +2133,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbt_change_pgrid_2d(tensor, mp_comm, pdims, nodata, nsplit, dimsplit, pgrid_changed, unit_nr)
       TYPE(dbt_type), INTENT(INOUT)                  :: tensor
-      INTEGER, INTENT(IN)               :: mp_comm
+      TYPE(mp_comm_type), INTENT(IN)               :: mp_comm
       INTEGER, DIMENSION(2), INTENT(IN), OPTIONAL :: pdims
       LOGICAL, INTENT(IN), OPTIONAL                      :: nodata
       INTEGER, INTENT(IN), OPTIONAL :: nsplit, dimsplit

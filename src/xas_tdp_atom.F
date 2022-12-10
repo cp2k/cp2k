@@ -62,6 +62,7 @@ MODULE xas_tdp_atom
                                               invmat_symm
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_comm_split_direct,&
+                                              mp_comm_type,&
                                               mp_irecv,&
                                               mp_isend,&
                                               mp_sum,&
@@ -669,9 +670,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'get_exat_ri_sinv'
 
-      INTEGER                                            :: blk, dest, group, handle, iat, ikind, &
-                                                            inb, ir, is, jat, jnb, natom, nnb, &
-                                                            npcols, nprows, source, tag
+      INTEGER                                            :: blk, dest, group_handle, handle, iat, &
+                                                            ikind, inb, ir, is, jat, jnb, natom, &
+                                                            nnb, npcols, nprows, source, tag
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: recv_req, send_req
       INTEGER, DIMENSION(:), POINTER                     :: col_dist, nsgf, row_dist
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
@@ -687,6 +688,7 @@ CONTAINS
       TYPE(dbcsr_distribution_type)                      :: sinv_dist
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(mp_comm_type)                                 :: group
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       NULLIFY (pgrid, dbcsr_dist, row_dist, col_dist, nsgf, particle_set, block_whole, block_risinv)
@@ -707,7 +709,8 @@ CONTAINS
       END DO
 
       !Create the ri_sinv matrix based on some arbitrary dbcsr_dist
-      CALL dbcsr_distribution_get(dbcsr_dist, group=group, pgrid=pgrid, nprows=nprows, npcols=npcols)
+      CALL dbcsr_distribution_get(dbcsr_dist, group=group_handle, pgrid=pgrid, nprows=nprows, npcols=npcols)
+      CALL group%set_handle(group_handle)
 
       ALLOCATE (row_dist(nnb), col_dist(nnb))
       DO inb = 1, nnb
@@ -715,7 +718,7 @@ CONTAINS
          col_dist(inb) = MODULO(npcols - inb, npcols)
       END DO
 
-      CALL dbcsr_distribution_new(sinv_dist, group=group, pgrid=pgrid, row_dist=row_dist, &
+      CALL dbcsr_distribution_new(sinv_dist, group=group_handle, pgrid=pgrid, row_dist=row_dist, &
                                   col_dist=col_dist)
 
       CALL dbcsr_create(matrix=ri_sinv, name="RI_SINV", matrix_type=dbcsr_type_symmetric, &
@@ -1870,7 +1873,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_fxc_atoms'
 
       INTEGER :: batch_size, dir, er, ex_bo(2), handle, i, iatom, ibatch, iex, ikind, inb, ipe, &
-         mepos, na, natom, nb, nb_bo(2), nbatch, nbk, nex_atom, nr, num_pe, sr, subcomm
+         mepos, na, natom, nb, nb_bo(2), nbatch, nbk, nex_atom, nr, num_pe, sr
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: exat_neighbors
       LOGICAL                                            :: do_gga, do_sc, do_sf
@@ -1878,6 +1881,7 @@ CONTAINS
       TYPE(cp_1d_r_p_type), DIMENSION(:, :), POINTER     :: ri_dcoeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_comm_type)                                 :: subcomm
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: input, xc_functionals

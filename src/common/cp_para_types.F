@@ -14,6 +14,7 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE cp_para_types
+   USE message_passing,                 ONLY: mp_comm_type
 
    IMPLICIT NONE
    PRIVATE
@@ -42,7 +43,7 @@ MODULE cp_para_types
    TYPE cp_para_env_type
       LOGICAL :: owns_group, ionode
       INTEGER :: mepos, source, num_pe, ref_count
-      INTEGER :: group
+      TYPE(mp_comm_type) :: group
    END TYPE cp_para_env_type
 
 ! **************************************************************************************************
@@ -78,7 +79,8 @@ MODULE cp_para_types
       INTEGER :: ndims, rank, ntask
       INTEGER, DIMENSION(:), POINTER :: mepos, source, num_pe
       LOGICAL, DIMENSION(:), POINTER :: periodic
-      INTEGER :: group, ref_count
+      TYPE(mp_comm_type) :: group
+      INTEGER :: ref_count
    END TYPE cp_para_cart_type
 
 END MODULE cp_para_types

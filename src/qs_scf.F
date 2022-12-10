@@ -95,7 +95,8 @@ MODULE qs_scf
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE mathlib,                         ONLY: invert_matrix
-   USE message_passing,                 ONLY: mp_send
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_send
    USE particle_types,                  ONLY: particle_type
    USE preconditioner,                  ONLY: prepare_preconditioner,&
                                               restart_preconditioner
@@ -343,8 +344,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'scf_env_do_scf'
 
       CHARACTER(LEN=default_string_length)               :: description, name
-      INTEGER :: ext_master_id, external_comm, handle, handle2, i_tmp, ic, ispin, iter_count, &
-         output_unit, scf_energy_message_tag, total_steps
+      INTEGER                                            :: ext_master_id, handle, handle2, i_tmp, &
+                                                            ic, ispin, iter_count, output_unit, &
+                                                            scf_energy_message_tag, total_steps
       LOGICAL :: diis_step, do_kpoints, energy_only, exit_inner_loop, exit_outer_loop, &
          inner_loop_converged, just_energy, outer_loop_converged
       REAL(KIND=dp)                                      :: t1, t2
@@ -358,6 +360,7 @@ CONTAINS
       TYPE(energy_correction_type), POINTER              :: ec_env
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_last_converged
+      TYPE(mp_comm_type)                                 :: external_comm
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_charges_type), POINTER                     :: qs_charges
@@ -438,7 +441,7 @@ CONTAINS
                           " Trying to access result ("//TRIM(description)// &
                           ") which is not correctly stored.")
       END IF
-      external_comm = NINT(res_val_3(1))
+      CALL external_comm%set_handle(NINT(res_val_3(1)))
       ext_master_id = NINT(res_val_3(2))
       scf_energy_message_tag = NINT(res_val_3(3))
 

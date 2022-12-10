@@ -18,6 +18,7 @@
 MODULE cp_blacs_calls
 
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_comm_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -41,11 +42,14 @@ CONTAINS
 !> \param npcol ...
 ! **************************************************************************************************
    SUBROUTINE cp_blacs_gridinit(context, order, nprow, npcol)
-      INTEGER, INTENT(INOUT) :: context
+      TYPE(mp_comm_type), INTENT(INOUT) :: context
       CHARACTER(len=1), INTENT(IN):: order
       INTEGER, INTENT(IN)    :: nprow, npcol
 #if defined(__SCALAPACK)
-      CALL blacs_gridinit(context, order, nprow, npcol)
+      INTEGER :: blacs_handle
+      blacs_handle = context%get_handle()
+      CALL blacs_gridinit(blacs_handle, order, nprow, npcol)
+      CALL context%set_handle(blacs_handle)
 #else
       MARK_USED(context)
       MARK_USED(order)
@@ -59,9 +63,9 @@ CONTAINS
 !> \param context ...
 ! **************************************************************************************************
    SUBROUTINE cp_blacs_gridexit(context)
-      INTEGER, INTENT(IN) :: context
+      TYPE(mp_comm_type), INTENT(IN) :: context
 #if defined(__SCALAPACK)
-      CALL blacs_gridexit(context)
+      CALL blacs_gridexit(context%get_handle())
 #else
       MARK_USED(context)
 #endif
@@ -76,10 +80,10 @@ CONTAINS
 !> \param mypcol ...
 ! **************************************************************************************************
    SUBROUTINE cp_blacs_gridinfo(context, nprow, npcol, myprow, mypcol)
-      INTEGER, INTENT(IN)  :: context
+      TYPE(mp_comm_type), INTENT(IN)  :: context
       INTEGER, INTENT(OUT) :: nprow, npcol, myprow, mypcol
 #if defined(__SCALAPACK)
-      CALL blacs_gridinfo(context, nprow, npcol, myprow, mypcol)
+      CALL blacs_gridinfo(context%get_handle(), nprow, npcol, myprow, mypcol)
 #else
       MARK_USED(context)
       nprow = 1
@@ -103,7 +107,8 @@ CONTAINS
 !> \param val ...
 ! **************************************************************************************************
    SUBROUTINE cp_blacs_set(context, what, val)
-      INTEGER, INTENT(IN)  :: context, what, val
+      TYPE(mp_comm_type), INTENT(IN) :: context
+      INTEGER, INTENT(IN)  :: what, val
 #if defined(__SCALAPACK)
       CALL blacs_set(context, what, val)
 #else
@@ -124,12 +129,12 @@ CONTAINS
 !> \param LDA ...
 ! **************************************************************************************************
    SUBROUTINE cp_blacs_zgebs2d(ICONTXT, SCOPE, TOP, M, N, A, LDA)
-      INTEGER, INTENT(IN)     :: ICONTXT
+      TYPE(mp_comm_type), INTENT(IN)     :: ICONTXT
       CHARACTER(len=1), INTENT(IN) :: SCOPE, TOP
       INTEGER, INTENT(IN)     :: M, N, LDA
       COMPLEX(KIND=dp)            :: A
 #if defined(__SCALAPACK)
-      CALL zgebs2d(ICONTXT, SCOPE, TOP, M, N, A, LDA)
+      CALL zgebs2d(ICONTXT%get_handle(), SCOPE, TOP, M, N, A, LDA)
 #else
       MARK_USED(ICONTXT)
       MARK_USED(SCOPE)
@@ -153,13 +158,13 @@ CONTAINS
 !> \param CSRC ...
 ! **************************************************************************************************
    SUBROUTINE cp_blacs_zgebr2d(ICONTXT, SCOPE, TOP, M, N, A, LDA, RSRC, CSRC)
-      INTEGER, INTENT(IN)     :: ICONTXT
+      TYPE(mp_comm_type), INTENT(IN)     :: ICONTXT
       CHARACTER(len=1), INTENT(IN) :: SCOPE, TOP
       INTEGER, INTENT(IN)     :: M, N, LDA
       INTEGER, INTENT(IN)     :: RSRC, CSRC
       COMPLEX(KIND=dp)            :: A
 #if defined(__SCALAPACK)
-      CALL zgebr2d(ICONTXT, SCOPE, TOP, M, N, A, LDA, RSRC, CSRC)
+      CALL zgebr2d(ICONTXT%get_handle(), SCOPE, TOP, M, N, A, LDA, RSRC, CSRC)
 #else
       MARK_USED(ICONTXT)
       MARK_USED(SCOPE)
@@ -184,12 +189,12 @@ CONTAINS
 !> \param LDA ...
 ! **************************************************************************************************
    SUBROUTINE cp_blacs_dgebs2d(ICONTXT, SCOPE, TOP, M, N, A, LDA)
-      INTEGER, INTENT(IN)     :: ICONTXT
+      TYPE(mp_comm_type), INTENT(IN)     :: ICONTXT
       CHARACTER(len=1), INTENT(IN) :: SCOPE, TOP
       INTEGER, INTENT(IN)     :: M, N, LDA
       REAL(KIND=dp)               :: A
 #if defined(__SCALAPACK)
-      CALL dgebs2d(ICONTXT, SCOPE, TOP, M, N, A, LDA)
+      CALL dgebs2d(ICONTXT%get_handle(), SCOPE, TOP, M, N, A, LDA)
 #else
       MARK_USED(ICONTXT)
       MARK_USED(SCOPE)
@@ -213,13 +218,13 @@ CONTAINS
 !> \param CSRC ...
 ! **************************************************************************************************
    SUBROUTINE cp_blacs_dgebr2d(ICONTXT, SCOPE, TOP, M, N, A, LDA, RSRC, CSRC)
-      INTEGER, INTENT(IN)     :: ICONTXT
+      TYPE(mp_comm_type), INTENT(IN)     :: ICONTXT
       CHARACTER(len=1), INTENT(IN) :: SCOPE, TOP
       INTEGER, INTENT(IN)     :: M, N, LDA
       INTEGER, INTENT(IN)     :: RSRC, CSRC
       REAL(KIND=dp)               :: A
 #if defined(__SCALAPACK)
-      CALL dgebr2d(ICONTXT, SCOPE, TOP, M, N, A, LDA, RSRC, CSRC)
+      CALL dgebr2d(ICONTXT%get_handle(), SCOPE, TOP, M, N, A, LDA, RSRC, CSRC)
 #else
       MARK_USED(ICONTXT)
       MARK_USED(SCOPE)

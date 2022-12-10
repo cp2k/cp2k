@@ -62,7 +62,8 @@ MODULE qs_neighbor_lists
                                               dp,&
                                               int_8
    USE kpoint_types,                    ONLY: kpoint_type
-   USE message_passing,                 ONLY: mp_max,&
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_max,&
                                               mp_sum
    USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
@@ -1634,12 +1635,13 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'write_neighbor_distribution'
       LOGICAL, PARAMETER                                 :: full_output = .FALSE.
 
-      INTEGER                                            :: group, handle, ikind, inode, ipe, jkind, &
-                                                            mype, n, nkind, nnode, npe
+      INTEGER                                            :: handle, ikind, inode, ipe, jkind, mype, &
+                                                            n, nkind, nnode, npe
       INTEGER(int_8)                                     :: nblock_max, nblock_sum, nelement_max, &
                                                             nelement_sum, tmp(2)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nblock, nelement, nnsgf
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      TYPE(mp_comm_type)                                 :: group
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
 

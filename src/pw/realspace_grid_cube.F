@@ -14,10 +14,11 @@ MODULE realspace_grid_cube
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: &
-        file_amode_rdonly, file_offset, mp_bcast, mp_file_close, mp_file_descriptor_type, &
-        mp_file_get_position, mp_file_open, mp_file_read_all_chv, mp_file_type_free, &
-        mp_file_type_hindexed_make_chv, mp_file_type_set_view_chv, mp_file_write_all_chv, &
-        mp_file_write_at, mp_maxloc, mp_recv, mp_send, mp_sum, mp_sync, mpi_character_size
+        file_amode_rdonly, file_offset, mp_bcast, mp_comm_type, mp_file_close, &
+        mp_file_descriptor_type, mp_file_get_position, mp_file_open, mp_file_read_all_chv, &
+        mp_file_type_free, mp_file_type_hindexed_make_chv, mp_file_type_set_view_chv, &
+        mp_file_write_all_chv, mp_file_write_at, mp_maxloc, mp_recv, mp_send, mp_sum, mp_sync, &
+        mpi_character_size
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
    USE pw_types,                        ONLY: pw_type
 #include "../base/base_uses.f90"
@@ -61,10 +62,11 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_to_cube'
       INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
-      INTEGER :: checksum, dest, gid, handle, i, I1, I2, I3, iat, ip, L1, L2, L3, msglen, my_rank, &
+      INTEGER :: checksum, dest, handle, i, I1, I2, I3, iat, ip, L1, L2, L3, msglen, my_rank, &
          my_stride(3), np, num_linebreak, num_pe, rank(2), size_of_z, source, tag, U1, U2, U3
       LOGICAL                                            :: be_silent, my_zero_tails, parallel_write
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: buf
+      TYPE(mp_comm_type)                                 :: gid
 
       CALL timeset(routineN, handle)
 
@@ -243,8 +245,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cube_to_pw'
       INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
-      INTEGER                                            :: extunit, gid, handle, i, ip, j, k, &
-                                                            master, msglen, my_rank, nat, ndum, &
+      INTEGER                                            :: extunit, handle, i, ip, j, k, master, &
+                                                            msglen, my_rank, nat, ndum, &
                                                             num_linebreak, num_pe, output_unit, &
                                                             size_of_z, tag
       INTEGER, DIMENSION(3)                              :: lbounds, lbounds_local, npoints, &
@@ -252,6 +254,7 @@ CONTAINS
       LOGICAL                                            :: be_silent
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: buffer
       REAL(kind=dp), DIMENSION(3)                        :: dr, rdum
+      TYPE(mp_comm_type)                                 :: gid
 
       output_unit = cp_logger_get_default_io_unit()
 
@@ -388,13 +391,14 @@ CONTAINS
       INTEGER(kind=file_offset), ALLOCATABLE, &
          DIMENSION(:), TARGET                            :: displacements
       INTEGER(kind=file_offset)                          :: BOF
-      INTEGER :: extunit, gid, i, ientry, ip, islice, j, k, master, my_rank, nat, ndum, nslices, &
+      INTEGER :: extunit, i, ientry, ip, islice, j, k, master, my_rank, nat, ndum, nslices, &
          num_pe, offset_global, output_unit, pos, readstat, size_of_z, tag
       CHARACTER(LEN=msglen), ALLOCATABLE, DIMENSION(:)   :: readbuffer
       CHARACTER(LEN=msglen)                              :: tmp
       LOGICAL                                            :: be_silent, should_read(2)
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: buffer
       REAL(kind=dp), DIMENSION(3)                        :: dr, rdum
+      TYPE(mp_comm_type)                                 :: gid
       TYPE(mp_file_descriptor_type)                      :: mp_file_type
 
       output_unit = cp_logger_get_default_io_unit()
@@ -657,11 +661,12 @@ CONTAINS
       INTEGER(kind=file_offset), ALLOCATABLE, &
          DIMENSION(:), TARGET                            :: displacements
       INTEGER(kind=file_offset)                          :: BOF
-      INTEGER                                            :: counter, gid, i, islice, j, k, last_z, &
+      INTEGER                                            :: counter, i, islice, j, k, last_z, &
                                                             my_rank, np, nslices, size_of_z
       CHARACTER(LEN=msglen), ALLOCATABLE, DIMENSION(:)   :: writebuffer
       CHARACTER(LEN=msglen)                              :: tmp
       LOGICAL                                            :: should_write(2)
+      TYPE(mp_comm_type)                                 :: gid
       TYPE(mp_file_descriptor_type)                      :: mp_file_type
 
       !get rs grids and parallel envnment
@@ -834,13 +839,14 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_to_simple_volumetric'
 
-      INTEGER                                            :: checksum, dest, gid, handle, i, I1, I2, &
-                                                            I3, ip, L1, L2, L3, my_rank, &
-                                                            my_stride(3), ngrids, npoints, num_pe, &
-                                                            rank(2), source, tag, U1, U2, U3
+      INTEGER                                            :: checksum, dest, handle, i, I1, I2, I3, &
+                                                            ip, L1, L2, L3, my_rank, my_stride(3), &
+                                                            ngrids, npoints, num_pe, rank(2), &
+                                                            source, tag, U1, U2, U3
       LOGICAL                                            :: DOUBLE
       REAL(KIND=dp)                                      :: x, y, z
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: buf, buf2
+      TYPE(mp_comm_type)                                 :: gid
 
       CALL timeset(routineN, handle)
 

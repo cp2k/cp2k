@@ -63,7 +63,8 @@ MODULE xas_tdp_integrals
                                               cp_libint_set_contrdepth,&
                                               cp_libint_t
    USE mathlib,                         ONLY: invmat_symm
-   USE message_passing,                 ONLY: mp_sum,&
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_sum,&
                                               mp_sync
    USE molecule_types,                  ONLY: molecule_type
    USE orbital_pointers,                ONLY: ncoset
@@ -136,9 +137,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'create_pqX_tensor'
 
-      INTEGER                                            :: A, b, group, handle, i, iatom, ikind, &
-                                                            jatom, katom, kkind, nblk, nblk_3, &
-                                                            nblk_per_thread, nkind
+      INTEGER                                            :: A, b, group_handle, handle, i, iatom, &
+                                                            ikind, jatom, katom, kkind, nblk, &
+                                                            nblk_3, nblk_per_thread, nkind
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx1, idx2, idx3
       INTEGER, DIMENSION(3)                              :: pdims
       INTEGER, DIMENSION(:), POINTER                     :: col_dist, row_dist
@@ -147,6 +148,7 @@ CONTAINS
       REAL(dp), DIMENSION(3)                             :: rab, rac, rbc
       TYPE(dbt_distribution_type)                        :: t_dist
       TYPE(dbt_pgrid_type)                               :: t_pgrid
+      TYPE(mp_comm_type)                                 :: group
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: ab_iter, ac_iter
 
@@ -161,8 +163,9 @@ CONTAINS
       CPASSERT(symmetric)
 
       !get 2D distribution info from matrix_dist
-      CALL dbcsr_distribution_get(matrix_dist, pgrid=mat_pgrid, group=group, &
+      CALL dbcsr_distribution_get(matrix_dist, pgrid=mat_pgrid, group=group_handle, &
                                   row_dist=row_dist, col_dist=col_dist)
+      CALL group%set_handle(group_handle)
 
       !create the corresponding tensor proc grid and dist
       pdims(1) = SIZE(mat_pgrid, 1); pdims(2) = SIZE(mat_pgrid, 2); pdims(3) = 1

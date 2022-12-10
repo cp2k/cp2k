@@ -14,7 +14,8 @@
 ! **************************************************************************************************
 MODULE pw_copy_all
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_shift,&
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_shift,&
                                               mp_sum
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
@@ -46,11 +47,12 @@ CONTAINS
       TYPE(pw_type), INTENT(INOUT)                       :: pw2
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: cc
-      INTEGER                                            :: group, group_size, ig1, ig2, ip, jg2, &
-                                                            me, ng1, ng2, ngm, penow
+      INTEGER                                            :: group_size, ig1, ig2, ip, jg2, me, ng1, &
+                                                            ng2, ngm, penow
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ngr
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: g_hat
       INTEGER, DIMENSION(3)                              :: k1, k2
+      TYPE(mp_comm_type)                                 :: group
       TYPE(pw_grid_type), POINTER                        :: pg1, pg2
 
       IF (pw1%in_use == COMPLEXDATA1D .AND. &
