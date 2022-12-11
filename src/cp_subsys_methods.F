@@ -293,7 +293,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(small_subsys))
       CPASSERT(ASSOCIATED(big_subsys))
-      IF (big_subsys%para_env%group%get_handle() /= small_para_env%group%get_handle()) &
+      IF (big_subsys%para_env%group /= small_para_env%group) &
          CPABORT("big_subsys%para_env%group==small_para_env%group")
 
       !-----------------------------------------------------------------------------

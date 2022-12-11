@@ -2753,10 +2753,10 @@ CONTAINS
          DEALLOCATE (fft_scratch%rbuf6)
       END IF
 
-      IF (fft_scratch%cart_sub_comm(1)%get_handle() .NE. mp_comm_null%get_handle()) THEN
+      IF (fft_scratch%cart_sub_comm(1) /= mp_comm_null) THEN
          CALL mp_comm_free(fft_scratch%cart_sub_comm(1))
       END IF
-      IF (fft_scratch%cart_sub_comm(2)%get_handle() .NE. mp_comm_null%get_handle()) THEN
+      IF (fft_scratch%cart_sub_comm(2) /= mp_comm_null) THEN
          CALL mp_comm_free(fft_scratch%cart_sub_comm(2))
       END IF
       fft_scratch%cart_sub_comm = mp_comm_null
@@ -2921,7 +2921,7 @@ CONTAINS
                CYCLE
             END IF
             IF (PRESENT(fft_sizes)) THEN
-               IF (fft_sizes%gs_group%get_handle() /= fft_scratch_current%fft_scratch%group%get_handle()) THEN
+               IF (fft_sizes%gs_group /= fft_scratch_current%fft_scratch%group) THEN
                   fft_scratch_last => fft_scratch_current
                   fft_scratch_current => fft_scratch_current%fft_scratch_next
                   CYCLE
@@ -3410,8 +3410,8 @@ CONTAINS
       equal = equal .AND. fft_size_1%nmray == fft_size_2%nmray
       equal = equal .AND. fft_size_1%nyzray == fft_size_2%nyzray
 
-      equal = equal .AND. fft_size_1%gs_group%get_handle() == fft_size_2%gs_group%get_handle()
-      equal = equal .AND. fft_size_1%rs_group%get_handle() == fft_size_2%rs_group%get_handle()
+      equal = equal .AND. fft_size_1%gs_group == fft_size_2%gs_group
+      equal = equal .AND. fft_size_1%rs_group == fft_size_2%rs_group
 
       equal = equal .AND. ALL(fft_size_1%g_pos == fft_size_2%g_pos)
       equal = equal .AND. ALL(fft_size_1%r_pos == fft_size_2%r_pos)
