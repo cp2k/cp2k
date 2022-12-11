@@ -130,6 +130,10 @@ MODULE message_passing
    CONTAINS
       PROCEDURE :: set_handle => mp_comm_type_set_handle
       PROCEDURE :: get_handle => mp_comm_type_get_handle
+PROCEDURE, PRIVATE :: mp_comm_op_eq
+PROCEDURE, PRIVATE :: mp_comm_op_neq
+GENERIC, PUBLIC :: operator(.EQ.) => mp_comm_op_eq
+GENERIC, PUBLIC :: operator(.NE.) => mp_comm_op_neq
    END TYPE
 
    ! The actual constants
@@ -719,6 +723,16 @@ MODULE message_passing
    LOGICAL, PUBLIC, SAVE :: mp_collect_timings = .FALSE.
 
 CONTAINS
+
+   ELEMENTAL LOGICAL FUNCTION mp_comm_op_eq(comm1, comm2)
+      CLASS(mp_comm_type), INTENT(IN) :: comm1, comm2
+      mp_comm_op_eq = (comm1%handle .EQ. comm2%handle)
+   END FUNCTION mp_comm_op_eq
+
+   ELEMENTAL LOGICAL FUNCTION mp_comm_op_neq(comm1, comm2)
+      CLASS(mp_comm_type), INTENT(IN) :: comm1, comm2
+      mp_comm_op_neq = (comm1%handle .NE. comm2%handle)
+   END FUNCTION mp_comm_op_neq
 
    ELEMENTAL SUBROUTINE mp_comm_type_set_handle(this, handle)
       CLASS(mp_comm_type), INTENT(INOUT) :: this

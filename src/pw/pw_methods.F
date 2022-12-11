@@ -1694,7 +1694,7 @@ CONTAINS
          IF (pw1%pw_grid%dvol /= pw2%pw_grid%dvol) THEN
             CPABORT("PW grids not compatible")
          END IF
-         IF (pw1%pw_grid%para%group%get_handle() /= pw2%pw_grid%para%group%get_handle()) THEN
+         IF (pw1%pw_grid%para%group /= pw2%pw_grid%para%group) THEN
             CPABORT("PW grids have not compatible MPI groups")
          END IF
       END IF

@@ -195,7 +195,7 @@ CONTAINS
 
       ELSE
          CPASSERT(PRESENT(matrix_b))
-         IF (matrix_a%matrix_struct%context%group%get_handle() /= matrix_b%matrix_struct%context%group%get_handle()) &
+         IF (matrix_a%matrix_struct%context%group /= matrix_b%matrix_struct%context%group) &
             CPABORT("matrixes must be in the same blacs context")
 
          IF (cp_fm_struct_equivalent(matrix_a%matrix_struct, &
@@ -302,7 +302,7 @@ CONTAINS
          END IF
 
       ELSE
-         IF (matrix_a%matrix_struct%context%group%get_handle() /= matrix_b%matrix_struct%context%group%get_handle()) &
+         IF (matrix_a%matrix_struct%context%group /= matrix_b%matrix_struct%context%group) &
             CPABORT("matrices must be in the same blacs context")
 
          IF (cp_fm_struct_equivalent(matrix_a%matrix_struct, &

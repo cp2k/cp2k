@@ -370,7 +370,7 @@ CONTAINS
       IF (ASSOCIATED(fmstruct1, fmstruct2)) THEN
          res = .TRUE.
       ELSE
-         res = (fmstruct1%context%group%get_handle() == fmstruct2%context%group%get_handle()) .AND. &
+         res = (fmstruct1%context%group == fmstruct2%context%group) .AND. &
                (fmstruct1%nrow_global == fmstruct2%nrow_global) .AND. &
                (fmstruct1%ncol_global == fmstruct2%ncol_global) .AND. &
                (fmstruct1%local_leading_dimension == &
