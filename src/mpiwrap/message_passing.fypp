@@ -3483,7 +3483,7 @@
    SUBROUTINE mp_win_create_${nametype1}$v(base, comm, win)
       ${type1}$, DIMENSION(:)          :: base
       TYPE(mp_comm_type), INTENT(IN) :: comm
-      INTEGER, INTENT(INOUT)         :: win
+      TYPE(mp_win_type), INTENT(INOUT)         :: win
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_win_create_${nametype1}$v'
 
@@ -3500,9 +3500,9 @@
 
       len = SIZE(base)*${bytes1}$
       IF (len > 0) THEN
-         CALL mpi_win_create(base(1), len, ${bytes1}$, MPI_INFO_NULL, comm%handle, win, ierr)
+         CALL mpi_win_create(base(1), len, ${bytes1}$, MPI_INFO_NULL, comm%handle, win%handle, ierr)
       ELSE
-         CALL mpi_win_create(foo, len, ${bytes1}$, MPI_INFO_NULL, comm%handle, win, ierr)
+         CALL mpi_win_create(foo, len, ${bytes1}$, MPI_INFO_NULL, comm%handle, win%handle, ierr)
       END IF
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_create @ "//routineN)
 
