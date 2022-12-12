@@ -27,7 +27,8 @@ MODULE realspace_grid_types
    USE mathlib,                         ONLY: det_3x3
    USE message_passing,                 ONLY: &
         mp_comm_dup, mp_comm_free, mp_comm_null, mp_comm_type, mp_environ, mp_irecv, mp_isend, &
-        mp_isendrecv, mp_max, mp_min, mp_request_null, mp_sum, mp_sync, mp_waitall, mp_waitany
+        mp_isendrecv, mp_max, mp_min, mp_request_null, mp_sendrecv, mp_sum, mp_sync, mp_waitall, &
+        mp_waitany
    USE offload_api,                     ONLY: offload_buffer_type,&
                                               offload_create_buffer,&
                                               offload_free_buffer
@@ -873,9 +874,8 @@ CONTAINS
                END DO
             END DO
             IF (ip .EQ. np) EXIT
-            CALL mp_isendrecv(sendbuf, dest, recvbuf, source, &
-                              group, req(1), req(2), 13)
-            CALL mp_waitall(req)
+            CALL mp_sendrecv(sendbuf, dest, recvbuf, source, &
+                             group, 13)
             swapptr => sendbuf
             sendbuf => recvbuf
             recvbuf => swapptr
