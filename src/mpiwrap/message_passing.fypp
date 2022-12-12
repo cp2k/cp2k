@@ -957,7 +957,7 @@
       ${type1}$                                  :: msg
       INTEGER                                  :: source
       TYPE(mp_comm_type), INTENT(IN) :: gid
-      INTEGER, INTENT(INOUT)                   :: request
+      TYPE(mp_request_type), INTENT(OUT)                   :: request
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_ibcast_${nametype1}$'
 
@@ -968,7 +968,7 @@
 
       msglen = 1
 #if defined(__parallel)
-      CALL mpi_ibcast(msg, msglen, ${mpi_type1}$, source, gid%handle, request, ierr)
+      CALL mpi_ibcast(msg, msglen, ${mpi_type1}$, source, gid%handle, request%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_ibcast @ "//routineN)
       CALL add_perf(perf_id=22, count=1, msg_size=msglen*${bytes1}$)
 #else
@@ -1022,7 +1022,7 @@
       ${type1}$                                  :: msg(:)
       INTEGER                                  :: source
       TYPE(mp_comm_type), INTENT(IN) :: gid
-      INTEGER, INTENT(INOUT)                   :: request
+      TYPE(mp_request_type), INTENT(OUT)                   :: request
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_ibcast_${nametype1}$v'
 
@@ -1033,7 +1033,7 @@
 
       msglen = SIZE(msg)
 #if defined(__parallel)
-      CALL mpi_ibcast(msg, msglen, ${mpi_type1}$, source, gid%handle, request, ierr)
+      CALL mpi_ibcast(msg, msglen, ${mpi_type1}$, source, gid%handle, request%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_ibcast @ "//routineN)
       CALL add_perf(perf_id=22, count=1, msg_size=msglen*${bytes1}$)
 #else
@@ -1179,7 +1179,7 @@
    SUBROUTINE mp_isum_${nametype1}$v(msg, gid, request)
       ${type1}$, INTENT(INOUT)                   :: msg(:)
       TYPE(mp_comm_type), INTENT(IN) :: gid
-      INTEGER, INTENT(INOUT)                   :: request
+      TYPE(mp_request_type), INTENT(OUT)                   :: request
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_isum_${nametype1}$v'
 
@@ -1194,7 +1194,7 @@
 #if defined(__parallel)
       msglen = SIZE(msg)
       IF (msglen > 0) THEN
-         CALL mpi_iallreduce(MPI_IN_PLACE, msg, msglen, ${mpi_type1}$, MPI_SUM, gid%handle, request, ierr)
+         CALL mpi_iallreduce(MPI_IN_PLACE, msg, msglen, ${mpi_type1}$, MPI_SUM, gid%handle, request%handle, ierr)
          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_iallreduce @ "//routineN)
       ELSE
          request = mp_request_null
@@ -1649,7 +1649,7 @@
       ${type1}$, INTENT(INOUT)                   :: msg
       INTEGER, INTENT(IN)                      :: root
       TYPE(mp_comm_type), INTENT(IN) :: gid
-      INTEGER, INTENT(INOUT)                   :: request
+      TYPE(mp_request_type), INTENT(OUT)                   :: request
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_iscatter_${nametype1}$'
 
@@ -1661,7 +1661,7 @@
       msglen = 1
 #if defined(__parallel)
       CALL mpi_iscatter(msg_scatter, msglen, ${mpi_type1}$, msg, &
-                        msglen, ${mpi_type1}$, root, gid%handle, request, ierr)
+                        msglen, ${mpi_type1}$, root, gid%handle, request%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_iscatter @ "//routineN)
       CALL add_perf(perf_id=24, count=1, msg_size=1*${bytes1}$)
 #else
@@ -1686,7 +1686,7 @@
       ${type1}$, INTENT(INOUT)                   :: msg(:)
       INTEGER, INTENT(IN)                      :: root
       TYPE(mp_comm_type), INTENT(IN) :: gid
-      INTEGER, INTENT(INOUT)                   :: request
+      TYPE(mp_request_type), INTENT(OUT)                   :: request
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_iscatter_${nametype1}$v2'
 
@@ -1698,7 +1698,7 @@
       msglen = SIZE(msg)
 #if defined(__parallel)
       CALL mpi_iscatter(msg_scatter, msglen, ${mpi_type1}$, msg, &
-                        msglen, ${mpi_type1}$, root, gid%handle, request, ierr)
+                        msglen, ${mpi_type1}$, root, gid%handle, request%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_iscatter @ "//routineN)
       CALL add_perf(perf_id=24, count=1, msg_size=1*${bytes1}$)
 #else
@@ -1724,7 +1724,7 @@
       ${type1}$, INTENT(INOUT)                   :: msg(:)
       INTEGER, INTENT(IN)                      :: recvcount, root
       TYPE(mp_comm_type), INTENT(IN) :: gid
-      INTEGER, INTENT(INOUT)                   :: request
+      TYPE(mp_request_type), INTENT(OUT)                   :: request
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_iscatterv_${nametype1}$v'
 
@@ -1735,7 +1735,7 @@
 
 #if defined(__parallel)
       CALL mpi_iscatterv(msg_scatter, sendcounts, displs, ${mpi_type1}$, msg, &
-                         recvcount, ${mpi_type1}$, root, gid%handle, request, ierr)
+                         recvcount, ${mpi_type1}$, root, gid%handle, request%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_iscatterv @ "//routineN)
       CALL add_perf(perf_id=24, count=1, msg_size=1*${bytes1}$)
 #else
@@ -1936,7 +1936,7 @@
       INTEGER, DIMENSION(:), INTENT(IN)        :: recvcounts, displs
       INTEGER, INTENT(IN)                      :: sendcount, root
       TYPE(mp_comm_type), INTENT(IN) :: comm
-      INTEGER, INTENT(INOUT)                   :: request
+      TYPE(mp_request_type), INTENT(OUT)                   :: request
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_igatherv_${nametype1}$v'
 
@@ -1948,7 +1948,7 @@
 #if defined(__parallel)
       CALL mpi_igatherv(sendbuf, sendcount, ${mpi_type1}$, &
                         recvbuf, recvcounts, displs, ${mpi_type1}$, &
-                        root, comm%handle, request, ierr)
+                        root, comm%handle, request%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_gatherv @ "//routineN)
       CALL add_perf(perf_id=24, &
                     count=1, &
@@ -2059,7 +2059,7 @@
       ${type1}$, INTENT(IN)                      :: msgout
       ${type1}$, INTENT(OUT)                     :: msgin(:)
       TYPE(mp_comm_type), INTENT(IN) :: gid
-      INTEGER, INTENT(INOUT)                   :: request
+      TYPE(mp_request_type), INTENT(OUT)                   :: request
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_iallgather_${nametype1}$'
 
@@ -2076,7 +2076,7 @@
       rcount = 1
       CALL MPI_IALLGATHER(msgout, scount, ${mpi_type1}$, &
                           msgin, rcount, ${mpi_type1}$, &
-                          gid%handle, request, ierr)
+                          gid%handle, request%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allgather @ "//routineN)
 #else
       MARK_USED(gid)
@@ -2252,7 +2252,7 @@
       ${type1}$, INTENT(IN)                      :: msgout(:)
       ${type1}$, INTENT(OUT)                     :: msgin(:)
       TYPE(mp_comm_type), INTENT(IN) :: gid
-      INTEGER, INTENT(OUT)                     :: request
+      TYPE(mp_request_type), INTENT(OUT)                     :: request
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_iallgather_${nametype1}$11'
 
@@ -2269,7 +2269,7 @@
       rcount = scount
       CALL MPI_IALLGATHER(msgout, scount, ${mpi_type1}$, &
                           msgin, rcount, ${mpi_type1}$, &
-                          gid%handle, request, ierr)
+                          gid%handle, request%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_iallgather @ "//routineN)
 #else
       MARK_USED(gid)
@@ -2292,7 +2292,7 @@
       ${type1}$, INTENT(IN)                      :: msgout(:)
       ${type1}$, INTENT(OUT)                     :: msgin(:, :, :)
       TYPE(mp_comm_type), INTENT(IN) :: gid
-      INTEGER, INTENT(OUT)                     :: request
+      TYPE(mp_request_type), INTENT(OUT)                     :: request
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_iallgather_${nametype1}$13'
 
@@ -2309,7 +2309,7 @@
       rcount = scount
       CALL MPI_IALLGATHER(msgout, scount, ${mpi_type1}$, &
                           msgin, rcount, ${mpi_type1}$, &
-                          gid%handle, request, ierr)
+                          gid%handle, request%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_iallgather @ "//routineN)
 #else
       MARK_USED(gid)
@@ -2332,7 +2332,7 @@
       ${type1}$, INTENT(IN)                      :: msgout(:, :)
       ${type1}$, INTENT(OUT)                     :: msgin(:, :)
       TYPE(mp_comm_type), INTENT(IN) :: gid
-      INTEGER, INTENT(OUT)                     :: request
+      TYPE(mp_request_type), INTENT(OUT)                     :: request
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_iallgather_${nametype1}$22'
 
@@ -2349,7 +2349,7 @@
       rcount = scount
       CALL MPI_IALLGATHER(msgout, scount, ${mpi_type1}$, &
                           msgin, rcount, ${mpi_type1}$, &
-                          gid%handle, request, ierr)
+                          gid%handle, request%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_iallgather @ "//routineN)
 #else
       MARK_USED(gid)
@@ -2372,7 +2372,7 @@
       ${type1}$, INTENT(IN)                      :: msgout(:, :)
       ${type1}$, INTENT(OUT)                     :: msgin(:, :, :, :)
       TYPE(mp_comm_type), INTENT(IN) :: gid
-      INTEGER, INTENT(OUT)                     :: request
+      TYPE(mp_request_type), INTENT(OUT)                     :: request
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_iallgather_${nametype1}$24'
 
@@ -2389,7 +2389,7 @@
       rcount = scount
       CALL MPI_IALLGATHER(msgout, scount, ${mpi_type1}$, &
                           msgin, rcount, ${mpi_type1}$, &
-                          gid%handle, request, ierr)
+                          gid%handle, request%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_iallgather @ "//routineN)
 #else
       MARK_USED(gid)
@@ -2412,7 +2412,7 @@
       ${type1}$, INTENT(IN)                      :: msgout(:, :, :)
       ${type1}$, INTENT(OUT)                     :: msgin(:, :, :)
       TYPE(mp_comm_type), INTENT(IN) :: gid
-      INTEGER, INTENT(OUT)                     :: request
+      TYPE(mp_request_type), INTENT(OUT)                     :: request
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_iallgather_${nametype1}$33'
 
@@ -2429,7 +2429,7 @@
       rcount = scount
       CALL MPI_IALLGATHER(msgout, scount, ${mpi_type1}$, &
                           msgin, rcount, ${mpi_type1}$, &
-                          gid%handle, request, ierr)
+                          gid%handle, request%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_iallgather @ "//routineN)
 #else
       MARK_USED(gid)
@@ -2508,7 +2508,7 @@
       ${type1}$, INTENT(OUT)                     :: msgin(:)
       INTEGER, INTENT(IN)                      :: rcount(:), rdispl(:)
       TYPE(mp_comm_type), INTENT(IN) :: gid
-      INTEGER, INTENT(INOUT)                   :: request
+      TYPE(mp_request_type), INTENT(OUT)                   :: request
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_iallgatherv_${nametype1}$v'
 
@@ -2558,7 +2558,7 @@
       ${type1}$, INTENT(OUT)                     :: msgin(:)
       INTEGER, INTENT(IN)                      :: rcount(:, :), rdispl(:, :)
       TYPE(mp_comm_type), INTENT(IN) :: gid
-      INTEGER, INTENT(INOUT)                   :: request
+      TYPE(mp_request_type), INTENT(OUT)                   :: request
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_iallgatherv_${nametype1}$v2'
 
@@ -2602,10 +2602,11 @@
       INTEGER, INTENT(IN)                      :: rsize
       INTEGER, INTENT(IN)                      :: rcount(rsize), rdispl(rsize), scount
       TYPE(mp_comm_type), INTENT(IN) :: gid
-      INTEGER, INTENT(INOUT)                   :: request, ierr
+      TYPE(mp_request_type), INTENT(OUT) :: request
+      INTEGER, INTENT(INOUT)                   :: ierr
 
       CALL MPI_IALLGATHERV(msgout, scount, ${mpi_type1}$, msgin, rcount, &
-                           rdispl, ${mpi_type1}$, gid%handle, request, ierr)
+                           rdispl, ${mpi_type1}$, gid%handle, request%handle, ierr)
 
    END SUBROUTINE mp_iallgatherv_${nametype1}$v_internal
 #endif
@@ -2877,7 +2878,7 @@
       ${type1}$                                  :: msgout
       INTEGER, INTENT(IN)                      :: source
       TYPE(mp_comm_type), INTENT(IN) :: comm
-      INTEGER, INTENT(out)                     :: send_request, recv_request
+      TYPE(mp_request_type), INTENT(out)                     :: send_request, recv_request
       INTEGER, INTENT(in), OPTIONAL            :: tag
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_isendrecv_${nametype1}$'
@@ -2895,11 +2896,11 @@
       IF (PRESENT(tag)) my_tag = tag
 
       CALL mpi_irecv(msgout, 1, ${mpi_type1}$, source, my_tag, &
-                     comm%handle, recv_request, ierr)
+                     comm%handle, recv_request%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_irecv @ "//routineN)
 
       CALL mpi_isend(msgin, 1, ${mpi_type1}$, dest, my_tag, &
-                     comm%handle, send_request, ierr)
+                     comm%handle, send_request%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_isend @ "//routineN)
 
       CALL add_perf(perf_id=8, count=1, msg_size=2*${bytes1}$)
@@ -2908,8 +2909,8 @@
       MARK_USED(source)
       MARK_USED(comm)
       MARK_USED(tag)
-      send_request = 0
-      recv_request = 0
+      send_request = mp_request_null
+      recv_request = mp_request_null
       msgout = msgin
 #endif
       CALL mp_timestop(handle)
@@ -2939,7 +2940,7 @@
       ${type1}$, DIMENSION(:)                    :: msgout
       INTEGER, INTENT(IN)                      :: source
       TYPE(mp_comm_type), INTENT(IN) :: comm
-      INTEGER, INTENT(out)                     :: send_request, recv_request
+      TYPE(mp_request_type), INTENT(out)                     :: send_request, recv_request
       INTEGER, INTENT(in), OPTIONAL            :: tag
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_isendrecv_${nametype1}$v'
@@ -2960,20 +2961,20 @@
       msglen = SIZE(msgout, 1)
       IF (msglen > 0) THEN
          CALL mpi_irecv(msgout(1), msglen, ${mpi_type1}$, source, my_tag, &
-                        comm%handle, recv_request, ierr)
+                        comm%handle, recv_request%handle, ierr)
       ELSE
          CALL mpi_irecv(foo, msglen, ${mpi_type1}$, source, my_tag, &
-                        comm%handle, recv_request, ierr)
+                        comm%handle, recv_request%handle, ierr)
       END IF
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_irecv @ "//routineN)
 
       msglen = SIZE(msgin, 1)
       IF (msglen > 0) THEN
          CALL mpi_isend(msgin(1), msglen, ${mpi_type1}$, dest, my_tag, &
-                        comm%handle, send_request, ierr)
+                        comm%handle, send_request%handle, ierr)
       ELSE
          CALL mpi_isend(foo, msglen, ${mpi_type1}$, dest, my_tag, &
-                        comm%handle, send_request, ierr)
+                        comm%handle, send_request%handle, ierr)
       END IF
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_isend @ "//routineN)
 
@@ -2984,8 +2985,8 @@
       MARK_USED(source)
       MARK_USED(comm)
       MARK_USED(tag)
-      send_request = 0
-      recv_request = 0
+      send_request = mp_request_null
+      recv_request = mp_request_null
       msgout = msgin
 #endif
       CALL mp_timestop(handle)
@@ -3008,7 +3009,7 @@
       ${type1}$, DIMENSION(:)                    :: msgin
       INTEGER, INTENT(IN)                      :: dest
       TYPE(mp_comm_type), INTENT(IN) :: comm
-      INTEGER, INTENT(out)                     :: request
+      TYPE(mp_request_type), INTENT(out)                     :: request
       INTEGER, INTENT(in), OPTIONAL            :: tag
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_${nametype1}$v'
@@ -3029,10 +3030,10 @@
       msglen = SIZE(msgin)
       IF (msglen > 0) THEN
          CALL mpi_isend(msgin(1), msglen, ${mpi_type1}$, dest, my_tag, &
-                        comm%handle, request, ierr)
+                        comm%handle, request%handle, ierr)
       ELSE
          CALL mpi_isend(foo, msglen, ${mpi_type1}$, dest, my_tag, &
-                        comm%handle, request, ierr)
+                        comm%handle, request%handle, ierr)
       END IF
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_isend @ "//routineN)
 
@@ -3044,7 +3045,7 @@
       MARK_USED(request)
       MARK_USED(tag)
       ierr = 1
-      request = 0
+      request = mp_request_null
       CALL mp_stop(ierr, "mp_isend called in non parallel case")
 #endif
       CALL mp_timestop(handle)
@@ -3069,7 +3070,7 @@
       ${type1}$, DIMENSION(:, :)                 :: msgin
       INTEGER, INTENT(IN)                      :: dest
       TYPE(mp_comm_type), INTENT(IN) :: comm
-      INTEGER, INTENT(out)                     :: request
+      TYPE(mp_request_type), INTENT(out)                     :: request
       INTEGER, INTENT(in), OPTIONAL            :: tag
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_${nametype1}$m2'
@@ -3090,10 +3091,10 @@
       msglen = SIZE(msgin, 1)*SIZE(msgin, 2)
       IF (msglen > 0) THEN
          CALL mpi_isend(msgin(1, 1), msglen, ${mpi_type1}$, dest, my_tag, &
-                        comm%handle, request, ierr)
+                        comm%handle, request%handle, ierr)
       ELSE
          CALL mpi_isend(foo, msglen, ${mpi_type1}$, dest, my_tag, &
-                        comm%handle, request, ierr)
+                        comm%handle, request%handle, ierr)
       END IF
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_isend @ "//routineN)
 
@@ -3105,7 +3106,7 @@
       MARK_USED(request)
       MARK_USED(tag)
       ierr = 1
-      request = 0
+      request = mp_request_null
       CALL mp_stop(ierr, "mp_isend called in non parallel case")
 #endif
       CALL mp_timestop(handle)
@@ -3132,7 +3133,7 @@
       ${type1}$, DIMENSION(:, :, :)              :: msgin
       INTEGER, INTENT(IN)                      :: dest
       TYPE(mp_comm_type), INTENT(IN) :: comm
-      INTEGER, INTENT(out)                     :: request
+      TYPE(mp_request_type), INTENT(out)                     :: request
       INTEGER, INTENT(in), OPTIONAL            :: tag
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_${nametype1}$m3'
@@ -3153,10 +3154,10 @@
       msglen = SIZE(msgin, 1)*SIZE(msgin, 2)*SIZE(msgin, 3)
       IF (msglen > 0) THEN
          CALL mpi_isend(msgin(1, 1, 1), msglen, ${mpi_type1}$, dest, my_tag, &
-                        comm%handle, request, ierr)
+                        comm%handle, request%handle, ierr)
       ELSE
          CALL mpi_isend(foo, msglen, ${mpi_type1}$, dest, my_tag, &
-                        comm%handle, request, ierr)
+                        comm%handle, request%handle, ierr)
       END IF
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_isend @ "//routineN)
 
@@ -3168,7 +3169,7 @@
       MARK_USED(request)
       MARK_USED(tag)
       ierr = 1
-      request = 0
+      request = mp_request_null
       CALL mp_stop(ierr, "mp_isend called in non parallel case")
 #endif
       CALL mp_timestop(handle)
@@ -3192,7 +3193,7 @@
       ${type1}$, DIMENSION(:, :, :, :)           :: msgin
       INTEGER, INTENT(IN)                      :: dest
       TYPE(mp_comm_type), INTENT(IN) :: comm
-      INTEGER, INTENT(out)                     :: request
+      TYPE(mp_request_type), INTENT(out)                     :: request
       INTEGER, INTENT(in), OPTIONAL            :: tag
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_${nametype1}$m4'
@@ -3213,10 +3214,10 @@
       msglen = SIZE(msgin, 1)*SIZE(msgin, 2)*SIZE(msgin, 3)*SIZE(msgin, 4)
       IF (msglen > 0) THEN
          CALL mpi_isend(msgin(1, 1, 1, 1), msglen, ${mpi_type1}$, dest, my_tag, &
-                        comm%handle, request, ierr)
+                        comm%handle, request%handle, ierr)
       ELSE
          CALL mpi_isend(foo, msglen, ${mpi_type1}$, dest, my_tag, &
-                        comm%handle, request, ierr)
+                        comm%handle, request%handle, ierr)
       END IF
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_isend @ "//routineN)
 
@@ -3228,7 +3229,7 @@
       MARK_USED(request)
       MARK_USED(tag)
       ierr = 1
-      request = 0
+      request = mp_request_null
       CALL mp_stop(ierr, "mp_isend called in non parallel case")
 #endif
       CALL mp_timestop(handle)
@@ -3252,7 +3253,7 @@
       ${type1}$, DIMENSION(:)                    :: msgout
       INTEGER, INTENT(IN)                      :: source
       TYPE(mp_comm_type), INTENT(IN) :: comm
-      INTEGER, INTENT(out)                     :: request
+      TYPE(mp_request_type), INTENT(out)                     :: request
       INTEGER, INTENT(in), OPTIONAL            :: tag
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_${nametype1}$v'
@@ -3273,10 +3274,10 @@
       msglen = SIZE(msgout)
       IF (msglen > 0) THEN
          CALL mpi_irecv(msgout(1), msglen, ${mpi_type1}$, source, my_tag, &
-                        comm%handle, request, ierr)
+                        comm%handle, request%handle, ierr)
       ELSE
          CALL mpi_irecv(foo, msglen, ${mpi_type1}$, source, my_tag, &
-                        comm%handle, request, ierr)
+                        comm%handle, request%handle, ierr)
       END IF
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_irecv @ "//routineN)
 
@@ -3286,9 +3287,8 @@
       MARK_USED(msgout)
       MARK_USED(source)
       MARK_USED(comm)
-      MARK_USED(request)
       MARK_USED(tag)
-      request = 0
+      request = mp_request_null
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_irecv_${nametype1}$v
@@ -3312,7 +3312,7 @@
       ${type1}$, DIMENSION(:, :)                 :: msgout
       INTEGER, INTENT(IN)                      :: source
       TYPE(mp_comm_type), INTENT(IN) :: comm
-      INTEGER, INTENT(out)                     :: request
+      TYPE(mp_request_type), INTENT(out)                     :: request
       INTEGER, INTENT(in), OPTIONAL            :: tag
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_${nametype1}$m2'
@@ -3333,10 +3333,10 @@
       msglen = SIZE(msgout, 1)*SIZE(msgout, 2)
       IF (msglen > 0) THEN
          CALL mpi_irecv(msgout(1, 1), msglen, ${mpi_type1}$, source, my_tag, &
-                        comm%handle, request, ierr)
+                        comm%handle, request%handle, ierr)
       ELSE
          CALL mpi_irecv(foo, msglen, ${mpi_type1}$, source, my_tag, &
-                        comm%handle, request, ierr)
+                        comm%handle, request%handle, ierr)
       END IF
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_irecv @ "//routineN)
 
@@ -3345,9 +3345,8 @@
       MARK_USED(msgout)
       MARK_USED(source)
       MARK_USED(comm)
-      MARK_USED(request)
       MARK_USED(tag)
-      request = 0
+      request = mp_request_null
       CPABORT("mp_irecv called in non parallel case")
 #endif
       CALL mp_timestop(handle)
@@ -3373,7 +3372,7 @@
       ${type1}$, DIMENSION(:, :, :)              :: msgout
       INTEGER, INTENT(IN)                      :: source
       TYPE(mp_comm_type), INTENT(IN) :: comm
-      INTEGER, INTENT(out)                     :: request
+      TYPE(mp_request_type), INTENT(out)                     :: request
       INTEGER, INTENT(in), OPTIONAL            :: tag
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_${nametype1}$m3'
@@ -3394,10 +3393,10 @@
       msglen = SIZE(msgout, 1)*SIZE(msgout, 2)*SIZE(msgout, 3)
       IF (msglen > 0) THEN
          CALL mpi_irecv(msgout(1, 1, 1), msglen, ${mpi_type1}$, source, my_tag, &
-                        comm%handle, request, ierr)
+                        comm%handle, request%handle, ierr)
       ELSE
          CALL mpi_irecv(foo, msglen, ${mpi_type1}$, source, my_tag, &
-                        comm%handle, request, ierr)
+                        comm%handle, request%handle, ierr)
       END IF
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_ircv @ "//routineN)
 
@@ -3406,9 +3405,8 @@
       MARK_USED(msgout)
       MARK_USED(source)
       MARK_USED(comm)
-      MARK_USED(request)
       MARK_USED(tag)
-      request = 0
+      request = mp_request_null
       CPABORT("mp_irecv called in non parallel case")
 #endif
       CALL mp_timestop(handle)
@@ -3432,7 +3430,7 @@
       ${type1}$, DIMENSION(:, :, :, :)           :: msgout
       INTEGER, INTENT(IN)                      :: source
       TYPE(mp_comm_type), INTENT(IN) :: comm
-      INTEGER, INTENT(out)                     :: request
+      TYPE(mp_request_type), INTENT(out)                     :: request
       INTEGER, INTENT(in), OPTIONAL            :: tag
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_${nametype1}$m4'
@@ -3453,10 +3451,10 @@
       msglen = SIZE(msgout, 1)*SIZE(msgout, 2)*SIZE(msgout, 3)*SIZE(msgout, 4)
       IF (msglen > 0) THEN
          CALL mpi_irecv(msgout(1, 1, 1, 1), msglen, ${mpi_type1}$, source, my_tag, &
-                        comm%handle, request, ierr)
+                        comm%handle, request%handle, ierr)
       ELSE
          CALL mpi_irecv(foo, msglen, ${mpi_type1}$, source, my_tag, &
-                        comm%handle, request, ierr)
+                        comm%handle, request%handle, ierr)
       END IF
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_ircv @ "//routineN)
 
@@ -3465,9 +3463,8 @@
       MARK_USED(msgout)
       MARK_USED(source)
       MARK_USED(comm)
-      MARK_USED(request)
       MARK_USED(tag)
-      request = 0
+      request = mp_request_null
       CPABORT("mp_irecv called in non parallel case")
 #endif
       CALL mp_timestop(handle)
@@ -3534,7 +3531,7 @@
       INTEGER, INTENT(IN)                                 :: source, win
       ${type1}$, DIMENSION(:)                               :: win_data
       INTEGER, INTENT(IN), OPTIONAL                       :: myproc, disp
-      INTEGER, INTENT(OUT)                                :: request
+      TYPE(mp_request_type), INTENT(OUT)                                :: request
       TYPE(mp_type_descriptor_type), INTENT(IN), OPTIONAL :: origin_datatype, target_datatype
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_rget_${nametype1}$v'
@@ -3583,7 +3580,7 @@
             ierr = 0
          ELSE
             CALL mpi_rget(base(1), origin_len, handle_origin_datatype, source, disp_aint, &
-                          target_len, handle_target_datatype, win, request, ierr)
+                          target_len, handle_target_datatype, win, request%handle, ierr)
          END IF
       ELSE
          request = mp_request_null

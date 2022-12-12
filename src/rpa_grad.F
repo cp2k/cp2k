@@ -55,8 +55,8 @@ MODULE rpa_grad
                                               m_memory
    USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: &
-        mp_allgather, mp_alltoall, mp_irecv, mp_isend, mp_min, mp_recv, mp_request_null, mp_send, &
-        mp_sendrecv, mp_sum, mp_sync, mp_waitall, mp_waitany
+        mp_allgather, mp_alltoall, mp_irecv, mp_isend, mp_min, mp_recv, mp_request_null, &
+        mp_request_type, mp_send, mp_sendrecv, mp_sum, mp_sync, mp_waitall, mp_waitany
    USE mp2_laplace,                     ONLY: calc_fm_mat_s_laplace
    USE mp2_ri_grad_util,                ONLY: array2fm,&
                                               create_dbcsr_gamma,&
@@ -1024,7 +1024,7 @@ CONTAINS
          proc_i_recv, proc_i_send, proc_recv, proc_send, proc_shift, recv_a_end, recv_a_size, &
          recv_a_start, recv_i_end, recv_i_size, recv_i_start, tag
       INTEGER(KIND=int_8)                                :: mem, number_of_elements_per_blk
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: procs_recv, recv_requests, send_requests
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: procs_recv
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
       REAL(KIND=dp)                                      :: mem_per_block, mem_real
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: buffer_compens_1D
@@ -1032,6 +1032,7 @@ CONTAINS
       TYPE(cp_1d_r_cp_type), ALLOCATABLE, DIMENSION(:)   :: buffer_1D
       TYPE(cp_3d_r_cp_type), ALLOCATABLE, DIMENSION(:)   :: buffer_3D
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: recv_requests, send_requests
 
       CALL timeset(routineN, handle)
 

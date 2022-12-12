@@ -30,7 +30,8 @@ MODULE cp_fm_types
                                               sp
    USE message_passing,                 ONLY: &
         cp2k_is_parallel, mp_allgather, mp_any_source, mp_bcast, mp_comm_type, mp_irecv, mp_isend, &
-        mp_max, mp_proc_null, mp_recv, mp_request_null, mp_send, mp_sum, mp_waitall
+        mp_max, mp_proc_null, mp_recv, mp_request_null, mp_request_type, mp_send, mp_sum, &
+        mp_waitall
    USE parallel_rng_types,              ONLY: UNIFORM,&
                                               rng_stream_type
 #include "../base/base_uses.f90"
@@ -128,7 +129,8 @@ MODULE cp_fm_types
    TYPE copy_info_type
       INTEGER :: send_size
       INTEGER, DIMENSION(2) :: nlocal_recv, nblock_src, src_num_pe ! 1->row  2->col
-      INTEGER, DIMENSION(:), POINTER       :: send_request, recv_request, recv_disp
+      TYPE(mp_request_type), DIMENSION(:), POINTER :: send_request, recv_request
+      INTEGER, DIMENSION(:), POINTER       :: recv_disp
       INTEGER, DIMENSION(:), POINTER       :: recv_col_indices, recv_row_indices
       INTEGER, DIMENSION(:, :), POINTER    :: src_blacs2mpi
       REAL(KIND=dp), DIMENSION(:), POINTER :: recv_buf, send_buf
@@ -1380,13 +1382,15 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: dest_blacs2mpi
       INTEGER, DIMENSION(2)                              :: dest_block, dest_block_tmp, dest_num_pe, &
                                                             src_block, src_block_tmp, src_num_pe
-      INTEGER, DIMENSION(6)                              :: recv_req, send_req
-      INTEGER, DIMENSION(:), POINTER :: recv_col_indices, recv_disp, recv_request, &
-         recv_row_indices, send_col_indices, send_request, send_row_indices
+      INTEGER, DIMENSION(:), POINTER                     :: recv_col_indices, recv_disp, &
+                                                            recv_row_indices, send_col_indices, &
+                                                            send_row_indices
       INTEGER, DIMENSION(:, :), POINTER                  :: src_blacs2mpi
       REAL(KIND=dp), DIMENSION(:), POINTER               :: recv_buf, send_buf
       TYPE(cp_fm_struct_type), POINTER                   :: recv_dist, send_dist
       TYPE(mp_comm_type)                                 :: global_comm
+      TYPE(mp_request_type), DIMENSION(6)                :: recv_req, send_req
+      TYPE(mp_request_type), DIMENSION(:), POINTER       :: recv_request, send_request
 
       CALL timeset(routineN, handle)
 
@@ -1703,10 +1707,10 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: recv_count
       INTEGER, DIMENSION(2)                              :: nblock_src, nlocal_recv, src_num_pe
       INTEGER, DIMENSION(:), POINTER                     :: recv_col_indices, recv_disp, &
-                                                            recv_request, recv_row_indices, &
-                                                            send_request
+                                                            recv_row_indices
       INTEGER, DIMENSION(:, :), POINTER                  :: src_blacs2mpi
       REAL(KIND=dp), DIMENSION(:), POINTER               :: recv_buf, send_buf
+      TYPE(mp_request_type), DIMENSION(:), POINTER       :: recv_request, send_request
 
       CALL timeset(routineN, handle)
 
@@ -1776,9 +1780,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_cleanup_copy_general'
 
       INTEGER                                            :: handle
-      INTEGER, DIMENSION(:), POINTER                     :: send_request
       INTEGER, DIMENSION(:, :), POINTER                  :: src_blacs2mpi
       REAL(KIND=dp), DIMENSION(:), POINTER               :: send_buf
+      TYPE(mp_request_type), DIMENSION(:), POINTER       :: send_request
 
       CALL timeset(routineN, handle)
 

@@ -43,6 +43,7 @@ MODULE rpa_gw_im_time_util
                                               twopi
    USE message_passing,                 ONLY: mp_alltoall,&
                                               mp_dims_create,&
+                                              mp_request_type,&
                                               mp_sum
    USE mp2_types,                       ONLY: integ_mat_buffer_type
    USE particle_methods,                ONLY: get_particle_set
@@ -456,7 +457,6 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:) :: block_counter, entry_counter, image_atom, &
          num_blocks_rec, num_blocks_send, num_entries_rec, num_entries_send, sizes_rec, sizes_send
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, row_blk_sizes
-      INTEGER, DIMENSION(:, :), POINTER                  :: req_array
       LOGICAL                                            :: found_image_atom
       REAL(KIND=dp)                                      :: avg_z_dist, delta, eps_dist2, &
                                                             min_z_dist, ra(3), rb(3), sum_z, &
@@ -466,6 +466,7 @@ CONTAINS
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
+      TYPE(mp_request_type), DIMENSION(:, :), POINTER    :: req_array
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CALL timeset(routineN, handle)

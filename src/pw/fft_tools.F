@@ -43,8 +43,8 @@ MODULE fft_tools
                                               sp
    USE message_passing,                 ONLY: &
         mp_alltoall, mp_cart_coords, mp_cart_rank, mp_cart_sub, mp_comm_compare, mp_comm_free, &
-        mp_comm_null, mp_comm_type, mp_environ, mp_irecv, mp_isend, mp_rank_compare, mp_sum, &
-        mp_sync, mp_waitall
+        mp_comm_null, mp_comm_type, mp_environ, mp_irecv, mp_isend, mp_rank_compare, &
+        mp_request_type, mp_sum, mp_sync, mp_waitall
    USE offload_api,                     ONLY: offload_free_pinned_mem,&
                                               offload_malloc_pinned_mem
 
@@ -3330,8 +3330,8 @@ CONTAINS
       TYPE(mp_comm_type), INTENT(IN)                     :: group
 
       COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: msgin, msgout
-      INTEGER                                            :: ip, n, nr, ns, pos, rn, sn
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rreq, sreq
+      INTEGER                                            :: ip, n, nr, ns, pos
+      TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: rreq, sreq
 
       CALL mp_sync(group)
       CALL mp_environ(n, pos, group)
@@ -3342,18 +3342,16 @@ CONTAINS
          IF (rcount(ip) == 0) CYCLE
          IF (ip == pos) CYCLE
          msgout => rq(rdispl(ip) + 1:rdispl(ip) + rcount(ip))
-         CALL mp_irecv(msgout, ip, group, rn)
+         CALL mp_irecv(msgout, ip, group, rreq(nr))
          nr = nr + 1
-         rreq(nr - 1) = rn
       END DO
       ns = 0
       DO ip = 0, n - 1
          IF (scount(ip) == 0) CYCLE
          IF (ip == pos) CYCLE
          msgin => rs(sdispl(ip) + 1:sdispl(ip) + scount(ip))
-         CALL mp_isend(msgin, ip, group, sn)
+         CALL mp_isend(msgin, ip, group, sreq(ns))
          ns = ns + 1
-         sreq(ns - 1) = sn
       END DO
       IF (rcount(pos) /= 0) THEN
          IF (rcount(pos) /= scount(pos)) CPABORT("")

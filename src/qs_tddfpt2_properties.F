@@ -70,6 +70,7 @@ MODULE qs_tddfpt2_properties
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_irecv,&
                                               mp_isend,&
+                                              mp_request_type,&
                                               mp_sum,&
                                               mp_wait
    USE molden_utils,                    ONLY: write_mos_molden
@@ -679,15 +680,16 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_print_excitation_analysis'
 
       CHARACTER(len=5)                                   :: spin_label
-      INTEGER :: handle, icol, iproc, irow, ispin, istate, nao, ncols_local, nrows_local, nspins, &
-         nstates, send_handler, send_handler2, state_spin
+      INTEGER                                            :: handle, icol, iproc, irow, ispin, &
+                                                            istate, nao, ncols_local, nrows_local, &
+                                                            nspins, nstates, state_spin
       INTEGER(kind=int_8)                                :: iexc, imo_occ, imo_virt, ind, nexcs, &
                                                             nexcs_local, nexcs_max_local, &
                                                             nmo_virt_occ, nmo_virt_occ_alpha
       INTEGER(kind=int_8), ALLOCATABLE, DIMENSION(:)     :: inds_local, inds_recv, nexcs_recv
       INTEGER(kind=int_8), DIMENSION(1)                  :: nexcs_send
       INTEGER(kind=int_8), DIMENSION(maxspins)           :: nmo_occ8, nmo_virt8
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inds, recv_handlers, recv_handlers2
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inds
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       INTEGER, DIMENSION(maxspins)                       :: nmo_occ, nmo_virt
       LOGICAL                                            :: do_exc_analysis
@@ -699,6 +701,8 @@ CONTAINS
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: S_mos_virt, weights_fm
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_request_type)                              :: send_handler, send_handler2
+      TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: recv_handlers, recv_handlers2
 
       CALL timeset(routineN, handle)
 

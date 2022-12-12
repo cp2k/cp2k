@@ -80,6 +80,7 @@ MODULE mixed_cdft_utils
                                               dp
    USE message_passing,                 ONLY: mp_irecv,&
                                               mp_isend,&
+                                              mp_request_type,&
                                               mp_sum,&
                                               mp_wait,&
                                               mp_waitall
@@ -643,7 +644,7 @@ CONTAINS
       CHARACTER(len=default_path_length)                 :: c_val, input_file_path, output_file_path
       INTEGER                                            :: i, imap, iounit, j, lp, n_force_eval, &
                                                             ncpu, nforce_eval, ntargets, offset, &
-                                                            req(3), unit_nr
+                                                            unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: bounds
       INTEGER, DIMENSION(2, 3)                           :: bo, bo_mixed
       INTEGER, DIMENSION(3)                              :: higher_grid_layout
@@ -656,6 +657,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys_mix
       TYPE(global_environment_type), POINTER             :: globenv
+      TYPE(mp_request_type), DIMENSION(3)                :: req
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
