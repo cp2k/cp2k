@@ -21,6 +21,7 @@ if(PKG_CONFIG_FOUND)
 endif()
 
 if(NOT CP2K_LIBINT2_FOUND)
+  cp2k_set_default_paths(LIBINT2 "Libint2") # Reset pkg_check_modules side effects
   cp2k_find_libraries(LIBINT2 int2)
 endif()
 
@@ -41,12 +42,18 @@ find_package_handle_standard_args(
   Libint2 CP2K_LIBINT2_FOUND CP2K_LIBINT2_INCLUDE_DIRS
   CP2K_LIBINT2_LINK_LIBRARIES)
 
-if(CP2K_LIBINT2_FOUND AND NOT TARGET CP2K_Libint2::int2)
-  add_library(CP2K_Libint2::int2 INTERFACE IMPORTED)
+if(CP2K_LIBINT2_FOUND)
+  if(NOT TARGET CP2K_Libint2::int2)
+    add_library(CP2K_Libint2::int2 INTERFACE IMPORTED)
+  endif()
+
+  if(CP2K_LIBINT2_INCLUDE_DIRS)
   set_target_properties(
     CP2K_Libint2::int2
     PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
                "${CP2K_LIBINT2_INCLUDE_DIRS};${CP2K_LIBINT2_PREFIX}/include")
+  endif()
+
   set_target_properties(
     CP2K_Libint2::int2 PROPERTIES INTERFACE_LINK_LIBRARIES
                                   ${CP2K_LIBINT2_LINK_LIBRARIES})
