@@ -22,13 +22,16 @@ if(PKG_CONFIG_FOUND)
 endif()
 
 if(NOT CP2K_LIBXC_FOUND)
+  # Revert pkg_check_modules side effects
+  cp2k_set_default_paths(LIBXC "LibXC")
   foreach(_var xc xcf03 xcf90)
     string(TOUPPER LIB${_var} _var_up)
     cp2k_find_libraries(${_var_up} ${_var})
-    if (CP2K_LIBXC_FOUND AND CP2K_LIBXCF90_FOUND AND CP2K_LIBXCF03_FOUND)
-      set(CP2K_LIBXC_LINK_LIBRARIES "${CP2K_LIBXCF03_LIBRARIES};${CP2K_LIBXCF90_LIBRARIES};${CP2K_LIBXC_LIBRARIES}")
-    endif ()
   endforeach()
+endif()
+
+if (CP2K_LIBXC_FOUND AND CP2K_LIBXCF90_FOUND AND CP2K_LIBXCF03_FOUND)
+  set(CP2K_LIBXC_LINK_LIBRARIES "${CP2K_LIBXCF03_LIBRARIES};${CP2K_LIBXCF90_LIBRARIES};${CP2K_LIBXC_LIBRARIES}")
 endif()
 
 if(NOT CP2K_LIBXC_INCLUDE_DIRS)
