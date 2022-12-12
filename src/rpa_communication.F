@@ -40,6 +40,8 @@ MODULE rpa_communication
    USE message_passing,                 ONLY: mp_allgather,&
                                               mp_irecv,&
                                               mp_isend,&
+                                              mp_request_null,&
+                                              mp_request_type,&
                                               mp_sum,&
                                               mp_wait,&
                                               mp_waitall
@@ -99,8 +101,7 @@ CONTAINS
          number_of_send, proc_receive, proc_send, proc_shift, rec_counter, rec_iaia_end, &
          rec_iaia_size, rec_iaia_start, rec_pcol, rec_prow, ref_send_pcol, ref_send_prow, &
          send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, map_rec_size, map_send_size, &
-                                                            req_send
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, map_rec_size, map_send_size
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: grid_2_mepos, grid_ref_2_send_pos, &
                                                             group_grid_2_mepos, indices_map_my, &
                                                             mepos_2_grid, mepos_2_grid_group
@@ -114,6 +115,7 @@ CONTAINS
       TYPE(index_map), ALLOCATABLE, DIMENSION(:)         :: indices_rec
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
+      TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: req_send
 
       CALL timeset(routineN, handle)
 
@@ -372,7 +374,7 @@ CONTAINS
                   Gamma_2D(iaia - my_ia_start + 1, kkB)
             END IF
          END DO
-         req_send = 0
+         req_send = mp_request_null
          send_counter = 0
          DO proc_shift = 1, para_env_sub%num_pe - 1
             proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
@@ -462,7 +464,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: num_entries_rec, num_entries_send
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:), INTENT(INOUT)                     :: buffer_rec, buffer_send
-      INTEGER, DIMENSION(:, :), POINTER                  :: req_array
+      TYPE(mp_request_type), DIMENSION(:, :), POINTER    :: req_array
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_indx, do_msg
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'communicate_buffer'

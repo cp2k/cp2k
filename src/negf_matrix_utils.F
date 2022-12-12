@@ -23,6 +23,7 @@ MODULE negf_matrix_utils
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_irecv,&
                                               mp_isend,&
+                                              mp_request_type,&
                                               mp_sum,&
                                               mp_wait
    USE negf_alloc_types,                ONLY: negf_allocatable_rvector
@@ -505,11 +506,11 @@ CONTAINS
       INTEGER                                            :: handle, i1, i2, iatom_col, iatom_row, &
                                                             icol, iproc, irow, max_atom, &
                                                             mepos_plus1, n1, n2, natoms, offset
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: recv_handlers, recv_nelems, &
-                                                            send_handlers, send_nelems
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: recv_nelems, send_nelems
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: rank_contact, rank_device
       LOGICAL                                            :: found, transp
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: rblock
+      TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: recv_handlers, send_handlers
       TYPE(negf_allocatable_rvector), ALLOCATABLE, &
          DIMENSION(:)                                    :: recv_packed_blocks, send_packed_blocks
 

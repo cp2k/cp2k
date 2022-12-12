@@ -32,6 +32,7 @@ MODULE hfx_communication
    USE message_passing,                 ONLY: mp_allgather,&
                                               mp_isendrecv,&
                                               mp_max,&
+                                              mp_request_type,&
                                               mp_sync,&
                                               mp_waitall
    USE particle_types,                  ONLY: particle_type
@@ -89,15 +90,14 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: antisymmetric
 
       INTEGER :: blk, block_size, data_from, dest, i, iatom, icpu, ikind, iset, jatom, jkind, &
-         jset, mepos, ncpu, nseta, nsetb, pa, pa1, pb, pb1, req(2), source, source_cpu
+         jset, mepos, ncpu, nseta, nsetb, pa, pa1, pb, pb1, source, source_cpu
       INTEGER, DIMENSION(:), POINTER                     :: nsgfa, nsgfb
       LOGICAL                                            :: found
       REAL(dp)                                           :: symmfac
       REAL(dp), DIMENSION(:), POINTER                    :: recbuffer, sendbuffer, swapbuffer
       REAL(dp), DIMENSION(:, :), POINTER                 :: sparse_block, sparse_block_beta
       TYPE(dbcsr_iterator_type)                          :: iter
-
-!debREAL(dp), DIMENSION(:), POINTER          :: full_density
+      TYPE(mp_request_type), DIMENSION(2)                :: req
 
       full_density = 0.0_dp
       ALLOCATE (sendbuffer(number_of_p_entries))
@@ -213,12 +213,13 @@ CONTAINS
       REAL(dp), INTENT(IN), OPTIONAL                     :: off_diag_fac, diag_fac
 
       INTEGER :: blk, block_size, data_to, dest, dest_cpu, i, iatom, icpu, ikind, iset, jatom, &
-         jkind, jset, mepos, ncpu, nseta, nsetb, pa, pa1, pb, pb1, req(2), source
+         jkind, jset, mepos, ncpu, nseta, nsetb, pa, pa1, pb, pb1, source
       INTEGER, DIMENSION(:), POINTER                     :: nsgfa, nsgfb
       REAL(dp)                                           :: my_fac, myd_fac
       REAL(dp), DIMENSION(:), POINTER                    :: recbuffer, sendbuffer, swapbuffer
       REAL(dp), DIMENSION(:, :), POINTER                 :: sparse_block
       TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(mp_request_type), DIMENSION(2)                :: req
 
       my_fac = 1.0_dp; myd_fac = 1.0_dp
       IF (PRESENT(off_diag_fac)) my_fac = off_diag_fac

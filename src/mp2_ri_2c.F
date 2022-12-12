@@ -83,6 +83,7 @@ MODULE mp2_ri_2c
                                               mp_alltoall,&
                                               mp_bcast,&
                                               mp_max,&
+                                              mp_request_type,&
                                               mp_sendrecv,&
                                               mp_sum
    USE mp2_eri,                         ONLY: mp2_eri_2c_integrate
@@ -1201,9 +1202,9 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: entry_counter, num_entries_rec, &
                                                             num_entries_send
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      INTEGER, DIMENSION(:, :), POINTER                  :: req_array
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
+      TYPE(mp_request_type), DIMENSION(:, :), POINTER    :: req_array
 
       CALL timeset(routineN, handle)
 

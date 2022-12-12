@@ -35,13 +35,9 @@ MODULE mp2_ri_grad_util
                                               release_group_dist
    USE kinds,                           ONLY: dp
    USE libint_2c_3c,                    ONLY: compare_potential_types
-   USE message_passing,                 ONLY: mp_allgather,&
-                                              mp_irecv,&
-                                              mp_isend,&
-                                              mp_sendrecv,&
-                                              mp_sum,&
-                                              mp_wait,&
-                                              mp_waitall
+   USE message_passing,                 ONLY: &
+        mp_allgather, mp_irecv, mp_isend, mp_request_null, mp_request_type, mp_sendrecv, mp_sum, &
+        mp_wait, mp_waitall
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -522,7 +518,7 @@ CONTAINS
          ref_send_prow, send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer
       INTEGER :: start_col_block, start_row_block
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, index_col_rec, map_rec_size, &
-                                                            map_send_size, req_send
+                                                            map_send_size
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: blocks_ranges_col, blocks_ranges_row, &
                                                             grid_2_mepos, grid_ref_2_send_pos, &
                                                             mepos_2_grid
@@ -532,6 +528,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
+      TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: req_send
 
       CALL timeset(routineN, handle)
 
@@ -921,7 +918,7 @@ CONTAINS
          proc_shift, rec_col_size, rec_counter, rec_pcol, rec_prow, rec_row_size, ref_send_pcol, &
          ref_send_prow, send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, index_row_rec, map_rec_size, &
-                                                            map_send_size, req_send
+                                                            map_send_size
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: grid_2_mepos, grid_ref_2_send_pos, &
                                                             mepos_2_grid, sizes
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
@@ -929,6 +926,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
+      TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: req_send
 
       CALL timeset(routineN, handle)
 
@@ -1271,8 +1269,7 @@ CONTAINS
          rec_counter, rec_iaia_end, rec_iaia_size, rec_iaia_start, rec_pcol, rec_prow, &
          ref_send_pcol, ref_send_prow, send_counter, send_pcol, send_prow, size_rec_buffer, &
          size_send_buffer
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, map_rec_size, map_send_size, &
-                                                            req_send
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, map_rec_size, map_send_size
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: grid_2_mepos, grid_ref_2_send_pos, &
                                                             indeces_map_my, mepos_2_grid
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
@@ -1283,6 +1280,7 @@ CONTAINS
       TYPE(index_map), ALLOCATABLE, DIMENSION(:)         :: indeces_rec
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
+      TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: req_send
 
       CALL timeset(routineN, handle)
 
@@ -1509,7 +1507,7 @@ CONTAINS
                buffer_send(send_counter)%msg(iii) = Gamma_2D(iaia - my_ia_start + 1, kkB)
             END IF
          END DO
-         req_send = 0
+         req_send = mp_request_null
          send_counter = 0
          DO proc_shift = 1, para_env_sub%num_pe - 1
             proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)

@@ -32,7 +32,7 @@ MODULE dbt_reshape_ops
                               mp_environ, &
                               mp_irecv, &
                               mp_isend, &
-                              mp_waitall, mp_comm_type
+                              mp_waitall, mp_comm_type, mp_request_type
 
 #include "../base/base_uses.f90"
 
@@ -234,7 +234,7 @@ CONTAINS
 
       INTEGER                                               :: iproc, mynode, numnodes, &
                                                                rec_counter, send_counter, i
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)                 :: req_array
+      TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:, :)                 :: req_array
       INTEGER                                               :: handle
 
       CALL timeset(routineN, handle)

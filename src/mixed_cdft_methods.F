@@ -72,14 +72,9 @@ MODULE mixed_cdft_methods
    USE machine,                         ONLY: m_walltime
    USE mathlib,                         ONLY: diamat_all
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_irecv,&
-                                              mp_isend,&
-                                              mp_sum,&
-                                              mp_test,&
-                                              mp_testall,&
-                                              mp_wait,&
-                                              mp_waitall
+   USE message_passing,                 ONLY: &
+        mp_bcast, mp_irecv, mp_isend, mp_request_type, mp_sum, mp_test, mp_testall, mp_wait, &
+        mp_waitall
    USE mixed_cdft_types,                ONLY: mixed_cdft_result_type_set,&
                                               mixed_cdft_settings_type,&
                                               mixed_cdft_type,&
@@ -451,7 +446,7 @@ CONTAINS
       INTEGER :: handle, handle2, i, iforce_eval, ind, INDEX(6), iounit, j, lb_min, &
          my_special_work, natom, nforce_eval, recv_offset, ub_max
       INTEGER, DIMENSION(2, 3)                           :: bo
-      INTEGER, DIMENSION(:), POINTER                     :: lb, req_total, sendbuffer_i, ub
+      INTEGER, DIMENSION(:), POINTER                     :: lb, sendbuffer_i, ub
       REAL(KIND=dp)                                      :: t1, t2
       TYPE(cdft_control_type), POINTER                   :: cdft_control, cdft_control_target
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -460,6 +455,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env_qs
       TYPE(mixed_cdft_type), POINTER                     :: mixed_cdft
       TYPE(mixed_environment_type), POINTER              :: mixed_env
+      TYPE(mp_request_type), DIMENSION(:), POINTER       :: req_total
       TYPE(particle_list_type), POINTER                  :: particles_mix
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, mixed_auxbas_pw_pool
@@ -2758,10 +2754,9 @@ CONTAINS
 
       INTEGER :: actually_sent, exhausted_work, handle, i, ind, iounit, ispecial, j, max_targets, &
          more_work, my_pos, my_special_work, my_target, no_overloaded, no_underloaded, nsend, &
-         nsend_limit, nsend_max, offset, offset_proc, offset_special, req(4), send_total, tags(2)
+         nsend_limit, nsend_max, offset, offset_proc, offset_special, send_total, tags(2)
       INTEGER, DIMENSION(:), POINTER :: buffsize, cumulative_work, expected_work, load_imbalance, &
-         nrecv, nsend_proc, req_recv, req_total, sendbuffer, should_warn, tmp, work_index, &
-         work_size
+         nrecv, nsend_proc, sendbuffer, should_warn, tmp, work_index, work_size
       INTEGER, DIMENSION(:, :), POINTER                  :: targets, tmp_bo
       LOGICAL                                            :: consistent
       LOGICAL, DIMENSION(:), POINTER                     :: mask_recv, mask_send, touched
@@ -2770,6 +2765,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: cavity
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(mp_request_type), DIMENSION(4)                :: req
+      TYPE(mp_request_type), DIMENSION(:), POINTER       :: req_recv, req_total
       TYPE(section_vals_type), POINTER                   :: force_env_section, print_section
 
       TYPE buffers
@@ -3537,8 +3534,8 @@ CONTAINS
       INTEGER :: handle, i, iatom, icomm, iforce_eval, index, iounit, ip, ispecial, iwork, j, &
          jatom, jcomm, k, my_special_work, my_work, natom, nbuffs, nforce_eval, np(3), &
          nsent_total, nskipped, nwork, offset, offset_repl
-      INTEGER, DIMENSION(:), POINTER                     :: req_recv, req_total, work, work_dlb
-      INTEGER, DIMENSION(:, :), POINTER                  :: nsent, req_send
+      INTEGER, DIMENSION(:), POINTER                     :: work, work_dlb
+      INTEGER, DIMENSION(:, :), POINTER                  :: nsent
       LOGICAL                                            :: completed_recv, should_communicate
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: skip_me
       LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: completed
@@ -3561,6 +3558,8 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys_mix
       TYPE(force_env_type), POINTER                      :: force_env_qs
+      TYPE(mp_request_type), DIMENSION(:), POINTER       :: req_recv, req_total
+      TYPE(mp_request_type), DIMENSION(:, :), POINTER    :: req_send
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool

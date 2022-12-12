@@ -25,7 +25,7 @@ MODULE cp_cfm_types
                                               z_zero
    USE message_passing,                 ONLY: &
         cp2k_is_parallel, mp_allgather, mp_any_source, mp_bcast, mp_comm_type, mp_irecv, mp_isend, &
-        mp_proc_null, mp_request_null, mp_sum, mp_waitall
+        mp_proc_null, mp_request_null, mp_request_type, mp_sum, mp_waitall
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -97,7 +97,7 @@ MODULE cp_cfm_types
       !> displacements into recv_buf
       INTEGER, ALLOCATABLE, DIMENSION(:)          :: recv_disp
       !> MPI requests for non-blocking receive and send operations
-      INTEGER, ALLOCATABLE, DIMENSION(:)          :: recv_request, send_request
+      TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)          :: recv_request, send_request
       !> global column and row indices of locally stored elements of the destination matrix
       INTEGER, DIMENSION(:), POINTER              :: recv_col_indices, recv_row_indices
       !> rank of MPI process with BLACS coordinates (prow, pcol)
@@ -892,11 +892,11 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: dest_blacs2mpi
       INTEGER, DIMENSION(2)                              :: dest_block, dest_block_tmp, dest_num_pe, &
                                                             src_block, src_block_tmp, src_num_pe
-      INTEGER, DIMENSION(6)                              :: recv_req, send_req
       INTEGER, DIMENSION(:), POINTER                     :: recv_col_indices, recv_row_indices, &
                                                             send_col_indices, send_row_indices
       TYPE(cp_fm_struct_type), POINTER                   :: recv_dist, send_dist
       TYPE(mp_comm_type)                                 :: global_comm
+      TYPE(mp_request_type), DIMENSION(6)                :: recv_req, send_req
 
       CALL timeset(routineN, handle)
 

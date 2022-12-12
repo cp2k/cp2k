@@ -17,14 +17,9 @@ MODULE dct
 
    USE fast,                            ONLY: copy_cr
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_allgather,&
-                                              mp_cart_rank,&
-                                              mp_comm_type,&
-                                              mp_irecv,&
-                                              mp_isend,&
-                                              mp_request_null,&
-                                              mp_wait,&
-                                              mp_waitall
+   USE message_passing,                 ONLY: &
+        mp_allgather, mp_cart_rank, mp_comm_type, mp_irecv, mp_isend, mp_request_null, &
+        mp_request_type, mp_wait, mp_waitall
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_create,&
                                               pw_grid_setup
@@ -535,12 +530,13 @@ CONTAINS
       INTEGER :: group_size, handle, i, ind, lb1, lb1_loc, lb1_new, lb2, lb2_loc, lb2_new, lb3, &
          lb3_loc, lb3_new, loc, maxn_sendrecv, rs_mpo, ub1, ub1_loc, ub1_new, ub2, ub2_loc, &
          ub2_new, ub3, ub3_loc, ub3_new
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dest_hist, recv_reqs, send_reqs, src_hist
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dest_hist, src_hist
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: pcs_bnds
       INTEGER, DIMENSION(2, 3)                           :: bounds_local_new
       REAL(dp), DIMENSION(:, :, :), POINTER              :: catd, catd_flipdbf, cr3d_xpndd, send_msg
       TYPE(dct_msg_type), DIMENSION(:), POINTER          :: pcs, recv_msgs
       TYPE(mp_comm_type)                                 :: rs_group
+      TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: recv_reqs, send_reqs
       TYPE(pw_grid_type), POINTER                        :: pw_grid
 
       CALL timeset(routineN, handle)
@@ -719,13 +715,13 @@ CONTAINS
 
       COMPLEX(dp), DIMENSION(:, :, :), POINTER           :: cc3d
       INTEGER :: group_size, handle, i, in_space, in_use, lb1_orig, lb1_xpnd, lb2_orig, lb2_xpnd, &
-         lb3_orig, lb3_xpnd, maxn_sendrecv, recv_req, rs_mpo, send_lb1, send_lb2, send_lb3, &
-         send_req, send_ub1, send_ub2, send_ub3, ub1_orig, ub1_xpnd, ub2_orig, ub2_xpnd, ub3_orig, &
-         ub3_xpnd
+         lb3_orig, lb3_xpnd, maxn_sendrecv, rs_mpo, send_lb1, send_lb2, send_lb3, send_ub1, &
+         send_ub2, send_ub3, ub1_orig, ub1_xpnd, ub2_orig, ub2_xpnd, ub3_orig, ub3_xpnd
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: bounds_local_all
       INTEGER, DIMENSION(2, 3)                           :: bounds_local_xpnd
       REAL(dp), DIMENSION(:, :, :), POINTER              :: cr3d, send_crmsg
       TYPE(mp_comm_type)                                 :: rs_group
+      TYPE(mp_request_type)                              :: recv_req, send_req
       TYPE(pw_grid_type), POINTER                        :: pw_grid_orig
 
       CALL timeset(routineN, handle)

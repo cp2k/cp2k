@@ -61,6 +61,7 @@ MODULE qs_resp
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_irecv,&
                                               mp_isend,&
+                                              mp_request_type,&
                                               mp_sum,&
                                               mp_wait
    USE particle_list_types,             ONLY: particle_list_type
@@ -1240,12 +1241,13 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: filename
       INTEGER                                            :: gbo(2, 3), handle, i, iatom, ip, jx, jy, &
                                                             jz, k, l, my_pos, nobjects, &
-                                                            output_unit, p, req(6)
+                                                            output_unit, p
       INTEGER, DIMENSION(:), POINTER                     :: tmp_npoints, tmp_size
       INTEGER, DIMENSION(:, :), POINTER                  :: tmp_points
       REAL(KIND=dp)                                      :: conv, dh(3, 3), r(3)
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_request_type), DIMENSION(6)                :: req
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_type), POINTER                             :: v_hartree_pw
       TYPE(section_vals_type), POINTER                   :: input, print_key, resp_section

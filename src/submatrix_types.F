@@ -8,6 +8,8 @@
 MODULE submatrix_types
 
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_request_null,&
+                                              mp_request_type
    USE util,                            ONLY: sort
 
    IMPLICIT NONE
@@ -42,7 +44,7 @@ MODULE submatrix_types
       INTEGER, DIMENSION(:), POINTER                    :: data
       INTEGER                                           :: size = 0
       LOGICAL                                           :: allocated = .FALSE.
-      INTEGER                                           :: mpi_request = 0
+      TYPE(mp_request_type)                                           :: mpi_request = mp_request_null
    CONTAINS
       PROCEDURE :: alloc => intbuffer_alloc
       PROCEDURE :: dealloc => intbuffer_dealloc
@@ -53,7 +55,7 @@ MODULE submatrix_types
       REAL(KIND=dp), DIMENSION(:), POINTER     :: data
       INTEGER                                           :: size = 0
       LOGICAL                                           :: allocated = .FALSE.
-      INTEGER                                           :: mpi_request = 0
+      TYPE(mp_request_type)                                           :: mpi_request = mp_request_null
    CONTAINS
       PROCEDURE :: alloc => buffer_alloc
       PROCEDURE :: dealloc => buffer_dealloc

@@ -32,7 +32,7 @@ MODULE hfx_load_balance_methods
                               mp_max, &
                               mp_sum, &
                               mp_sync, &
-                              mp_waitall
+                              mp_waitall, mp_request_type
    USE parallel_rng_types, ONLY: UNIFORM, &
                                  rng_stream_type
    USE particle_types, ONLY: particle_type
@@ -165,7 +165,8 @@ CONTAINS
                  jatom_end, jatom_start, katom_block, katom_end, katom_start, latom_block, latom_end, &
                  latom_start, mepos, my_process_id, n_processes, natom, nbins, nblocks, ncpu, &
                  new_iatom_end, new_iatom_start, new_jatom_end, new_jatom_start, non_empty_blocks, &
-                 objective_block_size, objective_nblocks, req(2), source, total_blocks
+                 objective_block_size, objective_nblocks, source, total_blocks
+      TYPE(mp_request_type), DIMENSION(2) :: req
       INTEGER(int_8) :: atom_block, cost_per_bin, cost_per_core, current_cost, &
                         distribution_counter_end, distribution_counter_start, global_quartet_counter, &
                         local_quartet_counter, self_cost_per_block, tmp_block, total_block_self_cost
@@ -1494,7 +1495,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_update_load_balance'
 
       INTEGER :: data_from, dest, end_idx, handle, i, ibin, icpu, iprocess, j, mepos, my_bin_size, &
-                 my_global_start_idx, my_process_id, n_processes, nbins, ncpu, req(2), source, start_idx
+                 my_global_start_idx, my_process_id, n_processes, nbins, ncpu, source, start_idx
+      TYPE(mp_request_type), DIMENSION(2) :: req
       INTEGER(int_8), DIMENSION(:), POINTER              :: local_cost_matrix, recbuffer, &
                                                             sendbuffer, swapbuffer
       INTEGER(int_8), DIMENSION(:), POINTER, SAVE        :: cost_matrix

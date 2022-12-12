@@ -65,6 +65,7 @@ MODULE xas_tdp_atom
                                               mp_comm_type,&
                                               mp_irecv,&
                                               mp_isend,&
+                                              mp_request_type,&
                                               mp_sum,&
                                               mp_sync,&
                                               mp_waitall
@@ -673,7 +674,6 @@ CONTAINS
       INTEGER                                            :: blk, dest, group_handle, handle, iat, &
                                                             ikind, inb, ir, is, jat, jnb, natom, &
                                                             nnb, npcols, nprows, source, tag
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: recv_req, send_req
       INTEGER, DIMENSION(:), POINTER                     :: col_dist, nsgf, row_dist
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
       LOGICAL                                            :: found_risinv, found_whole
@@ -689,6 +689,7 @@ CONTAINS
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(mp_comm_type)                                 :: group
+      TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: recv_req, send_req
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       NULLIFY (pgrid, dbcsr_dist, row_dist, col_dist, nsgf, particle_set, block_whole, block_risinv)

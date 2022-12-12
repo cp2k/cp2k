@@ -38,6 +38,7 @@ MODULE mp2_types
                                               local_gemm_create,&
                                               local_gemm_destroy,&
                                               local_gemm_set_op_threshold_gpu
+   USE message_passing,                 ONLY: mp_request_type
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_p_env_types,                  ONLY: qs_p_env_type
 #include "./base/base_uses.f90"
@@ -278,13 +279,13 @@ MODULE mp2_types
       INTEGER, DIMENSION(:), ALLOCATABLE  :: sizes
       INTEGER, DIMENSION(:, :), ALLOCATABLE  :: indx
       INTEGER :: proc
-      INTEGER :: msg_req
+      TYPE(mp_request_type) :: msg_req
    END TYPE
 
    TYPE integ_mat_buffer_type_2D
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE  :: msg
       INTEGER :: proc
-      INTEGER :: msg_req
+      TYPE(mp_request_type) :: msg_req
    END TYPE
 
    TYPE pair_list_type_mp2

@@ -48,6 +48,7 @@ MODULE dbt_tas_reshape_ops
                                               mp_environ,&
                                               mp_irecv,&
                                               mp_isend,&
+                                              mp_request_type,&
                                               mp_waitall
 #include "../../base/base_uses.f90"
 
@@ -95,7 +96,6 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_blocks_recv, num_blocks_send, &
                                                             num_entries_recv, num_entries_send, &
                                                             num_rec, num_send
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: req_array
       INTEGER, DIMENSION(2)                              :: blk_size
       LOGICAL                                            :: move_prv, tr_in
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
@@ -103,6 +103,8 @@ CONTAINS
       TYPE(dbt_tas_iterator)                             :: iter
       TYPE(dbt_tas_split_info)                           :: info
       TYPE(mp_comm_type)                                 :: mp_comm
+      TYPE(mp_request_type), ALLOCATABLE, &
+         DIMENSION(:, :)                                 :: req_array
 
       CALL timeset(routineN, handle)
 
@@ -292,7 +294,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_blocks_recv, num_blocks_send, &
                                                             num_entries_recv, num_entries_send, &
                                                             num_rec, num_send
-      INTEGER, ALLOCATABLE, DIMENSION(:, :) :: req_array, blks_to_allocate
+      TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:, :) :: req_array
+      INTEGER, ALLOCATABLE, DIMENSION(:, :) :: blks_to_allocate
       INTEGER, DIMENSION(2) :: blk_size
       INTEGER, DIMENSION(2) :: blk_index
       INTEGER(KIND=int_8), DIMENSION(2) :: blk_index_i8
@@ -516,7 +519,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_blocks_recv, num_blocks_send, &
                                                             num_entries_recv, num_entries_send, &
                                                             num_rec, num_send
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: blks_to_allocate, req_array
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: blks_to_allocate
       INTEGER, DIMENSION(2)                              :: blk_index, blk_size
       INTEGER, DIMENSION(:), POINTER                     :: col_block_sizes, row_block_sizes
       LOGICAL                                            :: move_prv
@@ -525,6 +528,8 @@ CONTAINS
       TYPE(dbt_buffer_type), ALLOCATABLE, DIMENSION(:)   :: buffer_recv, buffer_send
       TYPE(dbt_tas_split_info)                           :: info
       TYPE(mp_comm_type)                                 :: mp_comm
+      TYPE(mp_request_type), ALLOCATABLE, &
+         DIMENSION(:, :)                                 :: req_array
 
 !!
 
@@ -838,7 +843,8 @@ CONTAINS
       TYPE(mp_comm_type), INTENT(IN)                     :: mp_comm
       TYPE(dbt_buffer_type), DIMENSION(0:), &
          INTENT(INOUT)                                   :: buffer_recv, buffer_send
-      INTEGER, DIMENSION(:, :), INTENT(OUT)              :: req_array
+      TYPE(mp_request_type), DIMENSION(:, :), &
+         INTENT(OUT)                                     :: req_array
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_tas_communicate_buffer'
 

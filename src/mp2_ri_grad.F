@@ -40,8 +40,8 @@ MODULE mp2_ri_grad
    USE kinds,                           ONLY: dp
    USE libint_2c_3c,                    ONLY: compare_potential_types
    USE message_passing,                 ONLY: &
-        mp_allgather, mp_alltoall, mp_irecv, mp_isend, mp_request_null, mp_sendrecv, mp_sum, &
-        mp_wait, mp_waitall
+        mp_allgather, mp_alltoall, mp_irecv, mp_isend, mp_request_null, mp_request_type, &
+        mp_sendrecv, mp_sum, mp_wait, mp_waitall
    USE mp2_eri,                         ONLY: mp2_eri_2c_integrate,&
                                               mp2_eri_3c_integrate,&
                                               mp2_eri_deallocate_forces,&
@@ -676,8 +676,7 @@ CONTAINS
       INTEGER :: rec_counter, rec_row_size, send_col_size, send_counter, send_pcol, send_prow, &
          send_row_size, size_rec_buffer, size_send_buffer
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, map_rec_size, map_send_size, &
-                                                            pos_info, pos_info_ex, &
-                                                            proc_2_send_pos, req_send
+                                                            pos_info, pos_info_ex, proc_2_send_pos
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: grid_2_mepos, mepos_2_grid, my_col_indeces_info_1i, &
          my_col_indeces_info_2a, my_row_indeces_info_1i, my_row_indeces_info_2a, sizes, sizes_1i, &
          sizes_2a
@@ -697,6 +696,7 @@ CONTAINS
          DIMENSION(:)                                    :: buffer_rec, buffer_send
       TYPE(integ_mat_buffer_type_2D), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_cyclic
+      TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: req_send
 
       CALL timeset(routineN, handle)
 
