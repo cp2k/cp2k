@@ -50,7 +50,7 @@ function(cp2k_find_libraries _package_name _library_name)
 
   find_library(
     CP2K_${_package_name}_LIBRARIES_TMP
-    NAMES "${_library_name}"
+    NAMES ${_library_name}
     PATHS "${CP2K_${_package_name}_PREFIX}"
     PATH_SUFFIXES "lib" "lib64")
   if(CP2K_${_package_name}_LIBRARIES_TMP)
