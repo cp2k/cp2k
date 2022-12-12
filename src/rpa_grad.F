@@ -1067,6 +1067,8 @@ CONTAINS
       mem_per_block = REAL(number_of_elements_per_blk, KIND=dp)*8.0_dp
       number_of_parallel_channels = MAX(1, MIN(MAXVAL(grid) - 1, FLOOR(mem_real/mem_per_block)))
       CALL mp_min(number_of_parallel_channels, para_env%group)
+      IF (mp2_env%ri_grad%max_parallel_comm > 0) &
+         number_of_parallel_channels = MIN(number_of_parallel_channels, mp2_env%ri_grad%max_parallel_comm)
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A,T75,I6)') 'GRAD_INFO| Number of parallel communication channels:', number_of_parallel_channels
