@@ -21,12 +21,24 @@ if(PKG_CONFIG_FOUND)
   pkg_check_modules(CP2K_LIBXSMMNOBLAS IMPORTED_TARGET GLOBAL libxsmmnoblas)
 endif()
 
-foreach(__lib xsmm xsmmf xsmmext xsmmnoblas)
-  string(TOUPPER "LIB${__lib}" __lib_search_up)
-  if(NOT CP2K_${__lib_search_up}_FOUND)
-    cp2k_find_libraries(${__lib_search_up} ${__lib})
-  endif()
-endforeach()
+if(NOT CP2K_LIBXSMM_FOUND)
+  # Reset after pkg_check_modules side effects
+  cp2k_set_default_paths(LIBXSMM "LibXSMM")
+  set(CP2K_LIBXSMMEXT_PREFIX "${CP2K_LIBXSMM_PREFIX}")
+  set(CP2K_LIBXSMMF_PREFIX "${CP2K_LIBXSMM_PREFIX}")
+  set(CP2K_LIBXSMMNOBLAS_PREFIX "${CP2K_LIBXSMM_PREFIX}")
+
+  foreach(__lib xsmm xsmmf xsmmext xsmmnoblas)
+    string(TOUPPER "LIB${__lib}" __lib_search_up)
+    if(NOT CP2K_${__lib_search_up}_FOUND)
+      cp2k_find_libraries(${__lib_search_up} ${__lib})
+    endif()
+  endforeach()
+endif()
+
+if(CP2K_LIBXSMM_FOUND AND CP2K_LIBXSMMF_FOUND AND CP2K_LIBXSMMEXT_FOUND AND CP2K_LIBXSMMNOBLAS_FOUND)
+  set(CP2K_LIBXSMM_LINK_LIBRARIES "${CP2K_LIBXSMM_LIBRARIES};${CP2K_LIBXSMMF_LIBRARIES};${CP2K_LIBXSMMEXT_LIBRARIES};${CP2K_LIBXSMMNOBLAS_LIBRARIES}")
+endif()
 
 if(NOT CP2K_LIBXSMM_INCLUDE_DIRS)
   cp2k_include_dirs(LIBXSMM "libxsmm.h;include/libxsmm.h")
@@ -53,15 +65,18 @@ if(NOT TARGET CP2K_LibXSMM::libxsmm)
     string(TOUPPER "CP2K_${__lib}" __lib_search_up)
     if(${__lib_search_up}_FOUND AND NOT TARGET CP2K_LibXSMM::${__lib})
       add_library(CP2K_LibXSMM::${__lib} INTERFACE IMPORTED)
-      set_target_properties(
+    endif()
+
+    set_target_properties(
         CP2K_LibXSMM::${__lib}
         PROPERTIES INTERFACE_LINK_LIBRARIES
                    "${${__lib_search_up}_LINK_LIBRARIES}")
+	   
+    if(CP2K_LIBXSMM_INCLUDE_DIRS)
       set_target_properties(
         CP2K_LibXSMM::${__lib}
         PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
-                   "${CP2K_LIBXSMM_INCLUDE_DIRS};${CP2K_LIBXSMM_PREFIX}/include"
-      )
+                   "${CP2K_LIBXSMM_INCLUDE_DIRS};${CP2K_LIBXSMM_PREFIX}/include")
     endif()
   endforeach()
 endif()
