@@ -16,9 +16,9 @@ MODULE realspace_grid_cube
    USE message_passing,                 ONLY: &
         file_amode_rdonly, file_offset, mp_bcast, mp_comm_type, mp_file_close, &
         mp_file_descriptor_type, mp_file_get_position, mp_file_open, mp_file_read_all_chv, &
-        mp_file_type_free, mp_file_type_hindexed_make_chv, mp_file_type_set_view_chv, &
-        mp_file_write_all_chv, mp_file_write_at, mp_maxloc, mp_recv, mp_send, mp_sum, mp_sync, &
-        mpi_character_size
+        mp_file_type, mp_file_type_free, mp_file_type_hindexed_make_chv, &
+        mp_file_type_set_view_chv, mp_file_write_all_chv, mp_file_write_at, mp_maxloc, mp_recv, &
+        mp_send, mp_sum, mp_sync, mpi_character_size
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
    USE pw_types,                        ONLY: pw_type
 #include "../base/base_uses.f90"
@@ -67,6 +67,7 @@ CONTAINS
       LOGICAL                                            :: be_silent, my_zero_tails, parallel_write
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: buf
       TYPE(mp_comm_type)                                 :: gid
+      TYPE(mp_file_type)                                 :: mp_unit
 
       CALL timeset(routineN, handle)
 
@@ -215,7 +216,8 @@ CONTAINS
          IF (MODULO(size_of_z, num_entries_line) /= 0) &
             num_linebreak = num_linebreak + 1
          msglen = (size_of_z*entry_len + num_linebreak)*mpi_character_size
-         CALL pw_to_cube_parallel(pw, unit_nr, title, particles_r, particles_z, my_stride, my_zero_tails, msglen)
+         CALL mp_unit%set_handle(unit_nr)
+         CALL pw_to_cube_parallel(pw, mp_unit, title, particles_r, particles_z, my_stride, my_zero_tails, msglen)
       END IF
 
       CALL timestop(handle)
@@ -391,7 +393,7 @@ CONTAINS
       INTEGER(kind=file_offset), ALLOCATABLE, &
          DIMENSION(:), TARGET                            :: displacements
       INTEGER(kind=file_offset)                          :: BOF
-      INTEGER :: extunit, i, ientry, ip, islice, j, k, master, my_rank, nat, ndum, nslices, &
+      INTEGER :: extunit_handle, i, ientry, ip, islice, j, k, master, my_rank, nat, ndum, nslices, &
          num_pe, offset_global, output_unit, pos, readstat, size_of_z, tag
       CHARACTER(LEN=msglen), ALLOCATABLE, DIMENSION(:)   :: readbuffer
       CHARACTER(LEN=msglen)                              :: tmp
@@ -399,7 +401,8 @@ CONTAINS
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: buffer
       REAL(kind=dp), DIMENSION(3)                        :: dr, rdum
       TYPE(mp_comm_type)                                 :: gid
-      TYPE(mp_file_descriptor_type)                      :: mp_file_type
+      TYPE(mp_file_descriptor_type)                      :: mp_file_desc
+      TYPE(mp_file_type)                                 :: extunit
 
       output_unit = cp_logger_get_default_io_unit()
 
@@ -440,15 +443,15 @@ CONTAINS
                         file_form="FORMATTED", &
                         file_action="READ", &
                         file_access="STREAM", &
-                        unit_number=extunit)
+                        unit_number=extunit_handle)
 
          !skip header comments
          DO i = 1, 2
-            READ (extunit, *)
+            READ (extunit_handle, *)
          END DO
-         READ (extunit, *) nat, rdum
+         READ (extunit_handle, *) nat, rdum
          DO i = 1, 3
-            READ (extunit, *) ndum, rdum
+            READ (extunit_handle, *) ndum, rdum
             IF ((ndum /= npoints(i) .OR. (ABS(rdum(i) - dr(i)) > 1e-4)) .AND. &
                 output_unit > 0) THEN
                WRITE (output_unit, *) "Restart from density | ERROR! | CUBE FILE NOT COINCIDENT WITH INTERNAL GRID ", i
@@ -458,11 +461,11 @@ CONTAINS
          END DO
          !ignore atomic position data - read from coord or topology instead
          DO i = 1, nat
-            READ (extunit, *)
+            READ (extunit_handle, *)
          END DO
          ! Get byte offset
-         INQUIRE (extunit, POS=offset_global)
-         CALL close_file(unit_number=extunit)
+         INQUIRE (extunit_handle, POS=offset_global)
+         CALL close_file(unit_number=extunit_handle)
       END IF
       ! Sync offset and start parallel read
       CALL mp_bcast(offset_global, grid%pw_grid%para%group_head_id, gid)
@@ -496,14 +499,14 @@ CONTAINS
       ALLOCATE (blocklengths(nslices))
       blocklengths(:) = msglen
       ! Create indexed MPI type using calculated byte offsets as displacements and use it as a file view
-      mp_file_type = mp_file_type_hindexed_make_chv(nslices, blocklengths, displacements)
+      mp_file_desc = mp_file_type_hindexed_make_chv(nslices, blocklengths, displacements)
       BOF = 0
-      CALL mp_file_type_set_view_chv(extunit, BOF, mp_file_type)
+      CALL mp_file_type_set_view_chv(extunit, BOF, mp_file_desc)
       ! Collective read of cube
       ALLOCATE (readbuffer(nslices))
       readbuffer(:) = ''
-      CALL mp_file_read_all_chv(extunit, msglen, nslices, readbuffer, mp_file_type)
-      CALL mp_file_type_free(mp_file_type)
+      CALL mp_file_read_all_chv(extunit, msglen, nslices, readbuffer, mp_file_desc)
+      CALL mp_file_type_free(mp_file_desc)
       CALL mp_file_close(extunit)
       ! Convert cube values string -> real
       i = lbounds_local(1)
@@ -565,15 +568,15 @@ CONTAINS
                            file_status="OLD", &
                            file_form="FORMATTED", &
                            file_action="READ", &
-                           unit_number=extunit)
+                           unit_number=extunit_handle)
 
             !skip header comments
             DO i = 1, 2
-               READ (extunit, *)
+               READ (extunit_handle, *)
             END DO
-            READ (extunit, *) nat, rdum
+            READ (extunit_handle, *) nat, rdum
             DO i = 1, 3
-               READ (extunit, *) ndum, rdum
+               READ (extunit_handle, *) ndum, rdum
                IF ((ndum /= npoints(i) .OR. (ABS(rdum(i) - dr(i)) > 1e-4)) .AND. &
                    output_unit > 0) THEN
                   WRITE (output_unit, *) "Restart from density | ERROR! | CUBE FILE NOT COINCIDENT WITH INTERNAL GRID ", i
@@ -583,7 +586,7 @@ CONTAINS
             END DO
             !ignore atomic position data - read from coord or topology instead
             DO i = 1, nat
-               READ (extunit, *)
+               READ (extunit_handle, *)
             END DO
          END IF
 
@@ -591,7 +594,7 @@ CONTAINS
          DO i = lbounds(1), ubounds(1)
             DO j = lbounds(2), ubounds(2)
                IF (my_rank .EQ. 0) THEN
-                  READ (extunit, *) (buffer(k), k=lbounds(3), ubounds(3))
+                  READ (extunit_handle, *) (buffer(k), k=lbounds(3), ubounds(3))
                   IF (num_pe .GT. 1) THEN
                      DO ip = 1, num_pe - 1
                         CALL mp_send(buffer(lbounds(3):ubounds(3)), ip, tag, gid)
@@ -615,7 +618,7 @@ CONTAINS
             END DO
          END DO
 
-         IF (my_rank == 0) CALL close_file(unit_number=extunit)
+         IF (my_rank == 0) CALL close_file(unit_number=extunit_handle)
 
          CALL mp_sync(gid)
       END IF
@@ -640,7 +643,7 @@ CONTAINS
                                   msglen)
 
       TYPE(pw_type), INTENT(IN)                          :: grid
-      INTEGER, INTENT(IN)                                :: unit_nr
+      TYPE(mp_file_type), INTENT(IN)                     :: unit_nr
       CHARACTER(*), INTENT(IN), OPTIONAL                 :: title
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: particles_r
