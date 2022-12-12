@@ -14,7 +14,7 @@
 !> \author CJM & JGH
 ! **************************************************************************************************
 MODULE fist_force
-   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+   USE atomic_kind_t/ypes,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
    USE atprop_types,                    ONLY: atprop_type
    USE cell_types,                      ONLY: cell_type,&
@@ -227,6 +227,7 @@ CONTAINS
       IF (fist_nonbond_env%do_nonbonded) THEN
          ! First check with list_control to update neighbor lists
          IF (ASSOCIATED(exclusions)) THEN
+            WRITE(*,*) "force_fist control exclusion"
             CALL list_control(atomic_kind_set, particle_set, local_particles, &
                               cell, fist_nonbond_env, para_env, mm_section, shell_particle_set, &
                               core_particle_set, exclusions=exclusions)
