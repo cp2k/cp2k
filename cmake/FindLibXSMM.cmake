@@ -21,20 +21,15 @@ if(PKG_CONFIG_FOUND)
   pkg_check_modules(CP2K_LIBXSMMNOBLAS IMPORTED_TARGET GLOBAL libxsmmnoblas)
 endif()
 
-foreach(__lib libxsmm libxsmmf libxsmmext libxsmmnoblas)
-  string(TOUPPER "${__lib}" __lib_search_up)
+foreach(__lib xsmm xsmmf xsmmext xsmmnoblas)
+  string(TOUPPER "LIB${__lib}" __lib_search_up)
   if(NOT CP2K_${__lib_search_up}_FOUND)
     cp2k_find_libraries(${__lib_search_up} ${__lib})
   endif()
 endforeach()
 
 if(NOT CP2K_LIBXSMM_INCLUDE_DIRS)
-  cp2k_include_dirs(LIBXSMM "libxsmm.h")
-
-  # force the include directory
-  if(NOT CP2K_LIBXSMM_INCLUDE_DIRS)
-    set(CP2K_LIBXSMM_INCLUDE_DIRS "${CP2K_LIBXSMM_PREFIX}/include")
-  endif()
+  cp2k_include_dirs(LIBXSMM "libxsmm.h;include/libxsmm.h")
 endif()
 
 if(CP2K_LIBXSMM_INCLUDE_DIRS)
