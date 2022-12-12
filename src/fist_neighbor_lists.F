@@ -566,6 +566,7 @@ CONTAINS
                         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                         rab_max = r_max(ikind, jkind)
                         rab2_max = rab_max*rab_max
+                        WRITE(*, *) "fist_neighbor_lists rab_max, rab2_max: ", rab_max, rab2_max, ikind, jkind
                         IF (rab2 < rab2_max) THEN
                            ! Diagonal storage
                            j1 = MIN(ikind, jkind)

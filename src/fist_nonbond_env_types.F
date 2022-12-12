@@ -23,7 +23,7 @@ MODULE fist_nonbond_env_types
                                               pair_potential_pp_release,&
                                               pair_potential_pp_type,&
                                               siepmann_type,&
-                                              tersoff_type
+                                              tersoff_type, nequip_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -421,6 +421,10 @@ CONTAINS
                      fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
                   END IF
                   IF (ANY(potparm%pot(idim, jdim)%pot%type == gal21_type)) THEN
+                     fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
+                     fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
+                  END IF
+                  IF (ANY(potparm%pot(idim, jdim)%pot%type == nequip_type)) THEN
                      fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
                      fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
                   END IF

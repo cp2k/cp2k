@@ -678,6 +678,7 @@ CONTAINS
       r_minsq = tmp*tmp
       CALL timestop(handle2)
       CALL timeset(TRIM(routineN)//"_3", handle2)
+      WRITE(*,*) "topology_generate_util calling build_fist_neighbor_lists"
       CALL build_fist_neighbor_lists(atomic_kind_set, particle_set, &
                                      cell=topology%cell, r_max=r_max, r_minsq=r_minsq, &
                                      ei_scale14=1.0_dp, vdw_scale14=1.0_dp, nonbonded=nonbonded, &

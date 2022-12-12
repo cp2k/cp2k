@@ -44,7 +44,7 @@ MODULE fist_neighbor_list_control
                                               gal_type,&
                                               pair_potential_pp_type,&
                                               siepmann_type,&
-                                              tersoff_type
+                                              tersoff_type, nequip_type
    USE particle_types,                  ONLY: particle_type
 #include "./base/base_uses.f90"
 
@@ -226,6 +226,9 @@ CONTAINS
                      full_nl(ikind, jkind) = .TRUE.
                   END IF
                   IF (ANY(potparm%pot(ikind, jkind)%pot%type == gal21_type)) THEN
+                     full_nl(ikind, jkind) = .TRUE.
+                  END IF
+                  IF (ANY(potparm%pot(ikind, jkind)%pot%type == nequip_type)) THEN
                      full_nl(ikind, jkind) = .TRUE.
                   END IF
                   full_nl(jkind, ikind) = full_nl(ikind, jkind)
