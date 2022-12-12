@@ -475,6 +475,17 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="MAX_PARALLEL_COMM", &
+         description="Sets the maximum number of parallel communication steps of the non-blocking communication scheme. "// &
+         "The number of channels is determined from the available memory. If set to a value smaller than one, "// &
+         "CP2K will use all memory for communication. A value of one enforces the blocking communication scheme "// &
+         "increasing the communication costs.", &
+         default_i_val=2)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_canonical_gradients
 
 ! **************************************************************************************************

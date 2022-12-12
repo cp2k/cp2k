@@ -236,6 +236,7 @@ MODULE mp2_types
       LOGICAL                  :: free_hfx_buffer
       LOGICAL                  :: use_old_grad
       INTEGER :: dot_blksize
+      INTEGER :: max_parallel_comm
    END TYPE
 
    TYPE mp2_type
