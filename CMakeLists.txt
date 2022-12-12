@@ -375,7 +375,7 @@ if(CP2K_USE_COSMA)
   # check that cosma::cosma_pxgemm and cosma::cosma_prefixed_pxgemm exist
   if(NOT TARGET cosma::cosma_pxgemm OR NOT TARGET cosma::cosma_prefixed_pxgemm)
     message(ERROR_ERROR
-            " COSMA needs tor be build with scalapack offloading support")
+            " COSMA needs to be build with scalapack offloading support")
     message(
       FATAL_ERROR
         " COSTA_SCALAPACK and COSMA_SCALAPACK should probably be set properly")
