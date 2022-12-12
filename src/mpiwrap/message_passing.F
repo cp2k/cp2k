@@ -71,7 +71,7 @@ MODULE message_passing
    INTEGER, PARAMETER :: mp_comm_self_handle = MPI_COMM_SELF
    INTEGER, PARAMETER :: mp_comm_world_handle = MPI_COMM_WORLD
    INTEGER, PARAMETER :: mp_request_null_handle = MPI_REQUEST_NULL
-   INTEGER, PARAMETER, PUBLIC :: mp_win_null = MPI_WIN_NULL
+   INTEGER, PARAMETER :: mp_win_null_handle = MPI_WIN_NULL
    INTEGER, PARAMETER, PUBLIC :: mp_status_size = MPI_STATUS_SIZE
    INTEGER, PARAMETER, PUBLIC :: mp_proc_null = MPI_PROC_NULL
    ! Set max allocatable memory by MPI to 2 GiByte
@@ -95,7 +95,7 @@ MODULE message_passing
    INTEGER, PARAMETER :: mp_comm_self_handle = -11
    INTEGER, PARAMETER :: mp_comm_world_handle = -12
    INTEGER, PARAMETER :: mp_request_null_handle = -4
-   INTEGER, PARAMETER, PUBLIC :: mp_win_null = -5
+   INTEGER, PARAMETER :: mp_win_null_handle = -5
    INTEGER, PARAMETER, PUBLIC :: mp_status_size = -6
    INTEGER, PARAMETER, PUBLIC :: mp_proc_null = -7
    INTEGER, PARAMETER, PUBLIC :: mp_max_library_version_string = 1
@@ -124,6 +124,7 @@ MODULE message_passing
 
    PUBLIC :: mp_comm_type
    PUBLIC :: mp_request_type
+   PUBLIC :: mp_win_type
 
    TYPE mp_comm_type
       PRIVATE
@@ -149,11 +150,24 @@ MODULE message_passing
       GENERIC, PUBLIC :: OPERATOR(.NE.) => mp_request_op_neq
    END TYPE
 
-   ! The actual constants
+   TYPE mp_win_type
+      PRIVATE
+      INTEGER :: handle = mp_win_null_handle
+   CONTAINS
+      PROCEDURE :: set_handle => mp_win_type_set_handle
+      PROCEDURE :: get_handle => mp_win_type_get_handle
+      PROCEDURE, PRIVATE :: mp_win_op_eq
+      PROCEDURE, PRIVATE :: mp_win_op_neq
+      GENERIC, PUBLIC :: OPERATOR(.EQ.) => mp_win_op_eq
+      GENERIC, PUBLIC :: OPERATOR(.NE.) => mp_win_op_neq
+   END TYPE
+
+   ! Create the constants from the corresponding handles
    TYPE(mp_comm_type), PARAMETER, PUBLIC :: mp_comm_null = mp_comm_type(mp_comm_null_handle)
    TYPE(mp_comm_type), PARAMETER, PUBLIC :: mp_comm_self = mp_comm_type(mp_comm_self_handle)
    TYPE(mp_comm_type), PARAMETER, PUBLIC :: mp_comm_world = mp_comm_type(mp_comm_world_handle)
    TYPE(mp_request_type), PARAMETER, PUBLIC :: mp_request_null = mp_request_type(mp_request_null_handle)
+   TYPE(mp_win_type), PARAMETER, PUBLIC :: mp_win_null = mp_win_type(mp_win_null_handle)
 
    ! init and error
    PUBLIC :: mp_world_init, mp_world_finalize
@@ -739,7 +753,7 @@ MODULE message_passing
 CONTAINS
 
    #:mute
-      #:set types = ["comm", "request"]
+      #:set types = ["comm", "request", "win"]
    #:endmute
    #:for type in types
       ELEMENTAL LOGICAL FUNCTION mp_${type}$_op_eq(${type}$1, ${type}$2)
@@ -4146,7 +4160,7 @@ CONTAINS
 !> \param win ...
 ! **************************************************************************************************
    SUBROUTINE mp_win_free(win)
-      INTEGER, INTENT(INOUT)                             :: win
+      TYPE(mp_win_type), INTENT(INOUT)                             :: win
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_win_free'
 
@@ -4157,12 +4171,11 @@ CONTAINS
 
 #if defined(__parallel)
 
-      CALL mpi_win_free(win, ierr)
+      CALL mpi_win_free(win%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_free @ "//routineN)
 
       CALL add_perf(perf_id=21, count=1)
 #else
-      MARK_USED(win)
       win = mp_win_null
 #endif
       CALL mp_timestop(handle)
@@ -4173,7 +4186,7 @@ CONTAINS
 !> \param win ...
 ! **************************************************************************************************
    SUBROUTINE mp_win_flush_all(win)
-      INTEGER, INTENT(IN)                                :: win
+      TYPE(mp_win_type), INTENT(IN)                                :: win
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_win_flush_all'
 
@@ -4183,7 +4196,7 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-      CALL mpi_win_flush_all(win, ierr)
+      CALL mpi_win_flush_all(win%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_flush_all @ "//routineN)
 #else
       MARK_USED(win)
@@ -4196,7 +4209,7 @@ CONTAINS
 !> \param win ...
 ! **************************************************************************************************
    SUBROUTINE mp_win_lock_all(win)
-      INTEGER, INTENT(INOUT)                             :: win
+      TYPE(mp_win_type), INTENT(IN)                             :: win
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_win_lock_all'
 
@@ -4207,7 +4220,7 @@ CONTAINS
 
 #if defined(__parallel)
 
-      CALL mpi_win_lock_all(MPI_MODE_NOCHECK, win, ierr)
+      CALL mpi_win_lock_all(MPI_MODE_NOCHECK, win%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_lock_all @ "//routineN)
 
       CALL add_perf(perf_id=19, count=1)
@@ -4222,7 +4235,7 @@ CONTAINS
 !> \param win ...
 ! **************************************************************************************************
    SUBROUTINE mp_win_unlock_all(win)
-      INTEGER, INTENT(INOUT)                             :: win
+      TYPE(mp_win_type), INTENT(IN)                             :: win
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_win_unlock_all'
 
@@ -4233,7 +4246,7 @@ CONTAINS
 
 #if defined(__parallel)
 
-      CALL mpi_win_unlock_all(win, ierr)
+      CALL mpi_win_unlock_all(win%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_unlock_all @ "//routineN)
 
       CALL add_perf(perf_id=19, count=1)
