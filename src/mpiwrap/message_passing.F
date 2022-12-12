@@ -72,6 +72,7 @@ MODULE message_passing
    INTEGER, PARAMETER :: mp_comm_world_handle = MPI_COMM_WORLD
    INTEGER, PARAMETER :: mp_request_null_handle = MPI_REQUEST_NULL
    INTEGER, PARAMETER :: mp_win_null_handle = MPI_WIN_NULL
+   INTEGER, PARAMETER :: mp_file_null_handle = MPI_FILE_NULL
    INTEGER, PARAMETER, PUBLIC :: mp_status_size = MPI_STATUS_SIZE
    INTEGER, PARAMETER, PUBLIC :: mp_proc_null = MPI_PROC_NULL
    ! Set max allocatable memory by MPI to 2 GiByte
@@ -96,8 +97,9 @@ MODULE message_passing
    INTEGER, PARAMETER :: mp_comm_world_handle = -12
    INTEGER, PARAMETER :: mp_request_null_handle = -4
    INTEGER, PARAMETER :: mp_win_null_handle = -5
-   INTEGER, PARAMETER, PUBLIC :: mp_status_size = -6
-   INTEGER, PARAMETER, PUBLIC :: mp_proc_null = -7
+   INTEGER, PARAMETER :: mp_file_null_handle = -6
+   INTEGER, PARAMETER, PUBLIC :: mp_status_size = -7
+   INTEGER, PARAMETER, PUBLIC :: mp_proc_null = -8
    INTEGER, PARAMETER, PUBLIC :: mp_max_library_version_string = 1
 
    INTEGER, PARAMETER, PUBLIC :: file_offset = int_8
@@ -125,6 +127,7 @@ MODULE message_passing
    PUBLIC :: mp_comm_type
    PUBLIC :: mp_request_type
    PUBLIC :: mp_win_type
+   PUBLIC :: mp_file_type
 
    TYPE mp_comm_type
       PRIVATE
@@ -162,12 +165,25 @@ MODULE message_passing
       GENERIC, PUBLIC :: OPERATOR(.NE.) => mp_win_op_neq
    END TYPE
 
+   TYPE mp_file_type
+      PRIVATE
+      INTEGER :: handle = mp_file_null_handle
+   CONTAINS
+      PROCEDURE :: set_handle => mp_file_type_set_handle
+      PROCEDURE :: get_handle => mp_file_type_get_handle
+      PROCEDURE, PRIVATE :: mp_file_op_eq
+      PROCEDURE, PRIVATE :: mp_file_op_neq
+      GENERIC, PUBLIC :: OPERATOR(.EQ.) => mp_file_op_eq
+      GENERIC, PUBLIC :: OPERATOR(.NE.) => mp_file_op_neq
+   END TYPE
+
    ! Create the constants from the corresponding handles
    TYPE(mp_comm_type), PARAMETER, PUBLIC :: mp_comm_null = mp_comm_type(mp_comm_null_handle)
    TYPE(mp_comm_type), PARAMETER, PUBLIC :: mp_comm_self = mp_comm_type(mp_comm_self_handle)
    TYPE(mp_comm_type), PARAMETER, PUBLIC :: mp_comm_world = mp_comm_type(mp_comm_world_handle)
    TYPE(mp_request_type), PARAMETER, PUBLIC :: mp_request_null = mp_request_type(mp_request_null_handle)
    TYPE(mp_win_type), PARAMETER, PUBLIC :: mp_win_null = mp_win_type(mp_win_null_handle)
+   TYPE(mp_file_type), PARAMETER, PUBLIC :: mp_file_null = mp_file_type(mp_file_null_handle)
 
    ! init and error
    PUBLIC :: mp_world_init, mp_world_finalize
@@ -753,7 +769,7 @@ MODULE message_passing
 CONTAINS
 
    #:mute
-      #:set types = ["comm", "request", "win"]
+      #:set types = ["comm", "request", "win", "file"]
    #:endmute
    #:for type in types
       ELEMENTAL LOGICAL FUNCTION mp_${type}$_op_eq(${type}$1, ${type}$2)
@@ -3195,7 +3211,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_file_open(groupid, fh, filepath, amode_status, info)
       TYPE(mp_comm_type), INTENT(IN)                      :: groupid
-      INTEGER, INTENT(OUT)                     :: fh
+      TYPE(mp_file_type), INTENT(OUT)                     :: fh
       CHARACTER(len=*), INTENT(IN)             :: filepath
       INTEGER, INTENT(IN)                      :: amode_status
       INTEGER, INTENT(IN), OPTIONAL            :: info
@@ -3205,7 +3221,7 @@ CONTAINS
       INTEGER                                  :: my_info
 #else
       CHARACTER(LEN=10)                        :: fstatus, fposition
-      INTEGER                                  :: amode
+      INTEGER                                  :: amode, handle
       LOGICAL                                  :: exists, is_open
 #endif
 
@@ -3214,8 +3230,8 @@ CONTAINS
 #if defined(__parallel)
       my_info = mpi_info_null
       IF (PRESENT(info)) my_info = info
-      CALL mpi_file_open(groupid%handle, filepath, amode_status, my_info, fh, ierr)
-      CALL mpi_file_set_errhandler(fh, MPI_ERRORS_RETURN, ierr)
+      CALL mpi_file_open(groupid%handle, filepath, amode_status, my_info, fh%handle, ierr)
+      CALL mpi_file_set_errhandler(fh%handle, MPI_ERRORS_RETURN, ierr)
       IF (ierr .NE. 0) CALL mp_stop(ierr, "mpi_file_set_errhandler @ mp_file_open")
 #else
       MARK_USED(groupid)
@@ -3235,11 +3251,12 @@ CONTAINS
          fstatus = "OLD"
       END IF
       ! Get a new unit number
-      DO fh = 1, 999
-         INQUIRE (UNIT=fh, EXIST=exists, OPENED=is_open, IOSTAT=istat)
+      DO handle = 1, 999
+         INQUIRE (UNIT=handle, EXIST=exists, OPENED=is_open, IOSTAT=istat)
          IF (exists .AND. (.NOT. is_open) .AND. (istat == 0)) EXIT
       END DO
-      OPEN (UNIT=fh, FILE=filepath, STATUS=fstatus, ACCESS="STREAM", POSITION=fposition)
+      OPEN (UNIT=handle, FILE=filepath, STATUS=fstatus, ACCESS="STREAM", POSITION=fposition)
+      fh%handle = handle
 #endif
    END SUBROUTINE mp_file_open
 
@@ -3286,17 +3303,17 @@ CONTAINS
 !>      11.2012 created [Hossein Bani-Hashemian]
 ! **************************************************************************************************
    SUBROUTINE mp_file_close(fh)
-      INTEGER, INTENT(INOUT)                             :: fh
+      TYPE(mp_file_type), INTENT(INOUT)                             :: fh
 
       INTEGER                                            :: ierr
 
       ierr = 0
 #if defined(__parallel)
-      CALL mpi_file_set_errhandler(fh, MPI_ERRORS_RETURN, ierr)
-      CALL mpi_file_close(fh, ierr)
+      CALL mpi_file_set_errhandler(fh%handle, MPI_ERRORS_RETURN, ierr)
+      CALL mpi_file_close(fh%handle, ierr)
       IF (ierr .NE. 0) CALL mp_stop(ierr, "mpi_file_set_errhandler @ mp_file_close")
 #else
-      CLOSE (fh)
+      CLOSE (fh%handle)
 #endif
    END SUBROUTINE mp_file_close
 
@@ -3311,18 +3328,18 @@ CONTAINS
 !>      12.2012 created [Hossein Bani-Hashemian]
 ! **************************************************************************************************
    SUBROUTINE mp_file_get_size(fh, file_size)
-      INTEGER, INTENT(IN)                                :: fh
+      TYPE(mp_file_type), INTENT(IN)                                :: fh
       INTEGER(kind=file_offset), INTENT(OUT)             :: file_size
 
       INTEGER                                            :: ierr
 
       ierr = 0
 #if defined(__parallel)
-      CALL mpi_file_set_errhandler(fh, MPI_ERRORS_RETURN, ierr)
-      CALL mpi_file_get_size(fh, file_size, ierr)
+      CALL mpi_file_set_errhandler(fh%handle, MPI_ERRORS_RETURN, ierr)
+      CALL mpi_file_get_size(fh%handle, file_size, ierr)
       IF (ierr .NE. 0) CALL mp_stop(ierr, "mpi_file_set_errhandler @ mp_file_get_size")
 #else
-      INQUIRE (UNIT=fh, SIZE=file_size)
+      INQUIRE (UNIT=fh%handle, SIZE=file_size)
 #endif
    END SUBROUTINE mp_file_get_size
 
@@ -3337,18 +3354,18 @@ CONTAINS
 !>      11.2017 created [Nico Holmberg]
 ! **************************************************************************************************
    SUBROUTINE mp_file_get_position(fh, pos)
-      INTEGER, INTENT(IN)                                :: fh
+      TYPE(mp_file_type), INTENT(IN)                                :: fh
       INTEGER(kind=file_offset), INTENT(OUT)             :: pos
 
       INTEGER                                            :: ierr
 
       ierr = 0
 #if defined(__parallel)
-      CALL mpi_file_set_errhandler(fh, MPI_ERRORS_RETURN, ierr)
-      CALL mpi_file_get_position(fh, pos, ierr)
+      CALL mpi_file_set_errhandler(fh%handle, MPI_ERRORS_RETURN, ierr)
+      CALL mpi_file_get_position(fh%handle, pos, ierr)
       IF (ierr .NE. 0) CALL mp_stop(ierr, "mpi_file_set_errhandler @ mp_file_get_position")
 #else
-      INQUIRE (UNIT=fh, POS=pos)
+      INQUIRE (UNIT=fh%handle, POS=pos)
 #endif
    END SUBROUTINE mp_file_get_position
 
@@ -3365,7 +3382,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_file_write_at_chv(fh, offset, msg, msglen)
       CHARACTER, INTENT(IN)                      :: msg(:)
-      INTEGER, INTENT(IN)                        :: fh
+      TYPE(mp_file_type), INTENT(IN)                        :: fh
       INTEGER, INTENT(IN), OPTIONAL              :: msglen
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
@@ -3376,12 +3393,12 @@ CONTAINS
 
       msg_len = SIZE(msg)
       IF (PRESENT(msglen)) msg_len = msglen
-      CALL MPI_FILE_WRITE_AT(fh, offset, msg, msg_len, MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
+      CALL MPI_FILE_WRITE_AT(fh%handle, offset, msg, msg_len, MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) &
          CPABORT("mpi_file_write_at_chv @ "//routineN)
 #else
       MARK_USED(msglen)
-      WRITE (UNIT=fh, POS=offset + 1) msg
+      WRITE (UNIT=fh%handle, POS=offset + 1) msg
 #endif
    END SUBROUTINE mp_file_write_at_chv
 
@@ -3393,7 +3410,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_file_write_at_ch(fh, offset, msg)
       CHARACTER(LEN=*), INTENT(IN)               :: msg
-      INTEGER, INTENT(IN)                        :: fh
+      TYPE(mp_file_type), INTENT(IN)                        :: fh
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_write_at_ch'
@@ -3401,11 +3418,11 @@ CONTAINS
 #if defined(__parallel)
       INTEGER                                    :: ierr
 
-      CALL MPI_FILE_WRITE_AT(fh, offset, msg, LEN(msg), MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
+      CALL MPI_FILE_WRITE_AT(fh%handle, offset, msg, LEN(msg), MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) &
          CPABORT("mpi_file_write_at_ch @ "//routineN)
 #else
-      WRITE (UNIT=fh, POS=offset + 1) msg
+      WRITE (UNIT=fh%handle, POS=offset + 1) msg
 #endif
    END SUBROUTINE mp_file_write_at_ch
 
@@ -3421,7 +3438,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_file_write_at_all_chv(fh, offset, msg, msglen)
       CHARACTER, INTENT(IN)                      :: msg(:)
-      INTEGER, INTENT(IN)                        :: fh
+      TYPE(mp_file_type), INTENT(IN)                        :: fh
       INTEGER, INTENT(IN), OPTIONAL              :: msglen
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
@@ -3432,12 +3449,12 @@ CONTAINS
 
       msg_len = SIZE(msg)
       IF (PRESENT(msglen)) msg_len = msglen
-      CALL MPI_FILE_WRITE_AT_ALL(fh, offset, msg, msg_len, MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
+      CALL MPI_FILE_WRITE_AT_ALL(fh%handle, offset, msg, msg_len, MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) &
          CPABORT("mpi_file_write_at_all_chv @ "//routineN)
 #else
       MARK_USED(msglen)
-      WRITE (UNIT=fh, POS=offset + 1) msg
+      WRITE (UNIT=fh%handle, POS=offset + 1) msg
 #endif
    END SUBROUTINE mp_file_write_at_all_chv
 
@@ -3449,7 +3466,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_file_write_at_all_ch(fh, offset, msg)
       CHARACTER(LEN=*), INTENT(IN)               :: msg
-      INTEGER, INTENT(IN)                        :: fh
+      TYPE(mp_file_type), INTENT(IN)                        :: fh
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_write_at_all_ch'
@@ -3457,11 +3474,11 @@ CONTAINS
 #if defined(__parallel)
       INTEGER                                    :: ierr
 
-      CALL MPI_FILE_WRITE_AT_ALL(fh, offset, msg, LEN(msg), MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
+      CALL MPI_FILE_WRITE_AT_ALL(fh%handle, offset, msg, LEN(msg), MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) &
          CPABORT("mpi_file_write_at_all_ch @ "//routineN)
 #else
-      WRITE (UNIT=fh, POS=offset + 1) msg
+      WRITE (UNIT=fh%handle, POS=offset + 1) msg
 #endif
    END SUBROUTINE mp_file_write_at_all_ch
 
@@ -3478,7 +3495,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_file_read_at_chv(fh, offset, msg, msglen)
       CHARACTER, INTENT(OUT)                     :: msg(:)
-      INTEGER, INTENT(IN)                        :: fh
+      TYPE(mp_file_type), INTENT(IN)                        :: fh
       INTEGER, INTENT(IN), OPTIONAL              :: msglen
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
@@ -3489,12 +3506,12 @@ CONTAINS
 
       msg_len = SIZE(msg)
       IF (PRESENT(msglen)) msg_len = msglen
-      CALL MPI_FILE_READ_AT(fh, offset, msg, msg_len, MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
+      CALL MPI_FILE_READ_AT(fh%handle, offset, msg, msg_len, MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) &
          CPABORT("mpi_file_read_at_chv @ "//routineN)
 #else
       MARK_USED(msglen)
-      READ (UNIT=fh, POS=offset + 1) msg
+      READ (UNIT=fh%handle, POS=offset + 1) msg
 #endif
    END SUBROUTINE mp_file_read_at_chv
 
@@ -3506,7 +3523,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_file_read_at_ch(fh, offset, msg)
       CHARACTER(LEN=*), INTENT(OUT)              :: msg
-      INTEGER, INTENT(IN)                        :: fh
+      TYPE(mp_file_type), INTENT(IN)                        :: fh
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_at_ch'
@@ -3514,11 +3531,11 @@ CONTAINS
 #if defined(__parallel)
       INTEGER                                    :: ierr
 
-      CALL MPI_FILE_READ_AT(fh, offset, msg, LEN(msg), MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
+      CALL MPI_FILE_READ_AT(fh%handle, offset, msg, LEN(msg), MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) &
          CPABORT("mpi_file_read_at_ch @ "//routineN)
 #else
-      READ (UNIT=fh, POS=offset + 1) msg
+      READ (UNIT=fh%handle, POS=offset + 1) msg
 #endif
    END SUBROUTINE mp_file_read_at_ch
 
@@ -3534,7 +3551,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_file_read_at_all_chv(fh, offset, msg, msglen)
       CHARACTER, INTENT(OUT)                     :: msg(:)
-      INTEGER, INTENT(IN)                        :: fh
+      TYPE(mp_file_type), INTENT(IN)                        :: fh
       INTEGER, INTENT(IN), OPTIONAL              :: msglen
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
@@ -3545,12 +3562,12 @@ CONTAINS
 
       msg_len = SIZE(msg)
       IF (PRESENT(msglen)) msg_len = msglen
-      CALL MPI_FILE_READ_AT_ALL(fh, offset, msg, msg_len, MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
+      CALL MPI_FILE_READ_AT_ALL(fh%handle, offset, msg, msg_len, MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) &
          CPABORT("mpi_file_read_at_all_chv @ "//routineN)
 #else
       MARK_USED(msglen)
-      READ (UNIT=fh, POS=offset + 1) msg
+      READ (UNIT=fh%handle, POS=offset + 1) msg
 #endif
    END SUBROUTINE mp_file_read_at_all_chv
 
@@ -3562,7 +3579,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_file_read_at_all_ch(fh, offset, msg)
       CHARACTER(LEN=*), INTENT(OUT)              :: msg
-      INTEGER, INTENT(IN)                        :: fh
+      TYPE(mp_file_type), INTENT(IN)                        :: fh
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_at_all_ch'
@@ -3570,11 +3587,11 @@ CONTAINS
 #if defined(__parallel)
       INTEGER                                    :: ierr
 
-      CALL MPI_FILE_READ_AT_ALL(fh, offset, msg, LEN(msg), MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
+      CALL MPI_FILE_READ_AT_ALL(fh%handle, offset, msg, LEN(msg), MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) &
          CPABORT("mpi_file_read_at_all_ch @ "//routineN)
 #else
-      READ (UNIT=fh, POS=offset + 1) msg
+      READ (UNIT=fh%handle, POS=offset + 1) msg
 #endif
    END SUBROUTINE mp_file_read_at_all_ch
 
@@ -3779,7 +3796,7 @@ CONTAINS
 !> \author Nico Holmberg [05.2017]
 ! **************************************************************************************************
    SUBROUTINE mp_file_type_set_view_chv(fh, offset, type_descriptor)
-      INTEGER, INTENT(IN)                      :: fh
+      TYPE(mp_file_type), INTENT(IN)                      :: fh
       INTEGER(kind=file_offset), INTENT(IN)    :: offset
       TYPE(mp_file_descriptor_type)            :: type_descriptor
 
@@ -3791,8 +3808,8 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-      CALL mpi_file_set_errhandler(fh, MPI_ERRORS_RETURN, ierr)
-      CALL MPI_File_set_view(fh, offset, MPI_CHARACTER, &
+      CALL mpi_file_set_errhandler(fh%handle, MPI_ERRORS_RETURN, ierr)
+      CALL MPI_File_set_view(fh%handle, offset, MPI_CHARACTER, &
                              type_descriptor%type_handle, "native", MPI_INFO_NULL, ierr)
       IF (ierr .NE. 0) CALL mp_stop(ierr, "mpi_file_set_errhandler @ MPI_File_set_view")
 #else
@@ -3818,7 +3835,7 @@ CONTAINS
 !> \author Nico Holmberg [05.2017]
 ! **************************************************************************************************
    SUBROUTINE mp_file_read_all_chv(fh, msglen, ndims, buffer, type_descriptor)
-      INTEGER, INTENT(IN)                       :: fh
+      TYPE(mp_file_type), INTENT(IN)                       :: fh
       INTEGER, INTENT(IN)                       :: msglen
       INTEGER, INTENT(IN)                       :: ndims
       CHARACTER(LEN=msglen), DIMENSION(ndims)   :: buffer
@@ -3835,7 +3852,7 @@ CONTAINS
 
 #if defined(__parallel)
       MARK_USED(type_descriptor)
-      CALL MPI_File_read_all(fh, buffer, ndims*msglen, MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
+      CALL MPI_File_read_all(fh%handle, buffer, ndims*msglen, MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) CALL mp_stop(ierr, "mpi_file_set_errhandler @ MPI_File_read_all")
       CALL add_perf(perf_id=28, count=1, msg_size=ndims*msglen)
 #else
@@ -3849,7 +3866,7 @@ CONTAINS
                        "File view has not been set in mp_file_descriptor_type.")
       ! Use explicit offsets
       DO i = 1, ndims
-         READ (fh, POS=type_descriptor%index_descriptor%chunks(i)) buffer(i)
+         READ (fh%handle, POS=type_descriptor%index_descriptor%chunks(i)) buffer(i)
       END DO
 #endif
 
@@ -3869,7 +3886,7 @@ CONTAINS
 !> \author Nico Holmberg [05.2017]
 ! **************************************************************************************************
    SUBROUTINE mp_file_write_all_chv(fh, msglen, ndims, buffer, type_descriptor)
-      INTEGER, INTENT(IN)                       :: fh
+      TYPE(mp_file_type), INTENT(IN)                       :: fh
       INTEGER, INTENT(IN)                       :: msglen
       INTEGER, INTENT(IN)                       :: ndims
       CHARACTER(LEN=msglen), DIMENSION(ndims)   :: buffer
@@ -3886,8 +3903,8 @@ CONTAINS
 
 #if defined(__parallel)
       MARK_USED(type_descriptor)
-      CALL mpi_file_set_errhandler(fh, MPI_ERRORS_RETURN, ierr)
-      CALL MPI_File_write_all(fh, buffer, ndims*msglen, MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
+      CALL mpi_file_set_errhandler(fh%handle, MPI_ERRORS_RETURN, ierr)
+      CALL MPI_File_write_all(fh%handle, buffer, ndims*msglen, MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) CALL mp_stop(ierr, "mpi_file_set_errhandler @ MPI_File_write_all")
       CALL add_perf(perf_id=28, count=1, msg_size=ndims*msglen)
 #else
@@ -3901,7 +3918,7 @@ CONTAINS
                        "File view has not been set in mp_file_descriptor_type.")
       ! Use explicit offsets
       DO i = 1, ndims
-         WRITE (fh, POS=type_descriptor%index_descriptor%chunks(i)) buffer(i)
+         WRITE (fh%handle, POS=type_descriptor%index_descriptor%chunks(i)) buffer(i)
       END DO
 #endif
 
