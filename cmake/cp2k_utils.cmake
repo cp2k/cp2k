@@ -41,7 +41,7 @@ function(cp2k_set_default_paths _varname _package_name)
   set(CP2K_${_varname}_PREFIX
       "${CP2K_${_varname}_PREFIX_TMP}"
       PARENT_SCOPE)
-
+  
   unset(CP2K_${_varname}_PREFIX_TMP CACHE)
 endfunction()
 
