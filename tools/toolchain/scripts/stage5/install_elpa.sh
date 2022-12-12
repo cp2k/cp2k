@@ -7,11 +7,8 @@
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
 # From https://elpa.mpcdf.mpg.de/software/tarball-archive/ELPA_TARBALL_ARCHIVE.html
-elpa_ver="2022.05.001"
-elpa_sha256="207e6f26d6532fb70373afc3ef3d38255213af61def659c25dad3a30e4fca38b"
-patches=(
-  "${SCRIPT_DIR}/stage5/elpa-${elpa_ver}-fix_nvcc_wrap.patch"
-)
+elpa_ver="2022.11.001.rc2"
+elpa_sha256="13d67e7d69894c631b48e4fcac905b51c4e41554c7eb4731e98c4e205f0fab9f"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -76,9 +73,7 @@ case "$with_elpa" in
       # with long lines, and that a bunch of libs can be found
       cd elpa-${elpa_ver}
 
-      for patch in "${patches[@]}"; do
-        patch -p1 < "${patch}"
-      done
+      patch -p1 < "${SCRIPT_DIR}/stage5/elpa-fix_nvcc_wrap.patch"
 
       # ELPA-2017xxxx enables AVX2 by default, switch off if machine doesn't support it.
       AVX_flag=""
@@ -114,6 +109,8 @@ case "$with_elpa" in
           --enable-openmp=${enable_openmp} \
           --enable-shared=no \
           --enable-static=yes \
+          --disable-c-tests \
+          --disable-cpp-tests \
           ${config_flags} \
           --enable-nvidia-gpu=$([ "$TARGET" = "nvidia" ] && echo "yes" || echo "no") \
           --with-cuda-path=${CUDA_PATH:-${CUDA_HOME:-/CUDA_HOME-notset}} \
@@ -206,7 +203,7 @@ EOF
 
   cat << EOF >> ${INSTALLDIR}/lsan.supp
 # leaks related to ELPA
-leak:cublasXtDeviceSelect
+leak:cublasCreateFromC
 EOF
 fi
 

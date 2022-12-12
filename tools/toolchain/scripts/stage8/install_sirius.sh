@@ -269,6 +269,11 @@ export CP_CFLAGS="\${CP_CFLAGS} IF_MPI("\${SIRIUS_CFLAGS}"|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(IF_CUDA("\${SIRIUS_CUDA_LDFLAGS}"|"\${SIRIUS_LDFLAGS}")|)"
 export CP_LIBS="IF_MPI("\${SIRIUS_LIBS}"|) \${CP_LIBS}"
 EOF
+
+  cat << EOF >> ${INSTALLDIR}/lsan.supp
+# leaks related to SIRIUS
+leak:cublasXtDeviceSelect
+EOF
 fi
 
 load "${BUILDDIR}/setup_sirius"
