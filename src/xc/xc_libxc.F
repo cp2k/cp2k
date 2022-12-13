@@ -38,6 +38,7 @@ MODULE xc_libxc
                                   section_vals_val_get
    USE kinds, ONLY: default_string_length, &
                     dp
+   USE string_utilities, ONLY: uppercase
    USE xc_derivative_set_types, ONLY: xc_derivative_set_type, &
                                       xc_dset_get_derivative
    USE xc_derivative_types, ONLY: xc_derivative_get, &
@@ -244,6 +245,11 @@ CONTAINS
          description = xc_f03_func_info_get_name(xc_info)
          n_param = xc_f03_func_info_get_n_ext_params(xc_info)
 
+         IF (LEN_TRIM(func_name) == 0) THEN
+            CPWARN("Zero-length string found for LIBXC functional name")
+         END IF
+         CALL uppercase(func_name)
+
          NULLIFY (subsection)
          CALL section_create(subsection, __LOCATION__, name=TRIM(func_name), description=TRIM(description), &
                              n_keywords=2 + n_param, n_subsections=0, repeats=.FALSE.)
@@ -271,7 +277,9 @@ CONTAINS
             param_name = xc_f03_func_info_get_ext_params_name(xc_info, iparam - 1)
             param_descr = xc_f03_func_info_get_ext_params_description(xc_info, iparam - 1)
             default_val = xc_f03_func_info_get_ext_params_default_value(xc_info, iparam - 1)
-
+            IF (LEN_TRIM(param_name) == 0) THEN
+               CPWARN("Zero-length string found for parameter name of LIBXC functional "//TRIM(func_name))
+            END IF
             NULLIFY (keyword)
             CALL keyword_create(keyword, __LOCATION__, name=TRIM(param_name), &
                                 description=TRIM(param_descr), default_r_val=default_val)
