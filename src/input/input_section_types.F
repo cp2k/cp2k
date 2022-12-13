@@ -172,6 +172,8 @@ CONTAINS
       section%n_keywords = 0
       section%n_subsections = 0
       section%location = location
+
+      CPASSERT(LEN_TRIM(name) > 0)
       section%name = name
       CALL uppercase(section%name)
 
