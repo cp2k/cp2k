@@ -38,7 +38,6 @@ MODULE xc_libxc
                                   section_vals_val_get
    USE kinds, ONLY: default_string_length, &
                     dp
-   USE string_utilities, ONLY: uppercase
    USE xc_derivative_set_types, ONLY: xc_derivative_set_type, &
                                       xc_dset_get_derivative
    USE xc_derivative_types, ONLY: xc_derivative_get, &
@@ -51,6 +50,7 @@ MODULE xc_libxc
                                   keyword_release, &
                                   keyword_type
    USE iso_c_binding, ONLY: C_SIZE_T, C_INT, C_DOUBLE
+   USE string_utilities, ONLY: uppercase
    USE xc_derivative_desc, ONLY: &
       deriv_rho, deriv_rhoa, deriv_rhob, &
       deriv_norm_drhoa, deriv_norm_drhob, deriv_norm_drho, deriv_tau_a, deriv_tau_b, deriv_tau, &
