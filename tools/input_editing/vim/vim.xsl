@@ -83,7 +83,9 @@ syn match cp2kEndSection '^\s*&amp;END\s*\w\+' contains=cp2kSection
 "----------------------------------------------------------------/
 <xsl:for-each-group select="//KEYWORD" group-by="NAME[@type='default']">
 <xsl:sort select="NAME[@type='default']"/>
+<xsl:if test="NAME[@type='default']!=''">
 syn keyword cp2kKeyword <xsl:value-of select="NAME"/>
+</xsl:if>
 </xsl:for-each-group>
 
 "-----------------------------------------------------------------/
