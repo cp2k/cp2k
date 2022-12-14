@@ -757,7 +757,7 @@
 
       INTEGER                                  :: handle, ierr, msglen
 #if defined(__parallel)
-      INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
+      TYPE(MPI_Status)       :: status
 #endif
 
       ierr = 0
@@ -765,13 +765,11 @@
 
       msglen = 1
 #if defined(__parallel)
-      ALLOCATE (status(MPI_STATUS_SIZE))
       CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, gid%handle, status, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
       CALL add_perf(perf_id=14, count=1, msg_size=msglen*${bytes1}$)
-      source = status(MPI_SOURCE)
-      tag = status(MPI_TAG)
-      DEALLOCATE (status)
+      source = status%MPI_SOURCE
+      tag = status%MPI_TAG
 #else
       MARK_USED(msg)
       MARK_USED(source)
@@ -800,7 +798,7 @@
 
       INTEGER                                  :: handle, ierr, msglen
 #if defined(__parallel)
-      INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
+      TYPE(MPI_Status)       :: status
 #endif
 
       ierr = 0
@@ -808,13 +806,11 @@
 
       msglen = SIZE(msg)
 #if defined(__parallel)
-      ALLOCATE (status(MPI_STATUS_SIZE))
       CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, gid%handle, status, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
       CALL add_perf(perf_id=14, count=1, msg_size=msglen*${bytes1}$)
-      source = status(MPI_SOURCE)
-      tag = status(MPI_TAG)
-      DEALLOCATE (status)
+      source = status%MPI_SOURCE
+      tag = status%MPI_TAG
 #else
       MARK_USED(msg)
       MARK_USED(source)
@@ -843,7 +839,7 @@
 
       INTEGER                                  :: handle, ierr, msglen
 #if defined(__parallel)
-      INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
+      TYPE(MPI_Status)       :: status
 #endif
 
       ierr = 0
@@ -851,13 +847,11 @@
 
       msglen = SIZE(msg)
 #if defined(__parallel)
-      ALLOCATE (status(MPI_STATUS_SIZE))
       CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, gid%handle, status, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
       CALL add_perf(perf_id=14, count=1, msg_size=msglen*${bytes1}$)
-      source = status(MPI_SOURCE)
-      tag = status(MPI_TAG)
-      DEALLOCATE (status)
+      source = status%MPI_SOURCE
+      tag = status%MPI_TAG
 #else
       MARK_USED(msg)
       MARK_USED(source)
@@ -886,7 +880,7 @@
 
       INTEGER                                  :: handle, ierr, msglen
 #if defined(__parallel)
-      INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
+      TYPE(MPI_Status)       :: status
 #endif
 
       ierr = 0
@@ -894,13 +888,11 @@
 
       msglen = SIZE(msg)
 #if defined(__parallel)
-      ALLOCATE (status(MPI_STATUS_SIZE))
       CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, gid%handle, status, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
       CALL add_perf(perf_id=14, count=1, msg_size=msglen*${bytes1}$)
-      source = status(MPI_SOURCE)
-      tag = status(MPI_TAG)
-      DEALLOCATE (status)
+      source = status%MPI_SOURCE
+      tag = status%MPI_TAG
 #else
       MARK_USED(msg)
       MARK_USED(source)
@@ -3528,7 +3520,8 @@
    SUBROUTINE mp_rget_${nametype1}$v(base, source, win, win_data, myproc, disp, request, &
                                      origin_datatype, target_datatype)
       ${type1}$, DIMENSION(:)                               :: base
-      INTEGER, INTENT(IN)                                 :: source, win
+      INTEGER, INTENT(IN)                                 :: source
+      TYPE(mp_win_type), INTENT(IN) :: win
       ${type1}$, DIMENSION(:)                               :: win_data
       INTEGER, INTENT(IN), OPTIONAL                       :: myproc, disp
       TYPE(mp_request_type), INTENT(OUT)                                :: request
@@ -3539,11 +3532,10 @@
       INTEGER                                  :: ierr, handle
 #if defined(__parallel)
       INTEGER                                  :: len, &
-                                                  handle_origin_datatype, &
-                                                  handle_target_datatype, &
                                                   origin_len, target_len
       LOGICAL                                  :: do_local_copy
       INTEGER(kind=mpi_address_kind)           :: disp_aint
+      TYPE(MPI_Datatype) :: handle_origin_datatype, handle_target_datatype
 #endif
 
       ierr = 0
@@ -3580,7 +3572,7 @@
             ierr = 0
          ELSE
             CALL mpi_rget(base(1), origin_len, handle_origin_datatype, source, disp_aint, &
-                          target_len, handle_target_datatype, win, request%handle, ierr)
+                          target_len, handle_target_datatype, win%handle, request%handle, ierr)
          END IF
       ELSE
          request = mp_request_null
@@ -3999,9 +3991,10 @@
 
 #if defined(__parallel)
       INTEGER                                  :: size, ierr, length, &
-                                                  mp_info, mp_res
+                                                  mp_res
       INTEGER(KIND=MPI_ADDRESS_KIND)           :: mp_size
       TYPE(C_PTR)                              :: mp_baseptr
+      TYPE(MPI_Info) :: mp_info
 
       length = MAX(len, 1)
       CALL MPI_TYPE_SIZE(${mpi_type1}$, size, ierr)
