@@ -30,8 +30,36 @@ MODULE message_passing
 
 #include "../base/base_uses.f90"
 
+! To simplify the transition between the old MPI module and the F08-style module, we introduce these constants to switch between the required handle types
+! Unfortunately, Fortran does not offer something like typedef in C++
+#if defined(__parallel) && !defined(__NO_MPI_F08)
+#define MPI_DATA_TYPE TYPE(MPI_Datatype)
+#define MPI_COMM_TYPE TYPE(MPI_Comm)
+#define MPI_REQUEST_TYPE TYPE(MPI_Request)
+#define MPI_WIN_TYPE TYPE(MPI_Win)
+#define MPI_FILE_TYPE TYPE(MPI_File)
+#define MPI_INFO_TYPE TYPE(MPI_Info)
+#define MPI_STATUS_TYPE TYPE(MPI_Status)
+#define MPI_GROUP_TYPE TYPE(MPI_Group)
+#define MPI_STATUS_EXTRACT(X) %X
+#else
+#define MPI_DATA_TYPE INTEGER
+#define MPI_COMM_TYPE INTEGER
+#define MPI_REQUEST_TYPE INTEGER
+#define MPI_WIN_TYPE INTEGER
+#define MPI_FILE_TYPE INTEGER
+#define MPI_INFO_TYPE INTEGER
+#define MPI_STATUS_TYPE INTEGER, DIMENSION(MPI_STATUS_SIZE)
+#define MPI_GROUP_TYPE INTEGER
+#define MPI_STATUS_EXTRACT(X) (X)
+#endif
+
 #if defined(__parallel)
+#if defined(__NO_MPI_F08)
+   USE mpi
+#else
    USE mpi_f08
+#endif
 ! subroutines: unfortunately, mpi implementations do not provide interfaces for all subroutines (problems with types and ranks explosion),
 !              we do not quite know what is in the module, so we can not include any....
 !              to nevertheless get checking for what is included, we use the mpi module without use clause, getting all there is
@@ -59,21 +87,21 @@ MODULE message_passing
 
    ! parameters that might be needed
 #if defined(__parallel)
-   TYPE(MPI_Datatype), PARAMETER     :: MP_STD_REAL = MPI_DOUBLE_PRECISION
-   TYPE(MPI_Datatype), PARAMETER     :: MP_STD_COMPLEX = MPI_DOUBLE_COMPLEX
-   TYPE(MPI_Datatype), PARAMETER     :: MP_STD_HALF_REAL = MPI_REAL
-   TYPE(MPI_Datatype), PARAMETER     :: MP_STD_HALF_COMPLEX = MPI_COMPLEX
+   MPI_DATA_TYPE, PARAMETER     :: MP_STD_REAL = MPI_DOUBLE_PRECISION
+   MPI_DATA_TYPE, PARAMETER     :: MP_STD_COMPLEX = MPI_DOUBLE_COMPLEX
+   MPI_DATA_TYPE, PARAMETER     :: MP_STD_HALF_REAL = MPI_REAL
+   MPI_DATA_TYPE, PARAMETER     :: MP_STD_HALF_COMPLEX = MPI_COMPLEX
 
    LOGICAL, PARAMETER :: cp2k_is_parallel = .TRUE.
    INTEGER, PARAMETER, PUBLIC :: mp_any_tag = MPI_ANY_TAG
    INTEGER, PARAMETER, PUBLIC :: mp_any_source = MPI_ANY_SOURCE
-   TYPE(MPI_COMM), PARAMETER :: mp_comm_null_handle = MPI_COMM_NULL
-   TYPE(MPI_COMM), PARAMETER :: mp_comm_self_handle = MPI_COMM_SELF
-   TYPE(MPI_COMM), PARAMETER :: mp_comm_world_handle = MPI_COMM_WORLD
-   TYPE(MPI_REQUEST), PARAMETER :: mp_request_null_handle = MPI_REQUEST_NULL
-   TYPE(MPI_WIN), PARAMETER :: mp_win_null_handle = MPI_WIN_NULL
-   TYPE(MPI_FILE), PARAMETER :: mp_file_null_handle = MPI_FILE_NULL
-   TYPE(MPI_Info), PARAMETER :: mp_info_null_handle = MPI_INFO_NULL
+   MPI_COMM_TYPE, PARAMETER :: mp_comm_null_handle = MPI_COMM_NULL
+   MPI_COMM_TYPE, PARAMETER :: mp_comm_self_handle = MPI_COMM_SELF
+   MPI_COMM_TYPE, PARAMETER :: mp_comm_world_handle = MPI_COMM_WORLD
+   MPI_REQUEST_TYPE, PARAMETER :: mp_request_null_handle = MPI_REQUEST_NULL
+   MPI_WIN_TYPE, PARAMETER :: mp_win_null_handle = MPI_WIN_NULL
+   MPI_FILE_TYPE, PARAMETER :: mp_file_null_handle = MPI_FILE_NULL
+   MPI_INFO_TYPE, PARAMETER :: mp_info_null_handle = MPI_INFO_NULL
    INTEGER, PARAMETER, PUBLIC :: mp_status_size = MPI_STATUS_SIZE
    INTEGER, PARAMETER, PUBLIC :: mp_proc_null = MPI_PROC_NULL
    ! Set max allocatable memory by MPI to 2 GiByte
@@ -93,13 +121,13 @@ MODULE message_passing
    LOGICAL, PARAMETER :: cp2k_is_parallel = .FALSE.
    INTEGER, PARAMETER, PUBLIC :: mp_any_tag = -1
    INTEGER, PARAMETER, PUBLIC :: mp_any_source = -2
-   INTEGER, PARAMETER :: mp_comm_null_handle = -3
-   INTEGER, PARAMETER :: mp_comm_self_handle = -11
-   INTEGER, PARAMETER :: mp_comm_world_handle = -12
-   INTEGER, PARAMETER :: mp_request_null_handle = -4
-   INTEGER, PARAMETER :: mp_win_null_handle = -5
-   INTEGER, PARAMETER :: mp_file_null_handle = -6
-   INTEGER, PARAMETER :: mp_info_null_handle = -7
+   MPI_COMM_TYPE, PARAMETER :: mp_comm_null_handle = -3
+   MPI_COMM_TYPE, PARAMETER :: mp_comm_self_handle = -11
+   MPI_COMM_TYPE, PARAMETER :: mp_comm_world_handle = -12
+   MPI_REQUEST_TYPE, PARAMETER :: mp_request_null_handle = -4
+   MPI_WIN_TYPE, PARAMETER :: mp_win_null_handle = -5
+   MPI_FILE_TYPE, PARAMETER :: mp_file_null_handle = -6
+   MPI_INFO_TYPE, PARAMETER :: mp_info_null_handle = -7
    INTEGER, PARAMETER, PUBLIC :: mp_status_size = -8
    INTEGER, PARAMETER, PUBLIC :: mp_proc_null = -9
    INTEGER, PARAMETER, PUBLIC :: mp_max_library_version_string = 1
@@ -134,11 +162,7 @@ MODULE message_passing
 
    TYPE mp_comm_type
       PRIVATE
-#if defined(__parallel)
-      TYPE(MPI_COMM) :: handle = mp_comm_null_handle
-#else
-      INTEGER :: handle = mp_comm_null_handle
-#endif
+      MPI_COMM_TYPE :: handle = mp_comm_null_handle
    CONTAINS
       PROCEDURE :: set_handle => mp_comm_type_set_handle
       PROCEDURE :: get_handle => mp_comm_type_get_handle
@@ -150,11 +174,7 @@ MODULE message_passing
 
    TYPE mp_request_type
       PRIVATE
-#if defined(__parallel)
-      TYPE(MPI_REQUEST) :: handle = mp_request_null_handle
-#else
-      INTEGER :: handle = mp_request_null_handle
-#endif
+      MPI_REQUEST_TYPE :: handle = mp_request_null_handle
    CONTAINS
       PROCEDURE :: set_handle => mp_request_type_set_handle
       PROCEDURE :: get_handle => mp_request_type_get_handle
@@ -166,11 +186,7 @@ MODULE message_passing
 
    TYPE mp_win_type
       PRIVATE
-#if defined(__parallel)
-      TYPE(MPI_WIN) :: handle = mp_win_null_handle
-#else
-      INTEGER :: handle = mp_win_null_handle
-#endif
+      MPI_WIN_TYPE :: handle = mp_win_null_handle
    CONTAINS
       PROCEDURE :: set_handle => mp_win_type_set_handle
       PROCEDURE :: get_handle => mp_win_type_get_handle
@@ -182,11 +198,7 @@ MODULE message_passing
 
    TYPE mp_file_type
       PRIVATE
-#if defined(__parallel)
-      TYPE(MPI_FILE) :: handle = mp_file_null_handle
-#else
-      INTEGER :: handle = mp_file_null_handle
-#endif
+      MPI_FILE_TYPE :: handle = mp_file_null_handle
    CONTAINS
       PROCEDURE :: set_handle => mp_file_type_set_handle
       PROCEDURE :: get_handle => mp_file_type_get_handle
@@ -198,11 +210,7 @@ MODULE message_passing
 
    TYPE mp_info_type
       PRIVATE
-#if defined(__parallel)
-      TYPE(MPI_Info) :: handle = mp_info_null_handle
-#else
-      INTEGER :: handle = mp_info_null_handle
-#endif
+      MPI_INFO_TYPE :: handle = mp_info_null_handle
    CONTAINS
       PROCEDURE :: set_handle => mp_info_type_set_handle
       PROCEDURE :: get_handle => mp_info_type_get_handle
@@ -724,11 +732,7 @@ MODULE message_passing
    END TYPE mp_indexing_meta_type
 
    TYPE mp_type_descriptor_type
-#if defined(__parallel)
-      TYPE(MPI_Datatype) :: type_handle
-#else
-      INTEGER :: type_handle
-#endif
+      MPI_DATA_TYPE :: type_handle
       INTEGER :: length
 #if defined(__parallel)
       INTEGER(kind=mpi_address_kind) :: base
@@ -752,11 +756,7 @@ MODULE message_passing
    END TYPE mp_file_indexing_meta_type
 
    TYPE mp_file_descriptor_type
-#if defined(__parallel)
-      TYPE(MPI_Datatype) :: type_handle
-#else
-      INTEGER                          :: type_handle
-#endif
+      MPI_DATA_TYPE :: type_handle
       INTEGER                          :: length
       LOGICAL                          :: has_indexing = .FALSE.
       TYPE(mp_file_indexing_meta_type) :: index_descriptor
@@ -830,7 +830,7 @@ CONTAINS
          CLASS(mp_${type}$_type), INTENT(INOUT) :: this
          INTEGER, INTENT(IN) :: handle
 
-#if defined(__parallel)
+#if defined(__parallel) && !defined(__NO_MPI_F08)
          this%handle%mpi_val = handle
 #else
          this%handle = handle
@@ -841,7 +841,7 @@ CONTAINS
          CLASS(mp_${type}$_type), INTENT(IN) :: this
          INTEGER :: handle
 
-#if defined(__parallel)
+#if defined(__parallel) && !defined(__NO_MPI_F08)
          handle = this%handle%mpi_val
 #else
          handle = this%handle
@@ -921,7 +921,7 @@ CONTAINS
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
       TYPE(mp_comm_type) :: newcomm
-      TYPE(MPI_Group)                                  :: newgroup, oldgroup
+      MPI_GROUP_TYPE                                  :: newgroup, oldgroup
 #endif
 
       CALL mp_timeset(routineN, handle)
@@ -1647,7 +1647,7 @@ CONTAINS
 #if defined(__parallel)
       INTEGER                                  :: i, n, n1, n2
       INTEGER, ALLOCATABLE, DIMENSION(:)       :: rin
-      TYPE(MPI_Group) :: g1, g2
+      MPI_GROUP_TYPE :: g1, g2
 #endif
 
       ierr = 0
@@ -1797,7 +1797,11 @@ CONTAINS
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
       INTEGER                                  :: count
+#if defined(__NO_MPI_F08)
+      INTEGER, ALLOCATABLE, DIMENSION(:, :) :: status
+#else
       TYPE(MPI_Status), ALLOCATABLE, DIMENSION(:)    :: status
+#endif
 #endif
 
       ierr = 0
@@ -1805,7 +1809,11 @@ CONTAINS
 
 #if defined(__parallel)
       count = SIZE(requests)
+#if defined(__NO_MPI_F08)
+      ALLOCATE (status(MPI_STATUS_SIZE, count))
+#else
       ALLOCATE (status(count))
+#endif
       CALL mpi_waitall_internal(count, requests, status, ierr) ! MPI_STATUSES_IGNORE openmpi workaround
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_waitall @ mp_waitall_1")
       DEALLOCATE (status)
@@ -1831,7 +1839,11 @@ CONTAINS
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
       INTEGER                                  :: count
+#if defined(__NO_MPI_F08)
+      INTEGER, ALLOCATABLE, DIMENSION(:, :) :: status
+#else
       TYPE(MPI_Status), ALLOCATABLE, DIMENSION(:)    :: status
+#endif
 #endif
 
       ierr = 0
@@ -1839,7 +1851,11 @@ CONTAINS
 
 #if defined(__parallel)
       count = SIZE(requests)
+#if defined(__NO_MPI_F08)
+      ALLOCATE (status(MPI_STATUS_SIZE, count))
+#else
       ALLOCATE (status(count))
+#endif
 
       CALL mpi_waitall_internal(count, requests, status, ierr) ! MPI_STATUSES_IGNORE openmpi workaround
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_waitall @ mp_waitall_2")
@@ -1865,12 +1881,17 @@ CONTAINS
    SUBROUTINE mpi_waitall_internal(count, array_of_requests, array_of_statuses, ierr)
       INTEGER, INTENT(in)                                :: count
       TYPE(mp_request_type), DIMENSION(count), INTENT(inout)           :: array_of_requests
-      TYPE(MPI_Status), DIMENSION(*), &
+#if defined(__NO_MPI_F08)
+      INTEGER, DIMENSION(MPI_STATUS_SIZE, count), &
          INTENT(out)                                     :: array_of_statuses
+#else
+      TYPE(MPI_Status), DIMENSION(count), &
+         INTENT(out)                                     :: array_of_statuses
+#endif
       INTEGER, INTENT(out)                               :: ierr
 
       INTEGER :: i
-      TYPE(MPI_Request), ALLOCATABLE, DIMENSION(:) :: request_handles
+      MPI_REQUEST_TYPE, ALLOCATABLE, DIMENSION(:) :: request_handles
 
       ALLOCATE (request_handles(count))
       DO i = 1, count
@@ -1903,7 +1924,7 @@ CONTAINS
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
       INTEGER                                  :: count, i
-      TYPE(MPI_Request), ALLOCATABLE, DIMENSION(:) :: request_handles
+      MPI_REQUEST_TYPE, ALLOCATABLE, DIMENSION(:) :: request_handles
 #endif
 
       ierr = 0
@@ -2083,11 +2104,11 @@ CONTAINS
       TYPE(mp_request_type), DIMENSION(count), INTENT(inout)           :: array_of_requests
       INTEGER, INTENT(out)                               :: index
       LOGICAL, INTENT(out)                               :: flag
-      TYPE(MPI_Status), INTENT(out)   :: status
+      MPI_STATUS_TYPE, INTENT(out)   :: status
       INTEGER, INTENT(out)                               :: ierr
 
       INTEGER :: i
-      TYPE(MPI_Request), ALLOCATABLE, DIMENSION(:) :: request_handles
+      MPI_REQUEST_TYPE, ALLOCATABLE, DIMENSION(:) :: request_handles
 
       ALLOCATE (request_handles(count))
       DO i = 1, count
@@ -2325,7 +2346,7 @@ CONTAINS
 
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
-      TYPE(MPI_Status)     :: status_single
+      MPI_STATUS_TYPE     :: status_single
       LOGICAL                                  :: flag
 #endif
 
@@ -2338,8 +2359,8 @@ CONTAINS
       IF (source .EQ. mp_any_source) THEN
          CALL mpi_probe(mp_any_source, mp_any_tag, comm%handle, status_single, ierr)
          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_probe @ mp_probe")
-         source = status_single%MPI_SOURCE
-         tag = status_single%MPI_TAG
+         source = status_single MPI_STATUS_EXTRACT(MPI_SOURCE)
+         tag = status_single MPI_STATUS_EXTRACT(MPI_TAG)
       ELSE
          flag = .FALSE.
          CALL mpi_iprobe(source, mp_any_tag, comm%handle, flag, status_single, ierr)
@@ -2348,7 +2369,7 @@ CONTAINS
             source = mp_any_source
             tag = -1 !status_single(MPI_TAG) ! in case of flag==false status is undefined
          ELSE
-            tag = status_single%MPI_TAG
+            tag = status_single MPI_STATUS_EXTRACT(MPI_TAG)
          END IF
       END IF
 #else
@@ -3270,7 +3291,7 @@ CONTAINS
 
       INTEGER                                  :: ierr, istat
 #if defined(__parallel)
-      TYPE(MPI_Info)                           :: my_info
+      MPI_INFO_TYPE                           :: my_info
 #else
       CHARACTER(LEN=10)                        :: fstatus, fposition
       INTEGER                                  :: amode, handle
@@ -3326,7 +3347,7 @@ CONTAINS
 
 #if defined(__parallel)
       INTEGER                                  :: ierr
-      TYPE(MPI_Info)                           :: my_info
+      MPI_INFO_TYPE                           :: my_info
       LOGICAL                                  :: exists
 #endif
 
@@ -3707,10 +3728,8 @@ CONTAINS
 #if defined(__parallel)
       INTEGER(kind=mpi_address_kind), &
          ALLOCATABLE, DIMENSION(:)              :: displacements
-      TYPE(MPI_Datatype), ALLOCATABLE, DIMENSION(:) :: old_types
-#else
-      INTEGER, ALLOCATABLE, DIMENSION(:)       :: old_types
 #endif
+      MPI_DATA_TYPE, ALLOCATABLE, DIMENSION(:) :: old_types
 
       ierr = 0
       n = SIZE(subtypes)
@@ -3999,6 +4018,8 @@ CONTAINS
       CALL MPI_Type_free(type_descriptor%type_handle, ierr)
       IF (ierr /= 0) &
          CPABORT("MPI_Type_free @ "//routineN)
+#endif
+#if defined(__parallel) && !defined(__NO_MPI_F08)
       type_descriptor%type_handle%mpi_val = -1
 #else
       type_descriptor%type_handle = -1
