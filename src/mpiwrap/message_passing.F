@@ -2505,7 +2505,7 @@ CONTAINS
       LOGICAL, DIMENSION(:, :, :)              :: msgin
       INTEGER, INTENT(IN)                      :: dest
       TYPE(mp_comm_type), INTENT(IN) :: comm
-      INTEGER, INTENT(out)                     :: request
+      TYPE(mp_request_type), INTENT(out)                     :: request
       INTEGER, INTENT(in), OPTIONAL            :: tag
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_bm3'
@@ -2526,10 +2526,10 @@ CONTAINS
       msglen = SIZE(msgin, 1)*SIZE(msgin, 2)*SIZE(msgin, 3)
       IF (msglen > 0) THEN
          CALL mpi_isend(msgin(1, 1, 1), msglen, MPI_LOGICAL, dest, my_tag, &
-                        comm%handle, request, ierr)
+                        comm%handle, request%handle, ierr)
       ELSE
          CALL mpi_isend(foo, msglen, MPI_LOGICAL, dest, my_tag, &
-                        comm%handle, request, ierr)
+                        comm%handle, request%handle, ierr)
       END IF
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_isend @ "//routineN)
 
@@ -2539,9 +2539,8 @@ CONTAINS
       MARK_USED(msgin)
       MARK_USED(dest)
       MARK_USED(comm)
-      MARK_USED(request)
       MARK_USED(tag)
-      request = 0
+      request = mp_request_null
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_isend_bm3
@@ -2564,7 +2563,7 @@ CONTAINS
       LOGICAL, DIMENSION(:, :, :)              :: msgout
       INTEGER, INTENT(IN)                      :: source
       TYPE(mp_comm_type), INTENT(IN) :: comm
-      INTEGER, INTENT(out)                     :: request
+      TYPE(mp_request_type), INTENT(out)                     :: request
       INTEGER, INTENT(in), OPTIONAL            :: tag
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_bm3'
@@ -2585,10 +2584,10 @@ CONTAINS
       msglen = SIZE(msgout, 1)*SIZE(msgout, 2)*SIZE(msgout, 3)
       IF (msglen > 0) THEN
          CALL mpi_irecv(msgout(1, 1, 1), msglen, MPI_LOGICAL, source, my_tag, &
-                        comm%handle, request, ierr)
+                        comm%handle, request%handle, ierr)
       ELSE
          CALL mpi_irecv(foo, msglen, MPI_LOGICAL, source, my_tag, &
-                        comm%handle, request, ierr)
+                        comm%handle, request%handle, ierr)
       END IF
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_ircv @ "//routineN)
 
@@ -2600,7 +2599,7 @@ CONTAINS
       MARK_USED(comm)
       MARK_USED(request)
       MARK_USED(tag)
-      request = 0
+      request = mp_request_null
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_irecv_bm3
