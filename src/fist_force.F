@@ -14,7 +14,7 @@
 !> \author CJM & JGH
 ! **************************************************************************************************
 MODULE fist_force
-   USE atomic_kind_t/ypes,               ONLY: atomic_kind_type,&
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
    USE atprop_types,                    ONLY: atprop_type
    USE cell_types,                      ONLY: cell_type,&

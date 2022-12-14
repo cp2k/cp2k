@@ -23,6 +23,7 @@ MODULE pair_potential_types
                                               spline_factor_copy,&
                                               spline_factor_release,&
                                               spline_factor_type
+   USE torch_api,                       ONLY: torch_model_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -180,6 +181,7 @@ MODULE pair_potential_types
    TYPE nequip_pot_type
       CHARACTER(LEN=default_path_length)     :: nequip_file_name, nequip_version
       REAL(KIND=dp)                          :: rcutsq
+      TYPE(torch_model_type)                 :: model
    END TYPE nequip_pot_type
 
 ! **************************************************************************************************
@@ -1721,7 +1723,6 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(nequip))
       ALLOCATE (nequip)
       nequip%nequip_file_name = ""
-      CALL pair_potential_nequip_clean(nequip)
    END SUBROUTINE pair_potential_nequip_create
 
 ! **************************************************************************************************
@@ -1739,6 +1740,7 @@ CONTAINS
       nequip_dest%nequip_file_name = nequip_source%nequip_file_name
       nequip_dest%nequip_version = nequip_source%nequip_version
       nequip_dest%rcutsq = nequip_source%rcutsq
+      nequip_dest%model = nequip_source%model
    END SUBROUTINE pair_potential_nequip_copy
 
 ! **************************************************************************************************

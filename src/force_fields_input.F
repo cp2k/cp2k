@@ -698,6 +698,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: atm_names      
       INTEGER                                            :: isec, n_items
+      LOGICAL                                            :: explicit
 
       CALL section_vals_get(section, n_repetition=n_items)
       DO isec = 1, n_items
@@ -711,12 +712,17 @@ CONTAINS
          CALL section_vals_val_get(section, "PARM_FILE_NAME", i_rep_section=isec, &
                                    c_val=nonbonded%pot(start + isec)%pot%set(1)%nequip%nequip_file_name)
 
-         if (isec == 1) THEN
+!         if (isec == 1) THEN
             CALL read_nequip_data(nonbonded%pot(start + isec)%pot%set(1)%nequip)
 !            WRITE(*, *) "NequIP cutoff ",  nonbonded%pot(start + isec)%pot%set(1)%nequip%rcut
             nonbonded%pot(start + isec)%pot%rcutsq = nonbonded%pot(start + isec)%pot%set(1)%nequip%rcutsq
-         END IF
+!         END IF
       END DO
+
+      CALL section_vals_get(section, explicit=explicit)
+      CALL section_vals_val_get(section, "ATOMS", explicit=explicit, c_vals=atm_names)
+
+         
 
    END SUBROUTINE read_nequip_section
 
@@ -2298,11 +2304,10 @@ CONTAINS
    SUBROUTINE read_nequip_data(nequip)
       TYPE(nequip_pot_type), POINTER                     :: nequip
       CHARACTER(len=*), PARAMETER                        :: routineN = 'read_nequip_data'
-      TYPE(torch_model_type)                             :: model
       CHARACTER(LEN=default_path_length)                 :: cutoff_str
 
       WRITE (*, *) "Reading NequIP data from: ", TRIM(nequip%nequip_file_name)
-      CALL torch_model_load(model,nequip%nequip_file_name)
+      CALL torch_model_load(nequip%model,nequip%nequip_file_name)
       nequip%nequip_version = torch_model_read_metadata(nequip%nequip_file_name, "nequip_version")
       WRITE (*, *) "NequIP version: ", TRIM(nequip%nequip_version)
       cutoff_str = torch_model_read_metadata(nequip%nequip_file_name, "r_max")
