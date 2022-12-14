@@ -272,11 +272,11 @@ CONTAINS
          ! Attach the time handler hooks to DBCSR
 #if defined __DBCSR_ACC
          IF (offload_get_device_count() > 0) THEN
-            CALL dbcsr_init_lib(default_para_env%group, timeset_hook, timestop_hook, &
+            CALL dbcsr_init_lib(default_para_env%group%get_handle(), timeset_hook, timestop_hook, &
                                 cp_abort_hook, cp_warn_hook, io_unit=unit_nr, &
                                 accdrv_active_device_id=offload_get_chosen_device())
          ELSE
-            CALL dbcsr_init_lib(default_para_env%group, timeset_hook, timestop_hook, &
+            CALL dbcsr_init_lib(default_para_env%group%get_handle(), timeset_hook, timestop_hook, &
                                 cp_abort_hook, cp_warn_hook, io_unit=unit_nr)
          END IF
 #else
