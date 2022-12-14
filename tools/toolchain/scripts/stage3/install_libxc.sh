@@ -39,6 +39,10 @@ case "$with_libxc" in
       [ -d libxc-${libxc_ver} ] && rm -rf libxc-${libxc_ver}
       tar -xzf libxc-${libxc_ver}.tar.gz
       cd libxc-${libxc_ver}
+
+      # Fix missing comma at end of line in src/mgga_xc_b97mv.c
+      patch -p1 < "${SCRIPT_DIR}/stage3/libxc-${libxc_ver}_mgga_xc_b97mv.patch"
+
       # CP2K does not make use of fourth derivatives, so skip their compilation with --disable-lxc
       ./configure --prefix="${pkg_install_dir}" --libdir="${pkg_install_dir}/lib" --disable-lxc \
         > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
