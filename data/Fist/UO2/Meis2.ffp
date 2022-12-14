@@ -1,0 +1,53 @@
+  # https://doi.org/10.1016/j.jnucmat.2005.01.001
+  # https://doi.org/10.1557/opl.2012.520
+  # https://doi.org/10.1103/PhysRevB.85.184103
+  &FORCEFIELD
+   &SHELL O
+    CORE_CHARGE  +1.186267
+    SHELL_CHARGE -3.186267
+    MASS_FRACTION 0.1
+    SPRING [eV*angstrom^-2] 70.824
+    MAX_DISTANCE [angstrom] 0.5
+   &END SHELL
+   &SHELL U
+    CORE_CHARGE  -2.84
+    SHELL_CHARGE +6.84
+    MASS_FRACTION 0.01
+    SPRING [eV*angstrom^-2] 171.556
+    MAX_DISTANCE [angstrom] 0.5
+   &END SHELL
+   &NONBONDED
+    &BUCK4RANGES
+     ATOMS O O
+     A [eV] 20908.03
+     B [angstrom^-1] 1/0.129629
+     C [eV*angstrom^6] 229.04
+     R1 [angstrom] 1.17
+     R2 [angstrom] 1.62
+     R3 [angstrom] 2.84
+     # POLY1 [eV] 4204.472427467161 -7959.112702279119 6021.074988330987 -2270.766871550818 426.319753380798 -31.850801875744
+     # POLY2 [eV] 6.734634669569 -6.692698089020 1.656245757939 -0.122636741736
+     RCUT [angstrom] 10.4
+    &END BUCK4RANGES
+    &WILLIAMS
+     ATOMS O U
+     A [eV] 844.41
+     B [angstrom^-1] 1/0.425243
+     C [eV*angstrom^6] 0.0
+     RCUT [angstrom] 10.4
+    &END WILLIAMS
+    &WILLIAMS
+     ATOMS U U
+     A [eV] 0.0
+     B [angstrom^-1] 0.0
+     C [eV*angstrom^6] 0.0
+     RCUT [angstrom] 10.4
+    &END WILLIAMS
+   &END NONBONDED
+   &SPLINE
+    EMAX_ACCURACY [hartree] 0.02
+    EMAX_SPLINE [hartree] 1.0E4
+    EPS_SPLINE [hartree] 1.0E-7
+    R0_NB [angstrom] 0.1
+   &END SPLINE
+  &END FORCEFIELD
