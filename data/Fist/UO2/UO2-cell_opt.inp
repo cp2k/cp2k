@@ -1,0 +1,145 @@
+# https://doi.org/10.1557/opl.2012.520
+# https://doi.org/10.1103/PhysRevB.85.184103
+
+# UO2 fluorite structure (#225)
+@SET system   UO2
+
+# Relax atoms and cell
+@SET run_type cell_opt
+
+# Select force field parameter file
+@SET ff       Morelon
+@SET ffp_file ${ff}.ffp
+
+# Use 5x5x5 unit cells
+@SET na       5
+@SET nb       ${na}
+@SET nc       ${na}
+
+@SET project  ${system}-${run_type}-${na}x${nb}x${nc}-${ff}
+
+# Experimental lattice constant
+@SET a        5.4682
+@SET b        ${a}
+@SET c        ${a}
+
+# Set grid size for SPME (approx. 2 points per Angstrom)
+@SET ngpa     12*${na}
+@SET ngpb     ${ngpa}
+@SET ngpc     ${ngpa}
+
+# Control print frequency
+@SET PF       1
+
+&GLOBAL
+ PREFERRED_DIAG_LIBRARY ScaLAPACK
+ PRINT_LEVEL low # medium
+ PROJECT_NAME ${project}
+ RUN_TYPE ${run_type}
+&END GLOBAL
+
+# Uncomment to restart a run
+#&EXT_RESTART
+# RESTART_FILE_NAME ${project}-1.restart
+#&END EXT_RESTART
+
+&MOTION
+ &CELL_OPT
+  EXTERNAL_PRESSURE [bar] 1.0
+  KEEP_ANGLES no
+  MAX_DR 0.001
+  MAX_FORCE 0.0001
+  MAX_ITER 200
+  OPTIMIZER LBFGS # CG
+  PRESSURE_TOLERANCE [bar] 2.0
+  RMS_DR 0.0003
+  RMS_FORCE 0.00003
+  TYPE direct_cell_opt
+  &CG
+   &LINE_SEARCH
+    TYPE 2PNT
+   &END LINE_SEARCH
+  &END CG
+  &LBFGS
+   TRUST_RADIUS 0.1
+  &END LBFGS
+ &END CELL_OPT
+ &PRINT
+  &CELL on
+   &EACH
+    MD ${PF}
+   &END EACH
+  &END CELL
+  &STRESS on
+   &EACH
+    MD ${PF}
+   &END EACH
+  &END STRESS
+  &RESTART on
+   ADD_LAST NUMERIC
+   BACKUP_COPIES 0
+   &EACH
+    MD ${PF}
+   &END EACH
+  &END RESTART
+  &RESTART_HISTORY off
+  &END RESTART_HISTORY
+  &STRUCTURE_DATA on
+   DISTANCE 1 5
+  &END STRUCTURE_DATA
+  &TRAJECTORY on
+   FORMAT xyz
+   &EACH
+    MD ${PF}
+   &END EACH
+  &END TRAJECTORY
+ &END PRINT
+&END MOTION
+
+&FORCE_EVAL
+ METHOD Fist
+ STRESS_TENSOR analytical
+ &MM
+  @INCLUDE ${ffp_file}
+  &POISSON
+   &EWALD
+    EWALD_TYPE spme
+    ALPHA [angstrom^-1] 0.35
+    GMAX ${ngpa} ${ngpb} ${ngpc}
+   &END EWALD
+  &END POISSON
+  &PRINT
+   &FF_INFO off
+    SPLINE_DATA
+    SPLINE_INFO
+   &END FF_INFO
+  &END PRINT
+ &END MM
+ &SUBSYS
+  &CELL
+   ABC ${a} ${b} ${c}
+   MULTIPLE_UNIT_CELL ${na} ${nb} ${nc}
+  &END CELL
+  &COORD
+   SCALED
+   U        0     0     0  UO2  1
+   U        0   1/2   1/2  UO2  1
+   U      1/2     0   1/2  UO2  1
+   U      1/2   1/2     0  UO2  1
+   O      1/4   1/4   1/4  UO2  1
+   O      3/4   1/4   1/4  UO2  1
+   O      1/4   3/4   1/4  UO2  1
+   O      3/4   3/4   1/4  UO2  1
+   O      1/4   1/4   3/4  UO2  1
+   O      3/4   1/4   3/4  UO2  1
+   O      1/4   3/4   3/4  UO2  1
+   O      3/4   3/4   3/4  UO2  1
+  &END COORD
+  &TOPOLOGY
+   CONNECTIVITY user
+   DISABLE_EXCLUSION_LISTS
+   MULTIPLE_UNIT_CELL ${na} ${nb} ${nc}
+   PARA_RES off
+  &END TOPOLOGY
+ &END SUBSYS
+&END FORCE_EVAL

@@ -1,0 +1,48 @@
+  # https://doi.org/10.1080/1478643031000091454
+  # https://doi.org/10.1557/opl.2012.520
+  # https://doi.org/10.1103/PhysRevB.85.184103
+  &FORCEFIELD
+   ZBL_SCATTERING off
+   &CHARGE
+    ATOM U
+    CHARGE +3.227252
+   &END CHARGE
+   &CHARGE
+    ATOM O
+    CHARGE -1.613626
+   &END CHARGE
+   &NONBONDED
+    &BUCK4RANGES
+     ATOMS O O
+     A [eV] 11272.6
+     B [angstrom^-1] 1/0.1363
+     C [eV*angstrom^6] 134.0
+     R1 [angstrom] 1.2
+     R2 [angstrom] 2.1
+     R3 [angstrom] 2.6
+     # POLY1 [eV] 479.955320080974 -726.31182326300658189600 437.46708714153984869883 -130.69424768757823118006 19.32441467525360647073 -1.13054550680921504060
+     # POLY2 [eV] 42.891690970163 -29.36749918557121222274 6.46231710894909716023 -0.46402483936962076198
+     RCUT [angstrom] 10.4
+    &END BUCK4RANGES
+    &WILLIAMS
+     ATOMS O U
+     A [eV] 566.498
+     B [angstrom^-1] 1/0.42056
+     C [eV*angstrom^6] 0.0
+     RCUT [angstrom] 10.4
+    &END WILLIAMS
+    &WILLIAMS
+     ATOMS U U
+     A [eV] 0.0
+     B [angstrom^-1] 0.0
+     C [eV*angstrom^6] 0.0
+     RCUT [angstrom] 10.4
+    &END WILLIAMS
+   &END NONBONDED
+   &SPLINE
+    EMAX_ACCURACY [hartree] 0.02
+    EMAX_SPLINE [hartree] 1.0E4
+    EPS_SPLINE [hartree] 1.0E-7
+    R0_NB [angstrom] 0.1
+   &END SPLINE
+  &END FORCEFIELD
