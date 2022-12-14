@@ -271,10 +271,6 @@ CONTAINS
             param_name = xc_f03_func_info_get_ext_params_name(xc_info, iparam - 1)
             param_descr = xc_f03_func_info_get_ext_params_description(xc_info, iparam - 1)
             default_val = xc_f03_func_info_get_ext_params_default_value(xc_info, iparam - 1)
-            IF (LEN_TRIM(param_name) == 0) THEN
-               CPWARN("Zero-length string found for parameter name of LIBXC functional "//TRIM(func_name))
-               CYCLE
-            END IF
             NULLIFY (keyword)
             CALL keyword_create(keyword, __LOCATION__, name=TRIM(param_name), &
                                 description=TRIM(param_descr), default_r_val=default_val)
