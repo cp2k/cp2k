@@ -670,7 +670,7 @@ CONTAINS
       CHARACTER(LEN=msglen)                              :: tmp
       LOGICAL                                            :: should_write(2)
       TYPE(mp_comm_type)                                 :: gid
-      TYPE(mp_file_descriptor_type)                      :: mp_file_type
+      TYPE(mp_file_descriptor_type)                      :: mp_desc
 
       !get rs grids and parallel envnment
       gid = grid%pw_grid%para%group
@@ -808,17 +808,17 @@ CONTAINS
       ! Size of each z-slice is msglen
       ALLOCATE (blocklengths(nslices))
       blocklengths(:) = msglen
-      mp_file_type = mp_file_type_hindexed_make_chv(nslices, blocklengths, displacements)
+      mp_desc = mp_file_type_hindexed_make_chv(nslices, blocklengths, displacements)
       ! Use the created type as a file view
       ! NB. The vector 'displacements' contains the absolute offsets of each z-slice i.e.
       ! they are given relative to the beginning of the file. The global offset to
       ! set_view must therefore be set to 0
       BOF = 0
-      CALL mp_file_type_set_view_chv(unit_nr, BOF, mp_file_type)
+      CALL mp_file_type_set_view_chv(unit_nr, BOF, mp_desc)
       ! Collective write of cube
-      CALL mp_file_write_all_chv(unit_nr, msglen, nslices, writebuffer, mp_file_type)
+      CALL mp_file_write_all_chv(unit_nr, msglen, nslices, writebuffer, mp_desc)
       ! Clean up
-      CALL mp_file_type_free(mp_file_type)
+      CALL mp_file_type_free(mp_desc)
       DEALLOCATE (writebuffer)
       DEALLOCATE (blocklengths, displacements)
 
