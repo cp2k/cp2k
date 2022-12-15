@@ -192,8 +192,9 @@ CONTAINS
          WRITE (*,*) "entering setup_nequip_arrays"         
          CALL setup_nequip_arrays(nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, cell)
          WRITE (*,*) "entering nequip_store_force_virial"
-         CALL nequip_energy_store_force_virial(nonbonded, particle_set, cell, atomic_kind_set, potparm,&
-                                              nequip, glob_loc_list_a, r_last_update_pbc)
+         CALL nequip_energy_store_force_virial(nonbonded, particle_set, cell, atomic_kind_set, potparm, &
+                                               nequip, glob_loc_list_a, glob_loc_list, glob_cell_v, &
+                                               r_last_update_pbc)
          
 !      IF (output_unit > 0) THEN
 !         WRITE (output_unit, '(/,T2,"ENERGY| Total FORCE_EVAL ( ",A," ) energy [a.u.]: ",T55,F26.15)') &

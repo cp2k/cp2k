@@ -19,7 +19,7 @@ MODULE manybody_nequip
    USE fist_neighbor_list_types,        ONLY: fist_neighbor_type,&
                                               neighbor_kind_pairs_type                        
    USE fist_nonbond_env_types,          ONLY: pos_type, fist_nonbond_env_type
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,sp
    USE mathconstants,                   ONLY: pi
    USE pair_potential_types,            ONLY: pair_potential_pp_type,&
                                               pair_potential_single_type,&
@@ -186,15 +186,16 @@ CONTAINS
 !> \author Teodoro Laino - University of Zurich
 ! **************************************************************************************************
    SUBROUTINE nequip_energy_store_force_virial(nonbonded, particle_set, cell, atomic_kind_set, &
-                                             potparm, nequip, glob_loc_list_a, r_last_update_pbc)                                             
+                                              potparm, nequip, glob_loc_list_a, glob_loc_list, &
+                                              glob_cell_v, r_last_update_pbc)
 
 !                                             (nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, cell)
       TYPE(nequip_pot_type), POINTER                     :: nequip
       TYPE(particle_type), POINTER                       :: particle_set(:)
       TYPE(fist_neighbor_type), POINTER                  :: nonbonded
       TYPE(pair_potential_pp_type), POINTER              :: potparm
-!      INTEGER, DIMENSION(:, :), POINTER                  :: glob_loc_list
-!      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: glob_cell_v
+      INTEGER, DIMENSION(:, :), POINTER                  :: glob_loc_list
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: glob_cell_v
       INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a
       TYPE(cell_type), POINTER                           :: cell
 
@@ -225,7 +226,8 @@ CONTAINS
       REAL(kind=dp)                                      :: lattice(3, 3), rij(3), drij, rab2_max, pot_loc
       CHARACTER(len=2), ALLOCATABLE                      :: elem_symbol(:)
       TYPE(pos_type), DIMENSION(:), POINTER              :: r_last_update_pbc
-      
+      INTEGER, ALLOCATABLE                               :: edge_index(:,:), new_edge_index(:,:)
+      REAL(kind=sp), ALLOCATABLE                         :: edge_cell_shifts(:,:), new_edge_cell_shifts(:,:) 
 
 !      IF (output_unit > 0) THEN
 !         WRITE (output_unit, '(/,T2,"ENERGY| Total FORCE_EVAL ( ",A," ) energy [a.u.]: ",T55,F26.15)') &
@@ -264,8 +266,9 @@ CONTAINS
          elem_symbol(iat_use) = particle_set(iat)%atomic_kind%element_symbol
       END DO
       lattice = cell%hmat*angstrom
-
       nedges = 0
+      ALLOCATE (edge_index(SIZE(glob_loc_list_a),2))
+      ALLOCATE (edge_cell_shifts(3,SIZE(glob_loc_list_a)))
       DO ilist = 1, nonbonded%nlists
          neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
          npairs = neighbor_kind_pair%npairs
@@ -325,12 +328,19 @@ CONTAINS
                         ! Energy terms
                         pot_loc = 0.0_dp
                         rij(:) = r_last_update_pbc(atom_b)%r(:) - r_last_update_pbc(atom_a)%r(:) + cell_v
-                        WRITE(*,*) "r_last_update_pbc: ", r_last_update_pbc(atom_a)%r(:)*angstrom
                         drij = DOT_PRODUCT(rij, rij)
                         ipair = ipair + 1
                         IF (drij <= rab2_max) THEN
                            WRITE(*, *) "calc rij: ", drij
+                           WRITE(*, *) "glob_loc_list ", SIZE(glob_loc_list)
+                           WRITE(*, *) "glob_loc_list_a ", SIZE(glob_loc_list_a)
+                           WRITE(*, *) "glob_loc_list_a(atom_b), atom_b ", glob_loc_list_a(atom_b), atom_b
+                           WRITE(*,*) "r_last_update_pbc: ", r_last_update_pbc(atom_a)%r(:)*angstrom, atom_a
+                           WRITE(*,*) "r_last_update_pbc: ", r_last_update_pbc(atom_b)%r(:)*angstrom, atom_b
+                           WRITE(*, *) "glob_cell_v ", SIZE(glob_cell_v)
                            nedges = nedges + 1
+                           edge_index(nedges, :) = [atom_a - 1, atom_b - 1]
+                           edge_cell_shifts(:, nedges) = REAL(cvi, kind=sp) 
                         END IF
 !                           IF (drij > rab2_max) CYCLE
 !                           drij = SQRT(drij)
@@ -347,7 +357,23 @@ CONTAINS
          END DO Kind_Group_Loop_Nequip
       END DO   
       WRITE(*, *) "nequip nedges: ", nedges 
-      WRITE(*, *) "nequip npairs: ", npairs      
+      WRITE(*, *) "nequip npairs: ", npairs
+      ALLOCATE (new_edge_index(nedges,2))
+      new_edge_index = edge_index(:nedges, :)
+      DEALLOCATE (edge_index)
+      ALLOCATE (new_edge_cell_shifts(3, nedges))
+      new_edge_cell_shifts = edge_cell_shifts(:,:nedges)
+      DEALLOCATE (edge_cell_shifts)
+      DO ipair = 1, nedges
+         atom_a = new_edge_index(ipair,1) + 1
+         atom_b = new_edge_index(ipair,2) + 1
+         WRITE(*,*) new_edge_index(ipair, :), r_last_update_pbc(atom_a)%r(:)*angstrom, &
+                    r_last_update_pbc(atom_b)%r(:)*angstrom
+      END DO
+      DO ipair = 1, nedges
+         WRITE(*,*) new_edge_cell_shifts(:,ipair)
+      END DO
+
    END SUBROUTINE nequip_energy_store_force_virial
 
 END MODULE manybody_nequip
