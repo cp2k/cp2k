@@ -1545,6 +1545,14 @@ CONTAINS
       kgpot_type = ""
       z = -1
       zeff_correction = 0.0_dp
+      explicit = .FALSE.
+      explicit_basis = .FALSE.
+      explicit_J = .FALSE.
+      explicit_kgpot = .FALSE.
+      explicit_potential = .FALSE.
+      explicit_U = .FALSE.
+      explicit_u_m_j = .FALSE.
+
       dft_section => section_vals_get_subs_vals(force_env_section, "DFT")
       CALL section_vals_get(kind_section, n_repetition=n_rep)
       k_rep = -1
