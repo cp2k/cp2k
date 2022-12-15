@@ -772,12 +772,12 @@ CONTAINS
       #:set types = ["comm", "request", "win", "file"]
    #:endmute
    #:for type in types
-      ELEMENTAL LOGICAL FUNCTION mp_${type}$_op_eq(${type}$1, ${type}$2)
+      LOGICAL FUNCTION mp_${type}$_op_eq(${type}$1, ${type}$2)
          CLASS(mp_${type}$_type), INTENT(IN) :: ${type}$1, ${type}$2
          mp_${type}$_op_eq = (${type}$1%handle .EQ. ${type}$2%handle)
       END FUNCTION mp_${type}$_op_eq
 
-      ELEMENTAL LOGICAL FUNCTION mp_${type}$_op_neq(${type}$1, ${type}$2)
+      LOGICAL FUNCTION mp_${type}$_op_neq(${type}$1, ${type}$2)
          CLASS(mp_${type}$_type), INTENT(IN) :: ${type}$1, ${type}$2
          mp_${type}$_op_neq = (${type}$1%handle .NE. ${type}$2%handle)
       END FUNCTION mp_${type}$_op_neq
