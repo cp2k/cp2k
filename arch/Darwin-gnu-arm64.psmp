@@ -11,7 +11,7 @@
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Author: Matthias Krack (25.11.2022)
+# Author: Matthias Krack (15.12.2022)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -35,7 +35,7 @@
       cd ../..; \
       return 1; \
    fi; \
-   ./install_cp2k_toolchain.sh --install-all --no-arch-files --target-cpu=${target_cpu} --with-cmake=system --with-gcc=system --with-${mpi_implementation} --with-elpa=no --with-libxsmm=no --with-pexsi=no --with-plumed=no --with-quip=no; \
+   ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-cmake=system --with-gcc=system --with-${mpi_implementation} --with-elpa=no --with-libxsmm=no --with-pexsi=no --with-plumed=no --with-quip=no; \
    source ./install/setup; \
    cd ../..; \
    echo; \

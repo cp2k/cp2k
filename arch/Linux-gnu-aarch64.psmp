@@ -10,7 +10,7 @@
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
 #
-# Author: Matthias Krack (13.12.2022)
+# Author: Matthias Krack (15.12.2022)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -22,7 +22,7 @@
    cd tools/toolchain; \
    [[ -z "${mpi_implementation}" ]] && mpi_implementation="mpich"; \
    [[ -z "${target_cpu}" ]] && target_cpu="native"; \
-   ./install_cp2k_toolchain.sh --install-all --no-arch-files --target-cpu=${target_cpu} --with-gcc --with-${mpi_implementation} --with-libxsmm=no; \
+   ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-gcc --with-${mpi_implementation} --with-libxsmm=no; \
    source ./install/setup; \
    cd ../..; \
    echo; \

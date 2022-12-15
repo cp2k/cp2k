@@ -13,7 +13,7 @@
 #        Optionally, GNU compiler and MPI implementation can be specified as arguments.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Author: Matthias Krack (13.12.2022)
+# Author: Matthias Krack (15.12.2022)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -30,13 +30,13 @@
       if [[ -n "${2}" ]]; then \
          module add ${2}; \
          module list; \
-         ./install_cp2k_toolchain.sh --install-all --no-arch-files --target-cpu=${target_cpu} --with-gcc=system --with-${mpi_implementation}=system; \
+         ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-gcc=system --with-${mpi_implementation}=system; \
       else \
          module list; \
-         ./install_cp2k_toolchain.sh --install-all --no-arch-files --target-cpu=${target_cpu} --with-gcc=system --with-${mpi_implementation}; \
+         ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-gcc=system --with-${mpi_implementation}; \
       fi; \
    else \
-      ./install_cp2k_toolchain.sh --install-all --no-arch-files --target-cpu=${target_cpu} --with-gcc --with-${mpi_implementation}; \
+      ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-gcc --with-${mpi_implementation}; \
    fi; \
    source ./install/setup; \
    cd ../..; \

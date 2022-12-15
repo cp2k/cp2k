@@ -13,7 +13,7 @@
 #        Optionally, the Intel compiler version can be specified as argument.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Author: Matthias Krack (13.12.2022)
+# Author: Matthias Krack (15.12.2022)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -28,7 +28,7 @@
       module add ${1}; \
       module list; \
    fi; \
-   ./install_cp2k_toolchain.sh --install-all --no-arch-files --target-cpu=${target_cpu} --with-intelmpi --with-mkl; \
+   ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-intelmpi --with-mkl; \
    source ./install/setup; \
    cd ../..; \
    echo; \

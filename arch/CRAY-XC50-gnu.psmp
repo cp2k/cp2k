@@ -11,7 +11,7 @@
 #        A full toolchain installation is performed as default.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Author: Matthias Krack (13.12.2022)
+# Author: Matthias Krack (15.12.2022)
 #
 # \
    if [ "${0}" = "${BASH_SOURCE}" ]; then \
@@ -47,7 +47,7 @@
    echo "To load the required modules in your batch job script, use:"; \
    echo "   module restore cp2k_gpu_gnu_psmp"; \
    cd tools/toolchain; \
-   ./install_cp2k_toolchain.sh --enable-cuda=yes --gpu-ver=P100 --no-arch-files --with-gcc=system --with-libvdwxc --with-pexsi --with-plumed; \
+   ./install_cp2k_toolchain.sh --enable-cuda=yes --gpu-ver=P100 -j${maxtasks} --no-arch-files --with-gcc=system --with-libvdwxc --with-pexsi --with-plumed; \
    cd ../..; \
    printf "Sourcing ${PWD}/tools/toolchain/install/setup ... "; \
    source ${PWD}/tools/toolchain/install/setup; \
