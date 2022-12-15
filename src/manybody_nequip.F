@@ -282,7 +282,7 @@ CONTAINS
             WRITE(*,*) "istart, iend: ", istart, iend
             DO i = 1, SIZE(pot%type)
                IF (pot%type(i) /= nequip_type) CYCLE
-               rab2_max = pot%set(i)%nequip%rcutsq/(angstrom*angstrom)
+               rab2_max = pot%set(i)%nequip%rcutsq
                WRITE(*, *) "cutoff manybody_potential ", rab2_max
                cell_v = MATMUL(cell%hmat, cvi)
                pot => potparm%pot(ikind, jkind)%pot

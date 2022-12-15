@@ -33,8 +33,9 @@
           d        1.6218E1
           h       -5.9826E-1
           lambda3  1.7322
-          bigR     2.85
-          bigD     0.15
+!          bigR     2.85
+!          bigD     0.15
+          RCUT     2.0
         &END TERSOFF
       &END NONBONDED
     &END FORCEFIELD

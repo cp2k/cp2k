@@ -288,6 +288,7 @@ CONTAINS
                nquip
          IF (explicit) THEN
             CALL pair_potential_reallocate(inp_info%nonbonded, 1, ntot + nnequip, nequip=.TRUE.)
+            WRITE(*, *) "Entering read_nequip_section"
             CALL read_nequip_section(inp_info%nonbonded, tmp_section2, ntot)
          END IF
 
@@ -696,9 +697,11 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: section
       INTEGER, INTENT(IN)                                :: start
       CHARACTER(LEN=default_string_length), &
-         DIMENSION(:), POINTER                           :: atm_names      
-      INTEGER                                            :: isec, n_items
-      LOGICAL                                            :: explicit
+         DIMENSION(:), POINTER                           :: atm_names     
+      INTEGER                                            :: isec, n_items     
+!      INTEGER                                            :: ij_pairs, i, j, n_items
+!      LOGICAL                                            :: explicit
+      CHARACTER(LEN=default_string_length)               :: nequip_file_name
 
       CALL section_vals_get(section, n_repetition=n_items)
       DO isec = 1, n_items
@@ -709,21 +712,40 @@ CONTAINS
          nonbonded%pot(start + isec)%pot%at2 = atm_names(2)
          CALL uppercase(nonbonded%pot(start + isec)%pot%at1)
          CALL uppercase(nonbonded%pot(start + isec)%pot%at2)         
-         CALL section_vals_val_get(section, "PARM_FILE_NAME", i_rep_section=isec, &
-                                   c_val=nonbonded%pot(start + isec)%pot%set(1)%nequip%nequip_file_name)
+         CALL section_vals_val_get(section, "PARM_FILE_NAME", i_rep_section=isec, c_val = nequip_file_name)
+         nonbonded%pot(start + isec)%pot%set(1)%nequip%nequip_file_name =nequip_file_name
 
 !         if (isec == 1) THEN
             CALL read_nequip_data(nonbonded%pot(start + isec)%pot%set(1)%nequip)
-!            WRITE(*, *) "NequIP cutoff ",  nonbonded%pot(start + isec)%pot%set(1)%nequip%rcut
+            WRITE(*, *) "NequIP cutoff ",  nonbonded%pot(start + isec)%pot%set(1)%nequip%rcutsq
             nonbonded%pot(start + isec)%pot%rcutsq = nonbonded%pot(start + isec)%pot%set(1)%nequip%rcutsq
 !         END IF
       END DO
 
-      CALL section_vals_get(section, explicit=explicit)
-      CALL section_vals_val_get(section, "ATOMS", explicit=explicit, c_vals=atm_names)
+!     CALL section_vals_get(section, explicit=explicit)
 
-         
-
+!      CALL section_vals_get(section, n_repetition=n_items)
+!      CALL section_vals_val_get(section, "ATOMS", i_rep_section=n_items, c_vals=atm_names)
+!     CALL section_vals_val_get(section, "PARM_FILE_NAME", i_rep_section=n_items,&
+!                                c_val=nequip_file_name)
+!      CALL read_nequip_data(nonbonded%pot(start + isec)%pot%set(1)%nequip)
+!      nonbonded%pot(start + isec)%pot%rcutsq = nonbonded%pot(start + isec)%pot%set(1)%nequip%rcutsq
+!      ij_pairs = 1
+!      WRITE(*,*) "nequip_file_name ", nequip_file_name
+!      DO i = 1, SIZE(atm_names)
+!         DO j = i, SIZE(atm_names)
+!             WRITE(*, *) "i, j ", i, j
+!             nonbonded%pot(start + ij_pairs)%pot%type = nequip_type
+!             nonbonded%pot(start + ij_pairs)%pot%at1 = atm_names(i)
+!             nonbonded%pot(start + ij_pairs)%pot%at2 = atm_names(j)
+!             CALL uppercase(nonbonded%pot(start + ij_pairs)%pot%at1)
+!             CALL uppercase(nonbonded%pot(start + ij_pairs)%pot%at2)
+!             nonbonded%pot(start + ij_pairs)%pot%set(1)%nequip%nequip_file_name = nequip_file_name
+!             CALL read_nequip_data(nonbonded%pot(start + ij_pairs)%pot%set(1)%nequip)
+!             nonbonded%pot(start + ij_pairs)%pot%rcutsq = nonbonded%pot(start + ij_pairs)%pot%set(1)%nequip%rcutsq
+!             ij_pairs = ij_pairs + 1
+!         END DO
+!      END DO
    END SUBROUTINE read_nequip_section
 
 ! **************************************************************************************************
@@ -2312,6 +2334,7 @@ CONTAINS
       WRITE (*, *) "NequIP version: ", TRIM(nequip%nequip_version)
       cutoff_str = torch_model_read_metadata(nequip%nequip_file_name, "r_max")
       READ (cutoff_str, *) nequip%rcutsq
+      nequip%rcutsq = cp_unit_to_cp2k(nequip%rcutsq, "angstrom")
       nequip%rcutsq = nequip%rcutsq * nequip%rcutsq
 
    END SUBROUTINE read_nequip_data
