@@ -188,7 +188,6 @@ CONTAINS
          Kind_Group_Loop: DO igrp = 1, neighbor_kind_pair%ngrp_kind
             istart = neighbor_kind_pair%grp_kind_start(igrp)
             iend = neighbor_kind_pair%grp_kind_end(igrp)
-            WRITE(*,*) "fist_nonbond_force istart iend: ", istart, iend
 !$OMP           PARALLEL DEFAULT(NONE) &
 !$OMP                    PRIVATE(ipair,atom_a,atom_b,kind_a,kind_b,fac_kind,pot) &
 !$OMP                    PRIVATE(fac_ei,fac_vdw,atomic_kind,full_nl,qcore_a,qshell_a) &

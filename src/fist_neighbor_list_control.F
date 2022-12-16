@@ -232,13 +232,11 @@ CONTAINS
                      full_nl(ikind, jkind) = .TRUE.
                   END IF
                   full_nl(jkind, ikind) = full_nl(ikind, jkind)
-                  WRITE(*, *) "full_nl: ", full_nl(jkind, ikind)
                END DO
             END DO
          ELSE
             full_nl = .FALSE.
          END IF
-         WRITE(*, *) "calling build_fist_neighbor_lists inside fist_neighbor_list_control.F"
          CALL build_fist_neighbor_lists(atomic_kind_set, particle_set, &
                                         local_particles, cell, rlist_cut, rlist_lowsq, ei_scale14, &
                                         vdw_scale14, nonbonded, para_env, &

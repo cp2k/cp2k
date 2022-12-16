@@ -226,6 +226,8 @@ CONTAINS
                END IF
                IF (PRESENT(edge_cell_shift)) THEN
                   edge_cell_shift(:, nedges) = REAL(cell_shift, kind=sp)
+                  WRITE(*, *) edge_cell_shift(:, nedges), edge_index(nedges, 1) +1, &
+                              edge_index(nedges, 2) +1
                END IF
             END IF
          END DO

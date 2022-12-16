@@ -19,7 +19,7 @@ MODULE manybody_nequip
    USE fist_neighbor_list_types,        ONLY: fist_neighbor_type,&
                                               neighbor_kind_pairs_type                        
    USE fist_nonbond_env_types,          ONLY: pos_type, fist_nonbond_env_type
-   USE kinds,                           ONLY: dp,sp
+   USE kinds,                           ONLY: dp, sp, int_8
    USE mathconstants,                   ONLY: pi
    USE pair_potential_types,            ONLY: pair_potential_pp_type,&
                                               pair_potential_single_type,&
@@ -27,9 +27,13 @@ MODULE manybody_nequip
                                               nequip_type
    USE particle_types,                  ONLY: particle_type
    USE cp_para_types,                   ONLY: cp_para_env_type
-
    USE util,                            ONLY: sort
    USE physcon,                         ONLY: angstrom
+   USE torch_api,                       ONLY: &
+        torch_cuda_is_available, torch_dict_create, torch_dict_get, torch_dict_insert, &
+        torch_dict_release, torch_dict_type, torch_model_eval, torch_model_load, &
+        torch_model_read_metadata, torch_model_release, torch_model_type
+
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -147,7 +151,6 @@ CONTAINS
       ALLOCATE (glob_loc_list_a(npairs_tot))
       glob_loc_list_a = glob_loc_list(1, :)
       CALL timestop(handle)
-      WRITE(*, *) "npairs_tot ", npairs_tot
    END SUBROUTINE setup_nequip_arrays
 
 ! **************************************************************************************************
@@ -186,61 +189,46 @@ CONTAINS
 !> \author Teodoro Laino - University of Zurich
 ! **************************************************************************************************
    SUBROUTINE nequip_energy_store_force_virial(nonbonded, particle_set, cell, atomic_kind_set, &
-                                              potparm, nequip, glob_loc_list_a, glob_loc_list, &
-                                              glob_cell_v, r_last_update_pbc)
+                                               potparm, nequip, glob_loc_list_a, r_last_update_pbc, &
+                                               pot_nequip)
 
-!                                             (nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, cell)
       TYPE(nequip_pot_type), POINTER                     :: nequip
       TYPE(particle_type), POINTER                       :: particle_set(:)
       TYPE(fist_neighbor_type), POINTER                  :: nonbonded
       TYPE(pair_potential_pp_type), POINTER              :: potparm
-      INTEGER, DIMENSION(:, :), POINTER                  :: glob_loc_list
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: glob_cell_v
       INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a
       TYPE(cell_type), POINTER                           :: cell
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'nequip_energy_store_force_virial'
 
-!      INTEGER                                            :: handle, nkinds, npairs_tot
       INTEGER                                            :: i, iend, igrp, ikind, ilist, &
                                                             ipair, istart, jkind, npairs
       INTEGER, DIMENSION(:), POINTER                     :: work_list!, work_list2
       INTEGER, DIMENSION(:, :), POINTER                  :: list, sort_list
       REAL(KIND=dp), DIMENSION(3)                        :: cell_v, cvi
-!      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rwork_list
       TYPE(neighbor_kind_pairs_type), POINTER            :: neighbor_kind_pair
       TYPE(pair_potential_single_type), POINTER          :: pot
-
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind_set(:)
-!      TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
-!      REAL(kind=dp)                                      :: pot_nequip
-!      TYPE(cp_para_env_type), OPTIONAL, &
-!         POINTER                                         :: para_env
-      
       INTEGER                                            :: iat, iat_use, n_atoms_use, atom_a, atom_b, &
                                                             ifirst, ilast, iunique, nunique, junique, &
                                                             mpair, nloc_size, n_atoms, nedges
       LOGICAL, ALLOCATABLE                               :: use_atom(:)
-
-      REAL(kind=dp), ALLOCATABLE                         :: force(:, :), pos(:, :)
+      REAL(kind=sp), ALLOCATABLE                         :: pos(:, :)
+      INTEGER(kind=int_8), ALLOCATABLE                   :: atom_types(:)
       REAL(kind=dp)                                      :: lattice(3, 3), rij(3), drij, rab2_max, pot_loc
-      CHARACTER(len=2), ALLOCATABLE                      :: elem_symbol(:)
       TYPE(pos_type), DIMENSION(:), POINTER              :: r_last_update_pbc
-      INTEGER, ALLOCATABLE                               :: edge_index(:,:), new_edge_index(:,:)
-      REAL(kind=sp), ALLOCATABLE                         :: edge_cell_shifts(:,:), new_edge_cell_shifts(:,:) 
+      INTEGER(kind=int_8), DIMENSION(:, :), ALLOCATABLE  :: edge_index, new_edge_index
+      REAL(kind=sp), DIMENSION(:, :), ALLOCATABLE        :: edge_cell_shifts, new_edge_cell_shifts
+      ! Torch objects.
+      TYPE(torch_dict_type)                              :: inputs, outputs
+      ! Outputs.
+      REAL(sp), DIMENSION(:, :), POINTER                 :: total_energy, atomic_energy, forces
+      REAL(kind=dp)                                      :: pot_nequip
 
-!      IF (output_unit > 0) THEN
-!         WRITE (output_unit, '(/,T2,"ENERGY| Total FORCE_EVAL ( ",A," ) energy [a.u.]: ",T55,F26.15)') &
-!            ADJUSTR(TRIM(use_prog_name(force_env%in_use))), e_pot
-!      END IF
-!         WRITE(*, *) "glob_cell_v ", SIZE(glob_cell_v) , glob_cell_v
-!         WRITE(*, *) "cell ", cell
-
+      NULLIFY (total_energy, atomic_energy, forces)
       n_atoms = SIZE(particle_set)
       ALLOCATE (use_atom(n_atoms))
       use_atom = .FALSE.
-
-      WRITE(*,*) "entering loop over kind"
 
       DO ikind = 1, SIZE(atomic_kind_set)
       DO jkind = 1, SIZE(atomic_kind_set)
@@ -255,16 +243,16 @@ CONTAINS
          END DO ! i
       END DO ! jkind
       END DO ! ikind
-      n_atoms_use = COUNT(use_atom)
-      ALLOCATE (pos(3, n_atoms_use), force(3, n_atoms_use), elem_symbol(n_atoms_use))
 
+      n_atoms_use = COUNT(use_atom)
+      ALLOCATE (pos(3, n_atoms_use), atom_types(n_atoms_use))
       iat_use = 0
       DO iat = 1, n_atoms
          IF (.NOT. use_atom(iat)) CYCLE
          iat_use = iat_use + 1
-         pos(1:3, iat_use) = particle_set(iat)%r*angstrom
-         elem_symbol(iat_use) = particle_set(iat)%atomic_kind%element_symbol
+         atom_types(iat_use) = particle_set(iat)%atomic_kind%kind_number -1
       END DO
+
       lattice = cell%hmat*angstrom
       nedges = 0
       ALLOCATE (edge_index(SIZE(glob_loc_list_a),2))
@@ -272,7 +260,6 @@ CONTAINS
       DO ilist = 1, nonbonded%nlists
          neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
          npairs = neighbor_kind_pair%npairs
-         WRITE(*, *) "npairs, nonbonded%nlists ", npairs, nonbonded%nlists
          IF (npairs == 0) CYCLE
          Kind_Group_Loop_Nequip: DO igrp = 1, neighbor_kind_pair%ngrp_kind
             istart = neighbor_kind_pair%grp_kind_start(igrp)
@@ -282,11 +269,9 @@ CONTAINS
             list => neighbor_kind_pair%list
             cvi = neighbor_kind_pair%cell_vector
             pot => potparm%pot(ikind, jkind)%pot
-            WRITE(*,*) "istart, iend: ", istart, iend
             DO i = 1, SIZE(pot%type)
                IF (pot%type(i) /= nequip_type) CYCLE
                rab2_max = pot%set(i)%nequip%rcutsq
-               WRITE(*, *) "cutoff manybody_potential ", rab2_max
                cell_v = MATMUL(cell%hmat, cvi)
                pot => potparm%pot(ikind, jkind)%pot
                nequip => pot%set(i)%nequip
@@ -311,6 +296,7 @@ CONTAINS
                   ifirst = 1
                   DO iunique = 1, nunique
                      atom_a = junique
+                     pos(:, atom_a) = REAL(r_last_update_pbc(atom_a)%r(:)*angstrom, kind=sp)
                      IF (glob_loc_list_a(ifirst) > atom_a) CYCLE
                      DO mpair = ifirst, SIZE(glob_loc_list_a)
                         IF (glob_loc_list_a(mpair) == atom_a) EXIT
@@ -331,22 +317,10 @@ CONTAINS
                         drij = DOT_PRODUCT(rij, rij)
                         ipair = ipair + 1
                         IF (drij <= rab2_max) THEN
-                           WRITE(*, *) "calc rij: ", drij
-                           WRITE(*, *) "glob_loc_list ", SIZE(glob_loc_list)
-                           WRITE(*, *) "glob_loc_list_a ", SIZE(glob_loc_list_a)
-                           WRITE(*, *) "glob_loc_list_a(atom_b), atom_b ", glob_loc_list_a(atom_b), atom_b
-                           WRITE(*,*) "r_last_update_pbc: ", r_last_update_pbc(atom_a)%r(:)*angstrom, atom_a
-                           WRITE(*,*) "r_last_update_pbc: ", r_last_update_pbc(atom_b)%r(:)*angstrom, atom_b
-                           WRITE(*, *) "glob_cell_v ", SIZE(glob_cell_v)
                            nedges = nedges + 1
                            edge_index(nedges, :) = [atom_a - 1, atom_b - 1]
                            edge_cell_shifts(:, nedges) = REAL(cvi, kind=sp) 
                         END IF
-!                           IF (drij > rab2_max) CYCLE
-!                           drij = SQRT(drij)
-!                           CALL tersoff_energy(pot_loc, tersoff, r_last_update_pbc, atom_a, atom_b, nloc_size, &
-!                                               glob_loc_list(:, ifirst:ilast), glob_cell_v(:, ifirst:ilast), cell_v, drij)
-!                        pot_manybody = pot_manybody + pot_nequip
                      END DO
                      ifirst = ilast + 1
                      IF (ipair <= npairs) junique = sort_list(1, ipair)
@@ -356,23 +330,40 @@ CONTAINS
             END DO
          END DO Kind_Group_Loop_Nequip
       END DO   
-      WRITE(*, *) "nequip nedges: ", nedges 
-      WRITE(*, *) "nequip npairs: ", npairs
       ALLOCATE (new_edge_index(nedges,2))
       new_edge_index = edge_index(:nedges, :)
       DEALLOCATE (edge_index)
       ALLOCATE (new_edge_cell_shifts(3, nedges))
       new_edge_cell_shifts = edge_cell_shifts(:,:nedges)
       DEALLOCATE (edge_cell_shifts)
-      DO ipair = 1, nedges
-         atom_a = new_edge_index(ipair,1) + 1
-         atom_b = new_edge_index(ipair,2) + 1
-         WRITE(*,*) new_edge_index(ipair, :), r_last_update_pbc(atom_a)%r(:)*angstrom, &
-                    r_last_update_pbc(atom_b)%r(:)*angstrom
-      END DO
-      DO ipair = 1, nedges
-         WRITE(*,*) new_edge_cell_shifts(:,ipair)
-      END DO
+!      DO ipair = 1, nedges
+!         WRITE(*,*) new_edge_index(ipair, :), r_last_update_pbc(new_edge_index(ipair,1) + 1)%r(:)*angstrom, &
+!                    r_last_update_pbc(new_edge_index(ipair,2) + 1)%r(:)*angstrom
+!      END DO
+!      DO ipair = 1, nedges
+!         WRITE(*,*) new_edge_cell_shifts(:,ipair), new_edge_index(ipair,:)+1
+!      END DO
+
+      CALL torch_dict_create(inputs)
+      CALL torch_dict_insert(inputs, "pos", pos)
+      CALL torch_dict_insert(inputs, "edge_index", new_edge_index)
+      CALL torch_dict_insert(inputs, "edge_cell_shift", new_edge_cell_shifts)
+      CALL torch_dict_insert(inputs, "cell", REAL(lattice, kind=sp))
+      CALL torch_dict_insert(inputs, "atom_types", atom_types)
+   
+      CALL torch_dict_create(outputs)
+      CALL torch_model_eval(pot%set(1)%nequip%model, inputs, outputs)
+   
+      CALL torch_dict_get(outputs, "total_energy", total_energy)
+      CALL torch_dict_get(outputs, "atomic_energy", atomic_energy)
+      CALL torch_dict_get(outputs, "forces", forces)
+
+      pot_nequip = REAL(total_energy(1, 1), kind=dp)
+
+      CALL torch_dict_release(inputs)
+      CALL torch_dict_release(outputs)
+
+      DEALLOCATE(pos, new_edge_index, new_edge_cell_shifts, atom_types)
 
    END SUBROUTINE nequip_energy_store_force_virial
 

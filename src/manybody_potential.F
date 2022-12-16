@@ -105,7 +105,7 @@ CONTAINS
       LOGICAL                                            :: any_gal, any_gal21, any_quip, &
                                                             any_siepmann, any_tersoff, any_nequip
       REAL(KIND=dp)                                      :: drij, embed, pot_loc, pot_quip, &
-                                                            qr, rab2_max, rij(3)
+                                                            qr, rab2_max, rij(3), pot_nequip
       REAL(KIND=dp), DIMENSION(3)                        :: cell_v, cvi
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: glob_cell_v
       REAL(KIND=dp), POINTER                             :: fembed(:)
@@ -189,92 +189,10 @@ CONTAINS
       ! NEQUIP
       IF (any_nequip) THEN
          NULLIFY (glob_loc_list, glob_cell_v, glob_loc_list_a)
-         WRITE (*,*) "entering setup_nequip_arrays"         
          CALL setup_nequip_arrays(nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, cell)
-         WRITE (*,*) "entering nequip_store_force_virial"
          CALL nequip_energy_store_force_virial(nonbonded, particle_set, cell, atomic_kind_set, potparm, &
-                                               nequip, glob_loc_list_a, glob_loc_list, glob_cell_v, &
-                                               r_last_update_pbc)
-         
-!      IF (output_unit > 0) THEN
-!         WRITE (output_unit, '(/,T2,"ENERGY| Total FORCE_EVAL ( ",A," ) energy [a.u.]: ",T55,F26.15)') &
-!            ADJUSTR(TRIM(use_prog_name(force_env%in_use))), e_pot
-!      END IF
-!         WRITE(*, *) "glob_cell_v ", SIZE(glob_cell_v) , glob_cell_v
-!         WRITE(*, *) "cell ", cell
-!          DO ilist = 1, nonbonded%nlists
-!             neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
-!             npairs = neighbor_kind_pair%npairs
-!             IF (npairs == 0) CYCLE
-!             Kind_Group_Loop_Nequip: DO igrp = 1, neighbor_kind_pair%ngrp_kind
-!                istart = neighbor_kind_pair%grp_kind_start(igrp)
-!                iend = neighbor_kind_pair%grp_kind_end(igrp)
-!                ikind = neighbor_kind_pair%ij_kind(1, igrp)
-!                jkind = neighbor_kind_pair%ij_kind(2, igrp)
-!                list => neighbor_kind_pair%list
-!                cvi = neighbor_kind_pair%cell_vector
-!                pot => potparm%pot(ikind, jkind)%pot
-!                DO i = 1, SIZE(pot%type)
-!                   IF (pot%type(i) /= nequip_type) CYCLE
-!                   rab2_max = pot%set(i)%nequip%rcutsq
-!                   WRITE(*, *) "cutoff manybody_potential ", rab2_max
-!                   cell_v = MATMUL(cell%hmat, cvi)
-!                   pot => potparm%pot(ikind, jkind)%pot
-!                   nequip => pot%set(i)%nequip
-!                   npairs = iend - istart + 1
-!                   IF (npairs /= 0) THEN
-!                      ALLOCATE (sort_list(2, npairs), work_list(npairs))
-!                      sort_list = list(:, istart:iend)
-!                      ! Sort the list of neighbors, this increases the efficiency for single
-!                      ! potential contributions
-!                      CALL sort(sort_list(1, :), npairs, work_list)
-!                      DO ipair = 1, npairs
-!                         work_list(ipair) = sort_list(2, work_list(ipair))
-!                      END DO
-!                      sort_list(2, :) = work_list
-!                      ! find number of unique elements of array index 1
-!                      nunique = 1
-!                      DO ipair = 1, npairs - 1
-!                         IF (sort_list(1, ipair + 1) /= sort_list(1, ipair)) nunique = nunique + 1
-!                      END DO
-!                      ipair = 1
-!                      junique = sort_list(1, ipair)
-!                      ifirst = 1
-!                      DO iunique = 1, nunique
-!                         atom_a = junique
-!                         IF (glob_loc_list_a(ifirst) > atom_a) CYCLE
-!                         DO mpair = ifirst, SIZE(glob_loc_list_a)
-!                            IF (glob_loc_list_a(mpair) == atom_a) EXIT
-!                         END DO
-!                         ifirst = mpair
-!                         DO mpair = ifirst, SIZE(glob_loc_list_a)
-!                            IF (glob_loc_list_a(mpair) /= atom_a) EXIT
-!                         END DO
-!                         ilast = mpair - 1
-!                         nloc_size = 0
-!                         IF (ifirst /= 0) nloc_size = ilast - ifirst + 1
-!                         DO WHILE (ipair <= npairs)
-!                            IF (sort_list(1, ipair) /= junique) EXIT
-!                            atom_b = sort_list(2, ipair)
-!                            ! Energy terms
-!                            pot_loc = 0.0_dp
-!                            rij(:) = r_last_update_pbc(atom_b)%r(:) - r_last_update_pbc(atom_a)%r(:) + cell_v
-!                            drij = DOT_PRODUCT(rij, rij)
-!                            ipair = ipair + 1
-! !                           IF (drij > rab2_max) CYCLE
-! !                           drij = SQRT(drij)
-! !                           CALL tersoff_energy(pot_loc, tersoff, r_last_update_pbc, atom_a, atom_b, nloc_size, &
-! !                                               glob_loc_list(:, ifirst:ilast), glob_cell_v(:, ifirst:ilast), cell_v, drij)
-!                            pot_manybody = pot_manybody + pot_nequip
-!                         END DO
-!                         ifirst = ilast + 1
-!                         IF (ipair <= npairs) junique = sort_list(1, ipair)
-!                      END DO
-!                      DEALLOCATE (sort_list, work_list)
-!                   END IF
-!                END DO
-!             END DO Kind_Group_Loop_Nequip
-!          END DO
+                                               nequip, glob_loc_list_a, r_last_update_pbc, pot_nequip)
+         pot_manybody = pot_manybody + pot_nequip 
          CALL destroy_nequip_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a)
       END IF      
       ! TERSOFF
