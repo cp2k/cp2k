@@ -13,7 +13,6 @@ MODULE qs_ks_apply_restraints
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_p_type,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type
@@ -195,7 +194,7 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
 
       INTEGER                                            :: i
-      TYPE(cp_fm_type), DIMENSION(:), ALLOCATABLE        :: fm_mo_derivs
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mo_derivs
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs, smat
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_array

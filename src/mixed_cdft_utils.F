@@ -1059,12 +1059,12 @@ CONTAINS
       TYPE(cp_1d_r_p_type), ALLOCATABLE, DIMENSION(:, :) :: occno_tmp
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: matrix_p_tmp, mixed_matrix_p_tmp, &
-                                                            mixed_mo_coeff, mixed_wmat_tmp, &
-                                                            mo_coeff_tmp, wmat_tmp
+                                                            mixed_wmat_tmp, mo_coeff_tmp, wmat_tmp
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_mo, fm_struct_overlap, &
                                                             fm_struct_tmp, fm_struct_wmat
       TYPE(cp_fm_type)                                   :: fm_dummy, matrix_s_tmp, &
                                                             mixed_matrix_s_tmp
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: mixed_mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: density_matrix, w_matrix
       TYPE(dbcsr_type)                                   :: desymm_tmp
       TYPE(dbcsr_type), POINTER                          :: mixed_matrix_s
@@ -1278,18 +1278,17 @@ CONTAINS
             NULLIFY (fm_struct_mo)
             CALL cp_fm_struct_create(fm_struct_mo, nrow_global=nrow_mo(ispin), ncol_global=ncol_mo(ispin), &
                                      context=mixed_cdft%blacs_env, para_env=force_env%para_env)
-            ALLOCATE (mixed_mo_coeff(iforce_eval, ispin)%matrix)
-            CALL cp_fm_create(matrix=mixed_mo_coeff(iforce_eval, ispin)%matrix, &
+            CALL cp_fm_create(matrix=mixed_mo_coeff(iforce_eval, ispin), &
                               matrix_struct=fm_struct_mo, &
                               name="MO_COEFF_"//TRIM(ADJUSTL(cp_to_string(iforce_eval)))//"_" &
                               //TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
             IF (ASSOCIATED(mo_coeff_tmp(iforce_eval, ispin)%matrix)) THEN
                CALL cp_fm_copy_general(mo_coeff_tmp(iforce_eval, ispin)%matrix, &
-                                       mixed_mo_coeff(iforce_eval, ispin)%matrix, &
+                                       mixed_mo_coeff(iforce_eval, ispin), &
                                        mixed_cdft%blacs_env%para_env)
             ELSE
                CALL cp_fm_copy_general(fm_dummy, &
-                                       mixed_mo_coeff(iforce_eval, ispin)%matrix, &
+                                       mixed_mo_coeff(iforce_eval, ispin), &
                                        mixed_cdft%blacs_env%para_env)
             END IF
             IF (ASSOCIATED(mo_coeff_tmp(iforce_eval, ispin)%matrix)) THEN

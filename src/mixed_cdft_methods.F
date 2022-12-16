@@ -1177,10 +1177,10 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: a, b
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigval
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_overlap
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: mixed_mo_coeff
       TYPE(cp_fm_p_type), DIMENSION(:, :, :), POINTER    :: w_matrix_mo
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_mo, mo_mo_fmstruct
       TYPE(cp_fm_type)                                   :: inverse_mat, Tinverse, tmp2
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: mixed_mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: density_matrix, density_matrix_diff, &
                                                             w_matrix
@@ -1237,9 +1237,9 @@ CONTAINS
       ! Check that the number of MOs/AOs is equal in every CDFT state
       ALLOCATE (nrow_mo(nspins), ncol_mo(nspins))
       DO ispin = 1, nspins
-         CALL cp_fm_get_info(mixed_mo_coeff(1, ispin)%matrix, ncol_global=check_mo(1), nrow_global=check_ao(1))
+         CALL cp_fm_get_info(mixed_mo_coeff(1, ispin), ncol_global=check_mo(1), nrow_global=check_ao(1))
          DO iforce_eval = 2, nforce_eval
-            CALL cp_fm_get_info(mixed_mo_coeff(iforce_eval, ispin)%matrix, ncol_global=check_mo(2), nrow_global=check_ao(2))
+            CALL cp_fm_get_info(mixed_mo_coeff(iforce_eval, ispin), ncol_global=check_mo(2), nrow_global=check_ao(2))
             IF (check_ao(1) /= check_ao(2)) &
                CALL cp_abort(__LOCATION__, &
                              "The number of atomic orbitals must be the same in every CDFT state.")
@@ -1291,7 +1291,7 @@ CONTAINS
          ! Create the MOxMO fm struct (mo_mo_fm_pools%struct)
          ! The number of MOs/AOs is equal to the number of columns/rows of mo_coeff(:,:)%matrix
          NULLIFY (fm_struct_mo, mo_mo_fmstruct)
-         CALL cp_fm_get_info(mixed_mo_coeff(1, ispin)%matrix, ncol_global=ncol_mo(ispin), nrow_global=nrow_mo(ispin))
+         CALL cp_fm_get_info(mixed_mo_coeff(1, ispin), ncol_global=ncol_mo(ispin), nrow_global=nrow_mo(ispin))
          nao = nrow_mo(ispin)
          IF (uniform_occupation) THEN
             nmo = ncol_mo(ispin)
@@ -1375,15 +1375,15 @@ CONTAINS
          ! Remove empty MOs and (possibly) scale rest with occupation numbers
          IF (.NOT. uniform_occupation) THEN
             DO iforce_eval = 1, nforce_eval
-               CALL cp_fm_to_fm(mixed_mo_coeff(iforce_eval, ispin)%matrix, tmp2, nmo, 1, 1)
-               CALL cp_fm_release(mixed_mo_coeff(iforce_eval, ispin)%matrix)
-               CALL cp_fm_create(mixed_mo_coeff(iforce_eval, ispin)%matrix, &
+               CALL cp_fm_to_fm(mixed_mo_coeff(iforce_eval, ispin), tmp2, nmo, 1, 1)
+               CALL cp_fm_release(mixed_mo_coeff(iforce_eval, ispin))
+               CALL cp_fm_create(mixed_mo_coeff(iforce_eval, ispin), &
                                  matrix_struct=tmp2%matrix_struct, &
                                  name="MO_COEFF_"//TRIM(ADJUSTL(cp_to_string(iforce_eval)))//"_" &
                                  //TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
-               CALL cp_fm_to_fm(tmp2, mixed_mo_coeff(iforce_eval, ispin)%matrix)
+               CALL cp_fm_to_fm(tmp2, mixed_mo_coeff(iforce_eval, ispin))
                IF (should_scale) &
-                  CALL cp_fm_column_scale(mixed_mo_coeff(iforce_eval, ispin)%matrix, &
+                  CALL cp_fm_column_scale(mixed_mo_coeff(iforce_eval, ispin), &
                                           mixed_cdft%occupations(iforce_eval, ispin)%array(1:nmo))
                DEALLOCATE (mixed_cdft%occupations(iforce_eval, ispin)%array)
             END DO
@@ -1393,10 +1393,10 @@ CONTAINS
          DO istate = 1, nforce_eval
             DO jstate = istate + 1, nforce_eval
                ipermutation = ipermutation + 1
-               CALL cp_dbcsr_sm_fm_multiply(mixed_matrix_s, mixed_mo_coeff(istate, ispin)%matrix, &
+               CALL cp_dbcsr_sm_fm_multiply(mixed_matrix_s, mixed_mo_coeff(istate, ispin), &
                                             tmp2, nmo, 1.0_dp, 0.0_dp)
                CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
-                                  mixed_mo_coeff(jstate, ispin)%matrix, &
+                                  mixed_mo_coeff(jstate, ispin), &
                                   tmp2, 0.0_dp, mo_overlap(ipermutation)%matrix)
                IF (print_mo) &
                   CALL cp_fm_write_formatted(mo_overlap(ipermutation)%matrix, mounit, &
@@ -1413,10 +1413,10 @@ CONTAINS
                   IF (istate == jstate) CYCLE
                   ! State i: (C_j)^T W_i C_i
                   CALL cp_dbcsr_sm_fm_multiply(w_matrix(istate, ivar)%matrix, &
-                                               mixed_mo_coeff(istate, ispin)%matrix, &
+                                               mixed_mo_coeff(istate, ispin), &
                                                tmp2, nmo, 1.0_dp, 0.0_dp)
                   CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
-                                     mixed_mo_coeff(jstate, ispin)%matrix, &
+                                     mixed_mo_coeff(jstate, ispin), &
                                      tmp2, 0.0_dp, w_matrix_mo(istate, jstate, ivar)%matrix)
                END DO
             END DO
@@ -2064,9 +2064,9 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: coupling_wfn
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: overlaps
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: mixed_mo_coeff
       TYPE(cp_fm_struct_type), POINTER                   :: mo_mo_fmstruct
       TYPE(cp_fm_type)                                   :: inverse_mat, mo_overlap_wfn, mo_tmp
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: mixed_mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys_mix
       TYPE(dbcsr_type), POINTER                          :: mixed_matrix_s
@@ -2104,7 +2104,7 @@ CONTAINS
          CALL set_mo_set(mo_set(ispin), uniform_occupation=.TRUE., homo=nmo)
          ALLOCATE (mo_set(ispin)%mo_coeff)
          CALL cp_fm_create(matrix=mo_set(ispin)%mo_coeff, &
-                           matrix_struct=mixed_mo_coeff(1, ispin)%matrix%matrix_struct, &
+                           matrix_struct=mixed_mo_coeff(1, ispin)%matrix_struct, &
                            name="GS_MO_COEFF"//TRIM(ADJUSTL(cp_to_string(ispin)))//"MATRIX")
          ALLOCATE (mo_set(ispin)%eigenvalues(nmo))
          ALLOCATE (mo_set(ispin)%occupation_numbers(nmo))
@@ -2160,7 +2160,7 @@ CONTAINS
                            name="INVERSE_MO_OVERLAP_MATRIX_WFN")
          CALL cp_fm_struct_release(mo_mo_fmstruct)
          CALL cp_fm_create(matrix=mo_tmp, &
-                           matrix_struct=mixed_mo_coeff(1, ispin)%matrix%matrix_struct, &
+                           matrix_struct=mixed_mo_coeff(1, ispin)%matrix_struct, &
                            name="OVERLAP_MO_COEFF_WFN")
          DO ipermutation = 1, npermutations
             CALL map_permutation_to_states(nforce_eval, ipermutation, istate, jstate)
@@ -2170,13 +2170,13 @@ CONTAINS
             ! C_i^T * (S*C_r)
             CALL cp_fm_set_all(mo_overlap_wfn, alpha=0.0_dp)
             CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
-                               mixed_mo_coeff(istate, ispin)%matrix, &
+                               mixed_mo_coeff(istate, ispin), &
                                mo_tmp, 0.0_dp, mo_overlap_wfn)
             CALL cp_fm_invert(mo_overlap_wfn, inverse_mat, overlaps(1, ipermutation, ispin), eps_svd=mixed_cdft%eps_svd)
             ! C_j^T * (S*C_r)
             CALL cp_fm_set_all(mo_overlap_wfn, alpha=0.0_dp)
             CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
-                               mixed_mo_coeff(jstate, ispin)%matrix, &
+                               mixed_mo_coeff(jstate, ispin), &
                                mo_tmp, 0.0_dp, mo_overlap_wfn)
             CALL cp_fm_invert(mo_overlap_wfn, inverse_mat, overlaps(2, ipermutation, ispin), eps_svd=mixed_cdft%eps_svd)
          END DO

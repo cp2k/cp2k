@@ -22,7 +22,6 @@ MODULE s_square_methods
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -69,8 +68,8 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       REAL(KIND=dp), INTENT(OUT)                         :: s_square, s_square_ideal
-      TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, &
-         INTENT(INOUT)                                         :: mo_derivs
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT), &
+         OPTIONAL                                        :: mo_derivs
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: strength
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'compute_s_square'
@@ -193,7 +192,7 @@ CONTAINS
 
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)         :: mo_derivs
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: mo_derivs
       REAL(kind=dp)                                      :: energy
       TYPE(s2_restraint_type), POINTER                   :: s2_restraint_control
       LOGICAL                                            :: just_energy
