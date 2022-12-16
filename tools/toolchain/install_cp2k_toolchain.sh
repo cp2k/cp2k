@@ -373,17 +373,17 @@ fi
 while [ $# -ge 1 ]; do
   case ${1} in
     -j)
-      shift
-      case "${1}" in
+      case "${2}" in
         -*)
           export NPROCS_OVERWRITE="$(get_nprocs)"
           ;;
         [0-9]*)
+          shift
           export NPROCS_OVERWRITE="${1}"
           ;;
         *)
           report_error ${LINENO} \
-            "The -j flag can only be followed by an integer number, found ${1}."
+            "The -j flag can only be followed by an integer number, found ${2}."
           exit 1
           ;;
       esac
