@@ -917,8 +917,8 @@ CONTAINS
          DO ispin = 1, nspin
             mo_set => kp%mos(1, ispin)
             CALL get_mo_set(mo_set, eigenvalues=eigenvalues)
-            rpmat => kp%wmat(1, ispin)%matrix
-            cpmat => kp%wmat(2, ispin)%matrix
+            rpmat => kp%wmat(1, ispin)
+            cpmat => kp%wmat(2, ispin)
             CALL get_mo_set(mo_set, occupation_numbers=occupation)
             CALL cp_fm_to_fm(mo_set%mo_coeff, fwork)
 
@@ -1242,7 +1242,7 @@ CONTAINS
 
       NULLIFY (xkp, wkp)
 
-      CALL cp_fm_create(fm_mat_work, kpoints_G%kp_env(1)%kpoint_env%wmat(1, 1)%matrix%matrix_struct)
+      CALL cp_fm_create(fm_mat_work, kpoints_G%kp_env(1)%kpoint_env%wmat(1, 1)%matrix_struct)
       CALL cp_fm_set_all(fm_mat_work, 0.0_dp)
 
       CALL get_kpoint_info(kpoints_G, nkp=nkp, xkp=xkp, wkp=wkp)
@@ -1258,7 +1258,7 @@ CONTAINS
 
       CALL get_atom_index_from_basis_function_index(qs_env, atom_from_ao_index, nao, "ORB")
 
-      CALL cp_fm_get_info(matrix=kpoints_G%kp_env(1)%kpoint_env%wmat(1, 1)%matrix, &
+      CALL cp_fm_get_info(matrix=kpoints_G%kp_env(1)%kpoint_env%wmat(1, 1), &
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local, &
                           row_indices=row_indices, &
@@ -1278,8 +1278,8 @@ CONTAINS
          DO ik = 1, nkp
 
             kp => kpoints_G%kp_env(ik)%kpoint_env
-            rpmat => kp%wmat(1, ispin)%matrix
-            cpmat => kp%wmat(2, ispin)%matrix
+            rpmat => kp%wmat(1, ispin)
+            cpmat => kp%wmat(2, ispin)
 
             DO irow = 1, nrow_local
                DO jcol = 1, ncol_local
@@ -1381,8 +1381,8 @@ CONTAINS
          DO ik = 1, nkp
 
             kp => kpoints%kp_env(ik)%kpoint_env
-            rpmat => kp%wmat(1, ispin)%matrix
-            cpmat => kp%wmat(2, ispin)%matrix
+            rpmat => kp%wmat(1, ispin)
+            cpmat => kp%wmat(2, ispin)
 
             CALL copy_fm_to_dbcsr(rpmat, mat_work_re, keep_sparsity=.FALSE.)
             CALL copy_fm_to_dbcsr(cpmat, mat_work_im, keep_sparsity=.FALSE.)

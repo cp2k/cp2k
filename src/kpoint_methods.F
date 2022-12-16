@@ -513,8 +513,7 @@ CONTAINS
                IF (ASSOCIATED(kp%pmat)) THEN
                   DO is = 1, SIZE(kp%pmat, 2)
                      DO ic = 1, SIZE(kp%pmat, 1)
-                        CALL cp_fm_release(kp%pmat(ic, is)%matrix)
-                        DEALLOCATE (kp%pmat(ic, is)%matrix)
+                        CALL cp_fm_release(kp%pmat(ic, is))
                      END DO
                   END DO
                   DEALLOCATE (kp%pmat)
@@ -522,16 +521,14 @@ CONTAINS
                ALLOCATE (kp%pmat(nc, nspin))
                DO is = 1, nspin
                   DO ic = 1, nc
-                     ALLOCATE (kp%pmat(ic, is)%matrix)
-                     CALL cp_fm_create(kp%pmat(ic, is)%matrix, matrix_struct)
+                     CALL cp_fm_create(kp%pmat(ic, is), matrix_struct)
                   END DO
                END DO
                ! energy weighted density matrix
                IF (ASSOCIATED(kp%wmat)) THEN
                   DO is = 1, SIZE(kp%wmat, 2)
                      DO ic = 1, SIZE(kp%wmat, 1)
-                        CALL cp_fm_release(kp%wmat(ic, is)%matrix)
-                        DEALLOCATE (kp%wmat(ic, is)%matrix)
+                        CALL cp_fm_release(kp%wmat(ic, is))
                      END DO
                   END DO
                   DEALLOCATE (kp%wmat)
@@ -539,8 +536,7 @@ CONTAINS
                ALLOCATE (kp%wmat(nc, nspin))
                DO is = 1, nspin
                   DO ic = 1, nc
-                     ALLOCATE (kp%wmat(ic, is)%matrix)
-                     CALL cp_fm_create(kp%wmat(ic, is)%matrix, matrix_struct)
+                     CALL cp_fm_create(kp%wmat(ic, is), matrix_struct)
                   END DO
                END DO
             END DO
@@ -979,9 +975,9 @@ CONTAINS
             END IF
             IF (kpoint%use_real_wfn) THEN
                IF (wtype) THEN
-                  pmat => kp%wmat(1, ispin)%matrix
+                  pmat => kp%wmat(1, ispin)
                ELSE
-                  pmat => kp%pmat(1, ispin)%matrix
+                  pmat => kp%pmat(1, ispin)
                END IF
                CALL get_mo_set(mo_set, occupation_numbers=occupation)
                CALL cp_fm_to_fm(mo_set%mo_coeff, fwork)
@@ -992,11 +988,11 @@ CONTAINS
                CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, mo_set%mo_coeff, fwork, 0.0_dp, pmat)
             ELSE
                IF (wtype) THEN
-                  rpmat => kp%wmat(1, ispin)%matrix
-                  cpmat => kp%wmat(2, ispin)%matrix
+                  rpmat => kp%wmat(1, ispin)
+                  cpmat => kp%wmat(2, ispin)
                ELSE
-                  rpmat => kp%pmat(1, ispin)%matrix
-                  cpmat => kp%pmat(2, ispin)%matrix
+                  rpmat => kp%pmat(1, ispin)
+                  cpmat => kp%pmat(2, ispin)
                END IF
                CALL get_mo_set(mo_set, occupation_numbers=occupation)
                CALL cp_fm_to_fm(mo_set%mo_coeff, fwork)
@@ -1117,9 +1113,9 @@ CONTAINS
                DO ic = 1, nc
                   indx = indx + 1
                   IF (wtype) THEN
-                     CALL cp_fm_start_copy_general(kp%wmat(ic, ispin)%matrix, fmwork(ic)%matrix, para_env, info(indx))
+                     CALL cp_fm_start_copy_general(kp%wmat(ic, ispin), fmwork(ic)%matrix, para_env, info(indx))
                   ELSE
-                     CALL cp_fm_start_copy_general(kp%pmat(ic, ispin)%matrix, fmwork(ic)%matrix, para_env, info(indx))
+                     CALL cp_fm_start_copy_general(kp%pmat(ic, ispin), fmwork(ic)%matrix, para_env, info(indx))
                   END IF
                END DO
             ELSE
