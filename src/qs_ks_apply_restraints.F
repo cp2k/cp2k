@@ -195,12 +195,12 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
 
       INTEGER                                            :: i
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mo_derivs
+      TYPE(cp_fm_type), DIMENSION(:), ALLOCATABLE        :: fm_mo_derivs
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs, smat
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_array
 
-      NULLIFY (fm_mo_derivs, mo_array, mo_coeff, mo_derivs)
+      NULLIFY (mo_array, mo_coeff, mo_derivs)
 
       IF (dft_control%qs_control%s2_restraint) THEN
          ! Test no k-points
@@ -216,9 +216,8 @@ CONTAINS
          ALLOCATE (fm_mo_derivs(SIZE(mo_derivs, 1))) !fm->dbcsr
          DO i = 1, SIZE(mo_derivs, 1) !fm->dbcsr
             CALL get_mo_set(mo_set=mo_array(i), mo_coeff=mo_coeff) !fm->dbcsr
-            ALLOCATE (fm_mo_derivs(i)%matrix)
-            CALL cp_fm_create(fm_mo_derivs(i)%matrix, mo_coeff%matrix_struct) !fm->dbcsr
-            CALL copy_dbcsr_to_fm(mo_derivs(i)%matrix, fm_mo_derivs(i)%matrix) !fm->dbcsr
+            CALL cp_fm_create(fm_mo_derivs(i), mo_coeff%matrix_struct) !fm->dbcsr
+            CALL copy_dbcsr_to_fm(mo_derivs(i)%matrix, fm_mo_derivs(i)) !fm->dbcsr
          END DO !fm->dbcsr
 
          smat => matrix_s(:, 1)
@@ -226,7 +225,7 @@ CONTAINS
                            dft_control%qs_control%s2_restraint_control, just_energy)
 
          DO i = 1, SIZE(mo_derivs, 1) !fm->dbcsr
-            CALL copy_fm_to_dbcsr(fm_mo_derivs(i)%matrix, mo_derivs(i)%matrix) !fm->dbcsr
+            CALL copy_fm_to_dbcsr(fm_mo_derivs(i), mo_derivs(i)%matrix) !fm->dbcsr
          END DO !fm->dbcsr
          DEALLOCATE (fm_mo_derivs) !fm->dbcsr
 
