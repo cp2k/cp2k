@@ -552,7 +552,7 @@ CONTAINS
    SUBROUTINE response_equation_new(qs_env, p_env, cpmos, iounit)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_p_env_type)                                :: p_env
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: cpmos
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: cpmos
       INTEGER, INTENT(IN)                                :: iounit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'response_equation_new'
