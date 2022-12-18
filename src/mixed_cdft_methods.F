@@ -1176,8 +1176,8 @@ CONTAINS
                                                             W_diagonal, Wad, Wda
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: a, b
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigval
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_overlap
-      TYPE(cp_fm_p_type), DIMENSION(:, :, :), POINTER    :: w_matrix_mo
+      TYPE(cp_fm_type), DIMENSION(:), ALLOCATABLE        :: mo_overlap
+      TYPE(cp_fm_type), DIMENSION(:, :, :), ALLOCATABLE  :: w_matrix_mo
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_mo, mo_mo_fmstruct
       TYPE(cp_fm_type)                                   :: inverse_mat, Tinverse, tmp2
       TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: mixed_mo_coeff
@@ -1195,8 +1195,8 @@ CONTAINS
 
       NULLIFY (force_env_section, print_section, mixed_cdft_section, &
                mixed_env, mixed_cdft, qs_env, dft_control, fm_struct_mo, &
-               density_matrix_diff, mo_mo_fmstruct, mo_overlap, &
-               w_matrix_mo, mixed_mo_coeff, mixed_matrix_s, &
+               density_matrix_diff, mo_mo_fmstruct, &
+               mixed_mo_coeff, mixed_matrix_s, &
                density_matrix, energy_qs, w_matrix, mo_eigval)
       logger => cp_get_default_logger()
       CPASSERT(ASSOCIATED(force_env))
@@ -1255,9 +1255,6 @@ CONTAINS
       ALLOCATE (a(nspins, nvar, npermutations), b(nspins, nvar, npermutations))
       a = 0.0_dp
       b = 0.0_dp
-      DO istate = 1, npermutations
-         NULLIFY (mo_overlap(istate)%matrix)
-      END DO
       IF (mixed_cdft%calculate_metric) THEN
          ALLOCATE (density_matrix_diff(npermutations, nspins))
          DO ispin = 1, nspins
@@ -1353,18 +1350,15 @@ CONTAINS
          CALL cp_fm_create(matrix=Tinverse, matrix_struct=mo_mo_fmstruct, &
                            name="T_INVERSE_"//TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
          DO istate = 1, npermutations
-            ALLOCATE (mo_overlap(istate)%matrix)
-            CALL cp_fm_create(matrix=mo_overlap(istate)%matrix, matrix_struct=mo_mo_fmstruct, &
+            CALL cp_fm_create(matrix=mo_overlap(istate), matrix_struct=mo_mo_fmstruct, &
                               name="MO_OVERLAP_"//TRIM(ADJUSTL(cp_to_string(istate)))//"_"// &
                               TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
          END DO
          DO ivar = 1, nvar
             DO istate = 1, nforce_eval
                DO jstate = 1, nforce_eval
-                  NULLIFY (w_matrix_mo(istate, jstate, ivar)%matrix)
                   IF (istate == jstate) CYCLE
-                  ALLOCATE (w_matrix_mo(istate, jstate, ivar)%matrix)
-                  CALL cp_fm_create(matrix=w_matrix_mo(istate, jstate, ivar)%matrix, matrix_struct=mo_mo_fmstruct, &
+                  CALL cp_fm_create(matrix=w_matrix_mo(istate, jstate, ivar), matrix_struct=mo_mo_fmstruct, &
                                     name="W_"//TRIM(ADJUSTL(cp_to_string(istate)))//"_"// &
                                     TRIM(ADJUSTL(cp_to_string(jstate)))//"_"// &
                                     TRIM(ADJUSTL(cp_to_string(ivar)))//"_MATRIX")
@@ -1397,9 +1391,9 @@ CONTAINS
                                             tmp2, nmo, 1.0_dp, 0.0_dp)
                CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
                                   mixed_mo_coeff(jstate, ispin), &
-                                  tmp2, 0.0_dp, mo_overlap(ipermutation)%matrix)
+                                  tmp2, 0.0_dp, mo_overlap(ipermutation))
                IF (print_mo) &
-                  CALL cp_fm_write_formatted(mo_overlap(ipermutation)%matrix, mounit, &
+                  CALL cp_fm_write_formatted(mo_overlap(ipermutation), mounit, &
                                              "# MO overlap matrix (step "//TRIM(ADJUSTL(cp_to_string(mixed_cdft%sim_step)))// &
                                              "): CDFT states "//TRIM(ADJUSTL(cp_to_string(istate)))//" and "// &
                                              TRIM(ADJUSTL(cp_to_string(jstate)))//" (spin "// &
@@ -1417,7 +1411,7 @@ CONTAINS
                                                tmp2, nmo, 1.0_dp, 0.0_dp)
                   CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
                                      mixed_mo_coeff(jstate, ispin), &
-                                     tmp2, 0.0_dp, w_matrix_mo(istate, jstate, ivar)%matrix)
+                                     tmp2, 0.0_dp, w_matrix_mo(istate, jstate, ivar))
                END DO
             END DO
          END DO
@@ -1426,7 +1420,7 @@ CONTAINS
             CALL map_permutation_to_states(nforce_eval, ipermutation, istate, jstate)
             IF (print_mo_eigval) THEN
                NULLIFY (mo_eigval)
-               CALL cp_fm_invert(mo_overlap(ipermutation)%matrix, inverse_mat, &
+               CALL cp_fm_invert(mo_overlap(ipermutation), inverse_mat, &
                                  S_det(ipermutation, ispin), eps_svd=mixed_cdft%eps_svd, &
                                  eigval=mo_eigval)
                IF (moeigvalunit > 0) THEN
@@ -1446,7 +1440,7 @@ CONTAINS
                END IF
                DEALLOCATE (mo_eigval)
             ELSE
-               CALL cp_fm_invert(mo_overlap(ipermutation)%matrix, inverse_mat, &
+               CALL cp_fm_invert(mo_overlap(ipermutation), inverse_mat, &
                                  S_det(ipermutation, ispin), eps_svd=mixed_cdft%eps_svd)
             END IF
             CALL cp_fm_get_info(inverse_mat, nrow_local=nrow_local, ncol_local=ncol_local)
@@ -1455,7 +1449,7 @@ CONTAINS
                DO k = 1, nrow_local
                   DO ivar = 1, nvar
                      b(ispin, ivar, ipermutation) = b(ispin, ivar, ipermutation) + &
-                                                    w_matrix_mo(jstate, istate, ivar)%matrix%local_data(k, j)* &
+                                                    w_matrix_mo(jstate, istate, ivar)%local_data(k, j)* &
                                                     inverse_mat%local_data(k, j)
                   END DO
                END DO
@@ -1466,7 +1460,7 @@ CONTAINS
                DO k = 1, nrow_local
                   DO ivar = 1, nvar
                      a(ispin, ivar, ipermutation) = a(ispin, ivar, ipermutation) + &
-                                                    w_matrix_mo(istate, jstate, ivar)%matrix%local_data(k, j)* &
+                                                    w_matrix_mo(istate, jstate, ivar)%local_data(k, j)* &
                                                     Tinverse%local_data(k, j)
                   END DO
                END DO
@@ -1516,14 +1510,12 @@ CONTAINS
             DO jstate = 1, nforce_eval
                DO istate = 1, nforce_eval
                   IF (istate == jstate) CYCLE
-                  CALL cp_fm_release(w_matrix_mo(istate, jstate, ivar)%matrix)
-                  DEALLOCATE (w_matrix_mo(istate, jstate, ivar)%matrix)
+                  CALL cp_fm_release(w_matrix_mo(istate, jstate, ivar))
                END DO
             END DO
          END DO
          DO ipermutation = 1, npermutations
-            CALL cp_fm_release(mo_overlap(ipermutation)%matrix)
-            DEALLOCATE (mo_overlap(ipermutation)%matrix)
+            CALL cp_fm_release(mo_overlap(ipermutation))
          END DO
          CALL cp_fm_release(Tinverse)
          CALL cp_fm_release(inverse_mat)
