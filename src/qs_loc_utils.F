@@ -228,7 +228,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE jacobi_rotation_pipek(zij_fm_set, vectors, sweeps)
 
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: zij_fm_set
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: zij_fm_set
       TYPE(cp_fm_type), INTENT(IN)                       :: vectors
       INTEGER                                            :: sweeps
 
@@ -237,7 +237,7 @@ CONTAINS
                                                             theta, tolerance
       TYPE(cp_fm_type)                                   :: rmat
 
-      CALL cp_fm_create(rmat, zij_fm_set(1, 1)%matrix%matrix_struct)
+      CALL cp_fm_create(rmat, zij_fm_set(1, 1)%matrix_struct)
       CALL cp_fm_set_all(rmat, 0.0_dp, 1.0_dp)
 
       CALL cp_fm_get_info(rmat, nrow_global=nstate)
@@ -252,9 +252,9 @@ CONTAINS
                aij = 0.0_dp
                bij = 0.0_dp
                DO iatom = 1, natom
-                  CALL cp_fm_get_element(zij_fm_set(iatom, 1)%matrix, istate, istate, mii)
-                  CALL cp_fm_get_element(zij_fm_set(iatom, 1)%matrix, istate, jstate, mij)
-                  CALL cp_fm_get_element(zij_fm_set(iatom, 1)%matrix, jstate, jstate, mjj)
+                  CALL cp_fm_get_element(zij_fm_set(iatom, 1), istate, istate, mii)
+                  CALL cp_fm_get_element(zij_fm_set(iatom, 1), istate, jstate, mij)
+                  CALL cp_fm_get_element(zij_fm_set(iatom, 1), jstate, jstate, mjj)
                   aij = aij + mij*(mii - mjj)
                   bij = bij + mij*mij - 0.25_dp*(mii - mjj)*(mii - mjj)
 
@@ -339,8 +339,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                      :: istate, jstate
       REAL(dp), INTENT(IN)                     :: st, ct
-      TYPE(cp_fm_p_type), DIMENSION(:, :), &
-         POINTER                                :: zij
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN) :: zij
 
       INTEGER                                  :: iatom, natom, nstate
 #if defined(__SCALAPACK)
@@ -349,24 +348,24 @@ CONTAINS
       INTEGER                                  :: stride
 #endif
 
-      CALL cp_fm_get_info(zij(1, 1)%matrix, nrow_global=nstate)
+      CALL cp_fm_get_info(zij(1, 1), nrow_global=nstate)
 
       natom = SIZE(zij, 1)
       DO iatom = 1, natom
 #if defined(__SCALAPACK)
-         desc(:) = zij(iatom, 1)%matrix%matrix_struct%descriptor(:)
-         CALL pzrot(nstate, zij(iatom, 1)%matrix%local_data(1, 1), &
-                    1, istate, desc, 1, zij(iatom, 1)%matrix%local_data(1, 1), &
+         desc(:) = zij(iatom, 1)%matrix_struct%descriptor(:)
+         CALL pzrot(nstate, zij(iatom, 1)%local_data(1, 1), &
+                    1, istate, desc, 1, zij(iatom, 1)%local_data(1, 1), &
                     1, jstate, desc, nstate, ct, st)
-         CALL pzrot(nstate, zij(iatom, 1)%matrix%local_data(1, 1), &
-                    istate, 1, desc, 1, zij(iatom, 1)%matrix%local_data(1, 1), &
+         CALL pzrot(nstate, zij(iatom, 1)%local_data(1, 1), &
+                    istate, 1, desc, 1, zij(iatom, 1)%local_data(1, 1), &
                     jstate, 1, desc, nstate, ct, st)
 #else
-         CALL drot(nstate, zij(iatom, 1)%matrix%local_data(1, istate), &
-                   1, zij(iatom, 1)%matrix%local_data(1, jstate), 1, ct, st)
-         stride = SIZE(zij(iatom, 1)%matrix%local_data, 1)
-         CALL drot(nstate, zij(iatom, 1)%matrix%local_data(istate, 1), &
-                   stride, zij(iatom, 1)%matrix%local_data(jstate, 1), stride, ct, st)
+         CALL drot(nstate, zij(iatom, 1)%local_data(1, istate), &
+                   1, zij(iatom, 1)%local_data(1, jstate), 1, ct, st)
+         stride = SIZE(zij(iatom, 1)%local_data, 1)
+         CALL drot(nstate, zij(iatom, 1)%local_data(istate, 1), &
+                   stride, zij(iatom, 1)%local_data(jstate, 1), stride, ct, st)
 #endif
       END DO
 
@@ -382,7 +381,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE check_tolerance_real(zij_fm_set, tolerance)
 
-      TYPE(cp_fm_p_type), DIMENSION(:, :)                :: zij_fm_set
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: zij_fm_set
       REAL(dp), INTENT(OUT)                              :: tolerance
 
       INTEGER                                            :: iatom, istate, jstate, natom, &
@@ -394,17 +393,17 @@ CONTAINS
 
       NULLIFY (diag, col_indices, row_indices)
       natom = SIZE(zij_fm_set, 1)
-      CALL cp_fm_get_info(zij_fm_set(1, 1)%matrix, nrow_local=nrow_local, &
+      CALL cp_fm_get_info(zij_fm_set(1, 1), nrow_local=nrow_local, &
                           ncol_local=ncol_local, nrow_global=nrow_global, &
                           row_indices=row_indices, col_indices=col_indices)
       ALLOCATE (diag(nrow_global, natom))
 
-      CALL cp_fm_create(force, zij_fm_set(1, 1)%matrix%matrix_struct)
+      CALL cp_fm_create(force, zij_fm_set(1, 1)%matrix_struct)
       CALL cp_fm_set_all(force, 0._dp)
 
       DO iatom = 1, natom
          DO istate = 1, nrow_global
-            CALL cp_fm_get_element(zij_fm_set(iatom, 1)%matrix, istate, istate, diag(istate, iatom))
+            CALL cp_fm_get_element(zij_fm_set(iatom, 1), istate, istate, diag(istate, iatom))
          END DO
       END DO
 
@@ -414,7 +413,7 @@ CONTAINS
             DO iatom = 1, natom
                zii = diag(istate, iatom)
                zjj = diag(jstate, iatom)
-               zij = zij_fm_set(iatom, 1)%matrix%local_data(istate, jstate)
+               zij = zij_fm_set(iatom, 1)%local_data(istate, jstate)
                grad_ij = grad_ij + 4.0_dp*zij*(zjj - zii)
             END DO
             force%local_data(istate, jstate) = grad_ij
@@ -613,13 +612,11 @@ CONTAINS
             DO ispin = 1, SIZE(qs_loc_env%op_fm_set, 2)
                CALL get_mo_set(mos(ispin), nmo=nmo)
                DO iatom = 1, natoms
-                  ALLOCATE (qs_loc_env%op_fm_set(iatom, ispin)%matrix)
+                  CALL cp_fm_create(qs_loc_env%op_fm_set(iatom, ispin), tmp_fm_struct)
 
-                  CALL cp_fm_create(qs_loc_env%op_fm_set(iatom, ispin)%matrix, tmp_fm_struct)
-
-                  CALL cp_fm_get_info(qs_loc_env%op_fm_set(iatom, ispin)%matrix, nrow_global=nmosub)
+                  CALL cp_fm_get_info(qs_loc_env%op_fm_set(iatom, ispin), nrow_global=nmosub)
                   CPASSERT(nmo >= nmosub)
-                  CALL cp_fm_set_all(qs_loc_env%op_fm_set(iatom, ispin)%matrix, 0.0_dp)
+                  CALL cp_fm_set_all(qs_loc_env%op_fm_set(iatom, ispin), 0.0_dp)
                END DO ! iatom
             END DO ! ispin
          ELSE
