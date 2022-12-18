@@ -31,7 +31,6 @@ MODULE mixed_cdft_methods
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -1176,10 +1175,10 @@ CONTAINS
                                                             W_diagonal, Wad, Wda
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: a, b
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigval
-      TYPE(cp_fm_type), DIMENSION(:), ALLOCATABLE        :: mo_overlap
-      TYPE(cp_fm_type), DIMENSION(:, :, :), ALLOCATABLE  :: w_matrix_mo
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_mo, mo_mo_fmstruct
       TYPE(cp_fm_type)                                   :: inverse_mat, Tinverse, tmp2
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: mo_overlap
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :, :)  :: w_matrix_mo
       TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: mixed_mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: density_matrix, density_matrix_diff, &
