@@ -107,9 +107,9 @@ MODULE negf_env_types
       REAL(kind=dp)                                      :: homo_energy
       !> diagonal (h_00) and off-diagonal (h_01) blocks of the contact Kohn-Sham matrix ([number_of_spins]).
       !> The matrix h_01 is of the shape [nao_cell0 x nao_cell1]
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: h_00, h_01
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)      :: h_00, h_01
       !> diagonal and off-diagonal blocks of the density matrix
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: rho_00, rho_01
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)      :: rho_00, rho_01
       !> diagonal and off-diagonal blocks of the overlap matrix
       TYPE(cp_fm_type), POINTER                          :: s_00 => null(), s_01 => null()
    END TYPE negf_env_contact_type
@@ -123,15 +123,15 @@ MODULE negf_env_types
       TYPE(negf_env_contact_type), ALLOCATABLE, &
          DIMENSION(:)                                     :: contacts
       !> Kohn-Sham matrix of the scattering region
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)       :: h_s
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)       :: h_s
       !> Kohn-Sham matrix of the scattering region -- contact interface ([nspins, ncontacts])
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)    :: h_sc
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)    :: h_sc
       !> overlap matrix of the scattering region
       TYPE(cp_fm_type), POINTER                           :: s_s => null()
       !> an external Hartree potential in atomic basis set representation
       TYPE(cp_fm_type), POINTER                           :: v_hartree_s => null()
       !> overlap matrix of the scattering region -- contact interface for every contact ([ncontacts])
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)       :: s_sc
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)       :: s_sc
       !> structure needed for density mixing
       TYPE(mixing_storage_type), POINTER                  :: mixing_storage
       !> density mixing method
@@ -468,15 +468,10 @@ CONTAINS
       ALLOCATE (contact_env%h_00(nspins), contact_env%h_01(nspins))
       ALLOCATE (contact_env%rho_00(nspins), contact_env%rho_01(nspins))
       DO ispin = 1, nspins
-         ALLOCATE (contact_env%h_00(ispin)%matrix)
-         ALLOCATE (contact_env%h_01(ispin)%matrix)
-         ALLOCATE (contact_env%rho_00(ispin)%matrix)
-         ALLOCATE (contact_env%rho_01(ispin)%matrix)
-
-         CALL cp_fm_create(contact_env%h_00(ispin)%matrix, fm_struct)
-         CALL cp_fm_create(contact_env%h_01(ispin)%matrix, fm_struct)
-         CALL cp_fm_create(contact_env%rho_00(ispin)%matrix, fm_struct)
-         CALL cp_fm_create(contact_env%rho_01(ispin)%matrix, fm_struct)
+         CALL cp_fm_create(contact_env%h_00(ispin), fm_struct)
+         CALL cp_fm_create(contact_env%h_01(ispin), fm_struct)
+         CALL cp_fm_create(contact_env%rho_00(ispin), fm_struct)
+         CALL cp_fm_create(contact_env%rho_01(ispin), fm_struct)
       END DO
 
       CALL cp_fm_struct_release(fm_struct)
@@ -506,8 +501,8 @@ CONTAINS
 
       ! extract matrices: h_00, h_01, rho_00, rho_01
       DO ispin = 1, nspins
-         CALL negf_copy_contact_matrix(fm_cell0=contact_env%h_00(ispin)%matrix, &
-                                       fm_cell1=contact_env%h_01(ispin)%matrix, &
+         CALL negf_copy_contact_matrix(fm_cell0=contact_env%h_00(ispin), &
+                                       fm_cell1=contact_env%h_01(ispin), &
                                        direction_axis=contact_env%direction_axis, &
                                        matrix_kp=matrix_ks_kp(ispin, :), &
                                        index_to_cell=index_to_cell, &
@@ -515,8 +510,8 @@ CONTAINS
                                        subsys=subsys, mpi_comm_global=para_env%group, &
                                        is_same_cell=is_same_cell)
 
-         CALL negf_copy_contact_matrix(fm_cell0=contact_env%rho_00(ispin)%matrix, &
-                                       fm_cell1=contact_env%rho_01(ispin)%matrix, &
+         CALL negf_copy_contact_matrix(fm_cell0=contact_env%rho_00(ispin), &
+                                       fm_cell1=contact_env%rho_01(ispin), &
                                        direction_axis=contact_env%direction_axis, &
                                        matrix_kp=rho_ao_kp(ispin, :), &
                                        index_to_cell=index_to_cell, &
@@ -644,14 +639,10 @@ CONTAINS
       ALLOCATE (contact_env%h_00(nspins), contact_env%h_01(nspins))
       ALLOCATE (contact_env%rho_00(nspins), contact_env%rho_01(nspins))
       DO ispin = 1, nspins
-         ALLOCATE (contact_env%h_00(ispin)%matrix)
-         ALLOCATE (contact_env%h_01(ispin)%matrix)
-         CALL cp_fm_create(contact_env%h_00(ispin)%matrix, fm_struct)
-         CALL cp_fm_create(contact_env%h_01(ispin)%matrix, fm_struct)
-         ALLOCATE (contact_env%rho_00(ispin)%matrix)
-         ALLOCATE (contact_env%rho_01(ispin)%matrix)
-         CALL cp_fm_create(contact_env%rho_00(ispin)%matrix, fm_struct)
-         CALL cp_fm_create(contact_env%rho_01(ispin)%matrix, fm_struct)
+         CALL cp_fm_create(contact_env%h_00(ispin), fm_struct)
+         CALL cp_fm_create(contact_env%h_01(ispin), fm_struct)
+         CALL cp_fm_create(contact_env%rho_00(ispin), fm_struct)
+         CALL cp_fm_create(contact_env%rho_01(ispin), fm_struct)
       END DO
       ALLOCATE (contact_env%s_00, contact_env%s_01)
       CALL cp_fm_create(contact_env%s_00, fm_struct)
@@ -660,26 +651,26 @@ CONTAINS
 
       DO ispin = 1, nspins
          CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=matrix_ks_kp(ispin, 1)%matrix, &
-                                               fm=contact_env%h_00(ispin)%matrix, &
+                                               fm=contact_env%h_00(ispin), &
                                                atomlist_row=contact_env%atomlist_cell0, &
                                                atomlist_col=contact_env%atomlist_cell0, &
                                                subsys=subsys, mpi_comm_global=para_env%group, &
                                                do_upper_diag=.TRUE., do_lower=.TRUE.)
          CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=matrix_ks_kp(ispin, 1)%matrix, &
-                                               fm=contact_env%h_01(ispin)%matrix, &
+                                               fm=contact_env%h_01(ispin), &
                                                atomlist_row=contact_env%atomlist_cell0, &
                                                atomlist_col=contact_env%atomlist_cell1, &
                                                subsys=subsys, mpi_comm_global=para_env%group, &
                                                do_upper_diag=.TRUE., do_lower=.TRUE.)
 
          CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=rho_ao_kp(ispin, 1)%matrix, &
-                                               fm=contact_env%rho_00(ispin)%matrix, &
+                                               fm=contact_env%rho_00(ispin), &
                                                atomlist_row=contact_env%atomlist_cell0, &
                                                atomlist_col=contact_env%atomlist_cell0, &
                                                subsys=subsys, mpi_comm_global=para_env%group, &
                                                do_upper_diag=.TRUE., do_lower=.TRUE.)
          CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=rho_ao_kp(ispin, 1)%matrix, &
-                                               fm=contact_env%rho_01(ispin)%matrix, &
+                                               fm=contact_env%rho_01(ispin), &
                                                atomlist_row=contact_env%atomlist_cell0, &
                                                atomlist_col=contact_env%atomlist_cell1, &
                                                subsys=subsys, mpi_comm_global=para_env%group, &
@@ -764,8 +755,7 @@ CONTAINS
          ALLOCATE (negf_env%s_s)
          CALL cp_fm_create(negf_env%s_s, fm_struct)
          DO ispin = 1, nspins
-            ALLOCATE (negf_env%h_s(ispin)%matrix)
-            CALL cp_fm_create(negf_env%h_s(ispin)%matrix, fm_struct)
+            CALL cp_fm_create(negf_env%h_s(ispin), fm_struct)
          END DO
          ALLOCATE (negf_env%v_hartree_s)
          CALL cp_fm_create(negf_env%v_hartree_s, fm_struct)
@@ -777,12 +767,10 @@ CONTAINS
             nao_c = number_of_atomic_orbitals(subsys, negf_env%contacts(icontact)%atomlist_cell0)
             CALL cp_fm_struct_create(fm_struct, nrow_global=nao_s, ncol_global=nao_c, context=sub_env%blacs_env)
 
-            ALLOCATE (negf_env%s_sc(icontact)%matrix)
-            CALL cp_fm_create(negf_env%s_sc(icontact)%matrix, fm_struct)
+            CALL cp_fm_create(negf_env%s_sc(icontact), fm_struct)
 
             DO ispin = 1, nspins
-               ALLOCATE (negf_env%h_sc(ispin, icontact)%matrix)
-               CALL cp_fm_create(negf_env%h_sc(ispin, icontact)%matrix, fm_struct)
+               CALL cp_fm_create(negf_env%h_sc(ispin, icontact), fm_struct)
             END DO
 
             CALL cp_fm_struct_release(fm_struct)
@@ -791,7 +779,7 @@ CONTAINS
          ! extract matrices: h_s, s_s
          DO ispin = 1, nspins
             CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=matrix_ks_kp(ispin, 1)%matrix, &
-                                                  fm=negf_env%h_s(ispin)%matrix, &
+                                                  fm=negf_env%h_s(ispin), &
                                                   atomlist_row=negf_control%atomlist_S_screening, &
                                                   atomlist_col=negf_control%atomlist_S_screening, &
                                                   subsys=subsys, mpi_comm_global=para_env%group, &
@@ -832,7 +820,7 @@ CONTAINS
          DO icontact = 1, ncontacts
             DO ispin = 1, nspins
                CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=matrix_ks_kp(ispin, 1)%matrix, &
-                                                     fm=negf_env%h_sc(ispin, icontact)%matrix, &
+                                                     fm=negf_env%h_sc(ispin, icontact), &
                                                      atomlist_row=negf_control%atomlist_S_screening, &
                                                      atomlist_col=negf_env%contacts(icontact)%atomlist_cell0, &
                                                      subsys=subsys, mpi_comm_global=para_env%group, &
@@ -840,7 +828,7 @@ CONTAINS
             END DO
 
             CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=matrix_s_kp(1, 1)%matrix, &
-                                                  fm=negf_env%s_sc(icontact)%matrix, &
+                                                  fm=negf_env%s_sc(icontact), &
                                                   atomlist_row=negf_control%atomlist_S_screening, &
                                                   atomlist_col=negf_env%contacts(icontact)%atomlist_cell0, &
                                                   subsys=subsys, mpi_comm_global=para_env%group, &
@@ -1245,10 +1233,7 @@ CONTAINS
       ! h_s
       IF (ALLOCATED(negf_env%h_s)) THEN
          DO ispin = SIZE(negf_env%h_s), 1, -1
-            IF (ASSOCIATED(negf_env%h_s(ispin)%matrix)) THEN
-               CALL cp_fm_release(negf_env%h_s(ispin)%matrix)
-               DEALLOCATE (negf_env%h_s(ispin)%matrix)
-            END IF
+               CALL cp_fm_release(negf_env%h_s(ispin))
          END DO
          DEALLOCATE (negf_env%h_s)
       END IF
@@ -1258,10 +1243,7 @@ CONTAINS
          nspins = SIZE(negf_env%h_sc, 1)
          DO icontact = SIZE(negf_env%h_sc, 2), 1, -1
             DO ispin = nspins, 1, -1
-               IF (ASSOCIATED(negf_env%h_sc(ispin, icontact)%matrix)) THEN
-                  CALL cp_fm_release(negf_env%h_sc(ispin, icontact)%matrix)
-                  DEALLOCATE (negf_env%h_sc(ispin, icontact)%matrix)
-               END IF
+                  CALL cp_fm_release(negf_env%h_sc(ispin, icontact))
             END DO
          END DO
          DEALLOCATE (negf_env%h_sc)
@@ -1277,10 +1259,7 @@ CONTAINS
       ! s_sc
       IF (ALLOCATED(negf_env%s_sc)) THEN
          DO icontact = SIZE(negf_env%s_sc), 1, -1
-            IF (ASSOCIATED(negf_env%s_sc(icontact)%matrix)) THEN
-               CALL cp_fm_release(negf_env%s_sc(icontact)%matrix)
-               DEALLOCATE (negf_env%s_sc(icontact)%matrix)
-            END IF
+               CALL cp_fm_release(negf_env%s_sc(icontact))
          END DO
          DEALLOCATE (negf_env%s_sc)
       END IF
@@ -1317,10 +1296,7 @@ CONTAINS
       ! h_00
       IF (ALLOCATED(contact_env%h_00)) THEN
          DO ispin = SIZE(contact_env%h_00), 1, -1
-            IF (ASSOCIATED(contact_env%h_00(ispin)%matrix)) THEN
-               CALL cp_fm_release(contact_env%h_00(ispin)%matrix)
-               DEALLOCATE (contact_env%h_00(ispin)%matrix)
-            END IF
+               CALL cp_fm_release(contact_env%h_00(ispin))
          END DO
          DEALLOCATE (contact_env%h_00)
       END IF
@@ -1328,10 +1304,7 @@ CONTAINS
       ! h_01
       IF (ALLOCATED(contact_env%h_01)) THEN
          DO ispin = SIZE(contact_env%h_01), 1, -1
-            IF (ASSOCIATED(contact_env%h_01(ispin)%matrix)) THEN
-               CALL cp_fm_release(contact_env%h_01(ispin)%matrix)
-               DEALLOCATE (contact_env%h_01(ispin)%matrix)
-            END IF
+               CALL cp_fm_release(contact_env%h_01(ispin))
          END DO
          DEALLOCATE (contact_env%h_01)
       END IF
@@ -1339,10 +1312,7 @@ CONTAINS
       ! rho_00
       IF (ALLOCATED(contact_env%rho_00)) THEN
          DO ispin = SIZE(contact_env%rho_00), 1, -1
-            IF (ASSOCIATED(contact_env%rho_00(ispin)%matrix)) THEN
-               CALL cp_fm_release(contact_env%rho_00(ispin)%matrix)
-               DEALLOCATE (contact_env%rho_00(ispin)%matrix)
-            END IF
+               CALL cp_fm_release(contact_env%rho_00(ispin))
          END DO
          DEALLOCATE (contact_env%rho_00)
       END IF
@@ -1350,10 +1320,7 @@ CONTAINS
       ! rho_01
       IF (ALLOCATED(contact_env%rho_01)) THEN
          DO ispin = SIZE(contact_env%rho_01), 1, -1
-            IF (ASSOCIATED(contact_env%rho_01(ispin)%matrix)) THEN
-               CALL cp_fm_release(contact_env%rho_01(ispin)%matrix)
-               DEALLOCATE (contact_env%rho_01(ispin)%matrix)
-            END IF
+               CALL cp_fm_release(contact_env%rho_01(ispin))
          END DO
          DEALLOCATE (contact_env%rho_01)
       END IF

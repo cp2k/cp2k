@@ -486,7 +486,7 @@ CONTAINS
 
          nelectrons_qs_cell0 = 0.0_dp
          DO ispin = 1, nspins
-            CALL cp_fm_trace(negf_env%contacts(contact_id)%rho_00(ispin)%matrix, &
+            CALL cp_fm_trace(negf_env%contacts(contact_id)%rho_00(ispin), &
                              negf_env%contacts(contact_id)%s_00, trace)
             nelectrons_qs_cell0 = nelectrons_qs_cell0 + trace
          END DO
@@ -1230,7 +1230,7 @@ CONTAINS
                ! extract blocks from the updated Kohn-Sham matrix
                DO ispin = 1, nspins
                   CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=matrix_ks_qs_kp(ispin, 1)%matrix, &
-                                                        fm=negf_env%h_s(ispin)%matrix, &
+                                                        fm=negf_env%h_s(ispin), &
                                                         atomlist_row=negf_control%atomlist_S_screening, &
                                                         atomlist_col=negf_control%atomlist_S_screening, &
                                                         subsys=subsys, mpi_comm_global=para_env%group, &
@@ -1449,7 +1449,7 @@ CONTAINS
          END DO
       ELSE
          DO icontact = 1, ncontacts
-            CALL cp_fm_get_info(negf_env%s_sc(icontact)%matrix, matrix_struct=fm_struct)
+            CALL cp_fm_get_info(negf_env%s_sc(icontact), matrix_struct=fm_struct)
             ALLOCATE (zwork1_contacts(icontact)%matrix, zwork2_contacts(icontact)%matrix)
             CALL cp_cfm_create(zwork1_contacts(icontact)%matrix, fm_struct)
             CALL cp_cfm_create(zwork2_contacts(icontact)%matrix, fm_struct)
@@ -1559,7 +1559,7 @@ CONTAINS
                   CALL negf_contact_self_energy(self_energy_c=self_energy_contacts(icontact)%matrix, &
                                                 omega=omega(ipoint), &
                                                 g_surf_c=g_surf_contacts(icontact, ipoint)%matrix, &
-                                                h_sc0=negf_env%contacts(just_contact)%h_01(ispin)%matrix, &
+                                                h_sc0=negf_env%contacts(just_contact)%h_01(ispin), &
                                                 s_sc0=negf_env%contacts(just_contact)%s_01, &
                                                 zwork1=zwork1_contacts(icontact)%matrix, &
                                                 zwork2=zwork2_contacts(icontact)%matrix, &
@@ -1573,8 +1573,8 @@ CONTAINS
                   CALL negf_contact_self_energy(self_energy_c=self_energy_contacts(icontact)%matrix, &
                                                 omega=omega(ipoint) - v_external, &
                                                 g_surf_c=g_surf_contacts(icontact, ipoint)%matrix, &
-                                                h_sc0=negf_env%h_sc(ispin, icontact)%matrix, &
-                                                s_sc0=negf_env%s_sc(icontact)%matrix, &
+                                                h_sc0=negf_env%h_sc(ispin, icontact), &
+                                                s_sc0=negf_env%s_sc(icontact), &
                                                 zwork1=zwork1_contacts(icontact)%matrix, &
                                                 zwork2=zwork2_contacts(icontact)%matrix, &
                                                 transp=.FALSE.)
@@ -1600,19 +1600,19 @@ CONTAINS
                   CALL negf_retarded_green_function(g_ret_s=g_ret_s_group(ipoint)%matrix, &
                                                     omega=omega(ipoint) - v_shift, &
                                                     self_energy_ret_sum=self_energy_contacts(1)%matrix, &
-                                                    h_s=negf_env%contacts(just_contact)%h_00(ispin)%matrix, &
+                                                    h_s=negf_env%contacts(just_contact)%h_00(ispin), &
                                                     s_s=negf_env%contacts(just_contact)%s_00)
                ELSE IF (ignore_bias) THEN
                   CALL negf_retarded_green_function(g_ret_s=g_ret_s_group(ipoint)%matrix, &
                                                     omega=omega(ipoint) - v_shift, &
                                                     self_energy_ret_sum=self_energy_contacts(1)%matrix, &
-                                                    h_s=negf_env%h_s(ispin)%matrix, &
+                                                    h_s=negf_env%h_s(ispin), &
                                                     s_s=negf_env%s_s)
                ELSE
                   CALL negf_retarded_green_function(g_ret_s=g_ret_s_group(ipoint)%matrix, &
                                                     omega=omega(ipoint) - v_shift, &
                                                     self_energy_ret_sum=self_energy_contacts(1)%matrix, &
-                                                    h_s=negf_env%h_s(ispin)%matrix, &
+                                                    h_s=negf_env%h_s(ispin), &
                                                     s_s=negf_env%s_s, &
                                                     v_hartree_s=negf_env%v_hartree_s)
                END IF
@@ -1983,9 +1983,9 @@ CONTAINS
             DO icontact = 1, ncontacts
                CALL negf_surface_green_function_batch(g_surf=g_surf_cache%g_surf_contacts(icontact, :), &
                                                       omega=omega(:), &
-                                                      h0=negf_env%contacts(just_contact)%h_00(ispin)%matrix, &
+                                                      h0=negf_env%contacts(just_contact)%h_00(ispin), &
                                                       s0=negf_env%contacts(just_contact)%s_00, &
-                                                      h1=negf_env%contacts(just_contact)%h_01(ispin)%matrix, &
+                                                      h1=negf_env%contacts(just_contact)%h_01(ispin), &
                                                       s1=negf_env%contacts(just_contact)%s_01, &
                                                       sub_env=sub_env, v_external=0.0_dp, &
                                                       conv=negf_control%conv_green, transp=(icontact == 1))
@@ -1996,9 +1996,9 @@ CONTAINS
 
                CALL negf_surface_green_function_batch(g_surf=g_surf_cache%g_surf_contacts(icontact, :), &
                                                       omega=omega(:), &
-                                                      h0=negf_env%contacts(icontact)%h_00(ispin)%matrix, &
+                                                      h0=negf_env%contacts(icontact)%h_00(ispin), &
                                                       s0=negf_env%contacts(icontact)%s_00, &
-                                                      h1=negf_env%contacts(icontact)%h_01(ispin)%matrix, &
+                                                      h1=negf_env%contacts(icontact)%h_01(ispin), &
                                                       s1=negf_env%contacts(icontact)%s_01, &
                                                       sub_env=sub_env, &
                                                       v_external=v_external, &
@@ -2160,9 +2160,9 @@ CONTAINS
                   DO icontact = 1, ncontacts
                      CALL negf_surface_green_function_batch(g_surf=g_surf_cache%g_surf_contacts(icontact, npoints_total + 1:), &
                                                             omega=xnodes(1:npoints), &
-                                                            h0=negf_env%contacts(just_contact)%h_00(ispin)%matrix, &
+                                                            h0=negf_env%contacts(just_contact)%h_00(ispin), &
                                                             s0=negf_env%contacts(just_contact)%s_00, &
-                                                            h1=negf_env%contacts(just_contact)%h_01(ispin)%matrix, &
+                                                            h1=negf_env%contacts(just_contact)%h_01(ispin), &
                                                             s1=negf_env%contacts(just_contact)%s_01, &
                                                             sub_env=sub_env, v_external=0.0_dp, &
                                                             conv=negf_control%conv_green, transp=(icontact == 1))
@@ -2173,9 +2173,9 @@ CONTAINS
 
                      CALL negf_surface_green_function_batch(g_surf=g_surf_cache%g_surf_contacts(icontact, npoints_total + 1:), &
                                                             omega=xnodes(1:npoints), &
-                                                            h0=negf_env%contacts(icontact)%h_00(ispin)%matrix, &
+                                                            h0=negf_env%contacts(icontact)%h_00(ispin), &
                                                             s0=negf_env%contacts(icontact)%s_00, &
-                                                            h1=negf_env%contacts(icontact)%h_01(ispin)%matrix, &
+                                                            h1=negf_env%contacts(icontact)%h_01(ispin), &
                                                             s1=negf_env%contacts(icontact)%s_01, &
                                                             sub_env=sub_env, &
                                                             v_external=v_external, &
@@ -2293,9 +2293,9 @@ CONTAINS
                   DO icontact = 1, ncontacts
                      CALL negf_surface_green_function_batch(g_surf=g_surf_cache%g_surf_contacts(icontact, npoints_total + 1:), &
                                                             omega=xnodes(1:npoints), &
-                                                            h0=negf_env%contacts(just_contact)%h_00(ispin)%matrix, &
+                                                            h0=negf_env%contacts(just_contact)%h_00(ispin), &
                                                             s0=negf_env%contacts(just_contact)%s_00, &
-                                                            h1=negf_env%contacts(just_contact)%h_01(ispin)%matrix, &
+                                                            h1=negf_env%contacts(just_contact)%h_01(ispin), &
                                                             s1=negf_env%contacts(just_contact)%s_01, &
                                                             sub_env=sub_env, v_external=0.0_dp, &
                                                             conv=negf_control%conv_green, transp=(icontact == 1))
@@ -2306,9 +2306,9 @@ CONTAINS
 
                      CALL negf_surface_green_function_batch(g_surf=g_surf_cache%g_surf_contacts(icontact, npoints_total + 1:), &
                                                             omega=xnodes(1:npoints), &
-                                                            h0=negf_env%contacts(icontact)%h_00(ispin)%matrix, &
+                                                            h0=negf_env%contacts(icontact)%h_00(ispin), &
                                                             s0=negf_env%contacts(icontact)%s_00, &
-                                                            h1=negf_env%contacts(icontact)%h_01(ispin)%matrix, &
+                                                            h1=negf_env%contacts(icontact)%h_01(ispin), &
                                                             s1=negf_env%contacts(icontact)%s_01, &
                                                             sub_env=sub_env, &
                                                             v_external=v_external, &
@@ -2488,9 +2488,9 @@ CONTAINS
                   DO jcontact = 1, ncontacts
                      CALL negf_surface_green_function_batch(g_surf=g_surf_cache%g_surf_contacts(jcontact, npoints_total + 1:), &
                                                             omega=xnodes(1:npoints), &
-                                                            h0=negf_env%contacts(jcontact)%h_00(ispin)%matrix, &
+                                                            h0=negf_env%contacts(jcontact)%h_00(ispin), &
                                                             s0=negf_env%contacts(jcontact)%s_00, &
-                                                            h1=negf_env%contacts(jcontact)%h_01(ispin)%matrix, &
+                                                            h1=negf_env%contacts(jcontact)%h_01(ispin), &
                                                             s1=negf_env%contacts(jcontact)%s_01, &
                                                             sub_env=sub_env, &
                                                             v_external=negf_control%contacts(jcontact)%v_external, &
@@ -2698,9 +2698,9 @@ CONTAINS
          DO icontact = 1, ncontacts
             CALL negf_surface_green_function_batch(g_surf=g_surf_cache%g_surf_contacts(icontact, 1:npoints), &
                                                    omega=xnodes(1:npoints), &
-                                                   h0=negf_env%contacts(icontact)%h_00(ispin)%matrix, &
+                                                   h0=negf_env%contacts(icontact)%h_00(ispin), &
                                                    s0=negf_env%contacts(icontact)%s_00, &
-                                                   h1=negf_env%contacts(icontact)%h_01(ispin)%matrix, &
+                                                   h1=negf_env%contacts(icontact)%h_01(ispin), &
                                                    s1=negf_env%contacts(icontact)%s_01, &
                                                    sub_env=sub_env, &
                                                    v_external=negf_control%contacts(icontact)%v_external, &
@@ -2865,9 +2865,9 @@ CONTAINS
                DO icontact = 1, ncontacts
                   CALL negf_surface_green_function_batch(g_surf=g_surf_cache%g_surf_contacts(icontact, :), &
                                                          omega=xnodes(1:npoints_bundle), &
-                                                         h0=negf_env%contacts(just_contact)%h_00(ispin)%matrix, &
+                                                         h0=negf_env%contacts(just_contact)%h_00(ispin), &
                                                          s0=negf_env%contacts(just_contact)%s_00, &
-                                                         h1=negf_env%contacts(just_contact)%h_01(ispin)%matrix, &
+                                                         h1=negf_env%contacts(just_contact)%h_01(ispin), &
                                                          s1=negf_env%contacts(just_contact)%s_01, &
                                                          sub_env=sub_env, v_external=0.0_dp, &
                                                          conv=negf_control%conv_green, transp=(icontact == 1))
@@ -2876,9 +2876,9 @@ CONTAINS
                DO icontact = 1, ncontacts
                   CALL negf_surface_green_function_batch(g_surf=g_surf_cache%g_surf_contacts(icontact, :), &
                                                          omega=xnodes(1:npoints_bundle), &
-                                                         h0=negf_env%contacts(icontact)%h_00(ispin)%matrix, &
+                                                         h0=negf_env%contacts(icontact)%h_00(ispin), &
                                                          s0=negf_env%contacts(icontact)%s_00, &
-                                                         h1=negf_env%contacts(icontact)%h_01(ispin)%matrix, &
+                                                         h1=negf_env%contacts(icontact)%h_01(ispin), &
                                                          s1=negf_env%contacts(icontact)%s_01, &
                                                          sub_env=sub_env, &
                                                          v_external=negf_control%contacts(icontact)%v_external, &
@@ -3012,9 +3012,9 @@ CONTAINS
             DO icontact = 1, ncontacts
                CALL negf_surface_green_function_batch(g_surf=g_surf_cache%g_surf_contacts(icontact, :), &
                                                       omega=xnodes(1:npoints_bundle), &
-                                                      h0=negf_env%contacts(icontact)%h_00(ispin)%matrix, &
+                                                      h0=negf_env%contacts(icontact)%h_00(ispin), &
                                                       s0=negf_env%contacts(icontact)%s_00, &
-                                                      h1=negf_env%contacts(icontact)%h_01(ispin)%matrix, &
+                                                      h1=negf_env%contacts(icontact)%h_01(ispin), &
                                                       s1=negf_env%contacts(icontact)%s_01, &
                                                       sub_env=sub_env, &
                                                       v_external=negf_control%contacts(icontact)%v_external, &
