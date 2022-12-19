@@ -1063,9 +1063,7 @@ CONTAINS
       DO isp = 1, nspins
          mo_set => active_space_env%mos_active(isp)
          CALL get_mo_set(mo_set, mo_coeff=mo_coeff, nmo=nmo)
-         NULLIFY (active_space_env%p_active(isp)%matrix)
-         ALLOCATE (active_space_env%p_active(isp)%matrix)
-         CALL create_subspace_matrix(mo_coeff, active_space_env%p_active(isp)%matrix, nmo)
+         CALL create_subspace_matrix(mo_coeff, active_space_env%p_active(isp), nmo)
       END DO
       SELECT CASE (mselect)
       CASE DEFAULT
@@ -1074,7 +1072,7 @@ CONTAINS
          focc = 2.0_dp
          IF (nspins == 2) focc = 1.0_dp
          DO isp = 1, nspins
-            fmat => active_space_env%p_active(isp)%matrix
+            fmat => active_space_env%p_active(isp)
             CALL cp_fm_set_all(fmat, alpha=0.0_dp)
             n1 = active_space_env%nelec_total(isp) - active_space_env%nelec_inactive_spinwise(isp)
             DO i = 1, nactive_orb(isp)
@@ -1089,7 +1087,7 @@ CONTAINS
          focc = 2.0_dp
          IF (nspins == 2) focc = 1.0_dp
          DO isp = 1, nspins
-            fmat => active_space_env%p_active(isp)%matrix
+            fmat => active_space_env%p_active(isp)
             CALL cp_fm_set_all(fmat, alpha=0.0_dp)
             n1 = active_space_env%nelec_total(isp) - active_space_env%nelec_inactive_spinwise(isp)
             DO i = 1, nactive_orb(isp)
@@ -2082,7 +2080,7 @@ CONTAINS
          ALLOCATE (ks_mat(norb, norb), ks_ref(norb, norb), p_mat(norb, norb))
          ks_ref = 0.0_dp
 
-         CALL replicate_and_symmetrize_matrix(norb, active_space_env%p_active(1)%matrix, p_mat)
+         CALL replicate_and_symmetrize_matrix(norb, active_space_env%p_active(1), p_mat)
          CALL replicate_and_symmetrize_matrix(norb, active_space_env%ks_sub(1)%matrix, ks_mat)
          !
          !
@@ -2130,8 +2128,8 @@ CONTAINS
               &     p_a_mat(norb, norb), p_b_mat(norb, norb))
          ks_a_ref(:, :) = 0.0_dp; ks_b_ref(:, :) = 0.0_dp
 
-         CALL replicate_and_symmetrize_matrix(norb, active_space_env%p_active(1)%matrix, p_a_mat)
-         CALL replicate_and_symmetrize_matrix(norb, active_space_env%p_active(2)%matrix, p_b_mat)
+         CALL replicate_and_symmetrize_matrix(norb, active_space_env%p_active(1), p_a_mat)
+         CALL replicate_and_symmetrize_matrix(norb, active_space_env%p_active(2), p_b_mat)
          CALL replicate_and_symmetrize_matrix(norb, active_space_env%ks_sub(1)%matrix, ks_a_mat)
          CALL replicate_and_symmetrize_matrix(norb, active_space_env%ks_sub(2)%matrix, ks_b_mat)
          !
@@ -2456,8 +2454,8 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin, nao, nmo, nspins
       LOGICAL                                            :: should_stop
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: p_ref
       TYPE(cp_fm_type)                                   :: lamat, vec
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: p_ref
       TYPE(cp_fm_type), POINTER                          :: fm_active, pmat
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
@@ -2479,7 +2477,7 @@ CONTAINS
          pinact => active_space_env%pmat_inactive(ispin)%matrix
          CALL dbcsr_copy(rho_ao(ispin)%matrix, pinact)
          ! create active density matrix in AO basis
-         pmat => p_ref(ispin)%matrix
+         pmat => p_ref(ispin)
 
          CALL cp_fm_create(lamat, pmat%matrix_struct)
          CALL cp_fm_to_fm(pmat, lamat)
@@ -2531,7 +2529,7 @@ CONTAINS
                pinact => active_space_env%pmat_inactive(ispin)%matrix
                CALL dbcsr_copy(rho_ao(ispin)%matrix, pinact)
                ! create active density matrix in AO basis
-               pmat => p_ref(ispin)%matrix
+               pmat => p_ref(ispin)
 
                CALL cp_fm_create(lamat, pmat%matrix_struct)
                CALL cp_fm_to_fm(pmat, lamat)
@@ -2683,7 +2681,7 @@ CONTAINS
 
       ! Find active DM dimensions
       DO ispin = 1, nspins
-         CALL cp_fm_get_info(matrix=active_space_env%p_active(ispin)%matrix, ncol_global=nmo)
+         CALL cp_fm_get_info(matrix=active_space_env%p_active(ispin), ncol_global=nmo)
          nmos(ispin) = nmo
       END DO
 
@@ -2761,7 +2759,7 @@ CONTAINS
 
       DO ispin = 1, nspins
          ! Copy to fm_type structure
-         CALL cp_fm_get_info(matrix=active_space_env%p_active(ispin)%matrix, &
+         CALL cp_fm_get_info(matrix=active_space_env%p_active(ispin), &
                              nrow_local=nrow_local, &
                              ncol_local=ncol_local, &
                              col_indices=col_indices, &
@@ -2772,10 +2770,10 @@ CONTAINS
             DO MMM = 1, ncol_local
                m_global = col_indices(MMM)
                IF (ispin .EQ. 1) THEN
-                  active_space_env%p_active(ispin)%matrix%local_data(LLL, MMM) = &
+                  active_space_env%p_active(ispin)%local_data(LLL, MMM) = &
                      p_act(l_global, m_global)
                ELSE
-                  active_space_env%p_active(ispin)%matrix%local_data(LLL, MMM) = &
+                  active_space_env%p_active(ispin)%local_data(LLL, MMM) = &
                      p_act_beta(l_global, m_global)
                END IF
             END DO ! MMM

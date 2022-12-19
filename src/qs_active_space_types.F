@@ -15,7 +15,8 @@ MODULE qs_active_space_types
 
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release
+                                              cp_fm_release,&
+                                              cp_fm_type
    USE dbcsr_api,                       ONLY: dbcsr_csr_destroy,&
                                               dbcsr_csr_p_type,&
                                               dbcsr_p_type
@@ -92,7 +93,7 @@ MODULE qs_active_space_types
       TYPE(mo_set_type), DIMENSION(:), POINTER  :: mos_active
       TYPE(mo_set_type), DIMENSION(:), POINTER  :: mos_inactive
       TYPE(eri_type)                :: eri
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: p_active
+      TYPE(cp_fm_type), DIMENSION(:), POINTER   :: p_active
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: ks_sub
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: vxc_sub
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: h_sub
@@ -180,8 +181,7 @@ CONTAINS
 
          IF (ASSOCIATED(active_space_env%p_active)) THEN
             DO isp = 1, SIZE(active_space_env%p_active)
-               CALL cp_fm_release(active_space_env%p_active(isp)%matrix)
-               DEALLOCATE (active_space_env%p_active(isp)%matrix)
+               CALL cp_fm_release(active_space_env%p_active(isp))
             END DO
             DEALLOCATE (active_space_env%p_active)
          END IF
