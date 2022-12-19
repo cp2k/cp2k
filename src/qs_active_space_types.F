@@ -14,8 +14,7 @@
 MODULE qs_active_space_types
 
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
-   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release,&
+   USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE dbcsr_api,                       ONLY: dbcsr_csr_destroy,&
                                               dbcsr_csr_p_type,&
@@ -94,10 +93,10 @@ MODULE qs_active_space_types
       TYPE(mo_set_type), DIMENSION(:), POINTER  :: mos_inactive
       TYPE(eri_type)                :: eri
       TYPE(cp_fm_type), DIMENSION(:), POINTER   :: p_active
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: ks_sub
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: vxc_sub
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: h_sub
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: fock_sub
+      TYPE(cp_fm_type), DIMENSION(:), POINTER   :: ks_sub
+      TYPE(cp_fm_type), DIMENSION(:), POINTER   :: vxc_sub
+      TYPE(cp_fm_type), DIMENSION(:), POINTER   :: h_sub
+      TYPE(cp_fm_type), DIMENSION(:), POINTER   :: fock_sub
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER:: pmat_inactive
    END TYPE active_space_type
 
@@ -188,32 +187,28 @@ CONTAINS
 
          IF (ASSOCIATED(active_space_env%ks_sub)) THEN
             DO isp = 1, SIZE(active_space_env%ks_sub)
-               CALL cp_fm_release(active_space_env%ks_sub(isp)%matrix)
-               DEALLOCATE (active_space_env%ks_sub(isp)%matrix)
+               CALL cp_fm_release(active_space_env%ks_sub(isp))
             END DO
             DEALLOCATE (active_space_env%ks_sub)
          END IF
 
          IF (ASSOCIATED(active_space_env%vxc_sub)) THEN
             DO isp = 1, SIZE(active_space_env%vxc_sub)
-               CALL cp_fm_release(active_space_env%vxc_sub(isp)%matrix)
-               DEALLOCATE (active_space_env%vxc_sub(isp)%matrix)
+               CALL cp_fm_release(active_space_env%vxc_sub(isp))
             END DO
             DEALLOCATE (active_space_env%vxc_sub)
          END IF
 
          IF (ASSOCIATED(active_space_env%h_sub)) THEN
             DO isp = 1, SIZE(active_space_env%h_sub)
-               CALL cp_fm_release(active_space_env%h_sub(isp)%matrix)
-               DEALLOCATE (active_space_env%h_sub(isp)%matrix)
+               CALL cp_fm_release(active_space_env%h_sub(isp))
             END DO
             DEALLOCATE (active_space_env%h_sub)
          END IF
 
          IF (ASSOCIATED(active_space_env%fock_sub)) THEN
             DO isp = 1, SIZE(active_space_env%fock_sub)
-               CALL cp_fm_release(active_space_env%fock_sub(isp)%matrix)
-               DEALLOCATE (active_space_env%fock_sub(isp)%matrix)
+               CALL cp_fm_release(active_space_env%fock_sub(isp))
             END DO
             DEALLOCATE (active_space_env%fock_sub)
          END IF

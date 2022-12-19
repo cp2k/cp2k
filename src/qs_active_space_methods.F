@@ -1152,8 +1152,7 @@ CONTAINS
       ! Kohn-Sham / Fock operator
       IF (ASSOCIATED(active_space_env%ks_sub)) THEN
          DO is = 1, SIZE(active_space_env%ks_sub)
-            CALL cp_fm_release(active_space_env%ks_sub(is)%matrix)
-            DEALLOCATE (active_space_env%ks_sub(is)%matrix)
+            CALL cp_fm_release(active_space_env%ks_sub(is))
          END DO
          DEALLOCATE (active_space_env%ks_sub)
       END IF
@@ -1164,15 +1163,13 @@ CONTAINS
       ALLOCATE (active_space_env%ks_sub(nspins))
       DO is = 1, nspins
          CALL get_mo_set(mo_set=mos(is), mo_coeff=mo_coeff, nmo=nmo)
-         IF (.NOT. ASSOCIATED(active_space_env%ks_sub(is)%matrix)) ALLOCATE (active_space_env%ks_sub(is)%matrix)
-         CALL subspace_operator(mo_coeff, nmo, ks_matrix(is, 1)%matrix, active_space_env%ks_sub(is)%matrix)
+         CALL subspace_operator(mo_coeff, nmo, ks_matrix(is, 1)%matrix, active_space_env%ks_sub(is))
       END DO
 
       ! Vxc matrix
       IF (ASSOCIATED(active_space_env%vxc_sub)) THEN
          DO is = 1, SIZE(active_space_env%vxc_sub)
-            CALL cp_fm_release(active_space_env%vxc_sub(is)%matrix)
-            DEALLOCATE (active_space_env%vxc_sub(is)%matrix)
+            CALL cp_fm_release(active_space_env%vxc_sub(is))
          END DO
          DEALLOCATE (active_space_env%vxc_sub)
       END IF
@@ -1182,16 +1179,14 @@ CONTAINS
          ALLOCATE (active_space_env%vxc_sub(nspins))
          DO is = 1, nspins
             CALL get_mo_set(mo_set=mos(is), mo_coeff=mo_coeff, nmo=nmo)
-            IF (.NOT. ASSOCIATED(active_space_env%vxc_sub(is)%matrix)) ALLOCATE (active_space_env%vxc_sub(is)%matrix)
-            CALL subspace_operator(mo_coeff, nmo, matrix_vxc(is)%matrix, active_space_env%vxc_sub(is)%matrix)
+            CALL subspace_operator(mo_coeff, nmo, matrix_vxc(is)%matrix, active_space_env%vxc_sub(is))
          END DO
       END IF
 
       ! Core Hamiltonian
       IF (ASSOCIATED(active_space_env%h_sub)) THEN
          DO is = 1, SIZE(active_space_env%h_sub)
-            CALL cp_fm_release(active_space_env%h_sub(is)%matrix)
-            DEALLOCATE (active_space_env%h_sub(is)%matrix)
+            CALL cp_fm_release(active_space_env%h_sub(is))
          END DO
          DEALLOCATE (active_space_env%h_sub)
       END IF
@@ -1203,8 +1198,7 @@ CONTAINS
       ALLOCATE (active_space_env%h_sub(nspins))
       DO is = 1, nspins
          CALL get_mo_set(mo_set=mos(is), mo_coeff=mo_coeff, nmo=nmo)
-         IF (.NOT. ASSOCIATED(active_space_env%h_sub(is)%matrix)) ALLOCATE (active_space_env%h_sub(is)%matrix)
-         CALL subspace_operator(mo_coeff, nmo, h_matrix(1, 1)%matrix, active_space_env%h_sub(is)%matrix)
+         CALL subspace_operator(mo_coeff, nmo, h_matrix(1, 1)%matrix, active_space_env%h_sub(is))
       END DO
 
       CALL timestop(handle)
@@ -1924,7 +1918,7 @@ CONTAINS
                nmo = active_space_env%eri%norb
                ALLOCATE (fmat(nmo, nmo))
                ! TODO: extend to arbitrary active orbitals
-               CALL replicate_and_symmetrize_matrix(nmo, active_space_env%fock_sub(1)%matrix, fmat)
+               CALL replicate_and_symmetrize_matrix(nmo, active_space_env%fock_sub(1), fmat)
                IF (iw > 0) THEN
                   i3 = 0; i4 = 0
                   DO m1 = 1, SIZE(active_space_env%active_orbitals, 1)
@@ -1978,7 +1972,7 @@ CONTAINS
                ! alpha
                nmo = active_space_env%eri%norb
                ALLOCATE (fmat(nmo, nmo))
-               CALL replicate_and_symmetrize_matrix(nmo, active_space_env%fock_sub(1)%matrix, fmat)
+               CALL replicate_and_symmetrize_matrix(nmo, active_space_env%fock_sub(1), fmat)
                IF (iw > 0) THEN
                   i3 = 0; i4 = 0
                   DO m1 = 1, norb
@@ -1993,7 +1987,7 @@ CONTAINS
                DEALLOCATE (fmat)
                ! beta
                ALLOCATE (fmat(nmo, nmo))
-               CALL replicate_and_symmetrize_matrix(nmo, active_space_env%fock_sub(2)%matrix, fmat)
+               CALL replicate_and_symmetrize_matrix(nmo, active_space_env%fock_sub(2), fmat)
                IF (iw > 0) THEN
                   i3 = 0; i4 = 0
                   DO m1 = 1, SIZE(active_space_env%active_orbitals, 1)
@@ -2081,7 +2075,7 @@ CONTAINS
          ks_ref = 0.0_dp
 
          CALL replicate_and_symmetrize_matrix(norb, active_space_env%p_active(1), p_mat)
-         CALL replicate_and_symmetrize_matrix(norb, active_space_env%ks_sub(1)%matrix, ks_mat)
+         CALL replicate_and_symmetrize_matrix(norb, active_space_env%ks_sub(1), ks_mat)
          !
          !
          eri => active_space_env%eri%eri(1)%csr_mat
@@ -2097,19 +2091,17 @@ CONTAINS
          !
          IF (ASSOCIATED(active_space_env%fock_sub)) THEN
             DO is = 1, SIZE(active_space_env%fock_sub)
-               CALL cp_fm_release(active_space_env%fock_sub(is)%matrix)
-               DEALLOCATE (active_space_env%fock_sub(is)%matrix)
+               CALL cp_fm_release(active_space_env%fock_sub(is))
             END DO
             DEALLOCATE (active_space_env%fock_sub)
          END IF
          ALLOCATE (active_space_env%fock_sub(nspins))
          DO is = 1, nspins
-            matrix => active_space_env%ks_sub(is)%matrix
-            ALLOCATE (active_space_env%fock_sub(is)%matrix)
-            CALL cp_fm_create(active_space_env%fock_sub(is)%matrix, matrix%matrix_struct, &
+            matrix => active_space_env%ks_sub(is)
+            CALL cp_fm_create(active_space_env%fock_sub(is), matrix%matrix_struct, &
                               name="Active Fock operator")
          END DO
-         matrix => active_space_env%fock_sub(1)%matrix
+         matrix => active_space_env%fock_sub(1)
          DO i1 = 1, norb
             DO i2 = 1, norb
                mval = ks_mat(i1, i2)
@@ -2130,8 +2122,8 @@ CONTAINS
 
          CALL replicate_and_symmetrize_matrix(norb, active_space_env%p_active(1), p_a_mat)
          CALL replicate_and_symmetrize_matrix(norb, active_space_env%p_active(2), p_b_mat)
-         CALL replicate_and_symmetrize_matrix(norb, active_space_env%ks_sub(1)%matrix, ks_a_mat)
-         CALL replicate_and_symmetrize_matrix(norb, active_space_env%ks_sub(2)%matrix, ks_b_mat)
+         CALL replicate_and_symmetrize_matrix(norb, active_space_env%ks_sub(1), ks_a_mat)
+         CALL replicate_and_symmetrize_matrix(norb, active_space_env%ks_sub(2), ks_b_mat)
          !
          !
          eri_aa => active_space_env%eri%eri(1)%csr_mat
@@ -2153,27 +2145,25 @@ CONTAINS
          !
          IF (ASSOCIATED(active_space_env%fock_sub)) THEN
             DO is = 1, SIZE(active_space_env%fock_sub)
-               CALL cp_fm_release(active_space_env%fock_sub(is)%matrix)
-               DEALLOCATE (active_space_env%fock_sub(is)%matrix)
+               CALL cp_fm_release(active_space_env%fock_sub(is))
             END DO
             DEALLOCATE (active_space_env%fock_sub)
          END IF
          ALLOCATE (active_space_env%fock_sub(nspins))
          DO is = 1, nspins
-            matrix => active_space_env%ks_sub(is)%matrix
-            ALLOCATE (active_space_env%fock_sub(is)%matrix)
-            CALL cp_fm_create(active_space_env%fock_sub(is)%matrix, matrix%matrix_struct, &
+            matrix => active_space_env%ks_sub(is)
+            CALL cp_fm_create(active_space_env%fock_sub(is), matrix%matrix_struct, &
                               name="Active Fock operator")
          END DO
 
-         matrix => active_space_env%fock_sub(1)%matrix
+         matrix => active_space_env%fock_sub(1)
          DO i1 = 1, norb
             DO i2 = 1, norb
                mval = ks_a_mat(i1, i2)
                CALL cp_fm_set_element(matrix, i1, i2, mval)
             END DO
          END DO
-         matrix => active_space_env%fock_sub(2)%matrix
+         matrix => active_space_env%fock_sub(2)
          DO i1 = 1, norb
             DO i2 = 1, norb
                mval = ks_b_mat(i1, i2)
