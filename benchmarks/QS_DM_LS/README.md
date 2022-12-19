@@ -57,7 +57,7 @@ Following results were obtained in the following conditions:
 - Date: 15th November 2019
 - CP2K version: version 7.0 (Development Version, git:78cea8eeebb25e459941d8a28d987c9990d92676)
 - DBCSR version: v2.0.0-rc9 (git:15fdaba855385f12db7599a6e69b51a7a4ce8a9a)
-- CP2K flags: omp libint fftw3 libxc elpa parallel mpi3 scalapack acc pw_cuda
+- CP2K flags: omp libint fftw3 libxc elpa parallel scalapack acc pw_cuda
   xsmm dbcsr_acc max_contr=4
 - Machine: Piz Daint (GPU partition), CSCS
 - Slurm configuration: 2 MPI ranks per node, 12 OpenMP threads per MPI rank

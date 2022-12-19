@@ -115,7 +115,6 @@ CONTAINS
 #endif
 #if defined(__parallel)
       flags = TRIM(flags)//" parallel"
-      flags = TRIM(flags)//" mpi3"
 #endif
 #if defined(__SCALAPACK)
       flags = TRIM(flags)//" scalapack"
