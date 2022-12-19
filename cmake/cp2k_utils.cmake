@@ -41,7 +41,7 @@ function(cp2k_set_default_paths _varname _package_name)
   set(CP2K_${_varname}_PREFIX
       "${CP2K_${_varname}_PREFIX_TMP}"
       PARENT_SCOPE)
-  
+
   unset(CP2K_${_varname}_PREFIX_TMP CACHE)
 endfunction()
 
@@ -68,7 +68,7 @@ function(cp2k_find_libraries _package_name _library_name)
   unset(CP2K_${_package_name}_LIBRARIES_TMP CACHE)
 endfunction()
 
-function(cp2k_include_dirs _package_name _library_include_file)  
+function(cp2k_include_dirs _package_name _library_include_file)
   find_path(
     CP2K_${_package_name}_INCLUDE_DIRS_TMP
     NAMES ${_library_include_file}

@@ -48,7 +48,7 @@ dependencies is
 - `CP2K_USE_COSMA = ON` : add [cosma](https://github.com/eth-cscs/COSMA) drop-in
   replacement for sclapack pdgemnm
 
-- `CP2K_USE_LIBINT2 = ON`: add [libint2](https://github.com/evaleev/libint) support 
+- `CP2K_USE_LIBINT2 = ON`: add [libint2](https://github.com/evaleev/libint) support
   (detection works ok, module files may not be found at compilation time though)
 
 - `CP2K_USE_VORI = OFF`: detection is fine compilation might fail at linking time
@@ -69,14 +69,14 @@ dependencies is
 - `CP2K_USE_METIS = OFF`:
 
 - `CP2K_USE_LIBXSMM = ON`: use [libxsmm](https://libxsmm.readthedocs.io/en/latest/)
-  library for small matrices operations. Detection based on `pkg-config`. If you 
+  library for small matrices operations. Detection based on `pkg-config`. If you
   installed libxsmm in a non-standard location, modify the `PKG_CONFIG_PATH` variable
   accordingly.
 
 - `CP2K_USE_ACCEL = NONE, CUDA, HIP`: enable GPU support
 
 - `CP2K_BLAS_VENDOR = auto`: CMake will search for the most common blas / lapack
-  implementations. If possible indicate which implementation you are using. Supported 
+  implementations. If possible indicate which implementation you are using. Supported
   values are: `auto` (default), `MKL`, `SCI`, `OpenBLAS`, `FlexiBLAS`, `Armpl`.
 
 - `CP2K_SCALAPACK_VENDOR = MKL, SCI, GENERIC`: similar to the previous option but for
@@ -131,7 +131,7 @@ cmake -DCP2K_INSTALL_PREFIX=/myprefix -DCP2K_USE_SIRIUS=ON ..
 
 then
 
-```shell 
+```shell
 make
 ```
 
@@ -179,13 +179,13 @@ command line, error message, and operating systems.
 What is known to fail sometimes
 
 - Nvidia HPC SDK: The location of the cuda maths libraries has changed
-recently. While CUDA support will be detected, the CUDA maths libraries may not.
+  recently. While CUDA support will be detected, the CUDA maths libraries may not.
 
 - HIP : CMake support of ROCM is still under development and is known to fail
-from time to time. Update to ROCM 5.3.x or above to solve the issue.
+  from time to time. Update to ROCM 5.3.x or above to solve the issue.
 
 - BLAS / LAPACK / SCALAPACK : use the options `CP2K_BLAS_VENDOR` and
-`CP2K_SCALPACK_VENDOR` if you know that `MKL` or `SCI` (cray libsci) are
-present. `-DCP2k_BLAS_VENDOR=OpenBLAS` will also help CMake to find OpenBLAS if
-it is used. Detecting the scalapack library might also fail if the user
-environment is not properly set up.
+  `CP2K_SCALPACK_VENDOR` if you know that `MKL` or `SCI` (cray libsci) are
+  present. `-DCP2k_BLAS_VENDOR=OpenBLAS` will also help CMake to find OpenBLAS if
+  it is used. Detecting the scalapack library might also fail if the user
+  environment is not properly set up.
