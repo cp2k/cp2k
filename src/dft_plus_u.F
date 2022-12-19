@@ -351,8 +351,8 @@ CONTAINS
       fm_work2_local_alloc = .FALSE.
 
       IF (ASSOCIATED(scf_env%scf_work1)) THEN
-         IF (ASSOCIATED(scf_env%scf_work1(1)%matrix)) THEN
-            fm_work1 => scf_env%scf_work1(1)%matrix
+         IF (ASSOCIATED(scf_env%scf_work1(1)%matrix_struct)) THEN
+            fm_work1 => scf_env%scf_work1(1)
          END IF
       END IF
 

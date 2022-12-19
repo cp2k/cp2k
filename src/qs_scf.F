@@ -888,8 +888,7 @@ CONTAINS
       ! Release SCF work storage
       IF (ASSOCIATED(scf_env%scf_work1)) THEN
          DO ispin = 1, SIZE(scf_env%scf_work1)
-            CALL cp_fm_release(scf_env%scf_work1(ispin)%matrix)
-            DEALLOCATE (scf_env%scf_work1(ispin)%matrix)
+            CALL cp_fm_release(scf_env%scf_work1(ispin))
          END DO
          DEALLOCATE (scf_env%scf_work1)
       END IF

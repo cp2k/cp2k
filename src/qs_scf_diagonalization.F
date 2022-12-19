@@ -42,8 +42,8 @@ MODULE qs_scf_diagonalization
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
         copy_info_type, cp_fm_add_to_element, cp_fm_cleanup_copy_general, cp_fm_create, &
-        cp_fm_finish_copy_general, cp_fm_get_info, cp_fm_p_type, cp_fm_release, &
-        cp_fm_start_copy_general, cp_fm_to_fm, cp_fm_type
+        cp_fm_finish_copy_general, cp_fm_get_info, cp_fm_release, cp_fm_start_copy_general, &
+        cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -160,7 +160,7 @@ CONTAINS
 
       DO ispin = 1, nspin
          CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix, &
-                               scf_env%scf_work1(ispin)%matrix)
+                               scf_env%scf_work1(ispin))
       END DO
 
       eps_diis = scf_control%eps_diis
@@ -216,7 +216,7 @@ CONTAINS
       IF (scf_env%cholesky_method == cholesky_dbcsr) THEN
          ortho_dbcsr => scf_env%ortho_dbcsr
          DO ispin = 1, nspin
-            CALL eigensolver_dbcsr(matrix_ks=matrix_ks(ispin)%matrix, matrix_ks_fm=scf_env%scf_work1(ispin)%matrix, &
+            CALL eigensolver_dbcsr(matrix_ks=matrix_ks(ispin)%matrix, matrix_ks_fm=scf_env%scf_work1(ispin), &
                                    mo_set=mos(ispin), &
                                    ortho_dbcsr=ortho_dbcsr, &
                                    ksbuf1=scf_env%buf1_dbcsr, ksbuf2=scf_env%buf2_dbcsr)
@@ -237,7 +237,7 @@ CONTAINS
 
          DO ispin = 1, nspin
             IF (do_level_shift) THEN
-               CALL eigensolver(matrix_ks_fm=scf_env%scf_work1(ispin)%matrix, &
+               CALL eigensolver(matrix_ks_fm=scf_env%scf_work1(ispin), &
                                 mo_set=mos(ispin), &
                                 ortho=ortho, &
                                 work=scf_env%scf_work2, &
@@ -247,7 +247,7 @@ CONTAINS
                                 matrix_u_fm=scf_env%ortho, &
                                 use_jacobi=use_jacobi)
             ELSE
-               CALL eigensolver(matrix_ks_fm=scf_env%scf_work1(ispin)%matrix, &
+               CALL eigensolver(matrix_ks_fm=scf_env%scf_work1(ispin), &
                                 mo_set=mos(ispin), &
                                 ortho=ortho, &
                                 work=scf_env%scf_work2, &
@@ -270,7 +270,7 @@ CONTAINS
 
          IF (do_level_shift) THEN
          DO ispin = 1, nspin
-            CALL eigensolver_symm(matrix_ks_fm=scf_env%scf_work1(ispin)%matrix, &
+            CALL eigensolver_symm(matrix_ks_fm=scf_env%scf_work1(ispin), &
                                   mo_set=mos(ispin), &
                                   ortho=ortho, &
                                   work=scf_env%scf_work2, &
@@ -282,7 +282,7 @@ CONTAINS
          END DO
          ELSE
          DO ispin = 1, nspin
-            CALL eigensolver_symm(matrix_ks_fm=scf_env%scf_work1(ispin)%matrix, &
+            CALL eigensolver_symm(matrix_ks_fm=scf_env%scf_work1(ispin), &
                                   mo_set=mos(ispin), &
                                   ortho=ortho, &
                                   work=scf_env%scf_work2, &
@@ -382,10 +382,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:, :) :: info
       TYPE(cp_cfm_type)                                  :: cksmat, cmos, csmat, cwork
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fmwork
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, mo_struct
       TYPE(cp_fm_type)                                   :: fmdummy, fmlocal, rksmat, rsmat
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
       TYPE(cp_fm_type), POINTER                          :: imos, mo_coeff, rmos
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix, tmpmat
@@ -455,13 +455,13 @@ CONTAINS
                   CALL rskp_transform(rmatrix=rmatrix, rsmat=matrix_ks, ispin=ispin, &
                                       xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
                   CALL dbcsr_desymmetrize(rmatrix, tmpmat)
-                  CALL copy_dbcsr_to_fm(tmpmat, fmwork(1)%matrix)
+                  CALL copy_dbcsr_to_fm(tmpmat, fmwork(1))
                   ! s matrix is not spin dependent
                   CALL dbcsr_set(rmatrix, 0.0_dp)
                   CALL rskp_transform(rmatrix=rmatrix, rsmat=matrix_s, ispin=1, &
                                       xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
                   CALL dbcsr_desymmetrize(rmatrix, tmpmat)
-                  CALL copy_dbcsr_to_fm(tmpmat, fmwork(3)%matrix)
+                  CALL copy_dbcsr_to_fm(tmpmat, fmwork(3))
                ELSE
                   ! FT of matrices KS and S, then transfer to FM type
                   CALL dbcsr_set(rmatrix, 0.0_dp)
@@ -469,18 +469,18 @@ CONTAINS
                   CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_ks, ispin=ispin, &
                                       xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
                   CALL dbcsr_desymmetrize(rmatrix, tmpmat)
-                  CALL copy_dbcsr_to_fm(tmpmat, fmwork(1)%matrix)
+                  CALL copy_dbcsr_to_fm(tmpmat, fmwork(1))
                   CALL dbcsr_desymmetrize(cmatrix, tmpmat)
-                  CALL copy_dbcsr_to_fm(tmpmat, fmwork(2)%matrix)
+                  CALL copy_dbcsr_to_fm(tmpmat, fmwork(2))
                   ! s matrix is not spin dependent, double the work
                   CALL dbcsr_set(rmatrix, 0.0_dp)
                   CALL dbcsr_set(cmatrix, 0.0_dp)
                   CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_s, ispin=1, &
                                       xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
                   CALL dbcsr_desymmetrize(rmatrix, tmpmat)
-                  CALL copy_dbcsr_to_fm(tmpmat, fmwork(3)%matrix)
+                  CALL copy_dbcsr_to_fm(tmpmat, fmwork(3))
                   CALL dbcsr_desymmetrize(cmatrix, tmpmat)
-                  CALL copy_dbcsr_to_fm(tmpmat, fmwork(4)%matrix)
+                  CALL copy_dbcsr_to_fm(tmpmat, fmwork(4))
                END IF
                ! transfer to kpoint group
                ! redistribution of matrices, new blacs environment
@@ -488,23 +488,23 @@ CONTAINS
                ! fmwork -> fmlocal -> rsmat/csmat
                IF (use_real_wfn) THEN
                   IF (my_kpgrp) THEN
-                     CALL cp_fm_start_copy_general(fmwork(1)%matrix, rksmat, para_env, info(indx, 1))
-                     CALL cp_fm_start_copy_general(fmwork(3)%matrix, rsmat, para_env, info(indx, 2))
+                     CALL cp_fm_start_copy_general(fmwork(1), rksmat, para_env, info(indx, 1))
+                     CALL cp_fm_start_copy_general(fmwork(3), rsmat, para_env, info(indx, 2))
                   ELSE
-                     CALL cp_fm_start_copy_general(fmwork(1)%matrix, fmdummy, para_env, info(indx, 1))
-                     CALL cp_fm_start_copy_general(fmwork(3)%matrix, fmdummy, para_env, info(indx, 2))
+                     CALL cp_fm_start_copy_general(fmwork(1), fmdummy, para_env, info(indx, 1))
+                     CALL cp_fm_start_copy_general(fmwork(3), fmdummy, para_env, info(indx, 2))
                   END IF
                ELSE
                   IF (my_kpgrp) THEN
-                     CALL cp_fm_start_copy_general(fmwork(1)%matrix, fmlocal, para_env, info(indx, 1))
-                     CALL cp_fm_start_copy_general(fmwork(2)%matrix, fmlocal, para_env, info(indx, 2))
-                     CALL cp_fm_start_copy_general(fmwork(3)%matrix, fmlocal, para_env, info(indx, 3))
-                     CALL cp_fm_start_copy_general(fmwork(4)%matrix, fmlocal, para_env, info(indx, 4))
+                     CALL cp_fm_start_copy_general(fmwork(1), fmlocal, para_env, info(indx, 1))
+                     CALL cp_fm_start_copy_general(fmwork(2), fmlocal, para_env, info(indx, 2))
+                     CALL cp_fm_start_copy_general(fmwork(3), fmlocal, para_env, info(indx, 3))
+                     CALL cp_fm_start_copy_general(fmwork(4), fmlocal, para_env, info(indx, 4))
                   ELSE
-                     CALL cp_fm_start_copy_general(fmwork(1)%matrix, fmdummy, para_env, info(indx, 1))
-                     CALL cp_fm_start_copy_general(fmwork(2)%matrix, fmdummy, para_env, info(indx, 2))
-                     CALL cp_fm_start_copy_general(fmwork(3)%matrix, fmdummy, para_env, info(indx, 3))
-                     CALL cp_fm_start_copy_general(fmwork(4)%matrix, fmdummy, para_env, info(indx, 4))
+                     CALL cp_fm_start_copy_general(fmwork(1), fmdummy, para_env, info(indx, 1))
+                     CALL cp_fm_start_copy_general(fmwork(2), fmdummy, para_env, info(indx, 2))
+                     CALL cp_fm_start_copy_general(fmwork(3), fmdummy, para_env, info(indx, 3))
+                     CALL cp_fm_start_copy_general(fmwork(4), fmdummy, para_env, info(indx, 4))
                   END IF
                END IF
             END DO
@@ -759,9 +759,9 @@ CONTAINS
                             mo_coeff=mo_coeff)
 
             !compute C'HC
-            chc => subspace_env%chc_mat(ispin)%matrix
-            evec => subspace_env%c_vec(ispin)%matrix
-            c0 => subspace_env%c0(ispin)%matrix
+            chc => subspace_env%chc_mat(ispin)
+            evec => subspace_env%c_vec(ispin)
+            c0 => subspace_env%c0(ispin)
             CALL cp_fm_to_fm(mo_coeff, c0)
             CALL cp_fm_create(work, c0%matrix_struct)
             CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix, c0, work, nmo)
@@ -887,15 +887,13 @@ CONTAINS
 
       DO ispin = 1, nspin
          CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
-         ALLOCATE (subspace_env%c0(ispin)%matrix)
-         CALL cp_fm_create(subspace_env%c0(ispin)%matrix, mo_coeff%matrix_struct)
+         CALL cp_fm_create(subspace_env%c0(ispin), mo_coeff%matrix_struct)
          NULLIFY (fm_struct_tmp)
          CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nmo, ncol_global=nmo, &
                                   para_env=mo_coeff%matrix_struct%para_env, &
                                   context=mo_coeff%matrix_struct%context)
-         ALLOCATE (subspace_env%chc_mat(ispin)%matrix, subspace_env%c_vec(ispin)%matrix)
-         CALL cp_fm_create(subspace_env%chc_mat(ispin)%matrix, fm_struct_tmp, "chc")
-         CALL cp_fm_create(subspace_env%c_vec(ispin)%matrix, fm_struct_tmp, "vec")
+         CALL cp_fm_create(subspace_env%chc_mat(ispin), fm_struct_tmp, "chc")
+         CALL cp_fm_create(subspace_env%c_vec(ispin), fm_struct_tmp, "vec")
          CALL cp_fm_struct_release(fm_struct_tmp)
       END DO
 
@@ -932,7 +930,7 @@ CONTAINS
       nspin = SIZE(matrix_ks)
 
       DO ispin = 1, nspin
-         CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix, scf_env%scf_work1(ispin)%matrix)
+         CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix, scf_env%scf_work1(ispin))
       END DO
       IF (scf_env%iter_count > 1 .AND. .NOT. scf_env%skip_diis) THEN
          CALL qs_diis_b_step(scf_env%scf_diis_buffer, mos, scf_env%scf_work1, &
@@ -978,7 +976,7 @@ CONTAINS
       scf_env%iter_delta = 0.0_dp
 
       DO ispin = 1, nspin
-         CALL eigensolver_simple(matrix_ks=scf_env%scf_work1(ispin)%matrix, &
+         CALL eigensolver_simple(matrix_ks=scf_env%scf_work1(ispin), &
                                  mo_set=mos(ispin), &
                                  work=scf_env%scf_work2, &
                                  do_level_shift=do_level_shift, &
@@ -1032,7 +1030,7 @@ CONTAINS
 
       DO ispin = 1, nspin
          CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix, &
-                               scf_env%scf_work1(ispin)%matrix)
+                               scf_env%scf_work1(ispin))
       END DO
 
       IF ((scf_env%iter_count > 1) .AND. (.NOT. scf_env%skip_diis)) THEN
@@ -1050,7 +1048,7 @@ CONTAINS
          scf_env%iter_param = diis_error
          scf_env%iter_method = "DIIS/OTdiag"
          DO ispin = 1, nspin
-            CALL copy_fm_to_dbcsr(scf_env%scf_work1(ispin)%matrix, &
+            CALL copy_fm_to_dbcsr(scf_env%scf_work1(ispin), &
                                   matrix_ks(ispin)%matrix, keep_sparsity=.TRUE.)
          END DO
          eps_iter = MAX(eps_iter, scf_control%diagonalization%eps_adapt*diis_error)
@@ -1152,8 +1150,8 @@ CONTAINS
       END IF
       work => scf_env%scf_work2
 
-      ksa => scf_env%scf_work1(1)%matrix
-      ksb => scf_env%scf_work1(2)%matrix
+      ksa => scf_env%scf_work1(1)
+      ksb => scf_env%scf_work1(2)
 
       CALL copy_dbcsr_to_fm(matrix_ks(1)%matrix, ksa)
       CALL copy_dbcsr_to_fm(matrix_ks(2)%matrix, ksb)
@@ -1435,7 +1433,7 @@ CONTAINS
 
       DO ispin = 1, SIZE(matrix_ks)
          CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix, &
-                               scf_env%scf_work1(ispin)%matrix)
+                               scf_env%scf_work1(ispin))
       END DO
 
       IF (scf_env%mixing_method == 1) THEN
@@ -1448,7 +1446,7 @@ CONTAINS
 
       DO ispin = 1, SIZE(matrix_ks)
 
-         ks => scf_env%scf_work1(ispin)%matrix
+         ks => scf_env%scf_work1(ispin)
          CALL cp_fm_upper_to_full(ks, work)
 
          CALL get_mo_set(mo_set=mos(ispin), &
@@ -1459,8 +1457,8 @@ CONTAINS
                          mo_coeff=mo_coeff)
 
          NULLIFY (c0, c1)
-         c0 => scf_env%krylov_space%mo_conv(ispin)%matrix
-         c1 => scf_env%krylov_space%mo_refine(ispin)%matrix
+         c0 => scf_env%krylov_space%mo_conv(ispin)
+         c1 => scf_env%krylov_space%mo_refine(ispin)
          SELECT CASE (scf_env%cholesky_method)
          CASE (cholesky_reduce)
             CALL cp_fm_cholesky_reduce(ks, ortho)
@@ -1539,15 +1537,15 @@ CONTAINS
             IF (.FALSE.) THEN
                !Re-orthogonalization
                NULLIFY (chc, evec)
-               chc => scf_env%krylov_space%chc_mat(ispin)%matrix
-               evec => scf_env%krylov_space%c_vec(ispin)%matrix
+               chc => scf_env%krylov_space%chc_mat(ispin)
+               evec => scf_env%krylov_space%c_vec(ispin)
                CALL parallel_gemm('N', 'N', nao, nmo, nao, rone, ks, c0, rzero, work)
                CALL parallel_gemm('T', 'N', nmo, nmo, nao, rone, c0, work, rzero, chc)
                !Diagonalize  (C^t)HC
                CALL choose_eigv_solver(chc, evec, mo_eigenvalues)
                !Rotate the C vectors
                CALL parallel_gemm('N', 'N', nao, nmo, nmo, rone, c0, evec, rzero, c1)
-               c0 => scf_env%krylov_space%mo_refine(ispin)%matrix
+               c0 => scf_env%krylov_space%mo_refine(ispin)
             END IF
 
             IF (scf_env%cholesky_method == cholesky_inverse) THEN

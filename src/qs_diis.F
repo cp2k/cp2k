@@ -27,7 +27,6 @@ MODULE qs_diis
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_maxabsval,&
-                                              cp_fm_p_type,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -213,7 +212,7 @@ CONTAINS
 
       TYPE(qs_diis_buffer_type), POINTER                 :: diis_buffer
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mo_array
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: kc
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: kc
       TYPE(cp_fm_type), INTENT(IN)                       :: sc
       REAL(KIND=dp), INTENT(IN)                          :: delta
       REAL(KIND=dp), INTENT(OUT)                         :: error_max
@@ -268,7 +267,7 @@ CONTAINS
          RETURN
       END IF
 
-      CALL cp_fm_get_info(kc(1)%matrix, &
+      CALL cp_fm_get_info(kc(1), &
                           matrix_struct=matrix_struct)
       CALL qs_diis_b_check_i_alloc(diis_buffer, &
                                    matrix_struct=matrix_struct, &
@@ -296,7 +295,7 @@ CONTAINS
 
          ! Copy the Kohn-Sham matrix K to the DIIS buffer
 
-         CALL cp_fm_to_fm(kc(ispin)%matrix, parameters)
+         CALL cp_fm_to_fm(kc(ispin), parameters)
 
          IF (my_roks) THEN
 
@@ -313,7 +312,7 @@ CONTAINS
             CALL cp_fm_column_scale(sc, occ(1:homo))
 
             ! KC <- K*C
-            CALL cp_fm_symm("L", "U", nao, homo, 1.0_dp, parameters, sc, 0.0_dp, kc(ispin)%matrix)
+            CALL cp_fm_symm("L", "U", nao, homo, 1.0_dp, parameters, sc, 0.0_dp, kc(ispin))
 
             IF (PRESENT(s_matrix)) THEN
                CALL copy_dbcsr_to_fm(s_matrix(1)%matrix, new_errors)
@@ -325,15 +324,15 @@ CONTAINS
             ! new_errors <- KC*(SC)^T - (SC)*(KC)^T = K*P*S - S*P*K
             ! or for an orthogonal basis
             ! new_errors <- KC*C^T - C*(KC)^T = K*P - P*K with S = I
-            CALL parallel_gemm("N", "T", nao, nao, homo, 1.0_dp, sc, kc(ispin)%matrix, 0.0_dp, new_errors)
-            CALL parallel_gemm("N", "T", nao, nao, homo, 1.0_dp, kc(ispin)%matrix, sc, -1.0_dp, new_errors)
+            CALL parallel_gemm("N", "T", nao, nao, homo, 1.0_dp, sc, kc(ispin), 0.0_dp, new_errors)
+            CALL parallel_gemm("N", "T", nao, nao, homo, 1.0_dp, kc(ispin), sc, -1.0_dp, new_errors)
 
             DEALLOCATE (occ)
 
          ELSE
 
             ! KC <- K*C
-            CALL cp_fm_symm("L", "U", nao, homo, maxocc, parameters, c, 0.0_dp, kc(ispin)%matrix)
+            CALL cp_fm_symm("L", "U", nao, homo, maxocc, parameters, c, 0.0_dp, kc(ispin))
 
             IF (PRESENT(s_matrix)) THEN
                ! I guess that this copy can be avoided for LSD
@@ -341,12 +340,12 @@ CONTAINS
                ! sc <- S*C
                CALL cp_fm_symm("L", "U", nao, homo, 2.0_dp, new_errors, c, 0.0_dp, sc)
                ! new_errors <- KC*(SC)^T - (SC)*(KC)^T = K*P*S - S*P*K
-               CALL parallel_gemm("N", "T", nao, nao, homo, 1.0_dp, sc, kc(ispin)%matrix, 0.0_dp, new_errors)
-               CALL parallel_gemm("N", "T", nao, nao, homo, 1.0_dp, kc(ispin)%matrix, sc, -1.0_dp, new_errors)
+               CALL parallel_gemm("N", "T", nao, nao, homo, 1.0_dp, sc, kc(ispin), 0.0_dp, new_errors)
+               CALL parallel_gemm("N", "T", nao, nao, homo, 1.0_dp, kc(ispin), sc, -1.0_dp, new_errors)
             ELSE
                ! new_errors <- KC*(C)^T - C*(KC)^T = K*P - P*K
-               CALL parallel_gemm("N", "T", nao, nao, homo, 1.0_dp, c, kc(ispin)%matrix, 0.0_dp, new_errors)
-               CALL parallel_gemm("N", "T", nao, nao, homo, 1.0_dp, kc(ispin)%matrix, c, -1.0_dp, new_errors)
+               CALL parallel_gemm("N", "T", nao, nao, homo, 1.0_dp, c, kc(ispin), 0.0_dp, new_errors)
+               CALL parallel_gemm("N", "T", nao, nao, homo, 1.0_dp, kc(ispin), c, -1.0_dp, new_errors)
             END IF
 
          END IF
@@ -464,10 +463,10 @@ CONTAINS
          ! Update Kohn-Sham matrix
 
          DO ispin = 1, nspin
-            CALL cp_fm_set_all(kc(ispin)%matrix, 0.0_dp)
+            CALL cp_fm_set_all(kc(ispin), 0.0_dp)
             DO jb = 1, nb
                parameters => diis_buffer%parameter(jb, ispin)%matrix
-               CALL cp_fm_scale_and_add(1.0_dp, kc(ispin)%matrix, -ev(jb), parameters)
+               CALL cp_fm_scale_and_add(1.0_dp, kc(ispin), -ev(jb), parameters)
             END DO
          END DO
 
@@ -479,7 +478,7 @@ CONTAINS
 
          DO ispin = 1, nspin
             parameters => diis_buffer%parameter(ib, ispin)%matrix
-            CALL cp_fm_to_fm(parameters, kc(ispin)%matrix)
+            CALL cp_fm_to_fm(parameters, kc(ispin))
          END DO
 
       END IF

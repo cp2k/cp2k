@@ -19,8 +19,7 @@ MODULE kpoint_io
                                               copy_fm_to_dbcsr
    USE cp_files,                        ONLY: close_file,&
                                               open_file
-   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_read_unformatted,&
+   USE cp_fm_types,                     ONLY: cp_fm_read_unformatted,&
                                               cp_fm_type,&
                                               cp_fm_write_unformatted
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -120,7 +119,7 @@ CONTAINS
                   CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
                END IF
                CPASSERT(ASSOCIATED(scf_env%scf_work1))
-               fmat => scf_env%scf_work1(1)%matrix
+               fmat => scf_env%scf_work1(1)
 
                DO ispin = 1, nspin
                   IF (ires > 0) WRITE (ires) ispin, nspin, nimages
@@ -300,7 +299,7 @@ CONTAINS
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: denmat
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fmwork
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fmwork
       INTEGER, INTENT(IN)                                :: natom
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: id_nr
@@ -339,10 +338,7 @@ CONTAINS
 
       END IF
 
-      CPASSERT(ASSOCIATED(fmwork))
-      CPASSERT(ASSOCIATED(fmwork(1)%matrix))
-
-      CALL read_kpoints_restart_low(denmat, kpoints, fmwork(1)%matrix, para_env, &
+      CALL read_kpoints_restart_low(denmat, kpoints, fmwork(1), para_env, &
                                     natom, restart_unit, natom_mismatch)
 
       ! only the io_node returns natom_mismatch, must broadcast it
@@ -373,7 +369,7 @@ CONTAINS
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: denmat
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(cp_fm_type), POINTER                          :: fmat
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fmat
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: natom, rst_unit
       LOGICAL, INTENT(OUT)                               :: natom_mismatch
