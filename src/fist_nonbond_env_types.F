@@ -392,10 +392,7 @@ CONTAINS
                   ! Warning: rlist_rcut should only be used by the neighbor list
                   ! algorithm. It is not the cutoff for the evaluation of the
                   ! interactions because rlist_rcut includes the Verlet skin.
-                  WRITE(*, *) "fist_nonbond_env_types.F rcut before verlet_skin ",rcut
                   rcut = MAX(rcut, ewald_rcut) + verlet_skin
-                  WRITE(*, *) "fist_nonbond_env_types.F rcut after ",rcut
-                  WRITE(*, *) " ewald_rcut ",ewald_rcut
                   fist_nonbond_env%rlist_cut(idim, jdim) = rcut
                   fist_nonbond_env%rlist_cut(jdim, idim) = rcut
                   rlow = rlow*(1.06_dp)**2 ! 1.06_dp in order to have 1/2 Emax_spline

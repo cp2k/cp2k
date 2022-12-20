@@ -699,8 +699,6 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: atm_names     
       INTEGER                                            :: isec, n_items     
-!      INTEGER                                            :: ij_pairs, i, j, n_items
-!      LOGICAL                                            :: explicit
       CHARACTER(LEN=default_string_length)               :: nequip_file_name
 
       CALL section_vals_get(section, n_repetition=n_items)
@@ -714,38 +712,10 @@ CONTAINS
          CALL uppercase(nonbonded%pot(start + isec)%pot%at2)         
          CALL section_vals_val_get(section, "PARM_FILE_NAME", i_rep_section=isec, c_val = nequip_file_name)
          nonbonded%pot(start + isec)%pot%set(1)%nequip%nequip_file_name =nequip_file_name
-
-!         if (isec == 1) THEN
-            CALL read_nequip_data(nonbonded%pot(start + isec)%pot%set(1)%nequip)
-            WRITE(*, *) "NequIP cutoff ",  nonbonded%pot(start + isec)%pot%set(1)%nequip%rcutsq
-            nonbonded%pot(start + isec)%pot%rcutsq = nonbonded%pot(start + isec)%pot%set(1)%nequip%rcutsq
-!         END IF
+         CALL read_nequip_data(nonbonded%pot(start + isec)%pot%set(1)%nequip)
+         WRITE(*, *) "NequIP cutoff ",  nonbonded%pot(start + isec)%pot%set(1)%nequip%rcutsq
+         nonbonded%pot(start + isec)%pot%rcutsq = nonbonded%pot(start + isec)%pot%set(1)%nequip%rcutsq
       END DO
-
-!     CALL section_vals_get(section, explicit=explicit)
-
-!      CALL section_vals_get(section, n_repetition=n_items)
-!      CALL section_vals_val_get(section, "ATOMS", i_rep_section=n_items, c_vals=atm_names)
-!     CALL section_vals_val_get(section, "PARM_FILE_NAME", i_rep_section=n_items,&
-!                                c_val=nequip_file_name)
-!      CALL read_nequip_data(nonbonded%pot(start + isec)%pot%set(1)%nequip)
-!      nonbonded%pot(start + isec)%pot%rcutsq = nonbonded%pot(start + isec)%pot%set(1)%nequip%rcutsq
-!      ij_pairs = 1
-!      WRITE(*,*) "nequip_file_name ", nequip_file_name
-!      DO i = 1, SIZE(atm_names)
-!         DO j = i, SIZE(atm_names)
-!             WRITE(*, *) "i, j ", i, j
-!             nonbonded%pot(start + ij_pairs)%pot%type = nequip_type
-!             nonbonded%pot(start + ij_pairs)%pot%at1 = atm_names(i)
-!             nonbonded%pot(start + ij_pairs)%pot%at2 = atm_names(j)
-!             CALL uppercase(nonbonded%pot(start + ij_pairs)%pot%at1)
-!             CALL uppercase(nonbonded%pot(start + ij_pairs)%pot%at2)
-!             nonbonded%pot(start + ij_pairs)%pot%set(1)%nequip%nequip_file_name = nequip_file_name
-!             CALL read_nequip_data(nonbonded%pot(start + ij_pairs)%pot%set(1)%nequip)
-!             nonbonded%pot(start + ij_pairs)%pot%rcutsq = nonbonded%pot(start + ij_pairs)%pot%set(1)%nequip%rcutsq
-!             ij_pairs = ij_pairs + 1
-!         END DO
-!      END DO
    END SUBROUTINE read_nequip_section
 
 ! **************************************************************************************************

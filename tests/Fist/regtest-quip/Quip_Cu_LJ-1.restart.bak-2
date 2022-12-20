@@ -1,0 +1,58 @@
+ # Version information for this restart file 
+ # current date 2022-12-20 12:33:11.557
+ # current working dir /data/gtocci/scratch/projects/cp2k/tests/Fist/regtest-quip
+ # Program compiled at                           Tue 20 Dec 2022 11:57:58 AM CET
+ # Program compiled on                                                   tcopt12
+ # Program compiled for                                                    local
+ # Source code revision number                                       git:049a8fa
+ &GLOBAL
+   PROJECT_NAME Quip_Cu_LJ
+   RUN_TYPE  GEO_OPT
+   &PRINT  DEBUG
+   &END PRINT
+ &END GLOBAL
+ &FORCE_EVAL
+   METHOD  FIST
+   STRESS_TENSOR  ANALYTICAL
+   &MM
+     &FORCEFIELD
+       &NONBONDED
+         &QUIP
+           ATOMS Cu Cu
+           PARM_FILE_NAME ip.parms.LJ.xml
+           INIT_ARGS IP LJ
+         &END QUIP
+       &END NONBONDED
+       &CHARGE
+         ATOM Cu
+         CHARGE     0.0000000000000000E+00
+       &END CHARGE
+     &END FORCEFIELD
+     &POISSON
+       &EWALD
+         EWALD_TYPE  NONE
+       &END EWALD
+     &END POISSON
+   &END MM
+   &SUBSYS
+     &CELL
+       A     1.0000000000000002E+01    0.0000000000000000E+00    0.0000000000000000E+00
+       B     0.0000000000000000E+00    1.0000000000000002E+01    0.0000000000000000E+00
+       C     0.0000000000000000E+00    0.0000000000000000E+00    1.0000000000000002E+01
+       MULTIPLE_UNIT_CELL  1 1 1
+     &END CELL
+     &COORD
+Cu   -3.9505496935902564E+00   -1.1099762496310410E+01   -1.2133400647497851E+01
+Cu    1.8173582848840242E+00    3.1314711152390724E+00    6.2557275411925364E+00
+Cu    2.1331914848897391E+00    7.9682914079482341E+00    5.8776731400534095E+00
+     &END COORD
+     &TOPOLOGY
+       NUMBER_OF_ATOMS  3
+       MULTIPLE_UNIT_CELL  1 1 1
+     &END TOPOLOGY
+   &END SUBSYS
+   &PRINT
+     &FORCES  SILENT
+     &END FORCES
+   &END PRINT
+ &END FORCE_EVAL

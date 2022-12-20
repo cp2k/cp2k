@@ -40,7 +40,8 @@ MODULE manybody_potential
                                               quip_energy_store_force_virial
    USE manybody_nequip,                ONLY:  destroy_nequip_arrays,&
                                               setup_nequip_arrays,&
-                                              nequip_energy_store_force_virial
+                                              nequip_energy_store_force_virial, &
+                                              nequip_add_force_virial
    USE manybody_siepmann,               ONLY: destroy_siepmann_arrays,&
                                               print_nr_ions_siepmann,&
                                               setup_siepmann_arrays,&
@@ -634,6 +635,7 @@ CONTAINS
             any_siepmann = any_siepmann .OR. ANY(pot%type == siepmann_type)
             any_gal = any_gal .OR. ANY(pot%type == gal_type)
             any_gal21 = any_gal21 .OR. ANY(pot%type == gal21_type)
+            any_nequip = any_nequip .OR. ANY(pot%type == nequip_type)
             i = eam_kinds_index(ikind, jkind)
             IF (i == -1) CYCLE
             ! EAM
@@ -999,6 +1001,11 @@ CONTAINS
             END DO Kind_Group_Loop6
          END DO
          CALL destroy_gal_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a)
+      END IF
+
+      ! NEQUIP
+      IF (any_nequip) THEN
+         CALL nequip_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond, use_virial)
       END IF
 
       IF (use_virial) THEN

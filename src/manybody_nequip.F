@@ -30,7 +30,7 @@ MODULE manybody_nequip
    USE particle_types,                  ONLY: particle_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE util,                            ONLY: sort
-   USE physcon,                         ONLY: angstrom
+   USE physcon,                         ONLY: angstrom, evolt
    USE torch_api,                       ONLY: &
         torch_cuda_is_available, torch_dict_create, torch_dict_get, torch_dict_insert, &
         torch_dict_release, torch_dict_type, torch_model_eval, torch_model_load, &
@@ -42,7 +42,7 @@ MODULE manybody_nequip
 
    PRIVATE
    PUBLIC :: setup_nequip_arrays, destroy_nequip_arrays, &
-            nequip_energy_store_force_virial
+            nequip_energy_store_force_virial, nequip_add_force_virial
 !             nequip_forces, nequip_energy
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'manybody_nequip'
 
@@ -214,7 +214,7 @@ CONTAINS
 
       INTEGER                                            :: i, iend, igrp, ikind, ilist, &
                                                             ipair, istart, jkind, npairs
-      INTEGER, DIMENSION(:), POINTER                     :: work_list!, work_list2
+      INTEGER, DIMENSION(:), POINTER                     :: work_list
       INTEGER, DIMENSION(:, :), POINTER                  :: list, sort_list
       REAL(KIND=dp), DIMENSION(3)                        :: cell_v, cvi
       TYPE(neighbor_kind_pairs_type), POINTER            :: neighbor_kind_pair
@@ -370,7 +370,7 @@ CONTAINS
       CALL torch_dict_get(outputs, "atomic_energy", atomic_energy)
       CALL torch_dict_get(outputs, "forces", forces)
 
-      pot_nequip = REAL(total_energy(1, 1), kind=dp)
+      pot_nequip = REAL(total_energy(1, 1), kind=dp)/evolt
 
       CALL torch_dict_release(inputs)
       CALL torch_dict_release(outputs)
@@ -397,7 +397,7 @@ CONTAINS
          ALLOCATE (nequip_data%force(3, n_atoms_use))
          ALLOCATE (nequip_data%use_indices(n_atoms_use))
       END IF
-      ! save force, virial info
+      ! save force
       iat_use = 0
       DO iat = 1, n_atoms
          IF (use_atom(iat)) THEN
@@ -405,9 +405,53 @@ CONTAINS
             nequip_data%use_indices(iat_use) = iat
          END IF
       END DO
-      nequip_data%force = REAL(forces, kind=dp)
+      nequip_data%force = REAL(forces, kind=dp)*angstrom/evolt
 
    END SUBROUTINE nequip_energy_store_force_virial
 
+! **************************************************************************************************
+!> \brief ...
+!> \param fist_nonbond_env ...
+!> \param f_nonbond ...
+!> \param pv_nonbond ...
+!> \param use_virial ...
+! **************************************************************************************************
+   SUBROUTINE nequip_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond, use_virial)
+
+      TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: f_nonbond, pv_nonbond
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: virial
+      LOGICAL, INTENT(IN)                                :: use_virial
+      INTEGER                                            :: iat, iat_use
+      TYPE(nequip_data_type), POINTER                    :: nequip_data
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'nequip_add_force_virial'
+
+      CALL fist_nonbond_env_get(fist_nonbond_env, nequip_data=nequip_data)
+
+      IF (use_virial) THEN
+         virial(1, 1) = 0.0_dp; virial(1, 2) = 0.0_dp; virial(1, 3) = 0.0_dp
+         virial(2, 1) = 0.0_dp; virial(2, 2) = 0.0_dp; virial(2, 3) = 0.0_dp
+         virial(3, 1) = 0.0_dp; virial(3, 2) = 0.0_dp; virial(3, 3) = 0.0_dp
+
+         pv_nonbond(1, 1) = pv_nonbond(1, 1) + virial(1, 1)
+         pv_nonbond(1, 2) = pv_nonbond(1, 2) + virial(1, 2) 
+         pv_nonbond(1, 3) = pv_nonbond(1, 3) + virial(1, 3)
+         pv_nonbond(2, 1) = pv_nonbond(2, 1) + virial(2, 1)
+         pv_nonbond(2, 2) = pv_nonbond(2, 2) + virial(2, 2)
+         pv_nonbond(3, 1) = pv_nonbond(3, 1) + virial(3, 1) 
+         pv_nonbond(3, 2) = pv_nonbond(3, 2) + virial(3, 2) 
+         pv_nonbond(3, 3) = pv_nonbond(3, 3) + virial(3, 3) 
+
+         CPABORT("Stress tensor for NequIP not yet implemented")
+      END IF
+
+      DO iat_use = 1, SIZE(nequip_data%use_indices)
+         iat = nequip_data%use_indices(iat_use)
+         CPASSERT(iat >= 1 .AND. iat <= SIZE(f_nonbond, 2))
+         f_nonbond(1:3, iat) = f_nonbond(1:3, iat) + nequip_data%force(1:3, iat_use)
+      END DO
+      
+   END SUBROUTINE nequip_add_force_virial
 END MODULE manybody_nequip
 
