@@ -91,7 +91,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tddfpt_orthogonalize_psi1_psi0(evects, S_C0_C0T)
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: evects
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in)       :: S_C0_C0T
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(in)         :: S_C0_C0T
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_orthogonalize_psi1_psi0'
 
@@ -112,7 +112,7 @@ CONTAINS
             CALL cp_fm_create(evortho, matrix_struct)
             DO ivect = 1, nvects
                ! evortho: C0 * C0^T * S * C1 == (S * C0 * C0^T)^T * C1
-               CALL parallel_gemm('T', 'N', nao, nactive, nao, 1.0_dp, S_C0_C0T(ispin)%matrix, &
+               CALL parallel_gemm('T', 'N', nao, nactive, nao, 1.0_dp, S_C0_C0T(ispin), &
                                   evects(ispin, ivect)%matrix, 0.0_dp, evortho)
                CALL cp_fm_scale_and_add(1.0_dp, evects(ispin, ivect)%matrix, -1.0_dp, evortho)
             END DO
@@ -140,7 +140,7 @@ CONTAINS
    FUNCTION tddfpt_is_nonorthogonal_psi1_psi0(evects, S_C0, max_norm) &
       RESULT(is_nonortho)
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: evects
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in)       :: S_C0
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(in)         :: S_C0
       REAL(kind=dp), INTENT(in)                          :: max_norm
       LOGICAL                                            :: is_nonortho
 
@@ -160,7 +160,7 @@ CONTAINS
       is_nonortho = .FALSE.
 
       loop: DO ispin = 1, nspins
-         CALL cp_fm_get_info(matrix=S_C0(ispin)%matrix, ncol_global=nocc)
+         CALL cp_fm_get_info(matrix=S_C0(ispin), ncol_global=nocc)
          CALL cp_fm_get_info(matrix=evects(ispin, 1)%matrix, matrix_struct=matrix_struct, &
                              nrow_global=nao, ncol_global=nactive)
          CALL cp_fm_struct_create(matrix_struct_tmp, nrow_global=nocc, &
@@ -169,7 +169,7 @@ CONTAINS
          CALL cp_fm_struct_release(matrix_struct_tmp)
          DO ivect = 1, nvects
             ! aortho = S_0^T * S * C_1
-            CALL parallel_gemm('T', 'N', nocc, nactive, nao, 1.0_dp, S_C0(ispin)%matrix, &
+            CALL parallel_gemm('T', 'N', nocc, nactive, nao, 1.0_dp, S_C0(ispin), &
                                evects(ispin, ivect)%matrix, 0.0_dp, aortho)
             CALL cp_fm_maxabsval(aortho, maxabs_val)
             is_nonortho = maxabs_val > max_norm

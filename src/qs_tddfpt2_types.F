@@ -122,9 +122,9 @@ MODULE qs_tddfpt2_types
       !> used mainly to dynamically expand the list of trial vectors
       TYPE(cp_fm_pool_p_type), ALLOCATABLE, DIMENSION(:) :: fm_pool_ao_mo_occ
       !> S * mos_occ(spin)
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: S_C0
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)      :: S_C0
       !> S * \rho_0(spin)
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: S_C0_C0T
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)      :: S_C0_C0T
       !
       ! *** dense matrices distributed across parallel (sub)groups ***
       !
@@ -185,7 +185,7 @@ MODULE qs_tddfpt2_types
       ! Short-range gamma exchange matrix
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: gamma_exchange
       !Lowdin MO coefficients: NAO*NOCC
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: ctransformed
+      TYPE(cp_fm_type), DIMENSION(:), POINTER          :: ctransformed
       !S^1/2
       TYPE(dbcsr_type), POINTER                          :: shalf
       !Eigenvalues/eigenvectors of the overlap matrix, used in sTDA forces (Lowdin derivatives)
@@ -292,20 +292,18 @@ CONTAINS
       ALLOCATE (work_matrices%S_C0_C0T(nspins))
       CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
       DO ispin = 1, nspins
-         ALLOCATE (work_matrices%S_C0_C0T(ispin)%matrix)
-         CALL cp_fm_create(work_matrices%S_C0_C0T(ispin)%matrix, fm_struct)
+         CALL cp_fm_create(work_matrices%S_C0_C0T(ispin), fm_struct)
       END DO
       CALL cp_fm_struct_release(fm_struct)
 
       ALLOCATE (work_matrices%S_C0(nspins))
       DO ispin = 1, nspins
-         ALLOCATE (work_matrices%S_C0(ispin)%matrix)
-         CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, work_matrices%S_C0(ispin)%matrix)
+         CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, work_matrices%S_C0(ispin))
 
-         CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, gs_mos(ispin)%mos_occ, work_matrices%S_C0(ispin)%matrix, &
+         CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, gs_mos(ispin)%mos_occ, work_matrices%S_C0(ispin), &
                                       ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
-         CALL parallel_gemm('N', 'T', nao, nao, nmo_occ(ispin), 1.0_dp, work_matrices%S_C0(ispin)%matrix, &
-                            gs_mos(ispin)%mos_occ, 0.0_dp, work_matrices%S_C0_C0T(ispin)%matrix)
+         CALL parallel_gemm('N', 'T', nao, nao, nmo_occ(ispin), 1.0_dp, work_matrices%S_C0(ispin), &
+                            gs_mos(ispin)%mos_occ, 0.0_dp, work_matrices%S_C0_C0T(ispin))
       END DO
 
       IF (sub_env%is_split) THEN
@@ -568,20 +566,18 @@ CONTAINS
       ALLOCATE (work_matrices%S_C0_C0T(nspins))
       CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
       DO ispin = 1, nspins
-         ALLOCATE (work_matrices%S_C0_C0T(ispin)%matrix)
-         CALL cp_fm_create(work_matrices%S_C0_C0T(ispin)%matrix, fm_struct)
+         CALL cp_fm_create(work_matrices%S_C0_C0T(ispin), fm_struct)
       END DO
       CALL cp_fm_struct_release(fm_struct)
 
       ALLOCATE (work_matrices%S_C0(nspins))
       DO ispin = 1, nspins
-         ALLOCATE (work_matrices%S_C0(ispin)%matrix)
-         CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, work_matrices%S_C0(ispin)%matrix)
+         CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, work_matrices%S_C0(ispin))
 
-         CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, gs_mos(ispin)%mos_occ, work_matrices%S_C0(ispin)%matrix, &
+         CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, gs_mos(ispin)%mos_occ, work_matrices%S_C0(ispin), &
                                       ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
-         CALL parallel_gemm('N', 'T', nao, nao, nmo_occ(ispin), 1.0_dp, work_matrices%S_C0(ispin)%matrix, &
-                            gs_mos(ispin)%mos_occ, 0.0_dp, work_matrices%S_C0_C0T(ispin)%matrix)
+         CALL parallel_gemm('N', 'T', nao, nao, nmo_occ(ispin), 1.0_dp, work_matrices%S_C0(ispin), &
+                            gs_mos(ispin)%mos_occ, 0.0_dp, work_matrices%S_C0_C0T(ispin))
       END DO
 
       DO ispin = 1, nspins
@@ -615,8 +611,7 @@ CONTAINS
       ! sTDA specific work arrays
       ALLOCATE (work_matrices%ctransformed(nspins))
       DO ispin = 1, nspins
-         ALLOCATE (work_matrices%ctransformed(ispin)%matrix)
-         CALL cp_fm_create(work_matrices%ctransformed(ispin)%matrix, fm_struct_evects(ispin)%struct)
+         CALL cp_fm_create(work_matrices%ctransformed(ispin), fm_struct_evects(ispin)%struct)
       END DO
       NULLIFY (work_matrices%shalf)
       CALL dbcsr_init_p(work_matrices%shalf)
@@ -770,10 +765,8 @@ CONTAINS
       END IF
 
       DO ispin = SIZE(work_matrices%fm_pool_ao_mo_occ), 1, -1
-         CALL cp_fm_release(work_matrices%S_C0(ispin)%matrix)
-         DEALLOCATE (work_matrices%S_C0(ispin)%matrix)
-         CALL cp_fm_release(work_matrices%S_C0_C0T(ispin)%matrix)
-         DEALLOCATE (work_matrices%S_C0_C0T(ispin)%matrix)
+         CALL cp_fm_release(work_matrices%S_C0(ispin))
+         CALL cp_fm_release(work_matrices%S_C0_C0T(ispin))
       END DO
       DEALLOCATE (work_matrices%S_C0, work_matrices%S_C0_C0T)
 

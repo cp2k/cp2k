@@ -416,9 +416,9 @@ CONTAINS
       nspins = SIZE(sub_env%mos_occ)
 
       DO ispin = 1, nspins
-         CALL cp_fm_get_info(work%ctransformed(ispin)%matrix, ncol_global=nactive)
+         CALL cp_fm_get_info(work%ctransformed(ispin), ncol_global=nactive)
          CALL cp_dbcsr_sm_fm_multiply(work%shalf, sub_env%mos_occ(ispin)%matrix, &
-                                      work%ctransformed(ispin)%matrix, nactive, alpha=1.0_dp, beta=0.0_dp)
+                                      work%ctransformed(ispin), nactive, alpha=1.0_dp, beta=0.0_dp)
       END DO
 
       ! for Lowdin forces
@@ -574,7 +574,7 @@ CONTAINS
       ALLOCATE (xtransformed(nspins))
       DO ispin = 1, nspins
          NULLIFY (fmstruct)
-         ct => work%ctransformed(ispin)%matrix
+         ct => work%ctransformed(ispin)
          CALL cp_fm_get_info(ct, matrix_struct=fmstruct)
          ALLOCATE (xtransformed(ispin)%matrix)
          CALL cp_fm_create(matrix=xtransformed(ispin)%matrix, matrix_struct=fmstruct, name="XTRANSFORMED")
@@ -588,7 +588,7 @@ CONTAINS
       END DO
 
       DO ispin = 1, nspins
-         ct => work%ctransformed(ispin)%matrix
+         ct => work%ctransformed(ispin)
          CALL cp_fm_get_info(ct, matrix_struct=fmstruct, nrow_global=nsgf)
          ALLOCATE (tv(nsgf))
          CALL cp_fm_create(cvec, fmstruct)
@@ -598,7 +598,7 @@ CONTAINS
          IF (do_coulomb) THEN
             tcharge(:) = 0.0_dp
             DO jspin = 1, nspins
-               ctjspin => work%ctransformed(jspin)%matrix
+               ctjspin => work%ctransformed(jspin)
                xt => xtransformed(jspin)%matrix
                CALL cp_fm_get_info(ctjspin, matrix_struct=fmstructjspin)
                CALL cp_fm_get_info(ctjspin, matrix_struct=fmstructjspin, nrow_global=nsgf)
@@ -671,7 +671,7 @@ CONTAINS
                END DO
             END DO
             ! CV(mu,i) = TV(mu)*CV(mu,i)
-            ct => work%ctransformed(ispin)%matrix
+            ct => work%ctransformed(ispin)
             CALL cp_fm_to_fm(ct, cvec)
             CALL cp_fm_row_scale(cvec, tv)
             ! rho(nu,i) = rho(nu,i) + Shalf(nu,mu)*CV(mu,i)
@@ -689,7 +689,7 @@ CONTAINS
             tempmat => work%shalf
             CALL dbcsr_create(pdens, template=tempmat, matrix_type=dbcsr_type_no_symmetry)
             ! P(nu,mu) = SUM_j XT(nu,j)*CT(mu,j)
-            ct => work%ctransformed(ispin)%matrix
+            ct => work%ctransformed(ispin)
             xt => xtransformed(ispin)%matrix
             CALL dbcsr_set(pdens, 0.0_dp)
             CALL cp_dbcsr_plus_fm_fm_t(pdens, xt, ct, nactive(ispin), &

@@ -1256,7 +1256,7 @@ CONTAINS
       INTEGER                                            :: handle, ispin, nao, norb, nspins
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
       TYPE(cp_fm_type)                                   :: cvec, umat
-      TYPE(cp_fm_type), POINTER                          :: omos, rvecs, scmat
+      TYPE(cp_fm_type), POINTER                          :: omos, rvecs
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
@@ -1267,7 +1267,6 @@ CONTAINS
 
       DO ispin = 1, nspins
          CALL get_mo_set(mos(ispin), mo_coeff=omos)
-         scmat => work%S_C0(ispin)%matrix
          rvecs => cpmos(ispin)%matrix
          CALL cp_fm_get_info(rvecs, nrow_global=nao, ncol_global=norb)
          CALL cp_fm_create(cvec, rvecs%matrix_struct, "cvec")
@@ -1276,7 +1275,7 @@ CONTAINS
          CALL cp_fm_create(umat, fmstruct, "umat")
          CALL cp_fm_struct_release(fmstruct)
          !
-         CALL parallel_gemm("T", "N", norb, norb, nao, 1.0_dp, omos, scmat, 0.0_dp, umat)
+         CALL parallel_gemm("T", "N", norb, norb, nao, 1.0_dp, omos, work%S_C0(ispin), 0.0_dp, umat)
          CALL cp_fm_copy_general(rvecs, cvec, rvecs%matrix_struct%para_env)
          CALL parallel_gemm("N", "T", nao, norb, norb, 1.0_dp, cvec, umat, 0.0_dp, rvecs)
          CALL cp_fm_release(cvec)

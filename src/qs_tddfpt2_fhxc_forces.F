@@ -1220,7 +1220,7 @@ CONTAINS
       ALLOCATE (xtransformed(nspins))
       DO ispin = 1, nspins
          NULLIFY (fmstruct)
-         ct => work%ctransformed(ispin)%matrix
+         ct => work%ctransformed(ispin)
          CALL cp_fm_get_info(ct, matrix_struct=fmstruct)
          ALLOCATE (xtransformed(ispin)%matrix)
          CALL cp_fm_create(matrix=xtransformed(ispin)%matrix, matrix_struct=fmstruct, name="XTRANSFORMED")
@@ -1232,7 +1232,7 @@ CONTAINS
       cpmos => ex_env%cpmos
 
       DO ispin = 1, nspins
-         ct => work%ctransformed(ispin)%matrix
+         ct => work%ctransformed(ispin)
          CALL cp_fm_get_info(ct, matrix_struct=fmstruct, nrow_global=nsgf)
          ALLOCATE (tv(nsgf))
          CALL cp_fm_create(cvec, fmstruct)
@@ -1260,7 +1260,7 @@ CONTAINS
             !
             tcharge(:) = 0.0_dp
             DO jspin = 1, nspins
-               ctjspin => work%ctransformed(jspin)%matrix
+               ctjspin => work%ctransformed(jspin)
                xt => xtransformed(jspin)%matrix
                CALL cp_fm_get_info(ctjspin, matrix_struct=fmstructjspin)
                CALL cp_fm_get_info(ctjspin, matrix_struct=fmstructjspin, nrow_global=nsgf)
@@ -1368,14 +1368,14 @@ CONTAINS
             END IF
             norb = nactive(ispin)
             ! forces from Lowdin charge derivative
-            CALL cp_fm_get_info(work%S_C0_C0T(ispin)%matrix, matrix_struct=fmstruct)
+            CALL cp_fm_get_info(work%S_C0_C0T(ispin), matrix_struct=fmstruct)
             CALL cp_fm_create(t0matrix, matrix_struct=fmstruct, name="T0 SCRATCH")
             CALL cp_fm_create(t1matrix, matrix_struct=fmstruct, name="T1 SCRATCH")
             ALLOCATE (ucmatrix)
             CALL fm_pool_create_fm(work%fm_pool_ao_mo_occ(ispin)%pool, ucmatrix)
             ALLOCATE (uxmatrix)
             CALL fm_pool_create_fm(work%fm_pool_ao_mo_occ(ispin)%pool, uxmatrix)
-            ct => work%ctransformed(ispin)%matrix
+            ct => work%ctransformed(ispin)
             CALL cp_fm_to_fm(ct, cvec)
             CALL cp_fm_row_scale(cvec, tv)
             CALL parallel_gemm('T', 'N', nsgf, norb, nsgf, 1.0_dp, work%S_eigenvectors, &
@@ -1410,7 +1410,7 @@ CONTAINS
             CALL cp_fm_row_scale(cvec, tv)
             CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, cpmos(ispin)%matrix, norb, 2.0_dp*spinfac, 1.0_dp)
             ! CV(mu,i) = TV(mu)*CT(mu,i)
-            ct => work%ctransformed(ispin)%matrix
+            ct => work%ctransformed(ispin)
             CALL cp_fm_to_fm(ct, cvec)
             CALL cp_fm_row_scale(cvec, tv)
             ! Shalf(nu,mu)*CV(mu,i)
@@ -1450,7 +1450,7 @@ CONTAINS
             tempmat => work%shalf
             CALL dbcsr_create(pdens, template=tempmat, matrix_type=dbcsr_type_no_symmetry)
             ! P(nu,mu) = SUM_j XT(nu,j)*CT(mu,j)
-            ct => work%ctransformed(ispin)%matrix
+            ct => work%ctransformed(ispin)
             xt => xtransformed(ispin)%matrix
             CALL dbcsr_set(pdens, 0.0_dp)
             CALL cp_dbcsr_plus_fm_fm_t(pdens, xt, ct, nactive(ispin), &
@@ -1513,14 +1513,14 @@ CONTAINS
             CALL dbcsr_transposed(ptrans, pdens)
             !
             ! forces from Lowdin charge derivative
-            CALL cp_fm_get_info(work%S_C0_C0T(ispin)%matrix, matrix_struct=fmstruct)
+            CALL cp_fm_get_info(work%S_C0_C0T(ispin), matrix_struct=fmstruct)
             CALL cp_fm_create(t0matrix, matrix_struct=fmstruct, name="T0 SCRATCH")
             CALL cp_fm_create(t1matrix, matrix_struct=fmstruct, name="T1 SCRATCH")
             ALLOCATE (ucmatrix)
             CALL fm_pool_create_fm(work%fm_pool_ao_mo_occ(ispin)%pool, ucmatrix)
             ALLOCATE (uxmatrix)
             CALL fm_pool_create_fm(work%fm_pool_ao_mo_occ(ispin)%pool, uxmatrix)
-            ct => work%ctransformed(ispin)%matrix
+            ct => work%ctransformed(ispin)
             CALL cp_dbcsr_sm_fm_multiply(pdens, ct, cvec, norb, 1.0_dp, 0.0_dp)
             CALL parallel_gemm('T', 'N', nsgf, norb, nsgf, 1.0_dp, work%S_eigenvectors, &
                                cvec, 0.0_dp, ucmatrix)
