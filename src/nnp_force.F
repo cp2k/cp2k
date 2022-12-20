@@ -133,6 +133,9 @@ CONTAINS
          istart = istart + allcalc(i - 1)
       END DO
 
+      ! reset extrapolation status
+      nnp%output_expol = .FALSE.
+
       ! calc atomic contribution to energy and force
       DO i = istart, istart + mecalc - 1
 
