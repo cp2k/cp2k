@@ -308,7 +308,7 @@ CONTAINS
       INTEGER                                            :: j
       LOGICAL                                            :: extrapolate
 
-      extrapolate = .FALSE.
+      extrapolate = nnp%output_expol
 
       DO j = 1, nnp%n_rad(ind)
          IF (nnp%rad(ind)%y(j) - &
