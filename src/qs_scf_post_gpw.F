@@ -258,9 +258,12 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: mixed_evals, occupied_evals, &
                                                             unoccupied_evals, unoccupied_evals_stm
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: homo_localized, lumo_localized, lumo_ptr, &
-         mixed_localized, mixed_orbs, mo_loc_history, occupied_orbs, unoccupied_orbs, &
-         unoccupied_orbs_stm
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: mixed_orbs, occupied_orbs
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
+         TARGET                                          :: homo_localized, lumo_localized, &
+                                                            mixed_localized
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: lumo_ptr, mo_loc_history, &
+                                                            unoccupied_orbs, unoccupied_orbs_stm
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, matrix_p_mp2, matrix_s, &
@@ -309,11 +312,11 @@ CONTAINS
       my_localized_wfn = .FALSE.
       NULLIFY (admm_env, dft_control, pw_env, auxbas_pw_pool, pw_pools, mos, rho, &
                mo_coeff, ks_rmpv, matrix_s, qs_loc_env_homo, qs_loc_env_lumo, scf_control, &
-               unoccupied_orbs, unoccupied_orbs_stm, mo_eigenvalues, unoccupied_evals, &
+               unoccupied_orbs, mo_eigenvalues, unoccupied_evals, &
                unoccupied_evals_stm, molecule_set, mo_derivs, &
                subsys, particles, input, print_key, kinetic_m, marked_states, &
-               mixed_orbs, mixed_evals, qs_loc_env_mixed)
-      NULLIFY (homo_localized, lumo_localized, lumo_ptr, rho_ao, mixed_localized)
+               mixed_evals, qs_loc_env_mixed)
+      NULLIFY (lumo_ptr, rho_ao)
 
       has_homo = .FALSE.
       has_lumo = .FALSE.
@@ -513,11 +516,10 @@ CONTAINS
             DO ispin = 1, dft_control%nspins
                CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, &
                                eigenvalues=mo_eigenvalues)
-               occupied_orbs(ispin)%matrix => mo_coeff
+               occupied_orbs(ispin) = mo_coeff
                occupied_evals(ispin)%array => mo_eigenvalues
-               ALLOCATE (homo_localized(ispin)%matrix)
-               CALL cp_fm_create(homo_localized(ispin)%matrix, occupied_orbs(ispin)%matrix%matrix_struct)
-               CALL cp_fm_to_fm(occupied_orbs(ispin)%matrix, homo_localized(ispin)%matrix)
+               CALL cp_fm_create(homo_localized(ispin), occupied_orbs(ispin)%matrix_struct)
+               CALL cp_fm_to_fm(occupied_orbs(ispin), homo_localized(ispin))
             END DO
 
             CALL get_qs_env(qs_env, mo_loc_history=mo_loc_history)
@@ -618,7 +620,7 @@ CONTAINS
                   IF (p_loc_lumo .AND. nlumo .NE. -1) nlumos = MIN(nlumo, nlumos)
                   ! Prints the cube files of UNOCCUPIED ORBITALS
                   CALL qs_scf_post_unocc_cubes(input, dft_section, dft_control, logger, qs_env, &
-                                               unoccupied_orbs(ispin)%matrix, wf_g, wf_r, particles, nlumos, homo, ispin)
+                                               unoccupied_orbs(ispin), wf_g, wf_r, particles, nlumos, homo, ispin)
                END IF
             END DO
 
@@ -635,9 +637,8 @@ CONTAINS
             IF (p_loc_lumo) THEN
                ALLOCATE (lumo_localized(dft_control%nspins))
                DO ispin = 1, dft_control%nspins
-                  ALLOCATE (lumo_localized(ispin)%matrix)
-                  CALL cp_fm_create(lumo_localized(ispin)%matrix, unoccupied_orbs(ispin)%matrix%matrix_struct)
-                  CALL cp_fm_to_fm(unoccupied_orbs(ispin)%matrix, lumo_localized(ispin)%matrix)
+                  CALL cp_fm_create(lumo_localized(ispin), unoccupied_orbs(ispin)%matrix_struct)
+                  CALL cp_fm_to_fm(unoccupied_orbs(ispin), lumo_localized(ispin))
                END DO
                CALL qs_loc_init(qs_env, qs_loc_env_lumo, localize_section, lumo_localized, do_homo, do_mo_cubes, &
                                 evals=unoccupied_evals)
@@ -678,11 +679,10 @@ CONTAINS
             DO ispin = 1, dft_control%nspins
                CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, &
                                eigenvalues=mo_eigenvalues)
-               mixed_orbs(ispin)%matrix => mo_coeff
+               mixed_orbs(ispin) = mo_coeff
                mixed_evals(ispin)%array => mo_eigenvalues
-               ALLOCATE (mixed_localized(ispin)%matrix)
-               CALL cp_fm_create(mixed_localized(ispin)%matrix, mixed_orbs(ispin)%matrix%matrix_struct)
-               CALL cp_fm_to_fm(mixed_orbs(ispin)%matrix, mixed_localized(ispin)%matrix)
+               CALL cp_fm_create(mixed_localized(ispin), mixed_orbs(ispin)%matrix_struct)
+               CALL cp_fm_to_fm(mixed_orbs(ispin), mixed_localized(ispin))
             END DO
 
             CALL get_qs_env(qs_env, mo_loc_history=mo_loc_history)
@@ -697,7 +697,7 @@ CONTAINS
                              do_mixed=do_mixed)
 
             DO ispin = 1, dft_control%nspins
-               CALL cp_fm_get_info(mixed_localized(ispin)%matrix, ncol_global=nchk_nmoloc)
+               CALL cp_fm_get_info(mixed_localized(ispin), ncol_global=nchk_nmoloc)
             END DO
 
             CALL get_localization_info(qs_env, qs_loc_env_mixed, localize_section, mixed_localized, &
@@ -764,8 +764,7 @@ CONTAINS
             DO ispin = 1, dft_control%nspins
                DEALLOCATE (unoccupied_evals(ispin)%array)
                IF (.NOT. dft_control%do_tddfpt_calculation) THEN
-                  CALL cp_fm_release(unoccupied_orbs(ispin)%matrix)
-                  DEALLOCATE (unoccupied_orbs(ispin)%matrix)
+                  CALL cp_fm_release(unoccupied_orbs(ispin))
                END IF
             END DO
             DEALLOCATE (unoccupied_evals)
@@ -793,8 +792,7 @@ CONTAINS
             IF (nlumo_stm > 0) THEN
                DO ispin = 1, dft_control%nspins
                   DEALLOCATE (unoccupied_evals_stm(ispin)%array)
-                  CALL cp_fm_release(unoccupied_orbs_stm(ispin)%matrix)
-                  DEALLOCATE (unoccupied_orbs_stm(ispin)%matrix)
+                  CALL cp_fm_release(unoccupied_orbs_stm(ispin))
                END DO
                DEALLOCATE (unoccupied_evals_stm)
                DEALLOCATE (unoccupied_orbs_stm)
@@ -852,7 +850,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: unoccupied_orbs
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: unoccupied_orbs
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: unoccupied_evals
       INTEGER, INTENT(IN)                                :: nlumo
       INTEGER, INTENT(OUT)                               :: nlumos
@@ -890,7 +888,6 @@ CONTAINS
       output_unit = cp_logger_get_default_io_unit(logger)
 
       DO ispin = 1, dft_control%nspins
-         NULLIFY (unoccupied_orbs(ispin)%matrix)
          NULLIFY (unoccupied_evals(ispin)%array)
          ! Always write eigenvalues
          IF (output_unit > 0) WRITE (output_unit, *) " "
@@ -903,10 +900,9 @@ CONTAINS
          ALLOCATE (unoccupied_evals(ispin)%array(nlumos))
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                   nrow_global=n, ncol_global=nlumos)
-         ALLOCATE (unoccupied_orbs(ispin)%matrix)
-         CALL cp_fm_create(unoccupied_orbs(ispin)%matrix, fm_struct_tmp, name="lumos")
+         CALL cp_fm_create(unoccupied_orbs(ispin), fm_struct_tmp, name="lumos")
          CALL cp_fm_struct_release(fm_struct_tmp)
-         CALL cp_fm_init_random(unoccupied_orbs(ispin)%matrix, nlumos)
+         CALL cp_fm_init_random(unoccupied_orbs(ispin), nlumos)
 
          ! the full_all preconditioner makes not much sense for lumos search
          NULLIFY (local_preconditioner)
@@ -924,14 +920,14 @@ CONTAINS
          END IF
 
          CALL ot_eigensolver(matrix_h=ks_rmpv(ispin)%matrix, matrix_s=matrix_s(1)%matrix, &
-                             matrix_c_fm=unoccupied_orbs(ispin)%matrix, &
+                             matrix_c_fm=unoccupied_orbs(ispin), &
                              matrix_orthogonal_space_fm=mo_coeff, &
                              eps_gradient=scf_control%eps_lumos, &
                              preconditioner=local_preconditioner, &
                              iter_max=scf_control%max_iter_lumos, &
                              size_ortho_space=nmo)
 
-         CALL calculate_subspace_eigenvalues(unoccupied_orbs(ispin)%matrix, ks_rmpv(ispin)%matrix, &
+         CALL calculate_subspace_eigenvalues(unoccupied_orbs(ispin), ks_rmpv(ispin)%matrix, &
                                              unoccupied_evals(ispin)%array, scr=output_unit, &
                                              ionode=output_unit > 0)
 

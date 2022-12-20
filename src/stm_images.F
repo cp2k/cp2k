@@ -97,7 +97,8 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: stm_section
       TYPE(particle_list_type), POINTER                  :: particles
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: unoccupied_orbs
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: unoccupied_orbs
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: unoccupied_evals
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'th_stm_image'
@@ -201,7 +202,7 @@ CONTAINS
             CALL cp_fm_create(mo_arrays(ispin)%matrix, fm_struct_tmp, name="mo_arrays")
             CALL cp_fm_struct_release(fm_struct_tmp)
             CALL cp_fm_to_fm(mo_coeff, mo_arrays(ispin)%matrix, nmo, 1, 1)
-            CALL cp_fm_to_fm(unoccupied_orbs(ispin)%matrix, mo_arrays(ispin)%matrix, &
+            CALL cp_fm_to_fm(unoccupied_orbs(ispin), mo_arrays(ispin)%matrix, &
                              nadd_unocc(ispin), 1, nmo + 1)
          END IF
       END DO

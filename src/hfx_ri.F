@@ -940,8 +940,8 @@ CONTAINS
       REAL(dp)                                           :: etmp, fac
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: occupied_evals
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: homo_localized, moloc_coeff, &
-                                                            occupied_orbs
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: moloc_coeff, occupied_orbs
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: homo_localized
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: my_ks_matrix, my_rho_ao
@@ -1015,9 +1015,8 @@ CONTAINS
             IF (ri_data%do_loc) THEN
                occupied_orbs(ispin)%matrix => mo_coeff
                occupied_evals(ispin)%array => mo_eigenvalues
-               ALLOCATE (homo_localized(ispin)%matrix)
-               CALL cp_fm_create(homo_localized(ispin)%matrix, occupied_orbs(ispin)%matrix%matrix_struct)
-               CALL cp_fm_to_fm(occupied_orbs(ispin)%matrix, homo_localized(ispin)%matrix)
+               CALL cp_fm_create(homo_localized(ispin), occupied_orbs(ispin)%matrix%matrix_struct)
+               CALL cp_fm_to_fm(occupied_orbs(ispin)%matrix, homo_localized(ispin))
             END IF
          END DO
 
@@ -1028,13 +1027,12 @@ CONTAINS
             CALL qs_loc_init(qs_env, ri_data%qs_loc_env, ri_data%loc_subsection, homo_localized)
             DO ispin = 1, nspins
                CALL qs_loc_driver(qs_env, ri_data%qs_loc_env, ri_data%print_loc_subsection, ispin, &
-                                  ext_mo_coeff=homo_localized(ispin)%matrix)
+                                  ext_mo_coeff=homo_localized(ispin))
             END DO
             CALL get_qs_loc_env(qs_loc_env=ri_data%qs_loc_env, moloc_coeff=moloc_coeff)
 
             DO ispin = 1, nspins
-               CALL cp_fm_release(homo_localized(ispin)%matrix)
-               DEALLOCATE (homo_localized(ispin)%matrix)
+               CALL cp_fm_release(homo_localized(ispin))
             END DO
 
             DEALLOCATE (occupied_orbs, occupied_evals, homo_localized)
@@ -2930,8 +2928,8 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: homo
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: occupied_evals
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: homo_localized, moloc_coeff, &
-                                                            occupied_orbs
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: moloc_coeff, occupied_orbs
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: homo_localized
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_type), DIMENSION(2)                     :: mo_coeff_b
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_b_tmp
@@ -2962,9 +2960,8 @@ CONTAINS
             IF (ri_data%do_loc) THEN
                occupied_orbs(ispin)%matrix => mo_coeff
                occupied_evals(ispin)%array => mo_eigenvalues
-               ALLOCATE (homo_localized(ispin)%matrix)
-               CALL cp_fm_create(homo_localized(ispin)%matrix, occupied_orbs(ispin)%matrix%matrix_struct)
-               CALL cp_fm_to_fm(occupied_orbs(ispin)%matrix, homo_localized(ispin)%matrix)
+               CALL cp_fm_create(homo_localized(ispin), occupied_orbs(ispin)%matrix%matrix_struct)
+               CALL cp_fm_to_fm(occupied_orbs(ispin)%matrix, homo_localized(ispin))
             END IF
          END DO
 
@@ -2975,13 +2972,12 @@ CONTAINS
             CALL qs_loc_init(qs_env, ri_data%qs_loc_env, ri_data%loc_subsection, homo_localized)
             DO ispin = 1, nspins
                CALL qs_loc_driver(qs_env, ri_data%qs_loc_env, ri_data%print_loc_subsection, ispin, &
-                                  ext_mo_coeff=homo_localized(ispin)%matrix)
+                                  ext_mo_coeff=homo_localized(ispin))
             END DO
             CALL get_qs_loc_env(qs_loc_env=ri_data%qs_loc_env, moloc_coeff=moloc_coeff)
 
             DO ispin = 1, nspins
-               CALL cp_fm_release(homo_localized(ispin)%matrix)
-               DEALLOCATE (homo_localized(ispin)%matrix)
+               CALL cp_fm_release(homo_localized(ispin))
             END DO
 
             DEALLOCATE (occupied_orbs, occupied_evals, homo_localized)

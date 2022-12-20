@@ -116,7 +116,8 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: evals_virt
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_virt
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
+         TARGET                                          :: mos_virt
       TYPE(cp_fm_type), POINTER                          :: mos_virt_spin
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -143,7 +144,7 @@ CONTAINS
       ! when the number of unoccupied orbitals is limited and OT has been used
       ! for the ground-state DFT calculation,
       ! compute the missing unoccupied orbitals using OT as well.
-      NULLIFY (evals_virt, evals_virt_spin, mos_virt, mos_virt_spin)
+      NULLIFY (evals_virt, evals_virt_spin, mos_virt_spin)
       IF (ASSOCIATED(scf_env)) THEN
          IF ((scf_env%method == ot_method_nr .AND. tddfpt_control%nlumo > 0) .OR. &
              (scf_env%method == ot_method_nr .AND. print_virtuals_newtonx)) THEN
@@ -173,8 +174,8 @@ CONTAINS
          ELSE
             NULLIFY (evals_virt_spin)
          END IF
-         IF (ASSOCIATED(mos_virt)) THEN
-            mos_virt_spin => mos_virt(ispin)%matrix
+         IF (ALLOCATED(mos_virt)) THEN
+            mos_virt_spin => mos_virt(ispin)
          ELSE
             NULLIFY (mos_virt_spin)
          END IF
@@ -208,12 +209,9 @@ CONTAINS
          DEALLOCATE (evals_virt)
       END IF
 
-      IF (ASSOCIATED(mos_virt)) THEN
+      IF (ALLOCATED(mos_virt)) THEN
          DO ispin = 1, SIZE(mos_virt)
-            IF (ASSOCIATED(mos_virt(ispin)%matrix)) THEN
-               CALL cp_fm_release(mos_virt(ispin)%matrix)
-               DEALLOCATE (mos_virt(ispin)%matrix)
-            END IF
+            CALL cp_fm_release(mos_virt(ispin))
          END DO
          DEALLOCATE (mos_virt)
       END IF

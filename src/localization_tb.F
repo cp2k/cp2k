@@ -15,7 +15,6 @@ MODULE localization_tb
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_p_type,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
@@ -91,8 +90,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: occupied_evals
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: homo_localized, mo_loc_history, &
-                                                            occupied_orbs
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: homo_localized, occupied_orbs
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mo_loc_history
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -170,11 +169,10 @@ CONTAINS
             DO ispin = 1, nspins
                CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, &
                                eigenvalues=mo_eigenvalues)
-               occupied_orbs(ispin)%matrix => mo_coeff
+               occupied_orbs(ispin) = mo_coeff
                occupied_evals(ispin)%array => mo_eigenvalues
-               ALLOCATE (homo_localized(ispin)%matrix)
-               CALL cp_fm_create(homo_localized(ispin)%matrix, occupied_orbs(ispin)%matrix%matrix_struct)
-               CALL cp_fm_to_fm(occupied_orbs(ispin)%matrix, homo_localized(ispin)%matrix)
+               CALL cp_fm_create(homo_localized(ispin), occupied_orbs(ispin)%matrix_struct)
+               CALL cp_fm_to_fm(occupied_orbs(ispin), homo_localized(ispin))
             END DO
 
             CALL get_qs_env(qs_env, mo_loc_history=mo_loc_history)

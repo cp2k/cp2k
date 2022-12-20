@@ -187,7 +187,7 @@ CONTAINS
 
          CALL get_mo_set(qs_env%mos(spin), eigenvalues=orbital_eigenvalues)
 
-         n_lumos = tddfpt_control%lumos(spin)%matrix%matrix_struct%ncol_global
+         n_lumos = tddfpt_control%lumos(spin)%matrix_struct%ncol_global
 
          n_orbits = SIZE(orbital_eigenvalues)
 
@@ -229,7 +229,7 @@ CONTAINS
          END DO
 
          ALLOCATE (lumos(n_rows, n_lumos), guess(n_rows, n_orbits))
-         CALL cp_fm_get_submatrix(tddfpt_control%lumos(spin)%matrix, lumos, &
+         CALL cp_fm_get_submatrix(tddfpt_control%lumos(spin), lumos, &
                                   start_col=1, n_cols=n_lumos)
 
          !-------------------!
@@ -300,13 +300,13 @@ CONTAINS
       ALLOCATE (S_lumos(n_spins))
 
       DO spin = 1, n_spins
-         nrows(spin) = t_control%lumos(spin)%matrix%matrix_struct%nrow_global
+         nrows(spin) = t_control%lumos(spin)%matrix_struct%nrow_global
          nhomos(spin) = t_env%evecs(1, spin)%matrix%matrix_struct%ncol_global
-         nlumos(spin) = t_control%lumos(spin)%matrix%matrix_struct%ncol_global
+         nlumos(spin) = t_control%lumos(spin)%matrix_struct%ncol_global
          ALLOCATE (S_lumos(spin)%matrix)
-         CALL cp_fm_create(S_lumos(spin)%matrix, t_control%lumos(spin)%matrix%matrix_struct, &
+         CALL cp_fm_create(S_lumos(spin)%matrix, t_control%lumos(spin)%matrix_struct, &
                            "S times lumos")
-         CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, t_control%lumos(spin)%matrix, &
+         CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, t_control%lumos(spin), &
                                       S_lumos(spin)%matrix, nlumos(spin), 1.0_dp, 0.0_dp)
       END DO
 

@@ -11,7 +11,7 @@
 MODULE qs_loc_states
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_fm_types,                     ONLY: cp_fm_p_type
+   USE cp_fm_types,                     ONLY: cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -71,11 +71,11 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(section_vals_type), POINTER                   :: loc_section
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_local
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_local
       TYPE(pw_type), INTENT(INOUT)                       :: wf_r
       TYPE(pw_type), INTENT(IN)                          :: wf_g
       TYPE(particle_list_type), POINTER                  :: particles
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: coeff
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: coeff
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: evals
       INTEGER, DIMENSION(:, :, :), POINTER               :: marked_states
 
@@ -135,7 +135,7 @@ CONTAINS
             scenter => qs_loc_env%localized_wfn_control%centers_set(ispin)%array
 
             CALL qs_loc_driver(qs_env, qs_loc_env, loc_print_section, &
-                               myspin=ispin, ext_mo_coeff=mo_local(ispin)%matrix)
+                               myspin=ispin, ext_mo_coeff=mo_local(ispin))
 
             ! maps wfc to molecules, and compute the molecular dipoles if required
             IF ((BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
@@ -158,7 +158,7 @@ CONTAINS
 
                wc(ispin)%centres(:, :) = scenter(1 + (ispin - 1)*3:ispin*3, :)
                lstates => qs_loc_env%localized_wfn_control%loc_states(:, ispin)
-               CALL construct_wannier_states(mo_local(ispin)%matrix, &
+               CALL construct_wannier_states(mo_local(ispin), &
                                              ks_rmpv(ispin)%matrix, qs_env, loc_print_section=loc_print_section, &
                                              WannierCentres=wc(ispin), ns=ns, states=lstates)
             END IF
@@ -166,7 +166,7 @@ CONTAINS
             IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
                                                  "MOLECULAR_STATES"), cp_p_file)) THEN
                CALL construct_molecular_states( &
-                  molecule_set, mo_local(ispin)%matrix, coeff(ispin)%matrix, &
+                  molecule_set, mo_local(ispin), coeff(ispin), &
                   evals(ispin)%array, ks_rmpv(ispin)%matrix, matrix_s(1)%matrix, qs_env, wf_r, wf_g, &
                   loc_print_section=loc_print_section, particles=particles, tag=TRIM(qs_loc_env%tag_mo), &
                   marked_states=marked_states_spin, ispin=ispin)

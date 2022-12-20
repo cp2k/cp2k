@@ -123,7 +123,7 @@ CONTAINS
 
       INTEGER                                            :: iounit, ispin, istate, nmoloc(2)
       LOGICAL                                            :: my_centers_only
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_localized
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: mos_localized
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(localized_wfn_control_type), POINTER          :: localized_wfn_control
@@ -142,7 +142,7 @@ CONTAINS
       my_centers_only = .FALSE.
       IF (PRESENT(centers_only)) my_centers_only = centers_only
 
-      NULLIFY (mos, mo_coeff, qs_loc_env, mos_localized)
+      NULLIFY (mos, mo_coeff, qs_loc_env)
       CALL get_qs_env(qs_env=qs_env, mos=mos)
       ALLOCATE (qs_loc_env)
       CALL qs_loc_env_create(qs_loc_env)
@@ -153,9 +153,8 @@ CONTAINS
       ALLOCATE (mos_localized(nspins))
       DO ispin = 1, nspins
          CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
-         ALLOCATE (mos_localized(ispin)%matrix)
-         CALL cp_fm_create(mos_localized(ispin)%matrix, mo_coeff%matrix_struct)
-         CALL cp_fm_to_fm(mo_coeff, mos_localized(ispin)%matrix)
+         CALL cp_fm_create(mos_localized(ispin), mo_coeff%matrix_struct)
+         CALL cp_fm_to_fm(mo_coeff, mos_localized(ispin))
       END DO
 
       nmoloc(1:2) = 0
@@ -171,9 +170,9 @@ CONTAINS
       ! The orbital centers are stored in linres_control%localized_wfn_control
       DO ispin = 1, nspins
          CALL qs_loc_driver(qs_env, qs_loc_env, loc_print_section, myspin=ispin, &
-                            ext_mo_coeff=mos_localized(ispin)%matrix)
+                            ext_mo_coeff=mos_localized(ispin))
          CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
-         CALL cp_fm_to_fm(mos_localized(ispin)%matrix, mo_coeff)
+         CALL cp_fm_to_fm(mos_localized(ispin), mo_coeff)
       END DO
 
       CALL loc_write_restart(qs_loc_env, loc_print_section, mos, &

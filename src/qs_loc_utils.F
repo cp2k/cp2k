@@ -114,7 +114,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE retain_history(mo_loc_history, mo_loc)
 
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_loc_history, mo_loc
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mo_loc_history
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_loc
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'retain_history'
 
@@ -125,16 +126,15 @@ CONTAINS
       IF (.NOT. ASSOCIATED(mo_loc_history)) THEN
          ALLOCATE (mo_loc_history(SIZE(mo_loc)))
          DO i = 1, SIZE(mo_loc_history)
-            ALLOCATE (mo_loc_history(i)%matrix)
-            CALL cp_fm_create(mo_loc_history(i)%matrix, mo_loc(i)%matrix%matrix_struct)
+            CALL cp_fm_create(mo_loc_history(i), mo_loc(i)%matrix_struct)
          END DO
       END IF
 
       DO i = 1, SIZE(mo_loc_history)
-         CALL cp_fm_get_info(mo_loc_history(i)%matrix, ncol_global=ncol_hist)
-         CALL cp_fm_get_info(mo_loc(i)%matrix, ncol_global=ncol_loc)
+         CALL cp_fm_get_info(mo_loc_history(i), ncol_global=ncol_hist)
+         CALL cp_fm_get_info(mo_loc(i), ncol_global=ncol_loc)
          CPASSERT(ncol_hist == ncol_loc)
-         CALL cp_fm_to_fm(mo_loc(i)%matrix, mo_loc_history(i)%matrix)
+         CALL cp_fm_to_fm(mo_loc(i), mo_loc_history(i))
       END DO
 
       CALL timestop(handle)
@@ -451,8 +451,9 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN), OPTIONAL                      :: myspin
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_localize
-      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: loc_coeff, mo_loc_history
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN), &
+         OPTIONAL                                        :: loc_coeff
+      TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: mo_loc_history
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_loc_env_init'
 
@@ -511,6 +512,8 @@ CONTAINS
          END DO ! ispin
          ! Copy the submatrix
 
+         IF (PRESENT(loc_coeff)) ALLOCATE (mat_ptr)
+
          DO ispin = s_spin, l_spin
             CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, &
                             occupation_numbers=occupations, nao=nao, nmo=nmo)
@@ -518,7 +521,7 @@ CONTAINS
             ub = localized_wfn_control%lu_bound_states(2, ispin)
 
             IF (PRESENT(loc_coeff)) THEN
-               mat_ptr => loc_coeff(ispin)%matrix
+               mat_ptr = loc_coeff(ispin)
             ELSE
                mat_ptr => mo_coeff
             END IF
@@ -570,11 +573,13 @@ CONTAINS
             IF (PRESENT(mo_loc_history)) THEN
                IF (localized_wfn_control%use_history .AND. ASSOCIATED(mo_loc_history)) THEN
                   CALL rotate_state_to_ref(moloc_coeff(ispin)%matrix, &
-                                           mo_loc_history(ispin)%matrix, matrix_s(1)%matrix)
+                                           mo_loc_history(ispin), matrix_s(1)%matrix)
                END IF
             END IF
 
          END DO
+
+         IF (PRESENT(loc_coeff)) DEALLOCATE (mat_ptr)
 
          CALL set_qs_loc_env(qs_loc_env=qs_loc_env, cell=cell, local_molecules=local_molecules, &
                              moloc_coeff=moloc_coeff, particle_set=particle_set, para_env=para_env, &
@@ -913,7 +918,7 @@ CONTAINS
       TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(section_vals_type), POINTER                   :: section
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_array
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: coeff_localized
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: coeff_localized
       LOGICAL, INTENT(IN)                                :: do_homo
       TYPE(cp_1d_r_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: evals
@@ -926,7 +931,6 @@ CONTAINS
       INTEGER                                            :: handle, ispin, max_block, nao, nloc, &
                                                             nmo, output_unit, rst_unit
       LOGICAL                                            :: my_do_mixed
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: print_key
 
@@ -976,25 +980,26 @@ CONTAINS
             END IF
 
             DO ispin = 1, SIZE(coeff_localized)
-               mo_coeff => coeff_localized(ispin)%matrix
-               CALL cp_fm_get_info(mo_coeff, nrow_global=nao, ncol_global=nmo, ncol_block=max_block)
-               nloc = qs_loc_env%localized_wfn_control%nloc_states(ispin)
-               IF (rst_unit > 0) THEN
-                  WRITE (rst_unit) qs_loc_env%localized_wfn_control%loc_states(1:nloc, ispin)
-                  IF (do_homo .OR. my_do_mixed) THEN
-                     WRITE (rst_unit) nmo, &
-                        mo_array(ispin)%homo, &
-                        mo_array(ispin)%lfomo, &
-                        mo_array(ispin)%nelectron
-                     WRITE (rst_unit) mo_array(ispin)%eigenvalues(1:nmo), &
-                        mo_array(ispin)%occupation_numbers(1:nmo)
-                  ELSE
-                     WRITE (rst_unit) nmo
-                     WRITE (rst_unit) evals(ispin)%array(1:nmo)
+               ASSOCIATE (mo_coeff => coeff_localized(ispin))
+                  CALL cp_fm_get_info(mo_coeff, nrow_global=nao, ncol_global=nmo, ncol_block=max_block)
+                  nloc = qs_loc_env%localized_wfn_control%nloc_states(ispin)
+                  IF (rst_unit > 0) THEN
+                     WRITE (rst_unit) qs_loc_env%localized_wfn_control%loc_states(1:nloc, ispin)
+                     IF (do_homo .OR. my_do_mixed) THEN
+                        WRITE (rst_unit) nmo, &
+                           mo_array(ispin)%homo, &
+                           mo_array(ispin)%lfomo, &
+                           mo_array(ispin)%nelectron
+                        WRITE (rst_unit) mo_array(ispin)%eigenvalues(1:nmo), &
+                           mo_array(ispin)%occupation_numbers(1:nmo)
+                     ELSE
+                        WRITE (rst_unit) nmo
+                        WRITE (rst_unit) evals(ispin)%array(1:nmo)
+                     END IF
                   END IF
-               END IF
 
-               CALL cp_fm_write_unformatted(mo_coeff, rst_unit)
+                  CALL cp_fm_write_unformatted(mo_coeff, rst_unit)
+               END ASSOCIATE
 
             END DO
 
@@ -1026,7 +1031,7 @@ CONTAINS
 
       TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_localized
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: mos_localized
       TYPE(section_vals_type), POINTER                   :: section, section2
       TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: do_homo
@@ -1184,7 +1189,7 @@ CONTAINS
                   vecbuffer(1, :) = 0.0_dp
                END IF
                CALL mp_bcast(vecbuffer, source, group)
-               CALL cp_fm_set_submatrix(mos_localized(ispin)%matrix, &
+               CALL cp_fm_set_submatrix(mos_localized(ispin), &
                                         vecbuffer, 1, i, nao, 1, transpose=.TRUE.)
             END DO
          END DO
@@ -1265,10 +1270,9 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(section_vals_type), POINTER                   :: localize_section
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_localized
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: mos_localized
       LOGICAL, OPTIONAL                                  :: do_homo, do_mo_cubes
-      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: mo_loc_history
+      TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: mo_loc_history
       TYPE(cp_1d_r_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: evals
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: tot_zeff_corr

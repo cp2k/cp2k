@@ -31,7 +31,6 @@ MODULE qs_scf_post_tb
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_init_random,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type
@@ -187,7 +186,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: charges
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: unoccupied_evals_stm
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: unoccupied_orbs_stm
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: unoccupied_orbs_stm
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -597,8 +596,7 @@ CONTAINS
                   IF (nlumo_stm > 0) THEN
                      DO ispin = 1, dft_control%nspins
                         DEALLOCATE (unoccupied_evals_stm(ispin)%array)
-                        CALL cp_fm_release(unoccupied_orbs_stm(ispin)%matrix)
-                        DEALLOCATE (unoccupied_orbs_stm(ispin)%matrix)
+                        CALL cp_fm_release(unoccupied_orbs_stm(ispin))
                      END DO
                      DEALLOCATE (unoccupied_evals_stm)
                      DEALLOCATE (unoccupied_orbs_stm)
@@ -801,9 +799,9 @@ CONTAINS
       INTEGER                                            :: iounit, ispin, nao, nmo
       REAL(dp), DIMENSION(:), POINTER                    :: mo_eigenvalues
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: lumos
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fmstruct, ao_lumo_struct
       TYPE(cp_fm_type)                                   :: KS_tmp, MO_tmp, S_tmp, work
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: lumos
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
@@ -837,14 +835,13 @@ CONTAINS
          CALL cp_fm_struct_create(fmstruct=ao_lumo_struct, nrow_global=nao, ncol_global=nao - nmo, &
                                   template_fmstruct=mo_coeff%matrix_struct)
 
-         ALLOCATE (lumos(ispin)%matrix)
-         CALL cp_fm_create(lumos(ispin)%matrix, matrix_struct=ao_lumo_struct)
+         CALL cp_fm_create(lumos(ispin), matrix_struct=ao_lumo_struct)
          CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix, KS_tmp)
          CALL cp_fm_cholesky_reduce(KS_tmp, S_tmp)
          CALL choose_eigv_solver(KS_tmp, work, mo_eigenvalues)
          CALL cp_fm_cholesky_restore(work, nao, S_tmp, MO_tmp, "SOLVE")
          CALL cp_fm_to_fm_submat(MO_tmp, mo_coeff, nao, nmo, 1, 1, 1, 1)
-         CALL cp_fm_to_fm_submat(MO_tmp, lumos(ispin)%matrix, nao, nao - nmo, 1, nmo + 1, 1, 1)
+         CALL cp_fm_to_fm_submat(MO_tmp, lumos(ispin), nao, nao - nmo, 1, nmo + 1, 1, 1)
 
          CALL cp_fm_struct_release(ao_lumo_struct)
       END DO
@@ -854,8 +851,7 @@ CONTAINS
                    lumos, scf_env, matrix_s, iounit)
 
       DO ispin = 1, SIZE(mos)
-         CALL cp_fm_release(lumos(ispin)%matrix)
-         DEALLOCATE (lumos(ispin)%matrix)
+         CALL cp_fm_release(lumos(ispin))
       END DO
       DEALLOCATE (lumos)
       CALL cp_fm_release(S_tmp)
@@ -879,8 +875,8 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: unoccupied_orbs
-      TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: unoccupied_evals
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: unoccupied_orbs
+      TYPE(cp_1d_r_p_type), DIMENSION(:), INTENT(INOUT)  :: unoccupied_evals
       INTEGER                                            :: nlumo
       INTEGER, INTENT(OUT)                               :: nlumos
 
@@ -910,7 +906,6 @@ CONTAINS
       iounit = cp_logger_get_default_io_unit(logger)
 
       DO ispin = 1, dft_control%nspins
-         NULLIFY (unoccupied_orbs(ispin)%matrix)
          NULLIFY (unoccupied_evals(ispin)%array)
          ! Always write eigenvalues
          IF (iounit > 0) WRITE (iounit, *) " "
@@ -923,10 +918,9 @@ CONTAINS
          ALLOCATE (unoccupied_evals(ispin)%array(nlumos))
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                   nrow_global=n, ncol_global=nlumos)
-         ALLOCATE (unoccupied_orbs(ispin)%matrix)
-         CALL cp_fm_create(unoccupied_orbs(ispin)%matrix, fm_struct_tmp, name="lumos")
+         CALL cp_fm_create(unoccupied_orbs(ispin), fm_struct_tmp, name="lumos")
          CALL cp_fm_struct_release(fm_struct_tmp)
-         CALL cp_fm_init_random(unoccupied_orbs(ispin)%matrix, nlumos)
+         CALL cp_fm_init_random(unoccupied_orbs(ispin), nlumos)
 
          ! the full_all preconditioner makes not much sense for lumos search
          NULLIFY (local_preconditioner)
@@ -939,14 +933,14 @@ CONTAINS
          END IF
 
          CALL ot_eigensolver(matrix_h=ks_rmpv(ispin)%matrix, matrix_s=matrix_s(1)%matrix, &
-                             matrix_c_fm=unoccupied_orbs(ispin)%matrix, &
+                             matrix_c_fm=unoccupied_orbs(ispin), &
                              matrix_orthogonal_space_fm=mo_coeff, &
                              eps_gradient=scf_control%eps_lumos, &
                              preconditioner=local_preconditioner, &
                              iter_max=scf_control%max_iter_lumos, &
                              size_ortho_space=nmo)
 
-         CALL calculate_subspace_eigenvalues(unoccupied_orbs(ispin)%matrix, ks_rmpv(ispin)%matrix, &
+         CALL calculate_subspace_eigenvalues(unoccupied_orbs(ispin), ks_rmpv(ispin)%matrix, &
                                              unoccupied_evals(ispin)%array, scr=iounit, &
                                              ionode=iounit > 0)
 

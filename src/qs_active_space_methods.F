@@ -33,8 +33,8 @@ MODULE qs_active_space_methods
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_init_random, cp_fm_p_type, &
-        cp_fm_release, cp_fm_set_all, cp_fm_set_element, cp_fm_to_fm, cp_fm_type
+        cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_init_random, cp_fm_release, &
+        cp_fm_set_all, cp_fm_set_element, cp_fm_to_fm, cp_fm_type
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
@@ -212,9 +212,9 @@ CONTAINS
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: context
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_localized
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type)                                   :: fm_dummy, mo_virt
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: mos_localized
       TYPE(cp_fm_type), POINTER                          :: fm_ref, fm_target, fm_target_active, &
                                                             fm_target_inactive, fmat, mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -817,14 +817,12 @@ CONTAINS
          loc_section => section_vals_get_subs_vals(as_input, "LOCALIZE")
          CPASSERT(ASSOCIATED(loc_section))
          loc_print => section_vals_get_subs_vals(as_input, "LOCALIZE%PRINT")
-         NULLIFY (mos_localized)
          ALLOCATE (mos_localized(nspins))
          CALL get_qs_env(qs_env, mos=mos)
          DO ispin = 1, nspins
             CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
-            ALLOCATE (mos_localized(ispin)%matrix)
-            CALL cp_fm_create(mos_localized(ispin)%matrix, mo_coeff%matrix_struct)
-            CALL cp_fm_to_fm(mo_coeff, mos_localized(ispin)%matrix)
+            CALL cp_fm_create(mos_localized(ispin), mo_coeff%matrix_struct)
+            CALL cp_fm_to_fm(mo_coeff, mos_localized(ispin))
          END DO
          ! occupied states
          NULLIFY (qs_loc_env_occ)
@@ -835,7 +833,7 @@ CONTAINS
                           mos_localized=mos_localized, do_homo=.TRUE.)
          DO ispin = 1, nspins
             CALL qs_loc_driver(qs_env, qs_loc_env_occ, loc_print, myspin=ispin, &
-                               ext_mo_coeff=mos_localized(ispin)%matrix)
+                               ext_mo_coeff=mos_localized(ispin))
          END DO
          ! virtual states
          NULLIFY (qs_loc_env_virt)
@@ -848,7 +846,7 @@ CONTAINS
                               loc_coeff=mos_localized)
          DO ispin = 1, nspins
             CALL qs_loc_driver(qs_env, qs_loc_env_virt, loc_print, myspin=ispin, &
-                               ext_mo_coeff=mos_localized(ispin)%matrix)
+                               ext_mo_coeff=mos_localized(ispin))
          END DO
          !
          ! get definition of subspace
