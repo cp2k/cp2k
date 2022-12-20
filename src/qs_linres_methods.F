@@ -217,7 +217,8 @@ CONTAINS
    SUBROUTINE linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, iounit, should_stop)
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_p_type), DIMENSION(:)                   :: psi1, h1_psi0, psi0_order
+      TYPE(cp_fm_p_type), DIMENSION(:)                   :: psi1, h1_psi0
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: psi0_order
       INTEGER, INTENT(IN)                                :: iounit
       LOGICAL, INTENT(OUT)                               :: should_stop
 
@@ -263,7 +264,7 @@ CONTAINS
       DO ispin = 1, nspins
          CALL get_mo_set(mos(ispin), nmo=ncol)
          maxnmo = MAX(maxnmo, ncol)
-         CALL cp_fm_get_info(psi0_order(ispin)%matrix, ncol_global=ncol)
+         CALL cp_fm_get_info(psi0_order(ispin), ncol_global=ncol)
          maxnmo_o = MAX(maxnmo_o, ncol)
       END DO
       !
@@ -302,12 +303,13 @@ CONTAINS
       DO ispin = 1, nspins
          !
          ! C0_order' * H * C0_order
-         mo_coeff => psi0_order(ispin)%matrix
-         CALL cp_fm_create(buf, mo_coeff%matrix_struct)
-         CALL cp_fm_get_info(mo_coeff, ncol_global=ncol)
-         CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix, mo_coeff, buf, ncol)
-         CALL parallel_gemm('T', 'N', ncol, ncol, nao, -1.0_dp, mo_coeff, buf, 0.0_dp, chc(ispin)%matrix)
-         CALL cp_fm_release(buf)
+         ASSOCIATE (mo_coeff => psi0_order(ispin))
+            CALL cp_fm_create(buf, mo_coeff%matrix_struct)
+            CALL cp_fm_get_info(mo_coeff, ncol_global=ncol)
+            CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix, mo_coeff, buf, ncol)
+            CALL parallel_gemm('T', 'N', ncol, ncol, nao, -1.0_dp, mo_coeff, buf, 0.0_dp, chc(ispin)%matrix)
+            CALL cp_fm_release(buf)
+         END ASSOCIATE
          !
          ! S * C0
          CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
@@ -569,7 +571,8 @@ CONTAINS
       !
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(qs_p_env_type)                                :: p_env
-      TYPE(cp_fm_p_type), DIMENSION(:)                   :: c0, v, Av, chc
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: c0
+      TYPE(cp_fm_p_type), DIMENSION(:)                   :: v, Av, chc
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'apply_op'
 

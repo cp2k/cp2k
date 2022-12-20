@@ -560,8 +560,9 @@ CONTAINS
       INTEGER                                            :: handle, ispin, nao, nao_aux, nspins
       LOGICAL                                            :: should_stop
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi0, psi1
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi1
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: psi0
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -569,7 +570,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (dft_control, matrix_ks, mo_coeff, mos, psi0, psi1)
+      NULLIFY (dft_control, matrix_ks, mo_coeff, mos, psi1)
 
       CALL get_qs_env(qs_env, dft_control=dft_control, matrix_ks=matrix_ks, &
                       matrix_s=matrix_s, mos=mos)
@@ -581,7 +582,7 @@ CONTAINS
       ALLOCATE (psi0(nspins), psi1(nspins))
       DO ispin = 1, nspins
          CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
-         psi0(ispin)%matrix => mo_coeff
+         psi0(ispin) = mo_coeff
          CALL cp_fm_get_info(mo_coeff, matrix_struct=fm_struct)
          ALLOCATE (psi1(ispin)%matrix)
          CALL cp_fm_create(psi1(ispin)%matrix, fm_struct)
@@ -662,8 +663,9 @@ CONTAINS
       INTEGER                                            :: handle, ispin, nao, nao_aux, nspins
       LOGICAL                                            :: should_stop
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi0, psi1
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi1
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: psi0
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, matrix_s_aux
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -715,7 +717,7 @@ CONTAINS
       ALLOCATE (psi0(nspins), psi1(nspins))
       DO ispin = 1, nspins
          CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
-         psi0(ispin)%matrix => mo_coeff
+         psi0(ispin) = mo_coeff
          CALL cp_fm_get_info(mo_coeff, matrix_struct=fm_struct)
          ALLOCATE (psi1(ispin)%matrix)
          CALL cp_fm_create(psi1(ispin)%matrix, fm_struct)

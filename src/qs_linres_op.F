@@ -131,11 +131,11 @@ CONTAINS
       TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER        :: center_list
       TYPE(cp_2d_r_p_type), DIMENSION(3)                 :: vecbuf_RmdC0
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: centers_set
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi0_order
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: p_psi0, rxp_psi0
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type)                                   :: fm_work1
       TYPE(cp_fm_type), DIMENSION(3)                     :: fm_Rmd_mos
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: psi0_order
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -245,7 +245,7 @@ CONTAINS
 
       chk(:) = 0.0_dp
       DO ispin = 1, nspins
-         mo_coeff => psi0_order(ispin)%matrix
+         mo_coeff => psi0_order(ispin)
          nmo = nstates(ispin)
          CALL cp_fm_set_all(p_psi0(ispin, 1)%matrix, 0.0_dp)
          CALL cp_fm_set_all(p_psi0(ispin, 2)%matrix, 0.0_dp)
@@ -323,7 +323,7 @@ CONTAINS
       ! Apply the p operator to the psi0
       DO idir = 1, 3
          DO ispin = 1, nspins
-            mo_coeff => psi0_order(ispin)%matrix
+            mo_coeff => psi0_order(ispin)
             nmo = nstates(ispin)
             CALL cp_fm_set_all(p_psi0(ispin, idir)%matrix, 0.0_dp)
             CALL cp_dbcsr_sm_fm_multiply(op_ao(idir)%matrix, mo_coeff, &
@@ -362,7 +362,7 @@ CONTAINS
             !   Allocate full matrices as working storage in the calculation
             !   of the rxp operator matrix. 3 matrices for the 3 Cartesian direction
             !   plus one to apply the momentum oprator to the modified mos fm
-            mo_coeff => psi0_order(ispin)%matrix
+            mo_coeff => psi0_order(ispin)
             nmo = nstates(ispin)
             NULLIFY (tmp_fm_struct)
             CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
@@ -376,7 +376,7 @@ CONTAINS
 
             ! This part should be done better, using the full matrix distribution
             DO istate = 1, nmo
-               CALL cp_fm_get_submatrix(psi0_order(ispin)%matrix, vecbuf_c0, 1, istate, nao, 1, &
+               CALL cp_fm_get_submatrix(psi0_order(ispin), vecbuf_c0, 1, istate, nao, 1, &
                                         transpose=.TRUE.)
                !center of the localized psi0 state istate
                dk(1:3) = centers_set(ispin)%array(1:3, istate)

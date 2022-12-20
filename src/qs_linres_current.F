@@ -201,8 +201,9 @@ CONTAINS
       REAL(dp), EXTERNAL                                 :: DDOT
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER        :: center_list
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: p_psi1, psi0_order, psi1
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: p_psi1, psi1
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: psi1_D, psi1_p, psi1_rxp
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: psi0_order
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, psi_a_iB, psi_buf
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -231,7 +232,7 @@ CONTAINS
                density_matrix_ii, density_matrix_iii, cell, dft_control, mos, &
                particle_set, pw_env, auxbas_rs_desc, auxbas_pw_pool, &
                para_env, center_list, mo_coeff, psi_a_iB, jrho1_r, jrho1_g, &
-               psi1, p_psi1, psi1_p, psi1_D, psi1_rxp, psi0_order, sab_all, qs_kind_set)
+               psi1, p_psi1, psi1_p, psi1_D, psi1_rxp, sab_all, qs_kind_set)
 
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
@@ -270,8 +271,8 @@ CONTAINS
       ALLOCATE (psi1(nspins), p_psi1(nspins))
       DO ispin = 1, nspins
          ALLOCATE (psi1(ispin)%matrix, p_psi1(ispin)%matrix)
-         CALL cp_fm_create(psi1(ispin)%matrix, psi0_order(ispin)%matrix%matrix_struct)
-         CALL cp_fm_create(p_psi1(ispin)%matrix, psi0_order(ispin)%matrix%matrix_struct)
+         CALL cp_fm_create(psi1(ispin)%matrix, psi0_order(ispin)%matrix_struct)
+         CALL cp_fm_create(p_psi1(ispin)%matrix, psi0_order(ispin)%matrix_struct)
          CALL cp_fm_set_all(psi1(ispin)%matrix, 0.0_dp)
          CALL cp_fm_set_all(p_psi1(ispin)%matrix, 0.0_dp)
       END DO
@@ -334,7 +335,7 @@ CONTAINS
       CALL set_vecp(iB, iiB, iiiB)
       DO ispin = 1, nspins
          nmo = nstates(ispin)
-         mo_coeff => psi0_order(ispin)%matrix
+         mo_coeff => psi0_order(ispin)
          !maxocc = max_occ(ispin)
          !
          CALL get_mo_set(mo_set=mos(ispin), maxocc=maxocc)
@@ -2292,11 +2293,12 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER        :: center_list
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: centers_set
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: p_rxp, psi0_order, r_p1, r_p2
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: p_rxp, r_p1, r_p2
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: psi1_D, psi1_p, psi1_rxp, rr_p1, rr_p2, &
                                                             rr_rxp
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type)                                   :: psi0, psi_D, psi_p1, psi_p2, psi_rxp
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: psi0_order
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -2317,7 +2319,7 @@ CONTAINS
       NULLIFY (dft_control, mos, para_env, mo_coeff, op_mom_ao, &
                op_mom_der_ao, center_list, centers_set, &
                op_p_ao, psi1_p, psi1_rxp, psi1_D, p_rxp, r_p1, r_p2, rr_rxp, rr_p1, rr_p2, &
-               cell, psi0_order, particle_set, qs_kind_set)
+               cell, particle_set, qs_kind_set)
 
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
@@ -2420,7 +2422,7 @@ CONTAINS
       !
       !
       ! Allocate full matrices for only one vector
-      mo_coeff => psi0_order(1)%matrix
+      mo_coeff => psi0_order(1)
       NULLIFY (tmp_fm_struct)
       CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                ncol_global=max_states, para_env=para_env, &
@@ -2463,7 +2465,7 @@ CONTAINS
          !
          ! get ground state MOS
          nmo = nstates(ispin)
-         mo_coeff => psi0_order(ispin)%matrix
+         mo_coeff => psi0_order(ispin)
          CALL get_mo_set(mo_set=mos(ispin), maxocc=maxocc)
          !
          ! Initialize the temporary vector chi
@@ -2721,9 +2723,9 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER        :: center_list
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: centers_set
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi0_order
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: psi1_p, psi1_rxp
       TYPE(cp_fm_type)                                   :: buf
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: psi0_order
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -2849,7 +2851,7 @@ CONTAINS
          !
          ! get ground state MOS
          nmo = nstates(ispin)
-         mo_coeff => psi0_order(ispin)%matrix
+         mo_coeff => psi0_order(ispin)
          CALL get_mo_set(mo_set=mos(ispin), maxocc=maxocc)
          !
          ! Create buffer matrix

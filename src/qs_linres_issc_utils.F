@@ -112,11 +112,11 @@ CONTAINS
                                                             nmo, nspins, output_unit
       LOGICAL                                            :: do_dso, do_fc, do_pso, do_sd, should_stop
       REAL(dp)                                           :: chk, fro
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fc_psi0, h1_psi0, psi0_order, psi1, &
-                                                            psi1_fc
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fc_psi0, h1_psi0, psi1, psi1_fc
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: dso_psi0, efg_psi0, psi1_dso, psi1_efg, &
                                                             psi1_pso, pso_psi0
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: psi0_order
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -130,7 +130,7 @@ CONTAINS
       !
       NULLIFY (dft_control, linres_control, lr_section, issc_section)
       NULLIFY (logger, mpools, psi1, h1_psi0, mo_coeff, para_env)
-      NULLIFY (tmp_fm_struct, psi1_fc, psi1_efg, psi1_pso, pso_psi0, fc_psi0, efg_psi0, psi0_order)
+      NULLIFY (tmp_fm_struct, psi1_fc, psi1_efg, psi1_pso, pso_psi0, fc_psi0, efg_psi0)
 
       logger => cp_get_default_logger()
       lr_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%LINRES")
@@ -173,7 +173,7 @@ CONTAINS
       ALLOCATE (psi1(nspins), h1_psi0(nspins))
       DO ispin = 1, nspins
          CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
-         psi0_order(ispin)%matrix => mo_coeff
+         psi0_order(ispin) = mo_coeff
          CALL cp_fm_get_info(mo_coeff, ncol_global=nmo, nrow_global=nao)
          NULLIFY (tmp_fm_struct, psi1(ispin)%matrix, h1_psi0(ispin)%matrix)
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &

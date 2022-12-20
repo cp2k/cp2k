@@ -870,7 +870,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dv
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: chr
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: charges
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi0
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: psi0
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p1
@@ -891,7 +891,7 @@ CONTAINS
       ALLOCATE (psi0(nspins))
       DO ispin = 1, nspins
          CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
-         psi0(ispin)%matrix => mo_coeff
+         psi0(ispin) = mo_coeff
       END DO
       !
       IF (ASSOCIATED(fingerprint)) THEN

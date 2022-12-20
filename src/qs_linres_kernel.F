@@ -21,7 +21,8 @@ MODULE qs_linres_kernel
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                              cp_fm_p_type
+                                              cp_fm_p_type,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -139,7 +140,8 @@ CONTAINS
       !
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_p_env_type)                                :: p_env
-      TYPE(cp_fm_p_type), DIMENSION(:)                   :: c0, Av
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: c0
+      TYPE(cp_fm_p_type), DIMENSION(:)                   :: Av
 
       INTEGER                                            :: ispin, ncol
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -159,9 +161,9 @@ CONTAINS
       END IF
 
       DO ispin = 1, SIZE(c0)
-         CALL cp_fm_get_info(c0(ispin)%matrix, ncol_global=ncol)
+         CALL cp_fm_get_info(c0(ispin), ncol_global=ncol)
          CALL cp_dbcsr_sm_fm_multiply(p_env%kpp1(ispin)%matrix, &
-                                      c0(ispin)%matrix, &
+                                      c0(ispin), &
                                       Av(ispin)%matrix, &
                                       ncol=ncol, alpha=1.0_dp, beta=1.0_dp)
       END DO

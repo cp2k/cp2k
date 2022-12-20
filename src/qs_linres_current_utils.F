@@ -153,10 +153,11 @@ CONTAINS
       TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER        :: center_list
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: centers_set
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_work_ii, fm_work_iii, h1_psi0, &
-                                                            hpsi0_ptr, psi0_order, psi1, psi1_ptr
+                                                            hpsi0_ptr, psi1, psi1_ptr
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: p_psi0, psi1_D, psi1_p, psi1_rxp, &
                                                             rxp_psi0
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: psi0_order
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -222,7 +223,7 @@ CONTAINS
       IF (current_env%full) THEN
          ALLOCATE (psi1(nspins), h1_psi0(nspins))
          DO ispin = 1, nspins
-            mo_coeff => psi0_order(ispin)%matrix
+            mo_coeff => psi0_order(ispin)
             NULLIFY (tmp_fm_struct, psi1(ispin)%matrix, h1_psi0(ispin)%matrix)
             CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                      ncol_global=nstates(ispin), &
@@ -393,7 +394,7 @@ CONTAINS
          !
          DO ispin = 1, nspins
             nmo = nstates(ispin)
-            mo_coeff => psi0_order(ispin)%matrix
+            mo_coeff => psi0_order(ispin)
             NULLIFY (tmp_fm_struct, fm_work_ii(ispin)%matrix, fm_work_iii(ispin)%matrix)
             CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                      ncol_global=nmo, para_env=para_env, &
@@ -439,7 +440,7 @@ CONTAINS
                   !
                   DO ispin = 1, nspins
                      nmo = nstates(ispin)
-                     mo_coeff => psi0_order(ispin)%matrix
+                     mo_coeff => psi0_order(ispin)
                      !
                      ! take care that no overflow can occur for uks
                      IF (icenter .GT. nbr_center(ispin)) THEN
@@ -1037,10 +1038,9 @@ CONTAINS
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                   ncol_global=nstate_list(ispin), para_env=para_env, &
                                   context=mo_coeff%matrix_struct%context)
-         ALLOCATE (current_env%psi0_order(ispin)%matrix)
-         CALL cp_fm_create(current_env%psi0_order(ispin)%matrix, tmp_fm_struct)
+         CALL cp_fm_create(current_env%psi0_order(ispin), tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
-         CALL cp_fm_set_all(current_env%psi0_order(ispin)%matrix, 0.0_dp)
+         CALL cp_fm_set_all(current_env%psi0_order(ispin), 0.0_dp)
       END DO
       !
       !
@@ -1058,10 +1058,10 @@ CONTAINS
                   ! the blocking works (so far) with all the precond except FULL_ALL
                   ! the center_list(ispin)%array(2,i) array is obsolete then
                   current_env%center_list(ispin)%array(2, i) = jstate
-                  CALL cp_fm_to_fm(mo_coeff, current_env%psi0_order(ispin)%matrix, 1, istate, jstate)
+                  CALL cp_fm_to_fm(mo_coeff, current_env%psi0_order(ispin), 1, istate, jstate)
                ELSE
                   ! for the moment we just copy them
-                  CALL cp_fm_to_fm(mo_coeff, current_env%psi0_order(ispin)%matrix, 1, istate, istate)
+                  CALL cp_fm_to_fm(mo_coeff, current_env%psi0_order(ispin), 1, istate, istate)
                END IF
             END DO
          END DO
@@ -1261,7 +1261,7 @@ CONTAINS
          ALLOCATE (current_env%psi1_D(nspins, 3))
       END IF
       DO ispin = 1, nspins
-         mo_coeff => current_env%psi0_order(ispin)%matrix
+         mo_coeff => current_env%psi0_order(ispin)
          NULLIFY (tmp_fm_struct)
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                   ncol_global=current_env%nstates(ispin), &
@@ -1351,8 +1351,7 @@ CONTAINS
 
       IF (ASSOCIATED(current_env%psi0_order)) THEN
          DO ispin = 1, SIZE(current_env%psi0_order, 1)
-            CALL cp_fm_release(current_env%psi0_order(ispin)%matrix)
-            DEALLOCATE (current_env%psi0_order(ispin)%matrix)
+            CALL cp_fm_release(current_env%psi0_order(ispin))
          END DO
          DEALLOCATE (current_env%psi0_order)
       END IF

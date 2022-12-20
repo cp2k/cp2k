@@ -19,7 +19,8 @@ MODULE qs_linres_types
                                               cp_2d_r_p_type
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release
+                                              cp_fm_release,&
+                                              cp_fm_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_type
    USE kinds,                           ONLY: dp
@@ -117,7 +118,7 @@ MODULE qs_linres_types
       TYPE(realspace_grid_type), DIMENSION(:), POINTER :: rs_buf => NULL()
       TYPE(realspace_grid_type), DIMENSION(:, :), POINTER :: rs_gauge => NULL()
       !
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: psi0_order => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: psi0_order => NULL()
    END TYPE current_env_type
 
 !*********************************************************************************************************
@@ -217,7 +218,8 @@ MODULE qs_linres_types
                                                       matrix_difdip => NULL()
       REAL(dp), DIMENSION(:, :), POINTER :: deltaR => NULL(), delta_basis_function => NULL()
       REAL(dp), DIMENSION(:, :, :, :), POINTER :: apt_subset => NULL(), apt_at_dcdr_per_center => NULL()
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: mo_coeff => NULL(), dCR => NULL(), dCR_prime => NULL(), &
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: mo_coeff => NULL()
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: dCR => NULL(), dCR_prime => NULL(), &
                                                    op_dR => NULL(), chc => NULL()
 
       CHARACTER(LEN=30) :: orb_center_name
@@ -466,8 +468,7 @@ CONTAINS
       TYPE(realspace_grid_type), DIMENSION(:, :), &
          OPTIONAL, POINTER                               :: rs_gauge
       LOGICAL, OPTIONAL                                  :: use_old_gauge_atom, chi_pbc
-      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: psi0_order
+      TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: psi0_order
 
       IF (PRESENT(simple_done)) simple_done(1:6) = current_env%simple_done(1:6)
       IF (PRESENT(simple_converged)) simple_converged(1:6) = current_env%simple_converged(1:6)

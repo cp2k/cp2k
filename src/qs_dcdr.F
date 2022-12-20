@@ -12,7 +12,6 @@
 
 MODULE qs_dcdr
 
-!#include "./common/cp_common_uses.f90"
    USE atomic_kind_types,               ONLY: get_atomic_kind
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
@@ -222,14 +221,14 @@ CONTAINS
       CALL dbcsr_desymmetrize(opdr_sym(1)%matrix, dcdr_env%hamiltonian1(1)%matrix)
       CALL dbcsr_add(dcdr_env%hamiltonian1(1)%matrix, dcdr_env%matrix_t1(dcdr_env%beta + 1)%matrix, one, one)
 
-      CALL cp_dbcsr_sm_fm_multiply(dcdr_env%hamiltonian1(1)%matrix, dcdr_env%mo_coeff(1)%matrix, &
+      CALL cp_dbcsr_sm_fm_multiply(dcdr_env%hamiltonian1(1)%matrix, dcdr_env%mo_coeff(1), &
                                    dcdr_env%op_dR(1)%matrix, ncol=nmo)
 
       ! The overlap derivative terms for the Sternheimer equation
       ! buf = mo * (-mo * matrix_ks * mo)
       CALL cp_fm_create(buf, dcdr_env%likemos_fm_struct)
       CALL parallel_gemm('N', 'N', nao, nmo, nmo, &
-                         -1.0_dp, dcdr_env%mo_coeff(1)%matrix, dcdr_env%chc(1)%matrix, &
+                         -1.0_dp, dcdr_env%mo_coeff(1), dcdr_env%chc(1)%matrix, &
                          0.0_dp, buf)
 
       CALL cp_dbcsr_sm_fm_multiply(dcdr_env%matrix_s1(dcdr_env%beta + 1)%matrix, buf, dcdr_env%op_dR(1)%matrix, &
@@ -261,7 +260,8 @@ CONTAINS
 
       INTEGER                                            :: handle, output_unit
       LOGICAL                                            :: should_stop
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: h1_psi0, psi0_order, psi1
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: h1_psi0, psi1
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: psi0_order
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(section_vals_type), POINTER                   :: lr_section
@@ -283,10 +283,10 @@ CONTAINS
       END IF
 
       ! allocate the vectors
-      ALLOCATE (psi0_order(1), psi1(1), h1_psi0(1))
+      ALLOCATE (psi1(1), h1_psi0(1))
       NULLIFY (psi1(1)%matrix, h1_psi0(1)%matrix)
 
-      psi0_order(1)%matrix => dcdr_env%mo_coeff(1)%matrix
+      psi0_order(1:1) => dcdr_env%mo_coeff(1:1)
       ALLOCATE (psi1(1)%matrix, h1_psi0(1)%matrix)
       CALL cp_fm_create(psi1(1)%matrix, dcdr_env%likemos_fm_struct)
       CALL cp_fm_create(h1_psi0(1)%matrix, dcdr_env%likemos_fm_struct)
@@ -328,7 +328,7 @@ CONTAINS
       CALL cp_fm_release(psi1(1)%matrix)
       CALL cp_fm_release(h1_psi0(1)%matrix)
       DEALLOCATE (psi1(1)%matrix, h1_psi0(1)%matrix)
-      DEALLOCATE (psi1, h1_psi0, psi0_order)
+      DEALLOCATE (psi1, h1_psi0)
       CALL cp_print_key_finished_output(output_unit, logger, lr_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
 
@@ -370,7 +370,7 @@ CONTAINS
 
       nao = dcdr_env%nao
       nmo = dcdr_env%nmo
-      mo_coeff => dcdr_env%mo_coeff(1)%matrix
+      mo_coeff => dcdr_env%mo_coeff(1)
       apt_el => dcdr_env%apt_el_dcdr
       apt_nuc => dcdr_env%apt_nuc_dcdr
 
@@ -529,7 +529,7 @@ CONTAINS
 
       nao = dcdr_env%nao
       nmo = dcdr_env%nmo
-      mo_coeff => dcdr_env%mo_coeff(1)%matrix
+      mo_coeff => dcdr_env%mo_coeff(1)
       f_spin = 2._dp
 
       ALLOCATE (diagonal_elements(nmo))

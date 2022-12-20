@@ -850,21 +850,20 @@ CONTAINS
       ALLOCATE (dcdr_env%chc(nspins))
       ALLOCATE (dcdr_env%op_dR(nspins))
 
-      NULLIFY (dcdr_env%mo_coeff(1)%matrix)
       NULLIFY (dcdr_env%dCR(1)%matrix)
       NULLIFY (dcdr_env%dCR_prime(1)%matrix)
       NULLIFY (dcdr_env%chc(1)%matrix)
       NULLIFY (dcdr_env%op_dR(1)%matrix)
 
       ALLOCATE (dcdr_env%dCR(1)%matrix, dcdr_env%dCR_prime(1)%matrix, &
-                dcdr_env%mo_coeff(1)%matrix, dcdr_env%chc(1)%matrix, dcdr_env%op_dR(1)%matrix)
+                dcdr_env%chc(1)%matrix, dcdr_env%op_dR(1)%matrix)
       CALL cp_fm_create(dcdr_env%dCR(1)%matrix, dcdr_env%likemos_fm_struct)
       CALL cp_fm_create(dcdr_env%dCR_prime(1)%matrix, dcdr_env%likemos_fm_struct)
-      CALL cp_fm_create(dcdr_env%mo_coeff(1)%matrix, dcdr_env%likemos_fm_struct)
+      CALL cp_fm_create(dcdr_env%mo_coeff(1), dcdr_env%likemos_fm_struct)
       CALL cp_fm_create(dcdr_env%chc(1)%matrix, dcdr_env%momo_fm_struct)
       CALL cp_fm_create(dcdr_env%op_dR(1)%matrix, dcdr_env%likemos_fm_struct)
 
-      CALL cp_fm_to_fm(mo_coeff, dcdr_env%mo_coeff(1)%matrix)
+      CALL cp_fm_to_fm(mo_coeff, dcdr_env%mo_coeff(1))
 
       ! DBCSR matrices
       NULLIFY (dcdr_env%hamiltonian1)
@@ -1045,13 +1044,13 @@ CONTAINS
       ! Full matrices
       CALL cp_fm_release(dcdr_env%dCR(1)%matrix)
       CALL cp_fm_release(dcdr_env%dCR_prime(1)%matrix)
-      CALL cp_fm_release(dcdr_env%mo_coeff(1)%matrix)
+      CALL cp_fm_release(dcdr_env%mo_coeff(1))
       CALL cp_fm_release(dcdr_env%chc(1)%matrix)
       CALL cp_fm_release(dcdr_env%op_dR(1)%matrix)
       DEALLOCATE (dcdr_env%dCR(1)%matrix, dcdr_env%dCR_prime(1)%matrix, &
-                  dcdr_env%mo_coeff(1)%matrix, dcdr_env%chc(1)%matrix, dcdr_env%op_dR(1)%matrix)
+                  dcdr_env%chc(1)%matrix, dcdr_env%op_dR(1)%matrix)
       NULLIFY (dcdr_env%dCR(1)%matrix, dcdr_env%dCR_prime(1)%matrix, &
-               dcdr_env%mo_coeff(1)%matrix, dcdr_env%chc(1)%matrix, dcdr_env%op_dR(1)%matrix)
+               dcdr_env%chc(1)%matrix, dcdr_env%op_dR(1)%matrix)
 
       DEALLOCATE (dcdr_env%op_dR)
       DEALLOCATE (dcdr_env%dCR)

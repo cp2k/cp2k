@@ -392,9 +392,10 @@ CONTAINS
       INTEGER                                            :: handle, idir, iounit, ispin, nao, nmo, &
                                                             nspins
       LOGICAL                                            :: do_periodic, do_raman, should_stop
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: h1_psi0, psi0_order, psi1, psi1_ptr
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: h1_psi0, psi1, psi1_ptr
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: dBerry_psi0, psi1_dBerry
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: psi0_order
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -440,7 +441,7 @@ CONTAINS
       ALLOCATE (psi1(nspins), h1_psi0(nspins))
       DO ispin = 1, nspins
          CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
-         psi0_order(ispin)%matrix => mo_coeff
+         psi0_order(ispin) = mo_coeff
          CALL cp_fm_get_info(mo_coeff, ncol_global=nmo, nrow_global=nao)
          NULLIFY (tmp_fm_struct, psi1(ispin)%matrix, h1_psi0(ispin)%matrix)
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
