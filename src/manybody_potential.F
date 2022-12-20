@@ -38,7 +38,7 @@ MODULE manybody_potential
                                               setup_gal21_arrays
    USE manybody_quip,                   ONLY: quip_add_force_virial,&
                                               quip_energy_store_force_virial
-   USE manybody_nequip,                ONLY: destroy_nequip_arrays,&
+   USE manybody_nequip,                ONLY:  destroy_nequip_arrays,&
                                               setup_nequip_arrays,&
                                               nequip_energy_store_force_virial
    USE manybody_siepmann,               ONLY: destroy_siepmann_arrays,&
@@ -191,7 +191,8 @@ CONTAINS
          NULLIFY (glob_loc_list, glob_cell_v, glob_loc_list_a)
          CALL setup_nequip_arrays(nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, cell)
          CALL nequip_energy_store_force_virial(nonbonded, particle_set, cell, atomic_kind_set, potparm, &
-                                               nequip, glob_loc_list_a, r_last_update_pbc, pot_nequip)
+                                               nequip, glob_loc_list_a, r_last_update_pbc, pot_nequip, &
+                                               fist_nonbond_env)
          pot_manybody = pot_manybody + pot_nequip 
          CALL destroy_nequip_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a)
       END IF      

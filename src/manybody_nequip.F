@@ -18,7 +18,9 @@ MODULE manybody_nequip
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE fist_neighbor_list_types,        ONLY: fist_neighbor_type,&
                                               neighbor_kind_pairs_type                        
-   USE fist_nonbond_env_types,          ONLY: pos_type, fist_nonbond_env_type
+   USE fist_nonbond_env_types,          ONLY: pos_type, fist_nonbond_env_type, &
+                                              fist_nonbond_env_get, fist_nonbond_env_set, &
+                                              nequip_data_type
    USE kinds,                           ONLY: dp, sp, int_8
    USE mathconstants,                   ONLY: pi
    USE pair_potential_types,            ONLY: pair_potential_pp_type,&
@@ -181,20 +183,29 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param glob_loc_list ...
-!> \param glob_cell_v ...
+!> \param nonbonded ...
+!> \param particle_set ...
+!> \param cell ...
+!> \param atomic_kind_set ...
+!> \param potparm ...
+!> \param nequip ...
 !> \param glob_loc_list_a ...
+!> \param r_last_update_pbc ...
+!> \param pot_nequip ...
 !> \par History
-!>      Fast implementation of the nequip potential - [tlaino] 2007
+!>      Fast implementation of the tersoff potential - [tlaino] 2007
+!>      Implementation of the nequip potential - [gtocci] 2022
 !> \author Teodoro Laino - University of Zurich
+!> \author Gabriele Tocci - University of Zurich
 ! **************************************************************************************************
    SUBROUTINE nequip_energy_store_force_virial(nonbonded, particle_set, cell, atomic_kind_set, &
                                                potparm, nequip, glob_loc_list_a, r_last_update_pbc, &
-                                               pot_nequip)
+                                               pot_nequip, fist_nonbond_env)
 
       TYPE(nequip_pot_type), POINTER                     :: nequip
       TYPE(particle_type), POINTER                       :: particle_set(:)
       TYPE(fist_neighbor_type), POINTER                  :: nonbonded
+      TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
       TYPE(pair_potential_pp_type), POINTER              :: potparm
       INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a
       TYPE(cell_type), POINTER                           :: cell
@@ -224,6 +235,7 @@ CONTAINS
       ! Outputs.
       REAL(sp), DIMENSION(:, :), POINTER                 :: total_energy, atomic_energy, forces
       REAL(kind=dp)                                      :: pot_nequip
+      TYPE(nequip_data_type), POINTER                    :: nequip_data
 
       NULLIFY (total_energy, atomic_energy, forces)
       n_atoms = SIZE(particle_set)
@@ -364,6 +376,36 @@ CONTAINS
       CALL torch_dict_release(outputs)
 
       DEALLOCATE(pos, new_edge_index, new_edge_cell_shifts, atom_types)
+
+!      ! account for double counting from multiple MPI processes
+!      IF (PRESENT(para_env)) pot_nequip = pot_nequip/REAL(para_env%num_pe, dp)
+!      IF (PRESENT(para_env)) forces = forces/REAL(para_env%num_pe, dp)
+!      IF (PRESENT(para_env)) virial = virial/REAL(para_env%num_pe, dp)
+      ! get nequip_data to save force, virial info
+      CALL fist_nonbond_env_get(fist_nonbond_env, nequip_data=nequip_data)
+      IF (.NOT. ASSOCIATED(nequip_data)) THEN
+         ALLOCATE (nequip_data)
+         CALL fist_nonbond_env_set(fist_nonbond_env, nequip_data=nequip_data)
+         NULLIFY (nequip_data%use_indices, nequip_data%force)
+      END IF
+      IF (ASSOCIATED(nequip_data%force)) THEN
+         IF (SIZE(nequip_data%force, 2) /= n_atoms_use) THEN
+            DEALLOCATE (nequip_data%force, nequip_data%use_indices)
+         END IF
+      END IF
+      IF (.NOT. ASSOCIATED(nequip_data%force)) THEN
+         ALLOCATE (nequip_data%force(3, n_atoms_use))
+         ALLOCATE (nequip_data%use_indices(n_atoms_use))
+      END IF
+      ! save force, virial info
+      iat_use = 0
+      DO iat = 1, n_atoms
+         IF (use_atom(iat)) THEN
+            iat_use = iat_use + 1
+            nequip_data%use_indices(iat_use) = iat
+         END IF
+      END DO
+      nequip_data%force = REAL(forces, kind=dp)
 
    END SUBROUTINE nequip_energy_store_force_virial
 
