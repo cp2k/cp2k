@@ -23,9 +23,9 @@ MODULE qs_linres_op
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_solve
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
-                                              cp_cfm_p_type,&
                                               cp_cfm_release,&
-                                              cp_cfm_set_all
+                                              cp_cfm_set_all,&
+                                              cp_cfm_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
@@ -131,11 +131,11 @@ CONTAINS
       TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER        :: center_list
       TYPE(cp_2d_r_p_type), DIMENSION(3)                 :: vecbuf_RmdC0
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: centers_set
-      TYPE(cp_fm_p_type), DIMENSION(3)                   :: fm_Rmd_mos
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi0_order
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: p_psi0, rxp_psi0
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type)                                   :: fm_work1
+      TYPE(cp_fm_type), DIMENSION(3)                     :: fm_Rmd_mos
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -369,8 +369,7 @@ CONTAINS
                                      ncol_global=nmo, para_env=para_env, &
                                      context=mo_coeff%matrix_struct%context)
             DO idir = 1, 3
-               ALLOCATE (fm_Rmd_mos(idir)%matrix)
-               CALL cp_fm_create(fm_Rmd_mos(idir)%matrix, tmp_fm_struct)
+               CALL cp_fm_create(fm_Rmd_mos(idir), tmp_fm_struct)
             END DO
             CALL cp_fm_create(fm_work1, tmp_fm_struct)
             CALL cp_fm_struct_release(tmp_fm_struct)
@@ -388,7 +387,7 @@ CONTAINS
                      ckdk = pbc(dk, ck, cell)
                      vecbuf_Rmdc0(idir)%array(1, iao) = vecbuf_c0(1, iao)*ckdk(idir)
                   END DO ! iao
-                  CALL cp_fm_set_submatrix(fm_Rmd_mos(idir)%matrix, vecbuf_Rmdc0(idir)%array, &
+                  CALL cp_fm_set_submatrix(fm_Rmd_mos(idir), vecbuf_Rmdc0(idir)%array, &
                                            1, istate, nao, 1, transpose=.TRUE.)
                END DO ! idir
             END DO ! istate
@@ -398,13 +397,13 @@ CONTAINS
 
                !Add the second term to the idir component
                CALL cp_fm_set_all(fm_work1, 0.0_dp)
-               CALL cp_dbcsr_sm_fm_multiply(op_ao(iii)%matrix, fm_Rmd_mos(ii)%matrix, &
+               CALL cp_dbcsr_sm_fm_multiply(op_ao(iii)%matrix, fm_Rmd_mos(ii), &
                                             fm_work1, ncol=nmo, alpha=-1.0_dp)
                CALL cp_fm_scale_and_add(1.0_dp, rxp_psi0(ispin, idir)%matrix, &
                                         1.0_dp, fm_work1)
 
                CALL cp_fm_set_all(fm_work1, 0.0_dp)
-               CALL cp_dbcsr_sm_fm_multiply(op_ao(ii)%matrix, fm_Rmd_mos(iii)%matrix, &
+               CALL cp_dbcsr_sm_fm_multiply(op_ao(ii)%matrix, fm_Rmd_mos(iii), &
                                             fm_work1, ncol=nmo, alpha=-1.0_dp)
                CALL cp_fm_scale_and_add(1.0_dp, rxp_psi0(ispin, idir)%matrix, &
                                         -1.0_dp, fm_work1)
@@ -412,8 +411,7 @@ CONTAINS
             END DO ! idir
 
             DO idir = 1, 3
-               CALL cp_fm_release(fm_Rmd_mos(idir)%matrix)
-               DEALLOCATE (fm_Rmd_mos(idir)%matrix)
+               CALL cp_fm_release(fm_Rmd_mos(idir))
             END DO
             CALL cp_fm_release(fm_work1)
 
@@ -690,11 +688,11 @@ CONTAINS
       LOGICAL                                            :: do_raman
       REAL(dp)                                           :: kvec(3), maxocc
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: eigrmat
-      TYPE(cp_cfm_p_type), DIMENSION(:, :), POINTER      :: inv_mat
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: eigrmat
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:, :)    :: inv_mat
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: dBerry_psi0, op_fm_set, opvec
-      TYPE(cp_fm_p_type), DIMENSION(:, :, :), POINTER    :: inv_work
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :, :)  :: inv_work
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
@@ -705,7 +703,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (dBerry_psi0, inv_work, op_fm_set, opvec, sinmat, cosmat)
+      NULLIFY (dBerry_psi0, op_fm_set, opvec, sinmat, cosmat)
       NULLIFY (polar_env)
 
       NULLIFY (cell, dft_control, mos, matrix_s)
@@ -749,15 +747,12 @@ CONTAINS
                CALL cp_fm_create(opvec(i, ispin)%matrix, mo_coeff%matrix_struct)
                CALL cp_fm_create(op_fm_set(i, ispin)%matrix, tmp_fm_struct)
             END DO
-            ALLOCATE (eigrmat(ispin)%matrix)
-            CALL cp_cfm_create(eigrmat(ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
+            CALL cp_cfm_create(eigrmat(ispin), op_fm_set(1, ispin)%matrix%matrix_struct)
             CALL cp_fm_struct_release(tmp_fm_struct)
             DO i = 1, 3
-               ALLOCATE (inv_work(2, i, ispin)%matrix, inv_work(1, i, ispin)%matrix)
-               ALLOCATE (inv_mat(i, ispin)%matrix)
-               CALL cp_cfm_create(inv_mat(i, ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
-               CALL cp_fm_create(inv_work(2, i, ispin)%matrix, op_fm_set(2, ispin)%matrix%matrix_struct)
-               CALL cp_fm_create(inv_work(1, i, ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
+               CALL cp_cfm_create(inv_mat(i, ispin), op_fm_set(1, ispin)%matrix%matrix_struct)
+               CALL cp_fm_create(inv_work(2, i, ispin), op_fm_set(2, ispin)%matrix%matrix_struct)
+               CALL cp_fm_create(inv_work(1, i, ispin), op_fm_set(1, ispin)%matrix%matrix_struct)
             END DO
          END DO
 
@@ -787,41 +782,38 @@ CONTAINS
             ! Second step invert C^T S_berry C
             zdet = one
             DO ispin = 1, dft_control%nspins
-               CALL cp_cfm_get_info(eigrmat(ispin)%matrix, ncol_local=tmp_dim)
+               CALL cp_cfm_get_info(eigrmat(ispin), ncol_local=tmp_dim)
                DO idim = 1, tmp_dim
-                  eigrmat(ispin)%matrix%local_data(:, idim) = &
+                  eigrmat(ispin)%local_data(:, idim) = &
                      CMPLX(op_fm_set(1, ispin)%matrix%local_data(:, idim), &
                            -op_fm_set(2, ispin)%matrix%local_data(:, idim), dp)
                END DO
-               CALL cp_cfm_set_all(inv_mat(i, ispin)%matrix, zero, one)
-               CALL cp_cfm_solve(eigrmat(ispin)%matrix, inv_mat(i, ispin)%matrix, zdeta)
+               CALL cp_cfm_set_all(inv_mat(i, ispin), zero, one)
+               CALL cp_cfm_solve(eigrmat(ispin), inv_mat(i, ispin), zdeta)
             END DO
 
             ! Compute the derivative and add the result to mo_derivatives
             DO ispin = 1, dft_control%nspins
-               CALL cp_cfm_get_info(eigrmat(ispin)%matrix, ncol_local=tmp_dim)
+               CALL cp_cfm_get_info(eigrmat(ispin), ncol_local=tmp_dim)
                CALL get_mo_set(mo_set=mos(ispin), nao=nao, nmo=nmo, maxocc=maxocc)
                DO z = 1, tmp_dim
-                  inv_work(1, i, ispin)%matrix%local_data(:, z) = REAL(inv_mat(i, ispin)%matrix%local_data(:, z), dp)
-                  inv_work(2, i, ispin)%matrix%local_data(:, z) = AIMAG(inv_mat(i, ispin)%matrix%local_data(:, z))
+                  inv_work(1, i, ispin)%local_data(:, z) = REAL(inv_mat(i, ispin)%local_data(:, z), dp)
+                  inv_work(2, i, ispin)%local_data(:, z) = AIMAG(inv_mat(i, ispin)%local_data(:, z))
                END DO
-               CALL parallel_gemm("N", "N", nao, nmo, nmo, -1.0_dp, opvec(1, ispin)%matrix, inv_work(2, i, ispin)%matrix, &
+               CALL parallel_gemm("N", "N", nao, nmo, nmo, -1.0_dp, opvec(1, ispin)%matrix, inv_work(2, i, ispin), &
                                   0.0_dp, dBerry_psi0(i, ispin)%matrix)
-               CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, opvec(2, ispin)%matrix, inv_work(1, i, ispin)%matrix, &
+               CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, opvec(2, ispin)%matrix, inv_work(1, i, ispin), &
                                   1.0_dp, dBerry_psi0(i, ispin)%matrix)
             END DO
          END DO !x/y/z-direction
          !SL we omit here the multiplication with hmat (this scaling back done at the end of the response calc)
 
          DO ispin = 1, dft_control%nspins
-            CALL cp_cfm_release(eigrmat(ispin)%matrix)
-            DEALLOCATE (eigrmat(ispin)%matrix)
+            CALL cp_cfm_release(eigrmat(ispin))
             DO i = 1, 3
-               CALL cp_cfm_release(inv_mat(i, ispin)%matrix)
-               DEALLOCATE (inv_mat(i, ispin)%matrix)
-               CALL cp_fm_release(inv_work(1, i, ispin)%matrix)
-               CALL cp_fm_release(inv_work(2, i, ispin)%matrix)
-               DEALLOCATE (inv_work(1, i, ispin)%matrix, inv_work(2, i, ispin)%matrix)
+               CALL cp_cfm_release(inv_mat(i, ispin))
+               CALL cp_fm_release(inv_work(1, i, ispin))
+               CALL cp_fm_release(inv_work(2, i, ispin))
             END DO
             CALL cp_fm_release(opvec(1, ispin)%matrix)
             CALL cp_fm_release(opvec(2, ispin)%matrix)
