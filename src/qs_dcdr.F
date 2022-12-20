@@ -471,8 +471,8 @@ CONTAINS
       REAL(dp), DIMENSION(:, :, :, :), POINTER           :: apt_center, apt_subset
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: centers_set
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: tmp_fm_like_mos, tmp_fm_momo
       TYPE(cp_fm_type)                                   :: tmp_fm
+      TYPE(cp_fm_type), DIMENSION(3)                     :: tmp_fm_like_mos, tmp_fm_momo
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -532,15 +532,13 @@ CONTAINS
       mo_coeff => dcdr_env%mo_coeff(1)%matrix
       f_spin = 2._dp
 
-      ALLOCATE (tmp_fm_momo(3), tmp_fm_like_mos(3))
       ALLOCATE (diagonal_elements(nmo))
 
       ! Allocate temporary matrices
       CALL cp_fm_create(tmp_fm, dcdr_env%likemos_fm_struct)
       DO i = 1, 3
-         ALLOCATE (tmp_fm_momo(i)%matrix, tmp_fm_like_mos(i)%matrix)
-         CALL cp_fm_create(tmp_fm_momo(i)%matrix, dcdr_env%momo_fm_struct)
-         CALL cp_fm_create(tmp_fm_like_mos(i)%matrix, dcdr_env%likemos_fm_struct)
+         CALL cp_fm_create(tmp_fm_momo(i), dcdr_env%momo_fm_struct)
+         CALL cp_fm_create(tmp_fm_like_mos(i), dcdr_env%likemos_fm_struct)
       END DO
 
       ! Build the full coefficient derivatives.
@@ -550,11 +548,11 @@ CONTAINS
                                    tmp_fm, ncol=nmo)
       CALL parallel_gemm("T", "N", nmo, nmo, nao, &
                          1.0_dp, mo_coeff, tmp_fm, &
-                         0.0_dp, tmp_fm_momo(1)%matrix)
+                         0.0_dp, tmp_fm_momo(1))
 
       !   C^1 <- -dCR - 0.5 * mo_coeff @ S1_ij
       CALL parallel_gemm("N", "N", nao, nmo, nmo, &
-                         -0.5_dp, mo_coeff, tmp_fm_momo(1)%matrix, &
+                         -0.5_dp, mo_coeff, tmp_fm_momo(1), &
                          -1.0_dp, dcdr_env%dCR_prime(1)%matrix)
 
       ! FIRST CONTRIBUTION: dCR * moments * mo
@@ -566,14 +564,14 @@ CONTAINS
             CALL multiply_localization(ao_matrix=dcdr_env%moments(alpha)%matrix, &
                                        mo_coeff=dcdr_env%dCR_prime(1)%matrix, work=tmp_fm, nmo=nmo, &
                                        icenter=icenter, &
-                                       res=tmp_fm_like_mos(alpha)%matrix)
+                                       res=tmp_fm_like_mos(alpha))
             CALL dbcsr_set(dcdr_env%moments(alpha)%matrix, 0.0_dp)
          END DO
 
          CALL parallel_gemm("T", "N", nmo, nmo, nao, &
-                            1.0_dp, mo_coeff, tmp_fm_like_mos(alpha)%matrix, &
-                            0.0_dp, tmp_fm_momo(alpha)%matrix)
-         CALL cp_fm_get_diag(tmp_fm_momo(alpha)%matrix, diagonal_elements)
+                            1.0_dp, mo_coeff, tmp_fm_like_mos(alpha), &
+                            0.0_dp, tmp_fm_momo(alpha))
+         CALL cp_fm_get_diag(tmp_fm_momo(alpha), diagonal_elements)
 
          DO icenter = 1, dcdr_env%nbr_center(1)
             map_atom = mapping_wannier_atom(icenter)
@@ -608,13 +606,13 @@ CONTAINS
             CALL multiply_localization(ao_matrix=dcdr_env%matrix_difdip(alpha, dcdr_env%beta)%matrix, &
                                        mo_coeff=mo_coeff, work=tmp_fm, nmo=nmo, &
                                        icenter=icenter, &
-                                       res=tmp_fm_like_mos(alpha)%matrix)
+                                       res=tmp_fm_like_mos(alpha))
          END DO ! icenter
 
          CALL parallel_gemm("T", "N", nmo, nmo, nao, &
-                            1.0_dp, mo_coeff, tmp_fm_like_mos(alpha)%matrix, &
-                            0.0_dp, tmp_fm_momo(alpha)%matrix)
-         CALL cp_fm_get_diag(tmp_fm_momo(alpha)%matrix, diagonal_elements)
+                            1.0_dp, mo_coeff, tmp_fm_like_mos(alpha), &
+                            0.0_dp, tmp_fm_momo(alpha))
+         CALL cp_fm_get_diag(tmp_fm_momo(alpha), diagonal_elements)
 
          DO icenter = 1, dcdr_env%nbr_center(1)
             map_atom = mapping_wannier_atom(icenter)
@@ -651,11 +649,9 @@ CONTAINS
       ! And deallocate all the things!
       CALL cp_fm_release(tmp_fm)
       DO i = 1, 3
-         CALL cp_fm_release(tmp_fm_like_mos(i)%matrix)
-         CALL cp_fm_release(tmp_fm_momo(i)%matrix)
-         DEALLOCATE (tmp_fm_like_mos(i)%matrix, tmp_fm_momo(i)%matrix)
+         CALL cp_fm_release(tmp_fm_like_mos(i))
+         CALL cp_fm_release(tmp_fm_momo(i))
       END DO
-      DEALLOCATE (tmp_fm_like_mos, tmp_fm_momo)
       DEALLOCATE (diagonal_elements)
 
       CALL timestop(handle)
