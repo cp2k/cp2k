@@ -3,15 +3,15 @@
 # CP2K Darwin arch file for a parallel arm64 binary
 # (https://www.cp2k.org/howto:compile_on_macos)
 #
-# Tested with: GNU 12.2.0, MPICH 3.4.3,
+# Tested with: GNU 12.2.0, MPICH 4.0.3,
 #              ScaLAPACK 2.2.1, OpenBLAS 0.3.21, FFTW 3.3.10, LIBINT 2.6.0,
 #              LIBXC 6.0.0, SPGLIB 1.16.2,
-#              LIBVORI 220621, GSL 2.7, COSMA 2.6.2, SIRIUS 7.3.2
-# on an Apple M1 (macOS Ventura 13.0.1)
+#              LIBVORI 220621, GSL 2.7, COSMA 2.6.2, SIRIUS 7.4.0
+# on an Apple M1 (macOS Ventura 13.1)
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Author: Matthias Krack (15.12.2022)
+# Author: Matthias Krack (21.12.2022)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -56,9 +56,9 @@ USE_LIBINT     := 2.6.0
 USE_LIBVORI    := 220621
 USE_LIBXC      := 6.0.0
 USE_OPENBLAS   := 0.3.21
-#USE_PLUMED     := 2.8.0
+#USE_PLUMED     := 2.8.1
 USE_SCALAPACK  := 2.2.1
-USE_SIRIUS     := 7.3.2
+USE_SIRIUS     := 7.4.0
 USE_SPGLIB     := 1.16.2
 
 LMAX           := 5
