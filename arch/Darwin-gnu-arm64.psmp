@@ -5,7 +5,7 @@
 #
 # Tested with: GNU 12.2.0, MPICH 4.0.3,
 #              ScaLAPACK 2.2.1, OpenBLAS 0.3.21, FFTW 3.3.10, LIBINT 2.6.0,
-#              LIBXC 6.0.0, SPGLIB 1.16.2,
+#              LIBXC 6.0.0, SPGLIB 1.16.2, PLUMED 2.8.1,
 #              LIBVORI 220621, GSL 2.7, COSMA 2.6.2, SIRIUS 7.4.0
 # on an Apple M1 (macOS Ventura 13.1)
 #
@@ -27,6 +27,7 @@
       brew install cmake; \
       brew install coreutils; \
       brew install gcc; \
+      brew install gsed; \
       brew install pkg-config; \
       brew install wget; \
    else \
@@ -35,7 +36,7 @@
       cd ../..; \
       return 1; \
    fi; \
-   ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-cmake=system --with-gcc=system --with-${mpi_implementation} --with-elpa=no --with-libxsmm=no --with-pexsi=no --with-plumed=no --with-quip=no; \
+   ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-cmake=system --with-gcc=system --with-${mpi_implementation} --with-elpa=no --with-libxsmm=no --with-pexsi=no --with-quip=no; \
    source ./install/setup; \
    cd ../..; \
    echo; \
@@ -56,7 +57,7 @@ USE_LIBINT     := 2.6.0
 USE_LIBVORI    := 220621
 USE_LIBXC      := 6.0.0
 USE_OPENBLAS   := 0.3.21
-#USE_PLUMED     := 2.8.1
+USE_PLUMED     := 2.8.1
 USE_SCALAPACK  := 2.2.1
 USE_SIRIUS     := 7.4.0
 USE_SPGLIB     := 1.16.2
@@ -285,7 +286,7 @@ ifneq ($(USE_GSL),)
    ifeq ($(SHARED), yes)
       LIBS           += -Wl,-rpath,$(GSL_LIB) -L$(GSL_LIB) -lgsl
    else
-      LIBS           += $(GSL_LIB)/libgsl.a
+      LIBS           += $(GSL_LIB)/libgsl.a -llapack
    endif
 endif
 
