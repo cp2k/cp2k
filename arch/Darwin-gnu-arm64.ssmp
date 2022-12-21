@@ -5,7 +5,7 @@
 #
 # Tested with: GNU 12.2.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
 #              LIBXC 6.0.0, OpenBLAS 0.3.21, SPGLIB 1.16.2
-# on an Apple M1 (macOS Ventura 13.0.1)
+# on an Apple M1 (macOS Ventura 13.1)
 #
 # Usage: Source this arch file and then run make as instructed.
 #

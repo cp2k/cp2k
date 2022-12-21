@@ -4,8 +4,8 @@
 #
 # Tested with: Intel 20.4/21.4/22.2 , Intel MPI, Intel MKL,
 #              LIBINT 2.6.0, LIBXC 6.0.0, ELPA 2022.11.001.rc2,
-#              PLUMED 2.8.0, SPGLIB 1.16.2, LIBVORI 220621,
-#              GSL 2.7, COSMA 2.6.2, SIRIUS 7.3.2
+#              PLUMED 2.8.1, SPGLIB 1.16.2, LIBVORI 220621,
+#              GSL 2.7, COSMA 2.6.2, SIRIUS 7.4.0
 # on the Merlin cluster (PSI)
 #
 # Usage: Source this arch file and then run make as instructed.
@@ -54,8 +54,8 @@ USE_LIBPEXSI   := 1.2.0
 USE_LIBVORI    := 220621
 USE_LIBXC      := 6.0.0
 USE_LIBXSMM    := 1.17
-USE_PLUMED     := 2.8.0
-USE_SIRIUS     := 7.3.2
+USE_PLUMED     := 2.8.1
+USE_SIRIUS     := 7.4.0
 USE_SPGLIB     := 1.16.2
 # Only needed for SIRIUS
 LIBVDWXC_VER   := 0.4.0
