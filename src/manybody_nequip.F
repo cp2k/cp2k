@@ -348,6 +348,7 @@ CONTAINS
       ALLOCATE (new_edge_cell_shifts(3, nedges))
       new_edge_cell_shifts = edge_cell_shifts(:,:nedges)
       DEALLOCATE (edge_cell_shifts)
+
 !      DO ipair = 1, nedges
 !         WRITE(*,*) new_edge_index(ipair, :), r_last_update_pbc(new_edge_index(ipair,1) + 1)%r(:)*angstrom, &
 !                    r_last_update_pbc(new_edge_index(ipair,2) + 1)%r(:)*angstrom
