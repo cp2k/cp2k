@@ -1,0 +1,84 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME    BASIS_RI_cc-TZ
+    POTENTIAL_FILE_NAME    POTENTIAL
+    WFN_RESTART_FILE_NAME  ./H2O-32-PBE-TZ-RESTART.wfn
+    SORT_BASIS EXP
+    &MGRID
+      CUTOFF      800
+      REL_CUTOFF   50
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-12
+    &END QS
+    &SCF
+      SCF_GUESS  RESTART
+      EPS_SCF    1.0E-6
+      MAX_SCF    30
+      &OT
+        MINIMIZER       CG
+        PRECONDITIONER  FULL_ALL
+      &END
+      &OUTER_SCF
+        EPS_SCF  1.0E-6
+        MAX_SCF  20
+      &END
+      &PRINT
+        &RESTART OFF
+        &END
+      &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+      &WF_CORRELATION
+        &RI_RPA
+          MINIMAX_QUADRATURE
+          RPA_NUM_QUAD_POINTS    8
+        &END
+        &LOW_SCALING
+          MEMORY_CUT 3
+          MIN_BLOCK_SIZE 5
+        &END LOW_SCALING
+        &INTEGRALS
+          &WFC_GPW
+            CUTOFF      200
+            REL_CUTOFF  40
+          &END
+        &END INTEGRALS
+        &RI
+          &RI_METRIC
+            POTENTIAL_TYPE IDENTITY
+          &END RI_METRIC
+        &END RI
+      &END
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 9.8528 9.8528 9.8528
+    &END CELL
+    &TOPOLOGY
+       COORD_FILE_NAME   ./H2O-32.xyz
+       COORD_FILE_FORMAT XYZ
+    &END TOPOLOGY
+    &KIND H
+      BASIS_SET         cc-TZ
+      BASIS_SET RI_AUX  RI_TZ
+      POTENTIAL         GTH-PBE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET         cc-TZ
+      BASIS_SET RI_AUX  RI_TZ
+      POTENTIAL         GTH-PBE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT     H2O-32-RPA-TZ
+  RUN_TYPE    ENERGY_FORCE
+  PREFERRED_DIAG_LIBRARY SL
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
+
