@@ -60,6 +60,7 @@ MODULE rt_propagation_methods
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
+   USE qs_ks_types,                     ONLY: set_ks_env
    USE rt_make_propagators,             ONLY: propagate_arnoldi,&
                                               propagate_bch,&
                                               propagate_exp,&
@@ -127,6 +128,9 @@ CONTAINS
       CALL get_qs_env(qs_env, matrix_s=matrix_s)
       IF (rtp%iter == 1) THEN
          CALL qs_energies_init(qs_env, .FALSE.)
+         !the above recalculates matrix_s, but matrix not changed if ions are fixed
+         IF (rtp_control%fixed_ions) CALL set_ks_env(qs_env%ks_env, s_mstruct_changed=.FALSE.)
+
          ! add additional terms for the velocity gauge to matrix_h and matrix_h_im
          ! should be called imediately after qs_energies_init and before qs_ks_update_qs_env
          IF (rtp_control%velocity_gauge) THEN
