@@ -254,6 +254,7 @@ CONTAINS
       IF (eval_ef) THEN
          SELECT CASE (force_env%in_use)
          CASE (use_fist_force)
+            WRITE(*, *) "fist_calc_energy_force para_env%mepos ", force_env%para_env%mepos
             CALL fist_calc_energy_force(force_env%fist_env)
          CASE (use_qs_force)
             CALL qs_calc_energy_force(force_env%qs_env, calculate_forces, energy_consistency, linres_run)

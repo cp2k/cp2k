@@ -291,6 +291,7 @@ CONTAINS
          CALL density_nonbond(fist_nonbond_env, particle_set, cell, para_env)
 
          ! Compute embedding function and manybody energy
+         WRITE(*, *) "fist_force calling energy_manybody para_env%mepos ", para_env%mepos
          CALL energy_manybody(fist_nonbond_env, atomic_kind_set, local_particles, particle_set, &
                               cell, pot_manybody, para_env, mm_section)
 

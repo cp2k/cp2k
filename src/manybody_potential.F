@@ -191,9 +191,10 @@ CONTAINS
       IF (any_nequip) THEN
          NULLIFY (glob_loc_list, glob_cell_v, glob_loc_list_a)
          CALL setup_nequip_arrays(nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, cell)
+         WRITE(*, *) "manybody_potential calling nequip para_env%mepos", para_env%mepos
          CALL nequip_energy_store_force_virial(nonbonded, particle_set, cell, atomic_kind_set, potparm, &
                                                nequip, glob_loc_list_a, r_last_update_pbc, pot_nequip, &
-                                               fist_nonbond_env)
+                                               fist_nonbond_env, para_env)
          pot_manybody = pot_manybody + pot_nequip 
          CALL destroy_nequip_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a)
       END IF      
@@ -259,6 +260,7 @@ CONTAINS
                            rij(:) = r_last_update_pbc(atom_b)%r(:) - r_last_update_pbc(atom_a)%r(:) + cell_v
                            drij = DOT_PRODUCT(rij, rij)
                            ipair = ipair + 1
+                           WRITE(*, *) "manybody_potential para_env%mepos atom_a atom_b", para_env%mepos, atom_a, atom_b
                            IF (drij > rab2_max) CYCLE
                            drij = SQRT(drij)
                            CALL tersoff_energy(pot_loc, tersoff, r_last_update_pbc, atom_a, atom_b, nloc_size, &

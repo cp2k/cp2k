@@ -200,11 +200,12 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE nequip_energy_store_force_virial(nonbonded, particle_set, cell, atomic_kind_set, &
                                                potparm, nequip, glob_loc_list_a, r_last_update_pbc, &
-                                               pot_nequip, fist_nonbond_env)
+                                               pot_nequip, fist_nonbond_env, para_env)
 
       TYPE(nequip_pot_type), POINTER                     :: nequip
       TYPE(particle_type), POINTER                       :: particle_set(:)
       TYPE(fist_neighbor_type), POINTER                  :: nonbonded
+      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
       TYPE(pair_potential_pp_type), POINTER              :: potparm
       INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a
@@ -226,7 +227,7 @@ CONTAINS
       LOGICAL, ALLOCATABLE                               :: use_atom(:)
       REAL(kind=sp), ALLOCATABLE                         :: pos(:, :)
       INTEGER(kind=int_8), ALLOCATABLE                   :: atom_types(:)
-      REAL(kind=dp)                                      :: lattice(3, 3), rij(3), drij, rab2_max, pot_loc
+      REAL(kind=dp)                                      :: lattice(3, 3), rij(3), drij, rab2_max
       TYPE(pos_type), DIMENSION(:), POINTER              :: r_last_update_pbc
       INTEGER(kind=int_8), DIMENSION(:, :), ALLOCATABLE  :: edge_index, new_edge_index
       REAL(kind=sp), DIMENSION(:, :), ALLOCATABLE        :: edge_cell_shifts, new_edge_cell_shifts
@@ -323,11 +324,10 @@ CONTAINS
                      DO WHILE (ipair <= npairs)
                         IF (sort_list(1, ipair) /= junique) EXIT
                         atom_b = sort_list(2, ipair)
-                        ! Energy terms
-                        pot_loc = 0.0_dp
                         rij(:) = r_last_update_pbc(atom_b)%r(:) - r_last_update_pbc(atom_a)%r(:) + cell_v
                         drij = DOT_PRODUCT(rij, rij)
                         ipair = ipair + 1
+                        WRITE(*, *) "manybody_nequip para_env%mepos atom_a atom_b", para_env%mepos, atom_a, atom_b
                         IF (drij <= rab2_max) THEN
                            nedges = nedges + 1
                            edge_index(nedges, :) = [atom_a - 1, atom_b - 1]
@@ -357,6 +357,8 @@ CONTAINS
 !         WRITE(*,*) new_edge_cell_shifts(:,ipair), new_edge_index(ipair,:)+1
 !      END DO
 
+!      WRITE(*, *) "manybody_nequip para_env%mepos nedges ", para_env%mepos, nedges
+
       CALL torch_dict_create(inputs)
       CALL torch_dict_insert(inputs, "pos", pos)
       CALL torch_dict_insert(inputs, "edge_index", new_edge_index)
@@ -367,16 +369,28 @@ CONTAINS
       CALL torch_dict_create(outputs)
       CALL torch_model_eval(pot%set(1)%nequip%model, inputs, outputs)
    
+      WRITE(*, *) "para_env%mepos nedges ", para_env%mepos, nedges
       CALL torch_dict_get(outputs, "total_energy", total_energy)
+      WRITE(*, *) "para_env%mepos Total energy: ", para_env%mepos, total_energy
       CALL torch_dict_get(outputs, "atomic_energy", atomic_energy)
       CALL torch_dict_get(outputs, "forces", forces)
 
-      pot_nequip = REAL(total_energy(1, 1), kind=dp)/evolt
+      total_energy = total_energy/REAL(evolt, kind=sp)
+!      pot_nequip = REAL(total_energy(1, 1), kind=dp)/evolt
+
+      WRITE(*, *) "Atomic energy"
+      WRITE(*, *) atomic_energy
+      pot_nequip = 0.0_dp
+      WRITE(*, *) "atomic_energy SHAPE ", SHAPE(atomic_energy)
+      DO iat = 1, SIZE(atomic_energy(1,:))
+         WRITE(*, *) "pos(1,iat) ", pos(1,iat), iat
+         pot_nequip = pot_nequip + REAL(atomic_energy(1,iat), kind=dp)/evolt
+      END DO
 
       CALL torch_dict_release(inputs)
       CALL torch_dict_release(outputs)
 
-      DEALLOCATE(pos, new_edge_index, new_edge_cell_shifts, atom_types)
+      DEALLOCATE(pos, new_edge_index, new_edge_cell_shifts, atom_types, total_energy, atomic_energy)
 
 !      ! account for double counting from multiple MPI processes
 !      IF (PRESENT(para_env)) pot_nequip = pot_nequip/REAL(para_env%num_pe, dp)

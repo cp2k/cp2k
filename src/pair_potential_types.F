@@ -859,6 +859,7 @@ CONTAINS
          CALL pair_potential_eam_release(potparm%set(i)%eam)
          CALL pair_potential_quip_release(potparm%set(i)%quip)
          CALL pair_potential_nequip_release(potparm%set(i)%nequip)
+         WRITE (*, *) "pair_potential_nequip_release(potparm%set(i)%nequip), i ", i
          CALL pair_potential_buck4r_release(potparm%set(i)%buck4r)
          CALL pair_potential_buckmo_release(potparm%set(i)%buckmo)
          CALL pair_potential_gp_release(potparm%set(i)%gp)
