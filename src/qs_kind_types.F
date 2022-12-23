@@ -3315,6 +3315,17 @@ CONTAINS
             ncore(1, 3) = 6
             ncore(2, 1) = 10
             ncore(2, 2) = 10
+         CASE (47)
+            ncore(0, 1) = 2
+            ncore(0, 2) = 2
+            ncore(0, 3) = 2
+            ncore(0, 4) = 2
+            ncore(1, 1) = 6
+            ncore(1, 2) = 6
+            ncore(1, 3) = 6
+            ncore(2, 1) = 10
+            ncore(2, 2) = 10
+            ncore(3, 1) = 1
          CASE (54)
             ncore(0, 1) = 2
             ncore(0, 2) = 2
