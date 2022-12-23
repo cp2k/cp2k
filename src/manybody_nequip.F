@@ -394,6 +394,8 @@ CONTAINS
       CALL torch_dict_insert(inputs, "atom_types", atom_types)
    
       CALL torch_dict_create(outputs)
+
+      WRITE(*, *) "before torch_model_eval"
       CALL torch_model_eval(pot%set(1)%nequip%model, inputs, outputs)
    
       WRITE(*, *) "para_env%mepos nedges ", para_env%mepos, nedges_tot
