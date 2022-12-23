@@ -31,6 +31,7 @@ MODULE manybody_nequip
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE util,                            ONLY: sort
    USE physcon,                         ONLY: angstrom, evolt
+   USE message_passing,                 ONLY: mp_sum, mp_allgather
    USE torch_api,                       ONLY: &
         torch_cuda_is_available, torch_dict_create, torch_dict_get, torch_dict_insert, &
         torch_dict_release, torch_dict_type, torch_model_eval, torch_model_load, &
@@ -57,8 +58,10 @@ CONTAINS
 !> \param glob_loc_list_a ...
 !> \param cell ...
 !> \par History
-!>      Fast implementation of the nequip potential - [tlaino] 2007
+!>      Fast implementation of the tersoff potential - [tlaino] 2007
+!>      Implementation of the nequip potential - [gabrieletocci] 2022
 !> \author Teodoro Laino - University of Zurich
+!> \author Gabriele Tocci - University of Zurich
 ! **************************************************************************************************
    SUBROUTINE setup_nequip_arrays(nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, cell)
       TYPE(fist_neighbor_type), POINTER                  :: nonbonded
@@ -161,8 +164,10 @@ CONTAINS
 !> \param glob_cell_v ...
 !> \param glob_loc_list_a ...
 !> \par History
-!>      Fast implementation of the nequip potential - [tlaino] 2007
+!>      Fast implementation of the tersoff potential - [tlaino] 2007
+!>      Implementation of the nequip potential - [gabrieletocci] 2022
 !> \author Teodoro Laino - University of Zurich
+!> \author Gabriele Tocci - University of Zurich
 ! **************************************************************************************************
    SUBROUTINE destroy_nequip_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a)
       INTEGER, DIMENSION(:, :), POINTER                  :: glob_loc_list
@@ -223,14 +228,14 @@ CONTAINS
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind_set(:)
       INTEGER                                            :: iat, iat_use, n_atoms_use, atom_a, atom_b, &
                                                             ifirst, ilast, iunique, nunique, junique, &
-                                                            mpair, nloc_size, n_atoms, nedges
+                                                            mpair, nloc_size, n_atoms, nedges, nedges_tot
       LOGICAL, ALLOCATABLE                               :: use_atom(:)
       REAL(kind=sp), ALLOCATABLE                         :: pos(:, :)
       INTEGER(kind=int_8), ALLOCATABLE                   :: atom_types(:)
       REAL(kind=dp)                                      :: lattice(3, 3), rij(3), drij, rab2_max
       TYPE(pos_type), DIMENSION(:), POINTER              :: r_last_update_pbc
-      INTEGER(kind=int_8), DIMENSION(:, :), ALLOCATABLE  :: edge_index, new_edge_index
-      REAL(kind=sp), DIMENSION(:, :), ALLOCATABLE        :: edge_cell_shifts, new_edge_cell_shifts
+      INTEGER(kind=int_8), DIMENSION(:, :), ALLOCATABLE  :: edge_index, temp_edge_index
+      REAL(kind=sp), DIMENSION(:, :), ALLOCATABLE        :: edge_cell_shifts, temp_edge_cell_shifts
       ! Torch objects.
       TYPE(torch_dict_type)                              :: inputs, outputs
       ! Outputs.
@@ -270,6 +275,7 @@ CONTAINS
       nedges = 0
       ALLOCATE (edge_index(SIZE(glob_loc_list_a),2))
       ALLOCATE (edge_cell_shifts(3,SIZE(glob_loc_list_a)))
+      WRITE(*, *) "size edge_index para_env%mepos", SHAPE(edge_index), para_env%mepos
       DO ilist = 1, nonbonded%nlists
          neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
          npairs = neighbor_kind_pair%npairs
@@ -341,18 +347,36 @@ CONTAINS
                END IF
             END DO
          END DO Kind_Group_Loop_Nequip
-      END DO   
-      ALLOCATE (new_edge_index(nedges,2))
-      new_edge_index = edge_index(:nedges, :)
+      END DO
+
+      ALLOCATE (temp_edge_index(nedges,2))
+      temp_edge_index = edge_index(:nedges, :)
       DEALLOCATE (edge_index)
-      ALLOCATE (new_edge_cell_shifts(3, nedges))
-      new_edge_cell_shifts = edge_cell_shifts(:,:nedges)
+      ALLOCATE (temp_edge_cell_shifts(3, nedges))
+      temp_edge_cell_shifts = edge_cell_shifts(:,:nedges)
       DEALLOCATE (edge_cell_shifts)
 
-!      DO ipair = 1, nedges
-!         WRITE(*,*) new_edge_index(ipair, :), r_last_update_pbc(new_edge_index(ipair,1) + 1)%r(:)*angstrom, &
-!                    r_last_update_pbc(new_edge_index(ipair,2) + 1)%r(:)*angstrom
-!      END DO
+      nedges_tot = nedges
+      CALL mp_sum(nedges_tot, para_env%group)
+      WRITE(*, *) "para_env%mepos, nedges_tot ", para_env%mepos, nedges_tot
+      ALLOCATE (edge_index(nedges_tot,2))
+      ALLOCATE (edge_cell_shifts(3, nedges_tot))
+
+      CALL mp_allgather(temp_edge_index, edge_index, para_env%group)
+      CALL mp_allgather(temp_edge_cell_shifts, edge_cell_shifts, para_env%group)
+
+      WRITE(*, *) "SHAPE(edge_index)", SHAPE(edge_index)
+      WRITE(*, *) "SHAPE(edge_index)", SHAPE(edge_cell_shifts) 
+      DO ipair = 1, nedges_tot
+         IF (edge_index(ipair, 1) > 96  .OR.  edge_index(ipair, 2) > 96 ) THEN
+             WRITE(*,*) "WARNING edge index ", edge_index(ipair, :), para_env%mepos         
+         END IF
+      END DO
+
+      DO ipair = 1, nedges_tot
+         WRITE(*,*) edge_cell_shifts(:,ipair), para_env%mepos
+      END DO
+
 !      DO ipair = 1, nedges
 !         WRITE(*,*) new_edge_cell_shifts(:,ipair), new_edge_index(ipair,:)+1
 !      END DO
@@ -360,16 +384,19 @@ CONTAINS
 !      WRITE(*, *) "manybody_nequip para_env%mepos nedges ", para_env%mepos, nedges
 
       CALL torch_dict_create(inputs)
+      DO iat = 1, n_atoms
+         pos(:, iat) = REAL(r_last_update_pbc(iat)%r(:)*angstrom, kind=sp)
+      END DO
       CALL torch_dict_insert(inputs, "pos", pos)
-      CALL torch_dict_insert(inputs, "edge_index", new_edge_index)
-      CALL torch_dict_insert(inputs, "edge_cell_shift", new_edge_cell_shifts)
+      CALL torch_dict_insert(inputs, "edge_index", edge_index)
+      CALL torch_dict_insert(inputs, "edge_cell_shift", edge_cell_shifts)
       CALL torch_dict_insert(inputs, "cell", REAL(lattice, kind=sp))
       CALL torch_dict_insert(inputs, "atom_types", atom_types)
    
       CALL torch_dict_create(outputs)
       CALL torch_model_eval(pot%set(1)%nequip%model, inputs, outputs)
    
-      WRITE(*, *) "para_env%mepos nedges ", para_env%mepos, nedges
+      WRITE(*, *) "para_env%mepos nedges ", para_env%mepos, nedges_tot
       CALL torch_dict_get(outputs, "total_energy", total_energy)
       WRITE(*, *) "para_env%mepos Total energy: ", para_env%mepos, total_energy
       CALL torch_dict_get(outputs, "atomic_energy", atomic_energy)
@@ -383,18 +410,15 @@ CONTAINS
       pot_nequip = 0.0_dp
       WRITE(*, *) "atomic_energy SHAPE ", SHAPE(atomic_energy)
       DO iat = 1, SIZE(atomic_energy(1,:))
-         WRITE(*, *) "pos(1,iat) ", pos(1,iat), iat
+         WRITE(*, *) "pos(:,iat) ", pos(:,iat), iat
          pot_nequip = pot_nequip + REAL(atomic_energy(1,iat), kind=dp)/evolt
       END DO
 
       CALL torch_dict_release(inputs)
       CALL torch_dict_release(outputs)
 
-      DEALLOCATE(pos, new_edge_index, new_edge_cell_shifts, atom_types, total_energy, atomic_energy)
+      DEALLOCATE(pos, edge_index, edge_cell_shifts, atom_types, total_energy, atomic_energy)
 
-!      ! account for double counting from multiple MPI processes
-!      IF (PRESENT(para_env)) pot_nequip = pot_nequip/REAL(para_env%num_pe, dp)
-!      IF (PRESENT(para_env)) forces = forces/REAL(para_env%num_pe, dp)
 !      IF (PRESENT(para_env)) virial = virial/REAL(para_env%num_pe, dp)
       ! get nequip_data to save force, virial info
       CALL fist_nonbond_env_get(fist_nonbond_env, nequip_data=nequip_data)
@@ -420,7 +444,14 @@ CONTAINS
             nequip_data%use_indices(iat_use) = iat
          END IF
       END DO
-      nequip_data%force = REAL(forces, kind=dp)*angstrom/evolt
+
+!      ! account for double counting from multiple MPI processes
+      IF (PRESENT(para_env)) pot_nequip = pot_nequip/REAL(para_env%num_pe, dp)
+      IF (PRESENT(para_env)) THEN
+         nequip_data%force = REAL(forces, kind=dp)*angstrom/evolt/REAL(para_env%num_pe, dp)
+      ELSE
+         nequip_data%force = REAL(forces, kind=dp)*angstrom/evolt
+      END IF
 
    END SUBROUTINE nequip_energy_store_force_virial
 
