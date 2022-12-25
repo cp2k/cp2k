@@ -62,9 +62,9 @@ MODULE dbt_tas_types
    TYPE dbt_tas_mm_storage
       TYPE(dbt_tas_type), POINTER :: store_batched => NULL() ! intermediate replicated matrix
       TYPE(dbt_tas_type), POINTER :: store_batched_repl => NULL() ! intermediate replicated matrix
-      LOGICAL :: batched_out ! whether replicated matrix has been changed in mm and should be copied to actual matrix
-      LOGICAL :: batched_trans
-      REAL(dp) :: batched_beta
+      LOGICAL :: batched_out = .FALSE. ! whether replicated matrix has been changed in mm and should be copied to actual matrix
+      LOGICAL :: batched_trans = .FALSE.
+      REAL(dp) :: batched_beta = 1.0_dp
    END TYPE
 
    ! type for tall-and-skinny matrices
