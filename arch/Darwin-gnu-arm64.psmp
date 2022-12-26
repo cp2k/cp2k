@@ -6,7 +6,7 @@
 # Tested with: GNU 12.2.0, MPICH 4.0.3,
 #              ScaLAPACK 2.2.1, OpenBLAS 0.3.21, FFTW 3.3.10, LIBINT 2.6.0,
 #              LIBXC 6.0.0, SPGLIB 1.16.2, PLUMED 2.8.1,
-#              LIBVORI 220621, GSL 2.7, COSMA 2.6.2, SIRIUS 7.4.0
+#              LIBVORI 220621, GSL 2.7, COSMA 2.6.2, SIRIUS 7.3.2
 # on an Apple M1 (macOS Ventura 13.1)
 #
 # Usage: Source this arch file and then run make as instructed.
@@ -59,7 +59,7 @@ USE_LIBXC      := 6.0.0
 USE_OPENBLAS   := 0.3.21
 USE_PLUMED     := 2.8.1
 USE_SCALAPACK  := 2.2.1
-USE_SIRIUS     := 7.4.0
+USE_SIRIUS     := 7.3.2
 USE_SPGLIB     := 1.16.2
 
 LMAX           := 5
