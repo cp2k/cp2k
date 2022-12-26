@@ -185,10 +185,11 @@ CONTAINS
             tra_mat = 0
             ierr = spg_get_pointgroup(csym%pointgroup_symbol, tra_mat, &
                                       csym%rotations, csym%n_operations)
+
+            CALL strip_control_codes(csym%international_symbol)
+            CALL strip_control_codes(csym%schoenflies)
+            CALL strip_control_codes(csym%pointgroup_symbol)
          END IF
-         CALL strip_control_codes(csym%international_symbol)
-         CALL strip_control_codes(csym%schoenflies)
-         CALL strip_control_codes(csym%pointgroup_symbol)
       END IF
       csym%symlib = spglib
 

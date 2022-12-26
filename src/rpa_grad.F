@@ -1309,7 +1309,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: P_ab
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: mat_S, mat_work
       INTEGER, INTENT(IN)                                :: dot_blksize
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), TARGET :: buffer_1D
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT), TARGET                           :: buffer_1D
       TYPE(C_PTR), INTENT(INOUT)                         :: local_gemm_ctx
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: my_eval_virt, my_eval_occ, recv_eval_virt
       REAL(KIND=dp), INTENT(IN)                          :: omega, weight
@@ -1402,7 +1403,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: P_ij
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: mat_S, mat_work
       INTEGER, INTENT(IN)                                :: dot_blksize
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), TARGET :: buffer_1D
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT), TARGET                           :: buffer_1D
       TYPE(C_PTR), INTENT(INOUT)                         :: local_gemm_ctx
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: my_eval_virt, my_eval_occ, recv_eval_occ
       REAL(KIND=dp), INTENT(IN)                          :: omega, weight

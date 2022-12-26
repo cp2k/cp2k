@@ -2911,6 +2911,8 @@ CONTAINS
       ALLOCATE (basis_set_ri_aux(nkind))
       CALL basis_set_list_setup(basis_set_ri_aux, "RI_AUX", qs_kind_set)
 
+      G_count = 0; R_count = 0
+
       CALL dbcsr_iterator_start(iter, G_PQ)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
 

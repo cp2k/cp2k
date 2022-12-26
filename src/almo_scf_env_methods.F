@@ -195,6 +195,8 @@ CONTAINS
                                 r_val=almo_scf_env%opt_block_diag_pcg%lin_search_eps_error)
       CALL section_vals_val_get(almo_opt_pcg_section, "LIN_SEARCH_STEP_SIZE_GUESS", &
                                 r_val=almo_scf_env%opt_block_diag_pcg%lin_search_step_size_guess)
+      CALL section_vals_val_get(almo_opt_pcg_section, "PRECOND_FILTER_THRESHOLD", &
+                                r_val=almo_scf_env%opt_block_diag_pcg%neglect_threshold)
       CALL section_vals_val_get(almo_opt_pcg_section, "CONJUGATOR", &
                                 i_val=almo_scf_env%opt_block_diag_pcg%conjugator)
       CALL section_vals_val_get(almo_opt_pcg_section, "PRECONDITIONER", &

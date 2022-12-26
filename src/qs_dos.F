@@ -101,6 +101,8 @@ CONTAINS
       emin = 1.e10_dp
       emax = -1.e10_dp
       nspins = SIZE(mos)
+      nmo(:) = 0
+
       DO ispin = 1, nspins
          mo_set => mos(ispin)
          CALL get_mo_set(mo_set=mo_set, nmo=nmo(ispin), mu=e_fermi(ispin))
