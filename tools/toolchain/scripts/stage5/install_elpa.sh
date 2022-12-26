@@ -7,8 +7,8 @@
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
 # From https://elpa.mpcdf.mpg.de/software/tarball-archive/ELPA_TARBALL_ARCHIVE.html
-elpa_ver="2022.11.001.rc2"
-elpa_sha256="13d67e7d69894c631b48e4fcac905b51c4e41554c7eb4731e98c4e205f0fab9f"
+elpa_ver="2022.11.001"
+elpa_sha256="35e397d7c0af95bb43bc7bef7fff29425c1da400fa0cd86ae8d3bd2ff2f9d999"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -63,17 +63,9 @@ case "$with_elpa" in
       [ -d elpa-${elpa_ver} ] && rm -rf elpa-${elpa_ver}
       tar -xzf elpa-${elpa_ver}.tar.gz
 
-      # fix wrong dependency order (at least in elpa 2016.05.003)
-      # sed -i "s/build_lib = libelpa@SUFFIX@.la libelpatest@SUFFIX@.la/build_lib = libelpatest@SUFFIX@.la libelpa@SUFFIX@.la/g" elpa-${elpa_ver}/Makefile.in
-      # sed -i "s/build_lib = libelpa@SUFFIX@.la libelpatest@SUFFIX@.la/build_lib = libelpatest@SUFFIX@.la libelpa@SUFFIX@.la/g" elpa-${elpa_ver}/Makefile.am
-
-      # need both flavors ?
-
       # elpa expect FC to be an mpi fortran compiler that is happy
       # with long lines, and that a bunch of libs can be found
       cd elpa-${elpa_ver}
-
-      patch -p1 < "${SCRIPT_DIR}/stage5/elpa-fix_nvcc_wrap.patch"
 
       # ELPA-2017xxxx enables AVX2 by default, switch off if machine doesn't support it.
       AVX_flag=""
@@ -201,10 +193,6 @@ export ELPA_ROOT="$pkg_install_dir"
 export ELPA_VERSION="${elpa_ver}"
 EOF
 
-  cat << EOF >> ${INSTALLDIR}/lsan.supp
-# leaks related to ELPA
-leak:cublasCreateFromC
-EOF
 fi
 
 load "${BUILDDIR}/setup_elpa"
