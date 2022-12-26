@@ -17,31 +17,33 @@ correlation energy is calculated on top of a PBE SCF (without EXX).
 
 ## Reference timings
 
-These benchmarks were run during the pilot phase of the LUMI-G supercomputer (December 2022), under
-git commit d8f36242127b9a828f127550ecd9613eefb3f1cc. All calculations were run with 8 GPUs, 16 MPI
-ranks, and 3 OMP threads per node. Note that this amounts to a total of 48 out of the 64 CPUs of a
-LUMI-G node, because full nodes where not available at the time.
+These benchmarks were run during the pilot phase of the
+[LUMI-G supercomputer](https://docs.lumi-supercomputer.eu/hardware/compute/lumig/) (December 2022), under
+[git commit d8f3624](https://github.com/cp2k/cp2k/commit/d8f36242127b9a828f127550ecd9613eefb3f1cc).
+All calculations were run with 4 GPUs (8 GCDs), 16 MPI ranks, and 3 OMP threads per node.
+Note that this amounts to a total of 48 out of the 64 CPUs of a LUMI-G node,
+because full nodes where not available at the time.
 
 ### 32-H2O
 
 | Input file            | Wall time (s) on 2 nodes | Wall time (s) on 4 nodes |
 | --------------------- | ------------------------ | ------------------------ |
-| H2O-32-RPA-TZ.inp     | 1530.767                 | 788.375                  |
-| H2O-32-SOS-MP2-TZ.inp | 1787.164                 | 917.736                  |
+| H2O-32-RPA-TZ.inp     | 1531                     | 788                      |
+| H2O-32-SOS-MP2-TZ.inp | 1787                     | 918                      |
 
 ### 64-H2O
 
 | Input file            | Wall time (s) on 8 nodes | Wall time (s) on 16 nodes |
 | --------------------- | ------------------------ | ------------------------- |
-| H2O-64-RPA-TZ.inp     | 2570.453                 | 1414.915                  |
-| H2O-64-SOS-MP2-TZ.inp | 2784.860                 | 1505.283                  |
+| H2O-64-RPA-TZ.inp     | 2570                     | 1415                      |
+| H2O-64-SOS-MP2-TZ.inp | 2785                     | 1505                      |
 
 ### 128-H2O
 
 | Input file             | Wall time (s) on 32 nodes | Wall time (s) on 64 nodes |
 | ---------------------- | ------------------------- | ------------------------- |
-| H2O-128-RPA-TZ.inp     | 3710.013                  | 2577.737                  |
-| H2O-128-SOS-MP2-TZ.inp | 3701.663                  | 2539.208                  |
+| H2O-128-RPA-TZ.inp     | 3710                      | 2578                      |
+| H2O-128-SOS-MP2-TZ.inp | 3702                      | 2539                      |
 
 ## Notes on parameter choice and performance
 
@@ -55,11 +57,11 @@ Most input files use 4 as the value for MEMORY_CUT. This controls the batching p
 tensor contractions such that the memory footprint remains limited. Note that using a high value for
 this keyword leads to overheads. As an illustration, the H2O-128-RPA-TZ.inp input file with MEMORY_CUT
 set to 3 does not run on 32 LUMI-G nodes because of memory. However, it runs on 64 nodes with a wall
-time of 2149.162 seconds (compared to 2577.737 seconds with MEMORY_CUT set to 4).
+time of 2149 seconds (compared to 2578 seconds with MEMORY_CUT set to 4).
 
 Finally, the value of 6 was chosen for the MIN_BLOCK_SIZE keyword, while the default is 5. This is
 a trade-off between better sparsity for smaller block size, and higher efficiency of block-wise
 matrix-matrix mulitplications for larger sizes. This mostly matters for the force calculations of large
 system, because the bottleneck of the calculation involves the contraction of fairly dense tensors.
-The H2O-128-RPA-TZ.inp input file with MIN_BLOCK_SIZE 5 runs in 4104.855 seconds on 32 nodes, versus
-3710.013 seconds with a block size of 6.
+The H2O-128-RPA-TZ.inp input file with MIN_BLOCK_SIZE 5 runs in 4105 seconds on 32 nodes, versus
+3710 seconds with a block size of 6.
