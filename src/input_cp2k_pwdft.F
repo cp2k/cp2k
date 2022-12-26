@@ -243,6 +243,7 @@ CONTAINS
                CALL section_add_keyword(section, keyword)
                CALL keyword_release(keyword)
             CASE (SIRIUS_LOGICAL_TYPE)
+               dummy_l = .FALSE.
                CALL sirius_option_get(section_name, name, ctype, C_LOC(dummy_l))
                IF (dummy_l) THEN
                   CALL keyword_create(keyword, __LOCATION__, &

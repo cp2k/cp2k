@@ -1239,7 +1239,8 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mo_coeff_occ, fm_mo_coeff_virt
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_scaled_dm_occ_tau, &
                                                             fm_scaled_dm_virt_tau, mo_coeff
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_W
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: fm_mat_W
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_dm, mat_MinvVMinv
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: t_3c_O

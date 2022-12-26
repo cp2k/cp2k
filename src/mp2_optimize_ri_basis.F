@@ -588,7 +588,8 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: Emp2
       REAL(KIND=dp), INTENT(INOUT)                       :: Emp2_AA, Emp2_BB, Emp2_AB
       REAL(KIND=dp), INTENT(IN)                          :: DI_ref
-      REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: Integ_MP2, Integ_MP2_AA, Integ_MP2_BB, &
+      REAL(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :, :, :), INTENT(IN)               :: Integ_MP2, Integ_MP2_AA, Integ_MP2_BB, &
                                                             Integ_MP2_AB
       REAL(KIND=dp), INTENT(IN)                          :: eps
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
@@ -719,7 +720,8 @@ CONTAINS
                                no_write)
       REAL(KIND=dp), INTENT(IN)                          :: Emp2, Emp2_AA, Emp2_BB, Emp2_AB
       REAL(KIND=dp), INTENT(OUT)                         :: Emp2_RI, DRI, DI
-      REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: Integ_MP2, Integ_MP2_AA, Integ_MP2_BB, &
+      REAL(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :, :, :), INTENT(IN)               :: Integ_MP2, Integ_MP2_AA, Integ_MP2_BB, &
                                                             Integ_MP2_AB
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       INTEGER, INTENT(IN)                                :: natom, dimen, dimen_RI, homo, virtual

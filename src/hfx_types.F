@@ -1963,7 +1963,7 @@ CONTAINS
                          "Periodic Hartree Fock calculation requested without use "// &
                          "of a truncated or shortrange potential. This may lead to unphysical total energies. "// &
                          "Use a truncated  potential to avoid possible problems.")
-         ELSE
+         ELSE IF (x_data%potential_parameter%potential_type /= do_potential_id) THEN
             l_min = MIN(plane_distance(1, 0, 0, cell), &
                         plane_distance(0, 1, 0, cell), &
                         plane_distance(0, 0, 1, cell))

@@ -167,7 +167,7 @@ CONTAINS
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: do_kpoints_from_Gamma
-      INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_to_cell_3c
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: index_to_cell_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: cell_to_index_3c
       LOGICAL, DIMENSION(:, :, :, :, :), INTENT(INOUT)   :: has_mat_P_blocks
@@ -1550,10 +1550,10 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: i_cell_R, i_cell_S
       INTEGER, INTENT(OUT)                               :: i_cell_R_minus_S
-      INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_to_cell_3c
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: index_to_cell_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: cell_to_index_3c
-      INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_to_cell_dm
+      INTEGER, DIMENSION(:, :), INTENT(IN), POINTER      :: index_to_cell_dm
       LOGICAL, INTENT(OUT)                               :: R_minus_S_needed
       LOGICAL, INTENT(IN)                                :: do_kpoints_cubic_RPA
 

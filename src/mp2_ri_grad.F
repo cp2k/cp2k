@@ -241,6 +241,9 @@ CONTAINS
       NULLIFY (force, virial)
       CALL get_qs_env(qs_env=qs_env, force=force, virial=virial)
 
+      ! check if we want to calculate the virial
+      use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+
       ALLOCATE (natom_of_kind(SIZE(atomic_kind_set)))
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom_of_kind=natom_of_kind)
       NULLIFY (mp2_force)
@@ -342,9 +345,6 @@ CONTAINS
          ! Supporting stuff for GPW
          CALL prepare_gpw(qs_env, dft_control, e_cutoff_old, cutoff_old, relative_cutoff_old, para_env_sub, pw_env_sub, &
                           auxbas_pw_pool, poisson_env, task_list_sub, rho_r, rho_g, pot_g, psi_L, sab_orb_sub)
-
-         ! check if we want to calculate the virial
-         use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
          ! in case virial is required we need auxiliary pw
          ! for calculate the MP2-volume contribution to the virial

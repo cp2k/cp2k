@@ -461,8 +461,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=2)                                   :: ana
-      CHARACTER(LEN=default_string_length)               :: aname
+      CHARACTER(LEN=2)                                   :: aname
       INTEGER                                            :: i, iat, iatom, ikind, j, nat, natom, &
                                                             natorb, nkind, nspin, unit_nr
       LOGICAL                                            :: found
@@ -528,12 +527,11 @@ CONTAINS
                DO ikind = 1, nkind
                   CALL get_atomic_kind(atomic_kind_set(ikind), natom=nat)
                   CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind, element_symbol=aname)
-                  ana = ADJUSTR(TRIM(ADJUSTL(aname)))
                   DO iatom = 1, nat
                      iat = atomic_kind_set(ikind)%atom_list(iatom)
                      WRITE (UNIT=unit_nr, &
                             FMT="(T2,I7,6X,A2,3X,I6,T39,F12.6,T69,F12.6)") &
-                        iat, ana, ikind, charges(iat, 1), mcharge(iat)
+                        iat, aname, ikind, charges(iat, 1), mcharge(iat)
                   END DO
                END DO
                WRITE (UNIT=unit_nr, &
@@ -545,12 +543,11 @@ CONTAINS
                DO ikind = 1, nkind
                   CALL get_atomic_kind(atomic_kind_set(ikind), natom=nat)
                   CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind, element_symbol=aname)
-                  ana = ADJUSTR(TRIM(ADJUSTL(aname)))
                   DO iatom = 1, nat
                      iat = atomic_kind_set(ikind)%atom_list(iatom)
                      WRITE (UNIT=unit_nr, &
                             FMT="(T2,I6,5X,A2,2X,I6,T29,4(1X,F12.6))") &
-                        iat, ana, ikind, charges(iat, 1:2), mcharge(iat), charges(iat, 1) - charges(iat, 2)
+                        iat, aname, ikind, charges(iat, 1:2), mcharge(iat), charges(iat, 1) - charges(iat, 2)
                   END DO
                END DO
                WRITE (UNIT=unit_nr, &

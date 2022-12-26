@@ -524,6 +524,9 @@ CONTAINS
             helium_env(k)%helium%hb2m = 1.0_dp/helium_env(k)%helium%he_mass_au
             helium_env(k)%helium%pweight = 0.0_dp
 
+            ! Default in case sampling_method is not helium_sampling_worm.
+            helium_env(k)%helium%worm_max_open_cycles = 0
+
             ! Choose sampling method:
             CALL section_vals_val_get(helium_section, "SAMPLING_METHOD", &
                                       i_val=helium_env(k)%helium%sampling_method)

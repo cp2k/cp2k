@@ -844,8 +844,6 @@ CONTAINS
 !>                               location in atom_pairs array for
 !>                               all the pairs to be sent to or recv
 !>                               from process ipe
-!> \param row_map : optional blk row map for the DBCSR blocks
-!> \param col_map : optional blk col map for the DBCSR blocks
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    SUBROUTINE fb_com_atom_pairs_calc_buffer_sizes(atom_pairs, &
@@ -855,16 +853,13 @@ CONTAINS
                                                   sendrecv_sizes, &
                                                   sendrecv_disps, &
                                                   sendrecv_pair_counts, &
-                                                  sendrecv_pair_disps, &
-                                                  row_map, &
-                                                  col_map)
+                                                  sendrecv_pair_disps)
       TYPE(fb_com_atom_pairs_obj), INTENT(IN)            :: atom_pairs
       INTEGER, INTENT(IN)                                :: nprocs
       INTEGER, DIMENSION(:), INTENT(IN)                  :: row_blk_sizes, col_blk_sizes
       INTEGER, DIMENSION(:), INTENT(OUT)                 :: sendrecv_sizes, sendrecv_disps, &
                                                             sendrecv_pair_counts, &
                                                             sendrecv_pair_disps
-      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: row_map, col_map
 
       INTEGER                                            :: iatom, ipair, ipe, jatom, natoms_encode, &
                                                             ncols_blk, npairs, nrows_blk, pe
@@ -894,8 +889,6 @@ CONTAINS
          CALL fb_com_atom_pairs_decode(pairs(ipair), &
                                        pe, iatom, jatom, natoms_encode)
          pe = pe + 1 ! we need proc to count from 1
-         IF (PRESENT(row_map)) iatom = row_map(iatom)
-         IF (PRESENT(col_map)) jatom = row_map(jatom)
          nrows_blk = row_blk_sizes(iatom)
          ncols_blk = col_blk_sizes(jatom)
          sendrecv_sizes(pe) = sendrecv_sizes(pe) + nrows_blk*ncols_blk
