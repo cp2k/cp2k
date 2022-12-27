@@ -51,6 +51,8 @@ async def main() -> None:
     parser.add_argument("--mpiexec", default="mpiexec")
     help = "Runs only the first test of each directory."
     parser.add_argument("--smoketest", dest="smoketest", action="store_true", help=help)
+    help = "Runs tests under Valgrind memcheck. Best used together with --keepalive."
+    parser.add_argument("--valgrind", action="store_true", help=help)
     help = "Use a persistent cp2k-shell process to reduce startup time."
     parser.add_argument("--keepalive", dest="keepalive", action="store_true", help=help)
     help = "Flag slow tests in the final summary and status report."
@@ -85,6 +87,7 @@ async def main() -> None:
     print(f"Work base dir:  {cfg.work_base_dir}")
     print(f"MPI exec:       {cfg.mpiexec}")
     print(f"Smoke test:     {cfg.smoketest}")
+    print(f"Valgrind:       {cfg.valgrind}")
     print(f"Keepalive:      {cfg.keepalive}")
     print(f"Flag slow:      {cfg.flag_slow}")
     print(f"Debug:          {cfg.debug}")
@@ -236,6 +239,7 @@ class Config:
         self.cp2k_root = Path(__file__).resolve().parent.parent.parent
         self.mpiexec = args.mpiexec.split()
         self.smoketest = args.smoketest
+        self.valgrind = args.valgrind
         self.keepalive = args.keepalive
         self.flag_slow = args.flagslow
         self.arch = args.arch
@@ -280,8 +284,11 @@ class Config:
             env["CUDA_VISIBLE_DEVICES"] = ",".join(visible_gpu_devices)
             env["HIP_VISIBLE_DEVICES"] = ",".join(visible_gpu_devices)
         env["OMP_NUM_THREADS"] = str(self.ompthreads)
-        exe = str(self.cp2k_root / "exe" / self.arch / f"{exe_stem}.{self.version}")
-        cmd = self.mpiexec + ["-n", str(self.mpiranks), exe] if self.use_mpi else [exe]
+        cmd = [str(self.cp2k_root / "exe" / self.arch / f"{exe_stem}.{self.version}")]
+        if self.valgrind:
+            cmd = ["valgrind", "--error-exitcode=42", "--exit-on-first-error=yes"] + cmd
+        if self.use_mpi:
+            cmd = self.mpiexec + ["-n", str(self.mpiranks)] + cmd
         if self.debug:
             print(f"Creating subprocess: {cmd} {args}")
         return asyncio.create_subprocess_exec(
