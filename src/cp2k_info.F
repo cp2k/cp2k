@@ -37,8 +37,8 @@ MODULE cp2k_info
    CHARACTER(LEN=*), PARAMETER :: compile_revision = "unknown"
 #endif
 
-   CHARACTER(LEN=*), PARAMETER :: cp2k_version = "CP2K version 2022.1 (Development Version)"
-   CHARACTER(LEN=*), PARAMETER :: cp2k_year = "2022"
+   CHARACTER(LEN=*), PARAMETER :: cp2k_version = "CP2K version 2023.1"
+   CHARACTER(LEN=*), PARAMETER :: cp2k_year = "2023"
    CHARACTER(LEN=*), PARAMETER :: cp2k_home = "https://www.cp2k.org/"
 
    ! compile time information
