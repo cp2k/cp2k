@@ -2,6 +2,13 @@
 
 # author: Ole Schuett
 
+if (($# != 1)); then
+  echo "Usage: test_manual.sh <ADD_EDIT_LINKS>"
+  exit 1
+fi
+
+ADD_EDIT_LINKS=$1
+
 # shellcheck disable=SC1091
 source /opt/cp2k-toolchain/install/setup
 
@@ -42,7 +49,7 @@ set +e # disable error trapping for remainder of script
   set -e                            # abort if error is encountered
   sed -i 's/\x0/?/g' cp2k_input.xml # replace null bytes which would crash saxon
   SAXON="java -jar /usr/share/java/Saxon-HE.jar"
-  $SAXON -o:index.html ./cp2k_input.xml ${TOOLS}/manual/cp2k_input.xsl add_edit_links=yes
+  $SAXON -o:index.html ./cp2k_input.xml ${TOOLS}/manual/cp2k_input.xsl add_edit_links="${ADD_EDIT_LINKS}"
   $SAXON -o:cp2k.vim ./cp2k_input.xml ${TOOLS}/input_editing/vim/vim.xsl
 )
 EXIT_CODE=$?

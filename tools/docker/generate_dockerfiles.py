@@ -216,7 +216,8 @@ def manual() -> str:
 COPY ./tools/manual ./tools/manual
 COPY ./tools/input_editing ./tools/input_editing
 COPY ./tools/docker/scripts/test_manual.sh .
-RUN ./test_manual.sh 2>&1 | tee report.log
+ARG ADD_EDIT_LINKS=yes
+RUN ./test_manual.sh "${{ADD_EDIT_LINKS}}" 2>&1 | tee report.log
 """
         + print_cached_report()
     )
