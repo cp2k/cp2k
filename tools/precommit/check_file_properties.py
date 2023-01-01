@@ -172,6 +172,8 @@ def check_file(path: pathlib.Path) -> typing.List[str]:
         warnings += [f"{path}: Copyright banner malformed"]
     if path.name == "LICENSE" and bsd_licensed and f"2000-{year}" not in content:
         warnings += [f"{path}: Copyright banner malformed"]
+    if path.name == "cp2k_info.F" and f'cp2k_year = "{year}"' not in content:
+        warnings += [f"{path}: Wrong year."]
 
     # check shebang
     PY_SHEBANG = "#!/usr/bin/env python3"
