@@ -82,7 +82,8 @@ COPY ./tools/regtesting ./tools/regtesting
 COPY ./tools/manual ./tools/manual
 COPY ./tools/input_editing ./tools/input_editing
 COPY ./tools/docker/scripts/test_manual.sh .
-RUN ./test_manual.sh 2>&1 | tee report.log
+ARG ADD_EDIT_LINKS=yes
+RUN ./test_manual.sh "${ADD_EDIT_LINKS}" 2>&1 | tee report.log
 
 # Output the report if the image is old and was therefore pulled from the build cache.
 CMD cat $(find ./report.log -mmin +10) | sed '/^Summary:/ s/$/ (cached)/'
