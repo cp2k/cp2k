@@ -149,8 +149,9 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: dipole_op_mos_occ, evects, S_evects
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: evects, S_evects
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: dipole_op_mos_occ
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_oep, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -564,8 +565,7 @@ CONTAINS
       IF (ALLOCATED(dipole_op_mos_occ)) THEN
          DO ispin = nspins, 1, -1
             DO istate = SIZE(dipole_op_mos_occ, 1), 1, -1
-               CALL cp_fm_release(dipole_op_mos_occ(istate, ispin)%matrix)
-               DEALLOCATE (dipole_op_mos_occ(istate, ispin)%matrix)
+               CALL cp_fm_release(dipole_op_mos_occ(istate, ispin))
             END DO
          END DO
          DEALLOCATE (dipole_op_mos_occ)

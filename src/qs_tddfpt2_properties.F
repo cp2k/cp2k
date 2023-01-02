@@ -154,7 +154,7 @@ CONTAINS
 !>       \endparblock
 ! **************************************************************************************************
    SUBROUTINE tddfpt_dipole_operator(dipole_op_mos_occ, tddfpt_control, gs_mos, qs_env)
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :), &
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(inout)                                   :: dipole_op_mos_occ
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
@@ -206,8 +206,7 @@ CONTAINS
          CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, matrix_struct=fm_struct)
 
          DO ideriv = 1, nderivs
-            ALLOCATE (dipole_op_mos_occ(ideriv, ispin)%matrix)
-            CALL cp_fm_create(dipole_op_mos_occ(ideriv, ispin)%matrix, fm_struct)
+            CALL cp_fm_create(dipole_op_mos_occ(ideriv, ispin), fm_struct)
          END DO
       END DO
 
@@ -334,14 +333,14 @@ CONTAINS
                ! dBerry_mos_occ is identical to dBerry_psi0 from qs_linres_op % polar_operators()
                CALL parallel_gemm("N", "N", nao, nmo_occ(ispin), nmo_occ(ispin), &
                                   1.0_dp, opvec(1, ispin)%matrix, gamma_real_imag(2, ispin)%matrix, &
-                                  0.0_dp, dipole_op_mos_occ(1, ispin)%matrix)
+                                  0.0_dp, dipole_op_mos_occ(1, ispin))
                CALL parallel_gemm("N", "N", nao, nmo_occ(ispin), nmo_occ(ispin), &
                                   -1.0_dp, opvec(2, ispin)%matrix, gamma_real_imag(1, ispin)%matrix, &
-                                  1.0_dp, dipole_op_mos_occ(1, ispin)%matrix)
+                                  1.0_dp, dipole_op_mos_occ(1, ispin))
 
                DO jderiv = 1, nderivs
                   CALL cp_fm_scale_and_add(1.0_dp, dBerry_mos_occ(jderiv, ispin)%matrix, &
-                                           cell%hmat(jderiv, ideriv), dipole_op_mos_occ(1, ispin)%matrix)
+                                           cell%hmat(jderiv, ideriv), dipole_op_mos_occ(1, ispin))
                END DO
             END DO
          END DO
@@ -387,7 +386,7 @@ CONTAINS
             DO ideriv = 1, nderivs
                CALL parallel_gemm('N', 'N', nao, nmo_occ(ispin), nao, &
                                   1.0_dp, wfm_ao_ao, dBerry_mos_occ(ideriv, ispin)%matrix, &
-                                  0.0_dp, dipole_op_mos_occ(ideriv, ispin)%matrix)
+                                  0.0_dp, dipole_op_mos_occ(ideriv, ispin))
             END DO
          END DO
 
@@ -446,7 +445,7 @@ CONTAINS
 
                CALL parallel_gemm('N', 'N', nao, nmo_occ(ispin), nao, &
                                   1.0_dp, wfm_ao_ao, rRc_mos_occ, &
-                                  0.0_dp, dipole_op_mos_occ(ideriv, ispin)%matrix)
+                                  0.0_dp, dipole_op_mos_occ(ideriv, ispin))
             END DO
 
             CALL cp_fm_release(rRc_mos_occ)
@@ -493,11 +492,11 @@ CONTAINS
             DO ideriv = 1, nderivs
                CALL cp_dbcsr_sm_fm_multiply(scrm(ideriv + 1)%matrix, &
                                             gs_mos(ispin)%mos_occ, &
-                                            dipole_op_mos_occ(ideriv, ispin)%matrix, &
+                                            dipole_op_mos_occ(ideriv, ispin), &
                                             ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
 
                CALL parallel_gemm('T', 'N', nmo_virt(ispin), nmo_occ(ispin), nao, &
-                                  1.0_dp, gs_mos(ispin)%mos_virt, dipole_op_mos_occ(ideriv, ispin)%matrix, &
+                                  1.0_dp, gs_mos(ispin)%mos_virt, dipole_op_mos_occ(ideriv, ispin), &
                                   0.0_dp, wfm_mo_virt_mo_occ)
 
                ! in-place element-wise (Schur) product;
@@ -516,7 +515,7 @@ CONTAINS
 
                CALL parallel_gemm('N', 'N', nao, nmo_occ(ispin), nmo_virt(ispin), &
                                   1.0_dp, S_mos_virt(ispin)%matrix, wfm_mo_virt_mo_occ, &
-                                  0.0_dp, dipole_op_mos_occ(ideriv, ispin)%matrix)
+                                  0.0_dp, dipole_op_mos_occ(ideriv, ispin))
             END DO
 
             CALL cp_fm_release(wfm_mo_virt_mo_occ)
@@ -569,7 +568,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:), INTENT(in)            :: evals
       REAL(kind=dp), DIMENSION(:), INTENT(inout)         :: ostrength
       INTEGER, INTENT(in)                                :: mult
-      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: dipole_op_mos_occ
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: dipole_op_mos_occ
       INTEGER, INTENT(in)                                :: dipole_form
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_print_summary'
@@ -622,7 +621,7 @@ CONTAINS
       IF (nspins > 1 .OR. mult == 1) THEN
          DO ispin = 1, nspins
             DO ideriv = 1, nderivs
-               CALL cp_fm_trace(evects(ispin, :), dipole_op_mos_occ(ideriv, ispin)%matrix, &
+               CALL cp_fm_trace(evects(ispin, :), dipole_op_mos_occ(ideriv, ispin), &
                                 trans_dipoles(:, ideriv, ispin))
             END DO
          END DO
