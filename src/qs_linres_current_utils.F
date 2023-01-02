@@ -147,16 +147,16 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: statetrueindex
       LOGICAL                                            :: append_cube, should_stop
       REAL(dp)                                           :: dk(3), dkl(3), dl(3)
-      REAL(dp), DIMENSION(:), POINTER                    :: dkl_vec_ii, dkl_vec_iii
-      REAL(dp), DIMENSION(:, :), POINTER                 :: vecbuf_dklxp0
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: dkl_vec_ii, dkl_vec_iii
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: vecbuf_dklxp0
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER        :: center_list
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: centers_set
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_work_ii, fm_work_iii, h1_psi0, &
-                                                            hpsi0_ptr, psi1, psi1_ptr
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: h1_psi0, hpsi0_ptr, psi1, psi1_ptr
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: p_psi0, psi1_D, psi1_p, psi1_rxp, &
                                                             rxp_psi0
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_work_ii, fm_work_iii
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: psi0_order
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -175,8 +175,8 @@ CONTAINS
       CALL timeset(routineN, handle)
       !
       NULLIFY (cell, dft_control, linres_control, lr_section, current_section, &
-               logger, mpools, psi1, h1_psi0, vecbuf_dklxp0, mo_coeff, para_env, &
-               fm_work_ii, fm_work_iii, tmp_fm_struct, dkl_vec_ii, dkl_vec_iii, &
+               logger, mpools, psi1, h1_psi0, mo_coeff, para_env, &
+               tmp_fm_struct, &
                list_cubes, statetrueindex, centers_set, center_list, psi1_p, psi1_rxp, psi1_D, &
                p_psi0, rxp_psi0, psi0_order, op_p_ao, sab_orb, particle_set)
 
@@ -395,16 +395,15 @@ CONTAINS
          DO ispin = 1, nspins
             nmo = nstates(ispin)
             mo_coeff => psi0_order(ispin)
-            NULLIFY (tmp_fm_struct, fm_work_ii(ispin)%matrix, fm_work_iii(ispin)%matrix)
+            NULLIFY (tmp_fm_struct)
             CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                      ncol_global=nmo, para_env=para_env, &
                                      context=mo_coeff%matrix_struct%context)
 
-            ALLOCATE (fm_work_ii(ispin)%matrix, fm_work_iii(ispin)%matrix)
-            CALL cp_fm_create(fm_work_ii(ispin)%matrix, tmp_fm_struct)
-            CALL cp_fm_set_all(fm_work_ii(ispin)%matrix, 0.0_dp)
-            CALL cp_fm_create(fm_work_iii(ispin)%matrix, tmp_fm_struct)
-            CALL cp_fm_set_all(fm_work_iii(ispin)%matrix, 0.0_dp)
+            CALL cp_fm_create(fm_work_ii(ispin), tmp_fm_struct)
+            CALL cp_fm_set_all(fm_work_ii(ispin), 0.0_dp)
+            CALL cp_fm_create(fm_work_iii(ispin), tmp_fm_struct)
+            CALL cp_fm_set_all(fm_work_iii(ispin), 0.0_dp)
             CALL cp_fm_struct_release(tmp_fm_struct)
          END DO ! ispin
          !
@@ -472,32 +471,32 @@ CONTAINS
                      !
                      ! First term
                      ! Rescale the ground state orbitals by (dk-dl)_ii
-                     CALL cp_fm_to_fm(mo_coeff, fm_work_ii(ispin)%matrix)
-                     CALL cp_fm_column_scale(fm_work_ii(ispin)%matrix, dkl_vec_ii(1:nmo))
+                     CALL cp_fm_to_fm(mo_coeff, fm_work_ii(ispin))
+                     CALL cp_fm_column_scale(fm_work_ii(ispin), dkl_vec_ii(1:nmo))
                      !
                      ! Apply the p_iii operator
                      ! fm_work_iii = -p_iii * (dk-dl)_ii * C0
-                     CALL cp_dbcsr_sm_fm_multiply(op_p_ao(iii)%matrix, fm_work_ii(ispin)%matrix, &
-                                                  fm_work_iii(ispin)%matrix, ncol=nmo, alpha=-1.0_dp)
+                     CALL cp_dbcsr_sm_fm_multiply(op_p_ao(iii)%matrix, fm_work_ii(ispin), &
+                                                  fm_work_iii(ispin), ncol=nmo, alpha=-1.0_dp)
                      !
                      ! Copy in h1_psi0
                      ! h1_psi0_i = fm_work_iii
-                     CALL cp_fm_to_fm(fm_work_iii(ispin)%matrix, h1_psi0(ispin)%matrix)
+                     CALL cp_fm_to_fm(fm_work_iii(ispin), h1_psi0(ispin)%matrix)
                      !
                      ! Second term
                      ! Rescale the ground state orbitals by (dk-dl)_iii
-                     CALL cp_fm_to_fm(mo_coeff, fm_work_iii(ispin)%matrix)
-                     CALL cp_fm_column_scale(fm_work_iii(ispin)%matrix, dkl_vec_iii(1:nmo))
+                     CALL cp_fm_to_fm(mo_coeff, fm_work_iii(ispin))
+                     CALL cp_fm_column_scale(fm_work_iii(ispin), dkl_vec_iii(1:nmo))
                      !
                      ! Apply the p_ii operator
                      ! fm_work_ii = -p_ii * (dk-dl)_iii * C0
-                     CALL cp_dbcsr_sm_fm_multiply(op_p_ao(ii)%matrix, fm_work_iii(ispin)%matrix, &
-                                                  fm_work_ii(ispin)%matrix, ncol=nmo, alpha=-1.0_dp)
+                     CALL cp_dbcsr_sm_fm_multiply(op_p_ao(ii)%matrix, fm_work_iii(ispin), &
+                                                  fm_work_ii(ispin), ncol=nmo, alpha=-1.0_dp)
                      !
                      ! Copy in h1_psi0
                      ! h1_psi0_i = fm_work_iii - fm_work_ii
                      CALL cp_fm_scale_and_add(1.0_dp, h1_psi0(ispin)%matrix,&
-                          &                  -1.0_dp, fm_work_ii(ispin)%matrix)
+                          &                  -1.0_dp, fm_work_ii(ispin))
                   END DO
 
                   !
@@ -552,9 +551,8 @@ CONTAINS
          !
          ! clean up
          DO ispin = 1, nspins
-            CALL cp_fm_release(fm_work_ii(ispin)%matrix)
-            CALL cp_fm_release(fm_work_iii(ispin)%matrix)
-            DEALLOCATE (fm_work_ii(ispin)%matrix, fm_work_iii(ispin)%matrix)
+            CALL cp_fm_release(fm_work_ii(ispin))
+            CALL cp_fm_release(fm_work_iii(ispin))
          END DO
          DEALLOCATE (fm_work_ii, fm_work_iii, dkl_vec_ii, dkl_vec_iii, vecbuf_dklxp0)
 
