@@ -579,8 +579,8 @@ CONTAINS
       REAL(kind=dp)                                      :: e_occ_plus_lambda, eref, lambda
       REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: weights_ldata
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: awork, vomat
       TYPE(cp_fm_struct_type), POINTER                   :: ao_mo_struct, virt_mo_struct
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: awork, vomat
 
       CALL timeset(routineN, handle)
 
@@ -595,13 +595,11 @@ CONTAINS
             !
             CALL cp_fm_get_info(matrix=ritz_vects(ispin, 1)%matrix, matrix_struct=ao_mo_struct, &
                                 ncol_global=nactive(ispin))
-            ALLOCATE (awork(ispin)%matrix)
-            CALL cp_fm_create(awork(ispin)%matrix, ao_mo_struct)
+            CALL cp_fm_create(awork(ispin), ao_mo_struct)
             !
             CALL cp_fm_struct_create(virt_mo_struct, nrow_global=nmo_virt(ispin), &
                                      ncol_global=nactive(ispin), template_fmstruct=ao_mo_struct)
-            ALLOCATE (vomat(ispin)%matrix)
-            CALL cp_fm_create(vomat(ispin)%matrix, virt_mo_struct)
+            CALL cp_fm_create(vomat(ispin), virt_mo_struct)
             CALL cp_fm_struct_release(virt_mo_struct)
          END DO
 
@@ -610,17 +608,17 @@ CONTAINS
             lambda = evals(irv)
 
             DO ispin = 1, nspins
-               CALL cp_fm_get_info(vomat(ispin)%matrix, nrow_local=nrows_local, &
+               CALL cp_fm_get_info(vomat(ispin), nrow_local=nrows_local, &
                                    ncol_local=ncols_local, row_indices=row_indices_local, &
                                    col_indices=col_indices_local, local_data=weights_ldata)
 
                ! awork := Ab(ispin, irv) - evals(irv) b(ispin, irv), where 'b' is a Ritz vector
-               CALL cp_dbcsr_sm_fm_multiply(matrix_s, ritz_vects(ispin, irv)%matrix, awork(ispin)%matrix, &
+               CALL cp_dbcsr_sm_fm_multiply(matrix_s, ritz_vects(ispin, irv)%matrix, awork(ispin), &
                                             ncol=nactive(ispin), alpha=-lambda, beta=0.0_dp)
-               CALL cp_fm_scale_and_add(1.0_dp, awork(ispin)%matrix, 1.0_dp, Aop_ritz(ispin, irv)%matrix)
+               CALL cp_fm_scale_and_add(1.0_dp, awork(ispin), 1.0_dp, Aop_ritz(ispin, irv)%matrix)
                !
                CALL parallel_gemm('T', 'N', nmo_virt(ispin), nactive(ispin), nao, 1.0_dp, gs_mos(ispin)%mos_virt, &
-                                  awork(ispin)%matrix, 0.0_dp, vomat(ispin)%matrix)
+                                  awork(ispin), 0.0_dp, vomat(ispin))
 
                DO icol_local = 1, ncols_local
                   e_occ_plus_lambda = gs_mos(ispin)%evals_occ(col_indices_local(icol_local)) + lambda
@@ -638,14 +636,13 @@ CONTAINS
                END DO
 
                CALL parallel_gemm('N', 'N', nao, nactive(ispin), nmo_virt(ispin), 1.0_dp, gs_mos(ispin)%mos_virt, &
-                                  vomat(ispin)%matrix, 0.0_dp, residual_vects(ispin, irv)%matrix)
+                                  vomat(ispin), 0.0_dp, residual_vects(ispin, irv)%matrix)
             END DO
          END DO
          !
          DO ispin = 1, nspins
-            CALL cp_fm_release(awork(ispin)%matrix)
-            CALL cp_fm_release(vomat(ispin)%matrix)
-            DEALLOCATE (awork(ispin)%matrix, vomat(ispin)%matrix)
+            CALL cp_fm_release(awork(ispin))
+            CALL cp_fm_release(vomat(ispin))
          END DO
          DEALLOCATE (awork, vomat)
       END IF
