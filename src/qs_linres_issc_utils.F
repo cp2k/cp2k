@@ -112,12 +112,12 @@ CONTAINS
                                                             nmo, nspins, output_unit
       LOGICAL                                            :: do_dso, do_fc, do_pso, do_sd, should_stop
       REAL(dp)                                           :: chk, fro
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: h1_psi0, psi1, psi1_fc
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: h1_psi0, psi1
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: dso_psi0, efg_psi0, psi1_dso, psi1_efg, &
                                                             psi1_pso, pso_psi0
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: psi0_order
-      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fc_psi0
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fc_psi0, psi1_fc
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -309,7 +309,7 @@ CONTAINS
       ! operator fc
       IF (do_fc) THEN
          DO ispin = 1, nspins
-            CALL cp_fm_set_all(psi1_fc(ispin)%matrix, 0.0_dp)
+            CALL cp_fm_set_all(psi1_fc(ispin), 0.0_dp)
          END DO
          IF (output_unit > 0) THEN
             WRITE (output_unit, "(T10,A)") "Response to the perturbation operator fc"
@@ -336,7 +336,7 @@ CONTAINS
          !
          ! copy the response
          DO ispin = 1, nspins
-            CALL cp_fm_to_fm(psi1(ispin)%matrix, psi1_fc(ispin)%matrix)
+            CALL cp_fm_to_fm(psi1(ispin)%matrix, psi1_fc(ispin))
             fro = cp_fm_frobenius_norm(psi1(ispin)%matrix)
             chk = chk + fro
          END DO
@@ -467,9 +467,8 @@ CONTAINS
       REAL(dp), DIMENSION(3)                             :: r_i, r_j
       REAL(dp), DIMENSION(:, :, :, :, :), POINTER        :: issc
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi1_fc
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: psi1_dso, psi1_efg, psi1_pso
-      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fc_psi0
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fc_psi0, psi1_fc
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_dso, matrix_efg, matrix_fc, &
                                                             matrix_pso
@@ -549,7 +548,7 @@ CONTAINS
                CALL cp_fm_trace(fc_psi0(ispin), mo_coeff, buf)
                WRITE (*, *) ' jatom', jatom, 'tr(P*fc)=', buf
 
-               CALL cp_fm_trace(fc_psi0(ispin), psi1_fc(ispin)%matrix, buf)
+               CALL cp_fm_trace(fc_psi0(ispin), psi1_fc(ispin), buf)
                issc_fc = 2.0_dp*2.0_dp*maxocc*facfc*buf
                issc(1, 1, iatom, jatom, 1) = issc(1, 1, iatom, jatom, 1) + issc_fc
                issc(2, 2, iatom, jatom, 1) = issc(2, 2, iatom, jatom, 1) + issc_fc
@@ -931,8 +930,7 @@ CONTAINS
             CALL cp_fm_create(issc_env%psi1_dso(ispin, idir)%matrix, tmp_fm_struct)
             CALL cp_fm_create(issc_env%dso_psi0(ispin, idir)%matrix, tmp_fm_struct)
          END DO
-         ALLOCATE (issc_env%psi1_fc(ispin)%matrix)
-         CALL cp_fm_create(issc_env%psi1_fc(ispin)%matrix, tmp_fm_struct)
+         CALL cp_fm_create(issc_env%psi1_fc(ispin), tmp_fm_struct)
          CALL cp_fm_create(issc_env%fc_psi0(ispin), tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
       END DO
@@ -1139,8 +1137,7 @@ CONTAINS
       !psi1_fc
       IF (ASSOCIATED(issc_env%psi1_fc)) THEN
          DO ispin = 1, SIZE(issc_env%psi1_fc, 1)
-            CALL cp_fm_release(issc_env%psi1_fc(ispin)%matrix)
-            DEALLOCATE (issc_env%psi1_fc(ispin)%matrix)
+            CALL cp_fm_release(issc_env%psi1_fc(ispin))
          END DO
          DEALLOCATE (issc_env%psi1_fc)
          NULLIFY (issc_env%psi1_fc)
