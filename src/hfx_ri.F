@@ -940,8 +940,9 @@ CONTAINS
       REAL(dp)                                           :: etmp, fac
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: occupied_evals
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: moloc_coeff, occupied_orbs
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: occupied_orbs
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: homo_localized
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: moloc_coeff
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: my_ks_matrix, my_rho_ao
@@ -1040,7 +1041,7 @@ CONTAINS
 
          DO ispin = 1, nspins
             IF (ri_data%do_loc) THEN
-               CALL copy_fm_to_dbcsr(moloc_coeff(ispin)%matrix, mo_coeff_b(ispin))
+               CALL copy_fm_to_dbcsr(moloc_coeff(ispin), mo_coeff_b(ispin))
             END IF
             CALL dbcsr_scale(mo_coeff_b(ispin), SQRT(mos(ispin)%maxocc))
             homo(ispin) = mos(ispin)%homo
@@ -2928,8 +2929,9 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: homo
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: occupied_evals
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: moloc_coeff, occupied_orbs
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: occupied_orbs
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: homo_localized
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: moloc_coeff
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_type), DIMENSION(2)                     :: mo_coeff_b
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_b_tmp
@@ -2986,7 +2988,7 @@ CONTAINS
 
          DO ispin = 1, nspins
             IF (ri_data%do_loc) THEN
-               CALL copy_fm_to_dbcsr(moloc_coeff(ispin)%matrix, mo_coeff_b(ispin))
+               CALL copy_fm_to_dbcsr(moloc_coeff(ispin), mo_coeff_b(ispin))
             END IF
             CALL dbcsr_scale(mo_coeff_b(ispin), SQRT(mos(ispin)%maxocc))
             homo(ispin) = mos(ispin)%homo

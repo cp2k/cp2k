@@ -28,8 +28,7 @@ MODULE qs_loc_types
                                               cell_retain,&
                                               cell_type
    USE cp_array_utils,                  ONLY: cp_2d_r_p_type
-   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release,&
+   USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_retain
@@ -84,7 +83,7 @@ MODULE qs_loc_types
       LOGICAL :: wannier_states
       CHARACTER(LEN=default_string_length)        :: tag_mo
       TYPE(cp_para_env_type), POINTER          :: para_env
-      TYPE(cp_fm_p_type), DIMENSION(:), &
+      TYPE(cp_fm_type), DIMENSION(:), &
          POINTER                                :: moloc_coeff
       TYPE(cp_fm_type), DIMENSION(:, :), &
          POINTER                                :: op_fm_set
@@ -208,9 +207,7 @@ CONTAINS
       IF (ASSOCIATED(qs_loc_env%moloc_coeff)) THEN
          DO i = 1, SIZE(qs_loc_env%moloc_coeff, 1)
             ii = LBOUND(qs_loc_env%moloc_coeff, 1) + i - 1
-            CALL cp_fm_release(qs_loc_env%moloc_coeff(ii)%matrix)
-            DEALLOCATE (qs_loc_env%moloc_coeff(ii)%matrix)
-            NULLIFY (qs_loc_env%moloc_coeff(ii)%matrix)
+            CALL cp_fm_release(qs_loc_env%moloc_coeff(ii))
          END DO
          DEALLOCATE (qs_loc_env%moloc_coeff)
       END IF
@@ -331,8 +328,7 @@ CONTAINS
       TYPE(distribution_1d_type), OPTIONAL, POINTER      :: local_molecules
       TYPE(localized_wfn_control_type), OPTIONAL, &
          POINTER                                         :: localized_wfn_control
-      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: moloc_coeff
+      TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: moloc_coeff
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: op_sm_set
       TYPE(cp_fm_type), DIMENSION(:, :), OPTIONAL, &
@@ -382,8 +378,7 @@ CONTAINS
       TYPE(distribution_1d_type), OPTIONAL, POINTER      :: local_molecules
       TYPE(localized_wfn_control_type), OPTIONAL, &
          POINTER                                         :: localized_wfn_control
-      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: moloc_coeff
+      TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: moloc_coeff
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: op_sm_set
       TYPE(cp_fm_type), DIMENSION(:, :), OPTIONAL, &
@@ -423,9 +418,7 @@ CONTAINS
       IF (PRESENT(moloc_coeff)) THEN
          IF (ASSOCIATED(qs_loc_env%moloc_coeff)) THEN
             DO i = 1, SIZE(qs_loc_env%moloc_coeff, 1)
-               CALL cp_fm_release(qs_loc_env%moloc_coeff(i)%matrix)
-               DEALLOCATE (qs_loc_env%moloc_coeff(i)%matrix)
-               NULLIFY (qs_loc_env%moloc_coeff(i)%matrix)
+               CALL cp_fm_release(qs_loc_env%moloc_coeff(i))
             END DO
             DEALLOCATE (qs_loc_env%moloc_coeff)
          END IF

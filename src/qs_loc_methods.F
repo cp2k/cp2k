@@ -38,7 +38,7 @@ MODULE qs_loc_methods
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_init_random, &
-        cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
+        cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -671,9 +671,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: centers, tmp_mat, vecbuffer
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: moloc_coeff
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type)                                   :: mos_guess, tmp_fm, tmp_fm_1, vectors_2
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: moloc_coeff
       TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: op_fm_set
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -841,7 +841,7 @@ CONTAINS
                      ELSEIF (my_guess_wan) THEN
                         nguess = localized_wfn_control%nguess(ispin)
                         ALLOCATE (tmp_mat(nao, nguess))
-                        CALL cp_fm_get_submatrix(moloc_coeff(ispin)%matrix, tmp_mat, 1, 1, nao, nguess)
+                        CALL cp_fm_get_submatrix(moloc_coeff(ispin), tmp_mat, 1, 1, nao, nguess)
                         CALL cp_fm_set_submatrix(mos_guess, tmp_mat, 1, 1, nao, nguess)
                         DEALLOCATE (tmp_mat)
                         ngextra = nmosub - nguess
@@ -864,7 +864,7 @@ CONTAINS
                         END IF
                         ALLOCATE (tmp_mat(nao, nmosub))
                         CALL cp_fm_get_submatrix(mo_coeff, tmp_mat, 1, 1, nao, nmosub)
-                        CALL cp_fm_set_submatrix(moloc_coeff(ispin)%matrix, tmp_mat)
+                        CALL cp_fm_set_submatrix(moloc_coeff(ispin), tmp_mat)
                         DEALLOCATE (tmp_mat)
                      END IF
 
@@ -879,23 +879,23 @@ CONTAINS
                         END IF
                      END IF
 
-                     CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(ispin)%matrix, op_sm_set, &
+                     CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(ispin), op_sm_set, &
                                              op_fm_set, para_env, cell, weights, ispin, print_loc_section, &
                                              nextra=nextra, nmo=nmo, vectors_2=vectors_2, &
                                              guess_mos=mos_guess)
                      CALL cp_fm_release(mos_guess)
                   ELSE
-                     CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(ispin)%matrix, op_sm_set, &
+                     CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(ispin), op_sm_set, &
                                              op_fm_set, para_env, cell, weights, ispin, print_loc_section, &
                                              nextra=nextra, nmo=nmo, vectors_2=vectors_2)
                   END IF
                   CALL cp_fm_release(vectors_2)
                ELSE
-                  CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(ispin)%matrix, op_sm_set, &
+                  CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(ispin), op_sm_set, &
                                           op_fm_set, para_env, cell, weights, ispin, print_loc_section, nextra=0)
                END IF
             ELSE
-               CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(ispin)%matrix, op_sm_set, &
+               CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(ispin), op_sm_set, &
                                        op_fm_set, para_env, cell, weights, ispin, print_loc_section)
             END IF
 
@@ -914,7 +914,7 @@ CONTAINS
 
          CASE (op_loc_pipek)
 
-            CALL optimize_loc_pipek(qs_env, loc_method, qs_loc_env, moloc_coeff(ispin)%matrix, &
+            CALL optimize_loc_pipek(qs_env, loc_method, qs_loc_env, moloc_coeff(ispin), &
                                     op_fm_set, ispin, print_loc_section)
 
          END SELECT
@@ -937,7 +937,7 @@ CONTAINS
                ! Get the index in the full set
                imo = localized_wfn_control%loc_states(i, ispin)
 
-               CALL cp_fm_get_submatrix(moloc_coeff(ispin)%matrix, vecbuffer, 1, imoloc, &
+               CALL cp_fm_get_submatrix(moloc_coeff(ispin), vecbuffer, 1, imoloc, &
                                         nao, 1, transpose=.TRUE.)
                IF (PRESENT(ext_mo_coeff)) THEN
                   CALL cp_fm_set_submatrix(ext_mo_coeff, vecbuffer, 1, imo, &
@@ -952,9 +952,9 @@ CONTAINS
          ELSE
             nmosub = localized_wfn_control%nloc_states(ispin)
             IF (PRESENT(ext_mo_coeff)) THEN
-               CALL cp_fm_to_fm(moloc_coeff(ispin)%matrix, ext_mo_coeff, nmosub, 1, lb)
+               CALL cp_fm_to_fm(moloc_coeff(ispin), ext_mo_coeff, nmosub, 1, lb)
             ELSE
-               CALL cp_fm_to_fm(moloc_coeff(ispin)%matrix, mo_coeff, nmosub, 1, lb)
+               CALL cp_fm_to_fm(moloc_coeff(ispin), mo_coeff, nmosub, 1, lb)
             END IF
          END IF
 
@@ -1028,7 +1028,7 @@ CONTAINS
                my_pos = "APPEND"
             END IF
 
-            CALL qs_print_cubes(qs_env, moloc_coeff(ispin)%matrix, ncubes, list_cubes, centers, &
+            CALL qs_print_cubes(qs_env, moloc_coeff(ispin), ncubes, list_cubes, centers, &
                                 print_key, "loc"//TRIM(ADJUSTL(qs_loc_env%tag_mo)), &
                                 ispin=ispin, file_position=my_pos)
 
@@ -1341,17 +1341,13 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: moment_set
       REAL(KIND=dp), DIMENSION(3)                        :: rcc
       REAL(KIND=dp), DIMENSION(6)                        :: cov
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: moloc_coeff
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: momv, mvector, omvector
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: moloc_coeff
       TYPE(cp_fm_type), POINTER                          :: mo_localized
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, moments
-
-! two pointers, one to each spin channel's coeff. matrix, each nao x nmoloc
-!TYPE(localized_wfn_control_type), POINTER          :: localized_wfn_control
-!INTEGER, INTENT(IN)                                :: nmoloc
 
       logger => cp_get_default_logger()
 
@@ -1381,11 +1377,11 @@ CONTAINS
       !particle_set => qs_loc_env%particle_set
       para_env => qs_loc_env%para_env
 
-      CALL cp_fm_get_info(moloc_coeff(ispin)%matrix, ncol_global=nmoloc)
+      CALL cp_fm_get_info(moloc_coeff(ispin), ncol_global=nmoloc)
       ALLOCATE (moment_set(nm, nmoloc))
       moment_set = 0.0_dp
 
-      mo_localized => moloc_coeff(ispin)%matrix
+      mo_localized => moloc_coeff(ispin)
 
       DO istate = 1, nmoloc
          rcc = centers(1:3, istate)
@@ -1491,9 +1487,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: rcc
       REAL(KIND=dp), DIMENSION(6)                        :: cov
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: moloc_coeff
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: momv, mvector, omvector
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: moloc_coeff
       TYPE(cp_fm_type), POINTER                          :: mo_localized
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -1533,12 +1529,12 @@ CONTAINS
 
       CALL get_qs_env(qs_env, matrix_s=matrix_s)
 
-      CALL cp_fm_get_info(moloc_coeff(ispin)%matrix, ncol_global=nmoloc)
+      CALL cp_fm_get_info(moloc_coeff(ispin), ncol_global=nmoloc)
 
       ALLOCATE (moment_set(nm, nmoloc))
       moment_set = 0.0_dp
 
-      mo_localized => moloc_coeff(ispin)%matrix
+      mo_localized => moloc_coeff(ispin)
 
       DO istate = 1, nmoloc
          rcc = centers(1:3, istate)

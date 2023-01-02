@@ -30,7 +30,7 @@ MODULE qs_loc_utils
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_maxabsval, &
-        cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type, &
+        cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type, &
         cp_fm_write_unformatted
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
@@ -464,8 +464,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupations
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vecbuffer
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: moloc_coeff
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: moloc_coeff
       TYPE(cp_fm_type), POINTER                          :: mat_ptr, mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
@@ -495,10 +495,9 @@ CONTAINS
             nmosub = localized_wfn_control%nloc_states(ispin)
             CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                      ncol_global=nmosub, para_env=para_env, context=mo_coeff%matrix_struct%context)
-            ALLOCATE (moloc_coeff(ispin)%matrix)
-            CALL cp_fm_create(moloc_coeff(ispin)%matrix, tmp_fm_struct)
+            CALL cp_fm_create(moloc_coeff(ispin), tmp_fm_struct)
 
-            CALL cp_fm_get_info(moloc_coeff(ispin)%matrix, nrow_global=naosub, &
+            CALL cp_fm_get_info(moloc_coeff(ispin), nrow_global=naosub, &
                                 ncol_global=nmosub)
             CPASSERT(nao == naosub)
             IF ((localized_wfn_control%do_homo) .OR. &
@@ -507,7 +506,7 @@ CONTAINS
             ELSE
                CPASSERT(nao - nmo >= nmosub)
             END IF
-            CALL cp_fm_set_all(moloc_coeff(ispin)%matrix, 0.0_dp)
+            CALL cp_fm_set_all(moloc_coeff(ispin), 0.0_dp)
             CALL cp_fm_struct_release(tmp_fm_struct)
          END DO ! ispin
          ! Copy the submatrix
@@ -551,7 +550,7 @@ CONTAINS
                   ! Take the imo vector from the full set and copy in the imoloc vector of the subset
                   CALL cp_fm_get_submatrix(mat_ptr, vecbuffer, 1, imo, &
                                            nao, 1, transpose=.TRUE.)
-                  CALL cp_fm_set_submatrix(moloc_coeff(ispin)%matrix, vecbuffer, 1, imoloc, &
+                  CALL cp_fm_set_submatrix(moloc_coeff(ispin), vecbuffer, 1, imoloc, &
                                            nao, 1, transpose=.TRUE.)
                END DO
                DEALLOCATE (vecbuffer)
@@ -565,14 +564,14 @@ CONTAINS
                                    "cannot be rotated together")
                END IF
                nmosub = localized_wfn_control%nloc_states(ispin)
-               CALL cp_fm_to_fm(mat_ptr, moloc_coeff(ispin)%matrix, nmosub, lb, 1)
+               CALL cp_fm_to_fm(mat_ptr, moloc_coeff(ispin), nmosub, lb, 1)
             END IF
 
             ! we have the mo's to be localized now, see if we can rotate them according to the history
             ! only do that if we have a history of course. The history is filled
             IF (PRESENT(mo_loc_history)) THEN
                IF (localized_wfn_control%use_history .AND. ASSOCIATED(mo_loc_history)) THEN
-                  CALL rotate_state_to_ref(moloc_coeff(ispin)%matrix, &
+                  CALL rotate_state_to_ref(moloc_coeff(ispin), &
                                            mo_loc_history(ispin), matrix_s(1)%matrix)
                END IF
             END IF
