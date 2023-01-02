@@ -450,8 +450,8 @@ CONTAINS
       LOGICAL                                            :: do_dso, do_fc, do_pso, do_sd
       REAL(dp)                                           :: chk(20), r_i(3)
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fc_psi0
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: dso_psi0, efg_psi0, pso_psi0
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fc_psi0
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -608,7 +608,7 @@ CONTAINS
          ! FC
          IF (do_fc) THEN
             CALL cp_dbcsr_sm_fm_multiply(matrix_fc(1)%matrix, mo_coeff, &
-                                         fc_psi0(ispin)%matrix, ncol=nmo, &
+                                         fc_psi0(ispin), ncol=nmo, &
                                          alpha=1.0_dp)
          END IF
          !

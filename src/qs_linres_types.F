@@ -140,7 +140,7 @@ MODULE qs_linres_types
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER :: psi1_efg => NULL(), psi1_pso => NULL(), efg_psi0 => NULL(), &
                                                       pso_psi0 => NULL(), dso_psi0 => NULL(), psi1_dso => NULL()
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: psi1_fc => NULL()
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: fc_psi0 => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: fc_psi0 => NULL()
   TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_efg => NULL(), matrix_pso => NULL(), matrix_dso => NULL(), matrix_fc => NULL()
    END TYPE issc_env_type
 
@@ -589,8 +589,7 @@ CONTAINS
          POINTER                                         :: psi1_fc
       TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: efg_psi0, pso_psi0, dso_psi0
-      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: fc_psi0
+      TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: fc_psi0
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_efg, matrix_pso, matrix_dso, &
                                                             matrix_fc
