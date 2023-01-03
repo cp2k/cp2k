@@ -126,8 +126,7 @@ MODULE qs_linres_types
    TYPE polar_env_type
       LOGICAL                                      :: do_raman, run_stopped, do_periodic
       REAL(dp), DIMENSION(:, :), POINTER           :: polar
-      TYPE(cp_fm_type), DIMENSION(:, :), POINTER :: psi1_dBerry
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER :: dBerry_psi0
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER :: psi1_dBerry, dBerry_psi0
    END TYPE polar_env_type
 ! *********************************************************************************************************
 
@@ -1350,7 +1349,7 @@ CONTAINS
 
       TYPE(polar_env_type), INTENT(IN)                   :: polar_env
       LOGICAL, OPTIONAL                                  :: do_raman, do_periodic
-      TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
+      TYPE(cp_fm_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: dBerry_psi0
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: polar
       TYPE(cp_fm_type), DIMENSION(:, :), OPTIONAL, &
@@ -1381,7 +1380,7 @@ CONTAINS
 
       TYPE(polar_env_type), INTENT(INOUT)                :: polar_env
       LOGICAL, OPTIONAL                                  :: do_raman, do_periodic
-      TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
+      TYPE(cp_fm_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: dBerry_psi0
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: polar
       TYPE(cp_fm_type), DIMENSION(:, :), OPTIONAL, &
@@ -1416,8 +1415,7 @@ CONTAINS
          IF (ASSOCIATED(polar_env%dBerry_psi0)) THEN
             DO idir = 1, SIZE(polar_env%dBerry_psi0, 1)
                DO ispin = 1, SIZE(polar_env%dBerry_psi0, 2)
-                  CALL cp_fm_release(polar_env%dBerry_psi0(idir, ispin)%matrix)
-                  DEALLOCATE (polar_env%dBerry_psi0(idir, ispin)%matrix)
+                  CALL cp_fm_release(polar_env%dBerry_psi0(idir, ispin))
                END DO
             END DO
             DEALLOCATE (polar_env%dBerry_psi0)

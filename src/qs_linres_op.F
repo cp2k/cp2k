@@ -690,10 +690,10 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: eigrmat
       TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:, :)    :: inv_mat
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: dBerry_psi0
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: op_fm_set, opvec
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :, :)  :: inv_work
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: dBerry_psi0
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
@@ -726,7 +726,7 @@ CONTAINS
 
          DO i = 1, 3
             DO ispin = 1, nspins
-               CALL cp_fm_set_all(dBerry_psi0(i, ispin)%matrix, 0.0_dp)
+               CALL cp_fm_set_all(dBerry_psi0(i, ispin), 0.0_dp)
             END DO
          END DO
 
@@ -801,9 +801,9 @@ CONTAINS
                   inv_work(2, i, ispin)%local_data(:, z) = AIMAG(inv_mat(i, ispin)%local_data(:, z))
                END DO
                CALL parallel_gemm("N", "N", nao, nmo, nmo, -1.0_dp, opvec(1, ispin), inv_work(2, i, ispin), &
-                                  0.0_dp, dBerry_psi0(i, ispin)%matrix)
+                                  0.0_dp, dBerry_psi0(i, ispin))
                CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, opvec(2, ispin), inv_work(1, i, ispin), &
-                                  1.0_dp, dBerry_psi0(i, ispin)%matrix)
+                                  1.0_dp, dBerry_psi0(i, ispin))
             END DO
          END DO !x/y/z-direction
          !SL we omit here the multiplication with hmat (this scaling back done at the end of the response calc)
@@ -865,7 +865,7 @@ CONTAINS
       REAL(dp), DIMENSION(3, 3)                          :: hmat
       REAL(dp), DIMENSION(:, :), POINTER                 :: d_block, s_block
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: dBerry_psi0
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: dBerry_psi0
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dipmat, matrix_s
@@ -924,7 +924,7 @@ CONTAINS
             CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
             DO i = 1, 3
                CALL cp_dbcsr_sm_fm_multiply(dipmat(i)%matrix, mo_coeff, &
-                                            dBerry_psi0(i, ispin)%matrix, ncol=nmo)
+                                            dBerry_psi0(i, ispin), ncol=nmo)
             END DO !x/y/z-direction
          END DO
 
@@ -958,7 +958,7 @@ CONTAINS
 
       INTEGER                                            :: handle, i, ispin, nmo, nspins
       LOGICAL                                            :: do_raman
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: dBerry_psi0
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: dBerry_psi0
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dipmat, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -995,7 +995,7 @@ CONTAINS
             CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
             DO i = 1, 3
                CALL cp_dbcsr_sm_fm_multiply(dipmat(i)%matrix, mo_coeff, &
-                                            dBerry_psi0(i, ispin)%matrix, ncol=nmo)
+                                            dBerry_psi0(i, ispin), ncol=nmo)
             END DO !x/y/z-direction
          END DO
 
@@ -1034,7 +1034,7 @@ CONTAINS
       REAL(dp), DIMENSION(3)                             :: ria, rib
       REAL(dp), DIMENSION(:, :), POINTER                 :: d_block, s_block
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: dBerry_psi0
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: dBerry_psi0
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dipmat, matrix_s
@@ -1086,7 +1086,7 @@ CONTAINS
             CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
             DO i = 1, 3
                CALL cp_dbcsr_sm_fm_multiply(dipmat(i)%matrix, mo_coeff, &
-                                            dBerry_psi0(i, ispin)%matrix, ncol=nmo)
+                                            dBerry_psi0(i, ispin), ncol=nmo)
             END DO !x/y/z-direction
          END DO
 
