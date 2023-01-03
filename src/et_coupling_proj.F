@@ -620,7 +620,8 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(et_cpl), POINTER                              :: ec
       TYPE(cp_fm_struct_type), POINTER                   :: fm_s
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mat_t
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
+         INTENT(OUT)                                     :: mat_t
       TYPE(cp_fm_type), INTENT(IN)                       :: mat_w
       INTEGER                                            :: n_ao, n_spins
 
@@ -633,7 +634,6 @@ CONTAINS
 
       ! Memory allocation
       ALLOCATE (mat_t(n_spins))
-      CPASSERT(ASSOCIATED(mat_t))
 
       ! KS Hamiltonian
       CALL get_qs_env(qs_env, matrix_ks=mat_h)
@@ -648,17 +648,16 @@ CONTAINS
       DO i = 1, n_spins
 
          ! Full-matrix format
-         ALLOCATE (mat_t(i)%matrix)
-         CALL cp_fm_create(matrix=mat_t(i)%matrix, matrix_struct=fm_s, &
+         CALL cp_fm_create(matrix=mat_t(i), matrix_struct=fm_s, &
                            name='KS HAMILTONIAN IN SEPARATED ORTHOGONALIZED BASIS SET')
-         CALL copy_dbcsr_to_fm(mat_h(i)%matrix, mat_t(i)%matrix)
+         CALL copy_dbcsr_to_fm(mat_h(i)%matrix, mat_t(i))
 
          ! Transform KS Hamiltonian to the orthogonalized AO basis set
-         CALL parallel_gemm("N", "N", n_ao, n_ao, n_ao, 1.0_dp, ec%m_transf, mat_t(i)%matrix, 0.0_dp, mat_w)
-         CALL parallel_gemm("N", "N", n_ao, n_ao, n_ao, 1.0_dp, mat_w, ec%m_transf, 0.0_dp, mat_t(i)%matrix)
+         CALL parallel_gemm("N", "N", n_ao, n_ao, n_ao, 1.0_dp, ec%m_transf, mat_t(i), 0.0_dp, mat_w)
+         CALL parallel_gemm("N", "N", n_ao, n_ao, n_ao, 1.0_dp, mat_w, ec%m_transf, 0.0_dp, mat_t(i))
 
          ! Reorder KS Hamiltonain elements to defined block structure
-         CALL reorder_hamiltonian_matrix(ec, mat_t(i)%matrix, mat_w)
+         CALL reorder_hamiltonian_matrix(ec, mat_t(i), mat_w)
 
       END DO
 
@@ -676,7 +675,7 @@ CONTAINS
       ! Routine arguments
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(et_cpl), POINTER                              :: ec
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mat_h
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mat_h
 
       INTEGER                                            :: i, j, k, l, n_spins, spin
       REAL(KIND=dp), DIMENSION(:), POINTER               :: vec_e
@@ -726,7 +725,7 @@ CONTAINS
             CPASSERT(ASSOCIATED(vec_e))
 
             ! Copy block data
-            CALL cp_fm_to_fm_submat(mat_h(spin)%matrix, &
+            CALL cp_fm_to_fm_submat(mat_h(spin), &
                                     dat(i), ec%block(i)%n_ao, &
                                     ec%block(i)%n_ao, j, j, 1, 1)
 
@@ -762,7 +761,7 @@ CONTAINS
                                     name='H_KS OFF-DIAGONAL BLOCK')
 
                   ! Copy block data
-                  CALL cp_fm_to_fm_submat(mat_h(spin)%matrix, &
+                  CALL cp_fm_to_fm_submat(mat_h(spin), &
                                           ec%block(i)%hab(spin, j), ec%block(i)%n_ao, &
                                           ec%block(j)%n_ao, k, l, 1, 1)
 
@@ -1743,9 +1742,9 @@ CONTAINS
       INTEGER                                            :: i, j, k, n_ao, n_atoms, output_unit
       LOGICAL                                            :: do_kp, master
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mat_h
       TYPE(cp_fm_struct_type), POINTER                   :: fm_s
       TYPE(cp_fm_type)                                   :: mat_w
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: mat_h
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks, mo_der
@@ -1770,7 +1769,6 @@ CONTAINS
       NULLIFY (et_proj_sec)
 
       NULLIFY (fm_s)
-      NULLIFY (mat_h)
       NULLIFY (ks, mo_der)
 
       NULLIFY (ec)
@@ -1963,12 +1961,9 @@ CONTAINS
       ! Clean memory
       CALL cp_fm_struct_release(fmstruct=fm_s)
       CALL cp_fm_release(matrix=mat_w)
-      IF (ASSOCIATED(mat_h)) THEN
+      IF (ALLOCATED(mat_h)) THEN
          DO i = 1, SIZE(mat_h)
-            IF (ASSOCIATED(mat_h(i)%matrix)) THEN
-               CALL cp_fm_release(matrix=mat_h(i)%matrix)
-               DEALLOCATE (mat_h(i)%matrix)
-            END IF
+            CALL cp_fm_release(matrix=mat_h(i))
          END DO
          DEALLOCATE (mat_h)
       END IF
