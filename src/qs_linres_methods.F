@@ -228,9 +228,10 @@ CONTAINS
       LOGICAL                                            :: restart
       REAL(dp)                                           :: alpha, beta, norm_res, t1, t2
       REAL(dp), DIMENSION(:), POINTER                    :: tr_pAp, tr_rz0, tr_rz00, tr_rz1
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: Ap, chc, mo_coeff_array, p, r, z
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: Ap, chc, p, r, z
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type)                                   :: buf
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: mo_coeff_array
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: Sc
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -274,7 +275,7 @@ CONTAINS
                 r(nspins), p(nspins), z(nspins), Ap(nspins), mo_coeff_array(nspins))
       DO ispin = 1, nspins
          CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
-         mo_coeff_array(ispin)%matrix => mo_coeff
+         mo_coeff_array(ispin) = mo_coeff
       END DO
       !
       DO ispin = 1, nspins
@@ -690,8 +691,8 @@ CONTAINS
    SUBROUTINE preortho(v, psi0, S_psi0)
       !v = (I-PS)v
       !
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: v, psi0
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: S_psi0
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: v
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: psi0, S_psi0
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'preortho'
 
@@ -708,7 +709,7 @@ CONTAINS
       !
       DO ispin = 1, nspins
          CALL cp_fm_get_info(v(ispin)%matrix, ncol_global=mv, nrow_global=nv)
-         CALL cp_fm_get_info(psi0(ispin)%matrix, ncol_global=mp, nrow_global=np)
+         CALL cp_fm_get_info(psi0(ispin), ncol_global=mp, nrow_global=np)
          !
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nv, ncol_global=mp, &
                                   para_env=v(ispin)%matrix%matrix_struct%para_env, &
@@ -725,7 +726,7 @@ CONTAINS
          ! buf = v' * S_psi0
          CALL parallel_gemm('T', 'N', mv, mp, nv, 1.0_dp, v(ispin)%matrix, S_psi0(ispin), 0.0_dp, buf)
          ! v = v - psi0 * buf'
-         CALL parallel_gemm('N', 'T', nv, mv, mp, -1.0_dp, psi0(ispin)%matrix, buf, 1.0_dp, v(ispin)%matrix)
+         CALL parallel_gemm('N', 'T', nv, mv, mp, -1.0_dp, psi0(ispin), buf, 1.0_dp, v(ispin)%matrix)
          !
          CALL cp_fm_release(buf)
       END DO
@@ -743,8 +744,8 @@ CONTAINS
    SUBROUTINE postortho(v, psi0, S_psi0)
       !v = (I-SP)v
       !
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: v, psi0
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: S_psi0
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: v
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: psi0, S_psi0
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'postortho'
 
@@ -761,7 +762,7 @@ CONTAINS
       !
       DO ispin = 1, nspins
          CALL cp_fm_get_info(v(ispin)%matrix, ncol_global=mv, nrow_global=nv)
-         CALL cp_fm_get_info(psi0(ispin)%matrix, ncol_global=mp, nrow_global=np)
+         CALL cp_fm_get_info(psi0(ispin), ncol_global=mp, nrow_global=np)
          !
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nv, ncol_global=mp, &
                                   para_env=v(ispin)%matrix%matrix_struct%para_env, &
@@ -776,7 +777,7 @@ CONTAINS
          CPASSERT(nt == nv)
          !
          ! buf = v' * psi0
-         CALL parallel_gemm('T', 'N', mv, mp, nv, 1.0_dp, v(ispin)%matrix, psi0(ispin)%matrix, 0.0_dp, buf)
+         CALL parallel_gemm('T', 'N', mv, mp, nv, 1.0_dp, v(ispin)%matrix, psi0(ispin), 0.0_dp, buf)
          ! v = v - S_psi0 * buf'
          CALL parallel_gemm('N', 'T', nv, mv, mp, -1.0_dp, S_psi0(ispin), buf, 1.0_dp, v(ispin)%matrix)
          !
