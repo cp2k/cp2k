@@ -227,10 +227,10 @@ CONTAINS
       LOGICAL                                            :: restart
       REAL(dp)                                           :: alpha, beta, norm_res, t1, t2
       REAL(dp), DIMENSION(:), POINTER                    :: tr_pAp, tr_rz0, tr_rz00, tr_rz1
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: Ap, chc, r, z
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: Ap, r
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type)                                   :: buf
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: mo_coeff_array, p
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: chc, mo_coeff_array, p, z
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: Sc
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -278,10 +278,10 @@ CONTAINS
       END DO
       !
       DO ispin = 1, nspins
-         ALLOCATE (r(ispin)%matrix, z(ispin)%matrix, Ap(ispin)%matrix)
+         ALLOCATE (r(ispin)%matrix, Ap(ispin)%matrix)
          CALL cp_fm_create(r(ispin)%matrix, psi1(ispin)%matrix_struct)
          CALL cp_fm_create(p(ispin), psi1(ispin)%matrix_struct)
-         CALL cp_fm_create(z(ispin)%matrix, psi1(ispin)%matrix_struct)
+         CALL cp_fm_create(z(ispin), psi1(ispin)%matrix_struct)
          CALL cp_fm_create(Ap(ispin)%matrix, psi1(ispin)%matrix_struct)
       END DO
       !
@@ -294,8 +294,7 @@ CONTAINS
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, &
                                   ncol_global=nmo, para_env=para_env, &
                                   context=mo_coeff%matrix_struct%context)
-         ALLOCATE (chc(ispin)%matrix)
-         CALL cp_fm_create(chc(ispin)%matrix, tmp_fm_struct)
+         CALL cp_fm_create(chc(ispin), tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
       END DO
       !
@@ -306,7 +305,7 @@ CONTAINS
             CALL cp_fm_create(buf, mo_coeff%matrix_struct)
             CALL cp_fm_get_info(mo_coeff, ncol_global=ncol)
             CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix, mo_coeff, buf, ncol)
-            CALL parallel_gemm('T', 'N', ncol, ncol, nao, -1.0_dp, mo_coeff, buf, 0.0_dp, chc(ispin)%matrix)
+            CALL parallel_gemm('T', 'N', ncol, ncol, nao, -1.0_dp, mo_coeff, buf, 0.0_dp, chc(ispin))
             CALL cp_fm_release(buf)
          END ASSOCIATE
          !
@@ -368,7 +367,7 @@ CONTAINS
          !
          ! z_0 = r_0
          DO ispin = 1, nspins
-            CALL cp_fm_to_fm(r(ispin)%matrix, z(ispin)%matrix)
+            CALL cp_fm_to_fm(r(ispin)%matrix, z(ispin))
          END DO
          linres_control%flag = "CG"
       ELSE
@@ -376,7 +375,7 @@ CONTAINS
          ! z_0 = M * r_0
          DO ispin = 1, nspins
             CALL apply_preconditioner(p_env%preconditioner(ispin), r(ispin)%matrix, &
-                                      z(ispin)%matrix)
+                                      z(ispin))
          END DO
          linres_control%flag = "PCG"
       END IF
@@ -384,10 +383,10 @@ CONTAINS
       DO ispin = 1, nspins
          !
          ! p_0 = z_0
-         CALL cp_fm_to_fm(z(ispin)%matrix, p(ispin))
+         CALL cp_fm_to_fm(z(ispin), p(ispin))
          !
          ! trace(r_0 * z_0)
-         CALL cp_fm_trace(r(ispin)%matrix, z(ispin)%matrix, tr_rz0(ispin))
+         CALL cp_fm_trace(r(ispin)%matrix, z(ispin), tr_rz0(ispin))
       END DO
       IF (SUM(tr_rz0) < 0.0_dp) CPABORT("tr(r_j*z_j) < 0")
       norm_res = ABS(SUM(tr_rz0))/SQRT(REAL(nspins*nao*maxnmo_o, dp))
@@ -493,7 +492,7 @@ CONTAINS
             !
             ! z_j+1 = r_j+1
             DO ispin = 1, nspins
-               CALL cp_fm_to_fm(r(ispin)%matrix, z(ispin)%matrix)
+               CALL cp_fm_to_fm(r(ispin)%matrix, z(ispin))
             END DO
             linres_control%flag = "CG"
          ELSE
@@ -501,7 +500,7 @@ CONTAINS
             ! z_j+1 = M * r_j+1
             DO ispin = 1, nspins
                CALL apply_preconditioner(p_env%preconditioner(ispin), r(ispin)%matrix, &
-                                         z(ispin)%matrix)
+                                         z(ispin))
             END DO
             linres_control%flag = "PCG"
          END IF
@@ -509,7 +508,7 @@ CONTAINS
          DO ispin = 1, nspins
             !
             ! tr(r_j+1*z_j+1)
-            CALL cp_fm_trace(r(ispin)%matrix, z(ispin)%matrix, tr_rz1(ispin))
+            CALL cp_fm_trace(r(ispin)%matrix, z(ispin), tr_rz1(ispin))
          END DO
          IF (SUM(tr_rz1) < 0.0_dp) CPABORT("tr(r_j+1*z_j+1) < 0")
          norm_res = SUM(tr_rz1)/SQRT(REAL(nspins*nao*maxnmo_o, dp))
@@ -523,7 +522,7 @@ CONTAINS
          DO ispin = 1, nspins
             !
             ! p_j+1 = z_j+1 + beta * p_j
-            CALL cp_fm_scale_and_add(beta, p(ispin), 1.0_dp, z(ispin)%matrix)
+            CALL cp_fm_scale_and_add(beta, p(ispin), 1.0_dp, z(ispin))
             tr_rz00(ispin) = tr_rz0(ispin)
             tr_rz0(ispin) = tr_rz1(ispin)
          END DO
@@ -542,14 +541,12 @@ CONTAINS
       DO ispin = 1, nspins
          CALL cp_fm_release(r(ispin)%matrix)
          CALL cp_fm_release(p(ispin))
-         CALL cp_fm_release(z(ispin)%matrix)
+         CALL cp_fm_release(z(ispin))
          CALL cp_fm_release(Ap(ispin)%matrix)
          !
          CALL cp_fm_release(Sc(ispin))
-         CALL cp_fm_release(chc(ispin)%matrix)
-         DEALLOCATE (r(ispin)%matrix, &
-                     z(ispin)%matrix, Ap(ispin)%matrix, &
-                     chc(ispin)%matrix)
+         CALL cp_fm_release(chc(ispin))
+         DEALLOCATE (r(ispin)%matrix, Ap(ispin)%matrix)
       END DO
       DEALLOCATE (tr_pAp, tr_rz0, tr_rz00, tr_rz1, r, p, z, Ap, Sc, chc, mo_coeff_array)
       !
@@ -571,7 +568,8 @@ CONTAINS
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: c0, v
-      TYPE(cp_fm_p_type), DIMENSION(:)                   :: Av, chc
+      TYPE(cp_fm_p_type), DIMENSION(:)                   :: Av
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: chc
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'apply_op'
 
@@ -596,7 +594,7 @@ CONTAINS
       ! apply the uncoupled operator
       DO ispin = 1, nspins
          CALL apply_op_1(v(ispin), Av(ispin)%matrix, matrix_ks(ispin)%matrix, &
-                         matrix_s(1)%matrix, chc(ispin)%matrix)
+                         matrix_s(1)%matrix, chc(ispin))
       END DO
 
       IF (linres_control%do_kernel) THEN
