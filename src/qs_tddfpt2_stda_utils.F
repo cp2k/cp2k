@@ -465,8 +465,7 @@ CONTAINS
    SUBROUTINE get_lowdin_x(shalf, xvec, xt)
 
       TYPE(dbcsr_type)                                   :: shalf
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: xvec
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: xt
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: xvec, xt
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'get_lowdin_x'
 
@@ -478,9 +477,9 @@ CONTAINS
 
       ! Build Lowdin transformed tilde(X)= S^1/2 X for each spin
       DO ispin = 1, nspins
-         CALL cp_fm_get_info(xt(ispin)%matrix, ncol_global=nactive)
+         CALL cp_fm_get_info(xt(ispin), ncol_global=nactive)
          CALL cp_dbcsr_sm_fm_multiply(shalf, xvec(ispin), &
-                                      xt(ispin)%matrix, nactive, alpha=1.0_dp, beta=0.0_dp)
+                                      xt(ispin), nactive, alpha=1.0_dp, beta=0.0_dp)
       END DO
 
       CALL timestop(handle)
@@ -530,10 +529,10 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: xtransformed
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct, fmstructjspin
       TYPE(cp_fm_type)                                   :: cvec, cvecjspin
-      TYPE(cp_fm_type), POINTER                          :: ct, ctjspin, xt
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: xtransformed
+      TYPE(cp_fm_type), POINTER                          :: ct, ctjspin
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_type)                                   :: pdens
@@ -576,8 +575,7 @@ CONTAINS
          NULLIFY (fmstruct)
          ct => work%ctransformed(ispin)
          CALL cp_fm_get_info(ct, matrix_struct=fmstruct)
-         ALLOCATE (xtransformed(ispin)%matrix)
-         CALL cp_fm_create(matrix=xtransformed(ispin)%matrix, matrix_struct=fmstruct, name="XTRANSFORMED")
+         CALL cp_fm_create(matrix=xtransformed(ispin), matrix_struct=fmstruct, name="XTRANSFORMED")
       END DO
       CALL get_lowdin_x(work%shalf, X, xtransformed)
 
@@ -599,12 +597,11 @@ CONTAINS
             tcharge(:) = 0.0_dp
             DO jspin = 1, nspins
                ctjspin => work%ctransformed(jspin)
-               xt => xtransformed(jspin)%matrix
                CALL cp_fm_get_info(ctjspin, matrix_struct=fmstructjspin)
                CALL cp_fm_get_info(ctjspin, matrix_struct=fmstructjspin, nrow_global=nsgf)
                CALL cp_fm_create(cvecjspin, fmstructjspin)
                ! CV(mu,j) = CT(mu,j)*XT(mu,j)
-               CALL cp_fm_schur_product(ctjspin, xt, cvecjspin)
+               CALL cp_fm_schur_product(ctjspin, xtransformed(jspin), cvecjspin)
                ! TV(mu) = SUM_j CV(mu,j)
                CALL cp_fm_vectorssum(cvecjspin, tv, "R")
                ! contract charges
@@ -690,9 +687,8 @@ CONTAINS
             CALL dbcsr_create(pdens, template=tempmat, matrix_type=dbcsr_type_no_symmetry)
             ! P(nu,mu) = SUM_j XT(nu,j)*CT(mu,j)
             ct => work%ctransformed(ispin)
-            xt => xtransformed(ispin)%matrix
             CALL dbcsr_set(pdens, 0.0_dp)
-            CALL cp_dbcsr_plus_fm_fm_t(pdens, xt, ct, nactive(ispin), &
+            CALL cp_dbcsr_plus_fm_fm_t(pdens, xtransformed(ispin), ct, nactive(ispin), &
                                        1.0_dp, keep_sparsity=.FALSE.)
             CALL dbcsr_filter(pdens, stda_env%eps_td_filter)
             ! Apply PP*gab -> PP; gab = gamma_coulomb
@@ -736,8 +732,7 @@ CONTAINS
       END DO
 
       DO ispin = 1, nspins
-         CALL cp_fm_release(matrix=xtransformed(ispin)%matrix)
-         DEALLOCATE (xtransformed(ispin)%matrix)
+         CALL cp_fm_release(matrix=xtransformed(ispin))
       END DO
       DEALLOCATE (xtransformed)
       DEALLOCATE (tcharge, gtcharge)

@@ -33,7 +33,6 @@ MODULE qs_tddfpt2_fhxc_forces
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type,&
@@ -1144,12 +1143,12 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: xtransformed
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct, fmstruct_mat, fmstructjspin
       TYPE(cp_fm_type)                                   :: cvcmat, cvec, cvecjspin, t0matrix, &
                                                             t1matrix, vcvec, xvec
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: xtransformed
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: cpmos, X
-      TYPE(cp_fm_type), POINTER                          :: ct, ctjspin, ucmatrix, uxmatrix, xt
+      TYPE(cp_fm_type), POINTER                          :: ct, ctjspin, ucmatrix, uxmatrix
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -1223,8 +1222,7 @@ CONTAINS
          NULLIFY (fmstruct)
          ct => work%ctransformed(ispin)
          CALL cp_fm_get_info(ct, matrix_struct=fmstruct)
-         ALLOCATE (xtransformed(ispin)%matrix)
-         CALL cp_fm_create(matrix=xtransformed(ispin)%matrix, matrix_struct=fmstruct, name="XTRANSFORMED")
+         CALL cp_fm_create(matrix=xtransformed(ispin), matrix_struct=fmstruct, name="XTRANSFORMED")
       END DO
       CALL get_lowdin_x(work%shalf, X, xtransformed)
 
@@ -1262,12 +1260,11 @@ CONTAINS
             tcharge(:) = 0.0_dp
             DO jspin = 1, nspins
                ctjspin => work%ctransformed(jspin)
-               xt => xtransformed(jspin)%matrix
                CALL cp_fm_get_info(ctjspin, matrix_struct=fmstructjspin)
                CALL cp_fm_get_info(ctjspin, matrix_struct=fmstructjspin, nrow_global=nsgf)
                CALL cp_fm_create(cvecjspin, fmstructjspin)
                ! CV(mu,j) = CT(mu,j)*XT(mu,j)
-               CALL cp_fm_schur_product(ctjspin, xt, cvecjspin)
+               CALL cp_fm_schur_product(ctjspin, xtransformed(jspin), cvecjspin)
                ! TV(mu) = SUM_j CV(mu,j)
                CALL cp_fm_vectorssum(cvecjspin, tv, "R")
                ! contract charges
@@ -1384,8 +1381,7 @@ CONTAINS
             CALL parallel_gemm('T', 'N', nsgf, norb, nsgf, 1.0_dp, work%S_eigenvectors, &
                                X(ispin), 0.0_dp, uxmatrix)
             CALL parallel_gemm('N', 'T', nsgf, nsgf, norb, 1.0_dp, uxmatrix, ucmatrix, 0.0_dp, t0matrix)
-            xt => xtransformed(ispin)%matrix
-            CALL cp_fm_to_fm(xt, cvec)
+            CALL cp_fm_to_fm(xtransformed(ispin), cvec)
             CALL cp_fm_row_scale(cvec, tv)
             CALL parallel_gemm('T', 'N', nsgf, norb, nsgf, 1.0_dp, work%S_eigenvectors, &
                                cvec, 0.0_dp, uxmatrix)
@@ -1406,8 +1402,7 @@ CONTAINS
             CALL cp_fm_release(t1matrix)
             !
             ! CV(mu,i) = TV(mu)*XT(mu,i)
-            xt => xtransformed(ispin)%matrix
-            CALL cp_fm_to_fm(xt, cvec)
+            CALL cp_fm_to_fm(xtransformed(ispin), cvec)
             CALL cp_fm_row_scale(cvec, tv)
             CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, cpmos(ispin), norb, 2.0_dp*spinfac, 1.0_dp)
             ! CV(mu,i) = TV(mu)*CT(mu,i)
@@ -1452,9 +1447,8 @@ CONTAINS
             CALL dbcsr_create(pdens, template=tempmat, matrix_type=dbcsr_type_no_symmetry)
             ! P(nu,mu) = SUM_j XT(nu,j)*CT(mu,j)
             ct => work%ctransformed(ispin)
-            xt => xtransformed(ispin)%matrix
             CALL dbcsr_set(pdens, 0.0_dp)
-            CALL cp_dbcsr_plus_fm_fm_t(pdens, xt, ct, nactive(ispin), &
+            CALL cp_dbcsr_plus_fm_fm_t(pdens, xtransformed(ispin), ct, nactive(ispin), &
                                        1.0_dp, keep_sparsity=.FALSE.)
             CALL dbcsr_filter(pdens, stda_env%eps_td_filter)
             ! Apply PP*gab -> PP; gab = gamma_coulomb
@@ -1528,8 +1522,7 @@ CONTAINS
             CALL parallel_gemm('T', 'N', nsgf, norb, nsgf, 1.0_dp, work%S_eigenvectors, &
                                X(ispin), 0.0_dp, uxmatrix)
             CALL parallel_gemm('N', 'T', nsgf, nsgf, norb, 1.0_dp, uxmatrix, ucmatrix, 0.0_dp, t0matrix)
-            xt => xtransformed(ispin)%matrix
-            CALL cp_dbcsr_sm_fm_multiply(ptrans, xt, cvec, norb, 1.0_dp, 0.0_dp)
+            CALL cp_dbcsr_sm_fm_multiply(ptrans, xtransformed(ispin), cvec, norb, 1.0_dp, 0.0_dp)
             CALL parallel_gemm('T', 'N', nsgf, norb, nsgf, 1.0_dp, work%S_eigenvectors, &
                                cvec, 0.0_dp, uxmatrix)
             CALL parallel_gemm('T', 'N', nsgf, norb, nsgf, 1.0_dp, work%S_eigenvectors, &
@@ -1549,7 +1542,7 @@ CONTAINS
 
             ! RHS contribution to response matrix
             ! CV(nu,i) = P(nu,mu)*XT(mu,i)
-            CALL cp_dbcsr_sm_fm_multiply(ptrans, xt, cvec, norb, 1.0_dp, 0.0_dp)
+            CALL cp_dbcsr_sm_fm_multiply(ptrans, xtransformed(ispin), cvec, norb, 1.0_dp, 0.0_dp)
             CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, cpmos(ispin), norb, &
                                          alpha=-xfac, beta=1.0_dp)
             !
@@ -1595,8 +1588,7 @@ CONTAINS
       END DO
 
       DO ispin = 1, nspins
-         CALL cp_fm_release(matrix=xtransformed(ispin)%matrix)
-         DEALLOCATE (xtransformed(ispin)%matrix)
+         CALL cp_fm_release(matrix=xtransformed(ispin))
       END DO
       DEALLOCATE (xtransformed)
       DEALLOCATE (tcharge, gtcharge)
