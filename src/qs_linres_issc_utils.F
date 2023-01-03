@@ -112,11 +112,10 @@ CONTAINS
                                                             nmo, nspins, output_unit
       LOGICAL                                            :: do_dso, do_fc, do_pso, do_sd, should_stop
       REAL(dp)                                           :: chk, fro
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi1
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: dso_psi0, efg_psi0, psi1_dso, psi1_efg, &
                                                             psi1_pso, pso_psi0
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: h1_psi0, psi0_order
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: h1_psi0, psi0_order, psi1
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fc_psi0, psi1_fc
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -130,7 +129,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       !
       NULLIFY (dft_control, linres_control, lr_section, issc_section)
-      NULLIFY (logger, mpools, psi1, mo_coeff, para_env)
+      NULLIFY (logger, mpools, mo_coeff, para_env)
       NULLIFY (tmp_fm_struct, psi1_fc, psi1_efg, psi1_pso, pso_psi0, fc_psi0, efg_psi0)
 
       logger => cp_get_default_logger()
@@ -176,12 +175,11 @@ CONTAINS
          CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
          psi0_order(ispin) = mo_coeff
          CALL cp_fm_get_info(mo_coeff, ncol_global=nmo, nrow_global=nao)
-         NULLIFY (tmp_fm_struct, psi1(ispin)%matrix)
+         NULLIFY (tmp_fm_struct)
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                   ncol_global=nmo, &
                                   context=mo_coeff%matrix_struct%context)
-         ALLOCATE (psi1(ispin)%matrix)
-         CALL cp_fm_create(psi1(ispin)%matrix, tmp_fm_struct)
+         CALL cp_fm_create(psi1(ispin), tmp_fm_struct)
          CALL cp_fm_create(h1_psi0(ispin), tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
       END DO
@@ -203,9 +201,9 @@ CONTAINS
             !
             !Initial guess for psi1
             DO ispin = 1, nspins
-               CALL cp_fm_set_all(psi1(ispin)%matrix, 0.0_dp)
-               !CALL cp_fm_to_fm(p_psi0(ispin,ijdir)%matrix, psi1(ispin)%matrix)
-               !CALL cp_fm_scale(-1.0_dp,psi1(ispin)%matrix)
+               CALL cp_fm_set_all(psi1(ispin), 0.0_dp)
+               !CALL cp_fm_to_fm(p_psi0(ispin,ijdir)%matrix, psi1(ispin))
+               !CALL cp_fm_scale(-1.0_dp,psi1(ispin))
             END DO
             !
             !DO scf cycle to optimize psi1
@@ -222,8 +220,8 @@ CONTAINS
             !
             ! copy the response
             DO ispin = 1, nspins
-               CALL cp_fm_to_fm(psi1(ispin)%matrix, psi1_efg(ispin, ijdir)%matrix)
-               fro = cp_fm_frobenius_norm(psi1(ispin)%matrix)
+               CALL cp_fm_to_fm(psi1(ispin), psi1_efg(ispin, ijdir)%matrix)
+               fro = cp_fm_frobenius_norm(psi1(ispin))
                chk = chk + fro
             END DO
             !
@@ -233,7 +231,7 @@ CONTAINS
             !   ncubes = SIZE(list_cubes,1)
             !   print_key => section_vals_get_subs_vals(issc_section,"PRINT%RESPONSE_FUNCTION_CUBES")
             !   DO ispin = 1,nspins
-            !      CALL qs_print_cubes(qs_env,psi1(ispin)%matrix,ncubes,list_cubes,&
+            !      CALL qs_print_cubes(qs_env,psi1(ispin),ncubes,list_cubes,&
             !            centers_set(ispin)%array,print_key,'psi1_efg',&
             !            idir=ijdir,ispin=ispin)
             !   ENDDO ! ispin
@@ -261,9 +259,9 @@ CONTAINS
             !
             !Initial guess for psi1
             DO ispin = 1, nspins
-               CALL cp_fm_set_all(psi1(ispin)%matrix, 0.0_dp)
-               !CALL cp_fm_to_fm(rxp_psi0(ispin,idir)%matrix, psi1(ispin)%matrix)
-               !CALL cp_fm_scale(-1.0_dp,psi1(ispin)%matrix)
+               CALL cp_fm_set_all(psi1(ispin), 0.0_dp)
+               !CALL cp_fm_to_fm(rxp_psi0(ispin,idir)%matrix, psi1(ispin))
+               !CALL cp_fm_scale(-1.0_dp,psi1(ispin))
             END DO
             !
             !DO scf cycle to optimize psi1
@@ -280,8 +278,8 @@ CONTAINS
             !
             ! copy the response
             DO ispin = 1, nspins
-               CALL cp_fm_to_fm(psi1(ispin)%matrix, psi1_pso(ispin, idir)%matrix)
-               fro = cp_fm_frobenius_norm(psi1(ispin)%matrix)
+               CALL cp_fm_to_fm(psi1(ispin), psi1_pso(ispin, idir)%matrix)
+               fro = cp_fm_frobenius_norm(psi1(ispin))
                chk = chk + fro
             END DO
             !
@@ -291,7 +289,7 @@ CONTAINS
             !   ncubes = SIZE(list_cubes,1)
             !   print_key => section_vals_get_subs_vals(issc_section,"PRINT%RESPONSE_FUNCTION_CUBES")
             !   DO ispin = 1,nspins
-            !      CALL qs_print_cubes(qs_env,psi1(ispin)%matrix,ncubes,list_cubes,&
+            !      CALL qs_print_cubes(qs_env,psi1(ispin),ncubes,list_cubes,&
             !           centers_set(ispin)%array,print_key,'psi1_pso',&
             !           idir=idir,ispin=ispin)
             !   ENDDO ! ispin
@@ -317,9 +315,9 @@ CONTAINS
          !
          !Initial guess for psi1
          DO ispin = 1, nspins
-            CALL cp_fm_set_all(psi1(ispin)%matrix, 0.0_dp)
-            !CALL cp_fm_to_fm(rxp_psi0(ispin,idir)%matrix, psi1(ispin)%matrix)
-            !CALL cp_fm_scale(-1.0_dp,psi1(ispin)%matrix)
+            CALL cp_fm_set_all(psi1(ispin), 0.0_dp)
+            !CALL cp_fm_to_fm(rxp_psi0(ispin,idir)%matrix, psi1(ispin))
+            !CALL cp_fm_scale(-1.0_dp,psi1(ispin))
          END DO
          !
          !DO scf cycle to optimize psi1
@@ -336,8 +334,8 @@ CONTAINS
          !
          ! copy the response
          DO ispin = 1, nspins
-            CALL cp_fm_to_fm(psi1(ispin)%matrix, psi1_fc(ispin))
-            fro = cp_fm_frobenius_norm(psi1(ispin)%matrix)
+            CALL cp_fm_to_fm(psi1(ispin), psi1_fc(ispin))
+            fro = cp_fm_frobenius_norm(psi1(ispin))
             chk = chk + fro
          END DO
          !
@@ -347,7 +345,7 @@ CONTAINS
          !   ncubes = SIZE(list_cubes,1)
          !   print_key => section_vals_get_subs_vals(issc_section,"PRINT%RESPONSE_FUNCTION_CUBES")
          !   DO ispin = 1,nspins
-         !      CALL qs_print_cubes(qs_env,psi1(ispin)%matrix,ncubes,list_cubes,&
+         !      CALL qs_print_cubes(qs_env,psi1(ispin),ncubes,list_cubes,&
          !           centers_set(ispin)%array,print_key,'psi1_pso',&
          !           idir=idir,ispin=ispin)
          !   ENDDO ! ispin
@@ -375,9 +373,9 @@ CONTAINS
             !
             !Initial guess for psi1
             DO ispin = 1, nspins
-               CALL cp_fm_set_all(psi1(ispin)%matrix, 0.0_dp)
-               !CALL cp_fm_to_fm(rxp_psi0(ispin,idir)%matrix, psi1(ispin)%matrix)
-               !CALL cp_fm_scale(-1.0_dp,psi1(ispin)%matrix)
+               CALL cp_fm_set_all(psi1(ispin), 0.0_dp)
+               !CALL cp_fm_to_fm(rxp_psi0(ispin,idir)%matrix, psi1(ispin))
+               !CALL cp_fm_scale(-1.0_dp,psi1(ispin))
             END DO
             !
             !DO scf cycle to optimize psi1
@@ -394,8 +392,8 @@ CONTAINS
             !
             ! copy the response
             DO ispin = 1, nspins
-               CALL cp_fm_to_fm(psi1(ispin)%matrix, psi1_dso(ispin, idir)%matrix)
-               fro = cp_fm_frobenius_norm(psi1(ispin)%matrix)
+               CALL cp_fm_to_fm(psi1(ispin), psi1_dso(ispin, idir)%matrix)
+               fro = cp_fm_frobenius_norm(psi1(ispin))
                chk = chk + fro
             END DO
             !
@@ -405,7 +403,7 @@ CONTAINS
             !   ncubes = SIZE(list_cubes,1)
             !   print_key => section_vals_get_subs_vals(issc_section,"PRINT%RESPONSE_FUNCTION_CUBES")
             !   DO ispin = 1,nspins
-            !      CALL qs_print_cubes(qs_env,psi1(ispin)%matrix,ncubes,list_cubes,&
+            !      CALL qs_print_cubes(qs_env,psi1(ispin),ncubes,list_cubes,&
             !           centers_set(ispin)%array,print_key,'psi1_pso',&
             !           idir=idir,ispin=ispin)
             !   ENDDO ! ispin
@@ -431,9 +429,8 @@ CONTAINS
       !
       ! clean up
       DO ispin = 1, nspins
-         CALL cp_fm_release(psi1(ispin)%matrix)
+         CALL cp_fm_release(psi1(ispin))
          CALL cp_fm_release(h1_psi0(ispin))
-         DEALLOCATE (psi1(ispin)%matrix)
       END DO
       DEALLOCATE (psi1, h1_psi0, psi0_order)
       !

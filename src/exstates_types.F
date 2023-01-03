@@ -13,8 +13,7 @@
 ! **************************************************************************************************
 MODULE exstates_types
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
-   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release,&
+   USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_constants,                 ONLY: xc_kernel_method_best
@@ -46,7 +45,7 @@ MODULE exstates_types
       INTEGER                                            :: state
       REAL(KIND=dp)                                      :: evalue
       INTEGER                                            :: xc_kernel_method
-      TYPE(cp_fm_p_type), POINTER, DIMENSION(:)          :: evect => NULL()
+      TYPE(cp_fm_type), POINTER, DIMENSION(:)          :: evect => NULL()
       TYPE(cp_fm_type), POINTER, DIMENSION(:)          :: cpmos => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_pe => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hz => NULL()
@@ -80,8 +79,7 @@ CONTAINS
 
          IF (ASSOCIATED(ex_env%evect)) THEN
             DO is = 1, SIZE(ex_env%evect)
-               CALL cp_fm_release(ex_env%evect(is)%matrix)
-               DEALLOCATE (ex_env%evect(is)%matrix)
+               CALL cp_fm_release(ex_env%evect(is))
             END DO
             DEALLOCATE (ex_env%evect)
          END IF

@@ -87,7 +87,9 @@ CONTAINS
 !>       Thomas Chassaing on 08.2002.
 ! **************************************************************************************************
    SUBROUTINE tddfpt_apply_energy_diff(Aop_evects, evects, S_evects, gs_mos, matrix_ks)
-      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: Aop_evects, evects, S_evects
+      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: Aop_evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: evects
+      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: S_evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(in)       :: matrix_ks
@@ -105,12 +107,12 @@ CONTAINS
       nvects = SIZE(evects, 2)
 
       DO ispin = 1, nspins
-         CALL cp_fm_get_info(matrix=evects(ispin, 1)%matrix, matrix_struct=matrix_struct, &
+         CALL cp_fm_get_info(matrix=evects(ispin, 1), matrix_struct=matrix_struct, &
                              nrow_global=nao, ncol_global=nactive)
          CALL cp_fm_create(hevec, matrix_struct)
 
          DO ivect = 1, nvects
-            CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix, evects(ispin, ivect)%matrix, &
+            CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix, evects(ispin, ivect), &
                                          Aop_evects(ispin, ivect)%matrix, ncol=nactive, &
                                          alpha=1.0_dp, beta=1.0_dp)
 
@@ -438,7 +440,8 @@ CONTAINS
    SUBROUTINE tddfpt_apply_hfx(Aop_evects, evects, gs_mos, do_admm, qs_env, &
                                work_rho_ia_ao_symm, work_hmat_symm, work_rho_ia_ao_asymm, &
                                work_hmat_asymm, wfm_rho_orb)
-      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: Aop_evects, evects
+      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: Aop_evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       LOGICAL, INTENT(in)                                :: do_admm
@@ -480,7 +483,7 @@ CONTAINS
 
          CALL cp_fm_get_info(gs_mos(1)%mos_occ, nrow_global=nao)
          DO ispin = 1, nspins
-            CALL cp_fm_get_info(evects(ispin, 1)%matrix, ncol_global=nactive(ispin))
+            CALL cp_fm_get_info(evects(ispin, 1), ncol_global=nactive(ispin))
          END DO
 
          IF (do_admm) THEN
@@ -499,10 +502,10 @@ CONTAINS
             DO ispin = 1, nspins
 
                !The symmetric density matrix
-               CALL parallel_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, evects(ispin, ivect)%matrix, &
+               CALL parallel_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, evects(ispin, ivect), &
                                   gs_mos(ispin)%mos_occ, 0.0_dp, wfm_rho_orb)
                CALL parallel_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, gs_mos(ispin)%mos_occ, &
-                                  evects(ispin, ivect)%matrix, 1.0_dp, wfm_rho_orb)
+                                  evects(ispin, ivect), 1.0_dp, wfm_rho_orb)
 
                CALL dbcsr_set(work_hmat_symm(ispin)%matrix, 0.0_dp)
                IF (do_admm) THEN
@@ -541,10 +544,10 @@ CONTAINS
             DO ispin = 1, nspins
 
                !The symmetric density matrix
-               CALL parallel_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, evects(ispin, ivect)%matrix, &
+               CALL parallel_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, evects(ispin, ivect), &
                                   gs_mos(ispin)%mos_occ, 0.0_dp, wfm_rho_orb)
                CALL parallel_gemm('N', 'T', nao, nao, nactive(ispin), -0.5_dp, gs_mos(ispin)%mos_occ, &
-                                  evects(ispin, ivect)%matrix, 1.0_dp, wfm_rho_orb)
+                                  evects(ispin, ivect), 1.0_dp, wfm_rho_orb)
 
                CALL dbcsr_set(work_hmat_asymm(ispin)%matrix, 0.0_dp)
                IF (do_admm) THEN

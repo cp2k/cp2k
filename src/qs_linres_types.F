@@ -111,7 +111,7 @@ MODULE qs_linres_types
       REAL(dp), DIMENSION(:, :), POINTER           :: basisfun_center => NULL()
       TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER :: center_list => NULL()
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER :: centers_set => NULL()
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER :: psi1_p => NULL(), psi1_rxp => NULL(), psi1_D => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER :: psi1_p => NULL(), psi1_rxp => NULL(), psi1_D => NULL()
       TYPE(cp_fm_type), DIMENSION(:, :), POINTER :: p_psi0 => NULL(), rxp_psi0 => NULL()
       TYPE(jrho_atom_type), DIMENSION(:), POINTER :: jrho1_atom_set => NULL()
       TYPE(qs_rho_p_type), DIMENSION(:), POINTER :: jrho1_set => NULL()
@@ -126,7 +126,8 @@ MODULE qs_linres_types
    TYPE polar_env_type
       LOGICAL                                      :: do_raman, run_stopped, do_periodic
       REAL(dp), DIMENSION(:, :), POINTER           :: polar
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER :: psi1_dBerry, dBerry_psi0
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER :: psi1_dBerry
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER :: dBerry_psi0
    END TYPE polar_env_type
 ! *********************************************************************************************************
 
@@ -455,10 +456,9 @@ CONTAINS
          POINTER                                         :: center_list
       TYPE(cp_2d_r_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: centers_set
-      TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
-         POINTER                                         :: psi1_p, psi1_rxp, psi1_D
       TYPE(cp_fm_type), DIMENSION(:, :), OPTIONAL, &
-         POINTER                                         :: p_psi0, rxp_psi0
+         POINTER                                         :: psi1_p, psi1_rxp, psi1_D, p_psi0, &
+                                                            rxp_psi0
       TYPE(jrho_atom_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: jrho1_atom_set
       TYPE(qs_rho_p_type), DIMENSION(:), OPTIONAL, &
@@ -1353,7 +1353,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: dBerry_psi0
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: polar
-      TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
+      TYPE(cp_fm_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: psi1_dBerry
       LOGICAL, OPTIONAL                                  :: run_stopped
 
@@ -1384,7 +1384,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: dBerry_psi0
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: polar
-      TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
+      TYPE(cp_fm_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: psi1_dBerry
       LOGICAL, OPTIONAL                                  :: run_stopped
 
@@ -1425,8 +1425,7 @@ CONTAINS
          IF (ASSOCIATED(polar_env%psi1_dBerry)) THEN
             DO idir = 1, SIZE(polar_env%psi1_dBerry, 1)
                DO ispin = 1, SIZE(polar_env%psi1_dBerry, 2)
-                  CALL cp_fm_release(polar_env%psi1_dBerry(idir, ispin)%matrix)
-                  DEALLOCATE (polar_env%psi1_dBerry(idir, ispin)%matrix)
+                  CALL cp_fm_release(polar_env%psi1_dBerry(idir, ispin))
                END DO
             END DO
             DEALLOCATE (polar_env%psi1_dBerry)

@@ -24,7 +24,6 @@ MODULE qs_tddfpt2_utils
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -937,7 +936,7 @@ CONTAINS
 !>       \endparblock
 ! **************************************************************************************************
    SUBROUTINE tddfpt_guess_vectors(evects, evals, gs_mos, log_unit)
-      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(inout) :: evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(inout)   :: evects
       REAL(kind=dp), DIMENSION(:), INTENT(inout)         :: evals
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
@@ -1022,7 +1021,7 @@ CONTAINS
       END IF
 
       DO istate = 1, nstates
-         IF (ASSOCIATED(evects(1, istate)%matrix)) THEN
+         IF (ASSOCIATED(evects(1, istate)%matrix_struct)) THEN
             IF (log_unit > 0) &
                WRITE (log_unit, '(T7,I8,T28,A19,T60,F14.5)') &
                istate, "***  restarted  ***", evals(istate)*evolt
@@ -1048,13 +1047,12 @@ CONTAINS
                istate, imo_occ, spin_label, nmo_occ_avail(ispin) + imo_virt, spin_label, e_virt_minus_occ(istate)*evolt
 
             DO jspin = 1, nspins
-               ! .NOT. ASSOCIATED(evects(jspin, istate)%matrix))
-               ALLOCATE (evects(jspin, istate)%matrix)
-               CALL cp_fm_create(evects(jspin, istate)%matrix, fm_struct_evects(jspin)%struct)
-               CALL cp_fm_set_all(evects(jspin, istate)%matrix, 0.0_dp)
+               ! .NOT. ASSOCIATED(evects(jspin, istate)%matrix_struct))
+               CALL cp_fm_create(evects(jspin, istate), fm_struct_evects(jspin)%struct)
+               CALL cp_fm_set_all(evects(jspin, istate), 0.0_dp)
 
                IF (jspin == ispin) &
-                  CALL cp_fm_to_fm(gs_mos(ispin)%mos_virt, evects(ispin, istate)%matrix, &
+                  CALL cp_fm_to_fm(gs_mos(ispin)%mos_virt, evects(ispin, istate), &
                                    ncol=1, source_start=imo_virt, target_start=imo_occ)
             END DO
          END IF

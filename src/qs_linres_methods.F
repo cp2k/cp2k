@@ -216,8 +216,7 @@ CONTAINS
    SUBROUTINE linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, iounit, should_stop)
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_p_type), DIMENSION(:)                   :: psi1
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: h1_psi0, psi0_order
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: psi1, h1_psi0, psi0_order
       INTEGER, INTENT(IN)                                :: iounit
       LOGICAL, INTENT(OUT)                               :: should_stop
 
@@ -228,10 +227,10 @@ CONTAINS
       LOGICAL                                            :: restart
       REAL(dp)                                           :: alpha, beta, norm_res, t1, t2
       REAL(dp), DIMENSION(:), POINTER                    :: tr_pAp, tr_rz0, tr_rz00, tr_rz1
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: Ap, chc, p, r, z
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: Ap, chc, r, z
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type)                                   :: buf
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: mo_coeff_array
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: mo_coeff_array, p
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: Sc
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -279,11 +278,11 @@ CONTAINS
       END DO
       !
       DO ispin = 1, nspins
-         ALLOCATE (r(ispin)%matrix, p(ispin)%matrix, z(ispin)%matrix, Ap(ispin)%matrix)
-         CALL cp_fm_create(r(ispin)%matrix, psi1(ispin)%matrix%matrix_struct)
-         CALL cp_fm_create(p(ispin)%matrix, psi1(ispin)%matrix%matrix_struct)
-         CALL cp_fm_create(z(ispin)%matrix, psi1(ispin)%matrix%matrix_struct)
-         CALL cp_fm_create(Ap(ispin)%matrix, psi1(ispin)%matrix%matrix_struct)
+         ALLOCATE (r(ispin)%matrix, z(ispin)%matrix, Ap(ispin)%matrix)
+         CALL cp_fm_create(r(ispin)%matrix, psi1(ispin)%matrix_struct)
+         CALL cp_fm_create(p(ispin), psi1(ispin)%matrix_struct)
+         CALL cp_fm_create(z(ispin)%matrix, psi1(ispin)%matrix_struct)
+         CALL cp_fm_create(Ap(ispin)%matrix, psi1(ispin)%matrix_struct)
       END DO
       !
       ! compute S*C0, C0_order'*H*C0_order (this should be done once for all)
@@ -385,7 +384,7 @@ CONTAINS
       DO ispin = 1, nspins
          !
          ! p_0 = z_0
-         CALL cp_fm_to_fm(z(ispin)%matrix, p(ispin)%matrix)
+         CALL cp_fm_to_fm(z(ispin)%matrix, p(ispin))
          !
          ! trace(r_0 * z_0)
          CALL cp_fm_trace(r(ispin)%matrix, z(ispin)%matrix, tr_rz0(ispin))
@@ -447,7 +446,7 @@ CONTAINS
          DO ispin = 1, nspins
             !
             ! tr(Ap_j*p_j)
-            CALL cp_fm_trace(Ap(ispin)%matrix, p(ispin)%matrix, tr_pAp(ispin))
+            CALL cp_fm_trace(Ap(ispin)%matrix, p(ispin), tr_pAp(ispin))
          END DO
          !
          ! alpha = tr(r_j*z_j) / tr(Ap_j*p_j)
@@ -459,7 +458,7 @@ CONTAINS
          DO ispin = 1, nspins
             !
             ! x_j+1 = x_j + alpha * p_j
-            CALL cp_fm_scale_and_add(1.0_dp, psi1(ispin)%matrix, alpha, p(ispin)%matrix)
+            CALL cp_fm_scale_and_add(1.0_dp, psi1(ispin), alpha, p(ispin))
          END DO
          !
          ! need to recompute the residue
@@ -524,7 +523,7 @@ CONTAINS
          DO ispin = 1, nspins
             !
             ! p_j+1 = z_j+1 + beta * p_j
-            CALL cp_fm_scale_and_add(beta, p(ispin)%matrix, 1.0_dp, z(ispin)%matrix)
+            CALL cp_fm_scale_and_add(beta, p(ispin), 1.0_dp, z(ispin)%matrix)
             tr_rz00(ispin) = tr_rz0(ispin)
             tr_rz0(ispin) = tr_rz1(ispin)
          END DO
@@ -542,13 +541,13 @@ CONTAINS
       ! clean up
       DO ispin = 1, nspins
          CALL cp_fm_release(r(ispin)%matrix)
-         CALL cp_fm_release(p(ispin)%matrix)
+         CALL cp_fm_release(p(ispin))
          CALL cp_fm_release(z(ispin)%matrix)
          CALL cp_fm_release(Ap(ispin)%matrix)
          !
          CALL cp_fm_release(Sc(ispin))
          CALL cp_fm_release(chc(ispin)%matrix)
-         DEALLOCATE (r(ispin)%matrix, p(ispin)%matrix, &
+         DEALLOCATE (r(ispin)%matrix, &
                      z(ispin)%matrix, Ap(ispin)%matrix, &
                      chc(ispin)%matrix)
       END DO
@@ -571,8 +570,8 @@ CONTAINS
       !
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(qs_p_env_type)                                :: p_env
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: c0
-      TYPE(cp_fm_p_type), DIMENSION(:)                   :: v, Av, chc
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: c0, v
+      TYPE(cp_fm_p_type), DIMENSION(:)                   :: Av, chc
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'apply_op'
 
@@ -596,7 +595,7 @@ CONTAINS
 
       ! apply the uncoupled operator
       DO ispin = 1, nspins
-         CALL apply_op_1(v(ispin)%matrix, Av(ispin)%matrix, matrix_ks(ispin)%matrix, &
+         CALL apply_op_1(v(ispin), Av(ispin)%matrix, matrix_ks(ispin)%matrix, &
                          matrix_s(1)%matrix, chc(ispin)%matrix)
       END DO
 
@@ -691,8 +690,7 @@ CONTAINS
    SUBROUTINE preortho(v, psi0, S_psi0)
       !v = (I-PS)v
       !
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: v
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: psi0, S_psi0
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: v, psi0, S_psi0
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'preortho'
 
@@ -708,12 +706,12 @@ CONTAINS
       nspins = SIZE(v, 1)
       !
       DO ispin = 1, nspins
-         CALL cp_fm_get_info(v(ispin)%matrix, ncol_global=mv, nrow_global=nv)
+         CALL cp_fm_get_info(v(ispin), ncol_global=mv, nrow_global=nv)
          CALL cp_fm_get_info(psi0(ispin), ncol_global=mp, nrow_global=np)
          !
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nv, ncol_global=mp, &
-                                  para_env=v(ispin)%matrix%matrix_struct%para_env, &
-                                  context=v(ispin)%matrix%matrix_struct%context)
+                                  para_env=v(ispin)%matrix_struct%para_env, &
+                                  context=v(ispin)%matrix_struct%context)
          CALL cp_fm_create(buf, tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
          !
@@ -724,9 +722,9 @@ CONTAINS
          CPASSERT(nt == nv)
          !
          ! buf = v' * S_psi0
-         CALL parallel_gemm('T', 'N', mv, mp, nv, 1.0_dp, v(ispin)%matrix, S_psi0(ispin), 0.0_dp, buf)
+         CALL parallel_gemm('T', 'N', mv, mp, nv, 1.0_dp, v(ispin), S_psi0(ispin), 0.0_dp, buf)
          ! v = v - psi0 * buf'
-         CALL parallel_gemm('N', 'T', nv, mv, mp, -1.0_dp, psi0(ispin), buf, 1.0_dp, v(ispin)%matrix)
+         CALL parallel_gemm('N', 'T', nv, mv, mp, -1.0_dp, psi0(ispin), buf, 1.0_dp, v(ispin))
          !
          CALL cp_fm_release(buf)
       END DO
@@ -800,7 +798,7 @@ CONTAINS
    SUBROUTINE linres_write_restart(qs_env, linres_section, vec, ivec, tag, ind)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: linres_section
-      TYPE(cp_fm_p_type), DIMENSION(:)                   :: vec
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: vec
       INTEGER, INTENT(IN)                                :: ivec
       CHARACTER(LEN=*)                                   :: tag
       INTEGER, INTENT(IN), OPTIONAL                      :: ind
@@ -876,13 +874,13 @@ CONTAINS
          END IF
 
          DO ispin = 1, nspins
-            CALL cp_fm_get_info(vec(ispin)%matrix, ncol_global=nmo)
+            CALL cp_fm_get_info(vec(ispin), ncol_global=nmo)
 
             IF (rst_unit > 0) WRITE (rst_unit) nmo
 
             DO i = 1, nmo, MAX(max_block, 1)
                i_block = MIN(max_block, nmo - i + 1)
-               CALL cp_fm_get_submatrix(vec(ispin)%matrix, vecbuffer, 1, i, nao, i_block)
+               CALL cp_fm_get_submatrix(vec(ispin), vecbuffer, 1, i, nao, i_block)
                ! doing this in one write would increase efficiency, but breaks RESTART compatibility.
                ! to old ones, and in cases where max_block is different between runs, as might happen during
                ! restarts with a different number of CPUs
@@ -914,7 +912,7 @@ CONTAINS
    SUBROUTINE linres_read_restart(qs_env, linres_section, vec, ivec, tag, ind)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: linres_section
-      TYPE(cp_fm_p_type), DIMENSION(:)                   :: vec
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: vec
       INTEGER, INTENT(IN)                                :: ivec
       CHARACTER(LEN=*)                                   :: tag
       INTEGER, INTENT(INOUT), OPTIONAL                   :: ind
@@ -1045,7 +1043,7 @@ CONTAINS
                   END DO
                   IF (iv .EQ. ivec_tmp) THEN
                      CALL mp_bcast(vecbuffer, source, group)
-                     CALL cp_fm_set_submatrix(vec(ispin)%matrix, vecbuffer, 1, i, nao, i_block)
+                     CALL cp_fm_set_submatrix(vec(ispin), vecbuffer, 1, i, nao, i_block)
                   END IF
                END DO
             END DO

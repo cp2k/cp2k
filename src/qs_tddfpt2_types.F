@@ -133,7 +133,7 @@ MODULE qs_tddfpt2_types
       !> is typically much smaller than the total number of Krylov's vectors. Allocated only if
       !> the number of parallel groups > 1, otherwise we use the original globally distributed vectors.
       !> evects_sub(spin, state) == null() means that the trial vector is assigned to a different (sub)group
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: evects_sub
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)   :: evects_sub
       !> action of TDDFPT operator on trial vectors distributed across parallel (sub)groups
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: Aop_evects_sub
       !> electron density expressed in terms of atomic orbitals using primary basis set
@@ -316,7 +316,6 @@ CONTAINS
          ALLOCATE (work_matrices%evects_sub(nspins, nstates), work_matrices%Aop_evects_sub(nspins, nstates))
          DO istate = 1, nstates
             DO ispin = 1, nspins
-               NULLIFY (work_matrices%evects_sub(ispin, istate)%matrix)
                NULLIFY (work_matrices%Aop_evects_sub(ispin, istate)%matrix)
             END DO
          END DO
@@ -327,9 +326,8 @@ CONTAINS
 
          DO istate = ngroups - igroup, nstates, ngroups
             DO ispin = 1, nspins
-               ALLOCATE (work_matrices%evects_sub(ispin, istate)%matrix, &
-                         work_matrices%Aop_evects_sub(ispin, istate)%matrix)
-               CALL cp_fm_create(work_matrices%evects_sub(ispin, istate)%matrix, fm_struct_evects(ispin)%struct)
+               ALLOCATE (work_matrices%Aop_evects_sub(ispin, istate)%matrix)
+               CALL cp_fm_create(work_matrices%evects_sub(ispin, istate), fm_struct_evects(ispin)%struct)
                CALL cp_fm_create(work_matrices%Aop_evects_sub(ispin, istate)%matrix, fm_struct_evects(ispin)%struct)
             END DO
          END DO
@@ -590,7 +588,6 @@ CONTAINS
          ALLOCATE (work_matrices%evects_sub(nspins, nstates), work_matrices%Aop_evects_sub(nspins, nstates))
          DO istate = 1, nstates
             DO ispin = 1, nspins
-               NULLIFY (work_matrices%evects_sub(ispin, istate)%matrix)
                NULLIFY (work_matrices%Aop_evects_sub(ispin, istate)%matrix)
             END DO
          END DO
@@ -601,8 +598,8 @@ CONTAINS
 
          DO istate = ngroups - igroup, nstates, ngroups
             DO ispin = 1, nspins
-               ALLOCATE (work_matrices%evects_sub(ispin, istate)%matrix, work_matrices%Aop_evects_sub(ispin, istate)%matrix)
-               CALL cp_fm_create(work_matrices%evects_sub(ispin, istate)%matrix, fm_struct_evects(ispin)%struct)
+               ALLOCATE (work_matrices%Aop_evects_sub(ispin, istate)%matrix)
+               CALL cp_fm_create(work_matrices%evects_sub(ispin, istate), fm_struct_evects(ispin)%struct)
                CALL cp_fm_create(work_matrices%Aop_evects_sub(ispin, istate)%matrix, fm_struct_evects(ispin)%struct)
             END DO
          END DO
@@ -753,12 +750,8 @@ CONTAINS
             DO ispin = SIZE(work_matrices%evects_sub, 1), 1, -1
                IF (ASSOCIATED(work_matrices%Aop_evects_sub(ispin, istate)%matrix)) THEN
                   CALL cp_fm_release(work_matrices%Aop_evects_sub(ispin, istate)%matrix)
-                  DEALLOCATE (work_matrices%Aop_evects_sub(ispin, istate)%matrix)
                END IF
-               IF (ASSOCIATED(work_matrices%evects_sub(ispin, istate)%matrix)) THEN
-                  CALL cp_fm_release(work_matrices%evects_sub(ispin, istate)%matrix)
-                  DEALLOCATE (work_matrices%evects_sub(ispin, istate)%matrix)
-               END IF
+               CALL cp_fm_release(work_matrices%evects_sub(ispin, istate))
             END DO
          END DO
          DEALLOCATE (work_matrices%Aop_evects_sub, work_matrices%evects_sub)

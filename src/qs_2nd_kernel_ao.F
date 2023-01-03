@@ -20,7 +20,6 @@ MODULE qs_2nd_kernel_ao
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
@@ -79,8 +78,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE build_dm_response(c0, c1, dm)
       !
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: c0
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: c1
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: c0, c1
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: dm
 
       INTEGER                                            :: ispin, ncol, nspins
@@ -92,7 +90,7 @@ CONTAINS
          CALL cp_fm_get_info(c0(ispin), ncol_global=ncol)
          CALL cp_dbcsr_plus_fm_fm_t(dm(ispin)%matrix, &
                                     matrix_v=c0(ispin), &
-                                    matrix_g=c1(ispin)%matrix, &
+                                    matrix_g=c1(ispin), &
                                     ncol=ncol, alpha=2.0_dp, &
                                     keep_sparsity=.TRUE., &
                                     symmetry_mode=1)

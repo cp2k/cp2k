@@ -13,9 +13,9 @@ MODULE qs_tddfpt2_fprint
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
-                                              cp_fm_to_fm
+                                              cp_fm_to_fm,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -100,7 +100,7 @@ CONTAINS
    SUBROUTINE tddfpt_print_forces(qs_env, evects, evals, ostrength, print_section, &
                                   gs_mos, kernel_env, sub_env, work_matrices)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: evects
       REAL(kind=dp), DIMENSION(:), INTENT(in)            :: evals, ostrength
       TYPE(section_vals_type), POINTER                   :: print_section
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
@@ -207,17 +207,15 @@ CONTAINS
                ex_env%evalue = evals(istate)
                IF (ASSOCIATED(ex_env%evect)) THEN
                   DO ispin = 1, SIZE(ex_env%evect)
-                     CALL cp_fm_release(ex_env%evect(ispin)%matrix)
-                     DEALLOCATE (ex_env%evect(ispin)%matrix)
+                     CALL cp_fm_release(ex_env%evect(ispin))
                   END DO
                   DEALLOCATE (ex_env%evect)
                END IF
                ALLOCATE (ex_env%evect(nspins))
                DO ispin = 1, nspins
-                  CALL cp_fm_get_info(matrix=evects(ispin, 1)%matrix, matrix_struct=matrix_struct)
-                  ALLOCATE (ex_env%evect(ispin)%matrix)
-                  CALL cp_fm_create(ex_env%evect(ispin)%matrix, matrix_struct)
-                  CALL cp_fm_to_fm(evects(ispin, istate)%matrix, ex_env%evect(ispin)%matrix)
+                  CALL cp_fm_get_info(matrix=evects(ispin, 1), matrix_struct=matrix_struct)
+                  CALL cp_fm_create(ex_env%evect(ispin), matrix_struct)
+                  CALL cp_fm_to_fm(evects(ispin, istate), ex_env%evect(ispin))
                END DO
                ! force array
                CALL zero_qs_force(td_force)

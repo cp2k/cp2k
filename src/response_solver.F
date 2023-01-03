@@ -36,7 +36,6 @@ MODULE response_solver
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_init_random,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
@@ -556,9 +555,8 @@ CONTAINS
       INTEGER                                            :: handle, ispin, nao, nao_aux, nspins
       LOGICAL                                            :: should_stop
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi1
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: psi0
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: psi0, psi1
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -566,7 +564,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (dft_control, matrix_ks, mo_coeff, mos, psi1)
+      NULLIFY (dft_control, matrix_ks, mo_coeff, mos)
 
       CALL get_qs_env(qs_env, dft_control=dft_control, matrix_ks=matrix_ks, &
                       matrix_s=matrix_s, mos=mos)
@@ -580,9 +578,8 @@ CONTAINS
          CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
          psi0(ispin) = mo_coeff
          CALL cp_fm_get_info(mo_coeff, matrix_struct=fm_struct)
-         ALLOCATE (psi1(ispin)%matrix)
-         CALL cp_fm_create(psi1(ispin)%matrix, fm_struct)
-         CALL cp_fm_set_all(psi1(ispin)%matrix, 0.0_dp)
+         CALL cp_fm_create(psi1(ispin), fm_struct)
+         CALL cp_fm_set_all(psi1(ispin), 0.0_dp)
       END DO
 
       should_stop = .FALSE.
@@ -620,13 +617,12 @@ CONTAINS
 
       ! Calculate Wz = 0.5*(psi1*eps*psi0^T + psi0*eps*psi1^T)
       DO ispin = 1, nspins
-         CALL calculate_wz_matrix(mos(ispin), psi1(ispin)%matrix, matrix_ks(ispin)%matrix, &
+         CALL calculate_wz_matrix(mos(ispin), psi1(ispin), matrix_ks(ispin)%matrix, &
                                   p_env%w1(ispin)%matrix)
       END DO
       DO ispin = 1, nspins
          CALL cp_fm_release(cpmos(ispin))
-         CALL cp_fm_release(psi1(ispin)%matrix)
-         DEALLOCATE (psi1(ispin)%matrix)
+         CALL cp_fm_release(psi1(ispin))
       END DO
       DEALLOCATE (psi0, psi1)
 
@@ -650,8 +646,7 @@ CONTAINS
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: cpmos
       INTEGER, INTENT(IN)                                :: iounit
-      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: p1_mat
+      TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: p1_mat
       TYPE(section_vals_type), OPTIONAL, POINTER         :: lr_section
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'response_equation'
@@ -659,9 +654,9 @@ CONTAINS
       INTEGER                                            :: handle, ispin, nao, nao_aux, nspins
       LOGICAL                                            :: should_stop
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi1
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: psi0
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: psi1
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, matrix_s_aux
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -715,9 +710,8 @@ CONTAINS
          CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
          psi0(ispin) = mo_coeff
          CALL cp_fm_get_info(mo_coeff, matrix_struct=fm_struct)
-         ALLOCATE (psi1(ispin)%matrix)
-         CALL cp_fm_create(psi1(ispin)%matrix, fm_struct)
-         CALL cp_fm_set_all(psi1(ispin)%matrix, 0.0_dp)
+         CALL cp_fm_create(psi1(ispin), fm_struct)
+         CALL cp_fm_set_all(psi1(ispin), 0.0_dp)
       END DO
 
       should_stop = .FALSE.
@@ -777,7 +771,7 @@ CONTAINS
       ! Calculate Wz = 0.5*(psi1*eps*psi0^T + psi0*eps*psi1^T)
       CALL get_qs_env(qs_env, matrix_ks=matrix_ks)
       DO ispin = 1, nspins
-         CALL calculate_wz_matrix(mos(ispin), psi1(ispin)%matrix, matrix_ks(ispin)%matrix, &
+         CALL calculate_wz_matrix(mos(ispin), psi1(ispin), matrix_ks(ispin)%matrix, &
                                   p_env%w1(ispin)%matrix)
       END DO
       IF (PRESENT(p1_mat)) THEN
@@ -785,8 +779,7 @@ CONTAINS
          p1_mat => psi1
       ELSE
          DO ispin = 1, nspins
-            CALL cp_fm_release(psi1(ispin)%matrix)
-            DEALLOCATE (psi1(ispin)%matrix)
+            CALL cp_fm_release(psi1(ispin))
          END DO
          DEALLOCATE (psi1)
       END IF

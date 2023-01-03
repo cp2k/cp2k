@@ -202,8 +202,8 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER        :: center_list
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: p_psi1, psi1
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: psi1_D, psi1_p, psi1_rxp
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: psi0_order
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: psi1_D, psi1_p, psi1_rxp
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, psi_a_iB, psi_buf
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -367,8 +367,8 @@ CONTAINS
             !nstate_loc = center_list(ispin)%array(1,icenter+1)-center_list(ispin)%array(1,icenter)
             DO j = center_list(ispin)%array(1, istate), center_list(ispin)%array(1, istate + 1) - 1
                jstate = center_list(ispin)%array(2, j)
-               CALL cp_fm_to_fm(psi1_p(ispin, iiB)%matrix, psi_a_iB, 1, jstate, jstate)
-               CALL cp_fm_to_fm(psi1_p(ispin, iiiB)%matrix, psi_buf, 1, jstate, jstate)
+               CALL cp_fm_to_fm(psi1_p(ispin, iiB), psi_a_iB, 1, jstate, jstate)
+               CALL cp_fm_to_fm(psi1_p(ispin, iiiB), psi_buf, 1, jstate, jstate)
                ddk(:, jstate) = dk(1:3)
             END DO
          END DO ! istate
@@ -379,13 +379,13 @@ CONTAINS
          !psi_a_iB = psi_a_iB + psi1_rxp
          !
          ! contribution from the response psi1_rxp
-         CALL cp_fm_scale_and_add(-1.0_dp, psi_a_iB, 1.0_dp, psi1_rxp(ispin, iB)%matrix)
+         CALL cp_fm_scale_and_add(-1.0_dp, psi_a_iB, 1.0_dp, psi1_rxp(ispin, iB))
          !
          !psi_a_iB = psi_a_iB - psi1_D
          IF (current_env%full) THEN
             !
             ! contribution from the response psi1_D
-            CALL cp_fm_scale_and_add(1.0_dp, psi_a_iB, -1.0_dp, psi1_D(ispin, iB)%matrix)
+            CALL cp_fm_scale_and_add(1.0_dp, psi_a_iB, -1.0_dp, psi1_D(ispin, iB))
          END IF
          !
          ! Multiply by the occupation number for the density matrix
@@ -399,13 +399,13 @@ CONTAINS
          ! Build the second density matrix
          CALL dbcsr_set(density_matrix_iii(ispin)%matrix, 0.0_dp)
          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_iii(ispin)%matrix, &
-                                    matrix_v=mo_coeff, matrix_g=psi1_p(ispin, iiiB)%matrix, &
+                                    matrix_v=mo_coeff, matrix_g=psi1_p(ispin, iiiB), &
                                     ncol=nmo, alpha=maxocc)
          !
          ! Build the third density matrix
          CALL dbcsr_set(density_matrix_ii(ispin)%matrix, 0.0_dp)
          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_ii(ispin)%matrix, &
-                                    matrix_v=mo_coeff, matrix_g=psi1_p(ispin, iiB)%matrix, &
+                                    matrix_v=mo_coeff, matrix_g=psi1_p(ispin, iiB), &
                                     ncol=nmo, alpha=maxocc)
          DO idir = 1, 3
             !
@@ -2294,11 +2294,11 @@ CONTAINS
       TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER        :: center_list
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: centers_set
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: p_rxp, r_p1, r_p2
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: psi1_D, psi1_p, psi1_rxp, rr_p1, rr_p2, &
-                                                            rr_rxp
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: rr_p1, rr_p2, rr_rxp
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type)                                   :: psi0, psi_D, psi_p1, psi_p2, psi_rxp
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: psi0_order
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: psi1_D, psi1_p, psi1_rxp
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -2503,12 +2503,12 @@ CONTAINS
                ! block the states that belong to this center
                CALL cp_fm_to_fm(mo_coeff, psi0, 1, istate, jstate)
                !
-               CALL cp_fm_to_fm(psi1_rxp(ispin, iB)%matrix, psi_rxp, 1, istate, jstate)
-               IF (current_env%full) CALL cp_fm_to_fm(psi1_D(ispin, iB)%matrix, psi_D, 1, istate, jstate)
+               CALL cp_fm_to_fm(psi1_rxp(ispin, iB), psi_rxp, 1, istate, jstate)
+               IF (current_env%full) CALL cp_fm_to_fm(psi1_D(ispin, iB), psi_D, 1, istate, jstate)
                !
                ! psi1_p_iiB_istate and psi1_p_iiiB_istate
-               CALL cp_fm_to_fm(psi1_p(ispin, iiB)%matrix, psi_p1, 1, istate, jstate)
-               CALL cp_fm_to_fm(psi1_p(ispin, iiiB)%matrix, psi_p2, 1, istate, jstate)
+               CALL cp_fm_to_fm(psi1_p(ispin, iiB), psi_p1, 1, istate, jstate)
+               CALL cp_fm_to_fm(psi1_p(ispin, iiiB), psi_p2, 1, istate, jstate)
                !
                jstate = jstate + 1
             END DO ! istate
@@ -2723,9 +2723,9 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER        :: center_list
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: centers_set
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: psi1_p, psi1_rxp
       TYPE(cp_fm_type)                                   :: buf
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: psi0_order
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: psi1_p, psi1_rxp
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -2894,7 +2894,7 @@ CONTAINS
                DO jdir = 1, 3
                   DO kdir = 1, 3
                      IF (Levi_Civita(kdir, jdir, idir) .EQ. 0.0_dp) CYCLE
-                     CALL cp_fm_trace(buf, psi1_rxp(ispin, iB)%matrix, contrib)
+                     CALL cp_fm_trace(buf, psi1_rxp(ispin, iB), contrib)
                      chi(kdir) = chi(kdir) - Levi_Civita(kdir, jdir, idir)*2.0_dp*dk(jdir)*contrib
                   END DO
                END DO
@@ -2914,7 +2914,7 @@ CONTAINS
                                             buf, ncol=nmo, alpha=1.e0_dp)
                DO kdir = 1, 3
                   IF (Levi_Civita(kdir, jdir, idir) .EQ. 0.0_dp) CYCLE
-                  CALL cp_fm_trace(buf, psi1_rxp(ispin, iB)%matrix, contrib)
+                  CALL cp_fm_trace(buf, psi1_rxp(ispin, iB), contrib)
                   chi(kdir) = chi(kdir) - Levi_Civita(kdir, jdir, idir)*2.0_dp*contrib
                END DO
                !
@@ -2923,7 +2923,7 @@ CONTAINS
                      DO jjdir = 1, 3
                         DO kdir = 1, 3
                            IF (Levi_Civita(kdir, jjdir, idir) .EQ. 0.0_dp) CYCLE
-                           CALL cp_fm_trace(buf, psi1_p(ispin, iiiB)%matrix, contrib)
+                           CALL cp_fm_trace(buf, psi1_p(ispin, iiiB), contrib)
                            chi(kdir) = chi(kdir) + Levi_Civita(kdir, jjdir, idir)*2.0_dp*dk(jjdir)*contrib
                         END DO
                      END DO
@@ -2933,7 +2933,7 @@ CONTAINS
                      DO jjdir = 1, 3
                         DO kdir = 1, 3
                            IF (Levi_Civita(kdir, jjdir, idir) .EQ. 0.0_dp) CYCLE
-                           CALL cp_fm_trace(buf, psi1_p(ispin, iiB)%matrix, contrib)
+                           CALL cp_fm_trace(buf, psi1_p(ispin, iiB), contrib)
                            chi(kdir) = chi(kdir) - Levi_Civita(kdir, jjdir, idir)*2.0_dp*dk(jjdir)*contrib
                         END DO
                      END DO
@@ -2954,7 +2954,7 @@ CONTAINS
                                             buf, ncol=nmo, alpha=1.e0_dp)
                DO kdir = 1, 3
                   IF (Levi_Civita(kdir, jdir, idir) .EQ. 0.0_dp) CYCLE
-                  CALL cp_fm_trace(buf, psi1_p(ispin, iiiB)%matrix, contrib)
+                  CALL cp_fm_trace(buf, psi1_p(ispin, iiiB), contrib)
                   chi(kdir) = chi(kdir) + Levi_Civita(kdir, jdir, idir)*2.0_dp*contrib
                END DO
                !
@@ -2962,7 +2962,7 @@ CONTAINS
                                             buf, ncol=nmo, alpha=1.e0_dp)
                DO kdir = 1, 3
                   IF (Levi_Civita(kdir, jdir, idir) .EQ. 0.0_dp) CYCLE
-                  CALL cp_fm_trace(buf, psi1_p(ispin, iiB)%matrix, contrib)
+                  CALL cp_fm_trace(buf, psi1_p(ispin, iiB), contrib)
                   chi(kdir) = chi(kdir) - Levi_Civita(kdir, jdir, idir)*2.0_dp*contrib
                END DO
             END DO
@@ -2980,7 +2980,7 @@ CONTAINS
                DO kdir = 1, 3
                   IF (Levi_Civita(kdir, idir, jdir) .EQ. 0.0_dp) CYCLE
                   IF (iiB == jdir) THEN
-                     CALL cp_fm_trace(buf, psi1_p(ispin, iiiB)%matrix, contrib)
+                     CALL cp_fm_trace(buf, psi1_p(ispin, iiiB), contrib)
                      chi(kdir) = chi(kdir) + Levi_Civita(kdir, idir, jdir)*contrib
                   END IF
                END DO
@@ -2990,7 +2990,7 @@ CONTAINS
                DO kdir = 1, 3
                   IF (Levi_Civita(kdir, idir, jdir) .EQ. 0.0_dp) CYCLE
                   IF (iiiB == jdir) THEN
-                     CALL cp_fm_trace(buf, psi1_p(ispin, iiB)%matrix, contrib)
+                     CALL cp_fm_trace(buf, psi1_p(ispin, iiB), contrib)
                      chi(kdir) = chi(kdir) - Levi_Civita(kdir, idir, jdir)*contrib
                   END IF
                   !

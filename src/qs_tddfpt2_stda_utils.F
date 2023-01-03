@@ -465,7 +465,7 @@ CONTAINS
    SUBROUTINE get_lowdin_x(shalf, xvec, xt)
 
       TYPE(dbcsr_type)                                   :: shalf
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: xvec
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: xvec
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: xt
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'get_lowdin_x'
@@ -479,7 +479,7 @@ CONTAINS
       ! Build Lowdin transformed tilde(X)= S^1/2 X for each spin
       DO ispin = 1, nspins
          CALL cp_fm_get_info(xt(ispin)%matrix, ncol_global=nactive)
-         CALL cp_dbcsr_sm_fm_multiply(shalf, xvec(ispin)%matrix, &
+         CALL cp_dbcsr_sm_fm_multiply(shalf, xvec(ispin), &
                                       xt(ispin)%matrix, nactive, alpha=1.0_dp, beta=0.0_dp)
       END DO
 
@@ -509,7 +509,7 @@ CONTAINS
       TYPE(tddfpt_subgroup_env_type)                     :: sub_env
       TYPE(tddfpt_work_matrices)                         :: work
       LOGICAL, INTENT(IN)                                :: is_rks_triplets
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: X
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: X
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: res
 
       CHARACTER(len=*), PARAMETER :: routineN = 'stda_calculate_kernel'

@@ -24,7 +24,6 @@ MODULE qs_dcdr
                                               cp_fm_trace
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_diag,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -260,15 +259,14 @@ CONTAINS
 
       INTEGER                                            :: handle, output_unit
       LOGICAL                                            :: should_stop
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi1
-      TYPE(cp_fm_type), DIMENSION(1)                     :: h1_psi0
+      TYPE(cp_fm_type), DIMENSION(1)                     :: h1_psi0, psi1
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: psi0_order
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(section_vals_type), POINTER                   :: lr_section
 
       CALL timeset(routineN, handle)
-      NULLIFY (linres_control, lr_section, logger, psi1)
+      NULLIFY (linres_control, lr_section, logger)
 
       CALL get_qs_env(qs_env=qs_env, &
                       linres_control=linres_control)
@@ -283,20 +281,15 @@ CONTAINS
             "*** Self consistent optimization of the response wavefunction ***"
       END IF
 
-      ! allocate the vectors
-      ALLOCATE (psi1(1))
-      NULLIFY (psi1(1)%matrix)
-
       psi0_order(1:1) => dcdr_env%mo_coeff(1:1)
-      ALLOCATE (psi1(1)%matrix)
-      CALL cp_fm_create(psi1(1)%matrix, dcdr_env%likemos_fm_struct)
+      CALL cp_fm_create(psi1(1), dcdr_env%likemos_fm_struct)
       CALL cp_fm_create(h1_psi0(1), dcdr_env%likemos_fm_struct)
 
       ! Restart
       IF (linres_control%linres_restart) THEN
          CALL dcdr_read_restart(qs_env, lr_section, psi1, dcdr_env%lambda, dcdr_env%beta, "dCdR")
       ELSE
-         CALL cp_fm_set_all(psi1(1)%matrix, 0.0_dp)
+         CALL cp_fm_set_all(psi1(1), 0.0_dp)
       END IF
 
       IF (output_unit > 0) THEN
@@ -318,7 +311,7 @@ CONTAINS
       ! psi0_order = the unperturbed wavefunction
       CALL linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, &
                          output_unit, should_stop)
-      CALL cp_fm_to_fm(psi1(1)%matrix, dcdr_env%dCR(1)%matrix)
+      CALL cp_fm_to_fm(psi1(1), dcdr_env%dCR(1)%matrix)
 
       ! Write the new result to the restart file
       IF (linres_control%linres_restart) THEN
@@ -326,10 +319,8 @@ CONTAINS
       END IF
 
       ! clean up
-      CALL cp_fm_release(psi1(1)%matrix)
+      CALL cp_fm_release(psi1(1))
       CALL cp_fm_release(h1_psi0(1))
-      DEALLOCATE (psi1(1)%matrix)
-      DEALLOCATE (psi1)
       CALL cp_print_key_finished_output(output_unit, logger, lr_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
 

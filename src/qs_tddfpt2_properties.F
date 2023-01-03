@@ -564,7 +564,7 @@ CONTAINS
    SUBROUTINE tddfpt_print_summary(log_unit, evects, evals, ostrength, mult, &
                                    dipole_op_mos_occ, dipole_form)
       INTEGER, INTENT(in)                                :: log_unit
-      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: evects
       REAL(kind=dp), DIMENSION(:), INTENT(in)            :: evals
       REAL(kind=dp), DIMENSION(:), INTENT(inout)         :: ostrength
       INTEGER, INTENT(in)                                :: mult
@@ -669,7 +669,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tddfpt_print_excitation_analysis(log_unit, evects, evals, gs_mos, matrix_s, min_amplitude)
       INTEGER, INTENT(in)                                :: log_unit
-      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: evects
       REAL(kind=dp), DIMENSION(:), INTENT(in)            :: evals
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
@@ -774,7 +774,7 @@ CONTAINS
             DO ispin = 1, nspins
                ! compute excitation amplitudes
                CALL parallel_gemm('T', 'N', nmo_virt(ispin), nmo_occ(ispin), nao, 1.0_dp, S_mos_virt(ispin)%matrix, &
-                                  evects(ispin, istate)%matrix, 0.0_dp, weights_fm(ispin)%matrix)
+                                  evects(ispin, istate), 0.0_dp, weights_fm(ispin)%matrix)
 
                CALL cp_fm_get_info(weights_fm(ispin)%matrix, nrow_local=nrows_local, ncol_local=ncols_local, &
                                    row_indices=row_indices, col_indices=col_indices, local_data=local_data)
@@ -936,7 +936,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tddfpt_print_nto_analysis(qs_env, evects, evals, gs_mos, matrix_s, print_section)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: evects
       REAL(kind=dp), DIMENSION(:), INTENT(in)            :: evals
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
@@ -961,7 +961,6 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: teig
       TYPE(cp_fm_struct_type), POINTER                   :: fm_mo_struct, fm_struct
       TYPE(cp_fm_type)                                   :: Sev, smat, tmat, wmat, work, wvec
-      TYPE(cp_fm_type), POINTER                          :: ev
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(mo_set_type), ALLOCATABLE, DIMENSION(:)       :: nto_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -996,8 +995,7 @@ CONTAINS
             END IF
             nmax = 0
             DO ispin = 1, nspins
-               ev => evects(ispin, istate)%matrix
-               CALL cp_fm_get_info(ev, matrix_struct=fm_struct, ncol_global=nmo)
+               CALL cp_fm_get_info(evects(ispin, istate), matrix_struct=fm_struct, ncol_global=nmo)
                nmax = MAX(nmax, nmo)
             END DO
             ALLOCATE (eigenvalues(nmax, nspins))
@@ -1009,8 +1007,7 @@ CONTAINS
             ALLOCATE (nto_set(2))
             DO i = 1, 2
                CALL allocate_mo_set(nto_set(i), nao, ntomax, 0, 0.0_dp, 1.0_dp, 0.0_dp)
-               ev => evects(1, istate)%matrix
-               CALL cp_fm_get_info(ev, matrix_struct=fm_struct)
+               CALL cp_fm_get_info(evects(1, istate), matrix_struct=fm_struct)
                CALL cp_fm_struct_create(fmstruct=fm_mo_struct, template_fmstruct=fm_struct, &
                                         ncol_global=ntomax)
                CALL cp_fm_create(tmat, fm_mo_struct)
@@ -1026,16 +1023,17 @@ CONTAINS
             ! hole states
             ! Diagonalize X(T)*S*X
             DO ispin = 1, nspins
-               ev => evects(ispin, istate)%matrix
-               CALL cp_fm_get_info(ev, matrix_struct=fm_struct, ncol_global=nmo)
-               CALL cp_fm_create(Sev, fm_struct)
-               CALL cp_fm_struct_create(fmstruct=fm_mo_struct, template_fmstruct=fm_struct, &
-                                        nrow_global=nmo, ncol_global=nmo)
-               CALL cp_fm_create(tmat, fm_mo_struct)
-               ALLOCATE (teig(ispin)%matrix)
-               CALL cp_fm_create(teig(ispin)%matrix, fm_mo_struct)
-               CALL cp_dbcsr_sm_fm_multiply(matrix_s, ev, Sev, ncol=nmo, alpha=1.0_dp, beta=0.0_dp)
-               CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, ev, Sev, 0.0_dp, tmat)
+               ASSOCIATE (ev => evects(ispin, istate))
+                  CALL cp_fm_get_info(ev, matrix_struct=fm_struct, ncol_global=nmo)
+                  CALL cp_fm_create(Sev, fm_struct)
+                  CALL cp_fm_struct_create(fmstruct=fm_mo_struct, template_fmstruct=fm_struct, &
+                                           nrow_global=nmo, ncol_global=nmo)
+                  CALL cp_fm_create(tmat, fm_mo_struct)
+                  ALLOCATE (teig(ispin)%matrix)
+                  CALL cp_fm_create(teig(ispin)%matrix, fm_mo_struct)
+                  CALL cp_dbcsr_sm_fm_multiply(matrix_s, ev, Sev, ncol=nmo, alpha=1.0_dp, beta=0.0_dp)
+                  CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, ev, Sev, 0.0_dp, tmat)
+               END ASSOCIATE
 
                CALL choose_eigv_solver(tmat, teig(ispin)%matrix, eigenvalues(1:nmo, ispin))
 
@@ -1083,12 +1081,13 @@ CONTAINS
             ! Solve generalized eigenvalue equation:  (S*X)*(S*X)(T)*v = lambda*S*v
             CALL set_mo_set(nto_set(2), nmo=nnto)
             DO ispin = 1, nspins
-               ev => evects(ispin, istate)%matrix
-               CALL cp_fm_get_info(ev, matrix_struct=fm_struct, nrow_global=nao, ncol_global=nmo)
-               ALLOCATE (eigvals(nao))
-               eigvals = 0.0_dp
-               CALL cp_fm_create(Sev, fm_struct)
-               CALL cp_dbcsr_sm_fm_multiply(matrix_s, ev, Sev, ncol=nmo, alpha=1.0_dp, beta=0.0_dp)
+               ASSOCIATE (ev => evects(ispin, istate))
+                  CALL cp_fm_get_info(ev, matrix_struct=fm_struct, nrow_global=nao, ncol_global=nmo)
+                  ALLOCATE (eigvals(nao))
+                  eigvals = 0.0_dp
+                  CALL cp_fm_create(Sev, fm_struct)
+                  CALL cp_dbcsr_sm_fm_multiply(matrix_s, ev, Sev, ncol=nmo, alpha=1.0_dp, beta=0.0_dp)
+               END ASSOCIATE
                CALL cp_fm_struct_create(fmstruct=fm_mo_struct, template_fmstruct=fm_struct, &
                                         nrow_global=nao, ncol_global=nao)
                CALL cp_fm_create(tmat, fm_mo_struct)

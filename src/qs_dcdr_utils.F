@@ -23,9 +23,14 @@ MODULE qs_dcdr_utils
                                               open_file
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, cp_fm_release, &
-        cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_get_submatrix,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_set_submatrix,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
@@ -139,7 +144,7 @@ CONTAINS
    SUBROUTINE dcdr_read_restart(qs_env, linres_section, vec, lambda, beta, tag)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: linres_section
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: vec
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: vec
       INTEGER, INTENT(IN)                                :: lambda, beta
       CHARACTER(LEN=*)                                   :: tag
 
@@ -258,7 +263,7 @@ CONTAINS
                   IF (rst_unit > 0) READ (rst_unit) vecbuffer(1:nao, j)
                END DO
                CALL mp_bcast(vecbuffer, source, group)
-               CALL cp_fm_set_submatrix(vec(ispin)%matrix, vecbuffer, 1, i, nao, i_block)
+               CALL cp_fm_set_submatrix(vec(ispin), vecbuffer, 1, i, nao, i_block)
             END DO
          END DO
 
@@ -293,7 +298,7 @@ CONTAINS
    SUBROUTINE dcdr_write_restart(qs_env, linres_section, vec, lambda, beta, tag)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: linres_section
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: vec
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: vec
       INTEGER, INTENT(IN)                                :: lambda, beta
       CHARACTER(LEN=*)                                   :: tag
 
@@ -357,13 +362,13 @@ CONTAINS
          IF (rst_unit > 0) WRITE (rst_unit) lambda, beta, nspins, nao
 
          DO ispin = 1, nspins
-            CALL cp_fm_get_info(vec(ispin)%matrix, ncol_global=nmo)
+            CALL cp_fm_get_info(vec(ispin), ncol_global=nmo)
 
             IF (rst_unit > 0) WRITE (rst_unit) nmo
 
             DO i = 1, nmo, MAX(max_block, 1)
                i_block = MIN(max_block, nmo - i + 1)
-               CALL cp_fm_get_submatrix(vec(ispin)%matrix, vecbuffer, 1, i, nao, i_block)
+               CALL cp_fm_get_submatrix(vec(ispin), vecbuffer, 1, i, nao, i_block)
                ! doing this in one write would increase efficiency, but breaks RESTART compatibility.
                ! to old ones, and in cases where max_block is different between runs, as might happen during
                ! restarts with a different number of CPUs
