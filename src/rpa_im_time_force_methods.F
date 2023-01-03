@@ -37,7 +37,6 @@ MODULE rpa_im_time_force_methods
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
@@ -2099,8 +2098,8 @@ CONTAINS
       LOGICAL                                            :: do_exx
       REAL(dp)                                           :: focc
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: cpmos
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: cpmos
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_p_work, matrix_p_mp2, &
                                                             matrix_p_mp2_admm, matrix_s, &
@@ -2187,9 +2186,8 @@ CONTAINS
       DO ispin = 1, nspins
          CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
          CALL cp_fm_get_info(mo_coeff, matrix_struct=fm_struct)
-         ALLOCATE (cpmos(ispin)%matrix)
-         CALL cp_fm_create(cpmos(ispin)%matrix, fm_struct)
-         CALL cp_fm_set_all(cpmos(ispin)%matrix, 0.0_dp)
+         CALL cp_fm_create(cpmos(ispin), fm_struct)
+         CALL cp_fm_set_all(cpmos(ispin), 0.0_dp)
       END DO
 
       ! in case of EXX, need to add the HF Hamiltonian to the RHS of the Z-vector equation
@@ -2206,7 +2204,7 @@ CONTAINS
       DO ispin = 1, nspins
          CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, homo=nocc)
          CALL cp_dbcsr_sm_fm_multiply(force_data%sum_O_tau(ispin)%matrix, mo_coeff, &
-                                      cpmos(ispin)%matrix, nocc, &
+                                      cpmos(ispin), nocc, &
                                       alpha=focc, beta=0.0_dp)
       END DO
 
@@ -2256,10 +2254,7 @@ CONTAINS
       IF (dft_control%do_admm) CALL dbcsr_deallocate_matrix_set(YP_admm)
 
       DO ispin = 1, nspins
-         IF (ASSOCIATED(cpmos(ispin)%matrix)) THEN
-            CALL cp_fm_release(cpmos(ispin)%matrix)
-            DEALLOCATE (cpmos(ispin)%matrix)
-         END IF
+         CALL cp_fm_release(cpmos(ispin))
       END DO
       DEALLOCATE (cpmos)
       CALL p_env_release(p_env)

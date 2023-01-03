@@ -181,9 +181,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: fodeb
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: cpmos, evect
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: evect
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, fm_struct_mat
       TYPE(cp_fm_type)                                   :: cvcmat, vcvec
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: cpmos
       TYPE(cp_fm_type), POINTER                          :: mos
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -1033,11 +1034,11 @@ CONTAINS
          !
          IF (.NOT. is_rks_triplets) THEN
             CALL cp_dbcsr_sm_fm_multiply(matrix_hx(ispin)%matrix, evect(ispin)%matrix, &
-                                         cpmos(ispin)%matrix, norb, alpha=focc, beta=1.0_dp)
+                                         cpmos(ispin), norb, alpha=focc, beta=1.0_dp)
             CALL cp_dbcsr_sm_fm_multiply(matrix_hx(ispin)%matrix, mos, vcvec, norb, alpha=1.0_dp, beta=0.0_dp)
             CALL parallel_gemm("T", "N", norb, norb, nao, 1.0_dp, mos, vcvec, 0.0_dp, cvcmat)
             CALL parallel_gemm("N", "N", nao, norb, norb, 1.0_dp, evect(ispin)%matrix, cvcmat, 0.0_dp, vcvec)
-            CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin)%matrix, &
+            CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin), &
                                          norb, alpha=-focc, beta=1.0_dp)
             !
             CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=mos, matrix_g=vcvec, &
@@ -1046,18 +1047,18 @@ CONTAINS
          !
          IF (myfun /= xc_none) THEN
             CALL cp_dbcsr_sm_fm_multiply(matrix_fx(ispin)%matrix, evect(ispin)%matrix, &
-                                         cpmos(ispin)%matrix, norb, alpha=focc, beta=1.0_dp)
+                                         cpmos(ispin), norb, alpha=focc, beta=1.0_dp)
             CALL cp_dbcsr_sm_fm_multiply(matrix_fx(ispin)%matrix, mos, vcvec, norb, alpha=1.0_dp, beta=0.0_dp)
             CALL parallel_gemm("T", "N", norb, norb, nao, 1.0_dp, mos, vcvec, 0.0_dp, cvcmat)
             CALL parallel_gemm("N", "N", nao, norb, norb, 1.0_dp, evect(ispin)%matrix, cvcmat, 0.0_dp, vcvec)
-            CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin)%matrix, &
+            CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin), &
                                          norb, alpha=-focc, beta=1.0_dp)
             !
             CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=mos, matrix_g=vcvec, &
                                        ncol=norb, alpha=2.0_dp, symmetry_mode=1)
             !
             CALL cp_dbcsr_sm_fm_multiply(matrix_gx(ispin)%matrix, mos, &
-                                         cpmos(ispin)%matrix, norb, alpha=focc, beta=1.0_dp)
+                                         cpmos(ispin), norb, alpha=focc, beta=1.0_dp)
             !
             CALL cp_dbcsr_sm_fm_multiply(matrix_gx(ispin)%matrix, mos, vcvec, norb, alpha=1.0_dp, beta=0.0_dp)
             CALL parallel_gemm("T", "N", norb, norb, nao, 1.0_dp, mos, vcvec, 0.0_dp, cvcmat)
@@ -1068,15 +1069,15 @@ CONTAINS
          !
          IF (do_hfx) THEN
             CALL cp_dbcsr_sm_fm_multiply(matrix_hfx(ispin)%matrix, evect(ispin)%matrix, &
-                                         cpmos(ispin)%matrix, norb, alpha=focc, beta=1.0_dp)
+                                         cpmos(ispin), norb, alpha=focc, beta=1.0_dp)
             CALL cp_dbcsr_sm_fm_multiply(matrix_hfx(ispin)%matrix, mos, vcvec, norb, alpha=1.0_dp, beta=0.0_dp)
             CALL cp_dbcsr_sm_fm_multiply(matrix_hfx_asymm(ispin)%matrix, evect(ispin)%matrix, &
-                                         cpmos(ispin)%matrix, norb, alpha=focc, beta=1.0_dp)
+                                         cpmos(ispin), norb, alpha=focc, beta=1.0_dp)
             CALL cp_dbcsr_sm_fm_multiply(matrix_hfx_asymm(ispin)%matrix, mos, vcvec, norb, alpha=1.0_dp, beta=1.0_dp)
             !
             CALL parallel_gemm("T", "N", norb, norb, nao, 1.0_dp, mos, vcvec, 0.0_dp, cvcmat)
             CALL parallel_gemm("N", "N", nao, norb, norb, 1.0_dp, evect(ispin)%matrix, cvcmat, 0.0_dp, vcvec)
-            CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin)%matrix, &
+            CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin), &
                                          norb, alpha=-focc, beta=1.0_dp)
             !
             CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=mos, matrix_g=vcvec, &
@@ -1144,10 +1145,11 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: cpmos, X, xtransformed
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: X, xtransformed
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct, fmstruct_mat, fmstructjspin
       TYPE(cp_fm_type)                                   :: cvcmat, cvec, cvecjspin, t0matrix, &
                                                             t1matrix, vcvec, xvec
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: cpmos
       TYPE(cp_fm_type), POINTER                          :: ct, ctjspin, ucmatrix, uxmatrix, xt
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -1408,7 +1410,7 @@ CONTAINS
             xt => xtransformed(ispin)%matrix
             CALL cp_fm_to_fm(xt, cvec)
             CALL cp_fm_row_scale(cvec, tv)
-            CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, cpmos(ispin)%matrix, norb, 2.0_dp*spinfac, 1.0_dp)
+            CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, cpmos(ispin), norb, 2.0_dp*spinfac, 1.0_dp)
             ! CV(mu,i) = TV(mu)*CT(mu,i)
             ct => work%ctransformed(ispin)
             CALL cp_fm_to_fm(ct, cvec)
@@ -1423,7 +1425,7 @@ CONTAINS
             CALL cp_fm_struct_release(fmstruct_mat)
             CALL parallel_gemm("T", "N", norb, norb, nao, 1.0_dp, gs_mos(ispin)%mos_occ, vcvec, 0.0_dp, cvcmat)
             CALL parallel_gemm("N", "N", nao, norb, norb, 1.0_dp, X(ispin)%matrix, cvcmat, 0.0_dp, vcvec)
-            CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin)%matrix, &
+            CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin), &
                                          nactive(ispin), alpha=-2.0_dp*spinfac, beta=1.0_dp)
             ! wx1
             alpha = 2.0_dp
@@ -1549,7 +1551,7 @@ CONTAINS
             ! RHS contribution to response matrix
             ! CV(nu,i) = P(nu,mu)*XT(mu,i)
             CALL cp_dbcsr_sm_fm_multiply(ptrans, xt, cvec, norb, 1.0_dp, 0.0_dp)
-            CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, cpmos(ispin)%matrix, norb, &
+            CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, cpmos(ispin), norb, &
                                          alpha=-xfac, beta=1.0_dp)
             !
             CALL cp_fm_get_info(cvec, matrix_struct=fmstruct, nrow_global=nao)
@@ -1563,7 +1565,7 @@ CONTAINS
             CALL cp_fm_struct_release(fmstruct_mat)
             CALL parallel_gemm("T", "N", norb, norb, nao, 1.0_dp, gs_mos(ispin)%mos_occ, vcvec, 0.0_dp, cvcmat)
             CALL parallel_gemm("N", "N", nao, norb, norb, 1.0_dp, X(ispin)%matrix, cvcmat, 0.0_dp, vcvec)
-            CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin)%matrix, &
+            CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin), &
                                          norb, alpha=xfac, beta=1.0_dp)
             ! wx1
             IF (nspins == 2) THEN

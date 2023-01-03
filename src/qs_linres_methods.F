@@ -216,8 +216,8 @@ CONTAINS
    SUBROUTINE linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, iounit, should_stop)
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_p_type), DIMENSION(:)                   :: psi1, h1_psi0
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: psi0_order
+      TYPE(cp_fm_p_type), DIMENSION(:)                   :: psi1
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: h1_psi0, psi0_order
       INTEGER, INTENT(IN)                                :: iounit
       LOGICAL, INTENT(OUT)                               :: should_stop
 
@@ -356,7 +356,7 @@ CONTAINS
       !
       ! r_0 = b - Ax0
       DO ispin = 1, nspins
-         CALL cp_fm_to_fm(h1_psi0(ispin)%matrix, r(ispin)%matrix)
+         CALL cp_fm_to_fm(h1_psi0(ispin), r(ispin)%matrix)
          CALL cp_fm_scale_and_add(-1.0_dp, r(ispin)%matrix, -1.0_dp, Ap(ispin)%matrix)
       END DO
       !
@@ -471,7 +471,7 @@ CONTAINS
             !
             DO ispin = 1, nspins
                CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
-               CALL cp_fm_to_fm(h1_psi0(ispin)%matrix, r(ispin)%matrix)
+               CALL cp_fm_to_fm(h1_psi0(ispin), r(ispin)%matrix)
                CALL cp_fm_scale_and_add(-1.0_dp, r(ispin)%matrix, -1.0_dp, Ap(ispin)%matrix)
             END DO
             CALL postortho(r, mo_coeff_array, Sc)

@@ -183,17 +183,15 @@ CONTAINS
       ! rhs of linres equation
       IF (ASSOCIATED(ex_env%cpmos)) THEN
          DO ispin = 1, SIZE(ex_env%cpmos)
-            CALL cp_fm_release(ex_env%cpmos(ispin)%matrix)
-            DEALLOCATE (ex_env%cpmos(ispin)%matrix)
+            CALL cp_fm_release(ex_env%cpmos(ispin))
          END DO
          DEALLOCATE (ex_env%cpmos)
       END IF
       ALLOCATE (ex_env%cpmos(nspins))
       DO ispin = 1, nspins
          CALL cp_fm_get_info(matrix=ex_env%evect(ispin)%matrix, matrix_struct=matrix_struct)
-         ALLOCATE (ex_env%cpmos(ispin)%matrix)
-         CALL cp_fm_create(ex_env%cpmos(ispin)%matrix, matrix_struct)
-         CALL cp_fm_set_all(ex_env%cpmos(ispin)%matrix, 0.0_dp)
+         CALL cp_fm_create(ex_env%cpmos(ispin), matrix_struct)
+         CALL cp_fm_set_all(ex_env%cpmos(ispin), 0.0_dp)
       END DO
       CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
       NULLIFY (matrix_pe_asymm, matrix_pe_symm)
@@ -650,7 +648,7 @@ CONTAINS
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          POINTER                                         :: gs_mos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hz
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: cpmos
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: cpmos
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_resvec2'
 
@@ -1122,7 +1120,7 @@ CONTAINS
       DO ispin = 1, nspins
          mos => gs_mos(ispin)%mos_occ
          CALL cp_fm_get_info(mos, ncol_global=norb)
-         CALL cp_dbcsr_sm_fm_multiply(matrix_hz(ispin)%matrix, mos, cpmos(ispin)%matrix, &
+         CALL cp_dbcsr_sm_fm_multiply(matrix_hz(ispin)%matrix, mos, cpmos(ispin), &
                                       norb, alpha=focc, beta=0.0_dp)
       END DO
 
@@ -1145,7 +1143,7 @@ CONTAINS
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          POINTER                                         :: gs_mos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hz
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: cpmos
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: cpmos
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_resvec2_xtb'
 
@@ -1231,7 +1229,7 @@ CONTAINS
       DO ispin = 1, nspins
          mos => gs_mos(ispin)%mos_occ
          CALL cp_fm_get_info(mos, ncol_global=norb)
-         CALL cp_dbcsr_sm_fm_multiply(matrix_hz(ispin)%matrix, mos, cpmos(ispin)%matrix, &
+         CALL cp_dbcsr_sm_fm_multiply(matrix_hz(ispin)%matrix, mos, cpmos(ispin), &
                                       norb, alpha=focc, beta=0.0_dp)
       END DO
 
@@ -1248,7 +1246,7 @@ CONTAINS
    SUBROUTINE tddfpt_resvec3(qs_env, cpmos, work)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: cpmos
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: cpmos
       TYPE(tddfpt_work_matrices)                         :: work
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_resvec3'
@@ -1256,7 +1254,7 @@ CONTAINS
       INTEGER                                            :: handle, ispin, nao, norb, nspins
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
       TYPE(cp_fm_type)                                   :: cvec, umat
-      TYPE(cp_fm_type), POINTER                          :: omos, rvecs
+      TYPE(cp_fm_type), POINTER                          :: omos
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
@@ -1267,17 +1265,18 @@ CONTAINS
 
       DO ispin = 1, nspins
          CALL get_mo_set(mos(ispin), mo_coeff=omos)
-         rvecs => cpmos(ispin)%matrix
-         CALL cp_fm_get_info(rvecs, nrow_global=nao, ncol_global=norb)
-         CALL cp_fm_create(cvec, rvecs%matrix_struct, "cvec")
-         CALL cp_fm_struct_create(fmstruct, context=rvecs%matrix_struct%context, nrow_global=norb, &
-                                  ncol_global=norb, para_env=rvecs%matrix_struct%para_env)
-         CALL cp_fm_create(umat, fmstruct, "umat")
-         CALL cp_fm_struct_release(fmstruct)
-         !
-         CALL parallel_gemm("T", "N", norb, norb, nao, 1.0_dp, omos, work%S_C0(ispin), 0.0_dp, umat)
-         CALL cp_fm_copy_general(rvecs, cvec, rvecs%matrix_struct%para_env)
-         CALL parallel_gemm("N", "T", nao, norb, norb, 1.0_dp, cvec, umat, 0.0_dp, rvecs)
+         ASSOCIATE (rvecs => cpmos(ispin))
+            CALL cp_fm_get_info(rvecs, nrow_global=nao, ncol_global=norb)
+            CALL cp_fm_create(cvec, rvecs%matrix_struct, "cvec")
+            CALL cp_fm_struct_create(fmstruct, context=rvecs%matrix_struct%context, nrow_global=norb, &
+                                     ncol_global=norb, para_env=rvecs%matrix_struct%para_env)
+            CALL cp_fm_create(umat, fmstruct, "umat")
+            CALL cp_fm_struct_release(fmstruct)
+            !
+            CALL parallel_gemm("T", "N", norb, norb, nao, 1.0_dp, omos, work%S_C0(ispin), 0.0_dp, umat)
+            CALL cp_fm_copy_general(rvecs, cvec, rvecs%matrix_struct%para_env)
+            CALL parallel_gemm("N", "T", nao, norb, norb, 1.0_dp, cvec, umat, 0.0_dp, rvecs)
+         END ASSOCIATE
          CALL cp_fm_release(cvec)
          CALL cp_fm_release(umat)
       END DO

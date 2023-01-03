@@ -111,8 +111,8 @@ MODULE qs_linres_types
       REAL(dp), DIMENSION(:, :), POINTER           :: basisfun_center => NULL()
       TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER :: center_list => NULL()
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER :: centers_set => NULL()
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER :: psi1_p => NULL(), psi1_rxp => NULL(), psi1_D => NULL(), &
-                                                      p_psi0 => NULL(), rxp_psi0 => NULL()
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER :: psi1_p => NULL(), psi1_rxp => NULL(), psi1_D => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER :: p_psi0 => NULL(), rxp_psi0 => NULL()
       TYPE(jrho_atom_type), DIMENSION(:), POINTER :: jrho1_atom_set => NULL()
       TYPE(qs_rho_p_type), DIMENSION(:), POINTER :: jrho1_set => NULL()
       TYPE(realspace_grid_type), DIMENSION(:), POINTER :: rs_buf => NULL()
@@ -456,8 +456,9 @@ CONTAINS
       TYPE(cp_2d_r_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: centers_set
       TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
-         POINTER                                         :: psi1_p, psi1_rxp, psi1_D, p_psi0, &
-                                                            rxp_psi0
+         POINTER                                         :: psi1_p, psi1_rxp, psi1_D
+      TYPE(cp_fm_type), DIMENSION(:, :), OPTIONAL, &
+         POINTER                                         :: p_psi0, rxp_psi0
       TYPE(jrho_atom_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: jrho1_atom_set
       TYPE(qs_rho_p_type), DIMENSION(:), OPTIONAL, &

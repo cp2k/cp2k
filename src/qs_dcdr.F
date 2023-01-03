@@ -260,14 +260,15 @@ CONTAINS
 
       INTEGER                                            :: handle, output_unit
       LOGICAL                                            :: should_stop
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: h1_psi0, psi1
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi1
+      TYPE(cp_fm_type), DIMENSION(1)                     :: h1_psi0
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: psi0_order
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(section_vals_type), POINTER                   :: lr_section
 
       CALL timeset(routineN, handle)
-      NULLIFY (linres_control, lr_section, logger, psi1, h1_psi0)
+      NULLIFY (linres_control, lr_section, logger, psi1)
 
       CALL get_qs_env(qs_env=qs_env, &
                       linres_control=linres_control)
@@ -283,13 +284,13 @@ CONTAINS
       END IF
 
       ! allocate the vectors
-      ALLOCATE (psi1(1), h1_psi0(1))
-      NULLIFY (psi1(1)%matrix, h1_psi0(1)%matrix)
+      ALLOCATE (psi1(1))
+      NULLIFY (psi1(1)%matrix)
 
       psi0_order(1:1) => dcdr_env%mo_coeff(1:1)
-      ALLOCATE (psi1(1)%matrix, h1_psi0(1)%matrix)
+      ALLOCATE (psi1(1)%matrix)
       CALL cp_fm_create(psi1(1)%matrix, dcdr_env%likemos_fm_struct)
-      CALL cp_fm_create(h1_psi0(1)%matrix, dcdr_env%likemos_fm_struct)
+      CALL cp_fm_create(h1_psi0(1), dcdr_env%likemos_fm_struct)
 
       ! Restart
       IF (linres_control%linres_restart) THEN
@@ -304,7 +305,7 @@ CONTAINS
             " displaced in "//ACHAR(dcdr_env%beta + 119)
       END IF
       CALL cp_fm_set_all(dcdr_env%dCR(1)%matrix, 0.0_dp)
-      CALL cp_fm_to_fm(dcdr_env%op_dR(1)%matrix, h1_psi0(1)%matrix)
+      CALL cp_fm_to_fm(dcdr_env%op_dR(1)%matrix, h1_psi0(1))
 
       linres_control%lr_triplet = .FALSE. ! we do singlet response
       linres_control%do_kernel = .TRUE.
@@ -326,9 +327,9 @@ CONTAINS
 
       ! clean up
       CALL cp_fm_release(psi1(1)%matrix)
-      CALL cp_fm_release(h1_psi0(1)%matrix)
-      DEALLOCATE (psi1(1)%matrix, h1_psi0(1)%matrix)
-      DEALLOCATE (psi1, h1_psi0)
+      CALL cp_fm_release(h1_psi0(1))
+      DEALLOCATE (psi1(1)%matrix)
+      DEALLOCATE (psi1)
       CALL cp_print_key_finished_output(output_unit, logger, lr_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
 

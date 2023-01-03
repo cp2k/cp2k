@@ -152,12 +152,12 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER        :: center_list
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: centers_set
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: h1_psi0, hpsi0_ptr, psi1, psi1_ptr
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: p_psi0, psi1_D, psi1_p, psi1_rxp, &
-                                                            rxp_psi0
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi1, psi1_ptr
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: psi1_D, psi1_p, psi1_rxp
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_work_ii, fm_work_iii
-      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: psi0_order
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_work_ii, fm_work_iii, h1_psi0
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: hpsi0_ptr, psi0_order
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: p_psi0, rxp_psi0
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -175,7 +175,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       !
       NULLIFY (cell, dft_control, linres_control, lr_section, current_section, &
-               logger, mpools, psi1, h1_psi0, mo_coeff, para_env, &
+               logger, mpools, psi1, mo_coeff, para_env, &
                tmp_fm_struct, &
                list_cubes, statetrueindex, centers_set, center_list, psi1_p, psi1_rxp, psi1_D, &
                p_psi0, rxp_psi0, psi0_order, op_p_ao, sab_orb, particle_set)
@@ -224,13 +224,13 @@ CONTAINS
          ALLOCATE (psi1(nspins), h1_psi0(nspins))
          DO ispin = 1, nspins
             mo_coeff => psi0_order(ispin)
-            NULLIFY (tmp_fm_struct, psi1(ispin)%matrix, h1_psi0(ispin)%matrix)
+            NULLIFY (tmp_fm_struct, psi1(ispin)%matrix)
             CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                      ncol_global=nstates(ispin), &
                                      context=mo_coeff%matrix_struct%context)
-            ALLOCATE (psi1(ispin)%matrix, h1_psi0(ispin)%matrix)
+            ALLOCATE (psi1(ispin)%matrix)
             CALL cp_fm_create(psi1(ispin)%matrix, tmp_fm_struct)
-            CALL cp_fm_create(h1_psi0(ispin)%matrix, tmp_fm_struct)
+            CALL cp_fm_create(h1_psi0(ispin), tmp_fm_struct)
             CALL cp_fm_struct_release(tmp_fm_struct)
          END DO
          !
@@ -445,7 +445,7 @@ CONTAINS
                      IF (icenter .GT. nbr_center(ispin)) THEN
                         !
                         ! set h1_psi0 and psi1 to zero to avoid problems in linres_scf
-                        CALL cp_fm_set_all(h1_psi0(ispin)%matrix, 0.0_dp)
+                        CALL cp_fm_set_all(h1_psi0(ispin), 0.0_dp)
                         CALL cp_fm_set_all(psi1(ispin)%matrix, 0.0_dp)
                         CYCLE
                      END IF
@@ -481,7 +481,7 @@ CONTAINS
                      !
                      ! Copy in h1_psi0
                      ! h1_psi0_i = fm_work_iii
-                     CALL cp_fm_to_fm(fm_work_iii(ispin), h1_psi0(ispin)%matrix)
+                     CALL cp_fm_to_fm(fm_work_iii(ispin), h1_psi0(ispin))
                      !
                      ! Second term
                      ! Rescale the ground state orbitals by (dk-dl)_iii
@@ -495,7 +495,7 @@ CONTAINS
                      !
                      ! Copy in h1_psi0
                      ! h1_psi0_i = fm_work_iii - fm_work_ii
-                     CALL cp_fm_scale_and_add(1.0_dp, h1_psi0(ispin)%matrix,&
+                     CALL cp_fm_scale_and_add(1.0_dp, h1_psi0(ispin),&
                           &                  -1.0_dp, fm_work_ii(ispin))
                   END DO
 
@@ -563,8 +563,8 @@ CONTAINS
          CALL dbcsr_deallocate_matrix_set(op_p_ao)
          DO ispin = 1, nspins
             CALL cp_fm_release(psi1(ispin)%matrix)
-            CALL cp_fm_release(h1_psi0(ispin)%matrix)
-            DEALLOCATE (psi1(ispin)%matrix, h1_psi0(ispin)%matrix)
+            CALL cp_fm_release(h1_psi0(ispin))
+            DEALLOCATE (psi1(ispin)%matrix)
          END DO
          DEALLOCATE (psi1, h1_psi0)
       END IF
@@ -1266,11 +1266,10 @@ CONTAINS
                                   context=mo_coeff%matrix_struct%context)
          DO idir = 1, 3
             ALLOCATE (current_env%psi1_p(ispin, idir)%matrix, current_env%psi1_rxp(ispin, idir)%matrix)
-            ALLOCATE (current_env%p_psi0(ispin, idir)%matrix, current_env%rxp_psi0(ispin, idir)%matrix)
             CALL cp_fm_create(current_env%psi1_p(ispin, idir)%matrix, tmp_fm_struct)
             CALL cp_fm_create(current_env%psi1_rxp(ispin, idir)%matrix, tmp_fm_struct)
-            CALL cp_fm_create(current_env%p_psi0(ispin, idir)%matrix, tmp_fm_struct)
-            CALL cp_fm_create(current_env%rxp_psi0(ispin, idir)%matrix, tmp_fm_struct)
+            CALL cp_fm_create(current_env%p_psi0(ispin, idir), tmp_fm_struct)
+            CALL cp_fm_create(current_env%rxp_psi0(ispin, idir), tmp_fm_struct)
             IF (current_env%full) THEN
                ALLOCATE (current_env%psi1_D(ispin, idir)%matrix)
                CALL cp_fm_create(current_env%psi1_D(ispin, idir)%matrix, tmp_fm_struct)
@@ -1391,8 +1390,7 @@ CONTAINS
       IF (ASSOCIATED(current_env%p_psi0)) THEN
          DO idir = 1, SIZE(current_env%p_psi0, 2)
             DO ispin = 1, SIZE(current_env%p_psi0, 1)
-               CALL cp_fm_release(current_env%p_psi0(ispin, idir)%matrix)
-               DEALLOCATE (current_env%p_psi0(ispin, idir)%matrix)
+               CALL cp_fm_release(current_env%p_psi0(ispin, idir))
             END DO
          END DO
          DEALLOCATE (current_env%p_psi0)
@@ -1402,8 +1400,7 @@ CONTAINS
       IF (ASSOCIATED(current_env%rxp_psi0)) THEN
          DO idir = 1, SIZE(current_env%rxp_psi0, 2)
             DO ispin = 1, SIZE(current_env%rxp_psi0, 1)
-               CALL cp_fm_release(current_env%rxp_psi0(ispin, idir)%matrix)
-               DEALLOCATE (current_env%rxp_psi0(ispin, idir)%matrix)
+               CALL cp_fm_release(current_env%rxp_psi0(ispin, idir))
             END DO
          END DO
          DEALLOCATE (current_env%rxp_psi0)

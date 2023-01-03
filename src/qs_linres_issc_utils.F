@@ -112,11 +112,11 @@ CONTAINS
                                                             nmo, nspins, output_unit
       LOGICAL                                            :: do_dso, do_fc, do_pso, do_sd, should_stop
       REAL(dp)                                           :: chk, fro
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: h1_psi0, psi1
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi1
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: dso_psi0, efg_psi0, psi1_dso, psi1_efg, &
                                                             psi1_pso, pso_psi0
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: psi0_order
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: h1_psi0, psi0_order
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fc_psi0, psi1_fc
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -130,7 +130,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       !
       NULLIFY (dft_control, linres_control, lr_section, issc_section)
-      NULLIFY (logger, mpools, psi1, h1_psi0, mo_coeff, para_env)
+      NULLIFY (logger, mpools, psi1, mo_coeff, para_env)
       NULLIFY (tmp_fm_struct, psi1_fc, psi1_efg, psi1_pso, pso_psi0, fc_psi0, efg_psi0)
 
       logger => cp_get_default_logger()
@@ -176,13 +176,13 @@ CONTAINS
          CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
          psi0_order(ispin) = mo_coeff
          CALL cp_fm_get_info(mo_coeff, ncol_global=nmo, nrow_global=nao)
-         NULLIFY (tmp_fm_struct, psi1(ispin)%matrix, h1_psi0(ispin)%matrix)
+         NULLIFY (tmp_fm_struct, psi1(ispin)%matrix)
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                   ncol_global=nmo, &
                                   context=mo_coeff%matrix_struct%context)
-         ALLOCATE (psi1(ispin)%matrix, h1_psi0(ispin)%matrix)
+         ALLOCATE (psi1(ispin)%matrix)
          CALL cp_fm_create(psi1(ispin)%matrix, tmp_fm_struct)
-         CALL cp_fm_create(h1_psi0(ispin)%matrix, tmp_fm_struct)
+         CALL cp_fm_create(h1_psi0(ispin), tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
       END DO
       chk = 0.0_dp
@@ -210,7 +210,7 @@ CONTAINS
             !
             !DO scf cycle to optimize psi1
             DO ispin = 1, nspins
-               CALL cp_fm_to_fm(efg_psi0(ispin, ijdir)%matrix, h1_psi0(ispin)%matrix)
+               CALL cp_fm_to_fm(efg_psi0(ispin, ijdir)%matrix, h1_psi0(ispin))
             END DO
             !
             !
@@ -268,7 +268,7 @@ CONTAINS
             !
             !DO scf cycle to optimize psi1
             DO ispin = 1, nspins
-               CALL cp_fm_to_fm(pso_psi0(ispin, idir)%matrix, h1_psi0(ispin)%matrix)
+               CALL cp_fm_to_fm(pso_psi0(ispin, idir)%matrix, h1_psi0(ispin))
             END DO
             !
             !
@@ -324,7 +324,7 @@ CONTAINS
          !
          !DO scf cycle to optimize psi1
          DO ispin = 1, nspins
-            CALL cp_fm_to_fm(fc_psi0(ispin), h1_psi0(ispin)%matrix)
+            CALL cp_fm_to_fm(fc_psi0(ispin), h1_psi0(ispin))
          END DO
          !
          !
@@ -382,7 +382,7 @@ CONTAINS
             !
             !DO scf cycle to optimize psi1
             DO ispin = 1, nspins
-               CALL cp_fm_to_fm(dso_psi0(ispin, idir)%matrix, h1_psi0(ispin)%matrix)
+               CALL cp_fm_to_fm(dso_psi0(ispin, idir)%matrix, h1_psi0(ispin))
             END DO
             !
             !
@@ -432,8 +432,8 @@ CONTAINS
       ! clean up
       DO ispin = 1, nspins
          CALL cp_fm_release(psi1(ispin)%matrix)
-         CALL cp_fm_release(h1_psi0(ispin)%matrix)
-         DEALLOCATE (psi1(ispin)%matrix, h1_psi0(ispin)%matrix)
+         CALL cp_fm_release(h1_psi0(ispin))
+         DEALLOCATE (psi1(ispin)%matrix)
       END DO
       DEALLOCATE (psi1, h1_psi0, psi0_order)
       !

@@ -187,9 +187,9 @@ CONTAINS
       REAL(KIND=dp)                                      :: focc
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: cpmos
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: sv
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: cpmos
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -355,18 +355,17 @@ CONTAINS
          DO ispin = 1, nspins
             CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
             CALL cp_fm_get_info(mo_coeff, matrix_struct=fm_struct)
-            ALLOCATE (cpmos(ispin)%matrix)
-            CALL cp_fm_create(cpmos(ispin)%matrix, fm_struct)
-            CALL cp_fm_set_all(cpmos(ispin)%matrix, 0.0_dp)
+            CALL cp_fm_create(cpmos(ispin), fm_struct)
+            CALL cp_fm_set_all(cpmos(ispin), 0.0_dp)
          END DO
 
          focc = 2.0_dp
          IF (nspins == 1) focc = 4.0_dp
          DO ispin = 1, nspins
             CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
-            CALL cp_fm_set_all(cpmos(ispin)%matrix, 0.0_dp)
+            CALL cp_fm_set_all(cpmos(ispin), 0.0_dp)
             CALL cp_dbcsr_sm_fm_multiply(ec_env%matrix_hz(ispin)%matrix, mo_coeff, &
-                                         cpmos(ispin)%matrix, nmo, &
+                                         cpmos(ispin), nmo, &
                                          alpha=focc, beta=0.0_dp)
          END DO
 
@@ -380,10 +379,7 @@ CONTAINS
          END DO
 
          DO ispin = 1, nspins
-            IF (ASSOCIATED(cpmos(ispin)%matrix)) THEN
-               CALL cp_fm_release(cpmos(ispin)%matrix)
-               DEALLOCATE (cpmos(ispin)%matrix)
-            END IF
+            CALL cp_fm_release(cpmos(ispin))
          END DO
          DEALLOCATE (cpmos)
 
@@ -552,7 +548,7 @@ CONTAINS
    SUBROUTINE response_equation_new(qs_env, p_env, cpmos, iounit)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_p_env_type)                                :: p_env
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: cpmos
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: cpmos
       INTEGER, INTENT(IN)                                :: iounit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'response_equation_new'
@@ -628,9 +624,9 @@ CONTAINS
                                   p_env%w1(ispin)%matrix)
       END DO
       DO ispin = 1, nspins
-         CALL cp_fm_release(cpmos(ispin)%matrix)
+         CALL cp_fm_release(cpmos(ispin))
          CALL cp_fm_release(psi1(ispin)%matrix)
-         DEALLOCATE (cpmos(ispin)%matrix, psi1(ispin)%matrix)
+         DEALLOCATE (psi1(ispin)%matrix)
       END DO
       DEALLOCATE (psi0, psi1)
 
@@ -652,7 +648,7 @@ CONTAINS
    SUBROUTINE response_equation(qs_env, p_env, cpmos, iounit, p1_mat, lr_section)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_p_env_type)                                :: p_env
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: cpmos
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: cpmos
       INTEGER, INTENT(IN)                                :: iounit
       TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: p1_mat
