@@ -127,7 +127,7 @@ MODULE et_coupling_proj
       INTEGER                                            :: n_ao
       TYPE(et_cpl_atom), DIMENSION(:), POINTER           :: atom
       TYPE(mo_set_type), DIMENSION(:), POINTER         :: mo
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER        :: hab
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER        :: hab
    END TYPE et_cpl_block
 
    ! Electronic-coupling block-atom data
@@ -187,10 +187,7 @@ CONTAINS
                IF (ASSOCIATED(ec%block(i)%hab)) THEN
                   DO j = 1, SIZE(ec%block(i)%hab, 1)
                      DO k = 1, SIZE(ec%block(i)%hab, 2)
-                        IF (ASSOCIATED(ec%block(i)%hab(j, k)%matrix)) THEN
-                           CALL cp_fm_release(matrix=ec%block(i)%hab(j, k)%matrix)
-                           DEALLOCATE (ec%block(i)%hab(j, k)%matrix)
-                        END IF
+                        CALL cp_fm_release(matrix=ec%block(i)%hab(j, k))
                      END DO
                   END DO
                   DEALLOCATE (ec%block(i)%hab)
@@ -710,11 +707,6 @@ CONTAINS
          CPASSERT(ASSOCIATED(ec%block(i)%mo))
          ALLOCATE (ec%block(i)%hab(n_spins, ec%n_blocks))
          CPASSERT(ASSOCIATED(ec%block(i)%hab))
-         DO j = 1, n_spins
-            DO k = 1, ec%n_blocks
-               NULLIFY (ec%block(i)%hab(j, k)%matrix)
-            END DO
-         END DO
       END DO
 
       ! Spin components
@@ -766,21 +758,20 @@ CONTAINS
                   ! Memory allocation
                   CALL cp_fm_struct_create(fmstruct=fm_s, para_env=para_env, context=blacs_env, &
                                            nrow_global=ec%block(i)%n_ao, ncol_global=ec%block(j)%n_ao)
-                  ALLOCATE (ec%block(i)%hab(spin, j)%matrix)
-                  CALL cp_fm_create(matrix=ec%block(i)%hab(spin, j)%matrix, matrix_struct=fm_s, &
+                  CALL cp_fm_create(matrix=ec%block(i)%hab(spin, j), matrix_struct=fm_s, &
                                     name='H_KS OFF-DIAGONAL BLOCK')
 
                   ! Copy block data
                   CALL cp_fm_to_fm_submat(mat_h(spin)%matrix, &
-                                          ec%block(i)%hab(spin, j)%matrix, ec%block(i)%n_ao, &
+                                          ec%block(i)%hab(spin, j), ec%block(i)%n_ao, &
                                           ec%block(j)%n_ao, k, l, 1, 1)
 
                   ! Transformation
                   CALL cp_fm_create(matrix=mat_u, matrix_struct=fm_s, name='FULL WORK MATRIX')
                   CALL parallel_gemm("T", "N", ec%block(i)%n_ao, ec%block(j)%n_ao, ec%block(i)%n_ao, &
-                                     1.0_dp, dat(i), ec%block(i)%hab(spin, j)%matrix, 0.0_dp, mat_u)
+                                     1.0_dp, dat(i), ec%block(i)%hab(spin, j), 0.0_dp, mat_u)
                   CALL parallel_gemm("N", "N", ec%block(i)%n_ao, ec%block(j)%n_ao, ec%block(j)%n_ao, &
-                                     1.0_dp, mat_u, dat(j), 0.0_dp, ec%block(i)%hab(spin, j)%matrix)
+                                     1.0_dp, mat_u, dat(j), 0.0_dp, ec%block(i)%hab(spin, j))
 
                   ! Clean memory
                   CALL cp_fm_struct_release(fmstruct=fm_s)
@@ -1160,16 +1151,16 @@ CONTAINS
          DO i = 1, ec%n_blocks
             DO j = i + 1, ec%n_blocks
 
-               nr = ec%block(i)%hab(1, j)%matrix%matrix_struct%nrow_global
-               nc = ec%block(i)%hab(1, j)%matrix%matrix_struct%ncol_global
+               nr = ec%block(i)%hab(1, j)%matrix_struct%nrow_global
+               nc = ec%block(i)%hab(1, j)%matrix_struct%ncol_global
 
                ALLOCATE (w1(nr, nc))
                CPASSERT(ASSOCIATED(w1))
-               CALL get_fm_matrix_array(ec%block(i)%hab(1, j)%matrix, w1)
+               CALL get_fm_matrix_array(ec%block(i)%hab(1, j), w1)
                IF (nspins > 1) THEN
                   ALLOCATE (w2(nr, nc))
                   CPASSERT(ASSOCIATED(w2))
-                  CALL get_fm_matrix_array(ec%block(i)%hab(2, j)%matrix, w2)
+                  CALL get_fm_matrix_array(ec%block(i)%hab(2, j), w2)
                END IF
 
                IF (output_unit > 0) THEN
@@ -1249,10 +1240,10 @@ CONTAINS
 
                            WRITE (unit_nr, '(T3,I5,T13,I5,T22,E20.6)', ADVANCE='no') &
                               k, l, &
-                              ec%block(i)%hab(1, j)%matrix%local_data(k, l)*evolt*1000.0_dp
+                              ec%block(i)%hab(1, j)%local_data(k, l)*evolt*1000.0_dp
                            IF ((k <= n_states(2)) .AND. (l <= n_states(2))) THEN
                               WRITE (unit_nr, '(E20.6)') &
-                                 ec%block(i)%hab(2, j)%matrix%local_data(k, l)*evolt*1000.0_dp
+                                 ec%block(i)%hab(2, j)%local_data(k, l)*evolt*1000.0_dp
                            ELSE
                               WRITE (unit_nr, *)
                            END IF
@@ -1261,7 +1252,7 @@ CONTAINS
 
                            WRITE (unit_nr, '(T3,I5,T13,I5,T22,E20.6)') &
                               k, l, &
-                              ec%block(i)%hab(1, j)%matrix%local_data(k, l)*evolt*1000.0_dp
+                              ec%block(i)%hab(1, j)%local_data(k, l)*evolt*1000.0_dp
 
                         END IF
 
