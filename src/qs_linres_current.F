@@ -2293,10 +2293,10 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER        :: center_list
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: centers_set
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: p_rxp, r_p1, r_p2
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: rr_p1, rr_p2, rr_rxp
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type)                                   :: psi0, psi_D, psi_p1, psi_p2, psi_rxp
+      TYPE(cp_fm_type), DIMENSION(3)                     :: p_rxp, r_p1, r_p2
+      TYPE(cp_fm_type), DIMENSION(9, 3)                  :: rr_p1, rr_p2, rr_rxp
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: psi0_order
       TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: psi1_D, psi1_p, psi1_rxp
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
@@ -2318,7 +2318,7 @@ CONTAINS
       !
       NULLIFY (dft_control, mos, para_env, mo_coeff, op_mom_ao, &
                op_mom_der_ao, center_list, centers_set, &
-               op_p_ao, psi1_p, psi1_rxp, psi1_D, p_rxp, r_p1, r_p2, rr_rxp, rr_p1, rr_p2, &
+               op_p_ao, psi1_p, psi1_rxp, psi1_D, &
                cell, particle_set, qs_kind_set)
 
       logger => cp_get_default_logger()
@@ -2434,20 +2434,17 @@ CONTAINS
       CALL cp_fm_create(psi_p2, tmp_fm_struct)
       CALL cp_fm_struct_release(tmp_fm_struct)
       !
-      ALLOCATE (p_rxp(3), r_p1(3), r_p2(3), rr_rxp(9, 3), rr_p1(9, 3), rr_p2(9, 3))
       CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                ncol_global=max_states, para_env=para_env, &
                                context=mo_coeff%matrix_struct%context)
       DO idir = 1, 3
-         ALLOCATE (p_rxp(idir)%matrix, r_p1(idir)%matrix, r_p2(idir)%matrix)
-         CALL cp_fm_create(p_rxp(idir)%matrix, tmp_fm_struct)
-         CALL cp_fm_create(r_p1(idir)%matrix, tmp_fm_struct)
-         CALL cp_fm_create(r_p2(idir)%matrix, tmp_fm_struct)
+         CALL cp_fm_create(p_rxp(idir), tmp_fm_struct)
+         CALL cp_fm_create(r_p1(idir), tmp_fm_struct)
+         CALL cp_fm_create(r_p2(idir), tmp_fm_struct)
          DO idir2 = 1, 9
-            ALLOCATE (rr_rxp(idir2, idir)%matrix, rr_p1(idir2, idir)%matrix, rr_p2(idir2, idir)%matrix)
-            CALL cp_fm_create(rr_rxp(idir2, idir)%matrix, tmp_fm_struct)
-            CALL cp_fm_create(rr_p1(idir2, idir)%matrix, tmp_fm_struct)
-            CALL cp_fm_create(rr_p2(idir2, idir)%matrix, tmp_fm_struct)
+            CALL cp_fm_create(rr_rxp(idir2, idir), tmp_fm_struct)
+            CALL cp_fm_create(rr_p1(idir2, idir), tmp_fm_struct)
+            CALL cp_fm_create(rr_p2(idir2, idir), tmp_fm_struct)
          END DO
       END DO
       CALL cp_fm_struct_release(tmp_fm_struct)
@@ -2519,29 +2516,29 @@ CONTAINS
             DO idir = 1, 3
                CALL set_vecp(idir, ii, iii)
                CALL cp_dbcsr_sm_fm_multiply(op_p_ao(idir)%matrix, psi_rxp, &
-                                            p_rxp(idir)%matrix, ncol=nstate_loc, alpha=1.e0_dp)
+                                            p_rxp(idir), ncol=nstate_loc, alpha=1.e0_dp)
                IF (iiiB .EQ. iii .OR. iiiB .EQ. ii) THEN
                   CALL cp_dbcsr_sm_fm_multiply(op_mom_ao(idir)%matrix, psi_p1, &
-                                               r_p1(idir)%matrix, ncol=nstate_loc, alpha=1.e0_dp)
+                                               r_p1(idir), ncol=nstate_loc, alpha=1.e0_dp)
                END IF
                IF (iiB .EQ. iii .OR. iiB .EQ. ii) THEN
                   CALL cp_dbcsr_sm_fm_multiply(op_mom_ao(idir)%matrix, psi_p2, &
-                                               r_p2(idir)%matrix, ncol=nstate_loc, alpha=1.e0_dp)
+                                               r_p2(idir), ncol=nstate_loc, alpha=1.e0_dp)
                END IF
                DO idir2 = 1, 9
                   IF (idir2 .EQ. ii .OR. idir2 .EQ. iii) THEN
                      CALL cp_dbcsr_sm_fm_multiply(op_mom_der_ao(idir2, idir)%matrix, psi_rxp, &
-                                                  rr_rxp(idir2, idir)%matrix, ncol=nstate_loc, alpha=1.e0_dp)
+                                                  rr_rxp(idir2, idir), ncol=nstate_loc, alpha=1.e0_dp)
                   END IF
                   !
                   IF (idir2 .EQ. ind_m2(ii, iiiB) .OR. idir2 .EQ. ind_m2(iii, iiiB) .OR. idir2 .EQ. iiiB) THEN
                      CALL cp_dbcsr_sm_fm_multiply(op_mom_der_ao(idir2, idir)%matrix, psi_p1, &
-                                                  rr_p1(idir2, idir)%matrix, ncol=nstate_loc, alpha=1.e0_dp)
+                                                  rr_p1(idir2, idir), ncol=nstate_loc, alpha=1.e0_dp)
                   END IF
                   !
                   IF (idir2 .EQ. ind_m2(ii, iiB) .OR. idir2 .EQ. ind_m2(iii, iiB) .OR. idir2 .EQ. iiB) THEN
                      CALL cp_dbcsr_sm_fm_multiply(op_mom_der_ao(idir2, idir)%matrix, psi_p2, &
-                                                  rr_p2(idir2, idir)%matrix, ncol=nstate_loc, alpha=1.e0_dp)
+                                                  rr_p2(idir2, idir), ncol=nstate_loc, alpha=1.e0_dp)
                   END IF
                END DO
             END DO
@@ -2562,22 +2559,22 @@ CONTAINS
                ! term: 2[C0| (r-dk)_ii |d_iii(C1(rxp-D))]-2[C0| (r-dk)_iii |d_ii(C1(rxp-D))]
                ! the factor 2 should be already included in the matrix elements
                contrib = 0.0_dp
-               CALL cp_fm_trace(psi0, rr_rxp(ii, iii)%matrix, contrib)
+               CALL cp_fm_trace(psi0, rr_rxp(ii, iii), contrib)
                chi_tmp = chi_tmp + 2.0_dp*contrib
                !
                contrib = 0.0_dp
-               CALL cp_fm_trace(psi0, rr_rxp(iii, ii)%matrix, contrib)
+               CALL cp_fm_trace(psi0, rr_rxp(iii, ii), contrib)
                chi_tmp = chi_tmp - 2.0_dp*contrib
                !
                ! correction: dk_ii*2[C0| d_iii(C1(rxp-D))] - dk_iii*2[C0| d_ii(C1(rxp-D))]
                ! factor 2 not included in the matrix elements
                contrib = 0.0_dp
-               CALL cp_fm_trace(psi0, p_rxp(iii)%matrix, contrib)
+               CALL cp_fm_trace(psi0, p_rxp(iii), contrib)
                IF (.NOT. chi_pbc) chi_tmp = chi_tmp + 2.0_dp*dk(ii)*contrib
                int_current_tmp = int_current_tmp + 2.0_dp*contrib
                !
                contrib2 = 0.0_dp
-               CALL cp_fm_trace(psi0, p_rxp(ii)%matrix, contrib2)
+               CALL cp_fm_trace(psi0, p_rxp(ii), contrib2)
                IF (.NOT. chi_pbc) chi_tmp = chi_tmp - 2.0_dp*dk(iii)*contrib2
                !
                ! term: -2[C0| (r-dk)_ii  (r-dk)_iiB | d_iii(C1(piiiB))] \
@@ -2585,21 +2582,21 @@ CONTAINS
                ! the factor 2 should be already included in the matrix elements
                contrib = 0.0_dp
                idir2 = ind_m2(ii, iiB)
-               CALL cp_fm_trace(psi0, rr_p2(idir2, iii)%matrix, contrib)
+               CALL cp_fm_trace(psi0, rr_p2(idir2, iii), contrib)
                chi_tmp = chi_tmp - 2.0_dp*contrib
                contrib2 = 0.0_dp
                IF (iiB == iii) THEN
-                  CALL cp_fm_trace(psi0, r_p2(ii)%matrix, contrib2)
+                  CALL cp_fm_trace(psi0, r_p2(ii), contrib2)
                   chi_tmp = chi_tmp - contrib2
                END IF
                !
                contrib = 0.0_dp
                idir2 = ind_m2(iii, iiB)
-               CALL cp_fm_trace(psi0, rr_p2(idir2, ii)%matrix, contrib)
+               CALL cp_fm_trace(psi0, rr_p2(idir2, ii), contrib)
                chi_tmp = chi_tmp + 2.0_dp*contrib
                contrib2 = 0.0_dp
                IF (iiB == ii) THEN
-                  CALL cp_fm_trace(psi0, r_p2(iii)%matrix, contrib2)
+                  CALL cp_fm_trace(psi0, r_p2(iii), contrib2)
                   chi_tmp = chi_tmp + contrib2
                END IF
                !
@@ -2608,12 +2605,12 @@ CONTAINS
                ! the factor 2 should be already included in the matrix elements
                ! no additional correction terms because of the orthogonality between C0 and C1
                contrib = 0.0_dp
-               CALL cp_fm_trace(psi0, rr_p2(iiB, iii)%matrix, contrib)
+               CALL cp_fm_trace(psi0, rr_p2(iiB, iii), contrib)
                IF (.NOT. chi_pbc) chi_tmp = chi_tmp - 2.0_dp*dk(ii)*contrib
                int_current_tmp = int_current_tmp - 2.0_dp*contrib
                !
                contrib2 = 0.0_dp
-               CALL cp_fm_trace(psi0, rr_p2(iiB, ii)%matrix, contrib2)
+               CALL cp_fm_trace(psi0, rr_p2(iiB, ii), contrib2)
                IF (.NOT. chi_pbc) chi_tmp = chi_tmp + 2.0_dp*dk(iii)*contrib2
                !
                ! term: +2[C0| (r-dk)_ii  (r-dk)_iiiB | d_iii(C1(piiB))] \
@@ -2621,21 +2618,21 @@ CONTAINS
                ! the factor 2 should be already included in the matrix elements
                contrib = 0.0_dp
                idir2 = ind_m2(ii, iiiB)
-               CALL cp_fm_trace(psi0, rr_p1(idir2, iii)%matrix, contrib)
+               CALL cp_fm_trace(psi0, rr_p1(idir2, iii), contrib)
                chi_tmp = chi_tmp + 2.0_dp*contrib
                contrib2 = 0.0_dp
                IF (iiiB == iii) THEN
-                  CALL cp_fm_trace(psi0, r_p1(ii)%matrix, contrib2)
+                  CALL cp_fm_trace(psi0, r_p1(ii), contrib2)
                   chi_tmp = chi_tmp + contrib2
                END IF
                !
                contrib = 0.0_dp
                idir2 = ind_m2(iii, iiiB)
-               CALL cp_fm_trace(psi0, rr_p1(idir2, ii)%matrix, contrib)
+               CALL cp_fm_trace(psi0, rr_p1(idir2, ii), contrib)
                chi_tmp = chi_tmp - 2.0_dp*contrib
                contrib2 = 0.0_dp
                IF (iiiB == ii) THEN
-                  CALL cp_fm_trace(psi0, r_p1(iii)%matrix, contrib2)
+                  CALL cp_fm_trace(psi0, r_p1(iii), contrib2)
                   chi_tmp = chi_tmp - contrib2
                END IF
                !
@@ -2643,12 +2640,12 @@ CONTAINS
                !             -dk_iii * 2[C0|(r-dk)_iiiB | d_ii(C1(piiB))]
                ! the factor 2 should be already included in the matrix elements
                contrib = 0.0_dp
-               CALL cp_fm_trace(psi0, rr_p1(iiiB, iii)%matrix, contrib)
+               CALL cp_fm_trace(psi0, rr_p1(iiiB, iii), contrib)
                IF (.NOT. chi_pbc) chi_tmp = chi_tmp + 2.0_dp*dk(ii)*contrib
                int_current_tmp = int_current_tmp + 2.0_dp*contrib
                !
                contrib2 = 0.0_dp
-               CALL cp_fm_trace(psi0, rr_p1(iiiB, ii)%matrix, contrib2)
+               CALL cp_fm_trace(psi0, rr_p1(iiiB, ii), contrib2)
                IF (.NOT. chi_pbc) chi_tmp = chi_tmp - 2.0_dp*dk(iii)*contrib2
                !
                ! accumulate
@@ -2682,18 +2679,15 @@ CONTAINS
       CALL cp_fm_release(psi_p1)
       CALL cp_fm_release(psi_p2)
       DO idir = 1, 3
-         CALL cp_fm_release(p_rxp(idir)%matrix)
-         CALL cp_fm_release(r_p1(idir)%matrix)
-         CALL cp_fm_release(r_p2(idir)%matrix)
-         DEALLOCATE (p_rxp(idir)%matrix, r_p1(idir)%matrix, r_p2(idir)%matrix)
+         CALL cp_fm_release(p_rxp(idir))
+         CALL cp_fm_release(r_p1(idir))
+         CALL cp_fm_release(r_p2(idir))
          DO idir2 = 1, 9
-            CALL cp_fm_release(rr_rxp(idir2, idir)%matrix)
-            CALL cp_fm_release(rr_p1(idir2, idir)%matrix)
-            CALL cp_fm_release(rr_p2(idir2, idir)%matrix)
-            DEALLOCATE (rr_rxp(idir2, idir)%matrix, rr_p1(idir2, idir)%matrix, rr_p2(idir2, idir)%matrix)
+            CALL cp_fm_release(rr_rxp(idir2, idir))
+            CALL cp_fm_release(rr_p1(idir2, idir))
+            CALL cp_fm_release(rr_p2(idir2, idir))
          END DO
       END DO
-      DEALLOCATE (p_rxp, r_p1, r_p2, rr_rxp, rr_p1, rr_p2)
 
       CALL timestop(handle)
 
