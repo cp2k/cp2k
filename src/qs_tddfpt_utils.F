@@ -367,8 +367,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE normalize(X, tmp_vec, metric)
 
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: x
-      TYPE(cp_fm_p_type), DIMENSION(:)                   :: tmp_vec
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: x, tmp_vec
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: metric
 
       INTEGER                                            :: n_spins, spin
@@ -380,10 +379,10 @@ CONTAINS
       DO spin = 1, n_spins
          tmp = 0.0_dp
          CALL cp_dbcsr_sm_fm_multiply(metric(1)%matrix, X(spin), &
-                                      tmp_vec(spin)%matrix, &
+                                      tmp_vec(spin), &
                                       X(spin)%matrix_struct%ncol_global, &
                                       1.0_dp, 0.0_dp)
-         CALL cp_fm_trace(X(spin), tmp_vec(spin)%matrix, tmp)
+         CALL cp_fm_trace(X(spin), tmp_vec(spin), tmp)
          norm = norm + tmp
       END DO
 
@@ -408,10 +407,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE reorthogonalize(X, V_set, SV_set, work, n)
 
-      TYPE(cp_fm_type), DIMENSION(:)                     :: X
-      TYPE(cp_fm_type), DIMENSION(:, :)                  :: V_set
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: SV_set
-      TYPE(cp_fm_p_type), DIMENSION(:)                   :: work
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: X
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: V_set, SV_set
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: work
       INTEGER, INTENT(IN)                                :: n
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'reorthogonalize'
@@ -425,13 +423,13 @@ CONTAINS
 
          n_spins = SIZE(X)
          DO spin = 1, n_spins
-            CALL cp_fm_to_fm(X(spin), work(spin)%matrix)
+            CALL cp_fm_to_fm(X(spin), work(spin))
          END DO
 
          DO i = 1, n
             dot_product = 0.0_dp
             DO spin = 1, n_spins
-               CALL cp_fm_trace(SV_set(i, spin), work(spin)%matrix, tmp)
+               CALL cp_fm_trace(SV_set(i, spin), work(spin), tmp)
                dot_product = dot_product + tmp
             END DO
             DO spin = 1, n_spins

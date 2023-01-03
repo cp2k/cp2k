@@ -40,7 +40,6 @@ MODULE qs_p_env_methods
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -680,7 +679,7 @@ CONTAINS
       ! argument
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in)       :: v
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(in)         :: v
       TYPE(cp_fm_type), DIMENSION(:), INTENT(inout)      :: res
 
       INTEGER                                            :: n_spins, spin
@@ -691,7 +690,7 @@ CONTAINS
 
       n_spins = dft_control%nspins
       DO spin = 1, n_spins
-         CALL p_op_l1_spin(p_env, qs_env, spin, v(spin)%matrix, &
+         CALL p_op_l1_spin(p_env, qs_env, spin, v(spin), &
                            res(spin))
       END DO
 
@@ -785,7 +784,7 @@ CONTAINS
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p1
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: res
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: res
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: alpha, beta
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'p_op_l2'
@@ -841,7 +840,7 @@ CONTAINS
 
       DO ispin = 1, n_spins
          CALL cp_dbcsr_sm_fm_multiply(p_env%kpp1(ispin)%matrix, &
-                                      p_env%psi0d(ispin), res(ispin)%matrix, &
+                                      p_env%psi0d(ispin), res(ispin), &
                                       ncol=p_env%n_mo(ispin), &
                                       alpha=my_alpha, beta=my_beta)
       END DO
