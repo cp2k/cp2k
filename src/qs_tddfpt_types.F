@@ -17,7 +17,8 @@ MODULE qs_tddfpt_types
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_p_type,&
-                                              cp_fm_release
+                                              cp_fm_release,&
+                                              cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -33,7 +34,7 @@ MODULE qs_tddfpt_types
       REAL(KIND=dp), DIMENSION(:), POINTER               :: evals ! eigenvalues
       TYPE(cp_fm_p_type), DIMENSION(:, :), &
          POINTER                                       :: evecs ! eigenvectors
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: invS ! the inverse of the metric
+      TYPE(cp_fm_type), DIMENSION(:), POINTER          :: invS ! the inverse of the metric
       TYPE(cp_fm_pool_p_type), DIMENSION(:), &
          POINTER                                       :: ao_mo_fm_pools
    END TYPE tddfpt_env_type
@@ -99,8 +100,7 @@ CONTAINS
          NULLIFY (fm_struct)
          CALL cp_fm_struct_create(fm_struct, para_env, blacs_env, &
                                   p_env%n_ao(spin), p_env%n_ao(spin))
-         ALLOCATE (t_env%invS(spin)%matrix)
-         CALL cp_fm_create(t_env%invS(spin)%matrix, fm_struct, routineP//"invS")
+         CALL cp_fm_create(t_env%invS(spin), fm_struct, routineP//"invS")
          CALL cp_fm_struct_release(fm_struct)
       END DO
 
@@ -125,10 +125,7 @@ CONTAINS
       END DO
 
       DO spin = 1, SIZE(t_env%invS)
-         IF (ASSOCIATED(t_env%invS(spin)%matrix)) THEN
-            CALL cp_fm_release(t_env%invS(spin)%matrix)
-            DEALLOCATE (t_env%invS(spin)%matrix)
-         END IF
+         CALL cp_fm_release(t_env%invS(spin))
       END DO
       DEALLOCATE (t_env%invS, t_env%evecs, t_env%evals)
 

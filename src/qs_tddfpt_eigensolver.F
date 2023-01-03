@@ -295,7 +295,7 @@ CONTAINS
                   DO spin = 1, nspins
                      IF (tddfpt_control%invert_S) THEN
                         CALL cp_fm_symm('L', 'U', p_env%n_ao(spin), p_env%n_mo(spin), &
-                                        1.0_dp, t_env%invS(spin)%matrix, Ab(k - 1, spin), &
+                                        1.0_dp, t_env%invS(spin), Ab(k - 1, spin), &
                                         0.0_dp, b(k, spin))
                      ELSE
                         CALL cp_fm_to_fm(Ab(k - 1, spin), b(k, spin))
@@ -320,7 +320,7 @@ CONTAINS
 
                      IF (tddfpt_control%invert_S) THEN
                         CALL cp_fm_symm('L', 'U', p_env%n_ao(spin), p_env%n_mo(spin), &
-                                        1.0_dp, t_env%invS(spin)%matrix, R(spin), &
+                                        1.0_dp, t_env%invS(spin), R(spin), &
                                         0.0_dp, X(spin))
                      ELSE
                         CALL cp_fm_to_fm(R(spin), X(spin))

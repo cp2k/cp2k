@@ -111,9 +111,9 @@ CONTAINS
       n_spins = dft_control%nspins
       IF (dft_control%tddfpt_control%invert_S) THEN
          DO spin = 1, n_spins
-            CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, t_env%invS(spin)%matrix)
-            CALL cp_fm_cholesky_decompose(t_env%invS(spin)%matrix)
-            CALL cp_fm_cholesky_invert(t_env%invS(spin)%matrix)
+            CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, t_env%invS(spin))
+            CALL cp_fm_cholesky_decompose(t_env%invS(spin))
+            CALL cp_fm_cholesky_invert(t_env%invS(spin))
          END DO
       END IF
 
