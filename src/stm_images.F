@@ -20,7 +20,6 @@ MODULE stm_images
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -110,8 +109,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: efermi, ref_energy
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, mo_occ, stm_biases
       TYPE(cp_1d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: evals, occupation
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: mo_arrays
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: mo_arrays
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
@@ -183,7 +182,7 @@ CONTAINS
          IF (nadd_unocc(ispin) == 0) THEN
             CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, &
                             eigenvalues=mo_eigenvalues, nmo=nmo, mu=efermi, occupation_numbers=mo_occ)
-            mo_arrays(ispin)%matrix => mo_coeff
+            mo_arrays(ispin) = mo_coeff
             evals(ispin)%array => mo_eigenvalues
             occupation(ispin)%array => mo_occ
          ELSE
@@ -198,11 +197,10 @@ CONTAINS
             occupation(ispin)%array(1 + nmo:ndim) = 0.0_dp
             CALL cp_fm_struct_create(fm_struct_tmp, ncol_global=ndim, &
                                      template_fmstruct=mo_coeff%matrix_struct)
-            ALLOCATE (mo_arrays(ispin)%matrix)
-            CALL cp_fm_create(mo_arrays(ispin)%matrix, fm_struct_tmp, name="mo_arrays")
+            CALL cp_fm_create(mo_arrays(ispin), fm_struct_tmp, name="mo_arrays")
             CALL cp_fm_struct_release(fm_struct_tmp)
-            CALL cp_fm_to_fm(mo_coeff, mo_arrays(ispin)%matrix, nmo, 1, 1)
-            CALL cp_fm_to_fm(unoccupied_orbs(ispin), mo_arrays(ispin)%matrix, &
+            CALL cp_fm_to_fm(mo_coeff, mo_arrays(ispin), nmo, 1, 1)
+            CALL cp_fm_to_fm(unoccupied_orbs(ispin), mo_arrays(ispin), &
                              nadd_unocc(ispin), 1, nmo + 1)
          END IF
       END DO
@@ -215,8 +213,7 @@ CONTAINS
          IF (nadd_unocc(ispin) > 0) THEN
             DEALLOCATE (evals(ispin)%array)
             DEALLOCATE (occupation(ispin)%array)
-            CALL cp_fm_release(mo_arrays(ispin)%matrix)
-            DEALLOCATE (mo_arrays(ispin)%matrix)
+            CALL cp_fm_release(mo_arrays(ispin))
          END IF
       END DO
       DEALLOCATE (mo_arrays)
@@ -266,7 +263,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: stm_section
       TYPE(dbcsr_type), POINTER                          :: stm_density_ao
       TYPE(pw_type), INTENT(INOUT)                       :: wf_r, wf_g
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: mo_arrays
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_arrays
       TYPE(cp_1d_r_p_type), DIMENSION(:), INTENT(IN)     :: evals, occupation
       REAL(KIND=dp)                                      :: efermi
       REAL(KIND=dp), DIMENSION(:), POINTER               :: stm_biases
@@ -339,7 +336,7 @@ CONTAINS
          IF (istates == 0) CYCLE
 
          CALL cp_fm_struct_create(fm_struct_tmp, ncol_global=istates, &
-                                  template_fmstruct=mo_arrays(1)%matrix%matrix_struct)
+                                  template_fmstruct=mo_arrays(1)%matrix_struct)
          CALL cp_fm_create(matrix_v, fm_struct_tmp, name="matrix_v")
          CALL cp_fm_create(matrix_vf, fm_struct_tmp, name="matrix_vf")
          CALL cp_fm_struct_release(fm_struct_tmp)
@@ -351,8 +348,8 @@ CONTAINS
          alpha = 1.0_dp
          IF (nspin == 1) alpha = 2.0_dp
          DO ispin = 1, nspin
-            CALL cp_fm_to_fm(mo_arrays(ispin)%matrix, matrix_v, nstates(ispin), state_start(ispin), istates + 1)
-            CALL cp_fm_to_fm(mo_arrays(ispin)%matrix, matrix_vf, nstates(ispin), state_start(ispin), istates + 1)
+            CALL cp_fm_to_fm(mo_arrays(ispin), matrix_v, nstates(ispin), state_start(ispin), istates + 1)
+            CALL cp_fm_to_fm(mo_arrays(ispin), matrix_vf, nstates(ispin), state_start(ispin), istates + 1)
             IF (stm_biases(ibias) < 0.0_dp) THEN
                occ_tot(istates + 1:istates + nstates(ispin)) = &
                   occupation(ispin)%array(state_start(ispin):state_start(ispin) - 1 + nstates(ispin))
