@@ -330,8 +330,8 @@ CONTAINS
       LOGICAL                                            :: print_phases, print_virtuals, &
                                                             scale_with_phases
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: phase_evects
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: evects_mo
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: evects_mo
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info, tddfpt_print_section, "NAMD_PRINT"), cp_p_file)) THEN
          CALL timeset(routineN, handle)
@@ -372,9 +372,7 @@ CONTAINS
                   CALL cp_fm_struct_create(fmstruct, para_env=sub_env%para_env, &
                                            context=sub_env%blacs_env, &
                                            nrow_global=nmo_virt(ispin), ncol_global=nmo_occ(ispin))
-                  NULLIFY (evects_mo(ispin, istate)%matrix)
-                  ALLOCATE (evects_mo(ispin, istate)%matrix)
-                  CALL cp_fm_create(evects_mo(ispin, istate)%matrix, fmstruct)
+                  CALL cp_fm_create(evects_mo(ispin, istate), fmstruct)
                   CALL cp_fm_struct_release(fmstruct)
                   CALL cp_dbcsr_sm_fm_multiply(matrix_s, evects(ispin, istate), S_evects(ispin, istate)%matrix, &
                                                ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
@@ -390,7 +388,7 @@ CONTAINS
                                      gs_mos(ispin)%mos_virt, &
                                      S_evects(ispin, istate)%matrix, & !this also needs to be orthogonalized
                                      0.0_dp, &
-                                     evects_mo(ispin, istate)%matrix)
+                                     evects_mo(ispin, istate))
                END DO
             END DO
          END IF
@@ -406,19 +404,19 @@ CONTAINS
                   END IF
                   CALL cp_fm_write_formatted(evects(ispin, istate), ounit, "ES EIGENVECTORS")
                ELSE
-                  CALL cp_fm_column_scale(evects_mo(ispin, istate)%matrix, gs_mos(ispin)%phases_occ)
+                  CALL cp_fm_column_scale(evects_mo(ispin, istate), gs_mos(ispin)%phases_occ)
                   IF (ounit > 0) THEN
                      WRITE (ounit, "(/,A)") "ES EIGENVECTORS SIZE"
-                     CALL cp_fm_write_info(evects_mo(ispin, istate)%matrix, ounit)
+                     CALL cp_fm_write_info(evects_mo(ispin, istate), ounit)
                   END IF
-                  CALL cp_fm_write_formatted(evects_mo(ispin, istate)%matrix, ounit, "ES EIGENVECTORS")
+                  CALL cp_fm_write_formatted(evects_mo(ispin, istate), ounit, "ES EIGENVECTORS")
                END IF
 
                ! compute and print phase of eigenvectors
                nmo_occ(ispin) = SIZE(gs_mos(ispin)%evals_occ)
                ALLOCATE (phase_evects(nmo_occ(ispin)))
                IF (print_virtuals) THEN
-                  CALL compute_phase_eigenvectors(evects_mo(ispin, istate)%matrix, phase_evects, sub_env)
+                  CALL compute_phase_eigenvectors(evects_mo(ispin, istate), phase_evects, sub_env)
                ELSE
                   CALL compute_phase_eigenvectors(evects(ispin, istate), phase_evects, sub_env)
                END IF
@@ -434,11 +432,10 @@ CONTAINS
          END DO
 
          IF (print_virtuals) THEN
-            IF (ASSOCIATED(evects_mo)) THEN
+            IF (ALLOCATED(evects_mo)) THEN
                DO istate = 1, nstates
                   DO ispin = 1, nspins
-                     CALL cp_fm_release(matrix=evects_mo(ispin, istate)%matrix)
-                     DEALLOCATE (evects_mo(ispin, istate)%matrix)
+                     CALL cp_fm_release(matrix=evects_mo(ispin, istate))
                   END DO
                END DO
             END IF

@@ -690,8 +690,9 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: eigrmat
       TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:, :)    :: inv_mat
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: dBerry_psi0, op_fm_set, opvec
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: dBerry_psi0
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: op_fm_set, opvec
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :, :)  :: inv_work
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -703,7 +704,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (dBerry_psi0, op_fm_set, opvec, sinmat, cosmat)
+      NULLIFY (dBerry_psi0, sinmat, cosmat)
       NULLIFY (polar_env)
 
       NULLIFY (cell, dft_control, mos, matrix_s)
@@ -743,16 +744,15 @@ CONTAINS
             CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, &
                                      ncol_global=nmo, para_env=para_env, context=mo_coeff%matrix_struct%context)
             DO i = 1, SIZE(op_fm_set, 1)
-               ALLOCATE (opvec(i, ispin)%matrix, op_fm_set(i, ispin)%matrix)
-               CALL cp_fm_create(opvec(i, ispin)%matrix, mo_coeff%matrix_struct)
-               CALL cp_fm_create(op_fm_set(i, ispin)%matrix, tmp_fm_struct)
+               CALL cp_fm_create(opvec(i, ispin), mo_coeff%matrix_struct)
+               CALL cp_fm_create(op_fm_set(i, ispin), tmp_fm_struct)
             END DO
-            CALL cp_cfm_create(eigrmat(ispin), op_fm_set(1, ispin)%matrix%matrix_struct)
+            CALL cp_cfm_create(eigrmat(ispin), op_fm_set(1, ispin)%matrix_struct)
             CALL cp_fm_struct_release(tmp_fm_struct)
             DO i = 1, 3
-               CALL cp_cfm_create(inv_mat(i, ispin), op_fm_set(1, ispin)%matrix%matrix_struct)
-               CALL cp_fm_create(inv_work(2, i, ispin), op_fm_set(2, ispin)%matrix%matrix_struct)
-               CALL cp_fm_create(inv_work(1, i, ispin), op_fm_set(1, ispin)%matrix%matrix_struct)
+               CALL cp_cfm_create(inv_mat(i, ispin), op_fm_set(1, ispin)%matrix_struct)
+               CALL cp_fm_create(inv_work(2, i, ispin), op_fm_set(2, ispin)%matrix_struct)
+               CALL cp_fm_create(inv_work(1, i, ispin), op_fm_set(1, ispin)%matrix_struct)
             END DO
          END DO
 
@@ -770,12 +770,12 @@ CONTAINS
             DO ispin = 1, dft_control%nspins ! spin
                CALL get_mo_set(mo_set=mos(ispin), nao=nao, mo_coeff=mo_coeff, nmo=nmo)
 
-               CALL cp_dbcsr_sm_fm_multiply(cosmat, mo_coeff, opvec(1, ispin)%matrix, ncol=nmo)
-               CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff, opvec(1, ispin)%matrix, 0.0_dp, &
-                                  op_fm_set(1, ispin)%matrix)
-               CALL cp_dbcsr_sm_fm_multiply(sinmat, mo_coeff, opvec(2, ispin)%matrix, ncol=nmo)
-               CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff, opvec(2, ispin)%matrix, 0.0_dp, &
-                                  op_fm_set(2, ispin)%matrix)
+               CALL cp_dbcsr_sm_fm_multiply(cosmat, mo_coeff, opvec(1, ispin), ncol=nmo)
+               CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff, opvec(1, ispin), 0.0_dp, &
+                                  op_fm_set(1, ispin))
+               CALL cp_dbcsr_sm_fm_multiply(sinmat, mo_coeff, opvec(2, ispin), ncol=nmo)
+               CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff, opvec(2, ispin), 0.0_dp, &
+                                  op_fm_set(2, ispin))
 
             END DO
 
@@ -785,8 +785,8 @@ CONTAINS
                CALL cp_cfm_get_info(eigrmat(ispin), ncol_local=tmp_dim)
                DO idim = 1, tmp_dim
                   eigrmat(ispin)%local_data(:, idim) = &
-                     CMPLX(op_fm_set(1, ispin)%matrix%local_data(:, idim), &
-                           -op_fm_set(2, ispin)%matrix%local_data(:, idim), dp)
+                     CMPLX(op_fm_set(1, ispin)%local_data(:, idim), &
+                           -op_fm_set(2, ispin)%local_data(:, idim), dp)
                END DO
                CALL cp_cfm_set_all(inv_mat(i, ispin), zero, one)
                CALL cp_cfm_solve(eigrmat(ispin), inv_mat(i, ispin), zdeta)
@@ -800,9 +800,9 @@ CONTAINS
                   inv_work(1, i, ispin)%local_data(:, z) = REAL(inv_mat(i, ispin)%local_data(:, z), dp)
                   inv_work(2, i, ispin)%local_data(:, z) = AIMAG(inv_mat(i, ispin)%local_data(:, z))
                END DO
-               CALL parallel_gemm("N", "N", nao, nmo, nmo, -1.0_dp, opvec(1, ispin)%matrix, inv_work(2, i, ispin), &
+               CALL parallel_gemm("N", "N", nao, nmo, nmo, -1.0_dp, opvec(1, ispin), inv_work(2, i, ispin), &
                                   0.0_dp, dBerry_psi0(i, ispin)%matrix)
-               CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, opvec(2, ispin)%matrix, inv_work(1, i, ispin), &
+               CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, opvec(2, ispin), inv_work(1, i, ispin), &
                                   1.0_dp, dBerry_psi0(i, ispin)%matrix)
             END DO
          END DO !x/y/z-direction
@@ -815,12 +815,10 @@ CONTAINS
                CALL cp_fm_release(inv_work(1, i, ispin))
                CALL cp_fm_release(inv_work(2, i, ispin))
             END DO
-            CALL cp_fm_release(opvec(1, ispin)%matrix)
-            CALL cp_fm_release(opvec(2, ispin)%matrix)
-            CALL cp_fm_release(op_fm_set(2, ispin)%matrix)
-            CALL cp_fm_release(op_fm_set(1, ispin)%matrix)
-            DEALLOCATE (opvec(1, ispin)%matrix, opvec(2, ispin)%matrix, &
-                        op_fm_set(2, ispin)%matrix, op_fm_set(1, ispin)%matrix)
+            CALL cp_fm_release(opvec(1, ispin))
+            CALL cp_fm_release(opvec(2, ispin))
+            CALL cp_fm_release(op_fm_set(2, ispin))
+            CALL cp_fm_release(op_fm_set(1, ispin))
          END DO
 
          CALL dbcsr_deallocate_matrix(cosmat)

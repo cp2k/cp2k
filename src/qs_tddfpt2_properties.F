@@ -175,11 +175,12 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:)     :: gamma_00, gamma_inv_00
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: S_mos_virt
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: dBerry_mos_occ, gamma_real_imag, opvec
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: dBerry_mos_occ
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: ediff_inv, rRc_mos_occ, wfm_ao_ao, &
                                                             wfm_mo_virt_mo_occ
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: S_mos_virt
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: gamma_real_imag, opvec
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: berry_cossin_xyz, matrix_s, rRc_xyz, scrm
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -213,12 +214,11 @@ CONTAINS
       ! +++ allocate work matrices
       ALLOCATE (S_mos_virt(nspins))
       DO ispin = 1, nspins
-         ALLOCATE (S_mos_virt(ispin)%matrix)
          CALL cp_fm_get_info(gs_mos(ispin)%mos_virt, matrix_struct=fm_struct)
-         CALL cp_fm_create(S_mos_virt(ispin)%matrix, fm_struct)
+         CALL cp_fm_create(S_mos_virt(ispin), fm_struct)
          CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, &
                                       gs_mos(ispin)%mos_virt, &
-                                      S_mos_virt(ispin)%matrix, &
+                                      S_mos_virt(ispin), &
                                       ncol=nmo_virt(ispin), alpha=1.0_dp, beta=0.0_dp)
       END DO
 
@@ -272,16 +272,14 @@ CONTAINS
             CALL cp_cfm_create(gamma_inv_00(ispin)%matrix, fm_struct)
 
             DO i_cos_sin = 1, 2
-               ALLOCATE (gamma_real_imag(i_cos_sin, ispin)%matrix)
-               CALL cp_fm_create(gamma_real_imag(i_cos_sin, ispin)%matrix, fm_struct)
+               CALL cp_fm_create(gamma_real_imag(i_cos_sin, ispin), fm_struct)
             END DO
             CALL cp_fm_struct_release(fm_struct)
 
             ! G_real C_0, G_imag C_0
             CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, matrix_struct=fm_struct)
             DO i_cos_sin = 1, 2
-               ALLOCATE (opvec(i_cos_sin, ispin)%matrix)
-               CALL cp_fm_create(opvec(i_cos_sin, ispin)%matrix, fm_struct)
+               CALL cp_fm_create(opvec(i_cos_sin, ispin), fm_struct)
             END DO
 
             ! dBerry * C_0
@@ -306,20 +304,20 @@ CONTAINS
                DO i_cos_sin = 1, 2
                   CALL cp_dbcsr_sm_fm_multiply(berry_cossin_xyz(i_cos_sin)%matrix, &
                                                gs_mos(ispin)%mos_occ, &
-                                               opvec(i_cos_sin, ispin)%matrix, &
+                                               opvec(i_cos_sin, ispin), &
                                                ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
                END DO
 
                CALL parallel_gemm('T', 'N', nmo_occ(ispin), nmo_occ(ispin), nao, &
-                                  1.0_dp, gs_mos(ispin)%mos_occ, opvec(1, ispin)%matrix, &
-                                  0.0_dp, gamma_real_imag(1, ispin)%matrix)
+                                  1.0_dp, gs_mos(ispin)%mos_occ, opvec(1, ispin), &
+                                  0.0_dp, gamma_real_imag(1, ispin))
 
                CALL parallel_gemm('T', 'N', nmo_occ(ispin), nmo_occ(ispin), nao, &
-                                  -1.0_dp, gs_mos(ispin)%mos_occ, opvec(2, ispin)%matrix, &
-                                  0.0_dp, gamma_real_imag(2, ispin)%matrix)
+                                  -1.0_dp, gs_mos(ispin)%mos_occ, opvec(2, ispin), &
+                                  0.0_dp, gamma_real_imag(2, ispin))
 
-               CALL cp_fm_to_cfm(msourcer=gamma_real_imag(1, ispin)%matrix, &
-                                 msourcei=gamma_real_imag(2, ispin)%matrix, &
+               CALL cp_fm_to_cfm(msourcer=gamma_real_imag(1, ispin), &
+                                 msourcei=gamma_real_imag(2, ispin), &
                                  mtarget=gamma_00(ispin)%matrix)
 
                ! gamma_inv_00 = Q = [C_0^T (gamma_real - i gamma_imag) C_0] ^ {-1}
@@ -327,15 +325,15 @@ CONTAINS
                CALL cp_cfm_solve(gamma_00(ispin)%matrix, gamma_inv_00(ispin)%matrix)
 
                CALL cp_cfm_to_fm(msource=gamma_inv_00(ispin)%matrix, &
-                                 mtargetr=gamma_real_imag(1, ispin)%matrix, &
-                                 mtargeti=gamma_real_imag(2, ispin)%matrix)
+                                 mtargetr=gamma_real_imag(1, ispin), &
+                                 mtargeti=gamma_real_imag(2, ispin))
 
                ! dBerry_mos_occ is identical to dBerry_psi0 from qs_linres_op % polar_operators()
                CALL parallel_gemm("N", "N", nao, nmo_occ(ispin), nmo_occ(ispin), &
-                                  1.0_dp, opvec(1, ispin)%matrix, gamma_real_imag(2, ispin)%matrix, &
+                                  1.0_dp, opvec(1, ispin), gamma_real_imag(2, ispin), &
                                   0.0_dp, dipole_op_mos_occ(1, ispin))
                CALL parallel_gemm("N", "N", nao, nmo_occ(ispin), nmo_occ(ispin), &
-                                  -1.0_dp, opvec(2, ispin)%matrix, gamma_real_imag(1, ispin)%matrix, &
+                                  -1.0_dp, opvec(2, ispin), gamma_real_imag(1, ispin), &
                                   1.0_dp, dipole_op_mos_occ(1, ispin))
 
                DO jderiv = 1, nderivs
@@ -348,13 +346,11 @@ CONTAINS
          ! --- release berry-phase-related work matrices
          DO ispin = nspins, 1, -1
             DO i_cos_sin = SIZE(opvec, 1), 1, -1
-               CALL cp_fm_release(opvec(i_cos_sin, ispin)%matrix)
-               DEALLOCATE (opvec(i_cos_sin, ispin)%matrix)
+               CALL cp_fm_release(opvec(i_cos_sin, ispin))
             END DO
 
             DO i_cos_sin = SIZE(gamma_real_imag, 1), 1, -1
-               CALL cp_fm_release(gamma_real_imag(i_cos_sin, ispin)%matrix)
-               DEALLOCATE (gamma_real_imag(i_cos_sin, ispin)%matrix)
+               CALL cp_fm_release(gamma_real_imag(i_cos_sin, ispin))
             END DO
 
             CALL cp_cfm_release(gamma_inv_00(ispin)%matrix)
@@ -380,7 +376,7 @@ CONTAINS
          DO ispin = 1, nspins
             ! wfm_ao_ao = S * mos_virt * mos_virt^T
             CALL parallel_gemm('N', 'T', nao, nao, nmo_virt(ispin), &
-                               1.0_dp/twopi, S_mos_virt(ispin)%matrix, gs_mos(ispin)%mos_virt, &
+                               1.0_dp/twopi, S_mos_virt(ispin), gs_mos(ispin)%mos_virt, &
                                0.0_dp, wfm_ao_ao)
 
             DO ideriv = 1, nderivs
@@ -434,7 +430,7 @@ CONTAINS
 
             ! wfm_ao_ao = S * mos_virt * mos_virt^T
             CALL parallel_gemm('N', 'T', nao, nao, nmo_virt(ispin), &
-                               1.0_dp, S_mos_virt(ispin)%matrix, gs_mos(ispin)%mos_virt, &
+                               1.0_dp, S_mos_virt(ispin), gs_mos(ispin)%mos_virt, &
                                0.0_dp, wfm_ao_ao)
 
             DO ideriv = 1, nderivs
@@ -514,7 +510,7 @@ CONTAINS
 !$OMP          END PARALLEL DO
 
                CALL parallel_gemm('N', 'N', nao, nmo_occ(ispin), nmo_virt(ispin), &
-                                  1.0_dp, S_mos_virt(ispin)%matrix, wfm_mo_virt_mo_occ, &
+                                  1.0_dp, S_mos_virt(ispin), wfm_mo_virt_mo_occ, &
                                   0.0_dp, dipole_op_mos_occ(ideriv, ispin))
             END DO
 
@@ -529,8 +525,7 @@ CONTAINS
 
       ! --- release work matrices
       DO ispin = nspins, 1, -1
-         CALL cp_fm_release(S_mos_virt(ispin)%matrix)
-         DEALLOCATE (S_mos_virt(ispin)%matrix)
+         CALL cp_fm_release(S_mos_virt(ispin))
       END DO
       DEALLOCATE (S_mos_virt)
 
