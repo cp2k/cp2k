@@ -188,12 +188,12 @@ CONTAINS
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: evals
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: R, X
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: b, Sb
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: b
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
       TYPE(cp_fm_struct_p_type), DIMENSION(:), POINTER   :: kv_fm_struct
       TYPE(cp_fm_struct_type), POINTER                   :: tilde_fm_struct
       TYPE(cp_fm_type)                                   :: Atilde, Us
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: Ab
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: Ab, Sb
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -203,7 +203,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (ao_mo_fm_pools, X, R, b, Sb, tddfpt_control, &
+      NULLIFY (ao_mo_fm_pools, X, R, b, tddfpt_control, &
                tilde_fm_struct, matrix_s, dft_control, &
                para_env, blacs_env)
 
@@ -264,7 +264,7 @@ CONTAINS
       END DO
       DO spin = 1, nspins
          DO i = 1, max_kv
-            NULLIFY (b(i, spin)%matrix, Sb(i, spin)%matrix)
+            NULLIFY (b(i, spin)%matrix)
          END DO
       END DO
 
@@ -282,7 +282,7 @@ CONTAINS
 
          CALL allocate_krylov_vectors(b, "b-", k + 1, n_kv, nspins, kv_fm_struct)
          CALL allocate_krylov_vectors_2(Ab, "Ab-", k + 1, n_kv, nspins, kv_fm_struct)
-         CALL allocate_krylov_vectors(Sb, "Sb-", k + 1, n_kv, nspins, kv_fm_struct)
+         CALL allocate_krylov_vectors_2(Sb, "Sb-", k + 1, n_kv, nspins, kv_fm_struct)
 
          DO i = 1, n_kv
             k = k + 1
@@ -319,7 +319,7 @@ CONTAINS
                      DO j = 1, k - i
                         CALL cp_fm_to_fm(Ab(j, spin), X(spin)%matrix)
                         CALL cp_fm_scale_and_add(1.0_dp, X(spin)%matrix, &
-                                                 -evals(iev, iter - 1), Sb(j, spin)%matrix)
+                                                 -evals(iev, iter - 1), Sb(j, spin))
                         CALL cp_fm_get_element(Us, j, iev, tmp)
                         CALL cp_fm_scale_and_add(1.0_dp, R(spin)%matrix, &
                                                  tmp, X(spin)%matrix)
@@ -377,7 +377,7 @@ CONTAINS
             DO spin = 1, nspins
                CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, &
                                             b(k, spin)%matrix, &
-                                            Sb(k, spin)%matrix, &
+                                            Sb(k, spin), &
                                             p_env%n_mo(spin))
             END DO
          END DO
@@ -504,10 +504,7 @@ CONTAINS
                DEALLOCATE (b(i, spin)%matrix)
             END IF
             CALL cp_fm_release(Ab(i, spin))
-            IF (ASSOCIATED(Sb(i, spin)%matrix)) THEN
-               CALL cp_fm_release(Sb(i, spin)%matrix)
-               DEALLOCATE (Sb(i, spin)%matrix)
-            END IF
+            CALL cp_fm_release(Sb(i, spin))
          END DO
       END DO
       DEALLOCATE (b, Ab, Sb, evals, evals_tmp, evals_difference, must_improve, kv_fm_struct)
