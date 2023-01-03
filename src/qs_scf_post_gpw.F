@@ -37,7 +37,6 @@ MODULE qs_scf_post_gpw
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_init_random,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -1404,7 +1403,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin
       LOGICAL                                            :: do_et
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: my_mos
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: my_mos
       TYPE(section_vals_type), POINTER                   :: et_section
 
       CALL timeset(routineN, handle)
@@ -1418,12 +1417,11 @@ CONTAINS
             ALLOCATE (my_mos(dft_control%nspins))
             ALLOCATE (qs_env%et_coupling%et_mo_coeff(dft_control%nspins))
             DO ispin = 1, dft_control%nspins
-               ALLOCATE (my_mos(ispin)%matrix)
-               CALL cp_fm_create(matrix=my_mos(ispin)%matrix, &
+               CALL cp_fm_create(matrix=my_mos(ispin), &
                                  matrix_struct=qs_env%mos(ispin)%mo_coeff%matrix_struct, &
                                  name="FIRST_RUN_COEFF"//TRIM(ADJUSTL(cp_to_string(ispin)))//"MATRIX")
                CALL cp_fm_to_fm(qs_env%mos(ispin)%mo_coeff, &
-                                my_mos(ispin)%matrix)
+                                my_mos(ispin))
             END DO
             CALL set_et_coupling_type(qs_env%et_coupling, et_mo_coeff=my_mos)
             DEALLOCATE (my_mos)

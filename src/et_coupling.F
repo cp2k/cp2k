@@ -132,7 +132,7 @@ CONTAINS
 !   calculate MO-overlap
 
          CALL get_qs_env(qs_env, matrix_s=matrix_s)
-         CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, qs_env%et_coupling%et_mo_coeff(i)%matrix, &
+         CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, qs_env%et_coupling%et_mo_coeff(i), &
                                       tmp2, nmo, 1.0_dp, 0.0_dp)
          CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
                             qs_env%mos(i)%mo_coeff, &
@@ -141,7 +141,7 @@ CONTAINS
 !    calculate the MO-representation of the restraint matrix A
 
          CALL cp_dbcsr_sm_fm_multiply(qs_env%et_coupling%rest_mat(1)%matrix, &
-                                      qs_env%et_coupling%et_mo_coeff(i)%matrix, &
+                                      qs_env%et_coupling%et_mo_coeff(i), &
                                       tmp2, nmo, 1.0_dp, 0.0_dp)
 
          CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
@@ -155,7 +155,7 @@ CONTAINS
                                       tmp2, nmo, 1.0_dp, 0.0_dp)
 
          CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
-                            qs_env%et_coupling%et_mo_coeff(i)%matrix, &
+                            qs_env%et_coupling%et_mo_coeff(i), &
                             tmp2, 0.0_dp, rest_MO(2))
 
          CALL cp_fm_invert(SMO, inverse_mat, S_det(i))
