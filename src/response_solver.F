@@ -638,15 +638,13 @@ CONTAINS
 !> \param p_env ...
 !> \param cpmos RHS of equation as Ax + b = 0 (sign of b)
 !> \param iounit ...
-!> \param p1_mat ...
 !> \param lr_section ...
 ! **************************************************************************************************
-   SUBROUTINE response_equation(qs_env, p_env, cpmos, iounit, p1_mat, lr_section)
+   SUBROUTINE response_equation(qs_env, p_env, cpmos, iounit, lr_section)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: cpmos
       INTEGER, INTENT(IN)                                :: iounit
-      TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: p1_mat
       TYPE(section_vals_type), OPTIONAL, POINTER         :: lr_section
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'response_equation'
@@ -655,8 +653,7 @@ CONTAINS
       LOGICAL                                            :: should_stop
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: psi0
-      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: psi1
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: psi0, psi1
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, matrix_s_aux
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -774,16 +771,10 @@ CONTAINS
          CALL calculate_wz_matrix(mos(ispin), psi1(ispin), matrix_ks(ispin)%matrix, &
                                   p_env%w1(ispin)%matrix)
       END DO
-      IF (PRESENT(p1_mat)) THEN
-         CPASSERT(.NOT. ASSOCIATED(p1_mat))
-         p1_mat => psi1
-      ELSE
-         DO ispin = 1, nspins
-            CALL cp_fm_release(psi1(ispin))
-         END DO
-         DEALLOCATE (psi1)
-      END IF
-      DEALLOCATE (psi0)
+      DO ispin = 1, nspins
+         CALL cp_fm_release(psi1(ispin))
+      END DO
+      DEALLOCATE (psi0, psi1)
 
       CALL timestop(handle)
 
