@@ -31,7 +31,6 @@ MODULE et_coupling_proj
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -901,7 +900,7 @@ CONTAINS
       INTEGER                                            :: j, k, l, m, n, n_ao, n_mo
       INTEGER, DIMENSION(:), POINTER                     :: list_at, list_mo
       REAL(KIND=dp)                                      :: c1, c2
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mat_w
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: mat_w
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: block_sec, print_sec
 
@@ -931,15 +930,13 @@ CONTAINS
 
          ! MOs in orthonormal basis set
          ALLOCATE (mat_w(n_spins))
-         CPASSERT(ASSOCIATED(mat_w))
          DO j = 1, n_spins
             n_mo = ec%block(blk)%n_ao
-            ALLOCATE (mat_w(j)%matrix)
-            CALL cp_fm_create(matrix=mat_w(j)%matrix, &
+            CALL cp_fm_create(matrix=mat_w(j), &
                               matrix_struct=ec%block(blk)%mo(j)%mo_coeff%matrix_struct, &
                               name='BLOCK MOs IN ORTHONORMAL BASIS SET')
             CALL parallel_gemm("N", "N", n_ao, n_mo, n_ao, 1.0_dp, ec%m_transf_inv, &
-                               ec%block(blk)%mo(j)%mo_coeff, 0.0_dp, mat_w(j)%matrix)
+                               ec%block(blk)%mo(j)%mo_coeff, 0.0_dp, mat_w(j))
          END DO
 
          DO j = 1, n
@@ -967,14 +964,14 @@ CONTAINS
                         DO l = 1, SIZE(list_mo)
 
                            IF (n_spins > 1) THEN
-                              c1 = get_mo_c2_sum(ec%block(blk)%atom, mat_w(1)%matrix, &
+                              c1 = get_mo_c2_sum(ec%block(blk)%atom, mat_w(1), &
                                                  list_mo(l), list_at)
-                              c2 = get_mo_c2_sum(ec%block(blk)%atom, mat_w(2)%matrix, &
+                              c2 = get_mo_c2_sum(ec%block(blk)%atom, mat_w(2), &
                                                  list_mo(l), list_at)
                               IF (output_unit > 0) &
                                  WRITE (output_unit, '(I5,A,I5,2F20.10)') j, ' /', list_mo(l), c1, c2
                            ELSE
-                              c1 = get_mo_c2_sum(ec%block(blk)%atom, mat_w(1)%matrix, &
+                              c1 = get_mo_c2_sum(ec%block(blk)%atom, mat_w(1), &
                                                  list_mo(l), list_at)
                               IF (output_unit > 0) &
                                  WRITE (output_unit, '(I5,A,I5,F20.10)') j, ' /', list_mo(l), c1
@@ -992,8 +989,7 @@ CONTAINS
 
          ! Clean memory
          DO j = 1, n_spins
-            CALL cp_fm_release(matrix=mat_w(j)%matrix)
-            DEALLOCATE (mat_w(j)%matrix)
+            CALL cp_fm_release(matrix=mat_w(j))
          END DO
          DEALLOCATE (mat_w)
 
