@@ -188,11 +188,12 @@ CONTAINS
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: evals
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: R, X
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: Ab, b, Sb
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: b, Sb
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
       TYPE(cp_fm_struct_p_type), DIMENSION(:), POINTER   :: kv_fm_struct
       TYPE(cp_fm_struct_type), POINTER                   :: tilde_fm_struct
       TYPE(cp_fm_type)                                   :: Atilde, Us
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: Ab
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -202,7 +203,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (ao_mo_fm_pools, X, R, b, Ab, Sb, tddfpt_control, &
+      NULLIFY (ao_mo_fm_pools, X, R, b, Sb, tddfpt_control, &
                tilde_fm_struct, matrix_s, dft_control, &
                para_env, blacs_env)
 
@@ -263,7 +264,7 @@ CONTAINS
       END DO
       DO spin = 1, nspins
          DO i = 1, max_kv
-            NULLIFY (b(i, spin)%matrix, Ab(i, spin)%matrix, Sb(i, spin)%matrix)
+            NULLIFY (b(i, spin)%matrix, Sb(i, spin)%matrix)
          END DO
       END DO
 
@@ -280,7 +281,7 @@ CONTAINS
       iteration: DO
 
          CALL allocate_krylov_vectors(b, "b-", k + 1, n_kv, nspins, kv_fm_struct)
-         CALL allocate_krylov_vectors(Ab, "Ab-", k + 1, n_kv, nspins, kv_fm_struct)
+         CALL allocate_krylov_vectors_2(Ab, "Ab-", k + 1, n_kv, nspins, kv_fm_struct)
          CALL allocate_krylov_vectors(Sb, "Sb-", k + 1, n_kv, nspins, kv_fm_struct)
 
          DO i = 1, n_kv
@@ -301,10 +302,10 @@ CONTAINS
                   DO spin = 1, nspins
                      IF (tddfpt_control%invert_S) THEN
                         CALL cp_fm_symm('L', 'U', p_env%n_ao(spin), p_env%n_mo(spin), &
-                                        1.0_dp, t_env%invS(spin)%matrix, Ab(k - 1, spin)%matrix, &
+                                        1.0_dp, t_env%invS(spin)%matrix, Ab(k - 1, spin), &
                                         0.0_dp, b(k, spin)%matrix)
                      ELSE
-                        CALL cp_fm_to_fm(Ab(k - 1, spin)%matrix, b(k, spin)%matrix)
+                        CALL cp_fm_to_fm(Ab(k - 1, spin), b(k, spin)%matrix)
                      END IF
                   END DO
 
@@ -316,7 +317,7 @@ CONTAINS
 
                      CALL cp_fm_set_all(R(spin)%matrix, 0.0_dp)
                      DO j = 1, k - i
-                        CALL cp_fm_to_fm(Ab(j, spin)%matrix, X(spin)%matrix)
+                        CALL cp_fm_to_fm(Ab(j, spin), X(spin)%matrix)
                         CALL cp_fm_scale_and_add(1.0_dp, X(spin)%matrix, &
                                                  -evals(iev, iter - 1), Sb(j, spin)%matrix)
                         CALL cp_fm_get_element(Us, j, iev, tmp)
@@ -406,7 +407,7 @@ CONTAINS
             DO j = 1, k
                Atilde_ij = 0.0_dp
                DO spin = 1, nspins
-                  CALL cp_fm_trace(b(i, spin)%matrix, Ab(j, spin)%matrix, tmp)
+                  CALL cp_fm_trace(b(i, spin)%matrix, Ab(j, spin), tmp)
                   Atilde_ij = Atilde_ij + tmp
                END DO
                CALL cp_fm_set_element(Atilde, i, j, Atilde_ij)
@@ -502,10 +503,7 @@ CONTAINS
                CALL cp_fm_release(b(i, spin)%matrix)
                DEALLOCATE (b(i, spin)%matrix)
             END IF
-            IF (ASSOCIATED(Ab(i, spin)%matrix)) THEN
-               CALL cp_fm_release(Ab(i, spin)%matrix)
-               DEALLOCATE (Ab(i, spin)%matrix)
-            END IF
+            CALL cp_fm_release(Ab(i, spin))
             IF (ASSOCIATED(Sb(i, spin)%matrix)) THEN
                CALL cp_fm_release(Sb(i, spin)%matrix)
                DEALLOCATE (Sb(i, spin)%matrix)
@@ -535,7 +533,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE apply_op(X, R, p_env, qs_env, do_kernel)
 
-      TYPE(cp_fm_p_type), DIMENSION(:)                   :: X, R
+      TYPE(cp_fm_p_type), DIMENSION(:)                   :: X
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: R
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: do_kernel
@@ -578,7 +577,7 @@ CONTAINS
          CALL p_op_l2(p_env, qs_env, p_env%p1, X, &
                       alpha=1.0_dp, beta=0.0_dp) ! X = beta*X + alpha*K(P1)*C
          DO spin = 1, nspins
-            CALL cp_fm_scale_and_add(1.0_dp, R(spin)%matrix, &
+            CALL cp_fm_scale_and_add(1.0_dp, R(spin), &
                                      1.0_dp, X(spin)%matrix) ! add X to R
          END DO
       END IF
@@ -624,5 +623,41 @@ CONTAINS
       END DO
 
    END SUBROUTINE allocate_krylov_vectors
+
+! **************************************************************************************************
+!> \brief ...
+!> \param vectors ...
+!> \param vectors_name ...
+!> \param startv ...
+!> \param n_v ...
+!> \param nspins ...
+!> \param fm_struct ...
+! **************************************************************************************************
+   SUBROUTINE allocate_krylov_vectors_2(vectors, vectors_name, &
+                                        startv, n_v, nspins, fm_struct)
+
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: vectors
+      CHARACTER(LEN=*), INTENT(IN)                       :: vectors_name
+      INTEGER, INTENT(IN)                                :: startv, n_v, nspins
+      TYPE(cp_fm_struct_p_type), DIMENSION(:), POINTER   :: fm_struct
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_krylov_vectors_2', &
+         routineP = moduleN//':'//routineN
+
+      CHARACTER(LEN=default_string_length)               :: mat_name
+      INTEGER                                            :: index, spin
+
+      DO spin = 1, nspins
+         DO index = startv, startv + n_v - 1
+            mat_name = routineP//vectors_name//TRIM(cp_to_string(index)) &
+                       //","//TRIM(cp_to_string(spin))
+            CALL cp_fm_create(vectors(index, spin), &
+                              fm_struct(spin)%struct, mat_name)
+            IF (.NOT. ASSOCIATED(vectors(index, spin)%matrix_struct)) &
+               CPABORT("Could not allocate "//TRIM(mat_name)//".")
+         END DO
+      END DO
+
+   END SUBROUTINE allocate_krylov_vectors_2
 
 END MODULE qs_tddfpt_eigensolver
