@@ -367,7 +367,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE normalize(X, tmp_vec, metric)
 
-      TYPE(cp_fm_p_type), DIMENSION(:)                   :: x, tmp_vec
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: x
+      TYPE(cp_fm_p_type), DIMENSION(:)                   :: tmp_vec
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: metric
 
       INTEGER                                            :: n_spins, spin
@@ -378,17 +379,17 @@ CONTAINS
 
       DO spin = 1, n_spins
          tmp = 0.0_dp
-         CALL cp_dbcsr_sm_fm_multiply(metric(1)%matrix, X(spin)%matrix, &
+         CALL cp_dbcsr_sm_fm_multiply(metric(1)%matrix, X(spin), &
                                       tmp_vec(spin)%matrix, &
-                                      X(spin)%matrix%matrix_struct%ncol_global, &
+                                      X(spin)%matrix_struct%ncol_global, &
                                       1.0_dp, 0.0_dp)
-         CALL cp_fm_trace(X(spin)%matrix, tmp_vec(spin)%matrix, tmp)
+         CALL cp_fm_trace(X(spin), tmp_vec(spin)%matrix, tmp)
          norm = norm + tmp
       END DO
 
       norm = SQRT(norm)
       DO spin = 1, n_spins
-         CALL cp_fm_scale((1.0_dp/norm), X(spin)%matrix)
+         CALL cp_fm_scale((1.0_dp/norm), X(spin))
       END DO
 
    END SUBROUTINE normalize
@@ -407,8 +408,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE reorthogonalize(X, V_set, SV_set, work, n)
 
-      TYPE(cp_fm_p_type), DIMENSION(:)                   :: X
-      TYPE(cp_fm_p_type), DIMENSION(:, :)                :: V_set
+      TYPE(cp_fm_type), DIMENSION(:)                     :: X
+      TYPE(cp_fm_type), DIMENSION(:, :)                  :: V_set
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: SV_set
       TYPE(cp_fm_p_type), DIMENSION(:)                   :: work
       INTEGER, INTENT(IN)                                :: n
@@ -424,7 +425,7 @@ CONTAINS
 
          n_spins = SIZE(X)
          DO spin = 1, n_spins
-            CALL cp_fm_to_fm(X(spin)%matrix, work(spin)%matrix)
+            CALL cp_fm_to_fm(X(spin), work(spin)%matrix)
          END DO
 
          DO i = 1, n
@@ -434,8 +435,8 @@ CONTAINS
                dot_product = dot_product + tmp
             END DO
             DO spin = 1, n_spins
-               CALL cp_fm_scale_and_add(1.0_dp, X(spin)%matrix, &
-                                        -1.0_dp*dot_product, V_set(i, spin)%matrix)
+               CALL cp_fm_scale_and_add(1.0_dp, X(spin), &
+                                        -1.0_dp*dot_product, V_set(i, spin))
             END DO
          END DO
 
