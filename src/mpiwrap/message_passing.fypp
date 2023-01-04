@@ -2533,7 +2533,6 @@
       CALL mp_timestop(handle)
    END SUBROUTINE mp_allgatherv_${nametype1}$m2
 
-
 ! **************************************************************************************************
 !> \brief Gathers vector data from all processes and all processes receive the
 !>        same data
