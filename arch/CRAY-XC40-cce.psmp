@@ -10,6 +10,8 @@ FC       = ftn
 LD       = ftn
 AR       = ar -r
 DFLAGS   = -D__FFTW3 -D__parallel -D__SCALAPACK -D__FORCE_USE_FAST_MATH
+# CRAY does not provide the mpi_f08 module
+DFLAGS  += -D__NO_MPI_F08
 # DFLAGS  += -D__LIBXSMM
 DFLAGS  += -D__LIBINT -D__MAX_CONTR=4
 DFLAGS  += -D__LIBXC
