@@ -35,9 +35,14 @@ MODULE qs_linres_op
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, cp_fm_release, &
-        cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_get_submatrix,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_set_submatrix,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -450,8 +455,8 @@ CONTAINS
       LOGICAL                                            :: do_dso, do_fc, do_pso, do_sd
       REAL(dp)                                           :: chk(20), r_i(3)
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: dso_psi0, efg_psi0, pso_psi0
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fc_psi0
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: dso_psi0, efg_psi0, pso_psi0
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -591,7 +596,7 @@ CONTAINS
          IF (do_sd) THEN
             DO idir = 1, 6
                CALL cp_dbcsr_sm_fm_multiply(matrix_efg(idir)%matrix, mo_coeff, &
-                                            efg_psi0(ispin, idir)%matrix, ncol=nmo, &
+                                            efg_psi0(ispin, idir), ncol=nmo, &
                                             alpha=1.0_dp)
             END DO
          END IF
@@ -600,7 +605,7 @@ CONTAINS
          IF (do_pso) THEN
             DO idir = 1, 3
                CALL cp_dbcsr_sm_fm_multiply(matrix_pso(idir)%matrix, mo_coeff, &
-                                            pso_psi0(ispin, idir)%matrix, ncol=nmo, &
+                                            pso_psi0(ispin, idir), ncol=nmo, &
                                             alpha=-1.0_dp)
             END DO
          END IF
@@ -616,7 +621,7 @@ CONTAINS
          IF (do_dso) THEN
             DO idir = 1, 3
                CALL cp_dbcsr_sm_fm_multiply(matrix_dso(idir)%matrix, mo_coeff, &
-                                            dso_psi0(ispin, idir)%matrix, ncol=nmo, &
+                                            dso_psi0(ispin, idir), ncol=nmo, &
                                             alpha=-1.0_dp)
             END DO
          END IF

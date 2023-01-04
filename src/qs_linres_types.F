@@ -137,8 +137,8 @@ MODULE qs_linres_types
       LOGICAL                             :: do_fc, do_sd, do_pso, do_dso
       REAL(dp)                            :: issc_gapw_radius, issc_factor, issc_factor_gapw
       REAL(dp), DIMENSION(:, :, :, :, :), POINTER :: issc => NULL(), issc_loc => NULL()
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER :: psi1_efg => NULL(), psi1_pso => NULL(), efg_psi0 => NULL(), &
-                                                      pso_psi0 => NULL(), dso_psi0 => NULL(), psi1_dso => NULL()
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER :: psi1_efg => NULL(), psi1_pso => NULL(), psi1_dso => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER :: efg_psi0 => NULL(), pso_psi0 => NULL(), dso_psi0 => NULL()
       TYPE(cp_fm_type), DIMENSION(:), POINTER :: psi1_fc => NULL()
       TYPE(cp_fm_type), DIMENSION(:), POINTER :: fc_psi0 => NULL()
   TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_efg => NULL(), matrix_pso => NULL(), matrix_dso => NULL(), matrix_fc => NULL()
@@ -586,7 +586,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: psi1_efg, psi1_pso, psi1_dso
       TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: psi1_fc
-      TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
+      TYPE(cp_fm_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: efg_psi0, pso_psi0, dso_psi0
       TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: fc_psi0
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
