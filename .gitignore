@@ -385,3 +385,4 @@ tests/Fist/regtest-nequip/water-1_0.mmLog
 tests/Fist/H2O-32_NPT.inp
 tests/Fist/water_1.inp
 tests/Fist/water_1.inp
+test/Fist/get_index.sh
