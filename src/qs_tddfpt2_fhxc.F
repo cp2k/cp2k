@@ -162,7 +162,7 @@ CONTAINS
                DO ispin = 1, nspins
                   CALL dbcsr_set(rho_ia_ao(ispin)%matrix, 0.0_dp)
                   CALL cp_dbcsr_plus_fm_fm_t(rho_ia_ao(ispin)%matrix, &
-                                             matrix_v=sub_env%mos_occ(ispin)%matrix, &
+                                             matrix_v=sub_env%mos_occ(ispin), &
                                              matrix_g=work_matrices%evects_sub(ispin, ivect), &
                                              ncol=nactive(ispin), symmetry_mode=1)
                END DO
@@ -174,7 +174,7 @@ CONTAINS
             DO ispin = 1, nspins
                CALL dbcsr_set(rho_ia_ao(ispin)%matrix, 0.0_dp)
                CALL cp_dbcsr_plus_fm_fm_t(rho_ia_ao(ispin)%matrix, &
-                                          matrix_v=sub_env%mos_occ(ispin)%matrix, &
+                                          matrix_v=sub_env%mos_occ(ispin), &
                                           matrix_g=evects(ispin, ivect), &
                                           ncol=nactive(ispin), symmetry_mode=1)
             END DO
@@ -443,14 +443,14 @@ CONTAINS
          IF (ALLOCATED(work_matrices%evects_sub)) THEN
             DO ispin = 1, nspins
                CALL cp_dbcsr_sm_fm_multiply(work_matrices%A_ia_munu_sub(ispin)%matrix, &
-                                            sub_env%mos_occ(ispin)%matrix, &
+                                            sub_env%mos_occ(ispin), &
                                             work_matrices%Aop_evects_sub(ispin, ivect), &
                                             ncol=nactive(ispin), alpha=1.0_dp, beta=0.0_dp)
             END DO
          ELSE
             DO ispin = 1, nspins
                CALL cp_dbcsr_sm_fm_multiply(work_matrices%A_ia_munu_sub(ispin)%matrix, &
-                                            sub_env%mos_occ(ispin)%matrix, &
+                                            sub_env%mos_occ(ispin), &
                                             Aop_evects(ispin, ivect), &
                                             ncol=nactive(ispin), alpha=1.0_dp, beta=0.0_dp)
             END DO

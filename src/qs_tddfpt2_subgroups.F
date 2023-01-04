@@ -123,7 +123,7 @@ MODULE qs_tddfpt2_subgroups
       TYPE(cp_para_env_type), POINTER                    :: para_env
       !> occupied MOs stored in a matrix form [nao x nmo_occ(spin)] distributed across processes
       !> in the parallel group
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: mos_occ
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)      :: mos_occ
       !> group-specific copy of the ADMM A matrix 'admm_type%A'
       TYPE(cp_fm_type), POINTER                          :: admm_A
       !
@@ -245,13 +245,12 @@ CONTAINS
          NULLIFY (fm_struct)
 
          DO ispin = 1, nspins
-            ALLOCATE (sub_env%mos_occ(ispin)%matrix)
             CALL cp_fm_get_info(mos_occ(ispin)%matrix, nrow_global=nao, ncol_global=nmo_occ)
             CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nmo_occ, context=sub_env%blacs_env)
-            CALL cp_fm_create(sub_env%mos_occ(ispin)%matrix, fm_struct)
+            CALL cp_fm_create(sub_env%mos_occ(ispin), fm_struct)
             CALL cp_fm_struct_release(fm_struct)
             CALL tddfpt_fm_replicate_across_subgroups(fm_src=mos_occ(ispin)%matrix, &
-                                                      fm_dest_sub=sub_env%mos_occ(ispin)%matrix, sub_env=sub_env)
+                                                      fm_dest_sub=sub_env%mos_occ(ispin), sub_env=sub_env)
          END DO
 
          IF (dft_control%do_admm) THEN
@@ -271,7 +270,7 @@ CONTAINS
          sub_env%blacs_env => blacs_env_global
 
          DO ispin = 1, nspins
-            sub_env%mos_occ(ispin)%matrix => mos_occ(ispin)%matrix
+            sub_env%mos_occ(ispin) = mos_occ(ispin)%matrix
          END DO
 
          IF (dft_control%do_admm) THEN
@@ -476,8 +475,7 @@ CONTAINS
 
       IF (sub_env%is_split) THEN
          DO i = SIZE(sub_env%mos_occ), 1, -1
-            CALL cp_fm_release(sub_env%mos_occ(i)%matrix)
-            DEALLOCATE (sub_env%mos_occ(i)%matrix)
+            CALL cp_fm_release(sub_env%mos_occ(i))
          END DO
       END IF
       DEALLOCATE (sub_env%mos_occ)

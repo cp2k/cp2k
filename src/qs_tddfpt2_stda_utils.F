@@ -422,7 +422,7 @@ CONTAINS
 
       DO ispin = 1, nspins
          CALL cp_fm_get_info(work%ctransformed(ispin), ncol_global=nactive)
-         CALL cp_dbcsr_sm_fm_multiply(work%shalf, sub_env%mos_occ(ispin)%matrix, &
+         CALL cp_dbcsr_sm_fm_multiply(work%shalf, sub_env%mos_occ(ispin), &
                                       work%ctransformed(ispin), nactive, alpha=1.0_dp, beta=0.0_dp)
       END DO
 
