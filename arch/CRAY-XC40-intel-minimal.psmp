@@ -35,6 +35,8 @@ DFLAGS   += -D__MAX_CONTR=4
 DFLAGS   += -D__MKL
 DFLAGS   += -D__parallel
 DFLAGS   += -D__SCALAPACK
+# CRAY does not provide the mpi_f08 module
+DFLAGS         += -D__NO_MPI_F08
 
 FCFLAGS   = $(CFLAGS) $(DFLAGS)
 FCFLAGS  += -diag-disable=8291
