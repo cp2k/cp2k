@@ -284,7 +284,7 @@ CONTAINS
 
                ! take the initial guess
                DO spin = 1, nspins
-                  CALL cp_fm_to_fm(t_env%evecs(k, spin)%matrix, b(k, spin))
+                  CALL cp_fm_to_fm(t_env%evecs(k, spin), b(k, spin))
                END DO
 
             ELSE
@@ -471,10 +471,10 @@ CONTAINS
 
       DO spin = 1, nspins
          DO j = 1, n_ev
-            CALL cp_fm_set_all(t_env%evecs(j, spin)%matrix, 0.0_dp)
+            CALL cp_fm_set_all(t_env%evecs(j, spin), 0.0_dp)
             DO i = 1, k
                CALL cp_fm_get_element(Us, i, j, tmp)
-               CALL cp_fm_scale_and_add(1.0_dp, t_env%evecs(j, spin)%matrix, &
+               CALL cp_fm_scale_and_add(1.0_dp, t_env%evecs(j, spin), &
                                         tmp, b(i, spin))
             END DO
          END DO

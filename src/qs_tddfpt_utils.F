@@ -143,7 +143,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE co_initial_guess(matrices, energies, n_v, qs_env)
 
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: matrices
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: matrices
       REAL(kind=DP), DIMENSION(:), INTENT(OUT)           :: energies
       INTEGER, INTENT(IN)                                :: n_v
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -173,11 +173,11 @@ CONTAINS
 
       DO spin = 1, n_spins
 
-         n_cols = matrices(1, spin)%matrix%matrix_struct%ncol_global
-         n_rows = matrices(1, spin)%matrix%matrix_struct%nrow_global
+         n_cols = matrices(1, spin)%matrix_struct%ncol_global
+         n_rows = matrices(1, spin)%matrix_struct%nrow_global
 
          DO i = 1, n_v
-            CALL cp_fm_set_all(matrices(i, spin)%matrix, 0.0_dp)
+            CALL cp_fm_set_all(matrices(i, spin), 0.0_dp)
          END DO
 
          CALL get_mo_set(qs_env%mos(spin), eigenvalues=orbital_eigenvalues)
@@ -235,13 +235,13 @@ CONTAINS
             guess(:, :) = 0.0_dp
             CALL dcopy(n_rows, lumos(:, sorter_iterator%lumo), 1, &
                        guess(:, sorter_iterator%orbit), 1)
-            CALL cp_fm_set_submatrix(matrices(i, spin)%matrix, guess)
+            CALL cp_fm_set_submatrix(matrices(i, spin), guess)
             energies(i) = energies(i) + sorter_iterator%value/REAL(n_spins, dp)
             sorter_iterator => sorter_iterator%next
          END DO
          IF (n_v > n_orbits*n_lumos) THEN
             DO i = n_orbits*n_lumos + 1, n_v
-               CALL cp_fm_init_random(matrices(i, spin)%matrix, n_orbits)
+               CALL cp_fm_init_random(matrices(i, spin), n_orbits)
                energies(i) = 1.0E38_dp
             END DO
          END IF
@@ -296,7 +296,7 @@ CONTAINS
 
       DO spin = 1, n_spins
          nrows(spin) = t_control%lumos(spin)%matrix_struct%nrow_global
-         nhomos(spin) = t_env%evecs(1, spin)%matrix%matrix_struct%ncol_global
+         nhomos(spin) = t_env%evecs(1, spin)%matrix_struct%ncol_global
          nlumos(spin) = t_control%lumos(spin)%matrix_struct%ncol_global
          ALLOCATE (S_lumos(spin)%matrix)
          CALL cp_fm_create(S_lumos(spin)%matrix, t_control%lumos(spin)%matrix_struct, &
@@ -322,7 +322,7 @@ CONTAINS
                END IF
             END IF
             searchloop: DO occ = nhomos(spin), 1, -1
-               CALL cp_fm_get_submatrix(t_env%evecs(i, spin)%matrix, homo_coeff_col, &
+               CALL cp_fm_get_submatrix(t_env%evecs(i, spin), homo_coeff_col, &
                                         1, occ, nrows(spin), 1)
                DO virt = 1, nlumos(spin)
                   CALL cp_fm_get_submatrix(S_lumos(spin)%matrix, lumo_coeff_col, &
