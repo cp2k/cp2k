@@ -21,7 +21,6 @@ MODULE qs_tddfpt2_methods
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -149,8 +148,8 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: my_mos
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: my_mos
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: dipole_op_mos_occ, evects, S_evects
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_oep, matrix_s
@@ -233,11 +232,11 @@ CONTAINS
       END IF
 
       ! split mpi communicator
-      ALLOCATE (my_mos(nspins, 1))
+      ALLOCATE (my_mos(nspins))
       DO ispin = 1, nspins
-         my_mos(ispin, 1)%matrix => gs_mos(ispin)%mos_occ
+         my_mos(ispin) = gs_mos(ispin)%mos_occ
       END DO
-      CALL tddfpt_sub_env_init(sub_env, qs_env, mos_occ=my_mos(:, 1), kernel=tddfpt_control%kernel)
+      CALL tddfpt_sub_env_init(sub_env, qs_env, mos_occ=my_mos(:), kernel=tddfpt_control%kernel)
       DEALLOCATE (my_mos)
 
       IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN

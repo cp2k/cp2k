@@ -27,7 +27,6 @@ MODULE qs_tddfpt2_subgroups
    USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
                                               cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_create,&
@@ -187,7 +186,7 @@ CONTAINS
    SUBROUTINE tddfpt_sub_env_init(sub_env, qs_env, mos_occ, kernel)
       TYPE(tddfpt_subgroup_env_type), INTENT(out)        :: sub_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in)       :: mos_occ
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(in)         :: mos_occ
       INTEGER, INTENT(in)                                :: kernel
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_sub_env_init'
@@ -245,11 +244,11 @@ CONTAINS
          NULLIFY (fm_struct)
 
          DO ispin = 1, nspins
-            CALL cp_fm_get_info(mos_occ(ispin)%matrix, nrow_global=nao, ncol_global=nmo_occ)
+            CALL cp_fm_get_info(mos_occ(ispin), nrow_global=nao, ncol_global=nmo_occ)
             CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nmo_occ, context=sub_env%blacs_env)
             CALL cp_fm_create(sub_env%mos_occ(ispin), fm_struct)
             CALL cp_fm_struct_release(fm_struct)
-            CALL tddfpt_fm_replicate_across_subgroups(fm_src=mos_occ(ispin)%matrix, &
+            CALL tddfpt_fm_replicate_across_subgroups(fm_src=mos_occ(ispin), &
                                                       fm_dest_sub=sub_env%mos_occ(ispin), sub_env=sub_env)
          END DO
 
@@ -269,9 +268,7 @@ CONTAINS
          CALL cp_blacs_env_retain(blacs_env_global)
          sub_env%blacs_env => blacs_env_global
 
-         DO ispin = 1, nspins
-            sub_env%mos_occ(ispin) = mos_occ(ispin)%matrix
-         END DO
+         sub_env%mos_occ(:) = mos_occ(:)
 
          IF (dft_control%do_admm) THEN
             CALL get_qs_env(qs_env, admm_env=admm_env)
