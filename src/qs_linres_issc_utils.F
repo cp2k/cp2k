@@ -33,7 +33,6 @@ MODULE qs_linres_issc_utils
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -112,11 +111,11 @@ CONTAINS
                                                             nmo, nspins, output_unit
       LOGICAL                                            :: do_dso, do_fc, do_pso, do_sd, should_stop
       REAL(dp)                                           :: chk, fro
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: psi1_dso, psi1_efg, psi1_pso
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: h1_psi0, psi0_order, psi1
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fc_psi0, psi1_fc
-      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: dso_psi0, efg_psi0, pso_psi0
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: dso_psi0, efg_psi0, psi1_dso, psi1_efg, &
+                                                            psi1_pso, pso_psi0
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -193,7 +192,7 @@ CONTAINS
          DO jdir = idir, 3
             ijdir = ijdir + 1
             DO ispin = 1, nspins
-               CALL cp_fm_set_all(psi1_efg(ispin, ijdir)%matrix, 0.0_dp)
+               CALL cp_fm_set_all(psi1_efg(ispin, ijdir), 0.0_dp)
             END DO
             IF (output_unit > 0) THEN
                WRITE (output_unit, "(T10,A)") "Response to the perturbation operator efg_"//ACHAR(idir + 119)//ACHAR(jdir + 119)
@@ -220,7 +219,7 @@ CONTAINS
             !
             ! copy the response
             DO ispin = 1, nspins
-               CALL cp_fm_to_fm(psi1(ispin), psi1_efg(ispin, ijdir)%matrix)
+               CALL cp_fm_to_fm(psi1(ispin), psi1_efg(ispin, ijdir))
                fro = cp_fm_frobenius_norm(psi1(ispin))
                chk = chk + fro
             END DO
@@ -251,7 +250,7 @@ CONTAINS
       IF (do_pso) THEN
          DO idir = 1, 3
             DO ispin = 1, nspins
-               CALL cp_fm_set_all(psi1_pso(ispin, idir)%matrix, 0.0_dp)
+               CALL cp_fm_set_all(psi1_pso(ispin, idir), 0.0_dp)
             END DO
             IF (output_unit > 0) THEN
                WRITE (output_unit, "(T10,A)") "Response to the perturbation operator pso_"//ACHAR(idir + 119)
@@ -278,7 +277,7 @@ CONTAINS
             !
             ! copy the response
             DO ispin = 1, nspins
-               CALL cp_fm_to_fm(psi1(ispin), psi1_pso(ispin, idir)%matrix)
+               CALL cp_fm_to_fm(psi1(ispin), psi1_pso(ispin, idir))
                fro = cp_fm_frobenius_norm(psi1(ispin))
                chk = chk + fro
             END DO
@@ -365,7 +364,7 @@ CONTAINS
       IF (do_dso) THEN
          DO idir = 1, 3
             DO ispin = 1, nspins
-               CALL cp_fm_set_all(psi1_dso(ispin, idir)%matrix, 0.0_dp)
+               CALL cp_fm_set_all(psi1_dso(ispin, idir), 0.0_dp)
             END DO
             IF (output_unit > 0) THEN
                WRITE (output_unit, "(T10,A)") "Response to the perturbation operator r_"//ACHAR(idir + 119)
@@ -392,7 +391,7 @@ CONTAINS
             !
             ! copy the response
             DO ispin = 1, nspins
-               CALL cp_fm_to_fm(psi1(ispin), psi1_dso(ispin, idir)%matrix)
+               CALL cp_fm_to_fm(psi1(ispin), psi1_dso(ispin, idir))
                fro = cp_fm_frobenius_norm(psi1(ispin))
                chk = chk + fro
             END DO
@@ -464,8 +463,8 @@ CONTAINS
       REAL(dp), DIMENSION(3)                             :: r_i, r_j
       REAL(dp), DIMENSION(:, :, :, :, :), POINTER        :: issc
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: psi1_dso, psi1_efg, psi1_pso
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fc_psi0, psi1_fc
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: psi1_dso, psi1_efg, psi1_pso
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_dso, matrix_efg, matrix_fc, &
                                                             matrix_pso
@@ -571,7 +570,7 @@ CONTAINS
                   CALL cp_fm_trace(fc_psi0(ispin), mo_coeff, buf)
                   WRITE (*, *) ' jatom', jatom, ixyz, 'tr(P*efg)=', buf
                   DO jxyz = 1, 6
-                     CALL cp_fm_trace(fc_psi0(ispin), psi1_efg(ispin, jxyz)%matrix, buf)
+                     CALL cp_fm_trace(fc_psi0(ispin), psi1_efg(ispin, jxyz), buf)
                      issc_sd = 2.0_dp*maxocc*facsd*buf
                      !issc(ixyz,jxyz,iatom,jatom) = issc_sd
                      !write(*,*) 'pso_',ixyz,jxyz,' iatom',iatom,'jatom',jatom,issc_pso
@@ -593,7 +592,7 @@ CONTAINS
                                          fc_psi0(ispin), ncol=nmo,& ! fc_psi0 a buffer
                        &                 alpha=1.0_dp, beta=0.0_dp)
                   DO jxyz = 1, 3
-                     CALL cp_fm_trace(fc_psi0(ispin), psi1_pso(ispin, jxyz)%matrix, buf)
+                     CALL cp_fm_trace(fc_psi0(ispin), psi1_pso(ispin, jxyz), buf)
                      issc_pso = -2.0_dp*maxocc*facpso*buf
                      issc(ixyz, jxyz, iatom, jatom, 3) = issc(ixyz, jxyz, iatom, jatom, 3) + issc_pso
                   END DO
@@ -630,7 +629,7 @@ CONTAINS
                                          fc_psi0(ispin), ncol=nmo,& ! fc_psi0 a buffer
                        &                 alpha=1.0_dp, beta=0.0_dp)
                   DO jxyz = 1, 3
-                     CALL cp_fm_trace(psi1_dso(ispin, jxyz)%matrix, fc_psi0(ispin), buf)
+                     CALL cp_fm_trace(psi1_dso(ispin, jxyz), fc_psi0(ispin), buf)
                      ! we save the polarizability for a checksum later on !
                      issc_dso = 2.0_dp*maxocc*buf
                      issc(ixyz, jxyz, iatom, jatom, 4) = issc(ixyz, jxyz, iatom, jatom, 4) + issc_dso
@@ -915,15 +914,13 @@ CONTAINS
                                   ncol_global=m, &
                                   context=mo_coeff%matrix_struct%context)
          DO idir = 1, 6
-            ALLOCATE (issc_env%psi1_efg(ispin, idir)%matrix, issc_env%efg_psi0(ispin, idir))
-            CALL cp_fm_create(issc_env%psi1_efg(ispin, idir)%matrix, tmp_fm_struct)
+            CALL cp_fm_create(issc_env%psi1_efg(ispin, idir), tmp_fm_struct)
             CALL cp_fm_create(issc_env%efg_psi0(ispin, idir), tmp_fm_struct)
          END DO
          DO idir = 1, 3
-            ALLOCATE (issc_env%psi1_pso(ispin, idir)%matrix, issc_env%psi1_dso(ispin, idir)%matrix)
-            CALL cp_fm_create(issc_env%psi1_pso(ispin, idir)%matrix, tmp_fm_struct)
+            CALL cp_fm_create(issc_env%psi1_pso(ispin, idir), tmp_fm_struct)
             CALL cp_fm_create(issc_env%pso_psi0(ispin, idir), tmp_fm_struct)
-            CALL cp_fm_create(issc_env%psi1_dso(ispin, idir)%matrix, tmp_fm_struct)
+            CALL cp_fm_create(issc_env%psi1_dso(ispin, idir), tmp_fm_struct)
             CALL cp_fm_create(issc_env%dso_psi0(ispin, idir), tmp_fm_struct)
          END DO
          CALL cp_fm_create(issc_env%psi1_fc(ispin), tmp_fm_struct)
@@ -1095,8 +1092,7 @@ CONTAINS
       IF (ASSOCIATED(issc_env%psi1_efg)) THEN
          DO idir = 1, SIZE(issc_env%psi1_efg, 2)
             DO ispin = 1, SIZE(issc_env%psi1_efg, 1)
-               CALL cp_fm_release(issc_env%psi1_efg(ispin, idir)%matrix)
-               DEALLOCATE (issc_env%psi1_efg(ispin, idir)%matrix)
+               CALL cp_fm_release(issc_env%psi1_efg(ispin, idir))
             END DO
          END DO
          DEALLOCATE (issc_env%psi1_efg)
@@ -1107,8 +1103,7 @@ CONTAINS
       IF (ASSOCIATED(issc_env%psi1_pso)) THEN
          DO idir = 1, SIZE(issc_env%psi1_pso, 2)
             DO ispin = 1, SIZE(issc_env%psi1_pso, 1)
-               CALL cp_fm_release(issc_env%psi1_pso(ispin, idir)%matrix)
-               DEALLOCATE (issc_env%psi1_pso(ispin, idir)%matrix)
+               CALL cp_fm_release(issc_env%psi1_pso(ispin, idir))
             END DO
          END DO
          DEALLOCATE (issc_env%psi1_pso)
@@ -1119,8 +1114,7 @@ CONTAINS
       IF (ASSOCIATED(issc_env%psi1_dso)) THEN
          DO idir = 1, SIZE(issc_env%psi1_dso, 2)
             DO ispin = 1, SIZE(issc_env%psi1_dso, 1)
-               CALL cp_fm_release(issc_env%psi1_dso(ispin, idir)%matrix)
-               DEALLOCATE (issc_env%psi1_dso(ispin, idir)%matrix)
+               CALL cp_fm_release(issc_env%psi1_dso(ispin, idir))
             END DO
          END DO
          DEALLOCATE (issc_env%psi1_dso)
