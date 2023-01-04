@@ -18,8 +18,7 @@ MODULE qs_linres_types
    USE cp_array_utils,                  ONLY: cp_2d_i_p_type,&
                                               cp_2d_r_p_type
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release,&
+   USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_type
@@ -219,8 +218,8 @@ MODULE qs_linres_types
       REAL(dp), DIMENSION(:, :), POINTER :: deltaR => NULL(), delta_basis_function => NULL()
       REAL(dp), DIMENSION(:, :, :, :), POINTER :: apt_subset => NULL(), apt_at_dcdr_per_center => NULL()
       TYPE(cp_fm_type), DIMENSION(:), POINTER :: mo_coeff => NULL()
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: dCR => NULL(), dCR_prime => NULL(), &
-                                                   op_dR => NULL(), chc => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: dCR => NULL(), dCR_prime => NULL(), &
+                                                 op_dR => NULL(), chc => NULL()
 
       CHARACTER(LEN=30) :: orb_center_name
       TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER :: center_list => NULL()

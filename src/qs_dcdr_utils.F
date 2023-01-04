@@ -855,18 +855,11 @@ CONTAINS
       ALLOCATE (dcdr_env%chc(nspins))
       ALLOCATE (dcdr_env%op_dR(nspins))
 
-      NULLIFY (dcdr_env%dCR(1)%matrix)
-      NULLIFY (dcdr_env%dCR_prime(1)%matrix)
-      NULLIFY (dcdr_env%chc(1)%matrix)
-      NULLIFY (dcdr_env%op_dR(1)%matrix)
-
-      ALLOCATE (dcdr_env%dCR(1)%matrix, dcdr_env%dCR_prime(1)%matrix, &
-                dcdr_env%chc(1)%matrix, dcdr_env%op_dR(1)%matrix)
-      CALL cp_fm_create(dcdr_env%dCR(1)%matrix, dcdr_env%likemos_fm_struct)
-      CALL cp_fm_create(dcdr_env%dCR_prime(1)%matrix, dcdr_env%likemos_fm_struct)
+      CALL cp_fm_create(dcdr_env%dCR(1), dcdr_env%likemos_fm_struct)
+      CALL cp_fm_create(dcdr_env%dCR_prime(1), dcdr_env%likemos_fm_struct)
       CALL cp_fm_create(dcdr_env%mo_coeff(1), dcdr_env%likemos_fm_struct)
-      CALL cp_fm_create(dcdr_env%chc(1)%matrix, dcdr_env%momo_fm_struct)
-      CALL cp_fm_create(dcdr_env%op_dR(1)%matrix, dcdr_env%likemos_fm_struct)
+      CALL cp_fm_create(dcdr_env%chc(1), dcdr_env%momo_fm_struct)
+      CALL cp_fm_create(dcdr_env%op_dR(1), dcdr_env%likemos_fm_struct)
 
       CALL cp_fm_to_fm(mo_coeff, dcdr_env%mo_coeff(1))
 
@@ -985,10 +978,10 @@ CONTAINS
       CALL cp_dbcsr_sm_fm_multiply(matrix_ks(1)%matrix, mo_coeff, buf, nmo)
       ! chc = mo * matrix_ks * mo
       CALL cp_fm_get_info(buf)
-      CALL cp_fm_get_info(dcdr_env%chc(1)%matrix)
+      CALL cp_fm_get_info(dcdr_env%chc(1))
       CALL parallel_gemm('T', 'N', nmo, nmo, nao, &
                          1.0_dp, mo_coeff, buf, &
-                         0.0_dp, dcdr_env%chc(1)%matrix)
+                         0.0_dp, dcdr_env%chc(1))
 
       CALL cp_fm_release(buf)
 
@@ -1047,15 +1040,11 @@ CONTAINS
       END IF
 
       ! Full matrices
-      CALL cp_fm_release(dcdr_env%dCR(1)%matrix)
-      CALL cp_fm_release(dcdr_env%dCR_prime(1)%matrix)
+      CALL cp_fm_release(dcdr_env%dCR(1))
+      CALL cp_fm_release(dcdr_env%dCR_prime(1))
       CALL cp_fm_release(dcdr_env%mo_coeff(1))
-      CALL cp_fm_release(dcdr_env%chc(1)%matrix)
-      CALL cp_fm_release(dcdr_env%op_dR(1)%matrix)
-      DEALLOCATE (dcdr_env%dCR(1)%matrix, dcdr_env%dCR_prime(1)%matrix, &
-                  dcdr_env%chc(1)%matrix, dcdr_env%op_dR(1)%matrix)
-      NULLIFY (dcdr_env%dCR(1)%matrix, dcdr_env%dCR_prime(1)%matrix, &
-               dcdr_env%chc(1)%matrix, dcdr_env%op_dR(1)%matrix)
+      CALL cp_fm_release(dcdr_env%chc(1))
+      CALL cp_fm_release(dcdr_env%op_dR(1))
 
       DEALLOCATE (dcdr_env%op_dR)
       DEALLOCATE (dcdr_env%dCR)
