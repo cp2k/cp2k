@@ -88,8 +88,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tddfpt_apply_energy_diff(Aop_evects, evects, S_evects, gs_mos, matrix_ks)
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: Aop_evects
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: evects
-      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: S_evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: evects, S_evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(in)       :: matrix_ks
@@ -119,10 +118,10 @@ CONTAINS
             IF (ASSOCIATED(gs_mos(ispin)%evals_occ_matrix)) THEN
                ! orbital energy correction: evals_occ_matrix is not a diagonal matrix
                CALL parallel_gemm('N', 'N', nao, nactive, nactive, 1.0_dp, &
-                                  S_evects(ispin, ivect)%matrix, gs_mos(ispin)%evals_occ_matrix, &
+                                  S_evects(ispin, ivect), gs_mos(ispin)%evals_occ_matrix, &
                                   0.0_dp, hevec)
             ELSE
-               CALL cp_fm_to_fm(S_evects(ispin, ivect)%matrix, hevec)
+               CALL cp_fm_to_fm(S_evects(ispin, ivect), hevec)
                CALL cp_fm_column_scale(hevec, gs_mos(ispin)%evals_occ)
             END IF
 

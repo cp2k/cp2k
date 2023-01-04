@@ -222,7 +222,7 @@ CONTAINS
    SUBROUTINE tddfpt_orthonormalize_psi1_psi1(evects, nvects_new, S_evects, matrix_s)
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: evects
       INTEGER, INTENT(in)                                :: nvects_new
-      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: S_evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: S_evects
       TYPE(dbcsr_type), POINTER                          :: matrix_s
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_orthonormalize_psi1_psi1'
@@ -262,7 +262,7 @@ CONTAINS
 
          ! <psi1_j | psi1_j>
          DO ispin = 1, nspins
-            CALL cp_dbcsr_sm_fm_multiply(matrix_s, evects(ispin, jvect), S_evects(ispin, jvect)%matrix, &
+            CALL cp_dbcsr_sm_fm_multiply(matrix_s, evects(ispin, jvect), S_evects(ispin, jvect), &
                                          ncol=nactive(ispin), alpha=1.0_dp, beta=0.0_dp)
          END DO
 
@@ -273,7 +273,7 @@ CONTAINS
 
          DO ispin = 1, nspins
             CALL cp_fm_scale(norm, evects(ispin, jvect))
-            CALL cp_fm_scale(norm, S_evects(ispin, jvect)%matrix)
+            CALL cp_fm_scale(norm, S_evects(ispin, jvect))
          END DO
       END DO
 
@@ -302,8 +302,7 @@ CONTAINS
                                         matrix_ks, qs_env, kernel_env, &
                                         sub_env, work_matrices)
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: Aop_evects
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: evects
-      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: S_evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: evects, S_evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
@@ -685,7 +684,7 @@ CONTAINS
                                    tddfpt_print_section, work_matrices) RESULT(conv)
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(inout)   :: evects
       REAL(kind=dp), DIMENSION(:), INTENT(inout)         :: evals
-      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(inout) :: S_evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(inout)   :: S_evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
@@ -709,8 +708,8 @@ CONTAINS
       REAL(kind=dp)                                      :: t1, t2
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals_last
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: Atilde
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: Aop_krylov, Aop_ritz, S_krylov
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: krylov_vects
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: Aop_krylov, Aop_ritz
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: krylov_vects, S_krylov
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
 
       CALL timeset(routineN, handle)
@@ -746,7 +745,7 @@ CONTAINS
                 S_krylov(nspins, max_krylov_vects))
       DO istate = 1, max_krylov_vects
          DO ispin = 1, nspins
-            NULLIFY (Aop_krylov(ispin, istate)%matrix, S_krylov(ispin, istate)%matrix)
+            NULLIFY (Aop_krylov(ispin, istate)%matrix)
          END DO
       END DO
 
@@ -755,9 +754,8 @@ CONTAINS
             CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, krylov_vects(ispin, istate))
             CALL cp_fm_to_fm(evects(ispin, istate), krylov_vects(ispin, istate))
 
-            ALLOCATE (S_krylov(ispin, istate)%matrix)
-            CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, S_krylov(ispin, istate)%matrix)
-            CALL cp_fm_to_fm(S_evects(ispin, istate)%matrix, S_krylov(ispin, istate)%matrix)
+            CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, S_krylov(ispin, istate))
+            CALL cp_fm_to_fm(S_evects(ispin, istate), S_krylov(ispin, istate))
 
             ALLOCATE (Aop_krylov(ispin, istate)%matrix)
             CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, Aop_krylov(ispin, istate)%matrix)
@@ -804,12 +802,11 @@ CONTAINS
             ! compute residual vectors for the next iteration
             DO istate = 1, nvects_new
                DO ispin = 1, nspins
-                  ALLOCATE (Aop_krylov(ispin, nvects_exist + istate)%matrix, &
-                            S_krylov(ispin, nvects_exist + istate)%matrix)
+                  ALLOCATE (Aop_krylov(ispin, nvects_exist + istate)%matrix)
                   CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, &
                                          krylov_vects(ispin, nvects_exist + istate))
                   CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, &
-                                         S_krylov(ispin, nvects_exist + istate)%matrix)
+                                         S_krylov(ispin, nvects_exist + istate))
                   CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, &
                                          Aop_krylov(ispin, nvects_exist + istate)%matrix)
                END DO
@@ -875,8 +872,7 @@ CONTAINS
          DO ispin = nspins, 1, -1
             CALL fm_pool_give_back_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, Aop_krylov(ispin, istate)%matrix)
             DEALLOCATE (Aop_krylov(ispin, istate)%matrix)
-            CALL fm_pool_give_back_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, S_krylov(ispin, istate)%matrix)
-            DEALLOCATE (S_krylov(ispin, istate)%matrix)
+            CALL fm_pool_give_back_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, S_krylov(ispin, istate))
             CALL fm_pool_give_back_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, krylov_vects(ispin, istate))
          END DO
       END DO

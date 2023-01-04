@@ -19,9 +19,14 @@ MODULE qs_tddfpt2_restart
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_info, cp_fm_p_type, cp_fm_read_unformatted, cp_fm_release, &
-        cp_fm_type, cp_fm_write_formatted, cp_fm_write_info, cp_fm_write_unformatted
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_read_unformatted,&
+                                              cp_fm_release,&
+                                              cp_fm_type,&
+                                              cp_fm_write_formatted,&
+                                              cp_fm_write_info,&
+                                              cp_fm_write_unformatted
    USE cp_log_handling,                 ONLY: cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_finished_output,&
@@ -319,7 +324,7 @@ CONTAINS
       TYPE(cp_logger_type), INTENT(in), POINTER          :: logger
       TYPE(section_vals_type), INTENT(in), POINTER       :: tddfpt_print_section
       TYPE(dbcsr_type), INTENT(in), POINTER              :: matrix_s
-      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: S_evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: S_evects
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_write_newtonx_output'
@@ -374,7 +379,7 @@ CONTAINS
                                            nrow_global=nmo_virt(ispin), ncol_global=nmo_occ(ispin))
                   CALL cp_fm_create(evects_mo(ispin, istate), fmstruct)
                   CALL cp_fm_struct_release(fmstruct)
-                  CALL cp_dbcsr_sm_fm_multiply(matrix_s, evects(ispin, istate), S_evects(ispin, istate)%matrix, &
+                  CALL cp_dbcsr_sm_fm_multiply(matrix_s, evects(ispin, istate), S_evects(ispin, istate), &
                                                ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
                END DO
             END DO
@@ -386,7 +391,7 @@ CONTAINS
                                      nao, &
                                      1.0_dp, &
                                      gs_mos(ispin)%mos_virt, &
-                                     S_evects(ispin, istate)%matrix, & !this also needs to be orthogonalized
+                                     S_evects(ispin, istate), & !this also needs to be orthogonalized
                                      0.0_dp, &
                                      evects_mo(ispin, istate))
                END DO
@@ -518,7 +523,7 @@ CONTAINS
 
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: evects
       INTEGER, INTENT(in)                                :: ounit
-      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: S_evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: S_evects
       TYPE(dbcsr_type), INTENT(in), POINTER              :: matrix_s
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_check_orthonormality'
@@ -556,7 +561,7 @@ CONTAINS
 
          ! <psi1_j | psi1_j>
          DO ispin = 1, nspins
-            CALL cp_dbcsr_sm_fm_multiply(matrix_s, evects(ispin, jvect), S_evects(ispin, jvect)%matrix, &
+            CALL cp_dbcsr_sm_fm_multiply(matrix_s, evects(ispin, jvect), S_evects(ispin, jvect), &
                                          ncol=nactive(ispin), alpha=1.0_dp, beta=0.0_dp)
          END DO
 

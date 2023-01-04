@@ -149,9 +149,9 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: my_mos, S_evects
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: my_mos
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: dipole_op_mos_occ, evects
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: dipole_op_mos_occ, evects, S_evects
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_oep, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -333,9 +333,7 @@ CONTAINS
       ALLOCATE (evects(nspins, nstates), S_evects(nspins, nstates))
       DO istate = 1, nstates
          DO ispin = 1, nspins
-            NULLIFY (S_evects(ispin, istate)%matrix)
-            ALLOCATE (S_evects(ispin, istate)%matrix)
-            CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, S_evects(ispin, istate)%matrix)
+            CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, S_evects(ispin, istate))
          END DO
       END DO
 
@@ -535,8 +533,7 @@ CONTAINS
       DO istate = 1, SIZE(evects, 2)
          DO ispin = 1, nspins
             CALL cp_fm_release(evects(ispin, istate))
-            CALL cp_fm_release(S_evects(ispin, istate)%matrix)
-            DEALLOCATE (S_evects(ispin, istate)%matrix)
+            CALL cp_fm_release(S_evects(ispin, istate))
          END DO
       END DO
       DEALLOCATE (evects, S_evects, evals, ostrength)
