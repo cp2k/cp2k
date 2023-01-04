@@ -438,7 +438,13 @@ MODULE message_passing
          mp_allgatherv_rv, &
          mp_allgatherv_dv, &
          mp_allgatherv_cv, &
-         mp_allgatherv_zv
+         mp_allgatherv_zv, &
+         mp_allgatherv_im2, & 
+         mp_allgatherv_lm2, &
+         mp_allgatherv_rm2, &
+         mp_allgatherv_dm2, &
+         mp_allgatherv_cm2, &
+         mp_allgatherv_zm2
    END INTERFACE
 
    INTERFACE mp_iallgather

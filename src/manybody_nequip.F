@@ -234,8 +234,11 @@ CONTAINS
       INTEGER(kind=int_8), ALLOCATABLE                   :: atom_types(:)
       REAL(kind=dp)                                      :: lattice(3, 3), rij(3), drij, rab2_max
       TYPE(pos_type), DIMENSION(:), POINTER              :: r_last_update_pbc
-      INTEGER(kind=int_8), DIMENSION(:, :), ALLOCATABLE  :: edge_index, temp_edge_index
+      INTEGER(kind=int_8), DIMENSION(:, :), ALLOCATABLE  :: edge_index, temp_edge_index, &
+                                                            t_edge_index, t_temp_edge_index
       REAL(kind=sp), DIMENSION(:, :), ALLOCATABLE        :: edge_cell_shifts, temp_edge_cell_shifts
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: edge_count, edge_count_cell, &
+                                                            displ, displ_cell
       ! Torch objects.
       TYPE(torch_dict_type)                              :: inputs, outputs
       ! Outputs.
@@ -333,7 +336,7 @@ CONTAINS
                         rij(:) = r_last_update_pbc(atom_b)%r(:) - r_last_update_pbc(atom_a)%r(:) + cell_v
                         drij = DOT_PRODUCT(rij, rij)
                         ipair = ipair + 1
-                        WRITE(*, *) "manybody_nequip para_env%mepos atom_a atom_b", para_env%mepos, atom_a, atom_b
+                        !WRITE(*, *) "manybody_nequip para_env%mepos atom_a atom_b", para_env%mepos, atom_a, atom_b
                         IF (drij <= rab2_max) THEN
                            nedges = nedges + 1
                            edge_index(nedges, :) = [atom_a - 1, atom_b - 1]
@@ -351,26 +354,76 @@ CONTAINS
 
       ALLOCATE (temp_edge_index(nedges,2))
       temp_edge_index = edge_index(:nedges, :)
+      DO ipair = 1, nedges
+          WRITE(*,*) "edge index before:",para_env%mepos, temp_edge_index(ipair, :)
+      END DO
       DEALLOCATE (edge_index)
       ALLOCATE (temp_edge_cell_shifts(3, nedges))
       temp_edge_cell_shifts = edge_cell_shifts(:,:nedges)
       DEALLOCATE (edge_cell_shifts)
 
-      nedges_tot = nedges
-      CALL mp_sum(nedges_tot, para_env%group)
-      WRITE(*, *) "para_env%mepos, nedges_tot ", para_env%mepos, nedges_tot
+!      nedges_tot = nedges
+!      CALL mp_sum(nedges_tot, para_env%group)
+!      WRITE(*, *) "para_env%mepos, nedges_tot ", para_env%mepos, nedges_tot
+      
+!      ALLOCATE (nedges_arr(2*para_env%num_pe))
+!      ALLOCATE (nedges_temp(para_env%num_pe))
+      ALLOCATE (edge_count(para_env%num_pe))
+      ALLOCATE (edge_count_cell(para_env%num_pe))
+      ALLOCATE (displ_cell(para_env%num_pe))
+
+      ALLOCATE (displ(para_env%num_pe))
+!      edge_count(:) = SIZE(nedges_temp)
+!      displ(1) = 0
+!      DO ipair = 2, para_env%num_pe
+!          displ(ipair) = displ(ipair - 1) + edge_count(ipair - 1)
+!      END DO
+!      nedges_temp(:) = [para_env%mepos, para_env%mepos + 1]
+!      WRITE(*, *) "nedges_temp", nedges_temp
+!      CALL mp_allgather(nedges_temp, nedges_arr, edge_count, displ, para_env%group)
+!      WRITE(*, *) "nedges_arr", nedges_arr
+
+      CALL mp_allgather(nedges, edge_count, para_env%group)
+WRITE(*,*) "Own nedges", para_env%mepos, nedges
+      nedges_tot = SUM(edge_count)
+
       ALLOCATE (edge_index(nedges_tot,2))
       ALLOCATE (edge_cell_shifts(3, nedges_tot))
 
-      CALL mp_allgather(temp_edge_index, edge_index, para_env%group)
-      CALL mp_allgather(temp_edge_cell_shifts, edge_cell_shifts, para_env%group)
+      edge_count_cell = edge_count*3
+      edge_count = edge_count*2
+      displ(1) = 0
+      displ_cell(1) = 0
+      DO ipair = 2, para_env%num_pe
+          displ(ipair) = displ(ipair - 1) + edge_count(ipair - 1)
+          displ_cell(ipair) = displ_cell(ipair - 1) + edge_count_cell(ipair - 1)
+!          WRITE(*, *) "displ:", displ(ipair)
+      END DO
+IF (para_env%mepos==0) WRITE(*,*) "displ_cell", displ_cell
+
+      WRITE(*, *) "mpi before edge_cell_shifts", para_env%mepos
+      
+      CALL mp_allgather(temp_edge_cell_shifts, edge_cell_shifts, edge_count_cell, displ_cell ,para_env%group)
+      WRITE(*, *) "mpi after edge_cell_shifts", para_env%mepos
+      
+      ALLOCATE(t_temp_edge_index(2, nedges))
+      ALLOCATE(t_edge_index(2, nedges_tot))
+      t_temp_edge_index = TRANSPOSE(temp_edge_index)
+      WRITE(*, *) "mpi before edge_index"
+      CALL mp_allgather(t_temp_edge_index, t_edge_index, edge_count, displ, para_env%group)
+!      CALL mp_allgather(t_temp_edge_index, t_edge_index, edge_count, displ, para_env%group)
+!      CALL mp_allgather(t_temp_edge_index, t_edge_index, edge_count, displ, para_env%group)
+
+      edge_index = TRANSPOSE(t_edge_index)
+!      CALL mp_allgather(temp_edge_index(:, 1), edge_index(:, 1), edge_count, displ, para_env%group)
+!      CALL mp_allgather(temp_edge_index(:, 2), edge_index(:, 2), edge_count, displ, para_env%group)
+      WRITE(*, *) "mpi after edge_index"
+!      CALL mp_allgather(temp_edge_cell_shifts, edge_cell_shifts, para_env%group)
 
       WRITE(*, *) "SHAPE(edge_index)", SHAPE(edge_index)
       WRITE(*, *) "SHAPE(edge_index)", SHAPE(edge_cell_shifts) 
       DO ipair = 1, nedges_tot
-         IF (edge_index(ipair, 1) > 96  .OR.  edge_index(ipair, 2) > 96 ) THEN
-             WRITE(*,*) "WARNING edge index ", edge_index(ipair, :), para_env%mepos         
-         END IF
+          WRITE(*,*) "edge index after:",para_env%mepos, edge_index(ipair, :)
       END DO
 
       DO ipair = 1, nedges_tot
