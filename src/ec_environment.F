@@ -141,7 +141,6 @@ CONTAINS
       NULLIFY (ec_env%force)
       NULLIFY (ec_env%dispersion_env)
       NULLIFY (ec_env%xc_section)
-      NULLIFY (ec_env%cpmos)
       NULLIFY (ec_env%matrix_z)
       NULLIFY (ec_env%matrix_hz)
       NULLIFY (ec_env%matrix_wz)
