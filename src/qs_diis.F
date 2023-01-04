@@ -144,8 +144,7 @@ CONTAINS
 
          DO ispin = 1, nspin
             DO ibuffer = 1, nbuffer
-               ALLOCATE (diis_buffer%error(ibuffer, ispin)%matrix)
-               CALL cp_fm_create(diis_buffer%error(ibuffer, ispin)%matrix, &
+               CALL cp_fm_create(diis_buffer%error(ibuffer, ispin), &
                                  name="qs_diis_b%error("// &
                                  TRIM(ADJUSTL(cp_to_string(ibuffer)))//","// &
                                  TRIM(ADJUSTL(cp_to_string(ibuffer)))//")", &
@@ -159,8 +158,7 @@ CONTAINS
 
          DO ispin = 1, nspin
             DO ibuffer = 1, nbuffer
-               ALLOCATE (diis_buffer%parameter(ibuffer, ispin)%matrix)
-               CALL cp_fm_create(diis_buffer%parameter(ibuffer, ispin)%matrix, &
+               CALL cp_fm_create(diis_buffer%parameter(ibuffer, ispin), &
                                  name="qs_diis_b%parameter("// &
                                  TRIM(ADJUSTL(cp_to_string(ibuffer)))//","// &
                                  TRIM(ADJUSTL(cp_to_string(ibuffer)))//")", &
@@ -290,8 +288,8 @@ CONTAINS
                          occupation_numbers=occa, &
                          maxocc=maxocc)
 
-         new_errors => diis_buffer%error(ib, ispin)%matrix
-         parameters => diis_buffer%parameter(ib, ispin)%matrix
+         new_errors => diis_buffer%error(ib, ispin)
+         parameters => diis_buffer%parameter(ib, ispin)
 
          ! Copy the Kohn-Sham matrix K to the DIIS buffer
 
@@ -392,8 +390,8 @@ CONTAINS
          DO jb = 1, nb
             b(jb, ib) = 0.0_dp
             DO ispin = 1, nspin
-               old_errors => diis_buffer%error(jb, ispin)%matrix
-               new_errors => diis_buffer%error(ib, ispin)%matrix
+               old_errors => diis_buffer%error(jb, ispin)
+               new_errors => diis_buffer%error(ib, ispin)
                CALL cp_fm_trace(old_errors, new_errors, tmp)
                b(jb, ib) = b(jb, ib) + tmp
             END DO
@@ -465,7 +463,7 @@ CONTAINS
          DO ispin = 1, nspin
             CALL cp_fm_set_all(kc(ispin), 0.0_dp)
             DO jb = 1, nb
-               parameters => diis_buffer%parameter(jb, ispin)%matrix
+               parameters => diis_buffer%parameter(jb, ispin)
                CALL cp_fm_scale_and_add(1.0_dp, kc(ispin), -ev(jb), parameters)
             END DO
          END DO
@@ -477,7 +475,7 @@ CONTAINS
       ELSE
 
          DO ispin = 1, nspin
-            parameters => diis_buffer%parameter(ib, ispin)%matrix
+            parameters => diis_buffer%parameter(ib, ispin)
             CALL cp_fm_to_fm(parameters, kc(ispin))
          END DO
 
