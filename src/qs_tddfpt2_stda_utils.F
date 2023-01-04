@@ -29,9 +29,14 @@ MODULE qs_tddfpt2_stda_utils
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_info, cp_fm_p_type, cp_fm_release, cp_fm_set_all, &
-        cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type, cp_fm_vectorssum
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_set_submatrix,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type,&
+                                              cp_fm_vectorssum
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -508,8 +513,7 @@ CONTAINS
       TYPE(tddfpt_subgroup_env_type)                     :: sub_env
       TYPE(tddfpt_work_matrices)                         :: work
       LOGICAL, INTENT(IN)                                :: is_rks_triplets
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: X
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: res
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: X, res
 
       CHARACTER(len=*), PARAMETER :: routineN = 'stda_calculate_kernel'
 
@@ -582,7 +586,7 @@ CONTAINS
       ALLOCATE (tcharge(natom), gtcharge(natom, 1))
 
       DO ispin = 1, nspins
-         CALL cp_fm_set_all(res(ispin)%matrix, 0.0_dp)
+         CALL cp_fm_set_all(res(ispin), 0.0_dp)
       END DO
 
       DO ispin = 1, nspins
@@ -672,7 +676,7 @@ CONTAINS
             CALL cp_fm_to_fm(ct, cvec)
             CALL cp_fm_row_scale(cvec, tv)
             ! rho(nu,i) = rho(nu,i) + Shalf(nu,mu)*CV(mu,i)
-            CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, res(ispin)%matrix, nactive(ispin), spinfac, 1.0_dp)
+            CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, res(ispin), nactive(ispin), spinfac, 1.0_dp)
          END IF
          !
          ! *** Exchange contribution
@@ -721,7 +725,7 @@ CONTAINS
             ! CV(mu,i) = P(nu,mu)*CT(mu,i)
             CALL cp_dbcsr_sm_fm_multiply(pdens, ct, cvec, nactive(ispin), 1.0_dp, 0.0_dp)
             ! rho(nu,i) = rho(nu,i) + ShalfP(nu,mu)*CV(mu,i)
-            CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, res(ispin)%matrix, nactive(ispin), -1.0_dp, 1.0_dp)
+            CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, res(ispin), nactive(ispin), -1.0_dp, 1.0_dp)
             !
             CALL dbcsr_release(pdens)
             DEALLOCATE (kind_of)

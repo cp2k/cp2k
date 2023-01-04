@@ -14,7 +14,6 @@ MODULE qs_tddfpt2_operators
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -87,8 +86,7 @@ CONTAINS
 !>       Thomas Chassaing on 08.2002.
 ! **************************************************************************************************
    SUBROUTINE tddfpt_apply_energy_diff(Aop_evects, evects, S_evects, gs_mos, matrix_ks)
-      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: Aop_evects
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: evects, S_evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: Aop_evects, evects, S_evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(in)       :: matrix_ks
@@ -112,7 +110,7 @@ CONTAINS
 
          DO ivect = 1, nvects
             CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix, evects(ispin, ivect), &
-                                         Aop_evects(ispin, ivect)%matrix, ncol=nactive, &
+                                         Aop_evects(ispin, ivect), ncol=nactive, &
                                          alpha=1.0_dp, beta=1.0_dp)
 
             IF (ASSOCIATED(gs_mos(ispin)%evals_occ_matrix)) THEN
@@ -126,7 +124,7 @@ CONTAINS
             END IF
 
             ! KS * C1 - S * C1 * occupied_orbital_energies
-            CALL cp_fm_scale_and_add(1.0_dp, Aop_evects(ispin, ivect)%matrix, -1.0_dp, hevec)
+            CALL cp_fm_scale_and_add(1.0_dp, Aop_evects(ispin, ivect), -1.0_dp, hevec)
          END DO
          CALL cp_fm_release(hevec)
       END DO
@@ -439,8 +437,7 @@ CONTAINS
    SUBROUTINE tddfpt_apply_hfx(Aop_evects, evects, gs_mos, do_admm, qs_env, &
                                work_rho_ia_ao_symm, work_hmat_symm, work_rho_ia_ao_asymm, &
                                work_hmat_asymm, wfm_rho_orb)
-      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: Aop_evects
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: Aop_evects, evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       LOGICAL, INTENT(in)                                :: do_admm
@@ -529,12 +526,12 @@ CONTAINS
                                      admm_env%work_aux_orb, 0.0_dp, wfm_rho_orb)
 
                   CALL parallel_gemm('N', 'N', nao, nactive(ispin), nao, alpha, wfm_rho_orb, &
-                                     gs_mos(ispin)%mos_occ, 1.0_dp, Aop_evects(ispin, ivect)%matrix)
+                                     gs_mos(ispin)%mos_occ, 1.0_dp, Aop_evects(ispin, ivect))
                END DO
             ELSE
                DO ispin = 1, nspins
                   CALL cp_dbcsr_sm_fm_multiply(work_hmat_symm(ispin)%matrix, gs_mos(ispin)%mos_occ, &
-                                               Aop_evects(ispin, ivect)%matrix, ncol=nactive(ispin), &
+                                               Aop_evects(ispin, ivect), ncol=nactive(ispin), &
                                                alpha=alpha, beta=1.0_dp)
                END DO
             END IF
@@ -571,12 +568,12 @@ CONTAINS
                                      admm_env%work_aux_orb, 0.0_dp, wfm_rho_orb)
 
                   CALL parallel_gemm('N', 'N', nao, nactive(ispin), nao, alpha, wfm_rho_orb, &
-                                     gs_mos(ispin)%mos_occ, 1.0_dp, Aop_evects(ispin, ivect)%matrix)
+                                     gs_mos(ispin)%mos_occ, 1.0_dp, Aop_evects(ispin, ivect))
                END DO
             ELSE
                DO ispin = 1, nspins
                   CALL cp_dbcsr_sm_fm_multiply(work_hmat_asymm(ispin)%matrix, gs_mos(ispin)%mos_occ, &
-                                               Aop_evects(ispin, ivect)%matrix, ncol=nactive(ispin), &
+                                               Aop_evects(ispin, ivect), ncol=nactive(ispin), &
                                                alpha=alpha, beta=1.0_dp)
                END DO
             END IF

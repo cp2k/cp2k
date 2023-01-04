@@ -19,9 +19,14 @@ MODULE qs_tddfpt_utils
                                               cp_fm_trace
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_submatrix, cp_fm_init_random, cp_fm_p_type, cp_fm_release, &
-        cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_submatrix,&
+                                              cp_fm_init_random,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_set_submatrix,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE kinds,                           ONLY: dp
@@ -276,12 +281,12 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: nhomos, nlumos, nrows
       REAL(KIND=dp)                                      :: contribution, summed_contributions
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: homo_coeff_col, lumo_coeff_col
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: S_lumos
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: S_lumos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(tddfpt_control_type)                          :: t_control
 
-      NULLIFY (S_lumos, matrix_s, dft_control)
+      NULLIFY (matrix_s, dft_control)
       output_unit = cp_logger_get_default_io_unit()
       CALL get_qs_env(qs_env, matrix_s=matrix_s, dft_control=dft_control)
 
@@ -298,11 +303,10 @@ CONTAINS
          nrows(spin) = t_control%lumos(spin)%matrix_struct%nrow_global
          nhomos(spin) = t_env%evecs(1, spin)%matrix_struct%ncol_global
          nlumos(spin) = t_control%lumos(spin)%matrix_struct%ncol_global
-         ALLOCATE (S_lumos(spin)%matrix)
-         CALL cp_fm_create(S_lumos(spin)%matrix, t_control%lumos(spin)%matrix_struct, &
+         CALL cp_fm_create(S_lumos(spin), t_control%lumos(spin)%matrix_struct, &
                            "S times lumos")
          CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, t_control%lumos(spin), &
-                                      S_lumos(spin)%matrix, nlumos(spin), 1.0_dp, 0.0_dp)
+                                      S_lumos(spin), nlumos(spin), 1.0_dp, 0.0_dp)
       END DO
 
       ALLOCATE (homo_coeff_col(MAXVAL(nrows(1:n_spins)), 1), &
@@ -325,7 +329,7 @@ CONTAINS
                CALL cp_fm_get_submatrix(t_env%evecs(i, spin), homo_coeff_col, &
                                         1, occ, nrows(spin), 1)
                DO virt = 1, nlumos(spin)
-                  CALL cp_fm_get_submatrix(S_lumos(spin)%matrix, lumo_coeff_col, &
+                  CALL cp_fm_get_submatrix(S_lumos(spin), lumo_coeff_col, &
                                            1, virt, nrows(spin), 1)
                   contribution = 0.0_dp
                   DO j = 1, nrows(spin)
@@ -350,8 +354,7 @@ CONTAINS
       END IF
 
       DO spin = 1, n_spins
-         CALL cp_fm_release(S_lumos(spin)%matrix)
-         DEALLOCATE (S_lumos(spin)%matrix)
+         CALL cp_fm_release(S_lumos(spin))
       END DO
       DEALLOCATE (homo_coeff_col, lumo_coeff_col)
 

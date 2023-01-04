@@ -301,8 +301,7 @@ CONTAINS
    SUBROUTINE tddfpt_compute_Aop_evects(Aop_evects, evects, S_evects, gs_mos, tddfpt_control, &
                                         matrix_ks, qs_env, kernel_env, &
                                         sub_env, work_matrices)
-      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: Aop_evects
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: evects, S_evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: Aop_evects, evects, S_evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
@@ -385,7 +384,7 @@ CONTAINS
             ! No kernel
             DO ivect = 1, nvects
                DO ispin = 1, nspins
-                  CALL cp_fm_set_all(Aop_evects(ispin, ivect)%matrix, 0.0_dp)
+                  CALL cp_fm_set_all(Aop_evects(ispin, ivect), 0.0_dp)
                END DO
             END DO
          ELSE
@@ -397,14 +396,14 @@ CONTAINS
                DO ispin = 1, nspins
                   ASSOCIATE (Aop_evect => Aop_evects(ispin, ivect), &
                              work_matrix => work_matrices%Aop_evects_sub(ispin, ivect))
-                  IF (ASSOCIATED(Aop_evect%matrix)) THEN
-                  IF (ASSOCIATED(work_matrix%matrix)) THEN
-                     CALL cp_fm_copy_general(work_matrix%matrix, Aop_evect%matrix, para_env)
+                  IF (ASSOCIATED(Aop_evect%matrix_struct)) THEN
+                  IF (ASSOCIATED(work_matrix%matrix_struct)) THEN
+                     CALL cp_fm_copy_general(work_matrix, Aop_evect, para_env)
                   ELSE
-                     CALL cp_fm_copy_general(fm_dummy, Aop_evect%matrix, para_env)
+                     CALL cp_fm_copy_general(fm_dummy, Aop_evect, para_env)
                   END IF
-                  ELSE IF (ASSOCIATED(work_matrix%matrix)) THEN
-                  CALL cp_fm_copy_general(work_matrix%matrix, fm_dummy, para_env)
+                  ELSE IF (ASSOCIATED(work_matrix%matrix_struct)) THEN
+                  CALL cp_fm_copy_general(work_matrix, fm_dummy, para_env)
                   ELSE
                   CALL cp_fm_copy_general(fm_dummy, fm_dummy, para_env)
                   END IF
@@ -462,8 +461,7 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: ritz_vects
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: Aop_ritz
       REAL(kind=dp), DIMENSION(:), INTENT(out)           :: evals
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: krylov_vects
-      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: Aop_krylov
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: krylov_vects, Aop_krylov
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: Atilde
       INTEGER, INTENT(IN)                                :: nkvo, nkvn
 
@@ -538,7 +536,7 @@ CONTAINS
                CALL cp_fm_scale_and_add(1.0_dp, ritz_vects(ispin, irv), &
                                         act, krylov_vects(ispin, ikv))
                CALL cp_fm_scale_and_add(1.0_dp, Aop_ritz(ispin, irv)%matrix, &
-                                        act, Aop_krylov(ispin, ikv)%matrix)
+                                        act, Aop_krylov(ispin, ikv))
             END DO
          END DO
       END DO
@@ -708,8 +706,8 @@ CONTAINS
       REAL(kind=dp)                                      :: t1, t2
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals_last
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: Atilde
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: Aop_krylov, Aop_ritz
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: krylov_vects, S_krylov
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: Aop_ritz
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: Aop_krylov, krylov_vects, S_krylov
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
 
       CALL timeset(routineN, handle)
@@ -743,11 +741,6 @@ CONTAINS
       ALLOCATE (evals_last(max_krylov_vects))
       ALLOCATE (Aop_krylov(nspins, max_krylov_vects), krylov_vects(nspins, max_krylov_vects), &
                 S_krylov(nspins, max_krylov_vects))
-      DO istate = 1, max_krylov_vects
-         DO ispin = 1, nspins
-            NULLIFY (Aop_krylov(ispin, istate)%matrix)
-         END DO
-      END DO
 
       DO istate = 1, nstates
          DO ispin = 1, nspins
@@ -757,8 +750,7 @@ CONTAINS
             CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, S_krylov(ispin, istate))
             CALL cp_fm_to_fm(S_evects(ispin, istate), S_krylov(ispin, istate))
 
-            ALLOCATE (Aop_krylov(ispin, istate)%matrix)
-            CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, Aop_krylov(ispin, istate)%matrix)
+            CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, Aop_krylov(ispin, istate))
          END DO
       END DO
 
@@ -802,13 +794,12 @@ CONTAINS
             ! compute residual vectors for the next iteration
             DO istate = 1, nvects_new
                DO ispin = 1, nspins
-                  ALLOCATE (Aop_krylov(ispin, nvects_exist + istate)%matrix)
                   CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, &
                                          krylov_vects(ispin, nvects_exist + istate))
                   CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, &
                                          S_krylov(ispin, nvects_exist + istate))
                   CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, &
-                                         Aop_krylov(ispin, nvects_exist + istate)%matrix)
+                                         Aop_krylov(ispin, nvects_exist + istate))
                END DO
             END DO
 
@@ -870,8 +861,7 @@ CONTAINS
 
       DO istate = nvects_exist + nvects_new, 1, -1
          DO ispin = nspins, 1, -1
-            CALL fm_pool_give_back_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, Aop_krylov(ispin, istate)%matrix)
-            DEALLOCATE (Aop_krylov(ispin, istate)%matrix)
+            CALL fm_pool_give_back_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, Aop_krylov(ispin, istate))
             CALL fm_pool_give_back_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, S_krylov(ispin, istate))
             CALL fm_pool_give_back_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, krylov_vects(ispin, istate))
          END DO

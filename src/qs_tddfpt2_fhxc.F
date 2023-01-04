@@ -15,7 +15,6 @@ MODULE qs_tddfpt2_fhxc
                                               cp_dbcsr_sm_fm_multiply
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -99,8 +98,7 @@ CONTAINS
    SUBROUTINE fhxc_kernel(Aop_evects, evects, is_rks_triplets, &
                           do_hfx, do_admm, qs_env, kernel_env, kernel_env_admm_aux, &
                           sub_env, work_matrices, admm_symm, admm_xc_correction, do_lrigpw)
-      TYPE(cp_fm_p_type), DIMENSION(:, :)                :: Aop_evects
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: Aop_evects, evects
       LOGICAL, INTENT(in)                                :: is_rks_triplets, do_hfx, do_admm
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(full_kernel_env_type), POINTER                :: kernel_env, kernel_env_admm_aux
@@ -446,14 +444,14 @@ CONTAINS
             DO ispin = 1, nspins
                CALL cp_dbcsr_sm_fm_multiply(work_matrices%A_ia_munu_sub(ispin)%matrix, &
                                             sub_env%mos_occ(ispin)%matrix, &
-                                            work_matrices%Aop_evects_sub(ispin, ivect)%matrix, &
+                                            work_matrices%Aop_evects_sub(ispin, ivect), &
                                             ncol=nactive(ispin), alpha=1.0_dp, beta=0.0_dp)
             END DO
          ELSE
             DO ispin = 1, nspins
                CALL cp_dbcsr_sm_fm_multiply(work_matrices%A_ia_munu_sub(ispin)%matrix, &
                                             sub_env%mos_occ(ispin)%matrix, &
-                                            Aop_evects(ispin, ivect)%matrix, &
+                                            Aop_evects(ispin, ivect), &
                                             ncol=nactive(ispin), alpha=1.0_dp, beta=0.0_dp)
             END DO
          END IF
@@ -481,8 +479,7 @@ CONTAINS
                           qs_env, stda_control, stda_env, &
                           sub_env, work_matrices)
 
-      TYPE(cp_fm_p_type), DIMENSION(:, :)                :: Aop_evects
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: Aop_evects, evects
       LOGICAL, INTENT(in)                                :: is_rks_triplets
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(stda_control_type)                            :: stda_control
