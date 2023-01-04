@@ -1181,16 +1181,15 @@ CONTAINS
                              nfullrows_total=nrow_wmat, nfullcols_total=ncol_wmat)
          ! MO Coefficients
          DO ispin = 1, nspins
-            CALL cp_fm_get_info(dft_control%qs_control%cdft_control%mo_coeff(ispin)%matrix, &
+            CALL cp_fm_get_info(dft_control%qs_control%cdft_control%mo_coeff(ispin), &
                                 ncol_global=ncol_mo(ispin), nrow_global=nrow_mo(ispin))
             CALL cp_fm_create(matrix=mo_coeff_tmp(iforce_eval, ispin), &
-                              matrix_struct=dft_control%qs_control%cdft_control%mo_coeff(ispin)%matrix%matrix_struct, &
+                              matrix_struct=dft_control%qs_control%cdft_control%mo_coeff(ispin)%matrix_struct, &
                               name="MO_COEFF_"//TRIM(ADJUSTL(cp_to_string(iforce_eval)))//"_" &
                               //TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
-            CALL cp_fm_to_fm(dft_control%qs_control%cdft_control%mo_coeff(ispin)%matrix, &
+            CALL cp_fm_to_fm(dft_control%qs_control%cdft_control%mo_coeff(ispin), &
                              mo_coeff_tmp(iforce_eval, ispin))
-            CALL cp_fm_release(dft_control%qs_control%cdft_control%mo_coeff(ispin)%matrix)
-            DEALLOCATE (dft_control%qs_control%cdft_control%mo_coeff(ispin)%matrix)
+            CALL cp_fm_release(dft_control%qs_control%cdft_control%mo_coeff(ispin))
          END DO
          DEALLOCATE (dft_control%qs_control%cdft_control%mo_coeff)
          ! Matrix representation(s) of the weight function(s) (dbcsr -> fm)

@@ -13,7 +13,7 @@
 ! **************************************************************************************************
 MODULE qs_cdft_types
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
-   USE cp_fm_types,                     ONLY: cp_fm_p_type
+   USE cp_fm_types,                     ONLY: cp_fm_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE hirshfeld_types,                 ONLY: hirshfeld_type,&
                                               release_hirshfeld_type
@@ -243,7 +243,7 @@ MODULE qs_cdft_types
          DIMENSION(:)                      :: group
       TYPE(cp_1d_r_p_type), ALLOCATABLE, &
          DIMENSION(:)                      :: occupations
-      TYPE(cp_fm_p_type), DIMENSION(:), &
+      TYPE(cp_fm_type), DIMENSION(:), &
          POINTER                           :: mo_coeff
       TYPE(dbcsr_p_type)                   :: matrix_s
       TYPE(dbcsr_p_type), DIMENSION(:), &
