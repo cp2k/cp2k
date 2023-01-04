@@ -21,7 +21,7 @@ MODULE qs_tddfpt2_eigensolver
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
         cp_fm_copy_general, cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_maxabsval, &
-        cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
+        cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_type
    USE cp_output_handling,              ONLY: cp_iterate
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -458,8 +458,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tddfpt_compute_ritz_vects(ritz_vects, Aop_ritz, evals, krylov_vects, Aop_krylov, &
                                         Atilde, nkvo, nkvn)
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: ritz_vects
-      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: Aop_ritz
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: ritz_vects, Aop_ritz
       REAL(kind=dp), DIMENSION(:), INTENT(out)           :: evals
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: krylov_vects, Aop_krylov
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: Atilde
@@ -527,7 +526,7 @@ CONTAINS
       DO irv = 1, nrvs
          DO ispin = 1, nspins
             CALL cp_fm_set_all(ritz_vects(ispin, irv), 0.0_dp)
-            CALL cp_fm_set_all(Aop_ritz(ispin, irv)%matrix, 0.0_dp)
+            CALL cp_fm_set_all(Aop_ritz(ispin, irv), 0.0_dp)
          END DO
 
          DO ikv = 1, nkvs
@@ -535,7 +534,7 @@ CONTAINS
             DO ispin = 1, nspins
                CALL cp_fm_scale_and_add(1.0_dp, ritz_vects(ispin, irv), &
                                         act, krylov_vects(ispin, ikv))
-               CALL cp_fm_scale_and_add(1.0_dp, Aop_ritz(ispin, irv)%matrix, &
+               CALL cp_fm_scale_and_add(1.0_dp, Aop_ritz(ispin, irv), &
                                         act, Aop_krylov(ispin, ikv))
             END DO
          END DO
@@ -564,8 +563,7 @@ CONTAINS
                                             matrix_s)
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: residual_vects
       REAL(kind=dp), DIMENSION(:), INTENT(in)            :: evals
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: ritz_vects
-      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: Aop_ritz
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: ritz_vects, Aop_ritz
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       TYPE(dbcsr_type), POINTER                          :: matrix_s
@@ -617,7 +615,7 @@ CONTAINS
                ! awork := Ab(ispin, irv) - evals(irv) b(ispin, irv), where 'b' is a Ritz vector
                CALL cp_dbcsr_sm_fm_multiply(matrix_s, ritz_vects(ispin, irv), awork(ispin), &
                                             ncol=nactive(ispin), alpha=-lambda, beta=0.0_dp)
-               CALL cp_fm_scale_and_add(1.0_dp, awork(ispin), 1.0_dp, Aop_ritz(ispin, irv)%matrix)
+               CALL cp_fm_scale_and_add(1.0_dp, awork(ispin), 1.0_dp, Aop_ritz(ispin, irv))
                !
                CALL parallel_gemm('T', 'N', nmo_virt(ispin), nactive(ispin), nao, 1.0_dp, gs_mos(ispin)%mos_virt, &
                                   awork(ispin), 0.0_dp, vomat(ispin))
@@ -706,8 +704,8 @@ CONTAINS
       REAL(kind=dp)                                      :: t1, t2
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals_last
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: Atilde
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: Aop_ritz
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: Aop_krylov, krylov_vects, S_krylov
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: Aop_krylov, Aop_ritz, krylov_vects, &
+                                                            S_krylov
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
 
       CALL timeset(routineN, handle)
@@ -733,8 +731,7 @@ CONTAINS
       ALLOCATE (Aop_ritz(nspins, nstates))
       DO istate = 1, nstates
          DO ispin = 1, nspins
-            ALLOCATE (Aop_ritz(ispin, istate)%matrix)
-            CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, Aop_ritz(ispin, istate)%matrix)
+            CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, Aop_ritz(ispin, istate))
          END DO
       END DO
 
@@ -871,8 +868,7 @@ CONTAINS
 
       DO istate = nstates, 1, -1
          DO ispin = nspins, 1, -1
-            CALL fm_pool_give_back_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, Aop_ritz(ispin, istate)%matrix)
-            DEALLOCATE (Aop_ritz(ispin, istate)%matrix)
+            CALL fm_pool_give_back_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, Aop_ritz(ispin, istate))
          END DO
       END DO
       DEALLOCATE (Aop_ritz)
