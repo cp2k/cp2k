@@ -3315,17 +3315,6 @@ CONTAINS
             ncore(1, 3) = 6
             ncore(2, 1) = 10
             ncore(2, 2) = 10
-         CASE (47)
-            ncore(0, 1) = 2
-            ncore(0, 2) = 2
-            ncore(0, 3) = 2
-            ncore(0, 4) = 2
-            ncore(1, 1) = 6
-            ncore(1, 2) = 6
-            ncore(1, 3) = 6
-            ncore(2, 1) = 10
-            ncore(2, 2) = 10
-            ncore(3, 1) = 1
          CASE (54)
             ncore(0, 1) = 2
             ncore(0, 2) = 2
@@ -3379,6 +3368,168 @@ CONTAINS
          CASE DEFAULT
             ncore(0, 1) = -1
          END SELECT
+         ! special cases of double assignments
+         IF (z == 65 .AND. econfx(3) == 0) THEN
+            ! 4f in core for Tb
+            ncore = 0
+            ncore(0, 1) = -1
+         END IF
+         ! if there is still no core, check for special cases
+         IF (ncore(0, 1) <= 0) THEN
+            IF (z >= 58 .AND. z <= 71) THEN
+               ! 4f-in-core PPs Lathanides
+               nc = z - SUM(econf)
+               ! setup ncore
+               ncore = 0
+               SELECT CASE (nc)
+               CASE (47)
+                  ncore(0, 1) = 2
+                  ncore(0, 2) = 2
+                  ncore(0, 3) = 2
+                  ncore(0, 4) = 2
+                  ncore(1, 1) = 6
+                  ncore(1, 2) = 6
+                  ncore(1, 3) = 6
+                  ncore(2, 1) = 10
+                  ncore(2, 2) = 10
+                  ncore(3, 1) = 1
+               CASE (48)
+                  ncore(0, 1) = 2
+                  ncore(0, 2) = 2
+                  ncore(0, 3) = 2
+                  ncore(0, 4) = 2
+                  ncore(1, 1) = 6
+                  ncore(1, 2) = 6
+                  ncore(1, 3) = 6
+                  ncore(2, 1) = 10
+                  ncore(2, 2) = 10
+                  ncore(3, 1) = 2
+               CASE (49)
+                  ncore(0, 1) = 2
+                  ncore(0, 2) = 2
+                  ncore(0, 3) = 2
+                  ncore(0, 4) = 2
+                  ncore(1, 1) = 6
+                  ncore(1, 2) = 6
+                  ncore(1, 3) = 6
+                  ncore(2, 1) = 10
+                  ncore(2, 2) = 10
+                  ncore(3, 1) = 3
+               CASE (50)
+                  ncore(0, 1) = 2
+                  ncore(0, 2) = 2
+                  ncore(0, 3) = 2
+                  ncore(0, 4) = 2
+                  ncore(1, 1) = 6
+                  ncore(1, 2) = 6
+                  ncore(1, 3) = 6
+                  ncore(2, 1) = 10
+                  ncore(2, 2) = 10
+                  ncore(3, 1) = 4
+               CASE (51)
+                  ncore(0, 1) = 2
+                  ncore(0, 2) = 2
+                  ncore(0, 3) = 2
+                  ncore(0, 4) = 2
+                  ncore(1, 1) = 6
+                  ncore(1, 2) = 6
+                  ncore(1, 3) = 6
+                  ncore(2, 1) = 10
+                  ncore(2, 2) = 10
+                  ncore(3, 1) = 5
+               CASE (52)
+                  ncore(0, 1) = 2
+                  ncore(0, 2) = 2
+                  ncore(0, 3) = 2
+                  ncore(0, 4) = 2
+                  ncore(1, 1) = 6
+                  ncore(1, 2) = 6
+                  ncore(1, 3) = 6
+                  ncore(2, 1) = 10
+                  ncore(2, 2) = 10
+                  ncore(3, 1) = 6
+               CASE (53)
+                  ncore(0, 1) = 2
+                  ncore(0, 2) = 2
+                  ncore(0, 3) = 2
+                  ncore(0, 4) = 2
+                  ncore(1, 1) = 6
+                  ncore(1, 2) = 6
+                  ncore(1, 3) = 6
+                  ncore(2, 1) = 10
+                  ncore(2, 2) = 10
+                  ncore(3, 1) = 7
+               CASE (54)
+                  ncore(0, 1) = 2
+                  ncore(0, 2) = 2
+                  ncore(0, 3) = 2
+                  ncore(0, 4) = 2
+                  ncore(1, 1) = 6
+                  ncore(1, 2) = 6
+                  ncore(1, 3) = 6
+                  ncore(2, 1) = 10
+                  ncore(2, 2) = 10
+                  ncore(3, 1) = 8
+               CASE (55)
+                  ncore(0, 1) = 2
+                  ncore(0, 2) = 2
+                  ncore(0, 3) = 2
+                  ncore(0, 4) = 2
+                  ncore(1, 1) = 6
+                  ncore(1, 2) = 6
+                  ncore(1, 3) = 6
+                  ncore(2, 1) = 10
+                  ncore(2, 2) = 10
+                  ncore(3, 1) = 9
+               CASE (56)
+                  ncore(0, 1) = 2
+                  ncore(0, 2) = 2
+                  ncore(0, 3) = 2
+                  ncore(0, 4) = 2
+                  ncore(1, 1) = 6
+                  ncore(1, 2) = 6
+                  ncore(1, 3) = 6
+                  ncore(2, 1) = 10
+                  ncore(2, 2) = 10
+                  ncore(3, 1) = 10
+               CASE (57)
+                  ncore(0, 1) = 2
+                  ncore(0, 2) = 2
+                  ncore(0, 3) = 2
+                  ncore(0, 4) = 2
+                  ncore(1, 1) = 6
+                  ncore(1, 2) = 6
+                  ncore(1, 3) = 6
+                  ncore(2, 1) = 10
+                  ncore(2, 2) = 10
+                  ncore(3, 1) = 11
+               CASE (58)
+                  ncore(0, 1) = 2
+                  ncore(0, 2) = 2
+                  ncore(0, 3) = 2
+                  ncore(0, 4) = 2
+                  ncore(1, 1) = 6
+                  ncore(1, 2) = 6
+                  ncore(1, 3) = 6
+                  ncore(2, 1) = 10
+                  ncore(2, 2) = 10
+                  ncore(3, 1) = 12
+               CASE (59)
+                  ncore(0, 1) = 2
+                  ncore(0, 2) = 2
+                  ncore(0, 3) = 2
+                  ncore(0, 4) = 2
+                  ncore(1, 1) = 6
+                  ncore(1, 2) = 6
+                  ncore(1, 3) = 6
+                  ncore(2, 1) = 10
+                  ncore(2, 2) = 10
+                  ncore(3, 1) = 13
+               CASE DEFAULT
+                  ncore(0, 1) = -1
+               END SELECT
+            END IF
+         END IF
          ! if the core is established, finish the setup
          IF (ncore(0, 1) >= 0) THEN
             DO l = 0, lmin
