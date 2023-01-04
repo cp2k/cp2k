@@ -87,11 +87,6 @@ MODULE message_passing
 
    ! parameters that might be needed
 #if defined(__parallel)
-   MPI_DATA_TYPE, PARAMETER     :: MP_STD_REAL = MPI_DOUBLE_PRECISION
-   MPI_DATA_TYPE, PARAMETER     :: MP_STD_COMPLEX = MPI_DOUBLE_COMPLEX
-   MPI_DATA_TYPE, PARAMETER     :: MP_STD_HALF_REAL = MPI_REAL
-   MPI_DATA_TYPE, PARAMETER     :: MP_STD_HALF_COMPLEX = MPI_COMPLEX
-
    LOGICAL, PARAMETER :: cp2k_is_parallel = .TRUE.
    INTEGER, PARAMETER, PUBLIC :: mp_any_tag = MPI_ANY_TAG
    INTEGER, PARAMETER, PUBLIC :: mp_any_source = MPI_ANY_SOURCE
