@@ -35,7 +35,6 @@ MODULE qs_linres_current
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -201,10 +200,10 @@ CONTAINS
       REAL(dp), EXTERNAL                                 :: DDOT
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER        :: center_list
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: p_psi1, psi1
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: p_psi1, psi1
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: psi0_order
       TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: psi1_D, psi1_p, psi1_rxp
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, psi_a_iB, psi_buf
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
@@ -231,8 +230,8 @@ CONTAINS
       NULLIFY (logger, current_section, density_matrix0, density_matrix_a, &
                density_matrix_ii, density_matrix_iii, cell, dft_control, mos, &
                particle_set, pw_env, auxbas_rs_desc, auxbas_pw_pool, &
-               para_env, center_list, mo_coeff, psi_a_iB, jrho1_r, jrho1_g, &
-               psi1, p_psi1, psi1_p, psi1_D, psi1_rxp, sab_all, qs_kind_set)
+               para_env, center_list, mo_coeff, jrho1_r, jrho1_g, &
+               psi1_p, psi1_D, psi1_rxp, sab_all, qs_kind_set)
 
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
@@ -270,11 +269,10 @@ CONTAINS
       ! allocate temporary arrays
       ALLOCATE (psi1(nspins), p_psi1(nspins))
       DO ispin = 1, nspins
-         ALLOCATE (psi1(ispin)%matrix, p_psi1(ispin)%matrix)
-         CALL cp_fm_create(psi1(ispin)%matrix, psi0_order(ispin)%matrix_struct)
-         CALL cp_fm_create(p_psi1(ispin)%matrix, psi0_order(ispin)%matrix_struct)
-         CALL cp_fm_set_all(psi1(ispin)%matrix, 0.0_dp)
-         CALL cp_fm_set_all(p_psi1(ispin)%matrix, 0.0_dp)
+         CALL cp_fm_create(psi1(ispin), psi0_order(ispin)%matrix_struct)
+         CALL cp_fm_create(p_psi1(ispin), psi0_order(ispin)%matrix_struct)
+         CALL cp_fm_set_all(psi1(ispin), 0.0_dp)
+         CALL cp_fm_set_all(p_psi1(ispin), 0.0_dp)
       END DO
       !
       !
@@ -353,48 +351,48 @@ CONTAINS
          ! Construct the 3 density matrices for the field in direction iB
          !
          ! First the full matrix psi_a_iB
-         psi_a_iB => psi1(ispin)%matrix
-         psi_buf => p_psi1(ispin)%matrix
-         CALL cp_fm_set_all(psi_a_iB, 0.0_dp)
-         CALL cp_fm_set_all(psi_buf, 0.0_dp)
-         ! psi_a_iB = - (R_\nu-dk)_ii psi1_piiiB + (R_\nu-dk)_iii psi1_piiB
-         !
-         ! contributions from the response psi1_p_ii and psi1_p_iii
-         DO istate = 1, current_env%nbr_center(ispin)
-            dk(1:3) = current_env%centers_set(ispin)%array(1:3, istate)
+         ASSOCIATE (psi_a_iB => psi1(ispin), psi_buf => p_psi1(ispin))
+            CALL cp_fm_set_all(psi_a_iB, 0.0_dp)
+            CALL cp_fm_set_all(psi_buf, 0.0_dp)
+            ! psi_a_iB = - (R_\nu-dk)_ii psi1_piiiB + (R_\nu-dk)_iii psi1_piiB
             !
-            ! Copy the vector in the full matrix psi1
-            !nstate_loc = center_list(ispin)%array(1,icenter+1)-center_list(ispin)%array(1,icenter)
-            DO j = center_list(ispin)%array(1, istate), center_list(ispin)%array(1, istate + 1) - 1
-               jstate = center_list(ispin)%array(2, j)
-               CALL cp_fm_to_fm(psi1_p(ispin, iiB), psi_a_iB, 1, jstate, jstate)
-               CALL cp_fm_to_fm(psi1_p(ispin, iiiB), psi_buf, 1, jstate, jstate)
-               ddk(:, jstate) = dk(1:3)
-            END DO
-         END DO ! istate
-         CALL fm_scale_by_pbc_AC(psi_a_iB, current_env%basisfun_center, ddk, cell, iiiB)
-         CALL fm_scale_by_pbc_AC(psi_buf, current_env%basisfun_center, ddk, cell, iiB)
-         CALL cp_fm_scale_and_add(-1.0_dp, psi_a_iB, 1.0_dp, psi_buf)
-         !
-         !psi_a_iB = psi_a_iB + psi1_rxp
-         !
-         ! contribution from the response psi1_rxp
-         CALL cp_fm_scale_and_add(-1.0_dp, psi_a_iB, 1.0_dp, psi1_rxp(ispin, iB))
-         !
-         !psi_a_iB = psi_a_iB - psi1_D
-         IF (current_env%full) THEN
+            ! contributions from the response psi1_p_ii and psi1_p_iii
+            DO istate = 1, current_env%nbr_center(ispin)
+               dk(1:3) = current_env%centers_set(ispin)%array(1:3, istate)
+               !
+               ! Copy the vector in the full matrix psi1
+               !nstate_loc = center_list(ispin)%array(1,icenter+1)-center_list(ispin)%array(1,icenter)
+               DO j = center_list(ispin)%array(1, istate), center_list(ispin)%array(1, istate + 1) - 1
+                  jstate = center_list(ispin)%array(2, j)
+                  CALL cp_fm_to_fm(psi1_p(ispin, iiB), psi_a_iB, 1, jstate, jstate)
+                  CALL cp_fm_to_fm(psi1_p(ispin, iiiB), psi_buf, 1, jstate, jstate)
+                  ddk(:, jstate) = dk(1:3)
+               END DO
+            END DO ! istate
+            CALL fm_scale_by_pbc_AC(psi_a_iB, current_env%basisfun_center, ddk, cell, iiiB)
+            CALL fm_scale_by_pbc_AC(psi_buf, current_env%basisfun_center, ddk, cell, iiB)
+            CALL cp_fm_scale_and_add(-1.0_dp, psi_a_iB, 1.0_dp, psi_buf)
             !
-            ! contribution from the response psi1_D
-            CALL cp_fm_scale_and_add(1.0_dp, psi_a_iB, -1.0_dp, psi1_D(ispin, iB))
-         END IF
-         !
-         ! Multiply by the occupation number for the density matrix
-         !
-         ! Build the first density matrix
-         CALL dbcsr_set(density_matrix_a(ispin)%matrix, 0.0_dp)
-         CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_a(ispin)%matrix, &
-                                    matrix_v=mo_coeff, matrix_g=psi_a_iB, &
-                                    ncol=nmo, alpha=maxocc)
+            !psi_a_iB = psi_a_iB + psi1_rxp
+            !
+            ! contribution from the response psi1_rxp
+            CALL cp_fm_scale_and_add(-1.0_dp, psi_a_iB, 1.0_dp, psi1_rxp(ispin, iB))
+            !
+            !psi_a_iB = psi_a_iB - psi1_D
+            IF (current_env%full) THEN
+               !
+               ! contribution from the response psi1_D
+               CALL cp_fm_scale_and_add(1.0_dp, psi_a_iB, -1.0_dp, psi1_D(ispin, iB))
+            END IF
+            !
+            ! Multiply by the occupation number for the density matrix
+            !
+            ! Build the first density matrix
+            CALL dbcsr_set(density_matrix_a(ispin)%matrix, 0.0_dp)
+            CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_a(ispin)%matrix, &
+                                       matrix_v=mo_coeff, matrix_g=psi_a_iB, &
+                                       ncol=nmo, alpha=maxocc)
+         END ASSOCIATE
          !
          ! Build the second density matrix
          CALL dbcsr_set(density_matrix_iii(ispin)%matrix, 0.0_dp)
@@ -527,9 +525,8 @@ CONTAINS
       !
       ! Dellocate grids for the calculation of jrho and the shift
       DO ispin = 1, nspins
-         CALL cp_fm_release(psi1(ispin)%matrix)
-         CALL cp_fm_release(p_psi1(ispin)%matrix)
-         DEALLOCATE (psi1(ispin)%matrix, p_psi1(ispin)%matrix)
+         CALL cp_fm_release(psi1(ispin))
+         CALL cp_fm_release(p_psi1(ispin))
       END DO
       DEALLOCATE (psi1, p_psi1)
 
