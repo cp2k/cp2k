@@ -81,8 +81,7 @@ MODULE almo_scf
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE mathlib,                         ONLY: binomial
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_comm_type
    USE molecule_types,                  ONLY: get_molecule_set_info,&
                                               molecule_type
    USE mscfg_types,                     ONLY: get_matrix_from_submatrices,&
@@ -2036,7 +2035,7 @@ CONTAINS
                                 nfullrows_total=Nrows, &
                                 nfullcols_total=Ncols)
             CALL para_group%set_handle(para_group_handle)
-            CALL mp_sum(retained(ispin), para_group)
+            CALL para_group%sum(retained(ispin))
 
             !devide by the total no. elements
             occ(ispin) = retained(ispin)/Nrows/Ncols

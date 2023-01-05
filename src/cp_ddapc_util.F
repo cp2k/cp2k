@@ -40,7 +40,6 @@ MODULE cp_ddapc_util
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: pi
-   USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -313,7 +312,7 @@ CONTAINS
       ch_dens = 0.0_dp
       ! should use pw_integrate
       IF (rho_tot_g%pw_grid%have_g0) ch_dens = REAL(rho_tot_g%cc(1), KIND=dp)
-      CALL mp_sum(ch_dens, logger%para_env%group)
+      CALL logger%para_env%group%sum(ch_dens)
       !
       ! Get Input Parameters
       !
@@ -354,7 +353,7 @@ CONTAINS
       cv(:) = 1.0_dp/Vol
       CALL build_b_vector(bv, cp_ddapc_env%gfunc, cp_ddapc_env%w, &
                           particle_set, radii, rho_tot_g, gcut); bv(:) = bv(:)/Vol
-      CALL mp_sum(bv, rho_tot_g%pw_grid%para%group)
+      CALL rho_tot_g%pw_grid%para%group%sum(bv)
       c1 = DOT_PRODUCT(cv, MATMUL(cp_ddapc_env%AmI, bv)) - ch_dens
       c1 = c1/cp_ddapc_env%c0
       qv(:) = -MATMUL(cp_ddapc_env%AmI, (bv - c1*cv))
@@ -717,11 +716,11 @@ CONTAINS
          particle_set(iparticle)%r(i) = rvec(i) + dx
          CALL build_b_vector(bv1, cp_ddapc_env%gfunc, cp_ddapc_env%w, &
                              particle_set, radii, rho_tot_g, gcut); bv1(:) = bv1(:)/Vol
-         CALL mp_sum(bv1, rho_tot_g%pw_grid%para%group)
+         CALL rho_tot_g%pw_grid%para%group%sum(bv1)
          particle_set(iparticle)%r(i) = rvec(i) - dx
          CALL build_b_vector(bv2, cp_ddapc_env%gfunc, cp_ddapc_env%w, &
                              particle_set, radii, rho_tot_g, gcut); bv2(:) = bv2(:)/Vol
-         CALL mp_sum(bv2, rho_tot_g%pw_grid%para%group)
+         CALL rho_tot_g%pw_grid%para%group%sum(bv2)
          ddbv(:) = (bv1(:) - bv2(:))/(2.0_dp*dx)
          DO kk = 1, SIZE(ddbv)
             IF (ddbv(kk) .GT. 1.0E-8_dp) THEN
@@ -795,12 +794,12 @@ CONTAINS
          CALL build_A_matrix(Am1, cp_ddapc_env%gfunc, cp_ddapc_env%w, &
                              particle_set, radii, rho_tot_g, gcut, g_dot_rvec_sin, g_dot_rvec_cos)
          Am1(:, :) = Am1(:, :)/(Vol*Vol)
-         CALL mp_sum(Am1, rho_tot_g%pw_grid%para%group)
+         CALL rho_tot_g%pw_grid%para%group%sum(Am1)
          particle_set(iparticle)%r(i) = rvec(i) - dx
          CALL build_A_matrix(Am2, cp_ddapc_env%gfunc, cp_ddapc_env%w, &
                              particle_set, radii, rho_tot_g, gcut, g_dot_rvec_sin, g_dot_rvec_cos)
          Am2(:, :) = Am2(:, :)/(Vol*Vol)
-         CALL mp_sum(Am2, rho_tot_g%pw_grid%para%group)
+         CALL rho_tot_g%pw_grid%para%group%sum(Am2)
          ddAm(:, :) = (Am1 - Am2)/(2.0_dp*dx)
          DO kk = 1, SIZE(ddAm, 1)
             DO ll = 1, SIZE(ddAm, 2)

@@ -25,8 +25,7 @@ MODULE cp_blacs_env
    USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: gcd
    USE message_passing,                 ONLY: mp_comm_null,&
-                                              mp_comm_type,&
-                                              mp_sum
+                                              mp_comm_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -240,7 +239,7 @@ CONTAINS
       CPASSERT(stat == 0)
       blacs_env%blacs2mpi = 0
       blacs_env%blacs2mpi(blacs_env%mepos(1), blacs_env%mepos(2)) = para_env%mepos
-      CALL mp_sum(blacs_env%blacs2mpi, para_env%group)
+      CALL para_env%group%sum(blacs_env%blacs2mpi)
       ALLOCATE (blacs_env%mpi2blacs(2, 0:para_env%num_pe - 1))
       blacs_env%mpi2blacs = -1
       DO ipcol = 0, blacs_env%num_pe(2) - 1

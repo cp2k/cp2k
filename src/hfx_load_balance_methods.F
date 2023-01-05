@@ -26,13 +26,7 @@ MODULE hfx_load_balance_methods
                               hfx_do_eval_forces
    USE kinds, ONLY: dp, &
                     int_8
-   USE message_passing, ONLY: mp_allgather, &
-                              mp_gatherv, &
-                              mp_isendrecv, &
-                              mp_max, &
-                              mp_sum, &
-                              mp_sync, &
-                              mp_waitall, mp_request_type
+   USE message_passing, ONLY: mp_waitall, mp_request_type
    USE parallel_rng_types, ONLY: UNIFORM, &
                                  rng_stream_type
    USE particle_types, ONLY: particle_type
@@ -246,7 +240,7 @@ CONTAINS
             total_block_self_cost = total_block_self_cost + blocks_guess(i)%cost
          END DO
 
-         CALL mp_sum(total_block_self_cost, para_env%group)
+         CALL para_env%group%sum(total_block_self_cost)
 
          objective_block_size = load_balance_parameter%block_size
          objective_nblocks = MAX((natom + objective_block_size - 1)/objective_block_size, 1)
@@ -326,7 +320,7 @@ CONTAINS
          ALLOCATE (rcount(ncpu))
          rcount = 0
          rcount(para_env%mepos + 1) = non_empty_blocks
-         CALL mp_sum(rcount, para_env%group)
+         CALL para_env%group%sum(rcount)
 
          ! ** sum all non_empty_blocks
          total_blocks = 0
@@ -360,7 +354,7 @@ CONTAINS
          ALLOCATE (buffer_out(3*nblocks))
 
          ! ** Gather all three arrays
-         CALL mp_allgather(buffer_in, buffer_out, rcount, rdispl, para_env%group)
+         CALL para_env%group%allgatherv(buffer_in, buffer_out, rcount, rdispl)
 
          DO i = 1, nblocks
             tmp_blocks2(i)%istart = INT(buffer_out((i - 1)*3 + 1))
@@ -668,8 +662,8 @@ CONTAINS
 
 !$OMP BARRIER
 !$OMP MASTER
-         CALL mp_sum(shm_local_quartet_counter, para_env%group)
-         CALL mp_sum(shm_global_quartet_counter, para_env%group)
+         CALL para_env%group%sum(shm_local_quartet_counter)
+         CALL para_env%group%sum(shm_global_quartet_counter)
          IF (para_env%ionode) THEN
             IF (shm_local_quartet_counter /= shm_global_quartet_counter) THEN
                WRITE (error_msg, '(A,I0,A,I0,A)') "HFX Sanity check for parallel distribution failed. "// &
@@ -696,7 +690,7 @@ CONTAINS
 
 !$OMP MASTER
          ! sync before/after ring of isendrecv
-         CALL mp_sync(para_env%group)
+         CALL para_env%group%sync()
 
          ALLOCATE (sendbuffer(nbins*n_threads))
          ALLOCATE (recbuffer(nbins*n_threads))
@@ -707,8 +701,8 @@ CONTAINS
          source = MODULO(mepos - 1, ncpu)
          DO icpu = 0, ncpu - 1
             IF (icpu .NE. ncpu - 1) THEN
-               CALL mp_isendrecv(sendbuffer, dest, recbuffer, source, &
-                                 para_env%group, req(1), req(2), 13)
+               CALL para_env%group%isendrecv(sendbuffer, dest, recbuffer, source, &
+                                             req(1), req(2), 13)
             END IF
             data_from = MODULO(mepos - icpu, ncpu)
             cost_matrix(data_from*nbins*n_threads + 1:data_from*nbins*n_threads + nbins*n_threads) = sendbuffer
@@ -770,13 +764,13 @@ CONTAINS
          END DO
 
          ! sync before/after ring of isendrecv
-         CALL mp_sync(para_env%group)
+         CALL para_env%group%sync()
          dest = MODULO(mepos + 1, ncpu)
          source = MODULO(mepos - 1, ncpu)
          DO icpu = 0, ncpu - 1
             IF (icpu .NE. ncpu - 1) THEN
-               CALL mp_isendrecv(sendbuffer, dest, recbuffer, source, &
-                                 para_env%group, req(1), req(2), 13)
+               CALL para_env%group%isendrecv(sendbuffer, dest, recbuffer, source, &
+                                             req(1), req(2), 13)
             END IF
             data_from = MODULO(mepos - icpu, ncpu)
             DO j = 1, n_threads
@@ -797,7 +791,7 @@ CONTAINS
          DEALLOCATE (recbuffer, sendbuffer)
 
          ! sync before/after ring of isendrecv
-         CALL mp_sync(para_env%group)
+         CALL para_env%group%sync()
 !$OMP END MASTER
 !$OMP BARRIER
          !! reorder the distribution according to the distribution vector
@@ -1071,7 +1065,7 @@ CONTAINS
       ALLOCATE (local_cost_vector(n_processes))
       local_cost_vector = 0
       local_cost_vector(my_process_id + 1) = local_cost
-      CALL mp_sum(local_cost_vector, para_env%group)
+      CALL para_env%group%sum(local_cost_vector)
 
       mean = SUM(local_cost_vector)/n_processes
       maximum = MAXVAL(local_cost_vector)
@@ -1350,7 +1344,7 @@ CONTAINS
       END DO ! atom_block
 
 !   sum costvector over all processes
-      CALL mp_sum(cost_vector, para_env%group)
+      CALL para_env%group%sum(cost_vector)
 
 !   calculate next prime factor of nProc
       nBins = 2
@@ -1548,14 +1542,14 @@ CONTAINS
          bin_histogram(my_process_id + 1, 1) = my_bin_size
 !$OMP BARRIER
 !$OMP MASTER
-         CALL mp_sum(bin_histogram(:, 1), para_env%group)
+         CALL para_env%group%sum(bin_histogram(:, 1))
          bin_histogram(1, 2) = bin_histogram(1, 1)
          DO iprocess = 2, n_processes
             bin_histogram(iprocess, 2) = bin_histogram(iprocess - 1, 2) + bin_histogram(iprocess, 1)
          END DO
 
          max_bin_size = MAXVAL(bin_histogram(para_env%mepos*n_threads + 1:para_env%mepos*n_threads + n_threads, 1))
-         CALL mp_max(max_bin_size, para_env%group)
+         CALL para_env%group%max(max_bin_size)
 !$OMP END MASTER
 !$OMP BARRIER
          ALLOCATE (binned_dist(my_bin_size))
@@ -1613,11 +1607,11 @@ CONTAINS
          dest = MODULO(mepos + 1, ncpu)
          source = MODULO(mepos - 1, ncpu)
          ! sync before/after ring of isendrecv
-         CALL mp_sync(para_env%group)
+         CALL para_env%group%sync()
          DO icpu = 0, ncpu - 1
             IF (icpu .NE. ncpu - 1) THEN
-               CALL mp_isendrecv(sendbuffer, dest, recbuffer, source, &
-                                 para_env%group, req(1), req(2), 13)
+               CALL para_env%group%isendrecv(sendbuffer, dest, recbuffer, source, &
+                                             req(1), req(2), 13)
             END IF
             data_from = MODULO(mepos - icpu, ncpu)
             start_idx = SUM(bins_per_rank(1:data_from + 1)) - bins_per_rank(data_from + 1) + 1
@@ -1633,7 +1627,7 @@ CONTAINS
          END DO
          DEALLOCATE (recbuffer, sendbuffer)
          ! sync before/after ring of isendrecv
-         CALL mp_sync(para_env%group)
+         CALL para_env%group%sync()
 !$OMP END MASTER
 !$OMP BARRIER
          ALLOCATE (local_cost_matrix(SIZE(cost_matrix, 1)))
@@ -1671,11 +1665,11 @@ CONTAINS
          dest = MODULO(mepos + 1, ncpu)
          source = MODULO(mepos - 1, ncpu)
          ! sync before/after ring of isendrecv
-         CALL mp_sync(para_env%group)
+         CALL para_env%group%sync()
          DO icpu = 0, ncpu - 1
             IF (icpu .NE. ncpu - 1) THEN
-               CALL mp_isendrecv(sendbuffer, dest, recbuffer, source, &
-                                 para_env%group, req(1), req(2), 13)
+               CALL para_env%group%isendrecv(sendbuffer, dest, recbuffer, source, &
+                                             req(1), req(2), 13)
             END IF
             data_from = MODULO(mepos - icpu, ncpu)
             DO j = 1, n_threads
@@ -1695,7 +1689,7 @@ CONTAINS
          END DO
          ! sync before/after ring of isendrecv
          DEALLOCATE (recbuffer, sendbuffer)
-         CALL mp_sync(para_env%group)
+         CALL para_env%group%sync()
 !$OMP END MASTER
 !$OMP BARRIER
          !! reorder the distribution according to the distribution vector
@@ -2375,7 +2369,7 @@ CONTAINS
 
       bins_per_rank(my_rank + 1) = nbins
 
-      CALL mp_sum(bins_per_rank, para_env%group)
+      CALL para_env%group%sum(bins_per_rank)
 
       total_bins = 0
       DO i = 1, nranks
@@ -2424,7 +2418,7 @@ CONTAINS
          buffer_in(2*i) = shm_cost_vector(2*i)
       END DO
 
-      CALL mp_gatherv(buffer_in, buffer_out, bins_per_rank, rdispl, para_env%source, para_env%group)
+      CALL para_env%group%gatherv(buffer_in, buffer_out, bins_per_rank, rdispl, para_env%source)
 
       IF (iw > 0) THEN
 
@@ -2506,7 +2500,7 @@ CONTAINS
 
       DEALLOCATE (buffer_in, buffer_out, rdispl)
 
-      CALL mp_sync(para_env%group)
+      CALL para_env%group%sync()
 
       DEALLOCATE (shm_bins_per_rank, shm_displ, shm_cost_vector)
 !$OMP END MASTER

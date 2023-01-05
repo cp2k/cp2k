@@ -80,8 +80,6 @@ MODULE rpa_gw
                                               twopi,&
                                               z_one,&
                                               z_zero
-   USE message_passing,                 ONLY: mp_sum,&
-                                              mp_sync
    USE mp2_types,                       ONLY: mp2_type,&
                                               one_dim_real_array,&
                                               two_dim_int_array
@@ -516,7 +514,7 @@ CONTAINS
                           ncol_local=ncol_local, &
                           col_indices=col_indices)
 
-      CALL mp_sync(para_env%group)
+      CALL para_env%group%sync()
 
       ! loop over (nm) index
       DO iiB = 1, ncol_local
@@ -542,9 +540,9 @@ CONTAINS
 
       END DO
 
-      CALL mp_sync(para_env%group)
+      CALL para_env%group%sync()
 
-      CALL mp_sum(vec_Sigma_x_gw, para_env%group)
+      CALL para_env%group%sum(vec_Sigma_x_gw)
 
       vec_Sigma_x_minus_vxc_gw11(:) = &
          vec_Sigma_x_minus_vxc_gw11(:) + &
@@ -850,7 +848,7 @@ CONTAINS
                                           mp2_env%ri_g0w0%do_aux_bas_gw, mp2_env%ri_g0w0%frac_aux_mos)
          END IF
 
-         CALL mp_sync(para_env%group)
+         CALL para_env%group%sync()
 
          ! subtract 1 from the diagonal to get rid of exchange self-energy
 !$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
@@ -865,7 +863,7 @@ CONTAINS
             END DO
          END DO
 
-         CALL mp_sync(para_env%group)
+         CALL para_env%group%sync()
 
          DO ispin = 1, nspins
             CALL compute_GW_self_energy_deep(vec_Sigma_c_gw(:, :, :, ispin), dimen_nm_gw, dimen_RI, &
@@ -1336,10 +1334,10 @@ CONTAINS
          END IF
 
          IF (.NOT. do_im_time) THEN
-            CALL mp_sum(vec_Sigma_c_gw, para_env%group)
+            CALL para_env%group%sum(vec_Sigma_c_gw)
          END IF
 
-         CALL mp_sync(para_env%group)
+         CALL para_env%group%sync()
 
          stop_crit = 1.0e-7
          num_poles = mp2_env%ri_g0w0%num_poles
@@ -1417,9 +1415,9 @@ CONTAINS
 
             END DO ! n_level_gw
 
-            CALL mp_sum(vec_gw_energ, para_env%group)
-            CALL mp_sum(z_value, para_env%group)
-            CALL mp_sum(m_value, para_env%group)
+            CALL para_env%group%sum(vec_gw_energ)
+            CALL para_env%group%sum(z_value)
+            CALL para_env%group%sum(m_value)
 
             CALL check_NaN(vec_gw_energ, 0.0_dp)
             CALL check_NaN(z_value, 1.0_dp)
@@ -1788,7 +1786,7 @@ CONTAINS
 
       END DO
 
-      CALL mp_sum(P_head, para_env_RPA%group)
+      CALL para_env_RPA%group%sum(P_head)
 
       ! normalize eps_head
       ! 2.0_dp due to closed shell
@@ -2076,7 +2074,7 @@ CONTAINS
                              ncol_local=ncol_local, &
                              col_indices=col_indices)
 
-         CALL mp_sync(para_env%group)
+         CALL para_env%group%sync()
 
          ! multiply eigenvectors with inverse sqrt of eigenvalues
          DO i_col_local = 1, ncol_local
@@ -2088,7 +2086,7 @@ CONTAINS
 
          END DO
 
-         CALL mp_sync(para_env%group)
+         CALL para_env%group%sync()
 
          CALL parallel_gemm(transa="N", transb="T", m=nmo, n=nmo, k=nmo, alpha=1.0_dp, &
                             matrix_a=fm_mat_eigv_P, matrix_b=fm_mat_scaled_eigv_P, beta=0.0_dp, &
@@ -2521,13 +2519,13 @@ CONTAINS
 
       check_int_one_over_ksq = check_int_one_over_ksq/cell_volume
 
-      CALL mp_sum(delta_corr, para_env_RPA%group)
+      CALL para_env_RPA%group%sum(delta_corr)
 
       IF (do_extra_kpoints) THEN
 
          delta_corr_extra = delta_corr_extra/cell_volume*fourpi
 
-         CALL mp_sum(delta_corr_extra, para_env_RPA%group)
+         CALL para_env_RPA%group%sum(delta_corr_extra)
 
          delta_corr(:) = delta_corr(:) + (delta_corr(:) - delta_corr_extra(:))
 
@@ -5589,7 +5587,7 @@ CONTAINS
 
       CALL dbt_destroy(t3c_1_redist)
 
-      CALL mp_sum(vec_Sigma_prv, para_env%group)
+      CALL para_env%group%sum(vec_Sigma_prv)
 
       mo_bounds_off = mo_bounds - mo_offset + 1
       vec_Sigma(mo_bounds_off(1):mo_bounds_off(2)) = &
@@ -5637,7 +5635,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL mp_sync(para_env%group)
+      CALL para_env%group%sync()
 
       ! get info of fm_mo_coeff_occ
       CALL cp_fm_get_info(matrix=fm_mo_coeff_occ, &
@@ -5682,7 +5680,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL mp_sync(para_env%group)
+      CALL para_env%group%sync()
 
       CALL parallel_gemm(transa="N", transb="T", m=nmo, n=nmo, k=nmo, alpha=1.0_dp, &
                          matrix_a=fm_mo_coeff_occ_scaled, matrix_b=fm_mo_coeff_occ_scaled, beta=0.0_dp, &

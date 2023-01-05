@@ -35,8 +35,7 @@ MODULE fist_nonbond_force
    USE machine,                         ONLY: m_memory
    USE mathconstants,                   ONLY: oorootpi,&
                                               sqrthalf
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_comm_type
    USE pair_potential_coulomb,          ONLY: potential_coulomb
    USE pair_potential_types,            ONLY: &
         gal21_type, gal_type, nequip_type, nosh_nosh, nosh_sh, pair_potential_pp_type, &
@@ -877,7 +876,7 @@ CONTAINS
          END IF
       END DO
 
-      CALL mp_sum(v_bonded_corr, group)
+      CALL group%sum(v_bonded_corr)
 
       CALL timestop(handle)
 

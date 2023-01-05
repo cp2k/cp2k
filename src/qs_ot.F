@@ -27,8 +27,7 @@ MODULE qs_ot
         dbcsr_multiply, dbcsr_release, dbcsr_release_p, dbcsr_scale, dbcsr_scale_by_vector, &
         dbcsr_set, dbcsr_transposed, dbcsr_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_comm_type
    USE preconditioner,                  ONLY: apply_preconditioner
    USE preconditioner_types,            ONLY: preconditioner_type
    USE qs_ot_types,                     ONLY: qs_ot_type
@@ -155,7 +154,7 @@ CONTAINS
       CALL dbcsr_iterator_stop(iter)
       CALL dbcsr_get_info(C, group=group_handle)
       CALL group%set_handle(group_handle)
-      CALL mp_sum(f2, group)
+      CALL group%sum(f2)
       !
       !
       CALL dbcsr_multiply('T', 'N', 1.0_dp, C, C_NEW, 0.0_dp, GU)

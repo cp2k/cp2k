@@ -86,9 +86,7 @@ MODULE rpa_im_time_force_methods
                                               m_walltime
    USE mathconstants,                   ONLY: fourpi
    USE message_passing,                 ONLY: mp_cart_create,&
-                                              mp_comm_type,&
-                                              mp_sum,&
-                                              mp_sync
+                                              mp_comm_type
    USE mp2_eri,                         ONLY: integrate_set_2c
    USE mp2_eri_gpw,                     ONLY: calc_potential_gpw,&
                                               cleanup_gpw,&
@@ -363,7 +361,7 @@ CONTAINS
          CALL dbt_destroy(t_3c_der_AO_prv(1, 1, i_xyz))
       END DO
 
-      CALL mp_sum(memory, para_env%group)
+      CALL para_env%group%sum(memory)
       compression_factor = REAL(nze_tot, dp)*1.0E-06*8.0_dp/memory
       IF (unit_nr > 0) THEN
          WRITE (UNIT=unit_nr, FMT="((T3,A,T66,F11.2,A4))") &
@@ -823,7 +821,7 @@ CONTAINS
          work_virial = 0.0_dp
          work_virial_ovlp = 0.0_dp
 
-         CALL mp_sync(para_env%group)
+         CALL para_env%group%sync()
          t1 = m_walltime()
 
          !Deal with the force contributions where there is no explicit 3-center quantities, i.e. the
@@ -967,7 +965,7 @@ CONTAINS
          END IF
 
          !Print some info
-         CALL mp_sync(para_env%group)
+         CALL para_env%group%sync()
          t2 = m_walltime()
          dbcsr_time = dbcsr_time + t2 - t1
 
@@ -1400,7 +1398,7 @@ CONTAINS
          work_virial = 0.0_dp
          work_virial_ovlp = 0.0_dp
 
-         CALL mp_sync(para_env%group)
+         CALL para_env%group%sync()
          t1 = m_walltime()
 
          !Deal with the force contributions where there is no explicit 3-center quantities, i.e. the
@@ -1532,7 +1530,7 @@ CONTAINS
          END IF
 
          !Print some info
-         CALL mp_sync(para_env%group)
+         CALL para_env%group%sync()
          t2 = m_walltime()
          dbcsr_time = dbcsr_time + t2 - t1
 

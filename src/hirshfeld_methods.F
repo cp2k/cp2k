@@ -40,7 +40,6 @@ MODULE hirshfeld_methods
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: pi
-   USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
    USE periodic_table,                  ONLY: get_ptable_info
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -654,7 +653,7 @@ CONTAINS
       DEALLOCATE (hab, pab)
 
       CALL get_qs_env(qs_env=qs_env, para_env=para_env)
-      CALL mp_sum(fval, para_env%group)
+      CALL para_env%group%sum(fval)
 
       CALL timestop(handle)
 

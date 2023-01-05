@@ -77,8 +77,7 @@ MODULE xas_tdp_methods
    USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: get_diag
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE parallel_rng_types,              ONLY: UNIFORM,&
                                               rng_stream_type
@@ -3381,7 +3380,7 @@ CONTAINS
          READ (rst_unit) read_params(1:4)
          READ (rst_unit) read_params(5:7)
       END IF
-      CALL mp_bcast(read_params, source, group)
+      CALL group%bcast(read_params, source)
       donor_state%at_index = read_params(1)
       donor_state%state_type = read_params(2)
       donor_state%ndo_mo = read_params(3)
@@ -3394,13 +3393,13 @@ CONTAINS
       IF (rst_unit > 0) THEN
          READ (rst_unit) mo_indices(1:donor_state%ndo_mo, 1:nspins)
       END IF
-      CALL mp_bcast(mo_indices, source, group)
+      CALL group%bcast(mo_indices, source)
       donor_state%mo_indices => mo_indices
 
       !read evals
       ALLOCATE (lr_evals(nex))
       IF (rst_unit > 0) READ (rst_unit) lr_evals(1:nex)
-      CALL mp_bcast(lr_evals, source, group)
+      CALL group%bcast(lr_evals, source)
 
       !read evecs
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, para_env=para_env, &

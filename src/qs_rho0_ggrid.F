@@ -19,7 +19,6 @@ MODULE qs_rho0_ggrid
                                               collocate_pgf_product
    USE kinds,                           ONLY: dp
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_sum
    USE orbital_pointers,                ONLY: indco,&
                                               nco,&
                                               ncoset,&
@@ -617,7 +616,7 @@ CONTAINS
 
                IF (grid_distributed) THEN
                   ! Sum result over all processors
-                  CALL mp_sum(intloc, para_env%group)
+                  CALL para_env%group%sum(intloc)
                END IF
 
                IF (j == mepos) THEN

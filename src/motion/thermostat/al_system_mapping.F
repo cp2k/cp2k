@@ -21,7 +21,6 @@ MODULE al_system_mapping
         npt_f_ensemble, npt_i_ensemble, npt_ia_ensemble, nve_ensemble, nvt_ensemble, &
         reftraj_ensemble
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_sum
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: global_constraint_type,&
                                               molecule_type
@@ -97,7 +96,7 @@ CONTAINS
 
          ! If thermostats are replicated but molecules distributed, we have to
          ! sum s_kin over all processors
-         IF (map_info%dis_type == do_thermo_communication) CALL mp_sum(map_info%s_kin, para_env%group)
+         IF (map_info%dis_type == do_thermo_communication) CALL para_env%group%sum(map_info%s_kin)
 
          ! We know the total number of system thermostats.
          IF ((sum_of_thermostats == 1) .AND. (map_info%dis_type /= do_thermo_no_communication)) THEN

@@ -38,10 +38,6 @@ MODULE mp2_gpw_method
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE machine,                         ONLY: m_memory
-   USE message_passing,                 ONLY: mp_max,&
-                                              mp_min,&
-                                              mp_sendrecv,&
-                                              mp_sum
    USE mp2_eri_gpw,                     ONLY: calc_potential_gpw,&
                                               cleanup_gpw,&
                                               prepare_gpw
@@ -215,7 +211,7 @@ CONTAINS
                              col_indices=col_indices)
 
          max_row_col_local = MAX(nrow_local, ncol_local)
-         CALL mp_max(max_row_col_local, para_env_sub%group)
+         CALL para_env_sub%group%max(max_row_col_local)
 
          ALLOCATE (local_col_row_info(0:max_row_col_local, 2))
          local_col_row_info = 0
@@ -248,7 +244,7 @@ CONTAINS
       virtual = nmo - homo
 
       wfn_size = REAL(SIZE(rho_r%cr3d), KIND=dp)
-      CALL mp_max(wfn_size, para_env%group)
+      CALL para_env%group%max(wfn_size)
 
       ngroup = para_env%num_pe/para_env_sub%num_pe
 
@@ -273,9 +269,7 @@ CONTAINS
 
       CALL m_memory(mem)
       mem_real = (mem + 1024*1024 - 1)/(1024*1024)
-      ! mp_min .... a hack.. it should be mp_max, but as it turns out, on some processes the previously freed memory (hfx)
-      ! has not been given back to the OS yet.
-      CALL mp_min(mem_real, para_env%group)
+      CALL para_env%group%min(mem_real)
 
       mem_real = mp2_memory - mem_real
       mem_real = MAX(mem_real, mem_min)
@@ -383,7 +377,6 @@ CONTAINS
 
       ! now create a group that contains all the proc that have the same 2 virtual starting points
       ! in this way it is possible to sum the common integrals needed for the full MP2 energy
-      ! in mp_comm_split_direct the color is given by my_a_virtual_start and my_b_virtual_start
       CALL cp_para_env_split(para_env_exchange, para_env, sub_sub_color)
 
       ! create an array containing the information for communication
@@ -533,7 +526,7 @@ CONTAINS
                   BIb_C(1:my_B_size, EX_start_send:EX_end_send, 1:my_I_batch_size)
 
                ! send and receive the exchange array
-               CALL mp_sendrecv(BIb_send, proc_send, BIb_EX, proc_receive, para_env_exchange%group)
+               CALL para_env_exchange%group%sendrecv(BIb_send, proc_send, BIb_EX, proc_receive)
 
                DO i = 1, my_I_batch_size
                   DO j = 1, size_EX
@@ -556,10 +549,10 @@ CONTAINS
       END DO
       CALL timestop(handle2)
 
-      CALL mp_sum(Emp2_Cou, para_env%group)
-      CALL mp_sum(Emp2_EX, para_env%group)
+      CALL para_env%group%sum(Emp2_Cou)
+      CALL para_env%group%sum(Emp2_EX)
       Emp2 = Emp2_Cou + Emp2_EX
-      IF (do_alpha_beta) CALL mp_sum(Emp2_AB, para_env%group)
+      IF (do_alpha_beta) CALL para_env%group%sum(Emp2_AB)
 
       DEALLOCATE (my_Cocc)
       DEALLOCATE (my_Cvirt)
@@ -725,7 +718,7 @@ CONTAINS
 
             ! first exchange information on the local data
             rec_col_row_info = 0
-            CALL mp_sendrecv(local_col_row_info, proc_send, rec_col_row_info, proc_receive, para_env_sub%group)
+            CALL para_env_sub%group%sendrecv(local_col_row_info, proc_send, rec_col_row_info, proc_receive)
             nrow_rec = rec_col_row_info(0, 1)
             ncol_rec = rec_col_row_info(0, 2)
 
@@ -739,7 +732,7 @@ CONTAINS
             rec_BI = 0.0_dp
 
             ! then send and receive the real data
-            CALL mp_sendrecv(local_BI, proc_send, rec_BI, proc_receive, para_env_sub%group)
+            CALL para_env_sub%group%sendrecv(local_BI, proc_send, rec_BI, proc_receive)
 
             ! accumulate the received data on BIb_jb buffer
             DO jjB = 1, ncol_rec
@@ -825,7 +818,7 @@ CONTAINS
       END DO
       CALL dbcsr_iterator_stop(iter)
 
-      CALL mp_sum(my_Cocc, para_env_sub%group)
+      CALL para_env_sub%group%sum(my_Cocc)
 
       ! accumulate data from mo_coeff_o into Cocc
       CALL dbcsr_iterator_start(iter, mo_coeff_v)
@@ -845,7 +838,7 @@ CONTAINS
       END DO
       CALL dbcsr_iterator_stop(iter)
 
-      CALL mp_sum(my_Cvirt, para_env_sub%group)
+      CALL para_env_sub%group%sum(my_Cvirt)
 
       CALL timestop(handle)
 

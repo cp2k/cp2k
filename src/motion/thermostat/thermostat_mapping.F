@@ -28,9 +28,6 @@ MODULE thermostat_mapping
                                               do_thermo_no_communication
    USE kinds,                           ONLY: dp
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_allgather,&
-                                              mp_bcast,&
-                                              mp_sum
    USE molecule_kind_types,             ONLY: colvar_constraint_type,&
                                               fixd_constraint_type,&
                                               g3x3_constraint_type,&
@@ -138,7 +135,7 @@ CONTAINS
 
       number = number_of_thermostats
       sum_of_thermostats = number
-      CALL mp_sum(sum_of_thermostats, para_env%group)
+      CALL para_env%group%sum(sum_of_thermostats)
 
 !    check = (number==number_of_thermostats)
 !    CPPrecondition(check,cp_fatal_level,routineP,failure)
@@ -1041,7 +1038,7 @@ CONTAINS
                   atm_offset = atm_offset + natom
                END DO
             END DO
-            CALL mp_sum(tot_const, para_env%group)
+            CALL para_env%group%sum(tot_const)
          ELSE
             ALLOCATE (const_mol(nkind))
             ALLOCATE (tot_const(nkind))
@@ -1138,7 +1135,7 @@ CONTAINS
       END DO
 
       ALLOCATE (array_num_massive_atm(para_env%num_pe))
-      CALL mp_allgather(num_massive_atm_local, array_num_massive_atm, para_env%group)
+      CALL para_env%group%allgather(num_massive_atm_local, array_num_massive_atm)
 
       num_massive_atm = SUM(array_num_massive_atm)
       ALLOCATE (massive_atom_list(num_massive_atm))
@@ -1154,7 +1151,7 @@ CONTAINS
          ELSE
             work(:) = 0
          END IF
-         CALL mp_bcast(work, iproc - 1, para_env%group)
+         CALL para_env%group%bcast(work, iproc - 1)
          DO i = 1, ncount
             massive_atom_list(offset + i) = work(i)
          END DO

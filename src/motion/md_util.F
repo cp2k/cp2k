@@ -25,7 +25,6 @@ MODULE md_util
                                               dp
    USE md_energies,                     ONLY: md_write_output
    USE md_environment_types,            ONLY: md_environment_type
-   USE message_passing,                 ONLY: mp_bcast
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -149,9 +148,9 @@ CONTAINS
       END IF
       ! broadcast to all compulational nodes. note that it is assumed
       ! that source is the ionode
-      CALL mp_bcast(dof, para_env%source, para_env%group)
-      CALL mp_bcast(eigenvalues, para_env%source, para_env%group)
-      CALL mp_bcast(eigenvectors, para_env%source, para_env%group)
+      CALL para_env%group%bcast(dof, para_env%source)
+      CALL para_env%group%bcast(eigenvalues, para_env%source)
+      CALL para_env%group%bcast(eigenvectors, para_env%source)
       ! close file
       IF (para_env%ionode) THEN
          CALL close_file(unit_number=unit_nr)

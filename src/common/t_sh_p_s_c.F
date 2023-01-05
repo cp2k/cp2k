@@ -38,8 +38,7 @@
 ! **************************************************************************************************
 MODULE t_sh_p_s_c
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1132,7 +1131,7 @@ CONTAINS
          END DO
          DEALLOCATE (chunk)
       END IF
-      CALL mp_bcast(C0, 0, group)
+      CALL group%bcast(C0, 0)
    END SUBROUTINE INIT
 
 ! **************************************************************************************************

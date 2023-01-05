@@ -93,8 +93,7 @@ MODULE almo_scf_optimizer
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_comm_type
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -1342,7 +1341,7 @@ CONTAINS
 
                         reim_diag = 0.0_dp
                         CALL dbcsr_get_diag(tempOccOcc(ispin), reim_diag)
-                        CALL mp_sum(reim_diag, para_group)
+                        CALL para_group%sum(reim_diag)
                         z2(:) = z2(:) + reim_diag(:)*reim_diag(:)
 
                      END DO
@@ -2433,7 +2432,7 @@ CONTAINS
                                    retain_sparsity=.TRUE.)
                ALLOCATE (diagonal(nocc(ispin)))
                CALL dbcsr_get_diag(m_sig_sqrti_ii(ispin), diagonal)
-               CALL mp_sum(diagonal, para_group)
+               CALL para_group%sum(diagonal)
                ! TODO: works for zero diagonal elements?
                diagonal(:) = 1.0_dp/SQRT(diagonal(:))
                CALL dbcsr_set(m_sig_sqrti_ii(ispin), 0.0_dp)
@@ -6527,7 +6526,7 @@ CONTAINS
 
             reim_diag = 0.0_dp
             CALL dbcsr_get_diag(tempOccOcc2, reim_diag)
-            CALL mp_sum(reim_diag, para_group)
+            CALL para_group%sum(reim_diag)
             z2(:) = z2(:) + reim_diag(:)*reim_diag(:)
 
          END DO
@@ -6660,7 +6659,7 @@ CONTAINS
             CALL dbcsr_get_diag(m_temp_oo_4, tg_diagonal)
             CALL dbcsr_set(m_temp_oo_4, 0.0_dp)
             CALL dbcsr_set_diag(m_temp_oo_4, tg_diagonal)
-            !CALL mp_sum(tg_diagonal, para_group)
+            !CALL para_group%sum(tg_diagonal)
             z2(:) = z2(:) + tg_diagonal(:)*tg_diagonal(:)
 
             CALL dbcsr_multiply("N", "N", 1.0_dp, &

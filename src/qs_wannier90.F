@@ -60,7 +60,6 @@ MODULE qs_wannier90
                                               kpoint_type
    USE machine,                         ONLY: m_datum
    USE mathconstants,                   ONLY: twopi
-   USE message_passing,                 ONLY: mp_sum
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: angstrom,&
@@ -289,9 +288,9 @@ CONTAINS
       END IF
 
       CALL get_qs_env(qs_env, para_env=para_env)
-      CALL mp_sum(nntot, para_env%group)
-      CALL mp_sum(nnlist, para_env%group)
-      CALL mp_sum(nncell, para_env%group)
+      CALL para_env%group%sum(nntot)
+      CALL para_env%group%sum(nnlist)
+      CALL para_env%group%sum(nncell)
 
       IF (para_env%ionode) THEN
          ! Write the Wannier90 input file "seed_name.win"
@@ -577,7 +576,7 @@ CONTAINS
             ELSE
                eigval(1:nmo) = 0.0_dp
             END IF
-            CALL mp_sum(eigval, kpoint%para_env_inter_kp%group)
+            CALL kpoint%para_env_inter_kp%group%sum(eigval)
             eigval(1:nmo) = eigval(1:nmo)*evolt
             ! output
             IF (iunit > 0) THEN

@@ -71,8 +71,6 @@ MODULE bfgs_optimizer
                     dp
    USE machine, ONLY: m_flush, &
                       m_walltime
-   USE message_passing, ONLY: mp_min, &
-                              mp_sum
    USE particle_list_types, ONLY: particle_list_type
    USE space_groups, ONLY: identify_space_group, &
                            print_spgr, &
@@ -499,7 +497,7 @@ CONTAINS
             dg(l) = dg(l) + local_data(i, k)*g(j)
          END DO
       END DO
-      CALL mp_sum(dg, para_env%group)
+      CALL para_env%group%sum(dg)
 
       set = .FALSE.
 
@@ -659,7 +657,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL mp_sum(work, para_env%group)
+      CALL para_env%group%sum(work)
 
       gdx = DDOT(ndf, dg, 1, dx, 1)
       gdx = one/gdx
@@ -792,7 +790,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL mp_sum(dr, para_env%group)
+      CALL para_env%group%sum(dr)
 
    END SUBROUTINE geoopt_get_step
 
@@ -881,7 +879,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL mp_sum(work, para_env%group)
+      CALL para_env%group%sum(work)
       ener2 = DDOT(ndf, dr, 1, work, 1)
       pred = ener1 + 0.5_dp*ener2
       conv = .FALSE.
@@ -1046,7 +1044,7 @@ CONTAINS
       fixed = 1.0_dp
       CALL fix_atom_control(force_env, fixed)
       DO i = 1, 3
-         CALL mp_min(fixed(i, :), hess_mat%matrix_struct%para_env%group)
+         CALL hess_mat%matrix_struct%para_env%group%min(fixed(i, :))
       END DO
       rho_ij = 0
       !XXXX insert proper rows !XXX

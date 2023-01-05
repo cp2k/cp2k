@@ -29,11 +29,7 @@ MODULE hfx_communication
                                               hfx_type
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE message_passing,                 ONLY: mp_allgather,&
-                                              mp_isendrecv,&
-                                              mp_max,&
-                                              mp_request_type,&
-                                              mp_sync,&
+   USE message_passing,                 ONLY: mp_request_type,&
                                               mp_waitall
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -70,7 +66,7 @@ CONTAINS
 !> \author Manuel Guidon
 !> \note
 !>      - Communication with left/right node only
-!>        added a mp_sync before and after the ring of isendrecv. This *speed up* the
+!>        added a mpi_sync before and after the ring of isendrecv. This *speed up* the
 !>        communication, and might protect against idle neighbors flooding a busy node
 !>        with messages [Joost]
 ! **************************************************************************************************
@@ -154,15 +150,15 @@ CONTAINS
       CALL dbcsr_iterator_stop(iter)
 
       ! sync before/after a ring of isendrecv
-      CALL mp_sync(para_env%group)
+      CALL para_env%group%sync()
       ncpu = para_env%num_pe
       mepos = para_env%mepos
       dest = MODULO(mepos + 1, ncpu)
       source = MODULO(mepos - 1, ncpu)
       DO icpu = 0, ncpu - 1
          IF (icpu .NE. ncpu - 1) THEN
-            CALL mp_isendrecv(sendbuffer, dest, recbuffer, source, &
-                              para_env%group, req(1), req(2), 13)
+            CALL para_env%group%isendrecv(sendbuffer, dest, recbuffer, source, &
+                                          req(1), req(2), 13)
          END IF
          data_from = MODULO(mepos - icpu, ncpu)
          source_cpu = MODULO(data_from, ncpu) + 1
@@ -178,7 +174,7 @@ CONTAINS
       END DO
       DEALLOCATE (sendbuffer, recbuffer)
       ! sync before/after a ring of isendrecv
-      CALL mp_sync(para_env%group)
+      CALL para_env%group%sync()
 
    END SUBROUTINE get_full_density
 
@@ -236,7 +232,7 @@ CONTAINS
       source = MODULO(mepos - 1, ncpu)
 
       ! sync before/after a ring of isendrecv
-      CALL mp_sync(para_env%group)
+      CALL para_env%group%sync()
       DO icpu = 1, ncpu
          i = 1
          data_to = mepos - icpu
@@ -244,8 +240,8 @@ CONTAINS
          block_size = block_offset(dest_cpu + 1) - block_offset(dest_cpu)
        sendbuffer(1:block_size) = sendbuffer(1:block_size) + full_ks(block_offset(dest_cpu):block_offset(dest_cpu) + block_size - 1)
          IF (icpu .EQ. ncpu) EXIT
-         CALL mp_isendrecv(sendbuffer, dest, recbuffer, source, &
-                           para_env%group, req(1), req(2), 13)
+         CALL para_env%group%isendrecv(sendbuffer, dest, recbuffer, source, &
+                                       req(1), req(2), 13)
 
          CALL mp_waitall(req)
          swapbuffer => sendbuffer
@@ -253,7 +249,7 @@ CONTAINS
          recbuffer => swapbuffer
       END DO
       ! sync before/after a ring of isendrecv
-      CALL mp_sync(para_env%group)
+      CALL para_env%group%sync()
 
       i = 1
       CALL dbcsr_iterator_start(iter, ks_matrix, shared=.FALSE.)
@@ -473,7 +469,7 @@ CONTAINS
       CALL dbcsr_iterator_stop(iter)
 
       tmp = (/number_of_p_entries, number_of_p_blocks/)
-      CALL mp_max(tmp, para_env%group)
+      CALL para_env%group%max(tmp)
       number_of_p_entries = tmp(1)
       number_of_p_blocks = tmp(2)
       !
@@ -503,7 +499,7 @@ CONTAINS
       DO icpu = 2, para_env%num_pe
          rdispl(icpu) = rdispl(icpu - 1) + rcount(icpu - 1)
       END DO
-      CALL mp_allgather(buffer_in, buffer_out, rcount, rdispl, para_env%group)
+      CALL para_env%group%allgatherv(buffer_in, buffer_out, rcount, rdispl)
 
       DO ibuf = 0, number_of_p_blocks*para_env%num_pe*3 - 3, 3
          itask = buffer_out(ibuf + 3)

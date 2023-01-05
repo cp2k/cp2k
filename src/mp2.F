@@ -60,7 +60,6 @@ MODULE mp2
    USE machine,                         ONLY: m_flush,&
                                               m_memory,&
                                               m_walltime
-   USE message_passing,                 ONLY: mp_max
    USE mp2_direct_method,               ONLY: mp2_direct_energy
    USE mp2_gpw,                         ONLY: mp2_gpw_main
    USE mp2_optimize_ri_basis,           ONLY: optimize_ri_basis_main
@@ -275,7 +274,7 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
           (mp2_env%method .NE. ri_mp2_laplace)) THEN
          CALL m_memory(mem)
          mem_real = (mem + 1024*1024 - 1)/(1024*1024)
-         CALL mp_max(mem_real, para_env%group)
+         CALL para_env%group%max(mem_real)
          mp2_env%mp2_memory = mp2_env%mp2_memory - mem_real
          IF (mp2_env%mp2_memory < 0.0_dp) mp2_env%mp2_memory = 1.0_dp
 

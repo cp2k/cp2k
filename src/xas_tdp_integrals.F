@@ -63,9 +63,7 @@ MODULE xas_tdp_integrals
                                               cp_libint_set_contrdepth,&
                                               cp_libint_t
    USE mathlib,                         ONLY: invmat_symm
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_sum,&
-                                              mp_sync
+   USE message_passing,                 ONLY: mp_comm_type
    USE molecule_types,                  ONLY: molecule_type
    USE orbital_pointers,                ONLY: ncoset
    USE particle_methods,                ONLY: get_particle_set
@@ -982,8 +980,8 @@ CONTAINS
       CALL neighbor_list_iterator_release(ab_iter)
       CALL neighbor_list_iterator_release(ac_iter)
 
-      CALL mp_sum(row_cost, para_env%group)
-      CALL mp_sum(col_cost, para_env%group)
+      CALL para_env%group%sum(row_cost)
+      CALL para_env%group%sum(col_cost)
 
       !Distribute the cost as evenly as possible
       ALLOCATE (col_proc_cost(npcol), row_proc_cost(nprow))
@@ -1130,7 +1128,7 @@ CONTAINS
 
       !not strictly necessary but avoid having any load unbalance here being reported in the
       !timings for other routines
-      CALL mp_sync(para_env%group)
+      CALL para_env%group%sync()
 
       CALL timestop(handle)
 
@@ -1220,7 +1218,7 @@ CONTAINS
 
       !not strictly necessary but avoid having any load unbalance here being reported in the
       !timings for other routines
-      CALL mp_sync(para_env%group)
+      CALL para_env%group%sync()
 
       CALL timestop(handle)
 

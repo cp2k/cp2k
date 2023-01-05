@@ -28,7 +28,6 @@ MODULE efield_tb_methods
                                               kpoint_type
    USE mathconstants,                   ONLY: pi,&
                                               twopi
-   USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -248,7 +247,7 @@ CONTAINS
 
          IF (calculate_forces) THEN
             DO ikind = 1, SIZE(atomic_kind_set)
-               CALL mp_sum(force(ikind)%efield, para_env%group)
+               CALL para_env%group%sum(force(ikind)%efield)
             END DO
             DEALLOCATE (atom_of_kind, kind_of)
          END IF
@@ -574,7 +573,7 @@ CONTAINS
 
          IF (calculate_forces) THEN
             DO ikind = 1, SIZE(atomic_kind_set)
-               CALL mp_sum(force(ikind)%efield, para_env%group)
+               CALL para_env%group%sum(force(ikind)%efield)
             END DO
             DEALLOCATE (atom_of_kind, kind_of)
          END IF

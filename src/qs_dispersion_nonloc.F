@@ -31,8 +31,6 @@ MODULE qs_dispersion_nonloc
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: pi
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_sum
    USE pw_grid_types,                   ONLY: HALFSPACE,&
                                               pw_grid_type
    USE pw_methods,                      ONLY: pw_axpy,&
@@ -104,9 +102,9 @@ CONTAINS
             READ (funit, *) nqs, nr_points
             READ (funit, *) dispersion_env%r_max
          END IF
-         CALL mp_bcast(nqs, para_env%source, para_env%group)
-         CALL mp_bcast(nr_points, para_env%source, para_env%group)
-         CALL mp_bcast(dispersion_env%r_max, para_env%source, para_env%group)
+         CALL para_env%group%bcast(nqs, para_env%source)
+         CALL para_env%group%bcast(nr_points, para_env%source)
+         CALL para_env%group%bcast(dispersion_env%r_max, para_env%source)
          ALLOCATE (dispersion_env%q_mesh(nqs), dispersion_env%kernel(0:nr_points, nqs, nqs), &
                    dispersion_env%d2phi_dk2(0:nr_points, nqs, nqs))
          dispersion_env%nqs = nqs
@@ -135,9 +133,9 @@ CONTAINS
             END DO
             CALL close_file(unit_number=funit)
          END IF
-         CALL mp_bcast(dispersion_env%q_mesh, para_env%source, para_env%group)
-         CALL mp_bcast(dispersion_env%kernel, para_env%source, para_env%group)
-         CALL mp_bcast(dispersion_env%d2phi_dk2, para_env%source, para_env%group)
+         CALL para_env%group%bcast(dispersion_env%q_mesh, para_env%source)
+         CALL para_env%group%bcast(dispersion_env%kernel, para_env%source)
+         CALL para_env%group%bcast(dispersion_env%d2phi_dk2, para_env%source)
          ! 2nd derivates for interpolation
          ALLOCATE (dispersion_env%d2y_dx2(nqs, nqs))
          CALL initialize_spline_interpolation(dispersion_env%q_mesh, dispersion_env%d2y_dx2)
@@ -406,7 +404,7 @@ CONTAINS
       !! of SOLER equation 11.  Add the energy we find to the output variable etxc.
       !! --------------------------------------------------------------------------------------------------
       sumnp = np
-      CALL mp_sum(sumnp, para_env%group)
+      CALL para_env%group%sum(sumnp)
       IF (use_virial) THEN
          ! calculates kernel contribution to stress
          CALL vdW_energy(thetas_g, dispersion_env, Ec_nl, energy_only, virial)
@@ -426,7 +424,7 @@ CONTAINS
             Ec_nl = 0.5_dp*Ec_nl + beta*SUM(rho(:))*grid%vol/sumnp
          END SELECT
       END IF
-      CALL mp_sum(Ec_nl, para_env%group)
+      CALL para_env%group%sum(Ec_nl)
       IF (nl_type == vdw_nl_RVV10) Ec_nl = Ec_nl*dispersion_env%scale_rvv10
       edispersion = Ec_nl
 

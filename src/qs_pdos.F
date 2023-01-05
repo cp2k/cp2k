@@ -50,7 +50,6 @@ MODULE qs_pdos
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_sum
    USE orbital_pointers,                ONLY: nso,&
                                               nsoset
    USE orbital_symbols,                 ONLY: l_sym,&
@@ -500,7 +499,7 @@ CONTAINS
             END DO
             CALL reallocate(r_ldos_p(ildos)%ldos%index_grid_local, 1, 3, 1, r_ldos_p(ildos)%ldos%npoints)
             npoints = r_ldos_p(ildos)%ldos%npoints
-            CALL mp_sum(npoints, para_env%group)
+            CALL para_env%group%sum(npoints)
             IF (output_unit > 0) WRITE (UNIT=output_unit, FMT='((T10,A,T18,I6,T25,A,T36,I10,A))') &
                " List ", ildos, " contains ", npoints, " grid points"
          END DO
@@ -826,9 +825,9 @@ CONTAINS
       DO ildos = 1, n_r_ldos
 
          npoints = r_ldos_p(ildos)%ldos%npoints
-         CALL mp_sum(npoints, para_env%group)
-         CALL mp_sum(np_tot, para_env%group)
-         CALL mp_sum(r_ldos_p(ildos)%ldos%pdos_array, para_env%group)
+         CALL para_env%group%sum(npoints)
+         CALL para_env%group%sum(np_tot)
+         CALL para_env%group%sum(r_ldos_p(ildos)%ldos%pdos_array)
          IF (PRESENT(ispin)) THEN
             IF (PRESENT(xas_mittle)) THEN
                my_mittle = TRIM(xas_mittle)//TRIM(spin(ispin))//"_r_list"//TRIM(r_ldos_index(ildos))

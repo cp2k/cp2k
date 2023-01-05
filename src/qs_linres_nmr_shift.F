@@ -34,7 +34,6 @@ MODULE qs_linres_nmr_shift
    USE mathconstants,                   ONLY: gaussi,&
                                               twopi
    USE mathlib,                         ONLY: diamat_all
-   USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -466,20 +465,20 @@ CONTAINS
       END DO ! ikind
       !
       !
-      CALL mp_sum(itegrated_jrho, para_env%group)
+      CALL para_env%group%sum(itegrated_jrho)
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(T2,A,E24.16)') 'Integrated local j_'&
               &//ACHAR(idir + 119)//ACHAR(iB + 119)//'(r)=', itegrated_jrho
       END IF
       !
-      CALL mp_sum(cs_loc_tmp, para_env%group)
+      CALL para_env%group%sum(cs_loc_tmp)
       chemical_shift_loc(:, iB, :) = chemical_shift_loc(:, iB, :) &
            & - nmr_env%shift_factor_gapw*cs_loc_tmp(:, :)/2.0_dp
       !
       DEALLOCATE (cs_loc_tmp, list_j, dist_ij)
       !
       IF (do_nics) THEN
-         CALL mp_sum(cs_nics_loc_tmp, para_env%group)
+         CALL para_env%group%sum(cs_nics_loc_tmp)
          chemical_shift_nics_loc(:, iB, :) = chemical_shift_nics_loc(:, iB, :) &
               & - nmr_env%shift_factor_gapw*cs_nics_loc_tmp(:, :)/2.0_dp
          !
@@ -682,7 +681,7 @@ CONTAINS
          cplx = cplx + pw%cc(ig)*EXP(rg)
       END DO
       IF (grid%have_g0) cplx = cplx + pw%cc(1)
-      CALL mp_sum(cplx, grid%para%group)
+      CALL grid%para%group%sum(cplx)
    END SUBROUTINE gsumr
 
 ! **************************************************************************************************

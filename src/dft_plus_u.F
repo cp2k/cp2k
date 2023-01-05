@@ -57,7 +57,6 @@ MODULE dft_plus_u
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathlib,                         ONLY: jacobi
-   USE message_passing,                 ONLY: mp_sum
    USE orbital_symbols,                 ONLY: sgf_symbol
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_methods,                ONLY: get_particle_set
@@ -697,7 +696,7 @@ CONTAINS
                ! Consider print requests
 
                IF (should_output .AND. (print_level > low_print_level)) THEN
-                  CALL mp_sum(q_matrix, para_env%group)
+                  CALL para_env%group%sum(q_matrix)
                   IF (output_unit > 0) THEN
                      ALLOCATE (q_work(nsb, nsbsize))
                      q_work(:, :) = 0.0_dp
@@ -743,7 +742,7 @@ CONTAINS
                      ALLOCATE (q_work(nsgf_kind, nsgf_kind))
                      q_work(:, :) = 0.0_dp
                      IF (ASSOCIATED(q_block)) q_work(:, :) = q_block(:, :)
-                     CALL mp_sum(q_work, para_env%group)
+                     CALL para_env%group%sum(q_work)
                      IF (output_unit > 0) THEN
                         norb = SIZE(q_work, 1)
                         WRITE (UNIT=output_unit, FMT="(/,T9,200I10)") (i, i=1, norb)
@@ -801,7 +800,7 @@ CONTAINS
 
       ! Collect the energy contributions from all processes
 
-      CALL mp_sum(energy%dft_plus_u, para_env%group)
+      CALL para_env%group%sum(energy%dft_plus_u)
 
       IF (energy%dft_plus_u < 0.0_dp) &
          CALL cp_warn(__LOCATION__, &
@@ -1325,7 +1324,7 @@ CONTAINS
                ! Consider print requests
 
                IF (should_output .AND. (print_level > low_print_level)) THEN
-                  CALL mp_sum(q_matrix, para_env%group)
+                  CALL para_env%group%sum(q_matrix)
                   IF (output_unit > 0) THEN
                      ALLOCATE (q_work(nsb, nsbsize))
                      q_work(:, :) = 0.0_dp
@@ -1371,7 +1370,7 @@ CONTAINS
                      ALLOCATE (q_work(nsgf_kind, nsgf_kind))
                      q_work(:, :) = 0.0_dp
                      IF (ASSOCIATED(q_block)) q_work(:, :) = q_block(:, :)
-                     CALL mp_sum(q_work, para_env%group)
+                     CALL para_env%group%sum(q_work)
                      IF (output_unit > 0) THEN
                         norb = SIZE(q_work, 1)
                         WRITE (UNIT=output_unit, FMT="(/,T9,200I10)") (i, i=1, norb)
@@ -1465,7 +1464,7 @@ CONTAINS
 
       ! Collect the energy contributions from all processes
 
-      CALL mp_sum(energy%dft_plus_u, para_env%group)
+      CALL para_env%group%sum(energy%dft_plus_u)
 
       IF (energy%dft_plus_u < 0.0_dp) THEN
          IF (.NOT. occupation_enforced) THEN
@@ -1721,7 +1720,7 @@ CONTAINS
 
          CALL dbcsr_iterator_stop(iter)
 
-         CALL mp_sum(trps, para_env%group)
+         CALL para_env%group%sum(trps)
 
          ! q <- Trace(PS)
 
@@ -1864,7 +1863,7 @@ CONTAINS
                ! Consider print requests
 
                IF (should_output .AND. (print_level > low_print_level)) THEN
-                  CALL mp_sum(q_ii, para_env%group)
+                  CALL para_env%group%sum(q_ii)
                   IF (output_unit > 0) THEN
                      DO isb = 1, nsb
                         WRITE (UNIT=output_unit, FMT="(T3,I6,2X,I6,2X,10F8.3)") &
@@ -1885,7 +1884,7 @@ CONTAINS
          END DO ! next atomic kind "ikind"
 
          IF (.NOT. just_energy) THEN
-            CALL mp_sum(dEdq, para_env%group)
+            CALL para_env%group%sum(dEdq)
          END IF
 
          ! Add V(i,j)[U] to V(i,j)[DFT]
@@ -2016,7 +2015,7 @@ CONTAINS
 
       ! Collect the energy contributions from all processes
 
-      CALL mp_sum(energy%dft_plus_u, para_env%group)
+      CALL para_env%group%sum(energy%dft_plus_u)
 
       IF (energy%dft_plus_u < 0.0_dp) &
          CALL cp_warn(__LOCATION__, &

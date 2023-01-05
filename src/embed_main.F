@@ -25,7 +25,6 @@ MODULE embed_main
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length
-   USE message_passing,                 ONLY: mp_comm_split
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -100,12 +99,12 @@ CONTAINS
       ! Split the current communicator
       ALLOCATE (embed_env%group_distribution(0:para_env%num_pe - 1))
       IF (group_size_wish_set) THEN
-         CALL mp_comm_split(para_env%group, embed_env%new_group, embed_env%ngroups, embed_env%group_distribution, &
-                            subgroup_min_size=group_size_wish)
+         CALL embed_env%new_group%from_split(para_env%group, embed_env%ngroups, embed_env%group_distribution, &
+                                             subgroup_min_size=group_size_wish)
       ELSE IF (ngroup_wish_set) THEN
-         CALL mp_comm_split(para_env%group, embed_env%new_group, embed_env%ngroups, embed_env%group_distribution, &
-                            n_subgroups=ngroup_wish, &
-                            group_partition=group_partition)
+         CALL embed_env%new_group%from_split(para_env%group, embed_env%ngroups, embed_env%group_distribution, &
+                                             n_subgroups=ngroup_wish, &
+                                             group_partition=group_partition)
       END IF
       IF (output_unit > 0) THEN
          WRITE (output_unit, FMT="(T2,A,T71,I10)") "EMBED_ENV| Number of created MPI groups:", embed_env%ngroups

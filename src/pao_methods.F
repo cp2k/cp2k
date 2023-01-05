@@ -43,8 +43,6 @@ MODULE pao_methods
    USE machine,                         ONLY: m_walltime
    USE mathlib,                         ONLY: binomial,&
                                               diamat_all
-   USE message_passing,                 ONLY: mp_max,&
-                                              mp_sum
    USE pao_ml,                          ONLY: pao_ml_forces
    USE pao_param,                       ONLY: pao_calc_AB,&
                                               pao_param_count
@@ -755,7 +753,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL mp_max(delta_max, para_env%group)
+      CALL para_env%group%max(delta_max)
       IF (pao%iw > 0) WRITE (pao%iw, *) 'PAO| checked gradient, max delta:', delta_max
       IF (delta_max > pao%check_grad_tol) CALL cp_abort(__LOCATION__, &
                                                         "Analytic and numeric gradients differ too much:"//cp_to_string(delta_max))
@@ -992,7 +990,7 @@ CONTAINS
       IF (SIZE(pao%ml_training_set) > 0) &
          CALL pao_ml_forces(pao, qs_env, pao%matrix_G, forces)
 
-      CALL mp_sum(forces, para_env%group)
+      CALL para_env%group%sum(forces)
       DO iatom = 1, natoms
          particle_set(iatom)%f = particle_set(iatom)%f + forces(iatom, :)
       END DO

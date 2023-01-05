@@ -47,7 +47,6 @@ MODULE cp_fm_diag
                     dp
    USE machine, ONLY: default_output_unit, &
                       m_memory
-   USE message_passing, ONLY: mp_bcast
 #if defined (__SCALAPACK)
    USE message_passing, ONLY: mp_comm_type
 #endif
@@ -1090,7 +1089,7 @@ CONTAINS
       CALL pdgemr2d(block_dim_row, block_dim_col, A, 1, start_sec_block, desca, &
                     A_loc, 1, 1, desc_a_block, ictxt%get_handle())
       ! Only the master (root) process received data yet
-      CALL mp_bcast(A_loc, 0, allgrp)
+      CALL allgrp%bcast(A_loc, 0)
 
       ! Since each process owns now the upper block, the eigenvectors can be re-sorted in such a way that
       ! each process has a NN*1 grid, i.e. the process owns a bunch of rows which can be modified locally

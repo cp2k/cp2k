@@ -28,8 +28,7 @@ MODULE arnoldi_methods
    USE dbcsr_vector, ONLY: dbcsr_matrix_colvec_multiply
    USE kinds, ONLY: real_4, &
                     real_8
-   USE message_passing, ONLY: mp_bcast, &
-                              mp_sum, mp_comm_type
+   USE message_passing, ONLY: mp_comm_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -417,7 +416,7 @@ CONTAINS
 
          ! Put the projection into the Hessenberg matrix, and make the vectors orthonormal
          ar_data%Hessenberg(1, 1) = DOT_PRODUCT(v_vec, w_vec)
-         CALL mp_sum(ar_data%Hessenberg(1, 1), pcol_group)
+         CALL pcol_group%sum(ar_data%Hessenberg(1, 1))
          ar_data%f_vec = w_vec - v_vec*ar_data%Hessenberg(1, 1)
 
          ar_data%local_history(:, 1) = v_vec(:)
@@ -563,7 +562,7 @@ CONTAINS
 
             ! check convergence and inform everybody about it, a bit annoying to talk to everybody because of that
             IF (control%myproc == 0) control%converged = rnorm .LT. REAL(control%threshold, ${type_prec}$)
-            CALL mp_bcast(control%converged, 0, control%mp_group)
+            CALL control%mp_group%bcast(control%converged, 0)
             IF (control%converged) EXIT
 
             ! transfer normalized residdum to history and its norm to the Hessenberg matrix
@@ -603,7 +602,7 @@ CONTAINS
          ar_data%Hessenberg(control%current_step + 1, control%current_step) = norm
 
          ! broadcast the Hessenberg matrix so we don't need to care later on
-         CALL mp_bcast(ar_data%Hessenberg, 0, control%mp_group)
+         CALL control%mp_group%bcast(ar_data%Hessenberg, 0)
 
          DEALLOCATE (v_vec, w_vec, h_vec, s_vec)
 
@@ -677,7 +676,7 @@ CONTAINS
          h_vec = ${nametype_zero}$; f_vec = ${nametype_zero}$; s_vec = ${nametype_zero}$
          IF (local_comp) CALL ${nametype1}$gemv('T', nrow_local, j, ${nametype_one}$, local_history, &
                                                 nrow_local, w_vec, 1, ${nametype_zero}$, h_vec, 1)
-         CALL mp_sum(h_vec(1:j), pcol_group)
+         CALL pcol_group%sum(h_vec(1:j))
 
          IF (local_comp) CALL ${nametype1}$gemv('N', nrow_local, j, ${nametype_one}$, reorth_mat, &
                                                 nrow_local, h_vec, 1, ${nametype_zero}$, f_vec, 1)
@@ -714,7 +713,7 @@ CONTAINS
 
          IF (local_comp) CALL ${nametype1}$gemv('T', nrow_local, j, ${nametype_one}$, local_history, &
                                                 nrow_local, f_vec, 1, ${nametype_zero}$, s_vec, 1)
-         CALL mp_sum(s_vec(1:j), pcol_group)
+         CALL pcol_group%sum(s_vec(1:j))
          IF (local_comp) CALL ${nametype1}$gemv('N', nrow_local, j, ${nametype_negone}$, reorth_mat, &
                                                 nrow_local, s_vec, 1, ${nametype_one}$, f_vec, 1)
          h_vec(1:j) = h_vec(1:j) + s_vec(1:j)
@@ -739,7 +738,7 @@ CONTAINS
 
          ! the norm is computed along the processor column
          norm = DOT_PRODUCT(vec, vec)
-         CALL mp_sum(norm, pcol_group)
+         CALL pcol_group%sum(norm)
          rnorm = SQRT(REAL(norm, ${type_prec}$))
          ${rnorm_to_norm}$
 
@@ -816,7 +815,7 @@ CONTAINS
 
          ar_data%rho_scale = ${nametype_zero}$
          ar_data%rho_scale = DOT_PRODUCT(v_vec, w_vec)
-         CALL mp_sum(ar_data%rho_scale, pcol_group)
+         CALL pcol_group%sum(ar_data%rho_scale)
 
          CALL dbcsr_matrix_colvec_multiply(matrix(2)%matrix, vectors%input_vec, vectors%result_vec, ${nametype_one}$, &
                                            ${nametype_zero}$, vectors%rep_row_vec, vectors%rep_col_vec)
@@ -825,9 +824,9 @@ CONTAINS
 
          denom = ${nametype_zero}$
          denom = DOT_PRODUCT(v_vec, w_vec)
-         CALL mp_sum(denom, pcol_group)
+         CALL pcol_group%sum(denom)
          IF (control%myproc == 0) ar_data%rho_scale = ar_data%rho_scale/denom
-         CALL mp_bcast(ar_data%rho_scale, 0, control%mp_group)
+         CALL control%mp_group%bcast(ar_data%rho_scale, 0)
 
          ! if the maximum ev is requested we need to optimize with -A-rho*B
          CALL dbcsr_copy(matrix_arnoldi(1)%matrix, matrix(1)%matrix)
@@ -879,7 +878,7 @@ CONTAINS
 
          norm = ${nametype_zero}$
          norm = DOT_PRODUCT(ar_data%x_vec, BZmat(:, 1))
-         CALL mp_sum(norm, pcol_group)
+         CALL pcol_group%sum(norm)
          IF (control%local_comp) THEN
             Zmat(:, 1) = ar_data%x_vec/SQRT(norm); BZmat(:, 1) = BZmat(:, 1)/SQRT(norm)
          END IF
@@ -907,10 +906,10 @@ CONTAINS
             CALL transfer_dbcsr_to_local_array_${nametype1}$ (vectors%result_vec, v_vec, nrow_local, control%local_comp)
             norm = ${nametype_zero}$
             norm = DOT_PRODUCT(ar_data%f_vec, v_vec)
-            CALL mp_sum(norm, pcol_group)
+            CALL pcol_group%sum(norm)
 
             IF (control%myproc == 0) control%converged = REAL(norm, ${type_prec}$) .LT. EPSILON(REAL(1.0, ${type_prec}$))
-            CALL mp_bcast(control%converged, 0, control%mp_group)
+            CALL control%mp_group%bcast(control%converged, 0)
             IF (control%converged) EXIT
             IF (j == control%max_iter - 1) EXIT
 
@@ -927,7 +926,7 @@ CONTAINS
             ar_data%Hessenberg(1:control%current_step, 1:control%current_step) = &
                MATMUL(TRANSPOSE(CZmat(:, 1:control%current_step)), Zmat(:, 1:control%current_step))
          END IF
-         CALL mp_sum(ar_data%Hessenberg, control%mp_group)
+         CALL control%mp_group%sum(ar_data%Hessenberg)
 
          ar_data%local_history = Zmat
          ! broadcast the Hessenberg matrix so we don't need to care later on
@@ -1002,9 +1001,9 @@ CONTAINS
             DEALLOCATE (v_vec)
          END IF
          ! and broadcast the real eigenvalue
-         CALL mp_bcast(control%converged, 0, control%mp_group)
+         CALL control%mp_group%bcast(control%converged, 0)
          ind = control%selected_ind(1)
-         CALL mp_bcast(ar_data%rho_scale, 0, control%mp_group)
+         CALL control%mp_group%bcast(ar_data%rho_scale, 0)
 
 ! Again the maximum value request is done on -A therefore the eigenvalue needs the opposite sign
          ar_data%evals(ind) = ar_data%rho_scale

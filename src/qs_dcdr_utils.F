@@ -55,8 +55,7 @@ MODULE qs_dcdr_utils
                                               default_string_length,&
                                               dp
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE molecule_types,                  ONLY: molecule_type
    USE moments_utils,                   ONLY: get_reference_point
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -219,7 +218,7 @@ CONTAINS
          END IF
       END IF
 
-      CALL mp_bcast(file_exists, source, group)
+      CALL group%bcast(file_exists, source)
 
       IF (file_exists) THEN
 
@@ -230,12 +229,11 @@ CONTAINS
          !
          ! read headers
          IF (rst_unit > 0) READ (rst_unit, IOSTAT=iostat) lambda_tmp, beta_tmp, nspins_tmp, nao_tmp
-         CALL mp_bcast(iostat, source, group)
-
-         CALL mp_bcast(beta_tmp, source, group)
-         CALL mp_bcast(lambda_tmp, source, group)
-         CALL mp_bcast(nspins_tmp, source, group)
-         CALL mp_bcast(nao_tmp, source, group)
+         CALL group%bcast(iostat, source)
+         CALL group%bcast(beta_tmp, source)
+         CALL group%bcast(lambda_tmp, source)
+         CALL group%bcast(nspins_tmp, source)
+         CALL group%bcast(nao_tmp, source)
 
          ! check that the number nao, nmo and nspins are
          ! the same as in the current mos
@@ -253,7 +251,7 @@ CONTAINS
             CALL cp_fm_get_info(mo_coeff, ncol_global=nmo)
             !
             IF (rst_unit > 0) READ (rst_unit) nmo_tmp
-            CALL mp_bcast(nmo_tmp, source, group)
+            CALL group%bcast(nmo_tmp, source)
             IF (nmo_tmp .NE. nmo) CPABORT("nmo not consistent")
             !
             ! read the response
@@ -262,7 +260,7 @@ CONTAINS
                DO j = 1, i_block
                   IF (rst_unit > 0) READ (rst_unit) vecbuffer(1:nao, j)
                END DO
-               CALL mp_bcast(vecbuffer, source, group)
+               CALL group%bcast(vecbuffer, source)
                CALL cp_fm_set_submatrix(vec(ispin), vecbuffer, 1, i, nao, i_block)
             END DO
          END DO

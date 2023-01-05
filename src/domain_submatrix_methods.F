@@ -27,11 +27,8 @@ MODULE domain_submatrix_methods
                                               domain_submatrix_type,&
                                               select_row_col
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_allgather,&
-                                              mp_alltoall,&
-                                              mp_comm_null,&
-                                              mp_comm_type,&
-                                              mp_sync
+   USE message_passing,                 ONLY: mp_comm_null,&
+                                              mp_comm_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -751,7 +748,7 @@ CONTAINS
 
       ! communicate local norm to the other nodes
       ALLOCATE (recv_norm(submatrices(1)%nnodes))
-      CALL mp_allgather(send_norm, recv_norm, submatrices(1)%group)
+      CALL submatrices(1)%group%allgather(send_norm, recv_norm)
 
       norm = MAXVAL(recv_norm)
 
@@ -814,7 +811,7 @@ CONTAINS
 
       ! communicate local norm to the other nodes
       ALLOCATE (recv_trace(A(1)%nnodes))
-      CALL mp_allgather(send_trace, recv_trace, A(1)%group)
+      CALL A(1)%group%allgather(send_trace, recv_trace)
 
       trace = SUM(recv_trace)
 
@@ -971,7 +968,7 @@ CONTAINS
       !CALL dbcsr_iterator_stop(iter)
 
       ! communicate number of blocks and their sizes to the other nodes
-      CALL mp_alltoall(send_descriptor, recv_descriptor, ldesc, group)
+      CALL group%alltoall(send_descriptor, recv_descriptor, ldesc)
 
       ALLOCATE (send_size_cpu(nNodes), send_offset_cpu(nNodes))
       send_offset_cpu(1) = 0
@@ -1134,11 +1131,11 @@ CONTAINS
       !CALL dbcsr_iterator_stop(iter)
 
       ! send-receive all blocks
-      CALL mp_alltoall(send_data, send_size_cpu, send_offset_cpu, &
-                       recv_data, recv_size_cpu, recv_offset_cpu, group)
+      CALL group%alltoall(send_data, send_size_cpu, send_offset_cpu, &
+                          recv_data, recv_size_cpu, recv_offset_cpu)
       ! send-receive rows and cols of the blocks
-      CALL mp_alltoall(send_data2, send_size2_cpu, send_offset2_cpu, &
-                       recv_data2, recv_size2_cpu, recv_offset2_cpu, group)
+      CALL group%alltoall(send_data2, send_size2_cpu, send_offset2_cpu, &
+                          recv_data2, recv_size2_cpu, recv_offset2_cpu)
 
       DEALLOCATE (send_size_cpu, send_offset_cpu)
       DEALLOCATE (send_size2_cpu, send_offset2_cpu)
@@ -1442,7 +1439,7 @@ CONTAINS
       END DO ! loop over domains
 
       ! communicate number of blocks and their sizes to the other nodes
-      CALL mp_alltoall(send_descriptor, recv_descriptor, ldesc, group)
+      CALL group%alltoall(send_descriptor, recv_descriptor, ldesc)
 
       ALLOCATE (send_size_cpu(nNodes), send_offset_cpu(nNodes))
       send_offset_cpu(1) = 0
@@ -1542,11 +1539,11 @@ CONTAINS
       END DO ! loop over domains
 
       ! send-receive all blocks
-      CALL mp_alltoall(send_data, send_size_cpu, send_offset_cpu, &
-                       recv_data, recv_size_cpu, recv_offset_cpu, group)
+      CALL group%alltoall(send_data, send_size_cpu, send_offset_cpu, &
+                          recv_data, recv_size_cpu, recv_offset_cpu)
       ! send-receive rows and cols of the blocks
-      CALL mp_alltoall(send_data2, send_size2_cpu, send_offset2_cpu, &
-                       recv_data2, recv_size2_cpu, recv_offset2_cpu, group)
+      CALL group%alltoall(send_data2, send_size2_cpu, send_offset2_cpu, &
+                          recv_data2, recv_size2_cpu, recv_offset2_cpu)
 
       DEALLOCATE (send_size_cpu, send_offset_cpu)
       DEALLOCATE (send_size2_cpu, send_offset2_cpu)
@@ -1623,7 +1620,7 @@ CONTAINS
                WRITE (*, formatstr) submatrices(i)%mdata(irow, :)
             END DO
          END IF
-         CALL mp_sync(mpgroup)
+         CALL mpgroup%sync()
       END DO
 
       CALL timestop(handle)

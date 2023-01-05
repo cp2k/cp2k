@@ -42,8 +42,6 @@ MODULE reftraj_util
    USE machine,                         ONLY: m_flush
    USE md_environment_types,            ONLY: get_md_env,&
                                               md_environment_type
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_sum
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                               molecule_kind_type
@@ -244,9 +242,9 @@ CONTAINS
       END IF
       CALL close_file(unit_number=msd%ref0_unit)
 
-      CALL mp_bcast(msd%total_mass, para_env%source, para_env%group)
-      CALL mp_bcast(msd%ref0_pos, para_env%source, para_env%group)
-      CALL mp_bcast(msd%ref0_com, para_env%source, para_env%group)
+      CALL para_env%group%bcast(msd%total_mass, para_env%source)
+      CALL para_env%group%bcast(msd%ref0_pos, para_env%source)
+      CALL para_env%group%bcast(msd%ref0_com, para_env%source)
 
       CALL section_vals_val_get(msd_section, "MSD_PER_KIND", l_val=msd%msd_kind)
       CALL section_vals_val_get(msd_section, "MSD_PER_MOLKIND", l_val=msd%msd_molecule)
@@ -381,7 +379,7 @@ CONTAINS
                rcom(3) = rcom(3) + particle_set(atom)%r(3)*mass
             END DO
          END DO
-         CALL mp_sum(rcom, para_env%group)
+         CALL para_env%group%sum(rcom)
          rcom = rcom/reftraj%msd%total_mass
          reftraj%msd%drcom(1) = rcom(1) - reftraj%msd%ref0_com(1)
          reftraj%msd%drcom(2) = rcom(2) - reftraj%msd%ref0_com(2)
@@ -425,9 +423,9 @@ CONTAINS
 
          END DO  ! ikind
       END IF
-      CALL mp_sum(reftraj%msd%val_msd_kind, para_env%group)
-      CALL mp_sum(reftraj%msd%num_disp_atom, para_env%group)
-      CALL mp_sum(reftraj%msd%disp_atom_dr, para_env%group)
+      CALL para_env%group%sum(reftraj%msd%val_msd_kind)
+      CALL para_env%group%sum(reftraj%msd%num_disp_atom)
+      CALL para_env%group%sum(reftraj%msd%disp_atom_dr)
 
       IF (reftraj%msd%msd_molecule) THEN
          CALL cp_subsys_get(subsys=subsys, local_molecules=local_molecules, &
@@ -478,7 +476,7 @@ CONTAINS
             reftraj%msd%val_msd_molecule(3, ikind) = msd_mkind(3)/REAL(nmolecule, KIND=dp)
             reftraj%msd%val_msd_molecule(4, ikind) = msd_mkind(4)/REAL(nmolecule, KIND=dp)
          END DO  ! ikind
-         CALL mp_sum(reftraj%msd%val_msd_molecule, para_env%group)
+         CALL para_env%group%sum(reftraj%msd%val_msd_molecule)
 
       END IF
 

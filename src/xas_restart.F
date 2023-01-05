@@ -45,8 +45,7 @@ MODULE xas_restart
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE qs_density_matrices,             ONLY: calculate_density_matrix
@@ -174,7 +173,7 @@ CONTAINS
                " not available. Initialization done with GS orbitals"
          END IF
       END IF
-      CALL mp_bcast(file_exists, source, group)
+      CALL group%bcast(file_exists, source)
 
       CALL get_xas_env(xas_env=xas_env, occ_estate=occ_estate, xas_estate=xas_estate, &
                        xas_nelectron=xas_nelectron, nexc_search=nexc_search, &
@@ -196,7 +195,7 @@ CONTAINS
                              " is not possible. Start instead a new XAS run with the new set of atoms. ")
          END IF
 
-         CALL mp_bcast(xas_estate_read, source, group)
+         CALL group%bcast(xas_estate_read, source)
          CALL set_xas_env(xas_env=xas_env, xas_estate=xas_estate_read)
          estate = xas_estate_read
 
@@ -229,8 +228,8 @@ CONTAINS
                END IF
                DEALLOCATE (eig_read, occ_read)
             END IF
-            CALL mp_bcast(eigenvalues, source, group)
-            CALL mp_bcast(occupation_numbers, source, group)
+            CALL group%bcast(eigenvalues, source)
+            CALL group%bcast(occupation_numbers, source)
 
             DO i = 1, nmo
                IF (para_env%ionode) THEN
@@ -238,7 +237,7 @@ CONTAINS
                ELSE
                   vecbuffer(1, :) = 0.0_dp
                END IF
-               CALL mp_bcast(vecbuffer, source, group)
+               CALL group%bcast(vecbuffer, source)
                CALL cp_fm_set_submatrix(mo_coeff, &
                                         vecbuffer, 1, i, nao, 1, transpose=.TRUE.)
             END DO

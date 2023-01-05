@@ -25,8 +25,7 @@ MODULE qs_core_energies
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: oorootpi,&
                                               twopi
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_comm_type
    USE particle_types,                  ONLY: particle_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -326,7 +325,7 @@ CONTAINS
          virial%pv_virial = virial%pv_virial + pv_loc
       END IF
 
-      CALL mp_sum(ecore_overlap, group)
+      CALL group%sum(ecore_overlap)
 
       energy%core_overlap = ecore_overlap
 

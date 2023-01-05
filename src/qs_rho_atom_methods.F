@@ -27,7 +27,6 @@ MODULE qs_rho_atom_methods
    USE mathconstants,                   ONLY: fourpi,&
                                               pi
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_sum
    USE orbital_pointers,                ONLY: indso,&
                                               nsoset
    USE paw_basis_types,                 ONLY: get_paw_basis_info
@@ -734,8 +733,8 @@ CONTAINS
 
          DO ispin = 1, nspins
             IF (ASSOCIATED(rho_atom_set(iatom)%cpc_h(ispin)%r_coef)) THEN
-               CALL mp_sum(rho_atom_set(iatom)%cpc_h(ispin)%r_coef, para_env%group)
-               CALL mp_sum(rho_atom_set(iatom)%cpc_s(ispin)%r_coef, para_env%group)
+               CALL para_env%group%sum(rho_atom_set(iatom)%cpc_h(ispin)%r_coef)
+               CALL para_env%group%sum(rho_atom_set(iatom)%cpc_s(ispin)%r_coef)
                r_coef_h => rho_atom_set(iatom)%cpc_h(ispin)%r_coef
                r_coef_s => rho_atom_set(iatom)%cpc_s(ispin)%r_coef
                r_coef_h(:, :) = r_coef_h(:, :) + TRANSPOSE(r_coef_h(:, :))

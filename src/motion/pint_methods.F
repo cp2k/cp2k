@@ -84,8 +84,7 @@ MODULE pint_methods
                                               m_walltime
    USE mathconstants,                   ONLY: twopi
    USE mathlib,                         ONLY: gcd
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_comm_self
+   USE message_passing,                 ONLY: mp_comm_self
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_list_types,             ONLY: molecule_list_type
@@ -1507,9 +1506,8 @@ CONTAINS
                CALL pint_x2u(pint_env, ux=pint_env%uv, x=pint_env%v)
             END IF
             ! Broadcast updated velocities to other nodes
-            CALL mp_bcast(pint_env%uv, &
-                          pint_env%logger%para_env%source, &
-                          pint_env%logger%para_env%group)
+            CALL pint_env%logger%para_env%group%bcast(pint_env%uv, &
+                                                      pint_env%logger%para_env%source)
             ! Centroid constraints
          ELSE
             ! Transform positions and velocities to Cartesian coordinates:
@@ -1534,9 +1532,8 @@ CONTAINS
                                    local_particles)
             END IF
             ! Broadcast updated velocities to other nodes
-            CALL mp_bcast(vel, &
-                          pint_env%logger%para_env%source, &
-                          pint_env%logger%para_env%group)
+            CALL pint_env%logger%para_env%group%bcast(vel, &
+                                                      pint_env%logger%para_env%source)
             ! Transform back to normal modes
             DO i = 1, nparticle
                DO j = 1, 3
@@ -1689,9 +1686,8 @@ CONTAINS
          IF (logger%para_env%ionode) THEN
             pint_env%f(:, :) = pint_env%f(:, :) + helium_env(1)%helium%force_avrg(:, :)
          END IF
-         CALL mp_bcast(pint_env%f, &
-                       logger%para_env%source, &
-                       logger%para_env%group)
+         CALL logger%para_env%group%bcast(pint_env%f, &
+                                          logger%para_env%source)
       END IF
       CALL pint_f2uf(pint_env)
 
@@ -2130,12 +2126,10 @@ CONTAINS
                                      mp_comm_self, local_particles)
                END IF
                ! Positions and velocities of centroid were constrained by SHAKE
-               CALL mp_bcast(pos, &
-                             pint_env%logger%para_env%source, &
-                             pint_env%logger%para_env%group)
-               CALL mp_bcast(vel, &
-                             pint_env%logger%para_env%source, &
-                             pint_env%logger%para_env%group)
+               CALL pint_env%logger%para_env%group%bcast(pos, &
+                                                         pint_env%logger%para_env%source)
+               CALL pint_env%logger%para_env%group%bcast(vel, &
+                                                         pint_env%logger%para_env%source)
                ! Transform back to normal modes:
                DO i = 1, nparticle
                   DO j = 1, 3
@@ -2167,9 +2161,8 @@ CONTAINS
                   IF (pint_env%logger%para_env%ionode) THEN
                      pint_env%f(:, :) = pint_env%f(:, :) + helium_env(1)%helium%force_avrg(:, :)
                   END IF
-                  CALL mp_bcast(pint_env%f, &
-                                pint_env%logger%para_env%source, &
-                                pint_env%logger%para_env%group)
+                  CALL pint_env%logger%para_env%group%bcast(pint_env%f, &
+                                                            pint_env%logger%para_env%source)
                END IF
 
                CALL pint_f2uf(pint_env)
@@ -2316,9 +2309,8 @@ CONTAINS
                   END IF
                   ! Velocities of centroid were constrained by RATTLE
                   ! Broadcast updated velocities to other nodes
-                  CALL mp_bcast(vel, &
-                                pint_env%logger%para_env%source, &
-                                pint_env%logger%para_env%group)
+                  CALL pint_env%logger%para_env%group%bcast(vel, &
+                                                            pint_env%logger%para_env%source)
 
                   DO i = 1, nparticle
                      DO j = 1, 3
@@ -2446,12 +2438,10 @@ CONTAINS
                   CALL pint_x2u(pint_env, ux=pint_env%uv_t, x=pint_env%v)
                END IF
                ! Broadcast positions and velocities to all nodes
-               CALL mp_bcast(pint_env%ux_t, &
-                             pint_env%logger%para_env%source, &
-                             pint_env%logger%para_env%group)
-               CALL mp_bcast(pint_env%uv_t, &
-                             pint_env%logger%para_env%source, &
-                             pint_env%logger%para_env%group)
+               CALL pint_env%logger%para_env%group%bcast(pint_env%ux_t, &
+                                                         pint_env%logger%para_env%source)
+               CALL pint_env%logger%para_env%group%bcast(pint_env%uv_t, &
+                                                         pint_env%logger%para_env%source)
                ! Centroid constraints
             ELSE
                IF (pint_env%logger%para_env%ionode) THEN
@@ -2475,12 +2465,10 @@ CONTAINS
                                      mp_comm_self, local_particles)
                END IF
                ! Broadcast positions and velocities to all nodes
-               CALL mp_bcast(pos, &
-                             pint_env%logger%para_env%source, &
-                             pint_env%logger%para_env%group)
-               CALL mp_bcast(vel, &
-                             pint_env%logger%para_env%source, &
-                             pint_env%logger%para_env%group)
+               CALL pint_env%logger%para_env%group%bcast(pos, &
+                                                         pint_env%logger%para_env%source)
+               CALL pint_env%logger%para_env%group%bcast(vel, &
+                                                         pint_env%logger%para_env%source)
                ! Transform back to normal modes:
                DO i = 1, nparticle
                   DO j = 1, 3
@@ -2505,9 +2493,8 @@ CONTAINS
             IF (pint_env%logger%para_env%ionode) THEN
                pint_env%f(:, :) = pint_env%f(:, :) + helium_env(1)%helium%force_avrg(:, :)
             END IF
-            CALL mp_bcast(pint_env%f, &
-                          pint_env%logger%para_env%source, &
-                          pint_env%logger%para_env%group)
+            CALL pint_env%logger%para_env%group%bcast(pint_env%f, &
+                                                      pint_env%logger%para_env%source)
          END IF
          CALL pint_f2uf(pint_env)
          ! set the centroid forces to 0 if FIX_CENTROID_POS
@@ -2576,9 +2563,8 @@ CONTAINS
                   ! Transform back to normal modes:
                   CALL pint_x2u(pint_env, ux=pint_env%uv, x=pint_env%v)
                END IF
-               CALL mp_bcast(pint_env%uv, &
-                             pint_env%logger%para_env%source, &
-                             pint_env%logger%para_env%group)
+               CALL pint_env%logger%para_env%group%bcast(pint_env%uv, &
+                                                         pint_env%logger%para_env%source)
                ! Centroid constraints
             ELSE
                IF (pint_env%logger%para_env%ionode) THEN
@@ -2601,9 +2587,8 @@ CONTAINS
                END IF
                ! Velocities of centroid were constrained by RATTLE
                ! Broadcast updated velocities to other nodes
-               CALL mp_bcast(vel, &
-                             pint_env%logger%para_env%source, &
-                             pint_env%logger%para_env%group)
+               CALL pint_env%logger%para_env%group%bcast(vel, &
+                                                         pint_env%logger%para_env%source)
 
                ! Transform back to normal modes:
                ! Multiply with SQRT(n_beads) due to normal mode transformation

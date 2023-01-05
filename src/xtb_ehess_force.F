@@ -34,7 +34,6 @@ MODULE xtb_ehess_force
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: oorootpi,&
                                               pi
-   USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
    USE pw_poisson_types,                ONLY: do_ewald_ewald,&
                                               do_ewald_none,&
@@ -293,10 +292,10 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
                       force=force, para_env=para_env)
-      CALL mp_sum(gmcharge0(:, 1), para_env%group)
-      CALL mp_sum(gchrg0(:, :, 1), para_env%group)
-      CALL mp_sum(gmcharge1(:, 1), para_env%group)
-      CALL mp_sum(gchrg1(:, :, 1), para_env%group)
+      CALL para_env%group%sum(gmcharge0(:, 1))
+      CALL para_env%group%sum(gchrg0(:, :, 1))
+      CALL para_env%group%sum(gmcharge1(:, 1))
+      CALL para_env%group%sum(gchrg1(:, :, 1))
 
       IF (xtb_control%coulomb_lr) THEN
          IF (do_ewald) THEN
@@ -345,7 +344,7 @@ CONTAINS
       END DO
       IF (debug_forces) THEN
          fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
-         CALL mp_sum(fodeb, para_env%group)
+         CALL para_env%group%sum(fodeb)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dH[Pz]    ", fodeb
       END IF
 
@@ -415,7 +414,7 @@ CONTAINS
       CALL dbcsr_iterator_stop(iter)
       IF (debug_forces) THEN
          fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
-         CALL mp_sum(fodeb, para_env%group)
+         CALL para_env%group%sum(fodeb)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*H[P]*dS  ", fodeb
       END IF
 
@@ -432,7 +431,7 @@ CONTAINS
                                            matrix_p0(1)%matrix, matrix_p1(1)%matrix, xgamma)
          IF (debug_forces) THEN
             fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
-            CALL mp_sum(fodeb, para_env%group)
+            CALL para_env%group%sum(fodeb)
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*H3[P]    ", fodeb
          END IF
          DEALLOCATE (xgamma)

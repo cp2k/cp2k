@@ -39,7 +39,7 @@ MODULE dbt_types
       dbt_tas_create_split, dbt_tas_get_split_info, dbt_tas_set_strict_split
    USE kinds, ONLY: default_string_length, int_8, dp
    USE message_passing, ONLY: &
-      mp_cart_create, mp_cart_rank, mp_environ, mp_dims_create, mp_comm_free, mp_comm_dup, mp_sum, mp_max, mp_comm_type
+      mp_cart_create, mp_cart_rank, mp_environ, mp_dims_create, mp_comm_type
    USE dbt_tas_global, ONLY: dbt_tas_distribution, dbt_tas_rowcol_data, dbt_tas_default_distvec
    USE dbt_allocate_wrap, ONLY: allocate_any
    USE dbm_api, ONLY: dbm_scale
@@ -515,7 +515,7 @@ CONTAINS
 
             ndims = SIZE(dims)
 
-            CALL mp_environ(nproc, iproc, mp_comm)
+            CALL mp_comm%environ(nproc, iproc)
             IF (ANY(dims == 0)) THEN
                IF (.NOT. PRESENT(tensor_dims)) THEN
                   CALL mp_dims_create(nproc, dims)
@@ -633,7 +633,7 @@ CONTAINS
          SUBROUTINE dbt_nd_mp_free(mp_comm)
             TYPE(mp_comm_type), INTENT(INOUT)                               :: mp_comm
 
-            CALL mp_comm_free(mp_comm)
+            CALL mp_comm%free()
          END SUBROUTINE dbt_nd_mp_free
 
 ! **************************************************************************************************
@@ -814,7 +814,7 @@ CONTAINS
             ELSE
                keep_comm_prv = .FALSE.
             END IF
-            IF (.NOT. keep_comm_prv) CALL mp_comm_free(pgrid%mp_comm_2d)
+            IF (.NOT. keep_comm_prv) CALL pgrid%mp_comm_2d%free()
             CALL destroy_nd_to_2d_mapping(pgrid%nd_index_grid)
             IF (ALLOCATED(pgrid%tas_split_info) .AND. .NOT. keep_comm_prv) THEN
                CALL dbt_tas_release_info(pgrid%tas_split_info)
@@ -1279,8 +1279,8 @@ CONTAINS
 
             IF (tensor%refcount == 0) THEN
                CALL dbt_pgrid_destroy(tensor%pgrid)
-               !CALL mp_comm_free(tensor%comm_2d)
-               !CALL mp_comm_free(tensor%comm_nd)
+               !CALL tensor%comm_2d%free()
+               !CALL tensor%comm_nd%free()
                DEALLOCATE (tensor%refcount)
             ELSE
                CALL dbt_pgrid_destroy(tensor%pgrid, keep_comm=.TRUE.)
@@ -1641,7 +1641,7 @@ CONTAINS
             blk_count_total = PRODUCT(INT(bdims, int_8))
 
             ! can not call an MPI routine due to PURE
-            !CALL mp_environ(nproc, myproc, tensor%pgrid%mp_comm_2d)
+            !CALL tensor%pgrid%mp_comm_2d%environ(nproc, myproc)
             nproc = tensor%pgrid%nproc
 
             blk_count = INT(blk_count_total/nproc*max_load_imbalance)

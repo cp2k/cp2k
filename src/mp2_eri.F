@@ -49,7 +49,6 @@ MODULE mp2_eri
                                   section_vals_val_get
    USE kinds, ONLY: dp
    USE libint_2c_3c, ONLY: libint_potential_type
-   USE message_passing, ONLY: mp_sum
    USE orbital_pointers, ONLY: coset, &
                                init_orbital_pointers, &
                                ncoset
@@ -319,9 +318,9 @@ CONTAINS
 
       END IF
 
-      CALL mp_sum(hab, para_env%group)
-      IF (PRESENT(hdab)) CALL mp_sum(hdab, para_env%group)
-      IF (PRESENT(hadb)) CALL mp_sum(hadb, para_env%group)
+      CALL para_env%group%sum(hab)
+      IF (PRESENT(hdab)) CALL para_env%group%sum(hdab)
+      IF (PRESENT(hadb)) CALL para_env%group%sum(hadb)
 
       CALL timestop(handle)
    END SUBROUTINE mp2_eri_2c_integrate

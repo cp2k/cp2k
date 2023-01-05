@@ -29,9 +29,7 @@ MODULE xray_diffraction
    USE mathconstants,                   ONLY: pi,&
                                               twopi
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_gather,&
-                                              mp_gatherv
+   USE message_passing,                 ONLY: mp_comm_type
    USE orbital_pointers,                ONLY: indco,&
                                               nco,&
                                               ncoset,&
@@ -266,7 +264,7 @@ CONTAINS
 
       ! Root (source) process gathers the number of shell of each process
 
-      CALL mp_gather(nshell, nshell_pe, source, group)
+      CALL group%gather(nshell, nshell_pe, source)
 
       ! Only the root process which has to print the full spectrum has to
       ! allocate here the receive buffers with their real sizes
@@ -289,13 +287,13 @@ CONTAINS
       CALL reallocate(f2sum_gather, 1, nshell_gather)
       CALL reallocate(f4sum_gather, 1, nshell_gather)
 
-      CALL mp_gatherv(q_shell, q_shell_gather, nshell_pe, offset_pe, source, group)
-      CALL mp_gatherv(ng_shell, ng_shell_gather, nshell_pe, offset_pe, source, group)
-      CALL mp_gatherv(fmax, fmax_gather, nshell_pe, offset_pe, source, group)
-      CALL mp_gatherv(fmin, fmin_gather, nshell_pe, offset_pe, source, group)
-      CALL mp_gatherv(fsum, fsum_gather, nshell_pe, offset_pe, source, group)
-      CALL mp_gatherv(f2sum, f2sum_gather, nshell_pe, offset_pe, source, group)
-      CALL mp_gatherv(f4sum, f4sum_gather, nshell_pe, offset_pe, source, group)
+      CALL group%gatherv(q_shell, q_shell_gather, nshell_pe, offset_pe, source)
+      CALL group%gatherv(ng_shell, ng_shell_gather, nshell_pe, offset_pe, source)
+      CALL group%gatherv(fmax, fmax_gather, nshell_pe, offset_pe, source)
+      CALL group%gatherv(fmin, fmin_gather, nshell_pe, offset_pe, source)
+      CALL group%gatherv(fsum, fsum_gather, nshell_pe, offset_pe, source)
+      CALL group%gatherv(f2sum, f2sum_gather, nshell_pe, offset_pe, source)
+      CALL group%gatherv(f4sum, f4sum_gather, nshell_pe, offset_pe, source)
 
       IF (ASSOCIATED(offset_pe)) THEN
          DEALLOCATE (offset_pe)

@@ -36,7 +36,6 @@ MODULE kg_correction
                                               lri_kind_type
    USE lri_forces,                      ONLY: calculate_lri_forces
    USE lri_ks_methods,                  ONLY: calculate_lri_ks_matrix
-   USE message_passing,                 ONLY: mp_sum
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_integral_ab,&
@@ -527,7 +526,7 @@ CONTAINS
       DO ispin = 1, nspins
          lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
          DO ikind = 1, nkind
-            CALL mp_sum(lri_v_int(ikind)%v_int, para_env%group)
+            CALL para_env%group%sum(lri_v_int(ikind)%v_int)
          END DO
          ksmat(1)%matrix => ks_matrix(ispin)%matrix
          CALL calculate_lri_ks_matrix(lri_env, lri_v_int, ksmat, atomic_kind_set)
@@ -811,14 +810,14 @@ CONTAINS
             ! KS int with rho_ext"
             lri_v_int => lri_rho1%lri_coefs(ispin)%lri_kinds
             DO ikind = 1, nkind
-               CALL mp_sum(lri_v_int(ikind)%v_int, para_env%group)
+               CALL para_env%group%sum(lri_v_int(ikind)%v_int)
             END DO
             CALL calculate_lri_ks_matrix(lri_env1, lri_v_int, ksmat, atomic_kind_set)
          ELSE
             ! KS int with rho_ao"
             lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
             DO ikind = 1, nkind
-               CALL mp_sum(lri_v_int(ikind)%v_int, para_env%group)
+               CALL para_env%group%sum(lri_v_int(ikind)%v_int)
             END DO
             CALL calculate_lri_ks_matrix(lri_env, lri_v_int, ksmat, atomic_kind_set)
          END IF

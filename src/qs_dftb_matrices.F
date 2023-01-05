@@ -40,7 +40,6 @@ MODULE qs_dftb_matrices
                                               dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
-   USE message_passing,                 ONLY: mp_sum
    USE mulliken,                        ONLY: mulliken_charges
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
@@ -443,7 +442,7 @@ CONTAINS
       END DO
 
       ! set repulsive energy
-      CALL mp_sum(erep, para_env%group)
+      CALL para_env%group%sum(erep)
       energy%repulsive = erep
 
       CALL section_vals_val_get(qs_env%input, "DFT%PRINT%AO_MATRICES%OMIT_HEADERS", l_val=omit_headers)

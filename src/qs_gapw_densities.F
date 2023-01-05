@@ -14,7 +14,6 @@ MODULE qs_gapw_densities
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_sum
    USE qs_charges_types,                ONLY: qs_charges_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -143,8 +142,8 @@ CONTAINS
 
       !Do not mess with charges if using a non-default kind_set
       IF (.NOT. extern) THEN
-         CALL mp_sum(rho1_h_tot, para_env%group)
-         CALL mp_sum(rho1_s_tot, para_env%group)
+         CALL para_env%group%sum(rho1_h_tot)
+         CALL para_env%group%sum(rho1_s_tot)
          DO ispin = 1, nspins
             qs_charges%total_rho1_hard(ispin) = -rho1_h_tot(ispin)
             qs_charges%total_rho1_soft(ispin) = -rho1_s_tot(ispin)

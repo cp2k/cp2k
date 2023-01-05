@@ -12,8 +12,7 @@
 MODULE ps_wavelet_kernel
 
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_alltoall,&
-                                              mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE ps_wavelet_base,                 ONLY: scramble_unpack
    USE ps_wavelet_fft3d,                ONLY: ctrig,&
                                               ctrig_length,&
@@ -501,9 +500,8 @@ CONTAINS
 
       !give to each processor a slice of the third dimension
       IF (nproc > 1) THEN
-         CALL mp_alltoall(kernel, &!nker1*(nact2/nproc)*(nker3/nproc), &
-                          kernel_mpi, nker1*(nact2/nproc)*(nker3/nproc), &
-                          mpi_group)
+         CALL mpi_group%alltoall(kernel, &!nker1*(nact2/nproc)*(nker3/nproc), &
+                                 kernel_mpi, nker1*(nact2/nproc)*(nker3/nproc))
 
          DO jp2 = 1, nproc
             DO i3 = 1, nker3/nproc
@@ -1217,9 +1215,8 @@ CONTAINS
       !input: I1,J2,j3,jp3,(Jp2)
       IF (nproc .GT. 1) THEN
          !communication scheduling
-         CALL mp_alltoall(zmpi2, &!2*n1*(nd2/nproc)*(nd3/nproc), &
-                          zmpi1, 2*n1*(nd2/nproc)*(nd3/nproc), &
-                          mpi_group)
+         CALL mpi_group%alltoall(zmpi2, &!2*n1*(nd2/nproc)*(nd3/nproc), &
+                                 zmpi1, 2*n1*(nd2/nproc)*(nd3/nproc))
          ! output: I1,J2,j3,Jp2,(jp3)
       END IF
 

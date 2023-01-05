@@ -51,8 +51,7 @@ MODULE constraint
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_comm_type
    USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                               get_molecule_kind_set,&
                                               molecule_kind_type
@@ -681,7 +680,7 @@ CONTAINS
                   END IF
                END DO
             END DO MOL
-            CALL mp_sum(lagr, group)
+            CALL group%sum(lagr)
          END IF
          ! Intermolecular constraints
          IF (do_ext_constraint) THEN

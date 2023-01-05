@@ -38,12 +38,6 @@ MODULE mp2_ri_gpw
    USE machine,                         ONLY: m_flush,&
                                               m_memory,&
                                               m_walltime
-   USE message_passing,                 ONLY: mp_allgather,&
-                                              mp_min,&
-                                              mp_recv,&
-                                              mp_send,&
-                                              mp_sendrecv,&
-                                              mp_sum
    USE mp2_ri_grad_util,                ONLY: complete_gamma
    USE mp2_types,                       ONLY: mp2_type,&
                                               three_dim_real_array
@@ -233,7 +227,7 @@ CONTAINS
                                       block_size, ngroup, ij_map, color_sub, my_ij_pairs, my_open_shell_SS, unit_nr)
 
             ALLOCATE (num_ij_pairs(0:para_env_exchange%num_pe - 1))
-            CALL mp_allgather(my_ij_pairs, num_ij_pairs, para_env_exchange%group)
+            CALL para_env_exchange%group%allgather(my_ij_pairs, num_ij_pairs)
 
             max_ij_pairs = MAXVAL(num_ij_pairs)
 
@@ -299,9 +293,8 @@ CONTAINS
                         BI_C_rec(1:rec_L_size, 1:my_B_size(ispin), 1:my_block_size) => &
                            buffer_1D(1:rec_L_size*my_B_size(ispin)*my_block_size)
                         BI_C_rec = 0.0_dp
-                        CALL mp_sendrecv(BIb_C(ispin)%array(:, :, send_i:send_i + my_block_size - 1), &
-                                         proc_send, BI_C_rec, proc_receive, &
-                                         para_env_exchange%group, tag)
+                        CALL para_env_exchange%group%sendrecv(BIb_C(ispin)%array(:, :, send_i:send_i + my_block_size - 1), &
+                                                              proc_send, BI_C_rec, proc_receive, tag)
 
                         CALL fill_local_i_aL(local_i_aL(:, :, 1:my_block_size), ranges_info_array(:, :, proc_receive), &
                                              BI_C_rec(:, 1:my_B_size(ispin), :))
@@ -310,9 +303,8 @@ CONTAINS
                         BI_C_rec(1:rec_L_size, 1:my_B_size(jspin), 1:my_block_size) => &
                            buffer_1D(1:INT(rec_L_size, int_8)*my_B_size(jspin)*my_block_size)
                         BI_C_rec = 0.0_dp
-                        CALL mp_sendrecv(BIb_C(jspin)%array(:, :, send_j:send_j + my_block_size - 1), &
-                                         proc_send, BI_C_rec, proc_receive, &
-                                         para_env_exchange%group, tag)
+                        CALL para_env_exchange%group%sendrecv(BIb_C(jspin)%array(:, :, send_j:send_j + my_block_size - 1), &
+                                                              proc_send, BI_C_rec, proc_receive, tag)
 
                         CALL fill_local_i_aL(local_j_aL(:, :, 1:my_block_size), ranges_info_array(:, :, proc_receive), &
                                              BI_C_rec(:, 1:my_B_size(jspin), :))
@@ -324,7 +316,7 @@ CONTAINS
                         BI_C_rec(1:rec_L_size, 1:my_B_size(ispin), 1:my_block_size) => &
                            buffer_1D(1:INT(rec_L_size, int_8)*my_B_size(ispin)*my_block_size)
                         BI_C_rec = 0.0_dp
-                        CALL mp_recv(BI_C_rec, proc_receive, tag, para_env_exchange%group)
+                        CALL para_env_exchange%group%recv(BI_C_rec, proc_receive, tag)
 
                         CALL fill_local_i_aL(local_i_aL(:, :, 1:my_block_size), ranges_info_array(:, :, proc_receive), &
                                              BI_C_rec(:, 1:my_B_size(ispin), 1:my_block_size))
@@ -333,7 +325,7 @@ CONTAINS
                         BI_C_rec(1:rec_L_size, 1:my_B_size(jspin), 1:my_block_size) => &
                            buffer_1D(1:INT(rec_L_size, int_8)*my_B_size(jspin)*my_block_size)
                         BI_C_rec = 0.0_dp
-                        CALL mp_recv(BI_C_rec, proc_receive, tag, para_env_exchange%group)
+                        CALL para_env_exchange%group%recv(BI_C_rec, proc_receive, tag)
 
                         CALL fill_local_i_aL(local_j_aL(:, :, 1:my_block_size), ranges_info_array(:, :, proc_receive), &
                                              BI_C_rec(:, 1:my_B_size(jspin), 1:my_block_size))
@@ -376,9 +368,8 @@ CONTAINS
                               external_i_aL(1:dimen_RI, 1:rec_B_size) => buffer_1D(1:INT(dimen_RI, int_8)*rec_B_size)
                               external_i_aL = 0.0_dp
 
-                              CALL mp_sendrecv(my_local_i_aL, proc_send, &
-                                               external_i_aL, proc_receive, &
-                                               para_env_sub%group, tag)
+                              CALL para_env_sub%group%sendrecv(my_local_i_aL, proc_send, &
+                                                               external_i_aL, proc_receive, tag)
 
                               CALL local_gemm('T', 'N', rec_B_size, my_B_size(jspin), dimen_RI, 1.0_dp, &
                                               external_i_aL, dimen_RI, my_local_j_aL, dimen_RI, &
@@ -394,9 +385,8 @@ CONTAINS
                                  external_i_aL(1:dimen_RI, 1:rec_B_size) => buffer_1D(1:INT(dimen_RI, int_8)*rec_B_size)
                                  external_i_aL = 0.0_dp
 
-                                 CALL mp_sendrecv(my_local_j_aL, proc_send, &
-                                                  external_i_aL, proc_receive, &
-                                                  para_env_sub%group, tag)
+                                 CALL para_env_sub%group%sendrecv(my_local_j_aL, proc_send, &
+                                                                  external_i_aL, proc_receive, tag)
 
                                  CALL local_gemm('T', 'N', rec_B_size, my_B_size(ispin), dimen_RI, 1.0_dp, &
                                                  external_i_aL, dimen_RI, my_local_i_aL, dimen_RI, &
@@ -462,9 +452,8 @@ CONTAINS
                                     buffer_1D(1:INT(rec_B_size, int_8)*my_B_size(ispin))
                                  external_ab = 0.0_dp
 
-                                CALL mp_sendrecv(local_ab(send_B_virtual_start:send_B_virtual_end, 1:my_B_size(ispin)), proc_send, &
-                                                  external_ab(1:my_B_size(ispin), 1:rec_B_size), proc_receive, &
-                                                  para_env_sub%group, tag)
+                CALL para_env_sub%group%sendrecv(local_ab(send_B_virtual_start:send_B_virtual_end, 1:my_B_size(ispin)), proc_send, &
+                                                                  external_ab(1:my_B_size(ispin), 1:rec_B_size), proc_receive, tag)
 
                                  DO b = 1, my_B_size(ispin)
                                     b_global = b + my_B_virtual_start(ispin) - 1
@@ -521,11 +510,11 @@ CONTAINS
                         send_j = ij_map(2, ij_counter_send)
 
                         ! occupied i
-                        CALL mp_send(BIb_C(ispin)%array(:, :, send_i:send_i + my_block_size - 1), &
-                                     proc_send, tag, para_env_exchange%group)
+                        CALL para_env_exchange%group%send(BIb_C(ispin)%array(:, :, send_i:send_i + my_block_size - 1), &
+                                                          proc_send, tag)
                         ! occupied j
-                        CALL mp_send(BIb_C(jspin)%array(:, :, send_j:send_j + my_block_size - 1), &
-                                     proc_send, tag, para_env_exchange%group)
+                        CALL para_env_exchange%group%send(BIb_C(jspin)%array(:, :, send_j:send_j + my_block_size - 1), &
+                                                          proc_send, tag)
                      END IF
                   END DO
                   CALL timestop(handle3)
@@ -606,8 +595,8 @@ CONTAINS
                   start_point = ranges_info_array(3, proc_shift, para_env_exchange%mepos)
                   end_point = ranges_info_array(4, proc_shift, para_env_exchange%mepos)
 
-                  CALL mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia(ispin)%array(:, :, start_point:end_point), &
-                                   proc_send, BIb_C(ispin)%array, proc_receive, para_env_rep%group, tag)
+                  CALL para_env_rep%group%sendrecv(mp2_env%ri_grad%Gamma_P_ia(ispin)%array(:, :, start_point:end_point), &
+                                                   proc_send, BIb_C(ispin)%array, proc_receive, tag)
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
 !$OMP          SHARED(mp2_env,BIb_C,ispin,homo,my_B_size,my_group_L_size_orig)
                   mp2_env%ri_grad%Gamma_P_ia(ispin)%array(:, :, 1:my_group_L_size_orig) = &
@@ -623,8 +612,8 @@ CONTAINS
                DEALLOCATE (BIb_C(ispin)%array)
             END IF
 
-            CALL mp_sum(my_Emp2_Cou, para_env%group)
-            CALL mp_sum(my_Emp2_Ex, para_env%group)
+            CALL para_env%group%sum(my_Emp2_Cou)
+            CALL para_env%group%sum(my_Emp2_Ex)
 
             IF (my_open_shell_SS .OR. my_alpha_beta_case) THEN
                IF (my_alpha_beta_case) THEN
@@ -677,8 +666,8 @@ CONTAINS
          sub_P_color = para_env_sub%mepos
          CALL cp_para_env_split(para_env_P, para_env, sub_P_color)
          DO ispin = 1, nspins
-            CALL mp_sum(mp2_env%ri_grad%P_ab(ispin)%array, para_env_P%group)
-            CALL mp_sum(mp2_env%ri_grad%P_ij(ispin)%array, para_env%group)
+            CALL para_env_P%group%sum(mp2_env%ri_grad%P_ab(ispin)%array)
+            CALL para_env%group%sum(mp2_env%ri_grad%P_ij(ispin)%array)
          END DO
          ! release para_env_P
          CALL cp_para_env_release(para_env_P)
@@ -802,7 +791,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ! replication scheme using mp_allgather
+      ! replication scheme using mpi_allgather
       ! get the max L size of the
       max_L_size = MAXVAL(sizes_array)
 
@@ -815,7 +804,7 @@ CONTAINS
       ALLOCATE (BIb_C_gather(max_L_size, my_B_size, homo, 0:para_env_rep%num_pe - 1))
       BIb_C_gather = 0.0_dp
 
-      CALL mp_allgather(BIb_C_copy, BIb_C_gather, para_env_rep%group)
+      CALL para_env_rep%group%allgather(BIb_C_copy, BIb_C_gather)
 
       DEALLOCATE (BIb_C_copy)
 
@@ -1239,9 +1228,9 @@ CONTAINS
       ALLOCATE (rep_starts_array(0:para_env_rep%num_pe - 1))
       ALLOCATE (rep_sizes_array(0:para_env_rep%num_pe - 1))
 
-      CALL mp_allgather(my_group_L_size, rep_sizes_array, para_env_rep%group)
-      CALL mp_allgather(my_group_L_start, rep_starts_array, para_env_rep%group)
-      CALL mp_allgather(my_group_L_end, rep_ends_array, para_env_rep%group)
+      CALL para_env_rep%group%allgather(my_group_L_size, rep_sizes_array)
+      CALL para_env_rep%group%allgather(my_group_L_start, rep_starts_array)
+      CALL para_env_rep%group%allgather(my_group_L_end, rep_ends_array)
 
       ! calculate my_new_group_L_size according to sizes_array
       my_new_group_L_size = my_group_L_size
@@ -1267,15 +1256,15 @@ CONTAINS
 
       ALLOCATE (new_sizes_array(0:para_env_exchange%num_pe - 1))
       ALLOCATE (ranges_info_array(4, 0:para_env_rep%num_pe - 1, 0:para_env_exchange%num_pe - 1))
-      CALL mp_allgather(my_new_group_L_size, new_sizes_array, para_env_exchange%group)
-      CALL mp_allgather(my_info, ranges_info_array, para_env_exchange%group)
+      CALL para_env_exchange%group%allgather(my_new_group_L_size, new_sizes_array)
+      CALL para_env_exchange%group%allgather(my_info, ranges_info_array)
 
       DEALLOCATE (rep_sizes_array)
       DEALLOCATE (rep_starts_array)
       DEALLOCATE (rep_ends_array)
 
       ALLOCATE (integ_group_pos2color_sub(0:para_env_exchange%num_pe - 1))
-      CALL mp_allgather(color_sub, integ_group_pos2color_sub, para_env_exchange%group)
+      CALL para_env_exchange%group%allgather(color_sub, integ_group_pos2color_sub)
 
       IF (calc_forces) THEN
          iiB = SIZE(sizes_array)
@@ -1350,7 +1339,7 @@ CONTAINS
       IF (calc_group_size) THEN
          CALL m_memory(mem)
          mem_real = (mem + 1024*1024 - 1)/(1024*1024)
-         CALL mp_min(mem_real, para_env%group)
+         CALL para_env%group%min(mem_real)
 
          mem_base = 0.0_dp
          mem_per_blk = 0.0_dp
@@ -1503,9 +1492,7 @@ CONTAINS
 
       CALL m_memory(mem)
       mem_real = (mem + 1024*1024 - 1)/(1024*1024)
-      ! mp_min .... a hack.. it should be mp_max, but as it turns out, on some processes the previously freed memory (hfx)
-      ! has not been given back to the OS yet.
-      CALL mp_min(mem_real, para_env%group)
+      CALL para_env%group%min(mem_real)
 
       mem_base = 0.0_dp
       mem_per_blk = 0.0_dp
@@ -1735,9 +1722,8 @@ CONTAINS
          external_ab(1:virtual(ispin), 1:rec_B_size) => buffer_1D(1:INT(virtual(ispin), int_8)*rec_B_size)
          external_ab = 0.0_dp
 
-         CALL mp_sendrecv(local_ab, proc_send, &
-                          external_ab, proc_receive, &
-                          para_env_sub%group)
+         CALL para_env_sub%group%sendrecv(local_ab, proc_send, &
+                                          external_ab, proc_receive)
 
          IF (.NOT. (alpha_beta)) THEN
             CALL local_gemm('T', 'N', my_B_size(ispin), rec_B_size, virtual(ispin), 1.0_dp, &
@@ -1756,9 +1742,8 @@ CONTAINS
             CALL get_group_dist(gd_B_virtual(ispin), proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
             external_ab(1:virtual(jspin), 1:rec_B_size) => buffer_1D(1:INT(virtual(jspin), int_8)*rec_B_size)
             external_ab = 0.0_dp
-            CALL mp_sendrecv(local_ba, proc_send, &
-                             external_ab, proc_receive, &
-                             para_env_sub%group)
+            CALL para_env_sub%group%sendrecv(local_ba, proc_send, &
+                                             external_ab, proc_receive)
             CALL local_gemm('T', 'N', my_B_size(ispin), rec_B_size, virtual(jspin), mp2_env%scale_S, &
                             local_ba, virtual(jspin), external_ab, virtual(jspin), &
                             1.0_dp, mp2_env%ri_grad%P_ab(ispin)%array(:, rec_B_virtual_start:rec_B_virtual_end), my_B_size(ispin), &
@@ -1780,9 +1765,8 @@ CONTAINS
                             local_ab, virtual(ispin), &
                             0.0_dp, send_ab, send_B_size, &
                             mp2_env%local_gemm_ctx)
-            CALL mp_sendrecv(send_ab, proc_send, &
-                             external_ab, proc_receive, &
-                             para_env_sub%group)
+            CALL para_env_sub%group%sendrecv(send_ab, proc_send, &
+                                             external_ab, proc_receive)
 
             mp2_env%ri_grad%P_ab(ispin)%array(:, :) = mp2_env%ri_grad%P_ab(ispin)%array + external_ab
          END IF
@@ -1839,7 +1823,7 @@ CONTAINS
                             t_ab(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
                             my_local_j_aL, dimen_RI, 0.0_dp, send_ab, send_B_size, &
                             mp2_env%local_gemm_ctx)
-            CALL mp_sendrecv(send_ab, proc_send, external_ab, proc_receive, para_env_sub%group)
+            CALL para_env_sub%group%sendrecv(send_ab, proc_send, external_ab, proc_receive)
 
             Y_i_aP(:, :) = Y_i_aP + external_ab
 
@@ -1849,7 +1833,7 @@ CONTAINS
                             local_ab(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
                             my_local_j_aL, dimen_RI, 0.0_dp, send_ab, send_B_size, &
                             mp2_env%local_gemm_ctx)
-            CALL mp_sendrecv(send_ab, proc_send, external_ab, proc_receive, para_env_sub%group)
+            CALL para_env_sub%group%sendrecv(send_ab, proc_send, external_ab, proc_receive)
             Y_i_aP(:, :) = Y_i_aP + external_ab
          END IF
       END DO
@@ -1873,7 +1857,7 @@ CONTAINS
                             local_ba(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
                             my_local_i_aL, dimen_RI, 0.0_dp, send_ab, send_B_size, &
                             mp2_env%local_gemm_ctx)
-            CALL mp_sendrecv(send_ab, proc_send, external_ab, proc_receive, para_env_sub%group)
+            CALL para_env_sub%group%sendrecv(send_ab, proc_send, external_ab, proc_receive)
             Y_j_aP(:, :) = Y_j_aP + external_ab
 
          END DO
@@ -1900,8 +1884,8 @@ CONTAINS
             external_ab(1:dimen_RI, 1:rec_B_size) => buffer_1D(1:INT(dimen_RI, int_8)*rec_B_size)
             external_ab = 0.0_dp
 
-            CALL mp_sendrecv(my_local_i_aL, proc_send, &
-                             external_ab, proc_receive, para_env_sub%group)
+            CALL para_env_sub%group%sendrecv(my_local_i_aL, proc_send, &
+                                             external_ab, proc_receive)
 
             ! Alpha-alpha, beta-beta and closed shell
             CALL local_gemm('T', 'T', my_B_size(ispin), dimen_RI, rec_B_size, 1.0_dp, &
@@ -2037,9 +2021,8 @@ CONTAINS
                   buffer_1D(offset + 1:offset + INT(my_B_size, int_8)*my_block_size*my_group_L_size)
                BI_C_rec = 0.0_dp
 
-               CALL mp_sendrecv(BI_C_send, proc_send, &
-                                BI_C_rec, proc_receive, &
-                                para_env_exchange%group, tag)
+               CALL para_env_exchange%group%sendrecv(BI_C_send, proc_send, &
+                                                     BI_C_rec, proc_receive, tag)
 
                CALL timeset(routineN//"_comm2_w", handle2)
                DO irep = 0, num_integ_group - 1
@@ -2056,7 +2039,7 @@ CONTAINS
 
             ELSE
                ! we have something to send but nothing to receive
-               CALL mp_send(BI_C_send, proc_send, tag, para_env_exchange%group)
+               CALL para_env_exchange%group%send(BI_C_send, proc_send, tag)
 
             END IF
 
@@ -2081,7 +2064,7 @@ CONTAINS
 
                BI_C_rec = 0.0_dp
 
-               CALL mp_recv(BI_C_rec, proc_receive, tag, para_env_exchange%group)
+               CALL para_env_exchange%group%recv(BI_C_rec, proc_receive, tag)
 
                CALL timeset(routineN//"_comm2_w", handle2)
                DO irep = 0, num_integ_group - 1
@@ -2300,16 +2283,13 @@ CONTAINS
                   BI_C_rec = 0.0_dp
                   IF (do_send_i) THEN
                   IF (do_recv_i) THEN
-                     CALL mp_sendrecv(BIb_C(ispin)%array(:, :, send_i), proc_send, &
-                                      BI_C_rec, proc_receive, &
-                                      para_env_exchange%group, tag)
+                     CALL para_env_exchange%group%sendrecv(BIb_C(ispin)%array(:, :, send_i), proc_send, &
+                                                           BI_C_rec, proc_receive, tag)
                   ELSE
-                     CALL mp_send(BIb_C(ispin)%array(:, :, send_i), proc_send, &
-                                  tag, para_env_exchange%group)
+                     CALL para_env_exchange%group%send(BIb_C(ispin)%array(:, :, send_i), proc_send, tag)
                   END IF
                   ELSE IF (do_recv_i) THEN
-                  CALL mp_recv(BI_C_rec, proc_receive, tag, &
-                               para_env_exchange%group)
+                  CALL para_env_exchange%group%recv(BI_C_rec, proc_receive, tag)
                   END IF
                   IF (do_recv_i) THEN
                      CALL fill_local_i_aL_2D(local_al_i, ranges_info_array(:, :, proc_receive), BI_C_rec)
@@ -2319,16 +2299,13 @@ CONTAINS
                   BI_C_rec = 0.0_dp
                   IF (do_send_j) THEN
                   IF (do_recv_j) THEN
-                     CALL mp_sendrecv(BIb_C(ispin)%array(:, :, send_j), proc_send, &
-                                      BI_C_rec, proc_receive, &
-                                      para_env_exchange%group, tag)
+                     CALL para_env_exchange%group%sendrecv(BIb_C(ispin)%array(:, :, send_j), proc_send, &
+                                                           BI_C_rec, proc_receive, tag)
                   ELSE
-                     CALL mp_send(BIb_C(ispin)%array(:, :, send_j), proc_send, &
-                                  tag, para_env_exchange%group)
+                     CALL para_env_exchange%group%send(BIb_C(ispin)%array(:, :, send_j), proc_send, tag)
                   END IF
                   ELSE IF (do_recv_j) THEN
-                  CALL mp_recv(BI_C_rec, proc_receive, tag, &
-                               para_env_exchange%group)
+                  CALL para_env_exchange%group%recv(BI_C_rec, proc_receive, tag)
                   END IF
                   IF (do_recv_j) THEN
                      CALL fill_local_i_aL_2D(local_al_j, ranges_info_array(:, :, proc_receive), BI_C_rec)
@@ -2339,16 +2316,13 @@ CONTAINS
                      buffer_1D(1:INT(rec_L_size, KIND=int_8)*size_B_k*block_size)
                   IF (do_send_k) THEN
                   IF (do_recv_k) THEN
-                     CALL mp_sendrecv(BIb_C(kspin)%array(:, :, send_k:send_k + block_size - 1), proc_send, &
-                                      BI_C_rec_3D, proc_receive, &
-                                      para_env_exchange%group, tag)
+                     CALL para_env_exchange%group%sendrecv(BIb_C(kspin)%array(:, :, send_k:send_k + block_size - 1), proc_send, &
+                                                           BI_C_rec_3D, proc_receive, tag)
                   ELSE
-                     CALL mp_send(BIb_C(kspin)%array(:, :, send_k:send_k + block_size - 1), proc_send, tag, &
-                                  para_env_exchange%group)
+                     CALL para_env_exchange%group%send(BI_C_rec, proc_receive, tag)
                   END IF
                   ELSE IF (do_recv_k) THEN
-                  CALL mp_recv(BI_C_rec_3D, proc_receive, tag, &
-                               para_env_exchange%group)
+                  CALL para_env_exchange%group%recv(BI_C_rec_3D, proc_receive, tag)
                   END IF
                   IF (do_recv_k) THEN
                      CALL fill_local_i_aL(local_al_k(:, :, 1:block_size), ranges_info_array(:, :, proc_receive), BI_C_rec_3D)
@@ -2377,9 +2351,8 @@ CONTAINS
 
                      external_aL(1:dimen_RI, 1:rec_B_size) => buffer_1D(1:INT(dimen_RI, KIND=int_8)*rec_B_size)
 
-                     CALL mp_sendrecv(local_aL_i, proc_send, &
-                                      external_aL, proc_receive, &
-                                      para_env_sub%group, tag)
+                     CALL para_env_exchange%group%sendrecv(local_aL_i, proc_send, &
+                                                           external_aL, proc_receive, tag)
 
                      CALL local_gemm('T', 'N', rec_B_size, size_B_k, dimen_RI, 1.0_dp, &
                                      external_aL, dimen_RI, local_aL_k(:, :, kkB), dimen_RI, &
@@ -2423,8 +2396,8 @@ CONTAINS
                         CALL get_group_dist(gd_B_virtual(1), proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
 
                         external_ab(1:size_B_i, 1:rec_B_size) => buffer_1D(1:INT(size_B_i, KIND=int_8)*rec_B_size)
-                        CALL mp_sendrecv(local_ab(send_B_virtual_start:send_B_virtual_end, 1:size_B_k), proc_send, &
-                                         external_ab(1:size_B_i, 1:rec_B_size), proc_receive, para_env_sub%group, tag)
+                        CALL para_env_sub%group%sendrecv(local_ab(send_B_virtual_start:send_B_virtual_end, 1:size_B_k), proc_send, &
+                                                         external_ab(1:size_B_i, 1:rec_B_size), proc_receive, tag)
 
                         DO b = 1, my_B_size(1)
                            b_global = b + my_B_virtual_start(1) - 1
@@ -2455,9 +2428,8 @@ CONTAINS
 
                      external_aL(1:dimen_RI, 1:rec_B_size) => buffer_1D(1:INT(dimen_RI, KIND=int_8)*rec_B_size)
 
-                     CALL mp_sendrecv(local_aL_j, proc_send, &
-                                      external_aL, proc_receive, &
-                                      para_env_sub%group, tag)
+                     CALL para_env_exchange%group%sendrecv(local_aL_j, proc_send, &
+                                                           external_aL, proc_receive, tag)
                      CALL local_gemm('T', 'N', rec_B_size, size_B_k, dimen_RI, 1.0_dp, &
                                      external_aL, dimen_RI, local_aL_k(:, :, kkB), dimen_RI, &
                                      0.0_dp, local_ab(rec_B_virtual_start:rec_B_virtual_end, 1:size_B_k), rec_B_size, &
@@ -2513,17 +2485,14 @@ CONTAINS
                      do_send_j = (ispin /= kspin) .OR. send_j < send_k .OR. send_j > send_k + block_size - 1
                      ! occupied i
                      IF (do_send_i) THEN
-                        CALL mp_send(BIb_C(ispin)%array(:, :, send_i), proc_send, tag, &
-                                     para_env_exchange%group)
+                        CALL para_env_exchange%group%send(BIb_C(ispin)%array(:, :, send_i), proc_send, tag)
                      END IF
                      ! occupied j
                      IF (do_send_j) THEN
-                        CALL mp_send(BIb_C(ispin)%array(:, :, send_j), proc_send, tag, &
-                                     para_env_exchange%group)
+                        CALL para_env_exchange%group%send(BIb_C(ispin)%array(:, :, send_j), proc_send, tag)
                      END IF
                      ! occupied k
-                     CALL mp_send(BIb_C(kspin)%array(:, :, send_k:send_k + block_size - 1), proc_send, tag, &
-                                  para_env_exchange%group)
+                     CALL para_env_exchange%group%send(BIb_C(kspin)%array(:, :, send_k:send_k + block_size - 1), proc_send, tag)
                   END IF
 
                END DO ! proc loop
@@ -2620,7 +2589,7 @@ CONTAINS
       max_block_size = MIN(max_block_size, MAX(1, INT(mem/(my_group_L_size*B_size_k), KIND(max_block_size))))
 
       ! Exchange the limit
-      CALL mp_min(max_block_size, para_env%group)
+      CALL para_env%group%min(max_block_size)
 
       ! Find now the block size which minimizes the communication volume and then the number of communication steps
       block_size = 1
@@ -2698,7 +2667,7 @@ CONTAINS
 
       DEALLOCATE (ijk_marker)
 
-      CALL mp_allgather(my_ijk, num_ijk, para_env_exchange%group)
+      CALL para_env_exchange%group%allgather(my_ijk, num_ijk)
       max_ijk = MAXVAL(num_ijk)
 
    END SUBROUTINE Find_quasi_degenerate_ij

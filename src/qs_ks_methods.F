@@ -67,7 +67,6 @@ MODULE qs_ks_methods
                                               lri_environment_type,&
                                               lri_kind_type
    USE mathlib,                         ONLY: abnormal_value
-   USE message_passing,                 ONLY: mp_sum
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
@@ -872,7 +871,7 @@ CONTAINS
             ecore_ppl = ecore_ppl + &
                         SUM(vppl_rspace%cr3d*rho_r(ispin)%cr3d)*vppl_rspace%pw_grid%dvol
          END DO
-         CALL mp_sum(ecore_ppl, para_env%group)
+         CALL para_env%group%sum(ecore_ppl)
          energy%core = energy%core + ecore_ppl
       END IF
 

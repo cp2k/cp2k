@@ -37,7 +37,6 @@ MODULE cp_parser_methods
                                               dp,&
                                               int_8,&
                                               max_line_length
-   USE message_passing,                 ONLY: mp_bcast
    USE string_utilities,                ONLY: is_whitespace,&
                                               uppercase
 #include "../base/base_uses.f90"
@@ -346,12 +345,12 @@ CONTAINS
 
       para_env => parser%para_env
       IF (para_env%num_pe > 1) THEN
-         CALL mp_bcast(parser%buffer%buffer_id, para_env%source, para_env%group)
-         CALL mp_bcast(parser%buffer%present_line_number, para_env%source, para_env%group)
-         CALL mp_bcast(parser%buffer%last_line_number, para_env%source, para_env%group)
-         CALL mp_bcast(parser%buffer%istat, para_env%source, para_env%group)
-         CALL mp_bcast(parser%buffer%input_line_numbers, para_env%source, para_env%group)
-         CALL mp_bcast(parser%buffer%input_lines, para_env%source, para_env%group)
+         CALL para_env%group%bcast(parser%buffer%buffer_id, para_env%source)
+         CALL para_env%group%bcast(parser%buffer%present_line_number, para_env%source)
+         CALL para_env%group%bcast(parser%buffer%last_line_number, para_env%source)
+         CALL para_env%group%bcast(parser%buffer%istat, para_env%source)
+         CALL para_env%group%bcast(parser%buffer%input_line_numbers, para_env%source)
+         CALL para_env%group%bcast(parser%buffer%input_lines, para_env%source)
       END IF
 
       CALL timestop(handle)

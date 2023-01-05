@@ -25,7 +25,6 @@ MODULE manybody_nequip
    USE kinds,                           ONLY: dp,&
                                               int_8,&
                                               sp
-   USE message_passing,                 ONLY: mp_allgather
    USE pair_potential_types,            ONLY: nequip_pot_type,&
                                               nequip_type,&
                                               pair_potential_pp_type,&
@@ -365,7 +364,7 @@ CONTAINS
       ALLOCATE (displ_cell(para_env%num_pe))
       ALLOCATE (displ(para_env%num_pe))
 
-      CALL mp_allgather(nedges, edge_count, para_env%group)
+      CALL para_env%group%allgather(nedges, edge_count)
       nedges_tot = SUM(edge_count)
 
       ALLOCATE (temp_edge_index(2, nedges))
@@ -388,8 +387,8 @@ CONTAINS
          displ_cell(ipair) = displ_cell(ipair - 1) + edge_count_cell(ipair - 1)
       END DO
 
-      CALL mp_allgather(temp_edge_cell_shifts, edge_cell_shifts, edge_count_cell, displ_cell, para_env%group)
-      CALL mp_allgather(temp_edge_index, edge_index, edge_count, displ, para_env%group)
+      CALL para_env%group%allgatherv(temp_edge_cell_shifts, edge_cell_shifts, edge_count_cell, displ_cell)
+      CALL para_env%group%allgatherv(temp_edge_index, edge_index, edge_count, displ)
 
       t_edge_index(:, :) = TRANSPOSE(edge_index)
       DEALLOCATE (temp_edge_index, temp_edge_cell_shifts, edge_index)

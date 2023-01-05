@@ -41,8 +41,7 @@ MODULE arnoldi_api
                                               create_replicated_row_vec_from_matrix,&
                                               dbcsr_matrix_colvec_multiply
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_comm_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -369,7 +368,7 @@ CONTAINS
       END DO
       CALL dbcsr_iterator_stop(dbcsr_iter)
       control => get_control(my_arnoldi)
-      CALL mp_sum(vec_x, control%mp_group)
+      CALL control%mp_group%sum(vec_x)
       ! Deallocated the work vectors
       CALL dbcsr_release(x)
       CALL dbcsr_release(vectors%input_vec)
@@ -526,7 +525,7 @@ CONTAINS
          END IF
       END DO
       CALL dbcsr_iterator_stop(dbcsr_iter)
-      CALL mp_sum(adotb, mpgrp)
+      CALL mpgrp%sum(adotb)
 
    END FUNCTION vec_dot_vec
 

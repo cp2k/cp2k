@@ -34,7 +34,6 @@ MODULE et_coupling
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: diamat_all
-   USE message_passing,                 ONLY: mp_sum
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -181,9 +180,9 @@ CONTAINS
             a(i) = -a(i)
             b(i) = -b(i)
          END IF
-         CALL mp_sum(a(i), para_env%group)
+         CALL para_env%group%sum(a(i))
 
-         CALL mp_sum(b(i), para_env%group)
+         CALL para_env%group%sum(b(i))
 
          CALL cp_fm_release(tmp2)
          DO j = 1, 2

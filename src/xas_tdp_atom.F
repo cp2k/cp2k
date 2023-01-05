@@ -61,13 +61,8 @@ MODULE xas_tdp_atom
    USE mathlib,                         ONLY: get_diag,&
                                               invmat_symm
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_comm_split_direct,&
-                                              mp_comm_type,&
-                                              mp_irecv,&
-                                              mp_isend,&
+   USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_request_type,&
-                                              mp_sum,&
-                                              mp_sync,&
                                               mp_waitall
    USE orbital_pointers,                ONLY: indco,&
                                               indso,&
@@ -572,7 +567,7 @@ CONTAINS
 
       END DO !iter
       CALL dbcsr_iterator_stop(iter)
-      CALL mp_sum(n_neighbors, para_env%group)
+      CALL para_env%group%sum(n_neighbors)
 
       ! Allocate the neighbor_set arrays at the correct length
       DO ibase = 1, nbase
@@ -612,7 +607,7 @@ CONTAINS
 
       ! Make sure the info is shared among the procs
       DO ibase = 1, nbase
-         CALL mp_sum(my_neighbor_set(ibase)%array, para_env%group)
+         CALL para_env%group%sum(my_neighbor_set(ibase)%array)
       END DO
 
       ! Gather all indices if asked for it
@@ -780,7 +775,7 @@ CONTAINS
             is = is + 1
             send_buff(is)%array => block_whole
             tag = natom*inb + jnb
-            CALL mp_isend(msgin=send_buff(is)%array, dest=dest, comm=group, request=send_req(is), tag=tag)
+            CALL group%isend(msgin=send_buff(is)%array, dest=dest, request=send_req(is), tag=tag)
 
          END IF
 
@@ -806,8 +801,8 @@ CONTAINS
          tag = natom*inb + jnb
          ir = ir + 1
          recv_buff(ir)%array => block_risinv
-         CALL mp_irecv(msgout=recv_buff(ir)%array, source=source, request=recv_req(ir), &
-                       tag=tag, comm=group)
+         CALL group%irecv(msgout=recv_buff(ir)%array, source=source, request=recv_req(ir), &
+                          tag=tag)
 
       END DO
       CALL dbcsr_iterator_stop(iter)
@@ -1096,7 +1091,7 @@ CONTAINS
             DO iat = 1, natom
                IF ((.NOT. ANY(xas_atom_env%exat_neighbors(iex)%array == iat)) &
                    .AND. (.NOT. xas_atom_env%excited_atoms(iex) == iat)) CYCLE
-               CALL mp_sum(xas_atom_env%ri_dcoeff(iat, ispin, iex)%array, para_env%group)
+               CALL para_env%group%sum(xas_atom_env%ri_dcoeff(iat, ispin, iex)%array)
             END DO !iat
          END DO !ispin
       END DO !iex
@@ -1935,7 +1930,7 @@ CONTAINS
       batch_info%ipe = ipe
 
       !create a subcommunicator for this batch
-      CALL mp_comm_split_direct(para_env%group, subcomm, ibatch)
+      CALL subcomm%from_split(para_env%group, ibatch)
       NULLIFY (batch_info%para_env)
       CALL cp_para_env_create(batch_info%para_env, subcomm)
 
@@ -1989,12 +1984,12 @@ CONTAINS
          END DO
 
          ! make sure contributions from different procs are summed up
-         CALL mp_sum(rho_set%rhoa, batch_info%para_env%group)
-         CALL mp_sum(rho_set%rhob, batch_info%para_env%group)
+         CALL batch_info%para_env%group%sum(rho_set%rhoa)
+         CALL batch_info%para_env%group%sum(rho_set%rhob)
          IF (do_gga) THEN
             DO dir = 1, 3
-               CALL mp_sum(rho_set%drhoa(dir)%array, batch_info%para_env%group)
-               CALL mp_sum(rho_set%drhob(dir)%array, batch_info%para_env%group)
+               CALL batch_info%para_env%group%sum(rho_set%drhoa(dir)%array)
+               CALL batch_info%para_env%group%sum(rho_set%drhob(dir)%array)
             END DO
          END IF
 
@@ -2029,7 +2024,7 @@ CONTAINS
       CALL release_batch_info(batch_info)
 
       !Not necessary to sync, but makes sure that any load inbalance is reported here
-      CALL mp_sync(para_env%group)
+      CALL para_env%group%sync()
 
       CALL timestop(handle)
 
@@ -2221,7 +2216,7 @@ CONTAINS
       ri_sphi_so => xas_atom_env%ri_sphi_so(ikind)%array
       ALLOCATE (int_sgf(nsgf, nsgf))
       DO i = 1, ub
-         CALL mp_sum(int_so(i)%array, batch_info%para_env%group)
+         CALL batch_info%para_env%group%sum(int_so(i)%array)
          CALL contract_so2sgf(int_sgf, int_so(i)%array, ri_basis, ri_sphi_so)
          CALL daxpy(nsgf*nsgf, 1.0_dp, int_sgf, 1, int_fxc(iatom, i)%array, 1)
       END DO

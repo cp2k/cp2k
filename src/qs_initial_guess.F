@@ -62,9 +62,7 @@ MODULE qs_initial_guess
                                               dp
    USE kpoint_io,                       ONLY: read_kpoints_restart
    USE kpoint_types,                    ONLY: kpoint_type
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_comm_type,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_comm_type
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE qs_atomic_block,                 ONLY: calculate_atomic_block_dm
@@ -303,8 +301,8 @@ CONTAINS
                CALL wfn_restart_file_name(file_name, exist, dft_section, logger)
             END IF
          END IF
-         CALL mp_bcast(exist, para_env%source, para_env%group)
-         CALL mp_bcast(file_name, para_env%source, para_env%group)
+         CALL para_env%group%bcast(exist, para_env%source)
+         CALL para_env%group%bcast(file_name, para_env%source)
          IF (.NOT. exist) THEN
             CALL cp_warn(__LOCATION__, &
                          "User requested to restart the wavefunction from the file named: "// &
@@ -319,8 +317,8 @@ CONTAINS
          END IF
          IF (para_env%ionode) &
             CALL wfn_restart_file_name(file_name, exist, dft_section, logger)
-         CALL mp_bcast(exist, para_env%source, para_env%group)
-         CALL mp_bcast(file_name, para_env%source, para_env%group)
+         CALL para_env%group%bcast(exist, para_env%source)
+         CALL para_env%group%bcast(file_name, para_env%source)
          nvec = qs_env%wf_history%memory_depth
          not_read = nvec + 1
          ! At this level we read the saved backup RESTART files..
@@ -330,7 +328,7 @@ CONTAINS
             IF (j /= 0) filename = TRIM(file_name)//".bak-"//ADJUSTL(cp_to_string(j))
             IF (para_env%ionode) &
                INQUIRE (FILE=filename, exist=exist)
-            CALL mp_bcast(exist, para_env%source, para_env%group)
+            CALL para_env%group%bcast(exist, para_env%source)
             IF ((.NOT. exist) .AND. (i < not_read)) THEN
                not_read = i
             END IF
@@ -339,7 +337,7 @@ CONTAINS
             density_guess = restart_guess
             filename = TRIM(file_name)
             IF (para_env%ionode) INQUIRE (FILE=filename, exist=exist)
-            CALL mp_bcast(exist, para_env%source, para_env%group)
+            CALL para_env%group%bcast(exist, para_env%source)
             IF (.NOT. exist) THEN
                CALL cp_warn(__LOCATION__, &
                             "User requested to restart the wavefunction from a series of restart files named: "// &
@@ -766,11 +764,11 @@ CONTAINS
          ALLOCATE (first_sgf(natoms), last_sgf(natoms))
 
          checksum = dbcsr_checksum(s_sparse(1)%matrix)
-         i = dbcsr_get_num_blocks(s_sparse(1)%matrix); CALL mp_sum(i, group)
+         i = dbcsr_get_num_blocks(s_sparse(1)%matrix); CALL group%sum(i)
          IF (ounit > 0) WRITE (ounit, *) 'S nblks', i, ' checksum', checksum
          CALL dbcsr_filter(s_sparse(1)%matrix, eps)
          checksum = dbcsr_checksum(s_sparse(1)%matrix)
-         i = dbcsr_get_num_blocks(s_sparse(1)%matrix); CALL mp_sum(i, group)
+         i = dbcsr_get_num_blocks(s_sparse(1)%matrix); CALL group%sum(i)
          IF (ounit > 0) WRITE (ounit, *) 'S nblks', i, ' checksum', checksum
 
          CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf, &
@@ -1227,7 +1225,7 @@ CONTAINS
          sdiag(:) = 1.0_dp
       ELSE
          CALL dbcsr_get_diag(matrix_s, sdiag)
-         CALL mp_sum(sdiag, group)
+         CALL group%sum(sdiag)
       END IF
 
       ncount = 0

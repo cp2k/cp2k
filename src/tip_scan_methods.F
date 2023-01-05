@@ -19,7 +19,6 @@ MODULE tip_scan_methods
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_bcast
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_grid_types,                   ONLY: pw_grid_type
@@ -293,8 +292,8 @@ CONTAINS
          CALL close_file(unit_number=extunit)
       END IF
 
-      CALL mp_bcast(npts, para_env%source, para_env%group)
-      CALL mp_bcast(dcell, para_env%source, para_env%group)
+      CALL para_env%group%bcast(npts, para_env%source)
+      CALL para_env%group%bcast(dcell, para_env%source)
 
       NULLIFY (pw_grid)
       CALL pw_grid_create(pw_grid, para_env%group)

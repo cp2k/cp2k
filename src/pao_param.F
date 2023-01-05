@@ -17,6 +17,7 @@ MODULE pao_param
                                               dbcsr_type
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_comm_type
    USE pao_input,                       ONLY: pao_equi_param,&
                                               pao_exp_param,&
                                               pao_fock_param,&

@@ -55,12 +55,8 @@ MODULE dbt_tas_mm
                                               dp,&
                                               int_8
    USE message_passing,                 ONLY: mp_cart_create,&
-                                              mp_comm_free,&
                                               mp_comm_type,&
-                                              mp_environ,&
-                                              mp_max,&
-                                              mp_sum,&
-                                              mp_sync
+                                              mp_environ
 #include "../../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -143,7 +139,7 @@ CONTAINS
                                                             mp_comm_mm, mp_comm_opt
 
       CALL timeset(routineN, handle)
-      CALL mp_sync(matrix_a%dist%info%mp_comm)
+      CALL matrix_a%dist%info%mp_comm%sync()
       CALL timeset("dbt_tas_total", handle2)
 
       NULLIFY (matrix_b_rs, matrix_a_rs, matrix_c_rs)
@@ -258,7 +254,7 @@ CONTAINS
       END IF
 
       CALL dbt_tas_get_split_info(dbt_tas_info(matrix_a), mp_comm=mp_comm)
-      CALL mp_environ(numproc, iproc, mp_comm)
+      CALL mp_comm%environ(numproc, iproc)
 
       ! derive optimal matrix layout and split factor from occupancies
       nze_a = dbt_tas_get_nze_total(matrix_a)
@@ -491,7 +487,7 @@ CONTAINS
          info_c = dbt_tas_info(matrix_c_rs)
          CALL dbt_tas_info_hold(info_c)
 
-         CALL mp_sync(matrix_a%dist%info%mp_comm)
+         CALL matrix_a%dist%info%mp_comm%sync()
          CALL timeset("dbt_tas_dbm", handle4)
          IF (.NOT. tr_case) THEN
             CALL timeset("dbt_tas_mm_1N", handle3)
@@ -508,7 +504,7 @@ CONTAINS
 
             CALL timestop(handle3)
          END IF
-         CALL mp_sync(matrix_a%dist%info%mp_comm)
+         CALL matrix_a%dist%info%mp_comm%sync()
          CALL timestop(handle4)
 
          CALL dbm_release(matrix_a_mm)
@@ -580,13 +576,13 @@ CONTAINS
          info_c = dbt_tas_info(matrix_c_rep)
          CALL dbt_tas_info_hold(info_c)
 
-         CALL mp_sync(matrix_a%dist%info%mp_comm)
+         CALL matrix_a%dist%info%mp_comm%sync()
          CALL timeset("dbt_tas_dbm", handle4)
          CALL timeset("dbt_tas_mm_2", handle3)
          CALL dbm_multiply(transa=transa_prv, transb=transb_prv, alpha=alpha, matrix_a=matrix_a_mm, &
                            matrix_b=matrix_b_mm, beta=beta, matrix_c=matrix_c_mm, &
                            filter_eps=filter_eps_prv/REAL(nsplit, KIND=dp), retain_sparsity=retain_sparsity, flop=flop)
-         CALL mp_sync(matrix_a%dist%info%mp_comm)
+         CALL matrix_a%dist%info%mp_comm%sync()
          CALL timestop(handle3)
          CALL timestop(handle4)
 
@@ -670,7 +666,7 @@ CONTAINS
          info_c = dbt_tas_info(matrix_c_rs)
          CALL dbt_tas_info_hold(info_c)
 
-         CALL mp_sync(matrix_a%dist%info%mp_comm)
+         CALL matrix_a%dist%info%mp_comm%sync()
          CALL timeset("dbt_tas_dbm", handle4)
          IF (.NOT. tr_case) THEN
             CALL timeset("dbt_tas_mm_3N", handle3)
@@ -685,7 +681,7 @@ CONTAINS
                               filter_eps=filter_eps_prv, retain_sparsity=retain_sparsity, flop=flop)
             CALL timestop(handle3)
          END IF
-         CALL mp_sync(matrix_a%dist%info%mp_comm)
+         CALL matrix_a%dist%info%mp_comm%sync()
          CALL timestop(handle4)
 
          CALL dbm_release(matrix_a_mm)
@@ -708,18 +704,18 @@ CONTAINS
          END IF
       END SELECT
 
-      CALL mp_comm_free(mp_comm_mm)
+      CALL mp_comm_mm%free()
 
       CALL dbt_tas_get_split_info(info_c, mp_comm=mp_comm)
 
       IF (PRESENT(split_opt)) THEN
          SELECT CASE (max_mm_dim)
          CASE (1, 3)
-            CALL mp_sum(nze_c, mp_comm)
+            CALL mp_comm%sum(nze_c)
          CASE (2)
             CALL dbt_tas_get_split_info(info_c, mp_comm=mp_comm, mp_comm_group=mp_comm_group)
-            CALL mp_sum(nze_c, mp_comm_group)
-            CALL mp_max(nze_c, mp_comm)
+            CALL mp_comm%sum(nze_c)
+            CALL mp_comm%max(nze_c)
 
          END SELECT
          nsplit_opt = split_factor_estimate(max_mm_dim, nze_a, nze_b, nze_c, numproc)
@@ -760,12 +756,12 @@ CONTAINS
       END IF
 
       IF (PRESENT(flop)) THEN
-         CALL mp_sum(flop, mp_comm)
+         CALL mp_comm%sum(flop)
          flop = (flop + numproc - 1)/numproc
       END IF
 
       IF (PRESENT(optimize_dist)) THEN
-         IF (optimize_dist) CALL mp_comm_free(comm_tmp)
+         IF (optimize_dist) CALL comm_tmp%free()
       END IF
       IF (unit_nr_prv > 0) THEN
          WRITE (unit_nr_prv, '(A)') REPEAT("-", 80)
@@ -777,7 +773,7 @@ CONTAINS
       CALL dbt_tas_release_info(info_b)
       CALL dbt_tas_release_info(info_c)
 
-      CALL mp_sync(matrix_a%dist%info%mp_comm)
+      CALL matrix_a%dist%info%mp_comm%sync()
       CALL timestop(handle2)
       CALL timestop(handle)
 
@@ -1291,7 +1287,7 @@ CONTAINS
 
       same_local_rowcols = MERGE(1, 0, array_eq(local_rowcols_a, local_rowcols_b))
 
-      CALL mp_sum(same_local_rowcols, info_a%mp_comm)
+      CALL info_a%mp_comm%sum(same_local_rowcols)
 
       IF (same_local_rowcols == numproc) THEN
          dist_compatible = .TRUE.
@@ -1463,7 +1459,7 @@ CONTAINS
 !$OMP END PARALLEL
 
       CALL dbt_tas_get_split_info(dbt_tas_info(matrix_a), mp_comm=mp_comm)
-      CALL mp_sum(estimated_nze, mp_comm)
+      CALL mp_comm%sum(estimated_nze)
 
       IF (.NOT. retain_sparsity_prv) THEN
          CALL dbt_tas_destroy(matrix_c_bnorm)
@@ -1669,7 +1665,7 @@ CONTAINS
 
       INTEGER                                            :: handle
 
-      CALL mp_sync(matrix%dist%info%mp_comm)
+      CALL matrix%dist%info%mp_comm%sync()
       CALL timeset("dbt_tas_total", handle)
 
       IF (matrix%do_batched == 0) RETURN
@@ -1685,7 +1681,7 @@ CONTAINS
       DEALLOCATE (matrix%mm_storage)
       CALL dbt_tas_set_batched_state(matrix, state=0)
 
-      CALL mp_sync(matrix%dist%info%mp_comm)
+      CALL matrix%dist%info%mp_comm%sync()
       CALL timestop(handle)
 
    END SUBROUTINE

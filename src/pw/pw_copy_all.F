@@ -14,9 +14,7 @@
 ! **************************************************************************************************
 MODULE pw_copy_all
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_shift,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_comm_type
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               RECIPROCALSPACE,&
@@ -71,7 +69,7 @@ CONTAINS
          ALLOCATE (ngr(group_size))
          ngr = 0
          ngr(me + 1) = pg1%ngpts_cut_local
-         CALL mp_sum(ngr, group)
+         CALL group%sum(ngr)
          ngm = MAXVAL(ngr)
          ALLOCATE (cc(ngm))
          cc(1:ng1) = pw1%cc(1:ng1)
@@ -97,8 +95,8 @@ CONTAINS
                IF (jg2 /= 0) pw2%cc(jg2) = cc(ig1)
             END DO
             IF (ip /= group_size) THEN
-               CALL mp_shift(cc, group)
-               CALL mp_shift(g_hat, group)
+               CALL group%shift(cc)
+               CALL group%shift(g_hat)
             END IF
 
          END DO

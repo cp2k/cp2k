@@ -41,11 +41,8 @@ MODULE task_list_methods
    USE kpoint_types, ONLY: get_kpoint_info, &
                            kpoint_type
    USE memory_utilities, ONLY: reallocate
-   USE message_passing, ONLY: mp_allgather, &
-                              mp_alltoall, &
-                              mp_bcast, &
-                              mp_sum, &
-                              mp_sum_partial, mp_comm_type
+   USE message_passing, ONLY: &
+      mp_comm_type
    USE particle_types, ONLY: particle_type
    USE particle_methods, ONLY: get_particle_set
    USE pw_env_types, ONLY: pw_env_get, &
@@ -1178,7 +1175,7 @@ CONTAINS
       !find total workload ...
       ALLOCATE (load_all(maxdest*ncpu))
       load_all(:) = RESHAPE(list(2, :, :), (/maxdest*ncpu/))
-      CALL mp_sum(load_all(:), rank_of_root, group)
+      CALL group%sum(load_all(:), rank_of_root)
 
       ! ... and optimise the work per process
       ALLOCATE (list_global(2, maxdest, ncpu))
@@ -1187,12 +1184,12 @@ CONTAINS
          list_global(2, :, :) = RESHAPE(load_all, (/maxdest, ncpu/))
          CALL balance_global_list(list_global)
       END IF
-      CALL mp_bcast(list_global, rank_of_root, group)
+      CALL group%bcast(list_global, rank_of_root)
 
       !figure out how much can be sent to other processes
       ALLOCATE (load_partial(maxdest, ncpu))
       ! send 'load_all', which is a copy of 'list' (but without leading dimension/stride)
-      CALL mp_sum_partial(RESHAPE(load_all, (/maxdest, ncpu/)), load_partial(:, :), group)
+      CALL group%sum_partial(RESHAPE(load_all, (/maxdest, ncpu/)), load_partial(:, :))
 
       DO icpu = 1, ncpu
          DO idest = 1, maxdest
@@ -1598,13 +1595,13 @@ CONTAINS
                + tasks(i)%cost
          END IF
       END DO
-      CALL mp_alltoall(send_buf_i, recv_buf_i, 1, desc%group)
+      CALL desc%group%alltoall(send_buf_i, recv_buf_i, 1)
 
       ! communication step 2 : compute the global cost of the tasks
       total_cost_local = SUM(recv_buf_i)
 
       ! after this step, the recv buffer contains the local cost for each CPU
-      CALL mp_allgather(total_cost_local, loads, desc%group)
+      CALL desc%group%allgather(total_cost_local, loads)
 
       CALL timestop(handle)
 
@@ -1690,7 +1687,7 @@ CONTAINS
 
       ! now, correct the load imbalance for the overloaded CPUs
       ! they will send away not more than the total load of replicated tasks
-      CALL mp_allgather(cost_task_rep, recv_buf_i, desc%group)
+      CALL desc%group%allgather(cost_task_rep, recv_buf_i)
 
       DO i = 1, desc%group_size
          ! At the moment we can only offload replicated tasks
@@ -1817,7 +1814,7 @@ CONTAINS
          send_buf(rank + 1) = send_buf(rank + 1) + 1
       END DO
 
-      CALL mp_alltoall(send_buf, recv_buf, 1, desc%group)
+      CALL desc%group%alltoall(send_buf, recv_buf, 1)
 
       ! pack the tasks, and send them around
 
@@ -1855,7 +1852,7 @@ CONTAINS
       END DO
 
       ! do communication
-      CALL mp_alltoall(send_buf, send_sizes, send_disps, recv_buf, recv_sizes, recv_disps, desc%group)
+      CALL desc%group%alltoall(send_buf, send_sizes, send_disps, recv_buf, recv_sizes, recv_disps)
 
       DEALLOCATE (send_buf)
 
@@ -2059,7 +2056,7 @@ CONTAINS
          CALL get_atom_pair(atom_pair_send, tasks, ntasks=ntasks, send=.TRUE., symmetric=symmetric, rs_descs=rs_descs)
 
          ! natom_send=SIZE(atom_pair_send)
-         ! CALL mp_sum(natom_send,desc%group)
+         ! CALL desc%group%sum(natom_send)
          ! IF (desc%my_pos==0) THEN
          !     WRITE(*,*) ""
          !     WRITE(*,*) "Total number of atomic blocks to be send:",natom_send
@@ -2344,8 +2341,8 @@ CONTAINS
 
 !$OMP MASTER
       ! do communication
-      CALL mp_alltoall(send_buf_r, send_sizes, send_disps, &
-                       recv_buf_r, recv_sizes, recv_disps, desc%group)
+      CALL desc%group%alltoall(send_buf_r, send_sizes, send_disps, &
+                               recv_buf_r, recv_sizes, recv_disps)
 !$OMP END MASTER
 
       ! If this is a scatter, then no need to copy local blocks,
@@ -2546,9 +2543,9 @@ CONTAINS
                           pair_offsets=task_list%pair_offsets_send)
 
       ! mpi all-to-all communication, receiving directly into blocks_recv%buffer.
-      CALL mp_alltoall(buffer_send, task_list%rank_sizes_send, task_list%rank_offsets_send, &
-                       dest_buffer%host_buffer, &
-                       task_list%rank_sizes_recv, task_list%rank_offsets_recv, group)
+      CALL group%alltoall(buffer_send, task_list%rank_sizes_send, task_list%rank_offsets_send, &
+                          dest_buffer%host_buffer, &
+                          task_list%rank_sizes_recv, task_list%rank_offsets_recv)
 
       DEALLOCATE (buffer_send)
       CALL timestop(handle)
@@ -2576,8 +2573,8 @@ CONTAINS
       ALLOCATE (buffer_send(task_list%buffer_size_send)) ! e.g. this is actually used for receiving
 
       ! mpi all-to-all communication
-      CALL mp_alltoall(src_buffer%host_buffer, task_list%rank_sizes_recv, task_list%rank_offsets_recv, &
-                       buffer_send, task_list%rank_sizes_send, task_list%rank_offsets_send, group)
+      CALL group%alltoall(src_buffer%host_buffer, task_list%rank_sizes_recv, task_list%rank_offsets_recv, &
+                          buffer_send, task_list%rank_sizes_send, task_list%rank_offsets_send)
 
       ! unpack dbcsr blocks from send buffer
       CPASSERT(ASSOCIATED(task_list%atom_pair_send))

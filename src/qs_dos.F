@@ -26,9 +26,6 @@ MODULE qs_dos
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE kpoint_types,                    ONLY: kpoint_type
-   USE message_passing,                 ONLY: mp_max,&
-                                              mp_min,&
-                                              mp_sum
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -276,9 +273,9 @@ CONTAINS
             END DO
          END DO
       END IF
-      CALL mp_min(emin, para_env%group)
-      CALL mp_max(emax, para_env%group)
-      CALL mp_max(nmo, para_env%group)
+      CALL para_env%group%min(emin)
+      CALL para_env%group%max(emax)
+      CALL para_env%group%max(nmo)
 
       nhist = NINT((emax - emin)/de) + 1
       ALLOCATE (hist(nhist, nspins), occval(nhist, nspins), ehist(nhist, nspins))
@@ -304,8 +301,8 @@ CONTAINS
             END DO
          END DO
       END IF
-      CALL mp_sum(hist, para_env%group)
-      CALL mp_sum(occval, para_env%group)
+      CALL para_env%group%sum(hist)
+      CALL para_env%group%sum(occval)
       DO ispin = 1, nspins
          hist(:, ispin) = hist(:, ispin)/REAL(nmo(ispin), KIND=dp)
       END DO

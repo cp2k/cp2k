@@ -55,9 +55,7 @@ MODULE distribution_methods
    USE mathconstants,                   ONLY: pi
    USE mathlib,                         ONLY: gcd,&
                                               lcm
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_sum,&
-                                              mp_sync
+   USE message_passing,                 ONLY: mp_comm_type
    USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                               get_molecule_kind_set,&
                                               molecule_kind_type
@@ -347,7 +345,7 @@ CONTAINS
          work(:) = 0
 
          work(mype) = SUM(nmolecule_local)
-         CALL mp_sum(work, group)
+         CALL group%sum(work)
 
          IF (output_unit > 0) THEN
             WRITE (UNIT=output_unit, &
@@ -360,7 +358,7 @@ CONTAINS
             CALL m_flush(output_unit)
          END IF
 
-         CALL mp_sync(group)
+         CALL group%sync()
 
          DO ipe = 1, npe
             IF (ipe == mype) THEN
@@ -381,7 +379,7 @@ CONTAINS
                END DO
             END IF
             CALL m_flush(iw)
-            CALL mp_sync(group)
+            CALL group%sync()
          END DO
 
 !     *** Print particle distribution ***
@@ -389,7 +387,7 @@ CONTAINS
          work(:) = 0
 
          work(mype) = SUM(nparticle_local)
-         CALL mp_sum(work, group)
+         CALL group%sum(work)
 
          IF (output_unit > 0) THEN
             WRITE (UNIT=output_unit, &
@@ -402,7 +400,7 @@ CONTAINS
             CALL m_flush(output_unit)
          END IF
 
-         CALL mp_sync(group)
+         CALL group%sync()
 
          DO ipe = 1, npe
             IF (ipe == mype) THEN
@@ -423,7 +421,7 @@ CONTAINS
                END DO
             END IF
             CALL m_flush(iw)
-            CALL mp_sync(group)
+            CALL group%sync()
          END DO
          DEALLOCATE (work)
 
@@ -770,7 +768,7 @@ CONTAINS
 
          IF (mypcol == 1) work(myprow) = SUM(distribution_2d%n_local_rows)
 
-         CALL mp_sum(work, group)
+         CALL group%sum(work)
 
          IF (output_unit > 0) THEN
             WRITE (UNIT=output_unit, &
@@ -792,7 +790,7 @@ CONTAINS
 
          IF (myprow == 1) work(mypcol) = SUM(distribution_2d%n_local_cols)
 
-         CALL mp_sum(work, group)
+         CALL group%sum(work)
 
          IF (output_unit > 0) THEN
             WRITE (UNIT=output_unit, &

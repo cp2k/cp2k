@@ -29,7 +29,6 @@ MODULE pint_piglet
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_bcast
    USE parallel_rng_types,              ONLY: GAUSSIAN,&
                                               rng_record_length,&
                                               rng_stream_type,&
@@ -251,12 +250,10 @@ CONTAINS
          CALL close_file(unit_number=input_unit)
       END IF
       ! communicate A and C matrix to other nodes
-      CALL mp_bcast(piglet_therm%a_mat, &
-                    para_env%source, &
-                    para_env%group)
-      CALL mp_bcast(piglet_therm%c_mat, &
-                    para_env%source, &
-                    para_env%group)
+      CALL para_env%group%bcast(piglet_therm%a_mat, &
+                                para_env%source)
+      CALL para_env%group%bcast(piglet_therm%c_mat, &
+                                para_env%source)
 
       !prepare Random number generator
       NULLIFY (rng_section)

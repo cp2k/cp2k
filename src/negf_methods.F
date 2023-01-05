@@ -70,7 +70,6 @@ MODULE negf_methods
                                               twopi,&
                                               z_one,&
                                               z_zero
-   USE message_passing,                 ONLY: mp_sum
    USE negf_control_types,              ONLY: negf_control_create,&
                                               negf_control_release,&
                                               negf_control_type,&
@@ -1781,7 +1780,7 @@ CONTAINS
 
          CALL cp_fm_release(g_ret_imag)
 
-         CALL mp_sum(dos, sub_env%mpi_comm_global)
+         CALL sub_env%mpi_comm_global%sum(dos)
          dos(:) = -1.0_dp/pi*dos(:)
       END IF
 
@@ -1809,7 +1808,7 @@ CONTAINS
          END DO
 
          ! transmission coefficients are scaled by 2/pi
-         CALL mp_sum(transm_coeff, sub_env%mpi_comm_global)
+         CALL sub_env%mpi_comm_global%sum(transm_coeff)
          !transm_coeff(:) = 0.5_dp/pi*transm_coeff(:)
       END IF
 

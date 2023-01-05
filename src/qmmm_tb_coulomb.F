@@ -33,7 +33,6 @@ MODULE qmmm_tb_coulomb
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: oorootpi,&
                                               pi
-   USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
    USE pw_poisson_types,                ONLY: do_ewald_ewald,&
                                               do_ewald_none,&
@@ -195,7 +194,7 @@ CONTAINS
                                gmcharge, mcharge, calculate_forces, virial, use_virial, atprop)
       END SELECT
       !
-      CALL mp_sum(gmcharge(:, 1), para_env%group)
+      CALL para_env%group%sum(gmcharge(:, 1))
       !
       ! add self charge interaction and background charge contribution
       gmcharge(:, 1) = gmcharge(:, 1) - 2._dp*alpha*oorootpi*mcharge(:)

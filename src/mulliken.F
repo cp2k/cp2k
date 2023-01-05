@@ -18,7 +18,6 @@ MODULE mulliken
         dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
    USE qs_kind_types,                   ONLY: qs_kind_type
 #include "./base/base_uses.f90"
@@ -253,7 +252,7 @@ CONTAINS
          END DO
          CALL dbcsr_iterator_stop(iter)
       END DO
-      CALL mp_sum(charges, para_env%group)
+      CALL para_env%group%sum(charges)
 
    END SUBROUTINE compute_charges
 
@@ -299,7 +298,7 @@ CONTAINS
       END DO
       CALL dbcsr_iterator_stop(iter)
 
-      CALL mp_sum(charges, para_env%group)
+      CALL para_env%group%sum(charges)
 
    END SUBROUTINE compute_charges_single
 
@@ -358,8 +357,8 @@ CONTAINS
          END DO
          CALL dbcsr_iterator_stop(iter)
       END DO
-      CALL mp_sum(charges, para_env%group)
-      CALL mp_sum(dcharges, para_env%group)
+      CALL para_env%group%sum(charges)
+      CALL para_env%group%sum(dcharges)
 
    END SUBROUTINE compute_dcharges
 
@@ -737,7 +736,7 @@ CONTAINS
          END DO
          CALL dbcsr_iterator_stop(iter)
       END DO
-      CALL mp_sum(charges, para_env%group)
+      CALL para_env%group%sum(charges)
 
       CALL timestop(handle)
 
@@ -800,7 +799,7 @@ CONTAINS
          END DO
          CALL dbcsr_iterator_stop(iter)
       END DO
-      CALL mp_sum(charges, para_env%group)
+      CALL para_env%group%sum(charges)
 
       CALL timestop(handle)
 

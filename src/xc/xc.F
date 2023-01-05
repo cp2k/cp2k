@@ -33,7 +33,6 @@ MODULE xc
                         accurate_sum
    USE kinds, ONLY: default_path_length, &
                     dp
-   USE message_passing, ONLY: mp_sum
    USE pw_grid_types, ONLY: PW_MODE_DISTRIBUTED, &
                             pw_grid_type
    USE pw_methods, ONLY: pw_axpy, &
@@ -1458,7 +1457,7 @@ CONTAINS
 
          exc = accurate_sum(e_0)*rho_r(1)%pw_grid%dvol
          IF (rho_r(1)%pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
-            CALL mp_sum(exc, rho_r(1)%pw_grid%para%group)
+            CALL rho_r(1)%pw_grid%para%group%sum(exc)
          END IF
 
          CALL xc_rho_set_release(rho_set, pw_pool=pw_pool)

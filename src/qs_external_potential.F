@@ -30,8 +30,7 @@ MODULE qs_external_potential
                                               default_string_length,&
                                               dp
    USE maxwell_solver_interface,        ONLY: maxwell_solver
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE particle_types,                  ONLY: particle_type
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
    USE pw_types,                        ONLY: pw_type
@@ -384,7 +383,7 @@ CONTAINS
                   END IF
                END IF
                ! data_source sends data to everyone
-               CALL mp_bcast(bcast_buffer, data_source, gid)
+               CALL gid%bcast(bcast_buffer, data_source)
                grid_buffer(buffer_i, buffer_j, :) = bcast_buffer
             ELSE
                grid_buffer(buffer_i, buffer_j, :) = grid%cr3d(i_pbc, j_pbc, lower_inds(3):upper_inds(3))

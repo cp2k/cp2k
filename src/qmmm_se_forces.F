@@ -23,7 +23,6 @@ MODULE qmmm_se_forces
         do_method_am1, do_method_mndo, do_method_mndod, do_method_pchg, do_method_pdg, &
         do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rm1
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_sum
    USE multipole_types,                 ONLY: do_multipole_none
    USE particle_types,                  ONLY: particle_type
    USE qmmm_types_low,                  ONLY: qmmm_env_qm_type,&
@@ -208,7 +207,7 @@ CONTAINS
          END DO
          CPASSERT(iqm == number_qm_atoms)
          ! Transfer QM gradients to the QM particles..
-         CALL mp_sum(Forces_QM, para_env%group)
+         CALL para_env%group%sum(Forces_QM)
          iqm = 0
          DO ikind = 1, nkind
             CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=list)

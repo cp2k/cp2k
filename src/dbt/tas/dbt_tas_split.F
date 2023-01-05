@@ -16,11 +16,7 @@ MODULE dbt_tas_split
                                               dbt_tas_split_info
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_cart_create,&
-                                              mp_comm_dup,&
-                                              mp_comm_free,&
-                                              mp_comm_split_direct,&
+   USE message_passing,                 ONLY: mp_cart_create,&
                                               mp_comm_type,&
                                               mp_dims_create,&
                                               mp_environ
@@ -101,26 +97,26 @@ CONTAINS
       IF (own_comm_prv) THEN
          split_info%mp_comm = mp_comm
       ELSE
-         CALL mp_comm_dup(mp_comm, split_info%mp_comm)
+         CALL split_info%mp_comm%dup(mp_comm)
       END IF
 
       split_info%igroup = igroup
       split_info%split_rowcol = split_rowcol
 
-      CALL mp_comm_split_direct(mp_comm, mp_comm_group, igroup)
+      CALL mp_comm_group%from_split(mp_comm, igroup)
 
-      CALL mp_environ(numproc, iproc, mp_comm)
+      CALL mp_comm%environ(numproc, iproc)
       CALL mp_environ(numproc, pdims, pcoord, mp_comm)
       split_info%pdims = pdims
 
-      CALL mp_environ(numproc_group, iproc_group, mp_comm_group)
+      CALL mp_comm_group%environ(numproc_group, iproc_group)
 
       IF (iproc == 0) THEN
          to_assert = MOD(numproc_group, pdims(MOD(split_rowcol, 2) + 1)) == 0
          CPASSERT(to_assert)
          split_info%pgrid_split_size = numproc_group/pdims(MOD(split_rowcol, 2) + 1)
       END IF
-      CALL mp_bcast(split_info%pgrid_split_size, 0, split_info%mp_comm)
+      CALL split_info%mp_comm%bcast(split_info%pgrid_split_size, 0)
 
       ngroup = (pdims(split_rowcol) + split_info%pgrid_split_size - 1)/split_info%pgrid_split_size
       split_info%ngroup = ngroup
@@ -134,11 +130,11 @@ CONTAINS
 
       CALL mp_cart_create(mp_comm_group, 2, pdims_group, pcoord_group, split_info%mp_comm_group)
 
-      CALL mp_environ(numproc_group_check, iproc_group_check, split_info%mp_comm_group)
+      CALL split_info%mp_comm_group%environ(numproc_group_check, iproc_group_check)
 
       CPASSERT(iproc_group_check .EQ. iproc_group)
 
-      CALL mp_comm_free(mp_comm_group)
+      CALL mp_comm_group%free()
 
       ALLOCATE (split_info%refcount)
       split_info%refcount = 1
@@ -168,7 +164,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL mp_environ(numproc, iproc, mp_comm)
+      CALL mp_comm%environ(numproc, iproc)
 
       npdims = dbt_tas_mp_dims(numproc, split_rowcol, nsplit)
 
@@ -357,7 +353,7 @@ CONTAINS
 
       CPASSERT(nsplit > 0)
 
-      CALL mp_environ(numproc, iproc, mp_comm)
+      CALL mp_comm%environ(numproc, iproc)
       CALL mp_environ(numproc, pdims, pcoord, mp_comm)
 
       SELECT CASE (split_rowcol)
@@ -477,8 +473,8 @@ CONTAINS
       split_info%refcount = split_info%refcount - 1
 
       IF (split_info%refcount == 0) THEN
-         CALL mp_comm_free(split_info%mp_comm_group)
-         CALL mp_comm_free(split_info%mp_comm)
+         CALL split_info%mp_comm_group%free()
+         CALL split_info%mp_comm%free()
          DEALLOCATE (split_info%refcount)
       END IF
 

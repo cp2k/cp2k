@@ -54,7 +54,6 @@ MODULE minbas_wfn_analysis
    USE iterate_matrix,                  ONLY: invert_Hotelling
    USE kinds,                           ONLY: default_path_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_sum
    USE minbas_methods,                  ONLY: minbas_calculation
    USE molden_utils,                    ONLY: write_mos_molden
    USE mulliken,                        ONLY: compute_bond_order,&
@@ -273,7 +272,7 @@ CONTAINS
             CALL dbcsr_release(sinv)
          END DO
          ! Basis extension
-         CALL mp_sum(ecount, para_env%group)
+         CALL para_env%group%sum(ecount)
          IF (unit_nr > 0) THEN
             IF (nspin == 1) THEN
                WRITE (unit_nr, '(T2,A,T20,A,T40,A,T60,A)') 'Ref. Atom', ' # > 0.100 ', ' # > 0.010 ', ' # > 0.001 '
@@ -289,7 +288,7 @@ CONTAINS
             END IF
          END IF
          ! MAO projection
-         CALL mp_sum(prmao, para_env%group)
+         CALL para_env%group%sum(prmao)
          IF (unit_nr > 0) THEN
             DO ispin = 1, nspin
                WRITE (unit_nr, '(/,T2,A,I2)') 'Projection on same atom MAO orbitals: Spin ', ispin
@@ -342,7 +341,7 @@ CONTAINS
                                    filter_eps=filter_eps)
                CALL compute_bond_order(psmat, spmat, border)
             END DO
-            CALL mp_sum(border, para_env%group)
+            CALL para_env%group%sum(border)
             border = border*REAL(nspin, KIND=dp)
             CALL dbcsr_release(psmat)
             CALL dbcsr_release(spmat)

@@ -58,8 +58,6 @@ MODULE lri_environment_methods
    USE mathlib,                         ONLY: get_pseudo_inverse_diag,&
                                               get_pseudo_inverse_svd,&
                                               invmat_symm
-   USE message_passing,                 ONLY: mp_max,&
-                                              mp_sum
    USE particle_types,                  ONLY: particle_type
    USE pw_types,                        ONLY: pw_type
    USE qs_collocate_density,            ONLY: calculate_lri_rho_elec
@@ -455,7 +453,7 @@ CONTAINS
       !
       IF (.NOT. calculate_forces) THEN
          DO ikind = 1, nkind
-            CALL mp_sum(lri_ppl_coef(ikind)%v_int, para_env%group)
+            CALL para_env%group%sum(lri_ppl_coef(ikind)%v_int)
             lri_env%lri_ppl_ints%lri_ppl(ikind)%v_int = lri_ppl_coef(ikind)%v_int
          END DO
       END IF
@@ -935,7 +933,7 @@ CONTAINS
                CALL get_atomic_kind(atomic_kind=atomic_kind, natom=natom)
                DO iatom = 1, natom
                   aci => lri_coef(ikind)%acoef(iatom, :)
-                  CALL mp_sum(aci, para_env%group)
+                  CALL para_env%group%sum(aci)
                END DO
             END DO
 
@@ -1149,11 +1147,11 @@ CONTAINS
       END DO
 
       CALL neighbor_list_iterator_release(nl_iterator)
-      CALL mp_max(dmax_ab, para_env%group)
-      CALL mp_max(dmax_oo, para_env%group)
-      CALL mp_max(dmax_aba, para_env%group)
-      CALL mp_max(dmax_abb, para_env%group)
-      CALL mp_max(dmax_aabb, para_env%group)
+      CALL para_env%group%max(dmax_ab)
+      CALL para_env%group%max(dmax_oo)
+      CALL para_env%group%max(dmax_aba)
+      CALL para_env%group%max(dmax_abb)
+      CALL para_env%group%max(dmax_aabb)
 
       logger => cp_get_default_logger()
       iunit = cp_print_key_unit_nr(logger, input, "PRINT%PROGRAM_RUN_INFO", &
@@ -1277,18 +1275,18 @@ CONTAINS
          logger => cp_get_default_logger()
          iunit = cp_print_key_unit_nr(logger, input, "PRINT%PROGRAM_RUN_INFO", extension=".Log")
          pairs_tt = lri_env%stat%pairs_tt
-         CALL mp_sum(pairs_tt, para_env%group)
+         CALL para_env%group%sum(pairs_tt)
          pairs_sr = lri_env%stat%pairs_sr
-         CALL mp_sum(pairs_sr, para_env%group)
+         CALL para_env%group%sum(pairs_sr)
          pairs_ff = lri_env%stat%pairs_ff
-         CALL mp_sum(pairs_ff, para_env%group)
+         CALL para_env%group%sum(pairs_ff)
          overlap_error = lri_env%stat%overlap_error
-         CALL mp_sum(overlap_error, para_env%group)
+         CALL para_env%group%sum(overlap_error)
          rho_tt = -lri_env%stat%rho_tt
          rho_sr = lri_env%stat%rho_sr
-         CALL mp_sum(rho_sr, para_env%group)
+         CALL para_env%group%sum(rho_sr)
          rho_ff = lri_env%stat%rho_ff
-         CALL mp_sum(rho_ff, para_env%group)
+         CALL para_env%group%sum(rho_ff)
          IF (lri_env%exact_1c_terms) THEN
             rho_1c = lri_env%stat%rho_1c
          ELSE
@@ -1296,16 +1294,16 @@ CONTAINS
          END IF
          ppx = 8.e-6_dp
          coef_mem = lri_env%stat%coef_mem*ppx
-         CALL mp_sum(coef_mem, para_env%group)
+         CALL para_env%group%sum(coef_mem)
          oint_mem = lri_env%stat%oint_mem*ppx
-         CALL mp_sum(oint_mem, para_env%group)
+         CALL para_env%group%sum(oint_mem)
          rhos_mem = lri_env%stat%rhos_mem*ppx
-         CALL mp_sum(rhos_mem, para_env%group)
+         CALL para_env%group%sum(rhos_mem)
          abai_mem = lri_env%stat%abai_mem*ppx
-         CALL mp_sum(abai_mem, para_env%group)
+         CALL para_env%group%sum(abai_mem)
          IF (lri_env%ppl_ri) THEN
             ppli_mem = lri_env%stat%ppli_mem*ppx
-            CALL mp_sum(ppli_mem, para_env%group)
+            CALL para_env%group%sum(ppli_mem)
          ELSE
             ppli_mem = 0.0_dp
          END IF

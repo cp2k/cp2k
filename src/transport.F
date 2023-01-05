@@ -51,9 +51,7 @@ MODULE transport
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_allgather,&
-                                              mp_comm_type,&
-                                              mp_environ
+   USE message_passing,                 ONLY: mp_comm_type
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
@@ -317,7 +315,7 @@ CONTAINS
       END IF
 
       mp_group = logger%para_env%group
-      CALL mp_environ(numnodes, mynode, mp_group)
+      CALL mp_group%environ(numnodes, mynode)
 
       IF (dbcsr_has_symmetry(template_matrix)) THEN
          CALL dbcsr_copy(transport_env%template_matrix_sym, template_matrix)
@@ -502,7 +500,7 @@ CONTAINS
       END IF
 
       ALLOCATE (nrows_local_all(0:num_pe - 1), first_row_all(0:num_pe - 1))
-      CALL mp_allgather(csr_mat%nrows_local, nrows_local_all, mp_group)
+      CALL mp_group%allgather(csr_mat%nrows_local, nrows_local_all)
       CALL cumsum_i(nrows_local_all, first_row_all)
 
       IF (mepos .EQ. 0) THEN

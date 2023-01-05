@@ -44,7 +44,6 @@ MODULE xtb_coulomb
                                               kpoint_type
    USE mathconstants,                   ONLY: oorootpi,&
                                               pi
-   USE message_passing,                 ONLY: mp_sum
    USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
    USE pw_poisson_types,                ONLY: do_ewald_ewald,&
@@ -317,8 +316,8 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
                       force=force, para_env=para_env)
-      CALL mp_sum(gmcharge(:, 1), para_env%group)
-      CALL mp_sum(gchrg(:, :, 1), para_env%group)
+      CALL para_env%group%sum(gmcharge(:, 1))
+      CALL para_env%group%sum(gchrg(:, :, 1))
 
       IF (xtb_control%coulomb_lr) THEN
          IF (do_ewald) THEN

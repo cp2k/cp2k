@@ -35,10 +35,7 @@ MODULE cp_dbcsr_output
                                               int_8
    USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: symmetrize_matrix
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_max,&
-                                              mp_sum,&
-                                              mp_sync
+   USE message_passing,                 ONLY: mp_comm_type
    USE orbital_pointers,                ONLY: nso
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
@@ -189,7 +186,7 @@ CONTAINS
 
       CALL copy_repl_dbcsr_to_repl_fm(sparse_matrix, matrix)
 
-      CALL mp_sum(matrix, group)
+      CALL group%sum(matrix)
 
       SELECT CASE (dbcsr_get_matrix_type(sparse_matrix))
       CASE (dbcsr_type_symmetric)
@@ -487,7 +484,7 @@ CONTAINS
          DEALLOCATE (last_sgf)
       END IF
 
-      CALL mp_sync(group)
+      CALL group%sync()
       IF (output_unit > 0) CALL m_flush(output_unit)
 
    END SUBROUTINE write_matrix_sym
@@ -585,7 +582,7 @@ CONTAINS
          WRITE (UNIT=output_unit, FMT="(/)")
       END IF
 
-      CALL mp_sync(group)
+      CALL group%sync()
       IF (output_unit > 0) CALL m_flush(output_unit)
 
    END SUBROUTINE write_matrix_gen
@@ -645,8 +642,8 @@ CONTAINS
 
       IF (full_output) THEN
          ! XXXXXXXX should gather/scatter this on ionode
-         CALL mp_sum(nblock, group)
-         CALL mp_sum(nelement, group)
+         CALL group%sum(nblock)
+         CALL group%sum(nelement)
 
          nblock_sum = SUM(INT(nblock, KIND=int_8))
          nelement_sum = SUM(INT(nelement, KIND=int_8))
@@ -655,10 +652,10 @@ CONTAINS
          nblock_max = nblock(mype)
          nelement_sum = nelement(mype)
          nelement_max = nelement(mype)
-         CALL mp_sum(nblock_sum, group)
-         CALL mp_sum(nelement_sum, group)
+         CALL group%sum(nblock_sum)
+         CALL group%sum(nelement_sum)
          tmp = (/nblock_max, nelement_max/)
-         CALL mp_max(tmp, group)
+         CALL group%max(tmp)
          nblock_max = tmp(1); nelement_max = tmp(2)
       END IF
 

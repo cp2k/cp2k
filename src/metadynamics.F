@@ -42,7 +42,7 @@ MODULE metadynamics
                                   section_vals_type, &
                                   section_vals_val_get
    USE kinds, ONLY: dp
-   USE message_passing, ONLY: mp_bcast, cp2k_is_parallel
+   USE message_passing, ONLY: cp2k_is_parallel
    USE metadynamics_types, ONLY: hills_env_type, &
                                  meta_env_type, &
                                  metavar_type, &

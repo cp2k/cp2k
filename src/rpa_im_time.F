@@ -45,8 +45,7 @@ MODULE rpa_im_time
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE mathconstants,                   ONLY: twopi
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_sync
+   USE message_passing,                 ONLY: mp_comm_type
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
@@ -237,7 +236,7 @@ CONTAINS
 
       DO jquad = 1, num_integ_points
 
-         CALL mp_sync(para_env%group)
+         CALL para_env%group%sync()
          t1 = m_walltime()
 
          CALL compute_mat_dm_global(fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, tau_tj, num_integ_points, nmo, &
@@ -292,7 +291,7 @@ CONTAINS
 
          CALL timeset(routineN//"_contract", handle2)
 
-         CALL mp_sync(para_env%group)
+         CALL para_env%group%sync()
          t1_flop = m_walltime()
 
          DO i = 1, SIZE(t_3c_O_occ, 1)
@@ -565,7 +564,7 @@ CONTAINS
          DEALLOCATE (t_dm_virt)
          DEALLOCATE (t_dm_occ)
 
-         CALL mp_sync(para_env%group)
+         CALL para_env%group%sync()
          t2 = m_walltime()
 
          dbcsr_time = dbcsr_time + t2 - t1_flop
@@ -731,7 +730,7 @@ CONTAINS
 
          num_cells_dm = 1
 
-         CALL mp_sync(para_env%group)
+         CALL para_env%group%sync()
 
          ! get info of fm_mo_coeff_occ
          CALL cp_fm_get_info(matrix=fm_mo_coeff_occ, &
@@ -783,7 +782,7 @@ CONTAINS
             END DO
          END DO
 
-         CALL mp_sync(para_env%group)
+         CALL para_env%group%sync()
 
          size_dm_occ = nmo
          size_dm_virt = nmo

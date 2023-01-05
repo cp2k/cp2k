@@ -85,7 +85,6 @@ MODULE qs_scf_post_gpw
    USE mao_wfn_analysis,                ONLY: mao_analysis
    USE mathconstants,                   ONLY: pi
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_sum
    USE minbas_wfn_analysis,             ONLY: minbas_analysis
    USE molden_utils,                    ONLY: write_mos_molden
    USE molecule_types,                  ONLY: molecule_type
@@ -2079,8 +2078,8 @@ CONTAINS
                      nr = 0
                      niso = 0
                   END IF
-                  CALL mp_sum(nr, para_env%group)
-                  CALL mp_sum(niso, para_env%group)
+                  CALL para_env%group%sum(nr)
+                  CALL para_env%group%sum(niso)
 
                   ALLOCATE (bfun(nr, niso))
                   bfun = 0._dp
@@ -2089,7 +2088,7 @@ CONTAINS
                         bfun(:, :) = bfun + rho_atom%rho_rad_h(ispin)%r_coef - rho_atom%rho_rad_s(ispin)%r_coef
                      END IF
                   END DO
-                  CALL mp_sum(bfun, para_env%group)
+                  CALL para_env%group%sum(bfun)
                   ccdens(:, 1, ikind) = ppdens(:, 1, ikind)
                   ccdens(:, 2, ikind) = 0._dp
                   IF (unit_nr > 0) THEN
@@ -3313,7 +3312,7 @@ CONTAINS
             interact_adjm((ind - 1)*4 + 4) = jkind
          END DO
 
-         CALL mp_sum(interact_adjm, para_env%group)
+         CALL para_env%group%sum(interact_adjm)
 
          unit_nr = cp_print_key_unit_nr(logger, dft_section, "PRINT%ADJMAT_WRITE", &
                                         extension=".adjmat", file_form="FORMATTED", &

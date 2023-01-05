@@ -37,7 +37,6 @@ MODULE shell_opt
                                               section_vals_type
    USE integrator_utils,                ONLY: tmp_variables_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
    USE shell_potential_types,           ONLY: shell_kind_type
 #include "../base/base_uses.f90"
@@ -223,7 +222,7 @@ CONTAINS
          END IF
       END DO
 
-      CALL mp_sum(itest, para_env%group)
+      CALL para_env%group%sum(itest)
       IF (itest > 0) optimize = .TRUE.
 
    END SUBROUTINE check_shell_core_distance

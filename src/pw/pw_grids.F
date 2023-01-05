@@ -44,10 +44,12 @@ MODULE pw_grids
    USE mathconstants,                   ONLY: twopi
    USE mathlib,                         ONLY: det_3x3,&
                                               inv_3x3
-   USE message_passing,                 ONLY: &
-        mp_allgather, mp_cart_coords, mp_cart_create, mp_cart_rank, mp_comm_compare, mp_comm_dup, &
-        mp_comm_free, mp_comm_self, mp_comm_type, mp_dims_create, mp_environ, mp_max, mp_min, &
-        mp_sum
+   USE message_passing,                 ONLY: mp_cart_coords,&
+                                              mp_cart_create,&
+                                              mp_cart_rank,&
+                                              mp_comm_self,&
+                                              mp_comm_type,&
+                                              mp_dims_create
    USE offload_api,                     ONLY: offload_activate_chosen_device,&
                                               offload_free_pinned_mem,&
                                               offload_malloc_pinned_mem
@@ -132,10 +134,9 @@ CONTAINS
       pw_grid%id_nr = grid_tag
 
       ! parallel info
-      CALL mp_comm_dup(pe_group, pw_grid%para%group)
-      CALL mp_environ(pw_grid%para%group_size, &
-                      pw_grid%para%my_pos, &
-                      pw_grid%para%group)
+      CALL pw_grid%para%group%dup(pe_group)
+      CALL pw_grid%para%group%environ(pw_grid%para%group_size, &
+                                      pw_grid%para%my_pos)
       pw_grid%para%group_head_id = 0
       pw_grid%para%group_head = &
          (pw_grid%para%group_head_id == pw_grid%para%my_pos)
@@ -537,7 +538,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_setup_internal'
 
-      INTEGER                                            :: handle, ires, n(3)
+      INTEGER                                            :: handle, n(3)
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: yz_mask
       REAL(KIND=dp)                                      :: ecut
 
@@ -571,10 +572,6 @@ CONTAINS
       ! Check if reference grid is compatible
       IF (PRESENT(ref_grid)) THEN
          CPASSERT(pw_grid%para%mode == ref_grid%para%mode)
-         IF (pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
-            CALL mp_comm_compare(pw_grid%para%group, ref_grid%para%group, ires)
-            CPASSERT(ires <= 3)
-         END IF
          CPASSERT(pw_grid%grid_span == ref_grid%grid_span)
          CPASSERT(pw_grid%spherical .EQV. ref_grid%spherical)
       END IF
@@ -702,17 +699,17 @@ CONTAINS
 
          n(1) = pw_grid%ngpts_cut_local
          n(2) = pw_grid%ngpts_local
-         CALL mp_sum(n(1:2), pw_grid%para%group)
+         CALL pw_grid%para%group%sum(n(1:2))
          n(3) = SUM(pw_grid%para%nyzray)
          rv(:, 1) = REAL(n, KIND=dp)/REAL(pw_grid%para%group_size, KIND=dp)
          n(1) = pw_grid%ngpts_cut_local
          n(2) = pw_grid%ngpts_local
-         CALL mp_max(n(1:2), pw_grid%para%group)
+         CALL pw_grid%para%group%max(n(1:2))
          n(3) = MAXVAL(pw_grid%para%nyzray)
          rv(:, 2) = REAL(n, KIND=dp)
          n(1) = pw_grid%ngpts_cut_local
          n(2) = pw_grid%ngpts_local
-         CALL mp_min(n(1:2), pw_grid%para%group)
+         CALL pw_grid%para%group%min(n(1:2))
          n(3) = MINVAL(pw_grid%para%nyzray)
          rv(:, 3) = REAL(n, KIND=dp)
 
@@ -956,7 +953,7 @@ CONTAINS
                axis_dist(:, i) = bounds_local(:, i) - pw_grid%bounds(1, i) + 1
             END DO
             ALLOCATE (axis_dist_all(2, 3, np))
-            CALL mp_allgather(axis_dist, axis_dist_all, pw_grid%para%rs_group)
+            CALL pw_grid%para%rs_group%allgather(axis_dist, axis_dist_all)
             DO ip = 0, np - 1
                CALL mp_cart_coords(pw_grid%para%rs_group, ip, coor)
                ! distribution xyZ
@@ -1130,7 +1127,7 @@ CONTAINS
             ALLOCATE (pemap(0:np - 1))
             pemap = 0
             pemap(pw_grid%para%my_pos) = pw_grid%para%rs_mpo
-            CALL mp_sum(pemap, pw_grid%para%group)
+            CALL pw_grid%para%group%sum(pemap)
 
             DO ip = 0, np - 1
                ipp = pemap(ip)
@@ -1161,7 +1158,7 @@ CONTAINS
          ALLOCATE (pw_grid%para%pos_of_x(pw_grid%bounds(1, 1):pw_grid%bounds(2, 1)))
          pw_grid%para%pos_of_x = 0
          pw_grid%para%pos_of_x(pw_grid%bounds_local(1, 1):pw_grid%bounds_local(2, 1)) = pw_grid%para%my_pos
-         CALL mp_sum(pw_grid%para%pos_of_x, pw_grid%para%group)
+         CALL pw_grid%para%group%sum(pw_grid%para%pos_of_x)
       ELSE
          ! this should not be needed
          ALLOCATE (pw_grid%para%pos_of_x(pw_grid%bounds(1, 1):pw_grid%bounds(2, 1)))
@@ -1431,8 +1428,8 @@ CONTAINS
 
       ! number of g-vectors for grid
       IF (pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
-         CALL mp_sum(gpt, pw_grid%para%group)
-         CALL mp_sum(yz_mask, pw_grid%para%group)
+         CALL pw_grid%para%group%sum(gpt)
+         CALL pw_grid%para%group%sum(yz_mask)
       END IF
       pw_grid%ngpts_cut = gpt
 
@@ -1583,7 +1580,7 @@ CONTAINS
       CPASSERT(pw_grid%ngpts_cut_local == gpt)
       IF (pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
          gpt_global = gpt
-         CALL mp_sum(gpt_global, pw_grid%para%group)
+         CALL pw_grid%para%group%sum(gpt_global)
          CPASSERT(pw_grid%ngpts_cut == gpt_global)
       END IF
 
@@ -2083,7 +2080,7 @@ CONTAINS
       END DO
 
       CPASSERT(is == pw_grid%para%nyzray(ip))
-      CALL mp_sum(pw_grid%para%yzp, pw_grid%para%group)
+      CALL pw_grid%para%group%sum(pw_grid%para%yzp)
 
       CALL timestop(handle)
 
@@ -2238,9 +2235,9 @@ CONTAINS
                END IF
             END IF
             ! also release groups
-            CALL mp_comm_free(pw_grid%para%group)
+            CALL pw_grid%para%group%free()
             IF (PRODUCT(pw_grid%para%rs_dims) /= 0) &
-               CALL mp_comm_free(pw_grid%para%rs_group)
+               CALL pw_grid%para%rs_group%free()
             IF (ASSOCIATED(pw_grid%para%pos_of_x)) THEN
                DEALLOCATE (pw_grid%para%pos_of_x)
             END IF

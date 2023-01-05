@@ -58,11 +58,7 @@ MODULE helium_methods
                                               max_line_length
    USE mathconstants,                   ONLY: pi,&
                                               twopi
-   USE message_passing,                 ONLY: mp_allgather,&
-                                              mp_bcast,&
-                                              mp_comm_free,&
-                                              mp_comm_split_direct,&
-                                              mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE parallel_rng_types,              ONLY: GAUSSIAN,&
                                               UNIFORM,&
                                               rng_stream_p_type,&
@@ -159,7 +155,7 @@ CONTAINS
       NULLIFY (env_all)
       ALLOCATE (env_all(logger%para_env%num_pe))
       env_all(:) = 0
-      CALL mp_allgather(mepos, env_all, logger%para_env%group)
+      CALL logger%para_env%group%allgather(mepos, env_all)
 
       ! create new communicator for processors with helium_env
       IF (mepos == 0) THEN
@@ -167,10 +163,10 @@ CONTAINS
       ELSE
          color_sub = 1
       END IF
-      CALL mp_comm_split_direct(logger%para_env%group, new_comm, color_sub)
+      CALL new_comm%from_split(logger%para_env%group, color_sub)
       ! release new_comm for processors without helium_env
       IF (mepos == 0) THEN
-         CALL mp_comm_free(new_comm)
+         CALL new_comm%free()
       END IF
 
       NULLIFY (helium_env)
@@ -422,18 +418,12 @@ CONTAINS
             dx = dx/angstrom
          END IF
 
-         CALL mp_bcast(nlines, logger%para_env%source, &
-                       helium_env(1)%comm)
-         CALL mp_bcast(pdx, logger%para_env%source, &
-                       helium_env(1)%comm)
-         CALL mp_bcast(tau, logger%para_env%source, &
-                       helium_env(1)%comm)
-         CALL mp_bcast(x_spline, logger%para_env%source, &
-                       helium_env(1)%comm)
-         CALL mp_bcast(dx, logger%para_env%source, &
-                       helium_env(1)%comm)
-         CALL mp_bcast(he_mass, logger%para_env%source, &
-                       helium_env(1)%comm)
+         CALL helium_env(1)%comm%bcast(nlines, logger%para_env%source)
+         CALL helium_env(1)%comm%bcast(pdx, logger%para_env%source)
+         CALL helium_env(1)%comm%bcast(tau, logger%para_env%source)
+         CALL helium_env(1)%comm%bcast(x_spline, logger%para_env%source)
+         CALL helium_env(1)%comm%bcast(dx, logger%para_env%source)
+         CALL helium_env(1)%comm%bcast(he_mass, logger%para_env%source)
          isize = (pdx + 1)*(pdx + 2) + 1
          ALLOCATE (pot_transfer(nlines, isize))
          IF (logger%para_env%ionode) THEN
@@ -450,8 +440,7 @@ CONTAINS
             END IF
             CALL close_file(unit_number=input_unit)
          END IF
-         CALL mp_bcast(pot_transfer, logger%para_env%source, &
-                       helium_env(1)%comm)
+         CALL helium_env(1)%comm%bcast(pot_transfer, logger%para_env%source)
 
          CALL spline_data_create(helium_env(1)%helium%vij)
          CALL init_splinexy(helium_env(1)%helium%vij, nlines)
@@ -847,7 +836,7 @@ CONTAINS
       IF (ASSOCIATED(helium_env)) THEN
          DO k = 1, SIZE(helium_env)
             IF (k .EQ. 1) THEN
-               CALL mp_comm_free(helium_env(k)%comm)
+               CALL helium_env(k)%comm%free()
                DEALLOCATE (helium_env(k)%env_all)
             END IF
             NULLIFY (helium_env(k)%env_all)
@@ -1175,9 +1164,8 @@ CONTAINS
             !IF (pint_env%logger%para_env%ionode) THEN
             !   pint_env%f(:, :) = pint_env%f(:, :) + helium_env(1)%helium%force_avrg(:, :)
             !END IF
-            !CALL mp_bcast(pint_env%f,&
-            !              pint_env%logger%para_env%source,&
-            !              pint_env%logger%para_env%group)
+            !CALL pint_env%logger%para_env%group%bcast(pint_env%f,&
+            !              pint_env%logger%para_env%source)
 
          END IF
       END IF
@@ -1890,9 +1878,8 @@ CONTAINS
                                    "MOTION%PINT%HELIUM%RNG_SEED", &
                                    i_val=helium_seed)
       END IF
-      CALL mp_bcast(helium_seed, &
-                    logger%para_env%source, &
-                    helium_env(1)%comm)
+      CALL helium_env(1)%comm%bcast(helium_seed, &
+                                    logger%para_env%source)
       initial_seed(:, :) = REAL(helium_seed, dp)
 
       ALLOCATE (uniform_array(helium_env(1)%helium%num_env), &

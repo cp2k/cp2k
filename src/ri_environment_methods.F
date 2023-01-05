@@ -38,8 +38,7 @@ MODULE ri_environment_methods
                                               lri_density_type,&
                                               lri_environment_type,&
                                               lri_kind_type
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_comm_type
    USE pw_types,                        ONLY: pw_type
    USE qs_collocate_density,            ONLY: calculate_lri_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -508,7 +507,7 @@ CONTAINS
       END DO
 
       ! global summation
-      CALL mp_sum(tvec, para_env%group)
+      CALL para_env%group%sum(tvec)
 
       rm1t => lri_env%ri_fit%rm1t
       DO ispin = 1, nspin
@@ -636,7 +635,7 @@ CONTAINS
       END DO
       CALL dbcsr_iterator_stop(iter)
 
-      CALL mp_sum(vo, group)
+      CALL group%sum(vo)
 
       CALL timestop(handle)
 

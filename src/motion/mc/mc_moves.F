@@ -46,8 +46,7 @@ MODULE mc_moves
                                               mc_moves_type,&
                                               mc_simpar_type
    USE md_run,                          ONLY: qs_mol_dyn
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_kind_types,             ONLY: bend_type,&
                                               bond_type,&
@@ -354,7 +353,7 @@ CONTAINS
             IF (ionode) THEN
                rand = rng_stream%next()
             END IF
-            CALL mp_bcast(rand, source, group)
+            CALL group%bcast(rand, source)
          END IF
 
          IF (rand .LT. w) THEN
@@ -539,13 +538,13 @@ CONTAINS
 
 ! call a random number to figure out which direction we're moving
       IF (ionode) rand = rng_stream%next()
-      CALL mp_bcast(rand, source, group)
+      CALL group%bcast(rand, source)
       ! 1,2,3 with equal prob
       move_direction = INT(3*rand) + 1
 
 ! call a random number to figure out how far we're moving
       IF (ionode) rand = rng_stream%next()
-      CALL mp_bcast(rand, source, group)
+      CALL group%bcast(rand, source)
       dis_mol = rmtrans(molecule_type)*(rand - 0.5E0_dp)*2.0E0_dp
 
 ! do the move
@@ -595,7 +594,7 @@ CONTAINS
             rand = 0.0E0_dp
          ELSE
             IF (ionode) rand = rng_stream%next()
-            CALL mp_bcast(rand, source, group)
+            CALL group%bcast(rand, source)
          END IF
 
          IF (rand .LT. w) THEN
@@ -775,7 +774,7 @@ CONTAINS
 ! call a random number to figure out which direction we're moving
       IF (ionode) rand = rng_stream%next()
 !      CALL RANDOM_NUMBER(rand)
-      CALL mp_bcast(rand, source, group)
+      CALL group%bcast(rand, source)
       ! 1,2,3 with equal prob
       dir = INT(3*rand) + 1
 
@@ -801,7 +800,7 @@ CONTAINS
 
 ! call a random number to figure out how far we're moving
       IF (ionode) rand = rng_stream%next()
-      CALL mp_bcast(rand, source, group)
+      CALL group%bcast(rand, source)
       dgamma = rmrot(molecule_type)*(rand - 0.5E0_dp)*2.0E0_dp
 
 ! *** set up the rotation matrix ***
@@ -898,7 +897,7 @@ CONTAINS
             rand = 0.0E0_dp
          ELSE
             IF (ionode) rand = rng_stream%next()
-            CALL mp_bcast(rand, source, group)
+            CALL group%bcast(rand, source)
          END IF
 
          IF (rand .LT. w) THEN
@@ -1050,7 +1049,7 @@ CONTAINS
 
 ! call a random number to figure out how far we're moving
       IF (ionode) rand = rng_stream%next()
-      CALL mp_bcast(rand, source, group)
+      CALL group%bcast(rand, source)
 
 ! find the test cell lenghts for the discrete volume move
       IF (ldiscrete) THEN
@@ -1066,7 +1065,7 @@ CONTAINS
          IF (lincrease) THEN
             DO
                IF (ionode) rand = rng_stream%next()
-               CALL mp_bcast(rand, source, group)
+               CALL group%bcast(rand, source)
                iside_change = CEILING(3.0_dp*rand)
                IF (discrete_array(iside_change, 1) .EQ. 1) THEN
                   new_cell_length(iside_change) = &
@@ -1077,7 +1076,7 @@ CONTAINS
          ELSE
             DO
                IF (ionode) rand = rng_stream%next()
-               CALL mp_bcast(rand, source, group)
+               CALL group%bcast(rand, source)
                iside_change = CEILING(3.0_dp*rand)
                IF (discrete_array(iside_change, 2) .EQ. 1) THEN
                   new_cell_length(iside_change) = &
@@ -1113,7 +1112,7 @@ CONTAINS
             loverlap = .FALSE.
          END IF
       END IF
-      CALL mp_bcast(loverlap, source, group)
+      CALL group%bcast(loverlap, source)
 
       IF (loverlap) THEN
 ! deallocate some stuff
@@ -1173,7 +1172,7 @@ CONTAINS
                              cell_length=new_cell_length)
 
 ! figure out if we have overlap problems
-      CALL mp_bcast(loverlap, source, group)
+      CALL group%bcast(loverlap, source)
       IF (loverlap) THEN
 ! deallocate some stuff
          DEALLOCATE (r)
@@ -1208,7 +1207,7 @@ CONTAINS
             END IF
          END IF
       END IF
-      CALL mp_bcast(ltoo_small, source, group)
+      CALL group%bcast(ltoo_small, source)
       IF (ltoo_small) &
          CPABORT("Attempted a volume move where box size got too small.")
 
@@ -1243,7 +1242,7 @@ CONTAINS
          rand = 0.0E0_dp
       ELSE
          IF (ionode) rand = rng_stream%next()
-         CALL mp_bcast(rand, source, group)
+         CALL group%bcast(rand, source)
       END IF
 
       IF (rand .LT. w) THEN
@@ -1351,7 +1350,7 @@ CONTAINS
       IF (ionode) THEN
          rand = rng_stream%next()
       END IF
-      CALL mp_bcast(rand, source, group)
+      CALL group%bcast(rand, source)
       CALL get_molecule_kind(molecule_kind, natom=natom, nbond=nbond, &
                              bond_list=bond_list)
       bond_number = CEILING(rand*REAL(nbond, dp))
@@ -1409,7 +1408,7 @@ CONTAINS
 
 ! choose a displacement
       IF (ionode) rand = rng_stream%next()
-      CALL mp_bcast(rand, source, group)
+      CALL group%bcast(rand, source)
 
       dis_length = rmbond(molecule_type)*2.0E0_dp*(rand - 0.5E0_dp)
 
@@ -1520,7 +1519,7 @@ CONTAINS
       IF (ionode) THEN
          rand = rng_stream%next()
       END IF
-      CALL mp_bcast(rand, source, group)
+      CALL group%bcast(rand, source)
       CALL get_molecule_kind(molecule_kind, natom=natom, nbend=nbend, &
                              bend_list=bend_list, bond_list=bond_list, nbond=nbond)
       bend_number = CEILING(rand*REAL(nbend, dp))
@@ -1575,7 +1574,7 @@ CONTAINS
 
 ! choose a displacement
       IF (ionode) rand = rng_stream%next()
-      CALL mp_bcast(rand, source, group)
+      CALL group%bcast(rand, source)
 
       dis_angle = rmangle(molecule_type)*2.0E0_dp*(rand - 0.5E0_dp)
 
@@ -1781,7 +1780,7 @@ CONTAINS
          rand = rng_stream%next()
 !      CALL RANDOM_NUMBER(rand)
       END IF
-      CALL mp_bcast(rand, source, group)
+      CALL group%bcast(rand, source)
       CALL get_molecule_kind(molecule_kind, natom=natom, &
                              bond_list=bond_list, nbond=nbond, &
                              ntorsion=ntorsion, torsion_list=torsion_list)
@@ -1838,7 +1837,7 @@ CONTAINS
 
 ! choose a displacement
       IF (ionode) rand = rng_stream%next()
-      CALL mp_bcast(rand, source, group)
+      CALL group%bcast(rand, source)
 
       dis_angle = rmdihedral(molecule_type)*2.0E0_dp*(rand - 0.5E0_dp)
 
@@ -2249,7 +2248,7 @@ CONTAINS
          rand = 0.0E0_dp
       ELSE
          IF (ionode) rand = rng_stream%next()
-         CALL mp_bcast(rand, source, group)
+         CALL group%bcast(rand, source)
       END IF
 
       IF (rand .LT. w) THEN
@@ -2428,7 +2427,7 @@ CONTAINS
          rand = 0.0E0_dp
       ELSE
          IF (ionode) rand = rng_stream%next()
-         CALL mp_bcast(rand, source, group)
+         CALL group%bcast(rand, source)
       END IF
 
       IF (rand .LT. w) THEN
@@ -2589,17 +2588,17 @@ CONTAINS
 
 ! call a random number to figure out which direction we're moving
       IF (ionode) rand = rng_stream%next()
-      CALL mp_bcast(rand, source, group)
+      CALL group%bcast(rand, source)
       move_direction = INT(3*rand) + 1
 
 ! call a random number to figure out how far we're moving
       IF (ionode) rand = rng_stream%next()
-      CALL mp_bcast(rand, source, group)
+      CALL group%bcast(rand, source)
       dis_mol = rmcltrans*(rand - 0.5E0_dp)*2.0E0_dp
 
 ! choosing cluster
       IF (ionode) rand = rng_stream%next()
-      CALL mp_bcast(rand, source, group)
+      CALL group%bcast(rand, source)
       jpart = INT(1 + rand*total_clus)
 
 ! do the cluster move
@@ -2688,7 +2687,7 @@ CONTAINS
             rand = 0.0E0_dp
          ELSE
             IF (ionode) rand = rng_stream%next()
-            CALL mp_bcast(rand, source, group)
+            CALL group%bcast(rand, source)
          END IF
          IF (rand .LT. w) THEN
 

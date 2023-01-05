@@ -29,8 +29,6 @@ MODULE nnp_force
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_allgather,&
-                                              mp_sum
    USE nnp_acsf,                        ONLY: nnp_calc_acsf
    USE nnp_environment_types,           ONLY: nnp_env_get,&
                                               nnp_type
@@ -127,7 +125,7 @@ CONTAINS
                    (logger%para_env%mepos + 1), 1)
       ALLOCATE (allcalc(logger%para_env%num_pe))
       allcalc(:) = 0
-      CALL mp_allgather(mecalc, allcalc, logger%para_env%group)
+      CALL logger%para_env%group%allgather(mecalc, allcalc)
       istart = 1
       DO i = 2, logger%para_env%mepos + 1
          istart = istart + allcalc(i - 1)
@@ -199,7 +197,7 @@ CONTAINS
       END DO ! loop over num_atoms
 
       ! calculate energy:
-      CALL mp_sum(nnp%atomic_energy(:, :), logger%para_env%group)
+      CALL logger%para_env%group%sum(nnp%atomic_energy(:, :))
       nnp%committee_energy(:) = SUM(nnp%atomic_energy, 1)
       nnp%nnp_potential_energy = SUM(nnp%committee_energy)/REAL(nnp%n_committee, dp)
 
@@ -210,7 +208,7 @@ CONTAINS
                nnp%committee_forces(k, (nnp%sort(j)), :) = nnp%myforce(k, j, :)
             END DO
          END DO
-         CALL mp_sum(nnp%committee_forces, logger%para_env%group)
+         CALL logger%para_env%group%sum(nnp%committee_forces)
          nnp%nnp_forces(:, :) = SUM(nnp%committee_forces, DIM=3)/REAL(nnp%n_committee, dp)
          DO j = 1, nnp%num_atoms
             particle_set(j)%f(:) = nnp%nnp_forces(:, j)
@@ -218,7 +216,7 @@ CONTAINS
       END IF
 
       IF (calc_stress) THEN
-         CALL mp_sum(nnp%committee_stress, logger%para_env%group)
+         CALL logger%para_env%group%sum(nnp%committee_stress)
          virial%pv_virial = SUM(nnp%committee_stress, DIM=3)/REAL(nnp%n_committee, dp)
       END IF
 
@@ -349,7 +347,7 @@ CONTAINS
       END IF
 
       ! Output structures with extrapolation warning on any processor
-      CALL mp_sum(nnp%output_expol, logger%para_env%group)
+      CALL logger%para_env%group%sum(nnp%output_expol)
       IF (nnp%output_expol) THEN
          print_key => section_vals_get_subs_vals(print_section, "EXTRAPOLATION")
          IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN

@@ -39,7 +39,6 @@ MODULE fist_neighbor_list_control
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_max
    USE pair_potential_types,            ONLY: gal21_type,&
                                               gal_type,&
                                               nequip_type,&
@@ -173,7 +172,7 @@ CONTAINS
             END DO
          END DO
 
-         CALL mp_max(dr2_max, para_env%group)
+         CALL para_env%group%max(dr2_max)
 
          ! If the maximum distplacement is too large, ...
          IF (dr2_max > 0.25_dp*verlet_skin**2 .OR. build_from_scratch) THEN

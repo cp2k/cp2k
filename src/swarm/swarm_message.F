@@ -18,10 +18,7 @@ MODULE swarm_message
                     int_8, &
                     real_4, &
                     real_8
-   USE message_passing, ONLY: mp_bcast, &
-                              mp_environ, &
-                              mp_recv, &
-                              mp_send, mp_comm_type
+   USE message_passing, ONLY: mp_comm_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -189,7 +186,7 @@ CONTAINS
 
       TYPE(message_entry_type), POINTER                  :: curr_entry
 
-      CALL mp_send(swarm_message_length(msg), dest, tag, group)
+      CALL group%send(swarm_message_length(msg), dest, tag)
       curr_entry => msg%root
       DO WHILE (ASSOCIATED(curr_entry))
          CALL swarm_message_entry_mpi_send(curr_entry, group, dest, tag)
@@ -214,7 +211,7 @@ CONTAINS
       TYPE(message_entry_type), POINTER                  :: new_entry
 
       IF (ASSOCIATED(msg%root)) CPABORT("message not empty")
-      CALL mp_recv(length, src, tag, group)
+      CALL group%recv(length, src, tag)
       DO i = 1, length
          ALLOCATE (new_entry)
          CALL swarm_message_entry_mpi_recv(new_entry, group, src, tag)
@@ -239,11 +236,11 @@ CONTAINS
       INTEGER                                            :: i, length, mepos, num_pe
       TYPE(message_entry_type), POINTER                  :: curr_entry
 
-      CALL mp_environ(num_pe, mepos, group)
+      CALL group%environ(num_pe, mepos)
 
       IF (mepos /= src .AND. ASSOCIATED(msg%root)) CPABORT("message not empty")
       length = swarm_message_length(msg)
-      CALL mp_bcast(length, src, group)
+      CALL group%bcast(length, src)
 
       IF (mepos == src) curr_entry => msg%root
 
@@ -448,48 +445,48 @@ CONTAINS
       INTEGER, DIMENSION(key_length)                     :: key_arr
 
       key_arr = str2iarr(entry%key)
-      CALL mp_send(key_arr, dest, tag, group)
+      CALL group%send(key_arr, dest, tag)
 
       IF (ASSOCIATED(entry%value_i4)) THEN
-         CALL mp_send(1, dest, tag, group)
-         CALL mp_send(entry%value_i4, dest, tag, group)
+         CALL group%send(1, dest, tag)
+         CALL group%send(entry%value_i4, dest, tag)
 
       ELSE IF (ASSOCIATED(entry%value_i8)) THEN
-         CALL mp_send(2, dest, tag, group)
-         CALL mp_send(entry%value_i8, dest, tag, group)
+         CALL group%send(2, dest, tag)
+         CALL group%send(entry%value_i8, dest, tag)
 
       ELSE IF (ASSOCIATED(entry%value_r4)) THEN
-         CALL mp_send(3, dest, tag, group)
-         CALL mp_send(entry%value_r4, dest, tag, group)
+         CALL group%send(3, dest, tag)
+         CALL group%send(entry%value_r4, dest, tag)
 
       ELSE IF (ASSOCIATED(entry%value_r8)) THEN
-         CALL mp_send(4, dest, tag, group)
-         CALL mp_send(entry%value_r8, dest, tag, group)
+         CALL group%send(4, dest, tag)
+         CALL group%send(entry%value_r8, dest, tag)
 
       ELSE IF (ASSOCIATED(entry%value_1d_i4)) THEN
-         CALL mp_send(5, dest, tag, group)
-         CALL mp_send(SIZE(entry%value_1d_i4), dest, tag, group)
-         CALL mp_send(entry%value_1d_i4, dest, tag, group)
+         CALL group%send(5, dest, tag)
+         CALL group%send(SIZE(entry%value_1d_i4), dest, tag)
+         CALL group%send(entry%value_1d_i4, dest, tag)
 
       ELSE IF (ASSOCIATED(entry%value_1d_i8)) THEN
-         CALL mp_send(6, dest, tag, group)
-         CALL mp_send(SIZE(entry%value_1d_i8), dest, tag, group)
-         CALL mp_send(entry%value_1d_i8, dest, tag, group)
+         CALL group%send(6, dest, tag)
+         CALL group%send(SIZE(entry%value_1d_i8), dest, tag)
+         CALL group%send(entry%value_1d_i8, dest, tag)
 
       ELSE IF (ASSOCIATED(entry%value_1d_r4)) THEN
-         CALL mp_send(7, dest, tag, group)
-         CALL mp_send(SIZE(entry%value_1d_r4), dest, tag, group)
-         CALL mp_send(entry%value_1d_r4, dest, tag, group)
+         CALL group%send(7, dest, tag)
+         CALL group%send(SIZE(entry%value_1d_r4), dest, tag)
+         CALL group%send(entry%value_1d_r4, dest, tag)
 
       ELSE IF (ASSOCIATED(entry%value_1d_r8)) THEN
-         CALL mp_send(8, dest, tag, group)
-         CALL mp_send(SIZE(entry%value_1d_r8), dest, tag, group)
-         CALL mp_send(entry%value_1d_r8, dest, tag, group)
+         CALL group%send(8, dest, tag)
+         CALL group%send(SIZE(entry%value_1d_r8), dest, tag)
+         CALL group%send(entry%value_1d_r8, dest, tag)
 
       ELSE IF (ASSOCIATED(entry%value_str)) THEN
-         CALL mp_send(9, dest, tag, group)
+         CALL group%send(9, dest, tag)
          value_str_arr = str2iarr(entry%value_str)
-         CALL mp_send(value_str_arr, dest, tag, group)
+         CALL group%send(value_str_arr, dest, tag)
       ELSE
          CPABORT("no value ASSOCIATED")
       END IF
@@ -512,43 +509,43 @@ CONTAINS
       INTEGER, DIMENSION(default_string_length)          :: value_str_arr
       INTEGER, DIMENSION(key_length)                     :: key_arr
 
-      CALL mp_recv(key_arr, src, tag, group)
+      CALL group%recv(key_arr, src, tag)
       entry%key = iarr2str(key_arr)
 
-      CALL mp_recv(datatype, src, tag, group)
+      CALL group%recv(datatype, src, tag)
 
       SELECT CASE (datatype)
       CASE (1)
          ALLOCATE (entry%value_i4)
-         CALL mp_recv(entry%value_i4, src, tag, group)
+         CALL group%recv(entry%value_i4, src, tag)
       CASE (2)
          ALLOCATE (entry%value_i8)
-         CALL mp_recv(entry%value_i8, src, tag, group)
+         CALL group%recv(entry%value_i8, src, tag)
       CASE (3)
          ALLOCATE (entry%value_r4)
-         CALL mp_recv(entry%value_r4, src, tag, group)
+         CALL group%recv(entry%value_r4, src, tag)
       CASE (4)
          ALLOCATE (entry%value_r8)
-         CALL mp_recv(entry%value_r8, src, tag, group)
+         CALL group%recv(entry%value_r8, src, tag)
       CASE (5)
-         CALL mp_recv(s, src, tag, group)
+         CALL group%recv(s, src, tag)
          ALLOCATE (entry%value_1d_i4(s))
-         CALL mp_recv(entry%value_1d_i4, src, tag, group)
+         CALL group%recv(entry%value_1d_i4, src, tag)
       CASE (6)
-         CALL mp_recv(s, src, tag, group)
+         CALL group%recv(s, src, tag)
          ALLOCATE (entry%value_1d_i8(s))
-         CALL mp_recv(entry%value_1d_i8, src, tag, group)
+         CALL group%recv(entry%value_1d_i8, src, tag)
       CASE (7)
-         CALL mp_recv(s, src, tag, group)
+         CALL group%recv(s, src, tag)
          ALLOCATE (entry%value_1d_r4(s))
-         CALL mp_recv(entry%value_1d_r4, src, tag, group)
+         CALL group%recv(entry%value_1d_r4, src, tag)
       CASE (8)
-         CALL mp_recv(s, src, tag, group)
+         CALL group%recv(s, src, tag)
          ALLOCATE (entry%value_1d_r8(s))
-         CALL mp_recv(entry%value_1d_r8, src, tag, group)
+         CALL group%recv(entry%value_1d_r8, src, tag)
       CASE (9)
          ALLOCATE (entry%value_str)
-         CALL mp_recv(value_str_arr, src, tag, group)
+         CALL group%recv(value_str_arr, src, tag)
          entry%value_str = iarr2str(value_str_arr)
       CASE DEFAULT
          CPABORT("unknown datatype")
@@ -573,7 +570,7 @@ CONTAINS
       INTEGER, DIMENSION(key_length)                     :: key_arr
 
       IF (src == mepos) key_arr = str2iarr(entry%key)
-      CALL mp_bcast(key_arr, src, group)
+      CALL group%bcast(key_arr, src)
       IF (src /= mepos) entry%key = iarr2str(key_arr)
 
       IF (src == mepos) THEN
@@ -604,37 +601,37 @@ CONTAINS
             CPABORT("no value ASSOCIATED")
          END IF
       END IF
-      CALL mp_bcast(datatype, src, group)
-      CALL mp_bcast(datasize, src, group)
+      CALL group%bcast(datatype, src)
+      CALL group%bcast(datasize, src)
 
       SELECT CASE (datatype)
       CASE (1)
          IF (src /= mepos) ALLOCATE (entry%value_i4)
-         CALL mp_bcast(entry%value_i4, src, group)
+         CALL group%bcast(entry%value_i4, src)
       CASE (2)
          IF (src /= mepos) ALLOCATE (entry%value_i8)
-         CALL mp_bcast(entry%value_i8, src, group)
+         CALL group%bcast(entry%value_i8, src)
       CASE (3)
          IF (src /= mepos) ALLOCATE (entry%value_r4)
-         CALL mp_bcast(entry%value_r4, src, group)
+         CALL group%bcast(entry%value_r4, src)
       CASE (4)
          IF (src /= mepos) ALLOCATE (entry%value_r8)
-         CALL mp_bcast(entry%value_r8, src, group)
+         CALL group%bcast(entry%value_r8, src)
       CASE (5)
          IF (src /= mepos) ALLOCATE (entry%value_1d_i4(datasize))
-         CALL mp_bcast(entry%value_1d_i4, src, group)
+         CALL group%bcast(entry%value_1d_i4, src)
       CASE (6)
          IF (src /= mepos) ALLOCATE (entry%value_1d_i8(datasize))
-         CALL mp_bcast(entry%value_1d_i8, src, group)
+         CALL group%bcast(entry%value_1d_i8, src)
       CASE (7)
          IF (src /= mepos) ALLOCATE (entry%value_1d_r4(datasize))
-         CALL mp_bcast(entry%value_1d_r4, src, group)
+         CALL group%bcast(entry%value_1d_r4, src)
       CASE (8)
          IF (src /= mepos) ALLOCATE (entry%value_1d_r8(datasize))
-         CALL mp_bcast(entry%value_1d_r8, src, group)
+         CALL group%bcast(entry%value_1d_r8, src)
       CASE (9)
          IF (src == mepos) value_str_arr = str2iarr(entry%value_str)
-         CALL mp_bcast(value_str_arr, src, group)
+         CALL group%bcast(value_str_arr, src)
          IF (src /= mepos) THEN
             ALLOCATE (entry%value_str)
             entry%value_str = iarr2str(value_str_arr)

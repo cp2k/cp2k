@@ -71,9 +71,9 @@ MODULE mixed_cdft_methods
    USE machine,                         ONLY: m_walltime
    USE mathlib,                         ONLY: diamat_all
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: &
-        mp_bcast, mp_irecv, mp_isend, mp_request_type, mp_sum, mp_test, mp_testall, mp_wait, &
-        mp_waitall
+   USE message_passing,                 ONLY: mp_request_type,&
+                                              mp_testall,&
+                                              mp_waitall
    USE mixed_cdft_types,                ONLY: mixed_cdft_result_type_set,&
                                               mixed_cdft_settings_type,&
                                               mixed_cdft_type,&
@@ -545,17 +545,15 @@ CONTAINS
          sendbuffer_i = cdft_control%becke_control%confine_bounds
          DO i = 1, SIZE(mixed_cdft%source_list)
             ALLOCATE (recvbuffer(i)%iv(2))
-            CALL mp_irecv(msgout=recvbuffer(i)%iv, source=mixed_cdft%source_list(i), &
-                          request=req_total(i), &
-                          comm=force_env%para_env%group)
+            CALL force_env%para_env%group%irecv(msgout=recvbuffer(i)%iv, source=mixed_cdft%source_list(i), &
+                                                request=req_total(i))
          END DO
          DO i = 1, my_special_work
             DO j = 1, SIZE(mixed_cdft%dest_list)
                ind = j + (i - 1)*SIZE(mixed_cdft%dest_list) + SIZE(mixed_cdft%source_list)
-               CALL mp_isend(msgin=sendbuffer_i, &
-                             dest=mixed_cdft%dest_list(j) + (i - 1)*force_env%para_env%num_pe/2, &
-                             request=req_total(ind), &
-                             comm=force_env%para_env%group)
+               CALL force_env%para_env%group%isend(msgin=sendbuffer_i, &
+                                                   dest=mixed_cdft%dest_list(j) + (i - 1)*force_env%para_env%num_pe/2, &
+                                                   request=req_total(ind))
             END DO
          END DO
          CALL mp_waitall(req_total)
@@ -627,20 +625,19 @@ CONTAINS
                                     recvbuffer(j)%imap(3):recvbuffer(j)%imap(4), &
                                     recvbuffer(j)%imap(5):recvbuffer(j)%imap(6)))
 
-         CALL mp_irecv(msgout=recvbuffer(j)%r3, source=mixed_cdft%source_list(j), &
-                       request=req_total(j), comm=force_env%para_env%group)
+         CALL force_env%para_env%group%irecv(msgout=recvbuffer(j)%r3, source=mixed_cdft%source_list(j), &
+                                             request=req_total(j))
       END DO
       DO i = 1, my_special_work
          DO j = 1, SIZE(mixed_cdft%dest_list)
             ind = j + (i - 1)*SIZE(mixed_cdft%dest_list) + SIZE(mixed_cdft%source_list)
             IF (mixed_cdft%is_special) THEN
-               CALL mp_isend(msgin=mixed_cdft%sendbuff(j)%weight, &
-                             dest=mixed_cdft%dest_list(j) + (i - 1)*force_env%para_env%num_pe/2, &
-                             request=req_total(ind), &
-                             comm=force_env%para_env%group)
+               CALL force_env%para_env%group%isend(msgin=mixed_cdft%sendbuff(j)%weight, &
+                                                   dest=mixed_cdft%dest_list(j) + (i - 1)*force_env%para_env%num_pe/2, &
+                                                   request=req_total(ind))
             ELSE
-               CALL mp_isend(msgin=mixed_cdft%weight, dest=mixed_cdft%dest_list(j), &
-                             request=req_total(ind), comm=force_env%para_env%group)
+               CALL force_env%para_env%group%isend(msgin=mixed_cdft%weight, dest=mixed_cdft%dest_list(j), &
+                                                   request=req_total(ind))
             END IF
          END DO
       END DO
@@ -689,20 +686,19 @@ CONTAINS
       ! Gaussian confinement cavity
       IF (cdft_control%becke_control%cavity_confine) THEN
          DO j = 1, SIZE(mixed_cdft%source_list)
-            CALL mp_irecv(msgout=recvbuffer(j)%r3, source=mixed_cdft%source_list(j), &
-                          request=req_total(j), comm=force_env%para_env%group)
+            CALL force_env%para_env%group%irecv(msgout=recvbuffer(j)%r3, source=mixed_cdft%source_list(j), &
+                                                request=req_total(j))
          END DO
          DO i = 1, my_special_work
             DO j = 1, SIZE(mixed_cdft%dest_list)
                ind = j + (i - 1)*SIZE(mixed_cdft%dest_list) + SIZE(mixed_cdft%source_list)
                IF (mixed_cdft%is_special) THEN
-                  CALL mp_isend(msgin=mixed_cdft%sendbuff(j)%cavity, &
-                                dest=mixed_cdft%dest_list(j) + (i - 1)*force_env%para_env%num_pe/2, &
-                                request=req_total(ind), &
-                                comm=force_env%para_env%group)
+                  CALL force_env%para_env%group%isend(msgin=mixed_cdft%sendbuff(j)%cavity, &
+                                                      dest=mixed_cdft%dest_list(j) + (i - 1)*force_env%para_env%num_pe/2, &
+                                                      request=req_total(ind))
                ELSE
-                  CALL mp_isend(msgin=mixed_cdft%cavity, dest=mixed_cdft%dest_list(j), &
-                                request=req_total(ind), comm=force_env%para_env%group)
+                  CALL force_env%para_env%group%isend(msgin=mixed_cdft%cavity, dest=mixed_cdft%dest_list(j), &
+                                                      request=req_total(ind))
                END IF
             END DO
          END DO
@@ -756,20 +752,19 @@ CONTAINS
             ALLOCATE (recvbuffer(j)%r4(3*natom, recvbuffer(j)%imap(1):recvbuffer(j)%imap(2), &
                                        recvbuffer(j)%imap(3):recvbuffer(j)%imap(4), &
                                        recvbuffer(j)%imap(5):recvbuffer(j)%imap(6)))
-            CALL mp_irecv(msgout=recvbuffer(j)%r4, source=mixed_cdft%source_list(j), &
-                          request=req_total(j), comm=force_env%para_env%group)
+            CALL force_env%para_env%group%irecv(msgout=recvbuffer(j)%r4, source=mixed_cdft%source_list(j), &
+                                                request=req_total(j))
          END DO
          DO i = 1, my_special_work
             DO j = 1, SIZE(mixed_cdft%dest_list)
                ind = j + (i - 1)*SIZE(mixed_cdft%dest_list) + SIZE(mixed_cdft%source_list)
                IF (mixed_cdft%is_special) THEN
-                  CALL mp_isend(msgin=mixed_cdft%sendbuff(j)%gradients, &
-                                dest=mixed_cdft%dest_list(j) + (i - 1)*force_env%para_env%num_pe/2, &
-                                request=req_total(ind), &
-                                comm=force_env%para_env%group)
+                  CALL force_env%para_env%group%isend(msgin=mixed_cdft%sendbuff(j)%gradients, &
+                                                      dest=mixed_cdft%dest_list(j) + (i - 1)*force_env%para_env%num_pe/2, &
+                                                      request=req_total(ind))
                ELSE
-                  CALL mp_isend(msgin=cdft_control%group(1)%gradients, dest=mixed_cdft%dest_list(j), &
-                                request=req_total(ind), comm=force_env%para_env%group)
+                  CALL force_env%para_env%group%isend(msgin=cdft_control%group(1)%gradients, dest=mixed_cdft%dest_list(j), &
+                                                      request=req_total(ind))
                END IF
             END DO
          END DO
@@ -1500,8 +1495,8 @@ CONTAINS
                CALL dbcsr_add(density_matrix_diff(ipermutation, ispin)%matrix, &
                               density_matrix(jstate, ispin)%matrix, -1.0_dp, 1.0_dp)
             !
-            CALL mp_sum(a(ispin, :, ipermutation), force_env%para_env%group)
-            CALL mp_sum(b(ispin, :, ipermutation), force_env%para_env%group)
+            CALL force_env%para_env%group%sum(a(ispin, :, ipermutation))
+            CALL force_env%para_env%group%sum(b(ispin, :, ipermutation))
          END DO
          ! Release work
          CALL cp_fm_release(tmp2)
@@ -1574,8 +1569,8 @@ CONTAINS
             energy(iforce_eval) = energy_qs%total
          END IF
       END DO
-      CALL mp_sum(W_diagonal, force_env%para_env%group)
-      CALL mp_sum(energy, force_env%para_env%group)
+      CALL force_env%para_env%group%sum(W_diagonal)
+      CALL force_env%para_env%group%sum(energy)
       CALL mixed_cdft_result_type_set(mixed_cdft%results, Wda=Wda, W_diagonal=W_diagonal, &
                                       energy=energy, strength=strength)
       IF (.NOT. mixed_cdft%identical_constraints) CALL mixed_cdft_result_type_set(mixed_cdft%results, Wad=Wad)
@@ -2111,8 +2106,8 @@ CONTAINS
       CPASSERT(ASSOCIATED(mixed_cdft%qs_kind_set))
       IF (force_env%para_env%ionode) &
          CALL wfn_restart_file_name(file_name, exist, mixed_cdft_section, logger)
-      CALL mp_bcast(exist, force_env%para_env%source, force_env%para_env%group)
-      CALL mp_bcast(file_name, force_env%para_env%source, force_env%para_env%group)
+      CALL force_env%para_env%group%bcast(exist, force_env%para_env%source)
+      CALL force_env%para_env%group%bcast(file_name, force_env%para_env%source)
       IF (.NOT. exist) &
          CALL cp_abort(__LOCATION__, &
                        "User requested to restart the wavefunction from the file named: "// &
@@ -2826,8 +2821,8 @@ CONTAINS
                                                            REAL(bo(2, 2) - bo(1, 2) + 1, dp))
          END IF
       END IF
-      CALL mp_sum(expected_work, force_env%para_env%group)
-      CALL mp_sum(work_size, force_env%para_env%group)
+      CALL force_env%para_env%group%sum(expected_work)
+      CALL force_env%para_env%group%sum(work_size)
       ! We store the unsorted expected work to refine the estimate on subsequent calls to this routine
       mixed_cdft%dlb_control%expected_work = expected_work
       ! Take into account the prediction error of the last step
@@ -3000,9 +2995,9 @@ CONTAINS
          END DO
          my_pos = i
       END IF
-      CALL mp_sum(targets, force_env%para_env%group)
+      CALL force_env%para_env%group%sum(targets)
       IF (debug_this_module) THEN
-         CALL mp_sum(should_warn, force_env%para_env%group)
+         CALL force_env%para_env%group%sum(should_warn)
          IF (ANY(should_warn == 1)) &
             CALL cp_warn(__LOCATION__, &
                          "MIXED_CDFT DLB: Attempted to redistribute more array"// &
@@ -3048,9 +3043,9 @@ CONTAINS
          IF (mixed_cdft%dlb_control%recv_work) THEN
             IF (.NOT. mixed_cdft%is_special) THEN
                ALLOCATE (mixed_cdft%dlb_control%bo(12))
-               CALL mp_irecv(msgout=mixed_cdft%dlb_control%bo, source=mixed_cdft%dlb_control%my_source, &
-                             request=req(1), comm=force_env%para_env%group)
-               CALL mp_wait(req(1))
+               CALL force_env%para_env%group%irecv(msgout=mixed_cdft%dlb_control%bo, source=mixed_cdft%dlb_control%my_source, &
+                                                   request=req(1))
+               CALL req(1)%wait()
                mixed_cdft%dlb_control%my_dest_repl = (/mixed_cdft%dlb_control%bo(11), mixed_cdft%dlb_control%bo(12)/)
                mixed_cdft%dlb_control%dest_tags_repl = (/mixed_cdft%dlb_control%bo(9), mixed_cdft%dlb_control%bo(10)/)
                ALLOCATE (mixed_cdft%dlb_control%cavity(mixed_cdft%dlb_control%bo(1):mixed_cdft%dlb_control%bo(2), &
@@ -3065,22 +3060,22 @@ CONTAINS
                                                           mixed_cdft%dlb_control%bo(7):mixed_cdft%dlb_control%bo(8)))
                mixed_cdft%dlb_control%gradients = 0.0_dp
                mixed_cdft%dlb_control%weight = 0.0_dp
-               CALL mp_irecv(msgout=mixed_cdft%dlb_control%cavity, source=mixed_cdft%dlb_control%my_source, &
-                             request=req(1), comm=force_env%para_env%group)
-               CALL mp_wait(req(1))
+               CALL force_env%para_env%group%irecv(msgout=mixed_cdft%dlb_control%cavity, source=mixed_cdft%dlb_control%my_source, &
+                                                   request=req(1))
+               CALL req(1)%wait()
                DEALLOCATE (mixed_cdft%dlb_control%bo)
             ELSE
                ALLOCATE (buffsize(1))
-               CALL mp_irecv(msgout=buffsize, source=mixed_cdft%dlb_control%my_source, &
-                             request=req(1), comm=force_env%para_env%group)
-               CALL mp_wait(req(1))
+               CALL force_env%para_env%group%irecv(msgout=buffsize, source=mixed_cdft%dlb_control%my_source, &
+                                                   request=req(1))
+               CALL req(1)%wait()
                ALLOCATE (mixed_cdft%dlb_control%bo(12*buffsize(1)))
-               CALL mp_irecv(msgout=mixed_cdft%dlb_control%bo, source=mixed_cdft%dlb_control%my_source, &
-                             request=req(1), comm=force_env%para_env%group)
+               CALL force_env%para_env%group%irecv(msgout=mixed_cdft%dlb_control%bo, source=mixed_cdft%dlb_control%my_source, &
+                                                   request=req(1))
                ALLOCATE (mixed_cdft%dlb_control%sendbuff(buffsize(1)))
                ALLOCATE (req_recv(buffsize(1)))
                DEALLOCATE (buffsize)
-               CALL mp_wait(req(1))
+               CALL req(1)%wait()
                DO j = 1, SIZE(mixed_cdft%dlb_control%sendbuff)
                   ALLOCATE (mixed_cdft%dlb_control%sendbuff(j)%cavity(mixed_cdft%dlb_control%bo(12*(j - 1) + 1): &
                                                                       mixed_cdft%dlb_control%bo(12*(j - 1) + 2), &
@@ -3088,9 +3083,9 @@ CONTAINS
                                                                       mixed_cdft%dlb_control%bo(12*(j - 1) + 4), &
                                                                       mixed_cdft%dlb_control%bo(12*(j - 1) + 7): &
                                                                       mixed_cdft%dlb_control%bo(12*(j - 1) + 8)))
-                  CALL mp_irecv(msgout=mixed_cdft%dlb_control%sendbuff(j)%cavity, &
-                                source=mixed_cdft%dlb_control%my_source, &
-                                request=req_recv(j), comm=force_env%para_env%group)
+                  CALL force_env%para_env%group%irecv(msgout=mixed_cdft%dlb_control%sendbuff(j)%cavity, &
+                                                      source=mixed_cdft%dlb_control%my_source, &
+                                                      request=req_recv(j))
                   ALLOCATE (mixed_cdft%dlb_control%sendbuff(j)%weight(mixed_cdft%dlb_control%bo(12*(j - 1) + 1): &
                                                                       mixed_cdft%dlb_control%bo(12*(j - 1) + 2), &
                                                                       mixed_cdft%dlb_control%bo(12*(j - 1) + 3): &
@@ -3137,9 +3132,9 @@ CONTAINS
                                  mixed_cdft%dest_list(1), mixed_cdft%dest_list(2)/)
                END IF
                send_total = send_total + mixed_cdft%dlb_control%target_list(2, i) - 1
-               CALL mp_isend(msgin=sendbuffer, dest=mixed_cdft%dlb_control%target_list(1, i), &
-                             request=req(1), comm=force_env%para_env%group)
-               CALL mp_wait(req(1))
+               CALL force_env%para_env%group%isend(msgin=sendbuffer, dest=mixed_cdft%dlb_control%target_list(1, i), &
+                                                   request=req(1))
+               CALL req(1)%wait()
                IF (mixed_cdft%is_pencil) THEN
                   ALLOCATE (cavity(bo_conf(1, 1) + offset: &
                                    bo_conf(1, 1) + offset + (mixed_cdft%dlb_control%target_list(2, i) - 1), &
@@ -3160,10 +3155,10 @@ CONTAINS
                                                                   (mixed_cdft%dlb_control%target_list(2, i) - 1), &
                                                                   bo_conf(1, 3):bo_conf(2, 3))
                END IF
-               CALL mp_isend(msgin=cavity, &
-                             dest=mixed_cdft%dlb_control%target_list(1, i), &
-                             request=req(1), comm=force_env%para_env%group)
-               CALL mp_wait(req(1))
+               CALL force_env%para_env%group%isend(msgin=cavity, &
+                                                   dest=mixed_cdft%dlb_control%target_list(1, i), &
+                                                   request=req(1))
+               CALL req(1)%wait()
                offset = offset + mixed_cdft%dlb_control%target_list(2, i)
                DEALLOCATE (cavity)
             END DO
@@ -3187,10 +3182,10 @@ CONTAINS
                END DO
                offset_special = j
                offset_proc = j - 4 - (j - 4)/2
-               CALL mp_isend(msgin=buffsize, &
-                             dest=mixed_cdft%dlb_control%target_list(1, i), &
-                             request=req(1), comm=force_env%para_env%group)
-               CALL mp_wait(req(1))
+               CALL force_env%para_env%group%isend(msgin=buffsize, &
+                                                   dest=mixed_cdft%dlb_control%target_list(1, i), &
+                                                   request=req(1))
+               CALL req(1)%wait()
                ALLOCATE (sendbuffer(12*buffsize(1)))
                DO j = 1, buffsize(1)
                  sendbuffer(12*(j - 1) + 1:12*(j - 1) + 12) = (/mixed_cdft%dlb_control%target_list(offset_special + 2*(j - 1), i), &
@@ -3200,10 +3195,10 @@ CONTAINS
                                                                  mixed_cdft%dest_list(j + offset_proc), &
                                                                mixed_cdft%dest_list(j + offset_proc) + force_env%para_env%num_pe/2/)
                END DO
-               CALL mp_isend(msgin=sendbuffer, &
-                             dest=mixed_cdft%dlb_control%target_list(1, i), &
-                             request=req(1), comm=force_env%para_env%group)
-               CALL mp_wait(req(1))
+               CALL force_env%para_env%group%isend(msgin=sendbuffer, &
+                                                   dest=mixed_cdft%dlb_control%target_list(1, i), &
+                                                   request=req(1))
+               CALL req(1)%wait()
                DEALLOCATE (sendbuffer)
                DO j = 1, buffsize(1)
                   ALLOCATE (cavity(mixed_cdft%dlb_control%target_list(offset_special + 2*(j - 1), i): &
@@ -3212,10 +3207,10 @@ CONTAINS
                   cavity = cdft_control%becke_control%cavity%cr3d(LBOUND(cavity, 1):UBOUND(cavity, 1), &
                                                                   bo_conf(1, 2):bo_conf(2, 2), &
                                                                   bo_conf(1, 3):bo_conf(2, 3))
-                  CALL mp_isend(msgin=cavity, &
-                                dest=mixed_cdft%dlb_control%target_list(1, i), &
-                                request=req(1), comm=force_env%para_env%group)
-                  CALL mp_wait(req(1))
+                  CALL force_env%para_env%group%isend(msgin=cavity, &
+                                                      dest=mixed_cdft%dlb_control%target_list(1, i), &
+                                                      request=req(1))
+                  CALL req(1)%wait()
                   DEALLOCATE (cavity)
                END DO
             END DO
@@ -3243,14 +3238,14 @@ CONTAINS
       DO i = 1, SIZE(mixed_cdft%source_list)
          NULLIFY (recvbuffer(i)%bv, recvbuffer(i)%iv)
          ALLOCATE (recvbuffer(i)%bv(1), recvbuffer(i)%iv(3))
-         CALL mp_irecv(msgout=recvbuffer(i)%bv, &
-                       source=mixed_cdft%source_list(i), &
-                       request=req_total(i), tag=1, comm=force_env%para_env%group)
+         CALL force_env%para_env%group%irecv(msgout=recvbuffer(i)%bv, &
+                                             source=mixed_cdft%source_list(i), &
+                                             request=req_total(i), tag=1)
          IF (mixed_cdft%is_special) &
-            CALL mp_irecv(msgout=recvbuffer(i)%iv, &
-                          source=mixed_cdft%source_list(i), &
-                          request=req_total(i + SIZE(mixed_cdft%source_list)), &
-                          tag=2, comm=force_env%para_env%group)
+            CALL force_env%para_env%group%irecv(msgout=recvbuffer(i)%iv, &
+                                                source=mixed_cdft%source_list(i), &
+                                                request=req_total(i + SIZE(mixed_cdft%source_list)), &
+                                                tag=2)
       END DO
       DO i = 1, my_special_work
          DO j = 1, SIZE(mixed_cdft%dest_list)
@@ -3278,15 +3273,13 @@ CONTAINS
                END IF
             END IF
             ind = j + (i - 1)*SIZE(mixed_cdft%dest_list) + my_special_work*SIZE(mixed_cdft%source_list)
-            CALL mp_isend(msgin=sbuff(j)%bv, &
-                          dest=mixed_cdft%dest_list(j) + (i - 1)*force_env%para_env%num_pe/2, &
-                          request=req_total(ind), tag=1, &
-                          comm=force_env%para_env%group)
+            CALL force_env%para_env%group%isend(msgin=sbuff(j)%bv, &
+                                                dest=mixed_cdft%dest_list(j) + (i - 1)*force_env%para_env%num_pe/2, &
+                                                request=req_total(ind), tag=1)
             IF (mixed_cdft%is_special) &
-               CALL mp_isend(msgin=sbuff(j)%iv, &
-                             dest=mixed_cdft%dest_list(j) + (i - 1)*force_env%para_env%num_pe/2, &
-                             request=req_total(ind + 2*SIZE(mixed_cdft%dest_list)), tag=2, &
-                             comm=force_env%para_env%group)
+               CALL force_env%para_env%group%isend(msgin=sbuff(j)%iv, &
+                                                   dest=mixed_cdft%dest_list(j) + (i - 1)*force_env%para_env%num_pe/2, &
+                                                   request=req_total(ind + 2*SIZE(mixed_cdft%dest_list)), tag=2)
          END DO
       END DO
       CALL mp_waitall(req_total)
@@ -3336,9 +3329,9 @@ CONTAINS
          IF (mixed_cdft%dlb_control%send_work) THEN
             ind = COUNT(mixed_cdft%dlb_control%recv_work_repl) + 1
             DO i = 1, 2
-               CALL mp_isend(msgin=sendbuffer, &
-                             dest=mixed_cdft%dest_list(i), &
-                             request=req_total(ind), comm=force_env%para_env%group)
+               CALL force_env%para_env%group%isend(msgin=sendbuffer, &
+                                                   dest=mixed_cdft%dest_list(i), &
+                                                   request=req_total(ind))
                ind = ind + 1
             END DO
          END IF
@@ -3347,9 +3340,9 @@ CONTAINS
             DO i = 1, 2
                IF (mixed_cdft%dlb_control%recv_work_repl(i)) THEN
                   ALLOCATE (mixed_cdft%dlb_control%recv_info(i)%matrix_info(6))
-                  CALL mp_irecv(msgout=mixed_cdft%dlb_control%recv_info(i)%matrix_info, &
-                                source=mixed_cdft%source_list(i), &
-                                request=req_total(ind), comm=force_env%para_env%group)
+                  CALL force_env%para_env%group%irecv(msgout=mixed_cdft%dlb_control%recv_info(i)%matrix_info, &
+                                                      source=mixed_cdft%source_list(i), &
+                                                      request=req_total(ind))
                   ind = ind + 1
                END IF
             END DO
@@ -3363,9 +3356,9 @@ CONTAINS
             DO i = 1, 2
                IF (i == 2) &
                   mixed_cdft%dlb_control%target_list(3, :) = mixed_cdft%dlb_control%target_list(3, :) + 3*max_targets
-               CALL mp_isend(msgin=mixed_cdft%dlb_control%target_list, &
-                             dest=mixed_cdft%dest_list(i), &
-                             request=req_total(ind), comm=force_env%para_env%group)
+               CALL force_env%para_env%group%isend(msgin=mixed_cdft%dlb_control%target_list, &
+                                                   dest=mixed_cdft%dest_list(i), &
+                                                   request=req_total(ind))
                ind = ind + 1
             END DO
          END IF
@@ -3375,9 +3368,9 @@ CONTAINS
                IF (mixed_cdft%dlb_control%recv_work_repl(i)) THEN
                   ALLOCATE (mixed_cdft%dlb_control%recv_info(i)% &
                             target_list(3, mixed_cdft%dlb_control%recv_info(i)%matrix_info(1)))
-                  CALL mp_irecv(msgout=mixed_cdft%dlb_control%recv_info(i)%target_list, &
-                                source=mixed_cdft%source_list(i), &
-                                request=req_total(ind), comm=force_env%para_env%group)
+                  CALL force_env%para_env%group%irecv(msgout=mixed_cdft%dlb_control%recv_info(i)%target_list, &
+                                                      source=mixed_cdft%source_list(i), &
+                                                      request=req_total(ind))
                   ind = ind + 1
                END IF
             END DO
@@ -3409,9 +3402,9 @@ CONTAINS
                      END IF
                   END DO
                   DO ispecial = 1, my_special_work
-                     CALL mp_isend(msgin=sbuff(j)%iv, &
-                                   dest=mixed_cdft%dest_list(j) + (ispecial - 1)*force_env%para_env%num_pe/2, &
-                                   request=req_total(ind + ispecial), comm=force_env%para_env%group)
+                     CALL force_env%para_env%group%isend(msgin=sbuff(j)%iv, &
+                                                        dest=mixed_cdft%dest_list(j) + (ispecial - 1)*force_env%para_env%num_pe/2, &
+                                                         request=req_total(ind + ispecial))
                   END DO
                   ind = ind + my_special_work
                END IF
@@ -3426,9 +3419,9 @@ CONTAINS
                         mixed_cdft%dlb_control%recvbuff(j)%buffs)
                IF (mixed_cdft%dlb_control%recv_work_repl(j)) THEN
                   ALLOCATE (mixed_cdft%dlb_control%recv_info(j)%matrix_info(4 + 3*nrecv(j)))
-                  CALL mp_irecv(mixed_cdft%dlb_control%recv_info(j)%matrix_info, &
-                                source=mixed_cdft%source_list(j), &
-                                request=req_total(ind), comm=force_env%para_env%group)
+                  CALL force_env%para_env%group%irecv(mixed_cdft%dlb_control%recv_info(j)%matrix_info, &
+                                                      source=mixed_cdft%source_list(j), &
+                                                      request=req_total(ind))
                   ind = ind + 1
                END IF
             END DO
@@ -3705,21 +3698,18 @@ CONTAINS
                                                mixed_cdft%dlb_control%recv_info(j)%matrix_info(3)))
                         END IF
 
-                        CALL mp_irecv(msgout=mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%cavity, &
-                                      source=mixed_cdft%dlb_control%recv_info(j)%target_list(1, i), &
-                                      request=req_recv(3*(i - 1) + (j - 1)*offset_repl + 1), &
-                                      comm=force_env%para_env%group, &
-                                      tag=mixed_cdft%dlb_control%recv_info(j)%target_list(3, i))
-                        CALL mp_irecv(msgout=mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, &
-                                      source=mixed_cdft%dlb_control%recv_info(j)%target_list(1, i), &
-                                      request=req_recv(3*(i - 1) + (j - 1)*offset_repl + 2), &
-                                      comm=force_env%para_env%group, &
-                                      tag=mixed_cdft%dlb_control%recv_info(j)%target_list(3, i) + 1)
-                        CALL mp_irecv(msgout=mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%gradients, &
-                                      source=mixed_cdft%dlb_control%recv_info(j)%target_list(1, i), &
-                                      request=req_recv(3*(i - 1) + (j - 1)*offset_repl + 3), &
-                                      comm=force_env%para_env%group, &
-                                      tag=mixed_cdft%dlb_control%recv_info(j)%target_list(3, i) + 2)
+                        CALL force_env%para_env%group%irecv(msgout=mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%cavity, &
+                                                            source=mixed_cdft%dlb_control%recv_info(j)%target_list(1, i), &
+                                                            request=req_recv(3*(i - 1) + (j - 1)*offset_repl + 1), &
+                                                            tag=mixed_cdft%dlb_control%recv_info(j)%target_list(3, i))
+                        CALL force_env%para_env%group%irecv(msgout=mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, &
+                                                            source=mixed_cdft%dlb_control%recv_info(j)%target_list(1, i), &
+                                                            request=req_recv(3*(i - 1) + (j - 1)*offset_repl + 2), &
+                                                            tag=mixed_cdft%dlb_control%recv_info(j)%target_list(3, i) + 1)
+                        CALL force_env%para_env%group%irecv(msgout=mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%gradients, &
+                                                            source=mixed_cdft%dlb_control%recv_info(j)%target_list(1, i), &
+                                                            request=req_recv(3*(i - 1) + (j - 1)*offset_repl + 3), &
+                                                            tag=mixed_cdft%dlb_control%recv_info(j)%target_list(3, i) + 2)
                         offset = offset + mixed_cdft%dlb_control%recv_info(j)%target_list(2, i)
                      END DO
                      DEALLOCATE (mixed_cdft%dlb_control%recv_info(j)%matrix_info)
@@ -3749,18 +3739,15 @@ CONTAINS
                                             mixed_cdft%dlb_control%recv_info(j)%matrix_info(2), &
                                             mixed_cdft%dlb_control%recv_info(j)%matrix_info(3): &
                                             mixed_cdft%dlb_control%recv_info(j)%matrix_info(4)))
-                        CALL mp_irecv(msgout=mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%cavity, &
-                                      source=mixed_cdft%dlb_control%recv_info(j)%matrix_info(index - 1), &
-                                      request=req_recv(offset_repl), &
-                                      comm=force_env%para_env%group, tag=1)
-                        CALL mp_irecv(msgout=mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, &
-                                      source=mixed_cdft%dlb_control%recv_info(j)%matrix_info(index - 1), &
-                                      request=req_recv(offset_repl + 1), &
-                                      comm=force_env%para_env%group, tag=2)
-                        CALL mp_irecv(msgout=mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%gradients, &
-                                      source=mixed_cdft%dlb_control%recv_info(j)%matrix_info(index - 1), &
-                                      request=req_recv(offset_repl + 2), &
-                                      comm=force_env%para_env%group, tag=3)
+                        CALL force_env%para_env%group%irecv(msgout=mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%cavity, &
+                                                            source=mixed_cdft%dlb_control%recv_info(j)%matrix_info(index - 1), &
+                                                            request=req_recv(offset_repl), tag=1)
+                        CALL force_env%para_env%group%irecv(msgout=mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, &
+                                                            source=mixed_cdft%dlb_control%recv_info(j)%matrix_info(index - 1), &
+                                                            request=req_recv(offset_repl + 1), tag=2)
+                        CALL force_env%para_env%group%irecv(msgout=mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%gradients, &
+                                                            source=mixed_cdft%dlb_control%recv_info(j)%matrix_info(index - 1), &
+                                                            request=req_recv(offset_repl + 2), tag=3)
                         index = index + 3
                         offset_repl = offset_repl + 3
                      END DO
@@ -3833,7 +3820,7 @@ CONTAINS
                      DO icomm = 1, SIZE(nsent, 2)
                         DO jcomm = 1, SIZE(nsent, 1)
                            IF (nsent(jcomm, icomm) == 1) CYCLE
-                           CALL mp_test(req_send(jcomm, icomm), completed(jcomm, icomm))
+                           completed(jcomm, icomm) = req_send(jcomm, icomm)%test()
                            IF (completed(jcomm, icomm)) THEN
                               nsent(jcomm, icomm) = nsent(jcomm, icomm) + 1
                               nsent_total = nsent_total + 1
@@ -4077,35 +4064,32 @@ CONTAINS
             IF (iwork == 2) THEN
                IF (.NOT. mixed_cdft%is_special) THEN
                   DO i = 1, SIZE(req_send, 1)
-                     CALL mp_isend(msgin=mixed_cdft%dlb_control%cavity, &
-                                   dest=mixed_cdft%dlb_control%my_dest_repl(i), &
-                                   request=req_send(i, 1), comm=force_env%para_env%group, &
-                                   tag=mixed_cdft%dlb_control%dest_tags_repl(i))
-                     CALL mp_isend(msgin=mixed_cdft%dlb_control%weight, &
-                                   dest=mixed_cdft%dlb_control%my_dest_repl(i), &
-                                   request=req_send(i, 2), comm=force_env%para_env%group, &
-                                   tag=mixed_cdft%dlb_control%dest_tags_repl(i) + 1)
-                     CALL mp_isend(msgin=mixed_cdft%dlb_control%gradients, &
-                                   dest=mixed_cdft%dlb_control%my_dest_repl(i), &
-                                   request=req_send(i, 3), comm=force_env%para_env%group, &
-                                   tag=mixed_cdft%dlb_control%dest_tags_repl(i) + 2)
+                     CALL force_env%para_env%group%isend(msgin=mixed_cdft%dlb_control%cavity, &
+                                                         dest=mixed_cdft%dlb_control%my_dest_repl(i), &
+                                                         request=req_send(i, 1), &
+                                                         tag=mixed_cdft%dlb_control%dest_tags_repl(i))
+                     CALL force_env%para_env%group%isend(msgin=mixed_cdft%dlb_control%weight, &
+                                                         dest=mixed_cdft%dlb_control%my_dest_repl(i), &
+                                                         request=req_send(i, 2), &
+                                                         tag=mixed_cdft%dlb_control%dest_tags_repl(i) + 1)
+                     CALL force_env%para_env%group%isend(msgin=mixed_cdft%dlb_control%gradients, &
+                                                         dest=mixed_cdft%dlb_control%my_dest_repl(i), &
+                                                         request=req_send(i, 3), &
+                                                         tag=mixed_cdft%dlb_control%dest_tags_repl(i) + 2)
                   END DO
                   should_communicate = .TRUE.
                   nsent_total = 0
                ELSE
                   DO i = 1, SIZE(req_send, 1)
-                     CALL mp_isend(msgin=mixed_cdft%dlb_control%sendbuff(ispecial)%cavity, &
-                                   dest=mixed_cdft%dlb_control%sendbuff(ispecial)%rank(i), &
-                                   request=req_send(i, 3*(ispecial - 1) + 1), &
-                                   comm=force_env%para_env%group, tag=1)
-                     CALL mp_isend(msgin=mixed_cdft%dlb_control%sendbuff(ispecial)%weight, &
-                                   dest=mixed_cdft%dlb_control%sendbuff(ispecial)%rank(i), &
-                                   request=req_send(i, 3*(ispecial - 1) + 2), &
-                                   comm=force_env%para_env%group, tag=2)
-                     CALL mp_isend(msgin=mixed_cdft%dlb_control%sendbuff(ispecial)%gradients, &
-                                   dest=mixed_cdft%dlb_control%sendbuff(ispecial)%rank(i), &
-                                   request=req_send(i, 3*(ispecial - 1) + 3), &
-                                   comm=force_env%para_env%group, tag=3)
+                     CALL force_env%para_env%group%isend(msgin=mixed_cdft%dlb_control%sendbuff(ispecial)%cavity, &
+                                                         dest=mixed_cdft%dlb_control%sendbuff(ispecial)%rank(i), &
+                                                         request=req_send(i, 3*(ispecial - 1) + 1), tag=1)
+                     CALL force_env%para_env%group%isend(msgin=mixed_cdft%dlb_control%sendbuff(ispecial)%weight, &
+                                                         dest=mixed_cdft%dlb_control%sendbuff(ispecial)%rank(i), &
+                                                         request=req_send(i, 3*(ispecial - 1) + 2), tag=2)
+                     CALL force_env%para_env%group%isend(msgin=mixed_cdft%dlb_control%sendbuff(ispecial)%gradients, &
+                                                         dest=mixed_cdft%dlb_control%sendbuff(ispecial)%rank(i), &
+                                                         request=req_send(i, 3*(ispecial - 1) + 3), tag=3)
                   END DO
                   IF (ispecial .EQ. my_special_work) THEN
                      should_communicate = .TRUE.
@@ -4181,8 +4165,8 @@ CONTAINS
          END IF
       END IF
       IF (mixed_cdft%dlb) THEN
-         CALL mp_sum(work, force_env%para_env%group)
-         CALL mp_sum(work_dlb, force_env%para_env%group)
+         CALL force_env%para_env%group%sum(work)
+         CALL force_env%para_env%group%sum(work_dlb)
          IF (.NOT. ASSOCIATED(mixed_cdft%dlb_control%prediction_error)) &
             ALLOCATE (mixed_cdft%dlb_control%prediction_error(force_env%para_env%num_pe))
          mixed_cdft%dlb_control%prediction_error = mixed_cdft%dlb_control%expected_work - work

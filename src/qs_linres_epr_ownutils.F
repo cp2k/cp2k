@@ -29,7 +29,6 @@ MODULE qs_linres_epr_ownutils
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathlib,                         ONLY: diamat_all
-   USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -422,7 +421,7 @@ CONTAINS
             bo = get_limit(natom, para_env%num_pe, para_env%mepos)
 
             DO iat = 1, natom !bo(1),bo(2)! this partitioning blocks the interpolation
-               !                         ! routines (i.e. waiting for mp_sum)
+               !                         ! routines (i.e. waiting for parallel sum)
                iatom = atom_list(iat)
                NULLIFY (jrho1_atom, nablavks_atom)
                jrho1_atom => jrho1_atom_set(iatom)
@@ -506,7 +505,7 @@ CONTAINS
             END DO !iat
          END DO !ikind
 
-         CALL mp_sum(temp_so_gapw, para_env%group)
+         CALL para_env%group%sum(temp_so_gapw)
          temp_so_gapw(:, :) = -1.0_dp*epr_env%g_so_factor_gapw*temp_so_gapw(:, :)
 
          IF (output_unit > 0) THEN
@@ -691,7 +690,7 @@ CONTAINS
             bo = get_limit(natom, para_env%num_pe, para_env%mepos)
 
             DO iat = 1, natom !bo(1),bo(2)! this partitioning blocks the interpolation
-               !                         ! routines (i.e. waiting for mp_sum)
+               !                         ! routines (i.e. waiting for parallel sum)
                iatom = atom_list(iat)
                rho_atom => rho_atom_set(iatom)
                NULLIFY (rho_rad_h, rho_rad_s)
@@ -734,7 +733,7 @@ CONTAINS
             END DO !iat
          END DO !ikind
 
-         CALL mp_sum(temp_soo_gapw, para_env%group)
+         CALL para_env%group%sum(temp_soo_gapw)
          temp_soo_gapw(:, :) = 1.0_dp*epr_env%g_soo_factor*temp_soo_gapw(:, :)
 
          IF (output_unit > 0) THEN

@@ -21,8 +21,7 @@ MODULE qs_atomic_block
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_comm_type
    USE particle_types,                  ONLY: particle_type
    USE qs_kind_types,                   ONLY: qs_kind_type
 #include "./base/base_uses.f90"
@@ -154,7 +153,7 @@ CONTAINS
 
          IF (nspin > 1) THEN
             group = para_env%group
-            CALL mp_sum(nocc, group)
+            CALL group%sum(nocc)
             IF (nelectron_spin(ispin) > nocc(ispin)) THEN
                rds = 0.99_dp
                CALL dbcsr_scale(matrix_p, rds)

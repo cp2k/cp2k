@@ -28,11 +28,8 @@ MODULE dbt_reshape_ops
                         dbt_clear
    USE kinds, ONLY: default_string_length
    USE kinds, ONLY: dp, dp
-   USE message_passing, ONLY: mp_alltoall, &
-                              mp_environ, &
-                              mp_irecv, &
-                              mp_isend, &
-                              mp_waitall, mp_comm_type, mp_request_type
+   USE message_passing, ONLY: &
+      mp_waitall, mp_comm_type, mp_request_type
 
 #include "../base/base_uses.f90"
 
@@ -97,7 +94,7 @@ CONTAINS
       IF (.NOT. summation_prv) CALL dbt_clear(tensor_out)
 
       mp_comm = tensor_in%pgrid%mp_comm_2d
-      CALL mp_environ(numnodes, mynode, mp_comm)
+      CALL mp_comm%environ(numnodes, mynode)
       ALLOCATE (buffer_send(0:numnodes - 1), buffer_recv(0:numnodes - 1))
       ALLOCATE (nblks_send_total(0:numnodes - 1), ndata_send_total(0:numnodes - 1), source=0)
       ALLOCATE (nblks_recv_total(0:numnodes - 1), ndata_recv_total(0:numnodes - 1), source=0)
@@ -128,8 +125,8 @@ CONTAINS
 !$OMP BARRIER
 
 !$OMP MASTER
-      CALL mp_alltoall(nblks_send_total, nblks_recv_total, 1, mp_comm)
-      CALL mp_alltoall(ndata_send_total, ndata_recv_total, 1, mp_comm)
+      CALL mp_comm%alltoall(nblks_send_total, nblks_recv_total, 1)
+      CALL mp_comm%alltoall(ndata_send_total, ndata_recv_total, 1)
 !$OMP END MASTER
 !$OMP BARRIER
 
@@ -238,7 +235,7 @@ CONTAINS
       INTEGER                                               :: handle
 
       CALL timeset(routineN, handle)
-      CALL mp_environ(numnodes, mynode, mp_comm)
+      CALL mp_comm%environ(numnodes, mynode)
 
       IF (numnodes > 1) THEN
 !$OMP MASTER
@@ -250,16 +247,16 @@ CONTAINS
          DO iproc = 0, numnodes - 1
             IF (SIZE(buffer_recv(iproc)%blocks) > 0) THEN
                rec_counter = rec_counter + 1
-               CALL mp_irecv(buffer_recv(iproc)%blocks, iproc, mp_comm, req_array(rec_counter, 3), tag=4)
-               CALL mp_irecv(buffer_recv(iproc)%data, iproc, mp_comm, req_array(rec_counter, 4), tag=7)
+               CALL mp_comm%irecv(buffer_recv(iproc)%blocks, iproc, req_array(rec_counter, 3), tag=4)
+               CALL mp_comm%irecv(buffer_recv(iproc)%data, iproc, req_array(rec_counter, 4), tag=7)
             END IF
          END DO
 
          DO iproc = 0, numnodes - 1
             IF (SIZE(buffer_send(iproc)%blocks) > 0) THEN
                send_counter = send_counter + 1
-               CALL mp_isend(buffer_send(iproc)%blocks, iproc, mp_comm, req_array(send_counter, 1), tag=4)
-               CALL mp_isend(buffer_send(iproc)%data, iproc, mp_comm, req_array(send_counter, 2), tag=7)
+               CALL mp_comm%isend(buffer_send(iproc)%blocks, iproc, req_array(send_counter, 1), tag=4)
+               CALL mp_comm%isend(buffer_send(iproc)%data, iproc, req_array(send_counter, 2), tag=7)
             END IF
          END DO
 

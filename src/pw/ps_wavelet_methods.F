@@ -16,9 +16,7 @@ MODULE ps_wavelet_methods
                                               Genovese2007,&
                                               cite_reference
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_alltoall,&
-                                              mp_cart_rank,&
-                                              mp_max
+   USE message_passing,                 ONLY: mp_cart_rank
    USE ps_wavelet_kernel,               ONLY: createKernel
    USE ps_wavelet_types,                ONLY: WAVELET0D,&
                                               ps_wavelet_release,&
@@ -236,7 +234,7 @@ CONTAINS
          END IF
       END IF
 
-      CALL mp_max(should_warn, pw_grid%para%group)
+      CALL pw_grid%para%group%max(should_warn)
       IF (should_warn > 0 .AND. iproc == 0) &
          CPWARN("Density non-zero on the edges of the unit cell: wrong results in WAVELET solver")
 
@@ -283,7 +281,7 @@ CONTAINS
          sdispl(i) = sdispl(i - 1) + scount(i - 1)
          rdispl(i) = rdispl(i - 1) + rcount(i - 1)
       END DO
-      CALL mp_alltoall(sbuf, scount, sdispl, rbuf, rcount, rdispl, pw_grid%para%rs_group)
+      CALL pw_grid%para%rs_group%alltoall(sbuf, scount, sdispl, rbuf, rcount, rdispl)
       !!!! and now, how to put the right cubes to the right position!!!!!!
 
       wavelet%rho_z_sliced = 0.0_dp
@@ -414,7 +412,7 @@ CONTAINS
          sdispl(i) = sdispl(i - 1) + scount(i - 1)
          rdispl(i) = rdispl(i - 1) + rcount(i - 1)
       END DO
-      CALL mp_alltoall(sbuf, scount, sdispl, rbuf, rcount, rdispl, pw_grid%para%rs_group)
+      CALL pw_grid%para%rs_group%alltoall(sbuf, scount, sdispl, rbuf, rcount, rdispl)
 
       !!!! and now, how to put the right cubes to the right position!!!!!!
 

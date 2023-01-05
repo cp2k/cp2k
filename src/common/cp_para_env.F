@@ -15,9 +15,7 @@
 MODULE cp_para_env
    USE cp_para_types,                   ONLY: cp_para_cart_type,&
                                               cp_para_env_type
-   USE message_passing,                 ONLY: mp_comm_free,&
-                                              mp_comm_split_direct,&
-                                              mp_comm_type,&
+   USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_environ
 #include "../base/base_uses.f90"
 
@@ -60,7 +58,7 @@ CONTAINS
       IF (PRESENT(source)) para_env%source = source
       IF (PRESENT(owns_group)) para_env%owns_group = owns_group
       IF (.NOT. (PRESENT(mepos) .AND. PRESENT(num_pe))) THEN
-         CALL mp_environ(taskid=para_env%mepos, numtask=para_env%num_pe, group=group)
+         CALL group%environ(taskid=para_env%mepos, numtask=para_env%num_pe)
       ELSE
          para_env%mepos = mepos
          para_env%num_pe = num_pe
@@ -98,7 +96,7 @@ CONTAINS
       TYPE(mp_comm_type)                                 :: comm
 
       CPASSERT(para_env_template%ref_count > 0)
-      CALL mp_comm_split_direct(para_env_template%group, comm, color)
+      CALL comm%from_split(para_env_template%group, color)
       NULLIFY (para_env)
       CALL cp_para_env_create(para_env, comm)
 
@@ -123,7 +121,7 @@ CONTAINS
          para_env%ref_count = para_env%ref_count - 1
          IF (para_env%ref_count < 1) THEN
             IF (para_env%owns_group) THEN
-               CALL mp_comm_free(para_env%group)
+               CALL para_env%group%free()
             END IF
             DEALLOCATE (para_env)
          END IF
@@ -175,7 +173,7 @@ CONTAINS
       CPASSERT(cart%ref_count > 0)
       CALL mp_environ(cart%group, cart%ndims, cart%num_pe, task_coor=cart%mepos, &
                       periods=cart%periodic)
-      CALL mp_environ(numtask=cart%ntask, taskid=cart%rank, group=cart%group)
+      CALL cart%group%environ(numtask=cart%ntask, taskid=cart%rank)
    END SUBROUTINE cp_cart_update
 
 ! **************************************************************************************************
@@ -191,7 +189,7 @@ CONTAINS
          cart%ref_count = cart%ref_count - 1
          IF (cart%ref_count == 0) THEN
             IF (cart%owns_group) THEN
-               CALL mp_comm_free(cart%group)
+               CALL cart%group%free()
             END IF
             DEALLOCATE (cart%source, cart%periodic, cart%mepos, cart%num_pe)
             DEALLOCATE (cart)

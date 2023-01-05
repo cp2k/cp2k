@@ -29,7 +29,6 @@ MODULE s_square_methods
    USE input_constants,                 ONLY: do_s2_constraint,&
                                               do_s2_restraint
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_sum
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               has_uniform_occupation,&
@@ -135,7 +134,7 @@ CONTAINS
                   s2 = s2 + local_data(i, j)**2
                END DO
             END DO
-            CALL mp_sum(s2, para_env%group)
+            CALL para_env%group%sum(s2)
             s_square = s_square_ideal + nbeta - s2
             ! Only needed for constraining or restraining (\cal S)
             IF (PRESENT(mo_derivs)) THEN

@@ -21,8 +21,7 @@ MODULE pao_param_methods
    USE dm_ls_scf_types,                 ONLY: ls_mstruct_type,&
                                               ls_scf_env_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_max
+   USE message_passing,                 ONLY: mp_comm_type
    USE pao_types,                       ONLY: pao_env_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -231,7 +230,7 @@ CONTAINS
       CALL dbcsr_get_info(matrix_U, group=group_handle)
       CALL group%set_handle(group_handle)
 
-      CALL mp_max(delta_max, group)
+      CALL group%max(delta_max)
       IF (pao%iw > 0) WRITE (pao%iw, *) 'PAO| checked unitaryness, max delta:', delta_max
       IF (delta_max > pao%check_unitary_tol) &
          CPABORT("Found bad unitaryness:"//cp_to_string(delta_max))

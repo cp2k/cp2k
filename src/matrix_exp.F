@@ -38,11 +38,7 @@ MODULE matrix_exp
    USE mathconstants,                   ONLY: fac,&
                                               z_one,&
                                               z_zero
-   USE message_passing,                 ONLY: mp_comm_free,&
-                                              mp_comm_type,&
-                                              mp_max,&
-                                              mp_reordering,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_comm_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
 #include "./base/base_uses.f90"
 
@@ -732,7 +728,7 @@ CONTAINS
       ALLOCATE (H_approx(narnoldi, narnoldi, ncol_local))
       ALLOCATE (H_approx_save(narnoldi, narnoldi, ncol_local))
       col_procs => mo_struct%context%blacs2mpi(:, mo_struct%context%mepos(2))
-      CALL mp_reordering(para_env%group, col_group, col_procs)
+      CALL col_group%from_reordering(para_env%group, col_procs)
 
       double_col = .TRUE.
       double_row = .FALSE.
@@ -754,7 +750,7 @@ CONTAINS
                              + SUM(V_mats(1)%local_data(:, icol_local + ncol_local)**2)
       END DO
 
-      CALL mp_sum(norm1, col_group)
+      CALL col_group%sum(norm1)
       !!! normalize the mo vectors
       norm1(:) = SQRT(norm1(:))
 
@@ -789,7 +785,7 @@ CONTAINS
                                          V_mats(i)%local_data(:, icol_local + ncol_local))
             END DO
 
-            CALL mp_sum(results, col_group)
+            CALL col_group%sum(results)
 
 !$OMP PARALLEL DO DEFAULT(NONE) SHARED(H_approx_save,V_mats,ncol_local,l,i,results)
             DO icol_local = 1, ncol_local
@@ -808,7 +804,7 @@ CONTAINS
                                   SUM(V_mats(i)%local_data(:, icol_local + ncol_local)**2)
          END DO
 
-         CALL mp_sum(results, col_group)
+         CALL col_group%sum(results)
 
          IF (i .LE. narnoldi) THEN
 
@@ -898,7 +894,7 @@ CONTAINS
                conv_norm = MAX(conv_norm, ABS(results(icol_local)))
             END DO
 
-            CALL mp_max(conv_norm, para_env%group)
+            CALL para_env%group%max(conv_norm)
 
             IF (conv_norm .LT. eps_exp .OR. i .GT. narnoldi) THEN
 
@@ -966,7 +962,7 @@ CONTAINS
          CALL cp_fm_release(V_mats(i))
       END DO
       CALL cp_fm_struct_release(newstruct)
-      CALL mp_comm_free(col_group)
+      CALL col_group%free()
 
       DEALLOCATE (V_mats)
       DEALLOCATE (H_approx)

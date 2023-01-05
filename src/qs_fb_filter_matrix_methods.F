@@ -23,7 +23,6 @@ MODULE qs_fb_filter_matrix_methods
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
-   USE message_passing,                 ONLY: mp_alltoall
    USE particle_types,                  ONLY: particle_type
    USE qs_fb_atomic_halo_types,         ONLY: fb_atomic_halo_create,&
                                               fb_atomic_halo_get,&
@@ -705,9 +704,8 @@ CONTAINS
 
       CALL timeset("fb_fltrmat_add_blkcol_mpi", handle_mpi)
 
-      CALL mp_alltoall(send_buf, send_sizes, send_disps, &
-                       recv_buf, recv_sizes, recv_disps, &
-                       para_env%group)
+      CALL para_env%group%alltoall(send_buf, send_sizes, send_disps, &
+                                   recv_buf, recv_sizes, recv_disps)
 
       CALL timestop(handle_mpi)
 

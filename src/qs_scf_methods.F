@@ -47,7 +47,6 @@ MODULE qs_scf_methods
                                               cholesky_reduce,&
                                               cholesky_restore
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_max
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_density_mixing_types,         ONLY: mixing_storage_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -522,7 +521,7 @@ CONTAINS
       END DO
       CALL dbcsr_iterator_stop(iter)
 
-      CALL mp_max(delta, para_env%group)
+      CALL para_env%group%max(delta)
 
       CALL timestop(handle)
 

@@ -40,9 +40,6 @@ MODULE qs_tddfpt2_restart
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_min,&
-                                              mp_sum
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
    USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos
@@ -207,7 +204,7 @@ CONTAINS
 
          IF (.NOT. file_exists) THEN
             nstates_read = 0
-            CALL mp_bcast(nstates_read, para_env_global%source, para_env_global%group)
+            CALL para_env_global%group%bcast(nstates_read, para_env_global%source)
 
             CALL cp_warn(__LOCATION__, &
                          "User requested to restart the TDDFPT wave functions from the file '"//TRIM(filename)// &
@@ -264,7 +261,7 @@ CONTAINS
                          " excited states were requested.")
          END IF
       END IF
-      CALL mp_bcast(nstates_read, para_env_global%source, para_env_global%group)
+      CALL para_env_global%group%bcast(nstates_read, para_env_global%source)
 
       ! exit if restart file does not exist
       IF (nstates_read <= 0) THEN
@@ -282,7 +279,7 @@ CONTAINS
          END IF
          DEALLOCATE (evals_read)
       END IF
-      CALL mp_bcast(evals, para_env_global%source, para_env_global%group)
+      CALL para_env_global%group%bcast(evals, para_env_global%source)
 
       DO istate = 1, nstates_read
          DO ispin = 1, nspins
@@ -643,9 +640,9 @@ CONTAINS
          END DO
       END DO
 
-      CALL mp_sum(sum_sign_array, sub_env%para_env%group)
-      CALL mp_min(minrow_neg_array, sub_env%para_env%group)
-      CALL mp_min(minrow_pos_array, sub_env%para_env%group)
+      CALL sub_env%para_env%group%sum(sum_sign_array)
+      CALL sub_env%para_env%group%min(minrow_neg_array)
+      CALL sub_env%para_env%group%min(minrow_pos_array)
 
       DO icol_global = 1, ncol_global
 

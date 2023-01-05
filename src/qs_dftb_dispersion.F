@@ -22,7 +22,6 @@ MODULE qs_dftb_dispersion
                                               dispersion_d3bj,&
                                               dispersion_uff
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
    USE qs_dftb_types,                   ONLY: qs_dftb_atom_type,&
                                               qs_dftb_pairpot_type
@@ -256,7 +255,7 @@ CONTAINS
          END IF
 
          ! set dispersion energy
-         CALL mp_sum(evdw, para_env%group)
+         CALL para_env%group%sum(evdw)
          energy%dispersion = evdw
 
       END IF

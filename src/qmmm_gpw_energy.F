@@ -38,8 +38,6 @@ MODULE qmmm_gpw_energy
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_sum,&
-                                              mp_sync
    USE mm_collocate_potential,          ONLY: collocate_gf_rspace_NoPBC
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
@@ -311,7 +309,7 @@ CONTAINS
       ! Sumup all contributions according the parallelization scheme
       IF (qmmm_env%par_scheme == do_par_atom) THEN
          DO ilevel = 1, SIZE(grids)
-            CALL mp_sum(grids(ilevel)%cr3d, para_env%group)
+            CALL para_env%group%sum(grids(ilevel)%cr3d)
          END DO
       END IF
       ! RealSpace Interpolation
@@ -319,7 +317,7 @@ CONTAINS
       SELECT CASE (kind_interp)
       CASE (spline3_nopbc_interp, spline3_pbc_interp)
          ! Spline Iterpolator
-         CALL mp_sync(para_env%group)
+         CALL para_env%group%sync()
          CALL timeset(TRIM(routineN)//":spline3Int", handle2)
          DO Ilevel = coarser_grid, auxbas_grid + 1, -1
             CALL pw_prolongate_s3(grids(Ilevel), &

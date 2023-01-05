@@ -30,7 +30,6 @@ MODULE qs_efield_local
                                               dbcsr_p_type,&
                                               dbcsr_set
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_sum
    USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -386,7 +385,7 @@ CONTAINS
 
       IF (calculate_forces) THEN
          DO ikind = 1, SIZE(atomic_kind_set)
-            CALL mp_sum(force(ikind)%efield, para_env%group)
+            CALL para_env%group%sum(force(ikind)%efield)
          END DO
          DEALLOCATE (atom_of_kind)
       END IF

@@ -37,7 +37,6 @@ MODULE qmmm_tb_methods
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_sum
    USE mulliken,                        ONLY: mulliken_charges
    USE particle_types,                  ONLY: allocate_particle_set,&
                                               deallocate_particle_set,&
@@ -452,7 +451,7 @@ CONTAINS
                DEALLOCATE (charges_mm)
             END DO
          END IF
-         CALL mp_sum(qpot, para_env%group)
+         CALL para_env%group%sum(qpot)
          ! Add Ewald and TB short range corrections
          ! This is effectively using a minimum image convention!
          ! Set rcutoff to values compatible with alpha Ewald
@@ -790,7 +789,7 @@ CONTAINS
          END IF
          !
          ! Transfer QM gradients to the QM particles..
-         CALL mp_sum(Forces_QM, para_env%group)
+         CALL para_env%group%sum(Forces_QM)
          DO ikind = 1, nkind
             CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=list)
             DO i = 1, SIZE(list)
@@ -986,7 +985,7 @@ CONTAINS
                CALL deallocate_particle_set(atoms_mm)
                DEALLOCATE (charges_mm)
                ! transfer MM forces
-               CALL mp_sum(Forces_MM, para_env%group)
+               CALL para_env%group%sum(Forces_MM)
                DO Imp = 1, nmm
                   Imm = Pot%mm_atom_index(Imp)
                   Forces(:, Imm) = Forces(:, Imm) - Forces_MM(:, Imp)
@@ -1027,7 +1026,7 @@ CONTAINS
                   END IF
                   CALL deallocate_particle_set(atoms_mm)
                   ! transfer MM forces
-                  CALL mp_sum(Forces_MM, para_env%group)
+                  CALL para_env%group%sum(Forces_MM)
                   DO Imp = 1, nmm
                      Imm = Pot%mm_atom_index(Imp)
                      Forces_added_charges(:, Imm) = Forces_added_charges(:, Imm) - Forces_MM(:, Imp)
@@ -1035,8 +1034,8 @@ CONTAINS
                   DEALLOCATE (Forces_MM)
                END DO
             END IF
-            CALL mp_sum(qpot, para_env%group)
-            CALL mp_sum(Forces_QM, para_env%group)
+            CALL para_env%group%sum(qpot)
+            CALL para_env%group%sum(Forces_QM)
             ! Add Ewald and DFTB short range corrections
             ! This is effectively using a minimum image convention!
             ! Set rcutoff to values compatible with alpha Ewald
@@ -1206,7 +1205,7 @@ CONTAINS
          END IF
          !
          ! Transfer QM gradients to the QM particles..
-         CALL mp_sum(Forces_QM, para_env%group)
+         CALL para_env%group%sum(Forces_QM)
          DO ikind = 1, nkind
             CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=list)
             DO i = 1, SIZE(list)

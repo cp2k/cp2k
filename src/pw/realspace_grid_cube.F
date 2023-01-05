@@ -14,11 +14,9 @@ MODULE realspace_grid_cube
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: &
-        file_amode_rdonly, file_offset, mp_bcast, mp_comm_type, mp_file_close, &
-        mp_file_descriptor_type, mp_file_get_position, mp_file_open, mp_file_read_all_chv, &
-        mp_file_type, mp_file_type_free, mp_file_type_hindexed_make_chv, &
-        mp_file_type_set_view_chv, mp_file_write_all_chv, mp_file_write_at, mp_maxloc, mp_recv, &
-        mp_send, mp_sum, mp_sync, mpi_character_size
+        file_amode_rdonly, file_offset, mp_comm_type, mp_file_descriptor_type, mp_file_type, &
+        mp_file_type_free, mp_file_type_hindexed_make_chv, mp_file_type_set_view_chv, &
+        mpi_character_size
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
    USE pw_types,                        ONLY: pw_type
 #include "../base/base_uses.f90"
@@ -153,10 +151,10 @@ CONTAINS
          checksum = 0
          IF (unit_nr > 0) checksum = 1
 
-         CALL mp_sum(checksum, gid)
+         CALL gid%sum(checksum)
          CPASSERT(checksum == 1)
 
-         CALL mp_maxloc(rank, gid)
+         CALL gid%maxloc(rank)
          CPASSERT(rank(1) > 0)
 
          dest = rank(2)
@@ -182,10 +180,10 @@ CONTAINS
                ELSE
                   IF (my_rank == source) THEN
                      buf(:) = pw%cr3d(I1, I2, :)
-                     CALL mp_send(buf, dest, tag, gid)
+                     CALL gid%send(buf, dest, tag)
                   END IF
                   IF (my_rank == dest) THEN
-                     CALL mp_recv(buf, source, tag, gid)
+                     CALL gid%recv(buf, source, tag)
                   END IF
                END IF
 
@@ -204,7 +202,7 @@ CONTAINS
                ! that flies around at any given time.
                ! if ever this routine becomes a bottleneck, we should go for a
                ! more complicated rewrite
-               CALL mp_sync(gid)
+               CALL gid%sync()
 
             END DO
          END DO
@@ -327,14 +325,14 @@ CONTAINS
                   READ (extunit, *) (buffer(k), k=lbounds(3), ubounds(3))
                   IF (num_pe .GT. 1) THEN
                      DO ip = 1, num_pe - 1
-                        CALL mp_send(buffer(lbounds(3):ubounds(3)), ip, tag, gid)
+                        CALL gid%send(buffer(lbounds(3):ubounds(3)), ip, tag)
                      END DO
                   END IF
                ELSE
                   master = 0
-                  CALL mp_recv(buffer(lbounds(3):ubounds(3)), master, tag, gid)
+                  CALL gid%recv(buffer(lbounds(3):ubounds(3)), master, tag)
                END IF
-               CALL mp_sync(gid)
+               CALL gid%sync()
 
                !only use data that is local to me - i.e. in slice of pencil I own
                IF ((lbounds_local(1) .LE. i) .AND. (i .LE. ubounds_local(1)) .AND. (lbounds_local(2) .LE. j) &
@@ -348,7 +346,7 @@ CONTAINS
 
          IF (my_rank == 0) CALL close_file(unit_number=extunit)
 
-         CALL mp_sync(gid)
+         CALL gid%sync()
       ELSE
          ! Parallel routine needs as input the byte size of each grid z-slice
          ! This is a hack to prevent compilation errors with gcc -Wall (up to versions 6.3)
@@ -468,9 +466,9 @@ CONTAINS
          CALL close_file(unit_number=extunit_handle)
       END IF
       ! Sync offset and start parallel read
-      CALL mp_bcast(offset_global, grid%pw_grid%para%group_head_id, gid)
+      CALL gid%bcast(offset_global, grid%pw_grid%para%group_head_id)
       BOF = offset_global
-      CALL mp_file_open(groupid=gid, fh=extunit, filepath=filename, amode_status=file_amode_rdonly)
+      CALL extunit%open(groupid=gid, filepath=filename, amode_status=file_amode_rdonly)
       ! Determine byte offsets for each grid z-slice which are local to a process
       ALLOCATE (displacements(nslices))
       displacements = 0
@@ -505,9 +503,9 @@ CONTAINS
       ! Collective read of cube
       ALLOCATE (readbuffer(nslices))
       readbuffer(:) = ''
-      CALL mp_file_read_all_chv(extunit, msglen, nslices, readbuffer, mp_file_desc)
+      CALL extunit%read_all(msglen, nslices, readbuffer, mp_file_desc)
       CALL mp_file_type_free(mp_file_desc)
-      CALL mp_file_close(extunit)
+      CALL extunit%close()
       ! Convert cube values string -> real
       i = lbounds_local(1)
       j = lbounds_local(2)
@@ -597,14 +595,14 @@ CONTAINS
                   READ (extunit_handle, *) (buffer(k), k=lbounds(3), ubounds(3))
                   IF (num_pe .GT. 1) THEN
                      DO ip = 1, num_pe - 1
-                        CALL mp_send(buffer(lbounds(3):ubounds(3)), ip, tag, gid)
+                        CALL gid%send(buffer(lbounds(3):ubounds(3)), ip, tag)
                      END DO
                   END IF
                ELSE
                   master = 0
-                  CALL mp_recv(buffer(lbounds(3):ubounds(3)), master, tag, gid)
+                  CALL gid%recv(buffer(lbounds(3):ubounds(3)), master, tag)
                END IF
-               CALL mp_sync(gid)
+               CALL gid%sync()
 
                !only use data that is local to me - i.e. in slice of pencil I own
                IF ((lbounds_local(1) .LE. i) .AND. (i .LE. ubounds_local(1)) .AND. (lbounds_local(2) .LE. j) &
@@ -620,7 +618,7 @@ CONTAINS
 
          IF (my_rank == 0) CALL close_file(unit_number=extunit_handle)
 
-         CALL mp_sync(gid)
+         CALL gid%sync()
       END IF
       DEALLOCATE (buffer)
 
@@ -707,18 +705,18 @@ CONTAINS
       END DO
       islice = 1
       ! Determine initial byte offset (0 or EOF if data is appended)
-      CALL mp_file_get_position(unit_nr, BOF)
+      CALL unit_nr%get_position(BOF)
       ! Write header information on master process and update byte offset accordingly
       IF (my_rank == 0) THEN
          ! this format seems to work for e.g. molekel and gOpenmol
          ! latest version of VMD can read non orthorhombic cells
-         CALL mp_file_write_at(unit_nr, BOF, "-Quickstep-"//NEW_LINE("C"))
+         CALL unit_nr%write_at(BOF, "-Quickstep-"//NEW_LINE("C"))
          BOF = BOF + LEN("-Quickstep-"//NEW_LINE("C"))*mpi_character_size
          IF (PRESENT(title)) THEN
-            CALL mp_file_write_at(unit_nr, BOF, TRIM(title)//NEW_LINE("C"))
+            CALL unit_nr%write_at(BOF, TRIM(title)//NEW_LINE("C"))
             BOF = BOF + LEN(TRIM(title)//NEW_LINE("C"))*mpi_character_size
          ELSE
-            CALL mp_file_write_at(unit_nr, BOF, "No Title"//NEW_LINE("C"))
+            CALL unit_nr%write_at(BOF, "No Title"//NEW_LINE("C"))
             BOF = BOF + LEN("No Title"//NEW_LINE("C"))*mpi_character_size
          END IF
 
@@ -732,37 +730,37 @@ CONTAINS
          END IF
 
          WRITE (header, '(I5,3f12.6)') np, 0.0_dp, 0._dp, 0._dp !start of cube
-         CALL mp_file_write_at(unit_nr, BOF, header//NEW_LINE("C"))
+         CALL unit_nr%write_at(BOF, header//NEW_LINE("C"))
          BOF = BOF + LEN(header//NEW_LINE("C"))*mpi_character_size
 
          WRITE (header, '(I5,3f12.6)') (grid%pw_grid%npts(1) + stride(1) - 1)/stride(1), &
             grid%pw_grid%dh(1, 1)*REAL(stride(1), dp), grid%pw_grid%dh(2, 1)*REAL(stride(1), dp), &
             grid%pw_grid%dh(3, 1)*REAL(stride(1), dp)
-         CALL mp_file_write_at(unit_nr, BOF, header//NEW_LINE("C"))
+         CALL unit_nr%write_at(BOF, header//NEW_LINE("C"))
          BOF = BOF + LEN(header//NEW_LINE("C"))*mpi_character_size
 
          WRITE (header, '(I5,3f12.6)') (grid%pw_grid%npts(2) + stride(2) - 1)/stride(2), &
             grid%pw_grid%dh(1, 2)*REAL(stride(2), dp), grid%pw_grid%dh(2, 2)*REAL(stride(2), dp), &
             grid%pw_grid%dh(3, 2)*REAL(stride(2), dp)
-         CALL mp_file_write_at(unit_nr, BOF, header//NEW_LINE("C"))
+         CALL unit_nr%write_at(BOF, header//NEW_LINE("C"))
          BOF = BOF + LEN(header//NEW_LINE("C"))*mpi_character_size
 
          WRITE (header, '(I5,3f12.6)') (grid%pw_grid%npts(3) + stride(3) - 1)/stride(3), &
             grid%pw_grid%dh(1, 3)*REAL(stride(3), dp), grid%pw_grid%dh(2, 3)*REAL(stride(3), dp), &
             grid%pw_grid%dh(3, 3)*REAL(stride(3), dp)
-         CALL mp_file_write_at(unit_nr, BOF, header//NEW_LINE("C"))
+         CALL unit_nr%write_at(BOF, header//NEW_LINE("C"))
          BOF = BOF + LEN(header//NEW_LINE("C"))*mpi_character_size
 
          IF (PRESENT(particles_z)) THEN
             DO i = 1, np
                WRITE (header_z, '(I5,4f12.6)') particles_z(i), 0._dp, particles_r(:, i)
-               CALL mp_file_write_at(unit_nr, BOF, header_z//NEW_LINE("C"))
+               CALL unit_nr%write_at(BOF, header_z//NEW_LINE("C"))
                BOF = BOF + LEN(header_z//NEW_LINE("C"))*mpi_character_size
             END DO
          END IF
       END IF
       ! Sync offset
-      CALL mp_bcast(BOF, grid%pw_grid%para%group_head_id, gid)
+      CALL gid%bcast(BOF, grid%pw_grid%para%group_head_id)
       ! Determine byte offsets for each grid z-slice which are local to a process
       ! and convert z-slices to cube format compatible strings
       ALLOCATE (displacements(nslices))
@@ -816,7 +814,7 @@ CONTAINS
       BOF = 0
       CALL mp_file_type_set_view_chv(unit_nr, BOF, mp_desc)
       ! Collective write of cube
-      CALL mp_file_write_all_chv(unit_nr, msglen, nslices, writebuffer, mp_desc)
+      CALL unit_nr%write_all(msglen, nslices, writebuffer, mp_desc)
       ! Clean up
       CALL mp_file_type_free(mp_desc)
       DEALLOCATE (writebuffer)
@@ -903,10 +901,10 @@ CONTAINS
       checksum = 0
       IF (unit_nr > 0) checksum = 1
 
-      CALL mp_sum(checksum, gid)
+      CALL gid%sum(checksum)
       CPASSERT(checksum == 1)
 
-      CALL mp_maxloc(rank, gid)
+      CALL gid%maxloc(rank)
       CPASSERT(rank(1) > 0)
 
       dest = rank(2)
@@ -933,15 +931,15 @@ CONTAINS
             ELSE
                IF (my_rank == source) THEN
                   buf(:) = pw%cr3d(I1, I2, :)
-                  CALL mp_send(buf, dest, tag, gid)
+                  CALL gid%send(buf, dest, tag)
                   IF (DOUBLE) THEN
                      buf2(:) = pw2%cr3d(I1, I2, :)
-                     CALL mp_send(buf2, dest, tag, gid)
+                     CALL gid%send(buf2, dest, tag)
                   END IF
                END IF
                IF (my_rank == dest) THEN
-                  CALL mp_recv(buf, source, tag, gid)
-                  IF (DOUBLE) CALL mp_recv(buf2, source, tag, gid)
+                  CALL gid%recv(buf, source, tag)
+                  IF (DOUBLE) CALL gid%recv(buf2, source, tag)
                END IF
             END IF
 
@@ -992,7 +990,7 @@ CONTAINS
             ! that flies around at any given time.
             ! if ever this routine becomes a bottleneck, we should go for a
             ! more complicated rewrite
-            CALL mp_sync(gid)
+            CALL gid%sync()
 
          END DO
       END DO

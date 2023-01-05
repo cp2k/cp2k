@@ -27,9 +27,7 @@ MODULE qs_epr_hyp
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_sum,&
-                                              mp_sync
+   USE message_passing,                 ONLY: mp_comm_type
    USE particle_types,                  ONLY: particle_type
    USE periodic_table,                  ONLY: ptable
    USE physcon,                         ONLY: a_bohr,&
@@ -353,10 +351,10 @@ CONTAINS
       END DO
 
       ! Global sum
-      CALL mp_sync(group)
-      CALL mp_sum(hypaniso, group)
-      CALL mp_sum(hypiso, group)
-      CALL mp_sum(hypiso_one, group)
+      CALL group%sync()
+      CALL group%sum(hypaniso)
+      CALL group%sum(hypiso)
+      CALL group%sum(hypiso_one)
 
       ! Print hyperfine matrices
       IF (output_unit > 0) THEN

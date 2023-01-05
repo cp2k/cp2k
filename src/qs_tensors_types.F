@@ -33,7 +33,6 @@ MODULE qs_tensors_types
                                               distribution_2d_release,&
                                               distribution_2d_type
    USE message_passing,                 ONLY: mp_cart_sub,&
-                                              mp_comm_free,&
                                               mp_comm_type,&
                                               mp_environ
    USE particle_types,                  ONLY: particle_type
@@ -145,9 +144,9 @@ CONTAINS
       CALL timeset(routineN, handle)
       CALL distribution_2d_release(dist%dist_2d_1)
       CALL distribution_2d_release(dist%dist_2d_2)
-      CALL mp_comm_free(dist%comm_2d_1)
-      CALL mp_comm_free(dist%comm_2d_2)
-      IF (dist%owns_comm) CALL mp_comm_free(dist%comm_3d)
+      CALL dist%comm_2d_1%free()
+      CALL dist%comm_2d_2%free()
+      IF (dist%owns_comm) CALL dist%comm_3d%free()
 
       NULLIFY (dist%dist_2d_1, dist%dist_2d_2)
 

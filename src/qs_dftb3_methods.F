@@ -27,7 +27,6 @@ MODULE qs_dftb3_methods
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
-   USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -135,7 +134,7 @@ CONTAINS
          END DO
       END DO
       CALL get_qs_env(qs_env=qs_env, para_env=para_env)
-      CALL mp_sum(eb3, para_env%group)
+      CALL para_env%group%sum(eb3)
       energy%dftb3 = eb3
 
       ! Forces and Virial

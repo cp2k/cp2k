@@ -36,8 +36,7 @@ MODULE md_conserved_quantities
    USE md_environment_types,            ONLY: get_md_env,&
                                               md_environment_type,&
                                               set_md_env
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_comm_type
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: kelvin
@@ -564,13 +563,13 @@ CONTAINS
             END IF
          END DO ! iparticle_kind
          IF (tkind) THEN
-            CALL mp_sum(md_ener%ekin_kind, group)
-            CALL mp_sum(md_ener%nfree_kind, group)
-            CALL mp_sum(md_ener%ekin_shell_kind, group)
-            CALL mp_sum(md_ener%nfree_shell_kind, group)
+            CALL group%sum(md_ener%ekin_kind)
+            CALL group%sum(md_ener%nfree_kind)
+            CALL group%sum(md_ener%ekin_shell_kind)
+            CALL group%sum(md_ener%nfree_shell_kind)
          END IF
          ! sum all contributions to energy over calculated parts on all processors
-         CALL mp_sum(md_ener%ekin_shell, group)
+         CALL group%sum(md_ener%ekin_shell)
       ELSE
          DO iparticle_kind = 1, nparticle_kind
             atomic_kind => atomic_kind_set(iparticle_kind)
@@ -598,15 +597,15 @@ CONTAINS
             END DO
          END DO ! iparticle_kind
          IF (tkind) THEN
-            CALL mp_sum(md_ener%ekin_kind, group)
-            CALL mp_sum(md_ener%nfree_kind, group)
+            CALL group%sum(md_ener%ekin_kind)
+            CALL group%sum(md_ener%nfree_kind)
          END IF
       END IF
 
       ! sum all contributions to energy over calculated parts on all processors
-      CALL mp_sum(md_ener%ekin, group)
-      CALL mp_sum(md_ener%vcom, group)
-      CALL mp_sum(md_ener%total_mass, group)
+      CALL group%sum(md_ener%ekin)
+      CALL group%sum(md_ener%vcom)
+      CALL group%sum(md_ener%total_mass)
       md_ener%vcom = md_ener%vcom/md_ener%total_mass
       !
       ! Compute the QM/MM kinetic energy

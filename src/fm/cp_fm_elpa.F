@@ -33,9 +33,7 @@ MODULE cp_fm_elpa
                               cp_logger_type
    USE kinds, ONLY: default_string_length, &
                     dp
-   USE message_passing, ONLY: mp_comm_free, &
-                              mp_comm_split_direct, &
-                              mp_bcast, mp_comm_type
+   USE message_passing, ONLY: mp_comm_type
    USE OMP_LIB, ONLY: omp_get_max_threads
 
 #include "../base/base_uses.f90"
@@ -397,7 +395,7 @@ CONTAINS
       IF (use_qr .AND. elpa_qr_unsafe .AND. elpa_should_print) &
          check_eigenvalues = .TRUE.
 
-      CALL mp_bcast(check_eigenvalues, matrix%matrix_struct%para_env%source, matrix%matrix_struct%para_env%group)
+      CALL matrix%matrix_struct%para_env%group%bcast(check_eigenvalues, matrix%matrix_struct%para_env%source)
 
       IF (check_eigenvalues) THEN
          ! Allocate and initialize needed temporaries to compute eigenvalues without ELPA QR

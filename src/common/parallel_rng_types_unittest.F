@@ -8,7 +8,7 @@
 PROGRAM parallel_rng_types_TEST
    USE message_passing, ONLY: mp_world_finalize, &
                               mp_world_init, &
-                              mp_environ, mp_comm_type
+                              mp_comm_type
    USE kinds, ONLY: dp
    USE machine, ONLY: m_walltime, &
                       default_output_unit
@@ -43,7 +43,7 @@ PROGRAM parallel_rng_types_TEST
    END IF
 
    CALL mp_world_init(mpi_comm)
-   CALL mp_environ(numtask=num_pe, taskid=mepos, group=mpi_comm)
+   CALL mpi_comm%environ(numtask=num_pe, taskid=mepos)
    ionode = mepos == 0
 
    CALL check_rng(default_output_unit, ionode)

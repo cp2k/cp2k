@@ -26,7 +26,6 @@ MODULE manybody_gal21
    USE fist_nonbond_env_types,          ONLY: pos_type
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_sum
    USE pair_potential_types,            ONLY: gal21_pot_type,&
                                               gal21_type,&
                                               pair_potential_pp_type,&
@@ -879,7 +878,7 @@ CONTAINS
 
       NULLIFY (logger)
 
-      CALL mp_sum(nr_ions, para_env%group)
+      CALL para_env%group%sum(nr_ions)
       logger => cp_get_default_logger()
 
       iw = cp_print_key_unit_nr(logger, mm_section, "PRINT%PROGRAM_RUN_INFO", &

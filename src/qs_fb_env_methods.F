@@ -57,7 +57,6 @@ MODULE qs_fb_env_methods
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_max
    USE orbital_pointers,                ONLY: nco,&
                                               ncoset
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -891,7 +890,7 @@ CONTAINS
 
       ! get the maximum number of local atoms across the procs.
       max_natoms_local = natoms_local
-      CALL mp_max(max_natoms_local, para_env%group)
+      CALL para_env%group%max(max_natoms_local)
 
       ! create the halos, one for each local atom
       ALLOCATE (halos(natoms_local))

@@ -11,7 +11,6 @@ MODULE qs_charge_mixing
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: get_pseudo_inverse_svd
-   USE message_passing,                 ONLY: mp_sum
    USE qs_density_mixing_types,         ONLY: broyden_mixing_new_nr,&
                                               broyden_mixing_nr,&
                                               gspace_mixing_nr,&
@@ -134,7 +133,7 @@ CONTAINS
          charges(ii, 1:ns) = alpha*mixing_store%dacharge(ia, 1:ns, imin) - mixing_store%acharge(ia, 1:ns, imin)
       END DO
 
-      CALL mp_sum(charges, para_env%group)
+      CALL para_env%group%sum(charges)
 
    END SUBROUTINE mix_charges_only
 
@@ -195,7 +194,7 @@ CONTAINS
       wfac = 0.01_dp
 
       mixing_store%wbroy(nv) = SUM(dq_now(:, :)**2)
-      CALL mp_sum(mixing_store%wbroy(nv), para_env%group)
+      CALL para_env%group%sum(mixing_store%wbroy(nv))
       mixing_store%wbroy(nv) = SQRT(mixing_store%wbroy(nv))
       IF (mixing_store%wbroy(nv) > (wfac/maxw)) THEN
          mixing_store%wbroy(nv) = wfac/mixing_store%wbroy(nv)
@@ -207,14 +206,14 @@ CONTAINS
       ! dfbroy
       mixing_store%dfbroy(:, :, nv) = dq_now(:, :) - dq_last(:, :)
       wdf = SUM(mixing_store%dfbroy(:, :, nv)**2)
-      CALL mp_sum(wdf, para_env%group)
+      CALL para_env%group%sum(wdf)
       wdf = 1.0_dp/SQRT(wdf)
       mixing_store%dfbroy(:, :, nv) = wdf*mixing_store%dfbroy(:, :, nv)
 
       ! abroy matrix
       DO i = 1, nv
          wfac = SUM(mixing_store%dfbroy(:, :, i)*mixing_store%dfbroy(:, :, nv))
-         CALL mp_sum(wfac, para_env%group)
+         CALL para_env%group%sum(wfac)
          mixing_store%abroy(i, nv) = wfac
          mixing_store%abroy(nv, i) = wfac
       END DO
@@ -223,7 +222,7 @@ CONTAINS
       ALLOCATE (amat(nv, nv), beta(nv, nv), cvec(nv), gammab(nv))
       DO i = 1, nv
          wfac = SUM(mixing_store%dfbroy(:, :, i)*dq_now(:, :))
-         CALL mp_sum(wfac, para_env%group)
+         CALL para_env%group%sum(wfac)
          cvec(i) = mixing_store%wbroy(i)*wfac
       END DO
 
@@ -252,7 +251,7 @@ CONTAINS
             charges(ii, 1:ns) = charges(ii, 1:ns) - mixing_store%wbroy(i)*gammab(i)*mixing_store%ubroy(ia, 1:ns, i)
          END DO
       END DO
-      CALL mp_sum(charges, para_env%group)
+      CALL para_env%group%sum(charges)
 
       DEALLOCATE (amat, beta, cvec, gammab)
 

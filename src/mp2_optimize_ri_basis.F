@@ -38,7 +38,6 @@ MODULE mp2_optimize_ri_basis
    USE machine,                         ONLY: default_output_unit,&
                                               m_flush
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_sum
    USE mp2_direct_method,               ONLY: mp2_canonical_direct_single_batch
    USE mp2_ri_libint,                   ONLY: libint_ri_mp2,&
                                               read_RI_basis_set,&
@@ -168,9 +167,9 @@ CONTAINS
                                                 mp2_biel, dimen, C, Auto, 0, homo, homo, &
                                                 elements_ij_proc, ij_list_proc, homo, 0, &
                                                 Integ_MP2=Integ_MP2_AA)
-         CALL mp_sum(Emp2_AA_Cou, para_env%group)
-         CALL mp_sum(Emp2_AA_Ex, para_env%group)
-         CALL mp_sum(Emp2_AA, para_env%group)
+         CALL para_env%group%sum(Emp2_AA_Cou)
+         CALL para_env%group%sum(Emp2_AA_Ex)
+         CALL para_env%group%sum(Emp2_AA)
          DEALLOCATE (ij_list_proc)
 
          ! beta-beta case
@@ -182,9 +181,9 @@ CONTAINS
                                                 mp2_biel, dimen, C_beta, Auto_beta, 0, homo_beta, homo_beta, &
                                                 elements_ij_proc, ij_list_proc, homo_beta, 0, &
                                                 Integ_MP2=Integ_MP2_BB)
-         CALL mp_sum(Emp2_BB_Cou, para_env%group)
-         CALL mp_sum(Emp2_BB_Ex, para_env%group)
-         CALL mp_sum(Emp2_BB, para_env%group)
+         CALL para_env%group%sum(Emp2_BB_Cou)
+         CALL para_env%group%sum(Emp2_BB_Ex)
+         CALL para_env%group%sum(Emp2_BB)
          DEALLOCATE (ij_list_proc)
 
          ! aplha-beta case
@@ -196,9 +195,9 @@ CONTAINS
                                                 mp2_biel, dimen, C, Auto, 0, homo, homo, &
                                                 elements_ij_proc, ij_list_proc, homo_beta, 0, &
                                                 homo_beta, C_beta, Auto_beta, Integ_MP2=Integ_MP2_AB)
-         CALL mp_sum(Emp2_AB_Cou, para_env%group)
-         CALL mp_sum(Emp2_AB_Ex, para_env%group)
-         CALL mp_sum(Emp2_AB, para_env%group)
+         CALL para_env%group%sum(Emp2_AB_Cou)
+         CALL para_env%group%sum(Emp2_AB_Ex)
+         CALL para_env%group%sum(Emp2_AB)
          DEALLOCATE (ij_list_proc)
 
          Emp2 = Emp2_AA + Emp2_BB + Emp2_AB*2.0_dp !+Emp2_BA
@@ -209,9 +208,9 @@ CONTAINS
          Emp2_T = Emp2_AA + Emp2_BB
 
          ! Replicate the MO-ERI's over all processes
-         CALL mp_sum(Integ_MP2_AA, para_env%group)
-         CALL mp_sum(Integ_MP2_BB, para_env%group)
-         CALL mp_sum(Integ_MP2_AB, para_env%group)
+         CALL para_env%group%sum(Integ_MP2_AA)
+         CALL para_env%group%sum(Integ_MP2_BB)
+         CALL para_env%group%sum(Integ_MP2_AB)
 
       ELSE
          ! close shell case
@@ -220,13 +219,13 @@ CONTAINS
                                                 mp2_biel, dimen, C, Auto, 0, homo, homo, &
                                                 elements_ij_proc, ij_list_proc, homo, 0, &
                                                 Integ_MP2=Integ_MP2)
-         CALL mp_sum(Emp2_Cou, para_env%group)
-         CALL mp_sum(Emp2_Ex, para_env%group)
-         CALL mp_sum(Emp2, para_env%group)
+         CALL para_env%group%sum(Emp2_Cou)
+         CALL para_env%group%sum(Emp2_Ex)
+         CALL para_env%group%sum(Emp2)
          DEALLOCATE (ij_list_proc)
 
          ! Replicate the MO-ERI's over all processes
-         CALL mp_sum(Integ_MP2, para_env%group)
+         CALL para_env%group%sum(Integ_MP2)
 
       END IF
 
@@ -668,7 +667,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL mp_sum(deriv, para_env%group)
+      CALL para_env%group%sum(deriv)
 
       CALL timestop(handle)
 
@@ -1095,8 +1094,8 @@ CONTAINS
             END DO
          END DO
       END DO
-      CALL mp_sum(DI, para_env%group)
-      CALL mp_sum(Emp2_RI, para_env%group)
+      CALL para_env%group%sum(DI)
+      CALL para_env%group%sum(Emp2_RI)
 
       DRI = Emp2 - Emp2_RI
       DI = 2.0D+00*DI - Emp2 - Emp2_RI

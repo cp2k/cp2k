@@ -21,11 +21,7 @@ MODULE negf_matrix_utils
         dbcsr_init_p, dbcsr_p_type, dbcsr_set, dbcsr_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_irecv,&
-                                              mp_isend,&
-                                              mp_request_type,&
-                                              mp_sum,&
-                                              mp_wait
+                                              mp_request_type
    USE negf_alloc_types,                ONLY: negf_allocatable_rvector
    USE negf_atom_map,                   ONLY: negf_atom_map_type
    USE particle_methods,                ONLY: get_particle_set
@@ -267,7 +263,7 @@ CONTAINS
          offset_sgf_col = offset_sgf_col + nsgfs(atomlist_col(iatom_col))
       END DO
 
-      CALL mp_sum(r2d, mpi_comm_global)
+      CALL mpi_comm_global%sum(r2d)
 
       CALL cp_fm_set_submatrix(fm, r2d)
 
@@ -550,8 +546,8 @@ CONTAINS
          END DO
       END DO
 
-      CALL mp_sum(rank_device, para_env%group)
-      CALL mp_sum(rank_contact, para_env%group)
+      CALL para_env%group%sum(rank_device)
+      CALL para_env%group%sum(rank_contact)
 
       ! compute number of packed matrix elements to send to / receive from each processor
       ALLOCATE (recv_nelems(para_env%num_pe))
@@ -650,7 +646,7 @@ CONTAINS
 
       DO iproc = 1, para_env%num_pe
          IF (iproc /= mepos_plus1 .AND. send_nelems(iproc) > 0) THEN
-            CALL mp_isend(send_packed_blocks(iproc)%vector, iproc - 1, para_env%group, send_handlers(iproc), 1)
+            CALL para_env%group%isend(send_packed_blocks(iproc)%vector, iproc - 1, send_handlers(iproc), 1)
          END IF
       END DO
 
@@ -658,7 +654,7 @@ CONTAINS
       DO iproc = 1, para_env%num_pe
          IF (iproc /= mepos_plus1) THEN
             IF (recv_nelems(iproc) > 0) THEN
-               CALL mp_irecv(recv_packed_blocks(iproc)%vector, iproc - 1, para_env%group, recv_handlers(iproc), 1)
+               CALL para_env%group%irecv(recv_packed_blocks(iproc)%vector, iproc - 1, recv_handlers(iproc), 1)
             END IF
          ELSE
             IF (ALLOCATED(send_packed_blocks(iproc)%vector)) &
@@ -669,7 +665,7 @@ CONTAINS
       ! unpack blocks
       DO iproc = 1, para_env%num_pe
          IF (iproc /= mepos_plus1 .AND. recv_nelems(iproc) > 0) &
-            CALL mp_wait(recv_handlers(iproc))
+            CALL recv_handlers(iproc)%wait()
       END DO
 
       recv_nelems(:) = 0
@@ -707,7 +703,7 @@ CONTAINS
 
       DO iproc = 1, para_env%num_pe
          IF (iproc /= mepos_plus1 .AND. send_nelems(iproc) > 0) &
-            CALL mp_wait(send_handlers(iproc))
+            CALL send_handlers(iproc)%wait()
       END DO
 
       ! release memory

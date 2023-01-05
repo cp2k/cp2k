@@ -40,10 +40,8 @@ MODULE rpa_gw_im_time_util
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE mathconstants,                   ONLY: twopi
-   USE message_passing,                 ONLY: mp_alltoall,&
-                                              mp_dims_create,&
-                                              mp_request_type,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_dims_create,&
+                                              mp_request_type
    USE mp2_types,                       ONLY: integ_mat_buffer_type
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
@@ -365,7 +363,7 @@ CONTAINS
          norm = 0.0_dp
 
          CALL dbcsr_get_diag(mat_norm, norm)
-         CALL mp_sum(norm, para_env%group)
+         CALL para_env%group%sum(norm)
 
          DO imo = bounds(1, 1), bounds(2, 1)
             norm(imo) = 1.0_dp/SQRT(norm(imo))
@@ -414,7 +412,7 @@ CONTAINS
          CALL compress_tensor(t_3c_overl_int_ao_mo, t_3c_O_mo_ind, t_3c_O_mo_compressed, &
                               qs_env%mp2_env%ri_rpa_im_time%eps_compress, memory_3c)
 
-         CALL mp_sum(memory_3c, para_env%group)
+         CALL para_env%group%sum(memory_3c)
          compression_factor = REAL(nze, dp)*1.0E-06*8.0_dp/memory_3c
 
          IF (unit_nr > 0) THEN
@@ -611,7 +609,7 @@ CONTAINS
 
          END DO
 
-         CALL mp_alltoall(sizes_send, sizes_rec, 2, para_env%group)
+         CALL para_env%group%alltoall(sizes_send, sizes_rec, 2)
 
          DO imepos = 0, para_env%num_pe - 1
             num_entries_rec(imepos) = sizes_rec(2*imepos)

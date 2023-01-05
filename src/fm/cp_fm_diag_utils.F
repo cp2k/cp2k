@@ -32,12 +32,8 @@ MODULE cp_fm_diag_utils
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: gcd
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_comm_free,&
-                                              mp_comm_null,&
-                                              mp_comm_split,&
-                                              mp_comm_type,&
-                                              mp_sync
+   USE message_passing,                 ONLY: mp_comm_null,&
+                                              mp_comm_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -145,7 +141,7 @@ CONTAINS
             CALL cp_blacs_env_release(work_redistribute%blacs_env_new)
             CALL cp_para_env_release(work_redistribute%para_env_new)
          ELSE
-            CALL mp_comm_free(work_redistribute%subgroup)
+            CALL work_redistribute%subgroup%free()
          END IF
          DEALLOCATE (work_redistribute%group_distribution)
          DEALLOCATE (work_redistribute%group_partition)
@@ -388,7 +384,7 @@ CONTAINS
          END IF
          CALL rdinfo%write(io_unit)
       END IF
-      CALL mp_sync(para_env%group)
+      CALL para_env%group%sync()
 
       ! if the optimal is smaller than num_pe, we will redistribute the input matrix
       IF (rdinfo%redistribute) THEN
@@ -396,9 +392,9 @@ CONTAINS
          ALLOCATE (work_redistribute%group_distribution(0:rdinfo%num_pe_old - 1))
          ALLOCATE (work_redistribute%group_partition(0:1))
          work_redistribute%group_partition = (/rdinfo%num_pe_new, rdinfo%num_pe_old - rdinfo%num_pe_new/)
-         CALL mp_comm_split(comm=para_env%group, sub_comm=work_redistribute%subgroup, &
-                            ngroups=ngroups, group_distribution=work_redistribute%group_distribution, &
-                            n_subgroups=2, group_partition=work_redistribute%group_partition)
+         CALL work_redistribute%subgroup%from_split(comm=para_env%group, &
+                                                    ngroups=ngroups, group_distribution=work_redistribute%group_distribution, &
+                                                    n_subgroups=2, group_partition=work_redistribute%group_partition)
 
          IF (work_redistribute%group_distribution(mepos_old) == 0) THEN
 
@@ -406,7 +402,7 @@ CONTAINS
             NULLIFY (work_redistribute%para_env_new)
             CALL cp_para_env_create(work_redistribute%para_env_new, work_redistribute%subgroup)
             ! test a sync
-            CALL mp_sync(work_redistribute%para_env_new%group)
+            CALL work_redistribute%para_env_new%group%sync()
 
             ! create blacs, should inherit the preferences for the layout and so on, from the higher level
             NULLIFY (work_redistribute%blacs_env_new)
@@ -526,7 +522,7 @@ CONTAINS
          CALL cp_fm_redistribute_work_finalize(work_redistribute%group_distribution(mepos_old) == 0)
 
          ! finally, also the eigenvalues need to end up on the non-group member tasks
-         CALL mp_bcast(eig, 0, para_env%group)
+         CALL para_env%group%bcast(eig, 0)
       END IF
 
 #else

@@ -22,10 +22,7 @@ MODULE pao_param_linpot
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: diamat_all
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_min,&
-                                              mp_sum,&
-                                              mp_sync
+   USE message_passing,                 ONLY: mp_comm_type
    USE pao_input,                       ONLY: pao_fock_param,&
                                               pao_rotinv_param
    USE pao_linpot_full,                 ONLY: linpot_full_calc_terms,&
@@ -129,7 +126,7 @@ CONTAINS
       IF (pao%precondition) &
          CALL pao_param_linpot_preconditioner(pao)
 
-      CALL mp_sync(para_env%group) ! ensure that timestop is not called too early
+      CALL para_env%group%sync() ! ensure that timestop is not called too early
 
       CALL timestop(handle)
    END SUBROUTINE pao_param_init_linpot
@@ -507,15 +504,15 @@ CONTAINS
 
       IF (PRESENT(penalty)) THEN
          ! sum penalty energies across ranks
-         CALL mp_sum(penalty, group)
-         CALL mp_sum(regu_energy, group)
+         CALL group%sum(penalty)
+         CALL group%sum(regu_energy)
          penalty = penalty + regu_energy
       END IF
 
       ! print stuff, but not during second invocation for forces
       IF (.NOT. PRESENT(forces)) THEN
          ! print eigenvalues from fock-layer
-         CALL mp_sum(evals, group)
+         CALL group%sum(evals)
          IF (pao%iw_fockev > 0) THEN
             DO iatom = 1, natoms
                WRITE (pao%iw_fockev, *) "PAO| atom:", iatom, " fock evals around gap:", evals(:, iatom)
@@ -523,7 +520,7 @@ CONTAINS
             CALL m_flush(pao%iw_fockev)
          END IF
          ! print homo-lumo gap encountered by fock-layer
-         CALL mp_min(gaps, group)
+         CALL group%min(gaps)
          IF (pao%iw_gap > 0) THEN
             DO iatom = 1, natoms
                WRITE (pao%iw_gap, *) "PAO| atom:", iatom, " fock gap:", gaps(iatom)

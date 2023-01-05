@@ -29,7 +29,6 @@ MODULE input_cp2k_binary_restarts
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_bcast
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: angstrom
    USE print_messages,                  ONLY: print_message
@@ -141,12 +140,12 @@ CONTAINS
          END IF
       END IF
 
-      CALL mp_bcast(natomkind, para_env%source, para_env%group)
-      CALL mp_bcast(natom, para_env%source, para_env%group)
-      CALL mp_bcast(ncore, para_env%source, para_env%group)
-      CALL mp_bcast(nshell, para_env%source, para_env%group)
-      CALL mp_bcast(nmoleculekind, para_env%source, para_env%group)
-      CALL mp_bcast(nmolecule, para_env%source, para_env%group)
+      CALL para_env%group%bcast(natomkind, para_env%source)
+      CALL para_env%group%bcast(natom, para_env%source)
+      CALL para_env%group%bcast(ncore, para_env%source)
+      CALL para_env%group%bcast(nshell, para_env%source)
+      CALL para_env%group%bcast(nmoleculekind, para_env%source)
+      CALL para_env%group%bcast(nmolecule, para_env%source)
 
       ALLOCATE (id_name(natomkind))
       ! Read atomic kind names
@@ -157,7 +156,7 @@ CONTAINS
                                            TRIM(ADJUSTL(cp_to_string(istat)))//")", &
                                            input_unit)
          END IF
-         CALL mp_bcast(string, para_env%source, para_env%group)
+         CALL para_env%group%bcast(string, para_env%source)
          id_name(ikind) = str2id(string)
       END DO
 
@@ -192,7 +191,7 @@ CONTAINS
                                         TRIM(ADJUSTL(cp_to_string(istat)))//")", &
                                         input_unit)
       END IF
-      CALL mp_bcast(ibuf, para_env%source, para_env%group)
+      CALL para_env%group%bcast(ibuf, para_env%source)
       DO iatom = 1, natom
          ikind = ibuf(iatom)
          atom_info%id_atmname(iatom) = id_name(ikind)
@@ -207,7 +206,7 @@ CONTAINS
                                         TRIM(ADJUSTL(cp_to_string(istat)))//")", &
                                         input_unit)
       END IF
-      CALL mp_bcast(atom_info%r, para_env%source, para_env%group)
+      CALL para_env%group%bcast(atom_info%r, para_env%source)
 
       ! Read molecule information if available
       IF (nmolecule > 0) THEN
@@ -220,7 +219,7 @@ CONTAINS
                                               TRIM(ADJUSTL(cp_to_string(istat)))//")", &
                                               input_unit)
             END IF
-            CALL mp_bcast(string, para_env%source, para_env%group)
+            CALL para_env%group%bcast(string, para_env%source)
             id_name(ikind) = str2id(string)
          END DO
          ! Read molecule kind numbers
@@ -230,7 +229,7 @@ CONTAINS
                                            TRIM(ADJUSTL(cp_to_string(istat)))//")", &
                                            input_unit)
          END IF
-         CALL mp_bcast(ibuf, para_env%source, para_env%group)
+         CALL para_env%group%bcast(ibuf, para_env%source)
          DO iatom = 1, natom
             ikind = ibuf(iatom)
             atom_info%id_molname(iatom) = id_name(ikind)
@@ -243,7 +242,7 @@ CONTAINS
                                            TRIM(ADJUSTL(cp_to_string(istat)))//")", &
                                            input_unit)
          END IF
-         CALL mp_bcast(atom_info%resid, para_env%source, para_env%group)
+         CALL para_env%group%bcast(atom_info%resid, para_env%source)
          DO iatom = 1, natom
             atom_info%id_resname(iatom) = str2id(s2s(cp_to_string(atom_info%resid(iatom))))
          END DO
@@ -404,7 +403,7 @@ CONTAINS
          END IF
       END IF
 
-      CALL mp_bcast(exit_routine, para_env%source, para_env%group)
+      CALL para_env%group%bcast(exit_routine, para_env%source)
       IF (exit_routine) THEN
          IF (para_env%ionode) CALL close_file(unit_number=input_unit, &
                                               keep_preconnection=.TRUE.)
@@ -423,7 +422,7 @@ CONTAINS
                                         TRIM(ADJUSTL(cp_to_string(istat)))//")", &
                                         input_unit)
       END IF
-      CALL mp_bcast(rbuf, para_env%source, para_env%group)
+      CALL para_env%group%bcast(rbuf, para_env%source)
 
       DO iparticle = 1, nparticle
          particle_set(iparticle)%r(1:3) = rbuf(1:3, iparticle)
@@ -441,7 +440,7 @@ CONTAINS
                                         input_unit)
       END IF
 
-      CALL mp_bcast(ibuf, para_env%source, para_env%group)
+      CALL para_env%group%bcast(ibuf, para_env%source)
 
       DO iparticle = 1, nparticle
          particle_set(iparticle)%atom_index = ibuf(iparticle)
@@ -594,8 +593,8 @@ CONTAINS
          END DO
       END IF
 
-      CALL mp_bcast(nbuf, para_env%source, para_env%group)
-      CALL mp_bcast(have_velocities, para_env%source, para_env%group)
+      CALL para_env%group%bcast(nbuf, para_env%source)
+      CALL para_env%group%bcast(have_velocities, para_env%source)
 
       IF (have_velocities) THEN
 
@@ -610,7 +609,7 @@ CONTAINS
          END IF
 
          IF (nbuf == nparticle) THEN
-            CALL mp_bcast(rbuf, para_env%source, para_env%group)
+            CALL para_env%group%bcast(rbuf, para_env%source)
             DO iparticle = 1, nparticle
                particle_set(iparticle)%v(1:3) = rbuf(1:3, iparticle)
             END DO
@@ -739,7 +738,7 @@ CONTAINS
          END IF
       END IF
 
-      CALL mp_bcast(nhc_size, para_env%source, para_env%group)
+      CALL para_env%group%bcast(nhc_size, para_env%source)
 
       IF (nhc_size > 0) THEN
 
@@ -757,7 +756,7 @@ CONTAINS
                   "&COORD", rbuf(1:nhc_size)
             END IF
          END IF
-         CALL mp_bcast(rbuf, para_env%source, para_env%group)
+         CALL para_env%group%bcast(rbuf, para_env%source)
          DO i = 1, SIZE(nhc%nvt, 2)
             idx = (nhc%map_info%index(i) - 1)*nhc%nhc_len
             DO j = 1, SIZE(nhc%nvt, 1)
@@ -777,7 +776,7 @@ CONTAINS
                   "&VELOCITY", rbuf(1:nhc_size)
             END IF
          END IF
-         CALL mp_bcast(rbuf, para_env%source, para_env%group)
+         CALL para_env%group%bcast(rbuf, para_env%source)
          DO i = 1, SIZE(nhc%nvt, 2)
             idx = (nhc%map_info%index(i) - 1)*nhc%nhc_len
             DO j = 1, SIZE(nhc%nvt, 1)
@@ -797,7 +796,7 @@ CONTAINS
                   "&MASS:", rbuf(1:nhc_size)
             END IF
          END IF
-         CALL mp_bcast(rbuf, para_env%source, para_env%group)
+         CALL para_env%group%bcast(rbuf, para_env%source)
          DO i = 1, SIZE(nhc%nvt, 2)
             idx = (nhc%map_info%index(i) - 1)*nhc%nhc_len
             DO j = 1, SIZE(nhc%nvt, 1)
@@ -817,7 +816,7 @@ CONTAINS
                   "&FORCE", rbuf(1:nhc_size)
             END IF
          END IF
-         CALL mp_bcast(rbuf, para_env%source, para_env%group)
+         CALL para_env%group%bcast(rbuf, para_env%source)
          DO i = 1, SIZE(nhc%nvt, 2)
             idx = (nhc%map_info%index(i) - 1)*nhc%nhc_len
             DO j = 1, SIZE(nhc%nvt, 1)

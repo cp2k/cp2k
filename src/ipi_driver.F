@@ -42,11 +42,7 @@ MODULE ipi_driver
                                               default_string_length,&
                                               dp,&
                                               int_4
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_irecv,&
-                                              mp_request_type,&
-                                              mp_send,&
-                                              mp_sync,&
+   USE message_passing,                 ONLY: mp_request_type,&
                                               mp_testany
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
@@ -389,7 +385,7 @@ CONTAINS
          ! do communication on master node only...
          header = ""
 
-         CALL mp_sync(para_env%group)
+         CALL para_env%group%sync()
 
          ! non-blocking sync to avoid useless CPU consumption
          IF (ionode) THEN
@@ -397,12 +393,12 @@ CONTAINS
             wait_msg = 0
             DO iwait = 0, para_env%num_pe - 1
                IF (iwait /= para_env%source) THEN
-                  CALL mp_send(msg=wait_msg, dest=iwait, gid=para_env%group, tag=666)
+                  CALL para_env%group%send(msg=wait_msg, dest=iwait, tag=666)
                END IF
             END DO
          ELSE
-            CALL mp_irecv(msgout=wait_msg, source=para_env%source, comm=para_env%group, &
-                          tag=666, request=wait_req(2))
+            CALL para_env%group%irecv(msgout=wait_msg, source=para_env%source, &
+                                      tag=666, request=wait_req(2))
             CALL mp_testany(wait_req(2:), flag=fwait)
             DO WHILE (.NOT. fwait)
                CALL mp_testany(wait_req(2:), flag=fwait)
@@ -410,14 +406,14 @@ CONTAINS
             END DO
          END IF
 
-         CALL mp_sync(para_env%group)
+         CALL para_env%group%sync()
 
-         CALL mp_bcast(header, para_env%source, para_env%group)
+         CALL para_env%group%bcast(header, para_env%source)
 
          IF (output_unit > 0) WRITE (output_unit, *) " @ DRIVER MODE: Message from server: ", TRIM(header)
          IF (TRIM(header) == "STATUS") THEN
 
-            CALL mp_sync(para_env%group)
+            CALL para_env%group%sync()
             IF (ionode) THEN ! does not  need init (well, maybe it should, just to check atom numbers and the like... )
                IF (hasdata) THEN
                   CALL writebuffer(socket, "HAVEDATA    ", MSGLEN)
@@ -425,7 +421,7 @@ CONTAINS
                   CALL writebuffer(socket, "READY       ", MSGLEN)
                END IF
             END IF
-            CALL mp_sync(para_env%group)
+            CALL para_env%group%sync()
          ELSE IF (TRIM(header) == "POSDATA") THEN
             IF (ionode) THEN
                CALL readbuffer(socket, mxmat, 9)
@@ -436,12 +432,12 @@ CONTAINS
                cellh = TRANSPOSE(cellh)
                cellih = TRANSPOSE(cellih)
             END IF
-            CALL mp_bcast(cellh, para_env%source, para_env%group)
-            CALL mp_bcast(cellih, para_env%source, para_env%group)
-            CALL mp_bcast(nat, para_env%source, para_env%group)
+            CALL para_env%group%bcast(cellh, para_env%source)
+            CALL para_env%group%bcast(cellih, para_env%source)
+            CALL para_env%group%bcast(nat, para_env%source)
             IF (.NOT. ALLOCATED(combuf)) ALLOCATE (combuf(3*nat))
             IF (ionode) CALL readbuffer(socket, combuf, nat*3)
-            CALL mp_bcast(combuf, para_env%source, para_env%group)
+            CALL para_env%group%bcast(combuf, para_env%source)
 
             CALL force_env_get(force_env, subsys=subsys)
             IF (nat /= subsys%particles%n_els) &
