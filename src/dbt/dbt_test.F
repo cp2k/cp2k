@@ -31,12 +31,7 @@ MODULE dbt_test
    USE dbt_io, ONLY: &
       dbt_write_blocks, dbt_write_block_indices
    USE kinds, ONLY: dp, default_string_length, int_8, dp
-   USE message_passing, ONLY: mp_environ, &
-                              mp_bcast, &
-                              mp_comm_free, &
-                              mp_comm_free, &
-                              mp_sum, &
-                              mp_cart_create
+   USE message_passing, ONLY: mp_cart_create
    USE dbt_allocate_wrap, ONLY: allocate_any
    USE dbt_index, ONLY: &
       combine_tensor_index, get_2d_indices_tensor, dbt_get_mapping_info
@@ -207,7 +202,7 @@ CONTAINS
       ! Process grid
       pdims(:) = 0
       CALL dbt_pgrid_create(mp_comm, pdims, comm_nd)
-      CALL mp_environ(numnodes, mynode, mp_comm)
+      CALL mp_comm%environ(numnodes, mynode)
 
       io_unit = 0
       IF (mynode .EQ. 0) io_unit = unit_nr
@@ -265,7 +260,7 @@ CONTAINS
             ALLOCATE (map1, source=perm(1:isep, iperm))
             ALLOCATE (map2, source=perm(isep + 1:ndims, iperm))
 
-            CALL mp_environ(numnodes, mynode, mp_comm)
+            CALL mp_comm%environ(numnodes, mynode)
             CALL mp_environ_pgrid(comm_nd, pdims, myploc)
 
             #:for dim in range(1, maxdim+1)
@@ -393,7 +388,7 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: blk_index_2d, nblks_2d
 
       nblks_alloc = SIZE(blk_ind_1)
-      CALL mp_environ(numnodes, mynode, mp_comm)
+      CALL mp_comm%environ(numnodes, mynode)
 
       IF (.NOT. enumerate) THEN
          CPASSERT(randmat_counter .NE. 0)
@@ -561,7 +556,7 @@ CONTAINS
                END DO
                CALL dbt_iterator_stop(iterator)
 !$OMP END PARALLEL
-               CALL mp_sum(array, tensor%pgrid%mp_comm_2d)
+               CALL tensor%pgrid%mp_comm_2d%sum(array)
 
             END SUBROUTINE
          #:endfor
@@ -625,7 +620,7 @@ CONTAINS
             LOGICAL                             :: do_crop_1, do_crop_2
 
             mp_comm = tensor_1%pgrid%mp_comm_2d
-            CALL mp_environ(numnodes, mynode, mp_comm)
+            CALL mp_comm%environ(numnodes, mynode)
             io_unit = -1
             IF (mynode .EQ. 0) io_unit = unit_nr
 

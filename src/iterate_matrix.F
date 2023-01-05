@@ -35,7 +35,7 @@ MODULE iterate_matrix
                       m_walltime
    USE mathconstants, ONLY: ifac
    USE mathlib, ONLY: abnormal_value
-   USE message_passing, ONLY: mp_sum, mp_comm_type
+   USE message_passing, ONLY: mp_comm_type
    USE submatrix_dissection, ONLY: submatrix_dissection_type
 #include "./base/base_uses.f90"
 
@@ -124,7 +124,7 @@ CONTAINS
          CALL group%set_handle(group_handle)
          ALLOCATE (diagonal(nsize))
          CALL dbcsr_get_diag(matrix, diagonal)
-         CALL mp_sum(diagonal, group)
+         CALL group%sum(diagonal)
          det = PRODUCT(diagonal)
       END BLOCK
 
@@ -1527,7 +1527,7 @@ CONTAINS
       increment = initial_increment
       new_mu = mu
       DO i = 1, 30
-         CALL mp_sum(trace, group)
+         CALL group%sum(trace)
          IF (unit_nr > 0) WRITE (unit_nr, '(T2,A,1X,F13.9,1X,F15.9)') &
             "Density matrix:  mu, trace error: ", new_mu, trace - nelectron
          IF (ABS(trace - nelectron) < 0.5_dp) EXIT

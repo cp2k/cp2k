@@ -23,7 +23,6 @@ MODULE farming_methods
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE message_passing,                 ONLY: mp_bcast
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -311,7 +310,7 @@ CONTAINS
          CALL cp_print_key_finished_output(output_unit, logger, farming_section, &
                                            "PROGRAM_RUN_INFO")
       END IF
-      CALL mp_bcast(farming_env%restart_n, para_env%source, para_env%group)
+      CALL para_env%group%bcast(farming_env%restart_n, para_env%source)
 
    END SUBROUTINE
 

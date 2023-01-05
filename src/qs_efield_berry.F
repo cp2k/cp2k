@@ -54,7 +54,6 @@ MODULE qs_efield_berry
                                               twopi,&
                                               z_one,&
                                               z_zero
-   USE message_passing,                 ONLY: mp_sum
    USE orbital_pointers,                ONLY: ncoset
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
@@ -647,7 +646,7 @@ CONTAINS
 
       IF (calculate_forces) THEN
          DO ikind = 1, SIZE(atomic_kind_set)
-            CALL mp_sum(force(ikind)%efield, para_env%group)
+            CALL para_env%group%sum(force(ikind)%efield)
          END DO
          DEALLOCATE (atom_of_kind)
          DEALLOCATE (cosab, sinab, work, dcosab, dsinab)
@@ -1146,7 +1145,7 @@ CONTAINS
 
       IF (calculate_forces) THEN
          DO ikind = 1, SIZE(atomic_kind_set)
-            CALL mp_sum(force(ikind)%efield, para_env%group)
+            CALL para_env%group%sum(force(ikind)%efield)
          END DO
          DEALLOCATE (atom_of_kind)
          DEALLOCATE (force_tmp)

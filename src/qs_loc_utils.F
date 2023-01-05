@@ -61,8 +61,7 @@ MODULE qs_loc_utils
    USE mathconstants,                   ONLY: pi,&
                                               twopi
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE orbital_pointers,                ONLY: ncoset
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
@@ -1115,14 +1114,14 @@ CONTAINS
          IF (output_unit > 0) WRITE (output_unit, "(/,T10,A)") &
             "Restart file not available filename=<"//TRIM(filename)//'>'
       END IF
-      CALL mp_bcast(file_exists, source, group)
+      CALL group%bcast(file_exists, source)
 
       IF (file_exists) THEN
          restart_found = .TRUE.
 
-         CALL mp_bcast(qs_loc_env%localized_wfn_control%set_of_states, source, group)
-         CALL mp_bcast(qs_loc_env%localized_wfn_control%lu_bound_states, source, group)
-         CALL mp_bcast(qs_loc_env%localized_wfn_control%nloc_states, source, group)
+         CALL group%bcast(qs_loc_env%localized_wfn_control%set_of_states, source)
+         CALL group%bcast(qs_loc_env%localized_wfn_control%lu_bound_states, source)
+         CALL group%bcast(qs_loc_env%localized_wfn_control%nloc_states, source)
 
          max_nloc = MAXVAL(qs_loc_env%localized_wfn_control%nloc_states(:))
 
@@ -1175,10 +1174,10 @@ CONTAINS
 
             END IF
             IF (do_homo .OR. do_mixed) THEN
-               CALL mp_bcast(mos(ispin)%eigenvalues, source, group)
-               CALL mp_bcast(mos(ispin)%occupation_numbers, source, group)
+               CALL group%bcast(mos(ispin)%eigenvalues, source)
+               CALL group%bcast(mos(ispin)%occupation_numbers, source)
             ELSE
-               CALL mp_bcast(evals(ispin)%array, source, group)
+               CALL para_env%group%bcast(evals(ispin)%array, source)
             END IF
 
             DO i = 1, nmo
@@ -1187,13 +1186,13 @@ CONTAINS
                ELSE
                   vecbuffer(1, :) = 0.0_dp
                END IF
-               CALL mp_bcast(vecbuffer, source, group)
+               CALL group%bcast(vecbuffer, source)
                CALL cp_fm_set_submatrix(mos_localized(ispin), &
                                         vecbuffer, 1, i, nao, 1, transpose=.TRUE.)
             END DO
          END DO
 
-         CALL mp_bcast(qs_loc_env%localized_wfn_control%loc_states, source, group)
+         CALL group%bcast(qs_loc_env%localized_wfn_control%loc_states, source)
 
          DEALLOCATE (vecbuffer)
 

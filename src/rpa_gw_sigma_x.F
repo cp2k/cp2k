@@ -59,8 +59,6 @@ MODULE rpa_gw_sigma_x
    USE mathconstants,                   ONLY: gaussi,&
                                               z_one,&
                                               z_zero
-   USE message_passing,                 ONLY: mp_sum,&
-                                              mp_sync
    USE mp2_integrals,                   ONLY: compute_kpoints
    USE mp2_ri_2c,                       ONLY: setup_trunc_coulomb_potential_for_exchange_self_energy
    USE mp2_types,                       ONLY: mp2_type
@@ -580,7 +578,7 @@ CONTAINS
 
          END DO
 
-         CALL mp_sum(vec_Sigma_x_minus_vxc_gw, para_env%group)
+         CALL para_env%group%sum(vec_Sigma_x_minus_vxc_gw)
 
       END IF
 
@@ -710,7 +708,7 @@ CONTAINS
             CPABORT('Stop after printing exchange energies.')
 
          ELSE
-            CALL mp_sync(para_env%group)
+            CALL para_env%group%sync()
          END IF
 
       END IF
@@ -888,8 +886,8 @@ CONTAINS
 
       END DO
 
-      CALL mp_sum(vec_Sigma_x_minus_vxc_gw, para_env%group)
-      CALL mp_sum(vec_Sigma_x_minus_vxc_gw_im, para_env%group)
+      CALL para_env%group%sum(vec_Sigma_x_minus_vxc_gw)
+      CALL para_env%group%sum(vec_Sigma_x_minus_vxc_gw_im)
 
       ! also adjust in the case of kpoints too big gw_corr_lev_occ and gw_corr_lev_virt
       DO ispin = 1, nspins

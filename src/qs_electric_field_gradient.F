@@ -30,7 +30,6 @@ MODULE qs_electric_field_gradient
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fac,&
                                               fourpi
-   USE message_passing,                 ONLY: mp_sum
    USE orbital_pointers,                ONLY: indso,&
                                               nsoset
    USE particle_types,                  ONLY: particle_type
@@ -549,7 +548,7 @@ CONTAINS
          m1s = m1s + maxso
       END DO ! iset1
 
-      CALL mp_sum(vlimit, para_env%group)
+      CALL para_env%group%sum(vlimit)
 
       DEALLOCATE (o2nindex)
       DEALLOCATE (CPC_sphere)

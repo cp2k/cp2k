@@ -24,7 +24,6 @@ MODULE qs_vxc_atom
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_sum
    USE orbital_pointers,                ONLY: indso,&
                                               nsoset
    USE paw_basis_types,                 ONLY: get_paw_basis_info
@@ -401,7 +400,7 @@ CONTAINS
 
          END DO ! ikind
 
-         CALL mp_sum(exc1, para_env%group)
+         CALL para_env%group%sum(exc1)
 
          IF (ASSOCIATED(rho_h)) THEN
             DEALLOCATE (rho_h)

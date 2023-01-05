@@ -73,11 +73,7 @@ MODULE library_tests
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_comm_type,&
-                                              mp_max,&
-                                              mp_sum,&
-                                              mp_sync,&
+   USE message_passing,                 ONLY: mp_comm_type,&
                                               mpi_perf_test
    USE minimax_exp,                     ONLY: validate_exp_minimax
    USE mp2_grids,                       ONLY: test_least_square_ft
@@ -277,7 +273,7 @@ CONTAINS
       CALL section_vals_val_get(test_section, 'MINIMAX', i_val=runtest(10))
       CALL section_vals_val_get(test_section, 'LEAST_SQ_FT', i_val=runtest(11))
 
-      CALL mp_sync(para_env%group)
+      CALL para_env%group%sync()
    END SUBROUTINE test_input
 
 ! **************************************************************************************************
@@ -338,7 +334,7 @@ CONTAINS
          DEALLOCATE (ca)
          DEALLOCATE (cb)
       END DO
-      CALL mp_sync(para_env%group)
+      CALL para_env%group%sync()
    END SUBROUTINE copy_test
 
 ! **************************************************************************************************
@@ -553,7 +549,7 @@ CONTAINS
          END DO
       END IF
 
-      CALL mp_sync(para_env%group)
+      CALL para_env%group%sync()
 
    END SUBROUTINE matmul_test
 
@@ -785,10 +781,10 @@ CONTAINS
          WRITE (iw, '(T2,A)') "iteration      time[s]"
       END IF
       DO i_loop = 1, N_loop
-         CALL mp_sync(para_env%group)
+         CALL para_env%group%sync()
          tstart = m_walltime()
          CALL rs_pw_transfer(rs_grid, ca, dir)
-         CALL mp_sync(para_env%group)
+         CALL para_env%group%sync()
          tend = m_walltime()
          IF (para_env%ionode) THEN
             WRITE (iw, '(T2,I9,1X,F12.6)') i_loop, tend - tstart
@@ -965,11 +961,11 @@ CONTAINS
             flops = PRODUCT(no)*30.0_dp*LOG(REAL(MAXVAL(no), KIND=dp))
             tstart = m_walltime()
             DO ip = 1, n_loop
-               CALL mp_sync(para_env%group)
+               CALL para_env%group%sync()
                t_start(ip) = m_walltime()
                CALL pw_transfer(ca, cb, debug)
                CALL pw_transfer(cb, cc, debug)
-               CALL mp_sync(para_env%group)
+               CALL para_env%group%sync()
                t_end(ip) = m_walltime()
             END DO
             tend = m_walltime()
@@ -981,9 +977,9 @@ CONTAINS
             END IF
 
             em = MAXVAL(ABS(ca%cc(:) - cc%cc(:)))
-            CALL mp_max(em, para_env%group)
+            CALL para_env%group%max(em)
             et = SUM(ABS(ca%cc(:) - cc%cc(:)))
-            CALL mp_sum(et, para_env%group)
+            CALL para_env%group%sum(et)
             t_min = MINVAL(t_end - t_start)
             t_max = MAXVAL(t_end - t_start)
 
@@ -1162,7 +1158,7 @@ CONTAINS
                   READ (UNIT=unit_number, FMT=*) buffer(1, 1:n)
                END SELECT
             END IF
-            CALL mp_bcast(buffer, source, group)
+            CALL group%bcast(buffer, source)
             SELECT CASE (init_method)
             CASE (do_mat_random)
                CALL cp_fm_set_submatrix(fm=matrix, &

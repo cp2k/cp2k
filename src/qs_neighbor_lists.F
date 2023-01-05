@@ -62,9 +62,7 @@ MODULE qs_neighbor_lists
                                               dp,&
                                               int_8
    USE kpoint_types,                    ONLY: kpoint_type
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_max,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_comm_type
    USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
    USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
@@ -1690,8 +1688,8 @@ CONTAINS
 
       IF (full_output) THEN
          ! XXXXXXXX should gather/scatter this on ionode
-         CALL mp_sum(nblock, group)
-         CALL mp_sum(nelement, group)
+         CALL group%sum(nblock)
+         CALL group%sum(nelement)
 
          nblock_sum = SUM(INT(nblock, KIND=int_8))
          nelement_sum = SUM(INT(nelement, KIND=int_8))
@@ -1701,10 +1699,10 @@ CONTAINS
          nelement_sum = nelement(mype)
          nelement_max = nelement(mype)
          tmp = (/nblock_sum, nelement_sum/)
-         CALL mp_sum(tmp, group)
+         CALL group%sum(tmp)
          nblock_sum = tmp(1); nelement_sum = tmp(2)
          tmp = (/nblock_max, nelement_max/)
-         CALL mp_max(tmp, group)
+         CALL group%max(tmp)
          nblock_max = tmp(1); nelement_max = tmp(2)
       END IF
 

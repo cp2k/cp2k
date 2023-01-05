@@ -54,9 +54,10 @@ MODULE rpa_grad
    USE machine,                         ONLY: m_flush,&
                                               m_memory
    USE mathconstants,                   ONLY: pi
-   USE message_passing,                 ONLY: &
-        mp_allgather, mp_alltoall, mp_irecv, mp_isend, mp_min, mp_recv, mp_request_null, &
-        mp_request_type, mp_send, mp_sendrecv, mp_sum, mp_sync, mp_waitall, mp_waitany
+   USE message_passing,                 ONLY: mp_request_null,&
+                                              mp_request_type,&
+                                              mp_waitall,&
+                                              mp_waitany
    USE mp2_laplace,                     ONLY: calc_fm_mat_s_laplace
    USE mp2_ri_grad_util,                ONLY: array2fm,&
                                               create_dbcsr_gamma,&
@@ -208,7 +209,7 @@ CONTAINS
          WRITE (unit_nr, '(T3,A,T75,I6)') 'GRAD_INFO| Block size for the contraction:', mp2_env%ri_grad%dot_blksize
          CALL m_flush(unit_nr)
       END IF
-      CALL mp_sync(fm_mat_S(1)%matrix_struct%para_env%group)
+      CALL fm_mat_S(1)%matrix_struct%para_env%group%sync()
 
       CALL timestop(handle)
 
@@ -525,7 +526,7 @@ CONTAINS
             data2send(pcol_send) = counter
          END DO
 
-         CALL mp_alltoall(data2send, data2recv, 1, para_env_exchange%group)
+         CALL para_env_exchange%group%alltoall(data2send, data2recv, 1)
 
          DO proc_shift = 0, num_pe_col - 1
             pcol_send = MODULO(my_pcol + proc_shift, num_pe_col)
@@ -561,9 +562,8 @@ CONTAINS
 
             ALLOCATE (sos_mp2_work%index2recv(pcol_recv)%array(data2recv(pcol_recv)))
             !
-            CALL mp_sendrecv(sos_mp2_work%index2send(pcol_send)%array, blacs2mpi(my_prow, pcol_send), &
-                             sos_mp2_work%index2recv(pcol_recv)%array, blacs2mpi(my_prow, pcol_recv), &
-                             para_env%group, tag)
+            CALL para_env%group%sendrecv(sos_mp2_work%index2send(pcol_send)%array, blacs2mpi(my_prow, pcol_send), &
+                                         sos_mp2_work%index2recv(pcol_recv)%array, blacs2mpi(my_prow, pcol_recv), tag)
 
             ! Convert to global coordinates to local coordinates as we always work with them
             DO counter = 1, data2send(pcol_send)
@@ -659,7 +659,7 @@ CONTAINS
             data2send(pcol_send) = counter
          END DO
 
-         CALL mp_alltoall(data2send, data2recv, 1, para_env_exchange%group)
+         CALL para_env_exchange%group%alltoall(data2send, data2recv, 1)
 
          DO proc_shift = 0, num_pe_col - 1
             pcol_send = MODULO(my_pcol + proc_shift, num_pe_col)
@@ -695,9 +695,8 @@ CONTAINS
 
             ALLOCATE (sos_mp2_work%index2recv(pcol_recv)%array(data2recv(pcol_recv)))
             !
-            CALL mp_sendrecv(sos_mp2_work%index2send(pcol_send)%array, blacs2mpi(my_prow, pcol_send), &
-                             sos_mp2_work%index2recv(pcol_recv)%array, blacs2mpi(my_prow, pcol_recv), &
-                             para_env%group, tag)
+            CALL para_env%group%sendrecv(sos_mp2_work%index2send(pcol_send)%array, blacs2mpi(my_prow, pcol_send), &
+                                         sos_mp2_work%index2recv(pcol_recv)%array, blacs2mpi(my_prow, pcol_recv), tag)
 
             ! Convert to global coordinates to local coordinates as we always work with them
             DO counter = 1, data2send(pcol_send)
@@ -1067,7 +1066,7 @@ CONTAINS
       mem_real = REAL(mem, KIND=dp)
       mem_per_block = REAL(number_of_elements_per_blk, KIND=dp)*8.0_dp
       number_of_parallel_channels = MAX(1, MIN(MAXVAL(grid) - 1, FLOOR(mem_real/mem_per_block)))
-      CALL mp_min(number_of_parallel_channels, para_env%group)
+      CALL para_env%group%min(number_of_parallel_channels)
       IF (mp2_env%ri_grad%max_parallel_comm > 0) &
          number_of_parallel_channels = MIN(number_of_parallel_channels, mp2_env%ri_grad%max_parallel_comm)
 
@@ -1075,7 +1074,7 @@ CONTAINS
          WRITE (unit_nr, '(T3,A,T75,I6)') 'GRAD_INFO| Number of parallel communication channels:', number_of_parallel_channels
          CALL m_flush(unit_nr)
       END IF
-      CALL mp_sync(para_env%group)
+      CALL para_env%group%sync()
 
       ALLOCATE (buffer_1D(number_of_parallel_channels))
       DO proc_shift = 1, number_of_parallel_channels
@@ -1108,8 +1107,8 @@ CONTAINS
             buffer_3D(proc_shift)%array(1:my_P_size, 1:recv_a_size, 1:my_i_size) => &
                buffer_1D(proc_shift)%array(1:INT(my_P_size, KIND=int_8)*recv_a_size*my_i_size)
 
-            CALL mp_irecv(buffer_3D(proc_shift)%array, blacs2mpi(my_prow, proc_recv), &
-                          para_env%group, recv_requests(proc_shift), tag)
+            CALL para_env%group%irecv(buffer_3D(proc_shift)%array, blacs2mpi(my_prow, proc_recv), &
+                                      recv_requests(proc_shift), tag)
 
             procs_recv(proc_shift) = proc_a_recv
          END DO
@@ -1119,8 +1118,8 @@ CONTAINS
             proc_a_send = MODULO(mepos(1) + proc_shift, grid(1))
             proc_send = mepos(2)*grid(1) + proc_a_send
 
-            CALL mp_isend(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
-                          para_env%group, send_requests(proc_shift), tag)
+            CALL para_env%group%isend(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
+                                      send_requests(proc_shift), tag)
          END DO
          CALL timestop(handle2)
       END IF
@@ -1149,9 +1148,8 @@ CONTAINS
             buffer_3D(1)%array(1:my_P_size, 1:recv_a_size, 1:my_i_size) => &
                buffer_1D(1)%array(1:INT(my_P_size, KIND=int_8)*recv_a_size*my_i_size)
 
-            CALL mp_sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
-                             buffer_3D(1)%array, blacs2mpi(my_prow, proc_recv), &
-                             para_env%group, tag)
+            CALL para_env%group%sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
+                                         buffer_3D(1)%array, blacs2mpi(my_prow, proc_recv), tag)
             completed = 1
          END IF
          CALL timestop(handle2)
@@ -1171,8 +1169,8 @@ CONTAINS
             buffer_3D(completed)%array(1:my_P_size, 1:recv_a_size, 1:my_i_size) => &
                buffer_1D(completed)%array(1:INT(my_P_size, KIND=int_8)*recv_a_size*my_i_size)
 
-            CALL mp_irecv(buffer_3D(completed)%array, blacs2mpi(my_prow, proc_recv), &
-                          para_env%group, recv_requests(completed), tag)
+            CALL para_env%group%irecv(buffer_3D(completed)%array, blacs2mpi(my_prow, proc_recv), &
+                                      recv_requests(completed), tag)
 
             procs_recv(completed) = proc_a_recv
          END IF
@@ -1194,8 +1192,8 @@ CONTAINS
             buffer_3D(proc_shift)%array(1:my_P_size, 1:my_a_size, 1:recv_i_size) => &
                buffer_1D(proc_shift)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
 
-            CALL mp_irecv(buffer_3D(proc_shift)%array, blacs2mpi(my_prow, proc_recv), &
-                          para_env%group, recv_requests(proc_shift), tag)
+            CALL para_env%group%irecv(buffer_3D(proc_shift)%array, blacs2mpi(my_prow, proc_recv), &
+                                      recv_requests(proc_shift), tag)
 
             procs_recv(proc_shift) = proc_i_recv
          END DO
@@ -1205,8 +1203,8 @@ CONTAINS
             proc_i_send = MODULO(mepos(2) + proc_shift, grid(2))
             proc_send = proc_i_send*grid(1) + mepos(1)
 
-            CALL mp_isend(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
-                          para_env%group, send_requests(proc_shift), tag)
+            CALL para_env%group%isend(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
+                                      send_requests(proc_shift), tag)
          END DO
       END IF
 
@@ -1234,9 +1232,8 @@ CONTAINS
             buffer_3D(1)%array(1:my_P_size, 1:my_a_size, 1:recv_i_size) => &
                buffer_1D(1)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
 
-            CALL mp_sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
-                             buffer_3D(1)%array, blacs2mpi(my_prow, proc_recv), &
-                             para_env%group, tag)
+            CALL para_env%group%sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
+                                         buffer_3D(1)%array, blacs2mpi(my_prow, proc_recv), tag)
             completed = 1
          END IF
          CALL timestop(handle2)
@@ -1256,8 +1253,8 @@ CONTAINS
             buffer_3D(completed)%array(1:my_P_size, 1:my_a_size, 1:recv_i_size) => &
                buffer_1D(completed)%array(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
 
-            CALL mp_irecv(buffer_3D(completed)%array, blacs2mpi(my_prow, proc_recv), &
-                          para_env%group, recv_requests(completed), tag)
+            CALL para_env%group%irecv(buffer_3D(completed)%array, blacs2mpi(my_prow, proc_recv), &
+                                      recv_requests(completed), tag)
 
             procs_recv(completed) = proc_i_recv
          END IF
@@ -1715,11 +1712,10 @@ CONTAINS
             IF (recv_size > 0) THEN
                CALL timeset(routineN//"_send", handle2)
                IF (send_size > 0) THEN
-                  CALL mp_sendrecv(buffer_send(:, :send_size), blacs2mpi(my_prow, pcol_send), &
-                                   buffer_recv(:, :recv_size), blacs2mpi(my_prow, pcol_recv), &
-                                   para_env%group, tag)
+                  CALL para_env%group%sendrecv(buffer_send(:, :send_size), blacs2mpi(my_prow, pcol_send), &
+                                               buffer_recv(:, :recv_size), blacs2mpi(my_prow, pcol_recv), tag)
                ELSE
-                  CALL mp_recv(buffer_recv(:, :recv_size), blacs2mpi(my_prow, pcol_recv), tag, para_env%group)
+                  CALL para_env%group%recv(buffer_recv(:, :recv_size), blacs2mpi(my_prow, pcol_recv), tag)
                END IF
                CALL timestop(handle2)
 
@@ -1751,7 +1747,7 @@ CONTAINS
                END DO
             ELSE IF (send_size > 0) THEN
                CALL timeset(routineN//"_send", handle2)
-               CALL mp_send(buffer_send(:, :send_size), blacs2mpi(my_prow, pcol_send), tag, para_env%group)
+               CALL para_env%group%send(buffer_send(:, :send_size), blacs2mpi(my_prow, pcol_send), tag)
                CALL timestop(handle2)
             END IF
          END DO
@@ -1875,11 +1871,10 @@ CONTAINS
             IF (recv_size > 0) THEN
                CALL timeset(routineN//"_send", handle2)
                IF (send_size > 0) THEN
-                  CALL mp_sendrecv(buffer_send(:, :send_size), blacs2mpi(my_prow, pcol_send), &
-                                   buffer_recv(:, :recv_size), blacs2mpi(my_prow, pcol_recv), &
-                                   para_env%group, tag)
+                  CALL para_env%group%sendrecv(buffer_send(:, :send_size), blacs2mpi(my_prow, pcol_send), &
+                                               buffer_recv(:, :recv_size), blacs2mpi(my_prow, pcol_recv), tag)
                ELSE
-                  CALL mp_recv(buffer_recv(:, :recv_size), blacs2mpi(my_prow, pcol_recv), tag, para_env%group)
+                  CALL para_env%group%recv(buffer_recv(:, :recv_size), blacs2mpi(my_prow, pcol_recv), tag)
                END IF
                CALL timestop(handle2)
 
@@ -1912,7 +1907,7 @@ CONTAINS
                END DO
             ELSE IF (send_size > 0) THEN
                CALL timeset(routineN//"_send", handle2)
-               CALL mp_send(buffer_send(:, :send_size), blacs2mpi(my_prow, pcol_send), tag, para_env%group)
+               CALL para_env%group%send(buffer_send(:, :send_size), blacs2mpi(my_prow, pcol_send), tag)
                CALL timestop(handle2)
             END IF
          END DO
@@ -2007,12 +2002,10 @@ CONTAINS
             IF (ALLOCATED(index2recv(proc_recv)%array)) recv_size = SIZE(index2recv(proc_recv)%array, 2)
             IF (recv_size > 0) THEN
                IF (send_size > 0) THEN
-                  CALL mp_sendrecv(buffer_send(:, :send_size), blacs2mpi(my_prow, proc_send), &
-                                   buffer_recv(:, :recv_size), blacs2mpi(my_prow, proc_recv), &
-                                   para_env%group, tag)
+                  CALL para_env%group%sendrecv(buffer_send(:, :send_size), blacs2mpi(my_prow, proc_send), &
+                                               buffer_recv(:, :recv_size), blacs2mpi(my_prow, proc_recv), tag)
                ELSE
-                  CALL mp_recv(buffer_recv(:, :recv_size), blacs2mpi(my_prow, proc_recv), &
-                               tag, para_env%group)
+                  CALL para_env%group%recv(buffer_recv(:, :recv_size), blacs2mpi(my_prow, proc_recv), tag)
                END IF
 
                DO col_local = 1, recv_size
@@ -2021,8 +2014,7 @@ CONTAINS
                   mat_S_3D(:, my_a, my_i) = buffer_recv(:, col_local)
                END DO
             ELSE IF (send_size > 0) THEN
-               CALL mp_send(buffer_send(:, :send_size), blacs2mpi(my_prow, proc_send), &
-                            tag, para_env%group)
+               CALL para_env%group%send(buffer_send(:, :send_size), blacs2mpi(my_prow, proc_send), tag)
             END IF
 
          END DO
@@ -2314,7 +2306,7 @@ CONTAINS
 
       ! Sum P_ij and P_ab and redistribute them
       DO ispin = 1, nspins
-         CALL mp_sum(sos_mp2_work_occ(ispin)%P, para_env%group)
+         CALL para_env%group%sum(sos_mp2_work_occ(ispin)%P)
 
          ALLOCATE (mp2_env%ri_grad%P_ij(ispin)%array(homo(ispin), homo(ispin)))
          mp2_env%ri_grad%P_ij(ispin)%array = 0.0_dp
@@ -2334,7 +2326,7 @@ CONTAINS
                                                            TRANSPOSE(mp2_env%ri_grad%P_ij(ispin)%array))
 
          ! The first index of P_ab has to be distributed within the subgroups, so sum it up first and add the required elements later
-         CALL mp_sum(sos_mp2_work_virt(ispin)%P, para_env%group)
+         CALL para_env%group%sum(sos_mp2_work_virt(ispin)%P)
 
          itmp = get_limit(virtual(ispin), para_env_sub%num_pe, para_env_sub%mepos)
          my_B_size = itmp(2) - itmp(1) + 1
@@ -2386,8 +2378,8 @@ CONTAINS
                   buffer_send(1:send_a_size, 1:my_B_size) => buffer_send_1D(1:my_B_size*send_a_size)
 
                   buffer_send(:send_a_size, :) = TRANSPOSE(mp2_env%ri_grad%P_ab(ispin)%array(:, send_a_start:send_a_end))
-                  CALL mp_sendrecv(buffer_send(:send_a_size, :), proc_send, &
-                                   buffer_recv(:, :recv_a_size), proc_recv, para_env_sub%group)
+                  CALL para_env_sub%group%sendrecv(buffer_send(:send_a_size, :), proc_send, &
+                                                   buffer_recv(:, :recv_a_size), proc_recv)
 
                   mp2_env%ri_grad%P_ab(ispin)%array(:, recv_a_start:recv_a_end) = &
                      0.5_dp*(mp2_env%ri_grad%P_ab(ispin)%array(:, recv_a_start:recv_a_end) + buffer_recv(:, 1:recv_a_size))
@@ -2464,7 +2456,7 @@ CONTAINS
          mp2_env%ri_grad%P_ij(ispin)%array = 0.0_dp
          mp2_env%ri_grad%P_ij(ispin)%array(my_i_start:my_i_end, :) = my_scale*rpa_work%P_ij(ispin)%array
          DEALLOCATE (rpa_work%P_ij(ispin)%array)
-         CALL mp_sum(mp2_env%ri_grad%P_ij(ispin)%array, para_env%group)
+         CALL para_env%group%sum(mp2_env%ri_grad%P_ij(ispin)%array)
 
          ! Symmetrize P_ij
          mp2_env%ri_grad%P_ij(ispin)%array(:, :) = 0.5_dp*(mp2_env%ri_grad%P_ij(ispin)%array + &
@@ -2536,8 +2528,8 @@ CONTAINS
                recv_start = MAX(1, recv_a_start - my_B_start + 1)
                recv_end = MIN(my_B_size, recv_a_end - my_B_start + 1)
 
-               CALL mp_sendrecv(buffer_send(1:MAX(send_end - send_start + 1, 0), :), proc_send, &
-                                buffer_recv(1:MAX(recv_end - recv_start + 1, 0), :), proc_recv, para_env_sub%group)
+               CALL para_env_sub%group%sendrecv(buffer_send(1:MAX(send_end - send_start + 1, 0), :), proc_send, &
+                                                buffer_recv(1:MAX(recv_end - recv_start + 1, 0), :), proc_recv)
 
                mp2_env%ri_grad%P_ab(ispin)%array(recv_start:recv_end, :) = &
                   mp2_env%ri_grad%P_ab(ispin)%array(recv_start:recv_end, :) + &
@@ -2553,7 +2545,7 @@ CONTAINS
          CALL release_group_dist(gd_a_sub)
 
          CALL cp_para_env_split(para_env_exchange, para_env, para_env_sub%mepos)
-         CALL mp_sum(mp2_env%ri_grad%P_ab(ispin)%array, para_env_exchange%group)
+         CALL para_env_exchange%group%sum(mp2_env%ri_grad%P_ab(ispin)%array)
          CALL cp_para_env_release(para_env_exchange)
 
          ! Symmetrize P_ab
@@ -2581,8 +2573,8 @@ CONTAINS
                   buffer_send(1:send_a_size, 1:my_B_size) => buffer_send_1D(1:my_B_size*send_a_size)
 
                   buffer_send(:send_a_size, :) = TRANSPOSE(mp2_env%ri_grad%P_ab(ispin)%array(:, send_a_start:send_a_end))
-                  CALL mp_sendrecv(buffer_send(:send_a_size, :), proc_send, &
-                                   buffer_recv(:, :recv_a_size), proc_recv, para_env_sub%group)
+                  CALL para_env_sub%group%sendrecv(buffer_send(:send_a_size, :), proc_send, &
+                                                   buffer_recv(:, :recv_a_size), proc_recv)
 
                   mp2_env%ri_grad%P_ab(ispin)%array(:, recv_a_start:recv_a_end) = &
                      0.5_dp*(mp2_env%ri_grad%P_ab(ispin)%array(:, recv_a_start:recv_a_end) + buffer_recv(:, 1:recv_a_size))
@@ -2665,13 +2657,13 @@ CONTAINS
          CALL timeset(routineN//"_exchange", handle2)
          NULLIFY (para_env_exchange)
          CALL cp_para_env_split(para_env_exchange, para_env, para_env_sub%mepos)
-         CALL mp_sum(fm_sub%local_data, para_env_exchange%group)
+         CALL para_env_exchange%group%sum(fm_sub%local_data)
          CALL cp_para_env_release(para_env_exchange)
          CALL timestop(handle2)
       END IF
 
       ALLOCATE (subgroup2mepos(0:para_env_sub%num_pe - 1))
-      CALL mp_allgather(para_env%mepos, subgroup2mepos, para_env_sub%group)
+      CALL para_env_sub%group%allgather(para_env%mepos, subgroup2mepos)
 
       CALL timeset(routineN//"_data2", handle2)
       ! Create a map how much data has to be sent to what process coordinate, interchange rows and columns to transpose the matrices
@@ -2770,9 +2762,9 @@ CONTAINS
           recv_buffer(1:elements2recv_col, 1:elements2recv_row) => recv_buffer_1D(1:INT(elements2recv_row, int_8)*elements2recv_col)
             IF (SIZE(recv_buffer) > 0_int_8) THEN
             IF (SIZE(send_buffer) > 0_int_8) THEN
-               CALL mp_sendrecv(send_buffer, proc_send, recv_buffer, proc_recv, para_env_sub%group, tag)
+               CALL para_env_sub%group%sendrecv(send_buffer, proc_send, recv_buffer, proc_recv, tag)
             ELSE
-               CALL mp_recv(recv_buffer, proc_recv, tag, para_env_sub%group)
+               CALL para_env_sub%group%recv(recv_buffer, proc_recv, tag)
             END IF
 
             CALL timeset(routineN//"_unpack", handle2)
@@ -2789,7 +2781,7 @@ CONTAINS
 !$OMP    END PARALLEL DO
             CALL timestop(handle2)
             ELSE IF (SIZE(send_buffer) > 0_int_8) THEN
-            CALL mp_send(send_buffer, proc_send, tag, para_env_sub%group)
+            CALL para_env_sub%group%send(send_buffer, proc_send, tag)
             END IF
          END DO
       END IF

@@ -48,7 +48,6 @@ MODULE qs_kpp1_env_methods
                                               lri_environment_type,&
                                               lri_kind_type
    USE lri_ks_methods,                  ONLY: calculate_lri_ks_matrix
-   USE message_passing,                 ONLY: mp_sum
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
@@ -492,7 +491,7 @@ CONTAINS
                CALL integrate_v_rspace_one_center(v_rspace_new(ispin), qs_env, &
                                                   lri_v_int, .FALSE., "LRI_AUX")
                DO ikind = 1, nkind
-                  CALL mp_sum(lri_v_int(ikind)%v_int, para_env%group)
+                  CALL para_env%group%sum(lri_v_int(ikind)%v_int)
                END DO
                ALLOCATE (k1mat(1))
                k1mat(1)%matrix => p_env%kpp1_env%v_ao(ispin)%matrix

@@ -30,7 +30,6 @@ MODULE cp_ddapc_forces
                                               pi,&
                                               rootpi,&
                                               twopi
-   USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
    USE pw_spline_utils,                 ONLY: Eval_d_Interp_Spl3_pbc
    USE pw_types,                        ONLY: pw_type
@@ -219,7 +218,7 @@ CONTAINS
          END DO ! iparticle2
       END DO ! iparticle1
       !NB parallelization
-      CALL mp_sum(d_el, para_env%group)
+      CALL para_env%group%sum(d_el)
       M => qs_env%cp_ddapc_env%Md
       IF (apply_qmmm_periodic) M => qs_env%cp_ddapc_env%Mr
       CALL cp_decpl_ddapc_forces(qs_env, M, charges, dq, d_el, particle_set)
@@ -279,7 +278,7 @@ CONTAINS
          END DO
       END DO
       !NB now that get_ddapc returns dq that's spread over nodes, must reduce chf here
-      CALL mp_sum(chf, para_env%group)
+      CALL para_env%group%sum(chf)
       DO iatom = 1, natom
          ikind = kind_of(iatom)
          i = atom_of_kind(iatom)
@@ -435,7 +434,7 @@ CONTAINS
          END DO
       END DO
       !NB now that get_ddapc returns dq that's spread over nodes, must reduce chf here
-      CALL mp_sum(chf, para_env%group)
+      CALL para_env%group%sum(chf)
       DO iatom = 1, natom
          ikind = kind_of(iatom)
          i = atom_of_kind(iatom)

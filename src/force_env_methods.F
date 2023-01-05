@@ -95,8 +95,6 @@ MODULE force_env_methods
                                               dp
    USE machine,                         ONLY: m_memory
    USE mathlib,                         ONLY: abnormal_value
-   USE message_passing,                 ONLY: mp_sum,&
-                                              mp_sync
    USE metadynamics_types,              ONLY: meta_env_type
    USE mixed_cdft_methods,              ONLY: mixed_cdft_build_weight,&
                                               mixed_cdft_calculate_coupling,&
@@ -413,7 +411,7 @@ CONTAINS
       output_unit = cp_print_key_unit_nr(logger, force_env%force_env_section, "PRINT%PROGRAM_RUN_INFO", &
                                          extension=".Log")
       IF (atprop_env%energy) THEN
-         CALL mp_sum(atprop_env%atener, force_env%para_env%group)
+         CALL force_env%para_env%group%sum(atprop_env%atener)
          CALL force_env_get(force_env, potential_energy=e_pot)
          IF (output_unit > 0) THEN
             IF (logger%iter_info%print_level > low_print_level) THEN
@@ -469,7 +467,7 @@ CONTAINS
                                          extension=".Log")
 
       IF (atprop_env%stress) THEN
-         CALL mp_sum(atprop_env%atstress, force_env%para_env%group)
+         CALL force_env%para_env%group%sum(atprop_env%atstress)
          ! symmetrize (same as pv_virial)
          DO i = 1, SIZE(atprop_env%atstress, 3)
             atprop_env%atstress(:, :, i) = 0.5_dp*(atprop_env%atstress(:, :, i) &
@@ -1002,12 +1000,12 @@ CONTAINS
                                        glob_natoms, virials, results)
       END IF
       ! Handling Parallel execution
-      CALL mp_sync(force_env%para_env%group)
+      CALL force_env%para_env%group%sync()
       ! Post CDFT operations
       CALL mixed_cdft_post_energy_forces(force_env)
       ! Let's transfer energy, natom, forces, virials
-      CALL mp_sum(energies, force_env%para_env%group)
-      CALL mp_sum(glob_natoms, force_env%para_env%group)
+      CALL force_env%para_env%group%sum(energies)
+      CALL force_env%para_env%group%sum(glob_natoms)
       ! Transfer forces
       DO iforce_eval = 1, nforce_eval
          ALLOCATE (global_forces(iforce_eval)%forces(3, glob_natoms(iforce_eval)))
@@ -1021,21 +1019,21 @@ CONTAINS
                END DO
             END IF
          END IF
-         CALL mp_sum(global_forces(iforce_eval)%forces, force_env%para_env%group)
+         CALL force_env%para_env%group%sum(global_forces(iforce_eval)%forces)
          !Transfer only the relevant part of the virial..
-         CALL mp_sum(virials(iforce_eval)%virial%pv_total, force_env%para_env%group)
-         CALL mp_sum(virials(iforce_eval)%virial%pv_kinetic, force_env%para_env%group)
-         CALL mp_sum(virials(iforce_eval)%virial%pv_virial, force_env%para_env%group)
-         CALL mp_sum(virials(iforce_eval)%virial%pv_xc, force_env%para_env%group)
-         CALL mp_sum(virials(iforce_eval)%virial%pv_fock_4c, force_env%para_env%group)
-         CALL mp_sum(virials(iforce_eval)%virial%pv_constraint, force_env%para_env%group)
+         CALL force_env%para_env%group%sum(virials(iforce_eval)%virial%pv_total)
+         CALL force_env%para_env%group%sum(virials(iforce_eval)%virial%pv_kinetic)
+         CALL force_env%para_env%group%sum(virials(iforce_eval)%virial%pv_virial)
+         CALL force_env%para_env%group%sum(virials(iforce_eval)%virial%pv_xc)
+         CALL force_env%para_env%group%sum(virials(iforce_eval)%virial%pv_fock_4c)
+         CALL force_env%para_env%group%sum(virials(iforce_eval)%virial%pv_constraint)
          !Transfer results
          source = 0
          IF (ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) THEN
             IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%ionode) &
                source = force_env%para_env%mepos
          END IF
-         CALL mp_sum(source, force_env%para_env%group)
+         CALL force_env%para_env%group%sum(source)
          CALL cp_results_mp_bcast(results(iforce_eval)%results, source, force_env%para_env)
       END DO
 
@@ -1358,7 +1356,7 @@ CONTAINS
             IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%ionode) &
                force_env%mixed_env%strength(iforce_eval, :) = dft_control%qs_control%cdft_control%strength(:)
          END DO
-         CALL mp_sum(force_env%mixed_env%strength, force_env%para_env%group)
+         CALL force_env%para_env%group%sum(force_env%mixed_env%strength)
          ! Mixed CDFT: calculate ET coupling
          IF (force_env%mixed_env%do_mixed_et) THEN
             IF (MODULO(force_env%mixed_env%cdft_control%sim_step, force_env%mixed_env%et_freq) == 0) &
@@ -1519,10 +1517,10 @@ CONTAINS
       END DO
 
       ! Handling Parallel execution
-      CALL mp_sync(force_env%para_env%group)
+      CALL force_env%para_env%group%sync()
       ! Let's transfer energy, natom
-      CALL mp_sum(energies, force_env%para_env%group)
-      CALL mp_sum(glob_natoms, force_env%para_env%group)
+      CALL force_env%para_env%group%sum(energies)
+      CALL force_env%para_env%group%sum(glob_natoms)
 
       force_env%embed_env%energies = energies
 

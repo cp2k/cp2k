@@ -23,7 +23,6 @@ MODULE cp_result_methods
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_bcast
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -442,7 +441,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(results))
       nlist = 0
       IF (para_env%mepos == source) nlist = SIZE(results%result_value)
-      CALL mp_bcast(nlist, source, para_env%group)
+      CALL para_env%group%bcast(nlist, source)
 
       ALLOCATE (size_value(nlist))
       ALLOCATE (type_in_use(nlist))
@@ -452,8 +451,8 @@ CONTAINS
                            n_entries=size_value(i), type_in_use=type_in_use(i))
          END DO
       END IF
-      CALL mp_bcast(size_value, source, para_env%group)
-      CALL mp_bcast(type_in_use, source, para_env%group)
+      CALL para_env%group%bcast(size_value, source)
+      CALL para_env%group%bcast(type_in_use, source)
 
       IF (para_env%mepos /= source) THEN
          CALL cp_result_clean(results)
@@ -468,14 +467,14 @@ CONTAINS
          END DO
       END IF
       DO i = 1, nlist
-         CALL mp_bcast(results%result_label(i), source, para_env%group)
+         CALL para_env%group%bcast(results%result_label(i), source)
          SELECT CASE (results%result_value(i)%value%type_in_use)
          CASE (result_type_real)
-            CALL mp_bcast(results%result_value(i)%value%real_type, source, para_env%group)
+            CALL para_env%group%bcast(results%result_value(i)%value%real_type, source)
          CASE (result_type_integer)
-            CALL mp_bcast(results%result_value(i)%value%integer_type, source, para_env%group)
+            CALL para_env%group%bcast(results%result_value(i)%value%integer_type, source)
          CASE (result_type_logical)
-            CALL mp_bcast(results%result_value(i)%value%logical_type, source, para_env%group)
+            CALL para_env%group%bcast(results%result_value(i)%value%logical_type, source)
          CASE DEFAULT
             CPABORT("Type not implemented in cp_result_type")
          END SELECT

@@ -52,8 +52,6 @@ MODULE qs_tddfpt2_utils
                                               section_vals_val_get
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE message_passing,                 ONLY: mp_min,&
-                                              mp_sum
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -425,9 +423,9 @@ CONTAINS
          END DO
       END DO
 
-      CALL mp_sum(sum_sign_array, para_env%group)
-      CALL mp_min(minrow_neg_array, para_env%group)
-      CALL mp_min(minrow_pos_array, para_env%group)
+      CALL para_env%group%sum(sum_sign_array)
+      CALL para_env%group%min(minrow_neg_array)
+      CALL para_env%group%min(minrow_pos_array)
 
       DO icol_local = 1, nmo_occ
          IF (sum_sign_array(icol_local) > 0) THEN
@@ -507,9 +505,9 @@ CONTAINS
             END DO
          END DO
 
-         CALL mp_sum(sum_sign_array, para_env%group)
-         CALL mp_min(minrow_neg_array, para_env%group)
-         CALL mp_min(minrow_pos_array, para_env%group)
+         CALL para_env%group%sum(sum_sign_array)
+         CALL para_env%group%min(minrow_neg_array)
+         CALL para_env%group%min(minrow_pos_array)
          DO icol_local = 1, nmo_virt
             IF (sum_sign_array(icol_local) > 0) THEN
                ! most of the expansion coefficients are positive => MO's phase = +1

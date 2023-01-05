@@ -38,7 +38,6 @@ MODULE qs_cdft_methods
                                               section_vals_type
    USE kahan_sum,                       ONLY: accurate_dot_product
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -1248,9 +1247,9 @@ CONTAINS
          END IF
       END DO
       CALL get_qs_env(qs_env, energy=energy)
-      CALL mp_sum(dE, para_env%group)
+      CALL para_env%group%sum(dE)
       IF (cdft_control%atomic_charges) THEN
-         CALL mp_sum(electronic_charge, para_env%group)
+         CALL para_env%group%sum(electronic_charge)
       END IF
       ! Use fragment densities as reference value (= Becke deformation density)
       IF (cdft_control%fragment_density .AND. .NOT. cdft_control%fragments_integrated) THEN
@@ -1566,7 +1565,7 @@ CONTAINS
       END IF
 
       DO igroup = 1, SIZE(group)
-         CALL mp_sum(group(igroup)%integrated, para_env%group)
+         CALL para_env%group%sum(group(igroup)%integrated)
       END DO
 
       ! Update force only on master process. Otherwise force due to constraint becomes multiplied
@@ -1725,7 +1724,7 @@ CONTAINS
                                           accurate_dot_product(group(igroup)%weight%cr3d, rho_frag(i)%cr3d)*dvol
          END IF
       END DO
-      CALL mp_sum(cdft_control%target, para_env%group)
+      CALL para_env%group%sum(cdft_control%target)
       ! Calculate reference atomic charges int( w_i * rho_frag * dr )
       IF (cdft_control%atomic_charges) THEN
          ALLOCATE (cdft_control%charges_fragment(cdft_control%natoms, nfrag_spins))
@@ -1735,7 +1734,7 @@ CONTAINS
                   accurate_dot_product(cdft_control%charge(iatom)%cr3d, rho_frag(i)%cr3d)*dvol
             END DO
          END DO
-         CALL mp_sum(cdft_control%charges_fragment, para_env%group)
+         CALL para_env%group%sum(cdft_control%charges_fragment)
       END IF
       DO i = 1, nfrag_spins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_frag(i))

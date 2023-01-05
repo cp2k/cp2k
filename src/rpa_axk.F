@@ -293,7 +293,7 @@ CONTAINS
       CALL integrate_exchange(qs_env, dbcsr_Gamma_munu_P, mat_munu, para_env_sub, my_group_L_size, eps_filter, e_axk_corr, &
                               my_group_L_start, my_group_L_end)
 
-      !CALL mp_sum(e_axk_corr,para_env_RPA%group)
+      !CALL para_env_RPA%group%sum(e_axk_corr)
 
       ! Print AXK correlation energy to the file
       IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F25.14,A4)') 'AXK correlation energy for a quadrature point:', &

@@ -43,7 +43,6 @@ MODULE mao_wfn_analysis
                                               mao_reference_basis
    USE mao_optimizer,                   ONLY: mao_optimize
    USE mathlib,                         ONLY: invmat_symm
-   USE message_passing,                 ONLY: mp_sum
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -220,7 +219,7 @@ CONTAINS
       CALL neighbor_list_iterator_release(nl_iterator)
 
       CALL get_qs_env(qs_env=qs_env, para_env=para_env)
-      CALL mp_sum(fall, para_env%group)
+      CALL para_env%group%sum(fall)
       IF (unit_nr > 0 .AND. fall > 0) THEN
          WRITE (UNIT=unit_nr, FMT="(/,T2,A,/,T2,A,/)") &
             "Warning: Extended MAO basis used with original basis filtered density matrix", &
@@ -341,7 +340,7 @@ CONTAINS
             END IF
          END DO
       END DO
-      CALL mp_sum(occnumA, para_env%group)
+      CALL para_env%group%sum(occnumA)
 
       ! occupation numbers: atom pairs
       ALLOCATE (occnumAB(natom, natom, nspin))
@@ -360,7 +359,7 @@ CONTAINS
                CALL dbcsr_get_block_p(matrix=mao_qmat(ispin)%matrix, &
                                       row=ia, col=ib, block=block, found=found)
                IF (found) iab = 1
-               CALL mp_sum(iab, para_env%group)
+               CALL para_env%group%sum(iab)
                CPASSERT(iab <= 1)
                IF (iab == 0 .AND. para_env%ionode) THEN
                   ! AB block is not available N_AB = N_A + N_B
@@ -408,7 +407,7 @@ CONTAINS
          CALL dbcsr_release(qmat_diag)
          CALL dbcsr_release(smat_diag)
       END DO
-      CALL mp_sum(occnumAB, para_env%group)
+      CALL para_env%group%sum(occnumAB)
 
       ! calculate shared electron numbers (AB)
       ALLOCATE (selnAB(natom, natom, nspin))
@@ -459,12 +458,12 @@ CONTAINS
                                          block=block, found=found)
                   qmatab = 0.0_dp
                   IF (found) qmatab(1:na, 1:nb) = block(1:na, 1:nb)
-                  CALL mp_sum(qmatab, para_env%group)
+                  CALL para_env%group%sum(qmatab)
                   CALL dbcsr_get_block_p(matrix=mao_smat(ispin)%matrix, row=ia, col=ib, &
                                          block=block, found=found)
                   smatab = 0.0_dp
                   IF (found) smatab(1:na, 1:nb) = block(1:na, 1:nb)
-                  CALL mp_sum(smatab, para_env%group)
+                  CALL para_env%group%sum(smatab)
                   DO ic = ib + 1, natom
                      ! screen with SEN(AB)
                      IF ((selnAB(ia, ic, ispin) < eps_abc) .OR. (selnAB(ib, ic, ispin) < eps_abc)) THEN
@@ -481,23 +480,23 @@ CONTAINS
                                             block=block, found=found)
                      qmatac = 0.0_dp
                      IF (found) qmatac(1:na, 1:nc) = block(1:na, 1:nc)
-                     CALL mp_sum(qmatac, para_env%group)
+                     CALL para_env%group%sum(qmatac)
                      CALL dbcsr_get_block_p(matrix=mao_smat(ispin)%matrix, row=ia, col=ic, &
                                             block=block, found=found)
                      smatac = 0.0_dp
                      IF (found) smatac(1:na, 1:nc) = block(1:na, 1:nc)
-                     CALL mp_sum(smatac, para_env%group)
+                     CALL para_env%group%sum(smatac)
                      ALLOCATE (qmatbc(nb, nc), smatbc(nb, nc))
                      CALL dbcsr_get_block_p(matrix=mao_qmat(ispin)%matrix, row=ib, col=ic, &
                                             block=block, found=found)
                      qmatbc = 0.0_dp
                      IF (found) qmatbc(1:nb, 1:nc) = block(1:nb, 1:nc)
-                     CALL mp_sum(qmatbc, para_env%group)
+                     CALL para_env%group%sum(qmatbc)
                      CALL dbcsr_get_block_p(matrix=mao_smat(ispin)%matrix, row=ib, col=ic, &
                                             block=block, found=found)
                      smatbc = 0.0_dp
                      IF (found) smatbc(1:nb, 1:nc) = block(1:nb, 1:nc)
-                     CALL mp_sum(smatbc, para_env%group)
+                     CALL para_env%group%sum(smatbc)
                      !
                      nabc = na + nb + nc
                      ALLOCATE (sab(nabc, nabc), sinv(nabc, nabc), qab(nabc, nabc))
@@ -543,7 +542,7 @@ CONTAINS
             CALL dbcsr_release(qmat_diag)
             CALL dbcsr_release(smat_diag)
          END DO
-         CALL mp_sum(occnumABC, para_env%group)
+         CALL para_env%group%sum(occnumABC)
       END IF
 
       IF (.NOT. neglect_abc) THEN
@@ -642,7 +641,7 @@ CONTAINS
                CALL dbcsr_get_block_p(matrix=matrix_smo(1)%matrix, row=ia, col=ib, &
                                       block=block, found=found)
                IF (found) rowblock(ib)%mat(1:na, 1:nb) = block(1:na, 1:nb)
-               CALL mp_sum(rowblock(ib)%mat, para_env%group)
+               CALL para_env%group%sum(rowblock(ib)%mat)
             END DO
             !
             DO ispin = 1, nspin

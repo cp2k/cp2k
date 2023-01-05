@@ -62,7 +62,6 @@ MODULE xas_tdp_correction
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: complex_diag
-   USE message_passing,                 ONLY: mp_sum
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -619,7 +618,7 @@ CONTAINS
                CALL dbt_destroy(aj_Ib)
             END DO
 
-            CALL mp_sum(parts, para_env%group)
+            CALL para_env%group%sum(parts)
             s1 = parts(1); ds1 = parts(2)
             s2 = parts(3); ds2 = parts(4)
 
@@ -885,7 +884,7 @@ CONTAINS
 
                END DO
 
-               CALL mp_sum(parts, para_env%group)
+               CALL para_env%group%sum(parts)
                s1 = parts(1); ds1 = parts(2)
                s2 = parts(3); ds2 = parts(4)
 

@@ -37,10 +37,6 @@ MODULE mp2_direct_method
    USE libint_wrapper,                  ONLY: cp_libint_t
    USE machine,                         ONLY: m_flush
    USE mathconstants,                   ONLY: zero
-   USE message_passing,                 ONLY: mp_max,&
-                                              mp_sendrecv,&
-                                              mp_sum,&
-                                              mp_sync
    USE mp2_ri_libint,                   ONLY: prepare_integral_calc
    USE mp2_types,                       ONLY: init_TShPSC_lmax,&
                                               mp2_biel_type,&
@@ -269,9 +265,9 @@ CONTAINS
       DEALLOCATE (batch_sizes_tmp)
 
       max_batch_size = MAXVAL(batch_sizes)
-      CALL mp_max(max_batch_size, para_env%group)
+      CALL para_env%group%max(max_batch_size)
       max_batch_number = batch_number
-      CALL mp_max(max_batch_number, para_env%group)
+      CALL para_env%group%max(max_batch_number)
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A,T76,I5)') 'Maximum used batch size: ', max_batch_size
          WRITE (unit_nr, '(T3,A,T76,I5)') 'Number of integral recomputations: ', max_batch_number
@@ -285,7 +281,7 @@ CONTAINS
       virt_j = dimen - occ_j
       natom = SIZE(mp2_biel%index_table, 1)
 
-      CALL mp_sync(para_env%group)
+      CALL para_env%group%sync()
       Emp2 = zero
       Emp2_Cou = zero
       Emp2_ex = zero
@@ -346,9 +342,9 @@ CONTAINS
 
       END DO
 
-      CALL mp_sum(Emp2_Cou, para_env%group)
-      CALL mp_sum(Emp2_Ex, para_env%group)
-      CALL mp_sum(Emp2, para_env%group)
+      CALL para_env%group%sum(Emp2_Cou)
+      CALL para_env%group%sum(Emp2_Ex)
+      CALL para_env%group%sum(Emp2)
 
       CALL cp_para_env_release(para_env_sub)
 
@@ -552,7 +548,7 @@ CONTAINS
       END IF
 
       ij_elem_max = elements_ij_proc
-      CALL mp_max(ij_elem_max, para_env%group)
+      CALL para_env%group%max(ij_elem_max)
 
       ! calculate the minimum multiple of num_pe >= to Ni_occupied*occupied, in such a way
       ! that the i, j loop is performed exactly the same number of time for each procewssor
@@ -889,8 +885,8 @@ CONTAINS
          END DO !i_list_ij
 
          IF (case_index == 1) THEN
-            CALL mp_sum(task_counter_RS, para_env%group)
-            CALL mp_sum(cost_RS, para_env%group)
+            CALL para_env%group%sum(task_counter_RS)
+            CALL para_env%group%sum(cost_RS)
             ALLOCATE (task_counter_RS_temp(total_num_RS_task, 4))
 
             ALLOCATE (cost_RS_temp(total_num_RS_task))
@@ -986,7 +982,7 @@ CONTAINS
             IF (case_send_receive) THEN
                ! the processor starts to send (and receive?)
 
-               CALL mp_sendrecv(size_parameter_send, proc_send, size_parameter_rec, proc_receive, para_env%group)
+               CALL para_env%group%sendrecv(size_parameter_send, proc_send, size_parameter_rec, proc_receive)
 
                Rsize_rec = size_parameter_rec(1)
                Ssize_rec = size_parameter_rec(2)
@@ -1011,7 +1007,7 @@ CONTAINS
 
                   IF (case_send_receive) THEN
 
-                     CALL mp_sendrecv(zero_mat, proc_send, BIb_RS_mat_rec, proc_receive, para_env%group)
+                     CALL para_env%group%sendrecv(zero_mat, proc_send, BIb_RS_mat_rec, proc_receive)
 
                      index_ij_rec = index_ij_rec + 1
                      IF (index_ij_rec <= elements_ij_proc .AND. elements_ij_proc > 0) THEN
@@ -1033,7 +1029,7 @@ CONTAINS
 
                IF (case_send_receive) THEN
 
-                  CALL mp_sendrecv(zero_mat_big, proc_send, BIb_RS_mat_rec_big, proc_receive, para_env%group)
+                  CALL para_env%group%sendrecv(zero_mat_big, proc_send, BIb_RS_mat_rec_big, proc_receive)
 
                   BIb(1:dimen, R_offset_rec + 1:R_offset_rec + Rsize_rec, 1:elements_ij_proc) = &
                      BIb(1:dimen, R_offset_rec + 1:R_offset_rec + Rsize_rec, 1:elements_ij_proc) + &
@@ -1283,7 +1279,7 @@ CONTAINS
          IF (case_send_receive) THEN
             ! the processor starts to send (and receive?)
 
-            CALL mp_sendrecv(size_parameter_send, proc_send, size_parameter_rec, proc_receive, para_env%group)
+            CALL para_env%group%sendrecv(size_parameter_send, proc_send, size_parameter_rec, proc_receive)
 
             Rsize_rec = size_parameter_rec(1)
             Ssize_rec = size_parameter_rec(2)
@@ -1338,7 +1334,7 @@ CONTAINS
 
             IF (case_send_receive) THEN
 
-               CALL mp_sendrecv(BIb_RS_mat, proc_send, BIb_RS_mat_rec, proc_receive, para_env%group)
+               CALL para_env%group%sendrecv(BIb_RS_mat, proc_send, BIb_RS_mat_rec, proc_receive)
 
                index_ij_rec = index_ij_rec + 1
                IF (index_ij_rec <= elements_ij_proc .AND. elements_ij_proc > 0) THEN
@@ -1449,7 +1445,7 @@ CONTAINS
          IF (case_send_receive) THEN
             ! the processor starts to send (and receive?)
 
-            CALL mp_sendrecv(size_parameter_send, proc_send, size_parameter_rec, proc_receive, para_env%group)
+            CALL para_env%group%sendrecv(size_parameter_send, proc_send, size_parameter_rec, proc_receive)
 
             Rsize_rec = size_parameter_rec(1)
             Ssize_rec = size_parameter_rec(2)
@@ -1502,7 +1498,7 @@ CONTAINS
 
          IF (case_send_receive) THEN
 
-            CALL mp_sendrecv(BIb_RS_mat, proc_send, BIb_RS_mat_rec, proc_receive, para_env%group)
+            CALL para_env%group%sendrecv(BIb_RS_mat, proc_send, BIb_RS_mat_rec, proc_receive)
 
             BIb(1:dimen, R_offset_rec + 1:R_offset_rec + Rsize_rec, 1:elements_ij_proc) = &
                BIb(1:dimen, R_offset_rec + 1:R_offset_rec + Rsize_rec, 1:elements_ij_proc) + &

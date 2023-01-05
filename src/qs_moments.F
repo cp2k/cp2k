@@ -62,7 +62,6 @@ MODULE qs_moments
                                               kpoint_type
    USE mathconstants,                   ONLY: pi,&
                                               twopi
-   USE message_passing,                 ONLY: mp_sum
    USE moments_utils,                   ONLY: get_reference_point
    USE orbital_pointers,                ONLY: current_maxl,&
                                               indco,&
@@ -1935,7 +1934,7 @@ CONTAINS
             END DO
          END DO
       END DO
-      CALL mp_sum(rmom(:, 2), para_env%group)
+      CALL para_env%group%sum(rmom(:, 2))
       rmom(:, :) = -rmom(:, :)
       rmom(:, 3) = rmom(:, 1) + rmom(:, 2)
 

@@ -55,7 +55,7 @@ MODULE dbt_methods
    USE kinds, ONLY: &
       dp, default_string_length, int_8, dp
    USE message_passing, ONLY: &
-      mp_environ, mp_max, mp_sum, mp_comm_free, mp_cart_create, mp_sync
+      mp_environ, mp_cart_create
    USE util, ONLY: &
       sort
    USE dbt_reshape_ops, ONLY: &
@@ -122,7 +122,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                  :: unit_nr
       INTEGER :: handle
 
-      CALL mp_sync(tensor_in%pgrid%mp_comm_2d)
+      CALL tensor_in%pgrid%mp_comm_2d%sync()
       CALL timeset("dbt_total", handle)
 
       ! make sure that it is safe to use dbt_copy during a batched contraction
@@ -130,7 +130,7 @@ CONTAINS
       CALL dbt_tas_batched_mm_complete(tensor_out%matrix_rep, warn=.TRUE.)
 
       CALL dbt_copy_expert(tensor_in, tensor_out, order, summation, bounds, move_data, unit_nr)
-      CALL mp_sync(tensor_in%pgrid%mp_comm_2d)
+      CALL tensor_in%pgrid%mp_comm_2d%sync()
       CALL timestop(handle)
    END SUBROUTINE
 
@@ -531,7 +531,7 @@ CONTAINS
 
       INTEGER                     :: handle
 
-      CALL mp_sync(tensor_1%pgrid%mp_comm_2d)
+      CALL tensor_1%pgrid%mp_comm_2d%sync()
       CALL timeset("dbt_total", handle)
       CALL dbt_contract_expert(alpha, tensor_1, tensor_2, beta, tensor_3, &
                                contract_1, notcontract_1, &
@@ -550,7 +550,7 @@ CONTAINS
                                retain_sparsity=retain_sparsity, &
                                unit_nr=unit_nr, &
                                log_verbose=log_verbose)
-      CALL mp_sync(tensor_1%pgrid%mp_comm_2d)
+      CALL tensor_1%pgrid%mp_comm_2d%sync()
       CALL timestop(handle)
 
    END SUBROUTINE
@@ -708,9 +708,9 @@ CONTAINS
       ! tensor consecutively to save memory
       mp_comm = tensor_crop_1%pgrid%mp_comm_2d
       occ_1 = dbt_get_num_blocks(tensor_crop_1)
-      CALL mp_max(occ_1, mp_comm)
+      CALL mp_comm%max(occ_1)
       occ_2 = dbt_get_num_blocks(tensor_crop_2)
-      CALL mp_max(occ_2, mp_comm)
+      CALL mp_comm%max(occ_2)
 
       IF (occ_1 == 0 .OR. occ_2 == 0) THEN
          CALL dbt_scale(tensor_3, beta)
@@ -1258,7 +1258,7 @@ CONTAINS
             ALLOCATE (tensor1_out)
             CALL dbt_remap(tensor1, ind1_linked, ind1_free, tensor1_out, comm_2d=comm_2d, &
                            nodata=nodata1, move_data=move_data_1)
-            CALL mp_comm_free(comm_2d)
+            CALL comm_2d%free()
             compat1 = 1
          ELSE
             IF (unit_nr_prv > 0) WRITE (unit_nr_prv, '(T2,A,1X,A)') "No redistribution of", TRIM(tensor1%name)
@@ -1301,7 +1301,7 @@ CONTAINS
             comm_2d = dbt_tas_mp_comm(tensor2%pgrid%mp_comm_2d, nblkrows, nblkcols)
             ALLOCATE (tensor2_out)
             CALL dbt_remap(tensor2, ind2_linked, ind2_free, tensor2_out, nodata=nodata2, move_data=move_data_2)
-            CALL mp_comm_free(comm_2d)
+            CALL comm_2d%free()
             compat2 = 1
          ELSE
             IF (unit_nr_prv > 0) WRITE (unit_nr_prv, '(T2,A,1X,A)') "No redistribution of", TRIM(tensor2%name)
@@ -1987,7 +1987,7 @@ CONTAINS
       LOGICAL :: do_write
       INTEGER :: unit_nr_prv, handle
 
-      CALL mp_sync(tensor%pgrid%mp_comm_2d)
+      CALL tensor%pgrid%mp_comm_2d%sync()
       CALL timeset("dbt_total", handle)
       unit_nr_prv = prep_output_unit(unit_nr)
 
@@ -2011,7 +2011,7 @@ CONTAINS
 
       CALL destroy_array_list(tensor%contraction_storage%batch_ranges)
       DEALLOCATE (tensor%contraction_storage)
-      CALL mp_sync(tensor%pgrid%mp_comm_2d)
+      CALL tensor%pgrid%mp_comm_2d%sync()
       CALL timestop(handle)
 
    END SUBROUTINE

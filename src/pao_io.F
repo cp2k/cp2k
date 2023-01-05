@@ -36,9 +36,6 @@ MODULE pao_io
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_max,&
-                                              mp_sum
    USE pao_input,                       ONLY: id2str
    USE pao_param,                       ONLY: pao_param_count
    USE pao_types,                       ONLY: pao_env_type
@@ -160,7 +157,7 @@ CONTAINS
             CPASSERT(col_blk_sizes(iatom) == SIZE(xblocks(iatom)%p, 2))
             buffer = xblocks(iatom)%p
          END IF
-         CALL mp_bcast(buffer, para_env%source, para_env%group)
+         CALL para_env%group%bcast(buffer, para_env%source)
          CALL dbcsr_get_block_p(matrix=pao%matrix_X, row=iatom, col=iatom, block=block_X, found=found)
          IF (ASSOCIATED(block_X)) &
             block_X = buffer
@@ -416,7 +413,7 @@ CONTAINS
 
       ! although just rank-0 writes the trajectory it requires collective MPI calls
       unit_max = unit_nr
-      CALL mp_max(unit_max, para_env%group)
+      CALL para_env%group%max(unit_max)
       IF (unit_max > 0) THEN
          IF (pao%iw > 0) WRITE (pao%iw, '(A,A)') " PAO| Writing restart file."
          IF (unit_nr > 0) &
@@ -467,7 +464,7 @@ CONTAINS
             mpi_buffer(:, :) = 0.0_dp
          END IF
 
-         CALL mp_sum(mpi_buffer, para_env%group)
+         CALL para_env%group%sum(mpi_buffer)
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, fmt="(A,1X,I10,1X)", advance='no') label, iatom
             WRITE (unit_nr, *) mpi_buffer

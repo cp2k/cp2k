@@ -55,7 +55,6 @@ MODULE rpa_util
                                               kpoint_release,&
                                               kpoint_type
    USE mathconstants,                   ONLY: z_zero
-   USE message_passing,                 ONLY: mp_sum
    USE mp2_laplace,                     ONLY: calc_fm_mat_S_laplace
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -918,7 +917,7 @@ CONTAINS
             END IF
          END DO
       END DO
-      CALL mp_sum(trace_Qomega, para_env_RPA%group)
+      CALL para_env_RPA%group%sum(trace_Qomega)
 
       CALL timestop(handle)
 
@@ -985,7 +984,7 @@ CONTAINS
             END IF
          END DO
       END DO
-      CALL mp_sum(Q_log, para_env_RPA%group)
+      CALL para_env_RPA%group%sum(Q_log)
 
       ! the following frequency integration is Eq. (27) in M. Del Ben et al., JCTC 9, 2654 (2013)
       ! (https://doi.org/10.1021/ct4002202)

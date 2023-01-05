@@ -29,8 +29,7 @@ MODULE pexsi_types
                                               dbcsr_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_dims_create,&
-                                              mp_environ
+                                              mp_dims_create
    USE pexsi_interface,                 ONLY: cp_pexsi_get_options,&
                                               cp_pexsi_options,&
                                               cp_pexsi_plan_finalize,&
@@ -142,7 +141,7 @@ CONTAINS
       CALL cite_reference(Lin2013)
 
       pexsi_env%mp_group = mp_group
-      CALL mp_environ(numnodes, mynode, pexsi_env%mp_group)
+      CALL pexsi_env%mp_group%environ(numnodes, mynode)
 
       ! Use all nodes available per pole by default or if the user tries to use
       ! more nodes than MPI size
@@ -272,7 +271,7 @@ CONTAINS
                                                             muInertiaTolerance, muMax0, muMin0, &
                                                             muPEXSISafeGuard, temperature
 
-      CALL mp_environ(numnodes, mynode, pexsi_env%mp_group)
+      CALL pexsi_env%mp_group%environ(numnodes, mynode)
 
       CALL cp_pexsi_get_options(pexsi_env%options, temperature=temperature, gap=gap, &
                                 numPole=numPole, muMin0=muMin0, muMax0=muMax0, muInertiaTolerance= &

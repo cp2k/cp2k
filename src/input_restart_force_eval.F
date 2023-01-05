@@ -46,7 +46,6 @@ MODULE input_restart_force_eval
                                               val_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_sum
    USE molecule_kind_types,             ONLY: get_molecule_kind
    USE molecule_list_types,             ONLY: molecule_list_type
    USE molecule_types,                  ONLY: get_molecule,&
@@ -268,7 +267,7 @@ CONTAINS
             END DO
          END DO
 
-         CALL mp_sum(ascii, para_env%group)
+         CALL para_env%group%sum(ascii)
 
          CALL section_rng_val_set(rng_section=rng_section, nsize=nparticle, ascii=ascii)
 

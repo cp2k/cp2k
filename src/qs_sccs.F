@@ -60,8 +60,6 @@ MODULE qs_sccs
                                               int_8
    USE mathconstants,                   ONLY: fourpi,&
                                               twopi
-   USE message_passing,                 ONLY: mp_max,&
-                                              mp_sum
    USE particle_list_types,             ONLY: particle_list_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -291,7 +289,7 @@ CONTAINS
             CALL pw_axpy(rho_pw_r(ispin), rho_elec)
          END DO
          tot_rho_elec = accurate_sum(rho_elec%cr3d)*dvol
-         CALL mp_sum(tot_rho_elec, para_env%group)
+         CALL para_env%group%sum(tot_rho_elec)
 
          ! Calculate the dielectric (smoothed) function of rho_elec in r-space
          CALL pw_pool_create_pw(auxbas_pw_pool, &
@@ -373,7 +371,7 @@ CONTAINS
                END DO
 !$OMP    END PARALLEL DO
                cavity_volume = accurate_sum(theta%cr3d)*dvol
-               CALL mp_sum(cavity_volume, para_env%group)
+               CALL para_env%group%sum(cavity_volume)
 
                ! Calculate the derivative of the electronic density in r-space
                ! TODO: Could be retrieved from the QS environment
@@ -451,7 +449,7 @@ CONTAINS
                   CPABORT("Invalid method specified for SCCS model")
                END SELECT
                cavity_surface = accurate_sum(theta%cr3d)*dvol
-               CALL mp_sum(cavity_surface, para_env%group)
+               CALL para_env%group%sum(cavity_surface)
 
                ! Release storage
                CALL pw_pool_give_back_pw(auxbas_pw_pool, theta)
@@ -476,7 +474,7 @@ CONTAINS
          CALL pw_zero(rho_solute)
          CALL pw_transfer(rho_tot_gspace, rho_solute)
          tot_rho_solute = accurate_sum(rho_solute%cr3d)*dvol
-         CALL mp_sum(tot_rho_solute, para_env%group)
+         CALL para_env%group%sum(tot_rho_solute)
 
          ! Check total charge
          IF (ABS(tot_rho_solute) >= 1.0E-6_dp) THEN
@@ -634,9 +632,9 @@ CONTAINS
             END DO
 !$OMP    END PARALLEL DO
 
-            CALL mp_sum(rho_delta_avg, para_env%group)
+            CALL para_env%group%sum(rho_delta_avg)
             rho_delta_avg = rho_delta_avg/REAL(ngpts, KIND=dp)
-            CALL mp_max(rho_delta_max, para_env%group)
+            CALL para_env%group%max(rho_delta_max)
 
             IF (should_output .AND. (output_unit > 0)) THEN
                IF (print_level > low_print_level) THEN
@@ -766,7 +764,7 @@ CONTAINS
          ! rho_pol = rho_tot - rho_solute
          CALL pw_axpy(rho_solute, rho_tot, alpha=-1.0_dp)
          polarisation_charge = accurate_sum(rho_tot%cr3d)*dvol
-         CALL mp_sum(polarisation_charge, para_env%group)
+         CALL para_env%group%sum(polarisation_charge)
 
          ! Optional output of the SCCS polarisation charge in cube file format
          filename = "POLARISATION_CHARGE_DENSITY"

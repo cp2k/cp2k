@@ -31,7 +31,6 @@ MODULE dbt_tas_test
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE message_passing,                 ONLY: mp_cart_create,&
-                                              mp_comm_free,&
                                               mp_comm_type,&
                                               mp_environ
 #include "../../base/base_uses.f90"
@@ -116,7 +115,7 @@ CONTAINS
          mp_comm_out = dbt_tas_mp_comm(mp_comm, nrows, ncols)
       END IF
 
-      CALL mp_environ(numnodes, mynode, mp_comm_out)
+      CALL mp_comm_out%environ(numnodes, mynode)
       CALL mp_environ(numnodes, pdims, pcoord, mp_comm_out)
 
       row_dist_obj = dbt_tas_dist_cyclic(dist_splitsize(1), pdims(1), nrows)
@@ -299,7 +298,7 @@ CONTAINS
          CALL dbm_distribution_release(dist_b)
          CALL dbm_distribution_release(dist_c)
 
-         CALL mp_comm_free(comm_dbm)
+         CALL comm_dbm%free()
       END IF
 
    END SUBROUTINE
@@ -344,7 +343,7 @@ CONTAINS
 !
 
       CALL dbt_tas_get_split_info(dbt_tas_info(matrix_a), mp_comm=mp_comm)
-      CALL mp_environ(numnodes, mynode, mp_comm)
+      CALL mp_comm%environ(numnodes, mynode)
       abort = .FALSE.
       io_unit = -1
       IF (mynode .EQ. 0) io_unit = unit_nr
@@ -462,7 +461,7 @@ CONTAINS
       CALL dbm_distribution_release(dist_b)
       CALL dbm_distribution_release(dist_c)
 
-      CALL mp_comm_free(comm_dbm)
+      CALL comm_dbm%free()
 
    END SUBROUTINE dbt_tas_test_mm
 

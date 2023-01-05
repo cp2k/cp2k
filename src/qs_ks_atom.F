@@ -26,7 +26,6 @@ MODULE qs_ks_atom
                                               int_8
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
-   USE message_passing,                 ONLY: mp_bcast
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
@@ -253,8 +252,8 @@ CONTAINS
                DO iat = bo(1), bo(2)
                   iatom = atom_list(iat)
                   DO ispin = 1, nspins
-                     CALL mp_bcast(my_rho_atom(iatom)%cpc_h(ispin)%r_coef, ip, para_env%group)
-                     CALL mp_bcast(my_rho_atom(iatom)%cpc_s(ispin)%r_coef, ip, para_env%group)
+                     CALL para_env%group%bcast(my_rho_atom(iatom)%cpc_h(ispin)%r_coef, ip)
+                     CALL para_env%group%bcast(my_rho_atom(iatom)%cpc_s(ispin)%r_coef, ip)
                   END DO
                END DO
             END DO

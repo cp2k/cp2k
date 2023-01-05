@@ -43,7 +43,7 @@ MODULE ewalds_multipole
                             oorootpi, &
                             pi, &
                             sqrthalf
-   USE message_passing, ONLY: mp_sum, mp_comm_type
+   USE message_passing, ONLY: mp_comm_type
    USE parallel_rng_types, ONLY: UNIFORM, &
                                  rng_stream_type
    USE particle_types, ONLY: particle_type
@@ -291,9 +291,9 @@ CONTAINS
       energy_glob_t = energy_glob
       e_rspace_t = e_rspace
       e_bonded_t = e_bonded
-      CALL mp_sum(energy_glob_t, group)
-      CALL mp_sum(e_rspace_t, group)
-      CALL mp_sum(e_bonded_t, group)
+      CALL group%sum(energy_glob_t)
+      CALL group%sum(e_rspace_t)
+      CALL group%sum(e_bonded_t)
       ! Print some info about energetics
       CALL ewald_multipole_print(iw, energy_local, e_rspace_t, e_bonded_t, e_self, e_neut)
 
@@ -301,19 +301,19 @@ CONTAINS
       IF (do_efield) THEN
          IF (PRESENT(efield0)) THEN
             efield0 = efield0_sr + efield0_lr
-            CALL mp_sum(efield0, group)
+            CALL group%sum(efield0)
             DEALLOCATE (efield0_sr)
             DEALLOCATE (efield0_lr)
          END IF
          IF (PRESENT(efield1)) THEN
             efield1 = efield1_sr + efield1_lr
-            CALL mp_sum(efield1, group)
+            CALL group%sum(efield1)
             DEALLOCATE (efield1_sr)
             DEALLOCATE (efield1_lr)
          END IF
          IF (PRESENT(efield2)) THEN
             efield2 = efield2_sr + efield2_lr
-            CALL mp_sum(efield2, group)
+            CALL group%sum(efield2)
             DEALLOCATE (efield2_sr)
             DEALLOCATE (efield2_lr)
          END IF
@@ -775,11 +775,11 @@ CONTAINS
             END DO
          END DO
       END DO
-      CALL mp_sum(q_t, group)
-      CALL mp_sum(dipole_t, group)
-      CALL mp_sum(trq_t, group)
-      CALL mp_sum(summe_ef, group)
-      IF (do_stress) CALL mp_sum(summe_st, group)
+      CALL group%sum(q_t)
+      CALL group%sum(dipole_t)
+      CALL group%sum(trq_t)
+      CALL group%sum(summe_ef)
+      IF (do_stress) CALL group%sum(summe_st)
 
       ! Looping over the positive g-vectors
       DO gpt = 1, pw_grid%ngpts_cut_local
@@ -1192,12 +1192,12 @@ CONTAINS
          END DO
       END DO
 
-      CALL mp_sum(q_neutg, group)
-      CALL mp_sum(q_self, group)
-      CALL mp_sum(q_sum, group)
-      CALL mp_sum(dipole_self, group)
-      CALL mp_sum(ch_qu_self, group)
-      CALL mp_sum(qu_qu_self, group)
+      CALL group%sum(q_neutg)
+      CALL group%sum(q_self)
+      CALL group%sum(q_sum)
+      CALL group%sum(dipole_self)
+      CALL group%sum(ch_qu_self)
+      CALL group%sum(qu_qu_self)
 
       e_self = -(q_self + f23*(dipole_self - f23*ch_qu_self + f415*qu_qu_self*alpha**2)*alpha**2)*alpha*oorootpi
       fac1 = pi/(2.0_dp*cell%deth)

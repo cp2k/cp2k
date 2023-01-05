@@ -81,8 +81,6 @@ MODULE colvar_methods
                                               twopi
    USE mathlib,                         ONLY: vector_product
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_sum,&
-                                              mp_sync
    USE mixed_energy_types,              ONLY: mixed_force_type
    USE mixed_environment_utils,         ONLY: get_subsys_map_index
    USE molecule_kind_types,             ONLY: fixd_constraint_type
@@ -2212,8 +2210,8 @@ CONTAINS
             END DO
 
             ! Handling Parallel execution
-            CALL mp_sync(force_env%para_env%group)
-            CALL mp_sum(glob_natoms, force_env%para_env%group)
+            CALL force_env%para_env%group%sync()
+            CALL force_env%para_env%group%sum(glob_natoms)
 
             ! Transfer forces
             DO iforce_eval = 1, nforce_eval
@@ -2228,7 +2226,7 @@ CONTAINS
                      END DO
                   END IF
                END IF
-               CALL mp_sum(global_forces(iforce_eval)%forces, force_env%para_env%group)
+               CALL force_env%para_env%group%sum(global_forces(iforce_eval)%forces)
             END DO
 
             wrk_section => colvar%u_param%mixed_energy_section

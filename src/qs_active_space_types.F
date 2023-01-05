@@ -301,7 +301,7 @@ CONTAINS
 !>      04.2016 created [JGH]
 ! **************************************************************************************************
    FUNCTION get_irange_csr(nindex, mp_group) RESULT(irange)
-      USE message_passing, ONLY: mp_environ, mp_comm_type
+      USE message_passing, ONLY: mp_comm_type
       INTEGER, INTENT(IN)                                :: nindex
       TYPE(mp_comm_type), INTENT(IN)                     :: mp_group
       INTEGER, DIMENSION(2)                              :: irange
@@ -309,7 +309,7 @@ CONTAINS
       INTEGER                                            :: numtask, taskid
       REAL(KIND=dp)                                      :: rat
 
-      CALL mp_environ(numtask, taskid, mp_group)
+      CALL mp_group%environ(numtask, taskid)
 
       IF (numtask == 1 .AND. taskid == 0) THEN
          irange(1) = 1
@@ -344,7 +344,6 @@ CONTAINS
 !> \note Calls MPI, must be executed on all ranks.
 ! **************************************************************************************************
    SUBROUTINE eri_type_eri_foreach(this, nspin, active_orbitals, fobj, spin1, spin2)
-      USE message_passing, ONLY: mp_sum, mp_sync
       CLASS(eri_type), INTENT(in)              :: this
       CLASS(eri_type_eri_element_func)         :: fobj
       INTEGER, DIMENSION(:, :), INTENT(IN)     :: active_orbitals
@@ -389,10 +388,10 @@ CONTAINS
                   nindex = 0
                END IF
 
-               CALL mp_sum(nindex, mp_group)
-               CALL mp_sum(colind(1:nindex), mp_group)
-               CALL mp_sum(erival(1:nindex), mp_group)
-               CALL mp_sync(mp_group)
+               CALL mp_group%sum(nindex)
+               CALL mp_group%sum(colind(1:nindex))
+               CALL mp_group%sum(erival(1:nindex))
+               CALL mp_group%sync()
 
                DO i34l = 1, nindex
                   i34 = colind(i34l)

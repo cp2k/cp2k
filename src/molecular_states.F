@@ -42,8 +42,6 @@ MODULE molecular_states
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_maxloc
    USE molecule_types,                  ONLY: molecule_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
@@ -209,7 +207,7 @@ CONTAINS
          END IF
          nstates(2) = para_env%mepos
 
-         CALL mp_maxloc(nstates, para_env%group)
+         CALL para_env%group%maxloc(nstates)
 
          IF (nstates(1) == 0) CYCLE
          NULLIFY (states)
@@ -221,7 +219,7 @@ CONTAINS
             states(:) = molecule_set(imol)%lmi(ispin)%states(:)
          END IF
          !!BCAST from here root = iproc
-         CALL mp_bcast(states, iproc, para_env%group)
+         CALL para_env%group%bcast(states, iproc)
 
          ns = nstates(1)
          ind => states(:)

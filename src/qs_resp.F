@@ -59,11 +59,7 @@ MODULE qs_resp
    USE machine,                         ONLY: m_flush
    USE mathconstants,                   ONLY: pi
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_irecv,&
-                                              mp_isend,&
-                                              mp_request_type,&
-                                              mp_sum,&
-                                              mp_wait
+   USE message_passing,                 ONLY: mp_request_type
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE periodic_table,                  ONLY: get_ptable_info
@@ -889,9 +885,9 @@ CONTAINS
       END DO
 
       resp_env%npoints = resp_env%npoints_proc
-      CALL mp_sum(resp_env%npoints, v_hartree_pw%pw_grid%para%group)
-      CALL mp_sum(matrix, v_hartree_pw%pw_grid%para%group)
-      CALL mp_sum(rhs, v_hartree_pw%pw_grid%para%group)
+      CALL v_hartree_pw%pw_grid%para%group%sum(resp_env%npoints)
+      CALL v_hartree_pw%pw_grid%para%group%sum(matrix)
+      CALL v_hartree_pw%pw_grid%para%group%sum(rhs)
       !weighted sum
       matrix = matrix/resp_env%npoints
       rhs = rhs/resp_env%npoints
@@ -1000,8 +996,8 @@ CONTAINS
          CALL calculate_rhs(qs_env, resp_env, resp_env%rhs(i), vpot(:, i))
       END DO
 
-      CALL mp_sum(resp_env%matrix, para_env%group)
-      CALL mp_sum(resp_env%rhs, para_env%group)
+      CALL para_env%group%sum(resp_env%matrix)
+      CALL para_env%group%sum(resp_env%rhs)
       !weighted sum
       resp_env%matrix = resp_env%matrix/resp_env%npoints
       resp_env%rhs = resp_env%rhs/resp_env%npoints
@@ -1012,8 +1008,8 @@ CONTAINS
          DO i = 1, natom
             resp_env%sum_vpot(i) = 2.0_dp*accurate_sum(vpot(:, i))/resp_env%npoints
          END DO
-         CALL mp_sum(resp_env%sum_vpot, para_env%group)
-         CALL mp_sum(resp_env%sum_vhartree, para_env%group)
+         CALL para_env%group%sum(resp_env%sum_vpot)
+         CALL para_env%group%sum(resp_env%sum_vhartree)
          resp_env%sum_vhartree = 2.0_dp*resp_env%sum_vhartree/resp_env%npoints
       END IF
 
@@ -1162,7 +1158,7 @@ CONTAINS
       END DO
 
       resp_env%npoints = resp_env%npoints_proc
-      CALL mp_sum(resp_env%npoints, para_env%group)
+      CALL para_env%group%sum(resp_env%npoints)
 
       DEALLOCATE (dist)
       DEALLOCATE (not_in_range)
@@ -1312,16 +1308,16 @@ CONTAINS
             my_pos = para_env%mepos
             DO i = 1, para_env%num_pe
                IF (my_pos == i - 1) CYCLE
-               CALL mp_irecv(msgout=tmp_size, source=i - 1, comm=para_env%group, &
-                             request=req(1))
-               CALL mp_wait(req(1))
+               CALL para_env%group%irecv(msgout=tmp_size, source=i - 1, &
+                                         request=req(1))
+               CALL req(1)%wait()
                ALLOCATE (tmp_points(3, tmp_size(1)))
-               CALL mp_irecv(msgout=tmp_points, source=i - 1, comm=para_env%group, &
-                             request=req(3))
-               CALL mp_wait(req(3))
-               CALL mp_irecv(msgout=tmp_npoints, source=i - 1, comm=para_env%group, &
-                             request=req(5))
-               CALL mp_wait(req(5))
+               CALL para_env%group%irecv(msgout=tmp_points, source=i - 1, &
+                                         request=req(3))
+               CALL req(3)%wait()
+               CALL para_env%group%irecv(msgout=tmp_npoints, source=i - 1, &
+                                         request=req(5))
+               CALL req(5)%wait()
                DO ip = 1, tmp_npoints(1)
                   jx = tmp_points(1, ip)
                   jy = tmp_points(2, ip)
@@ -1340,16 +1336,16 @@ CONTAINS
          ELSE
             tmp_size(1) = SIZE(resp_env%fitpoints, 2)
             !para_env%source should be 0
-            CALL mp_isend(msgin=tmp_size, dest=para_env%source, comm=para_env%group, &
-                          request=req(2))
-            CALL mp_wait(req(2))
-            CALL mp_isend(msgin=resp_env%fitpoints, dest=para_env%source, comm=para_env%group, &
-                          request=req(4))
-            CALL mp_wait(req(4))
+            CALL para_env%group%isend(msgin=tmp_size, dest=para_env%source, &
+                                      request=req(2))
+            CALL req(2)%wait()
+            CALL para_env%group%isend(msgin=resp_env%fitpoints, dest=para_env%source, &
+                                      request=req(4))
+            CALL req(4)%wait()
             tmp_npoints(1) = resp_env%npoints_proc
-            CALL mp_isend(msgin=tmp_npoints, dest=para_env%source, comm=para_env%group, &
-                          request=req(6))
-            CALL mp_wait(req(6))
+            CALL para_env%group%isend(msgin=tmp_npoints, dest=para_env%source, &
+                                      request=req(6))
+            CALL req(6)%wait()
          END IF
 
          DEALLOCATE (tmp_size)
@@ -1800,8 +1796,8 @@ CONTAINS
                                 v_resp_rspace%cr3d(jx, jy, jz))**2
          sum_hartree = sum_hartree + v_hartree_rspace%cr3d(jx, jy, jz)**2
       END DO
-      CALL mp_sum(sum_diff, para_env%group)
-      CALL mp_sum(sum_hartree, para_env%group)
+      CALL para_env%group%sum(sum_diff)
+      CALL para_env%group%sum(sum_hartree)
       rms = SQRT(sum_diff/resp_env%npoints)
       rrms = SQRT(sum_diff/sum_hartree)
       IF (output_runinfo > 0) THEN

@@ -31,7 +31,6 @@ MODULE mp2_eri_gpw
    USE kinds,                           ONLY: dp
    USE libint_2c_3c,                    ONLY: libint_potential_type
    USE mathconstants,                   ONLY: fourpi
-   USE message_passing,                 ONLY: mp_sum
    USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
    USE pw_env_methods,                  ONLY: pw_env_create,&
@@ -341,7 +340,7 @@ CONTAINS
 
       END DO
 
-      CALL mp_sum(L_local_col, para_env_sub%group)
+      CALL para_env_sub%group%sum(L_local_col)
 
       CALL cleanup_gpw(qs_env, e_cutoff_old, cutoff_old, relative_cutoff_old, para_env_sub, pw_env_sub, &
                        task_list_sub, auxbas_pw_pool, rho_r, rho_g, pot_g, psi_L)

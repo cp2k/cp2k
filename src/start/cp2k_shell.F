@@ -59,7 +59,6 @@ MODULE cp2k_shell
                                               m_getlog,&
                                               m_getpid,&
                                               m_hostnm
-   USE message_passing,                 ONLY: mp_bcast
    USE physcon,                         ONLY: angstrom,&
                                               evolt
    USE string_utilities,                ONLY: uppercase
@@ -199,9 +198,9 @@ CONTAINS
             success = .FALSE. ! EOF
          END IF
       END IF
-      CALL mp_bcast(success, shell%para_env%source, shell%para_env%group)
+      CALL shell%para_env%group%bcast(success, shell%para_env%source)
       IF (.NOT. success) RETURN
-      CALL mp_bcast(line, shell%para_env%source, shell%para_env%group)
+      CALL shell%para_env%group%bcast(line, shell%para_env%source)
 
       ! extract command
       line = TRIM(line)
@@ -579,7 +578,7 @@ CONTAINS
          CALL uppercase(line)
          IF (.NOT. my_assert(TRIM(line) == '*END', 'missing *END', shell)) RETURN
       END IF
-      CALL mp_bcast(pos, shell%para_env%source, shell%para_env%group)
+      CALL shell%para_env%group%bcast(pos, shell%para_env%source)
       CALL get_pos(shell%env_id, old_pos, n_el=3*n_atom, ierr=ierr)
       IF (.NOT. my_assert(ierr == 0, 'get_pos error', shell)) RETURN
       CALL set_pos(shell%env_id, new_pos=pos, n_el=3*n_atom, ierr=ierr)
@@ -613,7 +612,7 @@ CONTAINS
          IF (.NOT. my_assert(iostat == 0, 'setcell read failed', shell)) RETURN
          cell(:, :) = cell(:, :)/shell%pos_fact
       END IF
-      CALL mp_bcast(cell, shell%para_env%source, shell%para_env%group)
+      CALL shell%para_env%group%bcast(cell, shell%para_env%source)
       CALL set_cell(shell%env_id, new_cell=cell, ierr=ierr)
       IF (.NOT. my_assert(ierr == 0, 'set_cell failed', shell)) RETURN
    END SUBROUTINE set_cell_command

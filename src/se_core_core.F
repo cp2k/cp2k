@@ -28,7 +28,6 @@ MODULE se_core_core
         do_method_am1, do_method_mndo, do_method_mndod, do_method_pdg, do_method_pm3, &
         do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rm1
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -253,7 +252,7 @@ CONTAINS
          DEALLOCATE (atom_of_kind)
       END IF
 
-      CALL mp_sum(enuclear, para_env%group)
+      CALL para_env%group%sum(enuclear)
       energy%core_overlap = enuclear
       energy%core_overlap0 = enuclear
 

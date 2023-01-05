@@ -48,7 +48,6 @@ MODULE xas_tp_scf
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
-   USE message_passing,                 ONLY: mp_sync
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE preconditioner,                  ONLY: make_preconditioner
@@ -369,12 +368,12 @@ CONTAINS
          CALL m_flush(output_unit)
       END IF
 
-      CALL mp_sync(para_env%group)
+      CALL para_env%group%sync()
       CALL qs_ks_did_change(ks_env, rho_changed=.TRUE.)
 
       CALL cls_prepare_states(xas_control, xas_env, qs_env, iatom, xas_section, output_unit)
 
-      CALL mp_sync(para_env%group)
+      CALL para_env%group%sync()
 
       CALL cp_print_key_finished_output(output_unit, logger, xas_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
@@ -558,7 +557,7 @@ CONTAINS
          !
       END IF
 
-      CALL mp_sync(para_env%group)
+      CALL para_env%group%sync()
       !Calculate the virtual states from the KS matrix matrix_ks(1)
       IF (nvirtual2 .GT. 0) THEN
          NULLIFY (mo_coeff)
@@ -599,7 +598,7 @@ CONTAINS
          DEALLOCATE (local_preconditioner)
       END IF
 
-      CALL mp_sync(para_env%group)
+      CALL para_env%group%sync()
       ! Prapare arrays for the calculation of the spectrum
       IF (.NOT. xas_control%xas_method == xas_dscf) THEN
          ! Copy the final vectors in the array

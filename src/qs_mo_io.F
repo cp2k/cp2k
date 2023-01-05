@@ -59,8 +59,7 @@ MODULE qs_mo_io
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE orbital_pointers,                ONLY: indco,&
                                               nco,&
                                               nso
@@ -546,7 +545,7 @@ CONTAINS
 
       IF (PRESENT(natom_mismatch)) THEN
          ! read_mos_restart_low only the io_node returns natom_mismatch, must broadcast it
-         CALL mp_bcast(natom_mismatch, source, group)
+         CALL group%bcast(natom_mismatch, source)
          IF (natom_mismatch) THEN
             IF (para_env%ionode) CALL close_file(unit_number=restart_unit)
             CALL timestop(handle)
@@ -751,7 +750,7 @@ CONTAINS
       END IF ! ionode
 
       ! make natom_match and natom_mismatch uniform across all nodes
-      CALL mp_bcast(natom_match, source, group)
+      CALL group%bcast(natom_match, source)
       IF (PRESENT(natom_mismatch)) natom_mismatch = .NOT. natom_match
       ! handle natom_match false
       IF (.NOT. natom_match) THEN
@@ -764,7 +763,7 @@ CONTAINS
          END IF
       END IF
 
-      CALL mp_bcast(nspin_read, source, group)
+      CALL group%bcast(nspin_read, source)
 
       ALLOCATE (vecbuffer(1, nao))
 
@@ -814,13 +813,13 @@ CONTAINS
             END IF
          END IF
 
-         CALL mp_bcast(nmo, source, group)
-         CALL mp_bcast(mos(ispin)%homo, source, group)
-         CALL mp_bcast(mos(ispin)%lfomo, source, group)
-         CALL mp_bcast(mos(ispin)%nelectron, source, group)
-         CALL mp_bcast(mos(ispin)%eigenvalues, source, group)
-         CALL mp_bcast(mos(ispin)%uniform_occupation, source, group)
-         CALL mp_bcast(mos(ispin)%occupation_numbers, source, group)
+         CALL group%bcast(nmo, source)
+         CALL group%bcast(mos(ispin)%homo, source)
+         CALL group%bcast(mos(ispin)%lfomo, source)
+         CALL group%bcast(mos(ispin)%nelectron, source)
+         CALL group%bcast(mos(ispin)%eigenvalues, source)
+         CALL group%bcast(mos(ispin)%uniform_occupation, source)
+         CALL group%bcast(mos(ispin)%occupation_numbers, source)
          IF (PRESENT(rt_mos)) THEN
             DO imat = 2*ispin - 1, 2*ispin
                DO i = 1, nmo
@@ -829,7 +828,7 @@ CONTAINS
                   ELSE
                      vecbuffer(1, :) = 0.0_dp
                   END IF
-                  CALL mp_bcast(vecbuffer, source, group)
+                  CALL group%bcast(vecbuffer, source)
                   CALL cp_fm_set_submatrix(rt_mos(imat), &
                                            vecbuffer, 1, i, nao, 1, transpose=.TRUE.)
                END DO
@@ -913,7 +912,7 @@ CONTAINS
 
                END IF
 
-               CALL mp_bcast(vecbuffer, source, group)
+               CALL group%bcast(vecbuffer, source)
                CALL cp_fm_set_submatrix(mos(ispin)%mo_coeff, &
                                         vecbuffer, 1, i, nao, 1, transpose=.TRUE.)
             END DO

@@ -19,7 +19,6 @@ MODULE qs_gcp_method
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: kcalmol
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -245,11 +244,11 @@ CONTAINS
       CALL neighbor_list_iterator_release(nl_iterator)
 
       ! set gCP energy
-      CALL mp_sum(egcp, para_env%group)
+      CALL para_env%group%sum(egcp)
       energy = egcp
       IF (verbose) THEN
-         CALL mp_sum(egcpat, para_env%group)
-         CALL mp_sum(ngcpat, para_env%group)
+         CALL para_env%group%sum(egcpat)
+         CALL para_env%group%sum(ngcpat)
       END IF
 
       IF (unit_nr > 0) THEN
@@ -272,7 +271,7 @@ CONTAINS
             ikind = kind_of(iatom)
             atom_a = atom_of_kind(iatom)
             fdij(1:3) = force(ikind)%gcp(:, atom_a)
-            CALL mp_sum(fdij, para_env%group)
+            CALL para_env%group%sum(fdij)
             gnorm = gnorm + SUM(ABS(fdij))
             IF (unit_nr > 0) WRITE (unit_nr, "(i5,i7,3F20.14)") iatom, ikind, fdij
          END DO
@@ -283,7 +282,7 @@ CONTAINS
          END IF
          IF (use_virial) THEN
             dvirial = virial%pv_virial - dvirial
-            CALL mp_sum(dvirial, para_env%group)
+            CALL para_env%group%sum(dvirial)
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, *) " Stress Tensor (gCP)"
                WRITE (unit_nr, "(3G20.12)") dvirial

@@ -34,7 +34,6 @@ MODULE pw_methods
    USE kahan_sum,                       ONLY: accurate_sum
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_memory
-   USE message_passing,                 ONLY: mp_sum
    USE pw_copy_all,                     ONLY: pw_copy_match
    USE pw_fpga,                         ONLY: pw_fpga_c1dr3d_3d_dp,&
                                               pw_fpga_c1dr3d_3d_sp,&
@@ -2271,7 +2270,7 @@ CONTAINS
       END IF
 
       IF (pw1%pw_grid%para%mode == PW_MODE_DISTRIBUTED) &
-         CALL mp_sum(integral_value, pw1%pw_grid%para%group)
+         CALL pw1%pw_grid%para%group%sum(integral_value)
       CALL timestop(handle)
 
    END FUNCTION pw_integral_ab
@@ -2317,7 +2316,7 @@ CONTAINS
       END IF
 
       IF (pw1%pw_grid%para%mode == PW_MODE_DISTRIBUTED) &
-         CALL mp_sum(integral_value, pw1%pw_grid%para%group)
+         CALL pw1%pw_grid%para%group%sum(integral_value)
       CALL timestop(handle)
 
    END FUNCTION pw_integral_a2b
@@ -2418,7 +2417,7 @@ CONTAINS
          CPABORT("No space defined")
       END IF
       IF (fun%pw_grid%para%mode /= PW_MODE_LOCAL) THEN
-         CALL mp_sum(total_fun, fun%pw_grid%para%group)
+         CALL fun%pw_grid%para%group%sum(total_fun)
       END IF
       IF (PRESENT(isign)) THEN
          total_fun = total_fun*SIGN(1._dp, REAL(isign, dp))

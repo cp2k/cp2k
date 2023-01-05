@@ -1345,7 +1345,7 @@ CONTAINS
 
       ! Create a dbcsr mp environment from communicator
       CALL mp_environ(numnodes, npdims, mycoord, mp_comm)
-      CALL mp_environ(numnodes, mynode, mp_comm)
+      CALL mp_comm%environ(numnodes, mynode)
       ALLOCATE (pgrid(0:npdims(1) - 1, 0:npdims(2) - 1))
       DO prow = 0, npdims(1) - 1
          DO pcol = 0, npdims(2) - 1

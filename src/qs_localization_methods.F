@@ -58,12 +58,6 @@ MODULE qs_localization_methods
                                               twopi
    USE matrix_exp,                      ONLY: exp_pade_real,&
                                               get_nsquare_norder
-   USE message_passing,                 ONLY: mp_allgather,&
-                                              mp_bcast,&
-                                              mp_max,&
-                                              mp_sendrecv,&
-                                              mp_sum,&
-                                              mp_sync
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_mo_methods,                   ONLY: make_basis_simple
 #include "./base/base_uses.f90"
@@ -156,7 +150,7 @@ CONTAINS
                f2 = f2 + SQRT(C%local_data(i, p)**2 + f2_eps)
             END DO
          END DO
-         CALL mp_sum(f2, C%matrix_struct%para_env%group)
+         CALL C%matrix_struct%para_env%group%sum(f2)
          !write(*,*) 'qs_localize: f_2=',f2
          !-------------------------------------------------------------------
          ! compute the derivative of f_2
@@ -237,7 +231,7 @@ CONTAINS
       !         ENDIF
       !      ENDDO
       !   ENDDO
-      !   CALL mp_sum(gnorm,C%matrix_struct%para_env%group)
+      !   CALL C%matrix_struct%para_env%group%sum(gnorm)
       !   IF(output_unit.GT.0) THEN
       !      WRITE(output_unit,*) 'qs_localize: ratio2=',gnorm / ( REAL(k,KIND=dp)*REAL(n,KIND=dp) ),thresh(i)
       !   ENDIF
@@ -970,7 +964,7 @@ CONTAINS
             !WRITE(*,*) 'spread_ii', spread_ii
             sum_spread(istate) = spread_ii
          END DO
-         CALL mp_sum(spread_ii, c_zij(1)%matrix%matrix_struct%para_env%group)
+         CALL c_zij(1)%matrix%matrix_struct%para_env%group%sum(spread_ii)
          spread_sum = accurate_sum(sum_spread)
 
          IF (nextra > 0) THEN
@@ -1556,7 +1550,7 @@ CONTAINS
             tolerance = MAX(ABS(grad_ij), tolerance)
          END DO
       END DO
-      CALL mp_max(tolerance, zij(1, 1)%matrix_struct%para_env%group)
+      CALL zij(1, 1)%matrix_struct%para_env%group%max(tolerance)
 
       DEALLOCATE (diag)
 
@@ -2278,8 +2272,8 @@ CONTAINS
                   END DO
                END DO
             END IF
-            CALL mp_bcast(z_ij_loc_re, ip, para_env%group)
-            CALL mp_bcast(z_ij_loc_im, ip, para_env%group)
+            CALL para_env%group%bcast(z_ij_loc_re, ip)
+            CALL para_env%group%bcast(z_ij_loc_im, ip)
             CALL cp_fm_set_submatrix(zij(1, idim), z_ij_loc_re, 1, ns_bound(ip, 1), nstate, nblock)
             CALL cp_fm_set_submatrix(zij(2, idim), z_ij_loc_im, 1, ns_bound(ip, 1), nstate, nblock)
          END DO ! ip
@@ -2297,7 +2291,7 @@ CONTAINS
                END DO
             END DO
          END IF
-         CALL mp_bcast(z_ij_loc_re, ip, para_env%group)
+         CALL para_env%group%bcast(z_ij_loc_re, ip)
          CALL cp_fm_set_submatrix(rmat, z_ij_loc_re, 1, ns_bound(ip, 1), nstate, nblock)
       END DO
 
@@ -2308,7 +2302,7 @@ CONTAINS
       END DO
       DEALLOCATE (cz_ij_loc)
 
-      CALL mp_sync(para_env%group)
+      CALL para_env%group%sync()
       CALL rotate_orbitals(rmat, vectors)
       CALL cp_fm_release(rmat)
 
@@ -2412,7 +2406,7 @@ CONTAINS
                END DO
             END DO
          END IF
-         CALL mp_bcast(z_ij_loc_re, ip, para_env%group)
+         CALL para_env%group%bcast(z_ij_loc_re, ip)
          CALL cp_cfm_set_submatrix(rmat, CMPLX(z_ij_loc_re, 0.0_dp, dp), 1, ns_bound(ip, 1), nstate, nblock)
       END DO
 
@@ -2422,7 +2416,7 @@ CONTAINS
       END DO
       DEALLOCATE (cz_ij_loc)
 
-      CALL mp_sync(para_env%group)
+      CALL para_env%group%sync()
 
       DEALLOCATE (rotmat)
       DEALLOCATE (ns_bound)
@@ -2591,8 +2585,8 @@ CONTAINS
                   END DO
                END DO
 
-               CALL mp_sendrecv(msgin=c_array_me, dest=ip_partner, &
-                                msgout=c_array_partner, source=ip_partner, comm=para_env%group)
+               CALL para_env%group%sendrecv(msgin=c_array_me, dest=ip_partner, &
+                                            msgout=c_array_partner, source=ip_partner)
 
                n1 = ns_me
                n2 = ns_partner
@@ -2660,8 +2654,8 @@ CONTAINS
                END DO
 
                k = nblock_max + 1
-               CALL mp_sendrecv(rotmat(1:nstate, 1:ns_me), ip_partner, &
-                                rotmat(1:nstate, k:k + n2 - 1), ip_partner, para_env%group)
+               CALL para_env%group%sendrecv(rotmat(1:nstate, 1:ns_me), ip_partner, &
+                                            rotmat(1:nstate, k:k + n2 - 1), ip_partner)
 
                IF (ilow1 < ilow2) THEN
                   ! no longer compiles in official sdgb:
@@ -2746,7 +2740,7 @@ CONTAINS
             END IF
 
             ! collect data from all tasks (this takes some significant time)
-            CALL mp_allgather(rmat_send, rmat_recv_all, para_env%group)
+            CALL para_env%group%allgather(rmat_send, rmat_recv_all)
 
             ! update blocks everywhere
             DO ip = 0, para_env%num_pe - 1
@@ -2843,7 +2837,7 @@ CONTAINS
                rdispl(ip) = rdispl(ip - 1) + rcount(ip - 1)
             END DO
             ! collect all the diagonal elements in a replicated 1d array
-            CALL mp_allgather(zdiag_me(idim)%c_array, zdiag_all(idim)%c_array, rcount, rdispl, para_env%group)
+            CALL para_env%group%allgatherv(zdiag_me(idim)%c_array, zdiag_all(idim)%c_array, rcount, rdispl)
          END DO
 
          gmax = 0.0_dp
@@ -2870,7 +2864,7 @@ CONTAINS
             END DO
          END DO
 
-         CALL mp_max(gmax, para_env%group)
+         CALL para_env%group%max(gmax)
          tolerance = gmax
          IF (PRESENT(tol_out)) tol_out = tolerance
 
@@ -2883,7 +2877,7 @@ CONTAINS
                func = func + weights(idim)*(1.0_dp - (zr*zr + zc*zc))/twopi/twopi
             END DO
          END DO
-         CALL mp_sum(func, para_env%group)
+         CALL para_env%group%sum(func)
          t2 = m_walltime()
 
          IF (output_unit > 0 .AND. MODULO(sweeps, out_each) == 0) THEN

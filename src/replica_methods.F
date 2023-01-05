@@ -51,8 +51,7 @@ MODULE replica_methods
    USE message_passing,                 ONLY: mp_cart_create,&
                                               mp_cart_sub,&
                                               mp_comm_null,&
-                                              mp_comm_type,&
-                                              mp_sum
+                                              mp_comm_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
@@ -151,7 +150,7 @@ CONTAINS
       ALLOCATE (gridinfo(2, 0:para_env%num_pe - 1))
       gridinfo = 0
       gridinfo(:, para_env%mepos) = pos
-      CALL mp_sum(gridinfo, para_env%group)
+      CALL para_env%group%sum(gridinfo)
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, FMT="(T2,A,T71,I10)") "REPLICA| layout of the replica grid, number of groups ", para_env_inter_rep%num_pe
          WRITE (unit_nr, FMT="(T2,A,T71,I10)") "REPLICA| layout of the replica grid, size of each group", para_env_f%num_pe
@@ -183,10 +182,10 @@ CONTAINS
                    rep_env%force_rank(0:para_env_f%num_pe - 1))
          rep_env%inter_rep_rank = 0
          rep_env%inter_rep_rank(rep_env%my_rep_group) = para_env_inter_rep%mepos
-         CALL mp_sum(rep_env%inter_rep_rank, para_env_inter_rep%group)
+         CALL para_env_inter_rep%group%sum(rep_env%inter_rep_rank)
          rep_env%force_rank = 0
          rep_env%force_rank(cart%mepos(forcedim)) = para_env_f%mepos
-         CALL mp_sum(rep_env%force_rank, para_env_f%group)
+         CALL para_env_f%group%sum(rep_env%force_rank)
 
          CALL section_vals_val_get(input, "GLOBAL%PROJECT_NAME", &
                                    c_val=input_file_path)

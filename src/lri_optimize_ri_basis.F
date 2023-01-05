@@ -58,7 +58,6 @@ MODULE lri_optimize_ri_basis
                                               lri_opt_type,&
                                               orthonormalize_gcc
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
    USE powell,                          ONLY: opt_state_type,&
                                               powell_optimize
@@ -800,7 +799,7 @@ CONTAINS
             CALL neighbor_list_iterator_release(nl_iterator)
 
          END DO
-         CALL mp_sum(fobj, para_env%group)
+         CALL para_env%group%sum(fobj)
 
       END IF
 

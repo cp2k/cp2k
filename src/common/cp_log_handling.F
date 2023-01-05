@@ -52,7 +52,6 @@ MODULE cp_log_handling
    USE machine,                         ONLY: default_output_unit,&
                                               m_getpid,&
                                               m_hostnm
-   USE message_passing,                 ONLY: mp_comm_free
    USE string_utilities,                ONLY: compress
    USE timings,                         ONLY: print_stack
 #include "../base/base_uses.f90"
@@ -689,7 +688,7 @@ CONTAINS
          para_env%ref_count = para_env%ref_count - 1
          IF (para_env%ref_count < 1) THEN
             IF (para_env%owns_group) THEN
-               CALL mp_comm_free(para_env%group)
+               CALL para_env%group%free()
             END IF
             DEALLOCATE (para_env)
          END IF

@@ -75,7 +75,6 @@ MODULE qs_loc_methods
    USE machine,                         ONLY: m_flush
    USE mathconstants,                   ONLY: twopi
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_sum
    USE motion_utils,                    ONLY: get_output_format
    USE orbital_pointers,                ONLY: ncoset
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -1426,7 +1425,7 @@ CONTAINS
          DEALLOCATE (moments)
       END DO
 
-      CALL mp_sum(moment_set, para_env%group)
+      CALL para_env%group%sum(moment_set)
 
       IF (output_unit_sm > 0) THEN
          WRITE (UNIT=output_unit_sm, FMT='(A,T13,A,I1)') "#", &
@@ -1578,7 +1577,7 @@ CONTAINS
          DEALLOCATE (moments)
       END DO
 
-      CALL mp_sum(moment_set, para_env%group)
+      CALL para_env%group%sum(moment_set)
 
       IF (output_unit_sm > 0) THEN
          WRITE (UNIT=output_unit_sm, FMT='(A,T13,A,I1)') "#", &

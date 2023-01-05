@@ -51,8 +51,7 @@ MODULE rt_propagation_output
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE machine,                         ONLY: m_flush
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_max
+   USE message_passing,                 ONLY: mp_comm_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
@@ -324,8 +323,8 @@ CONTAINS
          END DO
          CALL cp_fm_release(overlap_re)
       END DO
-      CALL mp_max(max_alpha, mos_new(1)%matrix_struct%para_env%group)
-      CALL mp_max(max_beta, mos_new(1)%matrix_struct%para_env%group)
+      CALL mos_new(1)%matrix_struct%para_env%group%max(max_alpha)
+      CALL mos_new(1)%matrix_struct%para_env%group%max(max_beta)
       orthonormality = max_alpha
 
       CALL timestop(handle)
@@ -437,7 +436,7 @@ CONTAINS
 
       END DO
 
-      CALL mp_max(max_alpha, delta_mos(1)%matrix_struct%para_env%group)
+      CALL delta_mos(1)%matrix_struct%para_env%group%max(max_alpha)
       delta_eps = SQRT(max_alpha)
 
       CALL timestop(handle)
@@ -507,7 +506,7 @@ CONTAINS
       END DO
       CALL dbcsr_get_info(delta_P(1)%matrix, group=group_handle)
       CALL group%set_handle(group_handle)
-      CALL mp_max(max_alpha, group)
+      CALL group%max(max_alpha)
       delta_eps = SQRT(max_alpha)
       CALL dbcsr_deallocate_matrix(tmp)
       CALL timestop(handle)

@@ -97,9 +97,8 @@ MODULE f77_interface
                                               m_getcwd,&
                                               m_memory
    USE message_passing,                 ONLY: &
-        add_mp_perf_env, get_mp_perf_env, mp_comm_type, mp_comm_world, mp_environ, mp_max, &
-        mp_perf_env_release, mp_perf_env_retain, mp_perf_env_type, mp_world_finalize, &
-        mp_world_init, rm_mp_perf_env
+        add_mp_perf_env, get_mp_perf_env, mp_comm_type, mp_comm_world, mp_perf_env_release, &
+        mp_perf_env_retain, mp_perf_env_type, mp_world_finalize, mp_world_init, rm_mp_perf_env
    USE metadynamics_types,              ONLY: meta_env_type
    USE metadynamics_utils,              ONLY: metadyn_read
    USE mixed_environment_types,         ONLY: mixed_environment_type
@@ -264,7 +263,7 @@ CONTAINS
 
          ! Select active offload device when available.
          IF (offload_get_device_count() > 0) THEN
-            CALL mp_environ(numtask=numtask, taskid=taskid, group=mpi_comm_default)
+            CALL mpi_comm_default%environ(numtask=numtask, taskid=taskid)
             CALL offload_set_chosen_device(MOD(taskid, offload_get_device_count()))
          END IF
 
@@ -906,7 +905,7 @@ CONTAINS
       DEALLOCATE (i_force_eval)
       timer_env => get_timer_env()
       mp_perf_env => get_mp_perf_env()
-      CALL mp_max(last_f_env_id, para_env%group)
+      CALL para_env%group%max(last_f_env_id)
       last_f_env_id = last_f_env_id + 1
       new_env_id = last_f_env_id
       n_f_envs = n_f_envs + 1

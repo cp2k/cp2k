@@ -23,9 +23,7 @@ MODULE cp_cfm_basic_linalg
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: z_one,&
                                               z_zero
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_prod,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_comm_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -428,7 +426,7 @@ CONTAINS
             icol = icol + 1
          END IF
       END DO
-      CALL mp_prod(determinant, matrix_a%matrix_struct%para_env%group)
+      CALL matrix_a%matrix_struct%para_env%group%prod(determinant)
 #else
       lda = SIZE(a, 1)
       CALL zgetrf(nrow_global, nrow_global, a(1, 1), lda, ipivot, info)
@@ -716,7 +714,7 @@ CONTAINS
                icol = icol + 1
             END IF
          END DO
-         CALL mp_prod(determinant, matrix_a%matrix_struct%para_env%group)
+         CALL matrix_a%matrix_struct%para_env%group%prod(determinant)
       END IF
 
       CALL pzgetrs("N", nrow_global, nrow_global, a(1, 1), 1, 1, desca, &
@@ -975,7 +973,7 @@ CONTAINS
       trace = accurate_dot_product(matrix_a%local_data(1:nrow_local, 1:ncol_local), &
                                    matrix_b%local_data(1:nrow_local, 1:ncol_local))
 
-      CALL mp_sum(trace, group)
+      CALL group%sum(trace)
 
       CALL timestop(handle)
 

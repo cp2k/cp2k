@@ -41,8 +41,6 @@ MODULE qmmm_image_charge
                                               dp
    USE mathconstants,                   ONLY: pi
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_sum
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_integral_ab,&
@@ -435,7 +433,7 @@ CONTAINS
 
       END DO
 
-      CALL mp_sum(int_res, para_env%group)
+      CALL para_env%group%sum(int_res)
 
       DEALLOCATE (hab, cores)
 
@@ -559,7 +557,7 @@ CONTAINS
 
       END DO
 
-      CALL mp_sum(forces, para_env%group)
+      CALL para_env%group%sum(forces)
 
       DEALLOCATE (hab, pab, cores)
 
@@ -853,7 +851,7 @@ CONTAINS
       END DO
 
       CALL cp_eri_mme_update_local_counts(param, para_env, G_count_2c=G_count, R_count_2c=R_count)
-      CALL mp_sum(hab, para_env%group)
+      CALL para_env%group%sum(hab)
       CALL timestop(handle)
 
    END SUBROUTINE integrate_s_mme
@@ -1093,7 +1091,7 @@ CONTAINS
             READ (rst_unit) qs_env%image_matrix
          END IF
 
-         CALL mp_bcast(qs_env%image_matrix, para_env%source, para_env%group)
+         CALL para_env%group%bcast(qs_env%image_matrix, para_env%source)
 
          IF (para_env%ionode) CALL close_file(unit_number=rst_unit)
 

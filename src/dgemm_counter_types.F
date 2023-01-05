@@ -15,7 +15,6 @@ MODULE dgemm_counter_types
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
-   USE message_passing,                 ONLY: mp_sum
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -108,7 +107,7 @@ CONTAINS
 
       dgemm_counter%flop_rate = dgemm_counter%flop_rate/REAL(MAX(dgemm_counter%num_dgemm_call, 1), dp)/1.0E9_dp
       ! Average over all ranks
-      CALL mp_sum(dgemm_counter%flop_rate, para_env%group)
+      CALL para_env%group%sum(dgemm_counter%flop_rate)
       dgemm_counter%flop_rate = dgemm_counter%flop_rate/(REAL(para_env%num_pe, dp)*REAL(para_env%num_pe, dp))
       IF (dgemm_counter%unit_nr > 0) WRITE (UNIT=dgemm_counter%unit_nr, FMT="(T3,A,T66,F15.2)") &
          "PERFORMANCE| Average DGEMM flop rate (Gflops / MPI rank):", dgemm_counter%flop_rate

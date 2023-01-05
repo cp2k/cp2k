@@ -22,7 +22,6 @@ MODULE hartree_local_methods
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi,&
                                               pi
-   USE message_passing,                 ONLY: mp_sum
    USE orbital_pointers,                ONLY: indso,&
                                               nsoset
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -427,7 +426,7 @@ CONTAINS
          END IF ! paw
       END DO ! ikind
 
-      CALL mp_sum(energy_hartree_1c, para_env%group)
+      CALL para_env%group%sum(energy_hartree_1c)
 
       CALL timestop(handle)
 

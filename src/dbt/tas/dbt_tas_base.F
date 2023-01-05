@@ -41,8 +41,7 @@ MODULE dbt_tas_base
                                               int_8
    USE message_passing,                 ONLY: mp_cart_rank,&
                                               mp_comm_type,&
-                                              mp_environ,&
-                                              mp_sum
+                                              mp_environ
 #include "../../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -933,7 +932,7 @@ CONTAINS
 
       info = dbt_tas_info(matrix)
       num_blocks = dbt_tas_get_num_blocks(matrix)
-      CALL mp_sum(num_blocks, info%mp_comm)
+      CALL info%mp_comm%sum(num_blocks)
 
    END FUNCTION
 
@@ -965,7 +964,7 @@ CONTAINS
 
       dbt_tas_get_nze_total = dbt_tas_get_nze(matrix)
       info = dbt_tas_info(matrix)
-      CALL mp_sum(dbt_tas_get_nze_total, info%mp_comm)
+      CALL info%mp_comm%sum(dbt_tas_get_nze_total)
    END FUNCTION
 
 ! **************************************************************************************************

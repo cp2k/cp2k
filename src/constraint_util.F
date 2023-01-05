@@ -15,8 +15,7 @@ MODULE constraint_util
    USE colvar_methods,                  ONLY: colvar_eval_mol_f
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_comm_type
    USE molecule_kind_types,             ONLY: colvar_constraint_type,&
                                               fixd_constraint_type,&
                                               g3x3_constraint_type,&
@@ -251,7 +250,7 @@ CONTAINS
          CALL pv_constraint_low(ng3x3, ng4x6, g3x3_list, g4x6_list, colv_list, &
                                 1, lg3x3, lg4x6, lcolv, particle_set, pv)
       END IF
-      CALL mp_sum(pv, group)
+      CALL group%sum(pv)
       ! Symmetrize PV
       pv(1, 2) = 0.5_dp*(pv(1, 2) + pv(2, 1))
       pv(2, 1) = pv(1, 2)
@@ -639,10 +638,10 @@ CONTAINS
          OPTIONAL                                        :: pos, vel
 
       IF (PRESENT(pos)) THEN
-         CALL mp_sum(pos, group)
+         CALL group%sum(pos)
       END IF
       IF (PRESENT(vel)) THEN
-         CALL mp_sum(vel, group)
+         CALL group%sum(vel)
       END IF
    END SUBROUTINE update_temporary_set
 

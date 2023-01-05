@@ -83,8 +83,6 @@ MODULE environment
    USE message_passing,                 ONLY: add_mp_perf_env,&
                                               describe_mp_perf_env,&
                                               mp_collect_timings,&
-                                              mp_max,&
-                                              mp_sum,&
                                               rm_mp_perf_env
    USE orbital_pointers,                ONLY: deallocate_orbital_pointers,&
                                               init_orbital_pointers
@@ -249,11 +247,11 @@ CONTAINS
       all_pid(:) = 0
       all_pid(para_env%mepos + 1) = r_pid
 
-      CALL mp_sum(all_pid, para_env%group)
+      CALL para_env%group%sum(all_pid)
       ALLOCATE (all_host(30, para_env%num_pe))
       all_host(:, :) = 0
       CALL string_to_ascii(r_host_name, all_host(:, para_env%mepos + 1))
-      CALL mp_sum(all_host, para_env%group)
+      CALL para_env%group%sum(all_host)
       IF (output_unit > 0) THEN
 
          WRITE (UNIT=output_unit, FMT="(T2,A)") ""
@@ -289,7 +287,7 @@ CONTAINS
 
       IF (m_procrun(r_pid) .EQ. 1) THEN
          CALL string_to_ascii(r_host_name, all_host(:, para_env%mepos + 1))
-         CALL mp_sum(all_host, para_env%group)
+         CALL para_env%group%sum(all_host)
       END IF
 
       IF (output_unit > 0) THEN
@@ -646,13 +644,13 @@ CONTAINS
       Slab_avr = Slab
       SReclaimable_avr = SReclaimable
       MemLikelyFree_avr = MemLikelyFree
-      CALL mp_sum(MemTotal_avr, para_env%group); MemTotal_avr = MemTotal_avr/para_env%num_pe/1024
-      CALL mp_sum(MemFree_avr, para_env%group); MemFree_avr = MemFree_avr/para_env%num_pe/1024
-      CALL mp_sum(Buffers_avr, para_env%group); Buffers_avr = Buffers_avr/para_env%num_pe/1024
-      CALL mp_sum(Cached_avr, para_env%group); Cached_avr = Cached_avr/para_env%num_pe/1024
-      CALL mp_sum(Slab_avr, para_env%group); Slab_avr = Slab_avr/para_env%num_pe/1024
-      CALL mp_sum(SReclaimable_avr, para_env%group); SReclaimable_avr = SReclaimable_avr/para_env%num_pe/1024
-      CALL mp_sum(MemLikelyFree_avr, para_env%group); MemLikelyFree_avr = MemLikelyFree_avr/para_env%num_pe/1024
+      CALL para_env%group%sum(MemTotal_avr); MemTotal_avr = MemTotal_avr/para_env%num_pe/1024
+      CALL para_env%group%sum(MemFree_avr); MemFree_avr = MemFree_avr/para_env%num_pe/1024
+      CALL para_env%group%sum(Buffers_avr); Buffers_avr = Buffers_avr/para_env%num_pe/1024
+      CALL para_env%group%sum(Cached_avr); Cached_avr = Cached_avr/para_env%num_pe/1024
+      CALL para_env%group%sum(Slab_avr); Slab_avr = Slab_avr/para_env%num_pe/1024
+      CALL para_env%group%sum(SReclaimable_avr); SReclaimable_avr = SReclaimable_avr/para_env%num_pe/1024
+      CALL para_env%group%sum(MemLikelyFree_avr); MemLikelyFree_avr = MemLikelyFree_avr/para_env%num_pe/1024
 
       MemTotal_min = -MemTotal
       MemFree_min = -MemFree
@@ -661,13 +659,13 @@ CONTAINS
       Slab_min = -Slab
       SReclaimable_min = -SReclaimable
       MemLikelyFree_min = -MemLikelyFree
-      CALL mp_max(MemTotal_min, para_env%group); MemTotal_min = -MemTotal_min/1024
-      CALL mp_max(MemFree_min, para_env%group); MemFree_min = -MemFree_min/1024
-      CALL mp_max(Buffers_min, para_env%group); Buffers_min = -Buffers_min/1024
-      CALL mp_max(Cached_min, para_env%group); Cached_min = -Cached_min/1024
-      CALL mp_max(Slab_min, para_env%group); Slab_min = -Slab_min/1024
-      CALL mp_max(SReclaimable_min, para_env%group); SReclaimable_min = -SReclaimable_min/1024
-      CALL mp_max(MemLikelyFree_min, para_env%group); MemLikelyFree_min = -MemLikelyFree_min/1024
+      CALL para_env%group%max(MemTotal_min); MemTotal_min = -MemTotal_min/1024
+      CALL para_env%group%max(MemFree_min); MemFree_min = -MemFree_min/1024
+      CALL para_env%group%max(Buffers_min); Buffers_min = -Buffers_min/1024
+      CALL para_env%group%max(Cached_min); Cached_min = -Cached_min/1024
+      CALL para_env%group%max(Slab_min); Slab_min = -Slab_min/1024
+      CALL para_env%group%max(SReclaimable_min); SReclaimable_min = -SReclaimable_min/1024
+      CALL para_env%group%max(MemLikelyFree_min); MemLikelyFree_min = -MemLikelyFree_min/1024
 
       MemTotal_max = MemTotal
       MemFree_max = MemFree
@@ -676,13 +674,13 @@ CONTAINS
       Slab_max = Slab
       SReclaimable_max = SReclaimable
       MemLikelyFree_max = MemLikelyFree
-      CALL mp_max(MemTotal_max, para_env%group); MemTotal_max = MemTotal_max/1024
-      CALL mp_max(MemFree_max, para_env%group); MemFree_max = MemFree_max/1024
-      CALL mp_max(Buffers_max, para_env%group); Buffers_max = Buffers_max/1024
-      CALL mp_max(Cached_max, para_env%group); Cached_max = Cached_max/1024
-      CALL mp_max(Slab_max, para_env%group); Slab_max = Slab_max/1024
-      CALL mp_max(SReclaimable_max, para_env%group); SReclaimable_max = SReclaimable_max/1024
-      CALL mp_max(MemLikelyFree_max, para_env%group); MemLikelyFree_max = MemLikelyFree_max/1024
+      CALL para_env%group%max(MemTotal_max); MemTotal_max = MemTotal_max/1024
+      CALL para_env%group%max(MemFree_max); MemFree_max = MemFree_max/1024
+      CALL para_env%group%max(Buffers_max); Buffers_max = Buffers_max/1024
+      CALL para_env%group%max(Cached_max); Cached_max = Cached_max/1024
+      CALL para_env%group%max(Slab_max); Slab_max = Slab_max/1024
+      CALL para_env%group%max(SReclaimable_max); SReclaimable_max = SReclaimable_max/1024
+      CALL para_env%group%max(MemLikelyFree_max); MemLikelyFree_max = MemLikelyFree_max/1024
 
       MemTotal = MemTotal/1024
       MemFree = MemFree/1024

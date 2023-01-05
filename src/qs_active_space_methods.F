@@ -64,9 +64,7 @@ MODULE qs_active_space_methods
    USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: fourpi
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_comm_type,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_comm_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
@@ -2244,7 +2242,7 @@ CONTAINS
             ks_ref(i2, i1) = ks_ref(i1, i2)
          END DO
       END DO
-      CALL mp_sum(ks_ref, mp_group)
+      CALL mp_group%sum(ks_ref)
 
    END SUBROUTINE build_subspace_fock_matrix
 
@@ -2360,7 +2358,7 @@ CONTAINS
          END DO
       END DO
       CALL mp_group%set_handle(eri_aa%mp_group)
-      CALL mp_sum(ks_a_ref, mp_group)
+      CALL mp_group%sum(ks_a_ref)
 
    END SUBROUTINE build_subspace_spin_fock_matrix
 
@@ -2742,8 +2740,8 @@ CONTAINS
 
       ! Copy to full matrix structure
       ! Broadcast the DM on all processes
-      CALL mp_bcast(p_act, para_env%source, para_env%group)
-      IF (nspins .EQ. 2) CALL mp_bcast(p_act_beta, para_env%source, para_env%group)
+      CALL para_env%group%bcast(p_act, para_env%source)
+      IF (nspins .EQ. 2) CALL para_env%group%bcast(p_act_beta, para_env%source)
 
       DO ispin = 1, nspins
          ! Copy to fm_type structure

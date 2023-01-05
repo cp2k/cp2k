@@ -49,7 +49,6 @@ MODULE qs_integrate_potential_single
    USE kinds,                           ONLY: dp
    USE lri_environment_types,           ONLY: lri_kind_type
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_sum
    USE orbital_pointers,                ONLY: coset,&
                                               ncoset
    USE particle_types,                  ONLY: particle_type
@@ -938,7 +937,7 @@ CONTAINS
                ELSE
                   pblk = 0.0_dp
                END IF
-               CALL mp_sum(pblk, para_env%group)
+               CALL para_env%group%sum(pblk)
                force_a(:) = 0._dp
                force_b(:) = 0._dp
                IF (use_virial) THEN
@@ -1034,7 +1033,7 @@ CONTAINS
             END DO
             DEALLOCATE (map_it2)
             ! update KS matrix
-            CALL mp_sum(hmat, para_env%group)
+            CALL para_env%group%sum(hmat)
             CALL dbcsr_get_block_p(matrix=ksmat, row=atom_a, col=atom_a, BLOCK=h_block, found=found)
             IF (found) THEN
                h_block(1:nsgfa, 1:nsgfa) = h_block(1:nsgfa, 1:nsgfa) + hmat(1:nsgfa, 1:nsgfa)

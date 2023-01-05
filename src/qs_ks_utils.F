@@ -75,7 +75,6 @@ MODULE qs_ks_utils
                                               calculate_ri_forces
    USE lri_ks_methods,                  ONLY: calculate_lri_ks_matrix,&
                                               calculate_ri_ks_matrix
-   USE message_passing,                 ONLY: mp_sum
    USE ps_implicit_types,               ONLY: MIXED_BC,&
                                               MIXED_PERIODIC_BC,&
                                               NEUMANN_BC,&
@@ -1394,7 +1393,7 @@ CONTAINS
                CALL integrate_v_rspace_one_center(v_rspace_new(ispin), qs_env, &
                                                   lri_v_int, calculate_forces, "LRI_AUX")
                DO ikind = 1, nkind
-                  CALL mp_sum(lri_v_int(ikind)%v_int, para_env%group)
+                  CALL para_env%group%sum(lri_v_int(ikind)%v_int)
                END DO
                IF (lri_env%exact_1c_terms) THEN
                   rho_ao => my_rho(ispin, :)
@@ -1415,7 +1414,7 @@ CONTAINS
                CALL integrate_v_rspace_one_center(v_rspace_new(ispin), qs_env, &
                                                   lri_v_int, calculate_forces, "RI_HXC")
                DO ikind = 1, nkind
-                  CALL mp_sum(lri_v_int(ikind)%v_int, para_env%group)
+                  CALL para_env%group%sum(lri_v_int(ikind)%v_int)
                END DO
             ELSE
                rho_ao => my_rho(ispin, :)
@@ -1471,7 +1470,7 @@ CONTAINS
                CALL integrate_v_rspace_one_center(v_rspace, qs_env, &
                                                   lri_v_int, calculate_forces, "LRI_AUX")
                DO ikind = 1, nkind
-                  CALL mp_sum(lri_v_int(ikind)%v_int, para_env%group)
+                  CALL para_env%group%sum(lri_v_int(ikind)%v_int)
                END DO
                IF (lri_env%exact_1c_terms) THEN
                   rho_ao => my_rho(ispin, :)
@@ -1492,7 +1491,7 @@ CONTAINS
                CALL integrate_v_rspace_one_center(v_rspace, qs_env, &
                                                   lri_v_int, calculate_forces, "RI_HXC")
                DO ikind = 1, nkind
-                  CALL mp_sum(lri_v_int(ikind)%v_int, para_env%group)
+                  CALL para_env%group%sum(lri_v_int(ikind)%v_int)
                END DO
             ELSE
                rho_ao => my_rho(ispin, :)
@@ -1736,7 +1735,7 @@ CONTAINS
             exc = accurate_sum(v_rspace_new(1)%cr3d*rho_r(1)%cr3d)* &
                   v_rspace_new(1)%pw_grid%dvol
             IF (v_rspace_new(1)%pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
-               CALL mp_sum(exc, v_rspace_new(1)%pw_grid%para%group)
+               CALL v_rspace_new(1)%pw_grid%para%group%sum(exc)
             END IF
 
 !     IF (v_rspace_new(1)%pw_grid%para%my_pos==0) &
@@ -1823,7 +1822,7 @@ CONTAINS
                             v_rspace_embed(ispin)%pw_grid%dvol
 
          IF (v_rspace_embed(ispin)%pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
-            CALL mp_sum(embed_corr_local, v_rspace_embed(ispin)%pw_grid%para%group)
+            CALL v_rspace_embed(ispin)%pw_grid%para%group%sum(embed_corr_local)
          END IF
 
          embed_corr = embed_corr + embed_corr_local

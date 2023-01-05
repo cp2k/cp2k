@@ -32,7 +32,6 @@ MODULE xas_tdp_kernel
                                               dbt_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_bcast
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -170,7 +169,7 @@ CONTAINS
                IF (.NOT. ASSOCIATED(xas_tdp_env%ri_fxc(ri_atom, i)%array)) THEN
                   ALLOCATE (xas_tdp_env%ri_fxc(ri_atom, i)%array(nsgfp, nsgfp))
                END IF
-               CALL mp_bcast(xas_tdp_env%ri_fxc(ri_atom, i)%array, source, para_env%group)
+               CALL para_env%group%bcast(xas_tdp_env%ri_fxc(ri_atom, i)%array, source)
             END DO
 
             xas_tdp_env%fxc_avail = .TRUE.
@@ -741,7 +740,7 @@ CONTAINS
          ELSE
             ALLOCATE (aIQ(nsgfa, nsgfp))
          END IF
-         CALL mp_bcast(aIQ, source, para_env%group)
+         CALL para_env%group%bcast(aIQ, source)
 
          ! get the contraction (Q|IJ) by taking (Q|Ia)*contract_coeffs and put it in coeffs
          CALL dgemm('T', 'N', nsgfp, ndo_so, nsgfa, 1.0_dp, aIQ, nsgfa, donor_state%contract_coeffs, &

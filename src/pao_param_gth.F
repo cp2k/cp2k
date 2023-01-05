@@ -24,9 +24,7 @@ MODULE pao_param_gth
    USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_min,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_comm_type
    USE orbital_pointers,                ONLY: init_orbital_pointers
    USE pao_param_fock,                  ONLY: pao_calc_U_block_fock
    USE pao_param_methods,               ONLY: pao_calc_AB_from_U,&
@@ -208,7 +206,7 @@ CONTAINS
          END DO
          CALL dbcsr_iterator_stop(iter)
 
-         CALL mp_sum(block, group)
+         CALL group%sum(block)
 
          CALL dbcsr_get_block_p(matrix=matrix_gth_overlap, row=iatom, col=jatom, block=block_overlap, found=found)
          IF (ASSOCIATED(block_overlap)) &
@@ -330,7 +328,7 @@ CONTAINS
          world_X(idx + 1:idx + nterms(iatom)) = block_X(:, 1)
       END DO
       CALL dbcsr_iterator_stop(iter)
-      CALL mp_sum(world_X, group) ! sync world view across MPI ranks
+      CALL group%sum(world_X) ! sync world view across MPI ranks
 
       ! loop over atoms
       CALL dbcsr_iterator_start(iter, matrix_U)
@@ -371,7 +369,7 @@ CONTAINS
 
       ! distribute world_G across atomic blocks
       IF (PRESENT(matrix_G)) THEN
-         CALL mp_sum(world_G, group) ! sync world view across MPI ranks
+         CALL group%sum(world_G) ! sync world view across MPI ranks
          CALL dbcsr_iterator_start(iter, matrix_G)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
             CALL dbcsr_iterator_next_block(iter, arow, acol, block_G)
@@ -386,10 +384,10 @@ CONTAINS
 
       ! sum penalty energies across ranks
       IF (PRESENT(penalty)) &
-         CALL mp_sum(penalty, group)
+         CALL group%sum(penalty)
 
       ! print homo-lumo gap encountered by fock-layer
-      CALL mp_min(gaps, group)
+      CALL group%min(gaps)
       IF (pao%iw_gap > 0) THEN
          DO iatom = 1, natoms
             WRITE (pao%iw_gap, *) "PAO| atom:", iatom, " fock gap:", gaps(iatom)

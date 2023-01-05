@@ -59,9 +59,6 @@ MODULE input_cp2k_restarts
    USE md_environment_types,            ONLY: get_md_env,&
                                               md_environment_type
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_allgather,&
-                                              mp_bcast,&
-                                              mp_sum
    USE metadynamics_types,              ONLY: meta_env_type
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_list_types,             ONLY: molecule_list_type
@@ -1119,7 +1116,7 @@ CONTAINS
          END DO
 
          ! pass the message from all processors to logger%para_env%source
-         CALL mp_sum(real_msg, helium_env(1)%comm)
+         CALL helium_env(1)%comm%sum(real_msg)
          real_msg_gather(:) = real_msg(:)
 
          ! update coordinates in the global input structure, only in
@@ -1150,7 +1147,7 @@ CONTAINS
             int_msg_gather((offset + i - 1)*msglen + 1:(offset + i)*msglen) = helium_env(i)%helium%permutation
          END DO
 
-         CALL mp_sum(int_msg_gather, helium_env(1)%comm)
+         CALL helium_env(1)%comm%sum(int_msg_gather)
 
          ! update permutation state in the global input structure
          CALL section_vals_val_set(helium_env(1)%helium%input, &
@@ -1188,7 +1185,7 @@ CONTAINS
          DO i = 1, SIZE(helium_env)
             real_msg_gather((i - 1 + offset)*msglen + 1:(i + offset)*msglen) = helium_env(i)%helium%proarea%ravr(:)
          END DO
-         CALL mp_sum(real_msg_gather, helium_env(1)%comm)
+         CALL helium_env(1)%comm%sum(real_msg_gather)
 
          ! update it in the global input structure
          CALL section_vals_val_set(helium_env(1)%helium%input, &
@@ -1205,7 +1202,7 @@ CONTAINS
          DO i = 1, SIZE(helium_env)
             real_msg_gather((i - 1 + offset)*msglen + 1:(i + offset)*msglen) = helium_env(i)%helium%prarea2%ravr(:)
          END DO
-         CALL mp_sum(real_msg_gather, helium_env(1)%comm)
+         CALL helium_env(1)%comm%sum(real_msg_gather)
 
          ! update it in the global input structure
          CALL section_vals_val_set(helium_env(1)%helium%input, &
@@ -1222,7 +1219,7 @@ CONTAINS
          DO i = 1, SIZE(helium_env)
             real_msg_gather((i - 1 + offset)*msglen + 1:(i + offset)*msglen) = helium_env(i)%helium%wnmber2%ravr(:)
          END DO
-         CALL mp_sum(real_msg_gather, helium_env(1)%comm)
+         CALL helium_env(1)%comm%sum(real_msg_gather)
 
          ! update it in the global input structure
          CALL section_vals_val_set(helium_env(1)%helium%input, &
@@ -1239,7 +1236,7 @@ CONTAINS
          DO i = 1, SIZE(helium_env)
             real_msg_gather((i - 1 + offset)*msglen + 1:(i + offset)*msglen) = helium_env(i)%helium%mominer%ravr(:)
          END DO
-         CALL mp_sum(real_msg_gather, helium_env(1)%comm)
+         CALL helium_env(1)%comm%sum(real_msg_gather)
 
          ! update it in the global input structure
          CALL section_vals_val_set(helium_env(1)%helium%input, &
@@ -1296,7 +1293,7 @@ CONTAINS
 
          ! Gather RNG state (in real_msg_gather vector) from all processors at
          ! logger%para_env%source
-         CALL mp_sum(real_msg_gather, helium_env(1)%comm)
+         CALL helium_env(1)%comm%sum(real_msg_gather)
 
          ! update the RNG state in the global input structure
          CALL section_vals_val_set(helium_env(1)%helium%input, &
@@ -1360,7 +1357,7 @@ CONTAINS
             END DO
 
             ! average over processors / helium environments
-            CALL mp_sum(helium_env(1)%helium%rdf_inst, helium_env(1)%comm)
+            CALL helium_env(1)%comm%sum(helium_env(1)%helium%rdf_inst)
             itmp = helium_env(1)%helium%num_env
             invproc = 1.0_dp/REAL(itmp, dp)
             helium_env(1)%helium%rdf_inst(:, :) = helium_env(1)%helium%rdf_inst(:, :)*invproc
@@ -1398,7 +1395,7 @@ CONTAINS
             END DO
 
             ! average over processors / helium environments
-            CALL mp_sum(helium_env(1)%helium%rho_inst, helium_env(1)%comm)
+            CALL helium_env(1)%comm%sum(helium_env(1)%helium%rho_inst)
             itmp = helium_env(1)%helium%num_env
             invproc = 1.0_dp/REAL(itmp, dp)
             helium_env(1)%helium%rho_inst(:, :, :, :) = helium_env(1)%helium%rho_inst(:, :, :, :)*invproc
@@ -1557,7 +1554,7 @@ CONTAINS
       !  Collect data if there was no communication in this thermostat
       IF (csvr%map_info%dis_type == do_thermo_no_communication) THEN
          ! Collect data if there was no communication in this thermostat
-         CALL mp_sum(dwork, para_env%group)
+         CALL para_env%group%sum(dwork)
       ELSE
          ! Perform some check and collect data in case of communicating thermostats
          CALL communication_thermo_low2(dwork, rng_record_length, csvr%glob_num_csvr, para_env)
@@ -1678,7 +1675,7 @@ CONTAINS
       !  Collect data if there was no communication in this thermostat
       IF (gle%map_info%dis_type == do_thermo_no_communication) THEN
          ! Collect data if there was no communication in this thermostat
-         CALL mp_sum(dwork, para_env%group)
+         CALL para_env%group%sum(dwork)
       ELSE
          ! Perform some check and collect data in case of communicating thermostats
          CALL communication_thermo_low2(dwork, rng_record_length, glob_num, para_env)
@@ -1688,7 +1685,7 @@ CONTAINS
 
       ALLOCATE (gle_per_proc(para_env%num_pe))
       gle_per_proc(:) = 0
-      CALL mp_allgather(gle%loc_num_gle, gle_per_proc, para_env%group)
+      CALL para_env%group%allgather(gle%loc_num_gle, gle_per_proc)
 
       ! Thermostat S variable info for restart
       NULLIFY (s_tmp)
@@ -1712,8 +1709,8 @@ CONTAINS
          ELSE
             work(:) = 0.0_dp
          END IF
-         CALL mp_bcast(work, iproc - 1, para_env%group)
-         CALL mp_bcast(index, iproc - 1, para_env%group)
+         CALL para_env%group%bcast(work, iproc - 1)
+         CALL para_env%group%bcast(index, iproc - 1)
          counter = 0
          DO i = 1, gle%ndim
             DO j = 1, gle_per_proc(iproc)
@@ -1767,7 +1764,7 @@ CONTAINS
       ALLOCATE (nhc_per_proc(para_env%num_pe))
       nhc_per_proc(:) = 0
 
-      CALL mp_allgather(numneed, nhc_per_proc, para_env%group)
+      CALL para_env%group%allgather(numneed, nhc_per_proc)
       tot_nhcneed = nhc%glob_num_nhc
 
       NULLIFY (work, index)
@@ -1792,8 +1789,8 @@ CONTAINS
          ELSE
             work(:) = 0.0_dp
          END IF
-         CALL mp_bcast(work, iproc - 1, para_env%group)
-         CALL mp_bcast(index, iproc - 1, para_env%group)
+         CALL para_env%group%bcast(work, iproc - 1)
+         CALL para_env%group%bcast(index, iproc - 1)
          counter = 0
          DO i = 1, nhc_len
             DO j = 1, nhc_per_proc(iproc)
@@ -1823,8 +1820,8 @@ CONTAINS
          ELSE
             work(:) = 0.0_dp
          END IF
-         CALL mp_bcast(work, iproc - 1, para_env%group)
-         CALL mp_bcast(index, iproc - 1, para_env%group)
+         CALL para_env%group%bcast(work, iproc - 1)
+         CALL para_env%group%bcast(index, iproc - 1)
          counter = 0
          DO i = 1, nhc_len
             DO j = 1, nhc_per_proc(iproc)
@@ -1854,8 +1851,8 @@ CONTAINS
          ELSE
             work(:) = 0.0_dp
          END IF
-         CALL mp_bcast(work, iproc - 1, para_env%group)
-         CALL mp_bcast(index, iproc - 1, para_env%group)
+         CALL para_env%group%bcast(work, iproc - 1)
+         CALL para_env%group%bcast(index, iproc - 1)
          counter = 0
          DO i = 1, nhc_len
             DO j = 1, nhc_per_proc(iproc)
@@ -1885,8 +1882,8 @@ CONTAINS
          ELSE
             work(:) = 0.0_dp
          END IF
-         CALL mp_bcast(work, iproc - 1, para_env%group)
-         CALL mp_bcast(index, iproc - 1, para_env%group)
+         CALL para_env%group%bcast(work, iproc - 1)
+         CALL para_env%group%bcast(index, iproc - 1)
          counter = 0
          DO i = 1, nhc_len
             DO j = 1, nhc_per_proc(iproc)

@@ -108,9 +108,8 @@ MODULE cp2k_runs
                                               m_walltime
    USE mc_run,                          ONLY: do_mon_car
    USE md_run,                          ONLY: qs_mol_dyn
-   USE message_passing,                 ONLY: &
-        mp_any_source, mp_bcast, mp_comm_dup, mp_comm_free, mp_comm_split, mp_comm_type, &
-        mp_environ, mp_max, mp_recv, mp_send, mp_sum, mp_sync
+   USE message_passing,                 ONLY: mp_any_source,&
+                                              mp_comm_type
    USE mscfg_methods,                   ONLY: do_mol_loop,&
                                               loop_over_molecules
    USE neb_methods,                     ONLY: neb
@@ -221,7 +220,7 @@ CONTAINS
       input_file => read_input(input_declaration, input_file_name, initial_variables=initial_variables, &
                                para_env=para_env)
 
-      CALL mp_sync(para_env%group)
+      CALL para_env%group%sync()
 
       glob_section => section_vals_get_subs_vals(input_file, "GLOBAL")
       CALL section_vals_val_get(glob_section, "ECHO_INPUT", l_val=echo_input)
@@ -427,7 +426,7 @@ CONTAINS
       CALL grid_library_print_stats(mpi_comm=mpi_comm, output_unit=output_unit)
 
       m_memory_max_mpi = m_memory_max
-      CALL mp_max(m_memory_max_mpi, mpi_comm)
+      CALL mpi_comm%max(m_memory_max_mpi)
       IF (output_unit > 0) THEN
          WRITE (output_unit, *)
          WRITE (output_unit, '(T2,"MEMORY| Estimated peak process memory [MiB]",T73,I8)') &
@@ -530,17 +529,17 @@ CONTAINS
          master_slave_partition = (/1, para_env%num_pe - 1/)
          ALLOCATE (group_distribution(0:para_env%num_pe - 1))
 
-         CALL mp_comm_split(para_env%group, slave_group, ngroups, group_distribution, &
-                            n_subgroups=2, group_partition=master_slave_partition)
+         CALL slave_group%from_split(para_env%group, ngroups, group_distribution, &
+                                     n_subgroups=2, group_partition=master_slave_partition)
          DEALLOCATE (master_slave_partition)
          DEALLOCATE (group_distribution)
-         CALL mp_environ(num_slaves, slave_rank, slave_group)
+         CALL slave_group%environ(num_slaves, slave_rank)
 
          IF (para_env%mepos == 0) THEN
             slave = .FALSE.
             master = .TRUE.
             ! on the master node, num_slaves corresponds to the size of the master group
-            ! due to the mp_environ call.
+            ! due to the environ call.
             CPASSERT(num_slaves == 1)
             num_slaves = para_env%num_pe - 1
             slave_rank = -1
@@ -549,8 +548,8 @@ CONTAINS
       ELSE
          ! all processes are slaves
          IF (output_unit > 0) WRITE (output_unit, FMT="(T2,A)") "FARMING| using a slave-only setup"
-         CALL mp_comm_dup(para_env%group, slave_group)
-         CALL mp_environ(num_slaves, slave_rank, slave_group)
+         CALL slave_group%dup(para_env%group)
+         CALL slave_group%environ(num_slaves, slave_rank)
       END IF
       IF (output_unit > 0) WRITE (output_unit, FMT="(T2,A,I0)") "FARMING| number of slaves ", num_slaves
 
@@ -558,7 +557,7 @@ CONTAINS
       ALLOCATE (slave_distribution(0:para_env%num_pe - 1))
       slave_distribution = 0
       slave_distribution(para_env%mepos) = slave_rank
-      CALL mp_sum(slave_distribution, para_env%group)
+      CALL para_env%group%sum(slave_distribution)
       ! we do have a primus inter pares
       primus_slave = 0
       DO i = 1, para_env%num_pe - 1
@@ -572,36 +571,36 @@ CONTAINS
       IF (slave) THEN
          IF (farming_env%group_size_wish_set) THEN
             farming_env%group_size_wish = MIN(farming_env%group_size_wish, para_env%num_pe)
-            CALL mp_comm_split(slave_group, new_group, ngroups, group_distribution, &
-                               subgroup_min_size=farming_env%group_size_wish, stride=farming_env%stride)
+            CALL new_group%from_split(slave_group, ngroups, group_distribution, &
+                                      subgroup_min_size=farming_env%group_size_wish, stride=farming_env%stride)
          ELSE IF (farming_env%ngroup_wish_set) THEN
             IF (ASSOCIATED(farming_env%group_partition)) THEN
-               CALL mp_comm_split(slave_group, new_group, ngroups, group_distribution, &
-                                  n_subgroups=farming_env%ngroup_wish, &
-                                  group_partition=farming_env%group_partition, stride=farming_env%stride)
+               CALL new_group%from_split(slave_group, ngroups, group_distribution, &
+                                         n_subgroups=farming_env%ngroup_wish, &
+                                         group_partition=farming_env%group_partition, stride=farming_env%stride)
             ELSE
-               CALL mp_comm_split(slave_group, new_group, ngroups, group_distribution, &
-                                  n_subgroups=farming_env%ngroup_wish, stride=farming_env%stride)
+               CALL new_group%from_split(slave_group, ngroups, group_distribution, &
+                                         n_subgroups=farming_env%ngroup_wish, stride=farming_env%stride)
             END IF
          ELSE
             CPABORT("must set either group_size_wish or ngroup_wish")
          END IF
-         CALL mp_environ(new_size, new_rank, new_group)
+         CALL new_group%environ(new_size, new_rank)
       END IF
 
       ! transfer the info about the slave group distribution to the master
       IF (farming_env%master_slave) THEN
          IF (para_env%mepos == primus_slave) THEN
             tag = 1
-            CALL mp_send(group_distribution, 0, tag, para_env%group)
+            CALL para_env%group%send(group_distribution, 0, tag)
             tag = 2
-            CALL mp_send(ngroups, 0, tag, para_env%group)
+            CALL para_env%group%send(ngroups, 0, tag)
          END IF
          IF (para_env%mepos == 0) THEN
             tag = 1
-            CALL mp_recv(group_distribution, primus_slave, tag, para_env%group)
+            CALL para_env%group%recv(group_distribution, primus_slave, tag)
             tag = 2
-            CALL mp_recv(ngroups, primus_slave, tag, para_env%group)
+            CALL para_env%group%recv(ngroups, primus_slave, tag)
          END IF
       END IF
 
@@ -658,17 +657,17 @@ CONTAINS
                   ! the message tells what has been done lately
                   tag = 1
                   dest = 0
-                  CALL mp_send(todo, dest, tag, para_env%group)
+                  CALL para_env%group%send(todo, dest, tag)
 
                   ! gets the new todo item
                   tag = 2
                   source = 0
-                  CALL mp_recv(todo, source, tag, para_env%group)
+                  CALL para_env%group%recv(todo, source, tag)
 
                   ! and informs his peer slaves
-                  CALL mp_bcast(todo, 0, new_group)
+                  CALL new_group%bcast(todo, 0)
                ELSE
-                  CALL mp_bcast(todo, 0, new_group)
+                  CALL new_group%bcast(todo, 0)
                END IF
 
                ! if the todo is do_nothing we are flagged to quit. Otherwise it is the job number
@@ -697,7 +696,7 @@ CONTAINS
                ! who's the next slave waiting for work
                tag = 1
                source = mp_any_source
-               CALL mp_recv(todo, source, tag, para_env%group) ! updates source
+               CALL para_env%group%recv(todo, source, tag) ! updates source
                IF (todo > 0) THEN
                   farming_env%Job(todo)%status = job_finished
                   IF (output_unit > 0) THEN
@@ -710,7 +709,7 @@ CONTAINS
                CALL get_next_job(farming_env, ijob_start, ijob_end, ijob_current, todo)
                dest = source
                tag = 2
-               CALL mp_send(todo, dest, tag, para_env%group)
+               CALL para_env%group%send(todo, dest, tag)
 
                IF (todo > 0) THEN
                   farming_env%Job(todo)%status = job_running
@@ -780,12 +779,12 @@ CONTAINS
       ! keep information about how long each process has to wait
       ! i.e. the load imbalance
       t1 = m_walltime()
-      CALL mp_sync(para_env%group)
+      CALL para_env%group%sync()
       t2 = m_walltime()
       ALLOCATE (waittime(0:para_env%num_pe - 1))
       waittime = 0.0_dp
       waittime(para_env%mepos) = t2 - t1
-      CALL mp_sum(waittime, para_env%group)
+      CALL para_env%group%sum(waittime)
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(T2,A)') "Process idle times [s] at the end of the run"
          DO i = 0, para_env%num_pe - 1
@@ -798,8 +797,8 @@ CONTAINS
       DEALLOCATE (waittime)
 
       ! give back the communicators of the split groups
-      IF (slave) CALL mp_comm_free(new_group)
-      CALL mp_comm_free(slave_group)
+      IF (slave) CALL new_group%free()
+      CALL slave_group%free()
 
       ! and message passing deallocate structures
       DEALLOCATE (group_distribution)

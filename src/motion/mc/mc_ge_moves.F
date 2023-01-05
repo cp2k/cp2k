@@ -46,8 +46,7 @@ MODULE mc_ge_moves
         get_mc_molecule_info, get_mc_par, mc_determine_molecule_info, mc_input_file_type, &
         mc_molecule_info_destroy, mc_molecule_info_type, mc_moves_p_type, &
         mc_simulation_parameters_p_type, set_mc_par
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE parallel_rng_types,              ONLY: rng_stream_type
    USE particle_list_types,             ONLY: particle_list_p_type,&
                                               particle_list_type
@@ -287,7 +286,7 @@ CONTAINS
          rand = 0.0E0_dp
       ELSE
          IF (ionode) rand = rng_stream%next()
-         CALL mp_bcast(rand, source, group)
+         CALL group%bcast(rand, source)
       END IF
 
       IF (rand .LT. w) THEN
@@ -362,7 +361,7 @@ CONTAINS
 
 ! coodinates changed, so we need to broadcast those, even for the lbias
 ! case since bias_env needs to have the same coords as force_env
-         CALL mp_bcast(r_old, source, group)
+         CALL group%bcast(r_old, source)
 
          DO ibox = 1, nboxes
             DO iparticle = 1, nunits_tot(ibox)
@@ -514,7 +513,7 @@ CONTAINS
 
 !     choose a direction to swap
       IF (ionode) rand = rng_stream%next()
-      CALL mp_bcast(rand, source, group)
+      CALL group%bcast(rand, source)
 
       IF (rand .LE. 0.50E0_dp) THEN
          remove_box = 1
@@ -534,7 +533,7 @@ CONTAINS
 
 ! now choose a molecule type at random
       IF (ionode) rand = rng_stream%next()
-      CALL mp_bcast(rand, source, group)
+      CALL group%bcast(rand, source)
       DO itype = 1, nmol_types
          IF (rand .LT. pmswap_mol(itype)) THEN
             molecule_type = itype
@@ -555,7 +554,7 @@ CONTAINS
       ELSE
 
          IF (ionode) rand = rng_stream%next()
-         CALL mp_bcast(rand, source, group)
+         CALL group%bcast(rand, source)
          imolecule = CEILING(rand*nchains(molecule_type, remove_box))
 ! figure out the atom number this molecule starts on
          start_atom_rem = 1
@@ -633,7 +632,7 @@ CONTAINS
             pos_insert(idim) = rand*abc_insert(idim)
          END DO
       END IF
-      CALL mp_bcast(pos_insert, source, group)
+      CALL group%bcast(pos_insert, source)
 
 ! allocate some arrays we'll be using
       ALLOCATE (r_insert_mol(1:3, 1:nunits(molecule_type)))
@@ -1011,7 +1010,7 @@ CONTAINS
          rand = 0.0E0_dp
       ELSE
          IF (ionode) rand = rng_stream%next()
-         CALL mp_bcast(rand, source, group)
+         CALL group%bcast(rand, source)
       END IF
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1240,7 +1239,7 @@ CONTAINS
 
 ! call a random number to figure out how far we're moving
       IF (ionode) rand = rng_stream%next()
-      CALL mp_bcast(rand, source, group)
+      CALL group%bcast(rand, source)
 
       vol_dis = rmvolume*(rand - 0.5E0_dp)*2.0E0_dp
 
@@ -1366,7 +1365,7 @@ CONTAINS
          rand = 0.0E0_dp
       ELSE
          IF (ionode) rand = rng_stream%next()
-         CALL mp_bcast(rand, source, group)
+         CALL group%bcast(rand, source)
       END IF
 
       IF (rand .LT. w) THEN

@@ -29,9 +29,8 @@ MODULE swarm_mpi
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length
    USE machine,                         ONLY: default_output_unit
-   USE message_passing,                 ONLY: &
-        mp_any_source, mp_bcast, mp_comm_free, mp_comm_split, mp_comm_split_direct, mp_comm_type, &
-        mp_environ, mp_sum, mp_sync
+   USE message_passing,                 ONLY: mp_any_source,&
+                                              mp_comm_type
    USE swarm_message,                   ONLY: swarm_message_get,&
                                               swarm_message_mpi_bcast,&
                                               swarm_message_mpi_recv,&
@@ -108,14 +107,14 @@ CONTAINS
 
       ! First split split para_env%group into a master- and a workers-groups...
       IF (im_the_master) THEN
-         CALL mp_comm_split_direct(swarm_mpi%world%group, subgroup, 1)
-         CALL mp_environ(subgroup_size, subgroup_rank, subgroup)
+         CALL subgroup%from_split(swarm_mpi%world%group, 1)
+         CALL subgroup%environ(subgroup_size, subgroup_rank)
          IF (subgroup_size /= 1) CPABORT("mp_comm_split_direct failed (master)")
          CALL cp_para_env_create(swarm_mpi%master, group=subgroup)
          !WRITE (*,*) "this is a master ", swarm_mpi%master%mepos, swarm_mpi%master%num_pe
       ELSE
-         CALL mp_comm_split_direct(swarm_mpi%world%group, subgroup, 2)
-         CALL mp_environ(subgroup_size, subgroup_rank, subgroup)
+         CALL subgroup%from_split(swarm_mpi%world%group, 2)
+         CALL subgroup%environ(subgroup_size, subgroup_rank)
          !WRITE (*,*) "Hello, this is a Worker - there are ",subgroup_size, " of us."
          IF (subgroup_size /= swarm_mpi%world%num_pe - 1) CPABORT("mp_comm_split_direct failed (worker)")
       END IF
@@ -126,11 +125,11 @@ CONTAINS
       IF (.NOT. im_the_master) THEN
          ! ...then split workers-group into n_workers groups - one for each worker.
          group_distribution_p => group_distribution
-         CALL mp_comm_split(subgroup, worker_group, n_groups_created, group_distribution_p, n_subgroups=n_workers)
+         CALL worker_group%from_split(subgroup, n_groups_created, group_distribution_p, n_subgroups=n_workers)
          worker_id = group_distribution(subgroup_rank) + 1 ! shall start by 1
          IF (n_groups_created /= n_workers) CPABORT("mp_comm_split failed.")
          CALL cp_para_env_create(swarm_mpi%worker, group=worker_group)
-         CALL mp_comm_free(subgroup)
+         CALL subgroup%free()
 
          !WRITE (*,*) "this is worker ", worker_id, swarm_mpi%worker%mepos, swarm_mpi%worker%num_pe
 
@@ -140,7 +139,7 @@ CONTAINS
 
       END IF
 
-      CALL mp_sum(swarm_mpi%wid2group, swarm_mpi%world%group)
+      CALL swarm_mpi%world%group%sum(swarm_mpi%wid2group)
       !WRITE (*,*), "wid2group table: ",swarm_mpi%wid2group
 
       CALL logger_init_master(swarm_mpi)
@@ -168,7 +167,7 @@ CONTAINS
             CLOSE (output_unit)
       END IF
 
-      CALL mp_bcast(swarm_mpi%master_output_path, swarm_mpi%world%source, swarm_mpi%world%group)
+      CALL swarm_mpi%world%group%bcast(swarm_mpi%master_output_path, swarm_mpi%world%source)
 
       IF (ASSOCIATED(swarm_mpi%master)) &
          CALL error_add_new_logger(swarm_mpi%master, swarm_mpi%master_output_path)
@@ -271,7 +270,7 @@ CONTAINS
       TYPE(swarm_mpi_type)                               :: swarm_mpi
       TYPE(section_vals_type), POINTER                   :: root_section
 
-      CALL mp_sync(swarm_mpi%world%group)
+      CALL swarm_mpi%world%group%sync()
       CALL logger_finalize(swarm_mpi, root_section)
 
       IF (ASSOCIATED(swarm_mpi%worker)) CALL cp_para_env_release(swarm_mpi%worker)
@@ -307,7 +306,7 @@ CONTAINS
       CALL section_vals_val_set(root_section, "GLOBAL%PROJECT_NAME", &
                                 c_val=old_logger%iter_info%project_name)
 
-      CALL mp_sync(swarm_mpi%world%group)
+      CALL swarm_mpi%world%group%sync()
 
       ! do this only on master's rank 0
       I_am_rank0 = swarm_mpi%world%mepos == swarm_mpi%world%source

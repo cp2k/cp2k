@@ -47,7 +47,6 @@ MODULE ex_property_calculation
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_sum
    USE moments_utils,                   ONLY: get_reference_point
    USE mulliken,                        ONLY: mulliken_charges
    USE particle_types,                  ONLY: particle_type
@@ -183,7 +182,7 @@ CONTAINS
                      cdip(1:3) = cdip(1:3) - charge*ria(1:3)
                   END DO
                END DO
-               CALL mp_sum(cdip, para_env%group)
+               CALL para_env%group%sum(cdip)
                !
                ! electronic contribution
                CALL get_qs_env(qs_env=qs_env, rho=rho, matrix_s=matrix_s)

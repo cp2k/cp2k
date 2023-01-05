@@ -35,7 +35,6 @@ MODULE eip_silicon
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: angstrom,&
                                               evolt
@@ -148,7 +147,7 @@ CONTAINS
 
       ! sum all contributions to energy over calculated parts on all processors
       CALL cp_subsys_get(subsys=subsys, para_env=para_env)
-      CALL mp_sum(ekin, para_env%group)
+      CALL para_env%group%sum(ekin)
       eip_env%eip_kinetic_energy = ekin
 
       eip_env%eip_potential_energy = ener/evolt
@@ -314,7 +313,7 @@ CONTAINS
 
       ! sum all contributions to energy over calculated parts on all processors
       CALL cp_subsys_get(subsys=subsys, para_env=para_env)
-      CALL mp_sum(ekin, para_env%group)
+      CALL para_env%group%sum(ekin)
       eip_env%eip_kinetic_energy = ekin
 
       eip_env%eip_potential_energy = ener/evolt

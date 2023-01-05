@@ -22,11 +22,7 @@ MODULE tmc_messages
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE message_passing,                 ONLY: mp_any_source,&
-                                              mp_any_tag,&
-                                              mp_bcast,&
-                                              mp_probe,&
-                                              mp_recv,&
-                                              mp_send
+                                              mp_any_tag
    USE tmc_move_handle,                 ONLY: add_mv_prob
    USE tmc_stati,                       ONLY: &
         TMC_CANCELING_MESSAGE, TMC_CANCELING_RECEIPT, TMC_STATUS_CALCULATING, TMC_STATUS_FAILED, &
@@ -204,16 +200,16 @@ CONTAINS
 
       ! sending message
       IF ((act_send_recv .EQV. send_msg) .AND. (dest .NE. bcast_group)) THEN
-         CALL mp_send(m_send%info, dest, message_tag, para_env%group)
+         CALL para_env%group%send(m_send%info, dest, message_tag)
          IF (m_send%info(2) .GT. 0) THEN
-            CALL mp_send(m_send%task_int, dest, message_tag, para_env%group)
+            CALL para_env%group%send(m_send%task_int, dest, message_tag)
          END IF
          IF (m_send%info(3) .GT. 0) THEN
-            CALL mp_send(m_send%task_real, dest, message_tag, para_env%group)
+            CALL para_env%group%send(m_send%task_real, dest, message_tag)
          END IF
          IF (m_send%info(4) .GT. 0) THEN
             CPABORT("")
-            !TODO send characters CALL mp_send(m_send%task_char, dest, message_tag, para_env%group)
+            !TODO send characters CALL para_env%group%send(m_send%task_char, dest, message_tag)
          END IF
          IF (DEBUG .GE. 1) &
             WRITE (*, *) "TMC|message: ID: ", para_env%mepos, &
@@ -231,19 +227,19 @@ CONTAINS
       ! =============================
       IF (dest .EQ. bcast_group) THEN
          IF (para_env%num_pe .GT. 1) THEN
-            CALL mp_bcast(m_send%info, MASTER_COMM_ID, para_env%group)
+            CALL para_env%group%bcast(m_send%info, MASTER_COMM_ID)
             IF (m_send%info(2) .GT. 0) THEN
                IF (.NOT. act_send_recv) ALLOCATE (m_send%task_int(m_send%info(2)))
-               CALL mp_bcast(m_send%task_int, MASTER_COMM_ID, para_env%group)
+               CALL para_env%group%bcast(m_send%task_int, MASTER_COMM_ID)
             END IF
             IF (m_send%info(3) .GT. 0) THEN
                IF (.NOT. act_send_recv) ALLOCATE (m_send%task_real(m_send%info(3)))
-               CALL mp_bcast(m_send%task_real, MASTER_COMM_ID, para_env%group)
+               CALL para_env%group%bcast(m_send%task_real, MASTER_COMM_ID)
             END IF
             IF (m_send%info(4) .GT. 0) THEN
                IF (.NOT. act_send_recv) ALLOCATE (m_send%task_char(m_send%info(3)))
                CPABORT("")
-               !TODO bcast char CALL mp_bcast(m_send%task_char, MASTER_COMM_ID, para_env%group)
+               !TODO bcast char CALL para_env%group%bcast(m_send%task_char, MASTER_COMM_ID)
             END IF
          END IF
          ! sender delete arrays
@@ -262,13 +258,13 @@ CONTAINS
          tmp_tag = TMC_STATUS_WAIT_FOR_NEW_TASK
          IF (PRESENT(wait_for_message)) THEN
             dest = mp_any_source
-            CALL mp_probe(dest, para_env%group, tmp_tag)
+            CALL para_env%group%probe(dest, tmp_tag)
             flag = .TRUE.
          ELSE
             participant_loop: DO i = 0, para_env%num_pe - 1
                IF (i .NE. para_env%mepos) THEN
                   dest = i
-                  CALL mp_probe(dest, para_env%group, tmp_tag)
+                  CALL para_env%group%probe(dest, tmp_tag)
                   IF (dest .EQ. i) THEN
                      flag = .TRUE.
                      EXIT participant_loop
@@ -292,7 +288,7 @@ CONTAINS
          ELSE
             message_tag = mp_any_tag
             ! first get message type and sizes
-            CALL mp_recv(m_send%info, dest, message_tag, para_env%group)
+            CALL para_env%group%recv(m_send%info, dest, message_tag)
          END IF
          IF (DEBUG .GE. 1) &
             WRITE (*, *) "TMC|message: ID: ", para_env%mepos, &
@@ -301,18 +297,18 @@ CONTAINS
          !-- receive message integer part
          IF (m_send%info(2) .GT. 0) THEN
             ALLOCATE (m_send%task_int(m_send%info(2)))
-            CALL mp_recv(m_send%task_int, dest, message_tag, para_env%group)
+            CALL para_env%group%recv(m_send%task_int, dest, message_tag)
          END IF
          !-- receive message double (floatingpoint) part
          IF (m_send%info(3) .GT. 0) THEN
             ALLOCATE (m_send%task_real(m_send%info(3)))
-            CALL mp_recv(m_send%task_real, dest, message_tag, para_env%group)
+            CALL para_env%group%recv(m_send%task_real, dest, message_tag)
          END IF
          !-- receive message character part
          IF (m_send%info(4) .GT. 0) THEN
             ALLOCATE (m_send%task_char(m_send%info(4)))
             CPABORT("")
-            !TODO recv characters CALL mp_recv(m_send%task_char, dest, message_tag, para_env%group)
+            !TODO recv characters CALL para_env%group%recv(m_send%task_char, dest, message_tag)
          END IF
       END IF
 
@@ -1553,9 +1549,6 @@ CONTAINS
 
    END SUBROUTINE read_scf_step_ener
 
-   !============================================================================
-   ! message for broadcasting atom types
-   !============================================================================
 ! **************************************************************************************************
 !> \brief routines send atom names to the global master
 !>        (using broadcast in a specialized group consisting of the master
@@ -1583,9 +1576,9 @@ CONTAINS
          DO i = 1, SIZE(atoms)
             msg(i) = atoms(i)%name
          END DO
-         CALL mp_bcast(msg, source, para_env%group)
+         CALL para_env%group%bcast(msg, source)
       ELSE
-         CALL mp_bcast(msg, source, para_env%group)
+         CALL para_env%group%bcast(msg, source)
          DO i = 1, SIZE(atoms)
             atoms(i)%name = msg(i)
          END DO
@@ -1593,9 +1586,6 @@ CONTAINS
       DEALLOCATE (msg)
    END SUBROUTINE communicate_atom_types
 
-   !============================================================================
-   ! message for cancelation or stopping
-   !============================================================================
 ! **************************************************************************************************
 !> \brief send stop command to all group participants
 !> \param para_env ...

@@ -24,7 +24,6 @@
 MODULE reference_manager
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: default_string_length
-   USE message_passing,                 ONLY: mp_max
    USE util,                            ONLY: sort
 #include "../base/base_uses.f90"
 
@@ -108,7 +107,7 @@ CONTAINS
       DO i = 1, nbib
          t = 0
          IF (thebib(i)%ref%is_cited) t = 1
-         CALL mp_max(t, para_env%group)
+         CALL para_env%group%max(t)
          thebib(i)%ref%is_cited = (t == 1)
       END DO
 

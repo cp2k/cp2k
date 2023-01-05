@@ -26,8 +26,6 @@ MODULE pao_ml
                                               default_string_length,&
                                               dp
    USE machine,                         ONLY: m_flush
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_sum
    USE pao_input,                       ONLY: id2str,&
                                               pao_ml_gp,&
                                               pao_ml_lazy,&
@@ -178,19 +176,19 @@ CONTAINS
       END IF
 
       ! broadcast parsed raw training data
-      CALL mp_bcast(nkinds, para_env%source, para_env%group)
-      CALL mp_bcast(natoms, para_env%source, para_env%group)
+      CALL para_env%group%bcast(nkinds, para_env%source)
+      CALL para_env%group%bcast(natoms, para_env%source)
       IF (para_env%mepos /= para_env%source) THEN
          ALLOCATE (hmat(3, 3))
          ALLOCATE (kindsmap(nkinds))
          ALLOCATE (positions(natoms, 3))
          ALLOCATE (atom2kind(natoms))
       END IF
-      CALL mp_bcast(hmat, para_env%source, para_env%group)
-      CALL mp_bcast(kindsmap, para_env%source, para_env%group)
-      CALL mp_bcast(atom2kind, para_env%source, para_env%group)
-      CALL mp_bcast(positions, para_env%source, para_env%group)
-      CALL mp_bcast(ml_range, para_env%source, para_env%group)
+      CALL para_env%group%bcast(hmat, para_env%source)
+      CALL para_env%group%bcast(kindsmap, para_env%source)
+      CALL para_env%group%bcast(atom2kind, para_env%source)
+      CALL para_env%group%bcast(positions, para_env%source)
+      CALL para_env%group%bcast(ml_range, para_env%source)
 
       IF (ml_range(1) /= 1 .OR. ml_range(2) /= natoms) &
          CPWARN("Skipping some atoms for PAO-ML training.")
@@ -348,8 +346,8 @@ CONTAINS
             inp_size = SIZE(training_list%head%input)
          IF (ALLOCATED(training_list%head%output)) &
             out_size = SIZE(training_list%head%output)
-         CALL mp_sum(inp_size, para_env%group)
-         CALL mp_sum(out_size, para_env%group)
+         CALL para_env%group%sum(inp_size)
+         CALL para_env%group%sum(out_size)
 
          ! allocate matices to hold all training points
          ALLOCATE (training_matrix%inputs(inp_size, npoints))
@@ -378,12 +376,12 @@ CONTAINS
          training_list%npoints = 0 ! list is now empty
 
          ! sync training_matrix across ranks
-         CALL mp_sum(training_matrix%inputs, para_env%group)
-         CALL mp_sum(training_matrix%outputs, para_env%group)
+         CALL para_env%group%sum(training_matrix%inputs)
+         CALL para_env%group%sum(training_matrix%outputs)
 
          ! sanity check
-         CALL mp_sum(noutputs, para_env%group)
-         CALL mp_sum(ninputs, para_env%group)
+         CALL para_env%group%sum(noutputs)
+         CALL para_env%group%sum(ninputs)
          CPASSERT(noutputs == npoints .AND. ninputs == npoints)
       END DO
 
@@ -563,7 +561,7 @@ CONTAINS
 !$OMP END PARALLEL
 
       ! print variances
-      CALL mp_sum(variances, para_env%group)
+      CALL para_env%group%sum(variances)
       IF (pao%iw_mlvar > 0) THEN
          DO iatom = 1, natoms
             WRITE (pao%iw_mlvar, *) "PAO|ML| atom:", iatom, " prediction variance:", variances(iatom)

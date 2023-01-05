@@ -24,7 +24,6 @@ MODULE efield_utils
    USE kahan_sum,                       ONLY: accurate_dot_product
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
-   USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
    USE pw_types,                        ONLY: pw_type
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -109,7 +108,7 @@ CONTAINS
       DO i = 1, dft_control%nspins
          efield_ener = efield_ener + accurate_dot_product(v_efield_rspace%cr3d, rho_r(i)%cr3d)*dvol
       END DO
-      CALL mp_sum(efield_ener, para_env%group)
+      CALL para_env%group%sum(efield_ener)
       energy%efield = efield_ener
       CALL timestop(handle)
 

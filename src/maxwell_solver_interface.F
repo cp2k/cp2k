@@ -18,11 +18,6 @@ MODULE maxwell_solver_interface
                               cp_logger_type
    USE kinds, ONLY: dp
    USE pw_types, ONLY: pw_type
-   USE message_passing, ONLY: &
-      file_amode_rdonly, file_offset, mp_bcast, mp_file_close, mp_file_descriptor_type, &
-      mp_file_get_position, mp_file_open, mp_file_read_all_chv, mp_file_type_free, &
-      mp_file_type_hindexed_make_chv, mp_file_type_set_view_chv, mp_file_write_all_chv, &
-      mp_file_write_at, mp_maxloc, mp_recv, mp_send, mp_sum, mp_sync, mpi_character_size
    USE ISO_C_BINDING, ONLY: C_INT, C_DOUBLE
 
 #include "./base/base_uses.f90"
@@ -165,15 +160,15 @@ CONTAINS
                res = libcp2kmw_getzrow(buffer, i - lbounds(1) + 1, j - lbounds(2) + 1, 1, ubounds(3) - lbounds(3) + 1)
                IF (num_pe > 1) THEN
                   DO ip = 1, num_pe - 1
-                     CALL mp_send(buffer(lbounds(3):ubounds(3)), ip, tag, gid)
+                     CALL gid%send(buffer(lbounds(3):ubounds(3)), ip, tag)
                   END DO
                END IF
             ELSE
                master = 0
-               CALL mp_recv(buffer(lbounds(3):ubounds(3)), master, tag, gid)
+               CALL gid%recv(buffer(lbounds(3):ubounds(3)), master, tag)
             END IF
 
-            CALL mp_sync(gid)
+            CALL gid%sync()
 
             !only use data that is local to me - i.e. in slice of pencil I own
             IF ((lbounds_local(1) <= i) .AND. (i <= ubounds_local(1)) .AND. &

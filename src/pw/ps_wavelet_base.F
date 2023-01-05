@@ -12,8 +12,7 @@
 MODULE ps_wavelet_base
 
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_alltoall,&
-                                              mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE ps_wavelet_fft3d,                ONLY: ctrig,&
                                               ctrig_length,&
                                               fftstp
@@ -168,7 +167,7 @@ CONTAINS
       !input: I1,J2,j3,jp3,(Jp2)
       IF (nproc .GT. 1) THEN
          !communication scheduling
-         CALL mp_alltoall(zmpi2, zmpi1, 2*n1*(md2/nproc)*(nd3/nproc), mpi_group)
+         CALL mpi_group%alltoall(zmpi2, zmpi1, 2*n1*(md2/nproc)*(nd3/nproc))
       END IF
       !output: I1,J2,j3,Jp2,(jp3)
 
@@ -308,7 +307,7 @@ CONTAINS
       !input: I1,J2,j3,Jp2,(jp3)
       IF (nproc .GT. 1) THEN
          !communication scheduling
-         CALL mp_alltoall(zmpi1, zmpi2, 2*n1*(md2/nproc)*(nd3/nproc), mpi_group)
+         CALL mpi_group%alltoall(zmpi1, zmpi2, 2*n1*(md2/nproc)*(nd3/nproc))
       END IF
       !output: I1,J2,j3,jp3,(Jp2)
       !transform along z axis
@@ -982,7 +981,7 @@ CONTAINS
       !Interprocessor data transposition
       !input: I1,J2,j3,jp3,(Jp2)
       IF (nproc .GT. 1) THEN
-         CALL mp_alltoall(zmpi2, zmpi1, 2*n1*(md2/nproc)*(nd3/nproc), mpi_group)
+         CALL mpi_group%alltoall(zmpi2, zmpi1, 2*n1*(md2/nproc)*(nd3/nproc))
       END IF
       !output: I1,J2,j3,Jp2,(jp3)
 
@@ -1121,7 +1120,7 @@ CONTAINS
       !input: I1,J2,j3,Jp2,(jp3)
       IF (nproc .GT. 1) THEN
          !communication scheduling
-         CALL mp_alltoall(zmpi1, zmpi2, 2*n1*(md2/nproc)*(nd3/nproc), mpi_group)
+         CALL mpi_group%alltoall(zmpi1, zmpi2, 2*n1*(md2/nproc)*(nd3/nproc))
       END IF
 
       !output: I1,J2,j3,jp3,(Jp2)
@@ -1720,7 +1719,7 @@ CONTAINS
       !input: I1,J2,j3,jp3,(Jp2)
       IF (nproc .GT. 1) THEN
          !communication scheduling
-         CALL mp_alltoall(zmpi2, zmpi1, n1*(md2/nproc)*(nd3/nproc), mpi_group)
+         CALL mpi_group%alltoall(zmpi2, zmpi1, n1*(md2/nproc)*(nd3/nproc))
       END IF
       !output: I1,J2,j3,Jp2,(jp3)
 
@@ -1859,7 +1858,7 @@ CONTAINS
       !input: I1,J2,j3,Jp2,(jp3)
       IF (nproc .GT. 1) THEN
          !communication scheduling
-         CALL mp_alltoall(zmpi1, zmpi2, n1*(md2/nproc)*(nd3/nproc), mpi_group)
+         CALL mpi_group%alltoall(zmpi1, zmpi2, n1*(md2/nproc)*(nd3/nproc))
          !output: I1,J2,j3,jp3,(Jp2)
       END IF
 

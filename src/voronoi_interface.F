@@ -45,11 +45,7 @@ MODULE voronoi_interface
    USE cp_control_types, ONLY: dft_control_type
    USE pw_grid_types, ONLY: PW_MODE_LOCAL
    USE physcon, ONLY: angstrom, femtoseconds
-   USE message_passing, ONLY: &
-      file_amode_rdonly, file_offset, mp_bcast, mp_file_close, mp_file_descriptor_type, &
-      mp_file_get_position, mp_file_open, mp_file_read_all_chv, mp_file_type_free, &
-      mp_file_type_hindexed_make_chv, mp_file_type_set_view_chv, mp_file_write_all_chv, &
-      mp_file_write_at, mp_maxloc, mp_recv, mp_send, mp_sum, mp_sync, mpi_character_size, mp_comm_type
+   USE message_passing, ONLY: mp_comm_type
    USE input_constants, ONLY: &
       voro_radii_unity, voro_radii_vdw, voro_radii_cov, voro_radii_user, &
       bqb_opt_off, bqb_opt_quick, bqb_opt_normal, bqb_opt_patient, bqb_opt_exhaustive, do_method_gapw
@@ -583,10 +579,10 @@ CONTAINS
             ELSE
                IF (my_rank == source) THEN
                   buf(:) = rspace_pw%cr3d(I1, I2, :)
-                  CALL mp_send(buf, dest, tag, gid)
+                  CALL gid%send(buf, dest, tag)
                END IF
                IF (my_rank == dest) THEN
-                  CALL mp_recv(buf, source, tag, gid)
+                  CALL gid%recv(buf, source, tag)
                END IF
             END IF
 
@@ -603,7 +599,7 @@ CONTAINS
             ! that flies around at any given time.
             ! if ever this routine becomes a bottleneck, we should go for a
             ! more complicated rewrite
-            CALL mp_sync(gid)
+            CALL gid%sync()
 
          END DO
       END DO

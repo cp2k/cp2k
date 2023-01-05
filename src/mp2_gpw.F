@@ -66,8 +66,6 @@ MODULE mp2_gpw
                                               cp_libint_static_init
    USE machine,                         ONLY: default_output_unit,&
                                               m_flush
-   USE message_passing,                 ONLY: mp_max,&
-                                              mp_sendrecv
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: molecule_type
    USE mp2_cphf,                        ONLY: solve_z_vector_eq
@@ -714,7 +712,7 @@ CONTAINS
       NULLIFY (local_C_internal)
 
       max_row_col_local = MAX(nrow_local, ncol_local)
-      CALL mp_max(max_row_col_local, para_env%group)
+      CALL para_env%group%max(max_row_col_local)
 
       ALLOCATE (local_col_row_info(0:max_row_col_local, 2))
       local_col_row_info = 0
@@ -744,7 +742,7 @@ CONTAINS
       DO proc_shift = 1, para_env%num_pe - 1
          ! first exchange information on the local data
          rec_col_row_info = 0
-         CALL mp_sendrecv(local_col_row_info, proc_send_static, rec_col_row_info, proc_receive_static, para_env%group)
+         CALL para_env%group%sendrecv(local_col_row_info, proc_send_static, rec_col_row_info, proc_receive_static)
          nrow_rec = rec_col_row_info(0, 1)
          ncol_rec = rec_col_row_info(0, 2)
 
@@ -758,7 +756,7 @@ CONTAINS
          rec_C = 0.0_dp
 
          ! then send and receive the real data
-         CALL mp_sendrecv(local_C, proc_send_static, rec_C, proc_receive_static, para_env%group)
+         CALL para_env%group%sendrecv(local_C, proc_send_static, rec_C, proc_receive_static)
 
          ! accumulate the received data on C buffer
          DO iiB = 1, nrow_rec
@@ -898,7 +896,7 @@ CONTAINS
          rec_C = 0.0_dp
 
          ! then send and receive the real data
-         CALL mp_sendrecv(Cread, proc_send, rec_C, proc_receive, para_env_sub%group)
+         CALL para_env_sub%group%sendrecv(Cread, proc_send, rec_C, proc_receive)
 
          ! accumulate data on mo_coeff_to_build the data received from proc_rec
          CALL dbcsr_iterator_start(iter, mo_coeff_to_build)

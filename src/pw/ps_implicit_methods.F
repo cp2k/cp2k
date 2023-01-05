@@ -32,7 +32,6 @@ MODULE ps_implicit_methods
                                               int_8
    USE mathconstants,                   ONLY: fourpi,&
                                               pi
-   USE message_passing,                 ONLY: mp_sum
    USE ps_implicit_types,               ONLY: MIXED_BC,&
                                               MIXED_PERIODIC_BC,&
                                               NEUMANN_BC,&
@@ -633,13 +632,13 @@ CONTAINS
          CALL apply_P_operator(pw_pool, dielectric, v_new, Axvbar)
          Axvbar_avg = accurate_sum(Axvbar%cr3d)/ngpts
          gminusAxvbar_avg = g_avg - Axvbar_avg
-         CALL mp_sum(gminusAxvbar_avg, pw_grid%para%group)
+         CALL pw_grid%para%group%sum(gminusAxvbar_avg)
 
 ! evaluate Q_S * \lambda + v_D - B * \bar{v}
          CALL DGEMV('N', n_tiles_tot, n_tiles_tot, 1.0_dp, QS, n_tiles_tot, lambda_old, 1, 0.0_dp, QSxlambda, 1)
          v_bar1D(ps_implicit_env%idx_1dto3d) = RESHAPE(v_new%cr3d, (/data_size/))
          CALL DGEMV('N', n_tiles_tot, data_size, 1.0_dp, B, n_tiles_tot, v_bar1D, 1, 0.0_dp, Bxv_bar, 1)
-         CALL mp_sum(Bxv_bar, pw_grid%para%group)
+         CALL pw_grid%para%group%sum(Bxv_bar)
 ! solve R [\lambda; \eta] = [Q_S * \lambda + v_D - B * \bar{v}; 1^t * (g - \Delta(\bar{v}) - P(\bar{v}))]
          w = 0.0_dp
          w(:) = (/QSxlambda + v_D - Bxv_bar, gminusAxvbar_avg/)
@@ -682,7 +681,7 @@ CONTAINS
          IF (poisson_params%dbc_params%verbose_output) THEN
             v_new1D(ps_implicit_env%idx_1dto3d) = RESHAPE(v_new%cr3d, (/data_size/))
             CALL DGEMV('N', n_tiles_tot, data_size, 1.0_dp, B, n_tiles_tot, v_new1D, 1, 0.0_dp, Bxv_new, 1)
-            CALL mp_sum(Bxv_new, pw_grid%para%group)
+            CALL pw_grid%para%group%sum(Bxv_new)
             IF (outp_unit .GT. 0) THEN
                WRITE (outp_unit, '(T3,A,A)') "======== verbose ", REPEAT('=', 61)
                WRITE (outp_unit, '(T20,A)') "Drgn       tile      vhartree      lambda "
@@ -918,13 +917,13 @@ CONTAINS
          CALL apply_P_operator(pw_pool_xpndd, dielectric, v_new_xpndd, Axvbar)
          Axvbar_avg = accurate_sum(Axvbar%cr3d)/ngpts
          gminusAxvbar_avg = g_avg - Axvbar_avg
-         CALL mp_sum(gminusAxvbar_avg, dct_pw_grid%para%group)
+         CALL dct_pw_grid%para%group%sum(gminusAxvbar_avg)
 
 ! evaluate Q_S * \lambda + v_D - B * \bar{v}
          CALL DGEMV('N', n_tiles_tot, n_tiles_tot, 1.0_dp, QS, n_tiles_tot, lambda_old, 1, 0.0_dp, QSxlambda, 1)
          v_bar1D(ps_implicit_env%idx_1dto3d) = RESHAPE(v_new_xpndd%cr3d, (/data_size/))
          CALL DGEMV('N', n_tiles_tot, data_size, 1.0_dp, B, n_tiles_tot, v_bar1D, 1, 0.0_dp, Bxv_bar, 1)
-         CALL mp_sum(Bxv_bar, dct_pw_grid%para%group)
+         CALL dct_pw_grid%para%group%sum(Bxv_bar)
 ! solve R [\lambda; \eta] = [Q_S * \lambda + v_D - B * \bar{v}; 1^t * (g - \Delta(\bar{v}) - P(\bar{v}))]
          w = 0.0_dp
          w(:) = (/QSxlambda + v_D - Bxv_bar, gminusAxvbar_avg/)
@@ -968,7 +967,7 @@ CONTAINS
          IF (poisson_params%dbc_params%verbose_output) THEN
             v_new1D(ps_implicit_env%idx_1dto3d) = RESHAPE(v_new_xpndd%cr3d, (/data_size/))
             CALL DGEMV('N', n_tiles_tot, data_size, 1.0_dp, B, n_tiles_tot, v_new1D, 1, 0.0_dp, Bxv_new, 1)
-            CALL mp_sum(Bxv_new, pw_grid%para%group)
+            CALL pw_grid%para%group%sum(Bxv_new)
             IF (outp_unit .GT. 0) THEN
                WRITE (outp_unit, '(T3,A)') "======== verbose "//REPEAT('=', 61)
                WRITE (outp_unit, '(T20,A)') "Drgn       tile      vhartree      lambda "
@@ -1225,11 +1224,11 @@ CONTAINS
                        -1.0_dp, ps_implicit_env%B, n_tiles_tot, QAinvxBt, &
                        data_size, 0.0_dp, ps_implicit_env%QS, n_tiles_tot)
          END IF
-         CALL mp_sum(ps_implicit_env%QS, pw_grid_orig%para%group)
+         CALL pw_grid_orig%para%group%sum(ps_implicit_env%QS)
 
 ! evaluate B*1
          Bxunit_vec(:) = SUM(ps_implicit_env%B, 2)/ngpts
-         CALL mp_sum(Bxunit_vec, pw_grid_orig%para%group)
+         CALL pw_grid_orig%para%group%sum(Bxunit_vec)
 ! set up R = [QS B*1; (B*1)^t 0]
          R = 0.0_dp
          R(1:n_tiles_tot, 1:n_tiles_tot) = ps_implicit_env%QS
@@ -1250,7 +1249,7 @@ CONTAINS
          CALL pw_pool_release(pw_pool_xpndd)
 
          done_preparing = .TRUE.
-         CALL mp_sum(done_preparing, pw_grid_orig%para%group)
+         CALL pw_grid_orig%para%group%sum(done_preparing)
          IF ((unit_nr .GT. 0) .AND. done_preparing) THEN
             WRITE (unit_nr, "(T3,A,/,T3,A,/,A)") "POISSON| ... Done. ", REPEAT('-', 78)
          END IF
@@ -1347,11 +1346,11 @@ CONTAINS
                        -1.0_dp, ps_implicit_env%B, n_tiles_tot, QAinvxBt, &
                        data_size, 0.0_dp, ps_implicit_env%QS, n_tiles_tot)
          END IF
-         CALL mp_sum(ps_implicit_env%QS, pw_grid_orig%para%group)
+         CALL pw_grid_orig%para%group%sum(ps_implicit_env%QS)
 
 ! evaluate B*1
          Bxunit_vec(:) = SUM(ps_implicit_env%B, 2)/ngpts
-         CALL mp_sum(Bxunit_vec, pw_grid_orig%para%group)
+         CALL pw_grid_orig%para%group%sum(Bxunit_vec)
 ! set up R = [QS B*1; (B*1)^t 0]
          R = 0.0_dp
          R(1:n_tiles_tot, 1:n_tiles_tot) = ps_implicit_env%QS
@@ -1371,7 +1370,7 @@ CONTAINS
          DEALLOCATE (QAinvxBt, Bxunit_vec, R, work_arr, ipiv)
 
          done_preparing = .TRUE.
-         CALL mp_sum(done_preparing, pw_grid_orig%para%group)
+         CALL pw_grid_orig%para%group%sum(done_preparing)
          IF ((unit_nr .GT. 0) .AND. done_preparing) THEN
             WRITE (unit_nr, "(T3,A,/,T3,A,/,A)") "POISSON| ... Done. ", REPEAT('-', 78)
          END IF
@@ -1860,8 +1859,8 @@ CONTAINS
       ehartree_rho_cstr = accurate_sum(dielectric%eps%cr3d*Btxlambda*v%cr3d/fourpi)
       ehartree_rho = 0.5_dp*ehartree_rho*dvol
       ehartree_rho_cstr = 0.5_dp*ehartree_rho_cstr*dvol
-      CALL mp_sum(ehartree_rho, pw_grid%para%group)
-      CALL mp_sum(ehartree_rho_cstr, pw_grid%para%group)
+      CALL pw_grid%para%group%sum(ehartree_rho)
+      CALL pw_grid%para%group%sum(ehartree_rho_cstr)
       electric_enthalpy = ehartree_rho + ehartree_rho_cstr
       ehartree = ehartree_rho - ehartree_rho_cstr
 
@@ -1906,13 +1905,13 @@ CONTAINS
       CALL apply_inv_laplace_operator_fft(pw_pool, green, res_new, QAinvxres_new)
 ! (normalized) preconditioned residual norm error :
       pres_error = accurate_sum(QAinvxres_new%cr3d(:, :, :)**2)
-      CALL mp_sum(pres_error, pw_pool%pw_grid%para%group)
+      CALL pw_pool%pw_grid%para%group%sum(pres_error)
       pres_error = SQRT(pres_error)/vol
 
 ! normalized absolute error :
 ! nabs_error := \frac{\| v_old - v_new \|}{volume}
       nabs_error = accurate_sum(ABS(v_old%cr3d - v_new%cr3d)**2)
-      CALL mp_sum(nabs_error, pw_pool%pw_grid%para%group)
+      CALL pw_pool%pw_grid%para%group%sum(nabs_error)
       nabs_error = SQRT(nabs_error)/vol
 
       CALL timestop(handle)
@@ -1957,13 +1956,13 @@ CONTAINS
       CALL apply_inv_laplace_operator_dct(pw_pool, green, res_new, QAinvxres_new)
 ! (normalized) preconditioned residual norm error :
       pres_error = accurate_sum(QAinvxres_new%cr3d(:, :, :)**2)
-      CALL mp_sum(pres_error, pw_pool%pw_grid%para%group)
+      CALL pw_pool%pw_grid%para%group%sum(pres_error)
       pres_error = SQRT(pres_error)/vol
 
 ! normalized absolute error :
 ! nabs_error := \frac{\| v_old - v_new \|}{volume}
       nabs_error = accurate_sum(ABS(v_old%cr3d - v_new%cr3d)**2)
-      CALL mp_sum(nabs_error, pw_pool%pw_grid%para%group)
+      CALL pw_pool%pw_grid%para%group%sum(nabs_error)
       nabs_error = SQRT(nabs_error)/vol
 
       CALL timestop(handle)

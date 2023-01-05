@@ -16,13 +16,8 @@ MODULE dbm_tests
                                               int_8
    USE machine,                         ONLY: m_flush
    USE message_passing,                 ONLY: mp_cart_create,&
-                                              mp_comm_free,&
                                               mp_comm_type,&
-                                              mp_dims_create,&
-                                              mp_environ,&
-                                              mp_max,&
-                                              mp_sum,&
-                                              mp_sync
+                                              mp_dims_create
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -82,7 +77,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! Create MPI processor grid.
-      CALL mp_environ(numnodes, mynode, mp_group)
+      CALL mp_group%environ(numnodes, mynode)
       npdims(:) = 0
       CALL mp_dims_create(numnodes, npdims)
       CALL mp_cart_create(mp_group, 2, npdims, mycoord, cart_group)
@@ -180,7 +175,7 @@ CONTAINS
       CALL dbm_release(matrix_a)
       CALL dbm_release(matrix_b)
       CALL dbm_release(matrix_c)
-      CALL mp_comm_free(cart_group)
+      CALL cart_group%free()
 
       CALL timestop(handle)
    END SUBROUTINE dbm_run_tests
@@ -224,13 +219,13 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL mp_environ(numnodes, mynode, group)
+      CALL group%environ(numnodes, mynode)
 
       CALL dbm_create_from_template(matrix_c_orig, "Original Matrix C", matrix_c)
       CALL dbm_copy(matrix_c_orig, matrix_c)
 
       DO loop_iter = 1, n_loops
-         CALL mp_sync(group)
+         CALL group%sync()
          time_start = omp_get_wtime()
          IF (eps < -0.0_dp) THEN
             CALL dbm_multiply(transa, transb, alpha, matrix_a, matrix_b, beta, matrix_c, &
@@ -241,8 +236,8 @@ CONTAINS
          END IF
          duration = omp_get_wtime() - time_start
 
-         CALL mp_max(duration, group)
-         CALL mp_sum(flop, group)
+         CALL group%max(duration)
+         CALL group%sum(flop)
          duration = MAX(duration, EPSILON(duration))  ! avoid division by zero
          flops_all = REAL(flop, KIND=dp)/duration/numnodes/(1024*1024)
          IF (io_unit .GT. 0) THEN
@@ -290,7 +285,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL mp_environ(numnodes, mynode, group)
+      CALL group%environ(numnodes, mynode)
 
       ! Check that the counter was initialised (or has not overflowed)
       CPASSERT(randmat_counter .NE. 0)

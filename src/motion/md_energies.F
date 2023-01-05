@@ -68,7 +68,6 @@ MODULE md_energies
    USE md_environment_types,            ONLY: get_md_env,&
                                               md_environment_type,&
                                               set_md_env
-   USE message_passing,                 ONLY: mp_max
    USE motion_utils,                    ONLY: write_simulation_cell,&
                                               write_stress_tensor,&
                                               write_trajectory
@@ -814,7 +813,7 @@ CONTAINS
 
       CALL m_memory()
       max_memory = m_memory_max
-      CALL mp_max(max_memory, para_env%group)
+      CALL para_env%group%max(max_memory)
 
    END FUNCTION sample_memory
 

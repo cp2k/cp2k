@@ -19,8 +19,7 @@ MODULE rpa_gw_ic
         dbt_iterator_stop, dbt_iterator_type, dbt_nblks_total, dbt_pgrid_create, &
         dbt_pgrid_destroy, dbt_pgrid_type, dbt_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_dims_create,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_dims_create
    USE physcon,                         ONLY: evolt
    USE qs_tensors_types,                ONLY: create_2c_tensor
 #include "./base/base_uses.f90"
@@ -279,7 +278,7 @@ CONTAINS
 !$OMP END PARALLEL
 
       Delta_Sigma_Neaton = Delta_Sigma_Neaton + Delta_Sigma_Neaton_prv
-      CALL mp_sum(Delta_Sigma_Neaton, para_env%group)
+      CALL para_env%group%sum(Delta_Sigma_Neaton)
 
       CALL timestop(handle)
 

@@ -17,9 +17,11 @@ MODULE dct
 
    USE fast,                            ONLY: copy_cr
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: &
-        mp_allgather, mp_cart_rank, mp_comm_type, mp_irecv, mp_isend, mp_request_null, &
-        mp_request_type, mp_wait, mp_waitall
+   USE message_passing,                 ONLY: mp_cart_rank,&
+                                              mp_comm_type,&
+                                              mp_request_null,&
+                                              mp_request_type,&
+                                              mp_waitall
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_create,&
                                               pw_grid_setup
@@ -454,7 +456,7 @@ CONTAINS
 
 ! let all the nodes know about each others srcs_expand list
       ALLOCATE (srcs_expand_all(maxn_sendrecv, group_size))
-      CALL mp_allgather(srcs_expand, srcs_expand_all, rs_group)
+      CALL rs_group%allgather(srcs_expand, srcs_expand_all)
 ! now scan the srcs_expand_all list and check if I am on the srcs_expand list of the other nodes
 ! if that is the case then I am obliged to send data to those nodes (the nodes are on my dests_expand list)
       k = 1
@@ -480,7 +482,7 @@ CONTAINS
 
 ! let all the nodes know about each others dests_shrink list
       ALLOCATE (dests_shrink_all(maxn_sendrecv, group_size))
-      CALL mp_allgather(dests_shrink, dests_shrink_all, rs_group)
+      CALL rs_group%allgather(dests_shrink, dests_shrink_all)
 ! now scan the dests_shrink_all list and check if I am on the dests_shrink list of any other node
 ! if that is the case then I'll receive data from that node (the node is on my srcs_shrink list)
 ! note that in the shrinking procedure I will receive from only one node
@@ -575,7 +577,7 @@ CONTAINS
       DO i = 1, maxn_sendrecv
 ! no need to send to myself or to the destination that I have already sent to
          IF ((dests_expand(i) .NE. rs_mpo) .AND. .NOT. ANY(dest_hist .EQ. dests_expand(i))) THEN
-            CALL mp_isend(send_msg, dests_expand(i), rs_group, send_reqs(i))
+            CALL rs_group%isend(send_msg, dests_expand(i), send_reqs(i))
          END IF
          dest_hist(i) = dests_expand(i)
       END DO
@@ -604,8 +606,8 @@ CONTAINS
             recv_msgs(i)%msg = recv_msgs(loc)%msg
          ELSE
             ALLOCATE (recv_msgs(i)%msg(lb1:ub1, lb2:ub2, lb3:ub3))
-            CALL mp_irecv(recv_msgs(i)%msg, srcs_expand(i), rs_group, recv_reqs(i))
-            CALL mp_wait(recv_reqs(i))
+            CALL rs_group%irecv(recv_msgs(i)%msg, srcs_expand(i), recv_reqs(i))
+            CALL recv_reqs(i)%wait()
          END IF
          src_hist(i) = srcs_expand(i)
       END DO
@@ -773,7 +775,7 @@ CONTAINS
 
 ! let all the nodes know about each others shifted local bounds
       ALLOCATE (bounds_local_all(2, 3, group_size))
-      CALL mp_allgather(bounds_local_shftd, bounds_local_all, rs_group)
+      CALL rs_group%allgather(bounds_local_shftd, bounds_local_all)
 
       DO i = 1, maxn_sendrecv
 ! no need to send to myself or to an invalid destination (pid = -1)
@@ -787,8 +789,8 @@ CONTAINS
 
             ALLOCATE (send_crmsg(send_lb1:send_ub1, send_lb2:send_ub2, send_lb3:send_ub3))
             send_crmsg = cr3d(send_lb1:send_ub1, send_lb2:send_ub2, send_lb3:send_ub3)
-            CALL mp_isend(send_crmsg, dests_shrink(i), rs_group, send_req)
-            CALL mp_wait(send_req)
+            CALL rs_group%isend(send_crmsg, dests_shrink(i), send_req)
+            CALL send_req%wait()
             DEALLOCATE (send_crmsg)
          END IF
       END DO
@@ -806,8 +808,8 @@ CONTAINS
       ELSE IF (srcs_shrink .EQ. -1) THEN
 ! the source is invalid ... do nothing
       ELSE
-         CALL mp_irecv(pw_shrinked%cr3d, srcs_shrink, rs_group, recv_req)
-         CALL mp_wait(recv_req)
+         CALL rs_group%irecv(pw_shrinked%cr3d, srcs_shrink, recv_req)
+         CALL recv_req%wait()
       END IF
 
       DEALLOCATE (bounds_local_all)
@@ -1124,7 +1126,7 @@ CONTAINS
 
 ! let all the nodes know about each others local shifted bounds
       ALLOCATE (bounds_local_all(2, 3, group_size))
-      CALL mp_allgather(bounds_local_shftd, bounds_local_all, rs_group)
+      CALL rs_group%allgather(bounds_local_shftd, bounds_local_all)
 
       src_hist = -1 ! keeps the history of sources
 
@@ -1191,7 +1193,7 @@ CONTAINS
       END SELECT
 
       ALLOCATE (bounds_local_new_all(2, 3, group_size))
-      CALL mp_allgather(bounds_local_new, bounds_local_new_all, rs_group)
+      CALL rs_group%allgather(bounds_local_new, bounds_local_new_all)
       bounds_new(1, 1) = MINVAL(bounds_local_new_all(1, 1, :))
       bounds_new(2, 1) = MAXVAL(bounds_local_new_all(2, 1, :))
       bounds_new(1, 2) = MINVAL(bounds_local_new_all(1, 2, :))

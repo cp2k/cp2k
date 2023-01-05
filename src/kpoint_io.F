@@ -36,8 +36,7 @@ MODULE kpoint_io
    USE kinds,                           ONLY: default_path_length
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE orbital_pointers,                ONLY: nso
    USE particle_types,                  ONLY: particle_type
    USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
@@ -342,7 +341,7 @@ CONTAINS
                                     natom, restart_unit, natom_mismatch)
 
       ! only the io_node returns natom_mismatch, must broadcast it
-      CALL mp_bcast(natom_mismatch, source, group)
+      CALL group%bcast(natom_mismatch, source)
 
       ! Close restart file
       IF (para_env%ionode) CALL close_file(unit_number=restart_unit)
@@ -416,7 +415,7 @@ CONTAINS
       END IF
 
       ! make natom_match and natom_mismatch uniform across all nodes
-      CALL mp_bcast(natom_match, source, group)
+      CALL group%bcast(natom_match, source)
       natom_mismatch = .NOT. natom_match
       ! handle natom_match false
       IF (natom_mismatch) THEN
@@ -429,9 +428,9 @@ CONTAINS
             IF (para_env%ionode) THEN
                READ (rst_unit) ispin, nspin_read, ni
             END IF
-            CALL mp_bcast(ispin, source, group)
-            CALL mp_bcast(nspin_read, source, group)
-            CALL mp_bcast(ni, source, group)
+            CALL group%bcast(ispin, source)
+            CALL group%bcast(nspin_read, source)
+            CALL group%bcast(ni, source)
             IF (nspin_read /= nspin) THEN
                CALL cp_abort(__LOCATION__, &
                              " READ RESTART : Different spin polarisation not supported")
@@ -440,8 +439,8 @@ CONTAINS
                IF (para_env%ionode) THEN
                   READ (rst_unit) image, cell
                END IF
-               CALL mp_bcast(image, source, group)
-               CALL mp_bcast(cell, source, group)
+               CALL group%bcast(image, source)
+               CALL group%bcast(cell, source)
                !
                CALL cp_fm_read_unformatted(fmat, rst_unit)
                !

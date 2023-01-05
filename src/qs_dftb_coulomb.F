@@ -40,7 +40,6 @@ MODULE qs_dftb_coulomb
                                               kpoint_type
    USE mathconstants,                   ONLY: oorootpi,&
                                               pi
-   USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
    USE pw_poisson_types,                ONLY: do_ewald_ewald,&
                                               do_ewald_none,&
@@ -298,7 +297,7 @@ CONTAINS
          CPASSERT(.NOT. use_virial)
       END IF
 
-      CALL mp_sum(gmcharge(:, 1), para_env%group)
+      CALL para_env%group%sum(gmcharge(:, 1))
 
       IF (do_ewald) THEN
          ! add self charge interaction and background charge contribution

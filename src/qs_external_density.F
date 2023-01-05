@@ -20,10 +20,7 @@ MODULE qs_external_density
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_recv,&
-                                              mp_send,&
-                                              mp_sync
+   USE message_passing,                 ONLY: mp_comm_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_integrate_function
@@ -178,17 +175,17 @@ CONTAINS
                      READ (extunit, *) (buffer(k), k=lbounds(3), ubounds(3))
                      IF (num_pe .GT. 1) THEN
                         DO ip = 1, num_pe - 1
-                           CALL mp_send(buffer(lbounds(3):ubounds(3)), ip, tag, gid)
+                           CALL gid%send(buffer(lbounds(3):ubounds(3)), ip, tag)
 !                  WRITE(*,*) my_rank," sending to : ",ip
                         END DO
-!                CALL mp_sync(gid)
+!                CALL gid%sync()
                      END IF
                   ELSE
                      master = 0
-                     CALL mp_recv(buffer(lbounds(3):ubounds(3)), master, tag, gid)
+                     CALL gid%recv(buffer(lbounds(3):ubounds(3)), master, tag)
 !               WRITE(*,*) my_rank," receiving from master"
                   END IF
-                  CALL mp_sync(gid)
+                  CALL gid%sync()
 
                   IF ((lbounds_local(1) .LE. i) .AND. (i .LE. ubounds_local(1)) .AND. (lbounds_local(2) .LE. j) &
                       .AND. (j .LE. ubounds_local(2))) THEN
@@ -210,7 +207,7 @@ CONTAINS
                tot_rho_r_ext(1)
          END IF
          DEALLOCATE (buffer, rs_rho_ext)
-         CALL mp_sync(gid)
+         CALL gid%sync()
       END IF
 
       CALL timestop(handle)

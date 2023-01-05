@@ -47,7 +47,6 @@ MODULE metadynamics_utils
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE machine,                         ONLY: m_mov
-   USE message_passing,                 ONLY: mp_bcast
    USE metadynamics_types,              ONLY: hills_env_type,&
                                               meta_env_type,&
                                               metadyn_create,&
@@ -576,7 +575,7 @@ CONTAINS
             IF (para_env%ionode) THEN
                INQUIRE (FILE=TRIM(filename), EXIST=exist)
             END IF
-            CALL mp_bcast(exist, para_env%source, para_env%group)
+            CALL para_env%group%bcast(exist, para_env%source)
             DO WHILE (exist)
                ! Read information from the walker's file
                ! We shouldn't care too much about the concurrency of these I/O instructions..
@@ -593,7 +592,7 @@ CONTAINS
                   IF (hills_env%wtcontrol) READ (unit_nr, *) delta_s_ss0_buf(2, 0)
                   CALL close_file(unit_nr)
                END IF
-               CALL mp_bcast(delta_s_ss0_buf, para_env%source, para_env%group)
+               CALL para_env%group%bcast(delta_s_ss0_buf, para_env%source)
                ww = delta_s_ss0_buf(1, 0)
                IF (hills_env%wtcontrol) invdt = delta_s_ss0_buf(2, 0)
                DO ih = 1, n_colvar
@@ -614,7 +613,7 @@ CONTAINS
                IF (para_env%ionode) THEN
                   INQUIRE (FILE=TRIM(filename), EXIST=exist)
                END IF
-               CALL mp_bcast(exist, para_env%source, para_env%group)
+               CALL para_env%group%bcast(exist, para_env%source)
             END DO
 
             delta_hills = i_hills - 1 - multiple_walkers%walkers_status(i)

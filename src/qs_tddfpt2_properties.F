@@ -67,11 +67,7 @@ MODULE qs_tddfpt2_properties
                                               z_one,&
                                               z_zero
    USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_irecv,&
-                                              mp_isend,&
-                                              mp_request_type,&
-                                              mp_sum,&
-                                              mp_wait
+                                              mp_request_type
    USE molden_utils,                    ONLY: write_mos_molden
    USE moments_utils,                   ONLY: get_reference_point
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -793,7 +789,7 @@ CONTAINS
                ! collect number of non-negligible excitations from other nodes
                DO iproc = 1, para_env%num_pe
                   IF (iproc - 1 /= para_env%mepos) THEN
-                     CALL mp_irecv(nexcs_recv(iproc:iproc), iproc - 1, para_env%group, recv_handlers(iproc), 0)
+                     CALL para_env%group%irecv(nexcs_recv(iproc:iproc), iproc - 1, recv_handlers(iproc), 0)
                   ELSE
                      nexcs_recv(iproc) = nexcs_local
                   END IF
@@ -801,7 +797,7 @@ CONTAINS
 
                DO iproc = 1, para_env%num_pe
                   IF (iproc - 1 /= para_env%mepos) &
-                     CALL mp_wait(recv_handlers(iproc))
+                     CALL recv_handlers(iproc)%wait()
                END DO
 
                ! compute total number of non-negligible excitations
@@ -819,11 +815,11 @@ CONTAINS
                   IF (nexcs_recv(iproc) > 0) THEN
                      IF (iproc - 1 /= para_env%mepos) THEN
                         ! excitation amplitudes
-                        CALL mp_irecv(weights_recv(nmo_virt_occ + 1:nmo_virt_occ + nexcs_recv(iproc)), &
-                                      iproc - 1, para_env%group, recv_handlers(iproc), 1)
+                        CALL para_env%group%irecv(weights_recv(nmo_virt_occ + 1:nmo_virt_occ + nexcs_recv(iproc)), &
+                                                  iproc - 1, recv_handlers(iproc), 1)
                         ! compressed indices
-                        CALL mp_irecv(inds_recv(nmo_virt_occ + 1:nmo_virt_occ + nexcs_recv(iproc)), &
-                                      iproc - 1, para_env%group, recv_handlers2(iproc), 2)
+                        CALL para_env%group%irecv(inds_recv(nmo_virt_occ + 1:nmo_virt_occ + nexcs_recv(iproc)), &
+                                                  iproc - 1, recv_handlers2(iproc), 2)
                      ELSE
                         ! data on master node
                         weights_recv(nmo_virt_occ + 1:nmo_virt_occ + nexcs_recv(iproc)) = weights_local(1:nexcs_recv(iproc))
@@ -836,8 +832,8 @@ CONTAINS
 
                DO iproc = 1, para_env%num_pe
                   IF (iproc - 1 /= para_env%mepos .AND. nexcs_recv(iproc) > 0) THEN
-                     CALL mp_wait(recv_handlers(iproc))
-                     CALL mp_wait(recv_handlers2(iproc))
+                     CALL recv_handlers(iproc)%wait()
+                     CALL recv_handlers2(iproc)%wait()
                   END IF
                END DO
 
@@ -845,17 +841,17 @@ CONTAINS
             ELSE
                ! working node: send the number of selected excited states to the master node
                nexcs_send(1) = nexcs_local
-               CALL mp_isend(nexcs_send, para_env%source, para_env%group, send_handler, 0)
-               CALL mp_wait(send_handler)
+               CALL para_env%group%isend(nexcs_send, para_env%source, send_handler, 0)
+               CALL send_handler%wait()
 
                IF (nexcs_local > 0) THEN
                   ! send excitation amplitudes
-                  CALL mp_isend(weights_local(1:nexcs_local), para_env%source, para_env%group, send_handler, 1)
+                  CALL para_env%group%isend(weights_local(1:nexcs_local), para_env%source, send_handler, 1)
                   ! send compressed indices
-                  CALL mp_isend(inds_local(1:nexcs_local), para_env%source, para_env%group, send_handler2, 2)
+                  CALL para_env%group%isend(inds_local(1:nexcs_local), para_env%source, send_handler2, 2)
 
-                  CALL mp_wait(send_handler)
-                  CALL mp_wait(send_handler2)
+                  CALL send_handler%wait()
+                  CALL send_handler2%wait()
                END IF
             END IF
 
@@ -1233,7 +1229,7 @@ CONTAINS
          CPASSERT(found)
       END DO
       CALL dbcsr_iterator_stop(iter)
-      CALL mp_sum(res, group)
+      CALL group%sum(res)
 
       CALL timestop(handle)
 

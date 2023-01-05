@@ -14,7 +14,6 @@ MODULE surface_dipole
                                               accurate_sum
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
-   USE message_passing,                 ONLY: mp_sum
    USE physcon,                         ONLY: bohr
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -180,7 +179,7 @@ CONTAINS
       dsurf = surfarea/REAL(ngrid(isurf)*ngrid(jsurf), dp)
 
       IF (wf_r%pw_grid%para%mode /= PW_MODE_LOCAL) THEN
-         CALL mp_sum(rhoavsurf, wf_r%pw_grid%para%group)
+         CALL wf_r%pw_grid%para%group%sum(rhoavsurf)
       END IF
       rhoavsurf(ilow:iup) = dsurf*rhoavsurf(ilow:iup)
 
@@ -266,7 +265,7 @@ CONTAINS
 !    Dipole correction contribution to the energy
       energy%surf_dipole = 0.5_dp*accurate_dot_product(vdip_r%cr3d, wf_r%cr3d)
       IF (wf_r%pw_grid%para%mode /= PW_MODE_LOCAL) THEN
-         CALL mp_sum(energy%surf_dipole, wf_r%pw_grid%para%group)
+         CALL wf_r%pw_grid%para%group%sum(energy%surf_dipole)
       END IF
 
 !    Add the dipole potential to the hartree potential on the realspace grid

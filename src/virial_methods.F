@@ -22,8 +22,7 @@ MODULE virial_methods
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: det_3x3,&
                                               jacobi
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_comm_type
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: pascal
@@ -114,7 +113,7 @@ CONTAINS
             END DO
          END DO
 
-         CALL mp_sum(virial%pv_kinetic, igroup)
+         CALL igroup%sum(virial%pv_kinetic)
 
          ! total virial
          virial%pv_total = virial%pv_virial + virial%pv_kinetic + virial%pv_constraint

@@ -20,8 +20,7 @@ MODULE pao_param_equi
                                               ls_scf_env_type
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: diamat_all
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_comm_type
    USE pao_param_methods,               ONLY: pao_calc_grad_lnv_wrt_AB
    USE pao_potentials,                  ONLY: pao_guess_initial_potential
    USE pao_types,                       ONLY: pao_env_type
@@ -336,7 +335,7 @@ CONTAINS
 
       ! sum penalty energies across ranks
       IF (PRESENT(penalty)) THEN
-         CALL mp_sum(penalty, group)
+         CALL group%sum(penalty)
       END IF
 
       CALL dbcsr_release(matrix_X_nondiag)

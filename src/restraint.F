@@ -32,7 +32,6 @@ MODULE restraint
                                               force_env_set,&
                                               force_env_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_sum
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_kind_types,             ONLY: colvar_constraint_type,&
                                               fixd_constraint_type,&
@@ -187,12 +186,12 @@ CONTAINS
             END IF
          END DO
       END DO MOL
-      CALL mp_sum(n_restraint, force_env%para_env%group)
+      CALL force_env%para_env%group%sum(n_restraint)
       IF (n_restraint > 0) THEN
-         CALL mp_sum(energy_fixd, force_env%para_env%group)
-         CALL mp_sum(energy_3x3, force_env%para_env%group)
-         CALL mp_sum(energy_4x6, force_env%para_env%group)
-         CALL mp_sum(energy_colv, force_env%para_env%group)
+         CALL force_env%para_env%group%sum(energy_fixd)
+         CALL force_env%para_env%group%sum(energy_3x3)
+         CALL force_env%para_env%group%sum(energy_4x6)
+         CALL force_env%para_env%group%sum(energy_colv)
          CALL update_particle_set(particle_set, force_env%para_env%group, for=force, add=.TRUE.)
          force = 0.0_dp
          n_restraint = 0

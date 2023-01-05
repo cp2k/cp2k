@@ -46,9 +46,6 @@ MODULE kg_environment
                                               int_8
    USE lri_environment_init,            ONLY: lri_env_basis,&
                                               lri_env_init
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_gather,&
-                                              mp_max
    USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -630,7 +627,7 @@ CONTAINS
       ! get the maximum number of local pairs on all nodes (size of the mssg)
       ! remember how many pairs we have local
       npairs_local = npairs
-      CALL mp_max(npairs, para_env%group)
+      CALL para_env%group%max(npairs)
 
       ! allocate message
       ALLOCATE (pairs(2, npairs))
@@ -652,7 +649,7 @@ CONTAINS
 
       msg_gather = 0
 
-      CALL mp_gather(pairs, msg_gather, para_env%source, para_env%group)
+      CALL para_env%group%gather(pairs, msg_gather, para_env%source)
 
       DEALLOCATE (pairs)
 
@@ -698,12 +695,12 @@ CONTAINS
       !WRITE(*,'(A27,40X,I6,1X,A6)') ' KG| Vertex coloring result', ncolors, 'colors'
 
       ! broadcast the number of colors to all nodes
-      CALL mp_bcast(ncolors, para_env%source, para_env%group)
+      CALL para_env%group%bcast(ncolors, para_env%source)
 
       IF (.NOT. ALLOCATED(color_of_node)) ALLOCATE (color_of_node(nmol))
 
       ! broadcast the resulting coloring to all nodes.....
-      CALL mp_bcast(color_of_node, para_env%source, para_env%group)
+      CALL para_env%group%bcast(color_of_node, para_env%source)
 
       IF ((kg_env%nsubsets .NE. 0) .AND. (ncolors .NE. kg_env%nsubsets)) THEN
          ! number of subsets has changed

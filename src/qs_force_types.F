@@ -19,7 +19,6 @@ MODULE qs_force_types
                                               cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_sum
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -366,25 +365,25 @@ CONTAINS
 
       !  *** replicate forces ***
       DO ikind = 1, SIZE(qs_force)
-         CALL mp_sum(qs_force(ikind)%overlap, para_env%group)
-         CALL mp_sum(qs_force(ikind)%overlap_admm, para_env%group)
-         CALL mp_sum(qs_force(ikind)%kinetic, para_env%group)
-         CALL mp_sum(qs_force(ikind)%gth_ppl, para_env%group)
-         CALL mp_sum(qs_force(ikind)%gth_nlcc, para_env%group)
-         CALL mp_sum(qs_force(ikind)%gth_ppnl, para_env%group)
-         CALL mp_sum(qs_force(ikind)%all_potential, para_env%group)
-         CALL mp_sum(qs_force(ikind)%core_overlap, para_env%group)
-         CALL mp_sum(qs_force(ikind)%rho_core, para_env%group)
-         CALL mp_sum(qs_force(ikind)%rho_elec, para_env%group)
-         CALL mp_sum(qs_force(ikind)%rho_lri_elec, para_env%group)
-         CALL mp_sum(qs_force(ikind)%vhxc_atom, para_env%group)
-         CALL mp_sum(qs_force(ikind)%g0s_Vh_elec, para_env%group)
-         CALL mp_sum(qs_force(ikind)%fock_4c, para_env%group)
-         CALL mp_sum(qs_force(ikind)%mp2_non_sep, para_env%group)
-         CALL mp_sum(qs_force(ikind)%repulsive, para_env%group)
-         CALL mp_sum(qs_force(ikind)%dispersion, para_env%group)
-         CALL mp_sum(qs_force(ikind)%gcp, para_env%group)
-         CALL mp_sum(qs_force(ikind)%ehrenfest, para_env%group)
+         CALL para_env%group%sum(qs_force(ikind)%overlap)
+         CALL para_env%group%sum(qs_force(ikind)%overlap_admm)
+         CALL para_env%group%sum(qs_force(ikind)%kinetic)
+         CALL para_env%group%sum(qs_force(ikind)%gth_ppl)
+         CALL para_env%group%sum(qs_force(ikind)%gth_nlcc)
+         CALL para_env%group%sum(qs_force(ikind)%gth_ppnl)
+         CALL para_env%group%sum(qs_force(ikind)%all_potential)
+         CALL para_env%group%sum(qs_force(ikind)%core_overlap)
+         CALL para_env%group%sum(qs_force(ikind)%rho_core)
+         CALL para_env%group%sum(qs_force(ikind)%rho_elec)
+         CALL para_env%group%sum(qs_force(ikind)%rho_lri_elec)
+         CALL para_env%group%sum(qs_force(ikind)%vhxc_atom)
+         CALL para_env%group%sum(qs_force(ikind)%g0s_Vh_elec)
+         CALL para_env%group%sum(qs_force(ikind)%fock_4c)
+         CALL para_env%group%sum(qs_force(ikind)%mp2_non_sep)
+         CALL para_env%group%sum(qs_force(ikind)%repulsive)
+         CALL para_env%group%sum(qs_force(ikind)%dispersion)
+         CALL para_env%group%sum(qs_force(ikind)%gcp)
+         CALL para_env%group%sum(qs_force(ikind)%ehrenfest)
 
          qs_force(ikind)%total(:, :) = qs_force(ikind)%total(:, :) + &
                                        qs_force(ikind)%core_overlap(:, :) + &

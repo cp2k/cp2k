@@ -44,7 +44,6 @@ MODULE qs_scf_post_se
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: twopi
-   USE message_passing,                 ONLY: mp_sum
    USE moments_utils,                   ONLY: get_reference_point
    USE orbital_pointers,                ONLY: coset,&
                                               ncoset
@@ -516,8 +515,8 @@ CONTAINS
             END DO
          END DO
          !
-         CALL mp_sum(charges, para_env%group)
-         CALL mp_sum(mcharge, para_env%group)
+         CALL para_env%group%sum(charges)
+         CALL para_env%group%sum(mcharge)
          !
          IF (unit_nr > 0) THEN
             WRITE (UNIT=unit_nr, FMT="(/,/,T2,A)") "POPULATION ANALYSIS"

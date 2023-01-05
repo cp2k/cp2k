@@ -50,7 +50,6 @@ MODULE mp2_ri_libint
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE libint_wrapper,                  ONLY: cp_libint_t
-   USE message_passing,                 ONLY: mp_sum
    USE mp2_types,                       ONLY: init_TShPSC_lmax,&
                                               mp2_biel_type,&
                                               mp2_type,&
@@ -667,7 +666,7 @@ CONTAINS
       END DO !iatom
 
       ! now create a fm_matrix for the L matrix
-      CALL mp_sum(L_full_matrix, para_env%group)
+      CALL para_env%group%sum(L_full_matrix)
 
       ! create a sub blacs_env
       NULLIFY (blacs_env)
@@ -909,7 +908,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL mp_sum(Lai, para_env%group)
+      CALL para_env%group%sum(Lai)
 
       DO iiB = 1, occupied
          IF (MOD(iiB, para_env%num_pe) == para_env%mepos) THEN
@@ -919,7 +918,7 @@ CONTAINS
          END IF
       END DO
 
-      CALL mp_sum(Lai, para_env%group)
+      CALL para_env%group%sum(Lai)
 
       DEALLOCATE (set_list_kl)
 

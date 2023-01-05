@@ -23,9 +23,7 @@ MODULE cp_external_control
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE machine,                         ONLY: m_walltime
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_comm_type,&
-                                              mp_probe
+   USE message_passing,                 ONLY: mp_comm_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -68,7 +66,7 @@ CONTAINS
       IF (PRESENT(in_scf_energy_message_tag)) &
          scf_energy_message_tag = in_scf_energy_message_tag
       IF (PRESENT(in_exit_tag)) THEN
-         ! the exit tag should be different from the mp_probe tag default
+         ! the exit tag should be different from the mpi_probe tag default
          CPASSERT(in_exit_tag .NE. -1)
          exit_tag = in_exit_tag
       END IF
@@ -127,7 +125,7 @@ CONTAINS
       ! check for incomming messages and if it is tagged with the exit tag
       IF (exit_tag .NE. -1) THEN
          i = external_master_id
-         CALL mp_probe(source=i, comm=external_comm, tag=tag)
+         CALL external_comm%probe(source=i, tag=tag)
          IF (tag .EQ. exit_tag) should_stop = .TRUE.
       END IF
 
@@ -225,7 +223,7 @@ CONTAINS
             END IF
          END IF
       END IF
-      CALL mp_bcast(should_stop, logger%para_env%source, logger%para_env%group)
+      CALL logger%para_env%group%bcast(should_stop, logger%para_env%source)
 
       check_always = should_stop
 

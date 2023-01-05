@@ -38,7 +38,6 @@ MODULE negf_env_types
                                               get_kpoint_info,&
                                               kpoint_env_p_type,&
                                               kpoint_type
-   USE message_passing,                 ONLY: mp_sum
    USE negf_atom_map,                   ONLY: negf_atom_map_type,&
                                               negf_map_atomic_indices
    USE negf_control_types,              ONLY: negf_control_contact_type,&
@@ -1017,7 +1016,7 @@ CONTAINS
             END DO
          END IF
 
-         CALL mp_sum(my_homo_energy, para_env%group)
+         CALL para_env%group%sum(my_homo_energy)
       ELSE
          ! Hamiltonian of the bulk contact region has been computed without k-points.
          ! Try to obtain the HOMO energy assuming there is no OT. We probably should abort here

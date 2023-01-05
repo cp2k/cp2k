@@ -42,7 +42,6 @@ MODULE mode_selective
                                               dp,&
                                               max_line_length
    USE mathlib,                         ONLY: diamat_all
-   USE message_passing,                 ONLY: mp_bcast
    USE molden_utils,                    ONLY: write_vibrations_molden
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: bohr,&
@@ -422,8 +421,8 @@ CONTAINS
          CALL molden_guess(ms_vib_section, input, para_env, ms_vib, mass, ncoord, nrep, logger)
          ms_vib%mat_size = 0
       END SELECT
-      CALL mp_bcast(ms_vib%b_vec, para_env%source, para_env%group)
-      CALL mp_bcast(ms_vib%delta_vec, para_env%source, para_env%group)
+      CALL para_env%group%bcast(ms_vib%b_vec, para_env%source)
+      CALL para_env%group%bcast(ms_vib%delta_vec, para_env%source)
       DO i = 1, nrep
          ms_vib%step_r(i) = dx/SQRT(DOT_PRODUCT(ms_vib%delta_vec(:, i), ms_vib%delta_vec(:, i)))
          ms_vib%step_b(i) = SQRT(DOT_PRODUCT(ms_vib%step_r(i)*ms_vib%b_vec(:, i), ms_vib%step_r(i)*ms_vib%b_vec(:, i)))
@@ -528,8 +527,8 @@ CONTAINS
          DEALLOCATE (tmplist)
       END IF
 
-      CALL mp_bcast(ms_vib%b_vec, para_env%source, para_env%group)
-      CALL mp_bcast(ms_vib%delta_vec, para_env%source, para_env%group)
+      CALL para_env%group%bcast(ms_vib%b_vec, para_env%source)
+      CALL para_env%group%bcast(ms_vib%delta_vec, para_env%source)
 
       DEALLOCATE (ms_vib%hes_bfgs)
       DEALLOCATE (ms_vib%eig_bfgs)
@@ -590,7 +589,7 @@ CONTAINS
          CPASSERT(stat == 0)
          ms_vib%mat_size = mat
       END IF
-      CALL mp_bcast(ms_vib%mat_size, para_env%source, para_env%group)
+      CALL para_env%group%bcast(ms_vib%mat_size, para_env%source)
       ALLOCATE (ms_vib%b_mat(ncoord, ms_vib%mat_size))
       ALLOCATE (ms_vib%s_mat(ncoord, ms_vib%mat_size))
       IF (calc_intens) THEN
@@ -612,9 +611,9 @@ CONTAINS
             END IF
          END IF
       END IF
-      CALL mp_bcast(ms_vib%b_mat, para_env%source, para_env%group)
-      CALL mp_bcast(ms_vib%s_mat, para_env%source, para_env%group)
-      IF (calc_intens) CALL mp_bcast(ms_vib%dip_deriv, para_env%source, para_env%group)
+      CALL para_env%group%bcast(ms_vib%b_mat, para_env%source)
+      CALL para_env%group%bcast(ms_vib%s_mat, para_env%source)
+      IF (calc_intens) CALL para_env%group%bcast(ms_vib%dip_deriv, para_env%source)
       ALLOCATE (approx_H(ms_vib%mat_size, ms_vib%mat_size))
       ALLOCATE (eigenval(ms_vib%mat_size))
       ALLOCATE (ind(ms_vib%mat_size))
@@ -798,8 +797,8 @@ CONTAINS
          DEALLOCATE (tmplist)
 
       END IF
-      CALL mp_bcast(ms_vib%b_vec, para_env%source, para_env%group)
-      CALL mp_bcast(ms_vib%delta_vec, para_env%source, para_env%group)
+      CALL para_env%group%bcast(ms_vib%b_vec, para_env%source)
+      CALL para_env%group%bcast(ms_vib%delta_vec, para_env%source)
 
       IF (ms_filename == "") CALL cp_print_key_finished_output(output_molden, logger, input, &
                                                                "VIBRATIONAL_ANALYSIS%PRINT%MOLDEN_VIB")

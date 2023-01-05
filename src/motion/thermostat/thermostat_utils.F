@@ -41,8 +41,7 @@ MODULE thermostat_utils
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE machine,                         ONLY: m_flush
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_comm_type
    USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                               get_molecule_kind_set,&
                                               molecule_kind_type
@@ -938,7 +937,7 @@ CONTAINS
          END DO
       END DO
 
-      IF (map_info%dis_type == do_thermo_communication) CALL mp_sum(map_info%s_kin, group)
+      IF (map_info%dis_type == do_thermo_communication) CALL group%sum(map_info%s_kin)
 
    END SUBROUTINE ke_region_baro
 
@@ -1027,7 +1026,7 @@ CONTAINS
          END DO
       END DO
 
-      IF (map_info%dis_type == do_thermo_communication) CALL mp_sum(map_info%s_kin, group)
+      IF (map_info%dis_type == do_thermo_communication) CALL group%sum(map_info%s_kin)
 
    END SUBROUTINE ke_region_particles
 
@@ -1087,7 +1086,7 @@ CONTAINS
          END DO
       END DO
 
-      IF (map_info%dis_type == do_thermo_communication) CALL mp_sum(map_info%s_kin, group)
+      IF (map_info%dis_type == do_thermo_communication) CALL group%sum(map_info%s_kin)
 
    END SUBROUTINE momentum_region_particles
 
@@ -1274,7 +1273,7 @@ CONTAINS
             END DO
          END IF
       END DO
-      IF (map_info%dis_type == do_thermo_communication) CALL mp_sum(map_info%s_kin, group)
+      IF (map_info%dis_type == do_thermo_communication) CALL group%sum(map_info%s_kin)
 
    END SUBROUTINE ke_region_shells
 
@@ -1400,8 +1399,8 @@ CONTAINS
 
       ! Handle the thermostat distribution
       IF (nhc%map_info%dis_type == do_thermo_no_communication) THEN
-         CALL mp_sum(akin, para_env%group)
-         CALL mp_sum(vpot, para_env%group)
+         CALL para_env%group%sum(akin)
+         CALL para_env%group%sum(vpot)
       ELSE IF (nhc%map_info%dis_type == do_thermo_communication) THEN
          CALL communication_thermo_low1(akin, number, para_env)
          CALL communication_thermo_low1(vpot, number, para_env)
@@ -1467,7 +1466,7 @@ CONTAINS
 
       ! Handle the thermostat distribution
       IF (map_info%dis_type == do_thermo_no_communication) THEN
-         CALL mp_sum(akin, para_env%group)
+         CALL para_env%group%sum(akin)
       ELSE IF (map_info%dis_type == do_thermo_communication) THEN
          CALL communication_thermo_low1(akin, number, para_env)
       END IF
@@ -1535,8 +1534,8 @@ CONTAINS
 
       ! Handle the thermostat distribution
       IF (map_info%dis_type == do_thermo_no_communication) THEN
-         CALL mp_sum(akin, para_env%group)
-         CALL mp_sum(deg_of_free, para_env%group)
+         CALL para_env%group%sum(akin)
+         CALL para_env%group%sum(deg_of_free)
       ELSE IF (map_info%dis_type == do_thermo_communication) THEN
          CALL communication_thermo_low1(akin, number, para_env)
          CALL communication_thermo_low1(deg_of_free, number, para_env)
@@ -1831,7 +1830,7 @@ CONTAINS
       DO i = 1, number
          work = 0.0_dp
          work(para_env%mepos + 1) = array(i)
-         CALL mp_sum(work, para_env%group)
+         CALL para_env%group%sum(work)
          ncheck = COUNT(work /= 0.0_dp)
          array(i) = 0.0_dp
          IF (ncheck /= 0) THEN
@@ -1873,7 +1872,7 @@ CONTAINS
       DO i = 1, number2
          work = 0
          work(:, para_env%mepos + 1) = array(:, i)
-         CALL mp_sum(work, para_env%group)
+         CALL para_env%group%sum(work)
          ncheck = 0
          DO j = 1, para_env%num_pe
             IF (ANY(work(:, j) /= 0)) THEN

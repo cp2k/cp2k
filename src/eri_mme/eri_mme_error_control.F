@@ -22,7 +22,6 @@ MODULE eri_mme_error_control
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi,&
                                               twopi
-   USE message_passing,                 ONLY: mp_sum
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -476,8 +475,8 @@ CONTAINS
                                           2.0_dp/3.0_dp, prefactor)
       END DO
 
-      CALL mp_sum(S_G_l, para_env%group)
-      CALL mp_sum(S_G_u, para_env%group)
+      CALL para_env%group%sum(S_G_l)
+      CALL para_env%group%sum(S_G_u)
 
       S_G_u = S_G_u*2.0_dp ! to include negative values of G
 

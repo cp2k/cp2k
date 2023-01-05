@@ -15,8 +15,6 @@ MODULE qmmm_pw_grid
                                               do_qmmm_swave
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE message_passing,                 ONLY: mp_comm_dup,&
-                                              mp_environ
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_grid_types,                   ONLY: FULLSPACE,&
@@ -163,9 +161,8 @@ CONTAINS
                pw_grid_out%mapn%pos, pw_grid_out%mapn%neg)
 
       !para
-      CALL mp_environ(pw_grid_out%para%group_size, &
-                      pw_grid_out%para%my_pos, &
-                      pw_grid_out%para%group)
+      CALL pw_grid_out%para%group%environ(pw_grid_out%para%group_size, &
+                                          pw_grid_out%para%my_pos)
       pw_grid_out%para%group_head_id = pw_grid_in%para%group_head_id
       pw_grid_out%para%group_head = &
          (pw_grid_out%para%group_head_id == pw_grid_out%para%my_pos)
@@ -180,8 +177,7 @@ CONTAINS
       pw_grid_out%para%pos_of_x => pos_of_x
       pw_grid_out%para%rs_dims = pw_grid_in%para%rs_dims
       IF (PRODUCT(pw_grid_in%para%rs_dims) /= 0) THEN
-         CALL mp_comm_dup(pw_grid_in%para%rs_group, &
-                          pw_grid_out%para%rs_group)
+         CALL pw_grid_out%para%rs_group%dup(pw_grid_in%para%rs_group)
       END IF
       pw_grid_out%para%rs_pos = pw_grid_in%para%rs_pos
       pw_grid_out%para%rs_mpo = pw_grid_in%para%rs_mpo

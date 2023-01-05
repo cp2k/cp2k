@@ -21,8 +21,7 @@ MODULE gaussian_gridlevels
                                               section_vals_type
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_comm_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -104,8 +103,8 @@ CONTAINS
 
       IF (do_io) THEN
 
-         CALL mp_sum(gridlevel_info%total_count, group)
-         CALL mp_sum(gridlevel_info%count, group)
+         CALL group%sum(gridlevel_info%total_count)
+         CALL group%sum(gridlevel_info%count)
 
          output_unit = cp_print_key_unit_nr(logger, gridlevel_info%print_section, &
                                             "", extension=".Log")

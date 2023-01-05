@@ -80,13 +80,7 @@ MODULE mp2_ri_2c
    USE libint_2c_3c,                    ONLY: compare_potential_types,&
                                               libint_potential_type
    USE machine,                         ONLY: m_flush
-   USE message_passing,                 ONLY: mp_allgather,&
-                                              mp_alltoall,&
-                                              mp_bcast,&
-                                              mp_max,&
-                                              mp_request_type,&
-                                              mp_sendrecv,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_request_type
    USE mp2_eri,                         ONLY: mp2_eri_2c_integrate
    USE mp2_eri_gpw,                     ONLY: mp2_eri_2c_integrate_gpw
    USE mp2_types,                       ONLY: integ_mat_buffer_type
@@ -976,7 +970,7 @@ CONTAINS
             ALLOCATE (L_external_col(dimen_RI, rec_L_size))
             L_external_col = 0.0_dp
 
-            CALL mp_sendrecv(L_local_col, proc_send_static, L_external_col, proc_receive_static, para_env_exchange%group)
+            CALL para_env_exchange%group%sendrecv(L_local_col, proc_send_static, L_external_col, proc_receive_static)
 
             DO jjB = 1, ncol_local
                j_global = col_indices(jjB)
@@ -1000,11 +994,11 @@ CONTAINS
       ! free the old exchange group stuff
       CALL cp_para_env_release(para_env_exchange)
 
-      ! create the new group for the mp_sum of the local data
+      ! create the new group for the sum of the local data over all processes
       sub_sub_color = para_env_L%mepos
       CALL cp_para_env_split(para_env_exchange, para_env, sub_sub_color)
 
-      CALL mp_sum(fm_matrix_L%local_data, para_env_exchange%group)
+      CALL para_env_exchange%group%sum(fm_matrix_L%local_data)
 
       CALL cp_para_env_release(para_env_exchange)
 
@@ -1110,7 +1104,7 @@ CONTAINS
       CALL cp_para_env_split(para_env_exchange, para_env, matrix%matrix_struct%para_env%mepos)
 
       ALLOCATE (num_eval(0:group_size_L - 1))
-      CALL mp_allgather(num_small_evals, num_eval, para_env_exchange%group)
+      CALL para_env_exchange%group%allgather(num_small_evals, num_eval)
 
       num_small_evals = MINVAL(num_eval)
 
@@ -1121,8 +1115,8 @@ CONTAINS
          needed_evals = nrow - num_small_evals
 
          ! Step 3: Broadcast your local data to all other processes
-         CALL mp_bcast(evecs%local_data, pos_max(1), para_env_exchange%group)
-         CALL mp_bcast(cond_num, pos_max(1), para_env_exchange%group)
+         CALL para_env_exchange%group%bcast(evecs%local_data, pos_max(1))
+         CALL para_env_exchange%group%bcast(cond_num, pos_max(1))
       END IF
 
       DEALLOCATE (num_eval)
@@ -1250,7 +1244,7 @@ CONTAINS
 
       CALL timeset(routineN//"_2", handle2)
 
-      CALL mp_alltoall(num_entries_send, num_entries_rec, 1, para_env%group)
+      CALL para_env%group%alltoall(num_entries_send, num_entries_rec, 1)
 
       CALL timestop(handle2)
 
@@ -1761,7 +1755,7 @@ CONTAINS
       local_L(:, :) = local_L_internal(1:nrow_local, 1:ncol_local)
 
       max_row_col_local = MAX(nrow_local, ncol_local)
-      CALL mp_max(max_row_col_local, para_env%group)
+      CALL para_env%group%max(max_row_col_local)
 
       ALLOCATE (local_col_row_info(0:max_row_col_local, 2))
       local_col_row_info = 0
@@ -1793,7 +1787,7 @@ CONTAINS
       DO proc_shift = 1, para_env%num_pe - 1
          ! first exchange information on the local data
          rec_col_row_info = 0
-         CALL mp_sendrecv(local_col_row_info, proc_send_static, rec_col_row_info, proc_receive_static, para_env%group)
+         CALL para_env%group%sendrecv(local_col_row_info, proc_send_static, rec_col_row_info, proc_receive_static)
          nrow_rec = rec_col_row_info(0, 1)
          ncol_rec = rec_col_row_info(0, 2)
 
@@ -1807,7 +1801,7 @@ CONTAINS
          rec_L = 0.0_dp
 
          ! then send and receive the real data
-         CALL mp_sendrecv(local_L, proc_send_static, rec_L, proc_receive_static, para_env%group)
+         CALL para_env%group%sendrecv(local_L, proc_send_static, rec_L, proc_receive_static)
 
          ! accumulate the received data on my_Lrows
          DO jjB = 1, ncol_rec

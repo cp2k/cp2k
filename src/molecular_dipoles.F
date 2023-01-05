@@ -25,7 +25,6 @@ MODULE molecular_dipoles
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: twopi
-   USE message_passing,                 ONLY: mp_sum
    USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                               molecule_kind_type
    USE molecule_types,                  ONLY: molecule_type
@@ -213,8 +212,8 @@ CONTAINS
             END DO
          END DO
       END DO
-      CALL mp_sum(dipole_set, para_env%group)
-      CALL mp_sum(charge_set, para_env%group)
+      CALL para_env%group%sum(dipole_set)
+      CALL para_env%group%sum(charge_set)
 
       iounit = cp_print_key_unit_nr(logger, loc_print_key, "MOLECULAR_DIPOLES", &
                                     extension=".MolDip", middle_name="MOLECULAR_DIPOLES")

@@ -16,8 +16,6 @@ MODULE qs_loc_molecules
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: dp
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_max,&
-                                              mp_minloc
    USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                               molecule_kind_type
    USE molecule_types,                  ONLY: molecule_type
@@ -95,7 +93,7 @@ CONTAINS
       natom_loc = natom_max
       natom = natom_max
 
-      CALL mp_max(natom_max, para_env%group)
+      CALL para_env%group%max(natom_max)
 
       ALLOCATE (r(3, natom_max))
 
@@ -142,7 +140,7 @@ CONTAINS
          mydist(1) = distance(local_location)
          mydist(2) = para_env%mepos
 
-         CALL mp_minloc(mydist, para_env%group)
+         CALL para_env%group%minloc(mydist)
 
          IF (mydist(2) == para_env%mepos) THEN
             wfc_to_atom_map(istate) = local_location

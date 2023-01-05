@@ -55,8 +55,6 @@ MODULE xtb_matrices
                                               dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
-   USE message_passing,                 ONLY: mp_minloc,&
-                                              mp_sum
    USE mulliken,                        ONLY: ao_charges
    USE orbital_pointers,                ONLY: ncoset
    USE pair_potential,                  ONLY: init_genpot
@@ -330,7 +328,7 @@ CONTAINS
       CALL d3_cnumber(qs_env, dispersion_env, cnumbers, dcnum, ghost, floating, atomnumber, &
                       calculate_forces, .FALSE.)
       DEALLOCATE (ghost, floating, atomnumber)
-      CALL mp_sum(cnumbers, para_env%group)
+      CALL para_env%group%sum(cnumbers)
       IF (calculate_forces) THEN
          CALL dcnum_distribute(dcnum, para_env)
       END IF
@@ -879,14 +877,14 @@ CONTAINS
       ! set repulsive energy
       erep = erep + exb + enonbonded
       IF (xb_inter) THEN
-         CALL mp_sum(exb, para_env%group)
+         CALL para_env%group%sum(exb)
          energy%xtb_xb_inter = exb
       END IF
       IF (do_nonbonded) THEN
-         CALL mp_sum(enonbonded, para_env%group)
+         CALL para_env%group%sum(enonbonded)
          energy%xtb_nonbonded = enonbonded
       END IF
-      CALL mp_sum(erep, para_env%group)
+      CALL para_env%group%sum(erep)
       energy%repulsive = erep
 
       ! deallocate coordination numbers
@@ -1131,7 +1129,7 @@ CONTAINS
       CALL d3_cnumber(qs_env, dispersion_env, cnumbers, dcnum, ghost, floating, atomnumber, &
                       .TRUE., .FALSE.)
       DEALLOCATE (ghost, floating, atomnumber)
-      CALL mp_sum(cnumbers, para_env%group)
+      CALL para_env%group%sum(cnumbers)
       CALL dcnum_distribute(dcnum, para_env)
 
       ! Calculate Huckel parameters
@@ -1793,7 +1791,7 @@ CONTAINS
                dmloc(2*iatom - 1) = neighbor_atoms(ikind)%rab(iatom)
                dmloc(2*iatom) = REAL(para_env%mepos, KIND=dp)
             END DO
-            CALL mp_minloc(dmloc, para_env%group)
+            CALL para_env%group%minloc(dmloc)
             coord = 0.0_dp
             matom = 0
             DO iatom = 1, natom
@@ -1803,9 +1801,9 @@ CONTAINS
                   matom(iatom) = neighbor_atoms(ikind)%katom(iatom)
                END IF
             END DO
-            CALL mp_sum(coord, para_env%group)
+            CALL para_env%group%sum(coord)
             neighbor_atoms(ikind)%coord(1:3, :) = coord(1:3, :)
-            CALL mp_sum(matom, para_env%group)
+            CALL para_env%group%sum(matom)
             neighbor_atoms(ikind)%katom(:) = matom(:)
             DEALLOCATE (dmloc, matom, coord)
          END IF

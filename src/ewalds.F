@@ -29,8 +29,7 @@ MODULE ewalds
    USE mathconstants,                   ONLY: fourpi,&
                                               oorootpi,&
                                               pi
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_comm_type
    USE particle_types,                  ONLY: particle_type
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_poisson_types,                ONLY: do_ewald_none
@@ -198,7 +197,7 @@ CONTAINS
                           *exp_igr%ez(np, node))
          END DO
       END DO
-      CALL mp_sum(summe, group)
+      CALL group%sum(summe)
 
       pref = fourpi/pw_grid%vol
 
@@ -362,8 +361,8 @@ CONTAINS
             END IF
          END DO
 
-         CALL mp_sum(q_self, group)
-         CALL mp_sum(q_sum, group)
+         CALL group%sum(q_self)
+         CALL group%sum(q_sum)
       END IF
 
       e_neut = 0.0_dp

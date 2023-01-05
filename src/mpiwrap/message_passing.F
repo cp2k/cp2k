@@ -159,12 +159,360 @@ MODULE message_passing
       PRIVATE
       MPI_COMM_TYPE :: handle = mp_comm_null_handle
    CONTAINS
-      PROCEDURE :: set_handle => mp_comm_type_set_handle
-      PROCEDURE :: get_handle => mp_comm_type_get_handle
-      PROCEDURE, PRIVATE :: mp_comm_op_eq
-      PROCEDURE, PRIVATE :: mp_comm_op_neq
+      ! Setters/Getters
+      PROCEDURE, PASS :: set_handle => mp_comm_type_set_handle
+      PROCEDURE, PASS :: get_handle => mp_comm_type_get_handle
+      ! Comparisons
+      PROCEDURE, PRIVATE, PASS :: mp_comm_op_eq
+      PROCEDURE, PRIVATE, PASS :: mp_comm_op_neq
       GENERIC, PUBLIC :: operator(.EQ.) => mp_comm_op_eq
       GENERIC, PUBLIC :: operator(.NE.) => mp_comm_op_neq
+      ! Communication routines
+
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_sendrecv_iv, mp_sendrecv_im2, mp_sendrecv_im3, mp_sendrecv_im4, &
+         mp_sendrecv_lv, mp_sendrecv_lm2, mp_sendrecv_lm3, mp_sendrecv_lm4, &
+         mp_sendrecv_rv, mp_sendrecv_rm2, mp_sendrecv_rm3, mp_sendrecv_rm4, &
+         mp_sendrecv_dv, mp_sendrecv_dm2, mp_sendrecv_dm3, mp_sendrecv_dm4, &
+         mp_sendrecv_cv, mp_sendrecv_cm2, mp_sendrecv_cm3, mp_sendrecv_cm4, &
+         mp_sendrecv_zv, mp_sendrecv_zm2, mp_sendrecv_zm3, mp_sendrecv_zm4
+      GENERIC, PUBLIC :: sendrecv => mp_sendrecv_iv, mp_sendrecv_im2, mp_sendrecv_im3, mp_sendrecv_im4, &
+         mp_sendrecv_lv, mp_sendrecv_lm2, mp_sendrecv_lm3, mp_sendrecv_lm4, &
+         mp_sendrecv_rv, mp_sendrecv_rm2, mp_sendrecv_rm3, mp_sendrecv_rm4, &
+         mp_sendrecv_dv, mp_sendrecv_dm2, mp_sendrecv_dm3, mp_sendrecv_dm4, &
+         mp_sendrecv_cv, mp_sendrecv_cm2, mp_sendrecv_cm3, mp_sendrecv_cm4, &
+         mp_sendrecv_zv, mp_sendrecv_zm2, mp_sendrecv_zm3, mp_sendrecv_zm4
+
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_minloc_iv, &
+         mp_minloc_lv, mp_minloc_rv, mp_minloc_dv
+      GENERIC, PUBLIC :: minloc => mp_minloc_iv, &
+         mp_minloc_lv, mp_minloc_rv, mp_minloc_dv
+
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_maxloc_iv, &
+         mp_maxloc_lv, mp_maxloc_rv, mp_maxloc_dv
+      GENERIC, PUBLIC :: maxloc => mp_maxloc_iv, &
+         mp_maxloc_lv, mp_maxloc_rv, mp_maxloc_dv
+
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_shift_im, mp_shift_i, &
+         mp_shift_lm, mp_shift_l, mp_shift_rm, mp_shift_r, &
+         mp_shift_dm, mp_shift_d, mp_shift_cm, mp_shift_c, &
+         mp_shift_zm, mp_shift_z
+      GENERIC, PUBLIC :: shift => mp_shift_im, mp_shift_i, &
+         mp_shift_lm, mp_shift_l, mp_shift_rm, mp_shift_r, &
+         mp_shift_dm, mp_shift_d, mp_shift_cm, mp_shift_c, &
+         mp_shift_zm, mp_shift_z
+
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_bcast_i, mp_bcast_iv, mp_bcast_im, mp_bcast_i3, &
+         mp_bcast_l, mp_bcast_lv, mp_bcast_lm, mp_bcast_l3, &
+         mp_bcast_r, mp_bcast_rv, mp_bcast_rm, mp_bcast_r3, &
+         mp_bcast_d, mp_bcast_dv, mp_bcast_dm, mp_bcast_d3, &
+         mp_bcast_c, mp_bcast_cv, mp_bcast_cm, mp_bcast_c3, &
+         mp_bcast_z, mp_bcast_zv, mp_bcast_zm, mp_bcast_z3, &
+         mp_bcast_b, mp_bcast_bv, mp_bcast_av, mp_bcast_am
+      GENERIC, PUBLIC :: bcast => mp_bcast_i, mp_bcast_iv, mp_bcast_im, mp_bcast_i3, &
+         mp_bcast_l, mp_bcast_lv, mp_bcast_lm, mp_bcast_l3, &
+         mp_bcast_r, mp_bcast_rv, mp_bcast_rm, mp_bcast_r3, &
+         mp_bcast_d, mp_bcast_dv, mp_bcast_dm, mp_bcast_d3, &
+         mp_bcast_c, mp_bcast_cv, mp_bcast_cm, mp_bcast_c3, &
+         mp_bcast_z, mp_bcast_zv, mp_bcast_zm, mp_bcast_z3, &
+         mp_bcast_b, mp_bcast_bv, mp_bcast_av, mp_bcast_am
+
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_ibcast_i, mp_ibcast_iv, &
+         mp_ibcast_l, mp_ibcast_lv, mp_ibcast_r, mp_ibcast_rv, &
+         mp_ibcast_d, mp_ibcast_dv, mp_ibcast_c, mp_ibcast_cv, &
+         mp_ibcast_z, mp_ibcast_zv
+      GENERIC, PUBLIC :: ibcast => mp_ibcast_i, mp_ibcast_iv, &
+         mp_ibcast_l, mp_ibcast_lv, mp_ibcast_r, mp_ibcast_rv, &
+         mp_ibcast_d, mp_ibcast_dv, mp_ibcast_c, mp_ibcast_cv, &
+         mp_ibcast_z, mp_ibcast_zv
+
+      PROCEDURE, PRIVATE, PASS(comm) ::  mp_sum_i, mp_sum_iv, mp_sum_im, mp_sum_im3, mp_sum_im4, &
+         mp_sum_l, mp_sum_lv, mp_sum_lm, mp_sum_lm3, mp_sum_lm4, &
+         mp_sum_r, mp_sum_rv, mp_sum_rm, mp_sum_rm3, mp_sum_rm4, &
+         mp_sum_d, mp_sum_dv, mp_sum_dm, mp_sum_dm3, mp_sum_dm4, &
+         mp_sum_c, mp_sum_cv, mp_sum_cm, mp_sum_cm3, mp_sum_cm4, &
+         mp_sum_z, mp_sum_zv, mp_sum_zm, mp_sum_zm3, mp_sum_zm4, &
+         mp_sum_root_iv, mp_sum_root_im, mp_sum_root_lv, mp_sum_root_lm, &
+         mp_sum_root_rv, mp_sum_root_rm, mp_sum_root_dv, mp_sum_root_dm, &
+         mp_sum_root_cv, mp_sum_root_cm, mp_sum_root_zv, mp_sum_root_zm, &
+         mp_sum_b, mp_sum_bv
+      GENERIC, PUBLIC :: sum => mp_sum_i, mp_sum_iv, mp_sum_im, mp_sum_im3, mp_sum_im4, &
+         mp_sum_l, mp_sum_lv, mp_sum_lm, mp_sum_lm3, mp_sum_lm4, &
+         mp_sum_r, mp_sum_rv, mp_sum_rm, mp_sum_rm3, mp_sum_rm4, &
+         mp_sum_d, mp_sum_dv, mp_sum_dm, mp_sum_dm3, mp_sum_dm4, &
+         mp_sum_c, mp_sum_cv, mp_sum_cm, mp_sum_cm3, mp_sum_cm4, &
+         mp_sum_z, mp_sum_zv, mp_sum_zm, mp_sum_zm3, mp_sum_zm4, &
+         mp_sum_root_iv, mp_sum_root_im, mp_sum_root_lv, mp_sum_root_lm, &
+         mp_sum_root_rv, mp_sum_root_rm, mp_sum_root_dv, mp_sum_root_dm, &
+         mp_sum_root_cv, mp_sum_root_cm, mp_sum_root_zv, mp_sum_root_zm, &
+         mp_sum_b, mp_sum_bv
+
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_isum_iv, &
+         mp_isum_lv, mp_isum_rv, mp_isum_dv, mp_isum_cv, &
+         mp_isum_zv, mp_isum_bv
+      GENERIC, PUBLIC :: isum => mp_isum_iv, &
+         mp_isum_lv, mp_isum_rv, mp_isum_dv, mp_isum_cv, &
+         mp_isum_zv, mp_isum_bv
+
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_sum_partial_im, &
+         mp_sum_partial_lm, mp_sum_partial_rm, mp_sum_partial_dm, &
+         mp_sum_partial_cm, mp_sum_partial_zm
+      GENERIC, PUBLIC :: sum_partial => mp_sum_partial_im, &
+         mp_sum_partial_lm, mp_sum_partial_rm, mp_sum_partial_dm, &
+         mp_sum_partial_cm, mp_sum_partial_zm
+
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_max_i, mp_max_iv, &
+         mp_max_l, mp_max_lv, mp_max_r, mp_max_rv, &
+         mp_max_d, mp_max_dv, mp_max_c, mp_max_cv, &
+         mp_max_z, mp_max_zv
+      GENERIC, PUBLIC :: max => mp_max_i, mp_max_iv, &
+         mp_max_l, mp_max_lv, mp_max_r, mp_max_rv, &
+         mp_max_d, mp_max_dv, mp_max_c, mp_max_cv, &
+         mp_max_z, mp_max_zv
+
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_min_i, mp_min_iv, &
+         mp_min_l, mp_min_lv, mp_min_r, mp_min_rv, &
+         mp_min_d, mp_min_dv, mp_min_c, mp_min_cv, &
+         mp_min_z, mp_min_zv
+      GENERIC, PUBLIC :: min => mp_min_i, mp_min_iv, &
+         mp_min_l, mp_min_lv, mp_min_r, mp_min_rv, &
+         mp_min_d, mp_min_dv, mp_min_c, mp_min_cv, &
+         mp_min_z, mp_min_zv
+
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_prod_r, mp_prod_d, mp_prod_c, mp_prod_z
+      GENERIC, PUBLIC :: prod => mp_prod_r, mp_prod_d, mp_prod_c, mp_prod_z
+
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_gather_i, mp_gather_iv, mp_gather_im, &
+         mp_gather_l, mp_gather_lv, mp_gather_lm, &
+         mp_gather_r, mp_gather_rv, mp_gather_rm, &
+         mp_gather_d, mp_gather_dv, mp_gather_dm, &
+         mp_gather_c, mp_gather_cv, mp_gather_cm, &
+         mp_gather_z, mp_gather_zv, mp_gather_zm
+      GENERIC, PUBLIC :: gather => mp_gather_i, mp_gather_iv, mp_gather_im, &
+         mp_gather_l, mp_gather_lv, mp_gather_lm, &
+         mp_gather_r, mp_gather_rv, mp_gather_rm, &
+         mp_gather_d, mp_gather_dv, mp_gather_dm, &
+         mp_gather_c, mp_gather_cv, mp_gather_cm, &
+         mp_gather_z, mp_gather_zv, mp_gather_zm
+
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_gatherv_iv, &
+         mp_gatherv_lv, mp_gatherv_rv, mp_gatherv_dv, &
+         mp_gatherv_cv, mp_gatherv_zv, mp_gatherv_lm2, mp_gatherv_rm2, &
+         mp_gatherv_dm2, mp_gatherv_cm2, mp_gatherv_zm2
+      GENERIC, PUBLIC :: gatherv => mp_gatherv_iv, &
+         mp_gatherv_lv, mp_gatherv_rv, mp_gatherv_dv, &
+         mp_gatherv_cv, mp_gatherv_zv, mp_gatherv_lm2, mp_gatherv_rm2, &
+         mp_gatherv_dm2, mp_gatherv_cm2, mp_gatherv_zm2
+
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_igatherv_iv, &
+         mp_igatherv_lv, mp_igatherv_rv, mp_igatherv_dv, &
+         mp_igatherv_cv, mp_igatherv_zv
+      GENERIC, PUBLIC :: igatherv => mp_igatherv_iv, &
+         mp_igatherv_lv, mp_igatherv_rv, mp_igatherv_dv, &
+         mp_igatherv_cv, mp_igatherv_zv
+
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_allgather_i, mp_allgather_i2, &
+         mp_allgather_i12, mp_allgather_i23, mp_allgather_i34, &
+         mp_allgather_i22, mp_allgather_l, mp_allgather_l2, &
+         mp_allgather_l12, mp_allgather_l23, mp_allgather_l34, &
+         mp_allgather_l22, mp_allgather_r, mp_allgather_r2, &
+         mp_allgather_r12, mp_allgather_r23, mp_allgather_r34, &
+         mp_allgather_r22, mp_allgather_d, mp_allgather_d2, &
+         mp_allgather_d12, mp_allgather_d23, mp_allgather_d34, &
+         mp_allgather_d22, mp_allgather_c, mp_allgather_c2, &
+         mp_allgather_c12, mp_allgather_c23, mp_allgather_c34, &
+         mp_allgather_c22, mp_allgather_z, mp_allgather_z2, &
+         mp_allgather_z12, mp_allgather_z23, mp_allgather_z34, &
+         mp_allgather_z22
+      GENERIC, PUBLIC :: allgather => mp_allgather_i, mp_allgather_i2, &
+         mp_allgather_i12, mp_allgather_i23, mp_allgather_i34, &
+         mp_allgather_i22, mp_allgather_l, mp_allgather_l2, &
+         mp_allgather_l12, mp_allgather_l23, mp_allgather_l34, &
+         mp_allgather_l22, mp_allgather_r, mp_allgather_r2, &
+         mp_allgather_r12, mp_allgather_r23, mp_allgather_r34, &
+         mp_allgather_r22, mp_allgather_d, mp_allgather_d2, &
+         mp_allgather_d12, mp_allgather_d23, mp_allgather_d34, &
+         mp_allgather_d22, mp_allgather_c, mp_allgather_c2, &
+         mp_allgather_c12, mp_allgather_c23, mp_allgather_c34, &
+         mp_allgather_c22, mp_allgather_z, mp_allgather_z2, &
+         mp_allgather_z12, mp_allgather_z23, mp_allgather_z34, &
+         mp_allgather_z22
+
+      PROCEDURE, PRIVATE, PASS(comm) ::  mp_allgatherv_iv, mp_allgatherv_lv, &
+         mp_allgatherv_rv, mp_allgatherv_dv, mp_allgatherv_cv, mp_allgatherv_zv, &
+         mp_allgatherv_im2, mp_allgatherv_lm2, mp_allgatherv_rm2, &
+         mp_allgatherv_dm2, mp_allgatherv_cm2, mp_allgatherv_zm2
+      GENERIC, PUBLIC :: allgatherv => mp_allgatherv_iv, mp_allgatherv_lv, &
+         mp_allgatherv_rv, mp_allgatherv_dv, mp_allgatherv_cv, mp_allgatherv_zv, &
+         mp_allgatherv_im2, mp_allgatherv_lm2, mp_allgatherv_rm2, &
+         mp_allgatherv_dm2, mp_allgatherv_cm2, mp_allgatherv_zm2
+
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_iallgather_i, mp_iallgather_l, &
+         mp_iallgather_r, mp_iallgather_d, mp_iallgather_c, mp_iallgather_z, &
+         mp_iallgather_i11, mp_iallgather_l11, mp_iallgather_r11, mp_iallgather_d11, &
+         mp_iallgather_c11, mp_iallgather_z11, mp_iallgather_i13, mp_iallgather_l13, &
+         mp_iallgather_r13, mp_iallgather_d13, mp_iallgather_c13, mp_iallgather_z13, &
+         mp_iallgather_i22, mp_iallgather_l22, mp_iallgather_r22, mp_iallgather_d22, &
+         mp_iallgather_c22, mp_iallgather_z22, mp_iallgather_i24, mp_iallgather_l24, &
+         mp_iallgather_r24, mp_iallgather_d24, mp_iallgather_c24, mp_iallgather_z24, &
+         mp_iallgather_i33, mp_iallgather_l33, mp_iallgather_r33, mp_iallgather_d33, &
+         mp_iallgather_c33, mp_iallgather_z33
+      GENERIC, PUBLIC :: iallgather => mp_iallgather_i, mp_iallgather_l, &
+         mp_iallgather_r, mp_iallgather_d, mp_iallgather_c, mp_iallgather_z, &
+         mp_iallgather_i11, mp_iallgather_l11, mp_iallgather_r11, mp_iallgather_d11, &
+         mp_iallgather_c11, mp_iallgather_z11, mp_iallgather_i13, mp_iallgather_l13, &
+         mp_iallgather_r13, mp_iallgather_d13, mp_iallgather_c13, mp_iallgather_z13, &
+         mp_iallgather_i22, mp_iallgather_l22, mp_iallgather_r22, mp_iallgather_d22, &
+         mp_iallgather_c22, mp_iallgather_z22, mp_iallgather_i24, mp_iallgather_l24, &
+         mp_iallgather_r24, mp_iallgather_d24, mp_iallgather_c24, mp_iallgather_z24, &
+         mp_iallgather_i33, mp_iallgather_l33, mp_iallgather_r33, mp_iallgather_d33, &
+         mp_iallgather_c33, mp_iallgather_z33
+
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_iallgatherv_iv, mp_iallgatherv_iv2, &
+         mp_iallgatherv_lv, mp_iallgatherv_lv2, mp_iallgatherv_rv, mp_iallgatherv_rv2, &
+         mp_iallgatherv_dv, mp_iallgatherv_dv2, mp_iallgatherv_cv, mp_iallgatherv_cv2, &
+         mp_iallgatherv_zv, mp_iallgatherv_zv2
+      GENERIC, PUBLIC :: iallgatherv => mp_iallgatherv_iv, mp_iallgatherv_iv2, &
+         mp_iallgatherv_lv, mp_iallgatherv_lv2, mp_iallgatherv_rv, mp_iallgatherv_rv2, &
+         mp_iallgatherv_dv, mp_iallgatherv_dv2, mp_iallgatherv_cv, mp_iallgatherv_cv2, &
+         mp_iallgatherv_zv, mp_iallgatherv_zv2
+
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_scatter_iv, mp_scatter_lv, &
+         mp_scatter_rv, mp_scatter_dv, mp_scatter_cv, mp_scatter_zv
+      GENERIC, PUBLIC :: scatter => mp_scatter_iv, mp_scatter_lv, &
+         mp_scatter_rv, mp_scatter_dv, mp_scatter_cv, mp_scatter_zv
+
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_iscatter_i, mp_iscatter_l, &
+         mp_iscatter_r, mp_iscatter_d, mp_iscatter_c, mp_iscatter_z, &
+         mp_iscatter_iv2, mp_iscatter_lv2, mp_iscatter_rv2, mp_iscatter_dv2, &
+         mp_iscatter_cv2, mp_iscatter_zv2
+      GENERIC, PUBLIC :: iscatter => mp_iscatter_i, mp_iscatter_l, &
+         mp_iscatter_r, mp_iscatter_d, mp_iscatter_c, mp_iscatter_z, &
+         mp_iscatter_iv2, mp_iscatter_lv2, mp_iscatter_rv2, mp_iscatter_dv2, &
+         mp_iscatter_cv2, mp_iscatter_zv2
+
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_iscatterv_iv, mp_iscatterv_lv, &
+         mp_iscatterv_rv, mp_iscatterv_dv, mp_iscatterv_cv, mp_iscatterv_zv
+      GENERIC, PUBLIC :: iscatterv => mp_iscatterv_iv, mp_iscatterv_lv, &
+         mp_iscatterv_rv, mp_iscatterv_dv, mp_iscatterv_cv, mp_iscatterv_zv
+
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_alltoall_i, mp_alltoall_i22, mp_alltoall_i33, &
+         mp_alltoall_i44, mp_alltoall_i55, mp_alltoall_i45, mp_alltoall_i34, &
+         mp_alltoall_i11v, mp_alltoall_i22v, mp_alltoall_i54, &
+         mp_alltoall_l, mp_alltoall_l22, mp_alltoall_l33, &
+         mp_alltoall_l44, mp_alltoall_l55, mp_alltoall_l45, mp_alltoall_l34, &
+         mp_alltoall_l11v, mp_alltoall_l22v, mp_alltoall_l54, &
+         mp_alltoall_r, mp_alltoall_r22, mp_alltoall_r33, &
+         mp_alltoall_r44, mp_alltoall_r55, mp_alltoall_r45, mp_alltoall_r34, &
+         mp_alltoall_r11v, mp_alltoall_r22v, mp_alltoall_r54, &
+         mp_alltoall_d, mp_alltoall_d22, mp_alltoall_d33, &
+         mp_alltoall_d44, mp_alltoall_d55, mp_alltoall_d45, mp_alltoall_d34, &
+         mp_alltoall_d11v, mp_alltoall_d22v, mp_alltoall_d54, &
+         mp_alltoall_c, mp_alltoall_c22, mp_alltoall_c33, &
+         mp_alltoall_c44, mp_alltoall_c55, mp_alltoall_c45, mp_alltoall_c34, &
+         mp_alltoall_c11v, mp_alltoall_c22v, mp_alltoall_c54, &
+         mp_alltoall_z, mp_alltoall_z22, mp_alltoall_z33, &
+         mp_alltoall_z44, mp_alltoall_z55, mp_alltoall_z45, mp_alltoall_z34, &
+         mp_alltoall_z11v, mp_alltoall_z22v, mp_alltoall_z54
+      GENERIC, PUBLIC :: alltoall => mp_alltoall_i, mp_alltoall_i22, mp_alltoall_i33, &
+         mp_alltoall_i44, mp_alltoall_i55, mp_alltoall_i45, mp_alltoall_i34, &
+         mp_alltoall_i11v, mp_alltoall_i22v, mp_alltoall_i54, &
+         mp_alltoall_l, mp_alltoall_l22, mp_alltoall_l33, &
+         mp_alltoall_l44, mp_alltoall_l55, mp_alltoall_l45, mp_alltoall_l34, &
+         mp_alltoall_l11v, mp_alltoall_l22v, mp_alltoall_l54, &
+         mp_alltoall_r, mp_alltoall_r22, mp_alltoall_r33, &
+         mp_alltoall_r44, mp_alltoall_r55, mp_alltoall_r45, mp_alltoall_r34, &
+         mp_alltoall_r11v, mp_alltoall_r22v, mp_alltoall_r54, &
+         mp_alltoall_d, mp_alltoall_d22, mp_alltoall_d33, &
+         mp_alltoall_d44, mp_alltoall_d55, mp_alltoall_d45, mp_alltoall_d34, &
+         mp_alltoall_d11v, mp_alltoall_d22v, mp_alltoall_d54, &
+         mp_alltoall_c, mp_alltoall_c22, mp_alltoall_c33, &
+         mp_alltoall_c44, mp_alltoall_c55, mp_alltoall_c45, mp_alltoall_c34, &
+         mp_alltoall_c11v, mp_alltoall_c22v, mp_alltoall_c54, &
+         mp_alltoall_z, mp_alltoall_z22, mp_alltoall_z33, &
+         mp_alltoall_z44, mp_alltoall_z55, mp_alltoall_z45, mp_alltoall_z34, &
+         mp_alltoall_z11v, mp_alltoall_z22v, mp_alltoall_z54
+
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_send_i, mp_send_iv, mp_send_im2, mp_send_im3, &
+         mp_send_l, mp_send_lv, mp_send_lm2, mp_send_lm3, &
+         mp_send_r, mp_send_rv, mp_send_rm2, mp_send_rm3, &
+         mp_send_d, mp_send_dv, mp_send_dm2, mp_send_dm3, &
+         mp_send_c, mp_send_cv, mp_send_cm2, mp_send_cm3, &
+         mp_send_z, mp_send_zv, mp_send_zm2, mp_send_zm3
+      GENERIC, PUBLIC :: send => mp_send_i, mp_send_iv, mp_send_im2, mp_send_im3, &
+         mp_send_l, mp_send_lv, mp_send_lm2, mp_send_lm3, &
+         mp_send_r, mp_send_rv, mp_send_rm2, mp_send_rm3, &
+         mp_send_d, mp_send_dv, mp_send_dm2, mp_send_dm3, &
+         mp_send_c, mp_send_cv, mp_send_cm2, mp_send_cm3, &
+         mp_send_z, mp_send_zv, mp_send_zm2, mp_send_zm3
+
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_recv_i, mp_recv_iv, mp_recv_im2, mp_recv_im3, &
+         mp_recv_l, mp_recv_lv, mp_recv_lm2, mp_recv_lm3, &
+         mp_recv_r, mp_recv_rv, mp_recv_rm2, mp_recv_rm3, &
+         mp_recv_d, mp_recv_dv, mp_recv_dm2, mp_recv_dm3, &
+         mp_recv_c, mp_recv_cv, mp_recv_cm2, mp_recv_cm3, &
+         mp_recv_z, mp_recv_zv, mp_recv_zm2, mp_recv_zm3
+      GENERIC, PUBLIC :: recv => mp_recv_i, mp_recv_iv, mp_recv_im2, mp_recv_im3, &
+         mp_recv_l, mp_recv_lv, mp_recv_lm2, mp_recv_lm3, &
+         mp_recv_r, mp_recv_rv, mp_recv_rm2, mp_recv_rm3, &
+         mp_recv_d, mp_recv_dv, mp_recv_dm2, mp_recv_dm3, &
+         mp_recv_c, mp_recv_cv, mp_recv_cm2, mp_recv_cm3, &
+         mp_recv_z, mp_recv_zv, mp_recv_zm2, mp_recv_zm3
+
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_isendrecv_i, mp_isendrecv_iv, &
+         mp_isendrecv_l, mp_isendrecv_lv, mp_isendrecv_r, mp_isendrecv_rv, &
+         mp_isendrecv_d, mp_isendrecv_dv, mp_isendrecv_c, mp_isendrecv_cv, &
+         mp_isendrecv_z, mp_isendrecv_zv
+      GENERIC, PUBLIC :: isendrecv => mp_isendrecv_i, mp_isendrecv_iv, &
+         mp_isendrecv_l, mp_isendrecv_lv, mp_isendrecv_r, mp_isendrecv_rv, &
+         mp_isendrecv_d, mp_isendrecv_dv, mp_isendrecv_c, mp_isendrecv_cv, &
+         mp_isendrecv_z, mp_isendrecv_zv
+
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_isend_iv, mp_isend_im2, mp_isend_im3, mp_isend_im4, &
+         mp_isend_lv, mp_isend_lm2, mp_isend_lm3, mp_isend_lm4, &
+         mp_isend_rv, mp_isend_rm2, mp_isend_rm3, mp_isend_rm4, &
+         mp_isend_dv, mp_isend_dm2, mp_isend_dm3, mp_isend_dm4, &
+         mp_isend_cv, mp_isend_cm2, mp_isend_cm3, mp_isend_cm4, &
+         mp_isend_zv, mp_isend_zm2, mp_isend_zm3, mp_isend_zm4, &
+         mp_isend_bv, mp_isend_bm3, mp_isend_custom
+      GENERIC, PUBLIC :: isend => mp_isend_iv, mp_isend_im2, mp_isend_im3, mp_isend_im4, &
+         mp_isend_lv, mp_isend_lm2, mp_isend_lm3, mp_isend_lm4, &
+         mp_isend_rv, mp_isend_rm2, mp_isend_rm3, mp_isend_rm4, &
+         mp_isend_dv, mp_isend_dm2, mp_isend_dm3, mp_isend_dm4, &
+         mp_isend_cv, mp_isend_cm2, mp_isend_cm3, mp_isend_cm4, &
+         mp_isend_zv, mp_isend_zm2, mp_isend_zm3, mp_isend_zm4, &
+         mp_isend_bv, mp_isend_bm3, mp_isend_custom
+
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_irecv_iv, mp_irecv_im2, mp_irecv_im3, mp_irecv_im4, &
+         mp_irecv_lv, mp_irecv_lm2, mp_irecv_lm3, mp_irecv_lm4, &
+         mp_irecv_rv, mp_irecv_rm2, mp_irecv_rm3, mp_irecv_rm4, &
+         mp_irecv_dv, mp_irecv_dm2, mp_irecv_dm3, mp_irecv_dm4, &
+         mp_irecv_cv, mp_irecv_cm2, mp_irecv_cm3, mp_irecv_cm4, &
+         mp_irecv_zv, mp_irecv_zm2, mp_irecv_zm3, mp_irecv_zm4, &
+         mp_irecv_bv, mp_irecv_bm3, mp_irecv_custom
+      GENERIC, PUBLIC :: irecv => mp_irecv_iv, mp_irecv_im2, mp_irecv_im3, mp_irecv_im4, &
+         mp_irecv_lv, mp_irecv_lm2, mp_irecv_lm3, mp_irecv_lm4, &
+         mp_irecv_rv, mp_irecv_rm2, mp_irecv_rm3, mp_irecv_rm4, &
+         mp_irecv_dv, mp_irecv_dm2, mp_irecv_dm3, mp_irecv_dm4, &
+         mp_irecv_cv, mp_irecv_cm2, mp_irecv_cm3, mp_irecv_cm4, &
+         mp_irecv_zv, mp_irecv_zm2, mp_irecv_zm3, mp_irecv_zm4, &
+         mp_irecv_bv, mp_irecv_bm3, mp_irecv_custom
+
+      PROCEDURE, PUBLIC, PASS(comm) :: probe => mp_probe
+
+      PROCEDURE, PUBLIC, PASS(comm) :: sync => mp_sync
+      PROCEDURE, PUBLIC, PASS(comm) :: isync => mp_isync
+
+      PROCEDURE, PUBLIC, PASS(comm1) :: compare => mp_comm_compare
+      PROCEDURE, PUBLIC, PASS(comm1) :: rank_compare => mp_rank_compare
+
+      PROCEDURE, PUBLIC, PASS(comm2) :: dup => mp_comm_dup
+      PROCEDURE, PUBLIC, PASS(comm) :: free => mp_comm_free
+
+      PROCEDURE, PUBLIC, PASS(comm) :: environ => mp_environ_l
+
+      PROCEDURE, PRIVATE, PASS(sub_comm) :: mp_comm_split, mp_comm_split_direct
+      GENERIC, PUBLIC :: from_split => mp_comm_split, mp_comm_split_direct
+      PROCEDURE, PUBLIC, PASS(mp_new_comm) :: from_reordering => mp_reordering
    END TYPE
 
    TYPE mp_request_type
@@ -177,6 +525,11 @@ MODULE message_passing
       PROCEDURE, PRIVATE :: mp_request_op_neq
       GENERIC, PUBLIC :: OPERATOR(.EQ.) => mp_request_op_eq
       GENERIC, PUBLIC :: OPERATOR(.NE.) => mp_request_op_neq
+
+      PROCEDURE, PRIVATE, PASS(request) :: mp_test_1
+      GENERIC, PUBLIC :: test => mp_test_1
+
+      PROCEDURE, PUBLIC, PASS(request) :: wait => mp_wait
    END TYPE
 
    TYPE mp_win_type
@@ -189,6 +542,21 @@ MODULE message_passing
       PROCEDURE, PRIVATE :: mp_win_op_neq
       GENERIC, PUBLIC :: OPERATOR(.EQ.) => mp_win_op_eq
       GENERIC, PUBLIC :: OPERATOR(.NE.) => mp_win_op_neq
+
+      PROCEDURE, PRIVATE, PASS(win) :: mp_win_create_iv, mp_win_create_lv, &
+         mp_win_create_rv, mp_win_create_dv, mp_win_create_cv, mp_win_create_zv
+      GENERIC, PUBLIC :: create => mp_win_create_iv, mp_win_create_lv, &
+         mp_win_create_rv, mp_win_create_dv, mp_win_create_cv, mp_win_create_zv
+
+      PROCEDURE, PRIVATE, PASS(win) :: mp_rget_iv, mp_rget_lv, &
+         mp_rget_rv, mp_rget_dv, mp_rget_cv, mp_rget_zv
+      GENERIC, PUBLIC :: rget => mp_rget_iv, mp_rget_lv, &
+         mp_rget_rv, mp_rget_dv, mp_rget_cv, mp_rget_zv
+
+      PROCEDURE, PUBLIC, PASS(win) :: free => mp_win_free
+      PROCEDURE, PUBLIC, PASS(win) :: lock_all => mp_win_lock_all
+      PROCEDURE, PUBLIC, PASS(win) :: unlock_all => mp_win_unlock_all
+      PROCEDURE, PUBLIC, PASS(win) :: flush_all => mp_win_flush_all
    END TYPE
 
    TYPE mp_file_type
@@ -201,6 +569,51 @@ MODULE message_passing
       PROCEDURE, PRIVATE :: mp_file_op_neq
       GENERIC, PUBLIC :: OPERATOR(.EQ.) => mp_file_op_eq
       GENERIC, PUBLIC :: OPERATOR(.NE.) => mp_file_op_neq
+
+      PROCEDURE, PRIVATE, PASS(fh) :: mp_file_write_at_ch, mp_file_write_at_chv, &
+         mp_file_write_at_i, mp_file_write_at_iv, mp_file_write_at_r, mp_file_write_at_rv, &
+         mp_file_write_at_d, mp_file_write_at_dv, mp_file_write_at_c, mp_file_write_at_cv, &
+         mp_file_write_at_z, mp_file_write_at_zv, mp_file_write_at_l, mp_file_write_at_lv
+      GENERIC, PUBLIC :: write_at => mp_file_write_at_ch, mp_file_write_at_chv, &
+         mp_file_write_at_i, mp_file_write_at_iv, mp_file_write_at_r, mp_file_write_at_rv, &
+         mp_file_write_at_d, mp_file_write_at_dv, mp_file_write_at_c, mp_file_write_at_cv, &
+         mp_file_write_at_z, mp_file_write_at_zv, mp_file_write_at_l, mp_file_write_at_lv
+
+      PROCEDURE, PRIVATE, PASS(fh) :: mp_file_write_at_all_ch, mp_file_write_at_all_chv, &
+         mp_file_write_at_all_i, mp_file_write_at_all_iv, mp_file_write_at_all_l, mp_file_write_at_all_lv, &
+         mp_file_write_at_all_r, mp_file_write_at_all_rv, mp_file_write_at_all_d, mp_file_write_at_all_dv, &
+         mp_file_write_at_all_c, mp_file_write_at_all_cv, mp_file_write_at_all_z, mp_file_write_at_all_zv
+      GENERIC, PUBLIC :: write_at_all => mp_file_write_at_all_ch, mp_file_write_at_all_chv, &
+         mp_file_write_at_all_i, mp_file_write_at_all_iv, mp_file_write_at_all_l, mp_file_write_at_all_lv, &
+         mp_file_write_at_all_r, mp_file_write_at_all_rv, mp_file_write_at_all_d, mp_file_write_at_all_dv, &
+         mp_file_write_at_all_c, mp_file_write_at_all_cv, mp_file_write_at_all_z, mp_file_write_at_all_zv
+
+      PROCEDURE, PRIVATE, PASS(fh) :: mp_file_read_at_ch, mp_file_read_at_chv, &
+         mp_file_read_at_i, mp_file_read_at_iv, mp_file_read_at_r, mp_file_read_at_rv, &
+         mp_file_read_at_d, mp_file_read_at_dv, mp_file_read_at_c, mp_file_read_at_cv, &
+         mp_file_read_at_z, mp_file_read_at_zv, mp_file_read_at_l, mp_file_read_at_lv
+      GENERIC, PUBLIC :: read_at => mp_file_read_at_ch, mp_file_read_at_chv, &
+         mp_file_read_at_i, mp_file_read_at_iv, mp_file_read_at_r, mp_file_read_at_rv, &
+         mp_file_read_at_d, mp_file_read_at_dv, mp_file_read_at_c, mp_file_read_at_cv, &
+         mp_file_read_at_z, mp_file_read_at_zv, mp_file_read_at_l, mp_file_read_at_lv
+
+      PROCEDURE, PRIVATE, PASS(fh) :: mp_file_read_at_all_ch, mp_file_read_at_all_chv, &
+         mp_file_read_at_all_i, mp_file_read_at_all_iv, mp_file_read_at_all_l, mp_file_read_at_all_lv, &
+         mp_file_read_at_all_r, mp_file_read_at_all_rv, mp_file_read_at_all_d, mp_file_read_at_all_dv, &
+         mp_file_read_at_all_c, mp_file_read_at_all_cv, mp_file_read_at_all_z, mp_file_read_at_all_zv
+      GENERIC, PUBLIC :: read_at_all => mp_file_read_at_all_ch, mp_file_read_at_all_chv, &
+         mp_file_read_at_all_i, mp_file_read_at_all_iv, mp_file_read_at_all_l, mp_file_read_at_all_lv, &
+         mp_file_read_at_all_r, mp_file_read_at_all_rv, mp_file_read_at_all_d, mp_file_read_at_all_dv, &
+         mp_file_read_at_all_c, mp_file_read_at_all_cv, mp_file_read_at_all_z, mp_file_read_at_all_zv
+
+      PROCEDURE, PUBLIC, PASS(fh) :: open => mp_file_open
+      PROCEDURE, PUBLIC, PASS(fh) :: close => mp_file_close
+
+      PROCEDURE, PUBLIC, PASS(fh) :: get_size => mp_file_get_size
+      PROCEDURE, PUBLIC, PASS(fh) :: get_position => mp_file_get_position
+
+      PROCEDURE, PUBLIC, PASS(fh) :: read_all => mp_file_read_all_chv
+      PROCEDURE, PUBLIC, PASS(fh) :: write_all => mp_file_write_all_chv
    END TYPE
 
    TYPE mp_info_type
@@ -224,6 +637,13 @@ MODULE message_passing
    TYPE(mp_file_type), PARAMETER, PUBLIC :: mp_file_null = mp_file_type(mp_file_null_handle)
    TYPE(mp_info_type), PARAMETER, PUBLIC :: mp_info_null = mp_info_type(mp_info_null_handle)
 
+   ! Constants to compare communicators
+   INTEGER, PARAMETER, PUBLIC :: mp_comm_ident = 0
+   INTEGER, PARAMETER, PUBLIC :: mp_comm_congruent = 1
+   INTEGER, PARAMETER, PUBLIC :: mp_comm_similar = 2
+   INTEGER, PARAMETER, PUBLIC :: mp_comm_unequal = 3
+   INTEGER, PARAMETER, PUBLIC :: mp_comm_default = -1
+
    ! init and error
    PUBLIC :: mp_world_init, mp_world_finalize
    PUBLIC :: mp_abort
@@ -234,36 +654,20 @@ MODULE message_passing
    PUBLIC :: add_mp_perf_env, rm_mp_perf_env, get_mp_perf_env, describe_mp_perf_env
 
    ! informational / generation of sub comms
-   PUBLIC :: mp_environ, mp_comm_compare, mp_cart_coords, mp_rank_compare
-   PUBLIC :: mp_cart_create, mp_dims_create, mp_cart_rank, mp_cart_sub, mp_comm_free
-   PUBLIC :: mp_comm_dup, mp_comm_split, mp_comm_split_direct
+   PUBLIC :: mp_environ, mp_cart_coords
+   PUBLIC :: mp_cart_create, mp_dims_create, mp_cart_rank, mp_cart_sub
    PUBLIC :: cp2k_is_parallel
-   PUBLIC :: mp_probe
    PUBLIC :: mp_get_node_global_rank
 
    ! message passing
-   PUBLIC :: mp_bcast, mp_sum, mp_sum_partial, mp_max, mp_maxloc, mp_minloc, mp_min, mp_prod, mp_sync
-   PUBLIC :: mp_isync, mp_isum
-   PUBLIC :: mp_gather, mp_alltoall, mp_sendrecv, mp_allgather, mp_iallgather
-   PUBLIC :: mp_isend, mp_irecv, mp_ibcast
-   PUBLIC :: mp_shift, mp_isendrecv, mp_wait, mp_waitall, mp_waitany, mp_testany
-   PUBLIC :: mp_testall, mp_iscatter, mp_test
-   PUBLIC :: mp_gatherv
-   PUBLIC :: mp_send, mp_recv
+   PUBLIC :: mp_waitall, mp_waitany
+   PUBLIC :: mp_testall, mp_testany
 
    ! Memory management
    PUBLIC :: mp_allocate, mp_deallocate
 
-   ! MPI re-ordering
-   PUBLIC :: mp_reordering
-
    ! I/O
-   PUBLIC :: mp_file_open, mp_file_close
    PUBLIC :: mp_file_delete
-   PUBLIC :: mp_file_write_at
-   PUBLIC :: mp_file_write_at_all, mp_file_read_at_all
-   PUBLIC :: mp_file_get_size
-   PUBLIC :: mp_file_get_position
    PUBLIC :: mp_file_get_amode
 
    ! some 'advanced types' currently only used for dbcsr
@@ -274,10 +678,6 @@ MODULE message_passing
    ! some benchmarking code
    PUBLIC :: mpi_perf_test
 
-   ! one-sided communication
-   PUBLIC :: mp_win_create, mp_win_free, mp_win_lock_all, &
-             mp_win_unlock_all, mp_rget, mp_win_flush_all
-
    ! vector types
    PUBLIC :: mp_type_indexed_make_r, mp_type_indexed_make_d, &
              mp_type_indexed_make_c, mp_type_indexed_make_z
@@ -287,8 +687,6 @@ MODULE message_passing
    PUBLIC :: mp_file_type_free
    PUBLIC :: mp_file_type_hindexed_make_chv
    PUBLIC :: mp_file_type_set_view_chv
-   PUBLIC :: mp_file_read_all_chv
-   PUBLIC :: mp_file_write_all_chv
 
    PUBLIC :: mp_get_library_version
 
@@ -297,7 +695,7 @@ MODULE message_passing
 ! Interface declarations for non-data-oriented subroutines.
 
    INTERFACE mp_environ
-      MODULE PROCEDURE mp_environ_l, mp_environ_c, mp_environ_c2
+      MODULE PROCEDURE mp_environ_c, mp_environ_c2
    END INTERFACE
 
    INTERFACE mp_waitall
@@ -306,10 +704,6 @@ MODULE message_passing
 
    INTERFACE mp_testall
       MODULE PROCEDURE mp_testall_tv
-   END INTERFACE
-
-   INTERFACE mp_test
-      MODULE PROCEDURE mp_test_1
    END INTERFACE
 
    INTERFACE mp_testany
@@ -324,337 +718,6 @@ MODULE message_passing
    ! interfaces to deal easily with scalars / vectors / matrices / ...
    ! of the different types (integers, doubles, logicals, characters)
    !
-   INTERFACE mp_minloc
-      MODULE PROCEDURE mp_minloc_iv, &
-         mp_minloc_lv, &
-         mp_minloc_rv, &
-         mp_minloc_dv
-   END INTERFACE
-
-   INTERFACE mp_maxloc
-      MODULE PROCEDURE mp_maxloc_iv, &
-         mp_maxloc_lv, &
-         mp_maxloc_rv, &
-         mp_maxloc_dv
-   END INTERFACE
-
-   INTERFACE mp_shift
-      MODULE PROCEDURE mp_shift_im, mp_shift_i, &
-         mp_shift_lm, mp_shift_l, &
-         mp_shift_rm, mp_shift_r, &
-         mp_shift_dm, mp_shift_d, &
-         mp_shift_cm, mp_shift_c, &
-         mp_shift_zm, mp_shift_z
-   END INTERFACE
-
-   INTERFACE mp_bcast
-      MODULE PROCEDURE mp_bcast_i, mp_bcast_iv, mp_bcast_im, mp_bcast_i3, &
-         mp_bcast_l, mp_bcast_lv, mp_bcast_lm, mp_bcast_l3, &
-         mp_bcast_r, mp_bcast_rv, mp_bcast_rm, mp_bcast_r3, &
-         mp_bcast_d, mp_bcast_dv, mp_bcast_dm, mp_bcast_d3, &
-         mp_bcast_c, mp_bcast_cv, mp_bcast_cm, mp_bcast_c3, &
-         mp_bcast_z, mp_bcast_zv, mp_bcast_zm, mp_bcast_z3
-      MODULE PROCEDURE mp_bcast_b, mp_bcast_bv
-      MODULE PROCEDURE mp_bcast_av, mp_bcast_am
-   END INTERFACE
-
-   INTERFACE mp_ibcast
-      MODULE PROCEDURE mp_ibcast_i, mp_ibcast_iv, &
-         mp_ibcast_l, mp_ibcast_lv, &
-         mp_ibcast_r, mp_ibcast_rv, &
-         mp_ibcast_d, mp_ibcast_dv, &
-         mp_ibcast_c, mp_ibcast_cv, &
-         mp_ibcast_z, mp_ibcast_zv
-   END INTERFACE
-
-   INTERFACE mp_sum
-      MODULE PROCEDURE mp_sum_i, mp_sum_iv, mp_sum_im, mp_sum_im3, mp_sum_im4, &
-         mp_sum_l, mp_sum_lv, mp_sum_lm, mp_sum_lm3, mp_sum_lm4, &
-         mp_sum_r, mp_sum_rv, mp_sum_rm, mp_sum_rm3, mp_sum_rm4, &
-         mp_sum_d, mp_sum_dv, mp_sum_dm, mp_sum_dm3, mp_sum_dm4, &
-         mp_sum_c, mp_sum_cv, mp_sum_cm, mp_sum_cm3, mp_sum_cm4, &
-         mp_sum_z, mp_sum_zv, mp_sum_zm, mp_sum_zm3, mp_sum_zm4, &
-         mp_sum_root_iv, mp_sum_root_im, &
-         mp_sum_root_lv, mp_sum_root_lm, &
-         mp_sum_root_rv, mp_sum_root_rm, &
-         mp_sum_root_dv, mp_sum_root_dm, &
-         mp_sum_root_cv, mp_sum_root_cm, &
-         mp_sum_root_zv, mp_sum_root_zm
-      MODULE PROCEDURE mp_sum_b, mp_sum_bv
-   END INTERFACE
-
-   INTERFACE mp_isum
-      MODULE PROCEDURE mp_isum_iv, &
-         mp_isum_lv, &
-         mp_isum_rv, &
-         mp_isum_dv, &
-         mp_isum_cv, &
-         mp_isum_zv
-      MODULE PROCEDURE mp_isum_bv
-   END INTERFACE
-
-   INTERFACE mp_sum_partial
-      MODULE PROCEDURE mp_sum_partial_im, &
-         mp_sum_partial_lm, &
-         mp_sum_partial_rm, &
-         mp_sum_partial_dm, &
-         mp_sum_partial_cm, &
-         mp_sum_partial_zm
-   END INTERFACE
-
-   INTERFACE mp_max
-      MODULE PROCEDURE mp_max_i, mp_max_iv, &
-         mp_max_l, mp_max_lv, &
-         mp_max_r, mp_max_rv, &
-         mp_max_d, mp_max_dv, &
-         mp_max_c, mp_max_cv, &
-         mp_max_z, mp_max_zv
-   END INTERFACE
-
-   INTERFACE mp_min
-      MODULE PROCEDURE mp_min_i, mp_min_iv, &
-         mp_min_l, mp_min_lv, &
-         mp_min_r, mp_min_rv, &
-         mp_min_d, mp_min_dv, &
-         mp_min_c, mp_min_cv, &
-         mp_min_z, mp_min_zv
-   END INTERFACE
-
-   INTERFACE mp_prod
-      MODULE PROCEDURE mp_prod_r, mp_prod_d, mp_prod_c, mp_prod_z
-   END INTERFACE
-
-   INTERFACE mp_gather
-      MODULE PROCEDURE mp_gather_i, mp_gather_iv, mp_gather_im, &
-         mp_gather_l, mp_gather_lv, mp_gather_lm, &
-         mp_gather_r, mp_gather_rv, mp_gather_rm, &
-         mp_gather_d, mp_gather_dv, mp_gather_dm, &
-         mp_gather_c, mp_gather_cv, mp_gather_cm, &
-         mp_gather_z, mp_gather_zv, mp_gather_zm
-   END INTERFACE
-
-   INTERFACE mp_gatherv
-      MODULE PROCEDURE mp_gatherv_iv, &
-         mp_gatherv_lv, &
-         mp_gatherv_rv, &
-         mp_gatherv_dv, &
-         mp_gatherv_cv, &
-         mp_gatherv_zv, &
-         mp_gatherv_lm2, &
-         mp_gatherv_rm2, &
-         mp_gatherv_dm2, &
-         mp_gatherv_cm2, &
-         mp_gatherv_zm2
-   END INTERFACE
-
-   INTERFACE mp_igatherv
-      MODULE PROCEDURE mp_igatherv_iv, &
-         mp_igatherv_lv, &
-         mp_igatherv_rv, &
-         mp_igatherv_dv, &
-         mp_igatherv_cv, &
-         mp_igatherv_zv
-   END INTERFACE
-
-!> todo: move allgatherv to a separate declaration
-   INTERFACE mp_allgather
-      MODULE PROCEDURE &
-         mp_allgather_i, mp_allgather_i2, &
-         mp_allgather_i12, mp_allgather_i23, mp_allgather_i34, &
-         mp_allgather_i22, &
-         mp_allgather_l, mp_allgather_l2, &
-         mp_allgather_l12, mp_allgather_l23, mp_allgather_l34, &
-         mp_allgather_l22, &
-         mp_allgather_r, mp_allgather_r2, &
-         mp_allgather_r12, mp_allgather_r23, mp_allgather_r34, &
-         mp_allgather_r22, &
-         mp_allgather_d, mp_allgather_d2, &
-         mp_allgather_d12, mp_allgather_d23, mp_allgather_d34, &
-         mp_allgather_d22, &
-         mp_allgather_c, mp_allgather_c2, &
-         mp_allgather_c12, mp_allgather_c23, mp_allgather_c34, &
-         mp_allgather_c22, &
-         mp_allgather_z, mp_allgather_z2, &
-         mp_allgather_z12, mp_allgather_z23, mp_allgather_z34, &
-         mp_allgather_z22, &
-         mp_allgatherv_iv, &
-         mp_allgatherv_lv, &
-         mp_allgatherv_rv, &
-         mp_allgatherv_dv, &
-         mp_allgatherv_cv, &
-         mp_allgatherv_zv, &
-         mp_allgatherv_im2, &
-         mp_allgatherv_lm2, &
-         mp_allgatherv_rm2, &
-         mp_allgatherv_dm2, &
-         mp_allgatherv_cm2, &
-         mp_allgatherv_zm2
-   END INTERFACE
-
-   INTERFACE mp_iallgather
-      MODULE PROCEDURE &
-         mp_iallgather_i, mp_iallgather_l, &
-         mp_iallgather_r, mp_iallgather_d, &
-         mp_iallgather_c, mp_iallgather_z, &
-         mp_iallgather_i11, mp_iallgather_l11, &
-         mp_iallgather_r11, mp_iallgather_d11, &
-         mp_iallgather_c11, mp_iallgather_z11, &
-         mp_iallgather_i13, mp_iallgather_l13, &
-         mp_iallgather_r13, mp_iallgather_d13, &
-         mp_iallgather_c13, mp_iallgather_z13, &
-         mp_iallgather_i22, mp_iallgather_l22, &
-         mp_iallgather_r22, mp_iallgather_d22, &
-         mp_iallgather_c22, mp_iallgather_z22, &
-         mp_iallgather_i24, mp_iallgather_l24, &
-         mp_iallgather_r24, mp_iallgather_d24, &
-         mp_iallgather_c24, mp_iallgather_z24, &
-         mp_iallgather_i33, mp_iallgather_l33, &
-         mp_iallgather_r33, mp_iallgather_d33, &
-         mp_iallgather_c33, mp_iallgather_z33, &
-         mp_iallgatherv_iv, mp_iallgatherv_iv2, &
-         mp_iallgatherv_lv, mp_iallgatherv_lv2, &
-         mp_iallgatherv_rv, mp_iallgatherv_rv2, &
-         mp_iallgatherv_dv, mp_iallgatherv_dv2, &
-         mp_iallgatherv_cv, mp_iallgatherv_cv2, &
-         mp_iallgatherv_zv, mp_iallgatherv_zv2
-   END INTERFACE
-
-   INTERFACE mp_scatter
-      MODULE PROCEDURE mp_scatter_iv, &
-         mp_scatter_lv, &
-         mp_scatter_rv, &
-         mp_scatter_dv, &
-         mp_scatter_cv, &
-         mp_scatter_zv
-   END INTERFACE
-
-   INTERFACE mp_iscatter
-      MODULE PROCEDURE mp_iscatter_i, &
-         mp_iscatter_l, &
-         mp_iscatter_r, &
-         mp_iscatter_d, &
-         mp_iscatter_c, &
-         mp_iscatter_z, &
-         mp_iscatter_iv2, &
-         mp_iscatter_lv2, &
-         mp_iscatter_rv2, &
-         mp_iscatter_dv2, &
-         mp_iscatter_cv2, &
-         mp_iscatter_zv2, &
-         mp_iscatterv_iv, &
-         mp_iscatterv_lv, &
-         mp_iscatterv_rv, &
-         mp_iscatterv_dv, &
-         mp_iscatterv_cv, &
-         mp_iscatterv_zv
-   END INTERFACE
-
-   INTERFACE mp_sum_scatter
-      MODULE PROCEDURE mp_sum_scatter_iv, &
-         mp_sum_scatter_lv, &
-         mp_sum_scatter_rv, &
-         mp_sum_scatter_dv, &
-         mp_sum_scatter_cv, &
-         mp_sum_scatter_zv
-   END INTERFACE
-
-   INTERFACE mp_alltoall
-      MODULE PROCEDURE mp_alltoall_i, mp_alltoall_i22, mp_alltoall_i33, &
-         mp_alltoall_i44, mp_alltoall_i55, mp_alltoall_i45, mp_alltoall_i34, &
-         mp_alltoall_i11v, mp_alltoall_i22v, mp_alltoall_i54, &
-         mp_alltoall_l, mp_alltoall_l22, mp_alltoall_l33, &
-         mp_alltoall_l44, mp_alltoall_l55, mp_alltoall_l45, mp_alltoall_l34, &
-         mp_alltoall_l11v, mp_alltoall_l22v, mp_alltoall_l54, &
-         mp_alltoall_r, mp_alltoall_r22, mp_alltoall_r33, &
-         mp_alltoall_r44, mp_alltoall_r55, mp_alltoall_r45, mp_alltoall_r34, &
-         mp_alltoall_r11v, mp_alltoall_r22v, mp_alltoall_r54, &
-         mp_alltoall_d, mp_alltoall_d22, mp_alltoall_d33, &
-         mp_alltoall_d44, mp_alltoall_d55, mp_alltoall_d45, mp_alltoall_d34, &
-         mp_alltoall_d11v, mp_alltoall_d22v, mp_alltoall_d54, &
-         mp_alltoall_c, mp_alltoall_c22, mp_alltoall_c33, &
-         mp_alltoall_c44, mp_alltoall_c55, mp_alltoall_c45, mp_alltoall_c34, &
-         mp_alltoall_c11v, mp_alltoall_c22v, mp_alltoall_c54, &
-         mp_alltoall_z, mp_alltoall_z22, mp_alltoall_z33, &
-         mp_alltoall_z44, mp_alltoall_z55, mp_alltoall_z45, mp_alltoall_z34, &
-         mp_alltoall_z11v, mp_alltoall_z22v, mp_alltoall_z54
-   END INTERFACE
-
-   INTERFACE mp_send
-      MODULE PROCEDURE mp_send_i, mp_send_iv, mp_send_im2, mp_send_im3, &
-         mp_send_l, mp_send_lv, mp_send_lm2, mp_send_lm3, &
-         mp_send_r, mp_send_rv, mp_send_rm2, mp_send_rm3, &
-         mp_send_d, mp_send_dv, mp_send_dm2, mp_send_dm3, &
-         mp_send_c, mp_send_cv, mp_send_cm2, mp_send_cm3, &
-         mp_send_z, mp_send_zv, mp_send_zm2, mp_send_zm3
-   END INTERFACE
-
-   INTERFACE mp_recv
-      MODULE PROCEDURE mp_recv_i, mp_recv_iv, mp_recv_im2, mp_recv_im3, &
-         mp_recv_l, mp_recv_lv, mp_recv_lm2, mp_recv_lm3, &
-         mp_recv_r, mp_recv_rv, mp_recv_rm2, mp_recv_rm3, &
-         mp_recv_d, mp_recv_dv, mp_recv_dm2, mp_recv_dm3, &
-         mp_recv_c, mp_recv_cv, mp_recv_cm2, mp_recv_cm3, &
-         mp_recv_z, mp_recv_zv, mp_recv_zm2, mp_recv_zm3
-   END INTERFACE
-
-   INTERFACE mp_sendrecv
-      MODULE PROCEDURE mp_sendrecv_iv, mp_sendrecv_im2, mp_sendrecv_im3, mp_sendrecv_im4, &
-         mp_sendrecv_lv, mp_sendrecv_lm2, mp_sendrecv_lm3, mp_sendrecv_lm4, &
-         mp_sendrecv_rv, mp_sendrecv_rm2, mp_sendrecv_rm3, mp_sendrecv_rm4, &
-         mp_sendrecv_dv, mp_sendrecv_dm2, mp_sendrecv_dm3, mp_sendrecv_dm4, &
-         mp_sendrecv_cv, mp_sendrecv_cm2, mp_sendrecv_cm3, mp_sendrecv_cm4, &
-         mp_sendrecv_zv, mp_sendrecv_zm2, mp_sendrecv_zm3, mp_sendrecv_zm4
-   END INTERFACE
-
-   INTERFACE mp_isendrecv
-      MODULE PROCEDURE mp_isendrecv_i, mp_isendrecv_iv, &
-         mp_isendrecv_l, mp_isendrecv_lv, &
-         mp_isendrecv_r, mp_isendrecv_rv, &
-         mp_isendrecv_d, mp_isendrecv_dv, &
-         mp_isendrecv_c, mp_isendrecv_cv, &
-         mp_isendrecv_z, mp_isendrecv_zv
-   END INTERFACE
-
-   INTERFACE mp_isend
-      MODULE PROCEDURE mp_isend_iv, mp_isend_im2, mp_isend_im3, mp_isend_im4, &
-         mp_isend_lv, mp_isend_lm2, mp_isend_lm3, mp_isend_lm4, &
-         mp_isend_rv, mp_isend_rm2, mp_isend_rm3, mp_isend_rm4, &
-         mp_isend_dv, mp_isend_dm2, mp_isend_dm3, mp_isend_dm4, &
-         mp_isend_cv, mp_isend_cm2, mp_isend_cm3, mp_isend_cm4, &
-         mp_isend_zv, mp_isend_zm2, mp_isend_zm3, mp_isend_zm4
-      MODULE PROCEDURE mp_isend_bv, mp_isend_bm3
-      MODULE PROCEDURE mp_isend_custom
-   END INTERFACE
-
-   INTERFACE mp_irecv
-      MODULE PROCEDURE mp_irecv_iv, mp_irecv_im2, mp_irecv_im3, mp_irecv_im4, &
-         mp_irecv_lv, mp_irecv_lm2, mp_irecv_lm3, mp_irecv_lm4, &
-         mp_irecv_rv, mp_irecv_rm2, mp_irecv_rm3, mp_irecv_rm4, &
-         mp_irecv_dv, mp_irecv_dm2, mp_irecv_dm3, mp_irecv_dm4, &
-         mp_irecv_cv, mp_irecv_cm2, mp_irecv_cm3, mp_irecv_cm4, &
-         mp_irecv_zv, mp_irecv_zm2, mp_irecv_zm3, mp_irecv_zm4
-      MODULE PROCEDURE mp_irecv_bv, mp_irecv_bm3
-      MODULE PROCEDURE mp_irecv_custom
-   END INTERFACE
-
-   INTERFACE mp_win_create
-      MODULE PROCEDURE mp_win_create_iv, &
-         mp_win_create_lv, &
-         mp_win_create_rv, &
-         mp_win_create_dv, &
-         mp_win_create_cv, &
-         mp_win_create_zv
-   END INTERFACE
-
-   INTERFACE mp_rget
-      MODULE PROCEDURE mp_rget_iv, &
-         mp_rget_lv, &
-         mp_rget_rv, &
-         mp_rget_dv, &
-         mp_rget_cv, &
-         mp_rget_zv
-   END INTERFACE
-
    INTERFACE mp_allocate
       MODULE PROCEDURE mp_allocate_i, &
          mp_allocate_l, &
@@ -678,46 +741,6 @@ MODULE message_passing
       MODULE PROCEDURE mp_type_make_i, mp_type_make_l, &
          mp_type_make_r, mp_type_make_d, &
          mp_type_make_c, mp_type_make_z
-   END INTERFACE
-
-   INTERFACE mp_file_write_at
-      MODULE PROCEDURE mp_file_write_at_ch, mp_file_write_at_chv, &
-         mp_file_write_at_i, mp_file_write_at_iv, &
-         mp_file_write_at_r, mp_file_write_at_rv, &
-         mp_file_write_at_d, mp_file_write_at_dv, &
-         mp_file_write_at_c, mp_file_write_at_cv, &
-         mp_file_write_at_z, mp_file_write_at_zv, &
-         mp_file_write_at_l, mp_file_write_at_lv
-   END INTERFACE
-
-   INTERFACE mp_file_write_at_all
-      MODULE PROCEDURE mp_file_write_at_all_ch, mp_file_write_at_all_chv, &
-         mp_file_write_at_all_i, mp_file_write_at_all_iv, &
-         mp_file_write_at_all_l, mp_file_write_at_all_lv, &
-         mp_file_write_at_all_r, mp_file_write_at_all_rv, &
-         mp_file_write_at_all_d, mp_file_write_at_all_dv, &
-         mp_file_write_at_all_c, mp_file_write_at_all_cv, &
-         mp_file_write_at_all_z, mp_file_write_at_all_zv
-   END INTERFACE
-
-   INTERFACE mp_file_read_at
-      MODULE PROCEDURE mp_file_read_at_ch, mp_file_read_at_chv, &
-         mp_file_read_at_i, mp_file_read_at_iv, &
-         mp_file_read_at_r, mp_file_read_at_rv, &
-         mp_file_read_at_d, mp_file_read_at_dv, &
-         mp_file_read_at_c, mp_file_read_at_cv, &
-         mp_file_read_at_z, mp_file_read_at_zv, &
-         mp_file_read_at_l, mp_file_read_at_lv
-   END INTERFACE
-
-   INTERFACE mp_file_read_at_all
-      MODULE PROCEDURE mp_file_read_at_all_ch, mp_file_read_at_all_chv, &
-         mp_file_read_at_all_i, mp_file_read_at_all_iv, &
-         mp_file_read_at_all_l, mp_file_read_at_all_lv, &
-         mp_file_read_at_all_r, mp_file_read_at_all_rv, &
-         mp_file_read_at_all_d, mp_file_read_at_all_dv, &
-         mp_file_read_at_all_c, mp_file_read_at_all_cv, &
-         mp_file_read_at_all_z, mp_file_read_at_all_zv
    END INTERFACE
 
    INTERFACE mp_alloc_mem
@@ -919,14 +942,13 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_reordering(mp_comm, mp_new_comm, ranks_order)
       TYPE(mp_comm_type), INTENT(IN)                      :: mp_comm
-      TYPE(mp_comm_type), INTENT(out)                     :: mp_new_comm
+      CLASS(mp_comm_type), INTENT(out)                     :: mp_new_comm
       INTEGER, DIMENSION(:), CONTIGUOUS, INTENT(IN)                    :: ranks_order
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_reordering'
 
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
-      TYPE(mp_comm_type) :: newcomm
       MPI_GROUP_TYPE                                  :: newgroup, oldgroup
 #endif
 
@@ -939,7 +961,7 @@ CONTAINS
       CALL mpi_group_incl(oldgroup, SIZE(ranks_order), ranks_order, newgroup, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_group_incl @ mp_reordering")
 
-      CALL mpi_comm_create(mp_comm%handle, newgroup, newcomm%handle, ierr)
+      CALL mpi_comm_create(mp_comm%handle, newgroup, mp_new_comm%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_create @ mp_reordering")
 
       CALL mpi_group_free(oldgroup, ierr)
@@ -947,14 +969,12 @@ CONTAINS
       CALL mpi_group_free(newgroup, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_group_free @ mp_reordering")
 
-      ! update the system default communicator
-      mp_new_comm = newcomm
       debug_comm_count = debug_comm_count + 1
 
       CALL add_perf(perf_id=1, count=1)
 #else
       MARK_USED(ranks_order)
-      mp_new_comm = mp_comm
+      mp_new_comm%handle = mp_comm%handle
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_reordering
@@ -1248,8 +1268,8 @@ CONTAINS
 !> \brief synchronizes with a barrier a given group of mpi tasks
 !> \param group mpi communicator
 ! **************************************************************************************************
-   SUBROUTINE mp_sync(group)
-      TYPE(mp_comm_type), INTENT(IN)                                :: group
+   SUBROUTINE mp_sync(comm)
+      CLASS(mp_comm_type), INTENT(IN)                                :: comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_sync'
 
@@ -1259,11 +1279,11 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-      CALL mpi_barrier(group%handle, ierr)
+      CALL mpi_barrier(comm%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_barrier @ mp_sync")
       CALL add_perf(perf_id=5, count=1)
 #else
-      MARK_USED(group)
+      MARK_USED(comm)
 #endif
       CALL mp_timestop(handle)
 
@@ -1271,11 +1291,11 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief synchronizes with a barrier a given group of mpi tasks
-!> \param group mpi communicator
+!> \param comm mpi communicator
 !> \param request ...
 ! **************************************************************************************************
-   SUBROUTINE mp_isync(group, request)
-      TYPE(mp_comm_type), INTENT(IN)                                :: group
+   SUBROUTINE mp_isync(comm, request)
+      CLASS(mp_comm_type), INTENT(IN)                                :: comm
       TYPE(mp_request_type), INTENT(OUT)                               :: request
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_isync'
@@ -1286,11 +1306,11 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-      CALL mpi_ibarrier(group%handle, request%handle, ierr)
+      CALL mpi_ibarrier(comm%handle, request%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_ibarrier @ mp_isync")
       CALL add_perf(perf_id=26, count=1)
 #else
-      MARK_USED(group)
+      MARK_USED(comm)
       request = mp_request_null
 #endif
       CALL mp_timestop(handle)
@@ -1302,14 +1322,14 @@ CONTAINS
 !>       simple and cartesian version.. recursive needed in case of failing mpi_comm_rank.
 !> \param numtask ...
 !> \param taskid ...
-!> \param groupid mpi communicator
+!> \param comm mpi communicator
 !> \note
 !>         ..mp_world_setup is gone, use mp_environ instead (i.e. give a groupid explicitly)
 ! **************************************************************************************************
-   SUBROUTINE mp_environ_l(numtask, taskid, group)
+   SUBROUTINE mp_environ_l(numtask, taskid, comm)
 
       INTEGER, INTENT(OUT)                               :: numtask, taskid
-      TYPE(mp_comm_type), INTENT(IN)                                :: group
+      CLASS(mp_comm_type), INTENT(IN)                                :: comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_environ_l'
 
@@ -1321,13 +1341,13 @@ CONTAINS
       numtask = 1
       taskid = 0
 #if defined(__parallel)
-      CALL mpi_comm_rank(group%handle, taskid, ierr)
+      CALL mpi_comm_rank(comm%handle, taskid, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_rank @ mp_environ_l")
 
-      CALL mpi_comm_size(group%handle, numtask, ierr)
+      CALL mpi_comm_size(comm%handle, numtask, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_size @ mp_environ_l")
 #else
-      MARK_USED(group)
+      MARK_USED(comm)
 #endif
       CALL mp_timestop(handle)
 
@@ -1343,7 +1363,7 @@ CONTAINS
    SUBROUTINE mp_environ_c(numtask, dims, task_coor, group)
 
       INTEGER, INTENT(OUT)                     :: numtask, dims(2), task_coor(2)
-      TYPE(mp_comm_type), INTENT(IN)                      :: group
+      CLASS(mp_comm_type), INTENT(IN)                      :: group
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_environ_c'
 
@@ -1405,7 +1425,6 @@ CONTAINS
 
    END SUBROUTINE mp_environ_c2
 
-!..mp_cart_create
 ! **************************************************************************************************
 !> \brief ...
 !> \param comm_old ...
@@ -1468,7 +1487,6 @@ CONTAINS
 
    END SUBROUTINE mp_cart_create
 
-!..mp_cart_coords
 ! **************************************************************************************************
 !> \brief ...
 !> \param comm ...
@@ -1501,17 +1519,16 @@ CONTAINS
 
    END SUBROUTINE mp_cart_coords
 
-!..mp_comm_compare
 ! **************************************************************************************************
 !> \brief ...
 !> \param comm1 ...
 !> \param comm2 ...
 !> \param res ...
 ! **************************************************************************************************
-   SUBROUTINE mp_comm_compare(comm1, comm2, res)
+   FUNCTION mp_comm_compare(comm1, comm2) RESULT(res)
 
-      TYPE(mp_comm_type), INTENT(IN)                                :: comm1, comm2
-      INTEGER, INTENT(OUT)                               :: res
+      CLASS(mp_comm_type), INTENT(IN)                                :: comm1, comm2
+      INTEGER                               :: res
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_compare'
 
@@ -1527,15 +1544,15 @@ CONTAINS
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_compare @ mp_comm_compare")
       SELECT CASE (iout)
       CASE (MPI_IDENT)
-         res = 0
+         res = mp_comm_ident
       CASE (MPI_CONGRUENT)
-         res = 1
+         res = mp_comm_congruent
       CASE (MPI_SIMILAR)
-         res = 2
+         res = mp_comm_similar
       CASE (MPI_UNEQUAL)
-         res = 3
+         res = mp_comm_unequal
       CASE default
-         res = 4
+         CPABORT("Unknown comparison state of the communicators!")
       END SELECT
 #else
       MARK_USED(comm1)
@@ -1543,9 +1560,8 @@ CONTAINS
 #endif
       CALL mp_timestop(handle)
 
-   END SUBROUTINE mp_comm_compare
+   END FUNCTION mp_comm_compare
 
-!..mp_cart_sub
 ! **************************************************************************************************
 !> \brief ...
 !> \param comm ...
@@ -1578,14 +1594,13 @@ CONTAINS
 
    END SUBROUTINE mp_cart_sub
 
-!..mp_comm_free
 ! **************************************************************************************************
 !> \brief ...
 !> \param comm ...
 ! **************************************************************************************************
    SUBROUTINE mp_comm_free(comm)
 
-      TYPE(mp_comm_type), INTENT(INOUT)                             :: comm
+      CLASS(mp_comm_type), INTENT(INOUT)                             :: comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_free'
 
@@ -1599,13 +1614,12 @@ CONTAINS
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_free @ mp_comm_free")
       debug_comm_count = debug_comm_count - 1
 #else
-      comm = mp_comm_null
+      comm%handle = mp_comm_null%handle
 #endif
       CALL mp_timestop(handle)
 
    END SUBROUTINE mp_comm_free
 
-!..mp_comm_dup
 ! **************************************************************************************************
 !> \brief ...
 !> \param comm1 ...
@@ -1614,7 +1628,7 @@ CONTAINS
    SUBROUTINE mp_comm_dup(comm1, comm2)
 
       TYPE(mp_comm_type), INTENT(IN)                                :: comm1
-      TYPE(mp_comm_type), INTENT(OUT)                               :: comm2
+      CLASS(mp_comm_type), INTENT(OUT)                               :: comm2
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_dup'
 
@@ -1628,13 +1642,12 @@ CONTAINS
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_dup @ mp_comm_dup")
       debug_comm_count = debug_comm_count + 1
 #else
-      comm2 = comm1
+      comm2%handle = comm1%handle
 #endif
       CALL mp_timestop(handle)
 
    END SUBROUTINE mp_comm_dup
 
-!..mp_rank_compare
 ! **************************************************************************************************
 !> \brief ...
 !> \param comm1 ...
@@ -1643,7 +1656,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_rank_compare(comm1, comm2, rank)
 
-      TYPE(mp_comm_type), INTENT(IN)                      :: comm1, comm2
+      CLASS(mp_comm_type), INTENT(IN)                      :: comm1, comm2
       INTEGER, DIMENSION(:), CONTIGUOUS, INTENT(OUT)       :: rank
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_rank_compare'
@@ -1693,7 +1706,6 @@ CONTAINS
 
    END SUBROUTINE mp_rank_compare
 
-!..mp_dims_create
 ! **************************************************************************************************
 !> \brief ...
 !> \param nodes ...
@@ -1723,7 +1735,6 @@ CONTAINS
 
    END SUBROUTINE mp_dims_create
 
-!..mp_cart_rank
 ! **************************************************************************************************
 !> \brief ...
 !> \param group ...
@@ -1764,7 +1775,7 @@ CONTAINS
 !>      see isendrecv
 ! **************************************************************************************************
    SUBROUTINE mp_wait(request)
-      TYPE(mp_request_type), INTENT(inout)                             :: request
+      CLASS(mp_request_type), INTENT(inout)                             :: request
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_wait'
 
@@ -1780,7 +1791,7 @@ CONTAINS
 
       CALL add_perf(perf_id=9, count=1)
 #else
-      request = mp_request_null
+      request%handle = mp_request_null_handle
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_wait
@@ -2001,9 +2012,9 @@ CONTAINS
 !>      3.2016 created
 !> \author Nico Holmberg
 ! **************************************************************************************************
-   SUBROUTINE mp_test_1(request, flag)
-      TYPE(mp_request_type), INTENT(inout)                             :: request
-      LOGICAL, INTENT(out)                               :: flag
+   FUNCTION mp_test_1(request) RESULT(flag)
+      CLASS(mp_request_type), INTENT(inout)                             :: request
+      LOGICAL                                            :: flag
 
       INTEGER                                            :: ierr
 
@@ -2016,7 +2027,7 @@ CONTAINS
       MARK_USED(request)
       flag = .TRUE.
 #endif
-   END SUBROUTINE mp_test_1
+   END FUNCTION mp_test_1
 
 ! **************************************************************************************************
 !> \brief tests for completion of the given requests
@@ -2140,7 +2151,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_comm_split_direct(comm, sub_comm, color, key)
       TYPE(mp_comm_type), INTENT(in)                                :: comm
-      TYPE(mp_comm_type), INTENT(OUT)                               :: sub_comm
+      CLASS(mp_comm_type), INTENT(OUT)                               :: sub_comm
       INTEGER, INTENT(in)                                :: color
       INTEGER, INTENT(in), OPTIONAL                      :: key
 
@@ -2159,7 +2170,7 @@ CONTAINS
       IF (ierr /= mpi_success) CALL mp_stop(ierr, routineN)
       CALL add_perf(perf_id=10, count=1)
 #else
-      CALL mp_comm_dup(comm, sub_comm)
+      CALL sub_comm%dup(comm)
       MARK_USED(color)
       MARK_USED(key)
 #endif
@@ -2192,7 +2203,7 @@ CONTAINS
    SUBROUTINE mp_comm_split(comm, sub_comm, ngroups, group_distribution, &
                             subgroup_min_size, n_subgroups, group_partition, stride)
       TYPE(mp_comm_type), INTENT(in)                      :: comm
-      TYPE(mp_comm_type), INTENT(out) :: sub_comm
+      CLASS(mp_comm_type), INTENT(out) :: sub_comm
       INTEGER, INTENT(out)                     :: ngroups
       INTEGER, DIMENSION(0:), INTENT(INOUT)                    :: group_distribution
       INTEGER, INTENT(in), OPTIONAL            :: subgroup_min_size, n_subgroups
@@ -2222,7 +2233,7 @@ CONTAINS
          CPABORT(routineP//" too many arguments")
       END IF
 
-      CALL mp_environ(nnodes, mepos, comm)
+      CALL comm%environ(nnodes, mepos)
 
       IF (UBOUND(group_distribution, 1) .NE. nnodes - 1) THEN
          CPABORT(routineP//" group_distribution wrong bounds")
@@ -2285,7 +2296,7 @@ CONTAINS
 
       CALL add_perf(perf_id=10, count=1)
 #else
-      CALL mp_comm_dup(comm, sub_comm)
+      CALL sub_comm%dup(comm)
       group_distribution(0) = 0
       ngroups = 1
       MARK_USED(stride)
@@ -2336,7 +2347,7 @@ CONTAINS
 !> \param[inout] source the source of the possible incoming message,
 !>        if MP_ANY_SOURCE it is a blocking one and return value is the source
 !>        of the next incoming message
-!>        if source is a different value it is a non-blocking probe retuning
+!>        if source is a different value it is a non-blocking probe returning
 !>        MP_ANY_SOURCE if there is no incoming message
 !> \param[in] comm the communicator
 !> \param[out] tag the tag of the incoming message
@@ -2344,7 +2355,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_probe(source, comm, tag)
       INTEGER, INTENT(INOUT)                      :: source
-      TYPE(mp_comm_type), INTENT(IN)           :: comm
+      CLASS(mp_comm_type), INTENT(IN)           :: comm
       INTEGER, INTENT(OUT)                     :: tag
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_probe'
@@ -2393,12 +2404,12 @@ CONTAINS
 !> \brief ...
 !> \param msg ...
 !> \param source ...
-!> \param gid ...
+!> \param comm ...
 ! **************************************************************************************************
-   SUBROUTINE mp_bcast_b(msg, source, gid)
+   SUBROUTINE mp_bcast_b(msg, source, comm)
       LOGICAL, INTENT(INOUT)                                            :: msg
       INTEGER, INTENT(IN)                                            :: source
-      TYPE(mp_comm_type), INTENT(IN) :: gid
+      CLASS(mp_comm_type), INTENT(IN) :: comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_b'
 
@@ -2409,13 +2420,13 @@ CONTAINS
 
       msglen = 1
 #if defined(__parallel)
-      CALL mpi_bcast(msg, msglen, MPI_LOGICAL, source, gid%handle, ierr)
+      CALL mpi_bcast(msg, msglen, MPI_LOGICAL, source, comm%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_bcast @ "//routineN)
       CALL add_perf(perf_id=2, count=1, msg_size=msglen*loglen)
 #else
       MARK_USED(msg)
       MARK_USED(source)
-      MARK_USED(gid)
+      MARK_USED(comm)
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_bcast_b
@@ -2424,12 +2435,12 @@ CONTAINS
 !> \brief ...
 !> \param msg ...
 !> \param source ...
-!> \param gid ...
+!> \param comm ...
 ! **************************************************************************************************
-   SUBROUTINE mp_bcast_bv(msg, source, gid)
+   SUBROUTINE mp_bcast_bv(msg, source, comm)
       LOGICAL, CONTIGUOUS, INTENT(INOUT)                 :: msg(:)
       INTEGER, INTENT(IN)                                            :: source
-      TYPE(mp_comm_type), INTENT(IN) :: gid
+      CLASS(mp_comm_type), INTENT(IN) :: comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_bv'
 
@@ -2440,12 +2451,12 @@ CONTAINS
 
       msglen = SIZE(msg)
 #if defined(__parallel)
-      CALL mpi_bcast(msg, msglen, MPI_LOGICAL, source, gid%handle, ierr)
+      CALL mpi_bcast(msg, msglen, MPI_LOGICAL, source, comm%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_bcast @ "//routineN)
       CALL add_perf(perf_id=2, count=1, msg_size=msglen*loglen)
 #else
       MARK_USED(source)
-      MARK_USED(gid)
+      MARK_USED(comm)
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_bcast_bv
@@ -2467,7 +2478,7 @@ CONTAINS
    SUBROUTINE mp_isend_bv(msgin, dest, comm, request, tag)
       LOGICAL, DIMENSION(:), INTENT(IN)        :: msgin
       INTEGER, INTENT(IN)                      :: dest
-      TYPE(mp_comm_type), INTENT(IN) :: comm
+      CLASS(mp_comm_type), INTENT(IN) :: comm
       TYPE(mp_request_type), INTENT(out)                     :: request
       INTEGER, INTENT(in), OPTIONAL            :: tag
 
@@ -2529,7 +2540,7 @@ CONTAINS
    SUBROUTINE mp_irecv_bv(msgout, source, comm, request, tag)
       LOGICAL, DIMENSION(:), INTENT(INOUT)                    :: msgout
       INTEGER, INTENT(IN)                      :: source
-      TYPE(mp_comm_type), INTENT(IN) :: comm
+      CLASS(mp_comm_type), INTENT(IN) :: comm
       TYPE(mp_request_type), INTENT(out)                     :: request
       INTEGER, INTENT(in), OPTIONAL            :: tag
 
@@ -2591,7 +2602,7 @@ CONTAINS
    SUBROUTINE mp_isend_bm3(msgin, dest, comm, request, tag)
       LOGICAL, DIMENSION(:, :, :), INTENT(INOUT)              :: msgin
       INTEGER, INTENT(IN)                      :: dest
-      TYPE(mp_comm_type), INTENT(IN) :: comm
+      CLASS(mp_comm_type), INTENT(IN) :: comm
       TYPE(mp_request_type), INTENT(out)                     :: request
       INTEGER, INTENT(in), OPTIONAL            :: tag
 
@@ -2653,7 +2664,7 @@ CONTAINS
    SUBROUTINE mp_irecv_bm3(msgout, source, comm, request, tag)
       LOGICAL, DIMENSION(:, :, :), INTENT(INOUT)  :: msgout
       INTEGER, INTENT(IN)                      :: source
-      TYPE(mp_comm_type), INTENT(IN) :: comm
+      CLASS(mp_comm_type), INTENT(IN) :: comm
       TYPE(mp_request_type), INTENT(out)                     :: request
       INTEGER, INTENT(in), OPTIONAL            :: tag
 
@@ -2703,12 +2714,12 @@ CONTAINS
 !> \brief ...
 !> \param msg ...
 !> \param source ...
-!> \param gid ...
+!> \param comm ...
 ! **************************************************************************************************
-   SUBROUTINE mp_bcast_av(msg, source, gid)
+   SUBROUTINE mp_bcast_av(msg, source, comm)
       CHARACTER(LEN=*), INTENT(INOUT)          :: msg
       INTEGER, INTENT(IN)                                  :: source
-      TYPE(mp_comm_type), INTENT(IN) :: gid
+      CLASS(mp_comm_type), INTENT(IN) :: comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_av'
 
@@ -2723,10 +2734,10 @@ CONTAINS
 
 #if defined(__parallel)
 
-      CALL mp_environ(numtask, taskid, gid)
+      CALL comm%environ(numtask, taskid)
       IF (taskid == source) msglen = LEN_TRIM(msg)
 
-      CALL mp_bcast(msglen, source, gid)
+      CALL comm%bcast(msglen, source)
       ! this is a workaround to avoid problems on the T3E
       ! at the moment we have a data alignment error when trying to
       ! broadcast characters on the T3E (not always!)
@@ -2736,7 +2747,7 @@ CONTAINS
       DO i = 1, msglen
          imsg(i) = ICHAR(msg(i:i))
       END DO
-      CALL mpi_bcast(imsg, msglen, MPI_INTEGER, source, gid%handle, ierr)
+      CALL mpi_bcast(imsg, msglen, MPI_INTEGER, source, comm%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_bcast @ "//routineN)
       msg = ""
       DO i = 1, msglen
@@ -2747,7 +2758,7 @@ CONTAINS
 #else
       MARK_USED(msg)
       MARK_USED(source)
-      MARK_USED(gid)
+      MARK_USED(comm)
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_bcast_av
@@ -2756,12 +2767,12 @@ CONTAINS
 !> \brief ...
 !> \param msg ...
 !> \param source ...
-!> \param gid ...
+!> \param comm ...
 ! **************************************************************************************************
-   SUBROUTINE mp_bcast_am(msg, source, gid)
+   SUBROUTINE mp_bcast_am(msg, source, comm)
       CHARACTER(LEN=*), CONTIGUOUS, INTENT(INOUT)      :: msg(:)
       INTEGER, INTENT(IN)                             :: source
-      TYPE(mp_comm_type), INTENT(IN) :: gid
+      CLASS(mp_comm_type), INTENT(IN) :: comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_am'
 
@@ -2776,20 +2787,19 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-      CALL mp_environ(numtask, taskid, gid)
+      CALL comm%environ(numtask, taskid)
       msgsiz = SIZE(msg)
       ! Determine size of the minimum array of integers to broadcast the string
       ALLOCATE (imsglen(1:msgsiz))
       DO j = 1, msgsiz
          IF (taskid == source) imsglen(j) = LEN_TRIM(msg(j))
       END DO
-      CALL mp_bcast(imsglen, source, gid)
+      CALL comm%bcast(imsglen, source)
       msglen = SUM(imsglen)
       ! this is a workaround to avoid problems on the T3E
       ! at the moment we have a data alignment error when trying to
       ! broadcast characters on the T3E (not always!)
       ! JH 19/3/99 on galileo
-      ! CALL mpi_bcast(msg,msglen,MPI_CHARACTER,source,gid%handle,ierr)
       ALLOCATE (imsg(1:msglen))
       k = 0
       DO j = 1, msgsiz
@@ -2798,7 +2808,7 @@ CONTAINS
             imsg(k) = ICHAR(msg(j) (i:i))
          END DO
       END DO
-      CALL mpi_bcast(imsg, msglen, MPI_INTEGER, source, gid%handle, ierr)
+      CALL mpi_bcast(imsg, msglen, MPI_INTEGER, source, comm%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_bcast @ "//routineN)
       msg = ""
       k = 0
@@ -2814,7 +2824,7 @@ CONTAINS
 #else
       MARK_USED(msg)
       MARK_USED(source)
-      MARK_USED(gid)
+      MARK_USED(comm)
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_bcast_am
@@ -2823,15 +2833,15 @@ CONTAINS
 !> \brief Finds the location of the minimal element in a vector.
 !> \param[in,out] msg         Find location of maximum element among these
 !>                            data (input).
-!> \param[in] gid             Message passing environment identifier
+!> \param[in] comm             Message passing environment identifier
 !> \par MPI mapping
 !>      mpi_allreduce with the MPI_MINLOC reduction function identifier
 !> \par Invalid data types
 !>      This routine is invalid for (int_8) data!
 ! **************************************************************************************************
-   SUBROUTINE mp_minloc_dv(msg, gid)
+   SUBROUTINE mp_minloc_dv(msg, comm)
       REAL(kind=real_8), CONTIGUOUS, INTENT(INOUT)         :: msg(:)
-      TYPE(mp_comm_type), INTENT(IN)                      :: gid
+      CLASS(mp_comm_type), INTENT(IN)                      :: comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_dv'
 
@@ -2852,14 +2862,14 @@ CONTAINS
       ALLOCATE (res(1:msglen), STAT=ierr)
       IF (ierr /= 0) &
          CPABORT("allocate @ "//routineN)
-      CALL mpi_allreduce(msg, res, msglen/2, MPI_2DOUBLE_PRECISION, MPI_MINLOC, gid%handle, ierr)
+      CALL mpi_allreduce(msg, res, msglen/2, MPI_2DOUBLE_PRECISION, MPI_MINLOC, comm%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
       msg = res
       DEALLOCATE (res)
       CALL add_perf(perf_id=3, count=1, msg_size=msglen*real_8_size)
 #else
       MARK_USED(msg)
-      MARK_USED(gid)
+      MARK_USED(comm)
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_minloc_dv
@@ -2868,15 +2878,15 @@ CONTAINS
 !> \brief Finds the location of the minimal element in a vector.
 !> \param[in,out] msg         Find location of maximum element among these
 !>                            data (input).
-!> \param[in] gid             Message passing environment identifier
+!> \param[in] comm             Message passing environment identifier
 !> \par MPI mapping
 !>      mpi_allreduce with the MPI_MINLOC reduction function identifier
 !> \par Invalid data types
 !>      This routine is invalid for (int_8) data!
 ! **************************************************************************************************
-   SUBROUTINE mp_minloc_iv(msg, gid)
+   SUBROUTINE mp_minloc_iv(msg, comm)
       INTEGER(KIND=int_4), CONTIGUOUS, INTENT(INOUT)       :: msg(:)
-      TYPE(mp_comm_type), INTENT(IN)                      :: gid
+      CLASS(mp_comm_type), INTENT(IN)                      :: comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_iv'
 
@@ -2895,14 +2905,14 @@ CONTAINS
 #if defined(__parallel)
       msglen = SIZE(msg)
       ALLOCATE (res(1:msglen))
-      CALL mpi_allreduce(msg, res, msglen/2, MPI_2INTEGER, MPI_MINLOC, gid%handle, ierr)
+      CALL mpi_allreduce(msg, res, msglen/2, MPI_2INTEGER, MPI_MINLOC, comm%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
       msg = res
       DEALLOCATE (res)
       CALL add_perf(perf_id=3, count=1, msg_size=msglen*int_4_size)
 #else
       MARK_USED(msg)
-      MARK_USED(gid)
+      MARK_USED(comm)
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_minloc_iv
@@ -2911,15 +2921,15 @@ CONTAINS
 !> \brief Finds the location of the minimal element in a vector.
 !> \param[in,out] msg         Find location of maximum element among these
 !>                            data (input).
-!> \param[in] gid             Message passing environment identifier
+!> \param[in] comm             Message passing environment identifier
 !> \par MPI mapping
 !>      mpi_allreduce with the MPI_MINLOC reduction function identifier
 !> \par Invalid data types
 !>      This routine is invalid for (int_8) data!
 ! **************************************************************************************************
-   SUBROUTINE mp_minloc_lv(msg, gid)
+   SUBROUTINE mp_minloc_lv(msg, comm)
       INTEGER(KIND=int_8), CONTIGUOUS, INTENT(INOUT)       :: msg(:)
-      TYPE(mp_comm_type), INTENT(IN)                      :: gid
+      CLASS(mp_comm_type), INTENT(IN)                      :: comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_lv'
 
@@ -2938,14 +2948,14 @@ CONTAINS
 #if defined(__parallel)
       msglen = SIZE(msg)
       ALLOCATE (res(1:msglen))
-      CALL mpi_allreduce(msg, res, msglen/2, MPI_INTEGER8, MPI_MINLOC, gid%handle, ierr)
+      CALL mpi_allreduce(msg, res, msglen/2, MPI_INTEGER8, MPI_MINLOC, comm%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
       msg = res
       DEALLOCATE (res)
       CALL add_perf(perf_id=3, count=1, msg_size=msglen*int_8_size)
 #else
       MARK_USED(msg)
-      MARK_USED(gid)
+      MARK_USED(comm)
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_minloc_lv
@@ -2954,15 +2964,15 @@ CONTAINS
 !> \brief Finds the location of the minimal element in a vector.
 !> \param[in,out] msg         Find location of maximum element among these
 !>                            data (input).
-!> \param[in] gid             Message passing environment identifier
+!> \param[in] comm             Message passing environment identifier
 !> \par MPI mapping
 !>      mpi_allreduce with the MPI_MINLOC reduction function identifier
 !> \par Invalid data types
 !>      This routine is invalid for (int_8) data!
 ! **************************************************************************************************
-   SUBROUTINE mp_minloc_rv(msg, gid)
+   SUBROUTINE mp_minloc_rv(msg, comm)
       REAL(kind=real_4), CONTIGUOUS, INTENT(INOUT)         :: msg(:)
-      TYPE(mp_comm_type), INTENT(IN)                      :: gid
+      CLASS(mp_comm_type), INTENT(IN)                      :: comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_rv'
 
@@ -2981,14 +2991,14 @@ CONTAINS
 #if defined(__parallel)
       msglen = SIZE(msg)
       ALLOCATE (res(1:msglen))
-      CALL mpi_allreduce(msg, res, msglen/2, MPI_2REAL, MPI_MINLOC, gid%handle, ierr)
+      CALL mpi_allreduce(msg, res, msglen/2, MPI_2REAL, MPI_MINLOC, comm%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
       msg = res
       DEALLOCATE (res)
       CALL add_perf(perf_id=3, count=1, msg_size=msglen*real_4_size)
 #else
       MARK_USED(msg)
-      MARK_USED(gid)
+      MARK_USED(comm)
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_minloc_rv
@@ -2997,15 +3007,15 @@ CONTAINS
 !> \brief Finds the location of the maximal element in a vector.
 !> \param[in,out] msg         Find location of maximum element among these
 !>                            data (input).
-!> \param[in] gid             Message passing environment identifier
+!> \param[in] comm             Message passing environment identifier
 !> \par MPI mapping
 !>      mpi_allreduce with the MPI_MAXLOC reduction function identifier
 !> \par Invalid data types
 !>      This routine is invalid for (int_8) data!
 ! **************************************************************************************************
-   SUBROUTINE mp_maxloc_dv(msg, gid)
+   SUBROUTINE mp_maxloc_dv(msg, comm)
       REAL(kind=real_8), CONTIGUOUS, INTENT(INOUT)         :: msg(:)
-      TYPE(mp_comm_type), INTENT(IN)                      :: gid
+      CLASS(mp_comm_type), INTENT(IN)                      :: comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_dv'
 
@@ -3024,14 +3034,14 @@ CONTAINS
 #if defined(__parallel)
       msglen = SIZE(msg)
       ALLOCATE (res(1:msglen))
-      CALL mpi_allreduce(msg, res, msglen/2, MPI_2DOUBLE_PRECISION, MPI_MAXLOC, gid%handle, ierr)
+      CALL mpi_allreduce(msg, res, msglen/2, MPI_2DOUBLE_PRECISION, MPI_MAXLOC, comm%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
       msg = res
       DEALLOCATE (res)
       CALL add_perf(perf_id=3, count=1, msg_size=msglen*real_8_size)
 #else
       MARK_USED(msg)
-      MARK_USED(gid)
+      MARK_USED(comm)
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_maxloc_dv
@@ -3040,15 +3050,15 @@ CONTAINS
 !> \brief Finds the location of the maximal element in a vector.
 !> \param[in,out] msg         Find location of maximum element among these
 !>                            data (input).
-!> \param[in] gid             Message passing environment identifier
+!> \param[in] comm             Message passing environment identifier
 !> \par MPI mapping
 !>      mpi_allreduce with the MPI_MAXLOC reduction function identifier
 !> \par Invalid data types
 !>      This routine is invalid for (int_8) data!
 ! **************************************************************************************************
-   SUBROUTINE mp_maxloc_iv(msg, gid)
+   SUBROUTINE mp_maxloc_iv(msg, comm)
       INTEGER(KIND=int_4), CONTIGUOUS, INTENT(INOUT)       :: msg(:)
-      TYPE(mp_comm_type), INTENT(IN)                      :: gid
+      CLASS(mp_comm_type), INTENT(IN)                      :: comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_iv'
 
@@ -3067,14 +3077,14 @@ CONTAINS
 #if defined(__parallel)
       msglen = SIZE(msg)
       ALLOCATE (res(1:msglen))
-      CALL mpi_allreduce(msg, res, msglen/2, MPI_2INTEGER, MPI_MAXLOC, gid%handle, ierr)
+      CALL mpi_allreduce(msg, res, msglen/2, MPI_2INTEGER, MPI_MAXLOC, comm%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
       msg = res
       DEALLOCATE (res)
       CALL add_perf(perf_id=3, count=1, msg_size=msglen*int_4_size)
 #else
       MARK_USED(msg)
-      MARK_USED(gid)
+      MARK_USED(comm)
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_maxloc_iv
@@ -3083,15 +3093,15 @@ CONTAINS
 !> \brief Finds the location of the maximal element in a vector.
 !> \param[in,out] msg         Find location of maximum element among these
 !>                            data (input).
-!> \param[in] gid             Message passing environment identifier
+!> \param[in] comm             Message passing environment identifier
 !> \par MPI mapping
 !>      mpi_allreduce with the MPI_MAXLOC reduction function identifier
 !> \par Invalid data types
 !>      This routine is invalid for (int_8) data!
 ! **************************************************************************************************
-   SUBROUTINE mp_maxloc_lv(msg, gid)
+   SUBROUTINE mp_maxloc_lv(msg, comm)
       INTEGER(KIND=int_8), CONTIGUOUS, INTENT(INOUT)       :: msg(:)
-      TYPE(mp_comm_type), INTENT(IN)                      :: gid
+      CLASS(mp_comm_type), INTENT(IN)                      :: comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_lv'
 
@@ -3110,14 +3120,14 @@ CONTAINS
 #if defined(__parallel)
       msglen = SIZE(msg)
       ALLOCATE (res(1:msglen))
-      CALL mpi_allreduce(msg, res, msglen/2, MPI_INTEGER8, MPI_MAXLOC, gid%handle, ierr)
+      CALL mpi_allreduce(msg, res, msglen/2, MPI_INTEGER8, MPI_MAXLOC, comm%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
       msg = res
       DEALLOCATE (res)
       CALL add_perf(perf_id=3, count=1, msg_size=msglen*int_8_size)
 #else
       MARK_USED(msg)
-      MARK_USED(gid)
+      MARK_USED(comm)
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_maxloc_lv
@@ -3126,15 +3136,15 @@ CONTAINS
 !> \brief Finds the location of the maximal element in a vector.
 !> \param[in,out] msg         Find location of maximum element among these
 !>                            data (input).
-!> \param[in] gid             Message passing environment identifier
+!> \param[in] comm             Message passing environment identifier
 !> \par MPI mapping
 !>      mpi_allreduce with the MPI_MAXLOC reduction function identifier
 !> \par Invalid data types
 !>      This routine is invalid for (int_8) data!
 ! **************************************************************************************************
-   SUBROUTINE mp_maxloc_rv(msg, gid)
+   SUBROUTINE mp_maxloc_rv(msg, comm)
       REAL(kind=real_4), CONTIGUOUS, INTENT(INOUT)         :: msg(:)
-      TYPE(mp_comm_type), INTENT(IN)                      :: gid
+      CLASS(mp_comm_type), INTENT(IN)                      :: comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_rv'
 
@@ -3153,14 +3163,14 @@ CONTAINS
 #if defined(__parallel)
       msglen = SIZE(msg)
       ALLOCATE (res(1:msglen))
-      CALL mpi_allreduce(msg, res, msglen/2, MPI_2REAL, MPI_MAXLOC, gid%handle, ierr)
+      CALL mpi_allreduce(msg, res, msglen/2, MPI_2REAL, MPI_MAXLOC, comm%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
       msg = res
       DEALLOCATE (res)
       CALL add_perf(perf_id=3, count=1, msg_size=msglen*real_4_size)
 #else
       MARK_USED(msg)
-      MARK_USED(gid)
+      MARK_USED(comm)
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_maxloc_rv
@@ -3169,13 +3179,13 @@ CONTAINS
 !> \brief Logical OR reduction
 !> \param[in,out] msg         Datum to perform inclusive disjunction (input)
 !>                            and resultant inclusive disjunction (output)
-!> \param[in] gid             Message passing environment identifier
+!> \param[in] comm             Message passing environment identifier
 !> \par MPI mapping
 !>      mpi_allreduce
 ! **************************************************************************************************
-   SUBROUTINE mp_sum_b(msg, gid)
+   SUBROUTINE mp_sum_b(msg, comm)
       LOGICAL, INTENT(INOUT)                             :: msg
-      TYPE(mp_comm_type), INTENT(IN)                                :: gid
+      CLASS(mp_comm_type), INTENT(IN)                                :: comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_b'
 
@@ -3185,11 +3195,11 @@ CONTAINS
       ierr = 0
       msglen = 1
 #if defined(__parallel)
-      CALL mpi_allreduce(MPI_IN_PLACE, msg, msglen, MPI_LOGICAL, MPI_LOR, gid%handle, ierr)
+      CALL mpi_allreduce(MPI_IN_PLACE, msg, msglen, MPI_LOGICAL, MPI_LOR, comm%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
 #else
       MARK_USED(msg)
-      MARK_USED(gid)
+      MARK_USED(comm)
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_sum_b
@@ -3198,13 +3208,13 @@ CONTAINS
 !> \brief Logical OR reduction
 !> \param[in,out] msg         Datum to perform inclusive disjunction (input)
 !>                            and resultant inclusive disjunction (output)
-!> \param[in] gid             Message passing environment identifier
+!> \param[in] comm             Message passing environment identifier
 !> \par MPI mapping
 !>      mpi_allreduce
 ! **************************************************************************************************
-   SUBROUTINE mp_sum_bv(msg, gid)
+   SUBROUTINE mp_sum_bv(msg, comm)
       LOGICAL, DIMENSION(:), CONTIGUOUS, INTENT(INOUT)               :: msg
-      TYPE(mp_comm_type), INTENT(IN)                                :: gid
+      CLASS(mp_comm_type), INTENT(IN)                                :: comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_bv'
 
@@ -3215,12 +3225,12 @@ CONTAINS
       msglen = SIZE(msg)
 #if defined(__parallel)
       IF (msglen .GT. 0) THEN
-         CALL mpi_allreduce(MPI_IN_PLACE, msg, msglen, MPI_LOGICAL, MPI_LOR, gid%handle, ierr)
+         CALL mpi_allreduce(MPI_IN_PLACE, msg, msglen, MPI_LOGICAL, MPI_LOR, comm%handle, ierr)
          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
       END IF
 #else
       MARK_USED(msg)
-      MARK_USED(gid)
+      MARK_USED(comm)
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_sum_bv
@@ -3229,14 +3239,14 @@ CONTAINS
 !> \brief Logical OR reduction
 !> \param[in,out] msg         Datum to perform inclusive disjunction (input)
 !>                            and resultant inclusive disjunction (output)
-!> \param[in] gid             Message passing environment identifier
+!> \param[in] comm             Message passing environment identifier
 !> \param request ...
 !> \par MPI mapping
 !>      mpi_allreduce
 ! **************************************************************************************************
-   SUBROUTINE mp_isum_bv(msg, gid, request)
+   SUBROUTINE mp_isum_bv(msg, comm, request)
       LOGICAL, DIMENSION(:), INTENT(INOUT)               :: msg
-      TYPE(mp_comm_type), INTENT(IN)                                :: gid
+      CLASS(mp_comm_type), INTENT(IN)                                :: comm
       TYPE(mp_request_type), INTENT(INOUT)                             :: request
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_isum_bv'
@@ -3252,14 +3262,14 @@ CONTAINS
 #endif
 
       IF (msglen .GT. 0) THEN
-         CALL mpi_iallreduce(MPI_IN_PLACE, msg, msglen, MPI_LOGICAL, MPI_LOR, gid%handle, request%handle, ierr)
+         CALL mpi_iallreduce(MPI_IN_PLACE, msg, msglen, MPI_LOGICAL, MPI_LOR, comm%handle, request%handle, ierr)
          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
       ELSE
          request = mp_request_null
       END IF
 #else
       MARK_USED(msg)
-      MARK_USED(gid)
+      MARK_USED(comm)
       request = mp_request_null
 #endif
       CALL mp_timestop(handle)
@@ -3307,7 +3317,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_file_open(groupid, fh, filepath, amode_status, info)
       TYPE(mp_comm_type), INTENT(IN)                      :: groupid
-      TYPE(mp_file_type), INTENT(OUT)                     :: fh
+      CLASS(mp_file_type), INTENT(OUT)                     :: fh
       CHARACTER(len=*), INTENT(IN)             :: filepath
       INTEGER, INTENT(IN)                      :: amode_status
       TYPE(mp_info_type), INTENT(IN), OPTIONAL            :: info
@@ -3399,7 +3409,7 @@ CONTAINS
 !>      11.2012 created [Hossein Bani-Hashemian]
 ! **************************************************************************************************
    SUBROUTINE mp_file_close(fh)
-      TYPE(mp_file_type), INTENT(INOUT)                             :: fh
+      CLASS(mp_file_type), INTENT(INOUT)                             :: fh
 
       INTEGER                                            :: ierr
 
@@ -3424,7 +3434,7 @@ CONTAINS
 !>      12.2012 created [Hossein Bani-Hashemian]
 ! **************************************************************************************************
    SUBROUTINE mp_file_get_size(fh, file_size)
-      TYPE(mp_file_type), INTENT(IN)                                :: fh
+      CLASS(mp_file_type), INTENT(IN)                                :: fh
       INTEGER(kind=file_offset), INTENT(OUT)             :: file_size
 
       INTEGER                                            :: ierr
@@ -3450,7 +3460,7 @@ CONTAINS
 !>      11.2017 created [Nico Holmberg]
 ! **************************************************************************************************
    SUBROUTINE mp_file_get_position(fh, pos)
-      TYPE(mp_file_type), INTENT(IN)                                :: fh
+      CLASS(mp_file_type), INTENT(IN)                                :: fh
       INTEGER(kind=file_offset), INTENT(OUT)             :: pos
 
       INTEGER                                            :: ierr
@@ -3478,7 +3488,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_file_write_at_chv(fh, offset, msg, msglen)
       CHARACTER, CONTIGUOUS, INTENT(IN)                      :: msg(:)
-      TYPE(mp_file_type), INTENT(IN)                        :: fh
+      CLASS(mp_file_type), INTENT(IN)                        :: fh
       INTEGER, INTENT(IN), OPTIONAL              :: msglen
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
@@ -3504,7 +3514,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_file_write_at_ch(fh, offset, msg)
       CHARACTER(LEN=*), INTENT(IN)               :: msg
-      TYPE(mp_file_type), INTENT(IN)                        :: fh
+      CLASS(mp_file_type), INTENT(IN)                        :: fh
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
 #if defined(__parallel)
@@ -3530,7 +3540,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_file_write_at_all_chv(fh, offset, msg, msglen)
       CHARACTER, CONTIGUOUS, INTENT(IN)                      :: msg(:)
-      TYPE(mp_file_type), INTENT(IN)                        :: fh
+      CLASS(mp_file_type), INTENT(IN)                        :: fh
       INTEGER, INTENT(IN), OPTIONAL              :: msglen
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
@@ -3556,7 +3566,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_file_write_at_all_ch(fh, offset, msg)
       CHARACTER(LEN=*), INTENT(IN)               :: msg
-      TYPE(mp_file_type), INTENT(IN)                        :: fh
+      CLASS(mp_file_type), INTENT(IN)                        :: fh
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
 #if defined(__parallel)
@@ -3583,7 +3593,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_file_read_at_chv(fh, offset, msg, msglen)
       CHARACTER, CONTIGUOUS, INTENT(OUT)                     :: msg(:)
-      TYPE(mp_file_type), INTENT(IN)                        :: fh
+      CLASS(mp_file_type), INTENT(IN)                        :: fh
       INTEGER, INTENT(IN), OPTIONAL              :: msglen
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
@@ -3609,7 +3619,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_file_read_at_ch(fh, offset, msg)
       CHARACTER(LEN=*), INTENT(OUT)              :: msg
-      TYPE(mp_file_type), INTENT(IN)                        :: fh
+      CLASS(mp_file_type), INTENT(IN)                        :: fh
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
 #if defined(__parallel)
@@ -3635,7 +3645,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_file_read_at_all_chv(fh, offset, msg, msglen)
       CHARACTER, INTENT(OUT)                     :: msg(:)
-      TYPE(mp_file_type), INTENT(IN)                        :: fh
+      CLASS(mp_file_type), INTENT(IN)                        :: fh
       INTEGER, INTENT(IN), OPTIONAL              :: msglen
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
@@ -3661,7 +3671,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_file_read_at_all_ch(fh, offset, msg)
       CHARACTER(LEN=*), INTENT(OUT)              :: msg
-      TYPE(mp_file_type), INTENT(IN)                        :: fh
+      CLASS(mp_file_type), INTENT(IN)                        :: fh
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
 #if defined(__parallel)
@@ -3913,7 +3923,7 @@ CONTAINS
 !> \author Nico Holmberg [05.2017]
 ! **************************************************************************************************
    SUBROUTINE mp_file_read_all_chv(fh, msglen, ndims, buffer, type_descriptor)
-      TYPE(mp_file_type), INTENT(IN)                       :: fh
+      CLASS(mp_file_type), INTENT(IN)                       :: fh
       INTEGER, INTENT(IN)                       :: msglen
       INTEGER, INTENT(IN)                       :: ndims
       CHARACTER(LEN=msglen), DIMENSION(ndims), INTENT(INOUT)   :: buffer
@@ -3964,7 +3974,7 @@ CONTAINS
 !> \author Nico Holmberg [05.2017]
 ! **************************************************************************************************
    SUBROUTINE mp_file_write_all_chv(fh, msglen, ndims, buffer, type_descriptor)
-      TYPE(mp_file_type), INTENT(IN)                       :: fh
+      CLASS(mp_file_type), INTENT(IN)                       :: fh
       INTEGER, INTENT(IN)                       :: msglen
       INTEGER, INTENT(IN)                       :: ndims
       CHARACTER(LEN=msglen), DIMENSION(ndims), INTENT(IN)   :: buffer
@@ -4187,7 +4197,7 @@ CONTAINS
    SUBROUTINE mp_isend_custom(msgin, dest, comm, request, tag)
       TYPE(mp_type_descriptor_type), INTENT(IN)          :: msgin
       INTEGER, INTENT(IN)                                :: dest
-      TYPE(mp_comm_type), INTENT(IN) :: comm
+      CLASS(mp_comm_type), INTENT(IN) :: comm
       TYPE(mp_request_type), INTENT(out)                               :: request
       INTEGER, INTENT(in), OPTIONAL                      :: tag
 
@@ -4224,7 +4234,7 @@ CONTAINS
    SUBROUTINE mp_irecv_custom(msgout, source, comm, request, tag)
       TYPE(mp_type_descriptor_type), INTENT(INOUT)       :: msgout
       INTEGER, INTENT(IN)                                :: source
-      TYPE(mp_comm_type), INTENT(IN) :: comm
+      CLASS(mp_comm_type), INTENT(IN) :: comm
       TYPE(mp_request_type), INTENT(out)                               :: request
       INTEGER, INTENT(in), OPTIONAL                      :: tag
 
@@ -4255,7 +4265,7 @@ CONTAINS
 !> \param win ...
 ! **************************************************************************************************
    SUBROUTINE mp_win_free(win)
-      TYPE(mp_win_type), INTENT(INOUT)                             :: win
+      CLASS(mp_win_type), INTENT(INOUT)                             :: win
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_win_free'
 
@@ -4271,7 +4281,7 @@ CONTAINS
 
       CALL add_perf(perf_id=21, count=1)
 #else
-      win = mp_win_null
+      win%handle = mp_win_null_handle
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_win_free
@@ -4281,7 +4291,7 @@ CONTAINS
 !> \param win ...
 ! **************************************************************************************************
    SUBROUTINE mp_win_flush_all(win)
-      TYPE(mp_win_type), INTENT(IN)                                :: win
+      CLASS(mp_win_type), INTENT(IN)                                :: win
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_win_flush_all'
 
@@ -4304,7 +4314,7 @@ CONTAINS
 !> \param win ...
 ! **************************************************************************************************
    SUBROUTINE mp_win_lock_all(win)
-      TYPE(mp_win_type), INTENT(IN)                             :: win
+      CLASS(mp_win_type), INTENT(IN)                             :: win
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_win_lock_all'
 
@@ -4330,7 +4340,7 @@ CONTAINS
 !> \param win ...
 ! **************************************************************************************************
    SUBROUTINE mp_win_unlock_all(win)
-      TYPE(mp_win_type), INTENT(IN)                             :: win
+      CLASS(mp_win_type), INTENT(IN)                             :: win
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_win_unlock_all'
 
@@ -4584,10 +4594,10 @@ CONTAINS
          END IF
       END DO
       ! -------------------------------------------------------------------------------------------
-      ! ------------------------------ test mp_sum like behavior                -------------------
+      ! ------------------------------ test parallel sum like behavior                -------------------
       ! -------------------------------------------------------------------------------------------
       CALL MPI_BARRIER(comm%handle, ierror)
-      IF (ionode .AND. output_unit > 0) WRITE (output_unit, *) "Test global summation (mp_sum / mpi_allreduce) "
+      IF (ionode .AND. output_unit > 0) WRITE (output_unit, *) "Test global summation (mpi_allreduce) "
       DO i = 1, npow
          ncount = 10**i
          t2 = 0.0E0_dp

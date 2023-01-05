@@ -43,8 +43,6 @@ MODULE helium_sampling
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE machine,                         ONLY: m_walltime
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_sum
    USE physcon,                         ONLY: angstrom
    USE pint_public,                     ONLY: pint_com_pos
    USE pint_types,                      ONLY: pint_env_type
@@ -121,8 +119,8 @@ CONTAINS
       END IF
 
       ! Distribute steps for processors without helium_env
-      CALL mp_bcast(num_steps, logger%para_env%source, logger%para_env%group)
-      CALL mp_bcast(tot_steps, logger%para_env%source, logger%para_env%group)
+      CALL logger%para_env%group%bcast(num_steps, logger%para_env%source)
+      CALL logger%para_env%group%bcast(tot_steps, logger%para_env%source)
 
       DO step = 1, num_steps
 
@@ -327,7 +325,7 @@ CONTAINS
          helium_env(1)%helium%energy_avrg(:) = helium_env(1)%helium%energy_avrg(:) + &
                                                helium_env(k)%helium%energy_avrg(:)
       END DO
-      CALL mp_sum(helium_env(1)%helium%energy_avrg(:), helium_env(1)%comm)
+      CALL helium_env(1)%comm%sum(helium_env(1)%helium%energy_avrg(:))
       helium_env(1)%helium%energy_avrg(:) = helium_env(1)%helium%energy_avrg(:)*inv_num_env
       DO k = 2, SIZE(helium_env)
          helium_env(k)%helium%energy_avrg(:) = helium_env(1)%helium%energy_avrg(:)
@@ -338,7 +336,7 @@ CONTAINS
          helium_env(1)%helium%plength_avrg(:) = helium_env(1)%helium%plength_avrg(:) + &
                                                 helium_env(k)%helium%plength_avrg(:)
       END DO
-      CALL mp_sum(helium_env(1)%helium%plength_avrg(:), helium_env(1)%comm)
+      CALL helium_env(1)%comm%sum(helium_env(1)%helium%plength_avrg(:))
       helium_env(1)%helium%plength_avrg(:) = helium_env(1)%helium%plength_avrg(:)*inv_num_env
       DO k = 2, SIZE(helium_env)
          helium_env(k)%helium%plength_avrg(:) = helium_env(1)%helium%plength_avrg(:)
@@ -349,7 +347,7 @@ CONTAINS
          helium_env(1)%helium%num_accepted(:, :) = helium_env(1)%helium%num_accepted(:, :) + &
                                                    helium_env(k)%helium%num_accepted(:, :)
       END DO
-      CALL mp_sum(helium_env(1)%helium%num_accepted(:, :), helium_env(1)%comm)
+      CALL helium_env(1)%comm%sum(helium_env(1)%helium%num_accepted(:, :))
       helium_env(1)%helium%num_accepted(:, :) = helium_env(1)%helium%num_accepted(:, :)*inv_num_env
       DO k = 2, SIZE(helium_env)
          helium_env(k)%helium%num_accepted(:, :) = helium_env(1)%helium%num_accepted(:, :)
@@ -362,7 +360,7 @@ CONTAINS
                helium_env(1)%helium%force_avrg(:, :) = helium_env(1)%helium%force_avrg(:, :) + &
                                                        helium_env(k)%helium%force_avrg(:, :)
             END DO
-            CALL mp_sum(helium_env(1)%helium%force_avrg(:, :), helium_env(1)%comm)
+            CALL helium_env(1)%comm%sum(helium_env(1)%helium%force_avrg(:, :))
             helium_env(1)%helium%force_avrg(:, :) = helium_env(1)%helium%force_avrg(:, :)*inv_num_env
             DO k = 2, SIZE(helium_env)
                helium_env(k)%helium%force_avrg(:, :) = helium_env(1)%helium%force_avrg(:, :)
@@ -372,7 +370,7 @@ CONTAINS
                sel_mp_source = INT(helium_env(1)%helium%rng_stream_uniform%next() &
                                    *REAL(helium_env(1)%helium%num_env, dp))
             END IF
-            CALL mp_bcast(sel_mp_source, logger%para_env%source, helium_env(1)%comm)
+            CALL helium_env(1)%comm%bcast(sel_mp_source, logger%para_env%source)
 
             offset = 0
             DO i = 1, logger%para_env%mepos
@@ -384,7 +382,7 @@ CONTAINS
             IF (sel_mp_source .GE. offset .AND. sel_mp_source .LT. offset + SIZE(helium_env)) THEN
                work_2d(:, :) = helium_env(sel_mp_source - offset + 1)%helium%force_avrg(:, :)
             END IF
-            CALL mp_sum(work_2d(:, :), helium_env(1)%comm)
+            CALL helium_env(1)%comm%sum(work_2d(:, :))
             DO k = 1, SIZE(helium_env)
                helium_env(k)%helium%force_avrg(:, :) = work_2d(:, :)
             END DO

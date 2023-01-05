@@ -28,8 +28,7 @@ MODULE cp_fm_basic_linalg
    USE machine, ONLY: m_memory
    USE mathlib, ONLY: get_pseudo_inverse_svd, &
                       invert_matrix
-   USE message_passing, ONLY: mp_comm_type, &
-                              mp_sum
+   USE message_passing, ONLY: mp_comm_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -569,7 +568,7 @@ CONTAINS
       norm = DDOT(size_a, a(1, 1), 1, a(1, 1), 1)
 #if defined(__SCALAPACK)
       group = matrix_a%matrix_struct%para_env%group
-      CALL mp_sum(norm, group)
+      CALL group%sum(norm)
 #endif
       norm = SQRT(norm)
 
@@ -745,7 +744,7 @@ CONTAINS
                                       b(1:nrow_local, 1:ncol_local))
       END IF
 
-      CALL mp_sum(trace, group)
+      CALL group%sum(trace)
 
       CALL timestop(handle)
 
@@ -825,7 +824,7 @@ CONTAINS
 !$OMP END PARALLEL DO
 
          group = matrix_b%matrix_struct%para_env%group
-         CALL mp_sum(trace, group)
+         CALL group%sum(trace)
 
          CALL timestop(handle)
       END SUBROUTINE cp_fm_trace_a1b0t1_${shortname}$
@@ -909,7 +908,7 @@ CONTAINS
 !$OMP END PARALLEL DO
 
             group = matrix_a(1) ${appendix1}$%matrix_struct%para_env%group
-            CALL mp_sum(trace, group)
+            CALL group%sum(trace)
 
             CALL timestop(handle)
          END SUBROUTINE cp_fm_trace_a1b1t1_${shortname1}$${shortname2}$
@@ -1001,7 +1000,7 @@ CONTAINS
 !$OMP END PARALLEL DO
 
             group = matrix_a(1, 1) ${appendix1}$%matrix_struct%para_env%group
-            CALL mp_sum(trace, group)
+            CALL group%sum(trace)
 
             CALL timestop(handle)
          END SUBROUTINE cp_fm_contracted_trace_a2b2t2_${shortname1}$${shortname2}$
@@ -1536,7 +1535,7 @@ CONTAINS
             DEALLOCATE (diag)
 
             group = matrix_lu%matrix_struct%para_env%group
-            CALL mp_sum(exponent_of_minus_one, group)
+            CALL group%sum(exponent_of_minus_one)
 
             determinant = determinant*(-1.0_dp)**exponent_of_minus_one
 
@@ -2433,7 +2432,7 @@ CONTAINS
             END IF
 
          END DO
-         CALL mp_sum(B, matrix_a%matrix_struct%para_env%group)
+         CALL matrix_a%matrix_struct%para_env%group%sum(B)
       END IF
 
       CALL timestop(handle)

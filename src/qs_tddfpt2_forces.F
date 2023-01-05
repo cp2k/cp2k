@@ -57,7 +57,6 @@ MODULE qs_tddfpt2_forces
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_sum
    USE mulliken,                        ONLY: ao_charges
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
@@ -461,7 +460,7 @@ CONTAINS
       CALL dbcsr_deallocate_matrix_set(matrix_wz)
       IF (debug_forces) THEN
          fodeb(1:3) = force(1)%overlap(1:3, 1) - fodeb(1:3)
-         CALL mp_sum(fodeb, para_env%group)
+         CALL para_env%group%sum(fodeb)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Wx*dS ", fodeb
       END IF
 
@@ -497,7 +496,7 @@ CONTAINS
       CALL dbcsr_deallocate_matrix_set(matrix_wz)
       IF (debug_forces) THEN
          fodeb(1:3) = force(1)%overlap(1:3, 1) - fodeb(1:3)
-         CALL mp_sum(fodeb, para_env%group)
+         CALL para_env%group%sum(fodeb)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: xWx*dS ", fodeb
       END IF
 
@@ -517,7 +516,7 @@ CONTAINS
          CALL dbcsr_deallocate_matrix_set(scrm)
          IF (debug_forces) THEN
             fodeb(1:3) = force(1)%overlap(1:3, 1) - fodeb(1:3)
-            CALL mp_sum(fodeb, para_env%group)
+            CALL para_env%group%sum(fodeb)
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: WK*dS ", fodeb
          END IF
       END IF
@@ -526,7 +525,7 @@ CONTAINS
          ALLOCATE (ftot2(3, natom))
          CALL total_qs_force(ftot2, force, atomic_kind_set)
          fodeb(1:3) = ftot2(1:3, 1) - ftot1(1:3, 1)
-         CALL mp_sum(fodeb, para_env%group)
+         CALL para_env%group%sum(fodeb)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T30,3F16.8)") "DEBUG:: Excitation Force", fodeb
          DEALLOCATE (ftot1, ftot2)
       END IF

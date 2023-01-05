@@ -25,7 +25,6 @@ MODULE qs_tddfpt2_fhxc
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE lri_environment_types,           ONLY: lri_kind_type
-   USE message_passing,                 ONLY: mp_sum
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE pw_env_types,                    ONLY: pw_env_get
    USE pw_methods,                      ONLY: pw_axpy,&
@@ -429,7 +428,7 @@ CONTAINS
                CALL integrate_v_rspace_one_center(work_matrices%A_ia_rspace_sub(ispin), &
                                                   qs_env, lri_v_int, .FALSE., "P_LRI_AUX")
                DO ikind = 1, nkind
-                  CALL mp_sum(lri_v_int(ikind)%v_int, para_env%group)
+                  CALL para_env%group%sum(lri_v_int(ikind)%v_int)
                END DO
             END IF ! for full kernel using lri
          END DO

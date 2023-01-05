@@ -19,8 +19,7 @@
 MODULE particle_types
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_comm_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -141,7 +140,7 @@ CONTAINS
       IF (PRESENT(add)) my_add = add
 
       IF (update_pos) THEN
-         CALL mp_sum(pos, int_group)
+         CALL int_group%sum(pos)
          IF (my_add) THEN
             DO iparticle = 1, nparticle
                particle_set(iparticle)%r(:) = particle_set(iparticle)%r(:) + pos(:, iparticle)
@@ -153,7 +152,7 @@ CONTAINS
          END IF
       END IF
       IF (update_vel) THEN
-         CALL mp_sum(vel, int_group)
+         CALL int_group%sum(vel)
          IF (my_add) THEN
             DO iparticle = 1, nparticle
                particle_set(iparticle)%v(:) = particle_set(iparticle)%v(:) + vel(:, iparticle)
@@ -165,7 +164,7 @@ CONTAINS
          END IF
       END IF
       IF (update_for) THEN
-         CALL mp_sum(for, int_group)
+         CALL int_group%sum(for)
          IF (my_add) THEN
             DO iparticle = 1, nparticle
                particle_set(iparticle)%f(:) = particle_set(iparticle)%f(:) + for(:, iparticle)

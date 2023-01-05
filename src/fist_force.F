@@ -59,7 +59,6 @@ MODULE fist_force
    USE manybody_eam,                    ONLY: density_nonbond
    USE manybody_potential,              ONLY: energy_manybody,&
                                               force_nonbond_manybody
-   USE message_passing,                 ONLY: mp_sum
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: molecule_type
    USE multipole_types,                 ONLY: multipole_type
@@ -421,8 +420,8 @@ CONTAINS
                                        pv_g, shell_particle_set=shell_particle_set, core_particle_set=core_particle_set, &
                                        fgshell_coulomb=fgshell_coulomb, fgcore_coulomb=fgcore_coulomb, use_virial=use_virial, &
                                        atprop=atprop_env)
-                     CALL mp_sum(fgshell_coulomb, para_env%group)
-                     CALL mp_sum(fgcore_coulomb, para_env%group)
+                     CALL para_env%group%sum(fgshell_coulomb)
+                     CALL para_env%group%sum(fgcore_coulomb)
                   END IF
                ELSE
                   IF (do_multipoles) THEN
@@ -433,7 +432,7 @@ CONTAINS
                                        atprop=atprop_env)
                   END IF
                END IF
-               CALL mp_sum(fg_coulomb, para_env%group)
+               CALL para_env%group%sum(fg_coulomb)
             CASE (do_ewald_spme)
                ! Parallelisation over grids --> allocate all atoms
                IF (shell_present) THEN
@@ -448,8 +447,8 @@ CONTAINS
                                         pv_g, shell_particle_set=shell_particle_set, core_particle_set=core_particle_set, &
                                         fgshell_coulomb=fgshell_coulomb, fgcore_coulomb=fgcore_coulomb, use_virial=use_virial, &
                                         atprop=atprop_env)
-                     CALL mp_sum(fgshell_coulomb, para_env%group)
-                     CALL mp_sum(fgcore_coulomb, para_env%group)
+                     CALL para_env%group%sum(fgshell_coulomb)
+                     CALL para_env%group%sum(fgcore_coulomb)
                   END IF
                ELSE
                   IF (do_multipoles) THEN
@@ -460,7 +459,7 @@ CONTAINS
                                         atprop=atprop_env)
                   END IF
                END IF
-               CALL mp_sum(fg_coulomb, para_env%group)
+               CALL para_env%group%sum(fg_coulomb)
             END SELECT
          END IF
 
@@ -547,7 +546,7 @@ CONTAINS
                fcore_shell_bonded(1:3, shell_index) = particle_set(i)%f(1:3)
             END IF
          END DO
-         CALL mp_sum(fcore_shell_bonded, para_env%group)
+         CALL para_env%group%sum(fcore_shell_bonded)
          DO i = 1, natoms
             shell_index = particle_set(i)%shell_index
             IF (shell_index /= 0) THEN
@@ -585,11 +584,12 @@ CONTAINS
       ! add up all the potential energies
       thermo%pot = pot_nonbond + pot_bond + pot_bend + pot_torsion + pot_opbend + &
                    pot_imptors + pot_urey_bradley + pot_manybody + pot_shell
-      CALL mp_sum(thermo%pot, para_env%group)
+
+      CALL para_env%group%sum(thermo%pot)
 
       IF (shell_present) THEN
          thermo%harm_shell = pot_shell
-         CALL mp_sum(thermo%harm_shell, para_env%group)
+         CALL para_env%group%sum(thermo%harm_shell)
       END IF
       ! add g-space contributions if needed
       IF (ewald_type /= do_ewald_none) THEN
@@ -688,7 +688,7 @@ CONTAINS
          ! Add up all the pressure tensors
          IF (ewald_type == do_ewald_none) THEN
             virial%pv_virial = pv_nonbond + pv_bond + pv_bend + pv_torsion + pv_imptors + pv_urey_bradley
-            CALL mp_sum(virial%pv_virial, para_env%group)
+            CALL para_env%group%sum(virial%pv_virial)
          ELSE
             ident = 0.0_dp
             DO i = 1, 3
@@ -696,7 +696,7 @@ CONTAINS
             END DO
 
             virial%pv_virial = pv_nonbond + pv_bond + pv_bend + pv_torsion + pv_imptors + pv_urey_bradley + pv_bc
-            CALL mp_sum(virial%pv_virial, para_env%group)
+            CALL para_env%group%sum(virial%pv_virial)
 
             virial%pv_virial = virial%pv_virial + ident*thermo%e_neut
             virial%pv_virial = virial%pv_virial + pv_g
@@ -704,10 +704,10 @@ CONTAINS
       END IF
 
       ! Sum total forces
-      CALL mp_sum(f_total, para_env%group)
+      CALL para_env%group%sum(f_total)
       IF (shell_present .AND. shell_model_ad) THEN
-         CALL mp_sum(fcore_total, para_env%group)
-         CALL mp_sum(fshell_total, para_env%group)
+         CALL para_env%group%sum(fcore_total)
+         CALL para_env%group%sum(fshell_total)
       END IF
 
       ! contributions from fields (currently all quantities are fully replicated!)
@@ -805,36 +805,36 @@ CONTAINS
       ! If we are doing debugging, check if variables are present and assign
       !
       IF (PRESENT(debug)) THEN
-         CALL mp_sum(pot_manybody, para_env%group)
+         CALL para_env%group%sum(pot_manybody)
          debug%pot_manybody = pot_manybody
-         CALL mp_sum(pot_nonbond, para_env%group)
+         CALL para_env%group%sum(pot_nonbond)
          debug%pot_nonbond = pot_nonbond
-         CALL mp_sum(pot_bond, para_env%group)
+         CALL para_env%group%sum(pot_bond)
          debug%pot_bond = pot_bond
-         CALL mp_sum(pot_bend, para_env%group)
+         CALL para_env%group%sum(pot_bend)
          debug%pot_bend = pot_bend
-         CALL mp_sum(pot_torsion, para_env%group)
+         CALL para_env%group%sum(pot_torsion)
          debug%pot_torsion = pot_torsion
-         CALL mp_sum(pot_imptors, para_env%group)
+         CALL para_env%group%sum(pot_imptors)
          debug%pot_imptors = pot_imptors
-         CALL mp_sum(pot_opbend, para_env%group)
+         CALL para_env%group%sum(pot_opbend)
          debug%pot_opbend = pot_opbend
-         CALL mp_sum(pot_urey_bradley, para_env%group)
+         CALL para_env%group%sum(pot_urey_bradley)
          debug%pot_urey_bradley = pot_urey_bradley
-         CALL mp_sum(f_nonbond, para_env%group)
+         CALL para_env%group%sum(f_nonbond)
          debug%f_nonbond = f_nonbond
          IF (use_virial) THEN
-            CALL mp_sum(pv_nonbond, para_env%group)
+            CALL para_env%group%sum(pv_nonbond)
             debug%pv_nonbond = pv_nonbond
-            CALL mp_sum(pv_bond, para_env%group)
+            CALL para_env%group%sum(pv_bond)
             debug%pv_bond = pv_bond
-            CALL mp_sum(pv_bend, para_env%group)
+            CALL para_env%group%sum(pv_bend)
             debug%pv_bend = pv_bend
-            CALL mp_sum(pv_torsion, para_env%group)
+            CALL para_env%group%sum(pv_torsion)
             debug%pv_torsion = pv_torsion
-            CALL mp_sum(pv_imptors, para_env%group)
+            CALL para_env%group%sum(pv_imptors)
             debug%pv_imptors = pv_imptors
-            CALL mp_sum(pv_urey_bradley, para_env%group)
+            CALL para_env%group%sum(pv_urey_bradley)
             debug%pv_ub = pv_urey_bradley
          END IF
          SELECT CASE (ewald_type)

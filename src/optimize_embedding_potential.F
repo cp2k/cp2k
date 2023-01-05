@@ -56,9 +56,6 @@ MODULE optimize_embedding_potential
                                               dp
    USE lri_environment_types,           ONLY: lri_kind_type
    USE mathconstants,                   ONLY: pi
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_max,&
-                                              mp_sum
    USE mixed_environment_utils,         ONLY: get_subsys_map_index
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
@@ -831,7 +828,7 @@ CONTAINS
       END IF
 
       ! Broadcast the coefficients on all processes
-      CALL mp_bcast(coef, para_env%source, para_env%group)
+      CALL para_env%group%bcast(coef, para_env%source)
 
       ! Copy to fm_type structure
       ! Information about full matrix gradient
@@ -1299,7 +1296,7 @@ CONTAINS
       CALL integrate_v_rspace_one_center(rho_r, qs_env, lri, &
                                          .FALSE., "RI_AUX")
       DO ikind = 1, SIZE(lri)
-         CALL mp_sum(lri(ikind)%v_int, para_env%group)
+         CALL para_env%group%sum(lri(ikind)%v_int)
       END DO
 
       pot_grad = 0.0_dp
@@ -1321,7 +1318,7 @@ CONTAINS
          CALL integrate_v_rspace_one_center(rho_spin, qs_env, lri, &
                                             .FALSE., "RI_AUX")
          DO ikind = 1, SIZE(lri)
-            CALL mp_sum(lri(ikind)%v_int, para_env%group)
+            CALL para_env%group%sum(lri(ikind)%v_int)
          END DO
 
          start_pos = dimen_aux + 1
@@ -1847,7 +1844,7 @@ CONTAINS
             l_global = row_indices(LLL)
             wf_vector(l_global) = embed_pot_coef_spinless%local_data(LLL, 1)
          END DO
-         CALL mp_sum(wf_vector, para_env%group)
+         CALL para_env%group%sum(wf_vector)
 
          ! Calculate the variable part of the embedding potential
          CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
@@ -1874,7 +1871,7 @@ CONTAINS
             l_global = row_indices(LLL)
             wf_vector(l_global) = embed_pot_coef_spin%local_data(LLL, 1)
          END DO
-         CALL mp_sum(wf_vector, para_env%group)
+         CALL para_env%group%sum(wf_vector)
 
          ! Calculate the variable part of the embedding potential
          CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
@@ -1896,7 +1893,7 @@ CONTAINS
             l_global = row_indices(LLL)
             wf_vector(l_global) = embed_pot_coef%local_data(LLL, 1)
          END DO
-         CALL mp_sum(wf_vector, para_env%group)
+         CALL para_env%group%sum(wf_vector)
 
          ! Calculate the variable part of the embedding potential
          CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
@@ -2397,7 +2394,7 @@ CONTAINS
                red_eigenval_map(l_global) = 1
             END IF
          END DO
-         CALL mp_sum(red_eigenval_map, para_env%group)
+         CALL para_env%group%sum(red_eigenval_map)
 
          ! Set shift as -hess_min and find step on the reduced space of negative-value
          ! eigenvectors
@@ -2461,7 +2458,7 @@ CONTAINS
          END IF
       END DO
 
-      CALL mp_sum(step, para_env%group)
+      CALL para_env%group%sum(step)
 
       step_minus_trad = SQRT(step) - trust_rad
 
@@ -3070,7 +3067,7 @@ CONTAINS
       ! Find the maximum absolute value
       max_diff = MAXVAL(ABS(grid_3d))
       total_max_diff = max_diff
-      CALL mp_max(total_max_diff, diff_rho_r%pw_grid%para%group)
+      CALL diff_rho_r%pw_grid%para%group%max(total_max_diff)
 
       ! Deallocate the density
       DEALLOCATE (grid_3d)

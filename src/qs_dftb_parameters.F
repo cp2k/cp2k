@@ -35,7 +35,6 @@ MODULE qs_dftb_parameters
                                               default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: pi
-   USE message_passing,                 ONLY: mp_bcast
    USE physcon,                         ONLY: angstrom,&
                                               kcalmol
    USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
@@ -263,15 +262,15 @@ CONTAINS
             IF (n_urpoly < 2) n_urpoly = 0
          END IF
 
-         CALL mp_bcast(n_urpoly, para_env%source, para_env%group)
-         CALL mp_bcast(uwork, para_env%source, para_env%group)
-         CALL mp_bcast(ngrd, para_env%source, para_env%group)
-         CALL mp_bcast(dgrd, para_env%source, para_env%group)
+         CALL para_env%group%bcast(n_urpoly, para_env%source)
+         CALL para_env%group%bcast(uwork, para_env%source)
+         CALL para_env%group%bcast(ngrd, para_env%source)
+         CALL para_env%group%bcast(dgrd, para_env%source)
 
-         CALL mp_bcast(skself, para_env%source, para_env%group)
-         CALL mp_bcast(energy, para_env%source, para_env%group)
-         CALL mp_bcast(eta, para_env%source, para_env%group)
-         CALL mp_bcast(occupation, para_env%source, para_env%group)
+         CALL para_env%group%bcast(skself, para_env%source)
+         CALL para_env%group%bcast(energy, para_env%source)
+         CALL para_env%group%bcast(eta, para_env%source)
+         CALL para_env%group%bcast(occupation, para_env%source)
 
          CALL set_dftb_atom_param(dftb_parameter=dftb_atom_a, &
                                   z=z, zeff=SUM(occupation), defined=.TRUE., &
@@ -287,8 +286,8 @@ CONTAINS
                smat(k, 1:10) = swork(1:10)
             END DO
          END IF
-         CALL mp_bcast(fmat, para_env%source, para_env%group)
-         CALL mp_bcast(smat, para_env%source, para_env%group)
+         CALL para_env%group%bcast(fmat, para_env%source)
+         CALL para_env%group%bcast(smat, para_env%source)
 
          !
          ! Determine lmax for atom type.
@@ -363,17 +362,17 @@ CONTAINS
             CALL close_file(unit_number=runit)
          END IF
 
-         CALL mp_bcast(spdim, para_env%source, para_env%group)
+         CALL para_env%group%bcast(spdim, para_env%source)
          IF (spdim > 0 .AND. (.NOT. para_env%ionode)) THEN
             ALLOCATE (spxr(spdim, 2))
             ALLOCATE (scoeff(spdim, 4))
          END IF
          IF (spdim > 0) THEN
-            CALL mp_bcast(spxr, para_env%source, para_env%group)
-            CALL mp_bcast(scoeff, para_env%source, para_env%group)
-            CALL mp_bcast(surr, para_env%source, para_env%group)
-            CALL mp_bcast(srep, para_env%source, para_env%group)
-            CALL mp_bcast(s_cut, para_env%source, para_env%group)
+            CALL para_env%group%bcast(spxr, para_env%source)
+            CALL para_env%group%bcast(scoeff, para_env%source)
+            CALL para_env%group%bcast(surr, para_env%source)
+            CALL para_env%group%bcast(srep, para_env%source)
+            CALL para_env%group%bcast(s_cut, para_env%source)
          END IF
 
          ! store potential data
@@ -476,10 +475,10 @@ CONTAINS
                IF (n_urpoly < 2) n_urpoly = 0
             END IF
 
-            CALL mp_bcast(n_urpoly, para_env%source, para_env%group)
-            CALL mp_bcast(uwork, para_env%source, para_env%group)
-            CALL mp_bcast(ngrd, para_env%source, para_env%group)
-            CALL mp_bcast(dgrd, para_env%source, para_env%group)
+            CALL para_env%group%bcast(n_urpoly, para_env%source)
+            CALL para_env%group%bcast(uwork, para_env%source)
+            CALL para_env%group%bcast(ngrd, para_env%source)
+            CALL para_env%group%bcast(dgrd, para_env%source)
 
             ! Slater-Koster table
             ALLOCATE (fmat(ngrd, 10))
@@ -491,8 +490,8 @@ CONTAINS
                   smat(k, 1:10) = swork(1:10)
                END DO
             END IF
-            CALL mp_bcast(fmat, para_env%source, para_env%group)
-            CALL mp_bcast(smat, para_env%source, para_env%group)
+            CALL para_env%group%bcast(fmat, para_env%source)
+            CALL para_env%group%bcast(smat, para_env%source)
 
             spdim = 0
             IF (n_urpoly == 0) THEN
@@ -524,17 +523,17 @@ CONTAINS
                CALL close_file(unit_number=runit)
             END IF
 
-            CALL mp_bcast(spdim, para_env%source, para_env%group)
+            CALL para_env%group%bcast(spdim, para_env%source)
             IF (spdim > 0 .AND. (.NOT. para_env%ionode)) THEN
                ALLOCATE (spxr(spdim, 2))
                ALLOCATE (scoeff(spdim, 4))
             END IF
             IF (spdim > 0) THEN
-               CALL mp_bcast(spxr, para_env%source, para_env%group)
-               CALL mp_bcast(scoeff, para_env%source, para_env%group)
-               CALL mp_bcast(surr, para_env%source, para_env%group)
-               CALL mp_bcast(srep, para_env%source, para_env%group)
-               CALL mp_bcast(s_cut, para_env%source, para_env%group)
+               CALL para_env%group%bcast(spxr, para_env%source)
+               CALL para_env%group%bcast(scoeff, para_env%source)
+               CALL para_env%group%bcast(surr, para_env%source)
+               CALL para_env%group%bcast(srep, para_env%source)
+               CALL para_env%group%bcast(s_cut, para_env%source)
             END IF
 
             ! store potential data

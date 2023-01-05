@@ -26,8 +26,6 @@ MODULE dirichlet_bc_methods
                                               twopi
    USE mathlib,                         ONLY: inv_3x3,&
                                               vector_product
-   USE message_passing,                 ONLY: mp_max,&
-                                              mp_sum
    USE physcon,                         ONLY: angstrom
    USE ps_implicit_types,               ONLY: MIXED_BC,&
                                               MIXED_PERIODIC_BC,&
@@ -337,7 +335,7 @@ CONTAINS
             CALL arbitrary_tile_pw_compute(cell_xtnts, x_locl, y_locl, z_locl, dirichlet_bc%tiles(k)%tile%vertices, &
                                            sigma, dirichlet_bc%tiles(k)%tile%tile_pw)
             tile_volume = SUM(dirichlet_bc%tiles(k)%tile%tile_pw%cr3d)
-            CALL mp_sum(tile_volume, pw_pool%pw_grid%para%group)
+            CALL pw_pool%pw_grid%para%group%sum(tile_volume)
             dirichlet_bc%tiles(k)%tile%volume = tile_volume
          END DO
 
@@ -376,12 +374,12 @@ CONTAINS
                                            sigma, dirichlet_bc%tiles(k)%tile%tile_pw)
             CALL pw_axpy(dirichlet_bc%tiles(k)%tile%tile_pw, cylinder_pw)
             tile_volume = SUM(dirichlet_bc%tiles(k)%tile%tile_pw%cr3d)
-            CALL mp_sum(tile_volume, pw_pool%pw_grid%para%group)
+            CALL pw_pool%pw_grid%para%group%sum(tile_volume)
             dirichlet_bc%tiles(k)%tile%volume = tile_volume
          END DO
 
          cyl_maxval = MAXVAL(cylinder_pw%cr3d)
-         CALL mp_max(cyl_maxval, pw_pool%pw_grid%para%group)
+         CALL pw_pool%pw_grid%para%group%max(cyl_maxval)
          IF (cyl_maxval .GT. 1.01_dp) THEN
             CALL cp_abort(__LOCATION__, &
                           "Inaccurate approximation of unit step function at cylindrical Dirichlet region. "// &
@@ -421,7 +419,7 @@ CONTAINS
             CALL aa_tile_pw_compute(cell_xtnts, x_locl, y_locl, z_locl, dirichlet_bc%tiles(k)%tile%vertices, &
                                     sigma, is_periodic, dirichlet_bc%tiles(k)%tile%tile_pw)
             tile_volume = SUM(dirichlet_bc%tiles(k)%tile%tile_pw%cr3d)
-            CALL mp_sum(tile_volume, pw_pool%pw_grid%para%group)
+            CALL pw_pool%pw_grid%para%group%sum(tile_volume)
             dirichlet_bc%tiles(k)%tile%volume = tile_volume
          END DO
 

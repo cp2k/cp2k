@@ -67,12 +67,7 @@ MODULE mp2_integrals
                                               libint_potential_type
    USE machine,                         ONLY: m_flush
    USE message_passing,                 ONLY: mp_cart_create,&
-                                              mp_comm_type,&
-                                              mp_environ,&
-                                              mp_max,&
-                                              mp_sendrecv,&
-                                              mp_sum,&
-                                              mp_sync
+                                              mp_comm_type
    USE mp2_eri,                         ONLY: mp2_eri_3c_integrate
    USE mp2_eri_gpw,                     ONLY: cleanup_gpw,&
                                               mp2_eri_3c_integrate_gpw,&
@@ -436,7 +431,7 @@ CONTAINS
          CALL m_flush(unit_nr)
       END IF
 
-      CALL mp_sync(para_env%group) ! sync to see memory output
+      CALL para_env%group%sync() ! sync to see memory output
 
       ! in case we do imaginary time, we need the overlap tensor (alpha beta P) or trunc. Coulomb tensor
       IF (.NOT. do_im_time) THEN
@@ -857,7 +852,7 @@ CONTAINS
             END DO
          END DO
 
-         CALL mp_sum(memory_3c, para_env%group)
+         CALL para_env%group%sum(memory_3c)
 
          compression_factor = REAL(nze, dp)*1.0E-06*8.0_dp/memory_3c
 
@@ -939,7 +934,7 @@ CONTAINS
       iproc = para_env_sub%mepos ! subgroup-local process ID
 
       ! Total number of processes and global process ID
-      CALL mp_environ(nproc_glob, iproc_glob, mp_comm)
+      CALL mp_comm%environ(nproc_glob, iproc_glob)
 
       ! local block index for R/P and a
       loc_P = igroup + 1; loc_a = iproc + 1
@@ -1134,7 +1129,7 @@ CONTAINS
                           col_indices=col_indices)
 
       intermed_mat%max_row_col_local = MAX(nrow_local, ncol_local)
-      CALL mp_max(intermed_mat%max_row_col_local, para_env_sub%group)
+      CALL para_env_sub%group%max(intermed_mat%max_row_col_local)
 
       ALLOCATE (intermed_mat%local_col_row_info(0:intermed_mat%max_row_col_local, 2))
       intermed_mat%local_col_row_info = 0
@@ -1439,7 +1434,7 @@ CONTAINS
 
             ! first exchange information on the local data
             rec_col_row_info = 0
-            CALL mp_sendrecv(local_col_row_info, proc_send, rec_col_row_info, proc_receive, para_env_sub%group)
+            CALL para_env_sub%group%sendrecv(local_col_row_info, proc_send, rec_col_row_info, proc_receive)
             nrow_rec = rec_col_row_info(0, 1)
             ncol_rec = rec_col_row_info(0, 2)
 
@@ -1453,7 +1448,7 @@ CONTAINS
             rec_BI = 0.0_dp
 
             ! then send and receive the real data
-            CALL mp_sendrecv(local_BI, proc_send, rec_BI, proc_receive, para_env_sub%group)
+            CALL para_env_sub%group%sendrecv(local_BI, proc_send, rec_BI, proc_receive)
 
             ! accumulate the received data on BIb_jb buffer
             DO jjB = 1, ncol_rec

@@ -95,8 +95,7 @@ MODULE qs_scf
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE mathlib,                         ONLY: invert_matrix
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_send
+   USE message_passing,                 ONLY: mp_comm_type
    USE particle_types,                  ONLY: particle_type
    USE preconditioner,                  ONLY: prepare_preconditioner,&
                                               restart_preconditioner
@@ -510,7 +509,7 @@ CONTAINS
 
             ! check for external communicator and if the intermediate energy should be sent
             IF (scf_energy_message_tag .GT. 0) THEN
-               CALL mp_send(energy%total, ext_master_id, scf_energy_message_tag, external_comm)
+               CALL external_comm%send(energy%total, ext_master_id, scf_energy_message_tag)
             END IF
 
             CALL qs_scf_check_inner_exit(qs_env, scf_env, scf_control, should_stop, exit_inner_loop, &

@@ -80,9 +80,6 @@ MODULE hfx_energy_potential
                       m_memory, &
                       m_walltime
    USE mathconstants, ONLY: fac
-   USE message_passing, ONLY: mp_max, &
-                              mp_sum, &
-                              mp_sync
    USE orbital_pointers, ONLY: nco, &
                                ncoset, &
                                nso
@@ -268,7 +265,7 @@ CONTAINS
 
       IF (my_geo_change) THEN
          CALL m_memory(memsize_before)
-         CALL mp_max(memsize_before, para_env%group)
+         CALL para_env%group%max(memsize_before)
          iw = cp_print_key_unit_nr(logger, hfx_section, "HF_INFO", &
                                    extension=".scfLog")
          IF (iw > 0) THEN
@@ -1897,7 +1894,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL mp_sync(para_env%group)
+      CALL para_env%group%sync()
       afac = 1.0_dp
       IF (is_anti_symmetric) afac = 0._dp
       IF (distribute_fock_matrix) THEN
@@ -1976,8 +1973,8 @@ CONTAINS
             ! ** Now correct
             ene_x_bb = (ene_x_bb + ene_x_bb_diag)*0.5_dp
          END IF
-         CALL mp_sum(ene_x_aa, para_env%group)
-         IF (nspins == 2) CALL mp_sum(ene_x_bb, para_env%group)
+         CALL para_env%group%sum(ene_x_aa)
+         IF (nspins == 2) CALL para_env%group%sum(ene_x_bb)
          ehfx = 0.5_dp*(ene_x_aa + ene_x_bb)
       END IF
 
@@ -1985,7 +1982,7 @@ CONTAINS
       IF (my_geo_change) THEN
          tmp_i8(1:8) = (/shm_storage_counter_integrals, shm_neris_onthefly, shm_neris_incore, shm_neris_disk, &
                          shm_neris_total, shm_stor_count_int_disk, shm_nprim_ints, shm_stor_count_max_val/)
-         CALL mp_sum(tmp_i8, para_env%group)
+         CALL para_env%group%sum(tmp_i8)
          shm_storage_counter_integrals = tmp_i8(1)
          shm_neris_onthefly = tmp_i8(2)
          shm_neris_incore = tmp_i8(3)
@@ -1994,7 +1991,7 @@ CONTAINS
          shm_stor_count_int_disk = tmp_i8(6)
          shm_nprim_ints = tmp_i8(7)
          shm_stor_count_max_val = tmp_i8(8)
-         CALL mp_max(memsize_after, para_env%group)
+         CALL para_env%group%max(memsize_after)
          mem_eris = (shm_storage_counter_integrals + 128*1024 - 1)/1024/128
          compression_factor = REAL(shm_neris_incore, dp)/REAL(shm_storage_counter_integrals, dp)
          mem_eris_disk = (shm_stor_count_int_disk + 128*1024 - 1)/1024/128

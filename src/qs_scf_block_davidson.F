@@ -49,7 +49,6 @@ MODULE qs_scf_block_davidson
         dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_default, dbcsr_type_symmetric
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
-   USE message_passing,                 ONLY: mp_sum
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE preconditioner,                  ONLY: apply_preconditioner
    USE preconditioner_types,            ONLY: preconditioner_type
@@ -557,7 +556,7 @@ CONTAINS
 
          CALL dbcsr_multiply('t', 'n', 1.0_dp, mo_coeff_b, matrix_hc, 0.0_dp, matrix_mm, last_column=k)
          CALL dbcsr_get_diag(matrix_mm, ritz_coeff)
-         CALL mp_sum(ritz_coeff, mo_coeff%matrix_struct%para_env%group)
+         CALL mo_coeff%matrix_struct%para_env%group%sum(ritz_coeff)
 
          ! extended subspace P Z = P [H - theta S]C  this ia another matrix of type and size as mo_coeff_b
          CALL dbcsr_init_p(matrix_z)

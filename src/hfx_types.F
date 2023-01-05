@@ -67,8 +67,7 @@ MODULE hfx_types
                                               m_getcwd
    USE mathlib,                         ONLY: erfc_cutoff
    USE message_passing,                 ONLY: mp_cart_create,&
-                                              mp_comm_type,&
-                                              mp_environ
+                                              mp_comm_type
    USE orbital_pointers,                ONLY: nco,&
                                               ncoset,&
                                               nso
@@ -1207,7 +1206,7 @@ CONTAINS
 
       natom = SIZE(particle_set)
       nkind = SIZE(qs_kind_set, 1)
-      CALL mp_environ(nproc, iproc, para_env%group)
+      CALL para_env%group%environ(nproc, iproc)
 
       ASSOCIATE (ri_metric => ri_data%ri_metric, hfx_pot => ri_data%hfx_pot)
          IF (ri_metric%potential_type == do_potential_short) THEN

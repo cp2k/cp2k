@@ -61,7 +61,6 @@ MODULE qs_tddfpt2_stda_utils
    USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: oorootpi
-   USE message_passing,                 ONLY: mp_sum
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -662,7 +661,7 @@ CONTAINS
                   END DO
                END DO
             END IF
-            CALL mp_sum(gtcharge, para_env%group)
+            CALL para_env%group%sum(gtcharge)
             ! expand charges
             ! TV(mu) = TC(a of mu)
             tv(1:nsgf) = 0.0_dp

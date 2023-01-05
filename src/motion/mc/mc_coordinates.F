@@ -24,8 +24,7 @@ MODULE mc_coordinates
                                               get_mc_par,&
                                               mc_molecule_info_type,&
                                               mc_simpar_type
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE molecule_types,                  ONLY: molecule_type
    USE parallel_rng_types,              ONLY: rng_stream_type
    USE particle_list_types,             ONLY: particle_list_type
@@ -431,7 +430,7 @@ CONTAINS
       IF (lremove) THEN
          CALL check_for_overlap(force_env, nchains, nunits, loverlap_array(1), &
                                 mol_type)
-         CALL mp_bcast(loverlap_array(1), source, group)
+         CALL group%bcast(loverlap_array(1), source)
 
          IF (loverlap_array(1)) THEN
             IF (ionode) THEN
@@ -494,7 +493,7 @@ CONTAINS
 
          END IF
 
-         CALL mp_bcast(r(:, :, imove), source, group)
+         CALL group%bcast(r(:, :, imove), source)
 
 ! calculate the energy and boltzman weight of the config
          DO iatom = start_atom, end_atom
@@ -550,7 +549,7 @@ CONTAINS
          rand = rng_stream%next()
 !         CALL random_number(rand)
       END IF
-      CALL mp_bcast(rand, source, group)
+      CALL group%bcast(rand, source)
       DO imove = 1, nswapmoves
          IF (loverlap_array(imove)) CYCLE
          all_overlaps = .FALSE.

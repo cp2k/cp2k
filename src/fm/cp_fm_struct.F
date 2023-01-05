@@ -24,7 +24,6 @@ MODULE cp_fm_struct
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
-   USE message_passing,                 ONLY: mp_sum
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -238,8 +237,8 @@ CONTAINS
          numroc(fmstruct%ncol_global, fmstruct%ncol_block, &
                 fmstruct%context%mepos(2), fmstruct%first_p_pos(2), &
                 fmstruct%context%num_pe(2))
-      CALL mp_sum(fmstruct%nrow_locals, fmstruct%para_env%group)
-      CALL mp_sum(fmstruct%ncol_locals, fmstruct%para_env%group)
+      CALL fmstruct%para_env%group%sum(fmstruct%nrow_locals)
+      CALL fmstruct%para_env%group%sum(fmstruct%ncol_locals)
       fmstruct%nrow_locals(:) = fmstruct%nrow_locals(:)/fmstruct%context%num_pe(2)
       fmstruct%ncol_locals(:) = fmstruct%ncol_locals(:)/fmstruct%context%num_pe(1)
 
