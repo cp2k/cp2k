@@ -259,6 +259,7 @@ Fist/regtest-8
 QS/regtest-cdft-4-1
 QMMM/SE/regtest_2
 QS/regtest-mp2-1                                            libint
+QS/regtest-LnPP2
 QMMM/DFTB/regtest
 Fist/regtest-10
 QS/regtest-sccs-2
