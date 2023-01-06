@@ -909,7 +909,7 @@ CONTAINS
    SUBROUTINE mp_reordering(mp_comm, mp_new_comm, ranks_order)
       TYPE(mp_comm_type), INTENT(IN)                      :: mp_comm
       TYPE(mp_comm_type), INTENT(out)                     :: mp_new_comm
-      INTEGER, DIMENSION(:)                    :: ranks_order
+      INTEGER, DIMENSION(:), CONTIGUOUS, INTENT(IN)                    :: ranks_order
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_reordering'
 
@@ -1212,7 +1212,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_stop(ierr, prg_code)
       INTEGER, INTENT(IN)                      :: ierr
-      CHARACTER(LEN=*)                         :: prg_code
+      CHARACTER(LEN=*), INTENT(IN)                         :: prg_code
 
 #if defined(__parallel)
       INTEGER                                  :: istat, len
@@ -1331,8 +1331,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_environ_c(numtask, dims, task_coor, group)
 
-      INTEGER, INTENT(OUT)                     :: numtask, dims(2), &
-                                                  task_coor(2)
+      INTEGER, INTENT(OUT)                     :: numtask, dims(2), task_coor(2)
       TYPE(mp_comm_type), INTENT(IN)                      :: group
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_environ_c'
@@ -1408,8 +1407,8 @@ CONTAINS
 
       TYPE(mp_comm_type), INTENT(IN) :: comm_old
       INTEGER, INTENT(IN)                      :: ndims
-      INTEGER, INTENT(INOUT)                   :: dims(:)
-      INTEGER, INTENT(OUT)                     :: pos(:)
+      INTEGER, INTENT(INOUT), CONTIGUOUS                   :: dims(:)
+      INTEGER, INTENT(OUT), CONTIGUOUS                     :: pos(:)
       TYPE(mp_comm_type), INTENT(OUT) :: comm_cart
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_cart_create'
@@ -1545,7 +1544,7 @@ CONTAINS
    SUBROUTINE mp_cart_sub(comm, rdim, sub_comm)
 
       TYPE(mp_comm_type), INTENT(IN)                                :: comm
-      LOGICAL, DIMENSION(:), INTENT(IN)                  :: rdim
+      LOGICAL, DIMENSION(:), CONTIGUOUS, INTENT(IN)                  :: rdim
       TYPE(mp_comm_type), INTENT(OUT)                               :: sub_comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_cart_sub'
@@ -1634,7 +1633,7 @@ CONTAINS
    SUBROUTINE mp_rank_compare(comm1, comm2, rank)
 
       TYPE(mp_comm_type), INTENT(IN)                      :: comm1, comm2
-      INTEGER, DIMENSION(:), INTENT(OUT)       :: rank
+      INTEGER, DIMENSION(:), CONTIGUOUS, INTENT(OUT)       :: rank
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_rank_compare'
 
@@ -2184,10 +2183,10 @@ CONTAINS
       TYPE(mp_comm_type), INTENT(in)                      :: comm
       TYPE(mp_comm_type), INTENT(out) :: sub_comm
       INTEGER, INTENT(out)                     :: ngroups
-      INTEGER, DIMENSION(0:)                    :: group_distribution
+      INTEGER, DIMENSION(0:), INTENT(INOUT)                    :: group_distribution
       INTEGER, INTENT(in), OPTIONAL            :: subgroup_min_size, n_subgroups
-      INTEGER, DIMENSION(0:), OPTIONAL          :: group_partition
-      INTEGER, OPTIONAL                        :: stride
+      INTEGER, DIMENSION(0:), INTENT(IN), OPTIONAL          :: group_partition
+      INTEGER, OPTIONAL, INTENT(IN)                        :: stride
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp_comm_split', &
                                      routineP = moduleN//':'//routineN
@@ -2333,7 +2332,7 @@ CONTAINS
 !> \author Mandes
 ! **************************************************************************************************
    SUBROUTINE mp_probe(source, comm, tag)
-      INTEGER                                  :: source
+      INTEGER, INTENT(INOUT)                      :: source
       TYPE(mp_comm_type), INTENT(IN)           :: comm
       INTEGER, INTENT(OUT)                     :: tag
 
@@ -2386,8 +2385,8 @@ CONTAINS
 !> \param gid ...
 ! **************************************************************************************************
    SUBROUTINE mp_bcast_b(msg, source, gid)
-      LOGICAL                                            :: msg
-      INTEGER                                            :: source
+      LOGICAL, INTENT(INOUT)                                            :: msg
+      INTEGER, INTENT(IN)                                            :: source
       TYPE(mp_comm_type), INTENT(IN) :: gid
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_b'
@@ -2417,8 +2416,8 @@ CONTAINS
 !> \param gid ...
 ! **************************************************************************************************
    SUBROUTINE mp_bcast_bv(msg, source, gid)
-      LOGICAL                                            :: msg(:)
-      INTEGER                                            :: source
+      LOGICAL, CONTIGUOUS, INTENT(INOUT)                 :: msg(:)
+      INTEGER, INTENT(IN)                                            :: source
       TYPE(mp_comm_type), INTENT(IN) :: gid
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_bv'
@@ -2455,7 +2454,7 @@ CONTAINS
 !>      arrays can be pointers or assumed shape, but they must be contiguous!
 ! **************************************************************************************************
    SUBROUTINE mp_isend_bv(msgin, dest, comm, request, tag)
-      LOGICAL, DIMENSION(:)                    :: msgin
+      LOGICAL, DIMENSION(:), INTENT(IN)        :: msgin
       INTEGER, INTENT(IN)                      :: dest
       TYPE(mp_comm_type), INTENT(IN) :: comm
       TYPE(mp_request_type), INTENT(out)                     :: request
@@ -2473,6 +2472,10 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
+#if !defined(__GNUC__) || __GNUC__ >= 9
+      CPASSERT(IS_CONTIGUOUS(msgin))
+#endif
+
       my_tag = 0
       IF (PRESENT(tag)) my_tag = tag
 
@@ -2513,7 +2516,7 @@ CONTAINS
 !>      arrays can be pointers or assumed shape, but they must be contiguous!
 ! **************************************************************************************************
    SUBROUTINE mp_irecv_bv(msgout, source, comm, request, tag)
-      LOGICAL, DIMENSION(:)                    :: msgout
+      LOGICAL, DIMENSION(:), INTENT(INOUT)                    :: msgout
       INTEGER, INTENT(IN)                      :: source
       TYPE(mp_comm_type), INTENT(IN) :: comm
       TYPE(mp_request_type), INTENT(out)                     :: request
@@ -2531,6 +2534,10 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
+#if !defined(__GNUC__) || __GNUC__ >= 9
+      CPASSERT(IS_CONTIGUOUS(msgout))
+#endif
+
       my_tag = 0
       IF (PRESENT(tag)) my_tag = tag
 
@@ -2571,7 +2578,7 @@ CONTAINS
 !>      arrays can be pointers or assumed shape, but they must be contiguous!
 ! **************************************************************************************************
    SUBROUTINE mp_isend_bm3(msgin, dest, comm, request, tag)
-      LOGICAL, DIMENSION(:, :, :)              :: msgin
+      LOGICAL, DIMENSION(:, :, :), INTENT(INOUT)              :: msgin
       INTEGER, INTENT(IN)                      :: dest
       TYPE(mp_comm_type), INTENT(IN) :: comm
       TYPE(mp_request_type), INTENT(out)                     :: request
@@ -2589,6 +2596,10 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
+#if !defined(__GNUC__) || __GNUC__ >= 9
+      CPASSERT(IS_CONTIGUOUS(msgin))
+#endif
+
       my_tag = 0
       IF (PRESENT(tag)) my_tag = tag
 
@@ -2629,7 +2640,7 @@ CONTAINS
 !>      arrays can be pointers or assumed shape, but they must be contiguous!
 ! **************************************************************************************************
    SUBROUTINE mp_irecv_bm3(msgout, source, comm, request, tag)
-      LOGICAL, DIMENSION(:, :, :)              :: msgout
+      LOGICAL, DIMENSION(:, :, :), INTENT(INOUT)  :: msgout
       INTEGER, INTENT(IN)                      :: source
       TYPE(mp_comm_type), INTENT(IN) :: comm
       TYPE(mp_request_type), INTENT(out)                     :: request
@@ -2647,6 +2658,10 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
+#if !defined(__GNUC__) || __GNUC__ >= 9
+      CPASSERT(IS_CONTIGUOUS(msgout))
+#endif
+
       my_tag = 0
       IF (PRESENT(tag)) my_tag = tag
 
@@ -2680,8 +2695,8 @@ CONTAINS
 !> \param gid ...
 ! **************************************************************************************************
    SUBROUTINE mp_bcast_av(msg, source, gid)
-      CHARACTER(LEN=*)                         :: msg
-      INTEGER                                  :: source
+      CHARACTER(LEN=*), INTENT(INOUT)          :: msg
+      INTEGER, INTENT(IN)                                  :: source
       TYPE(mp_comm_type), INTENT(IN) :: gid
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_av'
@@ -2733,8 +2748,8 @@ CONTAINS
 !> \param gid ...
 ! **************************************************************************************************
    SUBROUTINE mp_bcast_am(msg, source, gid)
-      CHARACTER(LEN=*)                         :: msg(:)
-      INTEGER                                  :: source
+      CHARACTER(LEN=*), CONTIGUOUS, INTENT(INOUT)      :: msg(:)
+      INTEGER, INTENT(IN)                             :: source
       TYPE(mp_comm_type), INTENT(IN) :: gid
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_am'
@@ -2804,7 +2819,7 @@ CONTAINS
 !>      This routine is invalid for (int_8) data!
 ! **************************************************************************************************
    SUBROUTINE mp_minloc_dv(msg, gid)
-      REAL(kind=real_8), INTENT(INOUT)         :: msg(:)
+      REAL(kind=real_8), CONTIGUOUS, INTENT(INOUT)         :: msg(:)
       TYPE(mp_comm_type), INTENT(IN)                      :: gid
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_dv'
@@ -2849,7 +2864,7 @@ CONTAINS
 !>      This routine is invalid for (int_8) data!
 ! **************************************************************************************************
    SUBROUTINE mp_minloc_iv(msg, gid)
-      INTEGER(KIND=int_4), INTENT(INOUT)       :: msg(:)
+      INTEGER(KIND=int_4), CONTIGUOUS, INTENT(INOUT)       :: msg(:)
       TYPE(mp_comm_type), INTENT(IN)                      :: gid
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_iv'
@@ -2892,7 +2907,7 @@ CONTAINS
 !>      This routine is invalid for (int_8) data!
 ! **************************************************************************************************
    SUBROUTINE mp_minloc_lv(msg, gid)
-      INTEGER(KIND=int_8), INTENT(INOUT)       :: msg(:)
+      INTEGER(KIND=int_8), CONTIGUOUS, INTENT(INOUT)       :: msg(:)
       TYPE(mp_comm_type), INTENT(IN)                      :: gid
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_lv'
@@ -2935,7 +2950,7 @@ CONTAINS
 !>      This routine is invalid for (int_8) data!
 ! **************************************************************************************************
    SUBROUTINE mp_minloc_rv(msg, gid)
-      REAL(kind=real_4), INTENT(INOUT)         :: msg(:)
+      REAL(kind=real_4), CONTIGUOUS, INTENT(INOUT)         :: msg(:)
       TYPE(mp_comm_type), INTENT(IN)                      :: gid
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_rv'
@@ -2978,7 +2993,7 @@ CONTAINS
 !>      This routine is invalid for (int_8) data!
 ! **************************************************************************************************
    SUBROUTINE mp_maxloc_dv(msg, gid)
-      REAL(kind=real_8), INTENT(INOUT)         :: msg(:)
+      REAL(kind=real_8), CONTIGUOUS, INTENT(INOUT)         :: msg(:)
       TYPE(mp_comm_type), INTENT(IN)                      :: gid
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_dv'
@@ -3021,7 +3036,7 @@ CONTAINS
 !>      This routine is invalid for (int_8) data!
 ! **************************************************************************************************
    SUBROUTINE mp_maxloc_iv(msg, gid)
-      INTEGER(KIND=int_4), INTENT(INOUT)       :: msg(:)
+      INTEGER(KIND=int_4), CONTIGUOUS, INTENT(INOUT)       :: msg(:)
       TYPE(mp_comm_type), INTENT(IN)                      :: gid
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_iv'
@@ -3064,7 +3079,7 @@ CONTAINS
 !>      This routine is invalid for (int_8) data!
 ! **************************************************************************************************
    SUBROUTINE mp_maxloc_lv(msg, gid)
-      INTEGER(KIND=int_8), INTENT(INOUT)       :: msg(:)
+      INTEGER(KIND=int_8), CONTIGUOUS, INTENT(INOUT)       :: msg(:)
       TYPE(mp_comm_type), INTENT(IN)                      :: gid
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_lv'
@@ -3107,7 +3122,7 @@ CONTAINS
 !>      This routine is invalid for (int_8) data!
 ! **************************************************************************************************
    SUBROUTINE mp_maxloc_rv(msg, gid)
-      REAL(kind=real_4), INTENT(INOUT)         :: msg(:)
+      REAL(kind=real_4), CONTIGUOUS, INTENT(INOUT)         :: msg(:)
       TYPE(mp_comm_type), INTENT(IN)                      :: gid
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_rv'
@@ -3177,7 +3192,7 @@ CONTAINS
 !>      mpi_allreduce
 ! **************************************************************************************************
    SUBROUTINE mp_sum_bv(msg, gid)
-      LOGICAL, DIMENSION(:), INTENT(INOUT)               :: msg
+      LOGICAL, DIMENSION(:), CONTIGUOUS, INTENT(INOUT)               :: msg
       TYPE(mp_comm_type), INTENT(IN)                                :: gid
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_bv'
@@ -3221,6 +3236,10 @@ CONTAINS
       ierr = 0
       msglen = SIZE(msg)
 #if defined(__parallel)
+#if !defined(__GNUC__) || __GNUC__ >= 9
+      CPASSERT(IS_CONTIGUOUS(msg))
+#endif
+
       IF (msglen .GT. 0) THEN
          CALL mpi_iallreduce(MPI_IN_PLACE, msg, msglen, MPI_LOGICAL, MPI_LOR, gid%handle, request%handle, ierr)
          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
@@ -3449,7 +3468,7 @@ CONTAINS
 !> \param[in](optional) msglen number of the elements of data
 ! **************************************************************************************************
    SUBROUTINE mp_file_write_at_chv(fh, offset, msg, msglen)
-      CHARACTER, INTENT(IN)                      :: msg(:)
+      CHARACTER, CONTIGUOUS, INTENT(IN)                      :: msg(:)
       TYPE(mp_file_type), INTENT(IN)                        :: fh
       INTEGER, INTENT(IN), OPTIONAL              :: msglen
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
@@ -3505,7 +3524,7 @@ CONTAINS
 !> \par STREAM-I/O mapping   WRITE
 ! **************************************************************************************************
    SUBROUTINE mp_file_write_at_all_chv(fh, offset, msg, msglen)
-      CHARACTER, INTENT(IN)                      :: msg(:)
+      CHARACTER, CONTIGUOUS, INTENT(IN)                      :: msg(:)
       TYPE(mp_file_type), INTENT(IN)                        :: fh
       INTEGER, INTENT(IN), OPTIONAL              :: msglen
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
@@ -3562,7 +3581,7 @@ CONTAINS
 !> \param[in](optional) msglen  number of elements of data
 ! **************************************************************************************************
    SUBROUTINE mp_file_read_at_chv(fh, offset, msg, msglen)
-      CHARACTER, INTENT(OUT)                     :: msg(:)
+      CHARACTER, CONTIGUOUS, INTENT(OUT)                     :: msg(:)
       TYPE(mp_file_type), INTENT(IN)                        :: fh
       INTEGER, INTENT(IN), OPTIONAL              :: msglen
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
@@ -3906,7 +3925,7 @@ CONTAINS
       TYPE(mp_file_type), INTENT(IN)                       :: fh
       INTEGER, INTENT(IN)                       :: msglen
       INTEGER, INTENT(IN)                       :: ndims
-      CHARACTER(LEN=msglen), DIMENSION(ndims)   :: buffer
+      CHARACTER(LEN=msglen), DIMENSION(ndims), INTENT(INOUT)   :: buffer
       TYPE(mp_file_descriptor_type), &
          INTENT(IN), OPTIONAL                   :: type_descriptor
 
@@ -3957,7 +3976,7 @@ CONTAINS
       TYPE(mp_file_type), INTENT(IN)                       :: fh
       INTEGER, INTENT(IN)                       :: msglen
       INTEGER, INTENT(IN)                       :: ndims
-      CHARACTER(LEN=msglen), DIMENSION(ndims)   :: buffer
+      CHARACTER(LEN=msglen), DIMENSION(ndims), INTENT(IN)   :: buffer
       TYPE(mp_file_descriptor_type), &
          INTENT(IN), OPTIONAL                   :: type_descriptor
 
