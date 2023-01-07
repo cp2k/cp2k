@@ -1184,8 +1184,8 @@ CONTAINS
       END IF
 
       IF (ALLOCATED(fm_mat_L_kpoints)) THEN
-         DO i_size = 1, SIZE(fm_mat_Minv_L_kpoints, 1)
-            DO j_size = 1, SIZE(fm_mat_Minv_L_kpoints, 2)
+         DO i_size = 1, SIZE(fm_mat_L_kpoints, 1)
+            DO j_size = 1, SIZE(fm_mat_L_kpoints, 2)
                CALL cp_fm_release(fm_mat_L_kpoints(i_size, j_size))
             END DO
          END DO
