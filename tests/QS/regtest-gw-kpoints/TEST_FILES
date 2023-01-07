@@ -1,7 +1,8 @@
 G0W0_kpoints_from_Gamma.inp                                       78      1e-05       15.316
-G0W0_kpoints_from_Gamma_RI_regularization_1E-3.inp                78      1e-05       15.231
-G0W0_kpoints_in_self_energy.inp                                   98      1e-05       12.586
-G0W0_kpoints_in_self_energy_at_HSE06.inp                          98      1e-05       13.097
+G0W0_kpoints_from_Gamma_RI_regularization_1E-3.inp                78      1e-05       15.216
+G0W0_kpoints_in_self_energy.inp                                   98      1e-05       12.562
+G0W0_kpoints_in_self_energy_at_HSE06.inp                          98      1e-05       13.073
+G0W0_kpoints_in_self_energy_RI_trunc_Coulomb_metric.inp           98      1e-05       12.869
 G0W0_kpoints_in_self_energy_Sigmax_from_four_center_HFX.inp       98      1e-05       15.414
 G0W0_kpoints_in_self_energy_Sigmax_from_four_center_HFX_ADMM.inp  98      1e-05       15.491
 #EOF

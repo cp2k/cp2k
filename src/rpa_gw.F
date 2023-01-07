@@ -644,15 +644,15 @@ CONTAINS
 !> \param t_3c_overl_nnP_ic ...
 !> \param t_3c_overl_nnP_ic_reflected ...
 !> \param mat_W ...
-!> \param ikp_local ...
 !> \param cfm_mat_W_kp_tau ...
+!> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE deallocate_matrices_gw_im_time(weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, do_ic_model, do_kpoints_cubic_RPA, &
                                              fm_mat_W, &
                                              t_3c_overl_int_ao_mo, t_3c_O_mo_compressed, t_3c_O_mo_ind, &
                                              t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
                                              t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, mat_W, &
-                                             ikp_local, cfm_mat_W_kp_tau)
+                                             cfm_mat_W_kp_tau, qs_env)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: weights_cos_tf_w_to_t, &
@@ -670,9 +670,9 @@ CONTAINS
                                                             t_3c_overl_nnP_ic, &
                                                             t_3c_overl_nnP_ic_reflected
       TYPE(dbcsr_type), POINTER                          :: mat_W
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: ikp_local
       TYPE(cp_cfm_p_type), ALLOCATABLE, &
          DIMENSION(:, :), INTENT(INOUT)                  :: cfm_mat_W_kp_tau
+      TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_matrices_gw_im_time'
 
@@ -700,9 +700,10 @@ CONTAINS
       ELSE
          DO jquad = 1, SIZE(cfm_mat_W_kp_tau, 2)
             DO ikp = 1, SIZE(cfm_mat_W_kp_tau, 1)
-               IF (.NOT. (ANY(ikp_local(:) == ikp))) CYCLE
-               CALL cp_cfm_release(cfm_mat_W_kp_tau(ikp, jquad)%matrix)
-               DEALLOCATE (cfm_mat_W_kp_tau(ikp, jquad)%matrix)
+               IF (ASSOCIATED(cfm_mat_W_kp_tau(ikp, jquad)%matrix)) THEN
+                  CALL cp_cfm_release(cfm_mat_W_kp_tau(ikp, jquad)%matrix)
+                  DEALLOCATE (cfm_mat_W_kp_tau(ikp, jquad)%matrix)
+               END IF
             END DO
          END DO
          DEALLOCATE (cfm_mat_W_kp_tau)
@@ -722,13 +723,15 @@ CONTAINS
          DEALLOCATE (t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected)
       END IF
 
-      DO ispin = 1, nspins
-         DEALLOCATE (t_3c_O_mo_ind(ispin)%array)
-         CALL dealloc_containers(t_3c_O_mo_compressed(ispin), unused)
-      END DO
-      DEALLOCATE (t_3c_O_mo_ind, t_3c_O_mo_compressed)
+      IF (.NOT. qs_env%mp2_env%ri_g0w0%do_kpoints_Sigma) THEN
+         DO ispin = 1, nspins
+            DEALLOCATE (t_3c_O_mo_ind(ispin)%array)
+            CALL dealloc_containers(t_3c_O_mo_compressed(ispin), unused)
+         END DO
+         DEALLOCATE (t_3c_O_mo_ind, t_3c_O_mo_compressed)
 
-      CALL dbt_destroy(t_3c_overl_int_ao_mo)
+         CALL dbt_destroy(t_3c_overl_int_ao_mo)
+      END IF
 
       CALL timestop(handle)
 
@@ -1160,7 +1163,7 @@ CONTAINS
 !> \param para_env ...
 !> \param para_env_RPA ...
 !> \param mat_dm ...
-!> \param mat_SinvVSinv ...
+!> \param mat_MinvVMinv ...
 !> \param t_3c_O ...
 !> \param t_3c_M ...
 !> \param t_3c_overl_int_ao_mo ...
@@ -1194,7 +1197,7 @@ CONTAINS
                                   weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, &
                                   fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_mo_coeff_occ, &
                                   fm_mo_coeff_virt, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
-                                  mo_coeff, fm_mat_W, para_env, para_env_RPA, mat_dm, mat_SinvVSinv, &
+                                  mo_coeff, fm_mat_W, para_env, para_env_RPA, mat_dm, mat_MinvVMinv, &
                                   t_3c_O, t_3c_M, t_3c_overl_int_ao_mo, &
                                   t_3c_O_compressed, t_3c_O_mo_compressed, &
                                   t_3c_O_ind, t_3c_O_mo_ind, &
@@ -1238,7 +1241,7 @@ CONTAINS
                                                             fm_scaled_dm_virt_tau, mo_coeff
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_W
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA
-      TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_dm, mat_SinvVSinv
+      TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_dm, mat_MinvVMinv
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: t_3c_O
       TYPE(dbt_type)                                     :: t_3c_M, t_3c_overl_int_ao_mo
       TYPE(hfx_compression_type), ALLOCATABLE, &
@@ -1295,7 +1298,7 @@ CONTAINS
                                                  t_3c_overl_int_ao_mo, t_3c_O_mo_compressed(ispin), &
                                                  t_3c_O_mo_ind(ispin)%array, &
                                                  t_3c_overl_int_gw_RI(ispin), t_3c_overl_int_gw_AO(ispin), &
-                                                 mat_W, mat_SinvVSinv, mat_dm, &
+                                                 mat_W, mat_MinvVMinv, mat_dm, &
                                                  weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, vec_Sigma_c_gw(:, :, :, ispin), &
                                                  do_periodic, num_points_corr, delta_corr, qs_env, para_env, para_env_RPA, &
                                                  mp2_env, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
@@ -1312,7 +1315,7 @@ CONTAINS
                                                       count_ev_sc_GW, count_sc_GW0, &
                                                       t_3c_O, t_3c_M, t_3c_O_compressed, t_3c_O_ind, &
                                                       t_3c_overl_int_gw_RI(1), t_3c_overl_int_gw_AO(1), &
-                                                      mat_W, mat_SinvVSinv, &
+                                                      mat_W, mat_MinvVMinv, &
                                                       weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, vec_Sigma_c_gw(:, :, :, 1), &
                                                       qs_env, para_env, &
                                                       mp2_env, num_fit_points, mo_coeff, &
@@ -3990,15 +3993,28 @@ CONTAINS
 
       IF (unit_nr > 0) THEN
 
-         IF (do_closed_shell) THEN
-            WRITE (unit_nr, '(T3,A)') ' '
-            WRITE (unit_nr, '(T3,A,F57.3)') 'GW HOMO-LUMO gap (eV)', E_GAP_GW*evolt
-         ELSE IF (do_alpha) THEN
-            WRITE (unit_nr, '(T3,A)') ' '
-            WRITE (unit_nr, '(T3,A,F51.3)') 'Alpha GW HOMO-LUMO gap (eV)', E_GAP_GW*evolt
-         ELSE IF (do_beta) THEN
-            WRITE (unit_nr, '(T3,A)') ' '
-            WRITE (unit_nr, '(T3,A,F52.3)') 'Beta GW HOMO-LUMO gap (eV)', E_GAP_GW*evolt
+         IF (do_kpoints) THEN
+            IF (do_closed_shell) THEN
+               WRITE (unit_nr, '(T3,A)') ' '
+               WRITE (unit_nr, '(T3,A,F42.3)') 'GW direct gap at current kpoint (eV)', E_GAP_GW*evolt
+            ELSE IF (do_alpha) THEN
+               WRITE (unit_nr, '(T3,A)') ' '
+               WRITE (unit_nr, '(T3,A,F36.3)') 'Alpha GW direct gap at current kpoint (eV)', E_GAP_GW*evolt
+            ELSE IF (do_beta) THEN
+               WRITE (unit_nr, '(T3,A)') ' '
+               WRITE (unit_nr, '(T3,A,F37.3)') 'Beta GW direct gap at current kpoint (eV)', E_GAP_GW*evolt
+            END IF
+         ELSE
+            IF (do_closed_shell) THEN
+               WRITE (unit_nr, '(T3,A)') ' '
+               WRITE (unit_nr, '(T3,A,F57.3)') 'GW HOMO-LUMO gap (eV)', E_GAP_GW*evolt
+            ELSE IF (do_alpha) THEN
+               WRITE (unit_nr, '(T3,A)') ' '
+               WRITE (unit_nr, '(T3,A,F51.3)') 'Alpha GW HOMO-LUMO gap (eV)', E_GAP_GW*evolt
+            ELSE IF (do_beta) THEN
+               WRITE (unit_nr, '(T3,A)') ' '
+               WRITE (unit_nr, '(T3,A,F52.3)') 'Beta GW HOMO-LUMO gap (eV)', E_GAP_GW*evolt
+            END IF
          END IF
       END IF
 
@@ -4229,7 +4245,7 @@ CONTAINS
 !> \param t_3c_overl_int_gw_RI ...
 !> \param t_3c_overl_int_gw_AO ...
 !> \param mat_W ...
-!> \param mat_SinvVSinv ...
+!> \param mat_MinvVMinv ...
 !> \param mat_dm ...
 !> \param weights_cos_tf_t_to_w ...
 !> \param weights_sin_tf_t_to_w ...
@@ -4261,7 +4277,7 @@ CONTAINS
                                            count_ev_sc_GW, count_sc_GW0, &
                                            t_3c_overl_int_ao_mo, t_3c_O_mo_compressed, t_3c_O_mo_ind, &
                                            t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
-                                           mat_W, mat_SinvVSinv, mat_dm, &
+                                           mat_W, mat_MinvVMinv, mat_dm, &
                                            weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, vec_Sigma_c_gw, &
                                            do_periodic, num_points_corr, delta_corr, qs_env, para_env, para_env_RPA, &
                                            mp2_env, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
@@ -4286,7 +4302,7 @@ CONTAINS
       TYPE(dbt_type)                                     :: t_3c_overl_int_gw_RI, &
                                                             t_3c_overl_int_gw_AO
       TYPE(dbcsr_type), INTENT(INOUT), TARGET            :: mat_W
-      TYPE(dbcsr_p_type)                                 :: mat_SinvVSinv, mat_dm
+      TYPE(dbcsr_p_type)                                 :: mat_MinvVMinv, mat_dm
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: weights_cos_tf_t_to_w, &
                                                             weights_sin_tf_t_to_w
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)  :: vec_Sigma_c_gw
@@ -4530,7 +4546,7 @@ CONTAINS
          CALL create_2c_tensor(t_SinvVSinv, dist1, dist2, pgrid_2d, sizes_RI, sizes_RI, name="(RI|RI)")
          DEALLOCATE (dist1, dist2)
 
-         CALL dbt_copy_matrix_to_tensor(mat_SinvVSinv%matrix, t_RI_tmp)
+         CALL dbt_copy_matrix_to_tensor(mat_MinvVMinv%matrix, t_RI_tmp)
          CALL dbt_copy(t_RI_tmp, t_SinvVSinv)
 
          CALL dbt_batched_contract_init(t_3c_overl_int_gw_AO, batch_range_3=batch_range_mo)
@@ -4670,7 +4686,7 @@ CONTAINS
 !> \param t_3c_overl_int_gw_RI ...
 !> \param t_3c_overl_int_gw_AO ...
 !> \param mat_W ...
-!> \param mat_SinvVSinv ...
+!> \param mat_MinvVMinv ...
 !> \param weights_cos_tf_t_to_w ...
 !> \param weights_sin_tf_t_to_w ...
 !> \param vec_Sigma_c_gw ...
@@ -4693,7 +4709,7 @@ CONTAINS
                                                    count_ev_sc_GW, count_sc_GW0, &
                                                    t_3c_O, t_3c_M, t_3c_O_compressed, t_3c_O_ind, &
                                                    t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
-                                                   mat_W, mat_SinvVSinv, &
+                                                   mat_W, mat_MinvVMinv, &
                                                    weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, vec_Sigma_c_gw, &
                                                    qs_env, para_env, &
                                                    mp2_env, num_fit_points, fm_mo_coeff, &
@@ -4719,7 +4735,7 @@ CONTAINS
       TYPE(dbt_type)                                     :: t_3c_overl_int_gw_RI, &
                                                             t_3c_overl_int_gw_AO
       TYPE(dbcsr_type), INTENT(INOUT), TARGET            :: mat_W
-      TYPE(dbcsr_p_type)                                 :: mat_SinvVSinv
+      TYPE(dbcsr_p_type)                                 :: mat_MinvVMinv
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: weights_cos_tf_t_to_w, &
                                                             weights_sin_tf_t_to_w
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)  :: vec_Sigma_c_gw
@@ -4875,13 +4891,11 @@ CONTAINS
 
          CALL compute_periodic_dm(mat_p_greens_fct_occ, qs_env, &
                                   ispin, num_points, jquad, e_fermi, tau, &
-                                  remove_occ=.FALSE., remove_virt=.TRUE., first_jquad=1, &
-                                  symmetrize=.TRUE.)
+                                  remove_occ=.FALSE., remove_virt=.TRUE., first_jquad=1)
 
          CALL compute_periodic_dm(mat_p_greens_fct_virt, qs_env, &
                                   ispin, num_points, jquad, e_fermi, tau, &
-                                  remove_occ=.TRUE., remove_virt=.FALSE., first_jquad=1, &
-                                  symmetrize=.TRUE.)
+                                  remove_occ=.TRUE., remove_virt=.FALSE., first_jquad=1)
 
          CALL dbcsr_set(mat_greens_fct_occ, 0.0_dp)
          CALL dbcsr_copy(mat_greens_fct_occ, mat_p_greens_fct_occ(jquad, 1)%matrix)
@@ -4893,7 +4907,7 @@ CONTAINS
             CALL copy_fm_to_dbcsr(fm_mat_W(jquad), mat_W, keep_sparsity=.FALSE.)
             CALL dbt_copy_matrix_to_tensor(mat_W, t_RI_tmp)
          ELSE
-            CALL dbt_copy_matrix_to_tensor(mat_SinvVSinv%matrix, t_RI_tmp)
+            CALL dbt_copy_matrix_to_tensor(mat_MinvVMinv%matrix, t_RI_tmp)
          END IF
 
          CALL dbt_copy(t_RI_tmp, t_W)
@@ -5144,11 +5158,6 @@ CONTAINS
 
          CALL cp_fm_to_cfm(fm_tmp_re, fm_tmp_im, vxc_ao_ao)
 
-!         CALL cp_fm_to_cfm(fm_tmp_re, fm_tmp_im, ks_mat_no_xc_ao_ao)
-
-!         CALL cp_cfm_scale_and_add(z_one, ks_mat_ao_ao, -z_one, ks_mat_no_xc_ao_ao)
-!         CALL cp_cfm_to_cfm(ks_mat_ao_ao, vxc_ao_ao)
-
          CALL parallel_gemm('N', 'N', nmo, nmo, nmo, z_one, vxc_ao_ao, cfm_mo_coeff, z_zero, vxc_ao_mo)
          CALL parallel_gemm('C', 'N', nmo, nmo, nmo, z_one, cfm_mo_coeff, vxc_ao_mo, z_zero, vxc_mo_mo)
 
@@ -5156,7 +5165,6 @@ CONTAINS
 
          CALL cp_fm_get_diag(fm_Sigma_x_minus_vxc_mo_mo, diag_Sigma_x_minus_vxc_mo_mo)
 
-!         qs_env%mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1, ikp) = -diag_Sigma_x_minus_vxc_mo_mo(:)
          qs_env%mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1, ikp) = diag_Sigma_x_minus_vxc_mo_mo(:)
 
       END DO
@@ -5379,7 +5387,7 @@ CONTAINS
 
       INTEGER                                            :: handle
       INTEGER, DIMENSION(2, 1)                           :: bounds_ao_j
-      INTEGER, DIMENSION(2, 2)                           :: bounds_RI_i_ao_j
+      INTEGER, DIMENSION(2, 2)                           :: bounds_ao_all_RI_i, bounds_RI_i_ao_j
       REAL(KIND=dp)                                      :: sign_self_energy
       TYPE(dbt_type)                                     :: t_3c_O_G, t_3c_O_G_tmp, t_self_energy, &
                                                             t_self_energy_tmp
@@ -5393,7 +5401,9 @@ CONTAINS
       CALL dbt_create(t_greens_fct, t_self_energy, name="(AO|AO)")
       CALL dbt_create(mat_self_energy_ao_ao, t_self_energy_tmp)
 
-      bounds_ao_j(:, 1) = bounds_ao_ao_j(:, 2)
+      bounds_ao_j(:, 1) = bounds_ao_ao_j(:, 1)
+      bounds_ao_all_RI_i(:, 1) = bounds_RI_i(:, 1)
+      bounds_ao_all_RI_i(:, 2) = bounds_ao_ao_j(:, 2)
 
       CALL dbt_contract(1.0_dp, t_greens_fct, t_3c_O_all, 0.0_dp, &
                         t_3c_O_G_tmp, &
@@ -5401,6 +5411,7 @@ CONTAINS
                         contract_2=[3], notcontract_2=[1, 2], &
                         map_1=[3], map_2=[1, 2], &
                         bounds_2=bounds_ao_j, &
+                        bounds_3=bounds_ao_all_RI_i, &
                         filter_eps=eps_filter, &
                         unit_nr=unit_nr)
 
@@ -5410,7 +5421,7 @@ CONTAINS
       IF (do_virt) sign_self_energy = 1.0_dp
 
       bounds_RI_i_ao_j(:, 1) = bounds_RI_i(:, 1)
-      bounds_RI_i_ao_j(:, 2) = bounds_ao_ao_j(:, 2)
+      bounds_RI_i_ao_j(:, 2) = bounds_ao_ao_j(:, 1)
 
       CALL dbt_contract(sign_self_energy, t_3c_O_W, t_3c_O_G, 0.0_dp, &
                         t_self_energy, &

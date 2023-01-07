@@ -39,6 +39,7 @@ MODULE mp2_ri_2c
                                               cp_fm_triangular_invert
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
    USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
+                                              cp_fm_power,&
                                               cp_fm_syevx
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -105,7 +106,7 @@ MODULE mp2_ri_2c
    USE qs_tensors,                      ONLY: build_2c_integrals,&
                                               build_2c_neighbor_lists
    USE rpa_communication,               ONLY: communicate_buffer
-   USE rpa_gw_kpoints_util,             ONLY: cp_cfm_matrix_exponential
+   USE rpa_gw_kpoints_util,             ONLY: cp_cfm_power
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
@@ -116,7 +117,7 @@ MODULE mp2_ri_2c
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_ri_2c'
 
-   PUBLIC :: get_2c_integrals, setup_abs_cutoffs_chi_and_trunc_coulomb_potential
+   PUBLIC :: get_2c_integrals, setup_trunc_coulomb_potential_for_exchange_self_energy
 
 CONTAINS
 
@@ -144,8 +145,10 @@ CONTAINS
 !> \param do_svd ...
 !> \param potential ...
 !> \param ri_metric ...
-!> \param fm_matrix_L_RI_metric ...
-!> \param fm_matrix_Sinv_Vtrunc_Sinv ...
+!> \param fm_matrix_L_kpoints ...
+!> \param fm_matrix_Minv_L_kpoints ...
+!> \param fm_matrix_Minv ...
+!> \param fm_matrix_Minv_Vtrunc_Minv ...
 !> \param do_im_time ...
 !> \param do_kpoints ...
 !> \param mp2_eps_pgf_orb_S ...
@@ -157,9 +160,9 @@ CONTAINS
    SUBROUTINE get_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, mp2_memory, &
                                my_Lrows, my_Vrows, fm_matrix_PQ, ngroup, color_sub, dimen_RI, dimen_RI_red, &
                                kpoints, my_group_L_size, my_group_L_start, my_group_L_end, &
-                               gd_array, calc_PQ_cond_num, do_svd, &
-                               potential, ri_metric, &
-                               fm_matrix_L_RI_metric, fm_matrix_Sinv_Vtrunc_Sinv, &
+                               gd_array, calc_PQ_cond_num, do_svd, potential, ri_metric, &
+                               fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, &
+                               fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, &
                                do_im_time, do_kpoints, mp2_eps_pgf_orb_S, qs_kind_set, sab_orb_sub, calc_forces, unit_nr)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -178,8 +181,10 @@ CONTAINS
       TYPE(group_dist_d1_type), INTENT(OUT)              :: gd_array
       LOGICAL, INTENT(IN)                                :: calc_PQ_cond_num, do_svd
       TYPE(libint_potential_type)                        :: potential, ri_metric
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_L_RI_metric, &
-                                                            fm_matrix_Sinv_Vtrunc_Sinv
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_L_kpoints, &
+                                                            fm_matrix_Minv_L_kpoints, &
+                                                            fm_matrix_Minv, &
+                                                            fm_matrix_Minv_Vtrunc_Minv
       LOGICAL, INTENT(IN)                                :: do_im_time, do_kpoints
       REAL(KIND=dp), INTENT(IN)                          :: mp2_eps_pgf_orb_S
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -190,39 +195,37 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_2c_integrals'
 
-      INTEGER                                            :: handle, i_real_imag, i_size, j_size, &
-                                                            num_small_eigen
+      INTEGER                                            :: handle, i_size, j_size, num_small_eigen
       REAL(KIND=dp)                                      :: cond_num, eps_pgf_orb_old
-      TYPE(cp_fm_type)                                   :: fm_matrix_L, fm_matrix_S_inv_work, &
+      TYPE(cp_fm_type)                                   :: fm_matrix_L_work, fm_matrix_M_inv_work, &
                                                             fm_matrix_V
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_L_kpoints
       TYPE(cp_para_env_type), POINTER                    :: para_env_L
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(libint_potential_type)                        :: trunc_coulomb
 
       CALL timeset(routineN, handle)
 
-      ! calculate V and store it in fm_matrix_L
+      ! calculate V and store it in fm_matrix_L_work
       CALL compute_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
-                                fm_matrix_L, ngroup, color_sub, dimen_RI, &
+                                fm_matrix_L_work, ngroup, color_sub, dimen_RI, &
                                 my_group_L_size, my_group_L_start, my_group_L_end, &
                                 gd_array, calc_PQ_cond_num, cond_num, &
                                 num_small_eigen, potential, sab_orb_sub, do_im_time=do_im_time)
 
       IF (do_im_time .AND. calc_forces) THEN
          !need a copy of the (P|Q) integrals
-         CALL cp_fm_create(fm_matrix_PQ, fm_matrix_L%matrix_struct)
-         CALL cp_fm_to_fm(fm_matrix_L, fm_matrix_PQ)
+         CALL cp_fm_create(fm_matrix_PQ, fm_matrix_L_work%matrix_struct)
+         CALL cp_fm_to_fm(fm_matrix_L_work, fm_matrix_PQ)
       END IF
 
       dimen_RI_red = dimen_RI
 
       IF (compare_potential_types(ri_metric, potential) .AND. .NOT. do_im_time) THEN
-         CALL decomp_mat_L(fm_matrix_L, do_svd, num_small_eigen, cond_num, .TRUE., gd_array, ngroup, &
+         CALL decomp_mat_L(fm_matrix_L_work, do_svd, num_small_eigen, cond_num, .TRUE., gd_array, ngroup, &
                            dimen_RI, dimen_RI_red, para_env)
       ELSE
 
-         ! Obara-Saika overlap matrix
+         ! RI-metric matrix (depending on RI metric: Coulomb, overlap or truncated Coulomb)
          IF (do_im_time) THEN
             CALL get_qs_env(qs_env, dft_control=dft_control)
 
@@ -231,7 +234,7 @@ CONTAINS
             dft_control%qs_control%eps_pgf_orb = mp2_eps_pgf_orb_S
             CALL init_interaction_radii(dft_control%qs_control, qs_kind_set)
 
-            CALL RI_2c_integral_mat(qs_env, fm_matrix_L_RI_metric, fm_matrix_L, dimen_RI, ri_metric, &
+            CALL RI_2c_integral_mat(qs_env, fm_matrix_Minv_L_kpoints, fm_matrix_L_work, dimen_RI, ri_metric, &
                                     do_kpoints, kpoints, put_mat_KS_env=.TRUE.)
 
             ! re-init the radii to previous values
@@ -244,93 +247,88 @@ CONTAINS
             CALL cp_para_env_release(para_env_L)
             CALL release_group_dist(gd_array)
 
-            ALLOCATE (fm_matrix_L_RI_metric(1, 1))
+            ALLOCATE (fm_matrix_Minv_L_kpoints(1, 1))
 
-            ! Calculate matrix of RI operator (for overlap metric: S), store it in fm_matrix_L_RI_metric
+            ! Calculate matrix of RI operator (for overlap metric: S), store it in fm_matrix_Minv_L_kpoints
             CALL compute_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
-                                      fm_matrix_L_RI_metric(1, 1), ngroup, color_sub, dimen_RI, &
+                                      fm_matrix_Minv_L_kpoints(1, 1), ngroup, color_sub, dimen_RI, &
                                       my_group_L_size, my_group_L_start, my_group_L_end, &
                                       gd_array, calc_PQ_cond_num, cond_num, &
                                       num_small_eigen, ri_metric, sab_orb_sub, &
-                                      fm_matrix_L_extern=fm_matrix_L)
+                                      fm_matrix_L_extern=fm_matrix_L_work)
 
          END IF
 
          IF (do_kpoints) THEN
 
-            CALL compute_V_by_lattice_sum(qs_env, fm_matrix_L_kpoints, fm_matrix_L_RI_metric, kpoints)
+            ! k-dependent 1/r Coulomb matrix V_PQ(k)
+            CALL compute_V_by_lattice_sum(qs_env, fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, kpoints)
 
-            CALL setup_abs_cutoffs_chi_and_trunc_coulomb_potential(qs_env, trunc_coulomb)
+            CALL inversion_of_M_and_mult_with_chol_dec_of_V(fm_matrix_Minv_L_kpoints, fm_matrix_L_kpoints, &
+                                                            dimen_RI, kpoints, qs_env%mp2_env%ri_rpa_im_time%eps_eigval_S)
 
-            CALL RI_2c_integral_mat(qs_env, fm_matrix_Sinv_Vtrunc_Sinv, fm_matrix_L, dimen_RI, trunc_coulomb, &
-                                    do_kpoints, kpoints, put_mat_KS_env=.FALSE.)
+            CALL setup_trunc_coulomb_potential_for_exchange_self_energy(qs_env, trunc_coulomb)
 
-            CALL inversion_of_S_and_mult_with_chol_dec_of_V(fm_matrix_L_RI_metric, fm_matrix_L_kpoints, &
-                                                            fm_matrix_Sinv_Vtrunc_Sinv, dimen_RI, kpoints, &
-                                                            qs_env%mp2_env%ri_rpa_im_time%eps_eigval_S)
+            ! Gamma-only truncated Coulomb matrix V^tr with cutoff radius = half the unit cell size; for exchange self-energy
+            CALL RI_2c_integral_mat(qs_env, fm_matrix_Minv_Vtrunc_Minv, fm_matrix_L_work, dimen_RI, trunc_coulomb, &
+                                    do_kpoints=.FALSE., kpoints=kpoints, put_mat_KS_env=.FALSE.)
 
+            ! Gamma-only RI-metric matrix; for computing Gamma-only/MIC self-energy
+            CALL RI_2c_integral_mat(qs_env, fm_matrix_Minv, fm_matrix_L_work, dimen_RI, ri_metric, &
+                                    do_kpoints=.FALSE., kpoints=kpoints, put_mat_KS_env=.FALSE.)
+
+            CALL Gamma_only_inversion_of_M_and_mult_with_chol_dec_of_Vtrunc(fm_matrix_Minv_Vtrunc_Minv, &
+                                                                            fm_matrix_Minv, qs_env)
          ELSE
             IF (calc_forces .AND. (.NOT. do_im_time)) THEN
                ! For the gradients, we make a copy of the inverse root of L
-               CALL cp_fm_create(fm_matrix_V, fm_matrix_L%matrix_struct)
-               CALL cp_fm_to_fm(fm_matrix_L, fm_matrix_V)
+               CALL cp_fm_create(fm_matrix_V, fm_matrix_L_work%matrix_struct)
+               CALL cp_fm_to_fm(fm_matrix_L_work, fm_matrix_V)
 
                CALL decomp_mat_L(fm_matrix_V, do_svd, num_small_eigen, cond_num, .TRUE., gd_array, ngroup, &
                                  dimen_RI, dimen_RI_red, para_env)
             END IF
 
-            CALL decomp_mat_L(fm_matrix_L, do_svd, num_small_eigen, cond_num, .FALSE., gd_array, ngroup, &
+            CALL decomp_mat_L(fm_matrix_L_work, do_svd, num_small_eigen, cond_num, .FALSE., gd_array, ngroup, &
                               dimen_RI, dimen_RI_red, para_env)
 
-            CALL decomp_mat_L(fm_matrix_L_RI_metric(1, 1), .FALSE., num_small_eigen, cond_num, .TRUE., &
+            CALL decomp_mat_L(fm_matrix_Minv_L_kpoints(1, 1), .FALSE., num_small_eigen, cond_num, .TRUE., &
                               gd_array, ngroup, dimen_RI, dimen_RI_red, para_env)
 
-            CALL cp_fm_create(fm_matrix_S_inv_work, fm_matrix_L_RI_metric(1, 1)%matrix_struct)
-            CALL cp_fm_set_all(fm_matrix_S_inv_work, 0.0_dp)
+            CALL cp_fm_create(fm_matrix_M_inv_work, fm_matrix_Minv_L_kpoints(1, 1)%matrix_struct)
+            CALL cp_fm_set_all(fm_matrix_M_inv_work, 0.0_dp)
 
-            CALL parallel_gemm('N', 'T', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_matrix_L_RI_metric(1, 1), &
-                               fm_matrix_L_RI_metric(1, 1), 0.0_dp, fm_matrix_S_inv_work)
+            CALL parallel_gemm('N', 'T', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_matrix_Minv_L_kpoints(1, 1), &
+                               fm_matrix_Minv_L_kpoints(1, 1), 0.0_dp, fm_matrix_M_inv_work)
 
             IF (do_svd) THEN
-               ! We have to reset the size of fm_matrix_L_RI_metric
-               CALL reset_size_matrix(fm_matrix_L_RI_metric(1, 1), dimen_RI_red, fm_matrix_L%matrix_struct)
+               ! We have to reset the size of fm_matrix_Minv_L_kpoints
+               CALL reset_size_matrix(fm_matrix_Minv_L_kpoints(1, 1), dimen_RI_red, fm_matrix_L_work%matrix_struct)
 
-               ! L (=fm_matrix_L_RI_metric) = S^(-1)*chol_dec(V)
-               CALL parallel_gemm('T', 'N', dimen_RI, dimen_RI_red, dimen_RI, 1.0_dp, fm_matrix_S_inv_work, fm_matrix_L, &
-                                  0.0_dp, fm_matrix_L_RI_metric(1, 1))
+               ! L (=fm_matrix_Minv_L_kpoints) = S^(-1)*chol_dec(V)
+               CALL parallel_gemm('T', 'N', dimen_RI, dimen_RI_red, dimen_RI, 1.0_dp, fm_matrix_M_inv_work, &
+                                  fm_matrix_L_work, 0.0_dp, fm_matrix_Minv_L_kpoints(1, 1))
             ELSE
-               ! L (=fm_matrix_L_RI_metric) = S^(-1)*chol_dec(V)
-               CALL parallel_gemm('T', 'T', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_matrix_S_inv_work, fm_matrix_L, &
-                                  0.0_dp, fm_matrix_L_RI_metric(1, 1))
+               ! L (=fm_matrix_Minv_L_kpoints) = S^(-1)*chol_dec(V)
+               CALL parallel_gemm('T', 'T', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_matrix_M_inv_work, &
+                                  fm_matrix_L_work, 0.0_dp, fm_matrix_Minv_L_kpoints(1, 1))
             END IF
 
             ! clean the S_inv matrix
-            CALL cp_fm_release(fm_matrix_S_inv_work)
+            CALL cp_fm_release(fm_matrix_M_inv_work)
          END IF
 
          IF (.NOT. do_im_time) THEN
 
-            CALL cp_fm_to_fm(fm_matrix_L_RI_metric(1, 1), fm_matrix_L)
-            DO j_size = 1, SIZE(fm_matrix_L_RI_metric, 1)
-            DO i_size = 1, SIZE(fm_matrix_L_RI_metric, 2)
-               CALL cp_fm_release(fm_matrix_L_RI_metric(i_size, j_size))
+            CALL cp_fm_to_fm(fm_matrix_Minv_L_kpoints(1, 1), fm_matrix_L_work)
+            DO j_size = 1, SIZE(fm_matrix_Minv_L_kpoints, 1)
+            DO i_size = 1, SIZE(fm_matrix_Minv_L_kpoints, 2)
+               CALL cp_fm_release(fm_matrix_Minv_L_kpoints(i_size, j_size))
             END DO
             END DO
-            DEALLOCATE (fm_matrix_L_RI_metric)
+            DEALLOCATE (fm_matrix_Minv_L_kpoints)
 
          END IF
-
-      END IF
-
-      IF (do_kpoints) THEN
-
-         DO i_size = 1, SIZE(fm_matrix_L_kpoints, 1)
-         DO i_real_imag = 1, SIZE(fm_matrix_L_kpoints, 2)
-            CALL cp_fm_release(fm_matrix_L_kpoints(i_size, i_real_imag))
-         END DO
-         END DO
-
-         DEALLOCATE (fm_matrix_L_kpoints)
 
       END IF
 
@@ -351,13 +349,13 @@ CONTAINS
          END IF
 
          ! replicate the necessary row of the L^{-1} matrix on each proc
-         CALL grep_Lcols(fm_matrix_L, my_group_L_start, my_group_L_end, my_group_L_size, my_Lrows)
+         CALL grep_Lcols(fm_matrix_L_work, my_group_L_start, my_group_L_end, my_group_L_size, my_Lrows)
          IF (calc_forces .AND. .NOT. compare_potential_types(qs_env%mp2_env%ri_metric, &
                                                              qs_env%mp2_env%potential_parameter)) THEN
             CALL grep_Lcols(fm_matrix_V, my_group_L_start, my_group_L_end, my_group_L_size, my_Vrows)
          END IF
       END IF
-      CALL cp_fm_release(fm_matrix_L)
+      CALL cp_fm_release(fm_matrix_L_work)
       IF (calc_forces .AND. .NOT. (do_im_time .OR. compare_potential_types(qs_env%mp2_env%ri_metric, &
                                                                qs_env%mp2_env%potential_parameter))) CALL cp_fm_release(fm_matrix_V)
       CALL cp_para_env_release(para_env_L)
@@ -407,7 +405,7 @@ CONTAINS
          ! calculate Cholesky decomposition L (V=LL^T)
          CALL cholesky_decomp(fm_matrix_L, dimen_RI, do_inversion=do_inversion)
 
-         IF (do_inversion) CALL invert_L(fm_matrix_L)
+         IF (do_inversion) CALL invert_mat(fm_matrix_L)
       END IF
 
    END SUBROUTINE decomp_mat_L
@@ -416,13 +414,13 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param fm_matrix_L_kpoints ...
-!> \param fm_matrix_L_RI_metric ...
+!> \param fm_matrix_Minv_L_kpoints ...
 !> \param kpoints ...
 ! **************************************************************************************************
-   SUBROUTINE compute_V_by_lattice_sum(qs_env, fm_matrix_L_kpoints, fm_matrix_L_RI_metric, kpoints)
+   SUBROUTINE compute_V_by_lattice_sum(qs_env, fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, kpoints)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_L_kpoints, &
-                                                            fm_matrix_L_RI_metric
+                                                            fm_matrix_Minv_L_kpoints
       TYPE(kpoint_type), POINTER                         :: kpoints
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_V_by_lattice_sum'
@@ -461,7 +459,7 @@ CONTAINS
       DO ikp = 1, nkp
          DO i_real_imag = 1, 2
             CALL cp_fm_create(fm_matrix_L_kpoints(ikp, i_real_imag), &
-                              fm_matrix_L_RI_metric(1, i_real_imag)%matrix_struct)
+                              fm_matrix_Minv_L_kpoints(1, i_real_imag)%matrix_struct)
             CALL cp_fm_set_all(fm_matrix_L_kpoints(ikp, i_real_imag), 0.0_dp)
          END DO
       END DO
@@ -550,7 +548,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
-!> \param fm_matrix_L_RI_metric ...
+!> \param fm_matrix_Minv_L_kpoints ...
 !> \param fm_matrix_L ...
 !> \param dimen_RI ...
 !> \param ri_metric ...
@@ -558,11 +556,11 @@ CONTAINS
 !> \param kpoints ...
 !> \param put_mat_KS_env ...
 ! **************************************************************************************************
-   SUBROUTINE RI_2c_integral_mat(qs_env, fm_matrix_L_RI_metric, fm_matrix_L, dimen_RI, &
+   SUBROUTINE RI_2c_integral_mat(qs_env, fm_matrix_Minv_L_kpoints, fm_matrix_L, dimen_RI, &
                                  ri_metric, do_kpoints, kpoints, put_mat_KS_env)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_L_RI_metric
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_Minv_L_kpoints
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_L
       INTEGER, INTENT(IN)                                :: dimen_RI
       TYPE(libint_potential_type)                        :: ri_metric
@@ -669,11 +667,11 @@ CONTAINS
          n_real_imag = 1
       END IF
 
-      ALLOCATE (fm_matrix_L_RI_metric(nkp, n_real_imag))
+      ALLOCATE (fm_matrix_Minv_L_kpoints(nkp, n_real_imag))
       DO i_size = 1, nkp
          DO i_real_imag = 1, n_real_imag
-            CALL cp_fm_create(fm_matrix_L_RI_metric(i_size, i_real_imag), fm_matrix_L%matrix_struct)
-            CALL cp_fm_set_all(fm_matrix_L_RI_metric(i_size, i_real_imag), 0.0_dp)
+            CALL cp_fm_create(fm_matrix_Minv_L_kpoints(i_size, i_real_imag), fm_matrix_L%matrix_struct)
+            CALL cp_fm_set_all(fm_matrix_Minv_L_kpoints(i_size, i_real_imag), 0.0_dp)
          END DO
       END DO
 
@@ -710,14 +708,14 @@ CONTAINS
 
             CALL cp_fm_set_all(fm_matrix_S_global, 0.0_dp)
             CALL copy_dbcsr_to_fm(tmpmat, fm_matrix_S_global)
-            CALL cp_fm_copy_general(fm_matrix_S_global, fm_matrix_L_RI_metric(ikp, 1), para_env)
+            CALL cp_fm_copy_general(fm_matrix_S_global, fm_matrix_Minv_L_kpoints(ikp, 1), para_env)
 
             CALL dbcsr_set(tmpmat, 0.0_dp)
             CALL dbcsr_desymmetrize(cmatrix, tmpmat)
 
             CALL cp_fm_set_all(fm_matrix_S_global, 0.0_dp)
             CALL copy_dbcsr_to_fm(tmpmat, fm_matrix_S_global)
-            CALL cp_fm_copy_general(fm_matrix_S_global, fm_matrix_L_RI_metric(ikp, 2), para_env)
+            CALL cp_fm_copy_general(fm_matrix_S_global, fm_matrix_Minv_L_kpoints(ikp, 2), para_env)
 
          END DO
 
@@ -736,7 +734,7 @@ CONTAINS
 
          CALL copy_dbcsr_to_fm(matrix_s_RI_aux_desymm, fm_matrix_S_global)
 
-         CALL cp_fm_copy_general(fm_matrix_S_global, fm_matrix_L_RI_metric(1, 1), para_env)
+         CALL cp_fm_copy_general(fm_matrix_S_global, fm_matrix_Minv_L_kpoints(1, 1), para_env)
 
          CALL dbcsr_deallocate_matrix(matrix_s_RI_aux_desymm)
 
@@ -938,7 +936,6 @@ CONTAINS
       CALL cp_para_env_split(para_env_exchange, para_env_L, sub_sub_color)
 
       ! create the full matrix L defined in the L group
-
       CALL create_matrix_L(fm_matrix_L, blacs_env_L, dimen_RI, para_env_L, "fm_matrix_L", fm_matrix_L_extern)
 
       IF (my_do_im_time .AND. para_env%num_pe > 1) THEN
@@ -1450,41 +1447,36 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param fm_matrix_L_RI_metric ...
+!> \param fm_matrix_Minv_L_kpoints ...
 !> \param fm_matrix_L_kpoints ...
-!> \param fm_matrix_Sinv_Vtrunc_Sinv ...
 !> \param dimen_RI ...
 !> \param kpoints ...
 !> \param eps_eigval_S ...
 ! **************************************************************************************************
-   SUBROUTINE inversion_of_S_and_mult_with_chol_dec_of_V(fm_matrix_L_RI_metric, fm_matrix_L_kpoints, &
-                                                         fm_matrix_Sinv_Vtrunc_Sinv, dimen_RI, kpoints, &
-                                                         eps_eigval_S)
+   SUBROUTINE inversion_of_M_and_mult_with_chol_dec_of_V(fm_matrix_Minv_L_kpoints, fm_matrix_L_kpoints, &
+                                                         dimen_RI, kpoints, eps_eigval_S)
 
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: fm_matrix_L_RI_metric, &
-                                                            fm_matrix_L_kpoints, &
-                                                            fm_matrix_Sinv_Vtrunc_Sinv
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: fm_matrix_Minv_L_kpoints, &
+                                                            fm_matrix_L_kpoints
       INTEGER, INTENT(IN)                                :: dimen_RI
       TYPE(kpoint_type), POINTER                         :: kpoints
       REAL(KIND=dp), INTENT(IN)                          :: eps_eigval_S
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'inversion_of_S_and_mult_with_chol_dec_of_V'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'inversion_of_M_and_mult_with_chol_dec_of_V'
       COMPLEX(KIND=dp), PARAMETER :: cone = CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
          czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp), ione = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
 
       INTEGER                                            :: handle, ikp, nkp
-      TYPE(cp_cfm_type)                                  :: cfm_matrix_K_tmp, cfm_matrix_L_tmp, &
-                                                            cfm_matrix_S_inv_tmp, &
-                                                            cfm_matrix_S_tmp, cfm_matrix_Vtrunc_tmp
+      TYPE(cp_cfm_type)                                  :: cfm_matrix_K_tmp, cfm_matrix_M_tmp, &
+                                                            cfm_matrix_V_tmp, cfm_matrix_Vtrunc_tmp
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
 
       CALL timeset(routineN, handle)
 
-      CALL cp_fm_get_info(fm_matrix_L_RI_metric(1, 1), matrix_struct=matrix_struct)
+      CALL cp_fm_get_info(fm_matrix_Minv_L_kpoints(1, 1), matrix_struct=matrix_struct)
 
-      CALL cp_cfm_create(cfm_matrix_S_tmp, matrix_struct)
-      CALL cp_cfm_create(cfm_matrix_S_inv_tmp, matrix_struct)
-      CALL cp_cfm_create(cfm_matrix_L_tmp, matrix_struct)
+      CALL cp_cfm_create(cfm_matrix_M_tmp, matrix_struct)
+      CALL cp_cfm_create(cfm_matrix_V_tmp, matrix_struct)
       CALL cp_cfm_create(cfm_matrix_K_tmp, matrix_struct)
       CALL cp_cfm_create(cfm_matrix_Vtrunc_tmp, matrix_struct)
 
@@ -1492,70 +1484,119 @@ CONTAINS
 
       DO ikp = 1, nkp
 
-         CALL cp_cfm_scale_and_add_fm(czero, cfm_matrix_S_tmp, cone, fm_matrix_L_RI_metric(ikp, 1))
-         CALL cp_cfm_scale_and_add_fm(cone, cfm_matrix_S_tmp, ione, fm_matrix_L_RI_metric(ikp, 2))
+         CALL cp_cfm_scale_and_add_fm(czero, cfm_matrix_M_tmp, cone, fm_matrix_Minv_L_kpoints(ikp, 1))
+         CALL cp_cfm_scale_and_add_fm(cone, cfm_matrix_M_tmp, ione, fm_matrix_Minv_L_kpoints(ikp, 2))
 
-         CALL cp_cfm_scale_and_add_fm(czero, cfm_matrix_L_tmp, cone, fm_matrix_L_kpoints(ikp, 1))
-         CALL cp_cfm_scale_and_add_fm(cone, cfm_matrix_L_tmp, ione, fm_matrix_L_kpoints(ikp, 2))
+         CALL cp_cfm_scale_and_add_fm(czero, cfm_matrix_V_tmp, cone, fm_matrix_L_kpoints(ikp, 1))
+         CALL cp_cfm_scale_and_add_fm(cone, cfm_matrix_V_tmp, ione, fm_matrix_L_kpoints(ikp, 2))
 
-         CALL cp_cfm_scale_and_add_fm(czero, cfm_matrix_Vtrunc_tmp, cone, fm_matrix_Sinv_Vtrunc_Sinv(ikp, 1))
-         CALL cp_cfm_scale_and_add_fm(cone, cfm_matrix_Vtrunc_tmp, ione, fm_matrix_Sinv_Vtrunc_Sinv(ikp, 2))
+         CALL cp_cfm_power(cfm_matrix_M_tmp, threshold=eps_eigval_S, exponent=-1.0_dp)
 
-         CALL cp_cfm_matrix_exponential(cfm_matrix_S_tmp, cfm_matrix_S_inv_tmp, threshold=eps_eigval_S, exponent=-0.5_dp)
+         CALL cp_cfm_power(cfm_matrix_V_tmp, threshold=0.0_dp, exponent=0.5_dp)
 
-         ! get S^(-1) = U^(-H)U^(-1)
-         CALL parallel_gemm("C", "N", dimen_RI, dimen_RI, dimen_RI, cone, cfm_matrix_S_tmp, cfm_matrix_S_tmp, &
-                            czero, cfm_matrix_S_inv_tmp)
+         ! save L(k) = SQRT(V(k))
+         CALL cp_cfm_to_fm(cfm_matrix_V_tmp, fm_matrix_L_kpoints(ikp, 1), fm_matrix_L_kpoints(ikp, 2))
 
-         CALL cp_cfm_matrix_exponential(cfm_matrix_L_tmp, cfm_matrix_S_tmp, threshold=0.0_dp, exponent=0.5_dp)
-
-         ! get K = S^(-1)*L, where L is the Cholesky decomposition of V = L^T*L
-         CALL parallel_gemm("N", "C", dimen_RI, dimen_RI, dimen_RI, cone, cfm_matrix_S_inv_tmp, cfm_matrix_L_tmp, &
+         ! get K = M^(-1)*L, where L is the Cholesky decomposition of V = L^T*L
+         CALL parallel_gemm("N", "C", dimen_RI, dimen_RI, dimen_RI, cone, cfm_matrix_M_tmp, cfm_matrix_V_tmp, &
                             czero, cfm_matrix_K_tmp)
 
          ! move
-         CALL cp_cfm_to_fm(cfm_matrix_K_tmp, fm_matrix_L_RI_metric(ikp, 1), fm_matrix_L_RI_metric(ikp, 2))
-
-         ! S^(-1)*V_trunc
-         CALL parallel_gemm("N", "C", dimen_RI, dimen_RI, dimen_RI, cone, cfm_matrix_Vtrunc_tmp, cfm_matrix_S_inv_tmp, &
-                            czero, cfm_matrix_K_tmp)
-
-         ! S^(-1)*V_trunc*S^{-1}
-         CALL parallel_gemm("N", "N", dimen_RI, dimen_RI, dimen_RI, cone, cfm_matrix_S_inv_tmp, cfm_matrix_K_tmp, &
-                            czero, cfm_matrix_Vtrunc_tmp)
-
-         ! move
-         CALL cp_cfm_to_fm(cfm_matrix_Vtrunc_tmp, fm_matrix_Sinv_Vtrunc_Sinv(ikp, 1), &
-                           fm_matrix_Sinv_Vtrunc_Sinv(ikp, 2))
+         CALL cp_cfm_to_fm(cfm_matrix_K_tmp, fm_matrix_Minv_L_kpoints(ikp, 1), fm_matrix_Minv_L_kpoints(ikp, 2))
 
       END DO
 
-      CALL cp_cfm_release(cfm_matrix_S_tmp)
-      CALL cp_cfm_release(cfm_matrix_S_inv_tmp)
-      CALL cp_cfm_release(cfm_matrix_L_tmp)
+      CALL cp_cfm_release(cfm_matrix_M_tmp)
+      CALL cp_cfm_release(cfm_matrix_V_tmp)
       CALL cp_cfm_release(cfm_matrix_K_tmp)
       CALL cp_cfm_release(cfm_matrix_Vtrunc_tmp)
 
       CALL timestop(handle)
 
-   END SUBROUTINE inversion_of_S_and_mult_with_chol_dec_of_V
+   END SUBROUTINE inversion_of_M_and_mult_with_chol_dec_of_V
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_matrix_Minv_Vtrunc_Minv ...
+!> \param fm_matrix_Minv ...
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE Gamma_only_inversion_of_M_and_mult_with_chol_dec_of_Vtrunc(fm_matrix_Minv_Vtrunc_Minv, &
+                                                                         fm_matrix_Minv, qs_env)
+
+      TYPE(cp_fm_type), DIMENSION(:, :)                  :: fm_matrix_Minv_Vtrunc_Minv, &
+                                                            fm_matrix_Minv
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CHARACTER(LEN=*), PARAMETER :: &
+         routineN = 'Gamma_only_inversion_of_M_and_mult_with_chol_dec_of_Vtrunc'
+      COMPLEX(KIND=dp), PARAMETER :: cone = CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
+         czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp), ione = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
+
+      INTEGER                                            :: dimen_RI, handle, ndep
+      REAL(KIND=dp)                                      :: eps_eigval_S_Gamma
+      TYPE(cp_fm_type)                                   :: fm_matrix_RI_metric_inv_work, fm_work
+
+      CALL timeset(routineN, handle)
+
+      CALL cp_fm_create(fm_work, fm_matrix_Minv(1, 1)%matrix_struct)
+      CALL cp_fm_set_all(fm_work, 0.0_dp)
+
+      CALL cp_fm_create(fm_matrix_RI_metric_inv_work, fm_matrix_Minv(1, 1)%matrix_struct)
+      CALL cp_fm_set_all(fm_matrix_RI_metric_inv_work, 0.0_dp)
+
+      CALL cp_fm_get_info(matrix=fm_matrix_Minv(1, 1), nrow_global=dimen_RI)
+
+      eps_eigval_S_Gamma = qs_env%mp2_env%ri_rpa_im_time%eps_eigval_S_Gamma
+
+      IF (eps_eigval_S_Gamma > 1.0E-18) THEN
+
+         ! remove small eigenvalues
+         CALL cp_fm_power(fm_matrix_Minv(1, 1), fm_matrix_RI_metric_inv_work, -0.5_dp, &
+                          eps_eigval_S_Gamma, ndep)
+
+      ELSE
+
+         CALL cholesky_decomp(fm_matrix_Minv(1, 1), dimen_RI, do_inversion=.TRUE.)
+
+         CALL invert_mat(fm_matrix_Minv(1, 1))
+
+      END IF
+
+      CALL parallel_gemm('N', 'T', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_matrix_Minv(1, 1), &
+                         fm_matrix_Minv(1, 1), 0.0_dp, fm_matrix_RI_metric_inv_work)
+
+      CALL cp_fm_to_fm(fm_matrix_RI_metric_inv_work, fm_matrix_Minv(1, 1))
+
+      CALL parallel_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_matrix_RI_metric_inv_work, &
+                         fm_matrix_Minv_Vtrunc_Minv(1, 1), 0.0_dp, fm_work)
+
+      CALL parallel_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_work, &
+                         fm_matrix_RI_metric_inv_work, 0.0_dp, fm_matrix_Minv_Vtrunc_Minv(1, 1))
+
+      CALL cp_fm_release(fm_work)
+      CALL cp_fm_release(fm_matrix_RI_metric_inv_work)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE Gamma_only_inversion_of_M_and_mult_with_chol_dec_of_Vtrunc
 
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
 !> \param trunc_coulomb ...
 ! **************************************************************************************************
-   SUBROUTINE setup_abs_cutoffs_chi_and_trunc_coulomb_potential(qs_env, trunc_coulomb)
+   SUBROUTINE setup_trunc_coulomb_potential_for_exchange_self_energy(qs_env, trunc_coulomb)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(libint_potential_type), OPTIONAL              :: trunc_coulomb
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_abs_cutoffs_chi_and_trunc_coulomb_potential'
+      CHARACTER(LEN=*), PARAMETER :: &
+         routineN = 'setup_trunc_coulomb_potential_for_exchange_self_energy'
 
       INTEGER                                            :: handle
       INTEGER, DIMENSION(3)                              :: periodic
       REAL(KIND=dp)                                      :: rel_cutoff_trunc_coulomb_ri_x, &
                                                             shortest_dist_cell_planes
-      REAL(KIND=dp), DIMENSION(2)                        :: abs_cutoffs_chi_W
       TYPE(cell_type), POINTER                           :: cell
 
       CALL timeset(routineN, handle)
@@ -1582,17 +1623,11 @@ CONTAINS
          END IF
       END IF
 
-      abs_cutoffs_chi_W(1:2) = qs_env%mp2_env%ri_rpa_im_time%rel_cutoffs_chi_W(1:2)* &
-                               shortest_dist_cell_planes
-
-      qs_env%mp2_env%ri_rpa_im_time%abs_cutoffs_chi_W(1:2) = abs_cutoffs_chi_W(1:2)
-
       rel_cutoff_trunc_coulomb_ri_x = qs_env%mp2_env%ri_rpa_im_time%rel_cutoff_trunc_coulomb_ri_x
 
       IF (PRESENT(trunc_coulomb)) THEN
          trunc_coulomb%potential_type = do_potential_truncated
-         trunc_coulomb%cutoff_radius = (abs_cutoffs_chi_W(1) + abs_cutoffs_chi_W(2))* &
-                                       rel_cutoff_trunc_coulomb_ri_x
+         trunc_coulomb%cutoff_radius = shortest_dist_cell_planes*rel_cutoff_trunc_coulomb_ri_x
          trunc_coulomb%filename = "t_c_g.dat"
          ! dummy
          trunc_coulomb%omega = 0.0_dp
@@ -1600,17 +1635,17 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE setup_abs_cutoffs_chi_and_trunc_coulomb_potential
+   END SUBROUTINE setup_trunc_coulomb_potential_for_exchange_self_energy
 
 ! **************************************************************************************************
 !> \brief ...
 !> \param fm_matrix_L ...
 ! **************************************************************************************************
-   SUBROUTINE invert_L(fm_matrix_L)
+   SUBROUTINE invert_mat(fm_matrix_L)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_L
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'invert_L'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'invert_mat'
 
       INTEGER                                            :: handle, i_global, iiB, j_global, jjB, &
                                                             ncol_local, nrow_local
@@ -1636,7 +1671,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE invert_L
+   END SUBROUTINE invert_mat
 
 ! **************************************************************************************************
 !> \brief ...
