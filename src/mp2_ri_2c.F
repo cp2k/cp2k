@@ -1530,8 +1530,6 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: &
          routineN = 'Gamma_only_inversion_of_M_and_mult_with_chol_dec_of_Vtrunc'
-      COMPLEX(KIND=dp), PARAMETER :: cone = CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
-         czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp), ione = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
 
       INTEGER                                            :: dimen_RI, handle, ndep
       REAL(KIND=dp)                                      :: eps_eigval_S_Gamma
