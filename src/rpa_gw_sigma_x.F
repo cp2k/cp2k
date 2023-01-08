@@ -62,7 +62,7 @@ MODULE rpa_gw_sigma_x
    USE message_passing,                 ONLY: mp_sum,&
                                               mp_sync
    USE mp2_integrals,                   ONLY: compute_kpoints
-   USE mp2_ri_2c,                       ONLY: setup_abs_cutoffs_chi_and_trunc_coulomb_potential
+   USE mp2_ri_2c,                       ONLY: setup_trunc_coulomb_potential_for_exchange_self_energy
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: evolt
@@ -612,7 +612,7 @@ CONTAINS
             CALL get_qs_env(qs_env=qs_env, &
                             kpoints=kpoints)
 
-            CALL setup_abs_cutoffs_chi_and_trunc_coulomb_potential(qs_env)
+            CALL setup_trunc_coulomb_potential_for_exchange_self_energy(qs_env)
 
             CALL compute_kpoints(qs_env, kpoints, unit_nr)
 
