@@ -90,7 +90,8 @@ MODULE qs_linres_module
                                               issc_env_type,&
                                               linres_control_create,&
                                               linres_control_type,&
-                                              nmr_env_type
+                                              nmr_env_type,&
+                                              vcd_env_type
    USE qs_mo_types,                     ONLY: mo_set_type
    USE qs_p_env_methods,                ONLY: p_env_create,&
                                               p_env_psi0_changed
@@ -99,6 +100,14 @@ MODULE qs_linres_module
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE qs_vcd,                          ONLY: aat_dV,&
+                                              apt_dV,&
+                                              prepare_per_atom_vcd,&
+                                              vcd_build_op_dV,&
+                                              vcd_response_dV
+   USE qs_vcd_utils,                    ONLY: vcd_env_cleanup,&
+                                              vcd_env_init,&
+                                              vcd_print
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -111,6 +120,108 @@ MODULE qs_linres_module
 ! **************************************************************************************************
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief Calculates the derivatives of the MO coefficients dC/dV^lambda_beta
+!>         wrt to nuclear velocities. The derivative is indexed by `beta`, the
+!>         electric dipole operator by `alpha`.
+!>        Calculates the APT and AAT in velocity form
+!>               P^lambda_alpha,beta = d< mu_alpha >/dV^lambda_beta
+!>               M^lambda_alpha,beta = d< m_alpha >/dV^lambda_beta
+!> \param qs_env ...
+!> \param p_env ...
+!> \author Edward Ditler
+! **************************************************************************************************
+   SUBROUTINE vcd_linres(qs_env, p_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_p_env_type)                                :: p_env
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'vcd_linres'
+
+      INTEGER                                            :: beta, i, latom
+      TYPE(vcd_env_type)                                 :: vcd_env
+
+      ! We need the position perturbation for the velocity perturbation operator
+      CALL vcd_env_init(vcd_env, qs_env)
+
+      qs_env%linres_control%linres_restart = .TRUE.
+
+      ! Iterate over the list of atoms for which we want to calculate the APTs/AATs
+      !  default is all atoms.
+      DO latom = 1, SIZE(vcd_env%dcdr_env%list_of_atoms)
+         vcd_env%dcdr_env%lambda = vcd_env%dcdr_env%list_of_atoms(latom)
+
+         CALL prepare_per_atom(vcd_env%dcdr_env, qs_env)
+         CALL prepare_per_atom_vcd(vcd_env, qs_env)
+
+         DO beta = 1, 3                   ! in every direction
+            vcd_env%dcdr_env%beta = beta
+            IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) REPEAT('-', 80)
+            IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) &
+               'vel lambda, beta', vcd_env%dcdr_env%lambda, vcd_env%dcdr_env%beta
+
+            vcd_env%dcdr_env%deltaR(vcd_env%dcdr_env%beta, vcd_env%dcdr_env%lambda) = 1._dp
+
+            ! Since we do the heavy lifting anyways, we might also calculate the length form APTs here
+            CALL dcdr_build_op_dR(vcd_env%dcdr_env, qs_env)
+            CALL dcdr_response_dR(vcd_env%dcdr_env, p_env, qs_env)
+            CALL apt_dR(qs_env, vcd_env%dcdr_env)
+
+            ! And with the position perturbation ready, we can calculate the NVP
+            CALL vcd_build_op_dV(vcd_env, qs_env)
+            CALL vcd_response_dV(vcd_env, p_env, qs_env)
+
+            CALL apt_dV(vcd_env, qs_env)
+            CALL aat_dV(vcd_env, qs_env)
+         END DO ! beta
+
+         vcd_env%dcdr_env%apt_total_dcdr(:, :, vcd_env%dcdr_env%lambda) = &
+            vcd_env%dcdr_env%apt_el_dcdr(:, :, vcd_env%dcdr_env%lambda) &
+            + vcd_env%dcdr_env%apt_nuc_dcdr(:, :, vcd_env%dcdr_env%lambda)
+
+         IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) "Total APT (length form):"
+         IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, "(A,I3,A,F15.10)") &
+            'Atom', vcd_env%dcdr_env%lambda, &
+            ' - GAPT ', (vcd_env%dcdr_env%apt_total_dcdr(1, 1, vcd_env%dcdr_env%lambda) &
+                         + vcd_env%dcdr_env%apt_total_dcdr(2, 2, vcd_env%dcdr_env%lambda) &
+                         + vcd_env%dcdr_env%apt_total_dcdr(3, 3, vcd_env%dcdr_env%lambda))/3._dp
+         DO i = 1, 3
+            IF (vcd_env%output_unit > 0) &
+               WRITE (vcd_env%output_unit, "(F15.10,F15.10,F15.10)") vcd_env%dcdr_env%apt_total_dcdr(i, :, vcd_env%dcdr_env%lambda)
+         END DO
+
+         vcd_env%apt_total_nvpt(:, :, vcd_env%dcdr_env%lambda) = &
+            vcd_env%apt_el_nvpt(:, :, vcd_env%dcdr_env%lambda) + vcd_env%apt_nuc_nvpt(:, :, vcd_env%dcdr_env%lambda)
+         IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) ""
+         IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) "Total APT (velocity form):"
+         IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, "(A,I3,A,F15.10)") &
+            'Atom', vcd_env%dcdr_env%lambda, &
+            ' - GAPT ', (vcd_env%apt_total_nvpt(1, 1, vcd_env%dcdr_env%lambda) &
+                         + vcd_env%apt_total_nvpt(2, 2, vcd_env%dcdr_env%lambda) &
+                         + vcd_env%apt_total_nvpt(3, 3, vcd_env%dcdr_env%lambda))/3._dp
+         DO i = 1, 3
+            IF (vcd_env%output_unit > 0) &
+               WRITE (vcd_env%output_unit, "(F15.10,F15.10,F15.10)") vcd_env%apt_total_nvpt(i, :, vcd_env%dcdr_env%lambda)
+         END DO
+
+         IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) ""
+         IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) "Total AAT (velocity form):"
+         IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, "(A,I3,A,F15.10)") &
+            'Atom', vcd_env%dcdr_env%lambda
+         DO i = 1, 3
+            IF (vcd_env%output_unit > 0) &
+               WRITE (vcd_env%output_unit, "(F15.10,F15.10,F15.10)") vcd_env%aat_atom_nvpt(i, :, vcd_env%dcdr_env%lambda)
+         END DO
+
+      END DO !lambda
+
+      CALL vcd_print(vcd_env, qs_env)
+      ! IF (vcd_env%do_intensities) &
+      ! CALL calculate_spectrum(qs_env, vcd_env, filename=vcd_env%hessian_filename, natom=natom)
+      ! CALL dcdr_print(vcd_env%dcdr_env, qs_env)
+      CALL vcd_env_cleanup(qs_env, vcd_env)
+
+   END SUBROUTINE vcd_linres
 
 ! *****************************************************************************
 !> \brief Calculates the derivatives of the MO coefficients dC/dR^lambda_beta
@@ -218,7 +329,7 @@ CONTAINS
       INTEGER                                            :: handle, iounit
       LOGICAL                                            :: dcdr_present, epr_present, issc_present, &
                                                             lr_calculation, nmr_present, &
-                                                            polar_present
+                                                            polar_present, vcd_present
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
@@ -282,6 +393,14 @@ CONTAINS
 
          IF (dcdr_present) THEN
             CALL dcdr_linres(qs_env, p_env)
+         END IF
+
+         ! VCD
+         prop_section => section_vals_get_subs_vals(lr_section, "VCD")
+         CALL section_vals_get(prop_section, explicit=vcd_present)
+
+         IF (vcd_present) THEN
+            CALL vcd_linres(qs_env, p_env)
          END IF
 
          ! Other possible LR calculations can be introduced here
