@@ -140,7 +140,9 @@ endif
 CFLAGS         += $(DFLAGS) $(CFLAGS_DEBUG)
 
 FCFLAGS        := $(CFLAGS) $(FCFLAGS_DEBUG) $(WFLAGS)
-FCFLAGS        += -fallow-argument-mismatch
+ifeq ($(shell [ $(shell gcc -dumpversion | cut -d. -f1) -gt 9 ] && echo yes), yes)
+   FCFLAGS        += -fallow-argument-mismatch
+endif
 FCFLAGS        += -fbacktrace
 FCFLAGS        += -ffree-form
 FCFLAGS        += -ffree-line-length-none
@@ -154,6 +156,6 @@ else
    LDFLAGS        += $(FCFLAGS) -static
 endif
 
-LIBS           += -ldl -lstdc++
+LIBS           += -Wl,--whole-archive -lpthread -Wl,--no-whole-archive -ldl -lstdc++
 
 # End
