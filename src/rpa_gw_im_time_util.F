@@ -39,8 +39,7 @@ MODULE rpa_gw_im_time_util
                                               hfx_compression_type
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE mathconstants,                   ONLY: pi,&
-                                              twopi
+   USE mathconstants,                   ONLY: twopi
    USE message_passing,                 ONLY: mp_alltoall,&
                                               mp_dims_create,&
                                               mp_request_type,&
@@ -248,9 +247,11 @@ CONTAINS
                             sizes_RI_split, sizes_AO_split, sizes_AO_split, [1, 2], [3], name="(RI AO | AO)")
       DEALLOCATE (dist1, dist2, dist3)
 
-      CALL create_3c_tensor(t_3c_overl_int_ao_mo, dist1, dist2, dist3, pgrid_AO, &
-                            sizes_RI_split, sizes_AO_split, sizes_MO_1, [1, 2], [3], name="(RI AO | MO)")
-      DEALLOCATE (dist1, dist2, dist3)
+      IF (.NOT. qs_env%mp2_env%ri_g0w0%do_kpoints_Sigma) THEN
+         CALL create_3c_tensor(t_3c_overl_int_ao_mo, dist1, dist2, dist3, pgrid_AO, &
+                               sizes_RI_split, sizes_AO_split, sizes_MO_1, [1, 2], [3], name="(RI AO | MO)")
+         DEALLOCATE (dist1, dist2, dist3)
+      END IF
 
       CALL create_3c_tensor(t_3c_overl_int_gw_RI, dist1, dist2, dist3, pgrid_MO, &
                             sizes_RI_split, sizes_AO_split, sizes_MO, [1], [2, 3], name="(RI | AO MO)")
@@ -282,20 +283,22 @@ CONTAINS
 
       cut_memory = SIZE(starts_array_mc)
 
-      DO i_mem = 1, cut_memory
-         CALL decompress_tensor(t_3c_overl_int(1, 1), t_3c_O_ind(1, 1, i_mem)%ind, t_3c_O_compressed(1, 1, i_mem), &
-                                qs_env%mp2_env%ri_rpa_im_time%eps_compress)
+      IF (.NOT. qs_env%mp2_env%ri_g0w0%do_kpoints_Sigma) THEN
+         DO i_mem = 1, cut_memory
+            CALL decompress_tensor(t_3c_overl_int(1, 1), t_3c_O_ind(1, 1, i_mem)%ind, t_3c_O_compressed(1, 1, i_mem), &
+                                   qs_env%mp2_env%ri_rpa_im_time%eps_compress)
 
-         ibounds(:, 2) = [starts_array_mc(i_mem), ends_array_mc(i_mem)]
+            ibounds(:, 2) = [starts_array_mc(i_mem), ends_array_mc(i_mem)]
 
-         CALL dbt_copy(t_3c_overl_int(1, 1), t_3c_overl_int_ao_ao, move_data=.TRUE.)
+            CALL dbt_copy(t_3c_overl_int(1, 1), t_3c_overl_int_ao_ao, move_data=.TRUE.)
 
-         CALL dbt_contract(1.0_dp, mo_coeff_gw_t, t_3c_overl_int_ao_ao, 1.0_dp, &
-                           t_3c_overl_int_ao_mo, contract_1=[1], notcontract_1=[2], &
-                           contract_2=[3], notcontract_2=[1, 2], map_1=[3], map_2=[1, 2], &
-                           bounds_2=ibounds, move_data=.FALSE., unit_nr=unit_nr_prv)
+            CALL dbt_contract(1.0_dp, mo_coeff_gw_t, t_3c_overl_int_ao_ao, 1.0_dp, &
+                              t_3c_overl_int_ao_mo, contract_1=[1], notcontract_1=[2], &
+                              contract_2=[3], notcontract_2=[1, 2], map_1=[3], map_2=[1, 2], &
+                              bounds_2=ibounds, move_data=.FALSE., unit_nr=unit_nr_prv)
 
-      END DO
+         END DO
+      END IF
 
       CALL cp_fm_release(fm_mat_mo_coeff_gw)
 
@@ -403,22 +406,24 @@ CONTAINS
 
       END IF
 
-      CALL alloc_containers(t_3c_O_mo_compressed, 1)
-      CALL get_tensor_occupancy(t_3c_overl_int_ao_mo, nze, occ)
-      memory_3c = 0.0_dp
+      IF (.NOT. qs_env%mp2_env%ri_g0w0%do_kpoints_Sigma) THEN
+         CALL alloc_containers(t_3c_O_mo_compressed, 1)
+         CALL get_tensor_occupancy(t_3c_overl_int_ao_mo, nze, occ)
+         memory_3c = 0.0_dp
 
-      CALL compress_tensor(t_3c_overl_int_ao_mo, t_3c_O_mo_ind, t_3c_O_mo_compressed, &
-                           qs_env%mp2_env%ri_rpa_im_time%eps_compress, memory_3c)
+         CALL compress_tensor(t_3c_overl_int_ao_mo, t_3c_O_mo_ind, t_3c_O_mo_compressed, &
+                              qs_env%mp2_env%ri_rpa_im_time%eps_compress, memory_3c)
 
-      CALL mp_sum(memory_3c, para_env%group)
-      compression_factor = REAL(nze, dp)*1.0E-06*8.0_dp/memory_3c
+         CALL mp_sum(memory_3c, para_env%group)
+         compression_factor = REAL(nze, dp)*1.0E-06*8.0_dp/memory_3c
 
-      IF (unit_nr > 0) THEN
-         WRITE (UNIT=unit_nr, FMT="((T3,A,T66,F11.2,A4))") &
-            "MEMORY_INFO| Memory of MO-contracted tensor (compressed):", memory_3c, ' MiB'
+         IF (unit_nr > 0) THEN
+            WRITE (UNIT=unit_nr, FMT="((T3,A,T66,F11.2,A4))") &
+               "MEMORY_INFO| Memory of MO-contracted tensor (compressed):", memory_3c, ' MiB'
 
-         WRITE (UNIT=unit_nr, FMT="((T3,A,T60,F21.2))") &
-            "MEMORY_INFO| Compression factor:                  ", compression_factor
+            WRITE (UNIT=unit_nr, FMT="((T3,A,T60,F21.2))") &
+               "MEMORY_INFO| Compression factor:                  ", compression_factor
+         END IF
       END IF
 
       CALL dbcsr_release_p(mat_mo_coeff_gw)
@@ -787,14 +792,10 @@ CONTAINS
 !> \param index_to_cell ...
 !> \param hmat ...
 !> \param particle_set ...
-!> \param abs_cutoffs_chi_W ...
-!> \param symmetrize ...
-!> \param gamma_only ...
 ! **************************************************************************************************
    SUBROUTINE compute_weight_re_im(weight_re, weight_im, &
                                    num_cells, iatom, jatom, xkp, wkp_W, &
-                                   cell, index_to_cell, hmat, particle_set, abs_cutoffs_chi_W, &
-                                   symmetrize, gamma_only)
+                                   cell, index_to_cell, hmat, particle_set)
 
       REAL(KIND=dp)                                      :: weight_re, weight_im
       INTEGER                                            :: num_cells, iatom, jatom
@@ -804,25 +805,22 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      REAL(KIND=dp), DIMENSION(2)                        :: abs_cutoffs_chi_W
-      LOGICAL                                            :: symmetrize, gamma_only
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_weight_re_im'
 
-      INTEGER                                            :: handle, i_sym, icell, n_sym, xcell, &
-                                                            ycell, zcell
-      REAL(KIND=dp)                                      :: abs_rab_cell, arg, coskl, &
-                                                            dampening_function, first_cutoff, &
-                                                            second_cutoff, sinkl
+      INTEGER                                            :: handle, icell, n_equidistant_cells, &
+                                                            xcell, ycell, zcell
+      REAL(KIND=dp)                                      :: abs_rab_cell, abs_rab_cell_min, arg
       REAL(KIND=dp), DIMENSION(3)                        :: cell_vector, rab_cell_i
 
       CALL timeset(routineN, handle)
 
-      first_cutoff = abs_cutoffs_chi_W(1)
-      second_cutoff = abs_cutoffs_chi_W(2)
-
       weight_re = 0.0_dp
       weight_im = 0.0_dp
+
+      abs_rab_cell_min = 1.0E10_dp
+
+      n_equidistant_cells = 0
 
       DO icell = 1, num_cells
 
@@ -830,56 +828,47 @@ CONTAINS
          ycell = index_to_cell(2, icell)
          zcell = index_to_cell(3, icell)
 
-         IF (symmetrize .AND. (xcell .NE. 0 .OR. ycell .NE. 0 .OR. zcell .NE. 0)) THEN
-            n_sym = 2
-         ELSE
-            n_sym = 1
+         cell_vector(1:3) = MATMUL(hmat, REAL((/xcell, ycell, zcell/), dp))
+
+         rab_cell_i(1:3) = pbc(particle_set(iatom)%r(1:3), cell) - &
+                           (pbc(particle_set(jatom)%r(1:3), cell) + cell_vector(1:3))
+
+         abs_rab_cell = SQRT(rab_cell_i(1)**2 + rab_cell_i(2)**2 + rab_cell_i(3)**2)
+
+         IF (abs_rab_cell < abs_rab_cell_min) THEN
+            abs_rab_cell_min = abs_rab_cell
          END IF
-
-         DO i_sym = 1, n_sym
-
-            IF (n_sym == 2) THEN
-               xcell = -xcell
-               ycell = -ycell
-               zcell = -zcell
-            END IF
-
-            arg = REAL(xcell, dp)*xkp(1) + REAL(ycell, dp)*xkp(2) + REAL(zcell, dp)*xkp(3)
-
-            coskl = wkp_W*COS(twopi*arg)
-            sinkl = wkp_W*SIN(twopi*arg)
-
-            cell_vector(1:3) = MATMUL(hmat, REAL((/xcell, ycell, zcell/), dp))
-
-            rab_cell_i(1:3) = pbc(particle_set(iatom)%r(1:3), cell) - &
-                              (pbc(particle_set(jatom)%r(1:3), cell) + cell_vector(1:3))
-
-            abs_rab_cell = SQRT(rab_cell_i(1)**2 + rab_cell_i(2)**2 + rab_cell_i(3)**2)
-
-            ! smooth function that is only one if atoms are very close and becomes smoothly zero
-            ! for larger distances
-            IF (abs_rab_cell < first_cutoff) THEN
-               weight_re = 1.0_dp*coskl
-               weight_im = 1.0_dp*sinkl
-            ELSE IF (abs_rab_cell < second_cutoff) THEN
-               dampening_function = 0.5_dp*(COS(pi*(abs_rab_cell - first_cutoff)/ &
-                                                (second_cutoff - first_cutoff)) + 1.0_dp)
-               weight_re = dampening_function*coskl
-               weight_im = dampening_function*sinkl
-
-            END IF
-
-         END DO
 
       END DO
 
-      ! that is kind of a hack to get the same matrix format for GAMMA as for MIC
-      IF (gamma_only) THEN
-         IF (symmetrize .OR. iatom >= jatom) THEN
-            weight_re = 1.0_dp
-            weight_im = 0.0_dp
+      DO icell = 1, num_cells
+
+         xcell = index_to_cell(1, icell)
+         ycell = index_to_cell(2, icell)
+         zcell = index_to_cell(3, icell)
+
+         cell_vector(1:3) = MATMUL(hmat, REAL((/xcell, ycell, zcell/), dp))
+
+         rab_cell_i(1:3) = pbc(particle_set(iatom)%r(1:3), cell) - &
+                           (pbc(particle_set(jatom)%r(1:3), cell) + cell_vector(1:3))
+
+         abs_rab_cell = SQRT(rab_cell_i(1)**2 + rab_cell_i(2)**2 + rab_cell_i(3)**2)
+
+         IF (abs_rab_cell < abs_rab_cell_min + 0.1_dp) THEN
+
+            arg = REAL(xcell, dp)*xkp(1) + REAL(ycell, dp)*xkp(2) + REAL(zcell, dp)*xkp(3)
+
+            weight_re = weight_re + wkp_W*COS(twopi*arg)
+            weight_im = weight_im + wkp_W*SIN(twopi*arg)
+
+            n_equidistant_cells = n_equidistant_cells + 1
+
          END IF
-      END IF
+
+      END DO
+
+      weight_re = weight_re/REAL(n_equidistant_cells, KIND=dp)
+      weight_im = weight_im/REAL(n_equidistant_cells, KIND=dp)
 
       CALL timestop(handle)
 

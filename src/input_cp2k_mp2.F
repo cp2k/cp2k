@@ -27,10 +27,10 @@ MODULE input_cp2k_mp2
    USE input_constants,                 ONLY: &
         do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
         do_potential_long, do_potential_mix_cl, do_potential_short, do_potential_truncated, &
-        do_potential_tshpsc, eri_default, gaussian, gw_gf_gamma, gw_gf_mic, gw_no_print_exx, &
-        gw_pade_approx, gw_print_exx, gw_read_exx, gw_skip_for_regtest, gw_two_pole_model, &
-        kp_weights_W_auto, kp_weights_W_tailored, kp_weights_W_uniform, mp2_method_direct, &
-        mp2_method_gpw, mp2_method_none, numerical, ot_precond_full_all, ot_precond_full_kinetic, &
+        do_potential_tshpsc, eri_default, gaussian, gw_no_print_exx, gw_pade_approx, gw_print_exx, &
+        gw_read_exx, gw_skip_for_regtest, gw_two_pole_model, kp_weights_W_auto, &
+        kp_weights_W_tailored, kp_weights_W_uniform, mp2_method_direct, mp2_method_gpw, &
+        mp2_method_none, numerical, ot_precond_full_all, ot_precond_full_kinetic, &
         ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
         ot_precond_s_inverse, ri_default, ri_rpa_g0w0_crossing_bisection, &
         ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_z_shot, wfc_mm_style_gemm, &
@@ -1269,18 +1269,6 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, __LOCATION__, name="REL_CUTOFFS_CHI_W", &
-         description="For periodic calculations, the irreducible density reponse chi^0(r,r') and the screened "// &
-         "Coulomb interaction W(r,r') is truncated "// &
-         "in real space. No truncation of chi^0(r,r') and W(r,r') for |r-r'| < cutoff_1*(smallest lattice vector length), "// &
-         "chi^0(r,r') is set to zero for |r-r'| > cutoff_2*(smallest lattice vector length). Smooth transition "// &
-         "in between. For cutoff_1 = 0.5, and cutoff_2 = 0.5, we have the minimum image convention (that is also default).", &
-         usage="REL_CUTOFFS_CHI cutoff_1 cutoff_2", &
-         n_var=2, type_of_var=real_t, default_r_vals=(/0.5_dp, 0.5_dp/))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
          keyword, __LOCATION__, &
          name="REGULARIZATION_RI", &
          description="Parameter to reduce the expansion coefficients in RI for periodic GW. Larger parameter "// &
@@ -1303,12 +1291,35 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, &
+         name="EPS_EIGVAL_S_GAMMA", &
+         description="Parameter to reduce the expansion coefficients in RI for periodic GW. Removes all "// &
+         "eigenvectors and eigenvalues of M_PQ(k=0) that are smaller than EPS_EIGVAL_S. ", &
+         usage="EPS_EIGVAL_S 1.0E-3", &
+         default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
          name="MAKE_CHI_POS_DEFINITE", &
          description="If true, makes eigenvalue decomposition of chi(iw,k) and removes negative "// &
          "eigenvalues. May increase computational cost significantly. Only recommended to try in case "// &
          "Cholesky decomposition of epsilon(iw,k) fails.", &
          usage="MAKE_CHI_POS_DEFINITE", &
          default_l_val=.TRUE., &
+         lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="MAKE_OVERLAP_MAT_AO_POS_DEFINITE", &
+         description="If true, makes eigenvalue decomposition of S_mu,nu(k) and removes negative "// &
+         "eigenvalues. Slightly increases computational cost. Only recommended to try in case "// &
+         "Cholesky decomposition of S_mu,nu(k) fails (error message: Cholesky decompose failed: "// &
+         "matrix is not positive definite or ill-conditioned; when calling create_kp_and_calc_kp_orbitals).", &
+         usage="MAKE_OVERLAP_MAT_AO_POS_DEFINITE", &
+         default_l_val=.FALSE., &
          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1366,22 +1377,6 @@ CONTAINS
          "the k-mesh for G. Example: factor 4, k-mesh for W: 4x4x1 -> k-mesh for G: 16x16x1 (z-dir. is "// &
          "non-periodic).", &
          default_i_val=1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      NULLIFY (keyword)
-      CALL keyword_create( &
-         keyword, __LOCATION__, &
-         name="GREENS_FUNCTION", &
-         description="Decides which scheme is used for the periodic Green's function "// &
-         "(only relevant for periodic GW calculations)."// &
-         "Both schemes are exact in the limit of large unit cells.", &
-         usage="GREENS_FUNCTION GAMMA", &
-         enum_c_vals=s2a("GAMMA", "MIC"), &
-         enum_i_vals=(/gw_gf_gamma, gw_gf_mic/), &
-         enum_desc=s2a("Use the Green's functions at the Gamma point. ", &
-                       "Use the minimum-image convention for the Green's function."), &
-         default_i_val=gw_gf_gamma)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

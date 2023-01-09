@@ -247,14 +247,16 @@ CONTAINS
                                 i_val=mp2_env%ri_rpa_im_time%kpoint_weights_W_method)
       CALL section_vals_val_get(low_scaling_section, "EXPONENT_TAILORED_WEIGHTS", &
                                 r_val=mp2_env%ri_rpa_im_time%exp_tailored_weights)
-      CALL section_vals_val_get(low_scaling_section, "REL_CUTOFFS_CHI_W", &
-                                r_vals=mp2_env%ri_rpa_im_time%rel_cutoffs_chi_W)
       CALL section_vals_val_get(low_scaling_section, "REGULARIZATION_RI", &
                                 r_val=mp2_env%ri_rpa_im_time%regularization_RI)
       CALL section_vals_val_get(low_scaling_section, "EPS_EIGVAL_S", &
                                 r_val=mp2_env%ri_rpa_im_time%eps_eigval_S)
+      CALL section_vals_val_get(low_scaling_section, "EPS_EIGVAL_S_GAMMA", &
+                                r_val=mp2_env%ri_rpa_im_time%eps_eigval_S_Gamma)
       CALL section_vals_val_get(low_scaling_section, "MAKE_CHI_POS_DEFINITE", &
                                 l_val=mp2_env%ri_rpa_im_time%make_chi_pos_definite)
+      CALL section_vals_val_get(low_scaling_section, "MAKE_OVERLAP_MAT_AO_POS_DEFINITE", &
+                                l_val=mp2_env%ri_rpa_im_time%make_overlap_mat_ao_pos_definite)
       CALL section_vals_val_get(low_scaling_section, "TRUNC_COULOMB_RI_X", &
                                 l_val=mp2_env%ri_rpa_im_time%trunc_coulomb_ri_x)
       CALL section_vals_val_get(low_scaling_section, "DO_EXTRAPOLATE_KPOINTS", &
@@ -263,8 +265,6 @@ CONTAINS
                                 r_val=mp2_env%ri_rpa_im_time%rel_cutoff_trunc_coulomb_ri_x)
       CALL section_vals_val_get(low_scaling_section, "K_MESH_G_FACTOR", &
                                 i_val=mp2_env%ri_rpa_im_time%k_mesh_g_factor)
-      CALL section_vals_val_get(low_scaling_section, "GREENS_FUNCTION", &
-                                i_val=mp2_env%ri_rpa_im_time%periodic_gf)
 
       CALL section_vals_val_get(low_scaling_section, "KEEP_QUADRATURE", &
                                 l_val=mp2_env%ri_rpa_im_time%keep_quad)

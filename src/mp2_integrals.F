@@ -145,8 +145,10 @@ CONTAINS
 !> \param qs_kind_set ...
 !> \param mo_coeff ...
 !> \param fm_matrix_PQ ...
-!> \param fm_matrix_L_RI_metric ...
-!> \param fm_matrix_Sinv_Vtrunc_Sinv ...
+!> \param fm_matrix_L_kpoints ...
+!> \param fm_matrix_Minv_L_kpoints ...
+!> \param fm_matrix_Minv ...
+!> \param fm_matrix_Minv_Vtrunc_Minv ...
 !> \param nmo ...
 !> \param homo ...
 !> \param mat_munu ...
@@ -185,7 +187,8 @@ CONTAINS
    SUBROUTINE mp2_ri_gpw_compute_in(BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, gd_array, gd_B_virtual, &
                                     dimen_RI, dimen_RI_red, qs_env, para_env, para_env_sub, color_sub, &
                                     cell, particle_set, atomic_kind_set, qs_kind_set, mo_coeff, &
-                                    fm_matrix_PQ, fm_matrix_L_RI_metric, fm_matrix_Sinv_Vtrunc_Sinv, &
+                                    fm_matrix_PQ, fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, &
+                                    fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, &
                                     nmo, homo, mat_munu, &
                                     sab_orb_sub, mo_coeff_o, mo_coeff_v, mo_coeff_all, &
                                     mo_coeff_gw, eps_filter, unit_nr, &
@@ -214,8 +217,10 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       TYPE(cp_fm_type), INTENT(OUT)                      :: fm_matrix_PQ
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_L_RI_metric, &
-                                                            fm_matrix_Sinv_Vtrunc_Sinv
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_L_kpoints, &
+                                                            fm_matrix_Minv_L_kpoints, &
+                                                            fm_matrix_Minv, &
+                                                            fm_matrix_Minv_Vtrunc_Minv
       INTEGER, INTENT(IN)                                :: nmo
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
@@ -355,7 +360,7 @@ CONTAINS
                             kpoints, my_group_L_size, my_group_L_start, my_group_L_end, &
                             gd_array, calc_PQ_cond_num .AND. .NOT. do_svd, do_svd, &
                             qs_env%mp2_env%potential_parameter, ri_metric, &
-                            fm_matrix_L_RI_metric, fm_matrix_Sinv_Vtrunc_Sinv, &
+                            fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, &
                             do_im_time, do_kpoints_from_Gamma .OR. do_kpoints_cubic_RPA, qs_env%mp2_env%mp2_gpw%eps_pgf_orb_S, &
                             qs_kind_set, sab_orb_sub, calc_forces, unit_nr)
 
@@ -382,7 +387,7 @@ CONTAINS
                WRITE (unit_nr, FMT="(T3,A,T73,A)") &
                   "RI_INFO| RI metric: ", "OVERLAP"
             CASE (do_potential_truncated)
-               WRITE (unit_nr, FMT="(T3,A,T72,A)") &
+               WRITE (unit_nr, FMT="(T3,A,T64,A)") &
                   "RI_INFO| RI metric: ", "TRUNCATED COULOMB"
                rc_ang = cp_unit_from_cp2k(ri_metric%cutoff_radius, "angstrom")
                WRITE (unit_nr, '(T3,A,T61,F20.2)') &

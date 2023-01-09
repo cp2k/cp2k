@@ -172,7 +172,7 @@ CONTAINS
 !> \param shift ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION rs_grid_locate_rank(rs_desc, rank_in, shift) RESULT(rank_out)
+   PURE FUNCTION rs_grid_locate_rank(rs_desc, rank_in, shift) RESULT(rank_out)
       TYPE(realspace_grid_desc_type), INTENT(IN)         :: rs_desc
       INTEGER, INTENT(IN)                                :: rank_in
       INTEGER, DIMENSION(3), INTENT(IN)                  :: shift
@@ -2031,6 +2031,7 @@ CONTAINS
       IF (ASSOCIATED(rs_grid%px)) DEALLOCATE (rs_grid%px)
       IF (ASSOCIATED(rs_grid%py)) DEALLOCATE (rs_grid%py)
       IF (ASSOCIATED(rs_grid%pz)) DEALLOCATE (rs_grid%pz)
+      NULLIFY (rs_grid%px, rs_grid%py, rs_grid%pz)
    END SUBROUTINE rs_grid_release
 
 ! **************************************************************************************************
@@ -2071,6 +2072,7 @@ CONTAINS
             DEALLOCATE (rs_desc)
          END IF
       END IF
+      NULLIFY (rs_desc)
    END SUBROUTINE rs_grid_release_descriptor
 
 ! **************************************************************************************************
