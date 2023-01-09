@@ -121,8 +121,8 @@ there are several freely available alternatives:
 
 CP2K assumes that the MPI library implements MPI version 3. Older
 versions of MPI (e.g., MPI 2.0) are not supported and the old flag `-D__MPI_VERSION` in
-the arch file will be ignored. CP2K makes use of the mpi_f08 module by default. Should there
-be any issues with the usage of this module, set the flag `-D__NO_MPI_F08`.
+the arch file will be ignored. CP2K can make use of the mpi_f08 module. If its use is requested,
+set the flag `-D__MPI_F08`.
 
 ### 2f. FFTW (optional, improved performance of FFTs)
 
