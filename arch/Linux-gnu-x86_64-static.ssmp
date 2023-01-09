@@ -7,7 +7,7 @@
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Author: Matthias Krack (15.12.2022)
+# Author: Matthias Krack (09.01.2023)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
