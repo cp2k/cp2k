@@ -399,12 +399,10 @@ CONTAINS
       CALL torch_dict_get(outputs, "atomic_energy", atomic_energy)
       CALL torch_dict_get(outputs, "forces", forces)
 
-      total_energy = total_energy/REAL(evolt, kind=sp)
-
-      pot_nequip = 0.0_dp
-      DO iat = 1, SIZE(atomic_energy(1,:))
-         pot_nequip = pot_nequip + REAL(atomic_energy(1,iat), kind=dp)/evolt
-      END DO
+      pot_nequip = REAL(total_energy(1, 1), kind=dp)/evolt
+      total_energy = total_energy(1, 1)/REAL(evolt, kind=sp)
+      WRITE(*, *) "pot_nequip ", pot_nequip
+!      WRITE(*, *) "total_energy ", total_energy
 
       CALL torch_dict_release(inputs)
       CALL torch_dict_release(outputs)

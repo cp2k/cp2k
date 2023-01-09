@@ -24,16 +24,8 @@
     &FORCEFIELD
 !      IGNORE_MISSING_CRITICAL_PARAMS TRUE
       &NONBONDED
-     &NEQUIP
-        ATOMS H H
-        PARM_FILE_NAME ./water.pth
-      &END NEQUIP
       &NEQUIP
         ATOMS H O
-        PARM_FILE_NAME ./water.pth
-      &END NEQUIP
-      &NEQUIP
-        ATOMS O O
         PARM_FILE_NAME ./water.pth
       &END NEQUIP
       &END NONBONDED

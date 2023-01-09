@@ -110,6 +110,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: min_eps_spline_allowed
       TYPE(input_info_type), POINTER                     :: inp_info
       TYPE(section_vals_type), POINTER                   :: tmp_section, tmp_section2
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: atm_names
 
       INTEGER::i
 
@@ -287,6 +289,9 @@ CONTAINS
          ntot = nlj + nwl + neam + ngd + nipbv + nbmhft + nbmhftd + nb4 + nbm + ngp + ntersoff + ngal + ngal21 + nsiepmann + &
                nquip
          IF (explicit) THEN
+            ! avoid repeating the nequip section for each pair
+            CALL section_vals_val_get(tmp_section2, "ATOMS", c_vals=atm_names)
+            nnequip = nnequip -1 + SIZE(atm_names) + (SIZE(atm_names)*SIZE(atm_names) - SIZE(atm_names))/2
             CALL pair_potential_reallocate(inp_info%nonbonded, 1, ntot + nnequip, nequip=.TRUE.)
             CALL read_nequip_section(inp_info%nonbonded, tmp_section2, ntot)
          END IF
@@ -698,22 +703,46 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: atm_names     
       INTEGER                                            :: isec, n_items     
+      INTEGER                                            :: jsec
       CHARACTER(LEN=default_string_length)               :: nequip_file_name
 
-      CALL section_vals_get(section, n_repetition=n_items)
-      DO isec = 1, n_items
-         CALL section_vals_val_get(section, "ATOMS", i_rep_section=isec, c_vals=atm_names)
+!      CALL section_vals_get(section, n_repetition=n_items)
+!      WRITE(*, *) "read_nequip_section n_items", n_items
+!      DO isec = 1, n_items
+!         CALL section_vals_val_get(section, "ATOMS", i_rep_section=isec, c_vals=atm_names)
+!
+!         nonbonded%pot(start + isec)%pot%type = nequip_type
+!         nonbonded%pot(start + isec)%pot%at1 = atm_names(1)
+!         nonbonded%pot(start + isec)%pot%at2 = atm_names(2)
+!         CALL uppercase(nonbonded%pot(start + isec)%pot%at1)
+!         CALL uppercase(nonbonded%pot(start + isec)%pot%at2)         
+!         CALL section_vals_val_get(section, "PARM_FILE_NAME", i_rep_section=isec, c_val = nequip_file_name)
+!         nonbonded%pot(start + isec)%pot%set(1)%nequip%nequip_file_name =nequip_file_name
+!         CALL read_nequip_data(nonbonded%pot(start + isec)%pot%set(1)%nequip)
+!         nonbonded%pot(start + isec)%pot%rcutsq = nonbonded%pot(start + isec)%pot%set(1)%nequip%rcutsq
+!      END DO
 
-         nonbonded%pot(start + isec)%pot%type = nequip_type
-         nonbonded%pot(start + isec)%pot%at1 = atm_names(1)
-         nonbonded%pot(start + isec)%pot%at2 = atm_names(2)
-         CALL uppercase(nonbonded%pot(start + isec)%pot%at1)
-         CALL uppercase(nonbonded%pot(start + isec)%pot%at2)         
-         CALL section_vals_val_get(section, "PARM_FILE_NAME", i_rep_section=isec, c_val = nequip_file_name)
-         nonbonded%pot(start + isec)%pot%set(1)%nequip%nequip_file_name =nequip_file_name
-         CALL read_nequip_data(nonbonded%pot(start + isec)%pot%set(1)%nequip)
-         nonbonded%pot(start + isec)%pot%rcutsq = nonbonded%pot(start + isec)%pot%set(1)%nequip%rcutsq
+!      CALL section_vals_get(section, n_repetition=n_items)
+      n_items = 1
+      isec = 1
+      n_items = isec *n_items
+      CALL section_vals_val_get(section, "ATOMS", c_vals=atm_names)
+      CALL section_vals_val_get(section, "PARM_FILE_NAME", c_val = nequip_file_name)
+
+      DO isec = 1, SIZE(atm_names)
+      DO jsec = isec, SIZE(atm_names)
+      nonbonded%pot(start + n_items)%pot%type = nequip_type
+      nonbonded%pot(start + n_items)%pot%at1 = atm_names(isec)
+      nonbonded%pot(start + n_items)%pot%at2 = atm_names(jsec)
+      CALL uppercase(nonbonded%pot(start + n_items)%pot%at1)
+      CALL uppercase(nonbonded%pot(start + n_items)%pot%at2)         
+      nonbonded%pot(start + n_items)%pot%set(1)%nequip%nequip_file_name =nequip_file_name
+      CALL read_nequip_data(nonbonded%pot(start + n_items)%pot%set(1)%nequip)
+      nonbonded%pot(start + n_items)%pot%rcutsq = nonbonded%pot(start + n_items)%pot%set(1)%nequip%rcutsq
+      n_items = n_items + 1
       END DO
+      END DO
+
    END SUBROUTINE read_nequip_section
 
 ! **************************************************************************************************
@@ -2288,7 +2317,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief reads NequIP potential from .pth file
-!> \param eam ...
+!> \param nequip ...
 !> \param mm_section ...
 ! **************************************************************************************************
    SUBROUTINE read_nequip_data(nequip)

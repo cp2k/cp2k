@@ -1718,7 +1718,7 @@ CONTAINS
 !> \author Teodoro Laino [teo] 11.2005
 ! **************************************************************************************************
    SUBROUTINE pair_potential_nequip_create(nequip)
-      TYPE(nequip_pot_type), POINTER                       :: nequip
+      TYPE(nequip_pot_type), POINTER                     :: nequip
 
       CPASSERT(.NOT. ASSOCIATED(nequip))
       ALLOCATE (nequip)
@@ -1732,7 +1732,7 @@ CONTAINS
 !> \author Teodoro Laino [teo] 11.2005
 ! **************************************************************************************************
    SUBROUTINE pair_potential_nequip_copy(nequip_source, nequip_dest)
-      TYPE(nequip_pot_type), POINTER                       :: nequip_source, nequip_dest
+      TYPE(nequip_pot_type), POINTER                     :: nequip_source, nequip_dest
 
       IF (.NOT. ASSOCIATED(nequip_source)) RETURN
       IF (ASSOCIATED(nequip_dest)) CALL pair_potential_nequip_release(nequip_dest)
@@ -1749,7 +1749,7 @@ CONTAINS
 !> \author Teodoro Laino [teo] 11.2005
 ! **************************************************************************************************
    SUBROUTINE pair_potential_nequip_clean(nequip)
-      TYPE(nequip_pot_type), POINTER                       :: nequip
+      TYPE(nequip_pot_type), POINTER                     :: nequip
 
       IF (.NOT. ASSOCIATED(nequip)) RETURN
       nequip%nequip_file_name = 'NULL'
@@ -1763,7 +1763,7 @@ CONTAINS
 !> \author Teodoro Laino [teo] 11.2005
 ! **************************************************************************************************
    SUBROUTINE pair_potential_nequip_release(nequip)
-      TYPE(nequip_pot_type), POINTER                       :: nequip
+      TYPE(nequip_pot_type), POINTER                     :: nequip
 
       IF (ASSOCIATED(nequip)) THEN
          DEALLOCATE (nequip)

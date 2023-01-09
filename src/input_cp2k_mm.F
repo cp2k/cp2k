@@ -1472,16 +1472,15 @@ CONTAINS
                           "to achieve correlated-wavefunction-like accuracy. "// &
                           "Requires linking with libtorch library from <a href=""https://pytorch.org/cppdocs/installing.html"" "// &
                           "target=""_blank"">https://pytorch.org/cppdocs/installing.html</a> .", &
-                          citations=(/Batzner2022/), n_keywords=1, n_subsections=0, repeats=.TRUE.)
+                          citations=(/Batzner2022/), n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Defines the atomic kinds involved in the NEQUIP potential. "// &
-                          "Set IGNORE_MISSING_CRITICAL_PARAMS to T "// &
-                          "in enclosing &FORCEFIELD section to avoid having to list every pair of elements separately.", &
-                          usage="ATOMS {KIND1} {KIND2}", type_of_var=char_t, &
-                          n_var=2)
+                          "Provide a list of each element.", &
+                          usage="ATOMS {KIND 1} {KIND 2} .. {KIND N}", type_of_var=char_t, &
+                          n_var=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
