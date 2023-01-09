@@ -235,13 +235,11 @@ CONTAINS
       REAL(kind=dp)                                      :: lattice(3, 3), rij(3), drij, rab2_max
       TYPE(pos_type), DIMENSION(:), POINTER              :: r_last_update_pbc
       INTEGER(kind=int_8), DIMENSION(:, :), ALLOCATABLE  :: edge_index, temp_edge_index, &
-                                                            t_edge_index, t_temp_edge_index
+                                                            t_edge_index
       REAL(kind=sp), DIMENSION(:, :), ALLOCATABLE        :: edge_cell_shifts, temp_edge_cell_shifts
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: edge_count, edge_count_cell, &
                                                             displ, displ_cell
-      ! Torch objects.
       TYPE(torch_dict_type)                              :: inputs, outputs
-      ! Outputs.
       REAL(sp), DIMENSION(:, :), POINTER                 :: total_energy, atomic_energy, forces
       REAL(kind=dp)                                      :: pot_nequip
       TYPE(nequip_data_type), POINTER                    :: nequip_data
@@ -276,9 +274,8 @@ CONTAINS
 
       lattice = cell%hmat*angstrom
       nedges = 0
-      ALLOCATE (edge_index(SIZE(glob_loc_list_a),2))
+      ALLOCATE (edge_index(2,SIZE(glob_loc_list_a)))
       ALLOCATE (edge_cell_shifts(3,SIZE(glob_loc_list_a)))
-      WRITE(*, *) "size edge_index para_env%mepos", SHAPE(edge_index), para_env%mepos
       DO ilist = 1, nonbonded%nlists
          neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
          npairs = neighbor_kind_pair%npairs
@@ -336,10 +333,9 @@ CONTAINS
                         rij(:) = r_last_update_pbc(atom_b)%r(:) - r_last_update_pbc(atom_a)%r(:) + cell_v
                         drij = DOT_PRODUCT(rij, rij)
                         ipair = ipair + 1
-                        !WRITE(*, *) "manybody_nequip para_env%mepos atom_a atom_b", para_env%mepos, atom_a, atom_b
                         IF (drij <= rab2_max) THEN
                            nedges = nedges + 1
-                           edge_index(nedges, :) = [atom_a - 1, atom_b - 1]
+                           edge_index(:, nedges) = [atom_a - 1, atom_b - 1]
                            edge_cell_shifts(:, nedges) = REAL(cvi, kind=sp) 
                         END IF
                      END DO
@@ -352,42 +348,21 @@ CONTAINS
          END DO Kind_Group_Loop_Nequip
       END DO
 
-      ALLOCATE (temp_edge_index(nedges,2))
-      temp_edge_index = edge_index(:nedges, :)
-      DO ipair = 1, nedges
-          WRITE(*,*) "edge index before:",para_env%mepos, temp_edge_index(ipair, :)
-      END DO
+      ALLOCATE (temp_edge_index(2, nedges))
+      temp_edge_index = edge_index(:, :nedges)
       DEALLOCATE (edge_index)
       ALLOCATE (temp_edge_cell_shifts(3, nedges))
       temp_edge_cell_shifts = edge_cell_shifts(:,:nedges)
       DEALLOCATE (edge_cell_shifts)
-
-!      nedges_tot = nedges
-!      CALL mp_sum(nedges_tot, para_env%group)
-!      WRITE(*, *) "para_env%mepos, nedges_tot ", para_env%mepos, nedges_tot
-      
-!      ALLOCATE (nedges_arr(2*para_env%num_pe))
-!      ALLOCATE (nedges_temp(para_env%num_pe))
       ALLOCATE (edge_count(para_env%num_pe))
       ALLOCATE (edge_count_cell(para_env%num_pe))
       ALLOCATE (displ_cell(para_env%num_pe))
-
       ALLOCATE (displ(para_env%num_pe))
-!      edge_count(:) = SIZE(nedges_temp)
-!      displ(1) = 0
-!      DO ipair = 2, para_env%num_pe
-!          displ(ipair) = displ(ipair - 1) + edge_count(ipair - 1)
-!      END DO
-!      nedges_temp(:) = [para_env%mepos, para_env%mepos + 1]
-!      WRITE(*, *) "nedges_temp", nedges_temp
-!      CALL mp_allgather(nedges_temp, nedges_arr, edge_count, displ, para_env%group)
-!      WRITE(*, *) "nedges_arr", nedges_arr
 
       CALL mp_allgather(nedges, edge_count, para_env%group)
-WRITE(*,*) "Own nedges", para_env%mepos, nedges
       nedges_tot = SUM(edge_count)
 
-      ALLOCATE (edge_index(nedges_tot,2))
+      ALLOCATE (edge_index(2, nedges_tot))
       ALLOCATE (edge_cell_shifts(3, nedges_tot))
 
       edge_count_cell = edge_count*3
@@ -397,82 +372,44 @@ WRITE(*,*) "Own nedges", para_env%mepos, nedges
       DO ipair = 2, para_env%num_pe
           displ(ipair) = displ(ipair - 1) + edge_count(ipair - 1)
           displ_cell(ipair) = displ_cell(ipair - 1) + edge_count_cell(ipair - 1)
-!          WRITE(*, *) "displ:", displ(ipair)
       END DO
-IF (para_env%mepos==0) WRITE(*,*) "displ_cell", displ_cell
 
-      WRITE(*, *) "mpi before edge_cell_shifts", para_env%mepos
-      
       CALL mp_allgather(temp_edge_cell_shifts, edge_cell_shifts, edge_count_cell, displ_cell ,para_env%group)
-      WRITE(*, *) "mpi after edge_cell_shifts", para_env%mepos
-      
-      ALLOCATE(t_temp_edge_index(2, nedges))
-      ALLOCATE(t_edge_index(2, nedges_tot))
-      t_temp_edge_index = TRANSPOSE(temp_edge_index)
-      WRITE(*, *) "mpi before edge_index"
-      CALL mp_allgather(t_temp_edge_index, t_edge_index, edge_count, displ, para_env%group)
-!      CALL mp_allgather(t_temp_edge_index, t_edge_index, edge_count, displ, para_env%group)
-!      CALL mp_allgather(t_temp_edge_index, t_edge_index, edge_count, displ, para_env%group)
 
-      edge_index = TRANSPOSE(t_edge_index)
-!      CALL mp_allgather(temp_edge_index(:, 1), edge_index(:, 1), edge_count, displ, para_env%group)
-!      CALL mp_allgather(temp_edge_index(:, 2), edge_index(:, 2), edge_count, displ, para_env%group)
-      WRITE(*, *) "mpi after edge_index"
-!      CALL mp_allgather(temp_edge_cell_shifts, edge_cell_shifts, para_env%group)
-
-      WRITE(*, *) "SHAPE(edge_index)", SHAPE(edge_index)
-      WRITE(*, *) "SHAPE(edge_index)", SHAPE(edge_cell_shifts) 
-      DO ipair = 1, nedges_tot
-          WRITE(*,*) "edge index after:",para_env%mepos, edge_index(ipair, :)
-      END DO
-
-      DO ipair = 1, nedges_tot
-         WRITE(*,*) edge_cell_shifts(:,ipair), para_env%mepos
-      END DO
-
-!      DO ipair = 1, nedges
-!         WRITE(*,*) new_edge_cell_shifts(:,ipair), new_edge_index(ipair,:)+1
-!      END DO
-
-!      WRITE(*, *) "manybody_nequip para_env%mepos nedges ", para_env%mepos, nedges
+      ALLOCATE(t_edge_index(nedges_tot, 2))
+      CALL mp_allgather(temp_edge_index, edge_index, edge_count, displ, para_env%group)
+      t_edge_index = TRANSPOSE(edge_index)
+      DEALLOCATE(temp_edge_index, temp_edge_cell_shifts, edge_index)
 
       CALL torch_dict_create(inputs)
       DO iat = 1, n_atoms
          pos(:, iat) = REAL(r_last_update_pbc(iat)%r(:)*angstrom, kind=sp)
       END DO
       CALL torch_dict_insert(inputs, "pos", pos)
-      CALL torch_dict_insert(inputs, "edge_index", edge_index)
+      CALL torch_dict_insert(inputs, "edge_index", t_edge_index)
       CALL torch_dict_insert(inputs, "edge_cell_shift", edge_cell_shifts)
       CALL torch_dict_insert(inputs, "cell", REAL(lattice, kind=sp))
       CALL torch_dict_insert(inputs, "atom_types", atom_types)
    
       CALL torch_dict_create(outputs)
 
-      WRITE(*, *) "before torch_model_eval"
       CALL torch_model_eval(pot%set(1)%nequip%model, inputs, outputs)
    
-      WRITE(*, *) "para_env%mepos nedges ", para_env%mepos, nedges_tot
       CALL torch_dict_get(outputs, "total_energy", total_energy)
-      WRITE(*, *) "para_env%mepos Total energy: ", para_env%mepos, total_energy
       CALL torch_dict_get(outputs, "atomic_energy", atomic_energy)
       CALL torch_dict_get(outputs, "forces", forces)
 
       total_energy = total_energy/REAL(evolt, kind=sp)
-!      pot_nequip = REAL(total_energy(1, 1), kind=dp)/evolt
 
-      WRITE(*, *) "Atomic energy"
-      WRITE(*, *) atomic_energy
       pot_nequip = 0.0_dp
-      WRITE(*, *) "atomic_energy SHAPE ", SHAPE(atomic_energy)
       DO iat = 1, SIZE(atomic_energy(1,:))
-         WRITE(*, *) "pos(:,iat) ", pos(:,iat), iat
          pot_nequip = pot_nequip + REAL(atomic_energy(1,iat), kind=dp)/evolt
       END DO
 
       CALL torch_dict_release(inputs)
       CALL torch_dict_release(outputs)
 
-      DEALLOCATE(pos, edge_index, edge_cell_shifts, atom_types, total_energy, atomic_energy)
+      DEALLOCATE(pos, t_edge_index, edge_cell_shifts, atom_types, total_energy, atomic_energy)
 
 !      IF (PRESENT(para_env)) virial = virial/REAL(para_env%num_pe, dp)
       ! get nequip_data to save force, virial info

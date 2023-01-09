@@ -291,7 +291,6 @@ CONTAINS
          CALL density_nonbond(fist_nonbond_env, particle_set, cell, para_env)
 
          ! Compute embedding function and manybody energy
-         WRITE(*, *) "fist_force calling energy_manybody para_env%mepos ", para_env%mepos
          CALL energy_manybody(fist_nonbond_env, atomic_kind_set, local_particles, particle_set, &
                               cell, pot_manybody, para_env, mm_section)
 
@@ -586,9 +585,7 @@ CONTAINS
       ! add up all the potential energies
       thermo%pot = pot_nonbond + pot_bond + pot_bend + pot_torsion + pot_opbend + &
                    pot_imptors + pot_urey_bradley + pot_manybody + pot_shell
-      WRITE(*, *) "Check fist_force para_env%mepos pot_manybody ", para_env%mepos, pot_manybody
       CALL mp_sum(thermo%pot, para_env%group)
-      WRITE(*, *) "Check fist_force para_env%mepos thermo%pot ", para_env%mepos, thermo%pot      
 
       IF (shell_present) THEN
          thermo%harm_shell = pot_shell

@@ -288,7 +288,6 @@ CONTAINS
                nquip
          IF (explicit) THEN
             CALL pair_potential_reallocate(inp_info%nonbonded, 1, ntot + nnequip, nequip=.TRUE.)
-            WRITE(*, *) "Entering read_nequip_section"
             CALL read_nequip_section(inp_info%nonbonded, tmp_section2, ntot)
          END IF
 
@@ -713,7 +712,6 @@ CONTAINS
          CALL section_vals_val_get(section, "PARM_FILE_NAME", i_rep_section=isec, c_val = nequip_file_name)
          nonbonded%pot(start + isec)%pot%set(1)%nequip%nequip_file_name =nequip_file_name
          CALL read_nequip_data(nonbonded%pot(start + isec)%pot%set(1)%nequip)
-         WRITE(*, *) "NequIP cutoff ",  nonbonded%pot(start + isec)%pot%set(1)%nequip%rcutsq
          nonbonded%pot(start + isec)%pot%rcutsq = nonbonded%pot(start + isec)%pot%set(1)%nequip%rcutsq
       END DO
    END SUBROUTINE read_nequip_section
@@ -2298,10 +2296,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'read_nequip_data'
       CHARACTER(LEN=default_path_length)                 :: cutoff_str
 
-      WRITE (*, *) "Reading NequIP data from: ", TRIM(nequip%nequip_file_name)
       CALL torch_model_load(nequip%model,nequip%nequip_file_name)
       nequip%nequip_version = torch_model_read_metadata(nequip%nequip_file_name, "nequip_version")
-      WRITE (*, *) "NequIP version: ", TRIM(nequip%nequip_version)
       cutoff_str = torch_model_read_metadata(nequip%nequip_file_name, "r_max")
       READ (cutoff_str, *) nequip%rcutsq
       nequip%rcutsq = cp_unit_to_cp2k(nequip%rcutsq, "angstrom")

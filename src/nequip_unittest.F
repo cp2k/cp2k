@@ -189,8 +189,6 @@ PROGRAM nequip_unittest
    DO iatom = 1, natoms
       WRITE(*, *) forces(:, iatom)*angstrom/evolt
    END DO
-   WRITE(*, *) "ATOMIC ENERGY"
-   WRITE(*, *) atomic_energy
    CPASSERT(ABS(-14985.615_dp - REAL(total_energy(1, 1), kind=dp)) < 2e-3_dp)
 
    CALL torch_dict_release(inputs)
