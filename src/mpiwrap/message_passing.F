@@ -32,7 +32,7 @@ MODULE message_passing
 
 ! To simplify the transition between the old MPI module and the F08-style module, we introduce these constants to switch between the required handle types
 ! Unfortunately, Fortran does not offer something like typedef in C++
-#if defined(__parallel) && !defined(__NO_MPI_F08)
+#if defined(__parallel) && defined(__MPI_F08)
 #define MPI_DATA_TYPE TYPE(MPI_Datatype)
 #define MPI_COMM_TYPE TYPE(MPI_Comm)
 #define MPI_REQUEST_TYPE TYPE(MPI_Request)
@@ -55,10 +55,10 @@ MODULE message_passing
 #endif
 
 #if defined(__parallel)
-#if defined(__NO_MPI_F08)
-   USE mpi
-#else
+#if defined(__MPI_F08)
    USE mpi_f08
+#else
+   USE mpi
 #endif
 ! subroutines: unfortunately, mpi implementations do not provide interfaces for all subroutines (problems with types and ranks explosion),
 !              we do not quite know what is in the module, so we can not include any....
@@ -825,7 +825,7 @@ CONTAINS
          CLASS(mp_${type}$_type), INTENT(INOUT) :: this
          INTEGER, INTENT(IN) :: handle
 
-#if defined(__parallel) && !defined(__NO_MPI_F08)
+#if defined(__parallel) && defined(__MPI_F08)
          this%handle%mpi_val = handle
 #else
          this%handle = handle
@@ -836,7 +836,7 @@ CONTAINS
          CLASS(mp_${type}$_type), INTENT(IN) :: this
          INTEGER :: handle
 
-#if defined(__parallel) && !defined(__NO_MPI_F08)
+#if defined(__parallel) && defined(__MPI_F08)
          handle = this%handle%mpi_val
 #else
          handle = this%handle
@@ -1791,7 +1791,7 @@ CONTAINS
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
       INTEGER                                  :: count
-#if defined(__NO_MPI_F08)
+#if !defined(__MPI_F08)
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: status
 #else
       TYPE(MPI_Status), ALLOCATABLE, DIMENSION(:)    :: status
@@ -1803,7 +1803,7 @@ CONTAINS
 
 #if defined(__parallel)
       count = SIZE(requests)
-#if defined(__NO_MPI_F08)
+#if !defined(__MPI_F08)
       ALLOCATE (status(MPI_STATUS_SIZE, count))
 #else
       ALLOCATE (status(count))
@@ -1833,7 +1833,7 @@ CONTAINS
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
       INTEGER                                  :: count
-#if defined(__NO_MPI_F08)
+#if !defined(__MPI_F08)
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: status
 #else
       TYPE(MPI_Status), ALLOCATABLE, DIMENSION(:)    :: status
@@ -1845,7 +1845,7 @@ CONTAINS
 
 #if defined(__parallel)
       count = SIZE(requests)
-#if defined(__NO_MPI_F08)
+#if !defined(__MPI_F08)
       ALLOCATE (status(MPI_STATUS_SIZE, count))
 #else
       ALLOCATE (status(count))
@@ -1875,7 +1875,7 @@ CONTAINS
    SUBROUTINE mpi_waitall_internal(count, array_of_requests, array_of_statuses, ierr)
       INTEGER, INTENT(in)                                :: count
       TYPE(mp_request_type), DIMENSION(count), INTENT(inout)           :: array_of_requests
-#if defined(__NO_MPI_F08)
+#if !defined(__MPI_F08)
       INTEGER, DIMENSION(MPI_STATUS_SIZE, count), &
          INTENT(out)                                     :: array_of_statuses
 #else
@@ -4033,7 +4033,7 @@ CONTAINS
       IF (ierr /= 0) &
          CPABORT("MPI_Type_free @ "//routineN)
 #endif
-#if defined(__parallel) && !defined(__NO_MPI_F08)
+#if defined(__parallel) && defined(__MPI_F08)
       type_descriptor%type_handle%mpi_val = -1
 #else
       type_descriptor%type_handle = -1

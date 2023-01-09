@@ -116,8 +116,8 @@ CONTAINS
 #if defined(__parallel)
       flags = TRIM(flags)//" parallel"
 #endif
-#if defined(__NO_MPI_F08)
-      flags = TRIM(flags)//" no_mpi_f08"
+#if defined(__MPI_F08)
+      flags = TRIM(flags)//" mpi_f08"
 #endif
 #if defined(__SCALAPACK)
       flags = TRIM(flags)//" scalapack"
