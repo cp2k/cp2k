@@ -163,13 +163,14 @@ MODULE message_passing
       PROCEDURE, PASS :: set_handle => mp_comm_type_set_handle
       PROCEDURE, PASS :: get_handle => mp_comm_type_get_handle
       ! Comparisons
-      PROCEDURE, PRIVATE, PASS :: mp_comm_op_eq
-      PROCEDURE, PRIVATE, PASS :: mp_comm_op_neq
+      PROCEDURE, PRIVATE, PASS, NON_OVERRIDABLE :: mp_comm_op_eq
+      PROCEDURE, PRIVATE, PASS, NON_OVERRIDABLE :: mp_comm_op_neq
       GENERIC, PUBLIC :: operator(.EQ.) => mp_comm_op_eq
       GENERIC, PUBLIC :: operator(.NE.) => mp_comm_op_neq
       ! Communication routines
 
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_sendrecv_iv, mp_sendrecv_im2, mp_sendrecv_im3, mp_sendrecv_im4, &
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: &
+         mp_sendrecv_iv, mp_sendrecv_im2, mp_sendrecv_im3, mp_sendrecv_im4, &
          mp_sendrecv_lv, mp_sendrecv_lm2, mp_sendrecv_lm3, mp_sendrecv_lm4, &
          mp_sendrecv_rv, mp_sendrecv_rm2, mp_sendrecv_rm3, mp_sendrecv_rm4, &
          mp_sendrecv_dv, mp_sendrecv_dm2, mp_sendrecv_dm3, mp_sendrecv_dm4, &
@@ -182,17 +183,17 @@ MODULE message_passing
          mp_sendrecv_cv, mp_sendrecv_cm2, mp_sendrecv_cm3, mp_sendrecv_cm4, &
          mp_sendrecv_zv, mp_sendrecv_zm2, mp_sendrecv_zm3, mp_sendrecv_zm4
 
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_minloc_iv, &
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_minloc_iv, &
          mp_minloc_lv, mp_minloc_rv, mp_minloc_dv
       GENERIC, PUBLIC :: minloc => mp_minloc_iv, &
          mp_minloc_lv, mp_minloc_rv, mp_minloc_dv
 
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_maxloc_iv, &
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_maxloc_iv, &
          mp_maxloc_lv, mp_maxloc_rv, mp_maxloc_dv
       GENERIC, PUBLIC :: maxloc => mp_maxloc_iv, &
          mp_maxloc_lv, mp_maxloc_rv, mp_maxloc_dv
 
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_shift_im, mp_shift_i, &
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_shift_im, mp_shift_i, &
          mp_shift_lm, mp_shift_l, mp_shift_rm, mp_shift_r, &
          mp_shift_dm, mp_shift_d, mp_shift_cm, mp_shift_c, &
          mp_shift_zm, mp_shift_z
@@ -201,7 +202,7 @@ MODULE message_passing
          mp_shift_dm, mp_shift_d, mp_shift_cm, mp_shift_c, &
          mp_shift_zm, mp_shift_z
 
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_bcast_i, mp_bcast_iv, mp_bcast_im, mp_bcast_i3, &
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_bcast_i, mp_bcast_iv, mp_bcast_im, mp_bcast_i3, &
          mp_bcast_l, mp_bcast_lv, mp_bcast_lm, mp_bcast_l3, &
          mp_bcast_r, mp_bcast_rv, mp_bcast_rm, mp_bcast_r3, &
          mp_bcast_d, mp_bcast_dv, mp_bcast_dm, mp_bcast_d3, &
@@ -216,7 +217,7 @@ MODULE message_passing
          mp_bcast_z, mp_bcast_zv, mp_bcast_zm, mp_bcast_z3, &
          mp_bcast_b, mp_bcast_bv, mp_bcast_av, mp_bcast_am
 
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_ibcast_i, mp_ibcast_iv, &
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_ibcast_i, mp_ibcast_iv, &
          mp_ibcast_l, mp_ibcast_lv, mp_ibcast_r, mp_ibcast_rv, &
          mp_ibcast_d, mp_ibcast_dv, mp_ibcast_c, mp_ibcast_cv, &
          mp_ibcast_z, mp_ibcast_zv
@@ -225,7 +226,8 @@ MODULE message_passing
          mp_ibcast_d, mp_ibcast_dv, mp_ibcast_c, mp_ibcast_cv, &
          mp_ibcast_z, mp_ibcast_zv
 
-      PROCEDURE, PRIVATE, PASS(comm) ::  mp_sum_i, mp_sum_iv, mp_sum_im, mp_sum_im3, mp_sum_im4, &
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: &
+         mp_sum_i, mp_sum_iv, mp_sum_im, mp_sum_im3, mp_sum_im4, &
          mp_sum_l, mp_sum_lv, mp_sum_lm, mp_sum_lm3, mp_sum_lm4, &
          mp_sum_r, mp_sum_rv, mp_sum_rm, mp_sum_rm3, mp_sum_rm4, &
          mp_sum_d, mp_sum_dv, mp_sum_dm, mp_sum_dm3, mp_sum_dm4, &
@@ -246,21 +248,21 @@ MODULE message_passing
          mp_sum_root_cv, mp_sum_root_cm, mp_sum_root_zv, mp_sum_root_zm, &
          mp_sum_b, mp_sum_bv
 
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_isum_iv, &
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_isum_iv, &
          mp_isum_lv, mp_isum_rv, mp_isum_dv, mp_isum_cv, &
          mp_isum_zv, mp_isum_bv
       GENERIC, PUBLIC :: isum => mp_isum_iv, &
          mp_isum_lv, mp_isum_rv, mp_isum_dv, mp_isum_cv, &
          mp_isum_zv, mp_isum_bv
 
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_sum_partial_im, &
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_sum_partial_im, &
          mp_sum_partial_lm, mp_sum_partial_rm, mp_sum_partial_dm, &
          mp_sum_partial_cm, mp_sum_partial_zm
       GENERIC, PUBLIC :: sum_partial => mp_sum_partial_im, &
          mp_sum_partial_lm, mp_sum_partial_rm, mp_sum_partial_dm, &
          mp_sum_partial_cm, mp_sum_partial_zm
 
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_max_i, mp_max_iv, &
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_max_i, mp_max_iv, &
          mp_max_l, mp_max_lv, mp_max_r, mp_max_rv, &
          mp_max_d, mp_max_dv, mp_max_c, mp_max_cv, &
          mp_max_z, mp_max_zv
@@ -269,7 +271,7 @@ MODULE message_passing
          mp_max_d, mp_max_dv, mp_max_c, mp_max_cv, &
          mp_max_z, mp_max_zv
 
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_min_i, mp_min_iv, &
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_min_i, mp_min_iv, &
          mp_min_l, mp_min_lv, mp_min_r, mp_min_rv, &
          mp_min_d, mp_min_dv, mp_min_c, mp_min_cv, &
          mp_min_z, mp_min_zv
@@ -278,10 +280,10 @@ MODULE message_passing
          mp_min_d, mp_min_dv, mp_min_c, mp_min_cv, &
          mp_min_z, mp_min_zv
 
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_prod_r, mp_prod_d, mp_prod_c, mp_prod_z
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_prod_r, mp_prod_d, mp_prod_c, mp_prod_z
       GENERIC, PUBLIC :: prod => mp_prod_r, mp_prod_d, mp_prod_c, mp_prod_z
 
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_gather_i, mp_gather_iv, mp_gather_im, &
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_gather_i, mp_gather_iv, mp_gather_im, &
          mp_gather_l, mp_gather_lv, mp_gather_lm, &
          mp_gather_r, mp_gather_rv, mp_gather_rm, &
          mp_gather_d, mp_gather_dv, mp_gather_dm, &
@@ -294,7 +296,7 @@ MODULE message_passing
          mp_gather_c, mp_gather_cv, mp_gather_cm, &
          mp_gather_z, mp_gather_zv, mp_gather_zm
 
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_gatherv_iv, &
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_gatherv_iv, &
          mp_gatherv_lv, mp_gatherv_rv, mp_gatherv_dv, &
          mp_gatherv_cv, mp_gatherv_zv, mp_gatherv_lm2, mp_gatherv_rm2, &
          mp_gatherv_dm2, mp_gatherv_cm2, mp_gatherv_zm2
@@ -303,14 +305,14 @@ MODULE message_passing
          mp_gatherv_cv, mp_gatherv_zv, mp_gatherv_lm2, mp_gatherv_rm2, &
          mp_gatherv_dm2, mp_gatherv_cm2, mp_gatherv_zm2
 
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_igatherv_iv, &
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_igatherv_iv, &
          mp_igatherv_lv, mp_igatherv_rv, mp_igatherv_dv, &
          mp_igatherv_cv, mp_igatherv_zv
       GENERIC, PUBLIC :: igatherv => mp_igatherv_iv, &
          mp_igatherv_lv, mp_igatherv_rv, mp_igatherv_dv, &
          mp_igatherv_cv, mp_igatherv_zv
 
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_allgather_i, mp_allgather_i2, &
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_allgather_i, mp_allgather_i2, &
          mp_allgather_i12, mp_allgather_i23, mp_allgather_i34, &
          mp_allgather_i22, mp_allgather_l, mp_allgather_l2, &
          mp_allgather_l12, mp_allgather_l23, mp_allgather_l34, &
@@ -346,7 +348,7 @@ MODULE message_passing
          mp_allgatherv_im2, mp_allgatherv_lm2, mp_allgatherv_rm2, &
          mp_allgatherv_dm2, mp_allgatherv_cm2, mp_allgatherv_zm2
 
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_iallgather_i, mp_iallgather_l, &
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_iallgather_i, mp_iallgather_l, &
          mp_iallgather_r, mp_iallgather_d, mp_iallgather_c, mp_iallgather_z, &
          mp_iallgather_i11, mp_iallgather_l11, mp_iallgather_r11, mp_iallgather_d11, &
          mp_iallgather_c11, mp_iallgather_z11, mp_iallgather_i13, mp_iallgather_l13, &
@@ -367,7 +369,7 @@ MODULE message_passing
          mp_iallgather_i33, mp_iallgather_l33, mp_iallgather_r33, mp_iallgather_d33, &
          mp_iallgather_c33, mp_iallgather_z33
 
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_iallgatherv_iv, mp_iallgatherv_iv2, &
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_iallgatherv_iv, mp_iallgatherv_iv2, &
          mp_iallgatherv_lv, mp_iallgatherv_lv2, mp_iallgatherv_rv, mp_iallgatherv_rv2, &
          mp_iallgatherv_dv, mp_iallgatherv_dv2, mp_iallgatherv_cv, mp_iallgatherv_cv2, &
          mp_iallgatherv_zv, mp_iallgatherv_zv2
@@ -376,12 +378,12 @@ MODULE message_passing
          mp_iallgatherv_dv, mp_iallgatherv_dv2, mp_iallgatherv_cv, mp_iallgatherv_cv2, &
          mp_iallgatherv_zv, mp_iallgatherv_zv2
 
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_scatter_iv, mp_scatter_lv, &
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_scatter_iv, mp_scatter_lv, &
          mp_scatter_rv, mp_scatter_dv, mp_scatter_cv, mp_scatter_zv
       GENERIC, PUBLIC :: scatter => mp_scatter_iv, mp_scatter_lv, &
          mp_scatter_rv, mp_scatter_dv, mp_scatter_cv, mp_scatter_zv
 
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_iscatter_i, mp_iscatter_l, &
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_iscatter_i, mp_iscatter_l, &
          mp_iscatter_r, mp_iscatter_d, mp_iscatter_c, mp_iscatter_z, &
          mp_iscatter_iv2, mp_iscatter_lv2, mp_iscatter_rv2, mp_iscatter_dv2, &
          mp_iscatter_cv2, mp_iscatter_zv2
@@ -390,12 +392,12 @@ MODULE message_passing
          mp_iscatter_iv2, mp_iscatter_lv2, mp_iscatter_rv2, mp_iscatter_dv2, &
          mp_iscatter_cv2, mp_iscatter_zv2
 
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_iscatterv_iv, mp_iscatterv_lv, &
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_iscatterv_iv, mp_iscatterv_lv, &
          mp_iscatterv_rv, mp_iscatterv_dv, mp_iscatterv_cv, mp_iscatterv_zv
       GENERIC, PUBLIC :: iscatterv => mp_iscatterv_iv, mp_iscatterv_lv, &
          mp_iscatterv_rv, mp_iscatterv_dv, mp_iscatterv_cv, mp_iscatterv_zv
 
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_alltoall_i, mp_alltoall_i22, mp_alltoall_i33, &
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_alltoall_i, mp_alltoall_i22, mp_alltoall_i33, &
          mp_alltoall_i44, mp_alltoall_i55, mp_alltoall_i45, mp_alltoall_i34, &
          mp_alltoall_i11v, mp_alltoall_i22v, mp_alltoall_i54, &
          mp_alltoall_l, mp_alltoall_l22, mp_alltoall_l33, &
@@ -432,7 +434,7 @@ MODULE message_passing
          mp_alltoall_z44, mp_alltoall_z55, mp_alltoall_z45, mp_alltoall_z34, &
          mp_alltoall_z11v, mp_alltoall_z22v, mp_alltoall_z54
 
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_send_i, mp_send_iv, mp_send_im2, mp_send_im3, &
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_send_i, mp_send_iv, mp_send_im2, mp_send_im3, &
          mp_send_l, mp_send_lv, mp_send_lm2, mp_send_lm3, &
          mp_send_r, mp_send_rv, mp_send_rm2, mp_send_rm3, &
          mp_send_d, mp_send_dv, mp_send_dm2, mp_send_dm3, &
@@ -445,7 +447,7 @@ MODULE message_passing
          mp_send_c, mp_send_cv, mp_send_cm2, mp_send_cm3, &
          mp_send_z, mp_send_zv, mp_send_zm2, mp_send_zm3
 
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_recv_i, mp_recv_iv, mp_recv_im2, mp_recv_im3, &
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_recv_i, mp_recv_iv, mp_recv_im2, mp_recv_im3, &
          mp_recv_l, mp_recv_lv, mp_recv_lm2, mp_recv_lm3, &
          mp_recv_r, mp_recv_rv, mp_recv_rm2, mp_recv_rm3, &
          mp_recv_d, mp_recv_dv, mp_recv_dm2, mp_recv_dm3, &
@@ -458,7 +460,7 @@ MODULE message_passing
          mp_recv_c, mp_recv_cv, mp_recv_cm2, mp_recv_cm3, &
          mp_recv_z, mp_recv_zv, mp_recv_zm2, mp_recv_zm3
 
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_isendrecv_i, mp_isendrecv_iv, &
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_isendrecv_i, mp_isendrecv_iv, &
          mp_isendrecv_l, mp_isendrecv_lv, mp_isendrecv_r, mp_isendrecv_rv, &
          mp_isendrecv_d, mp_isendrecv_dv, mp_isendrecv_c, mp_isendrecv_cv, &
          mp_isendrecv_z, mp_isendrecv_zv
@@ -467,7 +469,7 @@ MODULE message_passing
          mp_isendrecv_d, mp_isendrecv_dv, mp_isendrecv_c, mp_isendrecv_cv, &
          mp_isendrecv_z, mp_isendrecv_zv
 
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_isend_iv, mp_isend_im2, mp_isend_im3, mp_isend_im4, &
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_isend_iv, mp_isend_im2, mp_isend_im3, mp_isend_im4, &
          mp_isend_lv, mp_isend_lm2, mp_isend_lm3, mp_isend_lm4, &
          mp_isend_rv, mp_isend_rm2, mp_isend_rm3, mp_isend_rm4, &
          mp_isend_dv, mp_isend_dm2, mp_isend_dm3, mp_isend_dm4, &
@@ -482,7 +484,7 @@ MODULE message_passing
          mp_isend_zv, mp_isend_zm2, mp_isend_zm3, mp_isend_zm4, &
          mp_isend_bv, mp_isend_bm3, mp_isend_custom
 
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_irecv_iv, mp_irecv_im2, mp_irecv_im3, mp_irecv_im4, &
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_irecv_iv, mp_irecv_im2, mp_irecv_im3, mp_irecv_im4, &
          mp_irecv_lv, mp_irecv_lm2, mp_irecv_lm3, mp_irecv_lm4, &
          mp_irecv_rv, mp_irecv_rm2, mp_irecv_rm3, mp_irecv_rm4, &
          mp_irecv_dv, mp_irecv_dm2, mp_irecv_dm3, mp_irecv_dm4, &
@@ -497,80 +499,79 @@ MODULE message_passing
          mp_irecv_zv, mp_irecv_zm2, mp_irecv_zm3, mp_irecv_zm4, &
          mp_irecv_bv, mp_irecv_bm3, mp_irecv_custom
 
-      PROCEDURE, PUBLIC, PASS(comm) :: probe => mp_probe
+      PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: probe => mp_probe
 
-      PROCEDURE, PUBLIC, PASS(comm) :: sync => mp_sync
-      PROCEDURE, PUBLIC, PASS(comm) :: isync => mp_isync
+      PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: sync => mp_sync
+      PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: isync => mp_isync
 
-      PROCEDURE, PUBLIC, PASS(comm1) :: compare => mp_comm_compare
-      PROCEDURE, PUBLIC, PASS(comm1) :: rank_compare => mp_rank_compare
+      PROCEDURE, PUBLIC, PASS(comm1), NON_OVERRIDABLE :: compare => mp_comm_compare
+      PROCEDURE, PUBLIC, PASS(comm1), NON_OVERRIDABLE :: rank_compare => mp_rank_compare
 
-      PROCEDURE, PUBLIC, PASS(comm2) :: dup => mp_comm_dup
-      PROCEDURE, PUBLIC, PASS(comm) :: free => mp_comm_free
+      PROCEDURE, PUBLIC, PASS(comm2), NON_OVERRIDABLE :: dup => mp_comm_dup
+      PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: free => mp_comm_free
 
-      PROCEDURE, PUBLIC, PASS(comm) :: environ => mp_environ_l
+      PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: environ => mp_environ_l
 
-      PROCEDURE, PRIVATE, PASS(sub_comm) :: mp_comm_split, mp_comm_split_direct
+      PROCEDURE, PRIVATE, PASS(sub_comm), NON_OVERRIDABLE :: mp_comm_split, mp_comm_split_direct
       GENERIC, PUBLIC :: from_split => mp_comm_split, mp_comm_split_direct
-      PROCEDURE, PUBLIC, PASS(mp_new_comm) :: from_reordering => mp_reordering
+      PROCEDURE, PUBLIC, PASS(mp_new_comm), NON_OVERRIDABLE :: from_reordering => mp_reordering
    END TYPE
 
    TYPE mp_request_type
       PRIVATE
       MPI_REQUEST_TYPE :: handle = mp_request_null_handle
    CONTAINS
-      PROCEDURE :: set_handle => mp_request_type_set_handle
-      PROCEDURE :: get_handle => mp_request_type_get_handle
-      PROCEDURE, PRIVATE :: mp_request_op_eq
-      PROCEDURE, PRIVATE :: mp_request_op_neq
+      PROCEDURE, PUBLIC, NON_OVERRIDABLE :: set_handle => mp_request_type_set_handle
+      PROCEDURE, PUBLIC, NON_OVERRIDABLE :: get_handle => mp_request_type_get_handle
+      PROCEDURE, PRIVATE, NON_OVERRIDABLE :: mp_request_op_eq
+      PROCEDURE, PRIVATE, NON_OVERRIDABLE :: mp_request_op_neq
       GENERIC, PUBLIC :: OPERATOR(.EQ.) => mp_request_op_eq
       GENERIC, PUBLIC :: OPERATOR(.NE.) => mp_request_op_neq
 
-      PROCEDURE, PRIVATE, PASS(request) :: mp_test_1
-      GENERIC, PUBLIC :: test => mp_test_1
+      PROCEDURE, PUBLIC, PASS(request), NON_OVERRIDABLE :: test => mp_test_1
 
-      PROCEDURE, PUBLIC, PASS(request) :: wait => mp_wait
+      PROCEDURE, PUBLIC, PASS(request), NON_OVERRIDABLE :: wait => mp_wait
    END TYPE
 
    TYPE mp_win_type
       PRIVATE
       MPI_WIN_TYPE :: handle = mp_win_null_handle
    CONTAINS
-      PROCEDURE :: set_handle => mp_win_type_set_handle
-      PROCEDURE :: get_handle => mp_win_type_get_handle
-      PROCEDURE, PRIVATE :: mp_win_op_eq
-      PROCEDURE, PRIVATE :: mp_win_op_neq
+      PROCEDURE, PUBLIC, NON_OVERRIDABLE :: set_handle => mp_win_type_set_handle
+      PROCEDURE, PUBLIC, NON_OVERRIDABLE :: get_handle => mp_win_type_get_handle
+      PROCEDURE, PRIVATE, NON_OVERRIDABLE :: mp_win_op_eq
+      PROCEDURE, PRIVATE, NON_OVERRIDABLE :: mp_win_op_neq
       GENERIC, PUBLIC :: OPERATOR(.EQ.) => mp_win_op_eq
       GENERIC, PUBLIC :: OPERATOR(.NE.) => mp_win_op_neq
 
-      PROCEDURE, PRIVATE, PASS(win) :: mp_win_create_iv, mp_win_create_lv, &
+      PROCEDURE, PRIVATE, PASS(win), NON_OVERRIDABLE :: mp_win_create_iv, mp_win_create_lv, &
          mp_win_create_rv, mp_win_create_dv, mp_win_create_cv, mp_win_create_zv
       GENERIC, PUBLIC :: create => mp_win_create_iv, mp_win_create_lv, &
          mp_win_create_rv, mp_win_create_dv, mp_win_create_cv, mp_win_create_zv
 
-      PROCEDURE, PRIVATE, PASS(win) :: mp_rget_iv, mp_rget_lv, &
+      PROCEDURE, PRIVATE, PASS(win), NON_OVERRIDABLE :: mp_rget_iv, mp_rget_lv, &
          mp_rget_rv, mp_rget_dv, mp_rget_cv, mp_rget_zv
       GENERIC, PUBLIC :: rget => mp_rget_iv, mp_rget_lv, &
          mp_rget_rv, mp_rget_dv, mp_rget_cv, mp_rget_zv
 
-      PROCEDURE, PUBLIC, PASS(win) :: free => mp_win_free
-      PROCEDURE, PUBLIC, PASS(win) :: lock_all => mp_win_lock_all
-      PROCEDURE, PUBLIC, PASS(win) :: unlock_all => mp_win_unlock_all
-      PROCEDURE, PUBLIC, PASS(win) :: flush_all => mp_win_flush_all
+      PROCEDURE, PUBLIC, PASS(win), NON_OVERRIDABLE :: free => mp_win_free
+      PROCEDURE, PUBLIC, PASS(win), NON_OVERRIDABLE :: lock_all => mp_win_lock_all
+      PROCEDURE, PUBLIC, PASS(win), NON_OVERRIDABLE :: unlock_all => mp_win_unlock_all
+      PROCEDURE, PUBLIC, PASS(win), NON_OVERRIDABLE :: flush_all => mp_win_flush_all
    END TYPE
 
    TYPE mp_file_type
       PRIVATE
       MPI_FILE_TYPE :: handle = mp_file_null_handle
    CONTAINS
-      PROCEDURE :: set_handle => mp_file_type_set_handle
-      PROCEDURE :: get_handle => mp_file_type_get_handle
-      PROCEDURE, PRIVATE :: mp_file_op_eq
-      PROCEDURE, PRIVATE :: mp_file_op_neq
+      PROCEDURE, PUBLIC, NON_OVERRIDABLE :: set_handle => mp_file_type_set_handle
+      PROCEDURE, PUBLIC, NON_OVERRIDABLE :: get_handle => mp_file_type_get_handle
+      PROCEDURE, PRIVATE, NON_OVERRIDABLE :: mp_file_op_eq
+      PROCEDURE, PRIVATE, NON_OVERRIDABLE :: mp_file_op_neq
       GENERIC, PUBLIC :: OPERATOR(.EQ.) => mp_file_op_eq
       GENERIC, PUBLIC :: OPERATOR(.NE.) => mp_file_op_neq
 
-      PROCEDURE, PRIVATE, PASS(fh) :: mp_file_write_at_ch, mp_file_write_at_chv, &
+      PROCEDURE, PRIVATE, PASS(fh), NON_OVERRIDABLE :: mp_file_write_at_ch, mp_file_write_at_chv, &
          mp_file_write_at_i, mp_file_write_at_iv, mp_file_write_at_r, mp_file_write_at_rv, &
          mp_file_write_at_d, mp_file_write_at_dv, mp_file_write_at_c, mp_file_write_at_cv, &
          mp_file_write_at_z, mp_file_write_at_zv, mp_file_write_at_l, mp_file_write_at_lv
@@ -579,7 +580,7 @@ MODULE message_passing
          mp_file_write_at_d, mp_file_write_at_dv, mp_file_write_at_c, mp_file_write_at_cv, &
          mp_file_write_at_z, mp_file_write_at_zv, mp_file_write_at_l, mp_file_write_at_lv
 
-      PROCEDURE, PRIVATE, PASS(fh) :: mp_file_write_at_all_ch, mp_file_write_at_all_chv, &
+      PROCEDURE, PRIVATE, PASS(fh), NON_OVERRIDABLE :: mp_file_write_at_all_ch, mp_file_write_at_all_chv, &
          mp_file_write_at_all_i, mp_file_write_at_all_iv, mp_file_write_at_all_l, mp_file_write_at_all_lv, &
          mp_file_write_at_all_r, mp_file_write_at_all_rv, mp_file_write_at_all_d, mp_file_write_at_all_dv, &
          mp_file_write_at_all_c, mp_file_write_at_all_cv, mp_file_write_at_all_z, mp_file_write_at_all_zv
@@ -588,7 +589,7 @@ MODULE message_passing
          mp_file_write_at_all_r, mp_file_write_at_all_rv, mp_file_write_at_all_d, mp_file_write_at_all_dv, &
          mp_file_write_at_all_c, mp_file_write_at_all_cv, mp_file_write_at_all_z, mp_file_write_at_all_zv
 
-      PROCEDURE, PRIVATE, PASS(fh) :: mp_file_read_at_ch, mp_file_read_at_chv, &
+      PROCEDURE, PRIVATE, PASS(fh), NON_OVERRIDABLE :: mp_file_read_at_ch, mp_file_read_at_chv, &
          mp_file_read_at_i, mp_file_read_at_iv, mp_file_read_at_r, mp_file_read_at_rv, &
          mp_file_read_at_d, mp_file_read_at_dv, mp_file_read_at_c, mp_file_read_at_cv, &
          mp_file_read_at_z, mp_file_read_at_zv, mp_file_read_at_l, mp_file_read_at_lv
@@ -597,7 +598,7 @@ MODULE message_passing
          mp_file_read_at_d, mp_file_read_at_dv, mp_file_read_at_c, mp_file_read_at_cv, &
          mp_file_read_at_z, mp_file_read_at_zv, mp_file_read_at_l, mp_file_read_at_lv
 
-      PROCEDURE, PRIVATE, PASS(fh) :: mp_file_read_at_all_ch, mp_file_read_at_all_chv, &
+      PROCEDURE, PRIVATE, PASS(fh), NON_OVERRIDABLE :: mp_file_read_at_all_ch, mp_file_read_at_all_chv, &
          mp_file_read_at_all_i, mp_file_read_at_all_iv, mp_file_read_at_all_l, mp_file_read_at_all_lv, &
          mp_file_read_at_all_r, mp_file_read_at_all_rv, mp_file_read_at_all_d, mp_file_read_at_all_dv, &
          mp_file_read_at_all_c, mp_file_read_at_all_cv, mp_file_read_at_all_z, mp_file_read_at_all_zv
@@ -606,24 +607,24 @@ MODULE message_passing
          mp_file_read_at_all_r, mp_file_read_at_all_rv, mp_file_read_at_all_d, mp_file_read_at_all_dv, &
          mp_file_read_at_all_c, mp_file_read_at_all_cv, mp_file_read_at_all_z, mp_file_read_at_all_zv
 
-      PROCEDURE, PUBLIC, PASS(fh) :: open => mp_file_open
-      PROCEDURE, PUBLIC, PASS(fh) :: close => mp_file_close
+      PROCEDURE, PUBLIC, PASS(fh), NON_OVERRIDABLE :: open => mp_file_open
+      PROCEDURE, PUBLIC, PASS(fh), NON_OVERRIDABLE :: close => mp_file_close
 
-      PROCEDURE, PUBLIC, PASS(fh) :: get_size => mp_file_get_size
-      PROCEDURE, PUBLIC, PASS(fh) :: get_position => mp_file_get_position
+      PROCEDURE, PUBLIC, PASS(fh), NON_OVERRIDABLE :: get_size => mp_file_get_size
+      PROCEDURE, PUBLIC, PASS(fh), NON_OVERRIDABLE :: get_position => mp_file_get_position
 
-      PROCEDURE, PUBLIC, PASS(fh) :: read_all => mp_file_read_all_chv
-      PROCEDURE, PUBLIC, PASS(fh) :: write_all => mp_file_write_all_chv
+      PROCEDURE, PUBLIC, PASS(fh), NON_OVERRIDABLE :: read_all => mp_file_read_all_chv
+      PROCEDURE, PUBLIC, PASS(fh), NON_OVERRIDABLE :: write_all => mp_file_write_all_chv
    END TYPE
 
    TYPE mp_info_type
       PRIVATE
       MPI_INFO_TYPE :: handle = mp_info_null_handle
    CONTAINS
-      PROCEDURE :: set_handle => mp_info_type_set_handle
-      PROCEDURE :: get_handle => mp_info_type_get_handle
-      PROCEDURE, PRIVATE :: mp_info_op_eq
-      PROCEDURE, PRIVATE :: mp_info_op_neq
+      PROCEDURE, NON_OVERRIDABLE :: set_handle => mp_info_type_set_handle
+      PROCEDURE, NON_OVERRIDABLE :: get_handle => mp_info_type_get_handle
+      PROCEDURE, PRIVATE, NON_OVERRIDABLE :: mp_info_op_eq
+      PROCEDURE, PRIVATE, NON_OVERRIDABLE :: mp_info_op_neq
       GENERIC, PUBLIC :: OPERATOR(.EQ.) => mp_info_op_eq
       GENERIC, PUBLIC :: OPERATOR(.NE.) => mp_info_op_neq
    END TYPE
