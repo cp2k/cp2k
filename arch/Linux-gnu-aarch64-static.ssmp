@@ -7,7 +7,7 @@
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Author: Matthias Krack (09.01.2023)
+# Author: Matthias Krack (11.01.2023)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -18,7 +18,7 @@
    this_file=${BASH_SOURCE##*/}; \
    cd tools/toolchain; \
    [[ -z "${target_cpu}" ]] && target_cpu="native"; \
-   ./install_cp2k_toolchain.sh -j${maxtasks} --mpi-mode=no --no-arch-files --target-cpu=${target_cpu} --with-gcc=system --with-cmake=system; \
+   ./install_cp2k_toolchain.sh -j${maxtasks} --mpi-mode=no --no-arch-files --target-cpu=${target_cpu} --with-cmake=system --with-gcc=system --with-libxsmm=no; \
    source ./install/setup; \
    cd ../..; \
    echo; \
