@@ -152,6 +152,11 @@ export MPI_CFLAGS="${OPENMPI_CFLAGS}"
 export MPI_LDFLAGS="${OPENMPI_LDFLAGS}"
 export MPI_LIBS="${OPENMPI_LIBS}"
 export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__parallel|)"
+# For proper mpi_f08 support, we need at least GCC version 9 (asynchronous keyword)
+# Other compilers should work
+  if ! [ "$(gfortran -dumpversion | cut -d. -f1)" -lt 9 ]; then
+    export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__MPI_F08|)"
+  fi
 export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(${OPENMPI_CFLAGS}|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${OPENMPI_LDFLAGS}|)"
 export CP_LIBS="\${CP_LIBS} IF_MPI(${OPENMPI_LIBS}|)"

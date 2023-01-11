@@ -101,7 +101,7 @@ undefined references during linking, respectively errors while printing the stat
 
 ### 2e. MPI and SCALAPACK (optional, required for MPI parallel builds)
 
-MPI (version 2) and SCALAPACK are needed for parallel code.
+MPI (version 3) and SCALAPACK are needed for parallel code.
 (Use the latest versions available and download all patches!).
 
 :warning: Note that your MPI installation must match the used Fortran compiler.
@@ -121,7 +121,8 @@ there are several freely available alternatives:
 
 CP2K assumes that the MPI library implements MPI version 3. Older
 versions of MPI (e.g., MPI 2.0) are not supported and the old flag `-D__MPI_VERSION` in
-the arch file will be ignored.
+the arch file will be ignored. CP2K can make use of the mpi_f08 module. If its use is requested,
+set the flag `-D__MPI_F08`.
 
 ### 2f. FFTW (optional, improved performance of FFTs)
 
