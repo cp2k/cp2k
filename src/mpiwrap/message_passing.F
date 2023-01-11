@@ -515,6 +515,8 @@ MODULE message_passing
       PROCEDURE, PRIVATE, PASS(sub_comm), NON_OVERRIDABLE :: mp_comm_split, mp_comm_split_direct
       GENERIC, PUBLIC :: from_split => mp_comm_split, mp_comm_split_direct
       PROCEDURE, PUBLIC, PASS(mp_new_comm), NON_OVERRIDABLE :: from_reordering => mp_reordering
+      PROCEDURE, PRIVATE, PASS(comm_new), NON_OVERRIDABLE :: mp_comm_copy
+      GENERIC, PUBLIC :: ASSIGNMENT(=) => mp_comm_copy
    END TYPE
 
    TYPE mp_request_type
@@ -1648,6 +1650,13 @@ CONTAINS
       CALL mp_timestop(handle)
 
    END SUBROUTINE mp_comm_dup
+
+   SUBROUTINE mp_comm_copy(comm_new, comm_old)
+      CLASS(mp_comm_type), INTENT(IN) :: comm_old
+      CLASS(mp_comm_type), INTENT(OUT) :: comm_new
+
+      comm_new%handle = comm_old%handle
+   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief ...
