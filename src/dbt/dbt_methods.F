@@ -55,7 +55,7 @@ MODULE dbt_methods
    USE kinds, ONLY: &
       dp, default_string_length, int_8, dp
    USE message_passing, ONLY: &
-      mp_environ, mp_cart_create
+      mp_cart_type
    USE util, ONLY: &
       sort
    USE dbt_reshape_ops, ONLY: &
@@ -608,7 +608,8 @@ CONTAINS
       LOGICAL                                        :: assert_stmt, tensors_remapped
       INTEGER                                        :: max_mm_dim, max_tensor, &
                                                         unit_nr_prv, ref_tensor, handle
-      TYPE(mp_comm_type) :: mp_comm, mp_comm_opt
+      TYPE(mp_cart_type) :: mp_comm_opt
+      TYPE(mp_comm_type) :: mp_comm
       INTEGER, DIMENSION(SIZE(contract_1))           :: contract_1_mod
       INTEGER, DIMENSION(SIZE(notcontract_1))        :: notcontract_1_mod
       INTEGER, DIMENSION(SIZE(contract_2))           :: contract_2_mod
@@ -943,7 +944,7 @@ CONTAINS
                       "Internal process grid optimization disabled because tensors are not in contraction-compatible format")
       END IF
 
-      CALL mp_environ(tensor_large%pgrid%mp_comm_2d, 2, pdims_2d, pcoord_2d, periods_2d)
+      CALL tensor_large%pgrid%mp_comm_2d%environ_cart(2, pdims_2d, pcoord_2d, periods_2d)
 
       ! optimize process grid during batched contraction
       do_change_pgrid(:) = .FALSE.
@@ -958,15 +959,15 @@ CONTAINS
                mp_comm_opt = dbt_tas_mp_comm(tensor_small%pgrid%mp_comm_2d, split_opt%split_rowcol, NINT(storage%nsplit_avg))
                CALL dbt_tas_create_split(split_opt_avg, mp_comm_opt, split_opt%split_rowcol, &
                                          NINT(storage%nsplit_avg), own_comm=.TRUE.)
-               CALL mp_environ(split_opt_avg%mp_comm, 2, pdims_2d_opt, pcoord_2d, periods_2d)
+               CALL split_opt_avg%mp_comm%environ_cart(2, pdims_2d_opt, pcoord_2d, periods_2d)
             END IF
 
          END ASSOCIATE
 
          IF (do_change_pgrid(1) .AND. .NOT. do_change_pgrid(2)) THEN
             ! check if new grid has better subgrid, if not there is no need to change process grid
-            CALL mp_environ(split_opt_avg%mp_comm_group, 2, pdims_sub_opt, pcoord_2d, periods_2d)
-            CALL mp_environ(split%mp_comm_group, 2, pdims_sub, pcoord_2d, periods_2d)
+            CALL split_opt_avg%mp_comm_group%environ_cart(2, pdims_sub_opt, pcoord_2d, periods_2d)
+            CALL split%mp_comm_group%environ_cart(2, pdims_sub, pcoord_2d, periods_2d)
 
             pdim_ratio = MAXVAL(REAL(pdims_sub, dp))/MINVAL(pdims_sub)
             pdim_ratio_opt = MAXVAL(REAL(pdims_sub_opt, dp))/MINVAL(pdims_sub_opt)
@@ -1184,7 +1185,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL               :: unit_nr
       INTEGER                                     :: compat1, compat1_old, compat2, compat2_old, &
                                                      unit_nr_prv
-      TYPE(mp_comm_type) :: comm_2d
+      TYPE(mp_cart_type)                          :: comm_2d
       TYPE(array_list)                            :: dist_list
       INTEGER, DIMENSION(:), ALLOCATABLE          :: mp_dims
       TYPE(dbt_distribution_type)             :: dist_in
@@ -1487,8 +1488,8 @@ CONTAINS
       nsplit_opt = split_opt%ngroup_opt
       nsplit = split%ngroup
 
-      CALL mp_environ(split_opt%mp_comm, 2, pdims_opt, coor, periods)
-      CALL mp_environ(split%mp_comm, 2, pdims, coor, periods)
+      CALL split_opt%mp_comm%environ_cart(2, pdims_opt, coor, periods)
+      CALL split%mp_comm%environ_cart(2, pdims, coor, periods)
 
       storage%ibatch = storage%ibatch + 1
 
@@ -1505,7 +1506,7 @@ CONTAINS
       do_change_pgrid(:) = .FALSE.
 
       ! check for process grid dimensions
-      CALL mp_environ(split%mp_comm_group, 2, pdims_sub, coor, periods)
+      CALL split%mp_comm_group%environ_cart(2, pdims_sub, coor, periods)
       change_criterion = MAXVAL(REAL(pdims_sub, dp))/MINVAL(pdims_sub)
       IF (change_criterion > default_pdims_accept_ratio**2) do_change_pgrid(1) = .TRUE.
 
@@ -1583,7 +1584,7 @@ CONTAINS
       TYPE(dbt_type), INTENT(OUT)        :: tensor_out
       CHARACTER(len=*), INTENT(IN), OPTIONAL :: name
       LOGICAL, INTENT(IN), OPTIONAL          :: nodata, move_data
-      TYPE(mp_comm_type), INTENT(IN), OPTIONAL          :: comm_2d
+      CLASS(mp_comm_type), INTENT(IN), OPTIONAL          :: comm_2d
       TYPE(array_list), INTENT(IN), OPTIONAL :: dist1, dist2
       INTEGER, DIMENSION(SIZE(map1_2d)), OPTIONAL :: mp_dims_1
       INTEGER, DIMENSION(SIZE(map2_2d)), OPTIONAL :: mp_dims_2
@@ -1591,7 +1592,7 @@ CONTAINS
       INTEGER, DIMENSION(:), ALLOCATABLE     :: ${varlist("blk_sizes")}$, &
                                                 ${varlist("nd_dist")}$
       TYPE(dbt_distribution_type)        :: dist
-      TYPE(mp_comm_type) :: comm_2d_prv
+      TYPE(mp_cart_type) :: comm_2d_prv
       INTEGER                                :: handle, i
       INTEGER, DIMENSION(ndims_tensor(tensor_in)) :: pdims, myploc
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_remap'
@@ -2133,7 +2134,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbt_change_pgrid_2d(tensor, mp_comm, pdims, nodata, nsplit, dimsplit, pgrid_changed, unit_nr)
       TYPE(dbt_type), INTENT(INOUT)                  :: tensor
-      TYPE(mp_comm_type), INTENT(IN)               :: mp_comm
+      TYPE(mp_cart_type), INTENT(IN)               :: mp_comm
       INTEGER, DIMENSION(2), INTENT(IN), OPTIONAL :: pdims
       LOGICAL, INTENT(IN), OPTIONAL                      :: nodata
       INTEGER, INTENT(IN), OPTIONAL :: nsplit, dimsplit

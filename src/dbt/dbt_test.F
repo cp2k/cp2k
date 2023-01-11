@@ -31,7 +31,6 @@ MODULE dbt_test
    USE dbt_io, ONLY: &
       dbt_write_blocks, dbt_write_block_indices
    USE kinds, ONLY: dp, default_string_length, int_8, dp
-   USE message_passing, ONLY: mp_cart_create
    USE dbt_allocate_wrap, ONLY: allocate_any
    USE dbt_index, ONLY: &
       combine_tensor_index, get_2d_indices_tensor, dbt_get_mapping_info
@@ -369,7 +368,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbt_setup_test_tensor(tensor, mp_comm, enumerate, ${varlist("blk_ind")}$)
       TYPE(dbt_type), INTENT(INOUT)                  :: tensor
-      TYPE(mp_comm_type), INTENT(IN)                     :: mp_comm
+      CLASS(mp_comm_type), INTENT(IN)                     :: mp_comm
       LOGICAL, INTENT(IN)                                :: enumerate
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: ${varlist("blk_ind")}$
       INTEGER                                            :: numnodes, mynode

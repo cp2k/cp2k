@@ -40,12 +40,9 @@ MODULE fft_tools
    USE kinds,                           ONLY: dp,&
                                               dp_size,&
                                               sp
-   USE message_passing,                 ONLY: mp_cart_coords,&
-                                              mp_cart_rank,&
-                                              mp_cart_sub,&
+   USE message_passing,                 ONLY: mp_cart_type,&
                                               mp_comm_null,&
                                               mp_comm_type,&
-                                              mp_environ,&
                                               mp_request_type,&
                                               mp_waitall
    USE offload_api,                     ONLY: offload_free_pinned_mem,&
@@ -72,7 +69,8 @@ MODULE fft_tools
       INTEGER                              :: lg = 0, mg = 0
       INTEGER                              :: nbx = 0, nbz = 0
       INTEGER                              :: nmray = 0, nyzray = 0
-      TYPE(mp_comm_type)                   :: gs_group, rs_group
+      TYPE(mp_comm_type)                   :: gs_group
+      TYPE(mp_cart_type)                   :: rs_group
       INTEGER, DIMENSION(2)                :: g_pos = 0, r_pos = 0, r_dim = 0
       INTEGER                              :: numtask = 0
    END TYPE fft_scratch_sizes
@@ -84,7 +82,7 @@ MODULE fft_tools
       TYPE(mp_comm_type)                   :: group
       INTEGER, DIMENSION(3)                :: nfft
       ! to be used in cube_transpose_* routines
-      TYPE(mp_comm_type), DIMENSION(2)     :: cart_sub_comm
+      TYPE(mp_cart_type), DIMENSION(2)     :: cart_sub_comm
       INTEGER, DIMENSION(2)                :: dim, pos
       ! to be used in fft3d_s
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER &
@@ -500,7 +498,8 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: cin
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)   :: gin
-      TYPE(mp_comm_type), INTENT(IN)                     :: gs_group, rs_group
+      TYPE(mp_comm_type), INTENT(IN)                     :: gs_group
+      TYPE(mp_cart_type), INTENT(IN)                     :: rs_group
       INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: yzp
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: nyzray
       INTEGER, DIMENSION(:, :, 0:, :), INTENT(IN)        :: bo
@@ -531,7 +530,7 @@ CONTAINS
       END IF
 
       CALL gs_group%environ(numtask_g, g_pos)
-      CALL mp_environ(numtask_r, r_dim, r_pos, rs_group)
+      CALL rs_group%environ_cart(numtask_r, r_dim, r_pos)
       IF (numtask_g /= numtask_r) THEN
          CPABORT("Real space and G space groups are different.")
       END IF
@@ -943,7 +942,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: zin
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)   :: gin
-      TYPE(mp_comm_type), INTENT(IN)                     :: group
+      TYPE(mp_cart_type), INTENT(IN)                     :: group
       INTEGER, DIMENSION(:, :, 0:, :), INTENT(IN)        :: bo
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
       INTEGER, INTENT(OUT), OPTIONAL                     :: status
@@ -985,8 +984,8 @@ CONTAINS
       CALL timeset(routineN, handle)
       output_unit = cp_logger_get_default_io_unit()
 
-      CALL mp_environ(np, dim, pos, group)
-      CALL mp_cart_rank(group, pos, my_pos)
+      CALL group%environ_cart(np, dim, pos)
+      CALL group%rank_cart(pos, my_pos)
 
       IF (PRESENT(debug)) THEN
          test = debug
@@ -1588,7 +1587,8 @@ CONTAINS
    SUBROUTINE yz_to_xz(sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scratch)
 
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: sb
-      TYPE(mp_comm_type), INTENT(IN)                     :: group
+
+      CLASS(mp_comm_type), INTENT(IN)                     :: group
       INTEGER, DIMENSION(2), INTENT(IN)                  :: dims
       INTEGER, INTENT(IN)                                :: my_pos
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: p2p
@@ -1796,7 +1796,8 @@ CONTAINS
    SUBROUTINE xz_to_yz(sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scratch)
 
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: sb
-      TYPE(mp_comm_type), INTENT(IN)                     :: group
+
+      CLASS(mp_comm_type), INTENT(IN)                     :: group
       INTEGER, DIMENSION(2), INTENT(IN)                  :: dims
       INTEGER, INTENT(IN)                                :: my_pos
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: p2p
@@ -2359,7 +2360,8 @@ CONTAINS
    SUBROUTINE cube_transpose_5(cin, group, boin, boout, sout, fft_scratch)
 
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: cin
-      TYPE(mp_comm_type), INTENT(IN)                     :: group
+
+      CLASS(mp_comm_type), INTENT(IN)                     :: group
       INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: boin, boout
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: sout
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
@@ -2452,7 +2454,8 @@ CONTAINS
    SUBROUTINE cube_transpose_6(cin, group, boin, boout, sout, fft_scratch)
 
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: cin
-      TYPE(mp_comm_type), INTENT(IN)                     :: group
+
+      CLASS(mp_comm_type), INTENT(IN)                     :: group
       INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: boin, boout
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: sout
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
@@ -2758,7 +2761,6 @@ CONTAINS
       IF (fft_scratch%cart_sub_comm(2) /= mp_comm_null) THEN
          CALL fft_scratch%cart_sub_comm(2)%free()
       END IF
-      fft_scratch%cart_sub_comm = mp_comm_null
 
       CALL fft_destroy_plan(fft_scratch%fft_plan(1))
       CALL fft_destroy_plan(fft_scratch%fft_plan(2))
@@ -3005,8 +3007,8 @@ CONTAINS
                ALLOCATE (fft_scratch_new%fft_scratch%a6buf(n(1), my3*mz3))
                fft_scratch_new%fft_scratch%group = fft_sizes%gs_group
 
-               CALL mp_environ(nn, dim, pos, fft_sizes%rs_group)
-               CALL mp_cart_rank(fft_sizes%rs_group, pos, fft_scratch_new%fft_scratch%mip)
+               CALL fft_sizes%rs_group%environ_cart(nn, dim, pos)
+               CALL fft_sizes%rs_group%rank_cart(pos, fft_scratch_new%fft_scratch%mip)
                fft_scratch_new%fft_scratch%dim = dim
                fft_scratch_new%fft_scratch%pos = pos
                mcz1 = fft_sizes%mcz1
@@ -3019,18 +3021,18 @@ CONTAINS
                ALLOCATE (fft_scratch_new%fft_scratch%rbuf4(mx2*mz2*mcy3, 0:DIM(1) - 1))
 
                dims = (/.TRUE., .FALSE./)
-               CALL mp_cart_sub(fft_sizes%rs_group, dims, fft_scratch_new%fft_scratch%cart_sub_comm(1))
+               CALL fft_scratch_new%fft_scratch%cart_sub_comm(1)%from_sub(fft_sizes%rs_group, dims)
                dims = (/.FALSE., .TRUE./)
-               CALL mp_cart_sub(fft_sizes%rs_group, dims, fft_scratch_new%fft_scratch%cart_sub_comm(2))
+               CALL fft_scratch_new%fft_scratch%cart_sub_comm(2)%from_sub(fft_sizes%rs_group, dims)
 
                !initialise pgcube
                DO i = 0, DIM(1) - 1
                   coord = (/i, pos(2)/)
-                  CALL mp_cart_rank(fft_sizes%rs_group, coord, fft_scratch_new%fft_scratch%pgcube(i, 1))
+                  CALL fft_sizes%rs_group%rank_cart(coord, fft_scratch_new%fft_scratch%pgcube(i, 1))
                END DO
                DO i = 0, DIM(2) - 1
                   coord = (/pos(1), i/)
-                  CALL mp_cart_rank(fft_sizes%rs_group, coord, fft_scratch_new%fft_scratch%pgcube(i, 2))
+                  CALL fft_sizes%rs_group%rank_cart(coord, fft_scratch_new%fft_scratch%pgcube(i, 2))
                END DO
 
                !set up fft plans
@@ -3061,8 +3063,8 @@ CONTAINS
                ALLOCATE (fft_scratch_new%fft_scratch%a5buf(my3*mz3, n(1)))
                ALLOCATE (fft_scratch_new%fft_scratch%a6buf(n(1), my3*mz3))
 
-               CALL mp_environ(nn, dim, pos, fft_sizes%rs_group)
-               CALL mp_cart_rank(fft_sizes%rs_group, pos, fft_scratch_new%fft_scratch%mip)
+               CALL fft_sizes%rs_group%environ_cart(nn, dim, pos)
+               CALL fft_sizes%rs_group%rank_cart(pos, fft_scratch_new%fft_scratch%mip)
                fft_scratch_new%fft_scratch%dim = dim
                fft_scratch_new%fft_scratch%pos = pos
                mcy3 = fft_sizes%mcy3
@@ -3196,8 +3198,8 @@ CONTAINS
                fft_scratch_new%fft_scratch%rsratio = 1._dp
                fft_scratch_new%fft_scratch%group = fft_sizes%gs_group
 
-               CALL mp_environ(nn, dim, pos, fft_sizes%rs_group)
-               CALL mp_cart_rank(fft_sizes%rs_group, pos, fft_scratch_new%fft_scratch%mip)
+               CALL fft_sizes%rs_group%environ_cart(nn, dim, pos)
+               CALL fft_sizes%rs_group%rank_cart(pos, fft_scratch_new%fft_scratch%mip)
                fft_scratch_new%fft_scratch%dim = dim
                fft_scratch_new%fft_scratch%pos = pos
                mcz1 = fft_sizes%mcz1
@@ -3206,25 +3208,25 @@ CONTAINS
                ALLOCATE (fft_scratch_new%fft_scratch%rbuf2(mx1*my1*mcz2, 0:DIM(2) - 1))
 
                dims = (/.FALSE., .TRUE./)
-               CALL mp_cart_sub(fft_sizes%rs_group, dims, fft_scratch_new%fft_scratch%cart_sub_comm(2))
+               CALL fft_scratch_new%fft_scratch%cart_sub_comm(2)%from_sub(fft_sizes%rs_group, dims)
 
                !initialise pgcube
                DO i = 0, DIM(2) - 1
                   coord = (/pos(1), i/)
-                  CALL mp_cart_rank(fft_sizes%rs_group, coord, fft_scratch_new%fft_scratch%pgcube(i, 2))
+                  CALL fft_sizes%rs_group%rank_cart(coord, fft_scratch_new%fft_scratch%pgcube(i, 2))
                END DO
 
                !initialise pgrid
                DO ix = 0, m1 - 1
                   DO iz = 0, m2 - 1
                      coord = (/ix, iz/)
-                     CALL mp_cart_rank(fft_sizes%rs_group, coord, fft_scratch_new%fft_scratch%pgrid(ix, iz))
+                     CALL fft_sizes%rs_group%rank_cart(coord, fft_scratch_new%fft_scratch%pgrid(ix, iz))
                   END DO
                END DO
 
                !initialise pzcoord
                DO i = 0, np - 1
-                  CALL mp_cart_coords(fft_sizes%rs_group, i, pcoord)
+                  CALL fft_sizes%rs_group%coords(i, pcoord)
                   fft_scratch_new%fft_scratch%pzcoord(i) = pcoord(2)
                END DO
 
@@ -3325,7 +3327,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: scount, sdispl
       COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: rq
       INTEGER, DIMENSION(:), POINTER                     :: rcount, rdispl
-      TYPE(mp_comm_type), INTENT(IN)                     :: group
+
+      CLASS(mp_comm_type), INTENT(IN)                     :: group
 
       COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: msgin, msgout
       INTEGER                                            :: ip, n, nr, ns, pos

@@ -66,7 +66,7 @@ MODULE mp2_integrals
    USE libint_2c_3c,                    ONLY: compare_potential_types,&
                                               libint_potential_type
    USE machine,                         ONLY: m_flush
-   USE message_passing,                 ONLY: mp_cart_create,&
+   USE message_passing,                 ONLY: mp_cart_type,&
                                               mp_comm_type
    USE mp2_eri,                         ONLY: mp2_eri_3c_integrate
    USE mp2_eri_gpw,                     ONLY: cleanup_gpw,&
@@ -280,7 +280,7 @@ CONTAINS
       TYPE(intermediate_matrix_type)                     :: intermed_mat_bse_ab, intermed_mat_bse_ij
       TYPE(intermediate_matrix_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: intermed_mat, intermed_mat_gw
-      TYPE(mp_comm_type)                                 :: mp_comm_t3c_2
+      TYPE(mp_cart_type)                                 :: mp_comm_t3c_2
       TYPE(neighbor_list_3c_type)                        :: nl_3c
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
@@ -701,7 +701,7 @@ CONTAINS
 
          CALL get_qs_env(qs_env, nkind=nkind, particle_set=particle_set)
          CALL dbt_mp_environ_pgrid(pgrid_t3c_overl, pdims, pcoord)
-         CALL mp_cart_create(pgrid_t3c_overl%mp_comm_2d, 3, pdims, pcoord, mp_comm_t3c_2)
+         CALL mp_comm_t3c_2%create(pgrid_t3c_overl%mp_comm_2d, 3, pdims, pcoord)
          CALL distribution_3d_create(dist_3d, dist_RI, dist_AO_1, dist_AO_2, &
                                      nkind, particle_set, mp_comm_t3c_2, own_comm=.TRUE.)
          DEALLOCATE (dist_RI, dist_AO_1, dist_AO_2)

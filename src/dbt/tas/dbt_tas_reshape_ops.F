@@ -43,8 +43,8 @@ MODULE dbt_tas_reshape_ops
    USE dbt_tas_util,                    ONLY: swap
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_environ,&
+   USE message_passing,                 ONLY: mp_cart_type,&
+                                              mp_comm_type,&
                                               mp_request_type,&
                                               mp_waitall
 #include "../../base/base_uses.f90"
@@ -302,7 +302,7 @@ CONTAINS
       LOGICAL :: nodata_prv, move_prv
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:, :) :: index_recv
       INTEGER :: ndata
-      TYPE(mp_comm_type) :: mp_comm
+      TYPE(mp_cart_type) :: mp_comm
 
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: block
 
@@ -338,7 +338,7 @@ CONTAINS
       ngroup = info%ngroup
 
       CALL mp_comm%environ(numnodes, mynode)
-      CALL mp_environ(numnodes, pdims, pcoord, mp_comm)
+      CALL mp_comm%environ_cart(numnodes, pdims, pcoord)
 
       SELECT CASE (info%split_rowcol)
       CASE (rowsplit)
@@ -524,7 +524,7 @@ CONTAINS
       TYPE(dbm_iterator)                                 :: iter
       TYPE(dbt_buffer_type), ALLOCATABLE, DIMENSION(:)   :: buffer_recv, buffer_send
       TYPE(dbt_tas_split_info)                           :: info
-      TYPE(mp_comm_type)                                 :: mp_comm
+      TYPE(mp_cart_type)                                 :: mp_comm
       TYPE(mp_request_type), ALLOCATABLE, &
          DIMENSION(:, :)                                 :: req_array
 
@@ -837,7 +837,7 @@ CONTAINS
 !> \author Patrick Seewald
 ! **************************************************************************************************
    SUBROUTINE dbt_tas_communicate_buffer(mp_comm, buffer_recv, buffer_send, req_array)
-      TYPE(mp_comm_type), INTENT(IN)                     :: mp_comm
+      CLASS(mp_comm_type), INTENT(IN)                     :: mp_comm
       TYPE(dbt_buffer_type), DIMENSION(0:), &
          INTENT(INOUT)                                   :: buffer_recv, buffer_send
       TYPE(mp_request_type), DIMENSION(:, :), &

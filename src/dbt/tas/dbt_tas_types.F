@@ -18,7 +18,7 @@ MODULE dbt_tas_types
                                               dbt_tas_rowcol_data
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE message_passing,                 ONLY: mp_comm_type
+   USE message_passing,                 ONLY: mp_cart_type
 #include "../../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -36,14 +36,14 @@ MODULE dbt_tas_types
    ! info on MPI Cartesian grid that is split on MPI subgroups.
    ! info on distribution of matrix rows / columns to different subgroups.
    TYPE dbt_tas_split_info
-      TYPE(mp_comm_type) :: mp_comm ! global communicator
+      TYPE(mp_cart_type) :: mp_comm ! global communicator
       INTEGER, DIMENSION(2) :: pdims ! dimensions of process grid
       INTEGER :: igroup ! which subgroup do I belong to
       INTEGER :: ngroup ! how many groups in total
       INTEGER :: split_rowcol ! split row or column?
       INTEGER :: pgrid_split_size ! how many process rows/cols in subgroups
       INTEGER :: group_size ! group size (how many cores) of subgroups
-      TYPE(mp_comm_type) :: mp_comm_group ! sub communicator
+      TYPE(mp_cart_type) :: mp_comm_group ! sub communicator
       INTEGER, ALLOCATABLE :: ngroup_opt ! optimal number of groups (split factor)
       LOGICAL, DIMENSION(2) :: strict_split = [.FALSE., .FALSE.]
       ! if .true., split factor should not be modified (2 parameters for current and general settings)

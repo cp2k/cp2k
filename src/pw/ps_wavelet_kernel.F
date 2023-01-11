@@ -83,7 +83,8 @@ CONTAINS
       REAL(KIND=dp), INTENT(in)                          :: hx, hy, hz
       INTEGER, INTENT(in)                                :: itype_scf, iproc, nproc
       REAL(KIND=dp), POINTER                             :: kernel(:)
-      TYPE(mp_comm_type), INTENT(in)                     :: mpi_group
+
+      CLASS(mp_comm_type), INTENT(in)                     :: mpi_group
 
       INTEGER                                            :: m1, m2, m3, md1, md2, md3, n1, n2, n3, &
                                                             nd1, nd2, nd3, nlimd, nlimk

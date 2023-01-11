@@ -39,7 +39,7 @@ MODULE dbt_types
       dbt_tas_create_split, dbt_tas_get_split_info, dbt_tas_set_strict_split
    USE kinds, ONLY: default_string_length, int_8, dp
    USE message_passing, ONLY: &
-      mp_cart_create, mp_cart_rank, mp_environ, mp_dims_create, mp_comm_type
+      mp_cart_type, mp_dims_create, mp_comm_type
    USE dbt_tas_global, ONLY: dbt_tas_distribution, dbt_tas_rowcol_data, dbt_tas_default_distvec
    USE dbt_allocate_wrap, ONLY: allocate_any
    USE dbm_api, ONLY: dbm_scale
@@ -97,7 +97,7 @@ MODULE dbt_types
 
    TYPE dbt_pgrid_type
       TYPE(nd_to_2d_mapping)                  :: nd_index_grid
-      TYPE(mp_comm_type)                      :: mp_comm_2d
+      TYPE(mp_cart_type)                      :: mp_comm_2d
       TYPE(dbt_tas_split_info), ALLOCATABLE :: tas_split_info
       INTEGER                                 :: nproc
    END TYPE
@@ -499,7 +499,7 @@ CONTAINS
 !> \author Patrick Seewald
 ! **************************************************************************************************
          SUBROUTINE dbt_pgrid_create_expert(mp_comm, dims, pgrid, map1_2d, map2_2d, tensor_dims, nsplit, dimsplit)
-            TYPE(mp_comm_type), INTENT(IN) :: mp_comm
+            CLASS(mp_comm_type), INTENT(IN) :: mp_comm
             INTEGER, DIMENSION(:), INTENT(INOUT) :: dims
             TYPE(dbt_pgrid_type), INTENT(OUT) :: pgrid
             INTEGER, DIMENSION(:), INTENT(IN) :: map1_2d, map2_2d
@@ -525,7 +525,7 @@ CONTAINS
             END IF
             CALL create_nd_to_2d_mapping(pgrid%nd_index_grid, dims, map1_2d, map2_2d, base=0, col_major=.FALSE.)
             CALL dbt_get_mapping_info(pgrid%nd_index_grid, dims_2d=pdims_2d)
-            CALL mp_cart_create(mp_comm, 2, pdims_2d, pos, pgrid%mp_comm_2d)
+            CALL pgrid%mp_comm_2d%create(mp_comm, 2, pdims_2d, pos)
 
             IF (PRESENT(nsplit)) THEN
                CPASSERT(PRESENT(dimsplit))
@@ -558,7 +558,7 @@ CONTAINS
 ! **************************************************************************************************
          FUNCTION dbt_nd_mp_comm(comm_2d, map1_2d, map2_2d, dims_nd, dims1_nd, dims2_nd, pdims_2d, tdims, &
                                  nsplit, dimsplit)
-            TYPE(mp_comm_type), INTENT(IN)                               :: comm_2d
+            TYPE(mp_cart_type), INTENT(IN)                               :: comm_2d
             INTEGER, DIMENSION(:), INTENT(IN)                 :: map1_2d, map2_2d
             INTEGER, DIMENSION(SIZE(map1_2d) + SIZE(map2_2d)), &
                INTENT(IN), OPTIONAL                           :: dims_nd
@@ -586,7 +586,7 @@ CONTAINS
             IF (PRESENT(pdims_2d)) THEN
                dims_2d(:) = pdims_2d
             ELSE
-               CALL mp_environ(numtask, dims_2d, task_coor, comm_2d)
+               CALL comm_2d%environ_cart(numtask, dims_2d, task_coor)
             END IF
 
             IF (.NOT. PRESENT(dims_nd)) THEN
@@ -672,8 +672,7 @@ CONTAINS
             INTEGER, DIMENSION(2)                                          :: dims_2d, task_coor_2d
             INTEGER :: nproc
 
-            CALL mp_environ(nproc, dims_2d, task_coor_2d, pgrid%mp_comm_2d)
-            CALL mp_environ(nproc, dims_2d, task_coor_2d, pgrid%mp_comm_2d)
+            CALL pgrid%mp_comm_2d%environ_cart(nproc, dims_2d, task_coor_2d)
             CALL dbt_get_mapping_info(pgrid%nd_index_grid, dims_nd=dims)
             task_coor = get_nd_indices_pgrid(pgrid%nd_index_grid, task_coor_2d)
          END SUBROUTINE
@@ -694,7 +693,7 @@ CONTAINS
             INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL     :: ${varlist("nd_dist")}$
             LOGICAL, INTENT(IN), OPTIONAL                   :: own_comm
             INTEGER                                         :: ndims
-            TYPE(mp_comm_type) :: comm_2d
+            TYPE(mp_cart_type)                              :: comm_2d
             INTEGER, DIMENSION(2)                           :: pdims_2d_check, &
                                                                pdims_2d, task_coor_2d
             INTEGER, DIMENSION(SIZE(map1_2d) + SIZE(map2_2d)) :: dims, nblks_nd, task_coor
@@ -747,7 +746,7 @@ CONTAINS
 
             comm_2d = pgrid_prv%mp_comm_2d
 
-            CALL mp_environ(comm_2d, 2, pdims_2d_check, task_coor_2d, periods_2d)
+            CALL comm_2d%environ_cart(2, pdims_2d_check, task_coor_2d, periods_2d)
             IF (ANY(pdims_2d_check .NE. pdims_2d)) THEN
                CPABORT("inconsistent process grid dimensions")
             END IF
@@ -1187,7 +1186,7 @@ CONTAINS
 
             CHARACTER(len=default_string_length)        :: name_in
             INTEGER, DIMENSION(2)                       :: order_in
-            TYPE(mp_comm_type)                                     :: comm_2d
+            TYPE(mp_cart_type)                          :: comm_2d
             TYPE(dbcsr_distribution_type)               :: matrix_dist
             TYPE(dbt_distribution_type)                 :: dist
             INTEGER, DIMENSION(:), POINTER              :: row_blk_size, col_blk_size

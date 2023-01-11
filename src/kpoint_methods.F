@@ -60,9 +60,7 @@ MODULE kpoint_methods
                                               kpoint_type
    USE mathconstants,                   ONLY: twopi
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_cart_create,&
-                                              mp_cart_sub,&
-                                              mp_comm_type
+   USE message_passing,                 ONLY: mp_cart_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE qs_matrix_pools,                 ONLY: mpools_create,&
@@ -279,7 +277,7 @@ CONTAINS
                                                             para_env_inter_kp, para_env_kp
       TYPE(kpoint_env_p_type), DIMENSION(:), POINTER     :: kp_env
       TYPE(kpoint_env_type), POINTER                     :: kp
-      TYPE(mp_comm_type)                                 :: comm_cart, comm_inter_kp, comm_kp
+      TYPE(mp_cart_type)                                 :: comm_cart, comm_inter_kp, comm_kp
 
       CALL timeset(routineN, handle)
 
@@ -349,18 +347,17 @@ CONTAINS
          END IF
 
          NULLIFY (cart, para_env_full, para_env_kp, para_env_inter_kp)
-         CALL mp_cart_create(comm_old=para_env%group, ndims=2, dims=dims, pos=pos, &
-                             comm_cart=comm_cart)
+         CALL comm_cart%create(comm_old=para_env%group, ndims=2, dims=dims, pos=pos)
 
          CALL cp_cart_create(cart, comm_cart, ndims=2, owns_group=.TRUE.)
          CALL cp_para_env_create(para_env_full, comm_cart, owns_group=.FALSE.)
          rdim(2) = .FALSE.
          rdim(1) = .TRUE.
-         CALL mp_cart_sub(comm=comm_cart, rdim=rdim, sub_comm=comm_kp)
+         CALL comm_kp%from_sub(comm=comm_cart, rdim=rdim)
          CALL cp_para_env_create(para_env_kp, comm_kp, owns_group=.TRUE.)
          rdim(2) = .TRUE.
          rdim(1) = .FALSE.
-         CALL mp_cart_sub(comm=comm_cart, rdim=rdim, sub_comm=comm_inter_kp)
+         CALL comm_inter_kp%from_sub(comm=comm_cart, rdim=rdim)
          CALL cp_para_env_create(para_env_inter_kp, comm_inter_kp, &
                                  owns_group=.TRUE.)
 

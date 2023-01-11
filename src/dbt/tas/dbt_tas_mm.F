@@ -54,9 +54,7 @@ MODULE dbt_tas_mm
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
-   USE message_passing,                 ONLY: mp_cart_create,&
-                                              mp_comm_type,&
-                                              mp_environ
+   USE message_passing,                 ONLY: mp_cart_type
 #include "../../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -135,7 +133,7 @@ CONTAINS
       TYPE(dbt_tas_split_info)                           :: info, info_a, info_b, info_c
       TYPE(dbt_tas_type), POINTER                        :: matrix_a_rep, matrix_a_rs, matrix_b_rep, &
                                                             matrix_b_rs, matrix_c_rep, matrix_c_rs
-      TYPE(mp_comm_type)                                 :: comm_tmp, mp_comm, mp_comm_group, &
+      TYPE(mp_cart_type)                                 :: comm_tmp, mp_comm, mp_comm_group, &
                                                             mp_comm_mm, mp_comm_opt
 
       CALL timeset(routineN, handle)
@@ -407,8 +405,8 @@ CONTAINS
 
       CALL dbt_tas_get_split_info(info, nsplit=nsplit, mp_comm=mp_comm, mp_comm_group=mp_comm_group)
 
-      CALL mp_environ(numproc, pdims, pcoord, mp_comm)
-      CALL mp_environ(numproc_sub, pdims_sub, pcoord_sub, mp_comm_group)
+      CALL mp_comm%environ_cart(numproc, pdims, pcoord)
+      CALL mp_comm_group%environ_cart(numproc_sub, pdims_sub, pcoord_sub)
 
       opt_pgrid = .NOT. accept_pgrid_dims(pdims_sub, relative=.TRUE.)
 
@@ -436,7 +434,7 @@ CONTAINS
       END IF
 
       pdims = 0
-      CALL mp_cart_create(mp_comm_group, 2, pdims, pcoord, mp_comm_mm)
+      CALL mp_comm_mm%create(mp_comm_group, 2, pdims, pcoord)
 
       ! Convert DBM submatrices to optimized process grids and multiply
       SELECT CASE (max_mm_dim)
@@ -829,7 +827,7 @@ CONTAINS
 !> \author Patrick Seewald
 ! **************************************************************************************************
    SUBROUTINE reshape_mm_small(mp_comm, matrix_in, matrix_out, transposed, nodata, move_data)
-      TYPE(mp_comm_type), INTENT(IN)                     :: mp_comm
+      TYPE(mp_cart_type), INTENT(IN)                     :: mp_comm
       TYPE(dbt_tas_type), INTENT(INOUT)                  :: matrix_in
       TYPE(dbt_tas_type), INTENT(OUT)                    :: matrix_out
       LOGICAL, INTENT(IN)                                :: transposed
@@ -852,7 +850,7 @@ CONTAINS
          nodata_prv = .FALSE.
       END IF
 
-      CALL mp_environ(numnodes, pdims, pcoord, mp_comm)
+      CALL mp_comm%environ_cart(numnodes, pdims, pcoord)
 
       dims = [dbt_tas_nblkrows_total(matrix_in), dbt_tas_nblkcols_total(matrix_in)]
 
@@ -914,7 +912,7 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: split_rc_1, split_rc_2
       LOGICAL, INTENT(IN), OPTIONAL                      :: nodata1, nodata2
       LOGICAL, INTENT(INOUT), OPTIONAL                   :: move_data_1, move_data_2
-      TYPE(mp_comm_type), INTENT(OUT), OPTIONAL          :: comm_new
+      TYPE(mp_cart_type), INTENT(OUT), OPTIONAL          :: comm_new
       INTEGER, INTENT(IN), OPTIONAL                      :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reshape_mm_compatible'
@@ -931,7 +929,7 @@ CONTAINS
                                                             row_dist_2
       TYPE(dbt_tas_distribution_type)                    :: dist_1, dist_2
       TYPE(dbt_tas_split_info)                           :: split_info
-      TYPE(mp_comm_type)                                 :: mp_comm
+      TYPE(mp_cart_type)                                 :: mp_comm
 
       CALL timeset(routineN, handle)
       new1 = .FALSE.; new2 = .FALSE.
@@ -1052,7 +1050,7 @@ CONTAINS
             comm_new = dbt_tas_mp_comm(mp_comm, rowsplit, nsplit_prv)
             CALL dbt_tas_create_split(split_info, comm_new, rowsplit, nsplit_prv)
 
-            CALL mp_environ(numnodes, pdims, pcoord, comm_new)
+            CALL comm_new%environ_cart(numnodes, pdims, pcoord)
 
             ! use a very simple cyclic distribution that may not be load balanced if block
             ! sizes are not equal. However we can not use arbitrary distributions
@@ -1158,7 +1156,7 @@ CONTAINS
       LOGICAL                                            :: nodata_prv
       TYPE(dbt_tas_distribution_type)                    :: dist
       TYPE(dbt_tas_split_info)                           :: split_info
-      TYPE(mp_comm_type)                                 :: mp_comm
+      TYPE(mp_cart_type)                                 :: mp_comm
 
       CLASS(dbt_tas_distribution), ALLOCATABLE :: rdist, cdist
       CLASS(dbt_tas_rowcol_data), ALLOCATABLE  :: rbsize, cbsize
@@ -1266,8 +1264,8 @@ CONTAINS
       ! check if communicators are equivalent
       ! Note: mpi_comm_compare is not sufficient since this does not compare associated Cartesian grids.
       ! It's sufficient to check dimensions of global grid, subgrids will be determined later on (change_split)
-      CALL mp_environ(numproc, pdims_a, pcoord_a, info_a%mp_comm)
-      CALL mp_environ(numproc, pdims_b, pcoord_b, info_b%mp_comm)
+      CALL info_a%mp_comm%environ_cart(numproc, pdims_a, pcoord_a)
+      CALL info_b%mp_comm%environ_cart(numproc, pdims_b, pcoord_b)
       IF (.NOT. array_eq(pdims_a, pdims_b)) THEN
          IF (unit_nr_prv > 0) THEN
             WRITE (unit_nr_prv, *) "mp dims not compatible:", pdims_a, "|", pdims_b
@@ -1328,7 +1326,7 @@ CONTAINS
                                                     numnodes, handle
       INTEGER, DIMENSION(2)                      :: pcoord, pdims
       LOGICAL                                    :: nodata_prv, transposed
-      TYPE(mp_comm_type) :: mp_comm
+      TYPE(mp_cart_type) :: mp_comm
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reshape_mm_template'
 
       CALL timeset(routineN, handle)
@@ -1348,7 +1346,7 @@ CONTAINS
       transposed = dim_split_template .NE. dim_split_matrix
       IF (transposed) trans = .NOT. trans
 
-      CALL mp_environ(numnodes, pdims, pcoord, info_template%mp_comm)
+      CALL info_template%mp_comm%environ_cart(numnodes, pdims, pcoord)
 
       SELECT CASE (dim_split_template)
       CASE (1)
@@ -1417,7 +1415,7 @@ CONTAINS
       TYPE(dbt_tas_iterator)                             :: iter
       TYPE(dbt_tas_type), POINTER                        :: matrix_a_bnorm, matrix_b_bnorm, &
                                                             matrix_c_bnorm
-      TYPE(mp_comm_type)                                 :: mp_comm
+      TYPE(mp_cart_type)                                 :: mp_comm
 
       CALL timeset(routineN, handle)
 
@@ -1576,7 +1574,7 @@ CONTAINS
 !> \author Patrick Seewald
 ! **************************************************************************************************
    SUBROUTINE convert_to_new_pgrid(mp_comm_cart, matrix_in, matrix_out, move_data, nodata, optimize_pgrid)
-      TYPE(mp_comm_type), INTENT(IN)                     :: mp_comm_cart
+      TYPE(mp_cart_type), INTENT(IN)                     :: mp_comm_cart
       TYPE(dbm_type), INTENT(INOUT)                      :: matrix_in
       TYPE(dbm_type), INTENT(OUT)                        :: matrix_out
       LOGICAL, INTENT(IN), OPTIONAL                      :: move_data, nodata, optimize_pgrid
@@ -1620,7 +1618,7 @@ CONTAINS
       nbrows = SIZE(rbsize)
       nbcols = SIZE(rcsize)
       dist_old = dbm_get_distribution(matrix_in)
-      CALL mp_environ(nproc, pdims, pcoord, mp_comm_cart)
+      CALL mp_comm_cart%environ_cart(nproc, pdims, pcoord)
 
       ALLOCATE (row_dist(nbrows), col_dist(nbcols))
       CALL dbt_tas_default_distvec(nbrows, pdims(1), rbsize, row_dist)

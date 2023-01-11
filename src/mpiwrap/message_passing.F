@@ -154,6 +154,7 @@ MODULE message_passing
    PUBLIC :: mp_win_type
    PUBLIC :: mp_file_type
    PUBLIC :: mp_info_type
+   PUBLIC :: mp_cart_type
 
    TYPE mp_comm_type
       PRIVATE
@@ -631,6 +632,18 @@ MODULE message_passing
       GENERIC, PUBLIC :: OPERATOR(.NE.) => mp_info_op_neq
    END TYPE
 
+   TYPE, EXTENDS(mp_comm_type) :: mp_cart_type
+   CONTAINS
+      PROCEDURE, PUBLIC, PASS(comm_cart), NON_OVERRIDABLE :: create => mp_cart_create
+      PROCEDURE, PUBLIC, PASS(sub_comm), NON_OVERRIDABLE :: from_sub => mp_cart_sub
+
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_environ_c, mp_environ_c2
+      GENERIC, PUBLIC :: environ_cart => mp_environ_c, mp_environ_c2
+
+      PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: coords => mp_cart_coords
+      PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: rank_cart => mp_cart_rank
+   END TYPE
+
    ! Create the constants from the corresponding handles
    TYPE(mp_comm_type), PARAMETER, PUBLIC :: mp_comm_null = mp_comm_type(mp_comm_null_handle)
    TYPE(mp_comm_type), PARAMETER, PUBLIC :: mp_comm_self = mp_comm_type(mp_comm_self_handle)
@@ -657,8 +670,7 @@ MODULE message_passing
    PUBLIC :: add_mp_perf_env, rm_mp_perf_env, get_mp_perf_env, describe_mp_perf_env
 
    ! informational / generation of sub comms
-   PUBLIC :: mp_environ, mp_cart_coords
-   PUBLIC :: mp_cart_create, mp_dims_create, mp_cart_rank, mp_cart_sub
+   PUBLIC :: mp_dims_create
    PUBLIC :: cp2k_is_parallel
    PUBLIC :: mp_get_node_global_rank
 
@@ -694,12 +706,6 @@ MODULE message_passing
    PUBLIC :: mp_get_library_version
 
    ! assumed to be private
-
-! Interface declarations for non-data-oriented subroutines.
-
-   INTERFACE mp_environ
-      MODULE PROCEDURE mp_environ_c, mp_environ_c2
-   END INTERFACE
 
    INTERFACE mp_waitall
       MODULE PROCEDURE mp_waitall_1, mp_waitall_2
@@ -1361,12 +1367,12 @@ CONTAINS
 !> \param numtask ...
 !> \param dims ...
 !> \param task_coor ...
-!> \param group ...
+!> \param comm ...
 ! **************************************************************************************************
-   SUBROUTINE mp_environ_c(numtask, dims, task_coor, group)
+   SUBROUTINE mp_environ_c(numtask, dims, task_coor, comm)
 
       INTEGER, INTENT(OUT)                     :: numtask, dims(2), task_coor(2)
-      CLASS(mp_comm_type), INTENT(IN)                      :: group
+      CLASS(mp_cart_type), INTENT(IN)                      :: comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_environ_c'
 
@@ -1381,13 +1387,13 @@ CONTAINS
       task_coor = 0
       dims = 1
 #if defined(__parallel)
-      CALL mpi_comm_size(group%handle, numtask, ierr)
+      CALL mpi_comm_size(comm%handle, numtask, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_size @ mp_environ_c")
 
-      CALL mpi_cart_get(group%handle, 2, dims, periods, task_coor, ierr)
+      CALL mpi_cart_get(comm%handle, 2, dims, periods, task_coor, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_cart_get @ mp_environ_c")
 #else
-      MARK_USED(group)
+      MARK_USED(comm)
 #endif
       CALL mp_timestop(handle)
 
@@ -1403,7 +1409,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_environ_c2(comm, ndims, dims, task_coor, periods)
 
-      CLASS(mp_comm_type), INTENT(IN) :: comm
+      CLASS(mp_cart_type), INTENT(IN) :: comm
       INTEGER, INTENT(IN)                                :: ndims
       INTEGER, INTENT(OUT)                               :: dims(ndims), task_coor(ndims)
       LOGICAL, INTENT(out)                               :: periods(ndims)
@@ -1442,7 +1448,7 @@ CONTAINS
       INTEGER, INTENT(IN)                      :: ndims
       INTEGER, INTENT(INOUT), CONTIGUOUS                   :: dims(:)
       INTEGER, INTENT(OUT), CONTIGUOUS                     :: pos(:)
-      CLASS(mp_comm_type), INTENT(OUT) :: comm_cart
+      CLASS(mp_cart_type), INTENT(OUT) :: comm_cart
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_cart_create'
 
@@ -1498,7 +1504,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_cart_coords(comm, rank, coords)
 
-      CLASS(mp_comm_type), INTENT(IN) :: comm
+      CLASS(mp_cart_type), INTENT(IN) :: comm
       INTEGER, INTENT(IN)                                :: rank
       INTEGER, DIMENSION(:), INTENT(OUT)                 :: coords
 
@@ -1573,9 +1579,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_cart_sub(comm, rdim, sub_comm)
 
-      CLASS(mp_comm_type), INTENT(IN)                                :: comm
+      CLASS(mp_cart_type), INTENT(IN)                                :: comm
       LOGICAL, DIMENSION(:), CONTIGUOUS, INTENT(IN)                  :: rdim
-      CLASS(mp_comm_type), INTENT(OUT)                               :: sub_comm
+      CLASS(mp_cart_type), INTENT(OUT)                               :: sub_comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_cart_sub'
 
@@ -1747,12 +1753,12 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param group ...
+!> \param comm ...
 !> \param pos ...
 !> \param rank ...
 ! **************************************************************************************************
-   SUBROUTINE mp_cart_rank(group, pos, rank)
-      CLASS(mp_comm_type), INTENT(IN)                                :: group
+   SUBROUTINE mp_cart_rank(comm, pos, rank)
+      CLASS(mp_cart_type), INTENT(IN)                                :: comm
       INTEGER, DIMENSION(:), INTENT(IN)                  :: pos
       INTEGER, INTENT(OUT)                               :: rank
 
@@ -1764,11 +1770,11 @@ CONTAINS
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-      CALL mpi_cart_rank(group%handle, pos, rank, ierr)
+      CALL mpi_cart_rank(comm%handle, pos, rank, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_cart_rank @ mp_cart_rank")
 #else
       rank = 0
-      MARK_USED(group)
+      MARK_USED(comm)
       MARK_USED(pos)
 #endif
       CALL mp_timestop(handle)
@@ -2160,7 +2166,7 @@ CONTAINS
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE mp_comm_split_direct(comm, sub_comm, color, key)
-      TYPE(mp_comm_type), INTENT(in)                                :: comm
+      CLASS(mp_comm_type), INTENT(in)                                :: comm
       CLASS(mp_comm_type), INTENT(OUT)                               :: sub_comm
       INTEGER, INTENT(in)                                :: color
       INTEGER, INTENT(in), OPTIONAL                      :: key
@@ -2212,7 +2218,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_comm_split(comm, sub_comm, ngroups, group_distribution, &
                             subgroup_min_size, n_subgroups, group_partition, stride)
-      TYPE(mp_comm_type), INTENT(in)                      :: comm
+      CLASS(mp_comm_type), INTENT(in)                      :: comm
       CLASS(mp_comm_type), INTENT(out) :: sub_comm
       INTEGER, INTENT(out)                     :: ngroups
       INTEGER, DIMENSION(0:), INTENT(INOUT)                    :: group_distribution

@@ -17,8 +17,7 @@ MODULE dct
 
    USE fast,                            ONLY: copy_cr
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_cart_rank,&
-                                              mp_comm_type,&
+   USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_request_null,&
                                               mp_request_type,&
                                               mp_waitall
@@ -441,7 +440,7 @@ CONTAINS
 
       DO k = 1, maxn_sendrecv
 ! convert srcs_coord to pid
-         CALL mp_cart_rank(pw_grid%para%rs_group, ABS(srcs_coord(:, k)) - 1, srcs_expand(k))
+         CALL pw_grid%para%rs_group%rank_cart(ABS(srcs_coord(:, k)) - 1, srcs_expand(k))
 ! find out the flipping status
          IF ((srcs_coord(1, k) .GT. 0) .AND. (srcs_coord(2, k) .GT. 0)) THEN
             flipg_stat(k) = NOT_FLIPPED

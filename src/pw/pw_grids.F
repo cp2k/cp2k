@@ -44,10 +44,7 @@ MODULE pw_grids
    USE mathconstants,                   ONLY: twopi
    USE mathlib,                         ONLY: det_3x3,&
                                               inv_3x3
-   USE message_passing,                 ONLY: mp_cart_coords,&
-                                              mp_cart_create,&
-                                              mp_cart_rank,&
-                                              mp_comm_self,&
+   USE message_passing,                 ONLY: mp_comm_self,&
                                               mp_comm_type,&
                                               mp_dims_create
    USE offload_api,                     ONLY: offload_activate_chosen_device,&
@@ -95,7 +92,8 @@ CONTAINS
    SUBROUTINE pw_grid_create(pw_grid, pe_group, local)
 
       TYPE(pw_grid_type), POINTER                        :: pw_grid
-      TYPE(mp_comm_type), INTENT(in)                     :: pe_group
+
+      CLASS(mp_comm_type), INTENT(in)                     :: pe_group
       LOGICAL, INTENT(IN), OPTIONAL                      :: local
 
       LOGICAL                                            :: my_local
@@ -833,13 +831,10 @@ CONTAINS
          pw_grid%ngpts_local = INT(pw_grid%ngpts)
          pw_grid%para%rs_dims = 1
          mp_comm_old = mp_comm_self
-         CALL mp_cart_create(mp_comm_old, 2, &
-                             pw_grid%para%rs_dims, &
-                             pw_grid%para%rs_pos, &
-                             pw_grid%para%rs_group)
-         CALL mp_cart_rank(pw_grid%para%rs_group, &
-                           pw_grid%para%rs_pos, &
-                           pw_grid%para%rs_mpo)
+         CALL pw_grid%para%rs_group%create(mp_comm_old, 2, &
+                                           pw_grid%para%rs_dims, &
+                                           pw_grid%para%rs_pos)
+         CALL pw_grid%para%rs_group%rank_cart(pw_grid%para%rs_pos, pw_grid%para%rs_mpo)
          pw_grid%para%group_size = 1
          ALLOCATE (pw_grid%para%bo(2, 3, 0:0, 3))
          DO i = 1, 3
@@ -920,13 +915,10 @@ CONTAINS
          END SELECT
 
          !..create group for real space distribution
-         CALL mp_cart_create(pw_grid%para%group, 2, &
-                             pw_grid%para%rs_dims, &
-                             pw_grid%para%rs_pos, &
-                             pw_grid%para%rs_group)
-         CALL mp_cart_rank(pw_grid%para%rs_group, &
-                           pw_grid%para%rs_pos, &
-                           pw_grid%para%rs_mpo)
+         CALL pw_grid%para%rs_group%create(pw_grid%para%group, 2, &
+                                           pw_grid%para%rs_dims, &
+                                           pw_grid%para%rs_pos)
+         CALL pw_grid%para%rs_group%rank_cart(pw_grid%para%rs_pos, pw_grid%para%rs_mpo)
 
          IF (PRESENT(bounds_local)) THEN
             pw_grid%bounds_local = bounds_local
@@ -955,7 +947,7 @@ CONTAINS
             ALLOCATE (axis_dist_all(2, 3, np))
             CALL pw_grid%para%rs_group%allgather(axis_dist, axis_dist_all)
             DO ip = 0, np - 1
-               CALL mp_cart_coords(pw_grid%para%rs_group, ip, coor)
+               CALL pw_grid%para%rs_group%coords(ip, coor)
                ! distribution xyZ
                pw_grid%para%bo(1:2, 1, ip, 1) = axis_dist_all(1:2, 1, ip + 1)
                pw_grid%para%bo(1:2, 2, ip, 1) = axis_dist_all(1:2, 2, ip + 1)
@@ -975,7 +967,7 @@ CONTAINS
             DEALLOCATE (axis_dist_all)
          ELSE
             DO ip = 0, np - 1
-               CALL mp_cart_coords(pw_grid%para%rs_group, ip, coor)
+               CALL pw_grid%para%rs_group%coords(ip, coor)
                ! distribution xyZ
                pw_grid%para%bo(1:2, 1, ip, 1) = get_limit(nx, rsd(1), coor(1))
                pw_grid%para%bo(1:2, 2, ip, 1) = get_limit(ny, rsd(2), coor(2))
