@@ -1401,7 +1401,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_environ_c2(comm, ndims, dims, task_coor, periods)
 
-      TYPE(mp_comm_type), INTENT(IN) :: comm
+      CLASS(mp_comm_type), INTENT(IN) :: comm
       INTEGER, INTENT(IN)                                :: ndims
       INTEGER, INTENT(OUT)                               :: dims(ndims), task_coor(ndims)
       LOGICAL, INTENT(out)                               :: periods(ndims)
@@ -1436,11 +1436,11 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_cart_create(comm_old, ndims, dims, pos, comm_cart)
 
-      TYPE(mp_comm_type), INTENT(IN) :: comm_old
+      CLASS(mp_comm_type), INTENT(IN) :: comm_old
       INTEGER, INTENT(IN)                      :: ndims
       INTEGER, INTENT(INOUT), CONTIGUOUS                   :: dims(:)
       INTEGER, INTENT(OUT), CONTIGUOUS                     :: pos(:)
-      TYPE(mp_comm_type), INTENT(OUT) :: comm_cart
+      CLASS(mp_comm_type), INTENT(OUT) :: comm_cart
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_cart_create'
 
@@ -1455,7 +1455,7 @@ CONTAINS
 
       nodes = 0
       pos(1:ndims) = -1
-      comm_cart = comm_old
+      comm_cart%handle = comm_old%handle
 #if defined(__parallel)
 
       CALL mpi_comm_size(comm_old%handle, nodes, ierr)
@@ -1482,7 +1482,7 @@ CONTAINS
 #else
       pos(1:ndims) = 0
       dims = 1
-      comm_cart = mp_comm_self
+      comm_cart%handle = mp_comm_self%handle
 #endif
       CALL mp_timestop(handle)
 
@@ -1496,7 +1496,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_cart_coords(comm, rank, coords)
 
-      TYPE(mp_comm_type), INTENT(IN) :: comm
+      CLASS(mp_comm_type), INTENT(IN) :: comm
       INTEGER, INTENT(IN)                                :: rank
       INTEGER, DIMENSION(:), INTENT(OUT)                 :: coords
 
@@ -1571,9 +1571,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_cart_sub(comm, rdim, sub_comm)
 
-      TYPE(mp_comm_type), INTENT(IN)                                :: comm
+      CLASS(mp_comm_type), INTENT(IN)                                :: comm
       LOGICAL, DIMENSION(:), CONTIGUOUS, INTENT(IN)                  :: rdim
-      TYPE(mp_comm_type), INTENT(OUT)                               :: sub_comm
+      CLASS(mp_comm_type), INTENT(OUT)                               :: sub_comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_cart_sub'
 
@@ -1589,7 +1589,7 @@ CONTAINS
 #else
       MARK_USED(comm)
       MARK_USED(rdim)
-      sub_comm = mp_comm_self
+      sub_comm%handle = mp_comm_self%handle
 #endif
       CALL mp_timestop(handle)
 
@@ -1628,7 +1628,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_comm_dup(comm1, comm2)
 
-      TYPE(mp_comm_type), INTENT(IN)                                :: comm1
+      CLASS(mp_comm_type), INTENT(IN)                                :: comm1
       CLASS(mp_comm_type), INTENT(OUT)                               :: comm2
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_dup'
@@ -1743,7 +1743,7 @@ CONTAINS
 !> \param rank ...
 ! **************************************************************************************************
    SUBROUTINE mp_cart_rank(group, pos, rank)
-      TYPE(mp_comm_type), INTENT(IN)                                :: group
+      CLASS(mp_comm_type), INTENT(IN)                                :: group
       INTEGER, DIMENSION(:), INTENT(IN)                  :: pos
       INTEGER, INTENT(OUT)                               :: rank
 
