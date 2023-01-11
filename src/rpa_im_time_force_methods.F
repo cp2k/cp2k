@@ -85,8 +85,7 @@ MODULE rpa_im_time_force_methods
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE mathconstants,                   ONLY: fourpi
-   USE message_passing,                 ONLY: mp_cart_create,&
-                                              mp_comm_type
+   USE message_passing,                 ONLY: mp_cart_type
    USE mp2_eri,                         ONLY: integrate_set_2c
    USE mp2_eri_gpw,                     ONLY: calc_potential_gpw,&
                                               cleanup_gpw,&
@@ -230,7 +229,7 @@ CONTAINS
          DIMENSION(:), TARGET                            :: basis_set_ao, basis_set_ri_aux
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis, ri_basis
       TYPE(libint_potential_type)                        :: identity_pot
-      TYPE(mp_comm_type)                                 :: mp_comm_t3c
+      TYPE(mp_cart_type)                                 :: mp_comm_t3c
       TYPE(neighbor_list_3c_type)                        :: nl_3c
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: nl_2c
@@ -293,7 +292,7 @@ CONTAINS
       CALL dbt_destroy(t_3c_template)
 
       CALL dbt_mp_environ_pgrid(pgrid_t3c, pdims, pcoord)
-      CALL mp_cart_create(pgrid_t3c%mp_comm_2d, 3, pdims, pcoord, mp_comm_t3c)
+      CALL mp_comm_t3c%create(pgrid_t3c%mp_comm_2d, 3, pdims, pcoord)
       CALL distribution_3d_create(dist_3d, dist_RI, dist_AO_1, dist_AO_2, &
                                   nkind, particle_set, mp_comm_t3c, own_comm=.TRUE.)
       DEALLOCATE (dist_RI, dist_AO_1, dist_AO_2)

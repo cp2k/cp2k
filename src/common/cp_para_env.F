@@ -15,8 +15,7 @@
 MODULE cp_para_env
    USE cp_para_types,                   ONLY: cp_para_cart_type,&
                                               cp_para_env_type
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_environ
+   USE message_passing,                 ONLY: mp_comm_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -45,7 +44,8 @@ CONTAINS
    SUBROUTINE cp_para_env_create(para_env, group, source, mepos, num_pe, &
                                  owns_group)
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(mp_comm_type), INTENT(in)                     :: group
+
+      CLASS(mp_comm_type), INTENT(in)                     :: group
       INTEGER, INTENT(in), OPTIONAL                      :: source, mepos, num_pe
       LOGICAL, INTENT(in), OPTIONAL                      :: owns_group
 
@@ -140,7 +140,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cart_create(cart, group, ndims, owns_group)
       TYPE(cp_para_cart_type), POINTER                   :: cart
-      TYPE(mp_comm_type), INTENT(in)                     :: group
+
+      CLASS(mp_comm_type), INTENT(in)                     :: group
       INTEGER, INTENT(in)                                :: ndims
       LOGICAL, INTENT(in), OPTIONAL                      :: owns_group
 
@@ -171,8 +172,8 @@ CONTAINS
       TYPE(cp_para_cart_type), INTENT(INOUT)             :: cart
 
       CPASSERT(cart%ref_count > 0)
-      CALL mp_environ(cart%group, cart%ndims, cart%num_pe, task_coor=cart%mepos, &
-                      periods=cart%periodic)
+      CALL cart%group%environ_cart(cart%ndims, cart%num_pe, task_coor=cart%mepos, &
+                                   periods=cart%periodic)
       CALL cart%group%environ(numtask=cart%ntask, taskid=cart%rank)
    END SUBROUTINE cp_cart_update
 

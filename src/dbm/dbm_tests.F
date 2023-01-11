@@ -15,7 +15,7 @@ MODULE dbm_tests
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE machine,                         ONLY: m_flush
-   USE message_passing,                 ONLY: mp_cart_create,&
+   USE message_passing,                 ONLY: mp_cart_type,&
                                               mp_comm_type,&
                                               mp_dims_create
 #include "../base/base_uses.f90"
@@ -72,7 +72,7 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: mycoord, npdims
       TYPE(dbm_distribution_obj)                         :: dist_a, dist_b, dist_c
       TYPE(dbm_type), TARGET                             :: matrix_a, matrix_b, matrix_c
-      TYPE(mp_comm_type)                                 :: cart_group
+      TYPE(mp_cart_type)                                 :: cart_group
 
       CALL timeset(routineN, handle)
 
@@ -80,7 +80,7 @@ CONTAINS
       CALL mp_group%environ(numnodes, mynode)
       npdims(:) = 0
       CALL mp_dims_create(numnodes, npdims)
-      CALL mp_cart_create(mp_group, 2, npdims, mycoord, cart_group)
+      CALL cart_group%create(mp_group, 2, npdims, mycoord)
 
       ! Initialize random number generator.
       randmat_counter = 12341313
@@ -206,7 +206,8 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: retain_sparsity
       INTEGER, INTENT(IN)                                :: n_loops
       REAL(kind=dp), INTENT(in)                          :: eps
-      TYPE(mp_comm_type)                                 :: group
+
+      CLASS(mp_comm_type), INTENT(IN)                    :: group
       INTEGER, INTENT(IN)                                :: io_unit
       LOGICAL, INTENT(in)                                :: always_checksum
 
@@ -270,7 +271,8 @@ CONTAINS
    SUBROUTINE fill_matrix(matrix, sparsity, group)
       TYPE(dbm_type), INTENT(inout)                      :: matrix
       REAL(kind=dp), INTENT(in)                          :: sparsity
-      TYPE(mp_comm_type), INTENT(IN)                     :: group
+
+      CLASS(mp_comm_type), INTENT(IN)                     :: group
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'fill_matrix'
 

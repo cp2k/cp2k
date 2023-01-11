@@ -30,7 +30,8 @@ PROGRAM dbt_tas_unittest
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE machine,                         ONLY: default_output_unit
-   USE message_passing,                 ONLY: mp_comm_type,&
+   USE message_passing,                 ONLY: mp_cart_type,&
+                                              mp_comm_type,&
                                               mp_world_finalize,&
                                               mp_world_init
    USE offload_api,                     ONLY: offload_get_device_count,&
@@ -46,7 +47,8 @@ PROGRAM dbt_tas_unittest
    INTEGER, DIMENSION(k)          :: bsize_k
    REAL(KIND=dp), PARAMETER   :: sparsity = 0.1
    INTEGER                        :: numnodes, mynode, io_unit
-   TYPE(mp_comm_type)             :: mp_comm, mp_comm_A, mp_comm_At, mp_comm_B, mp_comm_Bt, mp_comm_C, mp_comm_Ct
+   TYPE(mp_comm_type)             :: mp_comm
+   TYPE(mp_cart_type) :: mp_comm_A, mp_comm_At, mp_comm_B, mp_comm_Bt, mp_comm_C, mp_comm_Ct
    REAL(KIND=dp), PARAMETER   :: filter_eps = 1.0E-08
 
    CALL mp_world_init(mp_comm)

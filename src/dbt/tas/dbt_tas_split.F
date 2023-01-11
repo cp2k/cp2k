@@ -16,10 +16,9 @@ MODULE dbt_tas_split
                                               dbt_tas_split_info
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE message_passing,                 ONLY: mp_cart_create,&
+   USE message_passing,                 ONLY: mp_cart_type,&
                                               mp_comm_type,&
-                                              mp_dims_create,&
-                                              mp_environ
+                                              mp_dims_create
    USE util,                            ONLY: sort
 #include "../../base/base_uses.f90"
 
@@ -71,7 +70,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbt_tas_create_split_rows_or_cols(split_info, mp_comm, ngroup, igroup, split_rowcol, own_comm)
       TYPE(dbt_tas_split_info), INTENT(OUT)              :: split_info
-      TYPE(mp_comm_type), INTENT(IN)                     :: mp_comm
+      TYPE(mp_cart_type), INTENT(IN)                     :: mp_comm
       INTEGER, INTENT(INOUT)                             :: ngroup
       INTEGER, INTENT(IN)                                :: igroup, split_rowcol
       LOGICAL, INTENT(IN), OPTIONAL                      :: own_comm
@@ -106,7 +105,7 @@ CONTAINS
       CALL mp_comm_group%from_split(mp_comm, igroup)
 
       CALL mp_comm%environ(numproc, iproc)
-      CALL mp_environ(numproc, pdims, pcoord, mp_comm)
+      CALL mp_comm%environ_cart(numproc, pdims, pcoord)
       split_info%pdims = pdims
 
       CALL mp_comm_group%environ(numproc_group, iproc_group)
@@ -128,7 +127,7 @@ CONTAINS
          CPABORT('inconsistent subgroups')
       END IF
 
-      CALL mp_cart_create(mp_comm_group, 2, pdims_group, pcoord_group, split_info%mp_comm_group)
+      CALL split_info%mp_comm_group%create(mp_comm_group, 2, pdims_group, pcoord_group)
 
       CALL split_info%mp_comm_group%environ(numproc_group_check, iproc_group_check)
 
@@ -153,9 +152,9 @@ CONTAINS
 !> \author Patrick Seewald
 ! **************************************************************************************************
    FUNCTION dbt_tas_mp_comm(mp_comm, split_rowcol, nsplit)
-      TYPE(mp_comm_type), INTENT(IN)                     :: mp_comm
+      CLASS(mp_comm_type), INTENT(IN)                     :: mp_comm
       INTEGER, INTENT(IN)                                :: split_rowcol, nsplit
-      TYPE(mp_comm_type)                                 :: dbt_tas_mp_comm
+      TYPE(mp_cart_type)                                 :: dbt_tas_mp_comm
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dbt_tas_mp_comm'
 
@@ -168,7 +167,7 @@ CONTAINS
 
       npdims = dbt_tas_mp_dims(numproc, split_rowcol, nsplit)
 
-      CALL mp_cart_create(mp_comm, 2, npdims, myploc, dbt_tas_mp_comm)
+      CALL dbt_tas_mp_comm%create(mp_comm, 2, npdims, myploc)
 
       CALL timestop(handle)
    END FUNCTION
@@ -303,9 +302,9 @@ CONTAINS
 !> \author Patrick Seewald
 ! **************************************************************************************************
    FUNCTION dbt_tas_mp_comm_from_matrix_sizes(mp_comm, nblkrows, nblkcols) RESULT(mp_comm_new)
-      TYPE(mp_comm_type), INTENT(IN)                     :: mp_comm
+      CLASS(mp_comm_type), INTENT(IN)                     :: mp_comm
       INTEGER(KIND=int_8), INTENT(IN)                    :: nblkrows, nblkcols
-      TYPE(mp_comm_type)                                 :: mp_comm_new
+      TYPE(mp_cart_type)                                 :: mp_comm_new
 
       INTEGER                                            :: nsplit, split_rowcol
 
@@ -332,7 +331,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbt_tas_create_split(split_info, mp_comm, split_rowcol, nsplit, own_comm, opt_nsplit)
       TYPE(dbt_tas_split_info), INTENT(OUT)              :: split_info
-      TYPE(mp_comm_type), INTENT(IN)                     :: mp_comm
+      TYPE(mp_cart_type), INTENT(IN)                     :: mp_comm
       INTEGER, INTENT(IN)                                :: split_rowcol, nsplit
       LOGICAL, INTENT(IN), OPTIONAL                      :: own_comm, opt_nsplit
 
@@ -354,7 +353,7 @@ CONTAINS
       CPASSERT(nsplit > 0)
 
       CALL mp_comm%environ(numproc, iproc)
-      CALL mp_environ(numproc, pdims, pcoord, mp_comm)
+      CALL mp_comm%environ_cart(numproc, pdims, pcoord)
 
       SELECT CASE (split_rowcol)
       CASE (rowsplit)
@@ -425,9 +424,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbt_tas_get_split_info(info, mp_comm, nsplit, igroup, mp_comm_group, split_rowcol, pgrid_offset)
       TYPE(dbt_tas_split_info), INTENT(IN)               :: info
-      TYPE(mp_comm_type), INTENT(OUT), OPTIONAL          :: mp_comm
+      TYPE(mp_cart_type), INTENT(OUT), OPTIONAL          :: mp_comm
       INTEGER, INTENT(OUT), OPTIONAL                     :: nsplit, igroup
-      TYPE(mp_comm_type), INTENT(OUT), OPTIONAL          :: mp_comm_group
+      TYPE(mp_cart_type), INTENT(OUT), OPTIONAL          :: mp_comm_group
       INTEGER, INTENT(OUT), OPTIONAL                     :: split_rowcol
       INTEGER, DIMENSION(2), INTENT(OUT), OPTIONAL       :: pgrid_offset
 

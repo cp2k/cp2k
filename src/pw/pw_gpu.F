@@ -33,8 +33,8 @@ MODULE pw_gpu
         cube_transpose_1, cube_transpose_2, fft_scratch_sizes, fft_scratch_type, get_fft_scratch, &
         release_fft_scratch, x_to_yz, xz_to_yz, yz_to_x, yz_to_xz
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_environ
+   USE message_passing,                 ONLY: mp_cart_type,&
+                                              mp_comm_type
    USE pw_grid_types,                   ONLY: FULLSPACE
    USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
@@ -240,7 +240,8 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
       TYPE(fft_scratch_sizes)                            :: fft_scratch_size
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
-      TYPE(mp_comm_type)                                 :: gs_group, rs_group
+      TYPE(mp_cart_type)                                 :: rs_group
+      TYPE(mp_comm_type)                                 :: gs_group
 
 !nyzray(0:)
 !yzp(:,:,0:)
@@ -263,7 +264,7 @@ CONTAINS
          bo => pw1%pw_grid%para%bo
 
          CALL gs_group%environ(numtask_g, g_pos)
-         CALL mp_environ(numtask_r, r_dim, r_pos, rs_group)
+         CALL rs_group%environ_cart(numtask_r, r_dim, r_pos)
          IF (numtask_g /= numtask_r) THEN
             CPABORT("Real space and G space groups are different.")
          END IF
@@ -416,7 +417,8 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
       TYPE(fft_scratch_sizes)                            :: fft_scratch_size
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
-      TYPE(mp_comm_type)                                 :: gs_group, rs_group
+      TYPE(mp_cart_type)                                 :: rs_group
+      TYPE(mp_comm_type)                                 :: gs_group
 
 !nyzray(0:)
 !yzp(:,:,0:)
@@ -439,7 +441,7 @@ CONTAINS
          bo => pw1%pw_grid%para%bo
 
          CALL gs_group%environ(numtask_g, g_pos)
-         CALL mp_environ(numtask_r, r_dim, r_pos, rs_group)
+         CALL rs_group%environ_cart(numtask_r, r_dim, r_pos)
          IF (numtask_g /= numtask_r) THEN
             CPABORT("Real space and G space groups are different.")
          END IF

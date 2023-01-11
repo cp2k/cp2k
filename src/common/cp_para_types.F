@@ -14,7 +14,8 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE cp_para_types
-   USE message_passing,                 ONLY: mp_comm_null,&
+   USE message_passing,                 ONLY: mp_cart_type,&
+                                              mp_comm_null,&
                                               mp_comm_type
 
    IMPLICIT NONE
@@ -80,7 +81,7 @@ MODULE cp_para_types
       INTEGER :: ndims, rank, ntask
       INTEGER, DIMENSION(:), POINTER :: mepos, source, num_pe
       LOGICAL, DIMENSION(:), POINTER :: periodic
-      TYPE(mp_comm_type) :: group = mp_comm_null
+      TYPE(mp_cart_type) :: group
       INTEGER :: ref_count
    END TYPE cp_para_cart_type
 

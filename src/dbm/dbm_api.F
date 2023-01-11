@@ -11,8 +11,8 @@ MODULE dbm_api
    USE kinds, ONLY: default_string_length, &
                     dp, &
                     int_8
-   USE message_passing, ONLY: mp_cart_rank, &
-                              mp_environ, mp_comm_type
+   USE message_passing, ONLY: mp_cart_type, &
+                              mp_comm_type
    USE string_utilities, ONLY: strlcpy_c2f
 
 ! Uncomment the following line to enable validation.
@@ -1292,7 +1292,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbm_distribution_new(dist, mp_comm, row_dist_block, col_dist_block)
       TYPE(dbm_distribution_obj), INTENT(OUT)            :: dist
-      TYPE(mp_comm_type), INTENT(IN)                     :: mp_comm
+
+      CLASS(mp_comm_type), INTENT(IN)                     :: mp_comm
       INTEGER, CONTIGUOUS, DIMENSION(:), INTENT(IN), &
          POINTER                                         :: row_dist_block, col_dist_block
 
@@ -1333,7 +1334,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbcsr_distribution_new_wrapper(dist, mp_comm, row_dist_block, col_dist_block)
       TYPE(dbm_distribution_obj), INTENT(INOUT)          :: dist
-      INTEGER, INTENT(IN)                                :: mp_comm
+      TYPE(mp_cart_type), INTENT(IN)                                :: mp_comm
       INTEGER, CONTIGUOUS, DIMENSION(:), INTENT(IN), &
          POINTER                                         :: row_dist_block, col_dist_block
 
@@ -1344,18 +1345,18 @@ CONTAINS
       TYPE(dbcsr_mp_obj)                                 :: mp_env
 
       ! Create a dbcsr mp environment from communicator
-      CALL mp_environ(numnodes, npdims, mycoord, mp_comm)
+      CALL mp_comm%environ_cart(numnodes, npdims, mycoord)
       CALL mp_comm%environ(numnodes, mynode)
       ALLOCATE (pgrid(0:npdims(1) - 1, 0:npdims(2) - 1))
       DO prow = 0, npdims(1) - 1
          DO pcol = 0, npdims(2) - 1
             coord = (/prow, pcol/)
-            CALL mp_cart_rank(mp_comm, coord, pgrid(prow, pcol))
+            CALL mp_comm%rank_cart(coord, pgrid(prow, pcol))
          END DO
       END DO
       CPASSERT(mynode == pgrid(mycoord(1), mycoord(2)))
 
-      CALL dbcsr_mp_new(mp_env, mp_comm, pgrid, mynode, numnodes, mycoord(1), mycoord(2))
+      CALL dbcsr_mp_new(mp_env, mp_comm%get_handle(), pgrid, mynode, numnodes, mycoord(1), mycoord(2))
       CALL dbcsr_distribution_new(dist=dist%dbcsr, mp_env=mp_env, &
                                   row_dist_block=row_dist_block, col_dist_block=col_dist_block)
       CALL dbcsr_mp_release(mp_env)

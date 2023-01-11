@@ -55,7 +55,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(md1, md3, md2/nproc), &
          INTENT(inout)                                   :: zf
       REAL(KIND=dp), INTENT(in)                          :: scal, hx, hy, hz
-      TYPE(mp_comm_type), INTENT(in)                     :: mpi_group
+
+      CLASS(mp_comm_type), INTENT(in)                     :: mpi_group
 
       INTEGER, PARAMETER                                 :: ncache_optimal = 8*1024
 
@@ -845,7 +846,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(md1, md3, md2/nproc), &
          INTENT(inout)                                   :: zf
       REAL(KIND=dp), INTENT(in)                          :: scal
-      TYPE(mp_comm_type), INTENT(in)                     :: mpi_group
+
+      CLASS(mp_comm_type), INTENT(in)                     :: mpi_group
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'S_PoissonSolver'
       INTEGER, PARAMETER                                 :: ncache_optimal = 8*1024
@@ -1591,7 +1593,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(md1, md3, md2/nproc), &
          INTENT(inout)                                   :: zf
       REAL(KIND=dp), INTENT(in)                          :: scal
-      TYPE(mp_comm_type), INTENT(in)                     :: mpi_group
+
+      CLASS(mp_comm_type), INTENT(in)                     :: mpi_group
 
       INTEGER, PARAMETER                                 :: ncache_optimal = 8*1024
 

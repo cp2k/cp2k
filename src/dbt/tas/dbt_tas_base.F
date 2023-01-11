@@ -39,9 +39,7 @@ MODULE dbt_tas_base
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
-   USE message_passing,                 ONLY: mp_cart_rank,&
-                                              mp_comm_type,&
-                                              mp_environ
+   USE message_passing,                 ONLY: mp_cart_type
 #include "../../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -346,7 +344,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbt_tas_distribution_new(dist, mp_comm, row_dist, col_dist, split_info, nosplit)
       TYPE(dbt_tas_distribution_type), INTENT(OUT)       :: dist
-      TYPE(mp_comm_type), INTENT(IN)                     :: mp_comm
+      TYPE(mp_cart_type), INTENT(IN)                     :: mp_comm
 
       CLASS(dbt_tas_distribution), INTENT(IN)        :: row_dist, col_dist
       TYPE(dbt_tas_split_info), INTENT(IN), OPTIONAL :: split_info
@@ -503,7 +501,7 @@ CONTAINS
       pcoord(2) = matrix%dist%col_dist%dist(col_s)
 
       DO igroup = 0, info%ngroup - 1
-         CALL mp_cart_rank(info%mp_comm, pcoord, processors(igroup + 1))
+         CALL info%mp_comm%rank_cart(pcoord, processors(igroup + 1))
          SELECT CASE (info%split_rowcol)
          CASE (rowsplit)
             row_s = row_s + dbt_tas_nblkrows_local(matrix)
@@ -627,7 +625,7 @@ CONTAINS
 
       NULLIFY (col_blk_size, row_blk_size)
       CALL timeset(routineN, handle)
-      CALL mp_environ(numnodes, pdims, pcoord, info%mp_comm)
+      CALL info%mp_comm%environ_cart(numnodes, pdims, pcoord)
 
       name = dbm_get_name(matrix_dbm)
       row_blk_size => dbm_get_row_block_sizes(matrix_dbm)

@@ -45,7 +45,7 @@ MODULE rpa_im_time
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE mathconstants,                   ONLY: twopi
-   USE message_passing,                 ONLY: mp_comm_type
+   USE message_passing,                 ONLY: mp_cart_type
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
@@ -204,7 +204,7 @@ CONTAINS
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:)          :: t_dm_occ, t_dm_virt
       TYPE(dbt_type), &
          DIMENSION(SIZE(t_3c_O, 1), SIZE(t_3c_O, 2))     :: t_3c_O_occ, t_3c_O_virt
-      TYPE(mp_comm_type)                                 :: comm_2d
+      TYPE(mp_cart_type)                                 :: comm_2d
 
       CALL timeset(routineN, handle)
 
