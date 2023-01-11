@@ -369,7 +369,6 @@ tests/Fist/regtest-6/Si_tersoff-1.restart.bak-1
 tests/Fist/regtest-6/Si_tersoff-1.restart.bak-2
 tests/Fist/regtest-6/Si_tersoff-1.restart.bak-3
 tests/Fist/regtest-6/Si_tersoff-pos-1.xyz
-tests/Fist/regtest-nequip/TEST_FILES
 tests/Fist/regtest-quip/out
 tests/Fist/regtest-quip/Quip_Cu_LJ.inp
 tools/toolchain/run_toolchain.sh
@@ -386,3 +385,4 @@ tests/Fist/H2O-32_NPT.inp
 tests/Fist/water_1.inp
 tests/Fist/water_1.inp
 test/Fist/get_index.sh
+
