@@ -704,7 +704,8 @@ CONTAINS
          DIMENSION(:), POINTER                           :: atm_names     
       INTEGER                                            :: isec, n_items     
       INTEGER                                            :: jsec
-      CHARACTER(LEN=default_string_length)               :: nequip_file_name
+      CHARACTER(LEN=default_string_length)               :: nequip_file_name, unit_coords, &
+                                                            unit_forces, unit_cell, unit_energy
 
 !      CALL section_vals_get(section, n_repetition=n_items)
 !      WRITE(*, *) "read_nequip_section n_items", n_items
@@ -728,19 +729,27 @@ CONTAINS
       n_items = isec *n_items
       CALL section_vals_val_get(section, "ATOMS", c_vals=atm_names)
       CALL section_vals_val_get(section, "PARM_FILE_NAME", c_val = nequip_file_name)
+      CALL section_vals_val_get(section, "UNIT_COORDS", c_val = unit_coords)
+      CALL section_vals_val_get(section, "UNIT_ENERGY", c_val = unit_energy)
+      CALL section_vals_val_get(section, "UNIT_FORCES", c_val = unit_forces)
+      CALL section_vals_val_get(section, "UNIT_CELL", c_val = unit_cell)
 
       DO isec = 1, SIZE(atm_names)
-      DO jsec = isec, SIZE(atm_names)
-      nonbonded%pot(start + n_items)%pot%type = nequip_type
-      nonbonded%pot(start + n_items)%pot%at1 = atm_names(isec)
-      nonbonded%pot(start + n_items)%pot%at2 = atm_names(jsec)
-      CALL uppercase(nonbonded%pot(start + n_items)%pot%at1)
-      CALL uppercase(nonbonded%pot(start + n_items)%pot%at2)         
-      nonbonded%pot(start + n_items)%pot%set(1)%nequip%nequip_file_name =nequip_file_name
-      CALL read_nequip_data(nonbonded%pot(start + n_items)%pot%set(1)%nequip)
-      nonbonded%pot(start + n_items)%pot%rcutsq = nonbonded%pot(start + n_items)%pot%set(1)%nequip%rcutsq
-      n_items = n_items + 1
-      END DO
+         DO jsec = isec, SIZE(atm_names)
+            nonbonded%pot(start + n_items)%pot%type = nequip_type
+            nonbonded%pot(start + n_items)%pot%at1 = atm_names(isec)
+            nonbonded%pot(start + n_items)%pot%at2 = atm_names(jsec)
+            CALL uppercase(nonbonded%pot(start + n_items)%pot%at1)
+            CALL uppercase(nonbonded%pot(start + n_items)%pot%at2)         
+            nonbonded%pot(start + n_items)%pot%set(1)%nequip%nequip_file_name = nequip_file_name
+            nonbonded%pot(start + n_items)%pot%set(1)%nequip%unit_coords = unit_coords
+            nonbonded%pot(start + n_items)%pot%set(1)%nequip%unit_forces = unit_forces
+            nonbonded%pot(start + n_items)%pot%set(1)%nequip%unit_energy = unit_energy
+            nonbonded%pot(start + n_items)%pot%set(1)%nequip%unit_cell = unit_cell
+            CALL read_nequip_data(nonbonded%pot(start + n_items)%pot%set(1)%nequip)
+            nonbonded%pot(start + n_items)%pot%rcutsq = nonbonded%pot(start + n_items)%pot%set(1)%nequip%rcutsq
+            n_items = n_items + 1
+         END DO
       END DO
 
    END SUBROUTINE read_nequip_section
@@ -2329,8 +2338,16 @@ CONTAINS
       nequip%nequip_version = torch_model_read_metadata(nequip%nequip_file_name, "nequip_version")
       cutoff_str = torch_model_read_metadata(nequip%nequip_file_name, "r_max")
       READ (cutoff_str, *) nequip%rcutsq
-      nequip%rcutsq = cp_unit_to_cp2k(nequip%rcutsq, "angstrom")
+      nequip%rcutsq = cp_unit_to_cp2k(nequip%rcutsq, nequip%unit_coords)
       nequip%rcutsq = nequip%rcutsq * nequip%rcutsq
+      nequip%unit_coords_val = 1.0_dp
+      nequip%unit_coords_val = cp_unit_to_cp2k(nequip%unit_coords_val, nequip%unit_coords)
+      nequip%unit_forces_val = 1.0_dp
+      nequip%unit_forces_val = cp_unit_to_cp2k(nequip%unit_forces_val, nequip%unit_forces)
+      nequip%unit_energy_val = 1.0_dp
+      nequip%unit_energy_val = cp_unit_to_cp2k(nequip%unit_energy_val, nequip%unit_energy)
+      nequip%unit_cell_val = 1.0_dp
+      nequip%unit_cell_val = cp_unit_to_cp2k(nequip%unit_cell_val, nequip%unit_cell)
 
    END SUBROUTINE read_nequip_data
 

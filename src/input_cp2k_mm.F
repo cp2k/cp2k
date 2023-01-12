@@ -1486,8 +1486,32 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="PARM_FILE_NAME", &
                           variants=(/"PARMFILE"/), &
-                          description="Specifies the filename that contains the NEQUIP potential.", &
+                          description="Specifies the filename that contains the NEQUIP model.", &
                           usage="PARM_FILE_NAME {FILENAME}", default_lc_val="model.pth")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="UNIT_COORDS", &
+                          description="Units of coordinates in the NEQUIP model.pth file.", &
+                          usage="UNIT angstrom", default_c_val="angstrom")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="UNIT_ENERGY", &
+                          description="Units of energy in the NEQUIP model.pth file.", &
+                          usage="UNIT hartree", default_c_val="hartree")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="UNIT_FORCES", &
+                          description="Units of the forces in the NEQUIP model.pth file.", &
+                          usage="UNIT hartree/bohr", default_c_val="hartree/bohr")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="UNIT_CELL", &
+                          description="Units of the cell vectors in the NEQUIP model.pth file.", &
+                          usage="UNIT angstrom", default_c_val="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

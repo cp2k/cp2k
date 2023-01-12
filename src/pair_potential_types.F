@@ -179,8 +179,10 @@ MODULE pair_potential_types
 
 ! **************************************************************************************************
    TYPE nequip_pot_type
-      CHARACTER(LEN=default_path_length)     :: nequip_file_name, nequip_version
-      REAL(KIND=dp)                          :: rcutsq
+      CHARACTER(LEN=default_path_length)     :: nequip_file_name, nequip_version, unit_coords, &
+                                                unit_forces, unit_energy, unit_cell
+      REAL(KIND=dp)                          :: rcutsq, unit_coords_val, unit_forces_val, &
+                                                unit_energy_val, unit_cell_val
       TYPE(torch_model_type)                 :: model
    END TYPE nequip_pot_type
 
@@ -449,7 +451,11 @@ CONTAINS
                 (pot1%set(i)%quip%init_args == pot2%set(i)%quip%init_args) .AND. &
                 (pot1%set(i)%quip%calc_args == pot2%set(i)%quip%calc_args)) mycompare = .TRUE.
          CASE (nequip_type)
-            IF ((pot1%set(i)%nequip%nequip_file_name == pot2%set(i)%nequip%nequip_file_name)) mycompare = .TRUE.
+            IF ((pot1%set(i)%nequip%nequip_file_name == pot2%set(i)%nequip%nequip_file_name) .AND. &
+                (pot1%set(i)%nequip%unit_coords == pot2%set(i)%nequip%unit_coords) .AND. &
+                (pot1%set(i)%nequip%unit_forces == pot2%set(i)%nequip%unit_forces) .AND. &
+                (pot1%set(i)%nequip%unit_energy == pot2%set(i)%nequip%unit_energy) .AND. &
+                (pot1%set(i)%nequip%unit_cell == pot2%set(i)%nequip%unit_cell)) mycompare = .TRUE.
          CASE (ft_type)
             IF ((pot1%set(i)%ft%A == pot2%set(i)%ft%A) .AND. &
                 (pot1%set(i)%ft%B == pot2%set(i)%ft%B) .AND. &
@@ -1723,6 +1729,10 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(nequip))
       ALLOCATE (nequip)
       nequip%nequip_file_name = ""
+      nequip%unit_coords = ""
+      nequip%unit_forces = ""
+      nequip%unit_energy = ""
+      nequip%unit_cell = ""
    END SUBROUTINE pair_potential_nequip_create
 
 ! **************************************************************************************************
@@ -1741,6 +1751,15 @@ CONTAINS
       nequip_dest%nequip_version = nequip_source%nequip_version
       nequip_dest%rcutsq = nequip_source%rcutsq
       nequip_dest%model = nequip_source%model
+      nequip_dest%unit_coords = nequip_source%unit_coords
+      nequip_dest%unit_coords_val = nequip_source%unit_coords_val
+      nequip_dest%unit_forces = nequip_source%unit_forces
+      nequip_dest%unit_forces_val = nequip_source%unit_forces_val
+      nequip_dest%unit_energy = nequip_source%unit_energy
+      nequip_dest%unit_energy_val = nequip_source%unit_energy_val
+      nequip_dest%unit_cell = nequip_source%unit_cell
+      nequip_dest%unit_cell_val = nequip_source%unit_cell_val
+
    END SUBROUTINE pair_potential_nequip_copy
 
 ! **************************************************************************************************
@@ -1753,8 +1772,17 @@ CONTAINS
 
       IF (.NOT. ASSOCIATED(nequip)) RETURN
       nequip%nequip_file_name = 'NULL'
-      nequip%rcutsq = 0.0_dp
       nequip%nequip_version = 'NULL'
+      nequip%rcutsq = 0.0_dp
+      nequip%unit_energy_val = 0.0_dp
+      nequip%unit_coords_val = 0.0_dp
+      nequip%unit_forces_val = 0.0_dp
+      nequip%unit_cell_val = 0.0_dp
+      nequip%unit_coords = 'NULL'
+      nequip%unit_forces = 'NULL'
+      nequip%unit_energy = 'NULL'
+      nequip%unit_cell = 'NULL'
+
    END SUBROUTINE pair_potential_nequip_clean
 
 ! **************************************************************************************************

@@ -272,7 +272,6 @@ CONTAINS
          atom_types(iat_use) = particle_set(iat)%atomic_kind%kind_number -1
       END DO
 
-      lattice = cell%hmat*angstrom
       nedges = 0
       ALLOCATE (edge_index(2,SIZE(glob_loc_list_a)))
       ALLOCATE (edge_cell_shifts(3,SIZE(glob_loc_list_a)))
@@ -315,7 +314,8 @@ CONTAINS
                   ifirst = 1
                   DO iunique = 1, nunique
                      atom_a = junique
-                     pos(:, atom_a) = REAL(r_last_update_pbc(atom_a)%r(:)*angstrom, kind=sp)
+!                     pos(:, atom_a) = REAL(r_last_update_pbc(atom_a)%r(:)* & 
+!                                           pot%set(1)%nequip%unit_coords_val, kind=sp)
                      IF (glob_loc_list_a(ifirst) > atom_a) CYCLE
                      DO mpair = ifirst, SIZE(glob_loc_list_a)
                         IF (glob_loc_list_a(mpair) == atom_a) EXIT
@@ -381,10 +381,12 @@ CONTAINS
       t_edge_index = TRANSPOSE(edge_index)
       DEALLOCATE(temp_edge_index, temp_edge_cell_shifts, edge_index)
 
-      CALL torch_dict_create(inputs)
+      lattice = cell%hmat/pot%set(1)%nequip%unit_cell_val
       DO iat = 1, n_atoms
-         pos(:, iat) = REAL(r_last_update_pbc(iat)%r(:)*angstrom, kind=sp)
+         pos(:, iat) = REAL(r_last_update_pbc(iat)%r(:)/pot%set(1)%nequip%unit_coords_val, kind=sp)
       END DO
+
+      CALL torch_dict_create(inputs)
       CALL torch_dict_insert(inputs, "pos", pos)
       CALL torch_dict_insert(inputs, "edge_index", t_edge_index)
       CALL torch_dict_insert(inputs, "edge_cell_shift", edge_cell_shifts)
@@ -399,9 +401,9 @@ CONTAINS
       CALL torch_dict_get(outputs, "atomic_energy", atomic_energy)
       CALL torch_dict_get(outputs, "forces", forces)
 
-      pot_nequip = REAL(total_energy(1, 1), kind=dp)/evolt
-      total_energy = total_energy(1, 1)/REAL(evolt, kind=sp)
-      WRITE(*, *) "pot_nequip ", pot_nequip
+      pot_nequip = REAL(total_energy(1, 1), kind=dp)*pot%set(1)%nequip%unit_energy_val
+      total_energy = total_energy(1, 1)*REAL(pot%set(1)%nequip%unit_energy_val, kind=sp)
+!      WRITE(*, *) "pot_nequip ", pot_nequip
 !      WRITE(*, *) "total_energy ", total_energy
 
       CALL torch_dict_release(inputs)
@@ -438,9 +440,10 @@ CONTAINS
 !      ! account for double counting from multiple MPI processes
       IF (PRESENT(para_env)) pot_nequip = pot_nequip/REAL(para_env%num_pe, dp)
       IF (PRESENT(para_env)) THEN
-         nequip_data%force = REAL(forces, kind=dp)*angstrom/evolt/REAL(para_env%num_pe, dp)
+         nequip_data%force = REAL(forces, kind=dp)* &
+                             pot%set(1)%nequip%unit_forces_val/REAL(para_env%num_pe, dp)
       ELSE
-         nequip_data%force = REAL(forces, kind=dp)*angstrom/evolt
+         nequip_data%force = REAL(forces, kind=dp)*pot%set(1)%nequip%unit_forces_val
       END IF
 
    END SUBROUTINE nequip_energy_store_force_virial
