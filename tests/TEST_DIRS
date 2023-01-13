@@ -289,6 +289,7 @@ QS/regtest-as                                               libint
 QS/regtest-as-dft                                           libint
 QS/regtest-tddfpt-prop
 QS/regtest-sym-3
+QS/regtest-gapw-ext
 FARMING/regtest-1
 QS/regtest-cdft-2
 QS/regtest-sym-1
