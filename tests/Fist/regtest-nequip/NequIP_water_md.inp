@@ -10,6 +10,9 @@
      &NEQUIP
         ATOMS H O
         PARM_FILE_NAME ./water.pth
+        UNIT_COORDS angstrom
+        UNIT_ENERGY eV
+        UNIT_FORCES eV*angstrom^-1
      &END NEQUIP
     &END NONBONDED
     &END FORCEFIELD

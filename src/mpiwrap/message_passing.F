@@ -439,7 +439,12 @@ MODULE message_passing
          mp_gatherv_rv, &
          mp_gatherv_dv, &
          mp_gatherv_cv, &
-         mp_gatherv_zv
+         mp_gatherv_zv, &
+         mp_gatherv_lm2, &
+         mp_gatherv_rm2, &
+         mp_gatherv_dm2, &
+         mp_gatherv_cm2, &
+         mp_gatherv_zm2 
    END INTERFACE
 
    INTERFACE mp_igatherv

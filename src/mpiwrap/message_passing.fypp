@@ -1922,6 +1922,57 @@
 !> \par MPI mapping
 !>      mpi_gather
 ! **************************************************************************************************
+   SUBROUTINE mp_gatherv_${nametype1}$m2(sendbuf, recvbuf, recvcounts, displs, root, comm)
+
+      ${type1}$, DIMENSION(:, :), CONTIGUOUS, INTENT(IN)        :: sendbuf
+      ${type1}$, DIMENSION(:, :), CONTIGUOUS, INTENT(OUT)       :: recvbuf
+      INTEGER, DIMENSION(:), CONTIGUOUS, INTENT(IN)        :: recvcounts, displs
+      INTEGER, INTENT(IN)                      :: root
+      TYPE(mp_comm_type), INTENT(IN) :: comm
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_gatherv_${nametype1}$m2'
+
+      INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+      INTEGER                                  :: sendcount
+#endif
+
+      ierr = 0
+      CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+      sendcount = SIZE(sendbuf)
+      CALL mpi_gatherv(sendbuf, sendcount, ${mpi_type1}$, &
+                       recvbuf, recvcounts, displs, ${mpi_type1}$, &
+                       root, comm%handle, ierr)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_gatherv @ "//routineN)
+      CALL add_perf(perf_id=4, &
+                    count=1, &
+                    msg_size=sendcount*${bytes1}$)
+#else
+      MARK_USED(recvcounts)
+      MARK_USED(root)
+      MARK_USED(comm)
+      recvbuf(:, 1 + displs(1):) = sendbuf
+#endif
+      CALL mp_timestop(handle)
+   END SUBROUTINE mp_gatherv_${nametype1}$m2
+
+! **************************************************************************************************
+!> \brief Gathers data from all processes to one.
+!> \param[in] sendbuf         Data to send to root
+!> \param[out] recvbuf        Received data (on root)
+!> \param[in] recvcounts      Sizes of data received from processes
+!> \param[in] displs          Offsets of data received from processes
+!> \param[in] root            Process which gathers the data
+!> \param[in] comm            Message passing environment identifier
+!> \par Data length
+!>      Data can have different lengths
+!> \par Offsets
+!>      Offsets start at 0
+!> \par MPI mapping
+!>      mpi_gather
+! **************************************************************************************************
    SUBROUTINE mp_igatherv_${nametype1}$v(sendbuf, sendcount, recvbuf, recvcounts, displs, root, comm, request)
       ${type1}$, DIMENSION(:), CONTIGUOUS, INTENT(IN)        :: sendbuf
       ${type1}$, DIMENSION(:), CONTIGUOUS, INTENT(OUT)       :: recvbuf

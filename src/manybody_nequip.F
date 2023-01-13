@@ -31,7 +31,7 @@ MODULE manybody_nequip
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE util,                            ONLY: sort
    USE physcon,                         ONLY: angstrom, evolt
-   USE message_passing,                 ONLY: mp_sum, mp_allgather
+   USE message_passing,                 ONLY: mp_sum, mp_allgather, mp_gatherv, mp_bcast
    USE torch_api,                       ONLY: &
         torch_cuda_is_available, torch_dict_create, torch_dict_get, torch_dict_insert, &
         torch_dict_release, torch_dict_type, torch_model_eval, torch_model_load, &
@@ -262,15 +262,7 @@ CONTAINS
          END DO ! i
       END DO ! jkind
       END DO ! ikind
-
       n_atoms_use = COUNT(use_atom)
-      ALLOCATE (pos(3, n_atoms_use), atom_types(n_atoms_use))
-      iat_use = 0
-      DO iat = 1, n_atoms
-         IF (.NOT. use_atom(iat)) CYCLE
-         iat_use = iat_use + 1
-         atom_types(iat_use) = particle_set(iat)%atomic_kind%kind_number -1
-      END DO
 
       nedges = 0
       ALLOCATE (edge_index(2,SIZE(glob_loc_list_a)))
@@ -348,12 +340,7 @@ CONTAINS
          END DO Kind_Group_Loop_Nequip
       END DO
 
-      ALLOCATE (temp_edge_index(2, nedges))
-      temp_edge_index = edge_index(:, :nedges)
-      DEALLOCATE (edge_index)
-      ALLOCATE (temp_edge_cell_shifts(3, nedges))
-      temp_edge_cell_shifts = edge_cell_shifts(:,:nedges)
-      DEALLOCATE (edge_cell_shifts)
+
       ALLOCATE (edge_count(para_env%num_pe))
       ALLOCATE (edge_count_cell(para_env%num_pe))
       ALLOCATE (displ_cell(para_env%num_pe))
@@ -361,6 +348,21 @@ CONTAINS
 
       CALL mp_allgather(nedges, edge_count, para_env%group)
       nedges_tot = SUM(edge_count)
+
+!      DO iat = 1, nedges
+!          WRITE(*, *) "edge_cell_shifts", edge_cell_shifts(:, iat)
+!          WRITE(*, *) "edge_index", edge_index(:, iat)
+!      END DO
+
+!      WRITE(*, *) "para_env%mepos ", para_env%mepos
+!IF (para_env%mepos .EQ. 0) THEN
+
+      ALLOCATE (temp_edge_index(2, nedges))
+      temp_edge_index = edge_index(:, :nedges)
+      DEALLOCATE (edge_index)
+      ALLOCATE (temp_edge_cell_shifts(3, nedges))
+      temp_edge_cell_shifts = edge_cell_shifts(:,:nedges)
+      DEALLOCATE (edge_cell_shifts)
 
       ALLOCATE (edge_index(2, nedges_tot))
       ALLOCATE (edge_cell_shifts(3, nedges_tot))
@@ -374,17 +376,46 @@ CONTAINS
           displ_cell(ipair) = displ_cell(ipair - 1) + edge_count_cell(ipair - 1)
       END DO
 
-      CALL mp_allgather(temp_edge_cell_shifts, edge_cell_shifts, edge_count_cell, displ_cell ,para_env%group)
+!      CALL mp_allgather(temp_edge_cell_shifts, edge_cell_shifts, edge_count_cell, displ_cell ,para_env%group)
+
+!      WRITE(*, *) "mepos, displ ", para_env%mepos, displ
+
+      CALL mp_gatherv(temp_edge_cell_shifts, edge_cell_shifts, edge_count_cell, displ_cell, para_env%source, &
+                      para_env%group)
+
+!      WRITE(*, *) "mepos, edge_cell_shifts ", para_env%mepos, edge_cell_shifts
 
       ALLOCATE(t_edge_index(nedges_tot, 2))
-      CALL mp_allgather(temp_edge_index, edge_index, edge_count, displ, para_env%group)
+!      CALL mp_allgather(temp_edge_index, edge_index, edge_count, displ, para_env%group)
+
+      CALL mp_gatherv(temp_edge_index, edge_index, edge_count, displ, para_env%source, para_env%group)
+
       t_edge_index = TRANSPOSE(edge_index)
       DEALLOCATE(temp_edge_index, temp_edge_cell_shifts, edge_index)
 
       lattice = cell%hmat/pot%set(1)%nequip%unit_cell_val
+
+IF (para_env%mepos .EQ. 0) THEN
+
+      iat_use = 0
+      ALLOCATE (pos(3, n_atoms_use), atom_types(n_atoms_use))
+
+      DO iat = 1, n_atoms
+         IF (.NOT. use_atom(iat)) CYCLE
+         iat_use = iat_use + 1
+         atom_types(iat_use) = particle_set(iat)%atomic_kind%kind_number -1
+      END DO
+
       DO iat = 1, n_atoms
          pos(:, iat) = REAL(r_last_update_pbc(iat)%r(:)/pot%set(1)%nequip%unit_coords_val, kind=sp)
+!         WRITE(*, *) "pos ", pos(:, iat)
       END DO
+
+!      WRITE(*, *) "atom_types ", atom_types
+!      WRITE(*, *) "mepos, t_edge_index ", para_env%mepos, t_edge_index
+!      WRITE(*, *) "cell ", cell
+!      WRITE(*, *) "edge_cell_shifts ", edge_cell_shifts
+
 
       CALL torch_dict_create(inputs)
       CALL torch_dict_insert(inputs, "pos", pos)
@@ -403,15 +434,19 @@ CONTAINS
 
       pot_nequip = REAL(total_energy(1, 1), kind=dp)*pot%set(1)%nequip%unit_energy_val
       total_energy = total_energy(1, 1)*REAL(pot%set(1)%nequip%unit_energy_val, kind=sp)
-!      WRITE(*, *) "pot_nequip ", pot_nequip
+!      WRITE(*, *) "pot_nequip mepos", pot_nequip, para_env%mepos
 !      WRITE(*, *) "total_energy ", total_energy
+!      CALL mp_bcast(pot_nequip, para_env%source, para_env%group)
+!      CALL mp_bcast(forces, para_env%source, para_env%group)
 
       CALL torch_dict_release(inputs)
       CALL torch_dict_release(outputs)
 
       DEALLOCATE(pos, t_edge_index, edge_cell_shifts, atom_types, total_energy, atomic_energy)
 
-!      IF (PRESENT(para_env)) virial = virial/REAL(para_env%num_pe, dp)
+END IF
+
+      !IF (PRESENT(para_env)) virial = virial/REAL(para_env%num_pe, dp)
       ! get nequip_data to save force, virial info
       CALL fist_nonbond_env_get(fist_nonbond_env, nequip_data=nequip_data)
       IF (.NOT. ASSOCIATED(nequip_data)) THEN
@@ -428,6 +463,16 @@ CONTAINS
          ALLOCATE (nequip_data%force(3, n_atoms_use))
          ALLOCATE (nequip_data%use_indices(n_atoms_use))
       END IF
+
+      IF (ASSOCIATED(forces)) THEN
+         IF (SIZE(forces, 2) /= n_atoms_use) THEN
+            DEALLOCATE (forces)
+         END IF
+      END IF
+      IF (.NOT. ASSOCIATED(forces)) THEN
+         ALLOCATE (forces(3, n_atoms_use))
+      END IF
+
       ! save force
       iat_use = 0
       DO iat = 1, n_atoms
@@ -437,7 +482,11 @@ CONTAINS
          END IF
       END DO
 
-!      ! account for double counting from multiple MPI processes
+      CALL mp_bcast(pot_nequip, para_env%source, para_env%group)
+      CALL mp_bcast(forces, para_env%source, para_env%group)
+      WRITE(*, *) "mepos after if, pot_nequip ", para_env%mepos, pot_nequip
+
+      ! account for double counting from multiple MPI processes
       IF (PRESENT(para_env)) pot_nequip = pot_nequip/REAL(para_env%num_pe, dp)
       IF (PRESENT(para_env)) THEN
          nequip_data%force = REAL(forces, kind=dp)* &
@@ -445,6 +494,8 @@ CONTAINS
       ELSE
          nequip_data%force = REAL(forces, kind=dp)*pot%set(1)%nequip%unit_forces_val
       END IF
+!      WRITE(*, *) "para_env%mepos forces", para_env%mepos, forces
+      DEALLOCATE(forces)
 
    END SUBROUTINE nequip_energy_store_force_virial
 
