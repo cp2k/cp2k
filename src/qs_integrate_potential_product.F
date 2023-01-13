@@ -150,7 +150,7 @@ CONTAINS
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
       TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_rho
-      TYPE(task_list_type), POINTER                      :: task_list, task_list_soft
+      TYPE(task_list_type), POINTER                      :: task_list
       TYPE(task_type), DIMENSION(:), POINTER             :: tasks
 
       CALL timeset(routineN, handle)

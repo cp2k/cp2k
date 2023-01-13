@@ -229,7 +229,7 @@ CONTAINS
       INTEGER :: ic, ico, icomax, icomin, il, info, ip, ipgf, ipp, iprjfirst, iprjs, is, iset, &
          isgf, isgfmax, isgfmin, ishell, iso, iso_pgf, iso_set, isomin, jp, k, lshell, lwork, lx, &
          ly, lz, maxco, maxl, maxnprj, maxpgf, maxso, mp, ms, n, ncgauprj, ncgf, ncgfo, nisop, np, &
-         npgfg, ns, nset, nsgauprj, nsgf, nsgfo, nsox, output_unit
+         npgfg, ns, nset, nseta, nsgauprj, nsgf, nsgfo, nsox, output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: IWORK
       INTEGER, DIMENSION(:), POINTER                     :: lmax, lmin, npgf, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: first_cgf, first_sgf, l, last_cgf, &
@@ -369,6 +369,9 @@ CONTAINS
          !     *** Smallest exp. due to eps_iso: concerned as an isolated projector ***
          paw_proj%zisomin(lshell) = gauss_exponent(lshell, rc, eps_iso, 1.0_dp)
 
+         ! maybe order the exponents here?
+         ! zet(1) > zet(2) ...
+         !
          nisop = 0
          DO ip = 1, np
             ! Check for equal exponents
@@ -596,14 +599,7 @@ CONTAINS
       ! Local coefficients for the one center expansions : oce
       ! the coefficients are calculated for the full and soft expansions
       CALL get_gto_basis_set(gto_basis_set=orb_basis, &
-                             ncgf=ncgfo, nsgf=nsgfo)
-!                            ncgf=ncgf, nset=nset, nsgf=nsgf, &
-!                            lmax=lmax, lmin=lmin, npgf=npgf, &
-!                            nshell=nshell, cphi=cphi, sphi=sphi, &
-!                            first_cgf=first_cgf, first_sgf=first_sgf, &
-!                            l=l, last_cgf=last_cgf, last_sgf=last_sgf, &
-!                            maxco=maxco, maxso=maxso, maxl=maxl, maxpgf=maxpgf, &
-!                            zet=zetb, gcc=gcca)
+                             nset=nseta, ncgf=ncgfo, nsgf=nsgfo)
 
       ALLOCATE (paw_proj%local_oce_sphi_h(maxco, nsgfo))
       paw_proj%local_oce_sphi_h = 0.0_dp
@@ -615,7 +611,8 @@ CONTAINS
       ALLOCATE (paw_proj%sphi_s(maxco, nsgfo))
       paw_proj%sphi_s = 0.0_dp
 
-      DO iset = 1, nset
+      ! only use first nset of orb basis local projection!
+      DO iset = 1, nseta
          n = ncoset(lmax(iset))
          DO ipgf = 1, npgf(iset)
             DO ishell = 1, nshell(iset)
@@ -624,7 +621,7 @@ CONTAINS
                icomax = ncoset(lshell) + n*(ipgf - 1)
                isgfmin = first_sgf(ishell, iset)
                isgfmax = last_sgf(ishell, iset)
-               radius = exp_radius(lshell, orb_basis%zet(ipgf, iset), &
+               radius = exp_radius(lshell, basis_1c%zet(ipgf, iset), &
                                    eps_fit, 1.0_dp)
                DO isgf = isgfmin, isgfmax
                   paw_proj%sphi_h(icomin:icomax, isgf) = &
@@ -640,7 +637,8 @@ CONTAINS
          END DO ! ipgf
       END DO ! iset
 
-      DO iset = 1, nset
+      ! only use first nset of orb basis local projection!
+      DO iset = 1, nseta
          n = ncoset(lmax(iset))
          ns = nsoset(lmax(iset))
          DO ipgf = 1, npgf(iset)

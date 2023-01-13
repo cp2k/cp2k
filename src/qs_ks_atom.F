@@ -214,7 +214,7 @@ CONTAINS
       eps_cpc = dft_control%qs_control%gapw_control%eps_cpc
 
       CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
-      CALL get_qs_kind_set(my_kind_set, maxsgf=max_nsgf, maxgtops=max_gau)
+      CALL get_qs_kind_set(my_kind_set, maxsgf=max_nsgf, maxgtops=max_gau, basis_type="GAPW_1C")
 
       IF (forces) THEN
          ALLOCATE (atom_of_kind(natom))

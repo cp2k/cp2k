@@ -118,7 +118,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(grid_atom_type), POINTER                      :: grid_atom
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: my_kind_set
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: dr_h, dr_s, int_hh, int_ss, r_h, r_s
@@ -218,8 +218,9 @@ CONTAINS
 
          DO ikind = 1, SIZE(atomic_kind_set)
             CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=natom)
-            CALL get_qs_kind(my_kind_set(ikind), paw_atom=paw_atom, basis_set=orb_basis, &
+            CALL get_qs_kind(my_kind_set(ikind), paw_atom=paw_atom, &
                              harmonics=harmonics, grid_atom=grid_atom)
+            CALL get_qs_kind(my_kind_set(ikind), basis_set=basis_1c, basis_type="GAPW_1C")
 
             IF (.NOT. paw_atom) CYCLE
 
@@ -380,14 +381,14 @@ CONTAINS
                   CALL get_rho_atom(rho_atom=rho_atom, ga_Vlocal_gb_h=int_hh, ga_Vlocal_gb_s=int_ss)
                   IF (gradient_f) THEN
                      CALL gaVxcgb_GC(vxc_h, vxc_s, vxg_h, vxg_s, int_hh, int_ss, &
-                                     grid_atom, orb_basis, harmonics, nspins)
+                                     grid_atom, basis_1c, harmonics, nspins)
                   ELSE
                      CALL gaVxcgb_noGC(vxc_h, vxc_s, int_hh, int_ss, &
-                                       grid_atom, orb_basis, harmonics, nspins)
+                                       grid_atom, basis_1c, harmonics, nspins)
                   END IF
                   IF (tau_f) THEN
                      CALL dgaVtaudgb(vtau_h, vtau_s, int_hh, int_ss, &
-                                     grid_atom, orb_basis, harmonics, nspins)
+                                     grid_atom, basis_1c, harmonics, nspins)
                   END IF
                END IF ! energy_only
                NULLIFY (r_h, r_s, dr_h, dr_s)
@@ -496,7 +497,7 @@ CONTAINS
                                                             vxg_s
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(grid_atom_type), POINTER                      :: grid_atom
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: my_kind_set, qs_kind_set
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: dr1_h, dr1_s, dr_h, dr_s, int_hh, &
@@ -581,8 +582,9 @@ CONTAINS
 
          NULLIFY (atom_list, harmonics, grid_atom)
          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=natom)
-         CALL get_qs_kind(my_kind_set(ikind), paw_atom=paw_atom, basis_set=orb_basis, &
+         CALL get_qs_kind(my_kind_set(ikind), paw_atom=paw_atom, &
                           harmonics=harmonics, grid_atom=grid_atom)
+         CALL get_qs_kind(my_kind_set(ikind), basis_set=basis_1c, basis_type="GAPW_1C")
          IF (.NOT. paw_atom) CYCLE
 
          nr = grid_atom%nr
@@ -719,10 +721,10 @@ CONTAINS
             CALL get_rho_atom(rho_atom=rho1_atom, ga_Vlocal_gb_h=int_hh, ga_Vlocal_gb_s=int_ss)
             IF (gradient_functional) THEN
                CALL gaVxcgb_GC(vxc_h, vxc_s, vxg_h, vxg_s, int_hh, int_ss, &
-                               grid_atom, orb_basis, harmonics, nspins)
+                               grid_atom, basis_1c, harmonics, nspins)
             ELSE
                CALL gaVxcgb_noGC(vxc_h, vxc_s, int_hh, int_ss, &
-                                 grid_atom, orb_basis, harmonics, nspins)
+                                 grid_atom, basis_1c, harmonics, nspins)
             END IF
 
             NULLIFY (r_h, r_s, dr_h, dr_s)
@@ -795,7 +797,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(grid_atom_type), POINTER                      :: grid_atom
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: dr_h, dr_s, fint_hh, fint_ss, int_hh, &
                                                             int_ss, r_h, r_s
@@ -858,8 +860,9 @@ CONTAINS
          ! Here starts the loop over all the atoms
          DO ikind = 1, SIZE(atomic_kind_set)
             CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=natom)
-            CALL get_qs_kind(kind_set(ikind), paw_atom=paw_atom, basis_set=orb_basis, &
+            CALL get_qs_kind(kind_set(ikind), paw_atom=paw_atom, &
                              harmonics=harmonics, grid_atom=grid_atom)
+            CALL get_qs_kind(kind_set(ikind), basis_set=basis_1c, basis_type="GAPW_1C")
 
             IF (.NOT. paw_atom) CYCLE
 
@@ -1027,14 +1030,14 @@ CONTAINS
                   END DO
                   IF (gradient_f) THEN
                      CALL gaVxcgb_GC(vxc_h, vxc_s, vxg_h, vxg_s, fint_hh, fint_ss, &
-                                     grid_atom, orb_basis, harmonics, nspins)
+                                     grid_atom, basis_1c, harmonics, nspins)
                   ELSE
                      CALL gaVxcgb_noGC(vxc_h, vxc_s, fint_hh, fint_ss, &
-                                       grid_atom, orb_basis, harmonics, nspins)
+                                       grid_atom, basis_1c, harmonics, nspins)
                   END IF
                   IF (tau_f) THEN
                      CALL dgaVtaudgb(vtau_h, vtau_s, fint_hh, fint_ss, &
-                                     grid_atom, orb_basis, harmonics, nspins)
+                                     grid_atom, basis_1c, harmonics, nspins)
                   END IF
                   ! first derivative fxc
                   NULLIFY (int_hh, int_ss)
@@ -1516,16 +1519,16 @@ CONTAINS
 !> \param int_hh ...
 !> \param int_ss ...
 !> \param grid_atom ...
-!> \param orb_basis ...
+!> \param basis_1c ...
 !> \param harmonics ...
 !> \param nspins ...
 ! **************************************************************************************************
-   SUBROUTINE gaVxcgb_noGC(vxc_h, vxc_s, int_hh, int_ss, grid_atom, orb_basis, harmonics, nspins)
+   SUBROUTINE gaVxcgb_noGC(vxc_h, vxc_s, int_hh, int_ss, grid_atom, basis_1c, harmonics, nspins)
 
       REAL(dp), DIMENSION(:, :, :), POINTER              :: vxc_h, vxc_s
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: int_hh, int_ss
       TYPE(grid_atom_type), POINTER                      :: grid_atom
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       INTEGER, INTENT(IN)                                :: nspins
 
@@ -1679,18 +1682,18 @@ CONTAINS
 !> \param int_hh ...
 !> \param int_ss ...
 !> \param grid_atom ...
-!> \param orb_basis ...
+!> \param basis_1c ...
 !> \param harmonics ...
 !> \param nspins ...
 ! **************************************************************************************************
    SUBROUTINE gaVxcgb_GC(vxc_h, vxc_s, vxg_h, vxg_s, int_hh, int_ss, &
-                         grid_atom, orb_basis, harmonics, nspins)
+                         grid_atom, basis_1c, harmonics, nspins)
 
       REAL(dp), DIMENSION(:, :, :), POINTER              :: vxc_h, vxc_s
       REAL(dp), DIMENSION(:, :, :, :), POINTER           :: vxg_h, vxg_s
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: int_hh, int_ss
       TYPE(grid_atom_type), POINTER                      :: grid_atom
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       INTEGER, INTENT(IN)                                :: nspins
 
@@ -1933,19 +1936,19 @@ CONTAINS
 !> \param int_hh ...
 !> \param int_ss ...
 !> \param grid_atom ...
-!> \param orb_basis ...
+!> \param basis_1c ...
 !> \param harmonics ...
 !> \param nspins ...
 !> \note This is a rewrite to correct meta-GGA GAPW bug. This is more brute force than the original
 !>       but makes sure that no corner is cut in terms of accuracy (A. Bussy)
 ! **************************************************************************************************
    SUBROUTINE dgaVtaudgb(vtau_h, vtau_s, int_hh, int_ss, &
-                         grid_atom, orb_basis, harmonics, nspins)
+                         grid_atom, basis_1c, harmonics, nspins)
 
       REAL(dp), DIMENSION(:, :, :), POINTER              :: vtau_h, vtau_s
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: int_hh, int_ss
       TYPE(grid_atom_type), POINTER                      :: grid_atom
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       INTEGER, INTENT(IN)                                :: nspins
 

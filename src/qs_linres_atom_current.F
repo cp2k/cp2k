@@ -166,8 +166,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(jrho1_atom_set))
 
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, &
-                           maxsgf=max_nsgf, &
-                           maxgtops=max_gau)
+                           maxsgf=max_nsgf, maxgtops=max_gau, basis_type="GAPW_1C")
 
       eps_cpc = dft_control%qs_control%gapw_control%eps_cpc
 

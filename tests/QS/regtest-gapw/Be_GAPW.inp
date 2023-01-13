@@ -10,6 +10,7 @@
     &QS
       EPS_DEFAULT 1.0E-8
       METHOD GAPW
+      EPS_SVD 1.E-12
     &END QS
     &SCF
       SCF_GUESS ATOMIC

@@ -482,10 +482,10 @@ CONTAINS
       END IF
 
       CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
-      CALL get_qs_kind_set(qs_kind_set, maxsgf=max_nsgf, maxgtops=max_gau)
+      CALL get_qs_kind_set(qs_kind_set, maxsgf=max_nsgf, maxgtops=max_gau, basis_type='GAPW_1C')
 
       nkind = SIZE(atomic_kind_set)
-!   Initialize to 0 the CPC coefficients and the local density arrays
+      !   Initialize to 0 the CPC coefficients and the local density arrays
       DO ikind = 1, nkind
          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=a_list, natom=nat_kind)
          CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom)
@@ -795,7 +795,7 @@ CONTAINS
 
       CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
 
-      CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto)
+      CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto, basis_type="GAPW_1C")
 
       nspins = dft_control%nspins
       gapw_control => dft_control%qs_control%gapw_control

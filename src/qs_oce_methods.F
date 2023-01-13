@@ -265,7 +265,7 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: nsgf_cnt
 
       INTEGER                                            :: i, iset, isgfa, j, jc, lsgfa, maxlprj, &
-                                                            maxso1a, maxsoa, n, nsatbas, nset1a, &
+                                                            maxso1a, n, nsatbas, nset1a, &
                                                             nseta, nsgfa
       INTEGER, DIMENSION(:), POINTER                     :: n2oindex, nsgf_seta
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
@@ -288,7 +288,7 @@ CONTAINS
       CALL get_paw_basis_info(basis_1c_a, n2oindex=n2oindex, nsatbas=nsatbas)
 
       CALL get_gto_basis_set(gto_basis_set=orb_basis_a, first_sgf=first_sgfa, &
-                             nsgf=nsgfa, nsgf_set=nsgf_seta, nset=nseta, maxso=maxsoa)
+                             nsgf=nsgfa, nsgf_set=nsgf_seta, nset=nseta)
 
       NULLIFY (local_oce_h, local_oce_s)
       CALL get_paw_proj_set(paw_proj_set=paw_proj_a, &
@@ -307,7 +307,7 @@ CONTAINS
             nsgf_cnt = nsgf_cnt + 1
             sgf_list(nsgf_cnt) = jc
          END DO
-         ! this asumes sets are the same for proj/orb_basis!
+         ! this asumes that the first sets are the same for basis_1c/orb_basis!
          n = maxso1a*(iset - 1)
          prjloc_h(n + 1:n + maxso1a, isgfa:lsgfa) = local_oce_h(1:maxso1a, isgfa:lsgfa)
          prjloc_s(n + 1:n + maxso1a, isgfa:lsgfa) = local_oce_s(1:maxso1a, isgfa:lsgfa)
@@ -530,14 +530,11 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: rab
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rzetprj, sphi_a, zeta, zetb
-      TYPE(block_p_type), DIMENSION(:), POINTER          :: oceh, oces, rceh, rces
+      TYPE(block_p_type), DIMENSION(:), POINTER          :: oceh, oces
       TYPE(clist_type), POINTER                          :: clist
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_paw, orb_basis_set
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj_b
       TYPE(qs_kind_type), POINTER                        :: at_a, at_b, qs_kind
-
-!deb
-!deb
 
       IF (calculate_forces) THEN
          CALL timeset(routineN//"_forces", handle)
@@ -611,7 +608,7 @@ CONTAINS
          !calculate the overlap integrals <a|p>
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED (intac, ldsab, ldai, nder, nkind, maxder, ncoset, sap_oce, qs_kind_set, eps_fit) &
-!$OMP PRIVATE (sab, work, ai_work, rceh, rces, oceh, oces, slot, ikind, jkind, atom_a, atom_b, ilist, jneighbor, rab, cell_b, &
+!$OMP PRIVATE (sab, work, ai_work, oceh, oces, slot, ikind, jkind, atom_a, atom_b, ilist, jneighbor, rab, cell_b, &
 !$OMP          iac, dab, qs_kind, orb_basis_set, first_sgfa, la_max, la_min, ncoa_sum, maxsoa, npgfa, nseta, &
 !$OMP          nsgfa, nsgf_seta, rpgfa, set_radius_a, sphi_a, zeta, paw_proj_b, paw_atom_b, orb_basis_paw, &
 !$OMP          maxsob, nsetb, mlprj, nprjla, nsatbas, rcprj, fp_car, fp_sph, rzetprj, zetb, nsobtot, clist, &
@@ -622,9 +619,6 @@ CONTAINS
          ALLOCATE (ai_work(ldai, ldai, ncoset(nder + 1)))
          ai_work = 0.0_dp
          ALLOCATE (oceh(maxder), oces(maxder))
-!deb
-         ALLOCATE (rceh(maxder), rces(maxder))
-!deb
 
 !$OMP DO SCHEDULE(GUIDED)
          DO slot = 1, sap_oce(1)%nl_size
@@ -704,46 +698,6 @@ CONTAINS
                   oces(i)%block = 0._dp
                END DO
                CALL build_oce_block_local(oceh, oces, at_a, sgf_list, nsgf_cnt)
-!deb
-!              WRITE(6,*) "OCE H ",atom_a,atom_b,nsgf_cnt,SUM(oceh(1)%block(1:nsobtot, 1:nsgfa))
-!              WRITE(6,*) "OCE S ",atom_a,atom_b,nsgf_cnt,SUM(oces(1)%block(1:nsobtot, 1:nsgfa))
-!              DO i=1,nsobtot
-!                 write(6,'(i3,15F6.2,/,3X,15F6.2)') i,oces(1)%block(i, 1:nsgfa)
-!              END DO
-!deb
-!deb
-               DO i = 1, maxder
-                  ALLOCATE (rceh(i)%block(nsobtot, nsgfa), rces(i)%block(nsobtot, nsgfa))
-                  rceh(i)%block = 0._dp
-                  rces(i)%block = 0._dp
-               END DO
-               CALL build_oce_block_1c(rceh, rces, at_a, sgf_list, nsgf_cnt, eps_fit)
-!              CALL build_oce_block(rces, at_a, at_b, rab, nder, sgf_list, nsgf_cnt, sgf_soft_only, eps_fit)
-!
-!              oces(1)%block(1:nsobtot, 1:nsgfa) = rces(1)%block(1:nsobtot, 1:nsgfa)
-!              oceh(1)%block(1:nsobtot, 1:nsgfa) = rceh(1)%block(1:nsobtot, 1:nsgfa)
-!              WRITE(6,*) "OCE h ",atom_a,atom_b,nsgf_cnt,SUM(rceh(1)%block(1:nsobtot, 1:nsgfa))
-!              WRITE(6,*) "OCE s ",atom_a,atom_b,nsgf_cnt,SUM(rces(1)%block(1:nsobtot, 1:nsgfa))
-!
-!              WRITE(6,*) "OCE N ",nsgf_cnt,SUM(rces(1)%block(1:nsobtot, 1:nsgfa))
-!              DO i=1,nsobtot
-!                 write(6,'(i3,15F6.2,/,3X,15F6.2)') i,rces(1)%block(i, 1:nsgfa)
-!              END DO
-!              rceh(1)%block(1:nsobtot, 1:nsgfa) = rceh(1)%block(1:nsobtot, 1:nsgfa) &
-!                    - oceh(1)%block(1:nsobtot, 1:nsgfa)
-!              WRITE(6,*) "OCE E ",nsgf_cnt,SUM(rceh(1)%block(1:nsobtot, 1:nsgfa))
-!              DO i=1,nsobtot
-!                 IF(ABS(SUM(rceh(1)%block(i, 1:nsgfa))) > 1.E-6_dp) THEN
-!                    write(6,'(i3,A2,15F6.2,/,3X,15F6.2)') i,"oo",oceh(1)%block(i, 1:nsgfa)
-!                    write(6,'(i3,A2,15F6.2,/,3X,15F6.2)') i,"nn",rceh(1)%block(i, 1:nsgfa)
-!                 ELSE
-!                    write(6,'(i3,A2,15F6.2,/,3X,15F6.2)') i,"  ",oceh(1)%block(i, 1:nsgfa)
-!                 END IF
-!              END DO
-!
-!              oceh(1)%block(1:nsobtot, 1:nsgfa) = rceh(1)%block(1:nsobtot, 1:nsgfa)
-!              oces(1)%block(1:nsobtot, 1:nsgfa) = rces(1)%block(1:nsobtot, 1:nsgfa)
-!deb
                clist%nsgf_cnt = nsgf_cnt
                clist%sgf_soft_only = .FALSE.
                IF (nsgf_cnt > 0) THEN
@@ -760,12 +714,6 @@ CONTAINS
                   clist%maxach = 0._dp
                   clist%sgf_list(1:nsgf_cnt) = sgf_list(1:nsgf_cnt)
                END IF
-
-!deb
-               DO i = 1, maxder
-                  DEALLOCATE (rceh(i)%block, rces(i)%block)
-               END DO
-!deb
                DO i = 1, maxder
                   DEALLOCATE (oceh(i)%block, oces(i)%block)
                END DO
@@ -799,9 +747,6 @@ CONTAINS
 
          DEALLOCATE (sab, work, ai_work)
          DEALLOCATE (oceh, oces)
-!deb
-         DEALLOCATE (rceh, rces)
-!deb
 !$OMP END PARALLEL
 
          ! Setup sort index

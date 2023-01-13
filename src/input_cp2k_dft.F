@@ -66,7 +66,8 @@ MODULE input_cp2k_dft
         embed_fa, embed_grid_angstrom, embed_grid_bohr, embed_level_shift, embed_none, &
         embed_quasi_newton, embed_resp, embed_steep_desc, eri_method_full_gpw, eri_method_gpw_ht, &
         eri_operator_coulomb, eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, &
-        eri_operator_yukawa, gaussian, general_roks, gto_cartesian, gto_spherical, hf_model, &
+        eri_operator_yukawa, gapw_1c_large, gapw_1c_medium, gapw_1c_orb, gapw_1c_small, &
+        gapw_1c_very_large, gaussian, general_roks, gto_cartesian, gto_spherical, hf_model, &
         high_spin_roks, history_guess, jacobian_fd1, jacobian_fd1_backward, jacobian_fd1_central, &
         jacobian_fd2, jacobian_fd2_backward, kg_color_dsatur, kg_color_greedy, kg_tnadd_atomic, &
         kg_tnadd_embed, kg_tnadd_embed_ri, kg_tnadd_none, ls_2pnt, ls_3pnt, ls_gold, ls_none, &
@@ -2865,16 +2866,16 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="GAPW_1C_BASIS", &
-                          description="Specifies how to construct the GAPW one center basis set.", &
+                          description="Specifies how to construct the GAPW one center basis set."// &
+                          "Default is to use the primitives from the orbital basis.", &
                           usage="GAPW_1C_BASIS MEDIUM", &
-                          enum_c_vals=s2a("ORB", "EXTERNAL", "SMALL", "MEDIUM", "LARGE", "VERY_LARGE"), &
+                          enum_c_vals=s2a("ORB", "EXT_SMALL", "EXT_MEDIUM", "EXT_LARGE", "EXT_VERY_LARGE"), &
                           enum_desc=s2a("Use orbital basis set.", &
-                                        "Use basis set defined in KIND section..", &
-                                        "Small number of primitive Gaussians.", &
-                                        "Medium number of primitive Gaussians.", &
-                                        "Large number of primitive Gaussians.", &
-                                        "Very Large number of primitive Gaussians."), &
-                          enum_i_vals=(/gapw_1c_orb, gapw_1c_external, gapw_1c_small, gapw_1c_medium, &
+                                        "Extension using Small number of primitive Gaussians.", &
+                                        "Extension using Medium number of primitive Gaussians.", &
+                                        "Extension using Large number of primitive Gaussians.", &
+                                        "Extension using Very Large number of primitive Gaussians."), &
+                          enum_i_vals=(/gapw_1c_orb, gapw_1c_small, gapw_1c_medium, &
                                         gapw_1c_large, gapw_1c_very_large/), &
                           default_i_val=gapw_1c_orb)
       CALL section_add_keyword(section, keyword)
