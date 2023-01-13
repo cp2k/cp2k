@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2022 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2023 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -14,8 +14,8 @@ MODULE gapw_1c_basis_set
 
    USE basis_set_types,                 ONLY: allocate_gto_basis_set,&
                                               combine_basis_sets,&
-                                              create_primitive_basis_set,&
                                               copy_gto_basis_set,&
+                                              create_primitive_basis_set,&
                                               deallocate_gto_basis_set,&
                                               get_gto_basis_set,&
                                               gto_basis_set_type
@@ -52,24 +52,25 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis, soft_basis, gapw_1c_basis
       INTEGER, INTENT(IN)                                :: basis_1c_level
 
-      INTEGER                                            :: ipgf, iset, l, maxl, maxlo, maxls, &
-                                                            mp, nseto, nsets, lbas, n1, n2, i, nn, j
+      INTEGER                                            :: i, ipgf, iset, j, l, lbas, maxl, maxlo, &
+                                                            maxls, mp, n1, n2, nn, nseto, nsets
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nps
       INTEGER, DIMENSION(:), POINTER                     :: lmaxo, lmaxs, lmino, lmins, npgfo, npgfs
-      REAL(KIND=dp)                                      :: zms, zmall, fr1, fr2, rr, zz, fmin, xz, yz, fz
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zmaxs, z1, z2
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: zexs, zeta
+      REAL(KIND=dp)                                      :: fmin, fr1, fr2, fz, rr, xz, yz, zmall, &
+                                                            zms, zz
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: z1, z2, zmaxs
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: zeta, zexs
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zeto, zets
       TYPE(gto_basis_set_type), POINTER                  :: ext_basis, p_basis
 
       CPASSERT(.NOT. ASSOCIATED(gapw_1c_basis))
 
-      IF(basis_1c_level == 0) THEN
+      IF (basis_1c_level == 0) THEN
          ! we use the orbital basis set
          CALL copy_gto_basis_set(orb_basis, gapw_1c_basis)
       ELSE
          CALL copy_gto_basis_set(orb_basis, gapw_1c_basis)
-         NULLIFY(ext_basis)
+         NULLIFY (ext_basis)
          CALL allocate_gto_basis_set(ext_basis)
          ! get information on orbital basis and soft basis
          CALL get_gto_basis_set(gto_basis_set=orb_basis, maxl=maxlo, nset=nseto, &
@@ -104,7 +105,7 @@ CONTAINS
             DO ipgf = 1, npgfs(iset)
                DO l = lmins(iset), lmaxs(iset)
                   nps(l) = nps(l) + 1
-                  zexs(nps(l), l) = zets(ipgf,iset)
+                  zexs(nps(l), l) = zets(ipgf, iset)
                END DO
             END DO
          END DO
@@ -129,68 +130,68 @@ CONTAINS
          CASE DEFAULT
             CPABORT("unknown case")
          END SELECT
-         lbas = MIN(lbas,5)
+         lbas = MIN(lbas, 5)
          !
          CALL init_spherical_harmonics(lbas, 0)
          !
-         rr = log(zmall/0.05_dp)/log(fr1)
+         rr = LOG(zmall/0.05_dp)/LOG(fr1)
          n1 = INT(rr) + 1
-         rr = log(zmall/0.05_dp)/log(fr2)
+         rr = LOG(zmall/0.05_dp)/LOG(fr2)
          n2 = INT(rr) + 1
-         ALLOCATE(z1(n1), z2(n2))
+         ALLOCATE (z1(n1), z2(n2))
          z1 = 0.0_dp
-         zz = zmall * SQRT(fr1) 
-         DO i=1,n1
-            z1(i) = zz/(fr1**(i-1))
+         zz = zmall*SQRT(fr1)
+         DO i = 1, n1
+            z1(i) = zz/(fr1**(i - 1))
          END DO
          z2 = 0.0_dp
          zz = zmall
-         DO i=1,n2
-            z2(i) = zz/(fr2**(i-1))
+         DO i = 1, n2
+            z2(i) = zz/(fr2**(i - 1))
          END DO
-         ALLOCATE(zeta(MAX(n1,n2),lbas+1))
+         ALLOCATE (zeta(MAX(n1, n2), lbas + 1))
          zeta = 0.0_dp
          !
          ext_basis%nset = lbas + 1
-         ALLOCATE(ext_basis%lmin(lbas+1), ext_basis%lmax(lbas+1))
-         ALLOCATE(ext_basis%npgf(lbas+1))
-         DO l=0,lbas
-            ext_basis%lmin(l+1) = l
-            ext_basis%lmax(l+1) = l
-            IF(l <= maxl) THEN
+         ALLOCATE (ext_basis%lmin(lbas + 1), ext_basis%lmax(lbas + 1))
+         ALLOCATE (ext_basis%npgf(lbas + 1))
+         DO l = 0, lbas
+            ext_basis%lmin(l + 1) = l
+            ext_basis%lmax(l + 1) = l
+            IF (l <= maxl) THEN
                fmin = 10.0_dp
                nn = 0
-               DO i=1,n1
+               DO i = 1, n1
                   xz = z1(i)
-                  DO j=1,nps(l)
+                  DO j = 1, nps(l)
                      yz = zexs(j, l)
-                     fz = MAX(xz,yz)/MIN(xz,yz)
-                     fmin = MIN(fmin,fz)
+                     fz = MAX(xz, yz)/MIN(xz, yz)
+                     fmin = MIN(fmin, fz)
                   END DO
-                  IF(fmin > fr1**0.25) THEN
+                  IF (fmin > fr1**0.25) THEN
                      nn = nn + 1
-                     zeta(nn,l+1) = xz
+                     zeta(nn, l + 1) = xz
                   END IF
                END DO
                CPASSERT(nn > 0)
-               ext_basis%npgf(l+1) = nn
+               ext_basis%npgf(l + 1) = nn
             ELSE
-               ext_basis%npgf(l+1) = n2
-               zeta(1:n2,l+1) = z2(1:n2)
+               ext_basis%npgf(l + 1) = n2
+               zeta(1:n2, l + 1) = z2(1:n2)
             END IF
          END DO
          nn = MAXVAL(ext_basis%npgf)
-         ALLOCATE(ext_basis%zet(nn,lbas+1))
-         DO i=1,lbas+1
+         ALLOCATE (ext_basis%zet(nn, lbas + 1))
+         DO i = 1, lbas + 1
             nn = ext_basis%npgf(i)
-            ext_basis%zet(1:nn,i) = zeta(1:nn,i)
+            ext_basis%zet(1:nn, i) = zeta(1:nn, i)
          END DO
          ext_basis%name = "extbas"
          ext_basis%kind_radius = orb_basis%kind_radius
          ext_basis%short_kind_radius = orb_basis%short_kind_radius
          ext_basis%norm_type = orb_basis%norm_type
 
-         NULLIFY(p_basis)
+         NULLIFY (p_basis)
          CALL create_primitive_basis_set(ext_basis, p_basis)
          CALL combine_basis_sets(gapw_1c_basis, p_basis)
 
