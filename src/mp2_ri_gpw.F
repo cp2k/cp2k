@@ -2270,6 +2270,7 @@ CONTAINS
 
                   do_send_i = .FALSE.
                   do_send_j = .FALSE.
+                  do_send_k = .FALSE.
                   IF (ijk_index <= send_ijk_index) THEN
                      ! something to send
                      ijk_counter_send = (ijk_index - MIN(1, integ_group_pos2color_sub(proc_send)))* &
@@ -2336,7 +2337,7 @@ CONTAINS
                                   para_env_exchange%group)
                   END IF
                   ELSE IF (do_recv_k) THEN
-                  CALL mp_recv(BI_C_rec, proc_receive, tag, &
+                  CALL mp_recv(BI_C_rec_3D, proc_receive, tag, &
                                para_env_exchange%group)
                   END IF
                   IF (do_recv_k) THEN
@@ -2496,6 +2497,7 @@ CONTAINS
                      send_i = ijk_map(1, ijk_counter_send)
                      send_j = ijk_map(2, ijk_counter_send)
                      send_k = ijk_map(3, ijk_counter_send)
+                     block_size = ijk_map(4, ijk_counter_send)
 
                      do_send_i = (ispin /= kspin) .OR. send_i < send_k .OR. send_i > send_k + block_size - 1
                      do_send_j = (ispin /= kspin) .OR. send_j < send_k .OR. send_j > send_k + block_size - 1
