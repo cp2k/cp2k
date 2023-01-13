@@ -772,7 +772,7 @@ CONTAINS
       CALL section_vals_val_get(qs_section, "QUADRATURE", i_val=qs_control%gapw_control%quadrature)
       ! GAPW 1c basis
       CALL section_vals_val_get(qs_section, "GAPW_1C_BASIS", i_val=qs_control%gapw_control%basis_1c)
-      IF(qs_control%gapw_control%basis_1c /= gapw_1c_orb) THEN
+      IF (qs_control%gapw_control%basis_1c /= gapw_1c_orb) THEN
          qs_control%gapw_control%eps_svd = MAX(qs_control%gapw_control%eps_svd, 1.E-12_dp)
       END IF
 

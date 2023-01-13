@@ -265,8 +265,8 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: nsgf_cnt
 
       INTEGER                                            :: i, iset, isgfa, j, jc, lsgfa, maxlprj, &
-                                                            maxso1a, n, nsatbas, nset1a, &
-                                                            nseta, nsgfa
+                                                            maxso1a, n, nsatbas, nset1a, nseta, &
+                                                            nsgfa
       INTEGER, DIMENSION(:), POINTER                     :: n2oindex, nsgf_seta
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: paw_atom_a

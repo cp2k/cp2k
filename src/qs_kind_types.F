@@ -38,7 +38,7 @@ MODULE qs_kind_types
                                               remove_basis_from_container,&
                                               remove_basis_set_container
    USE basis_set_types,                 ONLY: &
-        allocate_gto_basis_set, allocate_sto_basis_set, combine_basis_sets, copy_gto_basis_set, &
+        allocate_gto_basis_set, allocate_sto_basis_set, combine_basis_sets, &
         create_gto_from_sto_basis, deallocate_sto_basis_set, get_gto_basis_set, &
         gto_basis_set_type, init_aux_basis_set, init_orb_basis_set, read_gto_basis_set, &
         read_sto_basis_set, sto_basis_set_type, write_gto_basis_set, write_orb_basis_set
