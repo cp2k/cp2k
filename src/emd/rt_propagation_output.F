@@ -216,7 +216,6 @@ CONTAINS
             END IF
             IF (.NOT. dft_control%qs_control%dftb) THEN
                !Not sure if these things could also work with dftb or not
-               CALL write_mo_free_results(qs_env)
                IF (BTEST(cp_print_key_should_output(logger%iter_info, &
                                                     dft_section, "REAL_TIME_PROPAGATION%PRINT%CURRENT"), cp_p_file)) THEN
                   DO spin = 1, SIZE(rho_new)/2
