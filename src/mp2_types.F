@@ -117,7 +117,7 @@ MODULE mp2_types
    END TYPE mp2_gpw_type
 
    TYPE ri_mp2_type
-      INTEGER                  :: block_size
+      INTEGER                  :: block_size, number_integration_groups
       LOGICAL                  :: print_dgemm_info
    END TYPE
 

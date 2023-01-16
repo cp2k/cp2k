@@ -1333,6 +1333,7 @@ CONTAINS
                                                             max_repl_group_size, &
                                                             min_integ_group_size
       INTEGER(KIND=int_8)                                :: mem
+      LOGICAL                                            :: calc_group_size
       REAL(KIND=dp)                                      :: factor, mem_base, mem_min, mem_per_blk, &
                                                             mem_per_repl, mem_per_repl_blk, &
                                                             mem_real
@@ -1341,97 +1342,106 @@ CONTAINS
 
       ngroup = para_env%num_pe/para_env_sub%num_pe
 
-      CALL m_memory(mem)
-      mem_real = (mem + 1024*1024 - 1)/(1024*1024)
-      CALL mp_min(mem_real, para_env%group)
-
-      mem_base = 0.0_dp
-      mem_per_blk = 0.0_dp
-      mem_per_repl = 0.0_dp
-      mem_per_repl_blk = 0.0_dp
-
-      ! BIB_C_copy
-      mem_per_repl = mem_per_repl + MAXVAL(MAX(REAL(homo, KIND=dp)*maxsize(gd_array), REAL(dimen_RI, KIND=dp))* &
-                                           maxsize(gd_B_virtual))*8.0_dp/(1024**2)
-      ! BIB_C
-      mem_per_repl = mem_per_repl + SUM(REAL(homo, KIND=dp)*maxsize(gd_B_virtual))*maxsize(gd_array)*8.0_dp/(1024**2)
-      ! BIB_C_rec
-      mem_per_repl_blk = mem_per_repl_blk + REAL(MAXVAL(maxsize(gd_B_virtual)), KIND=dp)*maxsize(gd_array)*8.0_dp/(1024**2)
-      ! local_i_aL+local_j_aL
-      mem_per_blk = mem_per_blk + 2.0_dp*MAXVAL(maxsize(gd_B_virtual))*REAL(dimen_RI, KIND=dp)*8.0_dp/(1024**2)
-      ! local_ab
-      mem_base = mem_base + MAXVAL(REAL(virtual, KIND=dp)*maxsize(gd_B_virtual))*8.0_dp/(1024**2)
-      ! external_ab/external_i_aL
-      mem_base = mem_base + REAL(MAX(dimen_RI, MAXVAL(virtual)), KIND=dp)*MAXVAL(maxsize(gd_B_virtual))*8.0_dp/(1024**2)
-
-      IF (calc_forces) THEN
-         ! Gamma_P_ia
-         mem_per_repl = mem_per_repl + SUM(REAL(homo, KIND=dp)*maxsize(gd_array)* &
-                                           maxsize(gd_B_virtual))*8.0_dp/(1024**2)
-         ! Y_i_aP+Y_j_aP
-         mem_per_blk = mem_per_blk + 2.0_dp*MAXVAL(maxsize(gd_B_virtual))*dimen_RI*8.0_dp/(1024**2)
-         ! local_ba/t_ab
-         mem_base = mem_base + REAL(MAXVAL(maxsize(gd_B_virtual)), KIND=dp)*MAX(dimen_RI, MAXVAL(virtual))*8.0_dp/(1024**2)
-         ! P_ij
-         mem_base = mem_base + SUM(REAL(homo, KIND=dp)*homo)*8.0_dp/(1024**2)
-         ! P_ab
-         mem_base = mem_base + SUM(REAL(virtual, KIND=dp)*maxsize(gd_B_virtual))*8.0_dp/(1024**2)
-         ! send_ab/send_i_aL
-         mem_base = mem_base + REAL(MAX(dimen_RI, MAXVAL(virtual)), KIND=dp)*MAXVAL(maxsize(gd_B_virtual))*8.0_dp/(1024**2)
+      calc_group_size = mp2_env%ri_mp2%number_integration_groups <= 0
+      IF (.NOT. calc_group_size) THEN
+         IF (MOD(ngroup, mp2_env%ri_mp2%number_integration_groups) /= 0) calc_group_size = .TRUE.
       END IF
 
-      ! This a first guess based on the assumption of optimal block sizes
-      block_size = MAX(1, MIN(FLOOR(SQRT(REAL(MINVAL(homo), KIND=dp))), FLOOR(MINVAL(homo)/SQRT(2.0_dp*ngroup))))
-      IF (mp2_env%ri_mp2%block_size > 0) block_size = mp2_env%ri_mp2%block_size
+      IF (calc_group_size) THEN
+         CALL m_memory(mem)
+         mem_real = (mem + 1024*1024 - 1)/(1024*1024)
+         CALL mp_min(mem_real, para_env%group)
 
-      mem_min = mem_base + mem_per_repl + (mem_per_blk + mem_per_repl_blk)*block_size
+         mem_base = 0.0_dp
+         mem_per_blk = 0.0_dp
+         mem_per_repl = 0.0_dp
+         mem_per_repl_blk = 0.0_dp
 
-      IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'RI_INFO| Minimum available memory per MPI process:', &
-         mem_real, ' MiB'
-      IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'RI_INFO| Minimum required memory per MPI process:', &
-         mem_min, ' MiB'
+         ! BIB_C_copy
+         mem_per_repl = mem_per_repl + MAXVAL(MAX(REAL(homo, KIND=dp)*maxsize(gd_array), REAL(dimen_RI, KIND=dp))* &
+                                              maxsize(gd_B_virtual))*8.0_dp/(1024**2)
+         ! BIB_C
+         mem_per_repl = mem_per_repl + SUM(REAL(homo, KIND=dp)*maxsize(gd_B_virtual))*maxsize(gd_array)*8.0_dp/(1024**2)
+         ! BIB_C_rec
+         mem_per_repl_blk = mem_per_repl_blk + REAL(MAXVAL(maxsize(gd_B_virtual)), KIND=dp)*maxsize(gd_array)*8.0_dp/(1024**2)
+         ! local_i_aL+local_j_aL
+         mem_per_blk = mem_per_blk + 2.0_dp*MAXVAL(maxsize(gd_B_virtual))*REAL(dimen_RI, KIND=dp)*8.0_dp/(1024**2)
+         ! local_ab
+         mem_base = mem_base + MAXVAL(REAL(virtual, KIND=dp)*maxsize(gd_B_virtual))*8.0_dp/(1024**2)
+         ! external_ab/external_i_aL
+         mem_base = mem_base + REAL(MAX(dimen_RI, MAXVAL(virtual)), KIND=dp)*MAXVAL(maxsize(gd_B_virtual))*8.0_dp/(1024**2)
 
-      ! We use the following communication model
-      ! Comm(replication)+Comm(collection of data for ij pair)+Comm(contraction)
-      ! One can show that the costs of the contraction step are independent of the block size and the replication group size
-      ! With gradients, the other two steps are carried out twice (Y_i_aP -> Gamma_i_aP, and dereplication)
-      ! NL ... number of RI basis functions
-      ! NR ... replication group size
-      ! NG ... number of sub groups
-      ! NB ... Block size
-      ! o  ... number of occupied orbitals
-      ! Then, we have the communication costs (in multiples of the original BIb_C matrix)
-      ! (NR/NG)+(1-(NR/NG))*(o/NB+NB-2)/NG = (NR/NG)*(1-(o/NB+NB-2)/NG)+(o/NB+NB-2)/NG
-      ! and with gradients
-      ! 2*(NR/NG)+2*(1-(NR/NG))*(o/NB+NB-2)/NG = (NR/NG)*(1-(o/NB+NB-2)/NG)+(o/NB+NB-2)/NG
-      ! We are looking for the minimum of the communication volume,
-      ! thus, if the prefactor of (NR/NG) is smaller than zero, use the largest possible replication group size.
-      ! If the factor is larger than zero, set the replication group size to 1. (For small systems and a large number of subgroups)
-      ! Replication group size = 1 implies that the integration group size equals the number of subgroups
+         IF (calc_forces) THEN
+            ! Gamma_P_ia
+            mem_per_repl = mem_per_repl + SUM(REAL(homo, KIND=dp)*maxsize(gd_array)* &
+                                              maxsize(gd_B_virtual))*8.0_dp/(1024**2)
+            ! Y_i_aP+Y_j_aP
+            mem_per_blk = mem_per_blk + 2.0_dp*MAXVAL(maxsize(gd_B_virtual))*dimen_RI*8.0_dp/(1024**2)
+            ! local_ba/t_ab
+            mem_base = mem_base + REAL(MAXVAL(maxsize(gd_B_virtual)), KIND=dp)*MAX(dimen_RI, MAXVAL(virtual))*8.0_dp/(1024**2)
+            ! P_ij
+            mem_base = mem_base + SUM(REAL(homo, KIND=dp)*homo)*8.0_dp/(1024**2)
+            ! P_ab
+            mem_base = mem_base + SUM(REAL(virtual, KIND=dp)*maxsize(gd_B_virtual))*8.0_dp/(1024**2)
+            ! send_ab/send_i_aL
+            mem_base = mem_base + REAL(MAX(dimen_RI, MAXVAL(virtual)), KIND=dp)*MAXVAL(maxsize(gd_B_virtual))*8.0_dp/(1024**2)
+         END IF
 
-      integ_group_size = ngroup
+         ! This a first guess based on the assumption of optimal block sizes
+         block_size = MAX(1, MIN(FLOOR(SQRT(REAL(MINVAL(homo), KIND=dp))), FLOOR(MINVAL(homo)/SQRT(2.0_dp*ngroup))))
+         IF (mp2_env%ri_mp2%block_size > 0) block_size = mp2_env%ri_mp2%block_size
 
-      ! Multiply everything by homo*virtual to consider differences between spin channels in case of open-shell calculations
-      factor = REAL(SUM(homo*virtual), KIND=dp) &
-               - SUM((REAL(MAXVAL(homo), KIND=dp)/block_size + block_size - 2.0_dp)*homo*virtual)/ngroup
-      IF (SIZE(homo) == 2) factor = factor - 2.0_dp*PRODUCT(homo)/block_size/ngroup*SUM(homo*virtual)
+         mem_min = mem_base + mem_per_repl + (mem_per_blk + mem_per_repl_blk)*block_size
 
-      IF (factor <= 0.0_dp) THEN
-         ! Remove the fixed memory and divide by the memory per replication group size
-         max_repl_group_size = MIN(MAX(FLOOR((mem_real - mem_base - mem_per_blk*block_size)/ &
-                                             (mem_per_repl + mem_per_repl_blk*block_size)), 1), ngroup)
-         ! Convert to an integration group size
-         min_integ_group_size = ngroup/max_repl_group_size
+         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'RI_INFO| Minimum available memory per MPI process:', &
+            mem_real, ' MiB'
+         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'RI_INFO| Minimum required memory per MPI process:', &
+            mem_min, ' MiB'
 
-         ! Ensure that the integration group size is a divisor of the number of sub groups
-         DO iiB = MAX(MIN(min_integ_group_size, ngroup), 1), ngroup
-            ! check that the ngroup is a multiple of  integ_group_size
-            IF (MOD(ngroup, iiB) == 0) THEN
-               integ_group_size = iiB
-               EXIT
-            END IF
-            integ_group_size = integ_group_size + 1
-         END DO
+         ! We use the following communication model
+         ! Comm(replication)+Comm(collection of data for ij pair)+Comm(contraction)
+         ! One can show that the costs of the contraction step are independent of the block size and the replication group size
+         ! With gradients, the other two steps are carried out twice (Y_i_aP -> Gamma_i_aP, and dereplication)
+         ! NL ... number of RI basis functions
+         ! NR ... replication group size
+         ! NG ... number of sub groups
+         ! NB ... Block size
+         ! o  ... number of occupied orbitals
+         ! Then, we have the communication costs (in multiples of the original BIb_C matrix)
+         ! (NR/NG)+(1-(NR/NG))*(o/NB+NB-2)/NG = (NR/NG)*(1-(o/NB+NB-2)/NG)+(o/NB+NB-2)/NG
+         ! and with gradients
+         ! 2*(NR/NG)+2*(1-(NR/NG))*(o/NB+NB-2)/NG = (NR/NG)*(1-(o/NB+NB-2)/NG)+(o/NB+NB-2)/NG
+         ! We are looking for the minimum of the communication volume,
+         ! thus, if the prefactor of (NR/NG) is smaller than zero, use the largest possible replication group size.
+         ! If the factor is larger than zero, set the replication group size to 1. (For small systems and a large number of subgroups)
+         ! Replication group size = 1 implies that the integration group size equals the number of subgroups
+
+         integ_group_size = ngroup
+
+         ! Multiply everything by homo*virtual to consider differences between spin channels in case of open-shell calculations
+         factor = REAL(SUM(homo*virtual), KIND=dp) &
+                  - SUM((REAL(MAXVAL(homo), KIND=dp)/block_size + block_size - 2.0_dp)*homo*virtual)/ngroup
+         IF (SIZE(homo) == 2) factor = factor - 2.0_dp*PRODUCT(homo)/block_size/ngroup*SUM(homo*virtual)
+
+         IF (factor <= 0.0_dp) THEN
+            ! Remove the fixed memory and divide by the memory per replication group size
+            max_repl_group_size = MIN(MAX(FLOOR((mem_real - mem_base - mem_per_blk*block_size)/ &
+                                                (mem_per_repl + mem_per_repl_blk*block_size)), 1), ngroup)
+            ! Convert to an integration group size
+            min_integ_group_size = ngroup/max_repl_group_size
+
+            ! Ensure that the integration group size is a divisor of the number of sub groups
+            DO iiB = MAX(MIN(min_integ_group_size, ngroup), 1), ngroup
+               ! check that the ngroup is a multiple of  integ_group_size
+               IF (MOD(ngroup, iiB) == 0) THEN
+                  integ_group_size = iiB
+                  EXIT
+               END IF
+               integ_group_size = integ_group_size + 1
+            END DO
+         END IF
+      ELSE ! We take the user provided group size
+         integ_group_size = ngroup/mp2_env%ri_mp2%number_integration_groups
       END IF
 
       IF (unit_nr > 0) THEN
