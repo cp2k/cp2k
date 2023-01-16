@@ -408,25 +408,47 @@ CONTAINS
       CALL qs_rho_get(rho_struct=rho, rho_ao=rho_ao)
       DO i = 1, SIZE(mos_new)/2
          re = 2*i - 1; im = 2*i
-         alpha = 3*one - REAL(SIZE(mos_new)/2, dp)
          CALL dbcsr_set(rho_ao(i)%matrix, zero)
          CALL cp_fm_get_info(mos_new(re), ncol_global=ncol)
          CALL cp_fm_create(mos_occ, &
                            matrix_struct=mos(i)%mo_coeff%matrix_struct, &
                            name="mos_occ")
          CALL cp_fm_to_fm(mos_new(re), mos_occ)
-         CALL cp_fm_column_scale(mos_occ, mos(i)%occupation_numbers/alpha)
-         CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(i)%matrix, &
-                                    matrix_v=mos_occ, &
-                                    ncol=ncol, &
-                                    alpha=alpha)
+         IF (mos(i)%uniform_occupation) THEN
+            alpha = 3*one - REAL(SIZE(mos_new)/2, dp)
+            CALL cp_fm_column_scale(mos_occ, mos(i)%occupation_numbers/alpha)
+            CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(i)%matrix, &
+                                       matrix_v=mos_occ, &
+                                       ncol=ncol, &
+                                       alpha=alpha)
+         ELSE
+            alpha = 1.0_dp
+            CALL cp_fm_column_scale(mos_occ, mos(i)%occupation_numbers/alpha)
+            CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(i)%matrix, &
+                                       matrix_v=mos_new(re), &
+                                       matrix_g=mos_occ, &
+                                       ncol=ncol, &
+                                       alpha=alpha)
+         END IF
+
          ! It is actually complex conjugate but i*i=-1 therefore it must be added
          CALL cp_fm_to_fm(mos_new(im), mos_occ)
-         CALL cp_fm_column_scale(mos_occ, mos(i)%occupation_numbers/alpha)
-         CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(i)%matrix, &
-                                    matrix_v=mos_occ, &
-                                    ncol=ncol, &
-                                    alpha=alpha)
+         IF (mos(i)%uniform_occupation) THEN
+            alpha = 3*one - REAL(SIZE(mos_new)/2, dp)
+            CALL cp_fm_column_scale(mos_occ, mos(i)%occupation_numbers/alpha)
+            CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(i)%matrix, &
+                                       matrix_v=mos_occ, &
+                                       ncol=ncol, &
+                                       alpha=alpha)
+         ELSE
+            alpha = 1.0_dp
+            CALL cp_fm_column_scale(mos_occ, mos(i)%occupation_numbers/alpha)
+            CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(i)%matrix, &
+                                       matrix_v=mos_new(im), &
+                                       matrix_g=mos_occ, &
+                                       ncol=ncol, &
+                                       alpha=alpha)
+         END IF
          CALL cp_fm_release(mos_occ)
       END DO
       CALL qs_rho_update_rho(rho, qs_env)

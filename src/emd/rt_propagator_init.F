@@ -418,20 +418,41 @@ CONTAINS
 
       INTEGER                                            :: ispin, ncol, re
       REAL(KIND=dp)                                      :: alpha
+      TYPE(cp_fm_type)                                   :: mos_occ
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_new, rho_old
 
       CALL get_rtp(rtp=rtp, rho_old=rho_old, rho_new=rho_new)
 
       DO ispin = 1, SIZE(mos)
          re = 2*ispin - 1
-         alpha = 3.0_dp - REAL(SIZE(mos), dp)
          CALL dbcsr_set(rho_old(re)%matrix, 0.0_dp)
          CALL cp_fm_get_info(mos(ispin)%mo_coeff, ncol_global=ncol)
-         CALL cp_fm_column_scale(mos(ispin)%mo_coeff, mos(ispin)%occupation_numbers/alpha)
-         CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_old(re)%matrix, &
-                                    matrix_v=mos(ispin)%mo_coeff, ncol=ncol, alpha=alpha, keep_sparsity=.FALSE.)
+
+         CALL cp_fm_create(mos_occ, &
+                           matrix_struct=mos(ispin)%mo_coeff%matrix_struct, &
+                           name="mos_occ")
+         CALL cp_fm_to_fm(mos(ispin)%mo_coeff, mos_occ)
+         IF (mos(ispin)%uniform_occupation) THEN
+            alpha = 3.0_dp - REAL(SIZE(mos), dp)
+            CALL cp_fm_column_scale(mos_occ, mos(ispin)%occupation_numbers/alpha)
+            CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_old(re)%matrix, &
+                                       matrix_v=mos_occ, &
+                                       ncol=ncol, &
+                                       alpha=alpha, keep_sparsity=.FALSE.)
+         ELSE
+            alpha = 1.0_dp
+            CALL cp_fm_column_scale(mos_occ, mos(ispin)%occupation_numbers/alpha)
+            CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_old(re)%matrix, &
+                                       matrix_v=mos(ispin)%mo_coeff, &
+                                       matrix_g=mos_occ, &
+                                       ncol=ncol, &
+                                       alpha=alpha, keep_sparsity=.FALSE.)
+         END IF
+
          CALL dbcsr_filter(rho_old(re)%matrix, rtp%filter_eps)
          CALL dbcsr_copy(rho_new(re)%matrix, rho_old(re)%matrix)
+         CALL cp_fm_release(mos_occ)
+
       END DO
 
    END SUBROUTINE rt_initialize_rho_from_mos
