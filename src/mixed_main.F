@@ -128,8 +128,7 @@ CONTAINS
          IF (MODULO(i - 1, mixed_env%ngroups) == mixed_env%group_distribution(para_env%mepos)) THEN
             ! Create sub_para_env
             CALL cp_para_env_create(mixed_env%sub_para_env(i)%para_env, &
-                                    group=mixed_env%new_group, &
-                                    owns_group=.TRUE.)
+                                    group=mixed_env%new_group)
             ! Create sub_logger
             IF (mixed_env%sub_para_env(i)%para_env%ionode) THEN
                ! Redirecting output of subforce_eval to file..

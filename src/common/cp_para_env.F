@@ -33,37 +33,20 @@ CONTAINS
 !> \brief creates a new para environment
 !> \param para_env the new parallel environment
 !> \param group the id of the actual mpi_group
-!> \param source the id of the special (master) processor (defaults to 0)
-!> \param mepos the id of the actual processor
-!> \param num_pe the number of processors in the group
-!> \param owns_group if the group is owned by this object (defaults to true)
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   SUBROUTINE cp_para_env_create(para_env, group, source, mepos, num_pe, &
-                                 owns_group)
+   SUBROUTINE cp_para_env_create(para_env, group)
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CLASS(mp_comm_type), INTENT(in)                     :: group
-      INTEGER, INTENT(in), OPTIONAL                      :: source, mepos, num_pe
-      LOGICAL, INTENT(in), OPTIONAL                      :: owns_group
 
       CPASSERT(.NOT. ASSOCIATED(para_env))
       ALLOCATE (para_env)
       para_env%group = group
-      para_env%source = 0
-      para_env%ref_count = 1
       para_env%owns_group = .TRUE.
-      IF (PRESENT(source)) para_env%source = source
-      IF (PRESENT(owns_group)) para_env%owns_group = owns_group
-      IF (.NOT. (PRESENT(mepos) .AND. PRESENT(num_pe))) THEN
-         CALL group%environ(taskid=para_env%mepos, numtask=para_env%num_pe)
-      ELSE
-         para_env%mepos = mepos
-         para_env%num_pe = num_pe
-      END IF
-      para_env%ionode = para_env%mepos == para_env%source
+      CALL para_env%init()
    END SUBROUTINE cp_para_env_create
 
 ! **************************************************************************************************
@@ -120,9 +103,7 @@ CONTAINS
          CPASSERT(para_env%ref_count > 0)
          para_env%ref_count = para_env%ref_count - 1
          IF (para_env%ref_count < 1) THEN
-            IF (para_env%owns_group) THEN
-               CALL para_env%group%free()
-            END IF
+            CALL para_env%free()
             DEALLOCATE (para_env)
          END IF
       END IF
@@ -134,48 +115,22 @@ CONTAINS
 !> \param cart the cart environment to create
 !> \param group the mpi communicator
 !> \param ndims the number of dimensions of the cart
-!> \param owns_group if this object owns the underlying cart (and should
-!>        free it)
 !> \author fawzi
 ! **************************************************************************************************
-   SUBROUTINE cp_cart_create(cart, group, ndims, owns_group)
+   SUBROUTINE cp_cart_create(cart, group, ndims)
       TYPE(cp_para_cart_type), POINTER                   :: cart
 
       CLASS(mp_comm_type), INTENT(in)                     :: group
       INTEGER, INTENT(in)                                :: ndims
-      LOGICAL, INTENT(in), OPTIONAL                      :: owns_group
 
       CPASSERT(.NOT. ASSOCIATED(cart))
       ALLOCATE (cart)
-      cart%owns_group = .TRUE.
-      IF (PRESENT(owns_group)) cart%owns_group = owns_group
       cart%ndims = ndims
       cart%group = group
 
-      ALLOCATE (cart%source(ndims), cart%periodic(ndims), cart%mepos(ndims), &
-                cart%num_pe(ndims))
+      CALL cart%init()
 
-      cart%source = 0
-      cart%mepos = 0
-      cart%periodic = .FALSE.
-      cart%ref_count = 1
-      cart%ntask = 1
-      CALL cp_cart_update(cart)
    END SUBROUTINE cp_cart_create
-
-! **************************************************************************************************
-!> \brief updates the information about the given cart
-!> \param cart the cart to update
-!> \author fawzi
-! **************************************************************************************************
-   SUBROUTINE cp_cart_update(cart)
-      TYPE(cp_para_cart_type), INTENT(INOUT)             :: cart
-
-      CPASSERT(cart%ref_count > 0)
-      CALL cart%group%environ_cart(cart%ndims, cart%num_pe, task_coor=cart%mepos, &
-                                   periods=cart%periodic)
-      CALL cart%group%environ(numtask=cart%ntask, taskid=cart%rank)
-   END SUBROUTINE cp_cart_update
 
 ! **************************************************************************************************
 !> \brief releases the given cart
@@ -189,10 +144,7 @@ CONTAINS
          CPASSERT(cart%ref_count > 0)
          cart%ref_count = cart%ref_count - 1
          IF (cart%ref_count == 0) THEN
-            IF (cart%owns_group) THEN
-               CALL cart%group%free()
-            END IF
-            DEALLOCATE (cart%source, cart%periodic, cart%mepos, cart%num_pe)
+            CALL cart%free()
             DEALLOCATE (cart)
          END IF
       END IF

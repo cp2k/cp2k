@@ -15,8 +15,7 @@ MODULE optimize_basis
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
-   USE cp_para_env,                     ONLY: cp_para_env_create,&
-                                              cp_para_env_release
+   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE f77_interface,                   ONLY: create_force_env,&
@@ -181,7 +180,8 @@ CONTAINS
       ALLOCATE (tot_time(opt_bas%ncombinations*opt_bas%ntraining_sets))
       ALLOCATE (matrix_s_inv(SIZE(opt_bas%comp_group(mp_id)%member_list)))
 
-      CALL cp_para_env_create(para_env, group=mpi_comm_opt, owns_group=.FALSE.)
+      ALLOCATE (para_env)
+      para_env = mpi_comm_opt
 
       is = -1
       IF (para_env%ionode) is = para_env_top%mepos
