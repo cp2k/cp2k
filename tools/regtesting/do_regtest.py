@@ -51,7 +51,10 @@ async def main() -> None:
     parser.add_argument("--mpiexec", default="mpiexec")
     help = "Runs only the first test of each directory."
     parser.add_argument("--smoketest", dest="smoketest", action="store_true", help=help)
-    parser.add_argument("--keepalive", dest="keepalive", action="store_true")
+    help = "Use a persistent cp2k-shell process to reduce startup time."
+    parser.add_argument("--keepalive", dest="keepalive", action="store_true", help=help)
+    help = "Flag slow tests in the final summary and status report."
+    parser.add_argument("--flagslow", dest="flagslow", action="store_true", help=help)
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--restrictdir", action="append")
     parser.add_argument("--skipdir", action="append")
@@ -83,6 +86,7 @@ async def main() -> None:
     print(f"MPI exec:       {cfg.mpiexec}")
     print(f"Smoke test:     {cfg.smoketest}")
     print(f"Keepalive:      {cfg.keepalive}")
+    print(f"Flag slow:      {cfg.flag_slow}")
     print(f"Debug:          {cfg.debug}")
     print(f"ARCH:           {cfg.arch}")
     print(f"VERSION:        {cfg.version}")
@@ -178,12 +182,27 @@ async def main() -> None:
         print(f'PlotPoint: name="{p}th_percentile", plot="timings", ', end="")
         print(f'label="{p}th %ile", y={v:.2f}, yerr=0.0')
 
+    print("\n----------------------------- Slow Tests -------------------------------")
+    slow_test_threshold = 2 * percentile(timings, 0.95)
+    print(f"Duration threshold (2x 95th %ile): {slow_test_threshold:.2f} sec")
+    slow_supps_fn = cfg.cp2k_root / "tests" / "SLOW_TESTS_SUPPRESSIONS"
+    slow_supps = slow_supps_fn.read_text(encoding="utf8").split("\n")
+    slow_tests_all = [r for r in all_results if r.duration > slow_test_threshold]
+    slow_tests = [r for r in slow_tests_all if r.fullname() not in slow_supps]
+    num_slow_suppressed = len(slow_tests_all) - len(slow_tests)
+    print(f"Found {len(slow_tests)} slow tests ({num_slow_suppressed} suppressed):")
+    for r in slow_tests:
+        print(f"    {r.fullname() :<80s} ( {r.duration:6.2f} sec)")
+    if not cfg.flag_slow:
+        slow_tests = []
+
     print("\n------------------------------- Summary --------------------------------")
     total_duration = time.perf_counter() - start_time
     num_tests = len(all_results)
     num_failed = sum(r.status in ("TIMED OUT", "RUNTIME FAIL") for r in all_results)
     num_wrong = sum(r.status == "WRONG RESULT" for r in all_results)
     num_ok = sum(r.status == "OK" for r in all_results)
+    status_ok = (num_ok == num_tests) and (not slow_tests)
     print(f"Number of FAILED  tests {num_failed}")
     print(f"Number of WRONG   tests {num_wrong}")
     print(f"Number of CORRECT tests {num_ok}")
@@ -191,12 +210,13 @@ async def main() -> None:
     summary = f"\nSummary: correct: {num_ok} / {num_tests}"
     summary += f"; wrong: {num_wrong}" if num_wrong > 0 else ""
     summary += f"; failed: {num_failed}" if num_failed > 0 else ""
+    summary += f"; slow: {len(slow_tests)}" if slow_tests else ""
     summary += f"; {total_duration/60.0:.0f}min"
     print(summary)
-    print("Status: " + ("OK" if num_ok == num_tests else "FAILED") + "\n")
+    print("Status: " + ("OK" if status_ok else "FAILED") + "\n")
 
     print("*************************** Testing ended ******************************")
-    sys.exit(num_tests - num_ok)
+    sys.exit(0 if status_ok else 1)
 
 
 # ======================================================================================
@@ -213,6 +233,7 @@ class Config:
         self.mpiexec = args.mpiexec.split()
         self.smoketest = args.smoketest
         self.keepalive = args.keepalive
+        self.flag_slow = args.flagslow
         self.arch = args.arch
         self.version = args.version
         self.debug = args.debug
@@ -341,12 +362,14 @@ class Batch:
 class TestResult:
     def __init__(
         self,
+        batch: Batch,
         test: Union[Regtest, Unittest],
         duration: float,
         status: TestStatus,
         value: Optional[float] = None,
         error: Optional[str] = None,
     ):
+        self.batch = batch
         self.test = test
         self.duration = duration
         self.status = status
@@ -356,6 +379,9 @@ class TestResult:
     def __str__(self) -> str:
         value = f"{self.value:.10g}" if self.value else "-"
         return f"    {self.test.name :<80s} {value :>17} {self.status :>12s} ( {self.duration:6.2f} sec)"
+
+    def fullname(self) -> str:
+        return f"{self.batch.name}/{self.test.name}"
 
 
 # ======================================================================================
@@ -470,12 +496,14 @@ async def run_unittests(batch: Batch, cfg: Config) -> List[TestResult]:
         error = "x" * 100 + f"\n{test.out_path}\n{output_tail}\n\n"
         if timed_out:
             error += f"Timed out after {duration} seconds."
-            results.append(TestResult(test, duration, "TIMED OUT", error=error))
+            results.append(TestResult(batch, test, duration, "TIMED OUT", error=error))
         elif returncode != 0:
             error += f"Runtime failure with code {returncode}."
-            results.append(TestResult(test, duration, "RUNTIME FAIL", error=error))
+            results.append(
+                TestResult(batch, test, duration, "RUNTIME FAIL", error=error)
+            )
         else:
-            results.append(TestResult(test, duration, "OK"))
+            results.append(TestResult(batch, test, duration, "OK"))
 
     return results
 
@@ -543,28 +571,28 @@ def eval_regtest(
     error = "x" * 100 + f"\n{test.out_path}\n"
     if timed_out:
         error += f"{output_tail}\n\nTimed out after {duration} seconds."
-        return TestResult(test, duration, "TIMED OUT", error=error)
+        return TestResult(batch, test, duration, "TIMED OUT", error=error)
     elif returncode != 0:
         error += f"{output_tail}\n\nRuntime failure with code {returncode}."
-        return TestResult(test, duration, "RUNTIME FAIL", error=error)
+        return TestResult(batch, test, duration, "RUNTIME FAIL", error=error)
     elif not test.test_type:
-        return TestResult(test, duration, "OK")  # test type zero
+        return TestResult(batch, test, duration, "OK")  # test type zero
     else:
         value_txt = test.test_type.grep(output)
         if not value_txt:
             error += f"{output_tail}\n\nResult not found: '{test.test_type.pattern}'."
-            return TestResult(test, duration, "WRONG RESULT", error=error)
+            return TestResult(batch, test, duration, "WRONG RESULT", error=error)
         else:
             # compare result to reference
             value = float(value_txt)
             diff = value - test.ref_value
             rel_error = abs(diff / test.ref_value if test.ref_value != 0.0 else diff)
             if rel_error <= test.tolerance:
-                return TestResult(test, duration, "OK", value)
+                return TestResult(batch, test, duration, "OK", value)
             else:
                 error += f"Difference too large: {rel_error:.2e} > {test.tolerance}, "
                 error += f"ref_value: {test.ref_value_txt}, value: {value_txt}."
-                return TestResult(test, duration, "WRONG RESULT", value, error)
+                return TestResult(batch, test, duration, "WRONG RESULT", value, error)
 
 
 # ======================================================================================

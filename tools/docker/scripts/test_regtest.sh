@@ -33,6 +33,11 @@ if [[ "${ARCH}" == *cuda* ]] || [[ "${ARCH}" == *hip* ]]; then
   TESTOPTS="--keepalive ${TESTOPTS}"
 fi
 
+# Flag slow tests in debug runs.
+if [[ "${VERSION}" == *dbg* ]]; then
+  TESTOPTS="--flagslow ${TESTOPTS}"
+fi
+
 # Switch to stable DBCSR version if requested.
 if [ -n "${USE_STABLE_DBCSR}" ]; then
   echo "Switching to stable DBCSR version..."
