@@ -624,6 +624,8 @@ CONTAINS
             spin = ""
          END IF
 
+         mo_set_rtp%occupation_numbers = mos(ispin)%occupation_numbers
+
          !loop for real (odd) and imaginary (even) parts
          DO i = 1, 0, -1
             CALL cp_fm_to_fm(mos_new(2*ispin - i), mo_set_rtp%mo_coeff)
