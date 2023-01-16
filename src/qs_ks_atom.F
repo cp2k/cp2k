@@ -15,8 +15,7 @@ MODULE qs_ks_atom
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
                                               get_atomic_kind_set
-   USE basis_set_types,                 ONLY: get_gto_basis_set,&
-                                              gto_basis_set_p_type,&
+   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
    USE cp_array_utils,                  ONLY: cp_2d_r_p_type
    USE cp_control_types,                ONLY: dft_control_type
@@ -122,9 +121,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'update_ks_atom'
 
       INTEGER :: bo(2), handle, ia_kind, iac, iat, iatom, ibc, ikind, img, ip, ispin, ja_kind, &
-         jatom, jkind, ka_kind, kac, katom, kbc, kkind, ldCPC, max_gau, max_nsgf, maxsoc, mepos, &
-         n_cont_a, n_cont_b, nat, natom, nimages, nkind, nl_table_num_slots, nsetc, nsoctot, &
-         nspins, num_pe, slot_num
+         jatom, jkind, ka_kind, kac, katom, kbc, kkind, ldCPC, max_gau, max_nsgf, mepos, n_cont_a, &
+         n_cont_b, nat, natom, nimages, nkind, nl_table_num_slots, nsoctot, nspins, num_pe, &
+         slot_num
       INTEGER(KIND=int_8)                                :: nl_table_key
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       INTEGER, DIMENSION(3)                              :: cell_b
@@ -149,7 +148,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
-      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b, orb_basis
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
@@ -170,7 +169,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (my_kind_set, atomic_kind_set, force, my_oce, para_env, my_rho_atom, my_sab)
-      NULLIFY (mat_h, mat_p, orb_basis, dft_control)
+      NULLIFY (mat_h, mat_p, dft_control)
 
       CALL get_qs_env(qs_env=qs_env, &
                       qs_kind_set=my_kind_set, &
@@ -215,7 +214,7 @@ CONTAINS
       eps_cpc = dft_control%qs_control%gapw_control%eps_cpc
 
       CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
-      CALL get_qs_kind_set(my_kind_set, maxsgf=max_nsgf, maxgtops=max_gau)
+      CALL get_qs_kind_set(my_kind_set, maxsgf=max_nsgf, maxgtops=max_gau, basis_type="GAPW_1C")
 
       IF (forces) THEN
          ALLOCATE (atom_of_kind(natom))
@@ -308,7 +307,7 @@ CONTAINS
 !$OMP                 , ikind, jkind, iatom, jatom, cell_b           &
 !$OMP                 , basis_set_a, basis_set_b, img                &
 !$OMP                 , found, next_task                             &
-!$OMP                 , kkind, orb_basis, paw_atom, nsetc, maxsoc    &
+!$OMP                 , kkind, paw_atom                              &
 !$OMP                 , iac, alist_ac, kac, n_cont_a, list_a         &
 !$OMP                 , ibc, alist_bc, kbc, n_cont_b, list_b         &
 !$OMP                 , katom, rho_at, nsoctot                       &
@@ -398,11 +397,9 @@ CONTAINS
                END DO
 
                DO kkind = 1, nkind
-                  CALL get_qs_kind(my_kind_set(kkind), basis_set=orb_basis, paw_atom=paw_atom)
+                  CALL get_qs_kind(my_kind_set(kkind), paw_atom=paw_atom)
 
                   IF (.NOT. paw_atom) CYCLE
-
-                  CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetc, maxso=maxsoc)
 
                   iac = ikind + nkind*(kkind - 1)
                   ibc = jkind + nkind*(kkind - 1)

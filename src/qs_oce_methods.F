@@ -27,6 +27,7 @@ MODULE qs_oce_methods
                                               nso
    USE orbital_transformation_matrices, ONLY: orbtramat
    USE particle_types,                  ONLY: particle_type
+   USE paw_basis_types,                 ONLY: get_paw_basis_info
    USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
                                               paw_proj_set_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -88,14 +89,14 @@ CONTAINS
                                                             radius, rcprja
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ovs, spa_sb
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: s
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_b, zisominb
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cprj_s, csprj, rpgfb, rzetprja, spa_tmp, &
-                                                            sphi_b, zetb, zetprja
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_a, orb_basis_b
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_b, zisomina, zisominb
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: csprj, rpgfb, rzetprja, spa_tmp, sphi_b, &
+                                                            zetb, zetprja
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c_a, orb_basis_b
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj_a, paw_proj_b
 
-      NULLIFY (orb_basis_a, paw_proj_a)
-      CALL get_qs_kind(qs_kind=atom_ka, basis_set=orb_basis_a, &
+      NULLIFY (basis_1c_a, paw_proj_a)
+      CALL get_qs_kind(qs_kind=atom_ka, basis_set=basis_1c_a, basis_type="GAPW_1C", &
                        paw_proj_set=paw_proj_a, paw_atom=paw_atom_a, &
                        hard_radius=hard_radius_a)
 
@@ -106,11 +107,11 @@ CONTAINS
 
       IF (.NOT. paw_atom_a) RETURN
 
-      NULLIFY (cprj_s, nprjla, fp_cara, fp_spha, rzetprja, zetprja)
-      CALL get_paw_proj_set(paw_proj_set=paw_proj_a, cprj_s=cprj_s, csprj=csprj, maxl=maxlprj, &
+      NULLIFY (nprjla, fp_cara, fp_spha, rzetprja, zetprja)
+      CALL get_paw_proj_set(paw_proj_set=paw_proj_a, csprj=csprj, maxl=maxlprj, &
                             nprj=nprjla, ncgauprj=np_car, nsgauprj=np_sph, nsatbas=nsatbas, rcprj=rcprja, &
                             first_prj=fp_cara, first_prjs=fp_spha, &
-                            rzetprj=rzetprja, zetprj=zetprja)
+                            zisomin=zisomina, rzetprj=rzetprja, zetprj=zetprja)
 
       NULLIFY (first_sgfb, lb_max, lb_min, npgfb, nsgfb, rpgfb, sphi_b, set_radius_b, zetb, zisominb)
       CALL get_gto_basis_set(gto_basis_set=orb_basis_b, nset=nsetb, nsgf=ntotsgfb, &
@@ -119,7 +120,7 @@ CONTAINS
                              sphi=sphi_b, zet=zetb, first_sgf=first_sgfb, &
                              maxco=maxcob, maxl=maxlb)
 
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_a, nset=nseta, maxso=maxsoa)
+      CALL get_gto_basis_set(gto_basis_set=basis_1c_a, nset=nseta, maxso=maxsoa)
 
       !  Add the block ab
       dab = SQRT(SUM(rab*rab))
@@ -203,6 +204,7 @@ CONTAINS
                DO ipgf = 1, npgfb(jset)
                   DO lshell = lb_min(jset), lb_max(jset)
                      IF (zetb(ipgf, jset) >= zisominb(lshell)) THEN
+                        n = ncoset(lb_max(jset)) - ncoset(lb_min(jset) - 1)
                         igau = n*(ipgf - 1) + ncoset(lshell - 1)
                         DO ider = 1, maxder
                            is = maxcob*(ider - 1)
@@ -263,33 +265,37 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: nsgf_cnt
 
       INTEGER                                            :: i, iset, isgfa, j, jc, lsgfa, maxlprj, &
-                                                            maxsoa, n, nsatbas, nseta, nsgfa
+                                                            maxso1a, n, nsatbas, nset1a, nseta, &
+                                                            nsgfa
       INTEGER, DIMENSION(:), POINTER                     :: n2oindex, nsgf_seta
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: paw_atom_a
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: prjloc_h, prjloc_s
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_oce_h, local_oce_s
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_a
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c_a, orb_basis_a
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj_a
 
-      NULLIFY (orb_basis_a, paw_proj_a)
+      NULLIFY (orb_basis_a, basis_1c_a, paw_proj_a)
       CALL get_qs_kind(qs_kind=atom_ka, basis_set=orb_basis_a, &
                        paw_proj_set=paw_proj_a, paw_atom=paw_atom_a)
 
       IF (.NOT. paw_atom_a) RETURN
 
-      CALL get_paw_proj_set(paw_proj_set=paw_proj_a, maxl=maxlprj, nsatbas=nsatbas, &
-                            n2oindex=n2oindex)
+      CALL get_paw_proj_set(paw_proj_set=paw_proj_a, maxl=maxlprj)
+      CALL get_qs_kind(qs_kind=atom_ka, basis_set=basis_1c_a, basis_type="GAPW_1C")
+      CALL get_gto_basis_set(gto_basis_set=basis_1c_a, nset=nset1a, maxso=maxso1a)
+      NULLIFY (n2oindex)
+      CALL get_paw_basis_info(basis_1c_a, n2oindex=n2oindex, nsatbas=nsatbas)
 
       CALL get_gto_basis_set(gto_basis_set=orb_basis_a, first_sgf=first_sgfa, &
-                             nsgf=nsgfa, nsgf_set=nsgf_seta, nset=nseta, maxso=maxsoa)
+                             nsgf=nsgfa, nsgf_set=nsgf_seta, nset=nseta)
 
       NULLIFY (local_oce_h, local_oce_s)
       CALL get_paw_proj_set(paw_proj_set=paw_proj_a, &
                             local_oce_sphi_h=local_oce_h, &
                             local_oce_sphi_s=local_oce_s)
 
-      ALLOCATE (prjloc_h(nseta*maxsoa, nsgfa), prjloc_s(nseta*maxsoa, nsgfa))
+      ALLOCATE (prjloc_h(nset1a*maxso1a, nsgfa), prjloc_s(nset1a*maxso1a, nsgfa))
       prjloc_h = 0._dp
       prjloc_s = 0._dp
 
@@ -301,9 +307,10 @@ CONTAINS
             nsgf_cnt = nsgf_cnt + 1
             sgf_list(nsgf_cnt) = jc
          END DO
-         n = maxsoa*(iset - 1)
-         prjloc_h(n + 1:n + maxsoa, isgfa:lsgfa) = local_oce_h(1:maxsoa, isgfa:lsgfa)
-         prjloc_s(n + 1:n + maxsoa, isgfa:lsgfa) = local_oce_s(1:maxsoa, isgfa:lsgfa)
+         ! this asumes that the first sets are the same for basis_1c/orb_basis!
+         n = maxso1a*(iset - 1)
+         prjloc_h(n + 1:n + maxso1a, isgfa:lsgfa) = local_oce_h(1:maxso1a, isgfa:lsgfa)
+         prjloc_s(n + 1:n + maxso1a, isgfa:lsgfa) = local_oce_s(1:maxso1a, isgfa:lsgfa)
       END DO
 
       DO i = 1, nsgfa
@@ -315,8 +322,170 @@ CONTAINS
       END DO
 
       DEALLOCATE (prjloc_h, prjloc_s)
+      DEALLOCATE (n2oindex)
 
    END SUBROUTINE build_oce_block_local
+
+! **************************************************************************************************
+!> \brief ...
+!> \param oceh ...
+!> \param oces ...
+!> \param atom_ka ...
+!> \param sgf_list ...
+!> \param nsgf_cnt ...
+!> \param eps_fit ...
+! **************************************************************************************************
+   SUBROUTINE build_oce_block_1c(oceh, oces, atom_ka, sgf_list, nsgf_cnt, eps_fit)
+
+      TYPE(block_p_type), DIMENSION(:), POINTER          :: oceh, oces
+      TYPE(qs_kind_type), POINTER                        :: atom_ka
+      INTEGER, DIMENSION(:), INTENT(OUT)                 :: sgf_list
+      INTEGER, INTENT(OUT)                               :: nsgf_cnt
+      REAL(KIND=dp), INTENT(IN)                          :: eps_fit
+
+      INTEGER :: first_col, ic, ig1, igau, ip, ipgf, isgfb, isgfb_cnt, jc, jset, lds, lm, lpoint, &
+         lprj, lsgfb, lsgfb_cnt, lshell, m, m1, maxcob, maxlb, maxlprj, maxnprja, maxsoa, msab, n, &
+         ncob, np_car, np_sph, nsatbas, nseta, nsetb, nsoatot, ntotsgfb
+      INTEGER, DIMENSION(:), POINTER                     :: fp_cara, fp_spha, lb_max, lb_min, npgfb, &
+                                                            nprjla, nsgfb
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfb
+      LOGICAL                                            :: paw_atom_a
+      REAL(KIND=dp)                                      :: radius, rc, rcprja
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ovh, ovs, spa_sb
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: s
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_b, zisominb
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: chprj, csprj, rpgfb, rzetprja, spa_tmp, &
+                                                            sphi_b, zetb, zetprja
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c_a, orb_basis_b
+      TYPE(paw_proj_set_type), POINTER                   :: paw_proj_a
+
+      NULLIFY (orb_basis_b, basis_1c_a, paw_proj_a)
+      CALL get_qs_kind(qs_kind=atom_ka, paw_atom=paw_atom_a)
+
+      IF (.NOT. paw_atom_a) RETURN
+
+      CALL get_qs_kind(qs_kind=atom_ka, paw_proj_set=paw_proj_a)
+      NULLIFY (nprjla, fp_cara, fp_spha, rzetprja, zetprja)
+      CALL get_paw_proj_set(paw_proj_set=paw_proj_a, csprj=csprj, chprj=chprj, maxl=maxlprj, &
+                            nprj=nprjla, ncgauprj=np_car, nsgauprj=np_sph, nsatbas=nsatbas, rcprj=rcprja, &
+                            first_prj=fp_cara, first_prjs=fp_spha, &
+                            rzetprj=rzetprja, zetprj=zetprja)
+
+      CALL get_qs_kind(qs_kind=atom_ka, basis_set=orb_basis_b)
+      NULLIFY (first_sgfb, lb_max, lb_min, npgfb, nsgfb, rpgfb, sphi_b, set_radius_b, zetb, zisominb)
+      CALL get_gto_basis_set(gto_basis_set=orb_basis_b, nset=nsetb, nsgf=ntotsgfb, &
+                             set_radius=set_radius_b, lmax=lb_max, lmin=lb_min, &
+                             npgf=npgfb, nsgf_set=nsgfb, pgf_radius=rpgfb, &
+                             sphi=sphi_b, zet=zetb, first_sgf=first_sgfb, &
+                             maxco=maxcob, maxl=maxlb)
+
+      CALL get_qs_kind(qs_kind=atom_ka, hard_radius=rc)
+
+      CALL get_qs_kind(qs_kind=atom_ka, basis_set=basis_1c_a, basis_type="GAPW_1C")
+      CALL get_gto_basis_set(gto_basis_set=basis_1c_a, nset=nseta, maxso=maxsoa)
+
+      !  Add the block ab
+      nsoatot = maxsoa*nseta
+      maxnprja = SIZE(zetprja, 1)
+
+      lm = MAX(maxlb, maxlprj)
+      lds = ncoset(lm + 1)
+      msab = MAX(maxnprja*ncoset(maxlprj), maxcob)
+
+      ALLOCATE (s(lds, lds, 1))
+      ALLOCATE (spa_sb(np_car, ntotsgfb))
+      ALLOCATE (spa_tmp(msab, msab))
+      ALLOCATE (ovs(np_sph, maxcob*nsetb))
+      ALLOCATE (ovh(np_sph, maxcob*nsetb))
+
+      m1 = 0
+      nsgf_cnt = 0
+      isgfb_cnt = 1
+      DO jset = 1, nsetb
+         !
+         ! Set the contribution list
+         isgfb = first_sgfb(1, jset)
+         lsgfb = isgfb - 1 + nsgfb(jset)
+         DO jc = isgfb, lsgfb
+            nsgf_cnt = nsgf_cnt + 1
+            sgf_list(nsgf_cnt) = jc
+         END DO
+
+         ! Integral between proj of iatom and primitives of iatom
+         ! Calculate the primitives overlap
+         spa_tmp = 0.0_dp
+         ovs = 0.0_dp
+         ovh = 0.0_dp
+         s = 0.0_dp
+         ncob = npgfb(jset)*ncoset(lb_max(jset))
+         isgfb = first_sgfb(1, jset)
+         lsgfb = isgfb - 1 + nsgfb(jset)
+
+         lsgfb_cnt = isgfb_cnt - 1 + nsgfb(jset)
+
+         DO lprj = 0, maxlprj
+            CALL overlap(lprj, lprj, nprjla(lprj), &
+                         rzetprja(:, lprj), zetprja(:, lprj), &
+                         lb_max(jset), lb_min(jset), npgfb(jset), &
+                         rpgfb(:, jset), zetb(:, jset), &
+                         -(/0._dp, 0._dp, 0._dp/), 0.0_dp, spa_tmp, &
+                         0, .TRUE., s, lds)
+            DO ipgf = 1, nprjla(lprj)
+               lpoint = ncoset(lprj - 1) + 1 + (ipgf - 1)*ncoset(lprj)
+               m = fp_spha(lprj) + (ipgf - 1)*nso(lprj)
+               DO ip = 1, npgfb(jset)
+                  ic = (ip - 1)*ncoset(lb_max(jset))
+                  igau = ic + m1 + ncoset(lb_min(jset) - 1) + 1
+                  ig1 = ic + ncoset(lb_min(jset) - 1) + 1
+                  n = ncoset(lb_max(jset)) - ncoset(lb_min(jset) - 1)
+                  ovs(m:m + nso(lprj) - 1, igau:igau + n - 1) = &
+                     MATMUL(orbtramat(lprj)%slm(1:nso(lprj), 1:nco(lprj)), &
+                            spa_tmp(lpoint:lpoint + nco(lprj) - 1, ig1:ig1 + n - 1))
+               END DO
+            END DO
+         END DO
+
+         ovh(:, :) = ovs(:, :)
+
+         CALL get_paw_proj_set(paw_proj_set=paw_proj_a, zisomin=zisominb)
+         DO ipgf = 1, npgfb(jset)
+            DO lshell = lb_min(jset), lb_max(jset)
+               radius = exp_radius(lshell, zetb(ipgf, jset), eps_fit, 1.0_dp)
+               IF (radius < rc) THEN
+                  n = ncoset(lb_max(jset)) - ncoset(lb_min(jset) - 1)
+                  igau = n*(ipgf - 1) + ncoset(lshell - 1)
+                  ovs(:, igau + 1 + m1:igau + nco(lshell) + m1) = 0.0_dp
+               END IF
+            END DO
+         END DO
+
+         ! Contraction step (integrals and derivatives)
+         first_col = 1 + m1
+         spa_sb(1:np_sph, isgfb:isgfb + nsgfb(jset) - 1) = &
+            MATMUL(ovs(1:np_sph, first_col:first_col + ncob - 1), &
+                   sphi_b(1:ncob, isgfb:isgfb + nsgfb(jset) - 1))
+
+         oces(1)%block(1:nsatbas, isgfb_cnt:isgfb_cnt + nsgfb(jset) - 1) = &
+            oces(1)%block(1:nsatbas, isgfb_cnt:isgfb_cnt + nsgfb(jset) - 1) + &
+            MATMUL(TRANSPOSE(csprj(1:np_sph, 1:nsatbas)), &
+                   spa_sb(1:np_sph, isgfb:isgfb + nsgfb(jset) - 1))
+
+         spa_sb(1:np_sph, isgfb:isgfb + nsgfb(jset) - 1) = &
+            MATMUL(ovh(1:np_sph, first_col:first_col + ncob - 1), &
+                   sphi_b(1:ncob, isgfb:isgfb + nsgfb(jset) - 1))
+
+         oceh(1)%block(1:nsatbas, isgfb_cnt:isgfb_cnt + nsgfb(jset) - 1) = &
+            oceh(1)%block(1:nsatbas, isgfb_cnt:isgfb_cnt + nsgfb(jset) - 1) + &
+            MATMUL(TRANSPOSE(chprj(1:np_sph, 1:nsatbas)), &
+                   spa_sb(1:np_sph, isgfb:isgfb + nsgfb(jset) - 1))
+
+         isgfb_cnt = isgfb_cnt + nsgfb(jset)
+         m1 = m1 + maxcob
+      END DO !jset
+
+      DEALLOCATE (s, spa_sb, spa_tmp, ovs)
+
+   END SUBROUTINE build_oce_block_1c
 
 ! **************************************************************************************************
 !> \brief Set up the sparse matrix for the coefficients of one center expansions
@@ -413,7 +582,7 @@ CONTAINS
             NULLIFY (paw_proj_b)
             CALL get_qs_kind(qs_kind=qs_kind, paw_proj_set=paw_proj_b, paw_atom=paw_atom_b)
             IF (.NOT. paw_atom_b) CYCLE
-            CALL get_qs_kind(qs_kind=qs_kind, basis_set=orb_basis_paw)
+            CALL get_qs_kind(qs_kind=qs_kind, basis_set=orb_basis_paw, basis_type="GAPW_1C")
             IF (.NOT. ASSOCIATED(orb_basis_paw)) CYCLE
             IF (.NOT. ASSOCIATED(intac(iac)%alist)) THEN
                intac(iac)%a_kind = ikind
@@ -490,7 +659,7 @@ CONTAINS
             CALL get_qs_kind(qs_kind=qs_kind, paw_proj_set=paw_proj_b, paw_atom=paw_atom_b)
             IF (.NOT. paw_atom_b) CYCLE
 
-            CALL get_qs_kind(qs_kind=qs_kind, basis_set=orb_basis_paw)
+            CALL get_qs_kind(qs_kind=qs_kind, basis_set=orb_basis_paw, basis_type="GAPW_1C")
             IF (.NOT. ASSOCIATED(orb_basis_paw)) CYCLE
             CALL get_gto_basis_set(gto_basis_set=orb_basis_paw, maxso=maxsob, nset=nsetb)
 
@@ -669,13 +838,12 @@ CONTAINS
 
       INTEGER                                            :: i, ip, j, jp, nbas
       INTEGER, DIMENSION(:), POINTER                     :: n2oindex
-      LOGICAL                                            :: paw_atom
-      TYPE(paw_proj_set_type), POINTER                   :: paw_proj
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c
 
-      NULLIFY (paw_proj)
-      CALL get_qs_kind(qs_kind=atom, paw_proj_set=paw_proj, paw_atom=paw_atom)
+      NULLIFY (basis_1c)
+      CALL get_qs_kind(qs_kind=atom, basis_set=basis_1c, basis_type="GAPW_1C")
       NULLIFY (n2oindex)
-      CALL get_paw_proj_set(paw_proj_set=paw_proj, nsatbas=nbas, n2oindex=n2oindex)
+      CALL get_paw_basis_info(basis_1c, n2oindex=n2oindex, nsatbas=nbas)
 
       DO i = 1, nbas
          ip = n2oindex(i)
@@ -684,6 +852,8 @@ CONTAINS
             aout(j, i) = ain(jp, ip)
          END DO
       END DO
+
+      DEALLOCATE (n2oindex)
 
    END SUBROUTINE prj_gather
 
@@ -701,13 +871,12 @@ CONTAINS
 
       INTEGER                                            :: i, ip, j, jp, nbas
       INTEGER, DIMENSION(:), POINTER                     :: n2oindex
-      LOGICAL                                            :: paw_atom
-      TYPE(paw_proj_set_type), POINTER                   :: paw_proj
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c
 
-      NULLIFY (paw_proj)
-      CALL get_qs_kind(qs_kind=atom, paw_proj_set=paw_proj, paw_atom=paw_atom)
+      NULLIFY (basis_1c)
+      CALL get_qs_kind(qs_kind=atom, basis_set=basis_1c, basis_type="GAPW_1C")
       NULLIFY (n2oindex)
-      CALL get_paw_proj_set(paw_proj_set=paw_proj, nsatbas=nbas, n2oindex=n2oindex)
+      CALL get_paw_basis_info(basis_1c, n2oindex=n2oindex, nsatbas=nbas)
 
       DO i = 1, nbas
          ip = n2oindex(i)
@@ -716,6 +885,8 @@ CONTAINS
             aout(jp, ip) = aout(jp, ip) + ain(j, i)
          END DO
       END DO
+
+      DEALLOCATE (n2oindex)
 
    END SUBROUTINE prj_scatter
 

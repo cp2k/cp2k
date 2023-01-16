@@ -34,8 +34,7 @@ MODULE qs_electric_field_gradient
    USE orbital_pointers,                ONLY: indso,&
                                               nsoset
    USE particle_types,                  ONLY: particle_type
-   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
-                                              paw_proj_set_type
+   USE paw_basis_types,                 ONLY: get_paw_basis_info
    USE physcon,                         ONLY: a_bohr,&
                                               e_charge,&
                                               joule
@@ -435,22 +434,20 @@ CONTAINS
       REAL(dp), DIMENSION(20)                            :: vgg
       REAL(dp), DIMENSION(:, :), POINTER                 :: coeff, zet
       REAL(dp), DIMENSION(:, :, :), POINTER              :: my_CG
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
-      TYPE(paw_proj_set_type), POINTER                   :: paw_proj
 
-      NULLIFY (orb_basis)
+      NULLIFY (basis_1c)
       NULLIFY (harmonics)
       NULLIFY (lmin, lmax, npgf, zet, my_CG, coeff)
 
-      CALL get_qs_kind(qs_kind=qs_kind, basis_set=orb_basis, &
-                       paw_proj_set=paw_proj, harmonics=harmonics)
+      CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_1c, basis_type="GAPW_1C", &
+                       harmonics=harmonics)
 
-      CALL get_gto_basis_set(gto_basis_set=orb_basis, lmax=lmax, lmin=lmin, &
+      CALL get_gto_basis_set(gto_basis_set=basis_1c, lmax=lmax, lmin=lmin, &
                              maxl=maxl, npgf=npgf, nset=nset, zet=zet, &
                              maxso=maxso)
-
-      CALL get_paw_proj_set(paw_proj_set=paw_proj, o2nindex=o2nindex)
+      CALL get_paw_basis_info(basis_1c, o2nindex=o2nindex)
 
       max_iso_not0 = harmonics%max_iso_not0
       max_s_harm = harmonics%max_s_harm
@@ -554,6 +551,7 @@ CONTAINS
 
       CALL mp_sum(vlimit, para_env%group)
 
+      DEALLOCATE (o2nindex)
       DEALLOCATE (CPC_sphere)
       DEALLOCATE (cg_list, cg_n_list)
 

@@ -70,6 +70,7 @@ MODULE qs_linres_current
                                               section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: twopi
    USE memory_utilities,                ONLY: reallocate
@@ -593,6 +594,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_resp'
       INTEGER, PARAMETER                                 :: max_tasks = 2000
 
+      CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER :: adbmdab_func, bcol, brow, cindex, curr_tasks, handle, i, iatom, iatom_old, idir2, &
          igrid_level, iiB, iiiB, ikind, ikind_old, ipgf, iset, iset_old, itask, ithread, jatom, &
          jatom_old, jkind, jkind_old, jpgf, jset, jset_old, maxco, maxpgf, maxset, maxsgf, &
@@ -656,7 +658,8 @@ CONTAINS
 
       !
       ! Set pointers for the different gauge
-      do_igaim = current_env%gauge .EQ. current_gauge_atom ! If do_igaim is False the current_env is never needed
+      ! If do_igaim is False the current_env is never needed
+      do_igaim = current_env%gauge .EQ. current_gauge_atom
 
       mat_a => mat_jp
       mat_b => mat_jp_rii
@@ -719,6 +722,11 @@ CONTAINS
 
       my_soft = .FALSE.
       IF (PRESENT(soft_valid)) my_soft = soft_valid
+      IF (my_soft) THEN
+         basis_type = "ORB_SOFT"
+      ELSE
+         basis_type = "ORB"
+      END IF
 
       nkind = SIZE(qs_kind_set)
 
@@ -745,8 +753,7 @@ CONTAINS
       DO ikind = 1, nkind
          qs_kind => qs_kind_set(ikind)
 
-         CALL get_qs_kind(qs_kind=qs_kind, &
-                          basis_set=orb_basis_set)
+         CALL get_qs_kind(qs_kind=qs_kind, basis_set=orb_basis_set)
 
          IF (.NOT. ASSOCIATED(orb_basis_set)) CYCLE
 
@@ -780,7 +787,7 @@ CONTAINS
       ALLOCATE (basis_set_list(nkind))
       DO ikind = 1, nkind
          qs_kind => qs_kind_set(ikind)
-         CALL get_qs_kind(qs_kind=qs_kind, softb=my_soft, basis_set=basis_set_a)
+         CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set_a, basis_type=basis_type)
          IF (ASSOCIATED(basis_set_a)) THEN
             basis_set_list(ikind)%gto_basis_set => basis_set_a
          ELSE
@@ -859,7 +866,8 @@ CONTAINS
 
          CALL task_list_inner_loop(tasks, ntasks, curr_tasks, rs_descs, &
                                    dft_control, cube_info, gridlevel_info, cindex, &
-                                   iatom, jatom, rpgfa, rpgfb, zeta, zetb, kind_radius_b, set_radius_a, set_radius_b, ra, rab, &
+                                   iatom, jatom, rpgfa, rpgfb, zeta, zetb, kind_radius_b, &
+                                   set_radius_a, set_radius_b, ra, rab, &
                                    la_max, la_min, lb_max, lb_min, npgfa, npgfb, nseta, nsetb)
 
       END DO
@@ -990,9 +998,8 @@ CONTAINS
             bcol = jatom
 
             IF (ikind .NE. ikind_old) THEN
-               CALL get_qs_kind(qs_kind_set(ikind), &
-                                softb=my_soft, &
-                                basis_set=orb_basis_set)
+               CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, &
+                                basis_type=basis_type)
 
                CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                                       first_sgf=first_sgfa, &
@@ -1010,8 +1017,7 @@ CONTAINS
             IF (jkind .NE. jkind_old) THEN
 
                CALL get_qs_kind(qs_kind_set(jkind), &
-                                softb=my_soft, &
-                                basis_set=orb_basis_set)
+                                basis_set=orb_basis_set, basis_type=basis_type)
 
                CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                                       first_sgf=first_sgfb, &

@@ -96,8 +96,8 @@ CONTAINS
       TYPE(all_potential_type), POINTER                  :: all_potential
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(gto_basis_set_type), POINTER :: aux_basis_set, aux_fit_basis_set, aux_gw_basis, &
-         aux_opt_basis_set, harris_basis, lri_basis, mao_basis, orb_basis_set, p_lri_basis, &
-         ri_aux_basis_set, ri_basis, ri_xas_basis, soft_basis
+         aux_opt_basis_set, gapw_1c_basis, harris_basis, lri_basis, mao_basis, orb_basis_set, &
+         p_lri_basis, ri_aux_basis_set, ri_basis, ri_xas_basis, soft_basis
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj_set
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
@@ -106,7 +106,7 @@ CONTAINS
       NULLIFY (all_potential, gth_potential, sgp_potential)
       NULLIFY (aux_basis_set, aux_fit_basis_set, aux_gw_basis, &
                harris_basis, lri_basis, mao_basis, orb_basis_set, p_lri_basis, ri_aux_basis_set, &
-               ri_basis, ri_xas_basis, soft_basis, aux_opt_basis_set)
+               ri_basis, ri_xas_basis, soft_basis, gapw_1c_basis, aux_opt_basis_set)
       NULLIFY (nprj_ppnl, nprj)
       NULLIFY (alpha_ppnl, cexp_ppl, cprj_ppnl, zet)
 
@@ -127,7 +127,8 @@ CONTAINS
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=harris_basis, basis_type="HARRIS")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=aux_gw_basis, basis_type="AUX_GW")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=ri_xas_basis, basis_type="RI_XAS")
-         CALL get_qs_kind(qs_kind_set(ikind), soft_basis_set=soft_basis)
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=soft_basis, basis_type="ORB_SOFT")
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=gapw_1c_basis, basis_type="GAPW_1C")
          CALL get_qs_kind(qs_kind_set(ikind), &
                           paw_proj_set=paw_proj_set, &
                           paw_atom=paw_atom, &
@@ -327,9 +328,12 @@ CONTAINS
 
          ! Calculate the soft orbital basis function radii
          IF (ASSOCIATED(soft_basis)) THEN
-            IF (paw_atom) THEN
-               CALL init_interaction_radii_orb_basis(soft_basis, qs_control%eps_pgf_orb)
-            END IF
+            CALL init_interaction_radii_orb_basis(soft_basis, qs_control%eps_pgf_orb)
+         END IF
+
+         ! Calculate the GAPW 1 center basis function radii
+         IF (ASSOCIATED(gapw_1c_basis)) THEN
+            CALL init_interaction_radii_orb_basis(gapw_1c_basis, qs_control%eps_pgf_orb)
          END IF
 
          ! Calculate the lri basis function radii

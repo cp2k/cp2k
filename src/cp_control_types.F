@@ -170,6 +170,7 @@ MODULE cp_control_types
 ! \brief Control parameters for GAPW method within QUICKSTEP ***
 ! **************************************************************************************************
    TYPE gapw_control_type
+      INTEGER                              :: basis_1c
       REAL(KIND=dp)                        :: eps_fit, &
                                               eps_iso, &
                                               eps_Vrho0, &

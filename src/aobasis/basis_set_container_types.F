@@ -33,7 +33,7 @@ MODULE basis_set_container_types
                                                lri_aux_basis = 104, &
                                                aux_fit_basis = 105, &
                                                soft_basis = 106, &
-                                               hard_basis = 107, &
+                                               gapw_1c_basis = 107, &
                                                mao_basis = 108, &
                                                harris_basis = 109, &
                                                aux_gw_basis = 110, &
@@ -113,10 +113,10 @@ CONTAINS
          basis_type_nr = aux_fit_basis
       CASE ("AUX_FIT_SOFT")
          basis_type_nr = aux_fit_soft_basis
-      CASE ("SOFT")
+      CASE ("ORB_SOFT")
          basis_type_nr = soft_basis
-      CASE ("HARD")
-         basis_type_nr = hard_basis
+      CASE ("GAPW_1C")
+         basis_type_nr = gapw_1c_basis
       CASE ("MAO")
          basis_type_nr = mao_basis
       CASE ("HARRIS")
@@ -199,17 +199,17 @@ CONTAINS
          IF (ASSOCIATED(container(ibas)%basis_set)) THEN
             CALL deallocate_gto_basis_set(container(ibas)%basis_set)
          END IF
+         ! shift other basis sets
+         DO i = ibas + 1, SIZE(container)
+            IF (container(i)%basis_type_nr == 0) CYCLE
+            container(i - 1)%basis_type = container(i)%basis_type
+            container(i - 1)%basis_set => container(i)%basis_set
+            container(i - 1)%basis_type_nr = container(i)%basis_type_nr
+            container(i)%basis_type = ""
+            container(i)%basis_type_nr = 0
+            NULLIFY (container(i)%basis_set)
+         END DO
       END IF
-      ! shift other basis sets
-      DO i = ibas + 1, SIZE(container)
-         IF (container(i)%basis_type_nr == 0) CYCLE
-         container(i - 1)%basis_type = container(i)%basis_type
-         container(i - 1)%basis_set => container(i)%basis_set
-         container(i - 1)%basis_type_nr = container(i)%basis_type_nr
-         container(i)%basis_type = ""
-         container(i)%basis_type_nr = 0
-         NULLIFY (container(i)%basis_set)
-      END DO
 
    END SUBROUTINE remove_basis_from_container
 
