@@ -6,7 +6,7 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-DBCSR_ver="2.4.1"
+DBCSR_ver="2.5.0"
 DBCSR_sha256="e5c545ec16688027537f7865976b905c0783d038ec289e65635e63e961330601"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -25,7 +25,9 @@ cd "${BUILDDIR}"
 ####case "$with_dbcsr" in
 ####    __INSTALL__)
 echo "==================== Installing DBCSR ===================="
-pkg_install_dir="${INSTALLDIR}/DBCSR-${DBCSR_ver}"
+#
+# to be restored to the right value when this script is included in the toolchain
+pkg_install_dir="${INSTALLDIR}/DBCSR"
 install_lock_file="$pkg_install_dir/install_successful"
 if verify_checksums "${install_lock_file}"; then
   echo "DBCSR-${DBCSR_ver} is already installed, skipping it."
@@ -83,12 +85,13 @@ DBCSR_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
 ##if [ "$with_dbcsr" != "__DONTUSE__" ]; then
 DBCSR_LIBS="-ldbcsr"
 ##    if [ "$with_dbscr" != "__SYSTEM__" ]; then
-##        cat << EOF > "${BUILDDIR}/setup_dbcsr"
-##prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
-##prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
-##prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
-##prepend_path CPATH "$pkg_install_dir/include"
-##EOF
+cat << EOF > "${BUILDDIR}/setup_dbcsr"
+prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
+prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
+prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
+prepend_path CPATH "$pkg_install_dir/include"
+prepend_path CMAKE_INSTALL_PREFIX "${pkg_install_dir}"
+EOF
 ##        cat "${BUILDDIR}/setup_dbcsr" >> $SETUPFILE
 ##    fi
 cat << EOF >> "${BUILDDIR}/setup_dbcsr"
@@ -99,8 +102,11 @@ export CP_DFLAGS="\${CP_DFLAGS} IF_CUDA(-D__DBCSR_ACC -D__DBCSR|IF_HIP(-D__DBCSR
 export CP_CFLAGS="\${CP_CFLAGS} ${DBCSR_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${DBCSR_LDFLAGS}"
 export CP_LIBS="${DBCSR_LIBS} \${CP_LIBS}"
-export DBCSRROOT="$pkg_install_dir"
+export DBCSR_ROOT="$pkg_install_dir"
 EOF
+
+cat "${BUILDDIR}/setup_dbcsr" >> $SETUPFILE
+
 #else
 #    echo "DBCSR is a hard dependency for cp2k"
 #    exit 1

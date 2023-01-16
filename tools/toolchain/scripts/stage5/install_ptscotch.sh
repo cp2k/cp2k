@@ -94,6 +94,8 @@ prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path CPATH "$pkg_install_dir/include"
+prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
+prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 EOF
     cat "${BUILDDIR}/setup_ptscotch" >> $SETUPFILE
   fi
@@ -104,6 +106,7 @@ export SCOTCH_LIBS="${SCOTCH_LIBS}"
 export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(${SCOTCH_CFLAGS}|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${SCOTCH_LDFLAGS}|)"
 export CP_LIBS="IF_MPI(${SCOTCH_LIBS}|) \${CP_LIBS}"
+export PTSCOTCH_ROOT="$pkg_install_dir"
 EOF
 fi
 

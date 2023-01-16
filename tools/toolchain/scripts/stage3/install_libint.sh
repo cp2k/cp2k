@@ -78,6 +78,7 @@ case "$with_libint" in
         --with-cxx="$CXX $LIBINT_CXXFLAGS" \
         --with-cxx-optflags="$LIBINT_CXXFLAGS" \
         --enable-fortran \
+        --with-pic \
         --libdir="${pkg_install_dir}/lib" \
         > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
 
@@ -120,7 +121,9 @@ if [ "$with_libint" != "__DONTUSE__" ]; then
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path CPATH "$pkg_install_dir/include"
+prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
+prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
+export LIBINT2_ROOT="${pkg_install_dir}"
 EOF
     cat "${BUILDDIR}/setup_libint" >> $SETUPFILE
   fi

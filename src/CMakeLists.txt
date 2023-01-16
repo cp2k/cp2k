@@ -1407,7 +1407,8 @@ target_link_libraries(
     MPI::MPI_CXX
     OpenMP::OpenMP_Fortran
     OpenMP::OpenMP_C
-    OpenMP::OpenMP_CXX)
+    OpenMP::OpenMP_CXX
+    stdc++)
 
 # mix the target and variables pointing to the include directories.
 
