@@ -707,23 +707,6 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: nequip_file_name, unit_coords, &
                                                             unit_forces, unit_cell, unit_energy
 
-!      CALL section_vals_get(section, n_repetition=n_items)
-!      WRITE(*, *) "read_nequip_section n_items", n_items
-!      DO isec = 1, n_items
-!         CALL section_vals_val_get(section, "ATOMS", i_rep_section=isec, c_vals=atm_names)
-!
-!         nonbonded%pot(start + isec)%pot%type = nequip_type
-!         nonbonded%pot(start + isec)%pot%at1 = atm_names(1)
-!         nonbonded%pot(start + isec)%pot%at2 = atm_names(2)
-!         CALL uppercase(nonbonded%pot(start + isec)%pot%at1)
-!         CALL uppercase(nonbonded%pot(start + isec)%pot%at2)         
-!         CALL section_vals_val_get(section, "PARM_FILE_NAME", i_rep_section=isec, c_val = nequip_file_name)
-!         nonbonded%pot(start + isec)%pot%set(1)%nequip%nequip_file_name =nequip_file_name
-!         CALL read_nequip_data(nonbonded%pot(start + isec)%pot%set(1)%nequip)
-!         nonbonded%pot(start + isec)%pot%rcutsq = nonbonded%pot(start + isec)%pot%set(1)%nequip%rcutsq
-!      END DO
-
-!      CALL section_vals_get(section, n_repetition=n_items)
       n_items = 1
       isec = 1
       n_items = isec *n_items

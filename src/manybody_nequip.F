@@ -349,14 +349,6 @@ CONTAINS
       CALL mp_allgather(nedges, edge_count, para_env%group)
       nedges_tot = SUM(edge_count)
 
-!      DO iat = 1, nedges
-!          WRITE(*, *) "edge_cell_shifts", edge_cell_shifts(:, iat)
-!          WRITE(*, *) "edge_index", edge_index(:, iat)
-!      END DO
-
-!      WRITE(*, *) "para_env%mepos ", para_env%mepos
-!IF (para_env%mepos .EQ. 0) THEN
-
       ALLOCATE (temp_edge_index(2, nedges))
       temp_edge_index = edge_index(:, :nedges)
       DEALLOCATE (edge_index)
@@ -376,17 +368,10 @@ CONTAINS
           displ_cell(ipair) = displ_cell(ipair - 1) + edge_count_cell(ipair - 1)
       END DO
 
-!      CALL mp_allgather(temp_edge_cell_shifts, edge_cell_shifts, edge_count_cell, displ_cell ,para_env%group)
-
-!      WRITE(*, *) "mepos, displ ", para_env%mepos, displ
-
       CALL mp_gatherv(temp_edge_cell_shifts, edge_cell_shifts, edge_count_cell, displ_cell, para_env%source, &
                       para_env%group)
 
-!      WRITE(*, *) "mepos, edge_cell_shifts ", para_env%mepos, edge_cell_shifts
-
       ALLOCATE(t_edge_index(nedges_tot, 2))
-!      CALL mp_allgather(temp_edge_index, edge_index, edge_count, displ, para_env%group)
 
       CALL mp_gatherv(temp_edge_index, edge_index, edge_count, displ, para_env%source, para_env%group)
 
@@ -395,56 +380,45 @@ CONTAINS
 
       lattice = cell%hmat/pot%set(1)%nequip%unit_cell_val
 
-IF (para_env%mepos .EQ. 0) THEN
-
-      iat_use = 0
-      ALLOCATE (pos(3, n_atoms_use), atom_types(n_atoms_use))
-
-      DO iat = 1, n_atoms
-         IF (.NOT. use_atom(iat)) CYCLE
-         iat_use = iat_use + 1
-         atom_types(iat_use) = particle_set(iat)%atomic_kind%kind_number -1
-      END DO
-
-      DO iat = 1, n_atoms
-         pos(:, iat) = REAL(r_last_update_pbc(iat)%r(:)/pot%set(1)%nequip%unit_coords_val, kind=sp)
-!         WRITE(*, *) "pos ", pos(:, iat)
-      END DO
-
-!      WRITE(*, *) "atom_types ", atom_types
-!      WRITE(*, *) "mepos, t_edge_index ", para_env%mepos, t_edge_index
-!      WRITE(*, *) "cell ", cell
-!      WRITE(*, *) "edge_cell_shifts ", edge_cell_shifts
-
-
-      CALL torch_dict_create(inputs)
-      CALL torch_dict_insert(inputs, "pos", pos)
-      CALL torch_dict_insert(inputs, "edge_index", t_edge_index)
-      CALL torch_dict_insert(inputs, "edge_cell_shift", edge_cell_shifts)
-      CALL torch_dict_insert(inputs, "cell", REAL(lattice, kind=sp))
-      CALL torch_dict_insert(inputs, "atom_types", atom_types)
-   
-      CALL torch_dict_create(outputs)
-
-      CALL torch_model_eval(pot%set(1)%nequip%model, inputs, outputs)
-   
-      CALL torch_dict_get(outputs, "total_energy", total_energy)
-      CALL torch_dict_get(outputs, "atomic_energy", atomic_energy)
-      CALL torch_dict_get(outputs, "forces", forces)
-
-      pot_nequip = REAL(total_energy(1, 1), kind=dp)*pot%set(1)%nequip%unit_energy_val
-      total_energy = total_energy(1, 1)*REAL(pot%set(1)%nequip%unit_energy_val, kind=sp)
-!      WRITE(*, *) "pot_nequip mepos", pot_nequip, para_env%mepos
-!      WRITE(*, *) "total_energy ", total_energy
-!      CALL mp_bcast(pot_nequip, para_env%source, para_env%group)
-!      CALL mp_bcast(forces, para_env%source, para_env%group)
-
-      CALL torch_dict_release(inputs)
-      CALL torch_dict_release(outputs)
-
-      DEALLOCATE(pos, t_edge_index, edge_cell_shifts, atom_types, total_energy, atomic_energy)
-
-END IF
+      IF (para_env%mepos .EQ. 0) THEN
+      
+          iat_use = 0
+          ALLOCATE (pos(3, n_atoms_use), atom_types(n_atoms_use))
+      
+          DO iat = 1, n_atoms
+             IF (.NOT. use_atom(iat)) CYCLE
+             iat_use = iat_use + 1
+             atom_types(iat_use) = particle_set(iat)%atomic_kind%kind_number -1
+          END DO
+      
+          DO iat = 1, n_atoms_use
+             pos(:, iat) = REAL(r_last_update_pbc(iat)%r(:)/pot%set(1)%nequip%unit_coords_val, kind=sp)
+          END DO
+      
+          CALL torch_dict_create(inputs)
+          CALL torch_dict_insert(inputs, "pos", pos)
+          CALL torch_dict_insert(inputs, "edge_index", t_edge_index)
+          CALL torch_dict_insert(inputs, "edge_cell_shift", edge_cell_shifts)
+          CALL torch_dict_insert(inputs, "cell", REAL(lattice, kind=sp))
+          CALL torch_dict_insert(inputs, "atom_types", atom_types)
+         
+          CALL torch_dict_create(outputs)
+      
+          CALL torch_model_eval(pot%set(1)%nequip%model, inputs, outputs)
+         
+          CALL torch_dict_get(outputs, "total_energy", total_energy)
+          CALL torch_dict_get(outputs, "atomic_energy", atomic_energy)
+          CALL torch_dict_get(outputs, "forces", forces)
+      
+          pot_nequip = REAL(total_energy(1, 1), kind=dp)*pot%set(1)%nequip%unit_energy_val
+          total_energy = total_energy(1, 1)*REAL(pot%set(1)%nequip%unit_energy_val, kind=sp)
+      
+          CALL torch_dict_release(inputs)
+          CALL torch_dict_release(outputs)
+      
+          DEALLOCATE(pos, t_edge_index, edge_cell_shifts, atom_types, total_energy, atomic_energy)
+      
+      END IF
 
       !IF (PRESENT(para_env)) virial = virial/REAL(para_env%num_pe, dp)
       ! get nequip_data to save force, virial info
@@ -473,7 +447,6 @@ END IF
          ALLOCATE (forces(3, n_atoms_use))
       END IF
 
-      ! save force
       iat_use = 0
       DO iat = 1, n_atoms
          IF (use_atom(iat)) THEN
@@ -484,7 +457,6 @@ END IF
 
       CALL mp_bcast(pot_nequip, para_env%source, para_env%group)
       CALL mp_bcast(forces, para_env%source, para_env%group)
-      WRITE(*, *) "mepos after if, pot_nequip ", para_env%mepos, pot_nequip
 
       ! account for double counting from multiple MPI processes
       IF (PRESENT(para_env)) pot_nequip = pot_nequip/REAL(para_env%num_pe, dp)
@@ -494,7 +466,6 @@ END IF
       ELSE
          nequip_data%force = REAL(forces, kind=dp)*pot%set(1)%nequip%unit_forces_val
       END IF
-!      WRITE(*, *) "para_env%mepos forces", para_env%mepos, forces
       DEALLOCATE(forces)
 
    END SUBROUTINE nequip_energy_store_force_virial

@@ -363,26 +363,3 @@ tags
 [._]*.un~
 
 # End of https://www.gitignore.io/api/python,fortran,c,c++,cuda,emacs,vim,cmake
-tests/Fist/regtest-6/Si_tersoff-1.ener
-tests/Fist/regtest-6/Si_tersoff-1.restart
-tests/Fist/regtest-6/Si_tersoff-1.restart.bak-1
-tests/Fist/regtest-6/Si_tersoff-1.restart.bak-2
-tests/Fist/regtest-6/Si_tersoff-1.restart.bak-3
-tests/Fist/regtest-6/Si_tersoff-pos-1.xyz
-tests/Fist/regtest-quip/out
-tests/Fist/regtest-quip/Quip_Cu_LJ.inp
-tools/toolchain/run_toolchain.sh
-tests/Fist/regtest-6/Si_tersoff.inp
-tests/Fist/regtest-quip/Quip_Cu_LJ.inp
-tests/Fist/regtest-nequip/water1.pth
-tests/Fist/regtest-nequip/water2.pth
-tests/Fist/regtest-nequip/water3.pth
-tests/Fist/H2O-32_NPT.inp
-tests/Fist/H2O-32_SPME_ENERGY_NEIGHBOR.inp
-tests/Fist/water_1.inp
-tests/Fist/regtest-nequip/water-1_0.mmLog
-tests/Fist/H2O-32_NPT.inp
-tests/Fist/water_1.inp
-tests/Fist/water_1.inp
-test/Fist/get_index.sh
-
