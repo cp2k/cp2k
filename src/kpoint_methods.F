@@ -349,17 +349,17 @@ CONTAINS
          NULLIFY (cart, para_env_full, para_env_kp, para_env_inter_kp)
          CALL comm_cart%create(comm_old=para_env%group, ndims=2, dims=dims, pos=pos)
 
-         CALL cp_cart_create(cart, comm_cart, ndims=2, owns_group=.TRUE.)
-         CALL cp_para_env_create(para_env_full, comm_cart, owns_group=.FALSE.)
+         CALL cp_cart_create(cart, comm_cart, ndims=2)
+         ALLOCATE (para_env_full)
+         para_env_full = comm_cart
          rdim(2) = .FALSE.
          rdim(1) = .TRUE.
          CALL comm_kp%from_sub(comm=comm_cart, rdim=rdim)
-         CALL cp_para_env_create(para_env_kp, comm_kp, owns_group=.TRUE.)
+         CALL cp_para_env_create(para_env_kp, comm_kp)
          rdim(2) = .TRUE.
          rdim(1) = .FALSE.
          CALL comm_inter_kp%from_sub(comm=comm_cart, rdim=rdim)
-         CALL cp_para_env_create(para_env_inter_kp, comm_inter_kp, &
-                                 owns_group=.TRUE.)
+         CALL cp_para_env_create(para_env_inter_kp, comm_inter_kp)
 
          niogrp = 0
          IF (para_env%ionode) niogrp = 1

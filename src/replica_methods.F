@@ -131,18 +131,17 @@ CONTAINS
       END IF
       CALL comm_cart%create(comm_old=para_env%group, ndims=2, dims=dims, pos=pos)
       IF (comm_cart /= mp_comm_null) THEN
-         CALL cp_cart_create(cart, comm_cart, ndims=2, owns_group=.TRUE.)
-         NULLIFY (para_env_full)
-         CALL cp_para_env_create(para_env_full, comm_cart, owns_group=.FALSE.)
+         CALL cp_cart_create(cart, comm_cart, ndims=2)
+         ALLOCATE (para_env_full)
+         para_env_full = comm_cart
          rdim(3 - forcedim) = .FALSE.
          rdim(forcedim) = .TRUE.
          CALL comm_f%from_sub(comm=comm_cart, rdim=rdim)
-         CALL cp_para_env_create(para_env_f, comm_f, owns_group=.TRUE.)
+         CALL cp_para_env_create(para_env_f, comm_f)
          rdim(3 - forcedim) = .TRUE.
          rdim(forcedim) = .FALSE.
          CALL comm_inter_rep%from_sub(comm=comm_cart, rdim=rdim)
-         CALL cp_para_env_create(para_env_inter_rep, comm_inter_rep, &
-                                 owns_group=.TRUE.)
+         CALL cp_para_env_create(para_env_inter_rep, comm_inter_rep)
          ALLOCATE (rep_env)
       END IF
       ALLOCATE (gridinfo(2, 0:para_env%num_pe - 1))

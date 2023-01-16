@@ -129,8 +129,7 @@ CONTAINS
          IF (MODULO(i - 1, embed_env%ngroups) == embed_env%group_distribution(para_env%mepos)) THEN
             ! Create sub_para_env
             CALL cp_para_env_create(embed_env%sub_para_env(i)%para_env, &
-                                    group=embed_env%new_group, &
-                                    owns_group=.TRUE.)
+                                    group=embed_env%new_group)
             ! Create sub_logger
             IF (embed_env%sub_para_env(i)%para_env%ionode) THEN
                ! Redirecting output of subforce_eval to file..

@@ -18,8 +18,7 @@ MODULE qs_tensors_types
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
-   USE cp_para_env,                     ONLY: cp_para_env_create,&
-                                              cp_para_env_release
+   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbt_api,                         ONLY: dbt_create,&
                                               dbt_default_distvec,&
@@ -184,7 +183,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL mp_comm_2d%environ_cart(nproc, mp_dims, mp_coor)
-      CALL cp_para_env_create(para_env, mp_comm_2d, owns_group=.FALSE.)
+      ALLOCATE (para_env)
+      para_env = mp_comm_2d
       CALL cp_blacs_env_create(blacs_env, para_env, &
                                grid_2d=mp_dims)
 

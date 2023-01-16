@@ -30,8 +30,7 @@ MODULE cp2k_runs
                                               cp_print_key_finished_output,&
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
-   USE cp_para_env,                     ONLY: cp_para_env_create,&
-                                              cp_para_env_release,&
+   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_retain
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: parser_search_string
@@ -196,7 +195,8 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: glob_section, input_file, root_section
 
       NULLIFY (para_env, f_env, dft_control)
-      CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.)
+      ALLOCATE (para_env)
+      para_env = mpi_comm
 
 #if defined(__DBCSR_ACC)
       IF (offload_get_device_count() > 0) THEN
@@ -978,8 +978,8 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       IF (PRESENT(mpi_comm)) THEN
-         NULLIFY (para_env)
-         CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.)
+         ALLOCATE (para_env)
+         para_env = mpi_comm
       ELSE
          para_env => f77_default_para_env
          CALL cp_para_env_retain(para_env)
