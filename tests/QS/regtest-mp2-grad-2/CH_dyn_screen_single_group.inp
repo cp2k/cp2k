@@ -1,0 +1,109 @@
+&GLOBAL
+  PROJECT  CH_dyn_screen_single_group
+  PRINT_LEVEL LOW
+  RUN_TYPE MD
+  &TIMINGS
+     THRESHOLD 0.01
+  &END
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS  1
+    TEMPERATURE 300.0
+  &END
+&END MOTION
+&FORCE_EVAL
+  METHOD Quickstep
+  &PRINT
+     &FORCES MEDIUM
+     &END FORCES
+  &END PRINT
+  &DFT
+    BASIS_SET_FILE_NAME  GTH_BASIS_SETS
+    BASIS_SET_FILE_NAME  HFX_BASIS
+    POTENTIAL_FILE_NAME  POTENTIAL
+#    AUTO_BASIS RI_AUX MEDIUM
+    &MGRID
+      CUTOFF  100
+      REL_CUTOFF  20
+    &END MGRID
+    &QS
+      METHOD GPW
+      EPS_DEFAULT 1.0E-10
+      EPS_PGF_ORB 1.0E-20
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-5
+      MAX_SCF 100
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
+      &HF
+        FRACTION 1.0000000
+        &SCREENING
+          EPS_SCHWARZ 1.0E-4
+          EPS_SCHWARZ_FORCES 1.0E-4
+          SCREEN_ON_INITIAL_P .TRUE.
+        &END SCREENING
+        &INTERACTION_POTENTIAL
+          POTENTIAL_TYPE TRUNCATED
+          CUTOFF_RADIUS 1.5
+          T_C_G_DATA t_c_g.dat
+        &END
+      &END HF
+      &WF_CORRELATION
+        &RI_MP2
+          BLOCK_SIZE  1
+          NUMBER_INTEGRATION_GROUPS 1
+        &END
+        &CANONICAL_GRADIENTS
+          EPS_CANONICAL 0.1
+          FREE_HFX_BUFFER .TRUE.
+        &END
+        &INTEGRALS
+        &WFC_GPW
+          CUTOFF  20
+          REL_CUTOFF 7
+          EPS_GRID 1.0E-4
+          EPS_FILTER 1.0E-4
+        &END WFC_GPW
+        &END INTEGRALS
+        MEMORY  500.0
+        NUMBER_PROC  1
+      &END
+    &END XC
+    UKS
+    MULTIPLICITY  2
+  &END DFT
+  &SUBSYS
+    &VELOCITY
+          -3.2622994705992867E-05    7.7514555791024684E-05    3.9686497130956002E-05
+           0.0                       0.0                       0.0
+    &END VELOCITY
+#          -2.5559027122990370E-04   -9.2228252501752594E-04    4.5286618039725633E-04
+#           1.6657210614800535E-04   -8.4758917186367037E-04   -2.2362984387179316E-03
+#           0.0                       0.0                       0.0
+#    &END VELOCITY
+    &CELL
+      ABC [angstrom] 5.0 5.0 5.0
+    &END CELL
+    &KIND H
+      BASIS_SET  SZV-GTH
+      BASIS_SET RI_AUX  RI_DZVP-GTH
+      POTENTIAL  GTH-HF-q1
+    &END KIND
+    &KIND C
+      BASIS_SET  SZV-GTH
+      BASIS_SET RI_AUX  RI_DZVP-GTH
+      POTENTIAL  GTH-HF-q4
+    &END KIND
+    &TOPOLOGY
+      COORD_FILE_NAME  CH.xyz
+      COORD_FILE_FORMAT xyz
+      &CENTER_COORDINATES
+      &END
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

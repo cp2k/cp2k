@@ -1,0 +1,15 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+# tests GAPW ext basis sets
+H2S-e1.inp                                             1      5e-13             -11.30826768946058
+H2S-e2.inp                                             1      5e-13             -11.30826685294312
+H2S-e3.inp                                             1      5e-13             -11.30821433565813
+H2S-e4.inp                                             1      5e-13             -11.30818159686934
+H2O-e1.inp                                             1      5e-13             -17.16408671493325
+H2O-e2.inp                                             1      5e-13             -17.16377543876715
+H2O-e3.inp                                             1      5e-13             -17.16475812438971
+#EOF
+

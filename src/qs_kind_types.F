@@ -39,10 +39,9 @@ MODULE qs_kind_types
                                               remove_basis_set_container
    USE basis_set_types,                 ONLY: &
         allocate_gto_basis_set, allocate_sto_basis_set, combine_basis_sets, &
-        create_gto_from_sto_basis, deallocate_gto_basis_set, deallocate_sto_basis_set, &
-        get_gto_basis_set, gto_basis_set_type, init_aux_basis_set, init_orb_basis_set, &
-        read_gto_basis_set, read_sto_basis_set, sto_basis_set_type, write_gto_basis_set, &
-        write_orb_basis_set
+        create_gto_from_sto_basis, deallocate_sto_basis_set, get_gto_basis_set, &
+        gto_basis_set_type, init_aux_basis_set, init_orb_basis_set, read_gto_basis_set, &
+        read_sto_basis_set, sto_basis_set_type, write_gto_basis_set, write_orb_basis_set
    USE cp_control_types,                ONLY: dft_control_type,&
                                               qs_control_type,&
                                               xtb_control_type
@@ -58,10 +57,12 @@ MODULE qs_kind_types
         all_potential_type, allocate_potential, deallocate_potential, get_potential, &
         gth_potential_type, init_potential, local_potential_type, read_potential, &
         set_default_all_potential, set_potential, sgp_potential_type, write_potential
+   USE gapw_1c_basis_set,               ONLY: create_1c_basis
    USE input_constants,                 ONLY: &
         do_method_am1, do_method_dftb, do_method_mndo, do_method_mndod, do_method_pdg, &
         do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_pw, &
-        do_method_rm1, do_method_xtb, do_qs, do_sirius
+        do_method_rm1, do_method_xtb, do_qs, do_sirius, gapw_1c_large, gapw_1c_medium, &
+        gapw_1c_orb, gapw_1c_small, gapw_1c_very_large
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -181,9 +182,6 @@ MODULE qs_kind_types
       !
       TYPE(atom_upfpot_type), POINTER        :: upf_potential => Null()
       !
-      TYPE(gto_basis_set_type), POINTER      :: soft_basis_set => Null()
-      TYPE(gto_basis_set_type), POINTER      :: hard_basis_set => Null()
-      !
       TYPE(basis_set_container_type), &
          DIMENSION(20)                       :: basis_sets
       ! Atomic radii
@@ -297,13 +295,6 @@ CONTAINS
             IF (ASSOCIATED(qs_kind_set(ikind)%xtb_parameter)) THEN
                CALL deallocate_xtb_atom_param(qs_kind_set(ikind)%xtb_parameter)
             END IF
-            IF (ASSOCIATED(qs_kind_set(ikind)%soft_basis_set) .AND. &
-                qs_kind_set(ikind)%paw_atom) THEN
-               CALL deallocate_gto_basis_set(qs_kind_set(ikind)%soft_basis_set)
-            ELSEIF (ASSOCIATED(qs_kind_set(ikind)%soft_basis_set) .AND. &
-                    (.NOT. qs_kind_set(ikind)%paw_atom)) THEN
-               NULLIFY (qs_kind_set(ikind)%soft_basis_set)
-            END IF
             IF (ASSOCIATED(qs_kind_set(ikind)%paw_proj_set)) THEN
                CALL deallocate_paw_proj_set(qs_kind_set(ikind)%paw_proj_set)
             END IF
@@ -390,10 +381,7 @@ CONTAINS
 !> \param ccore_charge ...
 !> \param core_charge ...
 !> \param core_charge_radius ...
-!> \param soft_basis_set ...
-!> \param hard_basis_set ...
 !> \param paw_proj_set ...
-!> \param softb ...
 !> \param paw_atom ...
 !> \param hard_radius ...
 !> \param hard0_radius ...
@@ -449,8 +437,7 @@ CONTAINS
                           se_parameter, dftb_parameter, xtb_parameter, &
                           dftb3_param, zeff, elec_conf, mao, lmax_dftb, &
                           alpha_core_charge, ccore_charge, core_charge, core_charge_radius, &
-                          soft_basis_set, hard_basis_set, paw_proj_set, softb, &
-                          paw_atom, hard_radius, hard0_radius, max_rad_local, &
+                          paw_proj_set, paw_atom, hard_radius, hard0_radius, max_rad_local, &
                           covalent_radius, vdw_radius, &
                           gpw_type_forced, harmonics, max_iso_not0, max_s_harm, grid_atom, &
                           ngrid_ang, ngrid_rad, lmax_rho0, &
@@ -479,9 +466,7 @@ CONTAINS
       INTEGER, INTENT(OUT), OPTIONAL                     :: mao, lmax_dftb
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: alpha_core_charge, ccore_charge, &
                                                             core_charge, core_charge_radius
-      TYPE(gto_basis_set_type), OPTIONAL, POINTER        :: soft_basis_set, hard_basis_set
       TYPE(paw_proj_set_type), OPTIONAL, POINTER         :: paw_proj_set
-      LOGICAL, INTENT(IN), OPTIONAL                      :: softb
       LOGICAL, INTENT(OUT), OPTIONAL                     :: paw_atom
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: hard_radius, hard0_radius, &
                                                             max_rad_local, covalent_radius, &
@@ -521,14 +506,9 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: my_basis_type
       INTEGER                                            :: l
-      LOGICAL                                            :: softb_local
       TYPE(gto_basis_set_type), POINTER                  :: tmp_basis_set
 
-! Retrieve basis set from the kind container
-
-      softb_local = .FALSE.
-      IF (PRESENT(softb)) softb_local = softb
-
+      ! Retrieve basis set from the kind container
       IF (PRESENT(basis_type)) THEN
          my_basis_type = basis_type
       ELSE
@@ -536,12 +516,8 @@ CONTAINS
       END IF
 
       IF (PRESENT(basis_set)) THEN
-         IF (softb_local) THEN
-            basis_set => qs_kind%soft_basis_set
-         ELSE
-            CALL get_basis_from_container(qs_kind%basis_sets, basis_set=basis_set, &
-                                          basis_type=my_basis_type)
-         END IF
+         CALL get_basis_from_container(qs_kind%basis_sets, basis_set=basis_set, &
+                                       basis_type=my_basis_type)
       END IF
 
       IF (PRESENT(ncgf)) THEN
@@ -658,9 +634,6 @@ CONTAINS
             zeff = 0.0_dp
          END IF
       END IF
-
-      IF (PRESENT(soft_basis_set)) soft_basis_set => qs_kind%soft_basis_set
-      IF (PRESENT(hard_basis_set)) hard_basis_set => qs_kind%hard_basis_set
 
       IF (PRESENT(covalent_radius)) covalent_radius = qs_kind%covalent_radius
       IF (PRESENT(vdw_radius)) vdw_radius = qs_kind%vdw_radius
@@ -1320,10 +1293,11 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section
       LOGICAL, OPTIONAL                                  :: modify_qs_control
 
-      INTEGER                                            :: ikind, nkind
+      CHARACTER(LEN=default_string_length)               :: bsname
+      INTEGER                                            :: bas1c, ikind, ilevel, nkind
       LOGICAL                                            :: gpw, my_mod_control, paw_atom
       REAL(dp)                                           :: max_rad_local_type, rc
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c, orb_basis, soft_basis
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj
       TYPE(qs_kind_type), POINTER                        :: qs_kind
 
@@ -1341,27 +1315,44 @@ CONTAINS
 
             qs_kind => qs_kind_set(ikind)
 
-            CALL allocate_gto_basis_set(qs_kind%soft_basis_set)
-
-            ! The hard_basis points to the orb_basis
             CALL get_qs_kind(qs_kind=qs_kind, basis_set=orb_basis)
-            qs_kind%hard_basis_set => orb_basis
-
             CALL get_qs_kind(qs_kind=qs_kind, hard_radius=rc, &
                              max_rad_local=max_rad_local_type, gpw_type_forced=gpw)
 
-            CALL create_soft_basis(orb_basis, qs_kind%soft_basis_set, &
+            NULLIFY (soft_basis)
+            CALL allocate_gto_basis_set(soft_basis)
+            CALL create_soft_basis(orb_basis, soft_basis, &
                                    qs_control%gapw_control%eps_fit, rc, paw_atom, &
                                    qs_control%gapw_control%force_paw, gpw)
-
+            CALL add_basis_set_to_container(qs_kind%basis_sets, soft_basis, "ORB_SOFT")
             CALL set_qs_kind(qs_kind=qs_kind, paw_atom=paw_atom)
 
+            bas1c = qs_control%gapw_control%basis_1c
+            NULLIFY (basis_1c)
+            SELECT CASE (bas1c)
+            CASE (gapw_1c_orb)
+               ilevel = 0
+            CASE (gapw_1c_small)
+               ilevel = 1
+            CASE (gapw_1c_medium)
+               ilevel = 2
+            CASE (gapw_1c_large)
+               ilevel = 3
+            CASE (gapw_1c_very_large)
+               ilevel = 4
+            CASE DEFAULT
+               CPABORT("basis_1c type")
+            END SELECT
+            CALL remove_basis_from_container(qs_kind%basis_sets, basis_type="GAPW_1C")
+            CALL create_1c_basis(orb_basis, soft_basis, basis_1c, ilevel)
+            CALL get_gto_basis_set(gto_basis_set=orb_basis, name=bsname)
+            basis_1c%name = TRIM(bsname)//"_1c"
+            CALL add_basis_set_to_container(qs_kind%basis_sets, basis_1c, "GAPW_1C")
             IF (paw_atom) THEN
                CALL allocate_paw_proj_set(qs_kind%paw_proj_set)
                CALL get_qs_kind(qs_kind=qs_kind, paw_proj_set=paw_proj)
-
-               CALL projectors(paw_proj, orb_basis, rc, qs_control, max_rad_local_type, &
-                               force_env_section)
+               CALL projectors(paw_proj, basis_1c, orb_basis, rc, qs_control, &
+                               max_rad_local_type, force_env_section)
             ELSE
                IF (my_mod_control) qs_control%gapw_control%non_paw_atoms = .TRUE.
             END IF
@@ -2759,8 +2750,6 @@ CONTAINS
 !> \param hard0_radius ...
 !> \param covalent_radius ...
 !> \param vdw_radius ...
-!> \param soft_basis_set ...
-!> \param hard_basis_set ...
 !> \param lmax_rho0 ...
 !> \param zeff ...
 !> \param no_optimize ...
@@ -2773,8 +2762,7 @@ CONTAINS
 !> \param pao_basis_size ...
 ! **************************************************************************************************
    SUBROUTINE set_qs_kind(qs_kind, paw_atom, ghost, floating, hard_radius, hard0_radius, &
-                          covalent_radius, vdw_radius, &
-                          soft_basis_set, hard_basis_set, lmax_rho0, zeff, &
+                          covalent_radius, vdw_radius, lmax_rho0, zeff, &
                           no_optimize, dispersion, u_minus_j, reltmat, &
                           dftb_parameter, xtb_parameter, &
                           elec_conf, pao_basis_size)
@@ -2783,7 +2771,6 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: paw_atom, ghost, floating
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: hard_radius, hard0_radius, &
                                                             covalent_radius, vdw_radius
-      TYPE(gto_basis_set_type), OPTIONAL, POINTER        :: soft_basis_set, hard_basis_set
       INTEGER, INTENT(IN), OPTIONAL                      :: lmax_rho0
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: zeff
       LOGICAL, INTENT(IN), OPTIONAL                      :: no_optimize
@@ -2809,8 +2796,6 @@ CONTAINS
       IF (PRESENT(hard0_radius)) qs_kind%hard0_radius = hard0_radius
       IF (PRESENT(covalent_radius)) qs_kind%covalent_radius = covalent_radius
       IF (PRESENT(vdw_radius)) qs_kind%vdw_radius = vdw_radius
-      IF (PRESENT(soft_basis_set)) qs_kind%soft_basis_set => soft_basis_set
-      IF (PRESENT(hard_basis_set)) qs_kind%hard_basis_set => hard_basis_set
       IF (PRESENT(lmax_rho0)) qs_kind%lmax_rho0 = lmax_rho0
       IF (PRESENT(zeff)) THEN
          IF (ASSOCIATED(qs_kind%all_potential)) THEN
@@ -2857,6 +2842,7 @@ CONTAINS
       CHARACTER(LEN=3)                                   :: yon
       CHARACTER(LEN=default_string_length)               :: basis_type, bstring
       INTEGER                                            :: ibas
+      LOGICAL                                            :: do_print
       TYPE(gto_basis_set_type), POINTER                  :: tmp_basis
 
       IF (output_unit > 0) THEN
@@ -2870,12 +2856,16 @@ CONTAINS
                NULLIFY (tmp_basis)
                CALL get_basis_from_container(qs_kind%basis_sets, basis_set=tmp_basis, &
                                              inumbas=ibas, basis_type=basis_type)
-               IF (basis_type == "") CYCLE
+               do_print = .TRUE.
                SELECT CASE (basis_type)
                CASE DEFAULT
                   bstring = "Basis Set"
+                  do_print = .FALSE.
                CASE ("ORB")
                   bstring = "Orbital Basis Set"
+               CASE ("ORB_SOFT")
+                  bstring = "GAPW Soft Basis Set"
+                  do_print = .FALSE.
                CASE ("AUX")
                   bstring = "Auxiliary Basis Set"
                CASE ("RI_AUX")
@@ -2892,7 +2882,9 @@ CONTAINS
                   bstring = "RI HFX Basis Set"
                END SELECT
 
-               CALL write_orb_basis_set(tmp_basis, output_unit, bstring)
+               IF (do_print) THEN
+                  CALL write_orb_basis_set(tmp_basis, output_unit, bstring)
+               END IF
 
             END DO
 
@@ -2922,8 +2914,10 @@ CONTAINS
                   "Rho0 radius:", qs_kind%hard0_radius, &
                   "Maximum GTO radius used for PAW projector construction:", &
                   qs_kind%max_rad_local
-               CALL write_orb_basis_set(qs_kind%soft_basis_set, output_unit, &
-                                        "GAPW Soft Basis Set")
+               NULLIFY (tmp_basis)
+               CALL get_basis_from_container(qs_kind%basis_sets, basis_set=tmp_basis, &
+                                             basis_type="ORB_SOFT")
+               CALL write_orb_basis_set(tmp_basis, output_unit, "GAPW Soft Basis Set")
             END IF
             ! Potentials
             CALL write_potential(qs_kind%all_potential, output_unit)
@@ -3078,6 +3072,8 @@ CONTAINS
                      bstring = "Basis Set"
                   CASE ("ORB")
                      bstring = "Orbital Basis Set"
+                  CASE ("ORB_SOFT")
+                     bstring = "GAPW Soft Basis Set"
                   CASE ("AUX")
                      bstring = "Auxiliary Basis Set"
                   CASE ("RI_AUX")
@@ -3095,9 +3091,6 @@ CONTAINS
                   CALL write_gto_basis_set(tmp_basis, output_unit, bstring)
 
                END DO
-
-               CALL write_gto_basis_set(qs_kind%soft_basis_set, &
-                                        output_unit, "GAPW Soft Basis Set")
 
             END DO
          ELSE

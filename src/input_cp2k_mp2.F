@@ -274,6 +274,18 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="NUMBER_INTEGRATION_GROUPS", &
+                          description="Sets the number of integration groups of the communication scheme in RI-MP2."// &
+                          "Integrals will be replicated such that each integration group has all integrals available. "// &
+                          "Must be a divisor of the number of subgroups (see GROUP_SIZE keyword in the WF_CORRELATION "// &
+                          "section. Smaller groups reduce the communication costs but increase the memory developments. "// &
+                          "If the provided value is non-positive or not a divisor of the number of subgroups, "// &
+                          "the number of integration groups is determined automatically (default).", &
+                          usage="NUMBER_INTEGRATION_GROUPS 2", &
+                          default_i_val=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create( &
          keyword, __LOCATION__, &
          name="PRINT_DGEMM_INFO", &

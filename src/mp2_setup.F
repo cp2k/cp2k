@@ -295,6 +295,7 @@ CONTAINS
          mp2_env%method = ri_mp2_method_gpw
       END IF
       CALL section_vals_val_get(mp2_section, "RI_MP2%BLOCK_SIZE", i_val=mp2_env%ri_mp2%block_size)
+      CALL section_vals_val_get(mp2_section, "RI_MP2%NUMBER_INTEGRATION_GROUPS", i_val=mp2_env%ri_mp2%number_integration_groups)
       CALL section_vals_val_get(mp2_section, "RI_MP2%PRINT_DGEMM_INFO", l_val=mp2_env%ri_mp2%print_dgemm_info)
 
       CALL section_vals_val_get(mp2_section, "RI%ROW_BLOCK", i_val=mp2_env%block_size_row)

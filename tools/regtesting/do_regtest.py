@@ -49,6 +49,8 @@ async def main() -> None:
     parser.add_argument("--timeout", type=int, default=400)
     parser.add_argument("--maxerrors", type=int, default=50)
     parser.add_argument("--mpiexec", default="mpiexec")
+    help = "Runs only the first test of each directory."
+    parser.add_argument("--smoketest", dest="smoketest", action="store_true", help=help)
     parser.add_argument("--keepalive", dest="keepalive", action="store_true")
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--restrictdir", action="append")
@@ -79,6 +81,7 @@ async def main() -> None:
     print(f"Timeout [s]:    {cfg.timeout}")
     print(f"Work base dir:  {cfg.work_base_dir}")
     print(f"MPI exec:       {cfg.mpiexec}")
+    print(f"Smoke test:     {cfg.smoketest}")
     print(f"Keepalive:      {cfg.keepalive}")
     print(f"Debug:          {cfg.debug}")
     print(f"ARCH:           {cfg.arch}")
@@ -120,6 +123,8 @@ async def main() -> None:
             if not line:
                 continue
             batch.regtests.append(Regtest(line, test_types, batch.workdir))
+            if cfg.smoketest:
+                break  # run only one test per directory
         batches.append(batch)
 
     # Create async tasks.
@@ -206,6 +211,7 @@ class Config:
         self.workers = Semaphore(self.num_workers)
         self.cp2k_root = Path(__file__).resolve().parent.parent.parent
         self.mpiexec = args.mpiexec.split()
+        self.smoketest = args.smoketest
         self.keepalive = args.keepalive
         self.arch = args.arch
         self.version = args.version

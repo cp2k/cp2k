@@ -35,8 +35,7 @@ MODULE qs_linres_atom_current
    USE orbital_pointers,                ONLY: indso,&
                                               nsoset
    USE particle_types,                  ONLY: particle_type
-   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
-                                              paw_proj_set_type
+   USE paw_basis_types,                 ONLY: get_paw_basis_info
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_grid_atom,                    ONLY: grid_atom_type
@@ -124,8 +123,7 @@ CONTAINS
       LOGICAL                                            :: den_found, dista, distab, distb, &
                                                             is_not_associated, paw_atom, &
                                                             sgf_soft_only_a, sgf_soft_only_b
-      REAL(dp)                                           :: eps_cpc, hard_radius_c, jmax, nbr_dbl, &
-                                                            rab(3), rbc(3)
+      REAL(dp)                                           :: eps_cpc, jmax, nbr_dbl, rab(3), rbc(3)
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: a_matrix, b_matrix, c_matrix, d_matrix
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: C_coeff_hh_a, C_coeff_hh_b, &
                                                             C_coeff_ss_a, C_coeff_ss_b, r_coef_h, &
@@ -136,14 +134,13 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_a, mat_b, mat_c, mat_d
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
-      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b, orb_basis_set
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c_set, basis_set_a, basis_set_b
       TYPE(jrho_atom_type), DIMENSION(:), POINTER        :: jrho1_atom_set
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_all
       TYPE(oce_matrix_type), POINTER                     :: oce
-      TYPE(paw_proj_set_type), POINTER                   :: paw_proj
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: a_block, b_block, c_block, d_block, &
                                                             jp2_RARnu, jp_RARnu
@@ -169,8 +166,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(jrho1_atom_set))
 
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, &
-                           maxsgf=max_nsgf, &
-                           maxgtops=max_gau)
+                           maxsgf=max_nsgf, maxgtops=max_gau, basis_type="GAPW_1C")
 
       eps_cpc = dft_control%qs_control%gapw_control%eps_cpc
 
@@ -255,8 +251,7 @@ CONTAINS
 !$OMP                 , cell_b, rab, rbc                                        &
 !$OMP                 , basis_set_a, nsgfa                                      &
 !$OMP                 , basis_set_b, nsgfb                                      &
-!$OMP                 , orb_basis_set, jmax, den_found                          &
-!$OMP                 , hard_radius_c, paw_proj                                 &
+!$OMP                 , basis_1c_set, jmax, den_found                          &
 !$OMP                 , nsatbas, nsoctot, nso, paw_atom                         &
 !$OMP                 , iac , alist_ac, kac, n_cont_a, list_a, sgf_soft_only_a  &
 !$OMP                 , ibc , alist_bc, kbc, n_cont_b, list_b, sgf_soft_only_b  &
@@ -267,7 +262,7 @@ CONTAINS
 !$OMP                 )
 
       NULLIFY (a_block, b_block, c_block, d_block)
-      NULLIFY (orb_basis_set, jp_RARnu, jp2_RARnu)
+      NULLIFY (basis_1c_set, jp_RARnu, jp2_RARnu)
 
       ALLOCATE (a_block(nspins), b_block(nspins), c_block(nspins), d_block(nspins), &
                 jp_RARnu(nspins), jp2_RARnu(nspins), &
@@ -343,17 +338,14 @@ CONTAINS
 
          ! Loop over atoms
          DO kkind = 1, nkind
-            NULLIFY (paw_proj)
             CALL get_qs_kind(qs_kind_set(kkind), &
-                             basis_set=orb_basis_set, &
-                             hard_radius=hard_radius_c, &
-                             paw_proj_set=paw_proj, &
+                             basis_set=basis_1c_set, basis_type="GAPW_1C", &
                              paw_atom=paw_atom)
 
             ! Quick cycle if needed.
             IF (.NOT. paw_atom) CYCLE
 
-            CALL get_paw_proj_set(paw_proj_set=paw_proj, nsatbas=nsatbas)
+            CALL get_paw_basis_info(basis_1c_set, nsatbas=nsatbas)
             nsoctot = nsatbas
 
             iac = ikind + nkind*(kkind - 1)
@@ -536,13 +528,12 @@ CONTAINS
                               atom_list=atom_list, &
                               natom=nat)
          CALL get_qs_kind(qs_kind_set(ikind), &
-                          basis_set=orb_basis_set, &
-                          paw_proj_set=paw_proj, &
+                          basis_set=basis_1c_set, basis_type="GAPW_1C", &
                           paw_atom=paw_atom)
 
          IF (.NOT. paw_atom) CYCLE
 
-         CALL get_paw_proj_set(paw_proj_set=paw_proj, nsatbas=nsatbas)
+         CALL get_paw_basis_info(basis_1c_set, nsatbas=nsatbas)
          nsoctot = nsatbas
 
          num_pe = para_env%num_pe
@@ -666,11 +657,10 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(grid_atom_type), POINTER                      :: grid_atom
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c_set
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(jrho_atom_type), DIMENSION(:), POINTER        :: jrho1_atom_set
       TYPE(jrho_atom_type), POINTER                      :: jrho1_atom
-      TYPE(paw_proj_set_type), POINTER                   :: paw_proj
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL timeset(routineN, handle)
@@ -703,7 +693,7 @@ CONTAINS
 
       !
       DO ikind = 1, nkind
-         NULLIFY (atom_list, grid_atom, harmonics, orb_basis_set, &
+         NULLIFY (atom_list, grid_atom, harmonics, basis_1c_set, &
                   lmax, lmin, npgf, zet, grid_atom, harmonics, my_CG, my_CG_dxyz_asym)
          !
          CALL get_atomic_kind(atomic_kind_set(ikind), &
@@ -711,21 +701,21 @@ CONTAINS
                               natom=natom)
          CALL get_qs_kind(qs_kind_set(ikind), &
                           grid_atom=grid_atom, &
-                          paw_proj_set=paw_proj, &
                           paw_atom=paw_atom, &
                           harmonics=harmonics, &
                           hard_radius=hard_radius, &
-                          basis_set=orb_basis_set)
+                          basis_set=basis_1c_set, &
+                          basis_type="GAPW_1C")
          !
          ! Quick cycle if needed.
          IF (.NOT. paw_atom) CYCLE
          !
-         CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
+         CALL get_gto_basis_set(gto_basis_set=basis_1c_set, &
                                 lmax=lmax, lmin=lmin, &
                                 maxl=maxl, npgf=npgf, &
                                 nset=nset, zet=zet, &
                                 maxso=maxso)
-         CALL get_paw_proj_set(paw_proj_set=paw_proj, o2nindex=o2nindex)
+         CALL get_paw_basis_info(basis_1c_set, o2nindex=o2nindex)
          !
          nr = grid_atom%nr
          na = grid_atom%ng_sphere
@@ -1169,6 +1159,7 @@ CONTAINS
          DEALLOCATE (cjc0_h_block, cjc0_s_block, cjc_h_block, cjc_s_block, cjc_ii_h_block, cjc_ii_s_block, &
                      cjc_iii_h_block, cjc_iii_s_block, g1, g2, gg, gg_lm1, dgg_1, gauge_h, gauge_s, &
                      cg_list, cg_n_list, dacg_list, dacg_n_list)
+         DEALLOCATE (o2nindex)
       END DO ! ikind
       !
       !

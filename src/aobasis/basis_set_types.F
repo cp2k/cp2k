@@ -72,18 +72,18 @@ MODULE basis_set_types
       !MK PRIVATE
       CHARACTER(LEN=default_string_length)       :: name
       CHARACTER(LEN=default_string_length)       :: aliases = ""
-      REAL(KIND=dp)                            :: kind_radius
-      REAL(KIND=dp)                            :: short_kind_radius
+      REAL(KIND=dp)                              :: kind_radius
+      REAL(KIND=dp)                              :: short_kind_radius
       INTEGER                                    :: norm_type = -1
       INTEGER                                    :: ncgf, nset, nsgf
       CHARACTER(LEN=12), DIMENSION(:), POINTER   :: cgf_symbol
       CHARACTER(LEN=6), DIMENSION(:), POINTER    :: sgf_symbol
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: norm_cgf, set_radius
+      REAL(KIND=dp), DIMENSION(:), POINTER       :: norm_cgf, set_radius
       INTEGER, DIMENSION(:), POINTER             :: lmax, lmin, lx, ly, lz, m, ncgf_set, &
                                                     npgf, nsgf_set, nshell
-      REAL(KIND=dp), DIMENSION(:, :), POINTER   :: cphi, pgf_radius, sphi, scon, zet
-      INTEGER, DIMENSION(:, :), POINTER           :: first_cgf, first_sgf, l, &
-                                                     last_cgf, last_sgf, n
+      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: cphi, pgf_radius, sphi, scon, zet
+      INTEGER, DIMENSION(:, :), POINTER          :: first_cgf, first_sgf, l, &
+                                                    last_cgf, last_sgf, n
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: gcc
    END TYPE gto_basis_set_type
 
@@ -100,7 +100,7 @@ MODULE basis_set_types
       INTEGER                                    :: nshell
       CHARACTER(LEN=6), DIMENSION(:), POINTER    :: symbol
       INTEGER, DIMENSION(:), POINTER             :: nq, lq
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: zet
+      REAL(KIND=dp), DIMENSION(:), POINTER       :: zet
    END TYPE sto_basis_set_type
 
 ! **************************************************************************************************
@@ -198,36 +198,32 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
 
       IF (ASSOCIATED(gto_basis_set)) THEN
-         IF (ASSOCIATED(gto_basis_set%cgf_symbol)) THEN
-            DEALLOCATE (gto_basis_set%cgf_symbol)
-         END IF
-         IF (ASSOCIATED(gto_basis_set%sgf_symbol)) THEN
-            DEALLOCATE (gto_basis_set%sgf_symbol)
-         END IF
-         DEALLOCATE (gto_basis_set%norm_cgf)
-         DEALLOCATE (gto_basis_set%set_radius)
-         DEALLOCATE (gto_basis_set%lmax)
-         DEALLOCATE (gto_basis_set%lmin)
-         DEALLOCATE (gto_basis_set%lx)
-         DEALLOCATE (gto_basis_set%ly)
-         DEALLOCATE (gto_basis_set%lz)
-         DEALLOCATE (gto_basis_set%m)
-         DEALLOCATE (gto_basis_set%ncgf_set)
-         DEALLOCATE (gto_basis_set%npgf)
-         DEALLOCATE (gto_basis_set%nsgf_set)
-         DEALLOCATE (gto_basis_set%nshell)
-         DEALLOCATE (gto_basis_set%cphi)
-         DEALLOCATE (gto_basis_set%pgf_radius)
-         DEALLOCATE (gto_basis_set%sphi)
-         DEALLOCATE (gto_basis_set%scon)
-         DEALLOCATE (gto_basis_set%zet)
-         DEALLOCATE (gto_basis_set%first_cgf)
-         DEALLOCATE (gto_basis_set%first_sgf)
-         DEALLOCATE (gto_basis_set%l)
-         DEALLOCATE (gto_basis_set%last_cgf)
-         DEALLOCATE (gto_basis_set%last_sgf)
-         DEALLOCATE (gto_basis_set%n)
-         DEALLOCATE (gto_basis_set%gcc)
+         IF (ASSOCIATED(gto_basis_set%cgf_symbol)) DEALLOCATE (gto_basis_set%cgf_symbol)
+         IF (ASSOCIATED(gto_basis_set%sgf_symbol)) DEALLOCATE (gto_basis_set%sgf_symbol)
+         IF (ASSOCIATED(gto_basis_set%norm_cgf)) DEALLOCATE (gto_basis_set%norm_cgf)
+         IF (ASSOCIATED(gto_basis_set%set_radius)) DEALLOCATE (gto_basis_set%set_radius)
+         IF (ASSOCIATED(gto_basis_set%lmax)) DEALLOCATE (gto_basis_set%lmax)
+         IF (ASSOCIATED(gto_basis_set%lmin)) DEALLOCATE (gto_basis_set%lmin)
+         IF (ASSOCIATED(gto_basis_set%lx)) DEALLOCATE (gto_basis_set%lx)
+         IF (ASSOCIATED(gto_basis_set%ly)) DEALLOCATE (gto_basis_set%ly)
+         IF (ASSOCIATED(gto_basis_set%lz)) DEALLOCATE (gto_basis_set%lz)
+         IF (ASSOCIATED(gto_basis_set%m)) DEALLOCATE (gto_basis_set%m)
+         IF (ASSOCIATED(gto_basis_set%ncgf_set)) DEALLOCATE (gto_basis_set%ncgf_set)
+         IF (ASSOCIATED(gto_basis_set%npgf)) DEALLOCATE (gto_basis_set%npgf)
+         IF (ASSOCIATED(gto_basis_set%nsgf_set)) DEALLOCATE (gto_basis_set%nsgf_set)
+         IF (ASSOCIATED(gto_basis_set%nshell)) DEALLOCATE (gto_basis_set%nshell)
+         IF (ASSOCIATED(gto_basis_set%cphi)) DEALLOCATE (gto_basis_set%cphi)
+         IF (ASSOCIATED(gto_basis_set%pgf_radius)) DEALLOCATE (gto_basis_set%pgf_radius)
+         IF (ASSOCIATED(gto_basis_set%sphi)) DEALLOCATE (gto_basis_set%sphi)
+         IF (ASSOCIATED(gto_basis_set%scon)) DEALLOCATE (gto_basis_set%scon)
+         IF (ASSOCIATED(gto_basis_set%zet)) DEALLOCATE (gto_basis_set%zet)
+         IF (ASSOCIATED(gto_basis_set%first_cgf)) DEALLOCATE (gto_basis_set%first_cgf)
+         IF (ASSOCIATED(gto_basis_set%first_sgf)) DEALLOCATE (gto_basis_set%first_sgf)
+         IF (ASSOCIATED(gto_basis_set%l)) DEALLOCATE (gto_basis_set%l)
+         IF (ASSOCIATED(gto_basis_set%last_cgf)) DEALLOCATE (gto_basis_set%last_cgf)
+         IF (ASSOCIATED(gto_basis_set%last_sgf)) DEALLOCATE (gto_basis_set%last_sgf)
+         IF (ASSOCIATED(gto_basis_set%n)) DEALLOCATE (gto_basis_set%n)
+         IF (ASSOCIATED(gto_basis_set%gcc)) DEALLOCATE (gto_basis_set%gcc)
          DEALLOCATE (gto_basis_set)
       END IF
    END SUBROUTINE deallocate_gto_basis_set

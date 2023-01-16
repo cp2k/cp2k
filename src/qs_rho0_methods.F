@@ -75,15 +75,15 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param mp_gau ...
-!> \param orb_basis ...
+!> \param basis_1c ...
 !> \param harmonics ...
 !> \param nchannels ...
 !> \param nsotot ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_mpole_gau(mp_gau, orb_basis, harmonics, nchannels, nsotot)
+   SUBROUTINE calculate_mpole_gau(mp_gau, basis_1c, harmonics, nchannels, nsotot)
 
       TYPE(mpole_gau_overlap)                            :: mp_gau
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       INTEGER, INTENT(IN)                                :: nchannels, nsotot
 
@@ -104,7 +104,7 @@ CONTAINS
 
       CALL reallocate(mp_gau%Qlm_gg, 1, nsotot, 1, nsotot, 1, nchannels)
 
-      CALL get_gto_basis_set(gto_basis_set=orb_basis, &
+      CALL get_gto_basis_set(gto_basis_set=basis_1c, &
                              lmax=lmax, lmin=lmin, maxso=maxso, &
                              npgf=npgf, nset=nset, zet=zet, maxl=maxl)
 
@@ -364,7 +364,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(grid_atom_type), POINTER                      :: grid_atom
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(rho0_atom_type), DIMENSION(:), POINTER        :: rho0_atom_set
@@ -380,7 +380,7 @@ CONTAINS
       NULLIFY (qs_kind_set)
       NULLIFY (atomic_kind_set)
       NULLIFY (harmonics)
-      NULLIFY (orb_basis)
+      NULLIFY (basis_1c)
       NULLIFY (rho0_mpole)
       NULLIFY (rho0_atom_set)
       NULLIFY (rhoz_set)
@@ -419,7 +419,6 @@ CONTAINS
       DO ikind = 1, nkind
          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=nat)
          CALL get_qs_kind(qs_kind_set(ikind), &
-                          basis_set=orb_basis, &
                           ngrid_rad=nr, &
                           grid_atom=grid_atom, &
                           harmonics=harmonics, &
@@ -427,11 +426,13 @@ CONTAINS
                           hard0_radius=rc_orb, &
                           zeff=zeff, &
                           alpha_core_charge=alpha_core)
+         CALL get_qs_kind(qs_kind_set(ikind), &
+                          basis_set=basis_1c, basis_type="GAPW_1C")
 
          ! Set charge distribution of ionic cores to zero when computing the response-density
          IF (tddft) zeff = 0.0_dp
 
-         CALL get_gto_basis_set(gto_basis_set=orb_basis, &
+         CALL get_gto_basis_set(gto_basis_set=basis_1c, &
                                 maxl=maxl, &
                                 maxso=maxso, nset=nset)
 
@@ -468,7 +469,7 @@ CONTAINS
          IF (paw_atom) THEN
             ! Calculate multipoles given by the product of 2 primitives Qlm_gg
             CALL calculate_mpole_gau(rho0_mpole%mp_gau(ikind), &
-                                     orb_basis, harmonics, nchan_s, nsotot)
+                                     basis_1c, harmonics, nchan_s, nsotot)
          END IF
 
          ! Calculate the core density rhoz

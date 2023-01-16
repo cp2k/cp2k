@@ -56,8 +56,9 @@ MODULE qs_ks_utils
         dbcsr_set, dbcsr_type
    USE input_constants,                 ONLY: &
         cdft_alpha_constraint, cdft_beta_constraint, cdft_charge_constraint, &
-        cdft_magnetization_constraint, do_admm_aux_exch_func_none, do_ppl_grid, sic_ad, sic_eo, &
-        sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none
+        cdft_magnetization_constraint, do_admm_aux_exch_func_none, do_admm_exch_scaling_merlot, &
+        do_ppl_grid, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, &
+        sic_none
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -1216,7 +1217,7 @@ CONTAINS
                                                             nspins
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: do_ppl, gapw, gapw_xc, lrigpw, rigpw
-      REAL(dp)                                           :: dvol, sign
+      REAL(KIND=dp)                                      :: csign, dvol, fadm
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -1314,24 +1315,24 @@ CONTAINS
                DO igroup = 1, SIZE(cdft_control%group)
                   SELECT CASE (cdft_control%group(igroup)%constraint_type)
                   CASE (cdft_charge_constraint)
-                     sign = 1.0_dp
+                     csign = 1.0_dp
                   CASE (cdft_magnetization_constraint)
                      IF (ispin == 1) THEN
-                        sign = 1.0_dp
+                        csign = 1.0_dp
                      ELSE
-                        sign = -1.0_dp
+                        csign = -1.0_dp
                      END IF
                   CASE (cdft_alpha_constraint)
-                     sign = 1.0_dp
+                     csign = 1.0_dp
                      IF (ispin == 2) CYCLE
                   CASE (cdft_beta_constraint)
-                     sign = 1.0_dp
+                     csign = 1.0_dp
                      IF (ispin == 1) CYCLE
                   CASE DEFAULT
                      CPABORT("Unknown constraint type.")
                   END SELECT
                   v_rspace_new(ispin)%cr3d = v_rspace_new(ispin)%cr3d &
-                                             + sign*cdft_control%group(igroup)%weight%cr3d* &
+                                             + csign*cdft_control%group(igroup)%weight%cr3d* &
                                              cdft_control%strength(igroup)
                END DO
             END IF
@@ -1583,14 +1584,22 @@ CONTAINS
                      task_list => admm_env%admm_gapw_env%task_list
                      basis_type = "AUX_FIT_SOFT"
                   END IF
+                  fadm = 1.0_dp
+                  ! Calculate bare scaling of force according to Merlot, 1. IF: ADMMP, 2. IF: ADMMS,
+                  IF ((.NOT. admm_env%charge_constrain) .AND. &
+                      (admm_env%scaling_model == do_admm_exch_scaling_merlot)) THEN
+                     fadm = admm_env%gsi(ispin)**2
+                  ELSE IF (admm_env%charge_constrain .AND. &
+                           (admm_env%scaling_model == do_admm_exch_scaling_merlot)) THEN
+                     fadm = (admm_env%gsi(ispin))**(2.0_dp/3.0_dp)
+                  END IF
 
                   CALL integrate_v_rspace(v_rspace=v_rspace_new_aux_fit(ispin), &
                                           pmat=rho_ao_aux(ispin), &
                                           hmat=matrix_ks_aux_fit(ispin), &
                                           qs_env=qs_env, &
                                           calculate_forces=calculate_forces, &
-                                          force_adm=.TRUE., &
-                                          ispin=ispin, &
+                                          force_adm=fadm, &
                                           gapw=.FALSE., & !even if actual GAPW calculation, want to use AUX_FIT_SOFT
                                           basis_type=basis_type, &
                                           task_list_external=task_list)
