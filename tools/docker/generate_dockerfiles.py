@@ -402,7 +402,7 @@ WORKDIR ./build
 RUN /bin/bash -c " \
     echo 'Compiling cp2k...' && \
     source /opt/cp2k-toolchain/install/setup && \
-    cmake -DCP2K_USE_VORI=ON -DCP2K_USE_COSMA=ON -DCP2K_USE_LIBXSMM=ON -DCP2K_BLAS_VENDOR=OpenBLAS -DCP2K_USE_SPGLIB=ON -DCP2K_USE_LIBINT2=ON -DCP2K_USE_LIBXC=ON .. && \
+    cmake -DCP2K_USE_VORI=ON -DCP2K_USE_COSMA=NO -DCP2K_USE_LIBXSMM=ON -DCP2K_BLAS_VENDOR=OpenBLAS -DCP2K_USE_SPGLIB=ON -DCP2K_USE_LIBINT2=ON -DCP2K_USE_LIBXC=ON .. && \
     make -j"
 COPY ./data ./data
 COPY ./tests ./tests
