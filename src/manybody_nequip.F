@@ -369,7 +369,6 @@ CONTAINS
           displ_cell(ipair) = displ_cell(ipair - 1) + edge_count_cell(ipair - 1)
       END DO
 
-      WRITE(*, *) "torch_cuda_is_available ", torch_cuda_is_available()
       IF (torch_cuda_is_available())  THEN
           CALL mp_gatherv(temp_edge_cell_shifts, edge_cell_shifts, edge_count_cell, displ_cell, para_env%source, &
                       para_env%group)
