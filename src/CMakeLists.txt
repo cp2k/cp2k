@@ -198,6 +198,7 @@ list(
   grid/grid_api.F
   group_dist_types.F
   grrm_utils.F
+  gapw_1c_basis_set.F
   hartree_local_methods.F
   hartree_local_types.F
   header.F
@@ -384,6 +385,7 @@ list(
   optimize_embedding_potential.F
   optimize_input.F
   outer_scf_control_types.F
+  paw_proj_set_types.F
   pair_potential_coulomb.F
   pair_potential.F
   pair_potential_types.F
@@ -808,6 +810,7 @@ list(
   aobasis/orbital_pointers.F
   aobasis/orbital_symbols.F
   aobasis/orbital_transformation_matrices.F
+  aobasis/paw_basis_types.F
   aobasis/soft_basis_set.F
   aobasis/sto_ng.F)
 
