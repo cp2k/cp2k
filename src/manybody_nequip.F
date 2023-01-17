@@ -31,11 +31,12 @@ MODULE manybody_nequip
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE util,                            ONLY: sort
    USE physcon,                         ONLY: angstrom, evolt
-   USE message_passing,                 ONLY: mp_sum, mp_allgather, mp_gatherv, mp_bcast
+   USE message_passing,                 ONLY: mp_sum, mp_allgather, mp_gatherv, mp_bcast, &
+                                              mp_allgather
    USE torch_api,                       ONLY: &
         torch_cuda_is_available, torch_dict_create, torch_dict_get, torch_dict_insert, &
         torch_dict_release, torch_dict_type, torch_model_eval, torch_model_load, &
-        torch_model_read_metadata, torch_model_release, torch_model_type
+        torch_model_read_metadata, torch_model_release, torch_model_type 
 
 #include "./base/base_uses.f90"
 
@@ -340,7 +341,6 @@ CONTAINS
          END DO Kind_Group_Loop_Nequip
       END DO
 
-
       ALLOCATE (edge_count(para_env%num_pe))
       ALLOCATE (edge_count_cell(para_env%num_pe))
       ALLOCATE (displ_cell(para_env%num_pe))
@@ -358,6 +358,7 @@ CONTAINS
 
       ALLOCATE (edge_index(2, nedges_tot))
       ALLOCATE (edge_cell_shifts(3, nedges_tot))
+      ALLOCATE(t_edge_index(nedges_tot, 2))
 
       edge_count_cell = edge_count*3
       edge_count = edge_count*2
@@ -368,19 +369,22 @@ CONTAINS
           displ_cell(ipair) = displ_cell(ipair - 1) + edge_count_cell(ipair - 1)
       END DO
 
-      CALL mp_gatherv(temp_edge_cell_shifts, edge_cell_shifts, edge_count_cell, displ_cell, para_env%source, &
+      WRITE(*, *) "torch_cuda_is_available ", torch_cuda_is_available()
+      IF (torch_cuda_is_available())  THEN
+          CALL mp_gatherv(temp_edge_cell_shifts, edge_cell_shifts, edge_count_cell, displ_cell, para_env%source, &
                       para_env%group)
-
-      ALLOCATE(t_edge_index(nedges_tot, 2))
-
-      CALL mp_gatherv(temp_edge_index, edge_index, edge_count, displ, para_env%source, para_env%group)
+          CALL mp_gatherv(temp_edge_index, edge_index, edge_count, displ, para_env%source, para_env%group)
+      ELSE
+          CALL mp_allgather(temp_edge_cell_shifts, edge_cell_shifts, edge_count_cell, displ_cell, para_env%group)
+          CALL mp_allgather(temp_edge_index, edge_index, edge_count, displ, para_env%group)
+      END IF
 
       t_edge_index = TRANSPOSE(edge_index)
       DEALLOCATE(temp_edge_index, temp_edge_cell_shifts, edge_index)
 
       lattice = cell%hmat/pot%set(1)%nequip%unit_cell_val
 
-      IF (para_env%mepos .EQ. 0) THEN
+      IF ((para_env%mepos .EQ. 0) .OR. (.NOT. torch_cuda_is_available())) THEN
       
           iat_use = 0
           ALLOCATE (pos(3, n_atoms_use), atom_types(n_atoms_use))
@@ -455,8 +459,10 @@ CONTAINS
          END IF
       END DO
 
-      CALL mp_bcast(pot_nequip, para_env%source, para_env%group)
-      CALL mp_bcast(forces, para_env%source, para_env%group)
+      IF (torch_cuda_is_available()) THEN
+          CALL mp_bcast(pot_nequip, para_env%source, para_env%group)
+          CALL mp_bcast(forces, para_env%source, para_env%group)
+      END IF
 
       ! account for double counting from multiple MPI processes
       IF (PRESENT(para_env)) pot_nequip = pot_nequip/REAL(para_env%num_pe, dp)

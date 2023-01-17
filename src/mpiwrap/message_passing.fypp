@@ -2566,6 +2566,53 @@
 !> \par MPI mapping
 !>      mpi_allgather
 ! **************************************************************************************************
+   SUBROUTINE mp_allgatherv_${nametype1}$m2(msgout, msgin, rcount, rdispl, gid)
+      ${type1}$, CONTIGUOUS, INTENT(IN)                      :: msgout(:, :)
+      ${type1}$, CONTIGUOUS, INTENT(OUT)                     :: msgin(:, :)
+      INTEGER, CONTIGUOUS, INTENT(IN)                      :: rcount(:), rdispl(:)
+      TYPE(mp_comm_type), INTENT(IN) :: gid
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_allgatherv_${nametype1}$v'
+
+      INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+      INTEGER                                  :: scount
+#endif
+
+      ierr = 0
+      CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+      scount = SIZE(msgout)
+      CALL MPI_ALLGATHERV(msgout, scount, ${mpi_type1}$, msgin, rcount, &
+                          rdispl, ${mpi_type1}$, gid%handle, ierr)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allgatherv @ "//routineN)
+#else
+      MARK_USED(rcount)
+      MARK_USED(rdispl)
+      MARK_USED(gid)
+      msgin = msgout
+#endif
+      CALL mp_timestop(handle)
+   END SUBROUTINE mp_allgatherv_${nametype1}$m2
+
+! **************************************************************************************************
+!> \brief Gathers vector data from all processes and all processes receive the
+!>        same data
+!> \param[in] msgout          Rank-1 data to send
+!> \param[out] msgin          Received data
+!> \param[in] rcount          Size of sent data for every process
+!> \param[in] rdispl          Offset of sent data for every process
+!> \param[in] gid             Message passing environment identifier
+!> \par Data size
+!>      Processes can send different-sized data
+!> \par Ranks
+!>      The last rank counts the processes
+!> \par Offsets
+!>      Offsets are from 0
+!> \par MPI mapping
+!>      mpi_allgather
+! **************************************************************************************************
    SUBROUTINE mp_iallgatherv_${nametype1}$v(msgout, msgin, rcount, rdispl, gid, request)
       ${type1}$, INTENT(IN)                      :: msgout(:)
       ${type1}$, INTENT(OUT)                     :: msgin(:)
