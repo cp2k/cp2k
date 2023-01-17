@@ -5,8 +5,8 @@
 #      for details see cp2k/tools/do_regtest
 h2o_lri.inp                                           87      1e-05             0.222165614960E+02
 h2o_pade_fd.inp                                       87      1e-05             0.168333363169E+02
-h2o_hfx.inp                                           87      1e-05             0.155040875037E+02
+h2o_hfx.inp                                           87      1e-05             0.106990197203E+02
 h2o_hfx_admm.inp                                      87      1e-05             0.153251090463E+02
-h2o_admm_gapw.inp                                     87      1e-05             0.165414714809E+02
-h2o_admm_x.inp                                        87      1e-05             0.165835444154E+02
+h2o_admm_gapw.inp                                     87      1e-05             0.108571964857E+02
+h2o_admm_x.inp                                        87      1e-05             0.108790445340E+02
 #EOF

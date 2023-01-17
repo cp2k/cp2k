@@ -23,7 +23,7 @@
       ADMM_PURIFICATION_METHOD NONE
     &END
     &MGRID
-      CUTOFF  200
+      CUTOFF  100
       REL_CUTOFF  30
     &END MGRID
     &POISSON
@@ -32,7 +32,7 @@
     &END POISSON
     &QS
       METHOD GPW
-      EPS_DEFAULT 1.0E-12
+      EPS_DEFAULT 1.0E-11
     &END QS
     &SCF
       SCF_GUESS ATOMIC
@@ -50,17 +50,17 @@
       &HF
          FRACTION 0.25
          &SCREENING
-           EPS_SCHWARZ 1.0E-8
+           EPS_SCHWARZ 1.0E-7
          &END SCREENING
       &END HF
       &WF_CORRELATION
         &RI_RPA
-          QUADRATURE_POINTS  3
+          QUADRATURE_POINTS  2
           ADMM
           &HF
             FRACTION 1.0000000
             &SCREENING
-              EPS_SCHWARZ 1.0E-8
+              EPS_SCHWARZ 1.0E-7
             &END SCREENING
           &END HF
         &END
@@ -82,7 +82,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  6.000   6.000   6.000
+      ABC [angstrom]  5.000   5.000   5.000
       PERIODIC NONE
     &END CELL
     &KIND H

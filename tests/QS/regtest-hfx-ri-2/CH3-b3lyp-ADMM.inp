@@ -7,7 +7,7 @@
         AUTO_BASIS RI_HFX SMALL
         LSD
         &MGRID
-            CUTOFF 200
+            CUTOFF 100
             REL_CUTOFF 30
         &END MGRID
         &QS
@@ -41,7 +41,7 @@
     &END DFT
     &SUBSYS
         &CELL
-            ABC 8.0 8.0 8.0
+            ABC 5.0 5.0 5.0
             PERIODIC NONE
         &END CELL
         &COORD
@@ -51,12 +51,12 @@
             H      -0.9291 -0.5364 0.0000
         &END COORD
         &KIND H
-            BASIS_SET DZVP-MOLOPT-GTH
+            BASIS_SET SZV-MOLOPT-GTH
             BASIS_SET AUX_FIT FIT3
             POTENTIAL GTH-HYB-q1
         &END KIND
         &KIND C
-            BASIS_SET DZVP-MOLOPT-GTH
+            BASIS_SET SZV-MOLOPT-GTH
             BASIS_SET AUX_FIT FIT3
             POTENTIAL GTH-HYB-q4
         &END KIND

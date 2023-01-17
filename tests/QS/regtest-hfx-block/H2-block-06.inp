@@ -25,7 +25,7 @@
       &END XC_FUNCTIONAL
       &HF
         &SCREENING
-          EPS_SCHWARZ 1.0E-15
+          EPS_SCHWARZ 1.0E-10
         &END
         &MEMORY
           MAX_MEMORY  0

@@ -18,7 +18,7 @@ H2O_tddfpt_NTO.inp                                    37    4.0E-06             
 #
 H2O_GAPW_1.inp                                        37    4.0E-06                   0.543793E+00
 H2O_GAPW_2.inp                                        37    4.0E-06                   0.586179E+00
-H2O_GAPW_3.inp                                        37    4.0E-06                   0.593063E+00
+H2O_GAPW_3.inp                                        37    4.0E-06                   0.590838E+00
 H2O_GAPW_4.inp                                        37    4.0E-06                   0.619386E+00
 H2O_GAPW_XC_1.inp                                     37    4.0E-06                   0.619451E+00
 H2O_GAPW_XC_2.inp                                     37    4.0E-06                   0.812642E+00

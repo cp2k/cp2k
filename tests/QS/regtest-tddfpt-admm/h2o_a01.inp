@@ -11,7 +11,7 @@
        &END XC
        NSTATES      2
        MAX_ITER    50
-       CONVERGENCE [eV] 1.0e-7
+       CONVERGENCE [eV] 1.0e-6
        RKS_TRIPLETS F
     &END TDDFPT
   &END PROPERTIES
@@ -38,17 +38,17 @@
       &END
       &OUTER_SCF
          MAX_SCF  20
-         EPS_SCF 1.0E-7
+         EPS_SCF 1.0E-6
       &END
       MAX_SCF  50
-      EPS_SCF 1.0E-7
+      EPS_SCF 1.0E-6
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE0
       &END XC_FUNCTIONAL
     &END XC
     &MGRID
-       CUTOFF  300
+       CUTOFF  100
        REL_CUTOFF  60
     &END
     &POISSON

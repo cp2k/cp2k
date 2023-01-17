@@ -15,13 +15,13 @@
 
 @SET xc_functional  pade
 
-@SET cutoff         300
+@SET cutoff         100
 @SET added_mos      100
 @SET max_scf        50
-@SET eps_scf        1e-5
+@SET eps_scf        1e-4
 
-@SET lx             6.0
-@SET ly             6.0
+@SET lx             5.0
+@SET ly             5.0
 
 &GLOBAL
   PROJECT              ${project}

@@ -6,7 +6,7 @@
        ADMM_KERNEL_CORRECTION_SYMMETRIC
        NSTATES      1
        MAX_ITER    50
-       CONVERGENCE [eV] 1.0e-7
+       CONVERGENCE [eV] 1.0e-4
        RKS_TRIPLETS F
     &END TDDFPT
   &END PROPERTIES
@@ -30,10 +30,10 @@
       &END
       &OUTER_SCF
          MAX_SCF  10
-         EPS_SCF 1.0E-7
+         EPS_SCF 1.0E-5
       &END
       MAX_SCF  50
-      EPS_SCF 1.0E-7
+      EPS_SCF 1.0E-5
     &END SCF
     &XC
       &XC_FUNCTIONAL NONE
@@ -41,12 +41,12 @@
       &HF
         FRACTION 1.0
         &RI
-           EPS_FILTER 1.0E-12
+           EPS_FILTER 1.0E-9
         &END
       &END
     &END XC
     &MGRID
-       CUTOFF  360
+       CUTOFF  100
        REL_CUTOFF  60
     &END
     &POISSON
@@ -69,12 +69,12 @@
      &END
     &END
     &KIND H
-      BASIS_SET DZV-GTH-PADE
+      BASIS_SET SZV-GTH-PADE
       BASIS_SET AUX_FIT FIT3
       POTENTIAL GTH-PADE-q1
     &END KIND
     &KIND O
-      BASIS_SET DZVP-GTH-PADE
+      BASIS_SET SZV-GTH-PADE
       BASIS_SET AUX_FIT FIT3
       POTENTIAL GTH-PADE-q6
     &END KIND
