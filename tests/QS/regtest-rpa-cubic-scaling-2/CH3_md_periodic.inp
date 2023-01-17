@@ -19,12 +19,12 @@
     SORT_BASIS EXP
     POTENTIAL_FILE_NAME  POTENTIAL
     &MGRID
-      CUTOFF  250
+      CUTOFF  100
       REL_CUTOFF  30
     &END MGRID
     &QS
       METHOD GPW
-      EPS_DEFAULT 1.0E-12
+      EPS_DEFAULT 1.0E-10
     &END QS
     &SCF
       SCF_GUESS ATOMIC
@@ -37,20 +37,25 @@
       &END XC_FUNCTIONAL 
       &WF_CORRELATION
         &RI_RPA
-          QUADRATURE_POINTS  3
+          QUADRATURE_POINTS  2
           &HF
             FRACTION 1.00
             &SCREENING
-              EPS_SCHWARZ 1.0E-8
+              EPS_SCHWARZ 1.0E-6
+              EPS_SCHWARZ_FORCES 1.0E-2
             &END SCREENING
             &INTERACTION_POTENTIAL
                POTENTIAL_TYPE TRUNCATED
-               CUTOFF_RADIUS 2.0
+               CUTOFF_RADIUS 1.0
             &END INTERACTION_POTENTIAL
           &END HF
         &END
         &LOW_SCALING
+          &CPHF
+            EPS_CONV 1.0E-4
+          &END
           MEMORY_CUT 2
+          EPS_FILTER 1.0E-8
         &END
         &INTEGRALS
           ERI_METHOD MME

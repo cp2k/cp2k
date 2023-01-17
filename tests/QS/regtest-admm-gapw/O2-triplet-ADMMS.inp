@@ -6,6 +6,9 @@
     POTENTIAL_FILE_NAME GTH_POTENTIALS
     LSD
     MULTIPLICITY 3
+    &MGRID
+      CUTOFF 100
+    &END
     &QS
       METHOD        GAPW
       EPS_DEFAULT   1.0E-12

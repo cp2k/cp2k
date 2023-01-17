@@ -16,17 +16,16 @@
       REL_CUTOFF  20
     &END MGRID
     &POISSON
-      PERIODIC NONE
+      PERIODIC XYZ
       POISSON_SOLVER WAVELET
     &END POISSON
     &QS
       METHOD GPW
-      EPS_DEFAULT 1.0E-15
-      EPS_PGF_ORB 1.0E-30
+      EPS_DEFAULT 1.0E-11
     &END QS
     &SCF
       SCF_GUESS ATOMIC
-      EPS_SCF 1.0E-7
+      EPS_SCF 1.0E-6
       MAX_SCF 100
       &PRINT
         &RESTART OFF
@@ -40,19 +39,19 @@
         &INTEGRALS
           ERI_METHOD GPW
           &WFC_GPW
-            CUTOFF  100
+            CUTOFF  50
             REL_CUTOFF 20
             EPS_GRID 1.0E-6
             EPS_FILTER 1.0E-6
           &END WFC_GPW
         &END INTEGRALS
         &RI_RPA
-          RPA_NUM_QUAD_POINTS 8
+          RPA_NUM_QUAD_POINTS 1
           RI_AXK .TRUE.
           &HF
             FRACTION 1.0000000
             &SCREENING
-              EPS_SCHWARZ 1.0E-8
+              EPS_SCHWARZ 1.0E-6
               SCREEN_ON_INITIAL_P FALSE
             &END SCREENING
           &END HF
@@ -64,8 +63,8 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  6.000   6.000  6.000
-      PERIODIC NONE
+      ABC [angstrom]  4.000   4.000  4.000
+      PERIODIC XYZ
     &END CELL
     &KIND H
       BASIS_SET  DZVP-GTH

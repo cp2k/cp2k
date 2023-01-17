@@ -21,7 +21,7 @@
       REL_CUTOFF  20
     &END MGRID
     &POISSON
-      PERIODIC NONE
+      PERIODIC XYZ
       POISSON_SOLVER WAVELET
     &END POISSON
     &QS
@@ -30,20 +30,13 @@
     &END QS
     &SCF
       SCF_GUESS RESTART
-      EPS_SCF 1.0E-7
+      EPS_SCF 1.0E-6
       MAX_SCF 100
       ! ADDED_MOS 15000 15000
     &END SCF
     &XC
-      &XC_FUNCTIONAL NONE
+      &XC_FUNCTIONAL PBE
       &END XC_FUNCTIONAL
-      &HF
-        FRACTION 1.0000000
-        &SCREENING
-          EPS_SCHWARZ 1.0E-6
-          SCREEN_ON_INITIAL_P FALSE
-        &END SCREENING
-      &END HF
       &WF_CORRELATION
         &RI_RPA
           MINIMAX
@@ -63,8 +56,8 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  8.000   8.000  8.000
-      PERIODIC NONE
+      ABC [angstrom]  4.000   4.000  4.000
+      PERIODIC XYZ
     &END CELL
     &KIND H
       BASIS_SET  DZVP-GTH

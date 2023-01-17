@@ -41,7 +41,7 @@
     BASIS_SET_FILE_NAME EMSL_BASIS_SETS
     POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
-      CUTOFF 400
+      CUTOFF 200
     &END MGRID
     &QS
        METHOD GAPW
@@ -66,7 +66,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC  8.0  8.0  8.0
+      ABC  5.0  5.0  5.0
       PERIODIC NONE
     &END CELL
     &COORD

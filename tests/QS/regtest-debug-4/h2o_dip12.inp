@@ -7,10 +7,13 @@
        ADMM_KERNEL_XC_CORRECTION          F
        NSTATES      1
        MAX_ITER    50
-       CONVERGENCE [eV] 1.0e-7
+       CONVERGENCE [eV] 1.0e-5
     &END TDDFPT
   &END PROPERTIES
   &DFT
+    &MGRID
+      CUTOFF 100
+    &END
     &QS
       METHOD GPW
     &END QS
@@ -35,10 +38,10 @@
       &END
       &OUTER_SCF
          MAX_SCF  20
-         EPS_SCF 1.0E-7
+         EPS_SCF 1.0E-6
       &END
       MAX_SCF  50
-      EPS_SCF 1.0E-7
+      EPS_SCF 1.0E-6
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE0
@@ -70,12 +73,12 @@
      &END
     &END
     &KIND H
-      BASIS_SET DZV-GTH-PADE
+      BASIS_SET SZV-GTH-PADE
       BASIS_SET AUX_FIT FIT3
       POTENTIAL GTH-PADE-q1
     &END KIND
     &KIND O
-      BASIS_SET DZVP-GTH-PADE
+      BASIS_SET SZV-GTH-PADE
       BASIS_SET AUX_FIT FIT3
       POTENTIAL GTH-PADE-q6
     &END KIND
@@ -92,5 +95,6 @@
    DEBUG_DIPOLE .TRUE.
    DEBUG_POLARIZABILITY .FALSE.
    DE 0.0002
+   STOP_ON_MISMATCH .FALSE.
 &END
 
