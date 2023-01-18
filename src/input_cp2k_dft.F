@@ -2881,6 +2881,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="MIN_PAIR_LIST_RADIUS", &
+                          description="Set the minimum value [Bohr] for the overlap pair list radius."// &
+                          " Default is 0.0 Bohr, negative values are changed to the cell size."// &
+                          " This allows to control the sparsity of the KS matrix for HFX calculations.", &
+                          usage="MIN_PAIR_LIST_RADIUS real", default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       ! Logicals
       CALL keyword_create(keyword, __LOCATION__, name="LS_SCF", &
                           description="Perform a linear scaling SCF", &

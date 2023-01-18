@@ -26,9 +26,11 @@ MODULE hfx_admm_utils
    USE basis_set_types,                 ONLY: copy_gto_basis_set,&
                                               get_gto_basis_set,&
                                               gto_basis_set_type
-   USE cell_types,                      ONLY: cell_type
+   USE cell_types,                      ONLY: cell_type,&
+                                              plane_distance
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_m_by_n_from_row_template,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
@@ -390,7 +392,7 @@ CONTAINS
       INTEGER                                            :: handle, ikind, nkind
       LOGICAL                                            :: mic, molecule_only
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: aux_fit_present, orb_present
-      REAL(dp)                                           :: subcells
+      REAL(dp)                                           :: pdist, subcells
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: aux_fit_radius, orb_radius
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: pair_radius
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -431,6 +433,8 @@ CONTAINS
          mic = .TRUE.
       END IF
 
+      pdist = dft_control%qs_control%pairlist_radius
+
       CALL section_vals_val_get(qs_env%input, "DFT%SUBCELLS", r_val=subcells)
       neighbor_list_section => section_vals_get_subs_vals(qs_env%input, "DFT%PRINT%NEIGHBOR_LISTS")
 
@@ -456,7 +460,12 @@ CONTAINS
          END IF
       END DO
 
-      CALL pair_radius_setup(aux_fit_present, aux_fit_present, aux_fit_radius, aux_fit_radius, pair_radius)
+      IF (pdist < 0.0_dp) THEN
+         pdist = MAX(plane_distance(1, 0, 0, cell), &
+                     plane_distance(0, 1, 0, cell), &
+                     plane_distance(0, 0, 1, cell))
+      END IF
+      CALL pair_radius_setup(aux_fit_present, aux_fit_present, aux_fit_radius, aux_fit_radius, pair_radius, pdist)
       CALL build_neighbor_lists(admm_env%sab_aux_fit, particle_set, atom2d, cell, pair_radius, &
                                 mic=mic, molecular=molecule_only, subcells=subcells, nlname="sab_aux_fit")
       CALL build_neighbor_lists(admm_env%sab_aux_fit_asymm, particle_set, atom2d, cell, pair_radius, &
@@ -671,7 +680,7 @@ CONTAINS
          ALLOCATE (admm_env%matrix_ks_aux_fit(ispin)%matrix)
          CALL dbcsr_create(admm_env%matrix_ks_aux_fit(ispin)%matrix, template=matrix_s_aux_fit(1)%matrix, &
                            name="KOHN-SHAM_MATRIX for ADMM")
-         CALL dbcsr_copy(admm_env%matrix_ks_aux_fit(ispin)%matrix, matrix_s_aux_fit(1)%matrix)
+         CALL cp_dbcsr_alloc_block_from_nbl(admm_env%matrix_ks_aux_fit(ispin)%matrix, admm_env%sab_aux_fit)
          CALL dbcsr_set(admm_env%matrix_ks_aux_fit(ispin)%matrix, 0.0_dp)
       END DO
 
@@ -681,7 +690,7 @@ CONTAINS
          ALLOCATE (admm_env%matrix_ks_aux_fit_dft(ispin)%matrix)
          CALL dbcsr_create(admm_env%matrix_ks_aux_fit_dft(ispin)%matrix, template=matrix_s_aux_fit(1)%matrix, &
                            name="KOHN-SHAM_MATRIX for ADMM")
-         CALL dbcsr_copy(admm_env%matrix_ks_aux_fit_dft(ispin)%matrix, matrix_s_aux_fit(1)%matrix)
+         CALL cp_dbcsr_alloc_block_from_nbl(admm_env%matrix_ks_aux_fit_dft(ispin)%matrix, admm_env%sab_aux_fit)
          CALL dbcsr_set(admm_env%matrix_ks_aux_fit_dft(ispin)%matrix, 0.0_dp)
       END DO
 
@@ -691,7 +700,7 @@ CONTAINS
          ALLOCATE (admm_env%matrix_ks_aux_fit_hfx(ispin)%matrix)
          CALL dbcsr_create(admm_env%matrix_ks_aux_fit_hfx(ispin)%matrix, template=matrix_s_aux_fit(1)%matrix, &
                            name="KOHN-SHAM_MATRIX for ADMM")
-         CALL dbcsr_copy(admm_env%matrix_ks_aux_fit_hfx(ispin)%matrix, matrix_s_aux_fit(1)%matrix)
+         CALL cp_dbcsr_alloc_block_from_nbl(admm_env%matrix_ks_aux_fit_hfx(ispin)%matrix, admm_env%sab_aux_fit)
          CALL dbcsr_set(admm_env%matrix_ks_aux_fit_hfx(ispin)%matrix, 0.0_dp)
       END DO
 

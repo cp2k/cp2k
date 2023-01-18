@@ -754,6 +754,8 @@ CONTAINS
       CALL section_vals_val_get(qs_section, "FORCE_PAW", l_val=qs_control%gapw_control%force_paw)
       CALL section_vals_val_get(qs_section, "MAX_RAD_LOCAL", r_val=qs_control%gapw_control%max_rad_local)
 
+      CALL section_vals_val_get(qs_section, "MIN_PAIR_LIST_RADIUS", r_val=qs_control%pairlist_radius)
+
       CALL section_vals_val_get(qs_section, "LS_SCF", l_val=qs_control%do_ls_scf)
       CALL section_vals_val_get(qs_section, "ALMO_SCF", l_val=qs_control%do_almo_scf)
       CALL section_vals_val_get(qs_section, "KG_METHOD", l_val=qs_control%do_kg)
