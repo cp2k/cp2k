@@ -18,8 +18,8 @@ MODULE qs_linres_types
    USE cp_array_utils,                  ONLY: cp_2d_i_p_type,&
                                               cp_2d_r_p_type
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release
+   USE cp_fm_types,                     ONLY: cp_fm_release,&
+                                              cp_fm_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_type
    USE kinds,                           ONLY: dp
@@ -110,14 +110,14 @@ MODULE qs_linres_types
       REAL(dp), DIMENSION(:, :), POINTER           :: basisfun_center => NULL()
       TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER :: center_list => NULL()
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER :: centers_set => NULL()
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER :: psi1_p => NULL(), psi1_rxp => NULL(), psi1_D => NULL(), &
-                                                      p_psi0 => NULL(), rxp_psi0 => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER :: psi1_p => NULL(), psi1_rxp => NULL(), psi1_D => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER :: p_psi0 => NULL(), rxp_psi0 => NULL()
       TYPE(jrho_atom_type), DIMENSION(:), POINTER :: jrho1_atom_set => NULL()
       TYPE(qs_rho_p_type), DIMENSION(:), POINTER :: jrho1_set => NULL()
       TYPE(realspace_grid_type), DIMENSION(:), POINTER :: rs_buf => NULL()
       TYPE(realspace_grid_type), DIMENSION(:, :), POINTER :: rs_gauge => NULL()
       !
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: psi0_order => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: psi0_order => NULL()
    END TYPE current_env_type
 
 !*********************************************************************************************************
@@ -125,7 +125,7 @@ MODULE qs_linres_types
    TYPE polar_env_type
       LOGICAL                                      :: do_raman, run_stopped, do_periodic
       REAL(dp), DIMENSION(:, :), POINTER           :: polar
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER :: psi1_dBerry, dBerry_psi0
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER :: psi1_dBerry, dBerry_psi0
    END TYPE polar_env_type
 ! *********************************************************************************************************
 
@@ -136,10 +136,10 @@ MODULE qs_linres_types
       LOGICAL                             :: do_fc, do_sd, do_pso, do_dso
       REAL(dp)                            :: issc_gapw_radius, issc_factor, issc_factor_gapw
       REAL(dp), DIMENSION(:, :, :, :, :), POINTER :: issc => NULL(), issc_loc => NULL()
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER :: psi1_efg => NULL(), psi1_pso => NULL(), efg_psi0 => NULL(), &
-                                                      pso_psi0 => NULL(), dso_psi0 => NULL(), psi1_dso => NULL()
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: psi1_fc => NULL()
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: fc_psi0 => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER :: psi1_efg => NULL(), psi1_pso => NULL(), psi1_dso => NULL(), &
+                                                    efg_psi0 => NULL(), pso_psi0 => NULL(), dso_psi0 => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: psi1_fc => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: fc_psi0 => NULL()
   TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_efg => NULL(), matrix_pso => NULL(), matrix_dso => NULL(), matrix_fc => NULL()
    END TYPE issc_env_type
 
@@ -217,8 +217,9 @@ MODULE qs_linres_types
                                                       matrix_difdip => NULL()
       REAL(dp), DIMENSION(:, :), POINTER :: deltaR => NULL(), delta_basis_function => NULL()
       REAL(dp), DIMENSION(:, :, :, :), POINTER :: apt_subset => NULL(), apt_at_dcdr_per_center => NULL()
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: mo_coeff => NULL(), dCR => NULL(), dCR_prime => NULL(), &
-                                                   op_dR => NULL(), chc => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: mo_coeff => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: dCR => NULL(), dCR_prime => NULL(), &
+                                                 op_dR => NULL(), chc => NULL()
 
       CHARACTER(LEN=30) :: orb_center_name
       TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER :: center_list => NULL()
@@ -453,7 +454,7 @@ CONTAINS
          POINTER                                         :: center_list
       TYPE(cp_2d_r_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: centers_set
-      TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
+      TYPE(cp_fm_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: psi1_p, psi1_rxp, psi1_D, p_psi0, &
                                                             rxp_psi0
       TYPE(jrho_atom_type), DIMENSION(:), OPTIONAL, &
@@ -466,8 +467,7 @@ CONTAINS
       TYPE(realspace_grid_type), DIMENSION(:, :), &
          OPTIONAL, POINTER                               :: rs_gauge
       LOGICAL, OPTIONAL                                  :: use_old_gauge_atom, chi_pbc
-      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: psi0_order
+      TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: psi0_order
 
       IF (PRESENT(simple_done)) simple_done(1:6) = current_env%simple_done(1:6)
       IF (PRESENT(simple_converged)) simple_converged(1:6) = current_env%simple_converged(1:6)
@@ -582,14 +582,12 @@ CONTAINS
       REAL(dp), DIMENSION(:, :, :, :, :), OPTIONAL, &
          POINTER                                         :: issc
       LOGICAL, OPTIONAL                                  :: interpolate_issc
-      TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
+      TYPE(cp_fm_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: psi1_efg, psi1_pso, psi1_dso
-      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: psi1_fc
-      TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
+      TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: psi1_fc
+      TYPE(cp_fm_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: efg_psi0, pso_psi0, dso_psi0
-      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: fc_psi0
+      TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: fc_psi0
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_efg, matrix_pso, matrix_dso, &
                                                             matrix_fc
@@ -1350,10 +1348,10 @@ CONTAINS
 
       TYPE(polar_env_type), INTENT(IN)                   :: polar_env
       LOGICAL, OPTIONAL                                  :: do_raman, do_periodic
-      TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
+      TYPE(cp_fm_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: dBerry_psi0
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: polar
-      TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
+      TYPE(cp_fm_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: psi1_dBerry
       LOGICAL, OPTIONAL                                  :: run_stopped
 
@@ -1381,10 +1379,10 @@ CONTAINS
 
       TYPE(polar_env_type), INTENT(INOUT)                :: polar_env
       LOGICAL, OPTIONAL                                  :: do_raman, do_periodic
-      TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
+      TYPE(cp_fm_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: dBerry_psi0
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: polar
-      TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
+      TYPE(cp_fm_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: psi1_dBerry
       LOGICAL, OPTIONAL                                  :: run_stopped
 
@@ -1416,8 +1414,7 @@ CONTAINS
          IF (ASSOCIATED(polar_env%dBerry_psi0)) THEN
             DO idir = 1, SIZE(polar_env%dBerry_psi0, 1)
                DO ispin = 1, SIZE(polar_env%dBerry_psi0, 2)
-                  CALL cp_fm_release(polar_env%dBerry_psi0(idir, ispin)%matrix)
-                  DEALLOCATE (polar_env%dBerry_psi0(idir, ispin)%matrix)
+                  CALL cp_fm_release(polar_env%dBerry_psi0(idir, ispin))
                END DO
             END DO
             DEALLOCATE (polar_env%dBerry_psi0)
@@ -1425,8 +1422,7 @@ CONTAINS
          IF (ASSOCIATED(polar_env%psi1_dBerry)) THEN
             DO idir = 1, SIZE(polar_env%psi1_dBerry, 1)
                DO ispin = 1, SIZE(polar_env%psi1_dBerry, 2)
-                  CALL cp_fm_release(polar_env%psi1_dBerry(idir, ispin)%matrix)
-                  DEALLOCATE (polar_env%psi1_dBerry(idir, ispin)%matrix)
+                  CALL cp_fm_release(polar_env%psi1_dBerry(idir, ispin))
                END DO
             END DO
             DEALLOCATE (polar_env%psi1_dBerry)

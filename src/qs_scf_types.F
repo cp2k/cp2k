@@ -13,8 +13,7 @@
 ! **************************************************************************************************
 MODULE qs_scf_types
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
-   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release,&
+   USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix,&
@@ -74,11 +73,11 @@ MODULE qs_scf_types
       LOGICAL :: always_check_conv
       REAL(dp) :: eps_std_diag, eps_conv, eps_adapt, max_res_norm, min_res_norm
       REAL(dp), DIMENSION(:), POINTER :: c_eval, t_eval
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: v_mat, mo_conv, mo_refine
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: v_mat, mo_conv, mo_refine
       TYPE(cp_fm_type), POINTER ::  tmp_mat
       !NOTE: the following matrices are small and could be used as standard array rather than distributed fm
       TYPE(cp_fm_type), POINTER :: block1_mat, block2_mat, block3_mat, block4_mat, block5_mat
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER ::  c_vec, chc_mat
+      TYPE(cp_fm_type), DIMENSION(:), POINTER ::  c_vec, chc_mat
    END TYPE krylov_space_type
 
    TYPE subspace_env_type
@@ -86,14 +85,14 @@ MODULE qs_scf_types
       REAL(dp) :: eps_diag_sub, eps_ene, eps_adapt
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: p_matrix_store
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: p_matrix_mix
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: chc_mat, c_vec, c0
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: chc_mat, c_vec, c0
       TYPE(mixing_storage_type), POINTER :: mixing_store
    END TYPE subspace_env_type
 
    TYPE floating_basis_type
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: gradient
    END TYPE floating_basis_type
-   ! **************************************************************************************************
+! **************************************************************************************************
    TYPE qs_scf_env_type
       TYPE(qs_outer_scf_type) :: outer_scf
       INTEGER :: iter_count
@@ -103,7 +102,7 @@ MODULE qs_scf_types
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER :: cc_buffer
       LOGICAL :: print_iter_line, skip_mixing, skip_diis, needs_ortho
       TYPE(mixing_storage_type), POINTER :: mixing_store
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: scf_work1
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: scf_work1
       TYPE(cp_fm_type), POINTER  :: scf_work2, ortho, ortho_m1, s_half, s_minus_one
       TYPE(krylov_space_type), POINTER :: krylov_space
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: p_delta, p_mix_new
@@ -116,9 +115,9 @@ MODULE qs_scf_types
       TYPE(fb_env_obj) :: filter_matrix_env
       TYPE(floating_basis_type) :: floating_basis
       !> reference molecular orbitals for the maximum overlap method
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mom_ref_mo_coeff
+      TYPE(cp_fm_type), DIMENSION(:), POINTER          :: mom_ref_mo_coeff
       !> MOM-related work matrices
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mom_overlap, mom_s_mo_coeff
+      TYPE(cp_fm_type), DIMENSION(:), POINTER          :: mom_overlap, mom_s_mo_coeff
    END TYPE qs_scf_env_type
 
 CONTAINS
@@ -213,8 +212,7 @@ CONTAINS
       END IF
       IF (ASSOCIATED(scf_env%mom_ref_mo_coeff)) THEN
          DO i = 1, SIZE(scf_env%mom_ref_mo_coeff)
-            CALL cp_fm_release(scf_env%mom_ref_mo_coeff(i)%matrix)
-            DEALLOCATE (scf_env%mom_ref_mo_coeff(i)%matrix)
+            CALL cp_fm_release(scf_env%mom_ref_mo_coeff(i))
          END DO
          DEALLOCATE (scf_env%mom_ref_mo_coeff)
       END IF
@@ -342,22 +340,19 @@ CONTAINS
       END IF
       IF (ASSOCIATED(scf_env%mom_ref_mo_coeff)) THEN
          DO i = 1, SIZE(scf_env%mom_ref_mo_coeff)
-            CALL cp_fm_release(scf_env%mom_ref_mo_coeff(i)%matrix)
-            DEALLOCATE (scf_env%mom_ref_mo_coeff(i)%matrix)
+            CALL cp_fm_release(scf_env%mom_ref_mo_coeff(i))
          END DO
          DEALLOCATE (scf_env%mom_ref_mo_coeff)
       END IF
       IF (ASSOCIATED(scf_env%mom_overlap)) THEN
          DO i = 1, SIZE(scf_env%mom_overlap)
-            CALL cp_fm_release(scf_env%mom_overlap(i)%matrix)
-            DEALLOCATE (scf_env%mom_overlap(i)%matrix)
+            CALL cp_fm_release(scf_env%mom_overlap(i))
          END DO
          DEALLOCATE (scf_env%mom_overlap)
       END IF
       IF (ASSOCIATED(scf_env%mom_s_mo_coeff)) THEN
          DO i = 1, SIZE(scf_env%mom_s_mo_coeff)
-            CALL cp_fm_release(scf_env%mom_s_mo_coeff(i)%matrix)
-            DEALLOCATE (scf_env%mom_s_mo_coeff(i)%matrix)
+            CALL cp_fm_release(scf_env%mom_s_mo_coeff(i))
          END DO
          DEALLOCATE (scf_env%mom_s_mo_coeff)
       END IF
@@ -425,31 +420,26 @@ CONTAINS
          DEALLOCATE (krylov_space%t_eval)
 
          DO i = 1, SIZE(krylov_space%v_mat)
-            CALL cp_fm_release(krylov_space%v_mat(i)%matrix)
-            DEALLOCATE (krylov_space%v_mat(i)%matrix)
+            CALL cp_fm_release(krylov_space%v_mat(i))
          END DO
          DEALLOCATE (krylov_space%v_mat)
 
          DO i = 1, SIZE(krylov_space%mo_conv)
-            CALL cp_fm_release(krylov_space%mo_conv(i)%matrix)
-            DEALLOCATE (krylov_space%mo_conv(i)%matrix)
+            CALL cp_fm_release(krylov_space%mo_conv(i))
          END DO
          DEALLOCATE (krylov_space%mo_conv)
 
          DO i = 1, SIZE(krylov_space%mo_refine)
-            CALL cp_fm_release(krylov_space%mo_refine(i)%matrix)
-            DEALLOCATE (krylov_space%mo_refine(i)%matrix)
+            CALL cp_fm_release(krylov_space%mo_refine(i))
          END DO
          DEALLOCATE (krylov_space%mo_refine)
 
          DO i = 1, SIZE(krylov_space%chc_mat)
-            CALL cp_fm_release(krylov_space%chc_mat(i)%matrix)
-            DEALLOCATE (krylov_space%chc_mat(i)%matrix)
+            CALL cp_fm_release(krylov_space%chc_mat(i))
          END DO
          DEALLOCATE (krylov_space%chc_mat)
          DO i = 1, SIZE(krylov_space%c_vec)
-            CALL cp_fm_release(krylov_space%c_vec(i)%matrix)
-            DEALLOCATE (krylov_space%c_vec(i)%matrix)
+            CALL cp_fm_release(krylov_space%c_vec(i))
          END DO
          DEALLOCATE (krylov_space%c_vec)
          IF (ASSOCIATED(krylov_space%tmp_mat)) THEN
@@ -558,18 +548,15 @@ CONTAINS
             CALL dbcsr_deallocate_matrix_set(subspace_env%p_matrix_store)
          END IF
          DO i = 1, SIZE(subspace_env%chc_mat)
-            CALL cp_fm_release(subspace_env%chc_mat(i)%matrix)
-            DEALLOCATE (subspace_env%chc_mat(i)%matrix)
+            CALL cp_fm_release(subspace_env%chc_mat(i))
          END DO
          DEALLOCATE (subspace_env%chc_mat)
          DO i = 1, SIZE(subspace_env%c_vec)
-            CALL cp_fm_release(subspace_env%c_vec(i)%matrix)
-            DEALLOCATE (subspace_env%c_vec(i)%matrix)
+            CALL cp_fm_release(subspace_env%c_vec(i))
          END DO
          DEALLOCATE (subspace_env%c_vec)
          DO i = 1, SIZE(subspace_env%c0)
-            CALL cp_fm_release(subspace_env%c0(i)%matrix)
-            DEALLOCATE (subspace_env%c0(i)%matrix)
+            CALL cp_fm_release(subspace_env%c0(i))
          END DO
          DEALLOCATE (subspace_env%c0)
 

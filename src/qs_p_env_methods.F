@@ -40,7 +40,6 @@ MODULE qs_p_env_methods
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -680,8 +679,8 @@ CONTAINS
       ! argument
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in)       :: v
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(inout)    :: res
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(in)         :: v
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(inout)      :: res
 
       INTEGER                                            :: n_spins, spin
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -691,8 +690,8 @@ CONTAINS
 
       n_spins = dft_control%nspins
       DO spin = 1, n_spins
-         CALL p_op_l1_spin(p_env, qs_env, spin, v(spin)%matrix, &
-                           res(spin)%matrix)
+         CALL p_op_l1_spin(p_env, qs_env, spin, v(spin), &
+                           res(spin))
       END DO
 
    END SUBROUTINE p_op_l1
@@ -785,7 +784,7 @@ CONTAINS
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p1
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: res
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: res
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: alpha, beta
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'p_op_l2'
@@ -841,7 +840,7 @@ CONTAINS
 
       DO ispin = 1, n_spins
          CALL cp_dbcsr_sm_fm_multiply(p_env%kpp1(ispin)%matrix, &
-                                      p_env%psi0d(ispin), res(ispin)%matrix, &
+                                      p_env%psi0d(ispin), res(ispin), &
                                       ncol=p_env%n_mo(ispin), &
                                       alpha=my_alpha, beta=my_beta)
       END DO
@@ -865,7 +864,7 @@ CONTAINS
 
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(inout)    :: v
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(inout)      :: v
       INTEGER, DIMENSION(:), INTENT(in), OPTIONAL        :: n_cols
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'p_preortho'
@@ -894,7 +893,7 @@ CONTAINS
       ELSE
          max_cols = 0
          DO spin = 1, n_spins
-            CALL cp_fm_get_info(v(spin)%matrix, ncol_global=v_cols)
+            CALL cp_fm_get_info(v(spin), ncol_global=v_cols)
             max_cols = MAX(max_cols, v_cols)
          END DO
       END IF
@@ -909,7 +908,7 @@ CONTAINS
 
       DO spin = 1, n_spins
 
-         CALL cp_fm_get_info(v(spin)%matrix, &
+         CALL cp_fm_get_info(v(spin), &
                              nrow_global=v_rows, ncol_global=v_cols)
          CPASSERT(v_rows >= p_env%n_ao(spin))
          cols = v_cols
@@ -921,14 +920,14 @@ CONTAINS
 
          ! tmp_matrix = v^T (S psi0)
          CALL parallel_gemm(transa='T', transb='N', m=cols, n=p_env%n_mo(spin), &
-                            k=p_env%n_ao(spin), alpha=1.0_dp, matrix_a=v(spin)%matrix, &
+                            k=p_env%n_ao(spin), alpha=1.0_dp, matrix_a=v(spin), &
                             matrix_b=p_env%S_psi0(spin), beta=0.0_dp, &
                             matrix_c=tmp_matrix)
          ! v = v - psi0d tmp_matrix^T = v - psi0d psi0^T S v
          CALL parallel_gemm(transa='N', transb='T', m=p_env%n_ao(spin), n=cols, &
                             k=p_env%n_mo(spin), alpha=-1.0_dp, &
                             matrix_a=p_env%psi0d(spin), matrix_b=tmp_matrix, &
-                            beta=1.0_dp, matrix_c=v(spin)%matrix)
+                            beta=1.0_dp, matrix_c=v(spin))
 
       END DO
 
@@ -957,7 +956,7 @@ CONTAINS
 
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(inout)    :: v
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(inout)      :: v
       INTEGER, DIMENSION(:), INTENT(in), OPTIONAL        :: n_cols
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'p_postortho'
@@ -986,7 +985,7 @@ CONTAINS
       ELSE
          max_cols = 0
          DO spin = 1, n_spins
-            CALL cp_fm_get_info(v(spin)%matrix, ncol_global=v_cols)
+            CALL cp_fm_get_info(v(spin), ncol_global=v_cols)
             max_cols = MAX(max_cols, v_cols)
          END DO
       END IF
@@ -1001,7 +1000,7 @@ CONTAINS
 
       DO spin = 1, n_spins
 
-         CALL cp_fm_get_info(v(spin)%matrix, &
+         CALL cp_fm_get_info(v(spin), &
                              nrow_global=v_rows, ncol_global=v_cols)
          CPASSERT(v_rows >= p_env%n_ao(spin))
          cols = v_cols
@@ -1013,14 +1012,14 @@ CONTAINS
 
          ! tmp_matrix = v^T psi0d
          CALL parallel_gemm(transa='T', transb='N', m=cols, n=p_env%n_mo(spin), &
-                            k=p_env%n_ao(spin), alpha=1.0_dp, matrix_a=v(spin)%matrix, &
+                            k=p_env%n_ao(spin), alpha=1.0_dp, matrix_a=v(spin), &
                             matrix_b=p_env%psi0d(spin), beta=0.0_dp, &
                             matrix_c=tmp_matrix)
          ! v = v - (S psi0) tmp_matrix^T = v - S psi0 psi0d^T v
          CALL parallel_gemm(transa='N', transb='T', m=p_env%n_ao(spin), n=cols, &
                             k=p_env%n_mo(spin), alpha=-1.0_dp, &
                             matrix_a=p_env%S_psi0(spin), matrix_b=tmp_matrix, &
-                            beta=1.0_dp, matrix_c=v(spin)%matrix)
+                            beta=1.0_dp, matrix_c=v(spin))
 
       END DO
 

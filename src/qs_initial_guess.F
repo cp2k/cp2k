@@ -28,8 +28,8 @@ MODULE qs_initial_guess
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_init_random, cp_fm_p_type, &
-        cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
+        cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_init_random, cp_fm_release, &
+        cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
@@ -158,9 +158,9 @@ CONTAINS
       TYPE(atom_matrix_type), DIMENSION(:), POINTER      :: pmat
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: work1
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_struct, ao_mo_struct
       TYPE(cp_fm_type)                                   :: sv
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: work1
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, moa, mob, ortho, work2
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -558,9 +558,8 @@ CONTAINS
                                      ncol_global=nao, &
                                      template_fmstruct=ao_mo_struct)
             ALLOCATE (work1(1))
-            NULLIFY (work1(1)%matrix)
-            ALLOCATE (work1(1)%matrix, work2, ortho)
-            CALL cp_fm_create(work1(1)%matrix, ao_ao_struct)
+            ALLOCATE (work2, ortho)
+            CALL cp_fm_create(work1(1), ao_ao_struct)
             CALL cp_fm_create(work2, ao_ao_struct)
             CALL cp_fm_create(ortho, ao_ao_struct)
             CALL copy_dbcsr_to_fm(matrix_s_kp(1, 1)%matrix, ortho)
@@ -570,19 +569,19 @@ CONTAINS
 
          ispin = 1
          ! Load core Hamiltonian into work matrix
-         CALL copy_dbcsr_to_fm(h_core_sparse(1)%matrix, work1(ispin)%matrix)
+         CALL copy_dbcsr_to_fm(h_core_sparse(1)%matrix, work1(ispin))
 
          ! Diagonalize the core Hamiltonian matrix and retrieve a first set of
          ! molecular orbitals (MOs)
          IF (has_unit_metric) THEN
-            CALL eigensolver_simple(matrix_ks=work1(ispin)%matrix, &
+            CALL eigensolver_simple(matrix_ks=work1(ispin), &
                                     mo_set=mo_array(ispin), &
                                     work=work2, &
                                     do_level_shift=.FALSE., &
                                     level_shift=0.0_dp, &
                                     use_jacobi=.FALSE., jacobi_threshold=0._dp)
          ELSE
-            CALL eigensolver(matrix_ks_fm=work1(ispin)%matrix, &
+            CALL eigensolver(matrix_ks_fm=work1(ispin), &
                              mo_set=mo_array(ispin), &
                              ortho=ortho, &
                              work=work2, &
@@ -610,8 +609,8 @@ CONTAINS
          IF (need_wm) THEN
             CALL cp_fm_release(ortho)
             CALL cp_fm_release(work2)
-            CALL cp_fm_release(work1(1)%matrix)
-            DEALLOCATE (ortho, work2, work1(1)%matrix)
+            CALL cp_fm_release(work1(1))
+            DEALLOCATE (ortho, work2)
             DEALLOCATE (work1)
             NULLIFY (work1, work2, ortho)
          ELSE IF (owns_ortho) THEN

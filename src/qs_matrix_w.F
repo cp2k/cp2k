@@ -17,7 +17,6 @@ MODULE qs_matrix_w
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
@@ -67,18 +66,11 @@ CONTAINS
 
       INTEGER                                            :: handle, is, ispin, nao, nspin
       LOGICAL                                            :: do_kpoints, has_unit_metric
-      TYPE(cp_fm_p_type), DIMENSION(2)                   :: fmwork
-      TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fmstruct
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, matrix_w, &
                                                             mo_derivs, rho_ao
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, matrix_w_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_nl
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(scf_control_type), POINTER                    :: scf_control
 
@@ -91,35 +83,42 @@ CONTAINS
          CALL get_qs_env(qs_env, do_kpoints=do_kpoints)
 
          IF (do_kpoints) THEN
+            BLOCK
+               TYPE(cp_fm_type), DIMENSION(2)                   :: fmwork
+               TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fmstruct
+               TYPE(cp_fm_type), POINTER                          :: mo_coeff
+               TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, matrix_w_kp
+               TYPE(kpoint_type), POINTER                         :: kpoints
+               TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+                  POINTER                                         :: sab_nl
 
-            CALL get_qs_env(qs_env, &
-                            matrix_w_kp=matrix_w_kp, &
-                            matrix_s_kp=matrix_s_kp, &
-                            sab_orb=sab_nl, &
-                            mos=mos, &
-                            kpoints=kpoints)
+               CALL get_qs_env(qs_env, &
+                               matrix_w_kp=matrix_w_kp, &
+                               matrix_s_kp=matrix_s_kp, &
+                               sab_orb=sab_nl, &
+                               mos=mos, &
+                               kpoints=kpoints)
 
-            CALL get_mo_set(mos(1), mo_coeff=mo_coeff, nao=nao)
-            CALL cp_fm_struct_create(fmstruct=ao_ao_fmstruct, nrow_global=nao, ncol_global=nao, &
-                                     template_fmstruct=mo_coeff%matrix_struct)
+               CALL get_mo_set(mos(1), mo_coeff=mo_coeff, nao=nao)
+               CALL cp_fm_struct_create(fmstruct=ao_ao_fmstruct, nrow_global=nao, ncol_global=nao, &
+                                        template_fmstruct=mo_coeff%matrix_struct)
 
-            DO is = 1, SIZE(fmwork)
-               ALLOCATE (fmwork(is)%matrix)
-               CALL cp_fm_create(fmwork(is)%matrix, matrix_struct=ao_ao_fmstruct)
-            END DO
-            CALL cp_fm_struct_release(ao_ao_fmstruct)
+               DO is = 1, SIZE(fmwork)
+                  CALL cp_fm_create(fmwork(is), matrix_struct=ao_ao_fmstruct)
+               END DO
+               CALL cp_fm_struct_release(ao_ao_fmstruct)
 
-            ! energy weighted density matrices in k-space
-            CALL kpoint_density_matrices(kpoints, energy_weighted=.TRUE.)
-            ! energy weighted density matrices in real space
-            CALL kpoint_density_transform(kpoints, matrix_w_kp, .TRUE., &
-                                          matrix_s_kp(1, 1)%matrix, sab_nl, fmwork)
+               ! energy weighted density matrices in k-space
+               CALL kpoint_density_matrices(kpoints, energy_weighted=.TRUE.)
+               ! energy weighted density matrices in real space
+               CALL kpoint_density_transform(kpoints, matrix_w_kp, .TRUE., &
+                                             matrix_s_kp(1, 1)%matrix, sab_nl, fmwork)
 
-            DO is = 1, SIZE(fmwork)
-               CALL cp_fm_release(fmwork(is)%matrix)
-               DEALLOCATE (fmwork(is)%matrix)
-            END DO
+               DO is = 1, SIZE(fmwork)
+                  CALL cp_fm_release(fmwork(is))
+               END DO
 
+            END BLOCK
          ELSE
 
             NULLIFY (dft_control, rho_ao)

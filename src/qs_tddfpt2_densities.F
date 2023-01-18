@@ -86,13 +86,13 @@ CONTAINS
 
       nspins = SIZE(sub_env%mos_occ)
       DO ispin = 1, nspins
-         CALL cp_fm_get_info(sub_env%mos_occ(ispin)%matrix, nrow_global=nao, ncol_global=nmo_occ(ispin))
+         CALL cp_fm_get_info(sub_env%mos_occ(ispin), nrow_global=nao, ncol_global=nmo_occ(ispin))
       END DO
 
       CALL qs_rho_get(rho_orb_struct, rho_ao=rho_ij_ao)
       DO ispin = 1, nspins
          CALL parallel_gemm('N', 'T', nao, nao, nmo_occ(ispin), 1.0_dp, &
-                            sub_env%mos_occ(ispin)%matrix, sub_env%mos_occ(ispin)%matrix, &
+                            sub_env%mos_occ(ispin), sub_env%mos_occ(ispin), &
                             0.0_dp, wfm_rho_orb)
 
          CALL copy_fm_to_dbcsr(wfm_rho_orb, rho_ij_ao(ispin)%matrix, keep_sparsity=.TRUE.)

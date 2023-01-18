@@ -888,8 +888,7 @@ CONTAINS
       ! Release SCF work storage
       IF (ASSOCIATED(scf_env%scf_work1)) THEN
          DO ispin = 1, SIZE(scf_env%scf_work1)
-            CALL cp_fm_release(scf_env%scf_work1(ispin)%matrix)
-            DEALLOCATE (scf_env%scf_work1(ispin)%matrix)
+            CALL cp_fm_release(scf_env%scf_work1(ispin))
          END DO
          DEALLOCATE (scf_env%scf_work1)
       END IF
@@ -1112,12 +1111,11 @@ CONTAINS
          NULLIFY (cdft_control%mo_coeff)
          ALLOCATE (cdft_control%mo_coeff(dft_control%nspins))
          DO ispin = 1, dft_control%nspins
-            ALLOCATE (cdft_control%mo_coeff(ispin)%matrix)
-            CALL cp_fm_create(matrix=cdft_control%mo_coeff(ispin)%matrix, &
+            CALL cp_fm_create(matrix=cdft_control%mo_coeff(ispin), &
                               matrix_struct=qs_env%mos(ispin)%mo_coeff%matrix_struct, &
                               name="MO_COEFF_A"//TRIM(ADJUSTL(cp_to_string(ispin)))//"MATRIX")
             CALL cp_fm_to_fm(qs_env%mos(ispin)%mo_coeff, &
-                             cdft_control%mo_coeff(ispin)%matrix)
+                             cdft_control%mo_coeff(ispin))
          END DO
          ! Density matrix
          IF (cdft_control%calculate_metric) THEN

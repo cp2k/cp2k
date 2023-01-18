@@ -29,9 +29,14 @@ MODULE qs_tddfpt2_stda_utils
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_info, cp_fm_p_type, cp_fm_release, cp_fm_set_all, &
-        cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type, cp_fm_vectorssum
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_set_submatrix,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type,&
+                                              cp_fm_vectorssum
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -416,9 +421,9 @@ CONTAINS
       nspins = SIZE(sub_env%mos_occ)
 
       DO ispin = 1, nspins
-         CALL cp_fm_get_info(work%ctransformed(ispin)%matrix, ncol_global=nactive)
-         CALL cp_dbcsr_sm_fm_multiply(work%shalf, sub_env%mos_occ(ispin)%matrix, &
-                                      work%ctransformed(ispin)%matrix, nactive, alpha=1.0_dp, beta=0.0_dp)
+         CALL cp_fm_get_info(work%ctransformed(ispin), ncol_global=nactive)
+         CALL cp_dbcsr_sm_fm_multiply(work%shalf, sub_env%mos_occ(ispin), &
+                                      work%ctransformed(ispin), nactive, alpha=1.0_dp, beta=0.0_dp)
       END DO
 
       ! for Lowdin forces
@@ -465,8 +470,7 @@ CONTAINS
    SUBROUTINE get_lowdin_x(shalf, xvec, xt)
 
       TYPE(dbcsr_type)                                   :: shalf
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: xvec
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: xt
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: xvec, xt
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'get_lowdin_x'
 
@@ -478,9 +482,9 @@ CONTAINS
 
       ! Build Lowdin transformed tilde(X)= S^1/2 X for each spin
       DO ispin = 1, nspins
-         CALL cp_fm_get_info(xt(ispin)%matrix, ncol_global=nactive)
-         CALL cp_dbcsr_sm_fm_multiply(shalf, xvec(ispin)%matrix, &
-                                      xt(ispin)%matrix, nactive, alpha=1.0_dp, beta=0.0_dp)
+         CALL cp_fm_get_info(xt(ispin), ncol_global=nactive)
+         CALL cp_dbcsr_sm_fm_multiply(shalf, xvec(ispin), &
+                                      xt(ispin), nactive, alpha=1.0_dp, beta=0.0_dp)
       END DO
 
       CALL timestop(handle)
@@ -509,8 +513,7 @@ CONTAINS
       TYPE(tddfpt_subgroup_env_type)                     :: sub_env
       TYPE(tddfpt_work_matrices)                         :: work
       LOGICAL, INTENT(IN)                                :: is_rks_triplets
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: X
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: res
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: X, res
 
       CHARACTER(len=*), PARAMETER :: routineN = 'stda_calculate_kernel'
 
@@ -530,10 +533,10 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: xtransformed
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct, fmstructjspin
       TYPE(cp_fm_type)                                   :: cvec, cvecjspin
-      TYPE(cp_fm_type), POINTER                          :: ct, ctjspin, xt
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: xtransformed
+      TYPE(cp_fm_type), POINTER                          :: ct, ctjspin
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_type)                                   :: pdens
@@ -574,21 +577,20 @@ CONTAINS
       ALLOCATE (xtransformed(nspins))
       DO ispin = 1, nspins
          NULLIFY (fmstruct)
-         ct => work%ctransformed(ispin)%matrix
+         ct => work%ctransformed(ispin)
          CALL cp_fm_get_info(ct, matrix_struct=fmstruct)
-         ALLOCATE (xtransformed(ispin)%matrix)
-         CALL cp_fm_create(matrix=xtransformed(ispin)%matrix, matrix_struct=fmstruct, name="XTRANSFORMED")
+         CALL cp_fm_create(matrix=xtransformed(ispin), matrix_struct=fmstruct, name="XTRANSFORMED")
       END DO
       CALL get_lowdin_x(work%shalf, X, xtransformed)
 
       ALLOCATE (tcharge(natom), gtcharge(natom, 1))
 
       DO ispin = 1, nspins
-         CALL cp_fm_set_all(res(ispin)%matrix, 0.0_dp)
+         CALL cp_fm_set_all(res(ispin), 0.0_dp)
       END DO
 
       DO ispin = 1, nspins
-         ct => work%ctransformed(ispin)%matrix
+         ct => work%ctransformed(ispin)
          CALL cp_fm_get_info(ct, matrix_struct=fmstruct, nrow_global=nsgf)
          ALLOCATE (tv(nsgf))
          CALL cp_fm_create(cvec, fmstruct)
@@ -598,13 +600,12 @@ CONTAINS
          IF (do_coulomb) THEN
             tcharge(:) = 0.0_dp
             DO jspin = 1, nspins
-               ctjspin => work%ctransformed(jspin)%matrix
-               xt => xtransformed(jspin)%matrix
+               ctjspin => work%ctransformed(jspin)
                CALL cp_fm_get_info(ctjspin, matrix_struct=fmstructjspin)
                CALL cp_fm_get_info(ctjspin, matrix_struct=fmstructjspin, nrow_global=nsgf)
                CALL cp_fm_create(cvecjspin, fmstructjspin)
                ! CV(mu,j) = CT(mu,j)*XT(mu,j)
-               CALL cp_fm_schur_product(ctjspin, xt, cvecjspin)
+               CALL cp_fm_schur_product(ctjspin, xtransformed(jspin), cvecjspin)
                ! TV(mu) = SUM_j CV(mu,j)
                CALL cp_fm_vectorssum(cvecjspin, tv, "R")
                ! contract charges
@@ -671,11 +672,11 @@ CONTAINS
                END DO
             END DO
             ! CV(mu,i) = TV(mu)*CV(mu,i)
-            ct => work%ctransformed(ispin)%matrix
+            ct => work%ctransformed(ispin)
             CALL cp_fm_to_fm(ct, cvec)
             CALL cp_fm_row_scale(cvec, tv)
             ! rho(nu,i) = rho(nu,i) + Shalf(nu,mu)*CV(mu,i)
-            CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, res(ispin)%matrix, nactive(ispin), spinfac, 1.0_dp)
+            CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, res(ispin), nactive(ispin), spinfac, 1.0_dp)
          END IF
          !
          ! *** Exchange contribution
@@ -689,10 +690,9 @@ CONTAINS
             tempmat => work%shalf
             CALL dbcsr_create(pdens, template=tempmat, matrix_type=dbcsr_type_no_symmetry)
             ! P(nu,mu) = SUM_j XT(nu,j)*CT(mu,j)
-            ct => work%ctransformed(ispin)%matrix
-            xt => xtransformed(ispin)%matrix
+            ct => work%ctransformed(ispin)
             CALL dbcsr_set(pdens, 0.0_dp)
-            CALL cp_dbcsr_plus_fm_fm_t(pdens, xt, ct, nactive(ispin), &
+            CALL cp_dbcsr_plus_fm_fm_t(pdens, xtransformed(ispin), ct, nactive(ispin), &
                                        1.0_dp, keep_sparsity=.FALSE.)
             CALL dbcsr_filter(pdens, stda_env%eps_td_filter)
             ! Apply PP*gab -> PP; gab = gamma_coulomb
@@ -725,7 +725,7 @@ CONTAINS
             ! CV(mu,i) = P(nu,mu)*CT(mu,i)
             CALL cp_dbcsr_sm_fm_multiply(pdens, ct, cvec, nactive(ispin), 1.0_dp, 0.0_dp)
             ! rho(nu,i) = rho(nu,i) + ShalfP(nu,mu)*CV(mu,i)
-            CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, res(ispin)%matrix, nactive(ispin), -1.0_dp, 1.0_dp)
+            CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, res(ispin), nactive(ispin), -1.0_dp, 1.0_dp)
             !
             CALL dbcsr_release(pdens)
             DEALLOCATE (kind_of)
@@ -736,8 +736,7 @@ CONTAINS
       END DO
 
       DO ispin = 1, nspins
-         CALL cp_fm_release(matrix=xtransformed(ispin)%matrix)
-         DEALLOCATE (xtransformed(ispin)%matrix)
+         CALL cp_fm_release(matrix=xtransformed(ispin))
       END DO
       DEALLOCATE (xtransformed)
       DEALLOCATE (tcharge, gtcharge)

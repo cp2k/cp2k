@@ -13,8 +13,6 @@
 ! **************************************************************************************************
 MODULE ec_env_types
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
-   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type,&
                                               ls_scf_release
@@ -95,7 +93,6 @@ MODULE ec_env_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: mao_coef
       ! CP equations
       TYPE(qs_p_env_type), POINTER                     :: p_env
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER        :: cpmos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: matrix_hz, matrix_z, matrix_wz, z_admm
       ! Harris (rhoout), and response density (rhoz) on grid
       TYPE(pw_type), DIMENSION(:), POINTER           :: rhoout_r, rhoz_r
@@ -145,15 +142,6 @@ CONTAINS
          ! dispersion environment
          IF (ASSOCIATED(ec_env%dispersion_env)) THEN
             CALL qs_dispersion_release(ec_env%dispersion_env)
-         END IF
-         ! CP env
-         IF (ASSOCIATED(ec_env%cpmos)) THEN
-            DO iab = 1, SIZE(ec_env%cpmos)
-               CALL cp_fm_release(ec_env%cpmos(iab)%matrix)
-               DEALLOCATE (ec_env%cpmos(iab)%matrix)
-            END DO
-            DEALLOCATE (ec_env%cpmos)
-            NULLIFY (ec_env%cpmos)
          END IF
 
          IF (ASSOCIATED(ec_env%matrix_z)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_z)

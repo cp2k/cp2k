@@ -5105,7 +5105,7 @@ CONTAINS
 
       nkp_Sigma = kpoints_Sigma%nkp
 
-      matrix_struct => kpoints_Sigma%kp_env(1)%kpoint_env%wmat(1, 1)%matrix%matrix_struct
+      matrix_struct => kpoints_Sigma%kp_env(1)%kpoint_env%wmat(1, 1)%matrix_struct
 
       CALL cp_cfm_create(ks_mat_ao_ao, matrix_struct)
       CALL cp_cfm_create(ks_mat_no_xc_ao_ao, matrix_struct)
@@ -5141,16 +5141,16 @@ CONTAINS
 
          CALL cp_fm_to_cfm(fm_tmp_re, fm_tmp_im, cfm_mo_coeff)
 
-         CALL cp_fm_to_cfm(kpoints_Sigma%kp_env(ikp)%kpoint_env%wmat(1, 1)%matrix, &
-                           kpoints_Sigma%kp_env(ikp)%kpoint_env%wmat(2, 1)%matrix, ks_mat_ao_ao)
+         CALL cp_fm_to_cfm(kpoints_Sigma%kp_env(ikp)%kpoint_env%wmat(1, 1), &
+                           kpoints_Sigma%kp_env(ikp)%kpoint_env%wmat(2, 1), ks_mat_ao_ao)
          ASSOCIATE (wmat => kpoints_Sigma_no_xc%kp_env(ikp)%kpoint_env%wmat)
-         IF (ASSOCIATED(wmat(1, 1)%matrix)) THEN
-            CALL cp_fm_copy_general(wmat(1, 1)%matrix, fm_tmp_re, para_env)
+         IF (ASSOCIATED(wmat(1, 1)%matrix_struct)) THEN
+            CALL cp_fm_copy_general(wmat(1, 1), fm_tmp_re, para_env)
          ELSE
             CALL cp_fm_copy_general(fm_dummy, fm_tmp_re, para_env)
          END IF
-         IF (ASSOCIATED(wmat(2, 1)%matrix)) THEN
-            CALL cp_fm_copy_general(wmat(2, 1)%matrix, fm_tmp_im, para_env)
+         IF (ASSOCIATED(wmat(2, 1)%matrix_struct)) THEN
+            CALL cp_fm_copy_general(wmat(2, 1), fm_tmp_im, para_env)
          ELSE
             CALL cp_fm_copy_general(fm_dummy, fm_tmp_im, para_env)
          END IF

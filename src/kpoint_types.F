@@ -15,8 +15,8 @@
 MODULE kpoint_types
    USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                               cp_blacs_env_type
-   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release
+   USE cp_fm_types,                     ONLY: cp_fm_release,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -73,8 +73,8 @@ MODULE kpoint_types
       REAL(KIND=dp), DIMENSION(3)                       :: xkp
       LOGICAL                                           :: is_local
       TYPE(mo_set_type), DIMENSION(:, :), POINTER     :: mos
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER      :: pmat
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER      :: wmat
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER      :: pmat
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER      :: wmat
    END TYPE kpoint_env_type
 
    TYPE kpoint_env_p_type
@@ -705,8 +705,7 @@ CONTAINS
          IF (ASSOCIATED(kp_env%pmat)) THEN
             DO is = 1, SIZE(kp_env%pmat, 2)
                DO ic = 1, SIZE(kp_env%pmat, 1)
-                  CALL cp_fm_release(kp_env%pmat(ic, is)%matrix)
-                  DEALLOCATE (kp_env%pmat(ic, is)%matrix)
+                  CALL cp_fm_release(kp_env%pmat(ic, is))
                END DO
             END DO
             DEALLOCATE (kp_env%pmat)
@@ -715,8 +714,7 @@ CONTAINS
          IF (ASSOCIATED(kp_env%wmat)) THEN
             DO is = 1, SIZE(kp_env%wmat, 2)
                DO ic = 1, SIZE(kp_env%wmat, 1)
-                  CALL cp_fm_release(kp_env%wmat(ic, is)%matrix)
-                  DEALLOCATE (kp_env%wmat(ic, is)%matrix)
+                  CALL cp_fm_release(kp_env%wmat(ic, is))
                END DO
             END DO
             DEALLOCATE (kp_env%wmat)

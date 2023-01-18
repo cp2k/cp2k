@@ -31,7 +31,6 @@ MODULE et_coupling_proj
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -127,7 +126,7 @@ MODULE et_coupling_proj
       INTEGER                                            :: n_ao
       TYPE(et_cpl_atom), DIMENSION(:), POINTER           :: atom
       TYPE(mo_set_type), DIMENSION(:), POINTER         :: mo
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER        :: hab
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER        :: hab
    END TYPE et_cpl_block
 
    ! Electronic-coupling block-atom data
@@ -187,10 +186,7 @@ CONTAINS
                IF (ASSOCIATED(ec%block(i)%hab)) THEN
                   DO j = 1, SIZE(ec%block(i)%hab, 1)
                      DO k = 1, SIZE(ec%block(i)%hab, 2)
-                        IF (ASSOCIATED(ec%block(i)%hab(j, k)%matrix)) THEN
-                           CALL cp_fm_release(matrix=ec%block(i)%hab(j, k)%matrix)
-                           DEALLOCATE (ec%block(i)%hab(j, k)%matrix)
-                        END IF
+                        CALL cp_fm_release(matrix=ec%block(i)%hab(j, k))
                      END DO
                   END DO
                   DEALLOCATE (ec%block(i)%hab)
@@ -623,7 +619,8 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(et_cpl), POINTER                              :: ec
       TYPE(cp_fm_struct_type), POINTER                   :: fm_s
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mat_t
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
+         INTENT(OUT)                                     :: mat_t
       TYPE(cp_fm_type), INTENT(IN)                       :: mat_w
       INTEGER                                            :: n_ao, n_spins
 
@@ -636,7 +633,6 @@ CONTAINS
 
       ! Memory allocation
       ALLOCATE (mat_t(n_spins))
-      CPASSERT(ASSOCIATED(mat_t))
 
       ! KS Hamiltonian
       CALL get_qs_env(qs_env, matrix_ks=mat_h)
@@ -651,17 +647,16 @@ CONTAINS
       DO i = 1, n_spins
 
          ! Full-matrix format
-         ALLOCATE (mat_t(i)%matrix)
-         CALL cp_fm_create(matrix=mat_t(i)%matrix, matrix_struct=fm_s, &
+         CALL cp_fm_create(matrix=mat_t(i), matrix_struct=fm_s, &
                            name='KS HAMILTONIAN IN SEPARATED ORTHOGONALIZED BASIS SET')
-         CALL copy_dbcsr_to_fm(mat_h(i)%matrix, mat_t(i)%matrix)
+         CALL copy_dbcsr_to_fm(mat_h(i)%matrix, mat_t(i))
 
          ! Transform KS Hamiltonian to the orthogonalized AO basis set
-         CALL parallel_gemm("N", "N", n_ao, n_ao, n_ao, 1.0_dp, ec%m_transf, mat_t(i)%matrix, 0.0_dp, mat_w)
-         CALL parallel_gemm("N", "N", n_ao, n_ao, n_ao, 1.0_dp, mat_w, ec%m_transf, 0.0_dp, mat_t(i)%matrix)
+         CALL parallel_gemm("N", "N", n_ao, n_ao, n_ao, 1.0_dp, ec%m_transf, mat_t(i), 0.0_dp, mat_w)
+         CALL parallel_gemm("N", "N", n_ao, n_ao, n_ao, 1.0_dp, mat_w, ec%m_transf, 0.0_dp, mat_t(i))
 
          ! Reorder KS Hamiltonain elements to defined block structure
-         CALL reorder_hamiltonian_matrix(ec, mat_t(i)%matrix, mat_w)
+         CALL reorder_hamiltonian_matrix(ec, mat_t(i), mat_w)
 
       END DO
 
@@ -679,14 +674,14 @@ CONTAINS
       ! Routine arguments
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(et_cpl), POINTER                              :: ec
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mat_h
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mat_h
 
       INTEGER                                            :: i, j, k, l, n_spins, spin
       REAL(KIND=dp), DIMENSION(:), POINTER               :: vec_e
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: dat
       TYPE(cp_fm_struct_type), POINTER                   :: fm_s
       TYPE(cp_fm_type)                                   :: mat_u
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: dat
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
 ! Routine name for debug purposes
@@ -695,14 +690,13 @@ CONTAINS
       NULLIFY (blacs_env)
       NULLIFY (para_env)
       NULLIFY (fm_s)
-      NULLIFY (dat)
 
       ! Parallel environment
       CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
 
       ! Storage for block sub-matrices
       ALLOCATE (dat(ec%n_blocks))
-      CPASSERT(ASSOCIATED(dat))
+      CPASSERT(ALLOCATED(dat))
 
       ! Storage for electronic states and couplings
       n_spins = SIZE(mat_h)
@@ -711,11 +705,6 @@ CONTAINS
          CPASSERT(ASSOCIATED(ec%block(i)%mo))
          ALLOCATE (ec%block(i)%hab(n_spins, ec%n_blocks))
          CPASSERT(ASSOCIATED(ec%block(i)%hab))
-         DO j = 1, n_spins
-            DO k = 1, ec%n_blocks
-               NULLIFY (ec%block(i)%hab(j, k)%matrix)
-            END DO
-         END DO
       END DO
 
       ! Spin components
@@ -728,22 +717,21 @@ CONTAINS
             ! Memory allocation
             CALL cp_fm_struct_create(fmstruct=fm_s, para_env=para_env, context=blacs_env, &
                                      nrow_global=ec%block(i)%n_ao, ncol_global=ec%block(i)%n_ao)
-            ALLOCATE (dat(i)%matrix)
-            CALL cp_fm_create(matrix=dat(i)%matrix, matrix_struct=fm_s, &
+            CALL cp_fm_create(matrix=dat(i), matrix_struct=fm_s, &
                               name='H_KS DIAGONAL BLOCK')
 
             ALLOCATE (vec_e(ec%block(i)%n_ao))
             CPASSERT(ASSOCIATED(vec_e))
 
             ! Copy block data
-            CALL cp_fm_to_fm_submat(mat_h(spin)%matrix, &
-                                    dat(i)%matrix, ec%block(i)%n_ao, &
+            CALL cp_fm_to_fm_submat(mat_h(spin), &
+                                    dat(i), ec%block(i)%n_ao, &
                                     ec%block(i)%n_ao, j, j, 1, 1)
 
             ! Diagonalization
             CALL cp_fm_create(matrix=mat_u, matrix_struct=fm_s, name='UNITARY MATRIX')
-            CALL choose_eigv_solver(dat(i)%matrix, mat_u, vec_e)
-            CALL cp_fm_to_fm(mat_u, dat(i)%matrix)
+            CALL choose_eigv_solver(dat(i), mat_u, vec_e)
+            CALL cp_fm_to_fm(mat_u, dat(i))
 
             ! Save state energies / vectors
             CALL create_block_mo_set(qs_env, ec, i, spin, mat_u, vec_e)
@@ -768,21 +756,20 @@ CONTAINS
                   ! Memory allocation
                   CALL cp_fm_struct_create(fmstruct=fm_s, para_env=para_env, context=blacs_env, &
                                            nrow_global=ec%block(i)%n_ao, ncol_global=ec%block(j)%n_ao)
-                  ALLOCATE (ec%block(i)%hab(spin, j)%matrix)
-                  CALL cp_fm_create(matrix=ec%block(i)%hab(spin, j)%matrix, matrix_struct=fm_s, &
+                  CALL cp_fm_create(matrix=ec%block(i)%hab(spin, j), matrix_struct=fm_s, &
                                     name='H_KS OFF-DIAGONAL BLOCK')
 
                   ! Copy block data
-                  CALL cp_fm_to_fm_submat(mat_h(spin)%matrix, &
-                                          ec%block(i)%hab(spin, j)%matrix, ec%block(i)%n_ao, &
+                  CALL cp_fm_to_fm_submat(mat_h(spin), &
+                                          ec%block(i)%hab(spin, j), ec%block(i)%n_ao, &
                                           ec%block(j)%n_ao, k, l, 1, 1)
 
                   ! Transformation
                   CALL cp_fm_create(matrix=mat_u, matrix_struct=fm_s, name='FULL WORK MATRIX')
                   CALL parallel_gemm("T", "N", ec%block(i)%n_ao, ec%block(j)%n_ao, ec%block(i)%n_ao, &
-                                     1.0_dp, dat(i)%matrix, ec%block(i)%hab(spin, j)%matrix, 0.0_dp, mat_u)
+                                     1.0_dp, dat(i), ec%block(i)%hab(spin, j), 0.0_dp, mat_u)
                   CALL parallel_gemm("N", "N", ec%block(i)%n_ao, ec%block(j)%n_ao, ec%block(j)%n_ao, &
-                                     1.0_dp, mat_u, dat(j)%matrix, 0.0_dp, ec%block(i)%hab(spin, j)%matrix)
+                                     1.0_dp, mat_u, dat(j), 0.0_dp, ec%block(i)%hab(spin, j))
 
                   ! Clean memory
                   CALL cp_fm_struct_release(fmstruct=fm_s)
@@ -797,18 +784,15 @@ CONTAINS
          END DO
 
          ! Clean memory
-         IF (ASSOCIATED(dat)) THEN
+         IF (ALLOCATED(dat)) THEN
             DO i = 1, SIZE(dat)
-               IF (ASSOCIATED(dat(i)%matrix)) THEN
-                  CALL cp_fm_release(matrix=dat(i)%matrix)
-                  DEALLOCATE (dat(i)%matrix)
-               END IF
+               CALL cp_fm_release(dat(i))
             END DO
          END IF
       END DO
 
       ! Clean memory
-      IF (ASSOCIATED(dat)) &
+      IF (ALLOCATED(dat)) &
          DEALLOCATE (dat)
 
    END SUBROUTINE hamiltonian_block_diag
@@ -916,7 +900,7 @@ CONTAINS
       INTEGER                                            :: j, k, l, m, n, n_ao, n_mo
       INTEGER, DIMENSION(:), POINTER                     :: list_at, list_mo
       REAL(KIND=dp)                                      :: c1, c2
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mat_w
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: mat_w
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: block_sec, print_sec
 
@@ -946,15 +930,13 @@ CONTAINS
 
          ! MOs in orthonormal basis set
          ALLOCATE (mat_w(n_spins))
-         CPASSERT(ASSOCIATED(mat_w))
          DO j = 1, n_spins
             n_mo = ec%block(blk)%n_ao
-            ALLOCATE (mat_w(j)%matrix)
-            CALL cp_fm_create(matrix=mat_w(j)%matrix, &
+            CALL cp_fm_create(matrix=mat_w(j), &
                               matrix_struct=ec%block(blk)%mo(j)%mo_coeff%matrix_struct, &
                               name='BLOCK MOs IN ORTHONORMAL BASIS SET')
             CALL parallel_gemm("N", "N", n_ao, n_mo, n_ao, 1.0_dp, ec%m_transf_inv, &
-                               ec%block(blk)%mo(j)%mo_coeff, 0.0_dp, mat_w(j)%matrix)
+                               ec%block(blk)%mo(j)%mo_coeff, 0.0_dp, mat_w(j))
          END DO
 
          DO j = 1, n
@@ -982,14 +964,14 @@ CONTAINS
                         DO l = 1, SIZE(list_mo)
 
                            IF (n_spins > 1) THEN
-                              c1 = get_mo_c2_sum(ec%block(blk)%atom, mat_w(1)%matrix, &
+                              c1 = get_mo_c2_sum(ec%block(blk)%atom, mat_w(1), &
                                                  list_mo(l), list_at)
-                              c2 = get_mo_c2_sum(ec%block(blk)%atom, mat_w(2)%matrix, &
+                              c2 = get_mo_c2_sum(ec%block(blk)%atom, mat_w(2), &
                                                  list_mo(l), list_at)
                               IF (output_unit > 0) &
                                  WRITE (output_unit, '(I5,A,I5,2F20.10)') j, ' /', list_mo(l), c1, c2
                            ELSE
-                              c1 = get_mo_c2_sum(ec%block(blk)%atom, mat_w(1)%matrix, &
+                              c1 = get_mo_c2_sum(ec%block(blk)%atom, mat_w(1), &
                                                  list_mo(l), list_at)
                               IF (output_unit > 0) &
                                  WRITE (output_unit, '(I5,A,I5,F20.10)') j, ' /', list_mo(l), c1
@@ -1007,8 +989,7 @@ CONTAINS
 
          ! Clean memory
          DO j = 1, n_spins
-            CALL cp_fm_release(matrix=mat_w(j)%matrix)
-            DEALLOCATE (mat_w(j)%matrix)
+            CALL cp_fm_release(matrix=mat_w(j))
          END DO
          DEALLOCATE (mat_w)
 
@@ -1165,16 +1146,16 @@ CONTAINS
          DO i = 1, ec%n_blocks
             DO j = i + 1, ec%n_blocks
 
-               nr = ec%block(i)%hab(1, j)%matrix%matrix_struct%nrow_global
-               nc = ec%block(i)%hab(1, j)%matrix%matrix_struct%ncol_global
+               nr = ec%block(i)%hab(1, j)%matrix_struct%nrow_global
+               nc = ec%block(i)%hab(1, j)%matrix_struct%ncol_global
 
                ALLOCATE (w1(nr, nc))
                CPASSERT(ASSOCIATED(w1))
-               CALL get_fm_matrix_array(ec%block(i)%hab(1, j)%matrix, w1)
+               CALL get_fm_matrix_array(ec%block(i)%hab(1, j), w1)
                IF (nspins > 1) THEN
                   ALLOCATE (w2(nr, nc))
                   CPASSERT(ASSOCIATED(w2))
-                  CALL get_fm_matrix_array(ec%block(i)%hab(2, j)%matrix, w2)
+                  CALL get_fm_matrix_array(ec%block(i)%hab(2, j), w2)
                END IF
 
                IF (output_unit > 0) THEN
@@ -1254,10 +1235,10 @@ CONTAINS
 
                            WRITE (unit_nr, '(T3,I5,T13,I5,T22,E20.6)', ADVANCE='no') &
                               k, l, &
-                              ec%block(i)%hab(1, j)%matrix%local_data(k, l)*evolt*1000.0_dp
+                              ec%block(i)%hab(1, j)%local_data(k, l)*evolt*1000.0_dp
                            IF ((k <= n_states(2)) .AND. (l <= n_states(2))) THEN
                               WRITE (unit_nr, '(E20.6)') &
-                                 ec%block(i)%hab(2, j)%matrix%local_data(k, l)*evolt*1000.0_dp
+                                 ec%block(i)%hab(2, j)%local_data(k, l)*evolt*1000.0_dp
                            ELSE
                               WRITE (unit_nr, *)
                            END IF
@@ -1266,7 +1247,7 @@ CONTAINS
 
                            WRITE (unit_nr, '(T3,I5,T13,I5,T22,E20.6)') &
                               k, l, &
-                              ec%block(i)%hab(1, j)%matrix%local_data(k, l)*evolt*1000.0_dp
+                              ec%block(i)%hab(1, j)%local_data(k, l)*evolt*1000.0_dp
 
                         END IF
 
@@ -1757,9 +1738,9 @@ CONTAINS
       INTEGER                                            :: i, j, k, n_ao, n_atoms, output_unit
       LOGICAL                                            :: do_kp, master
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mat_h
       TYPE(cp_fm_struct_type), POINTER                   :: fm_s
       TYPE(cp_fm_type)                                   :: mat_w
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: mat_h
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks, mo_der
@@ -1784,7 +1765,6 @@ CONTAINS
       NULLIFY (et_proj_sec)
 
       NULLIFY (fm_s)
-      NULLIFY (mat_h)
       NULLIFY (ks, mo_der)
 
       NULLIFY (ec)
@@ -1977,12 +1957,9 @@ CONTAINS
       ! Clean memory
       CALL cp_fm_struct_release(fmstruct=fm_s)
       CALL cp_fm_release(matrix=mat_w)
-      IF (ASSOCIATED(mat_h)) THEN
+      IF (ALLOCATED(mat_h)) THEN
          DO i = 1, SIZE(mat_h)
-            IF (ASSOCIATED(mat_h(i)%matrix)) THEN
-               CALL cp_fm_release(matrix=mat_h(i)%matrix)
-               DEALLOCATE (mat_h(i)%matrix)
-            END IF
+            CALL cp_fm_release(matrix=mat_h(i))
          END DO
          DEALLOCATE (mat_h)
       END IF

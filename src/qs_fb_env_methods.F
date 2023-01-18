@@ -198,7 +198,7 @@ CONTAINS
 
       DO ispin = 1, nspin
          CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix, &
-                               scf_env%scf_work1(ispin)%matrix)
+                               scf_env%scf_work1(ispin))
       END DO
 
       eps_diis = scf_control%eps_diis

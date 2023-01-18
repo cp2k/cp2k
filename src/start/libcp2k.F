@@ -539,7 +539,7 @@ CONTAINS
 
          DO i = 0, norb - 1
             DO j = 0, norb - 1
-               CALL cp_fm_get_element(active_space_env%fock_sub(1)%matrix, i + 1, j + 1, mval)
+               CALL cp_fm_get_element(active_space_env%fock_sub(1), i + 1, j + 1, mval)
                buf(norb*i + j) = mval
                buf(norb*j + i) = mval
             END DO

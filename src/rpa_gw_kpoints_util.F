@@ -1720,7 +1720,7 @@ CONTAINS
 
       CALL get_kpoint_info(kpoints, nkp=nkp)
 
-      matrix_struct => kpoints%kp_env(1)%kpoint_env%wmat(1, 1)%matrix%matrix_struct
+      matrix_struct => kpoints%kp_env(1)%kpoint_env%wmat(1, 1)%matrix_struct
 
       CALL cp_cfm_create(cksmat, matrix_struct)
       CALL cp_cfm_create(csmat, matrix_struct)
@@ -1730,11 +1730,11 @@ CONTAINS
 
       DO ikp = 1, nkp
 
-         CALL copy_dbcsr_to_fm(mat_ks_kp(ikp, 1)%matrix, kpoints%kp_env(ikp)%kpoint_env%wmat(1, 1)%matrix)
-         CALL cp_cfm_scale_and_add_fm(czero, cksmat, cone, kpoints%kp_env(ikp)%kpoint_env%wmat(1, 1)%matrix)
+         CALL copy_dbcsr_to_fm(mat_ks_kp(ikp, 1)%matrix, kpoints%kp_env(ikp)%kpoint_env%wmat(1, 1))
+         CALL cp_cfm_scale_and_add_fm(czero, cksmat, cone, kpoints%kp_env(ikp)%kpoint_env%wmat(1, 1))
 
-         CALL copy_dbcsr_to_fm(mat_ks_kp(ikp, 2)%matrix, kpoints%kp_env(ikp)%kpoint_env%wmat(2, 1)%matrix)
-         CALL cp_cfm_scale_and_add_fm(cone, cksmat, ione, kpoints%kp_env(ikp)%kpoint_env%wmat(2, 1)%matrix)
+         CALL copy_dbcsr_to_fm(mat_ks_kp(ikp, 2)%matrix, kpoints%kp_env(ikp)%kpoint_env%wmat(2, 1))
+         CALL cp_cfm_scale_and_add_fm(cone, cksmat, ione, kpoints%kp_env(ikp)%kpoint_env%wmat(2, 1))
 
          CALL copy_dbcsr_to_fm(mat_s_kp(ikp, 1)%matrix, fm_work)
          CALL cp_cfm_scale_and_add_fm(czero, csmat, cone, fm_work)

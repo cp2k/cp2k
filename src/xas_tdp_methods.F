@@ -40,8 +40,8 @@ MODULE xas_tdp_methods
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
         cp_fm_copy_general, cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_get_submatrix, &
-        cp_fm_p_type, cp_fm_read_unformatted, cp_fm_release, cp_fm_set_all, cp_fm_to_fm, &
-        cp_fm_to_fm_submat, cp_fm_type, cp_fm_write_unformatted
+        cp_fm_read_unformatted, cp_fm_release, cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat, &
+        cp_fm_type, cp_fm_write_unformatted
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
@@ -1793,17 +1793,17 @@ CONTAINS
       REAL(dp), DIMENSION(6)                             :: weights
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: moloc_coeff
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: zij_fm_set
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type)                                   :: opvec
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: zij_fm_set
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: moloc_coeff
       TYPE(cp_fm_type), POINTER                          :: vectors
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_sm_set
       TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(section_vals_type), POINTER                   :: print_loc_section, prog_run_info
 
-      NULLIFY (qs_loc_env, zij_fm_set, cell, print_loc_section, op_sm_set, moloc_coeff, vectors)
+      NULLIFY (qs_loc_env, cell, print_loc_section, op_sm_set, moloc_coeff, vectors)
       NULLIFY (tmp_fm_struct, para_env, blacs_env, prog_run_info)
 
 !  Initialization
@@ -1825,7 +1825,7 @@ CONTAINS
                           moloc_coeff=moloc_coeff)
 
 !  Prepare for zij
-      vectors => moloc_coeff(1)%matrix
+      vectors => moloc_coeff(1)
       CALL cp_fm_get_info(vectors, nrow_global=nao)
       CALL cp_fm_create(opvec, vectors%matrix_struct)
 
@@ -1840,8 +1840,7 @@ CONTAINS
       ALLOCATE (zij_fm_set(2, dim_op))
       DO i = 1, dim_op
          DO j = 1, 2
-            ALLOCATE (zij_fm_set(j, i)%matrix)
-            CALL cp_fm_create(zij_fm_set(j, i)%matrix, tmp_fm_struct)
+            CALL cp_fm_create(zij_fm_set(j, i), tmp_fm_struct)
          END DO
       END DO
 
@@ -1850,13 +1849,13 @@ CONTAINS
 
       DO ispin = 1, nspins
 !     zij computation, copied from qs_loc_methods:optimize_loc_berry
-         vectors => moloc_coeff(ispin)%matrix
+         vectors => moloc_coeff(ispin)
          DO i = 1, dim_op
             DO j = 1, 2
-               CALL cp_fm_set_all(zij_fm_set(j, i)%matrix, 0.0_dp)
+               CALL cp_fm_set_all(zij_fm_set(j, i), 0.0_dp)
                CALL cp_dbcsr_sm_fm_multiply(op_sm_set(j, i)%matrix, vectors, opvec, ncol=n_centers)
                CALL parallel_gemm("T", "N", n_centers, n_centers, nao, 1.0_dp, vectors, opvec, 0.0_dp, &
-                                  zij_fm_set(j, i)%matrix)
+                                  zij_fm_set(j, i))
             END DO
          END DO
 
@@ -1871,8 +1870,7 @@ CONTAINS
       CALL cp_fm_struct_release(tmp_fm_struct)
       DO i = 1, dim_op
          DO j = 1, 2
-            CALL cp_fm_release(zij_fm_set(j, i)%matrix)
-            DEALLOCATE (zij_fm_set(j, i)%matrix)
+            CALL cp_fm_release(zij_fm_set(j, i))
          END DO
       END DO
       DEALLOCATE (zij_fm_set)

@@ -12,24 +12,24 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE cp_fm_basic_linalg
-   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, &
-        cp_fm_release, cp_fm_set_all, cp_fm_set_element, cp_fm_set_submatrix, cp_fm_to_fm, &
-        cp_fm_type
-   USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr,&
-                                              cp_to_string
-   USE kahan_sum,                       ONLY: accurate_dot_product,&
-                                              accurate_sum
-   USE kinds,                           ONLY: dp,&
-                                              int_8,&
-                                              sp
-   USE machine,                         ONLY: m_memory
-   USE mathlib,                         ONLY: get_pseudo_inverse_svd,&
-                                              invert_matrix
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_sum
+   USE cp_blacs_env, ONLY: cp_blacs_env_type
+   USE cp_fm_struct, ONLY: cp_fm_struct_equivalent
+   USE cp_fm_types, ONLY: &
+      cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, &
+      cp_fm_release, cp_fm_set_all, cp_fm_set_element, cp_fm_set_submatrix, cp_fm_to_fm, &
+      cp_fm_type
+   USE cp_log_handling, ONLY: cp_logger_get_default_unit_nr, &
+                              cp_to_string
+   USE kahan_sum, ONLY: accurate_dot_product, &
+                        accurate_sum
+   USE kinds, ONLY: dp, &
+                    int_8, &
+                    sp
+   USE machine, ONLY: m_memory
+   USE mathlib, ONLY: get_pseudo_inverse_svd, &
+                      invert_matrix
+   USE message_passing, ONLY: mp_comm_type, &
+                              mp_sum
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -68,12 +68,19 @@ MODULE cp_fm_basic_linalg
 
    INTERFACE cp_fm_trace
       MODULE PROCEDURE cp_fm_trace_a0b0t0
-      MODULE PROCEDURE cp_fm_trace_a1b0t1
-      MODULE PROCEDURE cp_fm_trace_a1b1t1
+      MODULE PROCEDURE cp_fm_trace_a1b0t1_a
+      MODULE PROCEDURE cp_fm_trace_a1b0t1_p
+      MODULE PROCEDURE cp_fm_trace_a1b1t1_aa
+      MODULE PROCEDURE cp_fm_trace_a1b1t1_ap
+      MODULE PROCEDURE cp_fm_trace_a1b1t1_pa
+      MODULE PROCEDURE cp_fm_trace_a1b1t1_pp
    END INTERFACE cp_fm_trace
 
    INTERFACE cp_fm_contracted_trace
-      MODULE PROCEDURE cp_fm_contracted_trace_a2b2t2
+      MODULE PROCEDURE cp_fm_contracted_trace_a2b2t2_aa
+      MODULE PROCEDURE cp_fm_contracted_trace_a2b2t2_ap
+      MODULE PROCEDURE cp_fm_contracted_trace_a2b2t2_pa
+      MODULE PROCEDURE cp_fm_contracted_trace_a2b2t2_pp
    END INTERFACE cp_fm_contracted_trace
 CONTAINS
 
@@ -744,6 +751,10 @@ CONTAINS
 
    END SUBROUTINE cp_fm_trace_a0b0t0
 
+   #:mute
+      #:set types = [("cp_fm_type", "a", ""), ("cp_fm_p_type", "p","%matrix")]
+   #:endmute
+
 ! **************************************************************************************************
 !> \brief Compute trace(k) = Tr (matrix_a(k)^T matrix_b) for each pair of matrices A_k and B.
 !> \param matrix_a list of A matrices
@@ -762,61 +773,63 @@ CONTAINS
 !>      'matrix_b' is a single matrix.
 !>      \endparblock
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_trace_a1b0t1(matrix_a, matrix_b, trace)
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in)       :: matrix_a
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_b
-      REAL(kind=dp), DIMENSION(:), INTENT(out)           :: trace
+   #:for longname, shortname, appendix in types
+      SUBROUTINE cp_fm_trace_a1b0t1_${shortname}$ (matrix_a, matrix_b, trace)
+         TYPE(${longname}$), DIMENSION(:), INTENT(in)       :: matrix_a
+         TYPE(cp_fm_type), INTENT(IN)                       :: matrix_b
+         REAL(kind=dp), DIMENSION(:), INTENT(out)           :: trace
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_trace_a1b0t1'
+         CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_trace_a1b0t1_${shortname}$'
 
-      INTEGER                                            :: handle, imatrix, n_matrices, &
-                                                            ncols_local, nrows_local
-      LOGICAL                                            :: use_sp_a, use_sp_b
-      REAL(kind=dp), DIMENSION(:, :), POINTER            :: ldata_a, ldata_b
-      REAL(kind=sp), DIMENSION(:, :), POINTER            :: ldata_a_sp, ldata_b_sp
-      TYPE(mp_comm_type)                                 :: group
+         INTEGER                                            :: handle, imatrix, n_matrices, &
+                                                               ncols_local, nrows_local
+         LOGICAL                                            :: use_sp_a, use_sp_b
+         REAL(kind=dp), DIMENSION(:, :), POINTER            :: ldata_a, ldata_b
+         REAL(kind=sp), DIMENSION(:, :), POINTER            :: ldata_a_sp, ldata_b_sp
+         TYPE(mp_comm_type)                                 :: group
 
-      CALL timeset(routineN, handle)
+         CALL timeset(routineN, handle)
 
-      n_matrices = SIZE(trace)
-      CPASSERT(SIZE(matrix_a) == n_matrices)
+         n_matrices = SIZE(trace)
+         CPASSERT(SIZE(matrix_a) == n_matrices)
 
-      CALL cp_fm_get_info(matrix_b, nrow_local=nrows_local, ncol_local=ncols_local)
-      use_sp_b = matrix_b%use_sp
+         CALL cp_fm_get_info(matrix_b, nrow_local=nrows_local, ncol_local=ncols_local)
+         use_sp_b = matrix_b%use_sp
 
-      IF (use_sp_b) THEN
-         ldata_b_sp => matrix_b%local_data_sp(1:nrows_local, 1:ncols_local)
-      ELSE
-         ldata_b => matrix_b%local_data(1:nrows_local, 1:ncols_local)
-      END IF
+         IF (use_sp_b) THEN
+            ldata_b_sp => matrix_b%local_data_sp(1:nrows_local, 1:ncols_local)
+         ELSE
+            ldata_b => matrix_b%local_data(1:nrows_local, 1:ncols_local)
+         END IF
 
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(imatrix, ldata_a, ldata_a_sp, use_sp_a), &
 !$OMP             SHARED(ldata_b, ldata_b_sp, matrix_a, matrix_b), &
 !$OMP             SHARED(ncols_local, nrows_local, n_matrices, trace, use_sp_b)
 
-      DO imatrix = 1, n_matrices
+         DO imatrix = 1, n_matrices
 
-         use_sp_a = matrix_a(imatrix)%matrix%use_sp
+            use_sp_a = matrix_a(imatrix) ${appendix}$%use_sp
 
-         ! assume that the matrices A(i) and B have identical shapes and distribution schemes
-         IF (use_sp_a .AND. use_sp_b) THEN
-            ldata_a_sp => matrix_a(imatrix)%matrix%local_data_sp(1:nrows_local, 1:ncols_local)
-            trace(imatrix) = accurate_dot_product(ldata_a_sp, ldata_b_sp)
-         ELSE IF (.NOT. use_sp_a .AND. .NOT. use_sp_b) THEN
-            ldata_a => matrix_a(imatrix)%matrix%local_data(1:nrows_local, 1:ncols_local)
-            trace(imatrix) = accurate_dot_product(ldata_a, ldata_b)
-         ELSE
-            CPABORT("Matrices A and B are of different types")
-         END IF
-      END DO
+            ! assume that the matrices A(i) and B have identical shapes and distribution schemes
+            IF (use_sp_a .AND. use_sp_b) THEN
+               ldata_a_sp => matrix_a(imatrix) ${appendix}$%local_data_sp(1:nrows_local, 1:ncols_local)
+               trace(imatrix) = accurate_dot_product(ldata_a_sp, ldata_b_sp)
+            ELSE IF (.NOT. use_sp_a .AND. .NOT. use_sp_b) THEN
+               ldata_a => matrix_a(imatrix) ${appendix}$%local_data(1:nrows_local, 1:ncols_local)
+               trace(imatrix) = accurate_dot_product(ldata_a, ldata_b)
+            ELSE
+               CPABORT("Matrices A and B are of different types")
+            END IF
+         END DO
 !$OMP END PARALLEL DO
 
-      group = matrix_b%matrix_struct%para_env%group
-      CALL mp_sum(trace, group)
+         group = matrix_b%matrix_struct%para_env%group
+         CALL mp_sum(trace, group)
 
-      CALL timestop(handle)
-   END SUBROUTINE cp_fm_trace_a1b0t1
+         CALL timestop(handle)
+      END SUBROUTINE cp_fm_trace_a1b0t1_${shortname}$
+   #:endfor
 
 ! **************************************************************************************************
 !> \brief Compute trace(k) = Tr (matrix_a(k)^T matrix_b(k)) for each pair of matrices A_k and B_k.
@@ -836,67 +849,72 @@ CONTAINS
 !>      all dummy variables (matrix_a, matrix_b, and trace) are 1-dimensional arrays.
 !>      \endparblock
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_trace_a1b1t1(matrix_a, matrix_b, trace, accurate)
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in)       :: matrix_a, matrix_b
-      REAL(kind=dp), DIMENSION(:), INTENT(out)           :: trace
-      LOGICAL, INTENT(IN), OPTIONAL                      :: accurate
+   #:for longname1, shortname1, appendix1 in types
+      #:for longname2, shortname2, appendix2 in types
+         SUBROUTINE cp_fm_trace_a1b1t1_${shortname1}$${shortname2}$ (matrix_a, matrix_b, trace, accurate)
+            TYPE(${longname1}$), DIMENSION(:), INTENT(in)       :: matrix_a
+            TYPE(${longname2}$), DIMENSION(:), INTENT(in)       :: matrix_b
+            REAL(kind=dp), DIMENSION(:), INTENT(out)           :: trace
+            LOGICAL, INTENT(IN), OPTIONAL                      :: accurate
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_trace_a1b1t1'
+            CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_trace_a1b1t1_${shortname1}$${shortname2}$'
 
-      INTEGER                                            :: handle, imatrix, n_matrices, &
-                                                            ncols_local, nrows_local
-      LOGICAL                                            :: use_accurate_sum, use_sp_a, use_sp_b
-      REAL(kind=dp), DIMENSION(:, :), POINTER            :: ldata_a, ldata_b
-      REAL(kind=sp), DIMENSION(:, :), POINTER            :: ldata_a_sp, ldata_b_sp
-      TYPE(mp_comm_type)                                 :: group
+            INTEGER                                            :: handle, imatrix, n_matrices, &
+                                                                  ncols_local, nrows_local
+            LOGICAL                                            :: use_accurate_sum, use_sp_a, use_sp_b
+            REAL(kind=dp), DIMENSION(:, :), POINTER            :: ldata_a, ldata_b
+            REAL(kind=sp), DIMENSION(:, :), POINTER            :: ldata_a_sp, ldata_b_sp
+            TYPE(mp_comm_type)                                 :: group
 
-      CALL timeset(routineN, handle)
+            CALL timeset(routineN, handle)
 
-      n_matrices = SIZE(trace)
-      CPASSERT(SIZE(matrix_a) == n_matrices)
-      CPASSERT(SIZE(matrix_b) == n_matrices)
+            n_matrices = SIZE(trace)
+            CPASSERT(SIZE(matrix_a) == n_matrices)
+            CPASSERT(SIZE(matrix_b) == n_matrices)
 
-      use_accurate_sum = .TRUE.
-      IF (PRESENT(accurate)) use_accurate_sum = accurate
+            use_accurate_sum = .TRUE.
+            IF (PRESENT(accurate)) use_accurate_sum = accurate
 
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(imatrix, ldata_a, ldata_a_sp, ldata_b, ldata_b_sp, ncols_local), &
 !$OMP             PRIVATE(nrows_local, use_sp_a, use_sp_b), &
 !$OMP             SHARED(matrix_a, matrix_b, n_matrices, trace, use_accurate_sum)
-      DO imatrix = 1, n_matrices
-         CALL cp_fm_get_info(matrix_a(imatrix)%matrix, nrow_local=nrows_local, ncol_local=ncols_local)
+            DO imatrix = 1, n_matrices
+               CALL cp_fm_get_info(matrix_a(imatrix) ${appendix1}$, nrow_local=nrows_local, ncol_local=ncols_local)
 
-         use_sp_a = matrix_a(imatrix)%matrix%use_sp
-         use_sp_b = matrix_b(imatrix)%matrix%use_sp
+               use_sp_a = matrix_a(imatrix) ${appendix1}$%use_sp
+               use_sp_b = matrix_b(imatrix) ${appendix2}$%use_sp
 
-         ! assume that the matrices A(i) and B(i) have identical shapes and distribution schemes
-         IF (use_sp_a .AND. use_sp_b) THEN
-            ldata_a_sp => matrix_a(imatrix)%matrix%local_data_sp(1:nrows_local, 1:ncols_local)
-            ldata_b_sp => matrix_b(imatrix)%matrix%local_data_sp(1:nrows_local, 1:ncols_local)
-            IF (use_accurate_sum) THEN
-               trace(imatrix) = accurate_dot_product(ldata_a_sp, ldata_b_sp)
-            ELSE
-               trace(imatrix) = SUM(ldata_a_sp*ldata_b_sp)
-            END IF
-         ELSE IF (.NOT. use_sp_a .AND. .NOT. use_sp_b) THEN
-            ldata_a => matrix_a(imatrix)%matrix%local_data(1:nrows_local, 1:ncols_local)
-            ldata_b => matrix_b(imatrix)%matrix%local_data(1:nrows_local, 1:ncols_local)
-            IF (use_accurate_sum) THEN
-               trace(imatrix) = accurate_dot_product(ldata_a, ldata_b)
-            ELSE
-               trace(imatrix) = SUM(ldata_a*ldata_b)
-            END IF
-         ELSE
-            CPABORT("Matrices A and B are of different types")
-         END IF
-      END DO
+               ! assume that the matrices A(i) and B(i) have identical shapes and distribution schemes
+               IF (use_sp_a .AND. use_sp_b) THEN
+                  ldata_a_sp => matrix_a(imatrix) ${appendix1}$%local_data_sp(1:nrows_local, 1:ncols_local)
+                  ldata_b_sp => matrix_b(imatrix) ${appendix2}$%local_data_sp(1:nrows_local, 1:ncols_local)
+                  IF (use_accurate_sum) THEN
+                     trace(imatrix) = accurate_dot_product(ldata_a_sp, ldata_b_sp)
+                  ELSE
+                     trace(imatrix) = SUM(ldata_a_sp*ldata_b_sp)
+                  END IF
+               ELSE IF (.NOT. use_sp_a .AND. .NOT. use_sp_b) THEN
+                  ldata_a => matrix_a(imatrix) ${appendix1}$%local_data(1:nrows_local, 1:ncols_local)
+                  ldata_b => matrix_b(imatrix) ${appendix2}$%local_data(1:nrows_local, 1:ncols_local)
+                  IF (use_accurate_sum) THEN
+                     trace(imatrix) = accurate_dot_product(ldata_a, ldata_b)
+                  ELSE
+                     trace(imatrix) = SUM(ldata_a*ldata_b)
+                  END IF
+               ELSE
+                  CPABORT("Matrices A and B are of different types")
+               END IF
+            END DO
 !$OMP END PARALLEL DO
 
-      group = matrix_a(1)%matrix%matrix_struct%para_env%group
-      CALL mp_sum(trace, group)
+            group = matrix_a(1) ${appendix1}$%matrix_struct%para_env%group
+            CALL mp_sum(trace, group)
 
-      CALL timestop(handle)
-   END SUBROUTINE cp_fm_trace_a1b1t1
+            CALL timestop(handle)
+         END SUBROUTINE cp_fm_trace_a1b1t1_${shortname1}$${shortname2}$
+      #:endfor
+   #:endfor
 
 ! **************************************************************************************************
 !> \brief Compute trace(i,j) = \sum_k Tr (matrix_a(k,i)^T matrix_b(k,j)).
@@ -905,85 +923,90 @@ CONTAINS
 !> \param trace    computed traces
 !> \param accurate ...
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_contracted_trace_a2b2t2(matrix_a, matrix_b, trace, accurate)
-      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: matrix_a, matrix_b
-      REAL(kind=dp), DIMENSION(:, :), INTENT(out)        :: trace
-      LOGICAL, INTENT(IN), OPTIONAL                      :: accurate
+   #:for longname1, shortname1, appendix1 in types
+      #:for longname2, shortname2, appendix2 in types
+         SUBROUTINE cp_fm_contracted_trace_a2b2t2_${shortname1}$${shortname2}$ (matrix_a, matrix_b, trace, accurate)
+            TYPE(${longname1}$), DIMENSION(:, :), INTENT(in)       :: matrix_a
+            TYPE(${longname2}$), DIMENSION(:, :), INTENT(in)       :: matrix_b
+            REAL(kind=dp), DIMENSION(:, :), INTENT(out)        :: trace
+            LOGICAL, INTENT(IN), OPTIONAL                      :: accurate
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_contracted_trace_a2b2t2'
+            CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_contracted_trace_a2b2t2_${shortname1}$${shortname2}$'
 
-      INTEGER                                            :: handle, ia, ib, iz, na, nb, ncols_local, &
-                                                            nrows_local, nz
-      INTEGER(kind=int_8)                                :: ib8, itrace, na8, ntraces
-      LOGICAL                                            :: use_accurate_sum, use_sp_a, use_sp_b
-      REAL(kind=dp)                                      :: t
-      REAL(kind=dp), DIMENSION(:, :), POINTER            :: ldata_a, ldata_b
-      REAL(kind=sp), DIMENSION(:, :), POINTER            :: ldata_a_sp, ldata_b_sp
-      TYPE(mp_comm_type)                                 :: group
+            INTEGER                                            :: handle, ia, ib, iz, na, nb, ncols_local, &
+                                                                  nrows_local, nz
+            INTEGER(kind=int_8)                                :: ib8, itrace, na8, ntraces
+            LOGICAL                                            :: use_accurate_sum, use_sp_a, use_sp_b
+            REAL(kind=dp)                                      :: t
+            REAL(kind=dp), DIMENSION(:, :), POINTER            :: ldata_a, ldata_b
+            REAL(kind=sp), DIMENSION(:, :), POINTER            :: ldata_a_sp, ldata_b_sp
+            TYPE(mp_comm_type)                                 :: group
 
-      CALL timeset(routineN, handle)
+            CALL timeset(routineN, handle)
 
-      nz = SIZE(matrix_a, 1)
-      CPASSERT(SIZE(matrix_b, 1) == nz)
+            nz = SIZE(matrix_a, 1)
+            CPASSERT(SIZE(matrix_b, 1) == nz)
 
-      na = SIZE(matrix_a, 2)
-      nb = SIZE(matrix_b, 2)
-      CPASSERT(SIZE(trace, 1) == na)
-      CPASSERT(SIZE(trace, 2) == nb)
+            na = SIZE(matrix_a, 2)
+            nb = SIZE(matrix_b, 2)
+            CPASSERT(SIZE(trace, 1) == na)
+            CPASSERT(SIZE(trace, 2) == nb)
 
-      use_accurate_sum = .TRUE.
-      IF (PRESENT(accurate)) use_accurate_sum = accurate
+            use_accurate_sum = .TRUE.
+            IF (PRESENT(accurate)) use_accurate_sum = accurate
 
-      ! here we use one running index (itrace) instead of two (ia, ib) in order to
-      ! improve load balance between shared-memory threads
-      ntraces = na*nb
-      na8 = INT(na, kind=int_8)
+            ! here we use one running index (itrace) instead of two (ia, ib) in order to
+            ! improve load balance between shared-memory threads
+            ntraces = na*nb
+            na8 = INT(na, kind=int_8)
 
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(ia, ib, ib8, itrace, iz, ldata_a, ldata_a_sp, ldata_b, ldata_b_sp, ncols_local), &
 !$OMP             PRIVATE(nrows_local, t, use_sp_a, use_sp_b), &
 !$OMP             SHARED(matrix_a, matrix_b, na, na8, nb, ntraces, nz, trace, use_accurate_sum)
-      DO itrace = 1, ntraces
-         ib8 = (itrace - 1)/na8
-         ia = INT(itrace - ib8*na8)
-         ib = INT(ib8) + 1
+            DO itrace = 1, ntraces
+               ib8 = (itrace - 1)/na8
+               ia = INT(itrace - ib8*na8)
+               ib = INT(ib8) + 1
 
-         t = 0.0_dp
-         DO iz = 1, nz
-            CALL cp_fm_get_info(matrix_a(iz, ia)%matrix, nrow_local=nrows_local, ncol_local=ncols_local)
-            use_sp_a = matrix_a(iz, ia)%matrix%use_sp
-            use_sp_b = matrix_b(iz, ib)%matrix%use_sp
+               t = 0.0_dp
+               DO iz = 1, nz
+                  CALL cp_fm_get_info(matrix_a(iz, ia) ${appendix1}$, nrow_local=nrows_local, ncol_local=ncols_local)
+                  use_sp_a = matrix_a(iz, ia) ${appendix1}$%use_sp
+                  use_sp_b = matrix_b(iz, ib) ${appendix2}$%use_sp
 
-            ! assume that the matrices A(iz, ia) and B(iz, ib) have identical shapes and distribution schemes
-            IF (.NOT. use_sp_a .AND. .NOT. use_sp_b) THEN
-               ldata_a => matrix_a(iz, ia)%matrix%local_data(1:nrows_local, 1:ncols_local)
-               ldata_b => matrix_b(iz, ib)%matrix%local_data(1:nrows_local, 1:ncols_local)
-               IF (use_accurate_sum) THEN
-                  t = t + accurate_dot_product(ldata_a, ldata_b)
-               ELSE
-                  t = t + SUM(ldata_a*ldata_b)
-               END IF
-            ELSE IF (use_sp_a .AND. use_sp_b) THEN
-               ldata_a_sp => matrix_a(iz, ia)%matrix%local_data_sp(1:nrows_local, 1:ncols_local)
-               ldata_b_sp => matrix_b(iz, ib)%matrix%local_data_sp(1:nrows_local, 1:ncols_local)
-               IF (use_accurate_sum) THEN
-                  t = t + accurate_dot_product(ldata_a_sp, ldata_b_sp)
-               ELSE
-                  t = t + SUM(ldata_a_sp*ldata_b_sp)
-               END IF
-            ELSE
-               CPABORT("Matrices A and B are of different types")
-            END IF
-         END DO
-         trace(ia, ib) = t
-      END DO
+                  ! assume that the matrices A(iz, ia) and B(iz, ib) have identical shapes and distribution schemes
+                  IF (.NOT. use_sp_a .AND. .NOT. use_sp_b) THEN
+                     ldata_a => matrix_a(iz, ia) ${appendix1}$%local_data(1:nrows_local, 1:ncols_local)
+                     ldata_b => matrix_b(iz, ib) ${appendix2}$%local_data(1:nrows_local, 1:ncols_local)
+                     IF (use_accurate_sum) THEN
+                        t = t + accurate_dot_product(ldata_a, ldata_b)
+                     ELSE
+                        t = t + SUM(ldata_a*ldata_b)
+                     END IF
+                  ELSE IF (use_sp_a .AND. use_sp_b) THEN
+                     ldata_a_sp => matrix_a(iz, ia) ${appendix1}$%local_data_sp(1:nrows_local, 1:ncols_local)
+                     ldata_b_sp => matrix_b(iz, ib) ${appendix2}$%local_data_sp(1:nrows_local, 1:ncols_local)
+                     IF (use_accurate_sum) THEN
+                        t = t + accurate_dot_product(ldata_a_sp, ldata_b_sp)
+                     ELSE
+                        t = t + SUM(ldata_a_sp*ldata_b_sp)
+                     END IF
+                  ELSE
+                     CPABORT("Matrices A and B are of different types")
+                  END IF
+               END DO
+               trace(ia, ib) = t
+            END DO
 !$OMP END PARALLEL DO
 
-      group = matrix_a(1, 1)%matrix%matrix_struct%para_env%group
-      CALL mp_sum(trace, group)
+            group = matrix_a(1, 1) ${appendix1}$%matrix_struct%para_env%group
+            CALL mp_sum(trace, group)
 
-      CALL timestop(handle)
-   END SUBROUTINE cp_fm_contracted_trace_a2b2t2
+            CALL timestop(handle)
+         END SUBROUTINE cp_fm_contracted_trace_a2b2t2_${shortname1}$${shortname2}$
+      #:endfor
+   #:endfor
 
 ! **************************************************************************************************
 !> \brief multiplies in place by a triangular matrix:
@@ -2299,8 +2322,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_Gram_Schmidt_orthonorm'
 
       INTEGER :: end_col_global, end_col_local, end_row_global, end_row_local, handle, i, j, &
-         j_col, ncol_global, ncol_local, nrow_global, nrow_local, start_col_global, &
-         start_col_local, start_row_global, start_row_local, this_col, unit_nr
+                 j_col, ncol_global, ncol_local, nrow_global, nrow_local, start_col_global, &
+                 start_col_local, start_row_global, start_row_local, this_col, unit_nr
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: my_do_norm, my_do_print
       REAL(KIND=dp)                                      :: norm
