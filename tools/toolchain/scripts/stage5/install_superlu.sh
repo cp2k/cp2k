@@ -84,6 +84,8 @@ prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path CPATH "$pkg_install_dir/include"
+prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
+prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 EOF
     cat "${BUILDDIR}/setup_superlu" >> $SETUPFILE
   fi
@@ -94,6 +96,7 @@ export SUPERLU_LIBS="${SUPERLU_LIBS}"
 export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(${SUPERLU_CFLAGS}|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${SUPERLU_LDFLAGS}|)"
 export CP_LIBS="IF_MPI(${SUPERLU_LIBS}|) \${CP_LIBS}"
+export SUPERLU_ROOT="${pkg_install_dir}"
 EOF
 fi
 

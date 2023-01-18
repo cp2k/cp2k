@@ -85,6 +85,8 @@ prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path CPATH "$pkg_install_dir/include"
+prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
+prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 EOF
   fi
   cat << EOF >> "${BUILDDIR}/setup_spglib"
@@ -94,7 +96,7 @@ export CP_DFLAGS="\${CP_DFLAGS} -D__SPGLIB"
 export CP_CFLAGS="\${CP_CFLAGS} ${SPGLIB_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${SPGLIB_LDFLAGS}"
 export CP_LIBS="${SPGLIB_LIBS} \${CP_LIBS}"
-export LIBSPGROOT="$pkg_install_dir"
+export LIBSPG_ROOT="$pkg_install_dir"
 export LIBSPG_INCLUDE_DIR="$pkg_install_dir/include"
 EOF
   cat "${BUILDDIR}/setup_spglib" >> $SETUPFILE

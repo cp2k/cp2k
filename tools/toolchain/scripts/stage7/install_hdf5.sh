@@ -70,6 +70,8 @@ prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path CPATH "$pkg_install_dir/include"
+prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
+prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 EOF
   fi
   cat << EOF >> "${BUILDDIR}/setup_hdf5"
@@ -90,7 +92,6 @@ export HDF5_ROOT="$pkg_install_dir"
 export HDF5_LIBRARIES="$HDF5_LIBS"
 export HDF5_HL_LIBRARIES="$HDF5_LIBS"
 export HDF5_INCLUDE_DIRS="$pkg_install_dir/include"
-
 EOF
   cat "${BUILDDIR}/setup_hdf5" >> $SETUPFILE
 fi
