@@ -581,6 +581,7 @@ CONTAINS
                      homo_lumo(ispin, 1) = mo_eigenvalues(homo)
                   END DO
                   has_homo = .TRUE.
+                  NULLIFY (unoccupied_orbs_stm, unoccupied_evals_stm)
                   IF (nlumo_stm > 0) THEN
                      ALLOCATE (unoccupied_orbs_stm(dft_control%nspins))
                      ALLOCATE (unoccupied_evals_stm(dft_control%nspins))

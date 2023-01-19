@@ -778,6 +778,7 @@ CONTAINS
          IF (do_kpoints) THEN
             CPWARN("STM not implemented for k-point calculations!")
          ELSE
+            NULLIFY (unoccupied_orbs_stm, unoccupied_evals_stm)
             IF (nlumo_stm > 0) THEN
                ALLOCATE (unoccupied_orbs_stm(dft_control%nspins))
                ALLOCATE (unoccupied_evals_stm(dft_control%nspins))
