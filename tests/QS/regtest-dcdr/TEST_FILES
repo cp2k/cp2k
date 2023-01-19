@@ -8,4 +8,5 @@ h2o_apt_uks.inp         96     1e-06     -0.879582
 h2o_apt_loc.inp         96     1e-06     -0.879586
 h2o_apt_pbc.inp         96     1e-06     -0.938707
 h2o_apt_pbc_loc.inp     96     1e-06     -0.938770
+h2o_aat.inp             100    1e-06     -0.857427
 #EOF

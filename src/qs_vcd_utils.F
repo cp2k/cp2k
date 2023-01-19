@@ -102,7 +102,7 @@ CONTAINS
 
       INTEGER                                            :: i, idir, ispin, j, natom, nspins, &
                                                             output_unit, reference, unit_number
-      LOGICAL                                            :: exists, explicit
+      LOGICAL                                            :: explicit
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -133,7 +133,7 @@ CONTAINS
 
       ! We can't run a NVPT/MFPT calculation without the coefficients dC/dR.
       CALL dcdr_env_init(vcd_env%dcdr_env, qs_env)
-      vcd_env%dcdr_env%output_unit = vcd_env%output_unit
+      ! vcd_env%dcdr_env%output_unit = vcd_env%output_unit
 
       IF (output_unit > 0) THEN
          WRITE (output_unit, "(/,T20,A,/)") "*** Start NVPT calculation ***"
@@ -412,17 +412,10 @@ CONTAINS
       CALL cp_print_key_finished_output(output_unit, logger, lr_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
 
-      IF (vcd_env%output_unit > 0) THEN
-         WRITE (vcd_env%output_unit, *) 'size(vcd_env%list_of_atoms)', SIZE(vcd_env%dcdr_env%list_of_atoms)
-         WRITE (vcd_env%output_unit, *) 'vcd_env%list_of_atoms', vcd_env%dcdr_env%list_of_atoms
-      END IF
-
-      INQUIRE (file="eddi_matrices.dat", exist=exists)
-      IF (exists) THEN
-         OPEN (11111, file="eddi_matrices.dat", status="old", position="append", action="write")
-      ELSE
-         OPEN (11111, file='eddi_matrices.dat')
-      END IF
+      ! IF (vcd_env%output_unit > 0) THEN
+      !    WRITE (vcd_env%output_unit, *) 'size(vcd_env%list_of_atoms)', SIZE(vcd_env%dcdr_env%list_of_atoms)
+      !    WRITE (vcd_env%output_unit, *) 'vcd_env%list_of_atoms', vcd_env%dcdr_env%list_of_atoms
+      ! END IF
 
    END SUBROUTINE vcd_env_init
 

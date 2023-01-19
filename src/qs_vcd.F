@@ -190,9 +190,9 @@ CONTAINS
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-         IF (vcd_env%output_unit > 0) &
-            WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-            'aat quadr_der:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
+         ! IF (vcd_env%output_unit > 0) &
+         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
+         !    'aat quadr_der:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
       END DO
 
       !  (B):   - P^0 * ε_{alpha gamma delta} * < mu | r_gamma | nu > * (delta == beta) * (nu == lambda)
@@ -218,9 +218,9 @@ CONTAINS
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-         IF (vcd_env%output_unit > 0) &
-            WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-            'aat moment_off:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
+         ! IF (vcd_env%output_unit > 0) &
+         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
+         !    'aat moment_off:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
       END DO
 
       !  (C):   + iP^1 * ε_{alpha gamma delta} * < mu | r_gamma ∂_delta | nu >
@@ -244,9 +244,9 @@ CONTAINS
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-         IF (vcd_env%output_unit > 0) &
-            WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-            'aat quadr_dcv:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
+         ! IF (vcd_env%output_unit > 0) &
+         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
+         !    'aat quadr_dcv:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
       END DO
 
       ! The PP part consists of four contributions
@@ -269,9 +269,9 @@ CONTAINS
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-         IF (vcd_env%output_unit > 0) &
-            WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-            'aat r_rxvr:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
+         ! IF (vcd_env%output_unit > 0) &
+         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
+         !    'aat r_rxvr:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
       END DO
 
       !  (E):  + P^0 * ε_{alpha gamma delta} * < mu | r_gamma [V, r_delta] r_beta | nu > * (nu == lambda)
@@ -287,9 +287,9 @@ CONTAINS
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-         IF (vcd_env%output_unit > 0) &
-            WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-            'aat rxvr_r:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
+         ! IF (vcd_env%output_unit > 0) &
+         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
+         !    'aat rxvr_r:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
       END DO
 
       !  (F):  - P^0 * ε_{alpha gamma delta} * < mu | r_gamma [[V, r_beta], r_delta] | nu > * (eta == lambda)
@@ -303,9 +303,9 @@ CONTAINS
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-         IF (vcd_env%output_unit > 0) &
-            WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-            'aat r_doublecom:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
+         ! IF (vcd_env%output_unit > 0) &
+         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
+            ! 'aat r_doublecom:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
       END DO
 
       !  (G):   - iP^1 * ε_{alpha gamma delta} * < mu | r_gamma [V, r_delta] | nu >
@@ -319,9 +319,9 @@ CONTAINS
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
               + aat_tmp
-         IF (vcd_env%output_unit > 0) &
-            WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-            'aat pp_dcv:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
+         ! IF (vcd_env%output_unit > 0) &
+         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
+         !    'aat pp_dcv:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
       END DO
 
       ! All the reference dependent stuff
@@ -345,9 +345,9 @@ CONTAINS
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-         IF (vcd_env%output_unit > 0) &
-            WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-            'aat quadr_dcv_ref:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
+         ! IF (vcd_env%output_unit > 0) &
+         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
+         !    'aat quadr_dcv_ref:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
       END DO
 
       !  (G):  - iP^1 * ε_{alpha gamma delta} * < mu | [V, r_delta] | nu > * (- R_gamma)
@@ -369,9 +369,9 @@ CONTAINS
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-         IF (vcd_env%output_unit > 0) &
-            WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-            'aat pp_dcv_ref:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
+         ! IF (vcd_env%output_unit > 0) &
+         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
+         !    'aat pp_dcv_ref:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
       END DO
 
       !  mag_vel, vel, mag
@@ -445,9 +445,9 @@ CONTAINS
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-         IF (vcd_env%output_unit > 0) &
-            WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-            'aat quadr_der_ref:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
+         ! IF (vcd_env%output_unit > 0) &
+         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
+         !    'aat quadr_der_ref:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
       END DO
 
       ! (B):  P^0 * ε_{alpha gamma beta} * < mu | nu > * (nu == lambda) * R_gamma
@@ -472,9 +472,9 @@ CONTAINS
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-         IF (vcd_env%output_unit > 0) &
-            WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-            'aat moment_off_ref:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
+         ! IF (vcd_env%output_unit > 0) &
+         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
+         !    'aat moment_off_ref:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
       END DO
 
       !  (D):  - P^0 * ε_{alpha gamma delta} * < mu | r_gamma r_beta [V, r_delta] | nu > * (mu == lambda)
@@ -538,9 +538,9 @@ CONTAINS
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-         IF (vcd_env%output_unit > 0) &
-            WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-            'aat r_rxvr_ref:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
+         ! IF (vcd_env%output_unit > 0) &
+         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
+         !    'aat r_rxvr_ref:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
       END DO
 
       !  (E):  + P^0 * ε_{alpha gamma delta} * < mu | r_gamma [V, r_delta] r_beta | nu > * (nu == lambda)
@@ -603,9 +603,9 @@ CONTAINS
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-         IF (vcd_env%output_unit > 0) &
-            WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-            'aat rxvr_r_ref:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
+         ! IF (vcd_env%output_unit > 0) &
+         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
+         !    'aat rxvr_r_ref:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
       END DO
 
       !  (F):  - P^0 * ε_{alpha gamma delta} * < mu | [[V, r_beta], r_delta] | nu > * (eta == lambda) * (-R_gamma)
@@ -629,9 +629,9 @@ CONTAINS
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-         IF (vcd_env%output_unit > 0) &
-            WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-            'aat r_doublecom_ref:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
+         ! IF (vcd_env%output_unit > 0) &
+         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
+         !    'aat r_doublecom_ref:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
       END DO
 
       ! Nuclear contribution
@@ -648,9 +648,9 @@ CONTAINS
 
                aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
                   = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-               IF (vcd_env%output_unit > 0) &
-                  WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-                  'aat nuclear:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp/4._dp
+               ! IF (vcd_env%output_unit > 0) &
+               !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
+               !    'aat nuclear:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp/4._dp
             END DO
          END DO
       END IF
@@ -784,10 +784,10 @@ CONTAINS
          apt_dipvel = 2._dp*apt_dipvel
          apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + f_spin*apt_dipvel
-         IF (vcd_env%output_unit > 0) &
-            WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-            'apt dipvel: ', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, &
-            +f_spin*apt_dipvel
+         ! IF (vcd_env%output_unit > 0) &
+         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
+         !    'apt dipvel: ', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, &
+         !    +f_spin*apt_dipvel
       END DO
 
       DO alpha = 1, 3
@@ -802,10 +802,10 @@ CONTAINS
 
          apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + f_spin*apt_hcom
-         IF (vcd_env%output_unit > 0) &
-            WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-            'apt hcom: ', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, &
-            +f_spin*apt_hcom
+         ! IF (vcd_env%output_unit > 0) &
+         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
+         !    'apt hcom: ', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, &
+         !    +f_spin*apt_hcom
       END DO  !x/y/z
 
       ! STEP 2: basis function derivative contribution
@@ -823,9 +823,9 @@ CONTAINS
       apt_difdip = -f_spin*apt_difdip
       apt_el(vcd_env%dcdr_env%beta, vcd_env%dcdr_env%beta, vcd_env%dcdr_env%lambda) &
          = apt_el(vcd_env%dcdr_env%beta, vcd_env%dcdr_env%beta, vcd_env%dcdr_env%lambda) + apt_difdip
-      IF (vcd_env%output_unit > 0) &
-         WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         'apt difdip_s:', vcd_env%dcdr_env%beta, vcd_env%dcdr_env%beta, vcd_env%dcdr_env%lambda, apt_difdip
+      ! IF (vcd_env%output_unit > 0) &
+      !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
+      !    'apt difdip_s:', vcd_env%dcdr_env%beta, vcd_env%dcdr_env%beta, vcd_env%dcdr_env%lambda, apt_difdip
 
       !! difdip(j, idir) = < a | r_j | ∂_idir b >
       !! matrix_difdip2(beta, alpha) = < a | r_beta | ∂_alpha b >
@@ -840,9 +840,9 @@ CONTAINS
          apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + apt_difdip
 
-         IF (vcd_env%output_unit > 0) &
-            WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-            'apt difdip:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, apt_difdip
+         ! IF (vcd_env%output_unit > 0) &
+         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
+         !    'apt difdip:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, apt_difdip
       END DO !alpha
 
       ! STEP 3: The terms r * [V, r]
@@ -866,9 +866,9 @@ CONTAINS
 
          apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + f_spin*apt_rcom
-         IF (vcd_env%output_unit > 0) &
-            WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-            'apt rcom: ', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, f_spin*apt_rcom
+         ! IF (vcd_env%output_unit > 0) &
+         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
+         !    'apt rcom: ', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, f_spin*apt_rcom
       END DO !alpha
 
       ! STEP 4: pseudopotential derivative contribution
@@ -879,9 +879,9 @@ CONTAINS
          CALL cp_fm_trace(mo_coeff, buf%matrix, apt_dcom)
          apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + f_spin*apt_dcom
-         IF (vcd_env%output_unit > 0) &
-            WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-            'apt dcom: ', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, f_spin*apt_dcom
+         ! IF (vcd_env%output_unit > 0) &
+         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
+         !    'apt dcom: ', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, f_spin*apt_dcom
       END DO !alpha
 
       ! The reference point dependent terms:
@@ -915,10 +915,10 @@ CONTAINS
 
          apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + f_spin*apt_difdip
-         IF (vcd_env%output_unit > 0) &
-            WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-            'apt difdip_munu: ', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, &
-            +f_spin*apt_difdip
+         ! IF (vcd_env%output_unit > 0) &
+         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
+         !    'apt difdip_munu: ', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, &
+         !    +f_spin*apt_difdip
       END DO
 
       ! And the additional factor to rcom
@@ -950,9 +950,9 @@ CONTAINS
 
          apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + f_spin*apt_rcom
-         IF (vcd_env%output_unit > 0) &
-            WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-            'apt rcom_munu: ', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, +f_spin*apt_rcom
+         ! IF (vcd_env%output_unit > 0) &
+         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
+         !    'apt rcom_munu: ', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, +f_spin*apt_rcom
       END DO
 
       ! STEP 5: nuclear contribution
@@ -963,9 +963,9 @@ CONTAINS
          apt_nuc(vcd_env%dcdr_env%beta, vcd_env%dcdr_env%beta, vcd_env%dcdr_env%lambda) = &
             apt_nuc(vcd_env%dcdr_env%beta, vcd_env%dcdr_env%beta, vcd_env%dcdr_env%lambda) + charge
 
-         IF (vcd_env%output_unit > 0) &
-            WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-            'apt nuclear: ', vcd_env%dcdr_env%beta, vcd_env%dcdr_env%beta, vcd_env%dcdr_env%lambda, charge
+         ! IF (vcd_env%output_unit > 0) &
+         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
+         !    'apt nuclear: ', vcd_env%dcdr_env%beta, vcd_env%dcdr_env%beta, vcd_env%dcdr_env%lambda, charge
       END IF
 
       ! STEP 6: deallocations

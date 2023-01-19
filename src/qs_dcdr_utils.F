@@ -982,8 +982,8 @@ CONTAINS
       CALL cp_print_key_finished_output(output_unit, logger, lr_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
 
-      IF (dcdr_env%output_unit > 0) &
-         WRITE (dcdr_env%output_unit, *) 'List of atoms: ', dcdr_env%list_of_atoms
+      ! IF (dcdr_env%output_unit > 0) &
+      !    WRITE (dcdr_env%output_unit, *) 'List of atoms: ', dcdr_env%list_of_atoms
 
       CALL timestop(handle)
    END SUBROUTINE dcdr_env_init

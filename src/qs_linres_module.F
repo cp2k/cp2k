@@ -138,7 +138,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'vcd_linres'
 
-      INTEGER                                            :: beta, i, latom
+      INTEGER                                            :: beta, latom
       TYPE(vcd_env_type)                                 :: vcd_env
 
       ! We need the position perturbation for the velocity perturbation operator
@@ -156,9 +156,9 @@ CONTAINS
 
          DO beta = 1, 3                   ! in every direction
             vcd_env%dcdr_env%beta = beta
-            IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) REPEAT('-', 80)
-            IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) &
-               'vel lambda, beta', vcd_env%dcdr_env%lambda, vcd_env%dcdr_env%beta
+            ! IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) REPEAT('-', 80)
+            ! IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) &
+            !    'vel lambda, beta', vcd_env%dcdr_env%lambda, vcd_env%dcdr_env%beta
 
             vcd_env%dcdr_env%deltaR(vcd_env%dcdr_env%beta, vcd_env%dcdr_env%lambda) = 1._dp
 
@@ -179,39 +179,39 @@ CONTAINS
             vcd_env%dcdr_env%apt_el_dcdr(:, :, vcd_env%dcdr_env%lambda) &
             + vcd_env%dcdr_env%apt_nuc_dcdr(:, :, vcd_env%dcdr_env%lambda)
 
-         IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) "Total APT (length form):"
-         IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, "(A,I3,A,F15.10)") &
-            'Atom', vcd_env%dcdr_env%lambda, &
-            ' - GAPT ', (vcd_env%dcdr_env%apt_total_dcdr(1, 1, vcd_env%dcdr_env%lambda) &
-                         + vcd_env%dcdr_env%apt_total_dcdr(2, 2, vcd_env%dcdr_env%lambda) &
-                         + vcd_env%dcdr_env%apt_total_dcdr(3, 3, vcd_env%dcdr_env%lambda))/3._dp
-         DO i = 1, 3
-            IF (vcd_env%output_unit > 0) &
-               WRITE (vcd_env%output_unit, "(F15.10,F15.10,F15.10)") vcd_env%dcdr_env%apt_total_dcdr(i, :, vcd_env%dcdr_env%lambda)
-         END DO
+         ! IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) "Total APT (length form):"
+         ! IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, "(A,I3,A,F15.10)") &
+         !    'Atom', vcd_env%dcdr_env%lambda, &
+         !    ' - GAPT ', (vcd_env%dcdr_env%apt_total_dcdr(1, 1, vcd_env%dcdr_env%lambda) &
+         !                 + vcd_env%dcdr_env%apt_total_dcdr(2, 2, vcd_env%dcdr_env%lambda) &
+         !                 + vcd_env%dcdr_env%apt_total_dcdr(3, 3, vcd_env%dcdr_env%lambda))/3._dp
+         ! DO i = 1, 3
+         !    IF (vcd_env%output_unit > 0) &
+         !       WRITE (vcd_env%output_unit, "(F15.10,F15.10,F15.10)") vcd_env%dcdr_env%apt_total_dcdr(i, :, vcd_env%dcdr_env%lambda)
+         ! END DO
 
          vcd_env%apt_total_nvpt(:, :, vcd_env%dcdr_env%lambda) = &
             vcd_env%apt_el_nvpt(:, :, vcd_env%dcdr_env%lambda) + vcd_env%apt_nuc_nvpt(:, :, vcd_env%dcdr_env%lambda)
-         IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) ""
-         IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) "Total APT (velocity form):"
-         IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, "(A,I3,A,F15.10)") &
-            'Atom', vcd_env%dcdr_env%lambda, &
-            ' - GAPT ', (vcd_env%apt_total_nvpt(1, 1, vcd_env%dcdr_env%lambda) &
-                         + vcd_env%apt_total_nvpt(2, 2, vcd_env%dcdr_env%lambda) &
-                         + vcd_env%apt_total_nvpt(3, 3, vcd_env%dcdr_env%lambda))/3._dp
-         DO i = 1, 3
-            IF (vcd_env%output_unit > 0) &
-               WRITE (vcd_env%output_unit, "(F15.10,F15.10,F15.10)") vcd_env%apt_total_nvpt(i, :, vcd_env%dcdr_env%lambda)
-         END DO
+         ! IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) ""
+         ! IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) "Total APT (velocity form):"
+         ! IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, "(A,I3,A,F15.10)") &
+         !    'Atom', vcd_env%dcdr_env%lambda, &
+         !    ' - GAPT ', (vcd_env%apt_total_nvpt(1, 1, vcd_env%dcdr_env%lambda) &
+         !                 + vcd_env%apt_total_nvpt(2, 2, vcd_env%dcdr_env%lambda) &
+         !                 + vcd_env%apt_total_nvpt(3, 3, vcd_env%dcdr_env%lambda))/3._dp
+         ! DO i = 1, 3
+         !    IF (vcd_env%output_unit > 0) &
+         !       WRITE (vcd_env%output_unit, "(F15.10,F15.10,F15.10)") vcd_env%apt_total_nvpt(i, :, vcd_env%dcdr_env%lambda)
+         ! END DO
 
-         IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) ""
-         IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) "Total AAT (velocity form):"
-         IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, "(A,I3,A,F15.10)") &
-            'Atom', vcd_env%dcdr_env%lambda
-         DO i = 1, 3
-            IF (vcd_env%output_unit > 0) &
-               WRITE (vcd_env%output_unit, "(F15.10,F15.10,F15.10)") vcd_env%aat_atom_nvpt(i, :, vcd_env%dcdr_env%lambda)
-         END DO
+         ! IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) ""
+         ! IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) "Total AAT (velocity form):"
+         ! IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, "(A,I3,A,F15.10)") &
+         !    'Atom', vcd_env%dcdr_env%lambda
+         ! DO i = 1, 3
+         !    IF (vcd_env%output_unit > 0) &
+         !       WRITE (vcd_env%output_unit, "(F15.10,F15.10,F15.10)") vcd_env%aat_atom_nvpt(i, :, vcd_env%dcdr_env%lambda)
+         ! END DO
 
       END DO !lambda
 

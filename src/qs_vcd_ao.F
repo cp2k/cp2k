@@ -1224,8 +1224,6 @@ CONTAINS
          END IF
       END DO
 
-      PRINT *, 'distributed_grids', distributed_grids
-
       nthread = 1
 !$    nthread = omp_get_max_threads()
 
