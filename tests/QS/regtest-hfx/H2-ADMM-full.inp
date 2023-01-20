@@ -1,0 +1,78 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_SET
+    BASIS_SET_FILE_NAME BASIS_ADMM
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    &MGRID
+      CUTOFF 100
+      REL_CUTOFF 30
+    &END MGRID
+    &QS
+      METHOD GPW
+      EPS_DEFAULT 1.0E-08
+      MIN_PAIR_LIST_RADIUS  -1.0
+    &END QS
+    &AUXILIARY_DENSITY_MATRIX_METHOD
+      METHOD BASIS_PROJECTION
+      ADMM_PURIFICATION_METHOD NONE
+      EXCH_CORRECTION_FUNC  NONE
+    &END
+    &SCF
+      EPS_SCF 1.0E-8
+      SCF_GUESS ATOMIC
+      MAX_SCF 4
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
+      &HF
+        &SCREENING
+          EPS_SCHWARZ 1.0E-6
+          SCREEN_ON_INITIAL_P FALSE
+        &END
+        &MEMORY
+          MAX_MEMORY 200
+          EPS_STORAGE_SCALING 0.1
+        &END
+        &INTERACTION_POTENTIAL
+          POTENTIAL_TYPE COULOMB
+        &END
+        FRACTION 1.00
+      &END
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 20.0 20.0 20.0
+    &END CELL
+    &COORD
+      H   0.00  0.00  0.36
+      H   0.00  0.00 -0.36
+      H   2.50  2.50  0.36
+      H   2.50  2.50 -0.36
+      H   5.00  5.00  0.36
+      H   5.00  5.00 -0.36
+      H   7.50  7.50  0.36
+      H   7.50  7.50 -0.36
+      H  10.00 10.00  0.36
+      H  10.00 10.00 -0.36
+      H  12.50 12.50  0.36
+      H  12.50 12.50 -0.36
+      H  15.00 15.00  0.36
+      H  15.00 15.00 -0.36
+      H  17.50 17.50  0.36
+      H  17.50 17.50 -0.36
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH-PADE
+      BASIS_SET AUX_FIT cfit3
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT H2-full
+  PRINT_LEVEL MEDIUM
+  RUN_TYPE ENERGY
+&END GLOBAL

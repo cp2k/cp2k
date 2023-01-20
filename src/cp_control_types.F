@@ -330,6 +330,7 @@ MODULE cp_control_types
       INTEGER                              :: wf_interpolation_method_nr
       INTEGER                              :: wf_extrapolation_order
       INTEGER                              :: periodicity
+      REAL(KIND=dp)                        :: pairlist_radius
       REAL(KIND=dp)                        :: cutoff
       REAL(KIND=dp), DIMENSION(:), POINTER :: e_cutoff
       TYPE(mulliken_restraint_type), &
