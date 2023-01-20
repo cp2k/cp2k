@@ -1359,6 +1359,9 @@ target_compile_features(cp2k PUBLIC cxx_std_11)
 target_compile_features(cp2k PUBLIC c_std_99)
 target_compile_features(cp2k PUBLIC cuda_std_11)
 
+set_target_properties(cp2k PROPERTIES CXX_STANDARD 11)
+set_target_properties(cp2k PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES "CXX")
+
 # =================================================================================================
 # main CP2K OBJECT LIBRARY
 if(CP2K_USE_ACCEL MATCHES "CUDA")
@@ -1410,8 +1413,7 @@ target_link_libraries(
     MPI::MPI_CXX
     OpenMP::OpenMP_Fortran
     OpenMP::OpenMP_C
-    OpenMP::OpenMP_CXX
-    stdc++)
+    OpenMP::OpenMP_CXX)
 
 # mix the target and variables pointing to the include directories.
 
@@ -1526,12 +1528,12 @@ add_executable(libcp2k_unittest start/libcp2k_unittest.c)
 set_target_properties(cp2k-bin PROPERTIES CXX_STANDARD 11)
 set_target_properties(cp2k-bin PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES
                                           "CXX")
-set_target_properties(cp2k-bin PROPERTIES LINKER_LANGUAGE Fortran)
+set_target_properties(cp2k-bin PROPERTIES LINKER_LANGUAGE "CXX")
 set_target_properties(cp2k-bin PROPERTIES OUTPUT_NAME cp2k)
 target_link_libraries(cp2k-bin PUBLIC cp2k)
 
 foreach(_app ${__CP2K_APPS})
-  set_target_properties(${_app} PROPERTIES LINKER_LANGUAGE Fortran)
+  set_target_properties(${_app} PROPERTIES LINKER_LANGUAGE "CXX")
   set_target_properties(${_app} PROPERTIES CXX_STANDARD 11)
   set_target_properties(${_app} PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES
                                            "CXX")
