@@ -20,6 +20,8 @@ MODULE pao_param_equi
                                               ls_scf_env_type
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: diamat_all
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_sum
    USE pao_param_methods,               ONLY: pao_calc_grad_lnv_wrt_AB
    USE pao_potentials,                  ONLY: pao_guess_initial_potential
    USE pao_types,                       ONLY: pao_env_type
@@ -176,7 +178,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_calc_AB_equi'
 
-      INTEGER                                            :: acol, arow, handle, i, iatom, j, k, m, n
+      INTEGER                                            :: acol, arow, group_handle, handle, i, &
+                                                            iatom, j, k, m, n
       LOGICAL                                            :: found
       REAL(dp)                                           :: denom, w
       REAL(dp), DIMENSION(:), POINTER                    :: ANNA_evals
@@ -190,9 +193,12 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: matrix_G_nondiag, matrix_Ma, matrix_Mb, &
                                                             matrix_X_nondiag
       TYPE(ls_mstruct_type), POINTER                     :: ls_mstruct
+      TYPE(mp_comm_type)                                 :: group
 
       CALL timeset(routineN, handle)
       ls_mstruct => ls_scf_env%ls_mstruct
+      CALL dbcsr_get_info(pao%matrix_X, group=group_handle)
+      CALL group%set_handle(group_handle)
 
       IF (gradient) THEN
          CALL pao_calc_grad_lnv_wrt_AB(qs_env, ls_scf_env, matrix_Ma, matrix_Mb)
@@ -329,6 +335,11 @@ CONTAINS
       END DO
       CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
+
+      ! sum penalty energies across ranks
+      IF (PRESENT(penalty)) THEN
+         CALL mp_sum(penalty, group)
+      END IF
 
       CALL dbcsr_release(matrix_X_nondiag)
 
