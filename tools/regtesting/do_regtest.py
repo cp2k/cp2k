@@ -610,6 +610,6 @@ def percentile(values: List[float], percent: float) -> float:
 # ======================================================================================
 if __name__ == "__main__":
     # asyncio.run(main()) not available before Python 3.7
-    asyncio.get_event_loop().run_until_complete(main())
+    asyncio.new_event_loop().run_until_complete(main())
 
 # EOF
