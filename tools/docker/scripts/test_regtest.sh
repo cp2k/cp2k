@@ -34,7 +34,7 @@ if [[ "${ARCH}" == *cuda* ]] || [[ "${ARCH}" == *hip* ]]; then
 fi
 
 # Flag slow tests in debug runs.
-if [[ "${VERSION}" == *dbg* ]]; then
+if [[ "${ARCH}" == "local" ]] && [[ "${VERSION}" == *dbg* ]]; then
   TESTOPTS="--flagslow ${TESTOPTS}"
 fi
 
