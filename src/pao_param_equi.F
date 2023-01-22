@@ -12,8 +12,10 @@
 MODULE pao_param_equi
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_release, dbcsr_type
+        dbcsr_complete_redistribute, dbcsr_create, dbcsr_distribution_type, dbcsr_get_block_p, &
+        dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
+        dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_type
    USE dm_ls_scf_types,                 ONLY: ls_mstruct_type,&
                                               ls_scf_env_type
    USE kinds,                           ONLY: dp
@@ -182,8 +184,11 @@ CONTAINS
                                                             block_B, block_G, block_Ma, block_Mb, &
                                                             block_N, block_X, D, G, M1, M2, M3, &
                                                             M4, M5, NN
+      TYPE(dbcsr_distribution_type)                      :: main_dist
       TYPE(dbcsr_iterator_type)                          :: iter
-      TYPE(dbcsr_type)                                   :: matrix_Ma, matrix_Mb
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(dbcsr_type)                                   :: matrix_G_nondiag, matrix_Ma, matrix_Mb, &
+                                                            matrix_X_nondiag
       TYPE(ls_mstruct_type), POINTER                     :: ls_mstruct
 
       CALL timeset(routineN, handle)
@@ -193,11 +198,31 @@ CONTAINS
          CALL pao_calc_grad_lnv_wrt_AB(qs_env, ls_scf_env, matrix_Ma, matrix_Mb)
       END IF
 
-!$OMP PARALLEL DEFAULT(NONE) SHARED(pao,ls_mstruct,matrix_Ma,matrix_Mb,gradient,penalty) &
+      ! Redistribute matrix_X from diag_distribution to distribution of matrix_s.
+      CALL get_qs_env(qs_env, matrix_s=matrix_s)
+      CALL dbcsr_get_info(matrix=matrix_s(1)%matrix, distribution=main_dist)
+      CALL dbcsr_create(matrix_X_nondiag, &
+                        name="PAO matrix_X_nondiag", &
+                        dist=main_dist, &
+                        template=pao%matrix_X)
+      CALL dbcsr_reserve_diag_blocks(matrix_X_nondiag)
+      CALL dbcsr_complete_redistribute(pao%matrix_X, matrix_X_nondiag)
+
+      ! Compuation of matrix_G uses distr. of matrix_s, afterwards we redistribute to diag_distribution.
+      IF (gradient) THEN
+         CALL dbcsr_create(matrix_G_nondiag, &
+                           name="PAO matrix_G_nondiag", &
+                           dist=main_dist, &
+                           template=pao%matrix_G)
+         CALL dbcsr_reserve_diag_blocks(matrix_G_nondiag)
+      END IF
+
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(pao,ls_mstruct,matrix_X_nondiag,matrix_G_nondiag,matrix_Ma,matrix_Mb,gradient,penalty) &
 !$OMP PRIVATE(iter,arow,acol,iatom,found,n,m,w,i,j,k,denom) &
 !$OMP PRIVATE(NN,ANNA,ANNA_evals,ANNA_evecs,ANNA_inv,D,G,M1,M2,M3,M4,M5) &
 !$OMP PRIVATE(block_X,block_A,block_B,block_N,block_Ma, block_Mb, block_G)
-      CALL dbcsr_iterator_start(iter, pao%matrix_X)
+      CALL dbcsr_iterator_start(iter, matrix_X_nondiag)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, arow, acol, block_X)
          iatom = arow; CPASSERT(arow == acol)
@@ -205,7 +230,7 @@ CONTAINS
          CPASSERT(ASSOCIATED(block_A))
          CALL dbcsr_get_block_p(matrix=ls_mstruct%matrix_B, row=iatom, col=iatom, block=block_B, found=found)
          CPASSERT(ASSOCIATED(block_B))
-         CALL dbcsr_get_block_p(matrix=pao%matrix_N_diag, row=iatom, col=iatom, block=block_N, found=found)
+         CALL dbcsr_get_block_p(matrix=pao%matrix_N, row=iatom, col=iatom, block=block_N, found=found)
          CPASSERT(ASSOCIATED(block_N))
 
          n = SIZE(block_A, 1) ! size of primary basis
@@ -247,7 +272,7 @@ CONTAINS
 
          ! TURNING POINT (if calc grad) ------------------------------------------
          IF (gradient) THEN
-            CALL dbcsr_get_block_p(matrix=pao%matrix_G, row=iatom, col=iatom, block=block_G, found=found)
+            CALL dbcsr_get_block_p(matrix=matrix_G_nondiag, row=iatom, col=iatom, block=block_G, found=found)
             CPASSERT(ASSOCIATED(block_G))
             CALL dbcsr_get_block_p(matrix=matrix_Ma, row=iatom, col=iatom, block=block_Ma, found=found)
             CALL dbcsr_get_block_p(matrix=matrix_Mb, row=iatom, col=iatom, block=block_Mb, found=found)
@@ -305,7 +330,11 @@ CONTAINS
       CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
 
+      CALL dbcsr_release(matrix_X_nondiag)
+
       IF (gradient) THEN
+         CALL dbcsr_complete_redistribute(matrix_G_nondiag, pao%matrix_G)
+         CALL dbcsr_release(matrix_G_nondiag)
          CALL dbcsr_release(matrix_Ma)
          CALL dbcsr_release(matrix_Mb)
       END IF
