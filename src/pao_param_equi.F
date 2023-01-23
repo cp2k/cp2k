@@ -74,8 +74,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ikind
       INTEGER, INTENT(OUT)                               :: nparams
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_count_equi'
-
       INTEGER                                            :: pao_basis_size, pri_basis_size
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
