@@ -438,6 +438,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="ORIGIN_DEPENDENT_MFP", &
+                          description="Use the origin dependent MFP operator.", &
+                          usage="ORIGIN_DEPENDENT_MFP T", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="ORBITAL_CENTER", &
                           description="The orbital center.", &
                           usage="ORBITAL_CENTER WANNIER", &

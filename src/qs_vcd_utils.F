@@ -38,7 +38,8 @@ MODULE qs_vcd_utils
                                               dbcsr_init_p,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
-                                              dbcsr_type_antisymmetric
+                                              dbcsr_type_antisymmetric,&
+                                              dbcsr_type_no_symmetry
    USE input_constants,                 ONLY: use_mom_ref_user
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -136,13 +137,14 @@ CONTAINS
       ! vcd_env%dcdr_env%output_unit = vcd_env%output_unit
 
       IF (output_unit > 0) THEN
-         WRITE (output_unit, "(/,T20,A,/)") "*** Start NVPT calculation ***"
+         WRITE (output_unit, "(/,T20,A,/)") "*** Start NVPT/MFPT calculation ***"
       END IF
 
       ! Just to make sure. The memory requirements are tiny. 
       CALL init_orbital_pointers(12)
 
       CALL section_vals_val_get(vcd_section, "DISTRIBUTED_ORIGIN", l_val=vcd_env%distributed_origin)
+      CALL section_vals_val_get(vcd_section, "ORIGIN_DEPENDENT_MFP", l_val=vcd_env%origin_dependent_op_mfp)
 
       ! Reference point
       vcd_env%magnetic_origin = 0._dp
@@ -208,14 +210,20 @@ CONTAINS
       ALLOCATE (vcd_env%apt_nuc_nvpt(3, 3, natom))
       ALLOCATE (vcd_env%apt_total_nvpt(3, 3, natom))
       ALLOCATE (vcd_env%aat_atom_nvpt(3, 3, natom))
+      ALLOCATE (vcd_env%aat_atom_mfp(3, 3, natom))
       vcd_env%apt_el_nvpt = 0._dp
       vcd_env%apt_nuc_nvpt = 0._dp
       vcd_env%apt_total_nvpt = 0._dp
       vcd_env%aat_atom_nvpt = 0._dp
+      vcd_env%aat_atom_mfp = 0._dp
 
       ALLOCATE (vcd_env%dCV(nspins))
       ALLOCATE (vcd_env%dCV_prime(nspins))
       ALLOCATE (vcd_env%op_dV(nspins))
+
+      ALLOCATE (vcd_env%dCB(3))
+      ALLOCATE (vcd_env%dCB_prime(3))
+      ALLOCATE (vcd_env%op_dB(nspins))
       DO ispin = 1, nspins
          NULLIFY (vcd_env%dCV(ispin)%matrix)
          NULLIFY (vcd_env%dCV_prime(ispin)%matrix)
@@ -224,11 +232,20 @@ CONTAINS
          ALLOCATE (vcd_env%dCV(ispin)%matrix)
          ALLOCATE (vcd_env%dCV_prime(ispin)%matrix)
          ALLOCATE (vcd_env%op_dV(ispin)%matrix)
+         ALLOCATE (vcd_env%op_dB(ispin)%matrix)
 
          CALL cp_fm_create(vcd_env%dCV(ispin)%matrix, vcd_env%dcdr_env%likemos_fm_struct)
          CALL cp_fm_create(vcd_env%dCV_prime(ispin)%matrix, vcd_env%dcdr_env%likemos_fm_struct)
          CALL cp_fm_create(vcd_env%op_dV(ispin)%matrix, vcd_env%dcdr_env%likemos_fm_struct)
+         CALL cp_fm_create(vcd_env%op_dB(ispin)%matrix, vcd_env%dcdr_env%likemos_fm_struct)
       END DO
+
+      do i = 1, 3
+         ALLOCATE (vcd_env%dCB(i)%matrix)
+         ALLOCATE (vcd_env%dCB_prime(i)%matrix)
+         CALL cp_fm_create(vcd_env%dCB(i)%matrix, vcd_env%dcdr_env%likemos_fm_struct)
+         CALL cp_fm_create(vcd_env%dCB_prime(i)%matrix, vcd_env%dcdr_env%likemos_fm_struct)
+      enddo
 
       ! DBCSR matrices
       CALL dbcsr_allocate_matrix_set(vcd_env%moments_der, 9, 3)
@@ -236,6 +253,7 @@ CONTAINS
       CALL dbcsr_allocate_matrix_set(vcd_env%moments_der_left, 9, 3)
       CALL dbcsr_allocate_matrix_set(vcd_env%matrix_difdip2, 3, 3)
       CALL dbcsr_allocate_matrix_set(vcd_env%matrix_dSdV, 3)
+      CALL dbcsr_allocate_matrix_set(vcd_env%matrix_dSdB, 3)
       CALL dbcsr_allocate_matrix_set(vcd_env%matrix_hxc_dsdv, nspins)
 
       CALL dbcsr_allocate_matrix_set(vcd_env%hcom, 3)
@@ -252,6 +270,8 @@ CONTAINS
       CALL dbcsr_allocate_matrix_set(vcd_env%matrix_rxvr_r, 3, 3)
       CALL dbcsr_allocate_matrix_set(vcd_env%matrix_r_doublecom, 3, 3)
 
+      CALL dbcsr_allocate_matrix_set(vcd_env%matrix_nosym_temp_33, 3, 3)
+      CALL dbcsr_allocate_matrix_set(vcd_env%matrix_nosym_temp2_33, 3, 3)
       DO i = 1, 9 ! x, y, z, xx, xy, xz, yy, yz, zz
          DO idir = 1, 3 ! d/dx, d/dy, d/dz
             CALL dbcsr_init_p(vcd_env%moments_der(i, idir)%matrix)
@@ -274,9 +294,24 @@ CONTAINS
             CALL dbcsr_init_p(vcd_env%matrix_difdip2(i, j)%matrix)
             CALL dbcsr_copy(vcd_env%matrix_difdip2(i, j)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix)
             CALL dbcsr_set(vcd_env%matrix_difdip2(i, j)%matrix, 0.0_dp)
+
+            CALL dbcsr_init_p(vcd_env%matrix_nosym_temp_33(i, j)%matrix)
+            CALL dbcsr_create(vcd_env%matrix_nosym_temp_33(i, j)%matrix, template=matrix_ks(1)%matrix, &
+                              matrix_type=dbcsr_type_no_symmetry)
+            CALL cp_dbcsr_alloc_block_from_nbl(vcd_env%matrix_nosym_temp_33(i, j)%matrix, sab_all)
+            CALL dbcsr_set(vcd_env%matrix_nosym_temp_33(i, j)%matrix, 0._dp)
+
+            CALL dbcsr_init_p(vcd_env%matrix_nosym_temp2_33(i, j)%matrix)
+            CALL dbcsr_create(vcd_env%matrix_nosym_temp2_33(i, j)%matrix, template=matrix_ks(1)%matrix, &
+                              matrix_type=dbcsr_type_no_symmetry)
+            CALL cp_dbcsr_alloc_block_from_nbl(vcd_env%matrix_nosym_temp2_33(i, j)%matrix, sab_all)
+            CALL dbcsr_set(vcd_env%matrix_nosym_temp2_33(i, j)%matrix, 0._dp)
+
          END DO
          CALL dbcsr_init_p(vcd_env%matrix_dSdV(i)%matrix)
          CALL dbcsr_copy(vcd_env%matrix_dSdV(i)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix)
+         CALL dbcsr_init_p(vcd_env%matrix_dSdB(i)%matrix)
+         CALL dbcsr_copy(vcd_env%matrix_dSdB(i)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix)
       END DO
 
       DO ispin = 1, nspins
@@ -441,20 +476,35 @@ CONTAINS
       DEALLOCATE (vcd_env%apt_nuc_nvpt)
       DEALLOCATE (vcd_env%apt_total_nvpt)
       DEALLOCATE (vcd_env%aat_atom_nvpt)
+      DEALLOCATE (vcd_env%aat_atom_mfp)
 
       DO ispin = 1, SIZE(vcd_env%dCV)
          CALL cp_fm_release(vcd_env%dCV(ispin)%matrix)
          CALL cp_fm_release(vcd_env%dCV_prime(ispin)%matrix)
          CALL cp_fm_release(vcd_env%op_dV(ispin)%matrix)
+         CALL cp_fm_release(vcd_env%op_dB(ispin)%matrix)
 
          DEALLOCATE (vcd_env%dCV(ispin)%matrix)
          DEALLOCATE (vcd_env%dCV_prime(ispin)%matrix)
          DEALLOCATE (vcd_env%op_dV(ispin)%matrix)
+         DEALLOCATE (vcd_env%op_dB(ispin)%matrix)
       END DO
+
+      do ispin = 1, 3
+         CALL cp_fm_release(vcd_env%dCB(ispin)%matrix)
+         CALL cp_fm_release(vcd_env%dCB_prime(ispin)%matrix)
+
+         DEALLOCATE (vcd_env%dCB(ispin)%matrix)
+         DEALLOCATE (vcd_env%dCB_prime(ispin)%matrix)
+      enddo
 
       DEALLOCATE (vcd_env%dCV)
       DEALLOCATE (vcd_env%dCV_prime)
       DEALLOCATE (vcd_env%op_dV)
+
+      DEALLOCATE (vcd_env%dCB)
+      DEALLOCATE (vcd_env%dCB_prime)
+      DEALLOCATE (vcd_env%op_dB)
 
       ! DBCSR matrices
       ! Probably, the memory requirements could be reduced by quite a bit
@@ -466,6 +516,7 @@ CONTAINS
       CALL dbcsr_deallocate_matrix_set(vcd_env%moments_der_left)
       CALL dbcsr_deallocate_matrix_set(vcd_env%matrix_difdip2)
       CALL dbcsr_deallocate_matrix_set(vcd_env%matrix_dSdV)
+      CALL dbcsr_deallocate_matrix_set(vcd_env%matrix_dSdB)
       CALL dbcsr_deallocate_matrix_set(vcd_env%matrix_hxc_dsdv)
       CALL dbcsr_deallocate_matrix_set(vcd_env%hcom)
       CALL dbcsr_deallocate_matrix_set(vcd_env%matrix_rcomr)
@@ -480,6 +531,8 @@ CONTAINS
       CALL dbcsr_deallocate_matrix_set(vcd_env%matrix_r_rxvr)
       CALL dbcsr_deallocate_matrix_set(vcd_env%matrix_rxvr_r)
       CALL dbcsr_deallocate_matrix_set(vcd_env%matrix_r_doublecom)
+      CALL dbcsr_deallocate_matrix_set(vcd_env%matrix_nosym_temp_33)
+      CALL dbcsr_deallocate_matrix_set(vcd_env%matrix_nosym_temp2_33)
 
    END SUBROUTINE vcd_env_cleanup
 
@@ -763,7 +816,8 @@ CONTAINS
       REAL(dp), DIMENSION(:, :, :, :), POINTER           :: apt_center_dcdr, apt_subset_dcdr
       REAL(kind=dp), DIMENSION(3, 3)                     :: sum_rule_0, sum_rule_0_second, &
                                                             sum_rule_1, sum_rule_2, &
-                                                            sum_rule_2_second, sum_rule_3_second
+                                                            sum_rule_2_second, sum_rule_3_second, &
+                                                            sum_rule_3_mfp
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_result_type), POINTER                      :: results
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
@@ -833,6 +887,18 @@ CONTAINS
          END DO
       END DO
 
+      IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, "(A)") &
+         'MFP | Write the final AAT matrix per atom (Magnetic Field perturbation)'
+      DO l = 1, natom
+         IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, "(A,I3)") &
+            'MFP | Atom', l
+         DO i = 1, 3
+            IF (vcd_env%output_unit > 0) &
+               WRITE (vcd_env%output_unit, "(A,F15.6,F15.6,F15.6)") &
+               "MFP | ", vcd_env%aat_atom_mfp(i, :, l)
+         END DO
+      END DO
+
       ! Get the dipole
       CALL get_qs_env(qs_env, results=results)
       description = "[DIPOLE]"
@@ -845,6 +911,7 @@ CONTAINS
       sum_rule_0_second = 0._dp
       sum_rule_2_second = 0._dp
       sum_rule_3_second = 0._dp
+      sum_rule_3_mfp = 0._dp
       standard_deviation = 0._dp
       standard_deviation_sum = 0._dp
 
@@ -887,18 +954,25 @@ CONTAINS
                ! + 2._dp*c_light_au*vcd_env%aat_atom_nvpt(alpha, beta, lambda)
             END DO
 
+            ! 3: 2c * sum_lambda aat(alpha, beta, lambda)
+            DO lambda = 1, natom
+               sum_rule_3_mfp(alpha, beta) = sum_rule_3_mfp(alpha, beta) &
+                                             + vcd_env%aat_atom_mfp(alpha, beta, lambda)
+            ENDDO
+
          END DO ! beta
       END DO   ! alpha
 
       IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, "(A)") "APT | Position perturbation sum rules"
-      IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, "(A,T19,A,T35,A,T50,A)") &
-         "APT |", "Total APT", "Dipole", "R * APT"
+      IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, "(A,T19,A,T35,A,T50,A,T65,A)") &
+         "APT |", " Total APT", "Dipole", "R * APT", "AAT"
       standard_deviation_sum = 0._dp
       DO alpha = 1, 3
          DO beta = 1, 3
-            mean = (sum_rule_1(alpha, beta) + sum_rule_2(alpha, beta))/2
+            mean = (sum_rule_1(alpha, beta) + sum_rule_2(alpha, beta) + sum_rule_3_mfp(alpha, beta))/3
             standard_deviation = &
-               SQRT((sum_rule_1(alpha, beta)**2 + sum_rule_2(alpha, beta)**2)/2 - mean**2)
+               SQRT((sum_rule_1(alpha, beta)**2 + sum_rule_2(alpha, beta)**2 + sum_rule_3_mfp(alpha, beta)**2)/3 &
+                    - mean**2)
             standard_deviation_sum = standard_deviation_sum + standard_deviation
 
             IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, &
@@ -908,7 +982,7 @@ CONTAINS
                sum_rule_0(alpha, beta), &
                sum_rule_1(alpha, beta), &
                sum_rule_2(alpha, beta), &
-               0._dp, &
+               sum_rule_3_mfp(alpha, beta), &
                standard_deviation
          END DO
       END DO

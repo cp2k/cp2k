@@ -60,7 +60,7 @@ MODULE commutator_rpnl
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'commutator_rpnl'
 
-   PUBLIC :: build_com_rpnl, build_com_mom_nl, build_com_nl_mag
+   PUBLIC :: build_com_rpnl, build_com_mom_nl, build_com_nl_mag, build_com_vnl_giao
 
 CONTAINS
 
@@ -1614,5 +1614,244 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE build_com_nl_mag
+
+
+! **************************************************************************************************
+!> \brief Calculate matrix_rv(gamma, delta) = < R^eta_gamma * Vnl * r_delta > for GIAOs
+!> \param qs_kind_set ...
+!> \param sab_all ...
+!> \param sap_ppnl ...
+!> \param eps_ppnl ...
+!> \param particle_set ...
+!> \param matrix_rv ...
+!> \param ref_point ...
+!> \param cell ...
+!> \param direction_Or If set to true: calculate Vnl * r_delta
+!>                     Otherwise       calculate r_delta * Vnl
+! **************************************************************************************************
+   SUBROUTINE build_com_vnl_giao(qs_kind_set, sab_all, sap_ppnl, eps_ppnl, particle_set, &
+                                 matrix_rv, ref_point, cell, direction_Or)
+
+      TYPE(qs_kind_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: qs_kind_set
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         INTENT(IN), POINTER                             :: sab_all, sap_ppnl
+      REAL(KIND=dp), INTENT(IN)                          :: eps_ppnl
+      TYPE(particle_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: particle_set
+      TYPE(dbcsr_p_type), DIMENSION(:, :), &
+         INTENT(INOUT), OPTIONAL, POINTER                :: matrix_rv
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN), OPTIONAL  :: ref_point
+      TYPE(cell_type), INTENT(IN), OPTIONAL, POINTER     :: cell
+      LOGICAL                                            :: direction_Or
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_com_vnl_giao', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER :: delta, gamma, handle, i, i_1, i_x, i_y, i_z, iab, iac, iatom, ibc, icol, ikind, &
+         irow, j, jatom, jkind, kac, kbc, kkind, na, natom, nb, nkind, np, order, slot
+      INTEGER, DIMENSION(3)                              :: cell_b
+      LOGICAL                                            :: found, my_ref, ppnl_present
+      REAL(KIND=dp), DIMENSION(3)                        :: rab, rf
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: achint, acint, bchint, bcint
+      TYPE(alist_type), POINTER                          :: alist_ac, alist_bc
+      TYPE(block_p_type), ALLOCATABLE, DIMENSION(:, :)   :: blocks_rv
+      TYPE(gto_basis_set_p_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: basis_set
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
+
+!$    INTEGER(kind=omp_lock_kind), &
+!$       ALLOCATABLE, DIMENSION(:) :: locks
+!$    INTEGER                                            :: lock_num, hash
+!$    INTEGER, PARAMETER                                 :: nlock = 501
+
+      i_1 = 1
+      i_x = 2
+      i_y = 3
+      i_z = 4
+
+      ppnl_present = ASSOCIATED(sap_ppnl)
+      IF (.NOT. ppnl_present) RETURN
+
+      CALL timeset(routineN, handle)
+
+      natom = SIZE(particle_set)
+
+      my_ref = .FALSE.
+      IF (PRESENT(ref_point)) THEN
+         CPASSERT(PRESENT(cell)) ! need cell as well if refpoint is provided
+         rf = ref_point
+         my_ref = .TRUE.
+      ENDIF
+
+      nkind = SIZE(qs_kind_set)
+
+      ! sap_int needs to be shared as multiple threads need to access this
+      NULLIFY (sap_int)
+      ALLOCATE (sap_int(nkind*nkind))
+      DO i = 1, nkind*nkind
+         NULLIFY (sap_int(i)%alist, sap_int(i)%asort, sap_int(i)%aindex)
+         sap_int(i)%nalist = 0
+      END DO
+
+      order = 1
+      IF (my_ref) THEN
+         ! calculate integrals <a|x^n|p>
+         CALL build_sap_ints(sap_int, sap_ppnl, qs_kind_set, order, moment_mode=.TRUE., refpoint=rf, &
+                             particle_set=particle_set, cell=cell)
+      ELSE
+         CALL build_sap_ints(sap_int, sap_ppnl, qs_kind_set, order, moment_mode=.TRUE.)
+      ENDIF
+
+      ! *** Set up a sorting index
+      CALL sap_sort(sap_int)
+
+      ALLOCATE (basis_set(nkind))
+      DO ikind = 1, nkind
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
+         IF (ASSOCIATED(orb_basis_set)) THEN
+            basis_set(ikind)%gto_basis_set => orb_basis_set
+         ELSE
+            NULLIFY (basis_set(ikind)%gto_basis_set)
+         END IF
+      ENDDO
+
+      CALL get_neighbor_list_set_p(neighbor_list_sets=sab_all)
+      ! *** All integrals needed have been calculated and stored in sap_int
+      ! *** We now calculate the commutator matrix elements
+
+!$OMP PARALLEL &
+!$OMP DEFAULT (NONE) &
+!$OMP SHARED  (basis_set, matrix_rv, &
+!$OMP          sap_int, nkind, eps_ppnl, locks, sab_all, &
+!$OMP          i_1, i_x, i_y, i_z, particle_set, direction_Or) &
+!$OMP PRIVATE (ikind, jkind, iatom, jatom, cell_b, rab, &
+!$OMP          iab, irow, icol, blocks_rv, &
+!$OMP          found, iac, ibc, alist_ac, alist_bc, acint, bcint, &
+!$OMP          achint, bchint, na, np, nb, kkind, kac, kbc, i, &
+!$OMP          hash, natom, delta, gamma)
+
+!$OMP SINGLE
+!$    ALLOCATE (locks(nlock))
+!$OMP END SINGLE
+
+!$OMP DO
+!$    DO lock_num = 1, nlock
+!$       call omp_init_lock(locks(lock_num))
+!$    END DO
+!$OMP END DO
+
+!$OMP DO SCHEDULE(GUIDED)
+
+      DO slot = 1, sab_all(1)%nl_size
+
+         ikind = sab_all(1)%nlist_task(slot)%ikind
+         jkind = sab_all(1)%nlist_task(slot)%jkind
+         iatom = sab_all(1)%nlist_task(slot)%iatom
+         jatom = sab_all(1)%nlist_task(slot)%jatom
+         cell_b(:) = sab_all(1)%nlist_task(slot)%cell(:)
+         rab(1:3) = sab_all(1)%nlist_task(slot)%r(1:3)
+
+         IF (.NOT. ASSOCIATED(basis_set(ikind)%gto_basis_set)) CYCLE
+         IF (.NOT. ASSOCIATED(basis_set(jkind)%gto_basis_set)) CYCLE
+         iab = ikind + nkind*(jkind - 1)
+
+         irow = iatom
+         icol = jatom
+
+         ! allocate blocks
+         ALLOCATE (blocks_rv(3, 3))
+
+         ! get blocks
+         DO i = 1, 3
+            DO j = 1, 3
+               CALL dbcsr_get_block_p(matrix_rv(i, j)%matrix, irow, icol, &
+                                      blocks_rv(i, j)%block, found)
+               blocks_rv(i, j)%block(:, :) = 0.0_dp
+               CPASSERT(found)
+            ENDDO
+         ENDDO
+
+         ! loop over all kinds for projector atom
+         ! < iatom | katom > h < katom | jatom >
+         DO kkind = 1, nkind
+            iac = ikind + nkind*(kkind - 1)
+            ibc = jkind + nkind*(kkind - 1)
+            IF (.NOT. ASSOCIATED(sap_int(iac)%alist)) CYCLE
+            IF (.NOT. ASSOCIATED(sap_int(ibc)%alist)) CYCLE
+            CALL get_alist(sap_int(iac), alist_ac, iatom)
+            CALL get_alist(sap_int(ibc), alist_bc, jatom)
+            IF (.NOT. ASSOCIATED(alist_ac)) CYCLE
+            IF (.NOT. ASSOCIATED(alist_bc)) CYCLE
+            DO kac = 1, alist_ac%nclist
+               DO kbc = 1, alist_bc%nclist
+                  IF (alist_ac%clist(kac)%catom /= alist_bc%clist(kbc)%catom) CYCLE
+
+                  IF (ALL(cell_b + alist_bc%clist(kbc)%cell - alist_ac%clist(kac)%cell == 0)) THEN
+                     IF (alist_ac%clist(kac)%maxac*alist_bc%clist(kbc)%maxach < eps_ppnl) CYCLE
+                     acint => alist_ac%clist(kac)%acint
+                     bcint => alist_bc%clist(kbc)%acint
+                     achint => alist_ac%clist(kac)%achint
+                     bchint => alist_bc%clist(kbc)%achint
+                     na = SIZE(acint, 1)
+                     np = SIZE(acint, 2)
+                     nb = SIZE(bcint, 1)
+!$                   hash = MOD((iatom - 1)*natom + jatom, nlock) + 1
+!$                   CALL omp_set_lock(locks(hash))
+
+                     !! The atom index is alist_ac%clist(kac)%catom
+                     ! The coordinate is particle_set(alist_ac%clist(kac)%catom)%r(:)
+                     IF (direction_Or) THEN  ! V * r_delta * (R^eta_gamma - R^nu_gamma)
+                        DO delta = 1, 3
+                           DO gamma = 1, 3
+                              blocks_rv(gamma, delta)%block(1:na, 1:nb) = blocks_rv(gamma, delta)%block(1:na, 1:nb) + &
+                                                          MATMUL(achint(1:na, 1:np, i_1), TRANSPOSE(bcint(1:nb, 1:np, delta + 1))) &
+                                                  *(particle_set(alist_ac%clist(kac)%catom)%r(gamma) - particle_set(jatom)%r(gamma))
+                           ENDDO
+                        ENDDO
+                     ELSE                   ! r_delta * V * (R^eta_gamma - R^nu_gamma)
+                        DO delta = 1, 3
+                           DO gamma = 1, 3
+                              blocks_rv(gamma, delta)%block(1:na, 1:nb) = blocks_rv(gamma, delta)%block(1:na, 1:nb) + &
+                                                          MATMUL(achint(1:na, 1:np, delta + 1), TRANSPOSE(bcint(1:nb, 1:np, i_1))) &
+                                                  *(particle_set(alist_ac%clist(kac)%catom)%r(gamma) - particle_set(jatom)%r(gamma))
+                           ENDDO
+                        ENDDO
+                     ENDIF
+
+!$                   CALL omp_unset_lock(locks(hash))
+                     EXIT ! We have found a match and there can be only one single match
+                  END IF
+               END DO
+            END DO
+         END DO
+         DO delta = 1, 3
+            DO gamma = 1, 3
+               NULLIFY (blocks_rv(gamma, delta)%block)
+            ENDDO
+         ENDDO
+         DEALLOCATE (blocks_rv)
+      END DO
+
+!$OMP DO
+!$    DO lock_num = 1, nlock
+!$       call omp_destroy_lock(locks(lock_num))
+!$    END DO
+!$OMP END DO
+
+!$OMP SINGLE
+!$    DEALLOCATE (locks)
+!$OMP END SINGLE NOWAIT
+
+!$OMP END PARALLEL
+
+      CALL release_sap_int(sap_int)
+
+      DEALLOCATE (basis_set)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE build_com_vnl_giao
 
 END MODULE commutator_rpnl

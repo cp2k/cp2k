@@ -243,11 +243,11 @@ MODULE qs_linres_types
 
       INTEGER :: output_unit
       REAL(dp), DIMENSION(3) :: spatial_origin, spatial_origin_atom, magnetic_origin, magnetic_origin_atom
-      LOGICAL :: distributed_origin
+      LOGICAL :: distributed_origin, origin_dependent_op_mfp
 
       ! APTs and AATs in velocity form
       REAL(dp), DIMENSION(:, :, :), POINTER :: apt_el_nvpt, apt_nuc_nvpt, apt_total_nvpt
-      REAL(dp), DIMENSION(:, :, :), POINTER :: aat_atom_nvpt
+      REAL(dp), DIMENSION(:, :, :), POINTER :: aat_atom_nvpt, aat_atom_mfp
 
       ! Matrices
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_dSdV => NULL(), &
@@ -256,7 +256,8 @@ MODULE qs_linres_types
                                                    hcom => NULL(), &
                                                    dipvel_ao => NULL(), &
                                                    dipvel_ao_delta => NULL(), &
-                                                   matrix_rxrv => NULL()
+                                                   matrix_rxrv => NULL(), &
+                                                   matrix_dSdB => NULL()
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: matrix_hr => NULL(), &
                                                       matrix_rh => NULL(), &
@@ -269,11 +270,16 @@ MODULE qs_linres_types
                                                       matrix_rrcom => NULL(), &
                                                       matrix_dcom => NULL(), &
                                                       matrix_r_rxvr => NULL(), &
-                                                      matrix_rxvr_r => NULL()
+                                                      matrix_rxvr_r => NULL(), &
+                                                      matrix_nosym_temp_33 => NULL(), &
+                                                      matrix_nosym_temp2_33 => NULL()
 
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: dCV => NULL(), &
                                                    dCV_prime => NULL(), &
-                                                   op_dV => NULL()
+                                                   op_dV => NULL(), &
+                                                   dCB => NULL(), &
+                                                   dCB_prime => NULL(), &
+                                                   op_dB => NULL()
    END TYPE vcd_env_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_types'
