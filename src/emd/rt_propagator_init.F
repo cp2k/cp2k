@@ -151,7 +151,7 @@ CONTAINS
          ELSEIF (rtp_control%mat_exp == do_bch) THEN
          ELSE
             IF (rtp%linear_scaling) THEN
-               CALL compute_exponential_sparse(exp_H_new, propagator_matrix, rtp_control, rtp)
+               CALL compute_exponential_sparse(exp_H_new, propagator_matrix, rtp)
             ELSE
                CALL compute_exponential(exp_H_new, propagator_matrix, rtp_control, rtp)
             END IF
