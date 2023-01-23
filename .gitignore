@@ -362,6 +362,4 @@ tags
 # Persistent undo
 [._]*.un~
 
-TEST*
-LAST*
 # End of https://www.gitignore.io/api/python,fortran,c,c++,cuda,emacs,vim,cmake
