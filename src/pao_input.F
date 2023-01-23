@@ -46,6 +46,7 @@ MODULE pao_input
                                                pao_fock_param = 102, &
                                                pao_exp_param = 103, &
                                                pao_gth_param = 104, &
+                                               pao_equi_param = 105, &
                                                pao_opt_cg = 301, &
                                                pao_opt_bfgs = 302, &
                                                pao_ml_gp = 401, &
@@ -89,83 +90,83 @@ CONTAINS
       ! parse input and print
 
       CALL section_vals_val_get(pao_section, "EPS_PAO", r_val=pao%eps_pao)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "EPS_PAO", pao%eps_pao
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,E11.1)") " PAO|", "EPS_PAO", pao%eps_pao
 
       CALL section_vals_val_get(pao_section, "MIXING", r_val=pao%mixing)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "MIXING", pao%mixing
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,E11.1)") " PAO|", "MIXING", pao%mixing
 
       CALL section_vals_val_get(pao_section, "MAX_PAO", i_val=pao%max_pao)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,I10)") " PAO|", "MAX_PAO", pao%max_pao
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,I11)") " PAO|", "MAX_PAO", pao%max_pao
 
       CALL section_vals_val_get(pao_section, "MAX_CYCLES", i_val=pao%max_cycles)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,I10)") " PAO|", "MAX_CYCLES", pao%max_cycles
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,I11)") " PAO|", "MAX_CYCLES", pao%max_cycles
 
       CALL section_vals_val_get(pao_section, "PARAMETERIZATION", i_val=pao%parameterization)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,A10)") " PAO|", "PARAMETERIZATION", id2str(pao%parameterization)
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,A11)") " PAO|", "PARAMETERIZATION", id2str(pao%parameterization)
 
       CALL section_vals_val_get(pao_section, "PRECONDITION", l_val=pao%precondition)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,L10)") " PAO|", "PRECONDITION", pao%precondition
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,L11)") " PAO|", "PRECONDITION", pao%precondition
 
       CALL section_vals_val_get(pao_section, "REGULARIZATION", r_val=pao%regularization)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "REGULARIZATION", pao%regularization
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,E11.1)") " PAO|", "REGULARIZATION", pao%regularization
       IF (pao%regularization < 0.0_dp) CPABORT("PAO: REGULARIZATION < 0")
 
       CALL section_vals_val_get(input, "DFT%QS%EPS_DEFAULT", r_val=pao%eps_pgf) ! default value
       CALL section_vals_val_get(pao_section, "EPS_PGF", n_rep_val=n_rep)
       IF (n_rep /= 0) CALL section_vals_val_get(pao_section, "EPS_PGF", r_val=pao%eps_pgf)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "EPS_PGF", pao%eps_pgf
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,E11.1)") " PAO|", "EPS_PGF", pao%eps_pgf
       IF (pao%eps_pgf < 0.0_dp) CPABORT("PAO: EPS_PGF < 0")
 
       CALL section_vals_val_get(pao_section, "PENALTY_DISTANCE", r_val=pao%penalty_dist)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "PENALTY_DISTANCE", pao%penalty_dist
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,E11.1)") " PAO|", "PENALTY_DISTANCE", pao%penalty_dist
       IF (pao%penalty_dist < 0.0_dp) CPABORT("PAO: PENALTY_DISTANCE < 0")
 
       CALL section_vals_val_get(pao_section, "PENALTY_STRENGTH", r_val=pao%penalty_strength)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "PENALTY_STRENGTH", pao%penalty_strength
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,E11.1)") " PAO|", "PENALTY_STRENGTH", pao%penalty_strength
       IF (pao%penalty_strength < 0.0_dp) CPABORT("PAO: PENALTY_STRENGTH < 0")
 
       CALL section_vals_val_get(pao_section, "LINPOT_PRECONDITION_DELTA", r_val=pao%linpot_precon_delta)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "LINPOT_PRECONDITION_DELTA", pao%linpot_precon_delta
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,E11.1)") " PAO|", "LINPOT_PRECONDITION_DELTA", pao%linpot_precon_delta
       IF (pao%linpot_precon_delta < 0.0_dp) CPABORT("PAO: LINPOT_PRECONDITION_DELTA < 0")
 
       CALL section_vals_val_get(pao_section, "LINPOT_INITGUESS_DELTA", r_val=pao%linpot_init_delta)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "LINPOT_INITGUESS_DELT", pao%linpot_init_delta
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,E11.1)") " PAO|", "LINPOT_INITGUESS_DELT", pao%linpot_init_delta
       IF (pao%linpot_init_delta < 0.0_dp) CPABORT("PAO: LINPOT_INITGUESS_DELTA < 0")
 
       CALL section_vals_val_get(pao_section, "LINPOT_REGULARIZATION_DELTA", r_val=pao%linpot_regu_delta)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "LINPOT_REGULARIZATION_DELTA", pao%linpot_regu_delta
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,E11.1)") " PAO|", "LINPOT_REGULARIZATION_DELTA", pao%linpot_regu_delta
       IF (pao%linpot_regu_delta < 0.0_dp) CPABORT("PAO: LINPOT_REGULARIZATION_DELTA < 0")
 
       CALL section_vals_val_get(pao_section, "LINPOT_REGULARIZATION_STRENGTH", r_val=pao%linpot_regu_strength)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "LINPOT_REGULARIZATION_STRENGTH", pao%linpot_regu_strength
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,E11.1)") " PAO|", "LINPOT_REGULARIZATION_STRENGTH", pao%linpot_regu_strength
       IF (pao%linpot_regu_strength < 0.0_dp) CPABORT("PAO: LINPOT_REGULARIZATION_STRENGTH < 0")
 
       CALL section_vals_val_get(pao_section, "OPTIMIZER", i_val=pao%optimizer)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,A10)") " PAO|", "OPTIMIZER", id2str(pao%optimizer)
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,A11)") " PAO|", "OPTIMIZER", id2str(pao%optimizer)
 
       CALL section_vals_val_get(pao_section, "CG_INIT_STEPS", i_val=pao%cg_init_steps)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,I10)") " PAO|", "CG_INIT_STEPS", pao%cg_init_steps
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,I11)") " PAO|", "CG_INIT_STEPS", pao%cg_init_steps
       IF (pao%cg_init_steps < 1) CPABORT("PAO: CG_INIT_STEPS < 1")
 
       CALL section_vals_val_get(pao_section, "CG_RESET_LIMIT", r_val=pao%cg_reset_limit)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "CG_RESET_LIMIT", pao%cg_reset_limit
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,E11.1)") " PAO|", "CG_RESET_LIMIT", pao%cg_reset_limit
       IF (pao%cg_reset_limit < 0.0_dp) CPABORT("PAO: CG_RESET_LIMIT < 0")
 
       CALL section_vals_val_get(pao_section, "CHECK_UNITARY_TOL", r_val=pao%check_unitary_tol)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "CHECK_UNITARY_TOL", pao%check_unitary_tol
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,E11.1)") " PAO|", "CHECK_UNITARY_TOL", pao%check_unitary_tol
 
       CALL section_vals_val_get(pao_section, "CHECK_GRADIENT_TOL", r_val=pao%check_grad_tol)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "CHECK_GRADIENT_TOL", pao%check_grad_tol
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,E11.1)") " PAO|", "CHECK_GRADIENT_TOL", pao%check_grad_tol
 
       CALL section_vals_val_get(pao_section, "NUM_GRADIENT_ORDER", i_val=pao%num_grad_order)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,I10)") " PAO|", "NUM_GRADIENT_ORDER", pao%num_grad_order
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,I11)") " PAO|", "NUM_GRADIENT_ORDER", pao%num_grad_order
 
       CALL section_vals_val_get(pao_section, "NUM_GRADIENT_EPS", r_val=pao%num_grad_eps)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "NUM_GRADIENT_EPS", pao%num_grad_eps
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,E11.1)") " PAO|", "NUM_GRADIENT_EPS", pao%num_grad_eps
       IF (pao%num_grad_eps < 0.0_dp) CPABORT("PAO: NUM_GRADIENT_EPS < 0")
 
       CALL section_vals_val_get(pao_section, "PRINT%RESTART%WRITE_CYCLES", i_val=pao%write_cycles)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,I10)") " PAO|", "PRINT%RESTART%WRITE_CYCLES", pao%write_cycles
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,I11)") " PAO|", "PRINT%RESTART%WRITE_CYCLES", pao%write_cycles
 
       CALL section_vals_val_get(pao_section, "RESTART_FILE", c_val=pao%restart_file)
       IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,A)") " PAO|", "RESTART_FILE ", TRIM(pao%restart_file)
@@ -174,22 +175,22 @@ CONTAINS
       IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,A)") " PAO|", "PREOPT_DM_FILE ", TRIM(pao%preopt_dm_file)
 
       CALL section_vals_val_get(pao_section, "MACHINE_LEARNING%METHOD", i_val=pao%ml_method)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,A10)") " PAO|", "MACHINE_LEARNING%METHOD", id2str(pao%ml_method)
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,A11)") " PAO|", "MACHINE_LEARNING%METHOD", id2str(pao%ml_method)
 
       CALL section_vals_val_get(pao_section, "MACHINE_LEARNING%PRIOR", i_val=pao%ml_prior)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,A10)") " PAO|", "MACHINE_LEARNING%PRIOR", id2str(pao%ml_prior)
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,A11)") " PAO|", "MACHINE_LEARNING%PRIOR", id2str(pao%ml_prior)
 
       CALL section_vals_val_get(pao_section, "MACHINE_LEARNING%DESCRIPTOR", i_val=pao%ml_descriptor)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,A10)") " PAO|", "MACHINE_LEARNING%DESCRIPTOR", id2str(pao%ml_descriptor)
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,A11)") " PAO|", "MACHINE_LEARNING%DESCRIPTOR", id2str(pao%ml_descriptor)
 
       CALL section_vals_val_get(pao_section, "MACHINE_LEARNING%TOLERANCE", r_val=pao%ml_tolerance)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "MACHINE_LEARNING%TOLERANCE", pao%ml_tolerance
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,E11.1)") " PAO|", "MACHINE_LEARNING%TOLERANCE", pao%ml_tolerance
 
       CALL section_vals_val_get(pao_section, "MACHINE_LEARNING%GP_NOISE_VAR", r_val=pao%gp_noise_var)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "MACHINE_LEARNING%GP_NOISE_VAR", pao%gp_noise_var
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,E11.1)") " PAO|", "MACHINE_LEARNING%GP_NOISE_VAR", pao%gp_noise_var
 
       CALL section_vals_val_get(pao_section, "MACHINE_LEARNING%GP_SCALE", r_val=pao%gp_scale)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "MACHINE_LEARNING%GP_SCALE", pao%gp_scale
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,E11.1)") " PAO|", "MACHINE_LEARNING%GP_SCALE", pao%gp_scale
 
       ! parse MACHINE_LEARNING%TRAINING_SET section
       training_set_section => section_vals_get_subs_vals(pao_section, "MACHINE_LEARNING%TRAINING_SET")
@@ -198,7 +199,7 @@ CONTAINS
       DO i = 1, ntrainfiles
          CALL section_vals_val_get(training_set_section, "_DEFAULT_KEYWORD_", &
                                    i_rep_val=i, c_val=pao%ml_training_set(i)%fn)
-         IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,A)") " PAO|", "MACHINE_LEARNING%TRAINING_SET", &
+         IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,A)") " PAO|", "MACHINE_LEARNING%TRAINING_SET", &
             TRIM(pao%ml_training_set(i)%fn)
       END DO
 
@@ -213,7 +214,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION id2str(id) RESULT(s)
       INTEGER                                            :: id
-      CHARACTER(LEN=10)                                  :: s
+      CHARACTER(LEN=11)                                  :: s
 
       SELECT CASE (id)
       CASE (pao_gth_param)
@@ -224,6 +225,8 @@ CONTAINS
          s = "FOCK"
       CASE (pao_exp_param)
          s = "EXP"
+      CASE (pao_equi_param)
+         s = "EQUIVARIANT"
       CASE (pao_opt_cg)
          s = "CG"
       CASE (pao_opt_bfgs)
@@ -296,12 +299,13 @@ CONTAINS
       ! Parametrization **********************************************************
       CALL keyword_create(keyword, __LOCATION__, name="PARAMETERIZATION", &
                           description="Parametrization of the mapping between the primary and the PAO basis.", &
-                          enum_c_vals=s2a("ROTINV", "FOCK", "GTH", "EXP"), &
-                          enum_i_vals=(/pao_rotinv_param, pao_fock_param, pao_gth_param, pao_exp_param/), &
+                          enum_c_vals=s2a("ROTINV", "FOCK", "GTH", "EXP", "EQUIVARIANT"), &
+                          enum_i_vals=(/pao_rotinv_param, pao_fock_param, pao_gth_param, pao_exp_param, pao_equi_param/), &
                           enum_desc=s2a("Rotational invariant parametrization (machine learnable)", &
                                         "Fock matrix parametrization", &
                                         "Parametrization based on GTH pseudo potentials", &
-                                        "Original matrix exponential parametrization"), &
+                                        "Original matrix exponential parametrization", &
+                                        "Equivariant parametrization"), &
                           default_i_val=pao_rotinv_param)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

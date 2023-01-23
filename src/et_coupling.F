@@ -21,7 +21,6 @@ MODULE et_coupling
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -74,10 +73,10 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: a, b, S_det
       REAL(KIND=dp), DIMENSION(2)                        :: eigenv
       REAL(KIND=dp), DIMENSION(2, 2)                     :: S_mat, tmp_mat, U, W_mat
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: rest_MO
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: mo_mo_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: mo_mo_fmstruct
       TYPE(cp_fm_type)                                   :: inverse_mat, SMO, Tinverse, tmp2
+      TYPE(cp_fm_type), DIMENSION(2)                     :: rest_MO
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
@@ -85,7 +84,7 @@ CONTAINS
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(section_vals_type), POINTER                   :: et_coupling_section
 
-      NULLIFY (rest_MO, mo_mo_fmstruct, rest_MO, energy, matrix_s, dft_control, para_env)
+      NULLIFY (mo_mo_fmstruct, energy, matrix_s, dft_control, para_env)
 
       CALL timeset(routineN, handle)
 
@@ -99,7 +98,6 @@ CONTAINS
                                 extension=".log")
 
       is_spin_constraint = .FALSE.
-      ALLOCATE (rest_MO(2))
       ALLOCATE (a(dft_control%nspins))
       ALLOCATE (b(dft_control%nspins))
       ALLOCATE (S_det(dft_control%nspins))
@@ -126,8 +124,7 @@ CONTAINS
                            matrix_struct=mo_mo_fmstruct, &
                            name="ET_SMO"//TRIM(ADJUSTL(cp_to_string(1)))//"MATRIX")
          DO j = 1, 2
-            ALLOCATE (rest_MO(j)%matrix)
-            CALL cp_fm_create(matrix=rest_MO(j)%matrix, &
+            CALL cp_fm_create(matrix=rest_MO(j), &
                               matrix_struct=mo_mo_fmstruct, &
                               name="ET_rest_MO"//TRIM(ADJUSTL(cp_to_string(j)))//"MATRIX")
          END DO
@@ -135,7 +132,7 @@ CONTAINS
 !   calculate MO-overlap
 
          CALL get_qs_env(qs_env, matrix_s=matrix_s)
-         CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, qs_env%et_coupling%et_mo_coeff(i)%matrix, &
+         CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, qs_env%et_coupling%et_mo_coeff(i), &
                                       tmp2, nmo, 1.0_dp, 0.0_dp)
          CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
                             qs_env%mos(i)%mo_coeff, &
@@ -144,12 +141,12 @@ CONTAINS
 !    calculate the MO-representation of the restraint matrix A
 
          CALL cp_dbcsr_sm_fm_multiply(qs_env%et_coupling%rest_mat(1)%matrix, &
-                                      qs_env%et_coupling%et_mo_coeff(i)%matrix, &
+                                      qs_env%et_coupling%et_mo_coeff(i), &
                                       tmp2, nmo, 1.0_dp, 0.0_dp)
 
          CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
                             qs_env%mos(i)%mo_coeff, &
-                            tmp2, 0.0_dp, rest_MO(1)%matrix)
+                            tmp2, 0.0_dp, rest_MO(1))
 
 !    calculate the MO-representation of the restraint matrix D
 
@@ -158,8 +155,8 @@ CONTAINS
                                       tmp2, nmo, 1.0_dp, 0.0_dp)
 
          CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
-                            qs_env%et_coupling%et_mo_coeff(i)%matrix, &
-                            tmp2, 0.0_dp, rest_MO(2)%matrix)
+                            qs_env%et_coupling%et_mo_coeff(i), &
+                            tmp2, 0.0_dp, rest_MO(2))
 
          CALL cp_fm_invert(SMO, inverse_mat, S_det(i))
 
@@ -169,7 +166,7 @@ CONTAINS
 
          DO j = 1, ncol_local
             DO k = 1, nrow_local
-               b(i) = b(i) + rest_MO(2)%matrix%local_data(k, j)*inverse_mat%local_data(k, j)
+               b(i) = b(i) + rest_MO(2)%local_data(k, j)*inverse_mat%local_data(k, j)
             END DO
          END DO
 
@@ -177,7 +174,7 @@ CONTAINS
          a(i) = 0.0_dp
          DO j = 1, ncol_local
             DO k = 1, nrow_local
-               a(i) = a(i) + rest_MO(1)%matrix%local_data(k, j)*Tinverse%local_data(k, j)
+               a(i) = a(i) + rest_MO(1)%local_data(k, j)*Tinverse%local_data(k, j)
             END DO
          END DO
          IF (is_spin_constraint) THEN
@@ -190,16 +187,12 @@ CONTAINS
 
          CALL cp_fm_release(tmp2)
          DO j = 1, 2
-         IF (ASSOCIATED(rest_MO(j)%matrix)) THEN
-            CALL cp_fm_release(rest_MO(j)%matrix)
-            DEALLOCATE (rest_MO(j)%matrix)
-         END IF
+            CALL cp_fm_release(rest_MO(j))
          END DO
          CALL cp_fm_release(SMO)
          CALL cp_fm_release(Tinverse)
          CALL cp_fm_release(inverse_mat)
       END DO
-      DEALLOCATE (rest_MO)
 
 !    solve eigenstates for the projector matrix
 

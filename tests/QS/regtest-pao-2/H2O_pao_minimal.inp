@@ -26,6 +26,10 @@
         &LINE_SEARCH
           METHOD ADAPT
         &END LINE_SEARCH
+        &PRINT
+          &ATOM_INFO
+          &END ATOM_INFO
+        &END PRINT
       &END PAO
     &END
     &XC
@@ -60,6 +64,6 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT H2O_pao_fock
+  PROJECT H2O_pao_minimal
   RUN_TYPE ENERGY
 &END GLOBAL

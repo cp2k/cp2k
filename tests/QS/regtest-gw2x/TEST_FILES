@@ -7,7 +7,7 @@ HCN-PBE0-SCS_GW2X.inp                                  88      1e-08            
 #Checking unrestricted KS ground state
 O2-HF-uks.inp                                          88      1e-08            524.866496
 #Checking the use of ADMM, pseudo-potentials and varying batch size
-CH3F-PBEh-admm-pseudo.inp                              88      1e-08            679.556996
+CH3F-PBEh-admm-pseudo.inp                              88      1e-08            680.050621
 #Checking PBCs (non-practical calculations)
 Ne-pbc-shortrange.inp                                  88      1e-08            904.378971
 Ne-pbc-truncated.inp                                   88      1e-08            919.922795

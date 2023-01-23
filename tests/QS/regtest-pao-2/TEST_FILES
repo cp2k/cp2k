@@ -5,6 +5,7 @@ H2O_pao_fock.inp                                      11      1e-08            -
 H2O_pao_rotinv.inp                                    11      1e-06            -17.202700812326320
 H2O_pao_eq_prim.inp                                   11      3e-09            -17.202700812326320
 H2O_pao_gth.inp                                       11      9e-05            -17.202700812326320
+H2O_pao_equi.inp                                      11      1e-08            -17.202700812326320
 #
 # molecular blocking and single precision
 #
@@ -19,6 +20,7 @@ H2O_pao_exp_hybrid.inp                                11      1e-08            -
 H2O_pao_fock_hybrid.inp                               11      1e-08            -17.202700812326320
 H2O_pao_rotinv_hybrid.inp                             11      1e-06            -17.202700812326320
 H2O_pao_gth_hybrid.inp                                11      9e-05            -17.202700812326320
+H2O_pao_equi_hybrid.inp                               11      1e-08            -17.202700812326320
 #
 # rotated system, energy changes slightly due to grid and cell
 #

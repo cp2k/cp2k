@@ -10,8 +10,8 @@
 !>      settings for the DFT-based calculations.
 ! **************************************************************************************************
 MODULE cp_control_types
-   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release
+   USE cp_fm_types,                     ONLY: cp_fm_release,&
+                                              cp_fm_type
    USE input_constants,                 ONLY: do_full_density
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
@@ -330,6 +330,7 @@ MODULE cp_control_types
       INTEGER                              :: wf_interpolation_method_nr
       INTEGER                              :: wf_extrapolation_order
       INTEGER                              :: periodicity
+      REAL(KIND=dp)                        :: pairlist_radius
       REAL(KIND=dp)                        :: cutoff
       REAL(KIND=dp), DIMENSION(:), POINTER :: e_cutoff
       TYPE(mulliken_restraint_type), &
@@ -391,7 +392,7 @@ MODULE cp_control_types
 !   TDDFPT operator without the perturbation kernel.
 ! **************************************************************************************************
    TYPE tddfpt_control_type
-      TYPE(cp_fm_p_type), DIMENSION(:), &
+      TYPE(cp_fm_type), DIMENSION(:), &
          POINTER                           :: lumos
       REAL(KIND=dp)                        :: tolerance
       INTEGER                              :: n_ev
@@ -869,19 +870,11 @@ CONTAINS
       TYPE(tddfpt_control_type), POINTER                 :: tddfpt_control
 
       INTEGER                                            :: ispin
-      LOGICAL                                            :: dummy
 
       IF (ASSOCIATED(tddfpt_control)) THEN
          IF (ASSOCIATED(tddfpt_control%lumos)) THEN
             DO ispin = 1, SIZE(tddfpt_control%lumos)
-               CALL cp_fm_release(tddfpt_control%lumos(ispin)%matrix)
-               DEALLOCATE (tddfpt_control%lumos(ispin)%matrix)
-               NULLIFY (tddfpt_control%lumos(ispin)%matrix)
-               !MK the following line just avoids a crash of TDDFT runs using
-               !MK the sdbg version compiled with the NAG compiler when
-               !MK tddfpt_control%lumos is deallocated. This is most likely a
-               !MK compiler bug and thus the line might become obsolete
-               dummy = ASSOCIATED(tddfpt_control%lumos(ispin)%matrix)
+               CALL cp_fm_release(tddfpt_control%lumos(ispin))
             END DO
             DEALLOCATE (tddfpt_control%lumos)
          END IF

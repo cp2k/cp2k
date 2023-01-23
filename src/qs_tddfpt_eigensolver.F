@@ -25,7 +25,6 @@ MODULE qs_tddfpt_eigensolver
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_element,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_set_element,&
@@ -187,12 +186,12 @@ CONTAINS
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals_difference, evals_tmp
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: evals
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: R, X
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: Ab, b, Sb
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
       TYPE(cp_fm_struct_p_type), DIMENSION(:), POINTER   :: kv_fm_struct
       TYPE(cp_fm_struct_type), POINTER                   :: tilde_fm_struct
       TYPE(cp_fm_type)                                   :: Atilde, Us
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: R, X
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: Ab, b, Sb
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -202,7 +201,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (ao_mo_fm_pools, X, R, b, Ab, Sb, tddfpt_control, &
+      NULLIFY (ao_mo_fm_pools, tddfpt_control, &
                tilde_fm_struct, matrix_s, dft_control, &
                para_env, blacs_env)
 
@@ -261,11 +260,6 @@ CONTAINS
          CALL cp_fm_struct_create(kv_fm_struct(spin)%struct, para_env, blacs_env, &
                                   p_env%n_ao(spin), p_env%n_mo(spin))
       END DO
-      DO spin = 1, nspins
-         DO i = 1, max_kv
-            NULLIFY (b(i, spin)%matrix, Ab(i, spin)%matrix, Sb(i, spin)%matrix)
-         END DO
-      END DO
 
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(2X,A,T69,A)') &
@@ -290,7 +284,7 @@ CONTAINS
 
                ! take the initial guess
                DO spin = 1, nspins
-                  CALL cp_fm_to_fm(t_env%evecs(k, spin)%matrix, b(k, spin)%matrix)
+                  CALL cp_fm_to_fm(t_env%evecs(k, spin), b(k, spin))
                END DO
 
             ELSE
@@ -301,10 +295,10 @@ CONTAINS
                   DO spin = 1, nspins
                      IF (tddfpt_control%invert_S) THEN
                         CALL cp_fm_symm('L', 'U', p_env%n_ao(spin), p_env%n_mo(spin), &
-                                        1.0_dp, t_env%invS(spin)%matrix, Ab(k - 1, spin)%matrix, &
-                                        0.0_dp, b(k, spin)%matrix)
+                                        1.0_dp, t_env%invS(spin), Ab(k - 1, spin), &
+                                        0.0_dp, b(k, spin))
                      ELSE
-                        CALL cp_fm_to_fm(Ab(k - 1, spin)%matrix, b(k, spin)%matrix)
+                        CALL cp_fm_to_fm(Ab(k - 1, spin), b(k, spin))
                      END IF
                   END DO
 
@@ -314,22 +308,22 @@ CONTAINS
                   ! create the new davidson vector
                   DO spin = 1, nspins
 
-                     CALL cp_fm_set_all(R(spin)%matrix, 0.0_dp)
+                     CALL cp_fm_set_all(R(spin), 0.0_dp)
                      DO j = 1, k - i
-                        CALL cp_fm_to_fm(Ab(j, spin)%matrix, X(spin)%matrix)
-                        CALL cp_fm_scale_and_add(1.0_dp, X(spin)%matrix, &
-                                                 -evals(iev, iter - 1), Sb(j, spin)%matrix)
+                        CALL cp_fm_to_fm(Ab(j, spin), X(spin))
+                        CALL cp_fm_scale_and_add(1.0_dp, X(spin), &
+                                                 -evals(iev, iter - 1), Sb(j, spin))
                         CALL cp_fm_get_element(Us, j, iev, tmp)
-                        CALL cp_fm_scale_and_add(1.0_dp, R(spin)%matrix, &
-                                                 tmp, X(spin)%matrix)
+                        CALL cp_fm_scale_and_add(1.0_dp, R(spin), &
+                                                 tmp, X(spin))
                      END DO
 
                      IF (tddfpt_control%invert_S) THEN
                         CALL cp_fm_symm('L', 'U', p_env%n_ao(spin), p_env%n_mo(spin), &
-                                        1.0_dp, t_env%invS(spin)%matrix, R(spin)%matrix, &
-                                        0.0_dp, X(spin)%matrix)
+                                        1.0_dp, t_env%invS(spin), R(spin), &
+                                        0.0_dp, X(spin))
                      ELSE
-                        CALL cp_fm_to_fm(R(spin)%matrix, X(spin)%matrix)
+                        CALL cp_fm_to_fm(R(spin), X(spin))
                      END IF
 
                      !----------------!
@@ -345,12 +339,12 @@ CONTAINS
                            ! protect against division by 0 by a introducing a cutoff.
                            tmp2 = MAX(tmp2, 100*EPSILON(1.0_dp))
                            DO row = 1, p_env%n_ao(spin)
-                              CALL cp_fm_get_element(X(spin)%matrix, row, col, tmp)
-                              CALL cp_fm_set_element(b(k, spin)%matrix, row, col, tmp/tmp2)
+                              CALL cp_fm_get_element(X(spin), row, col, tmp)
+                              CALL cp_fm_set_element(b(k, spin), row, col, tmp/tmp2)
                            END DO
                         END DO
                      ELSE
-                        CALL cp_fm_to_fm(X(spin)%matrix, b(k, spin)%matrix)
+                        CALL cp_fm_to_fm(X(spin), b(k, spin))
                      END IF
 
                   END DO
@@ -368,15 +362,15 @@ CONTAINS
             END DO
             CALL normalize(b(k, :), R, matrix_s) ! R is temp
             DO spin = 1, nspins
-               CALL cp_fm_to_fm(b(k, spin)%matrix, X(spin)%matrix)
+               CALL cp_fm_to_fm(b(k, spin), X(spin))
             END DO
             CALL apply_op(X, Ab(k, :), p_env, qs_env, &
                           dft_control%tddfpt_control%do_kernel)
             CALL p_postortho(p_env, qs_env, Ab(k, :))
             DO spin = 1, nspins
                CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, &
-                                            b(k, spin)%matrix, &
-                                            Sb(k, spin)%matrix, &
+                                            b(k, spin), &
+                                            Sb(k, spin), &
                                             p_env%n_mo(spin))
             END DO
          END DO
@@ -406,7 +400,7 @@ CONTAINS
             DO j = 1, k
                Atilde_ij = 0.0_dp
                DO spin = 1, nspins
-                  CALL cp_fm_trace(b(i, spin)%matrix, Ab(j, spin)%matrix, tmp)
+                  CALL cp_fm_trace(b(i, spin), Ab(j, spin), tmp)
                   Atilde_ij = Atilde_ij + tmp
                END DO
                CALL cp_fm_set_element(Atilde, i, j, Atilde_ij)
@@ -477,11 +471,11 @@ CONTAINS
 
       DO spin = 1, nspins
          DO j = 1, n_ev
-            CALL cp_fm_set_all(t_env%evecs(j, spin)%matrix, 0.0_dp)
+            CALL cp_fm_set_all(t_env%evecs(j, spin), 0.0_dp)
             DO i = 1, k
                CALL cp_fm_get_element(Us, i, j, tmp)
-               CALL cp_fm_scale_and_add(1.0_dp, t_env%evecs(j, spin)%matrix, &
-                                        tmp, b(i, spin)%matrix)
+               CALL cp_fm_scale_and_add(1.0_dp, t_env%evecs(j, spin), &
+                                        tmp, b(i, spin))
             END DO
          END DO
       END DO
@@ -494,22 +488,12 @@ CONTAINS
       IF (ASSOCIATED(tilde_fm_struct)) CALL cp_fm_struct_release(tilde_fm_struct)
       CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, X)
       CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, R)
-      NULLIFY (X, R)
       DO spin = 1, nspins
          CALL cp_fm_struct_release(kv_fm_struct(spin)%struct)
          DO i = 1, max_kv
-            IF (ASSOCIATED(b(i, spin)%matrix)) THEN
-               CALL cp_fm_release(b(i, spin)%matrix)
-               DEALLOCATE (b(i, spin)%matrix)
-            END IF
-            IF (ASSOCIATED(Ab(i, spin)%matrix)) THEN
-               CALL cp_fm_release(Ab(i, spin)%matrix)
-               DEALLOCATE (Ab(i, spin)%matrix)
-            END IF
-            IF (ASSOCIATED(Sb(i, spin)%matrix)) THEN
-               CALL cp_fm_release(Sb(i, spin)%matrix)
-               DEALLOCATE (Sb(i, spin)%matrix)
-            END IF
+            CALL cp_fm_release(b(i, spin))
+            CALL cp_fm_release(Ab(i, spin))
+            CALL cp_fm_release(Sb(i, spin))
          END DO
       END DO
       DEALLOCATE (b, Ab, Sb, evals, evals_tmp, evals_difference, must_improve, kv_fm_struct)
@@ -535,7 +519,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE apply_op(X, R, p_env, qs_env, do_kernel)
 
-      TYPE(cp_fm_p_type), DIMENSION(:)                   :: X, R
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: X, R
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: do_kernel
@@ -568,18 +552,18 @@ CONTAINS
             CALL dbcsr_set(p_env%p1(spin)%matrix, 0.0_dp) ! optimize?
             CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(spin)%matrix, &
                                        matrix_v=p_env%psi0d(spin), &
-                                       matrix_g=X(spin)%matrix, &
+                                       matrix_g=X(spin), &
                                        ncol=p_env%n_mo(spin), &
                                        symmetry_mode=1)
          END DO
          DO spin = 1, nspins
-            CALL cp_fm_set_all(X(spin)%matrix, 0.0_dp)
+            CALL cp_fm_set_all(X(spin), 0.0_dp)
          END DO
          CALL p_op_l2(p_env, qs_env, p_env%p1, X, &
                       alpha=1.0_dp, beta=0.0_dp) ! X = beta*X + alpha*K(P1)*C
          DO spin = 1, nspins
-            CALL cp_fm_scale_and_add(1.0_dp, R(spin)%matrix, &
-                                     1.0_dp, X(spin)%matrix) ! add X to R
+            CALL cp_fm_scale_and_add(1.0_dp, R(spin), &
+                                     1.0_dp, X(spin)) ! add X to R
          END DO
       END IF
 
@@ -599,7 +583,7 @@ CONTAINS
    SUBROUTINE allocate_krylov_vectors(vectors, vectors_name, &
                                       startv, n_v, nspins, fm_struct)
 
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: vectors
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: vectors
       CHARACTER(LEN=*), INTENT(IN)                       :: vectors_name
       INTEGER, INTENT(IN)                                :: startv, n_v, nspins
       TYPE(cp_fm_struct_p_type), DIMENSION(:), POINTER   :: fm_struct
@@ -612,13 +596,11 @@ CONTAINS
 
       DO spin = 1, nspins
          DO index = startv, startv + n_v - 1
-            NULLIFY (vectors(index, spin)%matrix)
             mat_name = routineP//vectors_name//TRIM(cp_to_string(index)) &
                        //","//TRIM(cp_to_string(spin))
-            ALLOCATE (vectors(index, spin)%matrix)
-            CALL cp_fm_create(vectors(index, spin)%matrix, &
+            CALL cp_fm_create(vectors(index, spin), &
                               fm_struct(spin)%struct, mat_name)
-            IF (.NOT. ASSOCIATED(vectors(index, spin)%matrix)) &
+            IF (.NOT. ASSOCIATED(vectors(index, spin)%matrix_struct)) &
                CPABORT("Could not allocate "//TRIM(mat_name)//".")
          END DO
       END DO

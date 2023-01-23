@@ -178,8 +178,8 @@ prepend_path CPATH "$pkg_install_dir/include"
 export SPFFT_INCLUDE_DIR="$pkg_install_dir/include"
 export SPFFT_LIBS="-lspfft"
 export SPFFT_ROOT="${pkg_install_dir}"
-prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
-prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}/lib/cmake/SpFFT"
+prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
+prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 EOF
   fi
   cat << EOF >> "${BUILDDIR}/setup_spfft"

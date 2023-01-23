@@ -25,7 +25,6 @@ MODULE qs_linres_polar_utils
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -156,9 +155,7 @@ CONTAINS
          ! Remove previous matrices
          DO ispin = 1, nspins
             DO idir = 1, 3
-               CALL cp_fm_release(polar_env%dBerry_psi0(idir, ispin)%matrix)
-               DEALLOCATE (polar_env%dBerry_psi0(idir, ispin)%matrix)
-               NULLIFY (polar_env%dBerry_psi0(idir, ispin)%matrix)
+               CALL cp_fm_release(polar_env%dBerry_psi0(idir, ispin))
             END DO
          END DO
       END IF
@@ -168,9 +165,7 @@ CONTAINS
          ! Remove previous matrices
          DO ispin = 1, nspins
             DO idir = 1, 3
-               CALL cp_fm_release(polar_env%psi1_dBerry(idir, ispin)%matrix)
-               DEALLOCATE (polar_env%psi1_dBerry(idir, ispin)%matrix)
-               NULLIFY (polar_env%psi1_dBerry(idir, ispin)%matrix)
+               CALL cp_fm_release(polar_env%psi1_dBerry(idir, ispin))
             END DO
          END DO
       END IF
@@ -182,10 +177,8 @@ CONTAINS
                                   ncol_global=m, &
                                   context=mo_coeff%matrix_struct%context)
          DO idir = 1, 3
-            ALLOCATE (polar_env%dBerry_psi0(idir, ispin)%matrix, &
-                      polar_env%psi1_dBerry(idir, ispin)%matrix)
-            CALL cp_fm_create(polar_env%dBerry_psi0(idir, ispin)%matrix, tmp_fm_struct)
-            CALL cp_fm_create(polar_env%psi1_dBerry(idir, ispin)%matrix, tmp_fm_struct)
+            CALL cp_fm_create(polar_env%dBerry_psi0(idir, ispin), tmp_fm_struct)
+            CALL cp_fm_create(polar_env%psi1_dBerry(idir, ispin), tmp_fm_struct)
          END DO
          CALL cp_fm_struct_release(tmp_fm_struct)
       END DO
@@ -214,7 +207,7 @@ CONTAINS
       REAL(dp)                                           :: ptmp
       REAL(dp), DIMENSION(:, :), POINTER                 :: polar, polar_tmp
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: dBerry_psi0, psi1_dBerry
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: dBerry_psi0, psi1_dBerry
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
@@ -258,7 +251,7 @@ CONTAINS
                DO ispin = 1, dft_control%nspins
                   !SL compute trace
                   ptmp = 0.0_dp
-                  CALL cp_fm_trace(psi1_dBerry(i, ispin)%matrix, dBerry_psi0(z, ispin)%matrix, ptmp)
+                  CALL cp_fm_trace(psi1_dBerry(i, ispin), dBerry_psi0(z, ispin), ptmp)
                   polar_tmp(i, z) = polar_tmp(i, z) - 2.0_dp*ptmp
                END DO
             END DO
@@ -392,9 +385,9 @@ CONTAINS
       INTEGER                                            :: handle, idir, iounit, ispin, nao, nmo, &
                                                             nspins
       LOGICAL                                            :: do_periodic, do_raman, should_stop
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: h1_psi0, psi0_order, psi1, psi1_ptr
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: dBerry_psi0, psi1_dBerry
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: h1_psi0, psi0_order, psi1
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: dBerry_psi0, psi1_dBerry
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -408,7 +401,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (dft_control, linres_control, lr_section, polar_section)
-      NULLIFY (logger, mpools, psi1, h1_psi0, mo_coeff, para_env)
+      NULLIFY (logger, mpools, mo_coeff, para_env)
       NULLIFY (tmp_fm_struct, psi1_dBerry, dBerry_psi0)
 
       logger => cp_get_default_logger()
@@ -440,15 +433,14 @@ CONTAINS
       ALLOCATE (psi1(nspins), h1_psi0(nspins))
       DO ispin = 1, nspins
          CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
-         psi0_order(ispin)%matrix => mo_coeff
+         psi0_order(ispin) = mo_coeff
          CALL cp_fm_get_info(mo_coeff, ncol_global=nmo, nrow_global=nao)
-         NULLIFY (tmp_fm_struct, psi1(ispin)%matrix, h1_psi0(ispin)%matrix)
+         NULLIFY (tmp_fm_struct)
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                   ncol_global=nmo, &
                                   context=mo_coeff%matrix_struct%context)
-         ALLOCATE (psi1(ispin)%matrix, h1_psi0(ispin)%matrix)
-         CALL cp_fm_create(psi1(ispin)%matrix, tmp_fm_struct)
-         CALL cp_fm_create(h1_psi0(ispin)%matrix, tmp_fm_struct)
+         CALL cp_fm_create(psi1(ispin), tmp_fm_struct)
+         CALL cp_fm_create(h1_psi0(ispin), tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
       END DO
 
@@ -459,13 +451,12 @@ CONTAINS
          ! Restart
          IF (linres_control%linres_restart) THEN
             DO idir = 1, 3
-               psi1_ptr => psi1_dBerry(idir, :)
-               CALL linres_read_restart(qs_env, lr_section, psi1_ptr, idir, "psi1_dBerry")
+               CALL linres_read_restart(qs_env, lr_section, psi1_dBerry(idir, :), idir, "psi1_dBerry")
             END DO
          ELSE
             DO idir = 1, 3
                DO ispin = 1, nspins
-                  CALL cp_fm_set_all(psi1_dBerry(idir, ispin)%matrix, 0.0_dp)
+                  CALL cp_fm_set_all(psi1_dBerry(idir, ispin), 0.0_dp)
                END DO
             END DO
          END IF
@@ -481,8 +472,8 @@ CONTAINS
             END IF
             ! Do scf cycle to optimize psi1
             DO ispin = 1, nspins
-               CALL cp_fm_to_fm(psi1_dBerry(idir, ispin)%matrix, psi1(ispin)%matrix)
-               CALL cp_fm_to_fm(dBerry_psi0(idir, ispin)%matrix, h1_psi0(ispin)%matrix)
+               CALL cp_fm_to_fm(psi1_dBerry(idir, ispin), psi1(ispin))
+               CALL cp_fm_to_fm(dBerry_psi0(idir, ispin), h1_psi0(ispin))
             END DO
             !
             linres_control%lr_triplet = .FALSE. ! we do singlet response
@@ -492,13 +483,12 @@ CONTAINS
 
             ! Copy the response
             DO ispin = 1, nspins
-               CALL cp_fm_to_fm(psi1(ispin)%matrix, psi1_dBerry(idir, ispin)%matrix)
+               CALL cp_fm_to_fm(psi1(ispin), psi1_dBerry(idir, ispin))
             END DO
             !
             ! Write the new result to the restart file
             IF (linres_control%linres_restart) THEN
-               psi1_ptr => psi1_dBerry(idir, :)
-               CALL linres_write_restart(qs_env, lr_section, psi1_ptr, idir, "psi1_dBerry")
+               CALL linres_write_restart(qs_env, lr_section, psi1_dBerry(idir, :), idir, "psi1_dBerry")
             END IF
          END DO loop_idir
       END IF ! do_raman
@@ -507,9 +497,8 @@ CONTAINS
 
       ! Clean up
       DO ispin = 1, nspins
-         CALL cp_fm_release(psi1(ispin)%matrix)
-         CALL cp_fm_release(h1_psi0(ispin)%matrix)
-         DEALLOCATE (psi1(ispin)%matrix, h1_psi0(ispin)%matrix)
+         CALL cp_fm_release(psi1(ispin))
+         CALL cp_fm_release(h1_psi0(ispin))
       END DO
       DEALLOCATE (psi1, h1_psi0, psi0_order)
 

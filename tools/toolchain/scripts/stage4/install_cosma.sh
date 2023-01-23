@@ -169,6 +169,8 @@ prepend_path CPATH "$pkg_install_dir/include"
 export COSMA_INCLUDE_DIR="$pkg_install_dir/include"
 export COSMA_ROOT="${pkg_install_dir}"
 export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:${COSMA_LIBDIR}/pkgconfig"
+prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
+prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 EOF
   fi
   cat << EOF >> "${BUILDDIR}/setup_cosma"

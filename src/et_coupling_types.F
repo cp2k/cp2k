@@ -11,8 +11,8 @@
 ! **************************************************************************************************
 MODULE et_coupling_types
 
-   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release
+   USE cp_fm_types,                     ONLY: cp_fm_release,&
+                                              cp_fm_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
@@ -39,7 +39,7 @@ MODULE et_coupling_types
 !> \author fschiff
 ! **************************************************************************************************
    TYPE et_coupling_type
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER           :: et_mo_coeff
+      TYPE(cp_fm_type), DIMENSION(:), POINTER           :: et_mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER     :: rest_mat
       LOGICAL                                            :: first_run
       LOGICAL                                            :: keep_matrix
@@ -73,8 +73,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_et_coupling_type(et_coupling, et_mo_coeff, rest_mat)
       TYPE(et_coupling_type), POINTER                    :: et_coupling
-      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: et_mo_coeff
+      TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: et_mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: rest_mat
 
@@ -91,8 +90,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE set_et_coupling_type(et_coupling, et_mo_coeff, rest_mat)
       TYPE(et_coupling_type), POINTER                    :: et_coupling
-      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: et_mo_coeff
+      TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: et_mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: rest_mat
 
@@ -112,9 +110,7 @@ CONTAINS
 
       IF (ASSOCIATED(et_coupling%et_mo_coeff)) THEN
          DO i = 1, SIZE(et_coupling%et_mo_coeff)
-            CALL cp_fm_release(et_coupling%et_mo_coeff(i)%matrix)
-            DEALLOCATE (et_coupling%et_mo_coeff(i)%matrix)
-            NULLIFY (et_coupling%et_mo_coeff(i)%matrix)
+            CALL cp_fm_release(et_coupling%et_mo_coeff(i))
          END DO
          DEALLOCATE (et_coupling%et_mo_coeff)
       END IF

@@ -44,8 +44,8 @@ MODULE qs_localization_methods
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_init_random, &
-        cp_fm_maxabsrownorm, cp_fm_maxabsval, cp_fm_p_type, cp_fm_release, cp_fm_set_all, &
-        cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type
+        cp_fm_maxabsrownorm, cp_fm_maxabsval, cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, &
+        cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                               cp_logger_get_default_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -297,8 +297,7 @@ CONTAINS
                                eps_localization, sweeps, out_each, target_time, start_time)
 
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
-      TYPE(cp_fm_p_type), INTENT(INOUT)                  :: ZIJ(:, :)
-      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: zij(:, :), vectors
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: eps_localization
@@ -329,8 +328,7 @@ CONTAINS
    SUBROUTINE jacobi_rotations_serial(weights, zij, vectors, max_iter, eps_localization, sweeps, &
                                       out_each)
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
-      TYPE(cp_fm_p_type), INTENT(INOUT)                  :: ZIJ(:, :)
-      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: zij(:, :), vectors
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: eps_localization
       INTEGER                                            :: sweeps
@@ -354,16 +352,16 @@ CONTAINS
       NULLIFY (mii, mij, mjj)
       ALLOCATE (mii(dim2), mij(dim2), mjj(dim2))
 
-      CALL cp_fm_create(rmat, zij(1, 1)%matrix%matrix_struct)
+      CALL cp_fm_create(rmat, zij(1, 1)%matrix_struct)
       CALL cp_fm_set_all(rmat, 0._dp, 1._dp)
 
-      CALL cp_cfm_create(c_rmat, zij(1, 1)%matrix%matrix_struct)
+      CALL cp_cfm_create(c_rmat, zij(1, 1)%matrix_struct)
       CALL cp_cfm_set_all(c_rmat, (0._dp, 0._dp), (1._dp, 0._dp))
       DO idim = 1, dim2
          ALLOCATE (c_zij(idim)%matrix)
-         CALL cp_cfm_create(c_zij(idim)%matrix, zij(1, 1)%matrix%matrix_struct)
-         c_zij(idim)%matrix%local_data = CMPLX(zij(1, idim)%matrix%local_data, &
-                                               zij(2, idim)%matrix%local_data, dp)
+         CALL cp_cfm_create(c_zij(idim)%matrix, zij(1, 1)%matrix_struct)
+         c_zij(idim)%matrix%local_data = CMPLX(zij(1, idim)%local_data, &
+                                               zij(2, idim)%local_data, dp)
       END DO
 
       CALL cp_fm_get_info(rmat, nrow_global=nstate)
@@ -409,8 +407,8 @@ CONTAINS
       END DO
 
       DO idim = 1, dim2
-         zij(1, idim)%matrix%local_data = REAL(c_zij(idim)%matrix%local_data, dp)
-         zij(2, idim)%matrix%local_data = AIMAG(c_zij(idim)%matrix%local_data)
+         zij(1, idim)%local_data = REAL(c_zij(idim)%matrix%local_data, dp)
+         zij(2, idim)%local_data = AIMAG(c_zij(idim)%matrix%local_data)
          CALL cp_cfm_release(c_zij(idim)%matrix)
          DEALLOCATE (c_zij(idim)%matrix)
       END DO
@@ -591,8 +589,7 @@ CONTAINS
                                iter, out_each, nextra, do_cg, nmo, vectors_2, mos_guess)
       TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
-      TYPE(cp_fm_p_type), INTENT(INOUT)                  :: zij(:, :)
-      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: zij(:, :), vectors
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: eps_localization
       INTEGER                                            :: iter
@@ -640,7 +637,7 @@ CONTAINS
 
       ALLOCATE (c_zij(dim2))
 
-      CALL cp_fm_get_info(zij(1, 1)%matrix, nrow_global=nstate)
+      CALL cp_fm_get_info(zij(1, 1), nrow_global=nstate)
 
       ALLOCATE (sum_spread(nstate))
       ALLOCATE (matrix_zii(nstate, dim2))
@@ -651,16 +648,16 @@ CONTAINS
       DO idim = 1, dim2
          alpha = alpha + weights(idim)
          ALLOCATE (c_zij(idim)%matrix)
-         CALL cp_cfm_create(c_zij(idim)%matrix, zij(1, 1)%matrix%matrix_struct)
-         c_zij(idim)%matrix%local_data = CMPLX(zij(1, idim)%matrix%local_data, &
-                                               zij(2, idim)%matrix%local_data, dp)
+         CALL cp_cfm_create(c_zij(idim)%matrix, zij(1, 1)%matrix_struct)
+         c_zij(idim)%matrix%local_data = CMPLX(zij(1, idim)%local_data, &
+                                               zij(2, idim)%local_data, dp)
       END DO
 
       NULLIFY (zij_0)
       ALLOCATE (zij_0(dim2))
 
-      CALL cp_cfm_create(U, zij(1, 1)%matrix%matrix_struct)
-      CALL cp_fm_create(matrix_U, zij(1, 1)%matrix%matrix_struct)
+      CALL cp_cfm_create(U, zij(1, 1)%matrix_struct)
+      CALL cp_fm_create(matrix_U, zij(1, 1)%matrix_struct)
 
       CALL cp_cfm_set_all(U, czero, cone)
       CALL cp_fm_set_all(matrix_U, 0.0_dp, 1.0_dp)
@@ -688,7 +685,7 @@ CONTAINS
          nocc = nstate - nextra
          northo = nmo - nocc
          norextra = nmo - nstate
-         CALL cp_fm_struct_get(zij(1, 1)%matrix%matrix_struct, context=context)
+         CALL cp_fm_struct_get(zij(1, 1)%matrix_struct, context=context)
 
          ALLOCATE (tmp_cmat(nstate, nstate))
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, ncol_global=nmo, &
@@ -862,10 +859,10 @@ CONTAINS
       ELSE
          DO idim = 1, dim2
             ALLOCATE (zij_0(idim)%matrix)
-            CALL cp_cfm_create(zij_0(idim)%matrix, zij(1, 1)%matrix%matrix_struct)
+            CALL cp_cfm_create(zij_0(idim)%matrix, zij(1, 1)%matrix_struct)
             CALL cp_cfm_to_cfm(c_zij(idim)%matrix, zij_0(idim)%matrix)
          END DO
-         CALL cp_fm_create(rmat, zij(1, 1)%matrix%matrix_struct)
+         CALL cp_fm_create(rmat, zij(1, 1)%matrix_struct)
          CALL cp_fm_set_all(rmat, 0._dp, 1._dp)
       END IF
 
@@ -896,8 +893,8 @@ CONTAINS
 
          IF (iter > 1) THEN
             ! comput U
-            CALL cp_cfm_create(tmp_cfm, zij(1, 1)%matrix%matrix_struct)
-            CALL cp_cfm_create(tmp_cfm_2, zij(1, 1)%matrix%matrix_struct)
+            CALL cp_cfm_create(tmp_cfm, zij(1, 1)%matrix_struct)
+            CALL cp_cfm_create(tmp_cfm_2, zij(1, 1)%matrix_struct)
             IF (para_env%num_pe == 1) THEN
                CALL jacobi_rotations_serial_1(weights, c_zij, 1, tmp_cfm_2, tol_out=tol)
             ELSE
@@ -945,9 +942,9 @@ CONTAINS
             CALL cp_cfm_create(tmp_cfm_1, V%matrix_struct)
             ndummy = nmo
          ELSE
-            CALL cp_cfm_create(tmp_cfm, zij(1, 1)%matrix%matrix_struct)
+            CALL cp_cfm_create(tmp_cfm, zij(1, 1)%matrix_struct)
             CALL cp_cfm_to_cfm(U, tmp_cfm)
-            CALL cp_cfm_create(tmp_cfm_1, zij(1, 1)%matrix%matrix_struct)
+            CALL cp_cfm_create(tmp_cfm_1, zij(1, 1)%matrix_struct)
             ndummy = nstate
          END IF
          ! update z_ij
@@ -1220,8 +1217,8 @@ CONTAINS
       DEALLOCATE (zij_0)
 
       DO idim = 1, dim2
-         zij(1, idim)%matrix%local_data = REAL(c_zij(idim)%matrix%local_data, dp)
-         zij(2, idim)%matrix%local_data = AIMAG(c_zij(idim)%matrix%local_data)
+         zij(1, idim)%local_data = REAL(c_zij(idim)%matrix%local_data, dp)
+         zij(2, idim)%local_data = AIMAG(c_zij(idim)%matrix%local_data)
          CALL cp_cfm_release(c_zij(idim)%matrix)
          DEALLOCATE (c_zij(idim)%matrix)
       END DO
@@ -1519,7 +1516,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE check_tolerance_new(weights, zij, tolerance, value)
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
-      TYPE(cp_fm_p_type), INTENT(IN)                     :: ZIJ(:, :)
+      TYPE(cp_fm_type), INTENT(IN)                       :: zij(:, :)
       REAL(KIND=dp)                                      :: tolerance, value
 
       COMPLEX(KIND=dp)                                   :: kii, kij, kjj
@@ -1530,15 +1527,15 @@ CONTAINS
       REAL(KIND=dp)                                      :: grad_ij, ra, rb
 
       NULLIFY (diag)
-      CALL cp_fm_get_info(zij(1, 1)%matrix, nrow_local=nrow_local, &
+      CALL cp_fm_get_info(zij(1, 1), nrow_local=nrow_local, &
                           ncol_local=ncol_local, nrow_global=nrow_global, &
                           row_indices=row_indices, col_indices=col_indices)
       ALLOCATE (diag(nrow_global, SIZE(zij, 2)))
       value = 0.0_dp
       DO idim = 1, SIZE(zij, 2)
          DO istate = 1, nrow_global
-            CALL cp_fm_get_element(zij(1, idim)%matrix, istate, istate, ra)
-            CALL cp_fm_get_element(zij(2, idim)%matrix, istate, istate, rb)
+            CALL cp_fm_get_element(zij(1, idim), istate, istate, ra)
+            CALL cp_fm_get_element(zij(2, idim), istate, istate, rb)
             diag(istate, idim) = CMPLX(ra, rb, dp)
             value = value + weights(idim) - weights(idim)*ABS(diag(istate, idim))**2
          END DO
@@ -1550,8 +1547,8 @@ CONTAINS
             DO idim = 1, SIZE(zij, 2)
                kii = diag(row_indices(istate), idim)
                kjj = diag(col_indices(jstate), idim)
-               ra = zij(1, idim)%matrix%local_data(istate, jstate)
-               rb = zij(2, idim)%matrix%local_data(istate, jstate)
+               ra = zij(1, idim)%local_data(istate, jstate)
+               rb = zij(2, idim)%local_data(istate, jstate)
                kij = CMPLX(ra, rb, dp)
                grad_ij = grad_ij + weights(idim)* &
                          REAL(4.0_dp*CONJG(kij)*(kjj - kii), dp)
@@ -1559,7 +1556,7 @@ CONTAINS
             tolerance = MAX(ABS(grad_ij), tolerance)
          END DO
       END DO
-      CALL mp_max(tolerance, zij(1, 1)%matrix%matrix_struct%para_env%group)
+      CALL mp_max(tolerance, zij(1, 1)%matrix_struct%para_env%group)
 
       DEALLOCATE (diag)
 
@@ -1582,8 +1579,7 @@ CONTAINS
    SUBROUTINE crazy_rotations(weights, zij, vectors, max_iter, max_crazy_angle, crazy_scale, crazy_use_diag, &
                               eps_localization, iterations, converged)
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
-      TYPE(cp_fm_p_type), INTENT(INOUT)                  :: ZIJ(:, :)
-      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: zij(:, :), vectors
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: max_crazy_angle
       REAL(KIND=dp)                                      :: crazy_scale
@@ -1613,7 +1609,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       NULLIFY (row_indices, col_indices)
-      CALL cp_fm_get_info(zij(1, 1)%matrix, nrow_global=nrow_global, &
+      CALL cp_fm_get_info(zij(1, 1), nrow_global=nrow_global, &
                           ncol_global=ncol_global, &
                           row_indices=row_indices, col_indices=col_indices, &
                           nrow_local=nrow_local, ncol_local=ncol_local)
@@ -1626,30 +1622,30 @@ CONTAINS
       ALLOCATE (evals(nrow_global))
       ALLOCATE (evals_exp(nrow_global))
 
-      CALL cp_cfm_create(cmat_A, zij(1, 1)%matrix%matrix_struct)
-      CALL cp_cfm_create(cmat_R, zij(1, 1)%matrix%matrix_struct)
-      CALL cp_cfm_create(cmat_t1, zij(1, 1)%matrix%matrix_struct)
+      CALL cp_cfm_create(cmat_A, zij(1, 1)%matrix_struct)
+      CALL cp_cfm_create(cmat_R, zij(1, 1)%matrix_struct)
+      CALL cp_cfm_create(cmat_t1, zij(1, 1)%matrix_struct)
 
-      CALL cp_fm_create(mat_U, zij(1, 1)%matrix%matrix_struct)
-      CALL cp_fm_create(mat_t, zij(1, 1)%matrix%matrix_struct)
-      CALL cp_fm_create(mat_R, zij(1, 1)%matrix%matrix_struct)
+      CALL cp_fm_create(mat_U, zij(1, 1)%matrix_struct)
+      CALL cp_fm_create(mat_t, zij(1, 1)%matrix_struct)
+      CALL cp_fm_create(mat_R, zij(1, 1)%matrix_struct)
 
-      CALL cp_fm_create(mat_theta, zij(1, 1)%matrix%matrix_struct)
+      CALL cp_fm_create(mat_theta, zij(1, 1)%matrix_struct)
 
       CALL cp_fm_set_all(mat_R, 0.0_dp, 1.0_dp)
       CALL cp_fm_set_all(mat_t, 0.0_dp)
       ALLOCATE (mii(dim2), mij(dim2), mjj(dim2))
       DO idim = 1, dim2
-         CALL cp_fm_scale_and_add(1.0_dp, mat_t, weights(idim), zij(1, idim)%matrix)
-         CALL cp_fm_scale_and_add(1.0_dp, mat_t, weights(idim), zij(2, idim)%matrix)
+         CALL cp_fm_scale_and_add(1.0_dp, mat_t, weights(idim), zij(1, idim))
+         CALL cp_fm_scale_and_add(1.0_dp, mat_t, weights(idim), zij(2, idim))
       END DO
       CALL cp_fm_syevd(mat_t, mat_U, evals)
       DO idim = 1, dim2
          ! rotate z's
-         CALL parallel_gemm('N', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, zij(1, idim)%matrix, mat_U, 0.0_dp, mat_t)
-         CALL parallel_gemm('T', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, mat_U, mat_t, 0.0_dp, zij(1, idim)%matrix)
-         CALL parallel_gemm('N', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, zij(2, idim)%matrix, mat_U, 0.0_dp, mat_t)
-         CALL parallel_gemm('T', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, mat_U, mat_t, 0.0_dp, zij(2, idim)%matrix)
+         CALL parallel_gemm('N', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, zij(1, idim), mat_U, 0.0_dp, mat_t)
+         CALL parallel_gemm('T', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, mat_U, mat_t, 0.0_dp, zij(1, idim))
+         CALL parallel_gemm('N', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, zij(2, idim), mat_U, 0.0_dp, mat_t)
+         CALL parallel_gemm('T', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, mat_U, mat_t, 0.0_dp, zij(2, idim))
       END DO
       ! collect rotation matrix
       CALL parallel_gemm('N', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, mat_R, mat_U, 0.0_dp, mat_t)
@@ -1669,16 +1665,16 @@ CONTAINS
          iterations = iterations + 1
          DO idim = 1, dim2
             DO i = 1, nrow_global
-               CALL cp_fm_get_element(zij(1, idim)%matrix, i, i, ra)
-               CALL cp_fm_get_element(zij(2, idim)%matrix, i, i, rb)
+               CALL cp_fm_get_element(zij(1, idim), i, i, ra)
+               CALL cp_fm_get_element(zij(2, idim), i, i, rb)
                diag_z(i, idim) = CMPLX(ra, rb, dp)
             END DO
          END DO
          DO irow = 1, nrow_local
             DO icol = 1, ncol_local
                DO idim = 1, dim2
-                  ra = zij(1, idim)%matrix%local_data(irow, icol)
-                  rb = zij(2, idim)%matrix%local_data(irow, icol)
+                  ra = zij(1, idim)%local_data(irow, icol)
+                  rb = zij(2, idim)%local_data(irow, icol)
                   mij(idim) = CMPLX(ra, rb, dp)
                   mii(idim) = diag_z(row_indices(irow), idim)
                   mjj(idim) = diag_z(col_indices(icol), idim)
@@ -1726,10 +1722,10 @@ CONTAINS
 
          DO idim = 1, dim2
             ! rotate z's
-            CALL parallel_gemm('N', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, zij(1, idim)%matrix, mat_U, 0.0_dp, mat_t)
-            CALL parallel_gemm('T', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, mat_U, mat_t, 0.0_dp, zij(1, idim)%matrix)
-            CALL parallel_gemm('N', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, zij(2, idim)%matrix, mat_U, 0.0_dp, mat_t)
-            CALL parallel_gemm('T', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, mat_U, mat_t, 0.0_dp, zij(2, idim)%matrix)
+            CALL parallel_gemm('N', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, zij(1, idim), mat_U, 0.0_dp, mat_t)
+            CALL parallel_gemm('T', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, mat_U, mat_t, 0.0_dp, zij(1, idim))
+            CALL parallel_gemm('N', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, zij(2, idim), mat_U, 0.0_dp, mat_t)
+            CALL parallel_gemm('T', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, mat_U, mat_t, 0.0_dp, zij(2, idim))
          END DO
          ! collect rotation matrix
          CALL parallel_gemm('N', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, mat_R, mat_U, 0.0_dp, mat_t)
@@ -1781,8 +1777,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE direct_mini(weights, zij, vectors, max_iter, eps_localization, iterations)
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
-      TYPE(cp_fm_p_type), INTENT(INOUT)                  :: ZIJ(:, :)
-      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: zij(:, :), vectors
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: eps_localization
       INTEGER                                            :: iterations
@@ -1819,7 +1814,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       output_unit = cp_logger_get_default_io_unit()
 
-      n = zij(1, 1)%matrix%matrix_struct%nrow_global
+      n = zij(1, 1)%matrix_struct%nrow_global
       ndim = (SIZE(zij, 2))
 
       IF (output_unit > 0) THEN
@@ -1833,30 +1828,30 @@ CONTAINS
       ! create the three complex matrices Z
       DO idim = 1, ndim
          ALLOCATE (c_zij(idim)%matrix)
-         CALL cp_cfm_create(c_zij(idim)%matrix, zij(1, 1)%matrix%matrix_struct)
-         c_zij(idim)%matrix%local_data = CMPLX(zij(1, idim)%matrix%local_data, &
-                                               zij(2, idim)%matrix%local_data, dp)
+         CALL cp_cfm_create(c_zij(idim)%matrix, zij(1, 1)%matrix_struct)
+         c_zij(idim)%matrix%local_data = CMPLX(zij(1, idim)%local_data, &
+                                               zij(2, idim)%local_data, dp)
       END DO
 
-      CALL cp_fm_create(matrix_A, zij(1, 1)%matrix%matrix_struct)
-      CALL cp_fm_create(matrix_G, zij(1, 1)%matrix%matrix_struct)
-      CALL cp_fm_create(matrix_T, zij(1, 1)%matrix%matrix_struct)
-      CALL cp_fm_create(matrix_H, zij(1, 1)%matrix%matrix_struct)
-      CALL cp_fm_create(matrix_G_search, zij(1, 1)%matrix%matrix_struct)
-      CALL cp_fm_create(matrix_G_old, zij(1, 1)%matrix%matrix_struct)
-      CALL cp_fm_create(matrix_R, zij(1, 1)%matrix%matrix_struct)
+      CALL cp_fm_create(matrix_A, zij(1, 1)%matrix_struct)
+      CALL cp_fm_create(matrix_G, zij(1, 1)%matrix_struct)
+      CALL cp_fm_create(matrix_T, zij(1, 1)%matrix_struct)
+      CALL cp_fm_create(matrix_H, zij(1, 1)%matrix_struct)
+      CALL cp_fm_create(matrix_G_search, zij(1, 1)%matrix_struct)
+      CALL cp_fm_create(matrix_G_old, zij(1, 1)%matrix_struct)
+      CALL cp_fm_create(matrix_R, zij(1, 1)%matrix_struct)
       CALL cp_fm_set_all(matrix_R, 0.0_dp, 1.0_dp)
 
       CALL cp_fm_set_all(matrix_A, 0.0_dp)
 !    CALL cp_fm_init_random ( matrix_A )
 
-      CALL cp_cfm_create(cmat_A, zij(1, 1)%matrix%matrix_struct)
-      CALL cp_cfm_create(cmat_U, zij(1, 1)%matrix%matrix_struct)
-      CALL cp_cfm_create(cmat_R, zij(1, 1)%matrix%matrix_struct)
-      CALL cp_cfm_create(cmat_t1, zij(1, 1)%matrix%matrix_struct)
-      CALL cp_cfm_create(cmat_t2, zij(1, 1)%matrix%matrix_struct)
-      CALL cp_cfm_create(cmat_B, zij(1, 1)%matrix%matrix_struct)
-      CALL cp_cfm_create(cmat_M, zij(1, 1)%matrix%matrix_struct)
+      CALL cp_cfm_create(cmat_A, zij(1, 1)%matrix_struct)
+      CALL cp_cfm_create(cmat_U, zij(1, 1)%matrix_struct)
+      CALL cp_cfm_create(cmat_R, zij(1, 1)%matrix_struct)
+      CALL cp_cfm_create(cmat_t1, zij(1, 1)%matrix_struct)
+      CALL cp_cfm_create(cmat_t2, zij(1, 1)%matrix_struct)
+      CALL cp_cfm_create(cmat_B, zij(1, 1)%matrix_struct)
+      CALL cp_cfm_create(cmat_M, zij(1, 1)%matrix_struct)
 
       CALL cp_cfm_get_info(cmat_B, nrow_local=nrow_local, ncol_local=ncol_local, &
                            row_indices=row_indices, col_indices=col_indices)
@@ -2159,8 +2154,8 @@ CONTAINS
       DEALLOCATE (evals, evals_exp, fval, fvald)
 
       DO idim = 1, SIZE(c_zij)
-         zij(1, idim)%matrix%local_data = REAL(c_zij(idim)%matrix%local_data, dp)
-         zij(2, idim)%matrix%local_data = AIMAG(c_zij(idim)%matrix%local_data)
+         zij(1, idim)%local_data = REAL(c_zij(idim)%matrix%local_data, dp)
+         zij(2, idim)%local_data = AIMAG(c_zij(idim)%matrix%local_data)
          CALL cp_cfm_release(c_zij(idim)%matrix)
          DEALLOCATE (c_zij(idim)%matrix)
       END DO
@@ -2191,8 +2186,7 @@ CONTAINS
                               sweeps, out_each, target_time, start_time)
 
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
-      TYPE(cp_fm_p_type), INTENT(INOUT)                  :: ZIJ(:, :)
-      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: zij(:, :), vectors
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: eps_localization
@@ -2219,7 +2213,7 @@ CONTAINS
 
       dim2 = SIZE(zij, 2)
 
-      CALL cp_fm_create(rmat, zij(1, 1)%matrix%matrix_struct)
+      CALL cp_fm_create(rmat, zij(1, 1)%matrix_struct)
       CALL cp_fm_set_all(rmat, 0._dp, 1._dp)
 
       CALL cp_fm_get_info(rmat, nrow_global=nstate)
@@ -2244,8 +2238,8 @@ CONTAINS
       DO idim = 1, dim2
          DO ip = 0, para_env%num_pe - 1
             nblock = ns_bound(ip, 2) - ns_bound(ip, 1) + 1
-            CALL cp_fm_get_submatrix(zij(1, idim)%matrix, z_ij_loc_re, 1, ns_bound(ip, 1), nstate, nblock)
-            CALL cp_fm_get_submatrix(zij(2, idim)%matrix, z_ij_loc_im, 1, ns_bound(ip, 1), nstate, nblock)
+            CALL cp_fm_get_submatrix(zij(1, idim), z_ij_loc_re, 1, ns_bound(ip, 1), nstate, nblock)
+            CALL cp_fm_get_submatrix(zij(2, idim), z_ij_loc_im, 1, ns_bound(ip, 1), nstate, nblock)
             IF (para_env%mepos == ip) THEN
                ALLOCATE (cz_ij_loc(idim)%c_array(nstate, nblock))
                DO i = 1, nblock
@@ -2286,8 +2280,8 @@ CONTAINS
             END IF
             CALL mp_bcast(z_ij_loc_re, ip, para_env%group)
             CALL mp_bcast(z_ij_loc_im, ip, para_env%group)
-            CALL cp_fm_set_submatrix(zij(1, idim)%matrix, z_ij_loc_re, 1, ns_bound(ip, 1), nstate, nblock)
-            CALL cp_fm_set_submatrix(zij(2, idim)%matrix, z_ij_loc_im, 1, ns_bound(ip, 1), nstate, nblock)
+            CALL cp_fm_set_submatrix(zij(1, idim), z_ij_loc_re, 1, ns_bound(ip, 1), nstate, nblock)
+            CALL cp_fm_set_submatrix(zij(2, idim), z_ij_loc_im, 1, ns_bound(ip, 1), nstate, nblock)
          END DO ! ip
       END DO
 
@@ -2988,7 +2982,7 @@ CONTAINS
 
       TYPE(cp_fm_type), INTENT(IN)                       :: vectors
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_sm_set
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: zij_fm_set
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: zij_fm_set
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'zij_matrix'
 
@@ -3005,10 +2999,10 @@ CONTAINS
       ! Compute zij here
       DO i = 1, SIZE(zij_fm_set, 2)
          DO j = 1, SIZE(zij_fm_set, 1)
-            CALL cp_fm_set_all(zij_fm_set(j, i)%matrix, 0.0_dp)
+            CALL cp_fm_set_all(zij_fm_set(j, i), 0.0_dp)
             CALL cp_dbcsr_sm_fm_multiply(op_sm_set(j, i)%matrix, vectors, opvec, ncol=nmoloc)
             CALL parallel_gemm("T", "N", nmoloc, nmoloc, nao, 1.0_dp, vectors, opvec, 0.0_dp, &
-                               zij_fm_set(j, i)%matrix)
+                               zij_fm_set(j, i))
          END DO
       END DO
 

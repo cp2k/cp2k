@@ -29,21 +29,28 @@ find_path(
 
 # check if found
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(
-  GenericBLAS REQUIRED_VARS GenericBLAS_INCLUDE_DIRS GenericBLAS_LIBRARIES)
+if(GenericBLAS_INCLUDE_DIRS)
+  find_package_handle_standard_args(
+    GenericBLAS REQUIRED_VARS GenericBLAS_INCLUDE_DIRS GenericBLAS_LIBRARIES)
+else()
+  find_package_handle_standard_args(GenericBLAS
+                                    REQUIRED_VARS GenericBLAS_LIBRARIES)
+endif()
+
 if(GenericBLAS_CBLAS_LIBRARIES)
   list(APPEND GenericBLAS_LIBRARIES ${GenericBLAS_CBLAS_LIBRARIES})
 endif()
 
 # add target to link against
 if(GenericBLAS_FOUND)
-  if(NOT TARGET GenericBLAS::blas)
-    add_library(GenericBLAS::blas INTERFACE IMPORTED)
+  if(NOT TARGET CP2K_GenericBLAS::blas)
+    add_library(CP2K_GenericBLAS::blas INTERFACE IMPORTED)
   endif()
-  set_property(TARGET GenericBLAS::blas PROPERTY INTERFACE_LINK_LIBRARIES
-                                                 ${GenericBLAS_LIBRARIES})
-  set_property(TARGET GenericBLAS::blas PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-                                                 ${GenericBLAS_INCLUDE_DIRS})
+  set_property(TARGET CP2K_GenericBLAS::blas PROPERTY INTERFACE_LINK_LIBRARIES
+                                                      ${GenericBLAS_LIBRARIES})
+  set_property(
+    TARGET CP2K_GenericBLAS::blas PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+                                           ${GenericBLAS_INCLUDE_DIRS})
 endif()
 
 # prevent clutter in cache

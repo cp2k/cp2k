@@ -21,7 +21,6 @@ MODULE molecular_moments
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -81,7 +80,7 @@ CONTAINS
    SUBROUTINE calculate_molecular_moments(qs_env, qs_loc_env, mo_local, loc_print_key, molecule_set)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_loc_env_type), INTENT(IN)                  :: qs_loc_env
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_local
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_local
       TYPE(section_vals_type), POINTER                   :: loc_print_key
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
 
@@ -167,7 +166,7 @@ CONTAINS
                END IF
                CALL mp_bcast(states, iproc, para_env%group)
                ! assemble local states for this molecule
-               ASSOCIATE (mo_localized => mo_local(ispin)%matrix)
+               ASSOCIATE (mo_localized => mo_local(ispin))
                   CALL cp_fm_get_info(mo_localized, ncol_global=ncol_global, nrow_global=nrow_global)
                   CALL cp_fm_struct_create(fm_struct, nrow_global=nrow_global, ncol_global=ns, &
                                            para_env=mo_localized%matrix_struct%para_env, &

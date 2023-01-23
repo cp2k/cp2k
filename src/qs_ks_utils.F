@@ -37,7 +37,6 @@ MODULE qs_ks_utils
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -411,9 +410,9 @@ CONTAINS
       REAL(KIND=dp)                                      :: ener, exc
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc_tmp
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_derivs_local
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type)                                   :: matrix_hv, matrix_v
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: mo_derivs_local
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type)                                 :: orb_density_matrix_p, orb_h_p
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs, rho_ao, tmp_dbcsr
@@ -583,8 +582,7 @@ CONTAINS
       ALLOCATE (mo_derivs_local(SIZE(mo_array, 1)))
       DO I = 1, SIZE(mo_array, 1)
          CALL get_mo_set(mo_set=mo_array(i), mo_coeff=mo_coeff)
-         ALLOCATE (mo_derivs_local(I)%matrix)
-         CALL cp_fm_create(mo_derivs_local(I)%matrix, mo_coeff%matrix_struct)
+         CALL cp_fm_create(mo_derivs_local(I), mo_coeff%matrix_struct)
       END DO
 
       ALLOCATE (rho_r(2))
@@ -647,9 +645,9 @@ CONTAINS
             ! add this to the mo_derivs
             CALL cp_dbcsr_sm_fm_multiply(orb_h, matrix_v, matrix_hv, 1)
             ! silly trick, copy to an array of the right size and add to mo_derivs
-            CALL cp_fm_set_all(mo_derivs_local(sic_orbital_list(3, iorb))%matrix, 0.0_dp)
-            CALL cp_fm_to_fm(matrix_hv, mo_derivs_local(sic_orbital_list(3, iorb))%matrix, 1, 1, sic_orbital_list(2, iorb))
-            CALL copy_fm_to_dbcsr(mo_derivs_local(sic_orbital_list(3, iorb))%matrix, &
+            CALL cp_fm_set_all(mo_derivs_local(sic_orbital_list(3, iorb)), 0.0_dp)
+            CALL cp_fm_to_fm(matrix_hv, mo_derivs_local(sic_orbital_list(3, iorb)), 1, 1, sic_orbital_list(2, iorb))
+            CALL copy_fm_to_dbcsr(mo_derivs_local(sic_orbital_list(3, iorb)), &
                                   tmp_dbcsr(sic_orbital_list(3, iorb))%matrix)
             CALL dbcsr_add(mo_derivs(sic_orbital_list(3, iorb))%matrix, &
                            tmp_dbcsr(sic_orbital_list(3, iorb))%matrix, 1.0_dp, 1.0_dp)
@@ -675,8 +673,7 @@ CONTAINS
       CALL cp_fm_release(matrix_v)
       CALL cp_fm_release(matrix_hv)
       DO I = 1, SIZE(mo_derivs_local, 1)
-         CALL cp_fm_release(mo_derivs_local(I)%matrix)
-         DEALLOCATE (mo_derivs_local(I)%matrix)
+         CALL cp_fm_release(mo_derivs_local(I))
       END DO
       DEALLOCATE (mo_derivs_local)
       DEALLOCATE (rho_r)

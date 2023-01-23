@@ -71,6 +71,8 @@ EOF
         install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage4/$(basename ${SCRIPT_NAME})"
+      mkdir ${pkg_install_dir}/lib/pkgconfig
+      cp ${pkg_install_dir}/lib/*.pc ${pkg_install_dir}/lib/pkgconfig
     fi
     LIBXSMM_CFLAGS="-I'${pkg_install_dir}/include'"
     LIBXSMM_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
@@ -102,6 +104,7 @@ prepend_path PATH "${pkg_install_dir}/bin"
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
 EOF
     cat "${BUILDDIR}/setup_libxsmm" >> $SETUPFILE
   fi

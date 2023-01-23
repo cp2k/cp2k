@@ -1,0 +1,47 @@
+# This file contains exception for tests that run reeeally slow.
+
+# New entries are highly discouraged because slow tests make every developer wait.
+
+# If you positively believe that there is no way to run your test within
+# the generous time limit then please add a comment with your reasoning.
+
+#
+# Legacy entries. TODO: Please fix or explain.
+#
+
+DFTB/regtest-scc-2/str2.inp
+DFTB/regtest-scc-2/str3.inp
+MC/regtest/MC_QS_cluster.inp
+Pimd/regtest-1/he32_only.inp
+Pimd/regtest-1/he32_only_restart.inp
+Pimd/regtest-1/water-in-helium.inp
+Pimd/regtest-1/water-in-helium-lastforce.inp
+Pimd/regtest-1/water-in-helium-restart.inp
+Pimd/regtest-2/water-micro-helium.inp
+Pimd/regtest-2/water-micro-helium-therminit.inp
+QMMM/SE/regtest-force-mixing/Lysozyme_small_NVT.inp
+QS/regtest-admm-qps/O2-triplett-ADMMP-debug_forces.inp
+QS/regtest-almo-2/ion-pair.inp
+QS/regtest-almo-trustr/FHchain-dogleg.inp
+QS/regtest-dm-ls-scf-3/C_TRS4.inp
+QS/regtest-hfx-block/H2-block-06.inp
+QS/regtest-kp-2/Ar_1.inp
+QS/regtest-kp-2/cc1.inp
+QS/regtest-kp-2/cc2.inp
+QS/regtest-kp-3/cc1.inp
+QS/regtest-loc_powf/run.inp
+QS/regtest-ls-rtp/Ar_mixed_aa_planar-rtp-osc-field.inp
+QS/regtest-pao-2/H2O_pao_rotinv.inp
+QS/regtest-pod/furane-pbe-4A.inp
+QS/regtest-ps-implicit-1-3/Ar_mixed_aa_planar-osc-field.inp
+QS/regtest-ps-implicit-2-1/H2O_periodic.inp
+QS/regtest-ps-implicit-2-1/H2plus2_implicit_md.inp
+QS/regtest-ps-implicit-2-2/H2O_mixed_periodic_aa_planar.inp
+QS/regtest-ps-implicit-2-2/H2O_mixed_periodic_planar.inp
+QS/regtest-ps-implicit-2-3/H2O_mixed_periodic_cuboidal.inp
+QS/regtest-rel/Hg_rel.inp
+xTB/regtest-5/AdeThyvdW.inp
+xTB/regtest-5/ef_stress1.inp
+xTB/regtest-5/ef_stress3.inp
+
+#EOF

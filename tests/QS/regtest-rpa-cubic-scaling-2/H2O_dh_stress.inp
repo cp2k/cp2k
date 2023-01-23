@@ -20,9 +20,10 @@
     POTENTIAL_FILE_NAME  POTENTIAL
     &AUXILIARY_DENSITY_MATRIX_METHOD
       ADMM_PURIFICATION_METHOD NONE
+      EXCH_CORRECTION_FUNC PBEX
     &END
     &MGRID
-      CUTOFF  160
+      CUTOFF  100
       REL_CUTOFF  30
     &END MGRID
     &QS
@@ -30,7 +31,7 @@
     &END QS
     &SCF
       SCF_GUESS RESTART
-      EPS_SCF 1.0E-7
+      EPS_SCF 1.0E-6
       MAX_SCF 100
       &OT
          PRECONDITIONER FULL_ALL
@@ -48,7 +49,7 @@
       &HF
         FRACTION 0.45
         &SCREENING
-          EPS_SCHWARZ 1.0E-10
+          EPS_SCHWARZ 1.0E-8
           SCREEN_ON_INITIAL_P FALSE
         &END SCREENING
         &INTERACTION_POTENTIAL
@@ -80,7 +81,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  5.000   5.000  5.000
+      ABC [angstrom]  4.500   4.500  4.500
     &END CELL
     &KIND H
       BASIS_SET  DZVP-GTH

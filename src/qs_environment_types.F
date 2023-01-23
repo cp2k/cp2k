@@ -27,8 +27,8 @@ MODULE qs_environment_types
                                               cp_ddapc_ewald_type,&
                                               cp_ddapc_release,&
                                               cp_ddapc_type
-   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release
+   USE cp_fm_types,                     ONLY: cp_fm_release,&
+                                              cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_types,                 ONLY: cp_result_type
    USE cp_subsys_types,                 ONLY: cp_subsys_type
@@ -233,7 +233,7 @@ MODULE qs_environment_types
       TYPE(transport_env_type), POINTER                     :: transport_env
       TYPE(cell_type), POINTER                              :: super_cell
       TYPE(mo_set_type), DIMENSION(:), POINTER            :: mos
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER             :: mo_loc_history
+      TYPE(cp_fm_type), DIMENSION(:), POINTER             :: mo_loc_history
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER             :: mo_derivs
       TYPE(scf_control_type), POINTER                       :: scf_control
       TYPE(rel_control_type), POINTER                       :: rel_control
@@ -570,8 +570,7 @@ CONTAINS
                                                             requires_mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: mo_derivs
-      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: mo_loc_history
+      TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: mo_loc_history
       INTEGER, OPTIONAL                                  :: nkind, natom, nelectron_total
       INTEGER, DIMENSION(2), OPTIONAL                    :: nelectron_spin
       TYPE(efield_berry_type), OPTIONAL, POINTER         :: efield
@@ -1052,8 +1051,7 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: has_unit_metric, requires_mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: mo_derivs
-      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: mo_loc_history
+      TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: mo_loc_history
       TYPE(efield_berry_type), OPTIONAL, POINTER         :: efield
       TYPE(linres_control_type), OPTIONAL, POINTER       :: linres_control
       TYPE(xas_environment_type), OPTIONAL, POINTER      :: xas_env
@@ -1373,8 +1371,7 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qs_env%mo_loc_history)) THEN
          DO I = 1, SIZE(qs_env%mo_loc_history)
-            CALL cp_fm_release(qs_env%mo_loc_history(I)%matrix)
-            DEALLOCATE (qs_env%mo_loc_history(I)%matrix)
+            CALL cp_fm_release(qs_env%mo_loc_history(I))
          END DO
          DEALLOCATE (qs_env%mo_loc_history)
       END IF
@@ -1596,8 +1593,7 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qs_env%mo_loc_history)) THEN
          DO I = 1, SIZE(qs_env%mo_loc_history)
-            CALL cp_fm_release(qs_env%mo_loc_history(I)%matrix)
-            DEALLOCATE (qs_env%mo_loc_history(I)%matrix)
+            CALL cp_fm_release(qs_env%mo_loc_history(I))
          END DO
          DEALLOCATE (qs_env%mo_loc_history)
       END IF

@@ -309,8 +309,8 @@ CONTAINS
       LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, aux_fit_present, aux_present, &
          core_present, default_present, nonbond1_atom, nonbond2_atom, oce_present, orb_present, &
          ppl_present, ppnl_present, ri_present, xb1_atom, xb2_atom
-      REAL(dp)                                           :: almo_rcov, almo_rvdw, rcut, roperator, &
-                                                            subcells
+      REAL(dp)                                           :: almo_rcov, almo_rvdw, pdist, rcut, &
+                                                            roperator, subcells
       REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_pot_rad, aux_fit_radius, c_radius, calpha, &
          core_radius, oce_radius, orb_radius, ppl_radius, ppnl_radius, ri_radius, zeff
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: pair_radius
@@ -432,6 +432,7 @@ CONTAINS
          ! enforce MIC for interaction lists in SE
          mic = .TRUE.
       END IF
+      pdist = dft_control%qs_control%pairlist_radius
 
       hfx_sections => section_vals_get_subs_vals(qs_env%input, "DFT%XC%HF")
       CALL section_vals_get(hfx_sections, explicit=do_hfx)
@@ -581,7 +582,12 @@ CONTAINS
       END DO
 
       ! Build the orbital-orbital overlap neighbor lists
-      CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius)
+      IF (pdist < 0.0_dp) THEN
+         pdist = MAX(plane_distance(1, 0, 0, cell), &
+                     plane_distance(0, 1, 0, cell), &
+                     plane_distance(0, 0, 1, cell))
+      END IF
+      CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius, pdist)
       CALL build_neighbor_lists(sab_orb, particle_set, atom2d, cell, pair_radius, &
                                 mic=mic, subcells=subcells, molecular=molecule_only, nlname="sab_orb")
       CALL set_ks_env(ks_env=ks_env, sab_orb=sab_orb)
@@ -1593,23 +1599,30 @@ CONTAINS
 !> \param radius_a ...
 !> \param radius_b ...
 !> \param pair_radius ...
+!> \param prmin ...
 ! **************************************************************************************************
-   SUBROUTINE pair_radius_setup(present_a, present_b, radius_a, radius_b, pair_radius)
+   SUBROUTINE pair_radius_setup(present_a, present_b, radius_a, radius_b, pair_radius, prmin)
       LOGICAL, DIMENSION(:), INTENT(IN)                  :: present_a, present_b
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: radius_a, radius_b
       REAL(dp), DIMENSION(:, :), INTENT(OUT)             :: pair_radius
+      REAL(dp), INTENT(IN), OPTIONAL                     :: prmin
 
       INTEGER                                            :: i, j, nkind
+      REAL(dp)                                           :: rrmin
 
       nkind = SIZE(present_a)
 
       pair_radius = 0._dp
+
+      rrmin = 0.0_dp
+      IF (PRESENT(prmin)) rrmin = prmin
 
       DO i = 1, nkind
          IF (.NOT. present_a(i)) CYCLE
          DO j = 1, nkind
             IF (.NOT. present_b(j)) CYCLE
             pair_radius(i, j) = radius_a(i) + radius_b(j)
+            pair_radius(i, j) = MAX(pair_radius(i, j), rrmin)
          END DO
       END DO
 

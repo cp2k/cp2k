@@ -44,7 +44,6 @@ MODULE qs_moments
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
@@ -1255,9 +1254,9 @@ CONTAINS
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: eigrmat
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: opvec
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: op_fm_set
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: opvec
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: op_fm_set
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -1330,16 +1329,14 @@ CONTAINS
          NULLIFY (tmp_fm_struct, mo_coeff)
          CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=nmo)
          nmotot = nmotot + nmo
-         ALLOCATE (opvec(ispin)%matrix)
-         CALL cp_fm_create(opvec(ispin)%matrix, mo_coeff%matrix_struct)
+         CALL cp_fm_create(opvec(ispin), mo_coeff%matrix_struct)
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, &
                                   ncol_global=nmo, para_env=para_env, context=mo_coeff%matrix_struct%context)
          DO i = 1, SIZE(op_fm_set, 1)
-            ALLOCATE (op_fm_set(i, ispin)%matrix)
-            CALL cp_fm_create(op_fm_set(i, ispin)%matrix, tmp_fm_struct)
+            CALL cp_fm_create(op_fm_set(i, ispin), tmp_fm_struct)
          END DO
          ALLOCATE (eigrmat(ispin)%matrix)
-         CALL cp_cfm_create(eigrmat(ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
+         CALL cp_cfm_create(eigrmat(ispin)%matrix, op_fm_set(1, ispin)%matrix_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
       END DO
 
@@ -1492,8 +1489,8 @@ CONTAINS
                   CALL cp_cfm_get_info(eigrmat(ispin)%matrix, ncol_local=tmp_dim)
                   DO idim = 1, tmp_dim
                      eigrmat(ispin)%matrix%local_data(:, idim) = &
-                        CMPLX(op_fm_set(1, ispin)%matrix%local_data(:, idim), &
-                              -op_fm_set(2, ispin)%matrix%local_data(:, idim), dp)
+                        CMPLX(op_fm_set(1, ispin)%local_data(:, idim), &
+                              -op_fm_set(2, ispin)%local_data(:, idim), dp)
                   END DO
                   CALL cp_cfm_lu_decompose(eigrmat(ispin)%matrix, zdeta)
                   zdet = zdet*zdeta
@@ -1523,8 +1520,8 @@ CONTAINS
                      CALL cp_cfm_get_info(eigrmat(ispin)%matrix, ncol_local=tmp_dim)
                      DO idim = 1, tmp_dim
                         eigrmat(ispin)%matrix%local_data(:, idim) = &
-                           CMPLX(op_fm_set(1, ispin)%matrix%local_data(:, idim), &
-                                 -op_fm_set(2, ispin)%matrix%local_data(:, idim), dp)
+                           CMPLX(op_fm_set(1, ispin)%local_data(:, idim), &
+                                 -op_fm_set(2, ispin)%local_data(:, idim), dp)
                      END DO
                      CALL cp_cfm_lu_decompose(eigrmat(ispin)%matrix, zdeta)
                      zdet = zdet*zdeta
@@ -1611,13 +1608,11 @@ CONTAINS
       CALL dbcsr_deallocate_matrix(sinmat)
 
       DO ispin = 1, dft_control%nspins
-         CALL cp_fm_release(opvec(ispin)%matrix)
-         DEALLOCATE (opvec(ispin)%matrix)
+         CALL cp_fm_release(opvec(ispin))
          CALL cp_cfm_release(eigrmat(ispin)%matrix)
          DEALLOCATE (eigrmat(ispin)%matrix)
          DO i = 1, SIZE(op_fm_set, 1)
-            CALL cp_fm_release(op_fm_set(i, ispin)%matrix)
-            DEALLOCATE (op_fm_set(i, ispin)%matrix)
+            CALL cp_fm_release(op_fm_set(i, ispin))
          END DO
       END DO
       DEALLOCATE (op_fm_set)
@@ -1639,21 +1634,21 @@ CONTAINS
    SUBROUTINE op_orbbas(cosmat, sinmat, mos, op_fm_set, opvec)
 
       TYPE(dbcsr_type), POINTER                          :: cosmat, sinmat
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: op_fm_set
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: opvec
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: op_fm_set
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: opvec
 
       INTEGER                                            :: i, nao, nmo
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
 
       DO i = 1, SIZE(op_fm_set, 2) ! spin
          CALL get_mo_set(mo_set=mos(i), nao=nao, mo_coeff=mo_coeff, nmo=nmo)
-         CALL cp_dbcsr_sm_fm_multiply(cosmat, mo_coeff, opvec(i)%matrix, ncol=nmo)
-         CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff, opvec(i)%matrix, 0.0_dp, &
-                            op_fm_set(1, i)%matrix)
-         CALL cp_dbcsr_sm_fm_multiply(sinmat, mo_coeff, opvec(i)%matrix, ncol=nmo)
-         CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff, opvec(i)%matrix, 0.0_dp, &
-                            op_fm_set(2, i)%matrix)
+         CALL cp_dbcsr_sm_fm_multiply(cosmat, mo_coeff, opvec(i), ncol=nmo)
+         CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff, opvec(i), 0.0_dp, &
+                            op_fm_set(1, i))
+         CALL cp_dbcsr_sm_fm_multiply(sinmat, mo_coeff, opvec(i), ncol=nmo)
+         CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff, opvec(i), 0.0_dp, &
+                            op_fm_set(2, i))
       END DO
 
    END SUBROUTINE op_orbbas
@@ -1669,8 +1664,8 @@ CONTAINS
    SUBROUTINE op_orbbas_rtp(cosmat, sinmat, mos, op_fm_set, mos_new)
 
       TYPE(dbcsr_type), POINTER                          :: cosmat, sinmat
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: op_fm_set
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: op_fm_set
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new
 
       INTEGER                                            :: i, icol, lcol, nao, newdim, nmo
@@ -1713,8 +1708,8 @@ CONTAINS
          CALL cp_fm_release(work2)
 
          CALL cp_fm_struct_double(newstruct1, &
-                                  op_fm_set(1, i)%matrix%matrix_struct, &
-                                  op_fm_set(1, i)%matrix%matrix_struct%context, &
+                                  op_fm_set(1, i)%matrix_struct, &
+                                  op_fm_set(1, i)%matrix_struct%context, &
                                   double_col, &
                                   double_row)
 
@@ -1724,18 +1719,18 @@ CONTAINS
                             work, 0.0_dp, work1)
 
          DO icol = 1, lcol
-            op_fm_set(1, i)%matrix%local_data(:, icol) = work1%local_data(:, icol)
-            op_fm_set(2, i)%matrix%local_data(:, icol) = work1%local_data(:, icol + lcol)
+            op_fm_set(1, i)%local_data(:, icol) = work1%local_data(:, icol)
+            op_fm_set(2, i)%local_data(:, icol) = work1%local_data(:, icol + lcol)
          END DO
 
          CALL parallel_gemm("T", "N", nmo, newdim, nao, 1.0_dp, mos_new(2*i), &
                             work, 0.0_dp, work1)
 
          DO icol = 1, lcol
-            op_fm_set(1, i)%matrix%local_data(:, icol) = &
-               op_fm_set(1, i)%matrix%local_data(:, icol) + work1%local_data(:, icol + lcol)
-            op_fm_set(2, i)%matrix%local_data(:, icol) = &
-               op_fm_set(2, i)%matrix%local_data(:, icol) - work1%local_data(:, icol)
+            op_fm_set(1, i)%local_data(:, icol) = &
+               op_fm_set(1, i)%local_data(:, icol) + work1%local_data(:, icol + lcol)
+            op_fm_set(2, i)%local_data(:, icol) = &
+               op_fm_set(2, i)%local_data(:, icol) - work1%local_data(:, icol)
          END DO
 
          CALL cp_fm_release(work)

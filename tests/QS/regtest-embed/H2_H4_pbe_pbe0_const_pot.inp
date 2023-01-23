@@ -18,36 +18,36 @@
        &MAPPING
           &FORCE_EVAL_EMBED
              &FRAGMENT 1
-                1 4
+                1 2
              &END
              &FRAGMENT 2
-                5 8
+                3 4
              &END
              &FRAGMENT 3
-                1 8
+                1 4
              &END
           &END
           &FORCE_EVAL 1
              &FRAGMENT 1
-                1 4
+                1 2
                 MAP 1
               &END
           &END
           &FORCE_EVAL 2
              &FRAGMENT 1
-                1 4
+                1 2
                 MAP 2
              &END
           &END
           &FORCE_EVAL 3
              &FRAGMENT 1
-                1 8
+                1 4
                 MAP 3
               &END
           &END
           &FORCE_EVAL 4
              &FRAGMENT 1
-                1 4
+                1 2
                 MAP 2
              &END
           &END
@@ -55,17 +55,17 @@
     &END EMBED
   &SUBSYS
     &CELL
-      ABC [angstrom]  10.000   10.000  10.000
+      ABC [angstrom]  4.000   4.000  4.000
       PERIODIC NONE
     &END CELL
     &KIND H
-      BASIS_SET  cc-TZ
+      BASIS_SET  cc-DZ
       BASIS_SET RI_AUX  RI_TZ
       !POTENTIAL  GTH-PBE-q1
       POTENTIAL  GTH-HF-q1
     &END KIND
     &KIND O
-      BASIS_SET  cc-TZ
+      BASIS_SET  cc-DZ
       BASIS_SET RI_AUX  RI_TZ
       !POTENTIAL  GTH-PBE-q6
       POTENTIAL  GTH-HF-q6
@@ -73,12 +73,8 @@
     &COORD
 H    6.7935     6.0     4.0
 H    7.3225     6.0     4.0
-H    5.2065     6.0     4.0
-H    4.6775     6.0     4.0
 H    6.2645     6.0     4.0
 H    5.7355     6.0     4.0
-H    6.0     5.7355     7.42105263158
-H    6.0     6.2645     7.42105263158
     &END
   &END SUBSYS
 &END FORCE_EVAL
@@ -111,7 +107,7 @@ H    6.0     6.2645     7.42105263158
        PRECONDITIONER FULL_ALL
       &END
       SCF_GUESS ATOMIC
-      EPS_SCF 1.0E-7
+      EPS_SCF 1.0E-6
       MAX_SCF 100
       &PRINT
         &RESTART OFF
@@ -125,11 +121,11 @@ H    6.0     6.2645     7.42105263158
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  10.000   10.000  10.000
+      ABC [angstrom]  4.000   4.000  4.000
       PERIODIC NONE
     &END CELL
     &KIND H
-      BASIS_SET  cc-TZ
+      BASIS_SET  cc-DZ
       BASIS_SET RI_AUX  RI_TZ
       !POTENTIAL  GTH-PBE-q1
       POTENTIAL  GTH-HF-q1
@@ -137,8 +133,6 @@ H    6.0     6.2645     7.42105263158
     &COORD
 H    6.7935     6.0     4.0
 H    7.3225     6.0     4.0
-H    5.2065     6.0     4.0
-H    4.6775     6.0     4.0
     &END
   &END SUBSYS
 &END FORCE_EVAL
@@ -172,7 +166,7 @@ H    4.6775     6.0     4.0
        PRECONDITIONER FULL_ALL
       &END
       SCF_GUESS ATOMIC
-      EPS_SCF 1.0E-7
+      EPS_SCF 1.0E-6
       MAX_SCF 100
       &PRINT
         &RESTART OFF
@@ -186,17 +180,17 @@ H    4.6775     6.0     4.0
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  10.000   10.000  10.000
+      ABC [angstrom]  4.000   4.000  4.000
       PERIODIC NONE
     &END CELL
     &KIND H
-      BASIS_SET  cc-TZ
+      BASIS_SET  cc-DZ
       BASIS_SET RI_AUX  RI_TZ
       !POTENTIAL  GTH-PBE-q1
       POTENTIAL  GTH-HF-q1
     &END KIND
     &KIND O
-      BASIS_SET  cc-TZ
+      BASIS_SET  cc-DZ
       BASIS_SET RI_AUX  RI_TZ
       !POTENTIAL  GTH-PBE-q6
       POTENTIAL  GTH-HF-q6
@@ -204,8 +198,6 @@ H    4.6775     6.0     4.0
     &COORD
 H    6.2645     6.0     4.0
 H    5.7355     6.0     4.0
-H    6.0     5.7355     7.42105263158
-H    6.0     6.2645     7.42105263158
     &END
   &END SUBSYS
 &END FORCE_EVAL
@@ -252,7 +244,7 @@ H    6.0     6.2645     7.42105263158
        PRECONDITIONER FULL_ALL
       &END
       SCF_GUESS ATOMIC
-      EPS_SCF 1.0E-7
+      EPS_SCF 1.0E-6
       MAX_SCF 100
       &PRINT
         &RESTART OFF
@@ -266,23 +258,19 @@ H    6.0     6.2645     7.42105263158
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  10.000   10.000  10.000
+      ABC [angstrom]  4.000   4.000  4.000
       PERIODIC NONE
     &END CELL
     &KIND H
-      BASIS_SET  cc-TZ
+      BASIS_SET  cc-DZ
       BASIS_SET RI_AUX  RI_TZ
       POTENTIAL  GTH-HF-q1
     &END KIND
     &COORD
 H    6.7935     6.0     4.0
 H    7.3225     6.0     4.0
-H    5.2065     6.0     4.0
-H    4.6775     6.0     4.0
 H    6.2645     6.0     4.0
 H    5.7355     6.0     4.0
-H    6.0     5.7355     7.42105263158
-H    6.0     6.2645     7.42105263158
     &END
   &END SUBSYS
 &END FORCE_EVAL
@@ -316,7 +304,7 @@ H    6.0     6.2645     7.42105263158
        PRECONDITIONER FULL_ALL
       &END
       SCF_GUESS ATOMIC
-      EPS_SCF 1.0E-7
+      EPS_SCF 1.0E-6
       MAX_SCF 100
       &PRINT
         &RESTART OFF
@@ -343,11 +331,11 @@ H    6.0     6.2645     7.42105263158
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  10.000   10.000  10.000
+      ABC [angstrom]  4.000   4.000  4.000
       PERIODIC NONE
     &END CELL
     &KIND H
-      BASIS_SET  cc-TZ
+      BASIS_SET  cc-DZ
       BASIS_SET RI_AUX  RI_TZ
       !POTENTIAL  GTH-PBE-q1
       POTENTIAL  GTH-HF-q1
@@ -355,8 +343,6 @@ H    6.0     6.2645     7.42105263158
     &COORD
 H    6.2645     6.0     4.0
 H    5.7355     6.0     4.0
-H    6.0     5.7355     7.42105263158
-H    6.0     6.2645     7.42105263158
     &END
   &END SUBSYS
 &END FORCE_EVAL

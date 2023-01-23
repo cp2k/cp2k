@@ -15,7 +15,6 @@ MODULE qs_tddfpt2_fhxc
                                               cp_dbcsr_sm_fm_multiply
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -99,7 +98,7 @@ CONTAINS
    SUBROUTINE fhxc_kernel(Aop_evects, evects, is_rks_triplets, &
                           do_hfx, do_admm, qs_env, kernel_env, kernel_env_admm_aux, &
                           sub_env, work_matrices, admm_symm, admm_xc_correction, do_lrigpw)
-      TYPE(cp_fm_p_type), DIMENSION(:, :)                :: Aop_evects, evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: Aop_evects, evects
       LOGICAL, INTENT(in)                                :: is_rks_triplets, do_hfx, do_admm
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(full_kernel_env_type), POINTER                :: kernel_env, kernel_env_admm_aux
@@ -143,9 +142,9 @@ CONTAINS
       gapw = dft_control%qs_control%gapw
       gapw_xc = dft_control%qs_control%gapw_xc
 
-      CALL cp_fm_get_info(evects(1, 1)%matrix, nrow_global=nao)
+      CALL cp_fm_get_info(evects(1, 1), nrow_global=nao)
       DO ispin = 1, nspins
-         CALL cp_fm_get_info(evects(ispin, 1)%matrix, ncol_global=nactive(ispin))
+         CALL cp_fm_get_info(evects(ispin, 1), ncol_global=nactive(ispin))
       END DO
 
       CALL qs_rho_get(work_matrices%rho_orb_struct_sub, rho_ao=rho_ia_ao, &
@@ -159,12 +158,12 @@ CONTAINS
 
       DO ivect = 1, nvects
          IF (ALLOCATED(work_matrices%evects_sub)) THEN
-            IF (ASSOCIATED(work_matrices%evects_sub(1, ivect)%matrix)) THEN
+            IF (ASSOCIATED(work_matrices%evects_sub(1, ivect)%matrix_struct)) THEN
                DO ispin = 1, nspins
                   CALL dbcsr_set(rho_ia_ao(ispin)%matrix, 0.0_dp)
                   CALL cp_dbcsr_plus_fm_fm_t(rho_ia_ao(ispin)%matrix, &
-                                             matrix_v=sub_env%mos_occ(ispin)%matrix, &
-                                             matrix_g=work_matrices%evects_sub(ispin, ivect)%matrix, &
+                                             matrix_v=sub_env%mos_occ(ispin), &
+                                             matrix_g=work_matrices%evects_sub(ispin, ivect), &
                                              ncol=nactive(ispin), symmetry_mode=1)
                END DO
             ELSE
@@ -175,8 +174,8 @@ CONTAINS
             DO ispin = 1, nspins
                CALL dbcsr_set(rho_ia_ao(ispin)%matrix, 0.0_dp)
                CALL cp_dbcsr_plus_fm_fm_t(rho_ia_ao(ispin)%matrix, &
-                                          matrix_v=sub_env%mos_occ(ispin)%matrix, &
-                                          matrix_g=evects(ispin, ivect)%matrix, &
+                                          matrix_v=sub_env%mos_occ(ispin), &
+                                          matrix_g=evects(ispin, ivect), &
                                           ncol=nactive(ispin), symmetry_mode=1)
             END DO
          END IF
@@ -444,15 +443,15 @@ CONTAINS
          IF (ALLOCATED(work_matrices%evects_sub)) THEN
             DO ispin = 1, nspins
                CALL cp_dbcsr_sm_fm_multiply(work_matrices%A_ia_munu_sub(ispin)%matrix, &
-                                            sub_env%mos_occ(ispin)%matrix, &
-                                            work_matrices%Aop_evects_sub(ispin, ivect)%matrix, &
+                                            sub_env%mos_occ(ispin), &
+                                            work_matrices%Aop_evects_sub(ispin, ivect), &
                                             ncol=nactive(ispin), alpha=1.0_dp, beta=0.0_dp)
             END DO
          ELSE
             DO ispin = 1, nspins
                CALL cp_dbcsr_sm_fm_multiply(work_matrices%A_ia_munu_sub(ispin)%matrix, &
-                                            sub_env%mos_occ(ispin)%matrix, &
-                                            Aop_evects(ispin, ivect)%matrix, &
+                                            sub_env%mos_occ(ispin), &
+                                            Aop_evects(ispin, ivect), &
                                             ncol=nactive(ispin), alpha=1.0_dp, beta=0.0_dp)
             END DO
          END IF
@@ -480,7 +479,7 @@ CONTAINS
                           qs_env, stda_control, stda_env, &
                           sub_env, work_matrices)
 
-      TYPE(cp_fm_p_type), DIMENSION(:, :)                :: Aop_evects, evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: Aop_evects, evects
       LOGICAL, INTENT(in)                                :: is_rks_triplets
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(stda_control_type)                            :: stda_control
@@ -498,7 +497,7 @@ CONTAINS
 
       DO ivect = 1, nvects
          IF (ALLOCATED(work_matrices%evects_sub)) THEN
-            IF (ASSOCIATED(work_matrices%evects_sub(1, ivect)%matrix)) THEN
+            IF (ASSOCIATED(work_matrices%evects_sub(1, ivect)%matrix_struct)) THEN
                CALL stda_calculate_kernel(qs_env, stda_control, stda_env, sub_env, work_matrices, &
                                           is_rks_triplets, work_matrices%evects_sub(:, ivect), &
                                           work_matrices%Aop_evects_sub(:, ivect))
