@@ -202,7 +202,7 @@ CONTAINS
             im = 2*i
             CALL dbcsr_add(ks_mix(i)%matrix, matrix_ks(i)%matrix, 0.0_dp, rtp%mixing_factor)
             CALL dbcsr_add(ks_mix(i)%matrix, H_last_iter(re)%matrix, 1.0_dp, 1.0_dp - rtp%mixing_factor)
-            IF (rtp%do_hfx) THEN
+            IF (rtp%do_hfx .OR. rtp_control%velocity_gauge) THEN
                CALL dbcsr_add(ks_mix_im(i)%matrix, matrix_ks_im(i)%matrix, 0.0_dp, rtp%mixing_factor)
                CALL dbcsr_add(ks_mix_im(i)%matrix, H_last_iter(im)%matrix, 1.0_dp, 1.0_dp - rtp%mixing_factor)
             END IF
@@ -212,7 +212,7 @@ CONTAINS
             re = 2*i - 1
             im = 2*i
             CALL dbcsr_copy(H_last_iter(re)%matrix, ks_mix(i)%matrix)
-            IF (rtp%do_hfx) THEN
+            IF (rtp%do_hfx .OR. rtp_control%velocity_gauge) THEN
                CALL dbcsr_copy(H_last_iter(im)%matrix, ks_mix_im(i)%matrix)
             END IF
          END DO
@@ -224,7 +224,7 @@ CONTAINS
             re = 2*i - 1
             im = 2*i
             CALL dbcsr_copy(H_last_iter(re)%matrix, matrix_ks(i)%matrix)
-            IF (rtp%do_hfx) THEN
+            IF (rtp%do_hfx .OR. rtp_control%velocity_gauge) THEN
                CALL dbcsr_copy(H_last_iter(im)%matrix, matrix_ks_im(i)%matrix)
             END IF
          END DO
@@ -415,9 +415,9 @@ CONTAINS
             CALL dbcsr_copy(SinvH(ispin)%matrix, exp_H(im)%matrix)
          END IF
       END DO
-      IF (.NOT. rtp_control%fixed_ions .OR. rtp%do_hfx) THEN
+      IF (rtp%track_imag_density) THEN
          CALL get_rtp(rtp=rtp, B_mat=B_mat, SinvB=SinvB)
-         IF (rtp%do_hfx) THEN
+         IF (rtp%do_hfx .OR. rtp_control%velocity_gauge) THEN
             DO ispin = 1, SIZE(matrix_ks)
                re = ispin*2 - 1
                im = ispin*2
