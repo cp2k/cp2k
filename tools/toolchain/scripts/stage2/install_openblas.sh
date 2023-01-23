@@ -54,15 +54,16 @@ case "${with_openblas}" in
       # Unfortunately, NO_SHARED=1 breaks ScaLAPACK build.
       case "${TARGET_CPU}" in
         "native")
-          TARGET=${OPENBLAS_LIBCORE^^}
+          TARGET=${OPENBLAS_LIBCORE}
           ;;
         "generic")
           TARGET="NEHALEM"
           ;;
         *)
-          TARGET=${TARGET_CPU^^}
+          TARGET=${TARGET_CPU}
           ;;
       esac
+      TARGET=$(echo ${TARGET} | tr '[:lower:]' '[:upper:]')
       echo "Installing OpenBLAS library for target ${TARGET}"
       (
         make -j $(get_nprocs) \
