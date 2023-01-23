@@ -245,10 +245,6 @@ CONTAINS
       REAL(sp), DIMENSION(:, :), POINTER                 :: total_energy, atomic_energy, forces
       REAL(kind=dp)                                      :: pot_nequip
       TYPE(nequip_data_type), POINTER                    :: nequip_data
-      REAL(kind=dp)                                      :: t1, t2, tt1, tt2, ti, tf
-
-
-      ti = m_walltime()
 
       NULLIFY (total_energy, atomic_energy, forces)
       n_atoms = SIZE(particle_set)
@@ -374,9 +370,7 @@ CONTAINS
           displ_cell(ipair) = displ_cell(ipair - 1) + edge_count_cell(ipair - 1)
       END DO
 
-      tt1 = m_walltime()
-!      IF (torch_cuda_is_available())  THEN
-      IF (.NOT. torch_cuda_is_available()) THEN
+      IF (torch_cuda_is_available())  THEN
           CALL mp_gatherv(temp_edge_cell_shifts, edge_cell_shifts, edge_count_cell, displ_cell, para_env%source, &
                       para_env%group)
           CALL mp_gatherv(temp_edge_index, edge_index, edge_count, displ, para_env%source, para_env%group)
@@ -384,16 +378,13 @@ CONTAINS
           CALL mp_allgather(temp_edge_cell_shifts, edge_cell_shifts, edge_count_cell, displ_cell, para_env%group)
           CALL mp_allgather(temp_edge_index, edge_index, edge_count, displ, para_env%group)
       END IF
-      tt2 = m_walltime()
-      WRITE(*, *) "mp_gather time, rank #", tt2 - tt1, para_env%mepos
 
       t_edge_index = TRANSPOSE(edge_index)
       DEALLOCATE(temp_edge_index, temp_edge_cell_shifts, edge_index)
 
       lattice = cell%hmat/pot%set(1)%nequip%unit_cell_val
 
-!      IF ((para_env%mepos .EQ. 0) .OR. (.NOT. torch_cuda_is_available())) THEN
-      IF (para_env%mepos .EQ. 0) THEN
+      IF ((para_env%mepos .EQ. 0) .OR. (.NOT. torch_cuda_is_available())) THEN
           iat_use = 0
           ALLOCATE (pos(3, n_atoms_use), atom_types(n_atoms_use))
       
@@ -413,10 +404,7 @@ CONTAINS
          
           CALL torch_dict_create(outputs)
           
-          t1 = m_walltime() 
           CALL torch_model_eval(pot%set(1)%nequip%model, inputs, outputs)
-          t2 = m_walltime()
-          WRITE(*, *) "time torch_eval, rank # ", t2 - t1, para_env%mepos
          
           CALL torch_dict_get(outputs, "total_energy", total_energy)
           CALL torch_dict_get(outputs, "atomic_energy", atomic_energy)
@@ -432,7 +420,6 @@ CONTAINS
       
       END IF
 
-      !IF (PRESENT(para_env)) virial = virial/REAL(para_env%num_pe, dp)
       ! get nequip_data to save force, virial info
       CALL fist_nonbond_env_get(fist_nonbond_env, nequip_data=nequip_data)
       IF (.NOT. ASSOCIATED(nequip_data)) THEN
@@ -467,13 +454,10 @@ CONTAINS
          END IF
       END DO
 
-      tt1 = m_walltime()
-!      IF (torch_cuda_is_available()) THEN
+      IF (torch_cuda_is_available()) THEN
           CALL mp_bcast(pot_nequip, para_env%source, para_env%group)
           CALL mp_bcast(forces, para_env%source, para_env%group)
-!      END IF
-      tt2 = m_walltime()
-      WRITE(*, *) "bcast time, rank # ", tt2 -tt1, para_env%mepos
+      END IF
 
       ! account for double counting from multiple MPI processes
       IF (PRESENT(para_env)) pot_nequip = pot_nequip/REAL(para_env%num_pe, dp)
@@ -484,8 +468,6 @@ CONTAINS
          nequip_data%force = REAL(forces, kind=dp)*pot%set(1)%nequip%unit_forces_val
       END IF
       DEALLOCATE(forces)
-      tf = m_walltime()
-      WRITE(*, *) "total time in manybody_nequip, rank # ", tf -ti, para_env%mepos 
 
    END SUBROUTINE nequip_energy_store_force_virial
 
