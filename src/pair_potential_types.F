@@ -1058,13 +1058,13 @@ CONTAINS
       TYPE(pair_potential_p_type), POINTER               :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
       LOGICAL, INTENT(IN), OPTIONAL                      :: lj, lj_charmm, williams, goodwin, eam, &
-                                                            quip, nequip, bmhft, bmhftd, ipbv, buck4r, &
-                                                            buckmo, gp, tersoff, siepmann, gal, &
-                                                            gal21, tab
+                                                            quip, nequip, bmhft, bmhftd, ipbv, &
+                                                            buck4r, buckmo, gp, tersoff, siepmann, &
+                                                            gal, gal21, tab
 
       INTEGER                                            :: i, ipot, lb1_old, std_dim, ub1_old
       LOGICAL :: check, lbmhft, lbmhftd, lbuck4r, lbuckmo, leam, lgal, lgal21, lgoodwin, lgp, &
-         lipbv, llj, llj_charmm, lquip, lnequip, lsiepmann, ltab, ltersoff, lwilliams
+         lipbv, llj, llj_charmm, lnequip, lquip, lsiepmann, ltab, ltersoff, lwilliams
       TYPE(pair_potential_p_type), POINTER               :: work
 
       NULLIFY (work)
@@ -1136,7 +1136,7 @@ CONTAINS
                         .OR. lbmhftd .OR. lipbv .OR. lbuck4r .OR. lbuckmo .OR. lgp .OR. ltersoff &
                         .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab)
          CPASSERT(check)
-      END IF      
+      END IF
       IF (lbmhft) THEN
          ipot = ft_type
          check = .NOT. (llj .OR. llj_charmm .OR. lgoodwin .OR. lwilliams .OR. leam .OR. lquip .OR. lnequip &
@@ -1254,7 +1254,7 @@ CONTAINS
          CASE (quip_type)
             CALL pair_potential_quip_create(p%pot(i)%pot%set(std_dim)%quip)
          CASE (nequip_type)
-            CALL pair_potential_nequip_create(p%pot(i)%pot%set(std_dim)%nequip)            
+            CALL pair_potential_nequip_create(p%pot(i)%pot%set(std_dim)%nequip)
          CASE (ft_type)
             CALL pair_potential_bmhft_create(p%pot(i)%pot%set(std_dim)%ft)
          CASE (ftd_type)

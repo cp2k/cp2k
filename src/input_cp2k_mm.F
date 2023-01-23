@@ -15,8 +15,8 @@
 ! **************************************************************************************************
 MODULE input_cp2k_mm
    USE bibliography,                    ONLY: &
-        Clabaut2020, Clabaut2021, Devynck2012, Dick1958, Foiles1986, Mitchell1993, QUIP_ref, &
-        Siepmann1995, Tersoff1988, Tosi1964a, Tosi1964b, Yamada2000, Batzner2022
+        Batzner2022, Clabaut2020, Clabaut2021, Devynck2012, Dick1958, Foiles1986, Mitchell1993, &
+        QUIP_ref, Siepmann1995, Tersoff1988, Tosi1964a, Tosi1964b, Yamada2000
    USE cp_output_handling,              ONLY: cp_print_key_section_create,&
                                               debug_print_level,&
                                               high_print_level,&
@@ -1172,7 +1172,7 @@ CONTAINS
 
       CALL create_NEQUIP_section(subsection)
       CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)      
+      CALL section_release(subsection)
 
       CALL create_Goodwin_section(subsection)
       CALL section_add_subsection(section, subsection)

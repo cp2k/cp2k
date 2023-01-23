@@ -20,10 +20,11 @@ MODULE fist_nonbond_env_types
                                               dp
    USE pair_potential_types,            ONLY: gal21_type,&
                                               gal_type,&
+                                              nequip_type,&
                                               pair_potential_pp_release,&
                                               pair_potential_pp_type,&
                                               siepmann_type,&
-                                              tersoff_type, nequip_type
+                                              tersoff_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -135,14 +136,14 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: ij_kind_full_fac
       TYPE(eam_type), DIMENSION(:), OPTIONAL, POINTER    :: eam_data
       TYPE(quip_data_type), OPTIONAL, POINTER            :: quip_data
-      TYPE(nequip_data_type), OPTIONAL, POINTER          :: nequip_data      
+      TYPE(nequip_data_type), OPTIONAL, POINTER          :: nequip_data
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: charges
 
       IF (PRESENT(charges)) charges => fist_nonbond_env%charges
       IF (PRESENT(potparm14)) potparm14 => fist_nonbond_env%potparm14
       IF (PRESENT(eam_data)) eam_data => fist_nonbond_env%eam_data
       IF (PRESENT(quip_data)) quip_data => fist_nonbond_env%quip_data
-      IF (PRESENT(nequip_data)) nequip_data => fist_nonbond_env%nequip_data      
+      IF (PRESENT(nequip_data)) nequip_data => fist_nonbond_env%nequip_data
       IF (PRESENT(potparm)) potparm => fist_nonbond_env%potparm
       IF (PRESENT(rlist_cut)) rlist_cut => fist_nonbond_env%rlist_cut
       IF (PRESENT(rlist_lowsq)) rlist_lowsq => fist_nonbond_env%rlist_lowsq
@@ -231,7 +232,7 @@ CONTAINS
       IF (PRESENT(potparm14)) fist_nonbond_env%potparm14 => potparm14
       IF (PRESENT(eam_data)) fist_nonbond_env%eam_data => eam_data
       IF (PRESENT(quip_data)) fist_nonbond_env%quip_data => quip_data
-      IF (PRESENT(nequip_data)) fist_nonbond_env%nequip_data => nequip_data      
+      IF (PRESENT(nequip_data)) fist_nonbond_env%nequip_data => nequip_data
       IF (PRESENT(potparm)) fist_nonbond_env%potparm => potparm
       IF (PRESENT(rlist_cut)) fist_nonbond_env%rlist_cut => rlist_cut
       IF (PRESENT(charges)) fist_nonbond_env%charges => charges
@@ -301,7 +302,7 @@ CONTAINS
       NULLIFY (fist_nonbond_env%rcore_last_update_pbc)
       NULLIFY (fist_nonbond_env%eam_data)
       NULLIFY (fist_nonbond_env%quip_data)
-      NULLIFY (fist_nonbond_env%nequip_data)      
+      NULLIFY (fist_nonbond_env%nequip_data)
       NULLIFY (fist_nonbond_env%charges)
       CALL init_fist_nonbond_env(fist_nonbond_env, atomic_kind_set, potparm14, &
                                  potparm, do_nonbonded, verlet_skin, ewald_rcut, ei_scale14, vdw_scale14, &
@@ -493,7 +494,7 @@ CONTAINS
             DEALLOCATE (fist_nonbond_env%nequip_data%use_indices)
          END IF
          DEALLOCATE (fist_nonbond_env%nequip_data)
-      END IF      
+      END IF
       IF (ASSOCIATED(fist_nonbond_env%rshell_last_update_pbc)) THEN
          DEALLOCATE (fist_nonbond_env%rshell_last_update_pbc)
       END IF

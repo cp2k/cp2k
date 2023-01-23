@@ -42,9 +42,10 @@ MODULE fist_neighbor_list_control
    USE message_passing,                 ONLY: mp_max
    USE pair_potential_types,            ONLY: gal21_type,&
                                               gal_type,&
+                                              nequip_type,&
                                               pair_potential_pp_type,&
                                               siepmann_type,&
-                                              tersoff_type, nequip_type
+                                              tersoff_type
    USE particle_types,                  ONLY: particle_type
 #include "./base/base_uses.f90"
 

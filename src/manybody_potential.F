@@ -36,12 +36,12 @@ MODULE manybody_potential
                                               gal21_energy,&
                                               gal21_forces,&
                                               setup_gal21_arrays
+   USE manybody_nequip,                 ONLY: destroy_nequip_arrays,&
+                                              nequip_add_force_virial,&
+                                              nequip_energy_store_force_virial,&
+                                              setup_nequip_arrays
    USE manybody_quip,                   ONLY: quip_add_force_virial,&
                                               quip_energy_store_force_virial
-   USE manybody_nequip,                ONLY:  destroy_nequip_arrays,&
-                                              setup_nequip_arrays,&
-                                              nequip_energy_store_force_virial, &
-                                              nequip_add_force_virial
    USE manybody_siepmann,               ONLY: destroy_siepmann_arrays,&
                                               print_nr_ions_siepmann,&
                                               setup_siepmann_arrays,&
@@ -55,8 +55,8 @@ MODULE manybody_potential
    USE message_passing,                 ONLY: mp_sum
    USE pair_potential_types,            ONLY: &
         ea_type, eam_pot_type, gal21_pot_type, gal21_type, gal_pot_type, gal_type, &
-        pair_potential_pp_type, pair_potential_single_type, quip_type, siepmann_pot_type, &
-        siepmann_type, tersoff_pot_type, tersoff_type, nequip_type, nequip_pot_type
+        nequip_pot_type, nequip_type, pair_potential_pp_type, pair_potential_single_type, &
+        quip_type, siepmann_pot_type, siepmann_type, tersoff_pot_type, tersoff_type
    USE particle_types,                  ONLY: particle_type
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
@@ -103,10 +103,10 @@ CONTAINS
          nloc_size, npairs, nparticle, nparticle_local, nr_h3O, nr_o, nr_oh, nunique
       INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a, work_list
       INTEGER, DIMENSION(:, :), POINTER                  :: glob_loc_list, list, sort_list
-      LOGICAL                                            :: any_gal, any_gal21, any_quip, &
-                                                            any_siepmann, any_tersoff, any_nequip
-      REAL(KIND=dp)                                      :: drij, embed, pot_loc, pot_quip, &
-                                                            qr, rab2_max, rij(3), pot_nequip
+      LOGICAL                                            :: any_gal, any_gal21, any_nequip, &
+                                                            any_quip, any_siepmann, any_tersoff
+      REAL(KIND=dp)                                      :: drij, embed, pot_loc, pot_nequip, &
+                                                            pot_quip, qr, rab2_max, rij(3)
       REAL(KIND=dp), DIMENSION(3)                        :: cell_v, cvi
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: glob_cell_v
       REAL(KIND=dp), POINTER                             :: fembed(:)
@@ -116,13 +116,12 @@ CONTAINS
       TYPE(gal21_pot_type), POINTER                      :: gal21
       TYPE(gal_pot_type), POINTER                        :: gal
       TYPE(neighbor_kind_pairs_type), POINTER            :: neighbor_kind_pair
+      TYPE(nequip_pot_type), POINTER                     :: nequip
       TYPE(pair_potential_pp_type), POINTER              :: potparm
       TYPE(pair_potential_single_type), POINTER          :: pot
       TYPE(pos_type), DIMENSION(:), POINTER              :: r_last_update_pbc
       TYPE(siepmann_pot_type), POINTER                   :: siepmann
       TYPE(tersoff_pot_type), POINTER                    :: tersoff
-      TYPE(nequip_pot_type), POINTER                     :: nequip
-      
 
       NULLIFY (eam, siepmann, tersoff, gal, gal21)
       any_tersoff = .FALSE.
@@ -194,9 +193,9 @@ CONTAINS
          CALL nequip_energy_store_force_virial(nonbonded, particle_set, cell, atomic_kind_set, potparm, &
                                                nequip, glob_loc_list_a, r_last_update_pbc, pot_nequip, &
                                                fist_nonbond_env, para_env)
-         pot_manybody = pot_manybody + pot_nequip 
+         pot_manybody = pot_manybody + pot_nequip
          CALL destroy_nequip_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a)
-      END IF      
+      END IF
       ! TERSOFF
       IF (any_tersoff) THEN
          NULLIFY (glob_loc_list, glob_cell_v, glob_loc_list_a)
@@ -557,8 +556,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: eam_kinds_index
       INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a, work_list
       INTEGER, DIMENSION(:, :), POINTER                  :: glob_loc_list, list, sort_list
-      LOGICAL                                            :: any_gal, any_gal21, any_quip, &
-                                                            any_siepmann, any_tersoff, any_nequip
+      LOGICAL                                            :: any_gal, any_gal21, any_nequip, &
+                                                            any_quip, any_siepmann, any_tersoff
       REAL(KIND=dp) :: f_eam, fac, fr(3), ptens11, ptens12, ptens13, ptens21, ptens22, ptens23, &
          ptens31, ptens32, ptens33, rab(3), rab2, rab2_max, rtmp(3)
       REAL(KIND=dp), DIMENSION(3)                        :: cell_v, cvi

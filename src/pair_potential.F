@@ -30,9 +30,9 @@ MODULE pair_potential
                                               dp
    USE pair_potential_types,            ONLY: &
         b4_type, bm_type, compare_pot, ea_type, ft_type, ftd_type, gal21_type, gal_type, gp_type, &
-        gw_type, ip_type, list_pot, lj_charmm_type, lj_type, multi_type, nn_type, &
+        gw_type, ip_type, list_pot, lj_charmm_type, lj_type, multi_type, nequip_type, nn_type, &
         pair_potential_pp_type, pair_potential_single_type, potential_single_allocation, &
-        quip_type, nequip_type, siepmann_type, tab_type, tersoff_type, wl_type
+        quip_type, siepmann_type, tab_type, tersoff_type, wl_type
    USE pair_potential_util,             ONLY: ener_pot,&
                                               ener_zbl,&
                                               zbl_matching_polinomial
@@ -186,7 +186,7 @@ CONTAINS
             DO k = 1, SIZE(pot%type)
                SELECT CASE (pot%type(k))
                CASE (lj_type, lj_charmm_type, wl_type, gw_type, ft_type, ftd_type, ip_type, &
-                     b4_type, bm_type, gp_type, ea_type, quip_type, nequip_type ,tab_type)
+                     b4_type, bm_type, gp_type, ea_type, quip_type, nequip_type, tab_type)
                   pot%no_pp = .FALSE.
                CASE (tersoff_type)
                   pot%no_mb = .FALSE.
@@ -607,7 +607,7 @@ CONTAINS
          CASE (quip_type)
             nvar = 1 + nvar
          CASE (nequip_type)
-            nvar = 1 + nvar            
+            nvar = 1 + nvar
          CASE (ft_type)
             nvar = 4 + nvar
          CASE (ftd_type)

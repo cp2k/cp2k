@@ -57,23 +57,23 @@ MODULE force_fields_input
                                               section_vals_val_get
    USE input_val_types,                 ONLY: val_get,&
                                               val_type
-   USE kinds,                           ONLY: default_string_length,&
-                                              default_path_length, dp
+   USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
+                                              dp
    USE mathconstants,                   ONLY: pi
    USE mathlib,                         ONLY: invert_matrix
    USE memory_utilities,                ONLY: reallocate
    USE pair_potential_types,            ONLY: &
         b4_type, bm_type, do_potential_single_allocation, ea_type, eam_pot_type, ft_pot_type, &
         ft_type, ftd_type, gal21_type, gal_type, gp_type, gw_type, ip_type, ipbv_pot_type, &
-        lj_charmm_type, no_potential_single_allocation, pair_potential_p_type, &
-        pair_potential_reallocate, potential_single_allocation, quip_type, siepmann_type, &
-        tab_pot_type, tab_type, tersoff_type, wl_type, nequip_type, nequip_pot_type
+        lj_charmm_type, nequip_pot_type, nequip_type, no_potential_single_allocation, &
+        pair_potential_p_type, pair_potential_reallocate, potential_single_allocation, quip_type, &
+        siepmann_type, tab_pot_type, tab_type, tersoff_type, wl_type
    USE shell_potential_types,           ONLY: shell_p_create,&
                                               shell_p_type
    USE string_utilities,                ONLY: uppercase
-   USE torch_api,                       ONLY: torch_model_type, torch_model_load, &
+   USE torch_api,                       ONLY: torch_model_load,&
                                               torch_model_read_metadata
-
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -103,15 +103,15 @@ CONTAINS
       TYPE(force_field_type), INTENT(INOUT)              :: ff_type
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: atm_names
       INTEGER :: nb4, nbends, nbm, nbmhft, nbmhftd, nbonds, nchg, neam, ngal, ngal21, ngd, ngp, &
-         nimpr, nipbv, nlj, nopbend, nquip, nnequip, nshell, nsiepmann, ntab, ntersoff, ntors, &
+         nimpr, nipbv, nlj, nnequip, nopbend, nquip, nshell, nsiepmann, ntab, ntersoff, ntors, &
          ntot, nubs, nwl
       LOGICAL                                            :: explicit, unique_spline
       REAL(KIND=dp)                                      :: min_eps_spline_allowed
       TYPE(input_info_type), POINTER                     :: inp_info
       TYPE(section_vals_type), POINTER                   :: tmp_section, tmp_section2
-      CHARACTER(LEN=default_string_length), &
-         DIMENSION(:), POINTER                           :: atm_names
 
       INTEGER::i
 
@@ -287,11 +287,11 @@ CONTAINS
          tmp_section2 => section_vals_get_subs_vals(tmp_section, "nequip")
          CALL section_vals_get(tmp_section2, explicit=explicit, n_repetition=nnequip)
          ntot = nlj + nwl + neam + ngd + nipbv + nbmhft + nbmhftd + nb4 + nbm + ngp + ntersoff + ngal + ngal21 + nsiepmann + &
-               nquip
+                nquip
          IF (explicit) THEN
             ! avoid repeating the nequip section for each pair
             CALL section_vals_val_get(tmp_section2, "ATOMS", c_vals=atm_names)
-            nnequip = nnequip -1 + SIZE(atm_names) + (SIZE(atm_names)*SIZE(atm_names) - SIZE(atm_names))/2
+            nnequip = nnequip - 1 + SIZE(atm_names) + (SIZE(atm_names)*SIZE(atm_names) - SIZE(atm_names))/2
             CALL pair_potential_reallocate(inp_info%nonbonded, 1, ntot + nnequip, nequip=.TRUE.)
             CALL read_nequip_section(inp_info%nonbonded, tmp_section2, ntot)
          END IF
@@ -299,7 +299,7 @@ CONTAINS
          tmp_section2 => section_vals_get_subs_vals(tmp_section, "TABPOT")
          CALL section_vals_get(tmp_section2, explicit=explicit, n_repetition=ntab)
          ntot = nlj + nwl + neam + ngd + nipbv + nbmhft + nbmhftd + nb4 + nbm + ngp + ntersoff + ngal + ngal21 + nsiepmann + &
-               nquip + nnequip
+                nquip + nnequip
          IF (explicit) THEN
             CALL pair_potential_reallocate(inp_info%nonbonded, 1, ntot + ntab, tab=.TRUE.)
             CALL read_tabpot_section(inp_info%nonbonded, tmp_section2, ntot, para_env, mm_section)
@@ -700,22 +700,22 @@ CONTAINS
       TYPE(pair_potential_p_type), POINTER               :: nonbonded
       TYPE(section_vals_type), POINTER                   :: section
       INTEGER, INTENT(IN)                                :: start
+
+      CHARACTER(LEN=default_string_length)               :: nequip_file_name, unit_cell, &
+                                                            unit_coords, unit_energy, unit_forces
       CHARACTER(LEN=default_string_length), &
-         DIMENSION(:), POINTER                           :: atm_names     
-      INTEGER                                            :: isec, n_items     
-      INTEGER                                            :: jsec
-      CHARACTER(LEN=default_string_length)               :: nequip_file_name, unit_coords, &
-                                                            unit_forces, unit_cell, unit_energy
+         DIMENSION(:), POINTER                           :: atm_names
+      INTEGER                                            :: isec, jsec, n_items
 
       n_items = 1
       isec = 1
-      n_items = isec *n_items
+      n_items = isec*n_items
       CALL section_vals_val_get(section, "ATOMS", c_vals=atm_names)
-      CALL section_vals_val_get(section, "PARM_FILE_NAME", c_val = nequip_file_name)
-      CALL section_vals_val_get(section, "UNIT_COORDS", c_val = unit_coords)
-      CALL section_vals_val_get(section, "UNIT_ENERGY", c_val = unit_energy)
-      CALL section_vals_val_get(section, "UNIT_FORCES", c_val = unit_forces)
-      CALL section_vals_val_get(section, "UNIT_CELL", c_val = unit_cell)
+      CALL section_vals_val_get(section, "PARM_FILE_NAME", c_val=nequip_file_name)
+      CALL section_vals_val_get(section, "UNIT_COORDS", c_val=unit_coords)
+      CALL section_vals_val_get(section, "UNIT_ENERGY", c_val=unit_energy)
+      CALL section_vals_val_get(section, "UNIT_FORCES", c_val=unit_forces)
+      CALL section_vals_val_get(section, "UNIT_CELL", c_val=unit_cell)
 
       DO isec = 1, SIZE(atm_names)
          DO jsec = isec, SIZE(atm_names)
@@ -723,7 +723,7 @@ CONTAINS
             nonbonded%pot(start + n_items)%pot%at1 = atm_names(isec)
             nonbonded%pot(start + n_items)%pot%at2 = atm_names(jsec)
             CALL uppercase(nonbonded%pot(start + n_items)%pot%at1)
-            CALL uppercase(nonbonded%pot(start + n_items)%pot%at2)         
+            CALL uppercase(nonbonded%pot(start + n_items)%pot%at2)
             nonbonded%pot(start + n_items)%pot%set(1)%nequip%nequip_file_name = nequip_file_name
             nonbonded%pot(start + n_items)%pot%set(1)%nequip%unit_coords = unit_coords
             nonbonded%pot(start + n_items)%pot%set(1)%nequip%unit_forces = unit_forces
@@ -2310,19 +2310,20 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief reads NequIP potential from .pth file
 !> \param nequip ...
-!> \param mm_section ...
 ! **************************************************************************************************
    SUBROUTINE read_nequip_data(nequip)
       TYPE(nequip_pot_type), POINTER                     :: nequip
+
       CHARACTER(len=*), PARAMETER                        :: routineN = 'read_nequip_data'
+
       CHARACTER(LEN=default_path_length)                 :: cutoff_str
 
-      CALL torch_model_load(nequip%model,nequip%nequip_file_name)
+      CALL torch_model_load(nequip%model, nequip%nequip_file_name)
       nequip%nequip_version = torch_model_read_metadata(nequip%nequip_file_name, "nequip_version")
       cutoff_str = torch_model_read_metadata(nequip%nequip_file_name, "r_max")
       READ (cutoff_str, *) nequip%rcutsq
       nequip%rcutsq = cp_unit_to_cp2k(nequip%rcutsq, nequip%unit_coords)
-      nequip%rcutsq = nequip%rcutsq * nequip%rcutsq
+      nequip%rcutsq = nequip%rcutsq*nequip%rcutsq
       nequip%unit_coords_val = 1.0_dp
       nequip%unit_coords_val = cp_unit_to_cp2k(nequip%unit_coords_val, nequip%unit_coords)
       nequip%unit_forces_val = 1.0_dp

@@ -444,7 +444,7 @@ MODULE message_passing
          mp_gatherv_rm2, &
          mp_gatherv_dm2, &
          mp_gatherv_cm2, &
-         mp_gatherv_zm2 
+         mp_gatherv_zm2
    END INTERFACE
 
    INTERFACE mp_igatherv
