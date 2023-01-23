@@ -403,9 +403,11 @@ list(
   pao_optimizer.F
   pao_param_exp.F
   pao_param.F
+  pao_param_equi.F
   pao_param_fock.F
   pao_param_gth.F
   pao_param_linpot.F
+  pao_param_methods.F
   pao_potentials.F
   pao_types.F
   particle_methods.F
