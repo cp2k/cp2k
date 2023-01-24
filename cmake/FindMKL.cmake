@@ -291,7 +291,7 @@ foreach(_libtype "ST" "DYN")
 
         string(TOLOWER "${_iface}_${_bits}_${_threading}_${_libtype}"
                        _tgt_config)
-        set(_mkl_tgt CP2K_MKL::${_tgt_config})
+        set(_mkl_tgt CP2K::BLAS::MKL::${_tgt_config})
 
         if(MKL_FOUND
            AND _mkl_interface_lib
@@ -321,12 +321,12 @@ foreach(_libtype "ST" "DYN")
             TOLOWER "${_mpi_impl}_${_iface}_${_bits}_${_threading}_${_libtype}"
                     _tgt_config)
 
-          set(_scalapack_tgt CP2K_MKL::scalapack_${_tgt_config})
+          set(_scalapack_tgt CP2K::BLAS::MKL::scalapack_${_tgt_config})
 
           if(_mkl_blacs_lib
              AND TARGET ${_mkl_tgt}
              AND TARGET MPI::MPI_CXX
-             AND NOT TARGET CP2K_MKL::blacs_${_tgt_config})
+             AND NOT TARGET CP2K::BLAS::MKL::blacs_${_tgt_config})
             set(_blacs_libs
                 "${_mkl_linker_pre_flags_${_libtype}}"
                 "${_mkl_interface_lib}"
@@ -337,20 +337,20 @@ foreach(_libtype "ST" "DYN")
                 "MPI::MPI_CXX"
                 "${_mkl_dep_${_threading}}"
                 "Threads::Threads")
-            add_library(CP2K_MKL::blacs_${_tgt_config} INTERFACE IMPORTED)
+            add_library(CP2K::BLAS::MKL::blacs_${_tgt_config} INTERFACE IMPORTED)
             set_target_properties(
-              CP2K_MKL::blacs_${_tgt_config}
+              CP2K::BLAS::MKL::blacs_${_tgt_config}
               PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
                          "${CP2K_MKL_INCLUDE_DIRS}" INTERFACE_LINK_LIBRARIES
                                                     "${_mkl_blacs_lib}")
           endif()
 
           if(_mkl_scalapack_lib AND NOT TARGET
-                                    CP2K_MKL::scalapack_${_tgt_config})
+                                    CP2K::BLAS::MKL::scalapack_${_tgt_config})
             set(_scalapack_libs "${_mkl_scalapack_lib}" "${_blacs_tgt}")
-            add_library(CP2K_MKL::scalapack_${_tgt_config} INTERFACE IMPORTED)
+            add_library(CP2K::BLAS::MKL::scalapack_${_tgt_config} INTERFACE IMPORTED)
             set_target_properties(
-              CP2K_MKL::scalapack_${_tgt_config}
+              CP2K::BLAS::MKL::scalapack_${_tgt_config}
               PROPERTIES INTERFACE_LINK_LIBRARIES "${_scalapack_libs}")
           endif()
         endforeach()
@@ -359,7 +359,7 @@ foreach(_libtype "ST" "DYN")
   endforeach()
 endforeach()
 
-if(MKL_FOUND AND NOT TARGET CP2K_MKL::blas)
+if(MKL_FOUND)
   # BLAS in the Intel MKL 10+ library?
 
   # the findMKL package finds all possible combination and define target for
@@ -398,24 +398,20 @@ if(MKL_FOUND AND NOT TARGET CP2K_MKL::blas)
 
   get_target_property(
     MKL_BLAS_INCLUDE_DIRS
-    CP2K_MKL::${BLAS_mkl_INTFACE}_${BLAS_mkl_ILP_MODE}_${BLAS_mkl_thread__}_dyn
+    CP2K::BLAS::MKL::${BLAS_mkl_INTFACE}_${BLAS_mkl_ILP_MODE}_${BLAS_mkl_thread__}_dyn
     INTERFACE_INCLUDE_DIRECTORIES)
   get_target_property(
     MKL_BLAS_LIBRARIES
-    CP2K_MKL::${BLAS_mkl_INTFACE}_${BLAS_mkl_ILP_MODE}_${BLAS_mkl_thread__}_dyn
+    CP2K::BLAS::MKL::${BLAS_mkl_INTFACE}_${BLAS_mkl_ILP_MODE}_${BLAS_mkl_thread__}_dyn
     INTERFACE_LINK_LIBRARIES)
-  if(NOT TARGET CP2K_MKL::blas)
-    add_library(CP2K_MKL::blas INTERFACE IMPORTED)
-    add_library(CP2K_MKL::MKL INTERFACE IMPORTED)
+  if(NOT TARGET CP2K::BLAS::MKL::blas)
+    add_library(CP2K::BLAS::MKL::MKL INTERFACE IMPORTED)
+    add_library(CP2K::BLAS::MKL::blas ALIAS CP2K::BLAS::MKL::MKL)
     # create a empty lapack
-    add_library(CP2K_MKL::lapack INTERFACE IMPORTED)
+    add_library(CP2K::BLAS::MKL::lapack INTERFACE IMPORTED)
   endif()
   set_target_properties(
-    CP2K_MKL::blas
-    PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_MKL_INCLUDE_DIRS}"
-               INTERFACE_LINK_LIBRARIES "${MKL_BLAS_LIBRARIES}")
-  set_target_properties(
-    CP2K_MKL::MKL
+    CP2K::BLAS::MKL::MKL
     PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_MKL_INCLUDE_DIRS}"
                INTERFACE_LINK_LIBRARIES "${MKL_BLAS_LIBRARIES}")
 
@@ -427,24 +423,24 @@ if(MKL_FOUND AND NOT TARGET CP2K_MKL::blas)
 
   get_target_property(
     __mkl_scalapack_inc
-    CP2K_MKL::scalapack_${__mkl_mpi_ver_}_${BLAS_mkl_INTFACE}_${BLAS_mkl_ILP_MODE}_${BLAS_mkl_thread__}_dyn
+    CP2K::BLAS::MKL::scalapack_${__mkl_mpi_ver_}_${BLAS_mkl_INTFACE}_${BLAS_mkl_ILP_MODE}_${BLAS_mkl_thread__}_dyn
     INTERFACE_INCLUDE_DIRECTORIES)
   get_target_property(
     __mkl_scalapack_lib
-    CP2K_MKL::scalapack_${__mkl_mpi_ver_}_${BLAS_mkl_INTFACE}_${BLAS_mkl_ILP_MODE}_${BLAS_mkl_thread__}_dyn
+    CP2K::BLAS::MKL::scalapack_${__mkl_mpi_ver_}_${BLAS_mkl_INTFACE}_${BLAS_mkl_ILP_MODE}_${BLAS_mkl_thread__}_dyn
     INTERFACE_LINK_LIBRARIES)
   get_target_property(
     __mkl_blacs_inc
-    CP2K_MKL::blacs_${__mkl_mpi_ver_}_${BLAS_mkl_INTFACE}_${BLAS_mkl_ILP_MODE}_${BLAS_mkl_thread__}_dyn
+    CP2K::BLAS::MKL::blacs_${__mkl_mpi_ver_}_${BLAS_mkl_INTFACE}_${BLAS_mkl_ILP_MODE}_${BLAS_mkl_thread__}_dyn
     INTERFACE_INCLUDE_DIRECTORIES)
   get_target_property(
     __mkl_blacs_lib
-    CP2K_MKL::blacs_${__mkl_mpi_ver_}_${BLAS_mkl_INTFACE}_${BLAS_mkl_ILP_MODE}_${BLAS_mkl_thread__}_dyn
+    CP2K::BLAS::MKL::blacs_${__mkl_mpi_ver_}_${BLAS_mkl_INTFACE}_${BLAS_mkl_ILP_MODE}_${BLAS_mkl_thread__}_dyn
     INTERFACE_LINK_LIBRARIES)
-  if(NOT TARGET CP2K_MKL::scalapack_link)
-    add_library(CP2K_MKL::scalapack_link INTERFACE IMPORTED)
+  if(NOT TARGET CP2K::BLAS::MKL::scalapack_link)
+    add_library(CP2K::BLAS::MKL::scalapack_link INTERFACE IMPORTED)
     set_target_properties(
-      CP2K_MKL::scalapack_link
+      CP2K::BLAS::MKL::scalapack_link
       PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${__mkl_scalapack_inc}"
                  INTERFACE_LINK_LIBRARIES
                  "${__mkl_scalapack_lib};${__mkl_blacs_lib}")

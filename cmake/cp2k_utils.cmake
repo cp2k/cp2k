@@ -27,6 +27,7 @@ function(cp2k_set_default_paths _varname _package_name)
       OLCF_${_varname}_ROOT
       ${_varname}_PREFIX
       ${_varname}ROOT
+      ${_varname}_HOME
       EB${_varname}ROOT)
       if(DEFINED ENV{${__var}})
         set(CP2K_${_varname}_PREFIX_TMP $ENV{${__var}})

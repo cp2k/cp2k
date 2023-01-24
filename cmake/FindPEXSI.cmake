@@ -32,12 +32,12 @@ endif()
 find_package_handle_standard_args(PEXSI DEFAULT_MSG CP2K_PEXSI_INCLUDE_DIRS
                                   CP2K_PEXSI_LINK_LIBRARIES)
 
-if(CP2K_PEXSI_FOUND AND NOT TARGET CP2K_PEXSI::pexsi)
-  add_library(CP2K_PEXSI::pexsi INTERFACE IMPORTED)
-  set_target_properties(CP2K_PEXSI PROPERTIES INTERFACE_LINK_LIBRARIES
+if(CP2K_PEXSI_FOUND AND NOT TARGET CP2K::PEXSI::pexsi)
+  add_library(CP2K::PEXSI::pexsi INTERFACE IMPORTED)
+  set_target_properties(CP2K::PEXSI PROPERTIES INTERFACE_LINK_LIBRARIES
                                               "${CP2K_PEXSI_LINK_LIBRARIES}")
   if(DEFINED CP2K_PEXSI_INCLUDE_DIRS)
-    set_target_properties(CP2K_PEXSI PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
+    set_target_properties(CP2K::PEXSI PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
                                                 "${CP2K_PEXSI_INCLUDE_DIRS}")
   endif()
 endif()

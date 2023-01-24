@@ -43,16 +43,20 @@ else()
 endif()
 
 # add target to link against
-if(CP2K_BLIS_FOUND AND NOT TARGET CP2K_BLIS::blis)
-  add_library(CP2K_BLIS::blis INTERFACE IMPORTED)
-endif()
+if(CP2K_BLIS_FOUND)
 
-set_property(TARGET CP2K_BLIS::blis PROPERTY INTERFACE_LINK_LIBRARIES
-                                             ${CP2K_BLIS_LINK_LIBRARIES})
+  if(NOT TARGET CP2K::BLAS::BLIS::blis)
+    add_library(CP2K::BLAS::BLIS::blis INTERFACE IMPORTED)
+    add_library(CP2K::BLAS::BLIS::blas alias CP2K::BLAS::BLIS::blis)
+  endif()
 
-if(BLIS_INCLUDE_DIRS)
-  set_property(TARGET CP2K_BLIS::blis PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-                                               ${CP2K_BLIS_INCLUDE_DIRS})
+  set_property(TARGET CP2K::BLAS::BLIS::blis PROPERTY INTERFACE_LINK_LIBRARIES
+    ${CP2K_BLIS_LINK_LIBRARIES})
+  
+  if(BLIS_INCLUDE_DIRS)
+    set_property(TARGET CP2K::BLAS::BLIS::blis PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+      ${CP2K_BLIS_INCLUDE_DIRS})
+  endif()
 endif()
 
 # prevent clutter in cache

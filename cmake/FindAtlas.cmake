@@ -22,13 +22,13 @@ find_package_handle_standard_args(Atlas REQUIRED_VARS CP2K_ATLAS_INCLUDE_DIRS
 
 # add target to link against
 if(CP2K_ATLAS_FOUND AND NOT TARGET CP2K_ATLAS::atlas)
-  if(NOT TARGET CP2K_ATLAS::atlas)
-    add_library(CP2K_ATLAS::atlas INTERFACE IMPORTED)
+  if(NOT TARGET CP2K::BLAS::ATLAS::atlas)
+    add_library(CP2K::BLAS::ATLAS::atlas INTERFACE IMPORTED)
   endif()
-  set_property(TARGET CP2K_ATLAS::atlas PROPERTY INTERFACE_LINK_LIBRARIES
-                                                 ${CP2K_ATLAS_LINK_LIBRARIES})
-  set_property(TARGET CP2K_ATLAS::atlas PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-                                                 ${CP2K_ATLAS_INCLUDE_DIRS})
+  set_property(TARGET CP2K::BLAS::ATLAS::atlas PROPERTY INTERFACE_LINK_LIBRARIES
+    ${CP2K_ATLAS_LINK_LIBRARIES})
+  set_property(TARGET CP2K::BLAS::ATLAS::atlas PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+    ${CP2K_ATLAS_INCLUDE_DIRS})
 endif()
 
 # prevent clutter in cache

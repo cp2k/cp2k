@@ -80,6 +80,7 @@ option(CP2K_DEBUG_MODE "Enable several additional options for debugging cp2k."
 option(CP2K_USE_SIRIUS "Enable plane wave dft calculations with sirius" OFF)
 option(CP2K_USE_FFTW3 "Use fftw3 for the calculating fast fourier transforms"
        ON)
+option(CP2K_USE_MPI "Enable MPI support" ON)
 option(CP2K_USE_ELPA "Enable elpa support" OFF)
 option(CP2K_USE_PEXSI "Enable pexsi support" OFF)
 option(CP2K_USE_SUPERLU "Enable superlu support" OFF)
@@ -226,33 +227,45 @@ add_custom_target(
 
 # MPI
 
-get_property(REQUIRED_MPI_COMPONENTS GLOBAL PROPERTY ENABLED_LANGUAGES)
-list(REMOVE_ITEM REQUIRED_MPI_COMPONENTS CUDA) # CUDA does not have an MPI
-# component
-if(NOT CMAKE_CROSSCOMPILING) # when cross compiling, assume the users know
-  # what they are doing
-  set(MPI_DETERMINE_LIBRARY_VERSION TRUE)
-endif()
-find_package(
-  MPI
-  COMPONENTS ${REQUIRED_MPI_COMPONENTS}
-  REQUIRED)
-
-if(NOT MPI_Fortran_HAVE_F90_MODULE)
-  message(
-    FATAL_ERROR
+if (CP2K_USE_MPI)
+  get_property(REQUIRED_MPI_COMPONENTS GLOBAL PROPERTY ENABLED_LANGUAGES)
+  list(REMOVE_ITEM REQUIRED_MPI_COMPONENTS CUDA) # CUDA does not have an MPI
+  # component
+  if(NOT CMAKE_CROSSCOMPILING) # when cross compiling, assume the users know
+    # what they are doing
+    set(MPI_DETERMINE_LIBRARY_VERSION TRUE)
+  endif()
+  find_package(
+    MPI
+    COMPONENTS ${REQUIRED_MPI_COMPONENTS}
+    REQUIRED)
+  
+  if(NOT MPI_Fortran_HAVE_F90_MODULE)
+    message(
+      FATAL_ERROR
       "\
 The listed MPI implementation does not provide the required mpi.mod interface. \
 When using the GNU compiler in combination with Intel MPI, please use the \
 Intel MPI compiler wrappers. Check the INSTALL.md for more information.")
-endif()
-if("${MPI_Fortran_LIBRARY_VERSION_STRING}" MATCHES "Open MPI v2.1"
-   OR "${MPI_Fortran_LIBRARY_VERSION_STRING}" MATCHES "Open MPI v3.1")
-  message(
-    WARNING
+  endif()
+  if("${MPI_Fortran_LIBRARY_VERSION_STRING}" MATCHES "Open MPI v2.1"
+      OR "${MPI_Fortran_LIBRARY_VERSION_STRING}" MATCHES "Open MPI v3.1")
+    message(
+      WARNING
       "RMA with ${MPI_Fortran_LIBRARY_VERSION_STRING} is not supported due to issues with its implementation."
       " Please use a newer version of OpenMPI or switch to MPICH if you plan on using MPI-RMA."
-  )
+    )
+  endif()
+else()
+  if (CP2K_USE_SIRIUS OR CP2K_USE_COSMA OR CP2K_USE_SPLA OR CP2K_USE_ELPA OR CP2K_USE_METIS OR CP2K_USE_PLUMED OR CP2K_USE_PEXSI OR CP2K_USE_QUIP)
+    message(WARNING "SIRIUS, COSMA, SPLA, ELPA, METIS, PLUMED, PEXSI and QUIP require MPI support. Either change -DCP2K_USE_MPI to ON or turn the following dependencies off")
+    foreach(__libs SIRIUS COSMA SPLA ELPA METIS PLUMED PEXSI QUIP)
+      if (CP2K_USE_${__libs})
+        message(WARNING " - ${__libs}")
+      endif()
+    endforeach()
+    message(FATAL_ERROR " -- ")
+  endif()
 endif()
 
 # BLAS & LAPACK, PkgConfig
@@ -266,7 +279,9 @@ endif()
 
 # in practice it is always for any decent configuration. But I add a flags to
 # turn it off
-find_package(SCALAPACK REQUIRED)
+if (CP2K_USE_MPI)
+   find_package(SCALAPACK REQUIRED)
+endif()
 
 # CUDA / ROCM easy for cuda a moving target for hip
 
@@ -335,20 +350,20 @@ elseif(CP2K_USE_ACCEL MATCHES "HIP")
 
   set(CMAKE_HIP_ARCHITECTURES gfx801 gfx900 gfx90a)
   if(NOT CMAKE_BUILD_TYPE)
-    set(HIP_RELEASE_OPTIONS "-O3 -g -DNDEBUG")
+    set(HIP_RELEASE_OPTIONS "-O3 -g -DNDEBUG --std=c++11")
   elseif(${CMAKE_BUILD_TYPE} STREQUAL "RelWithDebInfo")
-    set(HIP_RELEASE_OPTIONS "-O3 -g -DNDEBUG")
+    set(HIP_RELEASE_OPTIONS "-O3 -g -DNDEBUG --std=c++11")
   elseif(${CMAKE_BUILD_TYPE} STREQUAL "Release")
-    set(HIP_RELEASE_OPTIONS "-O3 -DNDEBUG")
+    set(HIP_RELEASE_OPTIONS "-O3 -DNDEBUG --std=c++11")
   elseif(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-    set(HIP_RELEASE_OPTIONS "-O0 -g")
+    set(HIP_RELEASE_OPTIONS "-O0 -g --std=c++11")
   endif()
 
   set(CP2K_ACC_ARCH_NUMBER ${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}})
   set(CP2K_USE_HIP ON)
 endif()
 
-find_package(DBCSR 2.2.0 REQUIRED)
+find_package(DBCSR 2.4 REQUIRED)
 
 # =================================================================================================
 # PACKAGE DISCOVERY (compiler configuration can impact package discovery)
@@ -397,14 +412,14 @@ if(CP2K_USE_FFTW3)
   endif()
 
   if((CP2K_ENABLE_FFTW3_THREADS_SUPPORT) AND (NOT TARGET
-                                              CP2K_FFTW3::fftw3_threads))
+                                              CP2K::FFTW3::fftw3_threads))
     message(
       FATAL_ERROR
         "fftw3 was compiled without multithreading support (--enable-threads option in fftw build system)."
     )
   endif()
 
-  if((CP2K_ENABLE_FFTW3_OPENMP_SUPPORT) AND (NOT TARGET CP2K_FFTW3::fftw3_omp))
+  if((CP2K_ENABLE_FFTW3_OPENMP_SUPPORT) AND (NOT TARGET CP2K::FFTW3::fftw3_omp))
     message(
       FATAL_ERROR
         "fftw3 was compiled without openmp support  (--enable-openmp option in fftw build system)."
@@ -514,6 +529,11 @@ include(GNUInstallDirs)
 get_target_property(CP2K_LIBS cp2k_link_libs INTERFACE_LINK_LIBRARIES)
 configure_file(cp2k.pc.in cp2k.pc @ONLY)
 
+if (TARGET CP2K::BLAS::OpenBLAS::openblas)
+  message(WARNING "It works")
+endif()
+
+
 message(
   STATUS "--------------------------------------------------------------------")
 message(
@@ -535,6 +555,7 @@ message(STATUS "   - include directories : " ${CP2K_BLAS_INCLUDE_DIRS}
 message(STATUS "   - libraries :           " ${CP2K_BLAS_LINK_LIBRARIES} " "
                ${CP2K_LAPACK_LINK_LIBRARIES})
 
+if (CP2K_USE_MPI)
 message(STATUS " ")
 message(STATUS "- MPI")
 message(STATUS "   - include directories : " ${MPI_INCLUDE_DIRS})
@@ -543,6 +564,7 @@ message(STATUS "   - libraries :           " ${MPI_LIBRARIES})
 message(STATUS " ")
 message(STATUS "- SCALAPACK:")
 message(STATUS "     - libraries : " ${CP2K_SCALAPACK_LINK_LIBRARIES})
+endif()
 
 message(STATUS " - Hardware Acceleration:")
 message(STATUS "                         ")
@@ -695,6 +717,10 @@ message(
   STATUS "--------------------------------------------------------------------")
 
 message(STATUS " List of dependencies not included in this build :")
+
+if (NOT CP2K_USE_MPI)
+  message(STATUS "   - MPI")
+endif()
 
 if(NOT CP2K_USE_SIRIUS)
   message(STATUS "   - SIRIUS")

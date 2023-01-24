@@ -60,30 +60,30 @@ foreach(lib_name "fftw3" "fftw3l" "fftw3q" "fftw3f")
   string(TOUPPER "${lib_name}" __lib_name_up)
 
   if(CP2K_${__lib_name_up}_FOUND)
-    if(NOT TARGET CP2K_FFTW3::${lib_name})
-      add_library(CP2K_FFTW3::${lib_name} INTERFACE IMPORTED)
+    if(NOT TARGET CP2K::FFTW3::${lib_name})
+      add_library(CP2K::FFTW3::${lib_name} INTERFACE IMPORTED)
     endif()
     # we do not recheck if the libraries are found when pkg_config is
     # successful.
     set_target_properties(
-      CP2K_FFTW3::${lib_name}
+      CP2K::FFTW3::${lib_name}
       PROPERTIES INTERFACE_LINK_LIBRARIES
                  "${CP2K_${__lib_name_up}_LINK_LIBRARIES}")
 
     if(CP2K_FFTW3_INCLUDE_DIRS)
       set_target_properties(
-        CP2K_FFTW3::${lib_name} PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
+        CP2K::FFTW3::${lib_name} PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
                                            "${CP2K_FFTW3_INCLUDE_DIRS}")
     endif()
 
     foreach(sub_type "threads" "mpi" "omp")
       string(TOUPPER "${lib_name}_${sub_type}" __libs)
       if(CP2K_${__libs}_FOUND)
-        if(NOT TARGET CP2K_FFTW3::${lib_name}_${sub_type})
-          add_library(CP2K_FFTW3::${lib_name}_${sub_type} INTERFACE IMPORTED)
+        if(NOT TARGET CP2K::FFTW3::${lib_name}_${sub_type})
+          add_library(CP2K::FFTW3::${lib_name}_${sub_type} INTERFACE IMPORTED)
         endif()
         set_target_properties(
-          CP2K_FFTW3::${lib_name}_${sub_type}
+          CP2K::FFTW3::${lib_name}_${sub_type}
           PROPERTIES INTERFACE_LINK_LIBRARIES
                      "${CP2K_${__libs}_LINK_LIBRARIES}")
       endif()

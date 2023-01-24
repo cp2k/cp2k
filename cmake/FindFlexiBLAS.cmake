@@ -28,7 +28,7 @@ endif()
 
 # search for include directories anyway
 if(NOT CP2K_FLEXIBLAS_INCLUDE_DIRS)
-  cp2k_include_dirs(FFTW3 "flexiblas.h")
+  cp2k_include_dirs(FLEXIBLAS "flexiblas.h")
 endif()
 
 find_package_handle_standard_args(
@@ -39,18 +39,20 @@ if(NOT CP2K_FLEXIBLAS_FOUND)
   set(CP2K_BLAS_VENDOR "FlexiBLAS")
 endif()
 
-if(CP2K_FLEXIBLAS_FOUND AND NOT TARGET CP2K_FlexiBLAS::flexiblas)
-  add_library(CP2K_FlexiBLAS::flexiblas INTERFACE IMPORTED)
-  add_library(CP2K_FlexiBLAS::blas ALIAS CP2K_FlexiBLAS::flexiblas)
+if(CP2K_FLEXIBLAS_FOUND)
+  if(NOT TARGET CP2K_FlexiBLAS::flexiblas)
+    add_library(CP2K::BLAS::FlexiBLAS::flexiblas INTERFACE IMPORTED)
+    add_library(CP2K::BLAS::FlexiBLAS::blas ALIAS CP2K::BLAS::FlexiBLAS::flexiblas)
+  endif()
   set_target_properties(
-    CP2K_FlexiBLAS::flexiblas PROPERTIES INTERFACE_LINK_LIBRARIES
+    CP2K::BLAS::FlexiBLAS::flexiblas PROPERTIES INTERFACE_LINK_LIBRARIES
                                          "${CP2K_FLEXIBLAS_LINK_LIBRARIES}")
   if(CP2K_FLEXIBLAS_INCLUDE_DIRS)
     set_target_properties(
-      CP2K_FlexiBLAS::flexiblas PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
+      CP2K::BLAS::FlexiBLAS::flexiblas PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
                                            "${CP2K_FLEXIBLAS_INCLUDE_DIRS}")
   endif()
-  set(CP2K_BLAS_VENDOR "flexiblas")
+  set(CP2K_BLAS_VENDOR "FlexiBLAS")
 endif()
 
 mark_as_advanced(CP2K_FLEXIBLAS_FOUND CP2K_FLEXIBLAS_INCLUDE_DIRS
