@@ -138,7 +138,8 @@ MODULE qs_ks_types
       LOGICAL                                               :: s_mstruct_changed = .TRUE., &
                                                                rho_changed = .TRUE., &
                                                                potential_changed = .TRUE., &
-                                                               forces_up_to_date = .FALSE.
+                                                               forces_up_to_date = .FALSE., &
+                                                               complex_ks = .FALSE.
       INTEGER                                               :: n_evals = 0
 
       ! hartree is supposed to contain the hartree potential (for cube output)
@@ -225,6 +226,7 @@ CONTAINS
 !> \param rho_changed ...
 !> \param potential_changed ...
 !> \param forces_up_to_date ...
+!> \param complex_ks ...
 !> \param matrix_h ...
 !> \param matrix_h_im ...
 !> \param matrix_ks ...
@@ -305,7 +307,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_ks_env(ks_env, v_hartree_rspace, &
                          s_mstruct_changed, rho_changed, &
-                         potential_changed, forces_up_to_date, &
+                         potential_changed, forces_up_to_date, complex_ks, &
                          matrix_h, matrix_h_im, matrix_ks, matrix_ks_im, matrix_vxc, &
                          kinetic, matrix_s, &
                          matrix_s_RI_aux, matrix_w, matrix_p_mp2, matrix_p_mp2_admm, &
@@ -327,7 +329,8 @@ CONTAINS
       TYPE(qs_ks_env_type), INTENT(IN)                   :: ks_env
       TYPE(pw_type), OPTIONAL, POINTER                   :: v_hartree_rspace
       LOGICAL, OPTIONAL                                  :: s_mstruct_changed, rho_changed, &
-                                                            potential_changed, forces_up_to_date
+                                                            potential_changed, forces_up_to_date, &
+                                                            complex_ks
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_h, matrix_h_im, matrix_ks, &
          matrix_ks_im, matrix_vxc, kinetic, matrix_s, matrix_s_RI_aux, matrix_w, matrix_p_mp2, &
          matrix_p_mp2_admm
@@ -380,6 +383,7 @@ CONTAINS
       IF (PRESENT(rho_changed)) rho_changed = ks_env%rho_changed
       IF (PRESENT(potential_changed)) potential_changed = ks_env%potential_changed
       IF (PRESENT(forces_up_to_date)) forces_up_to_date = ks_env%forces_up_to_date
+      IF (PRESENT(complex_ks)) complex_ks = ks_env%complex_ks
       IF (PRESENT(v_hartree_rspace)) v_hartree_rspace => ks_env%v_hartree_rspace
 
       IF (PRESENT(matrix_ks)) matrix_ks => get_1d_pointer(ks_env%matrix_ks)
@@ -479,6 +483,7 @@ CONTAINS
 !> \param rho_changed ...
 !> \param potential_changed ...
 !> \param forces_up_to_date ...
+!> \param complex_ks ...
 !> \param matrix_h ...
 !> \param matrix_h_im ...
 !> \param matrix_ks ...
@@ -536,7 +541,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE set_ks_env(ks_env, v_hartree_rspace, &
                          s_mstruct_changed, rho_changed, &
-                         potential_changed, forces_up_to_date, &
+                         potential_changed, forces_up_to_date, complex_ks, &
                          matrix_h, matrix_h_im, matrix_ks, matrix_ks_im, matrix_vxc, &
                          kinetic, matrix_s, &
                          matrix_s_RI_aux, matrix_w, matrix_p_mp2, matrix_p_mp2_admm, &
@@ -554,7 +559,8 @@ CONTAINS
       TYPE(qs_ks_env_type), INTENT(INOUT)                :: ks_env
       TYPE(pw_type), OPTIONAL, POINTER                   :: v_hartree_rspace
       LOGICAL, OPTIONAL                                  :: s_mstruct_changed, rho_changed, &
-                                                            potential_changed, forces_up_to_date
+                                                            potential_changed, forces_up_to_date, &
+                                                            complex_ks
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_h, matrix_h_im, matrix_ks, &
          matrix_ks_im, matrix_vxc, kinetic, matrix_s, matrix_s_RI_aux, matrix_w, matrix_p_mp2, &
          matrix_p_mp2_admm
@@ -580,6 +586,7 @@ CONTAINS
       IF (PRESENT(rho_changed)) ks_env%rho_changed = rho_changed
       IF (PRESENT(potential_changed)) ks_env%potential_changed = potential_changed
       IF (PRESENT(forces_up_to_date)) ks_env%forces_up_to_date = forces_up_to_date
+      IF (PRESENT(complex_ks)) ks_env%complex_ks = complex_ks
       IF (ks_env%s_mstruct_changed .OR. ks_env%potential_changed .OR. ks_env%rho_changed) &
          ks_env%forces_up_to_date = .FALSE.
       IF (PRESENT(v_hartree_rspace)) ks_env%v_hartree_rspace => v_hartree_rspace
@@ -929,6 +936,9 @@ CONTAINS
          ! *** deallocate matrices that will have the wrong structure ***
          CALL kpoint_transitional_release(ks_env%matrix_ks)
          !TODO: deallocate imaginary parts as well
+         IF (ks_env%complex_ks) THEN
+            CALL kpoint_transitional_release(ks_env%matrix_ks_im)
+         END IF
          !CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_im)
          !CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_im)
       END IF

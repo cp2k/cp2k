@@ -44,7 +44,8 @@ MODULE qs_ks_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_get_info, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_symmetric
+        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
+        dbcsr_type_symmetric
    USE dft_plus_u,                      ONLY: plus_u
    USE efield_utils,                    ONLY: efield_potential
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
@@ -1212,19 +1213,21 @@ CONTAINS
    END SUBROUTINE rebuild_ks_matrix
 
 ! **************************************************************************************************
-!> \brief Allocate ks_matrix and ks_env if necessary
+!> \brief Allocate ks_matrix if necessary, take current overlap matrix as template
 !> \param qs_env ...
+!> \param is_complex ...
 !> \par History
 !>    refactoring 04.03.2011 [MI]
 !> \author
 ! **************************************************************************************************
 
-   SUBROUTINE qs_ks_allocate_basics(qs_env)
+   SUBROUTINE qs_ks_allocate_basics(qs_env, is_complex)
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(in)                                :: is_complex
 
       CHARACTER(LEN=default_string_length)               :: headline
       INTEGER                                            :: ic, ispin, nimg
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, matrixkp_ks
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, matrixkp_im_ks, matrixkp_ks
       TYPE(dbcsr_type), POINTER                          :: refmatrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -1238,7 +1241,8 @@ CONTAINS
                       matrix_s_kp=matrix_s_kp, &
                       ks_env=ks_env, &
                       sab_orb=sab_orb, &
-                      matrix_ks_kp=matrixkp_ks)
+                      matrix_ks_kp=matrixkp_ks, &
+                      matrix_ks_im_kp=matrixkp_im_ks)
 
       IF (.NOT. ASSOCIATED(matrixkp_ks)) THEN
          nimg = dft_control%nimages
@@ -1263,6 +1267,33 @@ CONTAINS
             END DO
          END DO
          CALL set_ks_env(ks_env, matrix_ks_kp=matrixkp_ks)
+      END IF
+
+      IF (is_complex) THEN
+         IF (.NOT. ASSOCIATED(matrixkp_im_ks)) THEN
+            nimg = dft_control%nimages
+            CALL dbcsr_allocate_matrix_set(matrixkp_im_ks, dft_control%nspins, nimg)
+            refmatrix => matrix_s_kp(1, 1)%matrix
+            DO ispin = 1, dft_control%nspins
+               DO ic = 1, nimg
+                  IF (dft_control%nspins > 1) THEN
+                     IF (ispin == 1) THEN
+                        headline = "IMAGINARY KOHN-SHAM MATRIX FOR ALPHA SPIN"
+                     ELSE
+                        headline = "IMAGINARY KOHN-SHAM MATRIX FOR BETA SPIN"
+                     END IF
+                  ELSE
+                     headline = "IMAGINARY KOHN-SHAM MATRIX"
+                  END IF
+                  ALLOCATE (matrixkp_im_ks(ispin, ic)%matrix)
+                  CALL dbcsr_create(matrix=matrixkp_im_ks(ispin, ic)%matrix, template=refmatrix, &
+                                    name=TRIM(headline), matrix_type=dbcsr_type_antisymmetric, nze=0)
+                  CALL cp_dbcsr_alloc_block_from_nbl(matrixkp_im_ks(ispin, ic)%matrix, sab_orb)
+                  CALL dbcsr_set(matrixkp_im_ks(ispin, ic)%matrix, 0.0_dp)
+               END DO
+            END DO
+            CALL set_ks_env(ks_env, matrix_ks_im_kp=matrixkp_im_ks)
+         END IF
       END IF
 
    END SUBROUTINE qs_ks_allocate_basics

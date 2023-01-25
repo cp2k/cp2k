@@ -97,7 +97,7 @@ MODULE qs_core_hamiltonian
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_p_type, dbcsr_type
+        dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric
    USE input_constants,                 ONLY: do_admm_purify_none,&
                                               do_ppl_analytic,&
                                               kg_tnadd_atomic,&
@@ -162,8 +162,8 @@ CONTAINS
       INTEGER                                            :: handle, ic, img, iw, nder, nders, &
                                                             nimages, nkind
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: norml1, norml2, ofdft, use_arnoldi, &
-                                                            use_virial
+      LOGICAL                                            :: h_is_complex, norml1, norml2, ofdft, &
+                                                            use_arnoldi, use_virial
       REAL(KIND=dp)                                      :: eps_filter, eps_fit
       REAL(KIND=dp), DIMENSION(2)                        :: condnum
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -315,19 +315,19 @@ CONTAINS
                                       eps_filter=eps_filter)
       END IF
 
-      ! initialize H matrix
+      ! (Re-)allocate H matrix based on overlap matrix
+      CALL get_ks_env(ks_env, complex_ks=h_is_complex)
+      CALL qs_matrix_h_allocate(qs_env, matrix_s(1, 1)%matrix, is_complex=h_is_complex)
+
       NULLIFY (matrix_h)
-      CALL get_qs_env(qs_env=qs_env, matrix_h_kp=matrix_h)
-      CALL dbcsr_allocate_matrix_set(matrix_h, 1, nimages)
-      DO img = 1, nimages
-         ALLOCATE (matrix_h(1, img)%matrix)
-         CALL dbcsr_create(matrix_h(1, img)%matrix, template=matrix_s(1, 1)%matrix)
-         CALL cp_dbcsr_alloc_block_from_nbl(matrix_h(1, img)%matrix, sab_orb)
-         IF (.NOT. ofdft) THEN
+      CALL get_qs_env(qs_env, matrix_h_kp=matrix_h)
+
+      IF (.NOT. ofdft) THEN
+         DO img = 1, nimages
             CALL dbcsr_copy(matrix_h(1, img)%matrix, matrix_t(1, img)%matrix, &
                             keep_sparsity=.TRUE., name="CORE HAMILTONIAN MATRIX")
-         END IF
-      END DO
+         END DO
+      END IF
 
       NULLIFY (qs_kind_set, atomic_kind_set, particle_set)
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, atomic_kind_set=atomic_kind_set, &
@@ -693,5 +693,55 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE dump_info_core_hamiltonian
+
+! **************************************************************************************************
+!> \brief (Re-)allocate matrix_h based on the template (typically the overlap matrix)
+!> \param qs_env ...
+!> \param template ...
+!> \param is_complex ...
+! **************************************************************************************************
+   SUBROUTINE qs_matrix_h_allocate(qs_env, template, is_complex)
+      TYPE(qs_environment_type)                          :: qs_env
+      TYPE(dbcsr_type), INTENT(in), POINTER              :: template
+      LOGICAL, INTENT(in)                                :: is_complex
+
+      INTEGER                                            :: img, nimages
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_h_im
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+
+      NULLIFY (matrix_h, matrix_h_im, sab_orb, dft_control, ks_env)
+      CALL get_qs_env(qs_env=qs_env, &
+                      matrix_h_kp=matrix_h, &
+                      matrix_h_im_kp=matrix_h_im, &
+                      sab_orb=sab_orb, &
+                      dft_control=dft_control, &
+                      ks_env=ks_env)
+
+      nimages = dft_control%nimages
+      CALL dbcsr_allocate_matrix_set(matrix_h, 1, nimages)
+      DO img = 1, nimages
+         ALLOCATE (matrix_h(1, img)%matrix)
+         CALL dbcsr_create(matrix_h(1, img)%matrix, template=template)
+         CALL cp_dbcsr_alloc_block_from_nbl(matrix_h(1, img)%matrix, sab_orb)
+         CALL dbcsr_set(matrix_h(1, img)%matrix, 0.0_dp)
+      END DO
+      CALL set_ks_env(ks_env, matrix_h_kp=matrix_h)
+
+      IF (is_complex) THEN
+         CALL dbcsr_allocate_matrix_set(matrix_h_im, 1, nimages)
+         DO img = 1, nimages
+            ALLOCATE (matrix_h_im(1, img)%matrix)
+            CALL dbcsr_create(matrix_h_im(1, img)%matrix, template=template, &
+                              matrix_type=dbcsr_type_antisymmetric)
+            CALL cp_dbcsr_alloc_block_from_nbl(matrix_h_im(1, img)%matrix, sab_orb)
+            CALL dbcsr_set(matrix_h_im(1, img)%matrix, 0.0_dp)
+         END DO
+         CALL set_ks_env(ks_env, matrix_h_im_kp=matrix_h_im)
+      END IF
+
+   END SUBROUTINE qs_matrix_h_allocate
 
 END MODULE qs_core_hamiltonian

@@ -63,7 +63,9 @@ MODULE rt_propagation
    USE qs_kind_types,                   ONLY: get_qs_kind_set,&
                                               qs_kind_type
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
-   USE qs_ks_types,                     ONLY: qs_ks_did_change
+   USE qs_ks_types,                     ONLY: qs_ks_did_change,&
+                                              qs_ks_env_type,&
+                                              set_ks_env
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               init_mo_set,&
                                               mo_set_type
@@ -107,23 +109,24 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
 
       INTEGER                                            :: aspc_order
-      LOGICAL                                            :: magnetic, vel_reprs
+      LOGICAL                                            :: ks_is_complex, magnetic, vel_reprs
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(rtp_control_type), POINTER                    :: rtp_control
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input, ls_scf_section, &
                                                             md_section, motion_section, &
                                                             print_moments_section
 
-      NULLIFY (qs_env, rtp_control, dft_control)
+      NULLIFY (qs_env, rtp_control, dft_control, ks_env)
 
       CALL cite_reference(Andermatt2016)
 
       CALL force_env_get(force_env=force_env, qs_env=qs_env, globenv=globenv)
-      CALL get_qs_env(qs_env, dft_control=dft_control, energy=energy)
+      CALL get_qs_env(qs_env, dft_control=dft_control, energy=energy, ks_env=ks_env)
       rtp_control => dft_control%rtp_control
 
       ! Takes care that an initial wavefunction/density is available
@@ -158,6 +161,9 @@ CONTAINS
       CALL section_vals_val_get(print_moments_section, "VEL_REPRS", l_val=vel_reprs)
       rtp%track_imag_density = magnetic .OR. vel_reprs .OR. rtp_control%velocity_gauge &
                                .OR. rtp%do_hfx .OR. (.NOT. rtp_control%fixed_ions)
+
+      ks_is_complex = rtp%do_hfx .OR. rtp_control%velocity_gauge
+      CALL set_ks_env(ks_env, complex_ks=ks_is_complex)
 
       ! Hmm, not really like to initialize with the structure of S but I reckon it is
       ! done everywhere like this
