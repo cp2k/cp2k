@@ -38,6 +38,26 @@ cd tools/toolchain/
   toolchain are for the GNU compiler, users must adapt them for other compilers.
   It is possible to use the provided [arch files](./arch) as guidance.
 
+There are [arch files](./arch) for a few specific platforms (e.g.
+[Linux-gnu-x86_64](./arch/Linux-gnu-x86_64.psmp),
+[Linux-intel-x86_64](./arch/Linux-intel-x86_64.psmp))
+which include a toolchain build.
+Sourcing such an arch file in the cp2k folder launches a toolchain build, e.g.
+
+```
+source ./arch/Linux-gnu-x86_64.psmp
+```
+
+After a successful toolchain build, run one of the suggested `make` commands
+
+```
+make -j ARCH=Linux-gnu-x86_64 VERSION=psmp
+```
+
+Check also the corresponding [HowTos](https://www.cp2k.org/howto/) for
+[Apple M1 (macOS)](https://www.cp2k.org/howto:compile_on_macos/) and
+[Cray XC40/50 (Piz Daint, CSCS)](https://www.cp2k.org/howto:compile_on_cray_cscs/).
+
 Sub-points here discuss prerequisites needed to build CP2K. Copies of the
 recommended versions of 3rd party software can be downloaded from <https://www.cp2k.org/static/downloads/>.
 
