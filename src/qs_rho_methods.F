@@ -21,14 +21,9 @@ MODULE qs_rho_methods
                                               dbcsr_deallocate_matrix_set
    USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
-                                              dbcsr_copy,&
-                                              dbcsr_create,&
-                                              dbcsr_p_type,&
-                                              dbcsr_scale,&
-                                              dbcsr_set,&
-                                              dbcsr_type,&
-                                              dbcsr_type_symmetric
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_type, &
+        dbcsr_type_antisymmetric, dbcsr_type_symmetric
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -76,7 +71,7 @@ MODULE qs_rho_methods
 
    PUBLIC :: qs_rho_update_rho, qs_rho_update_tddfpt, &
              qs_rho_rebuild, qs_rho_copy, qs_rho_scale_and_add
-   PUBLIC :: duplicate_rho_type
+   PUBLIC :: duplicate_rho_type, allocate_rho_ao_imag_from_real
 
 CONTAINS
 
@@ -110,10 +105,10 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: headline
       INTEGER                                            :: handle, i, ic, j, nimg, nspins
       LOGICAL                                            :: do_kpoints, my_admm, my_rebuild_ao, &
-                                                            my_rebuild_grids
+                                                            my_rebuild_grids, rho_ao_is_complex
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, rho_ao_kp
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, rho_ao_im_kp, rho_ao_kp
       TYPE(dbcsr_type), POINTER                          :: refmatrix, tmatrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -128,7 +123,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (pw_env, auxbas_pw_pool, matrix_s, matrix_s_kp, dft_control)
-      NULLIFY (tot_rho_r, rho_ao_kp, rho_r, rho_g, drho_r, drho_g, tau_r, tau_g)
+      NULLIFY (tot_rho_r, rho_ao_kp, rho_r, rho_g, drho_r, drho_g, tau_r, tau_g, rho_ao_im_kp)
       NULLIFY (rho_r_sccs)
       NULLIFY (sab_orb)
       my_rebuild_ao = .TRUE.
@@ -163,13 +158,15 @@ CONTAINS
       CALL qs_rho_get(rho, &
                       tot_rho_r=tot_rho_r, &
                       rho_ao_kp=rho_ao_kp, &
+                      rho_ao_im_kp=rho_ao_im_kp, &
                       rho_r=rho_r, &
                       rho_g=rho_g, &
                       drho_r=drho_r, &
                       drho_g=drho_g, &
                       tau_r=tau_r, &
                       tau_g=tau_g, &
-                      rho_r_sccs=rho_r_sccs)
+                      rho_r_sccs=rho_r_sccs, &
+                      complex_rho_ao=rho_ao_is_complex)
 
       IF (.NOT. ASSOCIATED(tot_rho_r)) THEN
          ALLOCATE (tot_rho_r(nspins))
@@ -203,6 +200,32 @@ CONTAINS
                CALL dbcsr_set(tmatrix, 0.0_dp)
             END DO
          END DO
+         IF (rho_ao_is_complex) THEN
+            IF (ASSOCIATED(rho_ao_im_kp)) THEN
+               CALL dbcsr_deallocate_matrix_set(rho_ao_im_kp)
+            END IF
+            CALL dbcsr_allocate_matrix_set(rho_ao_im_kp, nspins, nimg)
+            CALL qs_rho_set(rho, rho_ao_im_kp=rho_ao_im_kp)
+            DO i = 1, nspins
+               DO ic = 1, nimg
+                  IF (nspins > 1) THEN
+                     IF (i == 1) THEN
+                        headline = "IMAGINARY PART OF DENSITY MATRIX FOR ALPHA SPIN"
+                     ELSE
+                        headline = "IMAGINARY PART OF DENSITY MATRIX FOR BETA SPIN"
+                     END IF
+                  ELSE
+                     headline = "IMAGINARY PART OF DENSITY MATRIX"
+                  END IF
+                  ALLOCATE (rho_ao_im_kp(i, ic)%matrix)
+                  tmatrix => rho_ao_im_kp(i, ic)%matrix
+                  CALL dbcsr_create(matrix=tmatrix, template=refmatrix, name=TRIM(headline), &
+                                    matrix_type=dbcsr_type_antisymmetric, nze=0)
+                  CALL cp_dbcsr_alloc_block_from_nbl(tmatrix, sab_orb)
+                  CALL dbcsr_set(tmatrix, 0.0_dp)
+               END DO
+            END DO
+         END IF
       END IF
 
       ! rho_r
@@ -752,12 +775,13 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_rho_copy'
 
       INTEGER                                            :: handle, i, j, nspins
-      LOGICAL :: drho_g_valid_in, drho_r_valid_in, rho_g_valid_in, rho_r_valid_in, soft_valid_in, &
-         tau_g_valid_in, tau_r_valid_in
+      LOGICAL :: complex_rho_ao, drho_g_valid_in, drho_r_valid_in, rho_g_valid_in, rho_r_valid_in, &
+         soft_valid_in, tau_g_valid_in, tau_r_valid_in
       REAL(KIND=dp)                                      :: ospin
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_g_in, tot_rho_g_out, &
                                                             tot_rho_r_in, tot_rho_r_out
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_im_in, rho_ao_in, rho_ao_out
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_im_in, rho_ao_im_out, rho_ao_in, &
+                                                            rho_ao_out
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp_in
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g_in, rho_g_out, rho_r_in, &
                                                             rho_r_out, tau_g_in, tau_g_out, &
@@ -795,9 +819,10 @@ CONTAINS
                       tau_r_valid=tau_r_valid_in, &
                       tau_g_valid=tau_g_valid_in, &
                       rho_r_sccs=rho_r_sccs_in, &
-                      soft_valid=soft_valid_in)
+                      soft_valid=soft_valid_in, &
+                      complex_rho_ao=complex_rho_ao)
 
-      NULLIFY (rho_ao_out, rho_r_out, rho_g_out, drho_r_out, &
+      NULLIFY (rho_ao_out, rho_ao_im_out, rho_r_out, rho_g_out, drho_r_out, &
                drho_g_out, tau_r_out, tau_g_out, tot_rho_r_out, tot_rho_g_out, rho_r_sccs_out)
       ! rho_ao
       IF (ASSOCIATED(rho_ao_in)) THEN
@@ -827,7 +852,22 @@ CONTAINS
 
       ! rho_ao_im
       IF (ASSOCIATED(rho_ao_im_in)) THEN
-         CPABORT("Copy not available")
+         nspins = SIZE(rho_ao_im_in)
+         CPASSERT(mspin >= nspins)
+         CALL dbcsr_allocate_matrix_set(rho_ao_im_out, mspin)
+         CALL qs_rho_set(rho_output, rho_ao_im=rho_ao_im_out)
+         IF (mspin > nspins) THEN
+            DO i = 1, mspin
+               ALLOCATE (rho_ao_im_out(i)%matrix)
+               CALL dbcsr_copy(rho_ao_im_out(i)%matrix, rho_ao_im_in(1)%matrix, name="RHO copy")
+               CALL dbcsr_scale(rho_ao_im_out(i)%matrix, ospin)
+            END DO
+         ELSE
+            DO i = 1, nspins
+               ALLOCATE (rho_ao_im_out(i)%matrix)
+               CALL dbcsr_copy(rho_ao_im_out(i)%matrix, rho_ao_im_in(i)%matrix, name="RHO copy")
+            END DO
+         END IF
       END IF
 
       ! rho_r
@@ -1020,7 +1060,8 @@ CONTAINS
                       drho_r_valid=drho_r_valid_in, &
                       tau_r_valid=tau_r_valid_in, &
                       tau_g_valid=tau_g_valid_in, &
-                      soft_valid=soft_valid_in)
+                      soft_valid=soft_valid_in, &
+                      complex_rho_ao=complex_rho_ao)
 
       CALL timestop(handle)
 
@@ -1095,7 +1136,12 @@ CONTAINS
 
       ! rho_ao_im
       IF (ASSOCIATED(rho_ao_im_a) .AND. ASSOCIATED(rho_ao_im_b)) THEN
-         CPABORT("Add not available")
+         nspina = SIZE(rho_ao_im_a)
+         nspinb = SIZE(rho_ao_im_b)
+         nspins = MIN(nspina, nspinb)
+         DO i = 1, nspins
+            CALL dbcsr_add(rho_ao_im_a(i)%matrix, rho_ao_im_b(i)%matrix, alpha, beta)
+         END DO
       END IF
 
       ! rho_r
@@ -1207,11 +1253,12 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'duplicate_rho_type'
 
       INTEGER                                            :: handle, i, j, nspins
-      LOGICAL :: drho_g_valid_in, drho_r_valid_in, rho_g_valid_in, rho_r_valid_in, soft_valid_in, &
-         tau_g_valid_in, tau_r_valid_in
+      LOGICAL :: complex_rho_ao_in, drho_g_valid_in, drho_r_valid_in, rho_g_valid_in, &
+         rho_r_valid_in, soft_valid_in, tau_g_valid_in, tau_r_valid_in
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_g_in, tot_rho_g_out, &
                                                             tot_rho_r_in, tot_rho_r_out
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_in, rho_ao_out
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_im_in, rho_ao_im_out, rho_ao_in, &
+                                                            rho_ao_out
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -1225,7 +1272,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (dft_control, pw_env, auxbas_pw_pool)
-      NULLIFY (rho_ao_in, rho_ao_out)
+      NULLIFY (rho_ao_in, rho_ao_out, rho_ao_im_in, rho_ao_im_out)
       NULLIFY (rho_r_in, rho_r_out, rho_g_in, rho_g_out, drho_r_in, drho_r_out)
       NULLIFY (drho_g_in, drho_g_out, tau_r_in, tau_r_out, tau_g_in, tau_g_out)
       NULLIFY (tot_rho_r_in, tot_rho_r_out, tot_rho_g_in, tot_rho_g_out)
@@ -1241,6 +1288,7 @@ CONTAINS
 
       CALL qs_rho_get(rho_input, &
                       rho_ao=rho_ao_in, &
+                      rho_ao_im=rho_ao_im_in, &
                       rho_r=rho_r_in, &
                       rho_g=rho_g_in, &
                       drho_r=drho_r_in, &
@@ -1256,7 +1304,8 @@ CONTAINS
                       tau_r_valid=tau_r_valid_in, &
                       tau_g_valid=tau_g_valid_in, &
                       rho_r_sccs=rho_r_sccs_in, &
-                      soft_valid=soft_valid_in)
+                      soft_valid=soft_valid_in, &
+                      complex_rho_ao=complex_rho_ao_in)
 
       ! rho_ao
       IF (ASSOCIATED(rho_ao_in)) THEN
@@ -1267,6 +1316,18 @@ CONTAINS
             CALL dbcsr_copy(rho_ao_out(i)%matrix, rho_ao_in(i)%matrix, &
                             name="myDensityMatrix_for_Spin_"//TRIM(ADJUSTL(cp_to_string(i))))
             CALL dbcsr_set(rho_ao_out(i)%matrix, 0.0_dp)
+         END DO
+      END IF
+
+      ! rho_ao_im
+      IF (ASSOCIATED(rho_ao_im_in)) THEN
+         CALL dbcsr_allocate_matrix_set(rho_ao_im_out, nspins)
+         CALL qs_rho_set(rho_output, rho_ao=rho_ao_im_out)
+         DO i = 1, nspins
+            ALLOCATE (rho_ao_im_out(i)%matrix)
+            CALL dbcsr_copy(rho_ao_im_out(i)%matrix, rho_ao_im_in(i)%matrix, &
+                            name="myImagDensityMatrix_for_Spin_"//TRIM(ADJUSTL(cp_to_string(i))))
+            CALL dbcsr_set(rho_ao_im_out(i)%matrix, 0.0_dp)
          END DO
       END IF
 
@@ -1367,7 +1428,8 @@ CONTAINS
                       drho_r_valid=drho_r_valid_in, &
                       tau_r_valid=tau_r_valid_in, &
                       tau_g_valid=tau_g_valid_in, &
-                      soft_valid=soft_valid_in)
+                      soft_valid=soft_valid_in, &
+                      complex_rho_ao=complex_rho_ao_in)
 
       ! tot_rho_r
       IF (ASSOCIATED(tot_rho_r_in)) THEN
@@ -1391,5 +1453,60 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE duplicate_rho_type
+
+! **************************************************************************************************
+!> \brief (Re-)allocates rho_ao_im from real part rho_ao
+!> \param rho ...
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE allocate_rho_ao_imag_from_real(rho, qs_env)
+      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CHARACTER(LEN=default_string_length)               :: headline
+      INTEGER                                            :: i, ic, nimages, nspins
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_im_kp, rho_ao_kp
+      TYPE(dbcsr_type), POINTER                          :: template
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
+
+      NULLIFY (rho_ao_im_kp, rho_ao_kp, dft_control, template, sab_orb)
+
+      CALL get_qs_env(qs_env, &
+                      dft_control=dft_control, &
+                      sab_orb=sab_orb)
+
+      CALL qs_rho_get(rho, rho_ao_im_kp=rho_ao_im_kp, rho_ao_kp=rho_ao_kp)
+
+      nspins = dft_control%nspins
+      nimages = dft_control%nimages
+
+      CPASSERT(nspins .EQ. SIZE(rho_ao_kp, 1))
+      CPASSERT(nimages .EQ. SIZE(rho_ao_kp, 2))
+
+      CALL dbcsr_allocate_matrix_set(rho_ao_im_kp, nspins, nimages)
+      CALL qs_rho_set(rho, rho_ao_im_kp=rho_ao_im_kp)
+      DO i = 1, nspins
+         DO ic = 1, nimages
+            IF (nspins > 1) THEN
+               IF (i == 1) THEN
+                  headline = "IMAGINARY PART OF DENSITY MATRIX FOR ALPHA SPIN"
+               ELSE
+                  headline = "IMAGINARY PART OF DENSITY MATRIX FOR BETA SPIN"
+               END IF
+            ELSE
+               headline = "IMAGINARY PART OF DENSITY MATRIX"
+            END IF
+            ALLOCATE (rho_ao_im_kp(i, ic)%matrix)
+            template => rho_ao_kp(i, ic)%matrix ! base on real part, but anti-symmetric
+            CALL dbcsr_create(matrix=rho_ao_im_kp(i, ic)%matrix, template=template, &
+                              name=TRIM(headline), matrix_type=dbcsr_type_antisymmetric, nze=0)
+            CALL cp_dbcsr_alloc_block_from_nbl(rho_ao_im_kp(i, ic)%matrix, sab_orb)
+            CALL dbcsr_set(rho_ao_im_kp(i, ic)%matrix, 0.0_dp)
+         END DO
+      END DO
+
+   END SUBROUTINE allocate_rho_ao_imag_from_real
 
 END MODULE qs_rho_methods

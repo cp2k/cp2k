@@ -41,7 +41,8 @@ MODULE qs_basis_gradient
                                               qs_kind_type
    USE qs_ks_methods,                   ONLY: qs_ks_allocate_basics,&
                                               qs_ks_update_qs_env
-   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+   USE qs_ks_types,                     ONLY: get_ks_env,&
+                                              qs_ks_env_type,&
                                               set_ks_env
    USE qs_mixing_utils,                 ONLY: mixing_allocate
    USE qs_mo_methods,                   ONLY: make_basis_sm
@@ -279,19 +280,22 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_basis_reinit_energy'
 
       INTEGER                                            :: handle, ispin, nmo
+      LOGICAL                                            :: ks_is_complex
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(section_vals_type), POINTER                   :: input
 
       CALL timeset(routineN, handle)
 
+      NULLIFY (input, para_env, ks_env)
       ! rebuild neighbor lists
-      CALL get_qs_env(qs_env, input=input, para_env=para_env)
+      CALL get_qs_env(qs_env, input=input, para_env=para_env, ks_env=ks_env)
       CALL build_qs_neighbor_lists(qs_env, para_env, molecular=.FALSE., &
                                    force_env_section=input)
       ! update core hamiltonian
@@ -299,7 +303,8 @@ CONTAINS
       ! update structures
       CALL qs_env_update_s_mstruct(qs_env)
       ! KS matrices
-      CALL qs_ks_allocate_basics(qs_env)
+      CALL get_ks_env(ks_env, complex_ks=ks_is_complex)
+      CALL qs_ks_allocate_basics(qs_env, is_complex=ks_is_complex)
       ! reinit SCF task matrices
       NULLIFY (scf_env)
       CALL get_qs_env(qs_env, scf_env=scf_env, dft_control=dft_control)

@@ -53,6 +53,7 @@ MODULE rt_propagation
    USE machine,                         ONLY: m_walltime
    USE md_environment_types,            ONLY: md_environment_type
    USE pw_env_types,                    ONLY: pw_env_type
+   USE qs_core_hamiltonian,             ONLY: qs_matrix_h_allocate_imag_from_real
    USE qs_dftb_matrices,                ONLY: build_dftb_overlap
    USE qs_energy_init,                  ONLY: qs_energies_init
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -62,11 +63,17 @@ MODULE rt_propagation
                                               external_e_potential
    USE qs_kind_types,                   ONLY: get_qs_kind_set,&
                                               qs_kind_type
-   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
-   USE qs_ks_types,                     ONLY: qs_ks_did_change
+   USE qs_ks_methods,                   ONLY: qs_ks_allocate_basics,&
+                                              qs_ks_update_qs_env
+   USE qs_ks_types,                     ONLY: qs_ks_did_change,&
+                                              qs_ks_env_type,&
+                                              set_ks_env
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               init_mo_set,&
                                               mo_set_type
+   USE qs_rho_methods,                  ONLY: allocate_rho_ao_imag_from_real
+   USE qs_rho_types,                    ONLY: qs_rho_set,&
+                                              qs_rho_type
    USE rt_delta_pulse,                  ONLY: apply_delta_pulse,&
                                               apply_delta_pulse_mag,&
                                               apply_delta_pulse_periodic
@@ -107,7 +114,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
 
       INTEGER                                            :: aspc_order
-      LOGICAL                                            :: magnetic, vel_reprs
+      LOGICAL                                            :: ks_is_complex, magnetic, vel_reprs
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -131,6 +138,7 @@ CONTAINS
       CALL rt_initial_guess(qs_env, force_env, rtp_control)
 
       ! Initializes the extrapolation
+      NULLIFY (rtp)
       CALL get_qs_env(qs_env=qs_env, rtp=rtp, input=input)
       aspc_order = rtp_control%aspc_order
       CALL rtp_history_create(rtp, aspc_order)
@@ -158,6 +166,10 @@ CONTAINS
       CALL section_vals_val_get(print_moments_section, "VEL_REPRS", l_val=vel_reprs)
       rtp%track_imag_density = magnetic .OR. vel_reprs .OR. rtp_control%velocity_gauge &
                                .OR. rtp%do_hfx .OR. (.NOT. rtp_control%fixed_ions)
+      ks_is_complex = rtp%do_hfx .OR. rtp_control%velocity_gauge
+
+      CALL rt_init_complex_quantities(qs_env, imag_p=rtp%track_imag_density, &
+                                      imag_ks=ks_is_complex, imag_h=rtp_control%velocity_gauge)
 
       ! Hmm, not really like to initialize with the structure of S but I reckon it is
       ! done everywhere like this
@@ -507,5 +519,40 @@ CONTAINS
       END SELECT
 
    END SUBROUTINE rt_initial_guess
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param imag_p ...
+!> \param imag_ks ...
+!> \param imag_h ...
+! **************************************************************************************************
+   SUBROUTINE rt_init_complex_quantities(qs_env, imag_p, imag_ks, imag_h)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(in)                                :: imag_p, imag_ks, imag_h
+
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(qs_rho_type), POINTER                         :: rho
+
+      NULLIFY (ks_env, rho, dft_control)
+
+      CALL get_qs_env(qs_env, &
+                      dft_control=dft_control, &
+                      ks_env=ks_env, &
+                      rho=rho)
+
+      ! rho
+      CALL qs_rho_set(rho, complex_rho_ao=imag_p)
+      IF (imag_p) CALL allocate_rho_ao_imag_from_real(rho, qs_env)
+
+      ! ks
+      CALL set_ks_env(ks_env, complex_ks=imag_ks)
+      IF (imag_ks) CALL qs_ks_allocate_basics(qs_env, is_complex=imag_ks)
+
+      ! h
+      IF (imag_h) CALL qs_matrix_h_allocate_imag_from_real(qs_env)
+
+   END SUBROUTINE rt_init_complex_quantities
 
 END MODULE rt_propagation

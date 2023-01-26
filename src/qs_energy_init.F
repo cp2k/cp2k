@@ -53,7 +53,8 @@ MODULE qs_energy_init
    USE qs_gcp_method,                   ONLY: calculate_gcp_pairpot
    USE qs_gcp_types,                    ONLY: qs_gcp_type
    USE qs_ks_methods,                   ONLY: qs_ks_allocate_basics
-   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+   USE qs_ks_types,                     ONLY: get_ks_env,&
+                                              qs_ks_env_type,&
                                               set_ks_env
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
@@ -90,7 +91,8 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calc_forces
 
       INTEGER                                            :: img, ispin, nimg, nspin
-      LOGICAL                                            :: has_unit_metric, molecule_only
+      LOGICAL                                            :: has_unit_metric, ks_is_complex, &
+                                                            molecule_only
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s, matrix_w
       TYPE(dbcsr_type), POINTER                          :: matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -98,7 +100,7 @@ CONTAINS
 
       NULLIFY (ks_env, matrix_w, matrix_s, dft_control)
 
-      CALL get_qs_env(qs_env, dft_control=dft_control)
+      CALL get_qs_env(qs_env, dft_control=dft_control, ks_env=ks_env)
       IF (dft_control%qs_control%do_kg) THEN
          molecule_only = .TRUE.
          CALL qs_energies_init_kg(qs_env)
@@ -106,7 +108,8 @@ CONTAINS
          molecule_only = .FALSE.
       END IF
       CALL qs_energies_init_hamiltonians(qs_env, calc_forces, molecule_only)
-      CALL qs_ks_allocate_basics(qs_env)
+      CALL get_ks_env(ks_env, complex_ks=ks_is_complex)
+      CALL qs_ks_allocate_basics(qs_env, is_complex=ks_is_complex)
 
       ! if need forces allocate energy weighted density matrices
       CALL get_qs_env(qs_env, has_unit_metric=has_unit_metric)
