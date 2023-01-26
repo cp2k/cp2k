@@ -106,7 +106,8 @@ MODULE qs_core_hamiltonian
    USE input_section_types,             ONLY: section_vals_val_get
    USE kg_environment_types,            ONLY: kg_environment_type
    USE kg_tnadd_mat,                    ONLY: build_tnadd_mat
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
    USE lri_environment_types,           ONLY: lri_environment_type
@@ -140,7 +141,7 @@ MODULE qs_core_hamiltonian
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_core_hamiltonian'
 
    PUBLIC :: build_core_hamiltonian_matrix
-   PUBLIC :: dump_info_core_hamiltonian
+   PUBLIC :: dump_info_core_hamiltonian, qs_matrix_h_allocate_imag_from_real
 
 CONTAINS
 
@@ -702,9 +703,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qs_matrix_h_allocate(qs_env, template, is_complex)
       TYPE(qs_environment_type)                          :: qs_env
-      TYPE(dbcsr_type), INTENT(in), POINTER              :: template
+      TYPE(dbcsr_type), INTENT(in)                       :: template
       LOGICAL, INTENT(in)                                :: is_complex
 
+      CHARACTER(LEN=default_string_length)               :: headline
       INTEGER                                            :: img, nimages
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_h_im
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -722,19 +724,21 @@ CONTAINS
 
       nimages = dft_control%nimages
       CALL dbcsr_allocate_matrix_set(matrix_h, 1, nimages)
+      headline = "CORE HAMILTONIAN MATRIX"
       DO img = 1, nimages
          ALLOCATE (matrix_h(1, img)%matrix)
-         CALL dbcsr_create(matrix_h(1, img)%matrix, template=template)
+         CALL dbcsr_create(matrix_h(1, img)%matrix, name=TRIM(headline), template=template)
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_h(1, img)%matrix, sab_orb)
          CALL dbcsr_set(matrix_h(1, img)%matrix, 0.0_dp)
       END DO
       CALL set_ks_env(ks_env, matrix_h_kp=matrix_h)
 
       IF (is_complex) THEN
+         headline = "IMAGINARY PART OF CORE HAMILTONIAN MATRIX"
          CALL dbcsr_allocate_matrix_set(matrix_h_im, 1, nimages)
          DO img = 1, nimages
             ALLOCATE (matrix_h_im(1, img)%matrix)
-            CALL dbcsr_create(matrix_h_im(1, img)%matrix, template=template, &
+            CALL dbcsr_create(matrix_h_im(1, img)%matrix, name=TRIM(headline), template=template, &
                               matrix_type=dbcsr_type_antisymmetric)
             CALL cp_dbcsr_alloc_block_from_nbl(matrix_h_im(1, img)%matrix, sab_orb)
             CALL dbcsr_set(matrix_h_im(1, img)%matrix, 0.0_dp)
@@ -743,5 +747,49 @@ CONTAINS
       END IF
 
    END SUBROUTINE qs_matrix_h_allocate
+
+! **************************************************************************************************
+!> \brief (Re-)allocates matrix_h_im from matrix_h
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE qs_matrix_h_allocate_imag_from_real(qs_env)
+      TYPE(qs_environment_type)                          :: qs_env
+
+      CHARACTER(LEN=default_string_length)               :: headline
+      INTEGER                                            :: image, nimages
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_h_im
+      TYPE(dbcsr_type), POINTER                          :: template
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+
+      NULLIFY (matrix_h_im, matrix_h, dft_control, template, sab_orb, ks_env)
+
+      CALL get_qs_env(qs_env, &
+                      matrix_h_im_kp=matrix_h_im, &
+                      matrix_h_kp=matrix_h, &
+                      dft_control=dft_control, &
+                      sab_orb=sab_orb, &
+                      ks_env=ks_env)
+
+      nimages = dft_control%nimages
+
+      CPASSERT(nimages .EQ. SIZE(matrix_h, 2))
+
+      CALL dbcsr_allocate_matrix_set(matrix_h_im, 1, nimages)
+
+      DO image = 1, nimages
+         headline = "IMAGINARY CORE HAMILTONIAN MATRIX"
+         ALLOCATE (matrix_h_im(1, image)%matrix)
+         template => matrix_h(1, image)%matrix ! base on real part, but anti-symmetric
+         CALL dbcsr_create(matrix=matrix_h_im(1, image)%matrix, template=template, &
+                           name=TRIM(headline), matrix_type=dbcsr_type_antisymmetric, nze=0)
+         CALL cp_dbcsr_alloc_block_from_nbl(matrix_h_im(1, image)%matrix, sab_orb)
+         CALL dbcsr_set(matrix_h_im(1, image)%matrix, 0.0_dp)
+      END DO
+      CALL set_ks_env(ks_env, matrix_h_im_kp=matrix_h_im)
+
+   END SUBROUTINE qs_matrix_h_allocate_imag_from_real
 
 END MODULE qs_core_hamiltonian

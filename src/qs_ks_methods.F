@@ -1226,7 +1226,7 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: is_complex
 
       CHARACTER(LEN=default_string_length)               :: headline
-      INTEGER                                            :: ic, ispin, nimg
+      INTEGER                                            :: ic, ispin, nimages, nspins
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, matrixkp_im_ks, matrixkp_ks
       TYPE(dbcsr_type), POINTER                          :: refmatrix
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -1234,7 +1234,7 @@ CONTAINS
          POINTER                                         :: sab_orb
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
-      NULLIFY (dft_control, ks_env, matrix_s_kp, sab_orb, matrixkp_ks)
+      NULLIFY (dft_control, ks_env, matrix_s_kp, sab_orb, matrixkp_ks, refmatrix, matrixkp_im_ks)
 
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
@@ -1244,13 +1244,15 @@ CONTAINS
                       matrix_ks_kp=matrixkp_ks, &
                       matrix_ks_im_kp=matrixkp_im_ks)
 
+      nspins = dft_control%nspins
+      nimages = dft_control%nimages
+
       IF (.NOT. ASSOCIATED(matrixkp_ks)) THEN
-         nimg = dft_control%nimages
-         CALL dbcsr_allocate_matrix_set(matrixkp_ks, dft_control%nspins, nimg)
+         CALL dbcsr_allocate_matrix_set(matrixkp_ks, nspins, nimages)
          refmatrix => matrix_s_kp(1, 1)%matrix
-         DO ispin = 1, dft_control%nspins
-            DO ic = 1, nimg
-               IF (dft_control%nspins > 1) THEN
+         DO ispin = 1, nspins
+            DO ic = 1, nimages
+               IF (nspins > 1) THEN
                   IF (ispin == 1) THEN
                      headline = "KOHN-SHAM MATRIX FOR ALPHA SPIN"
                   ELSE
@@ -1271,12 +1273,12 @@ CONTAINS
 
       IF (is_complex) THEN
          IF (.NOT. ASSOCIATED(matrixkp_im_ks)) THEN
-            nimg = dft_control%nimages
-            CALL dbcsr_allocate_matrix_set(matrixkp_im_ks, dft_control%nspins, nimg)
-            refmatrix => matrix_s_kp(1, 1)%matrix
-            DO ispin = 1, dft_control%nspins
-               DO ic = 1, nimg
-                  IF (dft_control%nspins > 1) THEN
+            CPASSERT(nspins .EQ. SIZE(matrixkp_ks, 1))
+            CPASSERT(nimages .EQ. SIZE(matrixkp_ks, 2))
+            CALL dbcsr_allocate_matrix_set(matrixkp_im_ks, nspins, nimages)
+            DO ispin = 1, nspins
+               DO ic = 1, nimages
+                  IF (nspins > 1) THEN
                      IF (ispin == 1) THEN
                         headline = "IMAGINARY KOHN-SHAM MATRIX FOR ALPHA SPIN"
                      ELSE
@@ -1286,6 +1288,7 @@ CONTAINS
                      headline = "IMAGINARY KOHN-SHAM MATRIX"
                   END IF
                   ALLOCATE (matrixkp_im_ks(ispin, ic)%matrix)
+                  refmatrix => matrixkp_ks(ispin, ic)%matrix  ! base on real part, but anti-symmetric
                   CALL dbcsr_create(matrix=matrixkp_im_ks(ispin, ic)%matrix, template=refmatrix, &
                                     name=TRIM(headline), matrix_type=dbcsr_type_antisymmetric, nze=0)
                   CALL cp_dbcsr_alloc_block_from_nbl(matrixkp_im_ks(ispin, ic)%matrix, sab_orb)

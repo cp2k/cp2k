@@ -28,7 +28,6 @@ MODULE rt_hfx_utils
                                               dp
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_ks_methods,                   ONLY: qs_ks_allocate_basics
    USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                               set_ks_env
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
@@ -54,31 +53,18 @@ CONTAINS
    SUBROUTINE rtp_hfx_rebuild(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      LOGICAL                                            :: need_h_im
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_im, matrix_s_aux, &
                                                             rho_aux_ao_im
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_im
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_aux
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux
+      TYPE(qs_rho_type), POINTER                         :: rho_aux
 
-      NULLIFY (ks_env, dft_control, rho)
-      NULLIFY (sab_aux, rho_aux, rho_aux_ao_im, matrix_ks_aux_im, matrix_s_aux, matrix_ks_im)
+      NULLIFY (dft_control)
+      NULLIFY (sab_aux, rho_aux, rho_aux_ao_im, matrix_ks_aux_im, matrix_s_aux)
 
       CALL get_qs_env(qs_env, &
-                      ks_env=ks_env, &
-                      dft_control=dft_control, &
-                      rho=rho, &
-                      matrix_ks_im_kp=matrix_ks_im)
-
-      need_h_im = dft_control%rtp_control%velocity_gauge
-
-      CALL rebuild_matrices_im_kp(qs_env, rho, ks_env, dft_control%nspins, dft_control%nimages, &
-                                  rebuild_matrix_p=.TRUE., rebuild_matrix_h=need_h_im)
-
-      CALL qs_ks_allocate_basics(qs_env, is_complex=.TRUE.)
+                      dft_control=dft_control)
 
       IF (dft_control%do_admm) THEN
          CALL get_admm_env(qs_env%admm_env, &
@@ -187,12 +173,12 @@ CONTAINS
             DO image = 1, nimages
                IF (nspins > 1) THEN
                   IF (ispin == 1) THEN
-                     headline = "IMAGINARY DENSITY MATRIX FOR ALPHA SPIN"
+                     headline = "IMAGINARY PART OF DENSITY MATRIX FOR ALPHA SPIN"
                   ELSE
-                     headline = "IMAGINARY DENSITY MATRIX FOR BETA SPIN"
+                     headline = "IMAGINARY PART OF DENSITY MATRIX FOR BETA SPIN"
                   END IF
                ELSE
-                  headline = "IMAGINARY DENSITY MATRIX"
+                  headline = "IMAGINARY PART OF DENSITY MATRIX"
                END IF
                ALLOCATE (matrix_p_im(ispin, image)%matrix)
                CALL dbcsr_create(matrix=matrix_p_im(ispin, image)%matrix, template=refmatrix, &

@@ -75,7 +75,8 @@ MODULE qs_rho_types
                                                         drho_g_valid = .FALSE., &
                                                         tau_r_valid = .FALSE., &
                                                         tau_g_valid = .FALSE., &
-                                                        soft_valid = .FALSE.
+                                                        soft_valid = .FALSE., &
+                                                        complex_rho_ao = .FALSE.
       REAL(KIND=dp), DIMENSION(:), POINTER           :: tot_rho_r => Null(), &
                                                         tot_rho_g => Null()
    END TYPE qs_rho_type
@@ -214,6 +215,7 @@ CONTAINS
 !> \param tot_rho_g ...
 !> \param rho_r_sccs ...
 !> \param soft_valid ...
+!> \param complex_rho_ao ...
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -221,7 +223,7 @@ CONTAINS
    SUBROUTINE qs_rho_get(rho_struct, rho_ao, rho_ao_im, rho_ao_kp, rho_ao_im_kp, rho_r, drho_r, &
                          rho_g, drho_g, tau_r, tau_g, rho_r_valid, drho_r_valid, rho_g_valid, &
                          drho_g_valid, tau_r_valid, tau_g_valid, tot_rho_r, tot_rho_g, &
-                         rho_r_sccs, soft_valid)
+                         rho_r_sccs, soft_valid, complex_rho_ao)
       TYPE(qs_rho_type), INTENT(IN)                      :: rho_struct
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: rho_ao, rho_ao_im
@@ -236,7 +238,7 @@ CONTAINS
                                                             drho_g_valid, tau_r_valid, tau_g_valid
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: tot_rho_r, tot_rho_g
       TYPE(pw_type), OPTIONAL, POINTER                   :: rho_r_sccs
-      LOGICAL, INTENT(out), OPTIONAL                     :: soft_valid
+      LOGICAL, INTENT(out), OPTIONAL                     :: soft_valid, complex_rho_ao
 
       IF (PRESENT(rho_ao)) rho_ao => get_1d_pointer(rho_struct%rho_ao)
       IF (PRESENT(rho_ao_kp)) rho_ao_kp => get_2d_pointer(rho_struct%rho_ao)
@@ -260,6 +262,7 @@ CONTAINS
       IF (PRESENT(tot_rho_r)) tot_rho_r => rho_struct%tot_rho_r
       IF (PRESENT(tot_rho_g)) tot_rho_g => rho_struct%tot_rho_g
       IF (PRESENT(rho_r_sccs)) rho_r_sccs => rho_struct%rho_r_sccs
+      IF (PRESENT(complex_rho_ao)) complex_rho_ao = rho_struct%complex_rho_ao
 
    END SUBROUTINE qs_rho_get
 
@@ -286,12 +289,13 @@ CONTAINS
 !> \param tot_rho_g ...
 !> \param rho_r_sccs ...
 !> \param soft_valid ...
+!> \param complex_rho_ao ...
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE qs_rho_set(rho_struct, rho_ao, rho_ao_im, rho_ao_kp, rho_ao_im_kp, rho_r, drho_r, &
                          rho_g, drho_g, tau_r, tau_g, rho_r_valid, drho_r_valid, rho_g_valid, &
                          drho_g_valid, tau_r_valid, tau_g_valid, tot_rho_r, tot_rho_g, &
-                         rho_r_sccs, soft_valid)
+                         rho_r_sccs, soft_valid, complex_rho_ao)
       TYPE(qs_rho_type), INTENT(INOUT)                   :: rho_struct
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: rho_ao, rho_ao_im
@@ -306,7 +310,7 @@ CONTAINS
                                                             drho_g_valid, tau_r_valid, tau_g_valid
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: tot_rho_r, tot_rho_g
       TYPE(pw_type), OPTIONAL, POINTER                   :: rho_r_sccs
-      LOGICAL, INTENT(in), OPTIONAL                      :: soft_valid
+      LOGICAL, INTENT(in), OPTIONAL                      :: soft_valid, complex_rho_ao
 
       IF (PRESENT(rho_ao)) CALL set_1d_pointer(rho_struct%rho_ao, rho_ao)
       IF (PRESENT(rho_ao_kp)) CALL set_2d_pointer(rho_struct%rho_ao, rho_ao_kp)
@@ -330,6 +334,7 @@ CONTAINS
       IF (PRESENT(tot_rho_r)) rho_struct%tot_rho_r => tot_rho_r
       IF (PRESENT(tot_rho_g)) rho_struct%tot_rho_g => tot_rho_g
       IF (PRESENT(rho_r_sccs)) rho_struct%rho_r_sccs => rho_r_sccs
+      IF (PRESENT(complex_rho_ao)) rho_struct%complex_rho_ao = complex_rho_ao
 
    END SUBROUTINE qs_rho_set
 
