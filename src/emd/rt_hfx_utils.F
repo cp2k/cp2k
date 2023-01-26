@@ -22,14 +22,10 @@ MODULE rt_hfx_utils
    USE dbcsr_api,                       ONLY: dbcsr_create,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
-                                              dbcsr_type,&
                                               dbcsr_type_antisymmetric
-   USE kinds,                           ONLY: default_string_length,&
-                                              dp
+   USE kinds,                           ONLY: dp
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
-                                              set_ks_env
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_set,&
@@ -127,87 +123,5 @@ CONTAINS
       END DO
 
    END SUBROUTINE rebuild_matrices
-
-! **************************************************************************************************
-!> \brief (Re)-allocate imaginary parts of density matrix and KS-matrix as kpoint_transitional_types
-!> \param qs_env ...
-!> \param rho ...
-!> \param ks_env ...
-!> \param nspins ...
-!> \param nimages ...
-!> \param rebuild_matrix_p ...
-!> \param rebuild_matrix_h ...
-! **************************************************************************************************
-   SUBROUTINE rebuild_matrices_im_kp(qs_env, rho, ks_env, nspins, nimages, rebuild_matrix_p, rebuild_matrix_h)
-      TYPE(qs_environment_type), INTENT(inout), POINTER  :: qs_env
-      TYPE(qs_rho_type), INTENT(INOUT), POINTER          :: rho
-      TYPE(qs_ks_env_type), INTENT(INOUT), POINTER       :: ks_env
-      INTEGER, INTENT(in), OPTIONAL                      :: nspins, nimages
-      LOGICAL, INTENT(in), OPTIONAL                      :: rebuild_matrix_p, rebuild_matrix_h
-
-      CHARACTER(LEN=default_string_length)               :: headline
-      INTEGER                                            :: image, ispin
-      LOGICAL                                            :: my_rebuild_h, my_rebuild_p
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h_im, matrix_h_kp, matrix_ks_kp, &
-                                                            matrix_p_im, rho_ao_kp
-      TYPE(dbcsr_type), POINTER                          :: refmatrix
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb
-
-      my_rebuild_p = .FALSE.
-      IF (PRESENT(rebuild_matrix_p)) my_rebuild_p = rebuild_matrix_p
-      my_rebuild_h = .FALSE.
-      IF (PRESENT(rebuild_matrix_h)) my_rebuild_h = rebuild_matrix_h
-
-      NULLIFY (matrix_ks_kp, rho_ao_kp, sab_orb, matrix_h_kp)
-      CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks_kp, matrix_h_kp=matrix_h_kp, sab_orb=sab_orb)
-      CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
-
-      IF (my_rebuild_p) THEN
-         NULLIFY (matrix_p_im)
-         CALL qs_rho_get(rho, rho_ao_im_kp=matrix_p_im)
-
-         CALL dbcsr_allocate_matrix_set(matrix_p_im, nspins, nimages)
-         refmatrix => rho_ao_kp(1, 1)%matrix
-         DO ispin = 1, nspins
-            DO image = 1, nimages
-               IF (nspins > 1) THEN
-                  IF (ispin == 1) THEN
-                     headline = "IMAGINARY PART OF DENSITY MATRIX FOR ALPHA SPIN"
-                  ELSE
-                     headline = "IMAGINARY PART OF DENSITY MATRIX FOR BETA SPIN"
-                  END IF
-               ELSE
-                  headline = "IMAGINARY PART OF DENSITY MATRIX"
-               END IF
-               ALLOCATE (matrix_p_im(ispin, image)%matrix)
-               CALL dbcsr_create(matrix=matrix_p_im(ispin, image)%matrix, template=refmatrix, &
-                                 name=TRIM(headline), matrix_type=dbcsr_type_antisymmetric, nze=0)
-               CALL cp_dbcsr_alloc_block_from_nbl(matrix_p_im(ispin, image)%matrix, sab_orb)
-               CALL dbcsr_set(matrix_p_im(ispin, image)%matrix, 0.0_dp)
-            END DO
-         END DO
-         CALL qs_rho_set(rho, rho_ao_im_kp=matrix_p_im)
-      END IF
-
-      IF (my_rebuild_h) THEN
-         NULLIFY (matrix_h_im)
-         CALL get_qs_env(qs_env, matrix_h_im_kp=matrix_h_im)
-
-         CALL dbcsr_allocate_matrix_set(matrix_h_im, 1, nimages)
-         refmatrix => matrix_h_kp(1, 1)%matrix
-
-         DO image = 1, nimages
-            headline = "IMAGINARY CORE HAMILTONIAN MATRIX"
-            ALLOCATE (matrix_h_im(1, image)%matrix)
-            CALL dbcsr_create(matrix=matrix_h_im(1, image)%matrix, template=refmatrix, &
-                              name=TRIM(headline), matrix_type=dbcsr_type_antisymmetric, nze=0)
-            CALL cp_dbcsr_alloc_block_from_nbl(matrix_h_im(1, image)%matrix, sab_orb)
-            CALL dbcsr_set(matrix_h_im(1, image)%matrix, 0.0_dp)
-         END DO
-         CALL set_ks_env(ks_env, matrix_h_im_kp=matrix_h_im)
-      END IF
-
-   END SUBROUTINE
 
 END MODULE rt_hfx_utils
