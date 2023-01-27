@@ -1922,6 +1922,57 @@
 !> \par MPI mapping
 !>      mpi_gather
 ! **************************************************************************************************
+   SUBROUTINE mp_gatherv_${nametype1}$m2(sendbuf, recvbuf, recvcounts, displs, root, comm)
+
+      ${type1}$, DIMENSION(:, :), CONTIGUOUS, INTENT(IN)        :: sendbuf
+      ${type1}$, DIMENSION(:, :), CONTIGUOUS, INTENT(OUT)       :: recvbuf
+      INTEGER, DIMENSION(:), CONTIGUOUS, INTENT(IN)        :: recvcounts, displs
+      INTEGER, INTENT(IN)                      :: root
+      TYPE(mp_comm_type), INTENT(IN) :: comm
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_gatherv_${nametype1}$m2'
+
+      INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+      INTEGER                                  :: sendcount
+#endif
+
+      ierr = 0
+      CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+      sendcount = SIZE(sendbuf)
+      CALL mpi_gatherv(sendbuf, sendcount, ${mpi_type1}$, &
+                       recvbuf, recvcounts, displs, ${mpi_type1}$, &
+                       root, comm%handle, ierr)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_gatherv @ "//routineN)
+      CALL add_perf(perf_id=4, &
+                    count=1, &
+                    msg_size=sendcount*${bytes1}$)
+#else
+      MARK_USED(recvcounts)
+      MARK_USED(root)
+      MARK_USED(comm)
+      recvbuf(:, 1 + displs(1):) = sendbuf
+#endif
+      CALL mp_timestop(handle)
+   END SUBROUTINE mp_gatherv_${nametype1}$m2
+
+! **************************************************************************************************
+!> \brief Gathers data from all processes to one.
+!> \param[in] sendbuf         Data to send to root
+!> \param[out] recvbuf        Received data (on root)
+!> \param[in] recvcounts      Sizes of data received from processes
+!> \param[in] displs          Offsets of data received from processes
+!> \param[in] root            Process which gathers the data
+!> \param[in] comm            Message passing environment identifier
+!> \par Data length
+!>      Data can have different lengths
+!> \par Offsets
+!>      Offsets start at 0
+!> \par MPI mapping
+!>      mpi_gather
+! **************************************************************************************************
    SUBROUTINE mp_igatherv_${nametype1}$v(sendbuf, sendcount, recvbuf, recvcounts, displs, root, comm, request)
       ${type1}$, DIMENSION(:), CONTIGUOUS, INTENT(IN)        :: sendbuf
       ${type1}$, DIMENSION(:), CONTIGUOUS, INTENT(OUT)       :: recvbuf
@@ -2497,6 +2548,53 @@
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_allgatherv_${nametype1}$v
+
+! **************************************************************************************************
+!> \brief Gathers vector data from all processes and all processes receive the
+!>        same data
+!> \param[in] msgout          Rank-1 data to send
+!> \param[out] msgin          Received data
+!> \param[in] rcount          Size of sent data for every process
+!> \param[in] rdispl          Offset of sent data for every process
+!> \param[in] gid             Message passing environment identifier
+!> \par Data size
+!>      Processes can send different-sized data
+!> \par Ranks
+!>      The last rank counts the processes
+!> \par Offsets
+!>      Offsets are from 0
+!> \par MPI mapping
+!>      mpi_allgather
+! **************************************************************************************************
+   SUBROUTINE mp_allgatherv_${nametype1}$m2(msgout, msgin, rcount, rdispl, gid)
+      ${type1}$, CONTIGUOUS, INTENT(IN)                      :: msgout(:, :)
+      ${type1}$, CONTIGUOUS, INTENT(OUT)                     :: msgin(:, :)
+      INTEGER, CONTIGUOUS, INTENT(IN)                      :: rcount(:), rdispl(:)
+      TYPE(mp_comm_type), INTENT(IN) :: gid
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_allgatherv_${nametype1}$v'
+
+      INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+      INTEGER                                  :: scount
+#endif
+
+      ierr = 0
+      CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+      scount = SIZE(msgout)
+      CALL MPI_ALLGATHERV(msgout, scount, ${mpi_type1}$, msgin, rcount, &
+                          rdispl, ${mpi_type1}$, gid%handle, ierr)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allgatherv @ "//routineN)
+#else
+      MARK_USED(rcount)
+      MARK_USED(rdispl)
+      MARK_USED(gid)
+      msgin = msgout
+#endif
+      CALL mp_timestop(handle)
+   END SUBROUTINE mp_allgatherv_${nametype1}$m2
 
 ! **************************************************************************************************
 !> \brief Gathers vector data from all processes and all processes receive the

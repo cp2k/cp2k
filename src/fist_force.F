@@ -585,7 +585,6 @@ CONTAINS
       ! add up all the potential energies
       thermo%pot = pot_nonbond + pot_bond + pot_bend + pot_torsion + pot_opbend + &
                    pot_imptors + pot_urey_bradley + pot_manybody + pot_shell
-
       CALL mp_sum(thermo%pot, para_env%group)
 
       IF (shell_present) THEN
