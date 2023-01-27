@@ -296,6 +296,7 @@ list(
   manybody_eam.F
   manybody_gal21.F
   manybody_gal.F
+  manybody_nequip.F
   manybody_potential.F
   manybody_quip.F
   manybody_siepmann.F
@@ -750,6 +751,7 @@ list(
   topology_util.F
   topology_xtl.F
   topology_xyz.F
+  torch_api.F
   transport_env_types.F
   transport.F
   uff_vdw_radii_table.F
@@ -1512,7 +1514,8 @@ list(
   "graph"
   "dumpdcd"
   "xyz2dcd"
-  "libcp2k_unittest")
+  "libcp2k_unittest"
+  "nequip_unittest")
 
 add_executable(cp2k-bin start/cp2k.F)
 set_target_properties(
@@ -1526,6 +1529,7 @@ add_executable(graph metadyn_tools/graph.F)
 add_executable(dumpdcd motion/dumpdcd.F)
 add_executable(xyz2dcd motion/xyz2dcd.F)
 add_executable(libcp2k_unittest start/libcp2k_unittest.c)
+add_executable(nequip_unittest nequip_unittest.F)
 
 set_target_properties(cp2k-bin PROPERTIES CXX_STANDARD 11)
 set_target_properties(cp2k-bin PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES

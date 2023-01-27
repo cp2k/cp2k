@@ -218,8 +218,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'nequip_energy_store_force_virial'
 
-      INTEGER :: atom_a, atom_b, i, iat, iat_use, iend, ifirst, igrp, ikind, ilast, ilist, ipair, &
-         istart, iunique, jkind, junique, mpair, n_atoms, n_atoms_use, nedges, nedges_tot, &
+      INTEGER :: atom_a, atom_b, handle, i, iat, iat_use, iend, ifirst, igrp, ikind, ilast, ilist, &
+         ipair, istart, iunique, jkind, junique, mpair, n_atoms, n_atoms_use, nedges, nedges_tot, &
          nloc_size, npairs, nunique
       INTEGER(kind=int_8), ALLOCATABLE                   :: atom_types(:)
       INTEGER(kind=int_8), ALLOCATABLE, DIMENSION(:, :)  :: edge_index, t_edge_index, temp_edge_index
@@ -237,6 +237,8 @@ CONTAINS
       TYPE(nequip_data_type), POINTER                    :: nequip_data
       TYPE(pair_potential_single_type), POINTER          :: pot
       TYPE(torch_dict_type)                              :: inputs, outputs
+
+      CALL timeset(routineN, handle)
 
       NULLIFY (total_energy, atomic_energy, forces)
       n_atoms = SIZE(particle_set)
@@ -438,6 +440,7 @@ CONTAINS
 
       DEALLOCATE (forces)
 
+      CALL timestop(handle)
    END SUBROUTINE nequip_energy_store_force_virial
 
 ! **************************************************************************************************
@@ -452,8 +455,6 @@ CONTAINS
       TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: f_nonbond, pv_nonbond
       LOGICAL, INTENT(IN)                                :: use_virial
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'nequip_add_force_virial'
 
       INTEGER                                            :: iat, iat_use
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial

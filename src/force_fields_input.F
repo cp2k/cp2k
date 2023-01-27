@@ -2317,6 +2317,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'read_nequip_data'
 
       CHARACTER(LEN=default_path_length)                 :: cutoff_str
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
 
       nequip%nequip_version = torch_model_read_metadata(nequip%nequip_file_name, "nequip_version")
       cutoff_str = torch_model_read_metadata(nequip%nequip_file_name, "r_max")
@@ -2332,6 +2335,7 @@ CONTAINS
       nequip%unit_cell_val = 1.0_dp
       nequip%unit_cell_val = cp_unit_to_cp2k(nequip%unit_cell_val, nequip%unit_cell)
 
+      CALL timestop(handle)
    END SUBROUTINE read_nequip_data
 
 ! **************************************************************************************************
