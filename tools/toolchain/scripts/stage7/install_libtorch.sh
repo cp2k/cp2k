@@ -68,7 +68,11 @@ case "${with_libtorch}" in
 
     check_dir "${LIBTORCH_LIBDIR}"
     LIBTORCH_CXXFLAGS="-I${pkg_install_dir}/include"
-    LIBTORCH_LDFLAGS="-L'${LIBTORCH_LIBDIR}' -Wl,-rpath='${LIBTORCH_LIBDIR}'"
+    if [ "$ENABLE_CUDA" = "__TRUE__" ]; then
+      LIBTORCH_LDFLAGS="-Wl,--no-as-needed,-L'${LIBTORCH_LIBDIR}' -Wl,--no-as-needed,-rpath='${LIBTORCH_LIBDIR}'"
+    else
+      LIBTORCH_LDFLAGS="-L'${LIBTORCH_LIBDIR}' -Wl,-rpath='${LIBTORCH_LIBDIR}'"
+    fi
     ;;
 esac
 
@@ -82,13 +86,23 @@ prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 EOF
   fi
-  cat << EOF >> "${BUILDDIR}/setup_libtorch"
+  if [ "$ENABLE_CUDA" = "__TRUE__" ]; then
+    cat << EOF >> "${BUILDDIR}/setup_libtorch"
+export CP_DFLAGS="\${CP_DFLAGS} -D__LIBTORCH"
+export CXXFLAGS="\${CXXFLAGS} ${LIBTORCH_CXXFLAGS}"
+export CP_LDFLAGS="\${CP_LDFLAGS} ${LIBTORCH_LDFLAGS}"
+export CP_LIBS="\${CP_LIBS} -lc10 -lc10_cuda -ltorch_cpu -ltorch_cuda -ltorch"
+EOF
+    cat "${BUILDDIR}/setup_libtorch" >> "${SETUPFILE}"
+  else
+    cat << EOF >> "${BUILDDIR}/setup_libtorch"
 export CP_DFLAGS="\${CP_DFLAGS} -D__LIBTORCH"
 export CXXFLAGS="\${CXXFLAGS} ${LIBTORCH_CXXFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${LIBTORCH_LDFLAGS}"
 export CP_LIBS="\${CP_LIBS} -lc10 -ltorch_cpu -ltorch"
 EOF
-  cat "${BUILDDIR}/setup_libtorch" >> "${SETUPFILE}"
+    cat "${BUILDDIR}/setup_libtorch" >> "${SETUPFILE}"
+  fi
 fi
 
 load "${BUILDDIR}/setup_libtorch"
