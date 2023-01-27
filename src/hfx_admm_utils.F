@@ -1053,7 +1053,9 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
 
       LOGICAL, PARAMETER                                 :: debug_functional = .FALSE.
+#if defined (__LIBXC)
       REAL(KIND=dp), PARAMETER :: x_factor_c = 0.930525736349100025_dp
+#endif
 
       CHARACTER(LEN=20)                                  :: name_x_func
       INTEGER                                            :: hfx_potential_type, ifun, iounit, nfun
