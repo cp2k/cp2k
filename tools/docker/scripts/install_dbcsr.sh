@@ -35,7 +35,7 @@ else
   if [ -f dbcsr-${DBCSR_ver}.tar.gz ]; then
     echo "dbcsr-${DBCSR_ver}.tar.gz is found"
   else
-    wget "https://github.com/cp2k/dbcsr/archive/refs/tags/v${DBCSR_ver}.tar.gz" -O "dbcsr-${DBCSR_ver}.tar.gz"
+    wget -q "https://github.com/cp2k/dbcsr/archive/refs/tags/v${DBCSR_ver}.tar.gz" -O "dbcsr-${DBCSR_ver}.tar.gz"
   fi
   echo "Installing from scratch into ${pkg_install_dir}"
   [ -d dbcsr-${DBCSR_ver} ] && rm -rf dbcsr-${DBCSR_ver}
