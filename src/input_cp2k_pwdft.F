@@ -440,9 +440,6 @@ CONTAINS
    SUBROUTINE create_pwdft_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_pwdft_section', &
-         routineP = moduleN//':'//routineN
-
       CPASSERT(.NOT. ASSOCIATED(section))
 
       CALL section_create(section, __LOCATION__, name="PW_DFT", &

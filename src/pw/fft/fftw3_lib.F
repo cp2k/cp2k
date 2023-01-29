@@ -31,6 +31,7 @@ MODULE fftw3_lib
    PUBLIC :: fftw3_destroy_plan, fftw3_create_plan_1dm, fftw3_create_plan_3d
 
 #if defined ( __FFTW3 )
+#include "fftw3.f"
    INTERFACE
       SUBROUTINE fftw_cleanup() BIND(C, name="fftw_cleanup")
       END SUBROUTINE
@@ -38,6 +39,50 @@ MODULE fftw3_lib
 #endif
 
 CONTAINS
+
+#if defined ( __FFTW3 )
+! **************************************************************************************************
+!> \brief A workaround that allows us to compile with -Werror=unused-parameter
+! **************************************************************************************************
+   SUBROUTINE dummy_routine_to_call_mark_used()
+      MARK_USED(FFTW_R2HC)
+      MARK_USED(FFTW_HC2R)
+      MARK_USED(FFTW_DHT)
+      MARK_USED(FFTW_REDFT00)
+      MARK_USED(FFTW_REDFT01)
+      MARK_USED(FFTW_REDFT10)
+      MARK_USED(FFTW_REDFT11)
+      MARK_USED(FFTW_RODFT00)
+      MARK_USED(FFTW_RODFT01)
+      MARK_USED(FFTW_RODFT10)
+      MARK_USED(FFTW_RODFT11)
+      MARK_USED(FFTW_FORWARD)
+      MARK_USED(FFTW_BACKWARD)
+      MARK_USED(FFTW_MEASURE)
+      MARK_USED(FFTW_DESTROY_INPUT)
+      MARK_USED(FFTW_UNALIGNED)
+      MARK_USED(FFTW_CONSERVE_MEMORY)
+      MARK_USED(FFTW_EXHAUSTIVE)
+      MARK_USED(FFTW_PRESERVE_INPUT)
+      MARK_USED(FFTW_PATIENT)
+      MARK_USED(FFTW_ESTIMATE)
+      MARK_USED(FFTW_WISDOM_ONLY)
+      MARK_USED(FFTW_ESTIMATE_PATIENT)
+      MARK_USED(FFTW_BELIEVE_PCOST)
+      MARK_USED(FFTW_NO_DFT_R2HC)
+      MARK_USED(FFTW_NO_NONTHREADED)
+      MARK_USED(FFTW_NO_BUFFERING)
+      MARK_USED(FFTW_NO_INDIRECT_OP)
+      MARK_USED(FFTW_ALLOW_LARGE_GENERIC)
+      MARK_USED(FFTW_NO_RANK_SPLITS)
+      MARK_USED(FFTW_NO_VRANK_SPLITS)
+      MARK_USED(FFTW_NO_VRECURSE)
+      MARK_USED(FFTW_NO_SIMD)
+      MARK_USED(FFTW_NO_SLOW)
+      MARK_USED(FFTW_NO_FIXED_RADIX_LARGE_N)
+      MARK_USED(FFTW_ALLOW_PRUNING)
+   END SUBROUTINE
+#endif
 
 ! **************************************************************************************************
 !> \brief ...
@@ -446,8 +491,6 @@ CONTAINS
       TYPE(C_PTR)                          :: test_plan
       COMPLEX(KIND=dp), DIMENSION(1, 1, 1) :: zin
 
-#include "fftw3.f"
-
       ! Attempt to create a plan with the guru interface for a 2d sub-space
       ! If this fails (e.g. for MKL's FFTW3 interface), fall back to the
       ! FFTW3 threaded 3D transform instead of the hand-optimised version
@@ -600,7 +643,6 @@ CONTAINS
       INTEGER :: dim_n(2), dim_istride(2), dim_ostride(2), &
                  howmany_n(2), howmany_istride(2), howmany_ostride(2)
 
-#include "fftw3.f"
       INTEGER :: fftw_plan_type
       SELECT CASE (plan_style)
       CASE (1)
@@ -847,10 +889,6 @@ CONTAINS
       INTEGER                                              :: tid, nt
       INTEGER                                              :: i, j, k
 
-!------------------------------------------------------------------------------
-
-#include "fftw3.f"
-
       n1 = plan%n_3d(1)
       n2 = plan%n_3d(2)
       n3 = plan%n_3d(3)
@@ -939,7 +977,6 @@ CONTAINS
 #if defined ( __FFTW3 )
       INTEGER                                            :: ii, di, io, DO, num_threads, num_rows
 
-#include "fftw3.f"
       INTEGER :: fftw_plan_type
       SELECT CASE (plan_style)
       CASE (1)

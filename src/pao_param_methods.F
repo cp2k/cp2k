@@ -51,8 +51,7 @@ CONTAINS
       TYPE(ls_scf_env_type), TARGET                      :: ls_scf_env
       TYPE(dbcsr_type)                                   :: matrix_M_diag
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_grad_lnv_wrt_U', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_grad_lnv_wrt_U'
 
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: filter_eps
@@ -187,8 +186,7 @@ CONTAINS
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(dbcsr_type)                                   :: matrix_U
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_assert_unitary', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_assert_unitary'
 
       INTEGER                                            :: acol, arow, group_handle, handle, i, &
                                                             iatom, M, N
@@ -254,8 +252,7 @@ CONTAINS
       TYPE(ls_scf_env_type), TARGET                      :: ls_scf_env
       TYPE(dbcsr_type)                                   :: matrix_Ma, matrix_Mb
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_grad_lnv_wrt_AB', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_grad_lnv_wrt_AB'
 
       INTEGER                                            :: handle, nspin
       INTEGER, DIMENSION(:), POINTER                     :: pao_blk_sizes
