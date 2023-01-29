@@ -3892,8 +3892,6 @@
       INTEGER, INTENT(IN), OPTIONAL              :: msglen
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_write_at_${nametype1}$v'
-
       INTEGER                                    :: ierr, msg_len
 
       ierr = 0
@@ -3902,7 +3900,7 @@
 #if defined(__parallel)
       CALL MPI_FILE_WRITE_AT(fh%handle, offset, msg, msg_len, ${mpi_type1}$, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) &
-         CPABORT("mpi_file_write_at_${nametype1}$v @ "//routineN)
+         CPABORT("mpi_file_write_at_${nametype1}$v @ mp_file_write_at_${nametype1}$v")
 #else
       WRITE (UNIT=fh%handle, POS=offset + 1) msg(1:msg_len)
 #endif
@@ -3919,15 +3917,13 @@
       TYPE(mp_file_type), INTENT(IN)                        :: fh
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_write_at_${nametype1}$'
-
       INTEGER                                    :: ierr
 
       ierr = 0
 #if defined(__parallel)
       CALL MPI_FILE_WRITE_AT(fh%handle, offset, msg, 1, ${mpi_type1}$, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) &
-         CPABORT("mpi_file_write_at_${nametype1}$ @ "//routineN)
+         CPABORT("mpi_file_write_at_${nametype1}$ @ mp_file_write_at_${nametype1}$")
 #else
       WRITE (UNIT=fh%handle, POS=offset + 1) msg
 #endif
@@ -3949,8 +3945,6 @@
       INTEGER, INTENT(IN), OPTIONAL              :: msglen
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_write_at_all_${nametype1}$v'
-
       INTEGER                                    :: ierr, msg_len
 
       ierr = 0
@@ -3959,7 +3953,7 @@
 #if defined(__parallel)
       CALL MPI_FILE_WRITE_AT_ALL(fh%handle, offset, msg, msg_len, ${mpi_type1}$, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) &
-         CPABORT("mpi_file_write_at_all_${nametype1}$v @ "//routineN)
+         CPABORT("mpi_file_write_at_all_${nametype1}$v @ mp_file_write_at_all_${nametype1}$v")
 #else
       WRITE (UNIT=fh%handle, POS=offset + 1) msg(1:msg_len)
 #endif
@@ -3976,15 +3970,13 @@
       TYPE(mp_file_type), INTENT(IN)                        :: fh
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_write_at_all_${nametype1}$'
-
       INTEGER                                    :: ierr
 
       ierr = 0
 #if defined(__parallel)
       CALL MPI_FILE_WRITE_AT_ALL(fh%handle, offset, msg, 1, ${mpi_type1}$, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) &
-         CPABORT("mpi_file_write_at_all_${nametype1}$ @ "//routineN)
+         CPABORT("mpi_file_write_at_all_${nametype1}$ @ mp_file_write_at_all_${nametype1}$")
 #else
       WRITE (UNIT=fh%handle, POS=offset + 1) msg
 #endif
@@ -4007,8 +3999,6 @@
       INTEGER, INTENT(IN), OPTIONAL              :: msglen
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_at_${nametype1}$v'
-
       INTEGER                                    :: ierr, msg_len
 
       ierr = 0
@@ -4017,7 +4007,7 @@
 #if defined(__parallel)
       CALL MPI_FILE_READ_AT(fh%handle, offset, msg, msg_len, ${mpi_type1}$, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) &
-         CPABORT("mpi_file_read_at_${nametype1}$v @ "//routineN)
+         CPABORT("mpi_file_read_at_${nametype1}$v @ mp_file_read_at_${nametype1}$v")
 #else
       READ (UNIT=fh%handle, POS=offset + 1) msg(1:msg_len)
 #endif
@@ -4034,15 +4024,13 @@
       TYPE(mp_file_type), INTENT(IN)                        :: fh
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_at_${nametype1}$'
-
       INTEGER                                    :: ierr
 
       ierr = 0
 #if defined(__parallel)
       CALL MPI_FILE_READ_AT(fh%handle, offset, msg, 1, ${mpi_type1}$, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) &
-         CPABORT("mpi_file_read_at_${nametype1}$ @ "//routineN)
+         CPABORT("mpi_file_read_at_${nametype1}$ @ mp_file_read_at_${nametype1}$")
 #else
       READ (UNIT=fh%handle, POS=offset + 1) msg
 #endif
@@ -4064,8 +4052,6 @@
       INTEGER, INTENT(IN), OPTIONAL              :: msglen
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_at_all_${nametype1}$v'
-
       INTEGER                                    :: ierr, msg_len
 
       ierr = 0
@@ -4074,7 +4060,7 @@
 #if defined(__parallel)
       CALL MPI_FILE_READ_AT_ALL(fh%handle, offset, msg, msg_len, ${mpi_type1}$, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) &
-         CPABORT("mpi_file_read_at_all_${nametype1}$v @ "//routineN)
+         CPABORT("mpi_file_read_at_all_${nametype1}$v @ mp_file_read_at_all_${nametype1}$v")
 #else
       READ (UNIT=fh%handle, POS=offset + 1) msg(1:msg_len)
 #endif
@@ -4091,15 +4077,13 @@
       TYPE(mp_file_type), INTENT(IN)                        :: fh
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_at_all_${nametype1}$'
-
       INTEGER                                    :: ierr
 
       ierr = 0
 #if defined(__parallel)
       CALL MPI_FILE_READ_AT_ALL(fh%handle, offset, msg, 1, ${mpi_type1}$, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) &
-         CPABORT("mpi_file_read_at_all_${nametype1}$ @ "//routineN)
+         CPABORT("mpi_file_read_at_all_${nametype1}$ @ mp_file_read_at_all_${nametype1}$")
 #else
       READ (UNIT=fh%handle, POS=offset + 1) msg
 #endif
