@@ -2011,7 +2011,7 @@ CONTAINS
          w0 = 1.0e0_dp/SQRT(a*(1.0e0_dp + h))
       END IF
 
-20    f = a*rlog1(-lambda/a) + b*rlog1(lambda/b)
+      f = a*rlog1(-lambda/a) + b*rlog1(lambda/b)
       t = EXP(-f)
       IF (t == 0.0e0_dp) RETURN
       z0 = SQRT(f)
