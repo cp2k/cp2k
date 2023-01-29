@@ -36,9 +36,9 @@ IGNORED_WARNINGS = (
     "-Winteger-division",
     "-Wmaybe-uninitialized",
     "-Wfunction-elimination",
+    "-Wunused-function",
     "Creating array temporary",
     "quality comparison",
-    "defined but not used",
     "Removing call to function",
     "Conversion from",
     "Non-significant digits in 'REAL(8)'",
@@ -86,14 +86,6 @@ def check_warnings(fhandle):
 
         if any(iw in warning for iw in IGNORED_WARNINGS):
             continue
-
-        if "Unused" in warning:
-            if "'error'" in warning:
-                continue
-            if "'routinep'" in warning:
-                continue
-            if loc_short == "cp_common_uses.f90":
-                continue
 
         if ("CHARACTER expression" in warning) and ("truncated" in warning):
             continue
