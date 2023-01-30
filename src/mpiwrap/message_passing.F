@@ -651,12 +651,18 @@ MODULE message_passing
    TYPE(mp_file_type), PARAMETER, PUBLIC :: mp_file_null = mp_file_type(mp_file_null_handle)
    TYPE(mp_info_type), PARAMETER, PUBLIC :: mp_info_null = mp_info_type(mp_info_null_handle)
 
+#if !defined(__parallel)
+   ! This communicator is to be used in serial mode to emulate a valid communicator which is not a compiler constant
+   INTEGER, PARAMETER, PRIVATE :: mp_comm_default_handle = 1
+   TYPE(mp_comm_type), PARAMETER, PRIVATE :: mp_comm_default = mp_comm_type(mp_comm_default_handle)
+#endif
+
    ! Constants to compare communicators
    INTEGER, PARAMETER, PUBLIC :: mp_comm_ident = 0
    INTEGER, PARAMETER, PUBLIC :: mp_comm_congruent = 1
    INTEGER, PARAMETER, PUBLIC :: mp_comm_similar = 2
    INTEGER, PARAMETER, PUBLIC :: mp_comm_unequal = 3
-   INTEGER, PARAMETER, PUBLIC :: mp_comm_default = -1
+   INTEGER, PARAMETER, PUBLIC :: mp_comm_compare_default = -1
 
    ! init and error
    PUBLIC :: mp_world_init, mp_world_finalize
@@ -1492,7 +1498,7 @@ CONTAINS
 #else
       pos(1:ndims) = 0
       dims = 1
-      comm_cart%handle = mp_comm_self%handle
+      comm_cart%handle = mp_comm_default%handle
 #endif
       debug_comm_count = debug_comm_count + 1
       CALL mp_timestop(handle)
@@ -1599,7 +1605,7 @@ CONTAINS
 #else
       MARK_USED(comm)
       MARK_USED(rdim)
-      sub_comm%handle = mp_comm_self%handle
+      sub_comm%handle = mp_comm_default%handle
 #endif
       debug_comm_count = debug_comm_count + 1
       CALL mp_timestop(handle)
@@ -2185,14 +2191,15 @@ CONTAINS
 #if defined(__parallel)
       IF (PRESENT(key)) my_key = key
       CALL mpi_comm_split(comm%handle, color, my_key, sub_comm%handle, ierr)
-      debug_comm_count = debug_comm_count + 1
       IF (ierr /= mpi_success) CALL mp_stop(ierr, routineN)
       CALL add_perf(perf_id=10, count=1)
 #else
-      CALL sub_comm%dup(comm)
+      sub_comm%handle = mp_comm_default_handle
+      MARK_USED(comm)
       MARK_USED(color)
       MARK_USED(key)
 #endif
+      debug_comm_count = debug_comm_count + 1
       CALL mp_timestop(handle)
 
    END SUBROUTINE mp_comm_split_direct
@@ -2310,17 +2317,18 @@ CONTAINS
       END IF
       color = group_distribution(mepos)
       CALL mpi_comm_split(comm%handle, color, 0, sub_comm%handle, ierr)
-      debug_comm_count = debug_comm_count + 1
       IF (ierr /= mpi_success) CALL mp_stop(ierr, "in "//routineP//" split")
 
       CALL add_perf(perf_id=10, count=1)
 #else
-      CALL sub_comm%dup(comm)
+      sub_comm%handle = mp_comm_default_handle
       group_distribution(0) = 0
       ngroups = 1
+      MARK_USED(comm)
       MARK_USED(stride)
       MARK_USED(group_partition)
 #endif
+      debug_comm_count = debug_comm_count + 1
       CALL mp_timestop(handle)
 
    END SUBROUTINE mp_comm_split
