@@ -8314,9 +8314,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="VELOCITY_GAUGE", &
-                          description="Perform propagation in the velocity gauge; only impulse at the moment (delta-pulse) "// &
-                          "only works for all-electron up to now."// &
-                          "uses DELTA_PULSE_SCALE and DELTA_PULSE_DIRECTION", &
+                          description="Perform propagation in the velocity gauge using the explicit vector potential"// &
+                          " only a constant vector potential as of now (corresonding to a delta-pulse)."// &
+                          " uses DELTA_PULSE_SCALE and DELTA_PULSE_DIRECTION to define the vector potential", &
                           usage="VELOCITY_GAUGE T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -8349,14 +8349,16 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="VG_COM_NL", &
-                          description="apply gauge transformed non-local potential term", &
+                          description="apply gauge transformed non-local potential term" //
+                          " only affects VELOCITY_GAUGE=.TRUE.", &
                           usage="VG_COM_NL T", &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="COM_NL", &
-                          description="Include non-local commutator for periodic delta pulse.", &
+                          description="Include non-local commutator for periodic delta pulse." //
+                          " only affects PERIODIC=.TRUE.", &
                           usage="COM_NL", &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -8364,7 +8366,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="LEN_REP", &
                           description="Use length representation delta pulse (in conjunction with PERIODIC T). "// &
-                          "Note that this is NOT compatible with PBC!!!"// &
+                          " Note that this is NOT compatible with a periodic calculation!!!"// &
                           " Uses the reference point defined in DFT%PRINT%MOMENTS ", &
                           usage="LEN_REP T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -8374,7 +8376,9 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="PERIODIC", &
                           description="Apply a delta-kick that is compatible with periodic boundary conditions"// &
                           " for any value of DELTA_PULSE_SCALE. Uses perturbation theory for the preparation of"// &
-                          " the initial wfn. Note that the pulse is only applied when INITIAL_WFN is set to SCF_WFN,"// &
+                          " the initial wfn with the velocity operator as perturbation. "// &
+                          " If LEN_REP is .FALSE. this corresponds to a first order velocity gauge."// &
+                          " Note that the pulse is only applied when INITIAL_WFN is set to SCF_WFN,"// &
                           " and not for restarts (RT_RESTART).", &
                           usage="PERIODIC", &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
