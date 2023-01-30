@@ -23,10 +23,6 @@ PROGRAM nequip_unittest
 
    IMPLICIT NONE
 
-#if !defined(__LIBTORCH)
-   WRITE (*, *) "CP2K compiled without the Torch library - skipping NequIP unittest."
-
-#else
    CHARACTER(LEN=default_path_length) :: filename, cutoff_str, nequip_version
    REAL(dp) :: cutoff
 
@@ -237,7 +233,5 @@ CONTAINS
          END DO
       END DO
    END SUBROUTINE neighbor_search
-
-#endif
 
 END PROGRAM nequip_unittest
