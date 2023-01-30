@@ -391,7 +391,6 @@ CONTAINS
 
       ! use the scalapack block size as a default for buffering columns
       CALL cp_fm_get_info(mo_array(1)%mo_coeff, ncol_block=max_block)
-
       DO ispin = 1, nspin
          nmo = mo_array(ispin)%nmo
          IF ((ires > 0) .AND. (nmo > 0)) THEN
@@ -400,6 +399,7 @@ CONTAINS
                mo_array(ispin)%lfomo, &
                mo_array(ispin)%nelectron
             WRITE (ires) mo_array(ispin)%eigenvalues(1:nmo), &
+               mo_array(ispin)%uniform_occupation, &
                mo_array(ispin)%occupation_numbers(1:nmo)
          END IF
          IF (PRESENT(rt_mos)) THEN
@@ -678,7 +678,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: nset_info, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l, nshell_info
       INTEGER, DIMENSION(:, :, :), POINTER               :: nso_info, offset_info
-      LOGICAL                                            :: minbas, natom_match, use_this
+      LOGICAL                                            :: minbas, natom_match, use_this, & 
+                                                            uniform_occ_read
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eig_read, occ_read
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vecbuffer, vecbuffer_read
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -791,8 +792,9 @@ CONTAINS
                             "The number of MOs on the restart unit is greater than the number of "// &
                             "the allocated MOs. The read MO set will be truncated!")
 
-            READ (rst_unit) eig_read(1:nmo_read), occ_read(1:nmo_read)
+            READ (rst_unit) eig_read(1:nmo_read), uniform_occ_read, occ_read(1:nmo_read)
             mos(ispin)%eigenvalues(1:nmo) = eig_read(1:nmo)
+            mos(ispin)%uniform_occupation = uniform_occ_read
             mos(ispin)%occupation_numbers(1:nmo) = occ_read(1:nmo)
             DEALLOCATE (eig_read, occ_read)
 
@@ -817,6 +819,7 @@ CONTAINS
          CALL mp_bcast(mos(ispin)%lfomo, source, group)
          CALL mp_bcast(mos(ispin)%nelectron, source, group)
          CALL mp_bcast(mos(ispin)%eigenvalues, source, group)
+         CALL mp_bcast(mos(ispin)%uniform_occupation, source, group)
          CALL mp_bcast(mos(ispin)%occupation_numbers, source, group)
          IF (PRESENT(rt_mos)) THEN
             DO imat = 2*ispin - 1, 2*ispin

@@ -267,6 +267,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: alpha, cs_pos
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new, mos_old
+      TYPE(cp_fm_type)                                   :: mos_occ
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type)                      :: dist
@@ -315,15 +316,28 @@ CONTAINS
                re = 2*ispin - 1
                im = 2*ispin
                CALL cp_fm_get_info(mo_array(ispin)%mo_coeff, ncol_global=ncol)
-               alpha = 1.0_dp
-               IF (SIZE(mo_array) == 1) alpha = 2*alpha
-               CALL cp_dbcsr_plus_fm_fm_t( &
-                  sparse_matrix=rho_old(re)%matrix, &
-                  matrix_v=mo_array(ispin)%mo_coeff, matrix_g=mo_array(ispin)%mo_coeff, ncol=ncol, &
-                  keep_sparsity=.FALSE., alpha=alpha)
-            END DO
-            DO i = 1, nspin
-               CALL dbcsr_copy(rho_new(i)%matrix, rho_old(i)%matrix)
+               CALL cp_fm_create(mos_occ, &
+                              matrix_struct=mo_array(ispin)%mo_coeff%matrix_struct, &
+                              name="mos_occ")
+               CALL cp_fm_to_fm(mo_array(ispin)%mo_coeff, mos_occ)
+               IF (mo_array(ispin)%uniform_occupation) THEN
+                  alpha = 3.0_dp - REAL(nspin, dp)
+                  CALL cp_fm_column_scale(mos_occ, mo_array(ispin)%occupation_numbers/alpha)
+                  CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_old(re)%matrix, &
+                                          matrix_v=mos_occ, &
+                                          ncol=ncol, &
+                                          alpha=alpha, keep_sparsity=.FALSE.)
+               ELSE
+                  alpha = 1.0_dp
+                  CALL cp_fm_column_scale(mos_occ, mo_array(ispin)%occupation_numbers/alpha)
+                  CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_old(re)%matrix, &
+                                          matrix_v=mo_array(ispin)%mo_coeff, &
+                                          matrix_g=mos_occ, &
+                                          ncol=ncol, &
+                                          alpha=alpha, keep_sparsity=.FALSE.)
+               END IF
+               CALL dbcsr_filter(rho_old(re)%matrix, rtp%filter_eps)
+               CALL dbcsr_copy(rho_new(re)%matrix, rho_old(re)%matrix)
             END DO
             CALL calc_update_rho_sparse(qs_env)
          ELSE

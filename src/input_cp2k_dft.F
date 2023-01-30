@@ -8299,7 +8299,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="APPLY_DELTA_PULSE", &
                           description="Applies a delta kick to the initial wfn (only RTP for now - the EMD "// &
-                          " case is not yet implemented).", &
+                          " case is not yet implemented). Only work for INITIAL_WFN=SCF_WFN", &
                           usage="APPLY_DELTA_PULSE", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -8307,7 +8307,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="APPLY_DELTA_PULSE_MAG", &
                           description="Applies a magnetic delta kick to the initial wfn (only RTP for now - the EMD "// &
-                          " case is not yet implemented).", &
+                          " case is not yet implemented). Only work for INITIAL_WFN=SCF_WFN", &
                           usage="APPLY_DELTA_PULSE_MAG", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
