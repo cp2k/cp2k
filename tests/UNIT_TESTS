@@ -1,0 +1,12 @@
+# Binaries listed in this file will be executed as part of cp2k's regression testing.
+# The binary name can be followed by required flags as reported by `cp2k --version`.
+
+dbt_tas_unittest
+dbt_unittest
+grid_unittest
+libcp2k_unittest
+memory_utilities_unittest
+nequip_unittest                                          libtorch
+parallel_rng_types_unittest
+
+#EOF

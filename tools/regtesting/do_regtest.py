@@ -98,12 +98,17 @@ async def main() -> None:
     shutil.copytree(cfg.cp2k_root / "tests", cfg.work_base_dir)
     print(" done")
 
-    # Discover unit tests.
-    unittest_batch = Batch("UNIT", cfg)
-    unittest_batch.workdir.mkdir()
-    unittest_glob = (cfg.cp2k_root / "exe" / cfg.arch).glob(f"*_unittest.{cfg.version}")
-    for exe in unittest_glob:
-        unittest_batch.unittests.append(Unittest(exe.stem, unittest_batch.workdir))
+    batches: List[Batch] = []
+
+    # Read UNIT_TESTS.
+    unit_tests_fn = cfg.cp2k_root / "tests" / "UNIT_TESTS"
+    for line in unit_tests_fn.read_text(encoding="utf8").split("\n"):
+        line = line.split("#", 1)[0].strip()
+        if line:
+            batch = Batch(f"UNIT/{line}", cfg)
+            batch.workdir.mkdir(parents=True)
+            batch.unittests.append(Unittest(line.split()[0], batch.workdir))
+            batches.append(batch)
 
     # Read TEST_TYPES.
     test_types_fn = cfg.cp2k_root / "tests" / "TEST_TYPES"
@@ -112,7 +117,6 @@ async def main() -> None:
     test_types += [TestType(l) for l in lines[1 : int(lines[0]) + 1]]
 
     # Read TEST_DIRS.
-    batches: List[Batch] = [unittest_batch]
     test_dirs_fn = cfg.cp2k_root / "tests" / "TEST_DIRS"
     for line in test_dirs_fn.read_text(encoding="utf8").split("\n"):
         line = line.split("#", 1)[0].strip()
