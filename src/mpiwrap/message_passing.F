@@ -144,10 +144,8 @@ MODULE message_passing
 
    CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = 'message_passing'
 
-#if defined(__parallel)
    ! internal reference counter used to debug communicator leaks
    INTEGER, PRIVATE, SAVE :: debug_comm_count
-#endif
 
    PUBLIC :: mp_comm_type
    PUBLIC :: mp_request_type
@@ -932,8 +930,8 @@ CONTAINS
 !$    END IF
       CALL mpi_comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_set_errhandler @ mp_world_init")
-      debug_comm_count = 1
 #endif
+      debug_comm_count = 1
       mp_comm = mp_comm_world
       CALL add_mp_perf_env()
    END SUBROUTINE mp_world_init
@@ -978,13 +976,12 @@ CONTAINS
       CALL mpi_group_free(newgroup, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_group_free @ mp_reordering")
 
-      debug_comm_count = debug_comm_count + 1
-
       CALL add_perf(perf_id=1, count=1)
 #else
       MARK_USED(ranks_order)
       mp_new_comm%handle = mp_comm%handle
 #endif
+      debug_comm_count = debug_comm_count + 1
       CALL mp_timestop(handle)
    END SUBROUTINE mp_reordering
 
@@ -995,21 +992,27 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_world_finalize()
 
+      CHARACTER(LEN=4) :: debug_comm_count_char
 #if defined(__parallel)
       INTEGER                                  :: ierr
       CALL mpi_barrier(MPI_COMM_WORLD, ierr) ! call mpi directly to avoid 0 stack pointer
+#endif
       CALL rm_mp_perf_env()
-      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_barrier @ mp_world_finalize")
+
       debug_comm_count = debug_comm_count - 1
+#if defined(__parallel)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_barrier @ mp_world_finalize")
+#endif
       IF (debug_comm_count .NE. 0) THEN
          ! A bug, we're leaking or double-freeing communicators. Needs to be fixed where the leak happens.
          ! Memory leak checking might be helpful to locate the culprit
-         CPABORT("mp_world_finalize: assert failed:  leaking communicators")
+         WRITE (unit=debug_comm_count_char, FMT='(I0)')
+         CALL cp_abort(__LOCATION__, "mp_world_finalize: assert failed:"// &
+                       "  leaking communicators "//TRIM(debug_comm_count_char))
       END IF
+#if defined(__parallel)
       CALL mpi_finalize(ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_finalize @ mp_world_finalize")
-#else
-      CALL rm_mp_perf_env()
 #endif
 
    END SUBROUTINE mp_world_finalize
@@ -1482,7 +1485,6 @@ CONTAINS
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_cart_create @ mp_cart_create")
 
       IF (comm_cart%handle /= MPI_COMM_NULL) THEN
-         debug_comm_count = debug_comm_count + 1
          CALL mpi_cart_get(comm_cart%handle, ndims, dims, period, pos, ierr)
          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_cart_get @ mp_cart_create")
       END IF
@@ -1492,6 +1494,7 @@ CONTAINS
       dims = 1
       comm_cart%handle = mp_comm_self%handle
 #endif
+      debug_comm_count = debug_comm_count + 1
       CALL mp_timestop(handle)
 
    END SUBROUTINE mp_cart_create
@@ -1593,12 +1596,12 @@ CONTAINS
 #if defined(__parallel)
       CALL mpi_cart_sub(comm%handle, rdim, sub_comm%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_cart_sub @ mp_cart_sub")
-      debug_comm_count = debug_comm_count + 1
 #else
       MARK_USED(comm)
       MARK_USED(rdim)
       sub_comm%handle = mp_comm_self%handle
 #endif
+      debug_comm_count = debug_comm_count + 1
       CALL mp_timestop(handle)
 
    END SUBROUTINE mp_cart_sub
@@ -1621,10 +1624,10 @@ CONTAINS
 #if defined(__parallel)
       CALL mpi_comm_free(comm%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_free @ mp_comm_free")
-      debug_comm_count = debug_comm_count - 1
 #else
       comm%handle = mp_comm_null%handle
 #endif
+      debug_comm_count = debug_comm_count - 1
       CALL mp_timestop(handle)
 
    END SUBROUTINE mp_comm_free
@@ -1649,10 +1652,10 @@ CONTAINS
 #if defined(__parallel)
       CALL mpi_comm_dup(comm1%handle, comm2%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_dup @ mp_comm_dup")
-      debug_comm_count = debug_comm_count + 1
 #else
       comm2%handle = comm1%handle
 #endif
+      debug_comm_count = debug_comm_count + 1
       CALL mp_timestop(handle)
 
    END SUBROUTINE mp_comm_dup
