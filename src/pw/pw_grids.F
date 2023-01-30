@@ -421,8 +421,7 @@ CONTAINS
 
       TYPE(pw_grid_type), INTENT(INOUT), POINTER         :: pw_grid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_create_ghatmap', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_create_ghatmap'
 
       INTEGER                                            :: gpt, handle, l, m, mn, n, ngpts
       INTEGER, DIMENSION(:), POINTER                     :: nmapl, nmapm, nmapn, npts, pmapl, pmapm, &

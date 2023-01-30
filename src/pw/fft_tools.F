@@ -27,7 +27,6 @@
 ! **************************************************************************************************
 MODULE fft_tools
    USE ISO_C_BINDING,                   ONLY: C_F_POINTER,&
-                                              C_INT,&
                                               C_LOC,&
                                               C_PTR,&
                                               C_SIZE_T
@@ -2892,7 +2891,6 @@ CONTAINS
       INTEGER(KIND=C_SIZE_T)    :: length
       TYPE(C_PTR)               :: cptr_r1buf, cptr_tbuf, &
                                    cptr_p2buf, cptr_p3buf, cptr_p4buf, cptr_p5buf, cptr_p7buf
-      INTEGER(KIND=C_INT), PARAMETER :: cudaHostAllocDefault = 0
 #endif
       CALL timeset(routineN, handle)
 
