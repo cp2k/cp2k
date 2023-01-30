@@ -411,7 +411,7 @@ CONTAINS
 !>        instance after delta kick)
 !> \param rtp ...
 !> \param mos ...
-!> \param mos_old
+!> \param mos_old ...
 !> \author Samuel Andermatt (08.15)
 !> \author Guillaume Le Breton (01.23)
 ! **************************************************************************************************
@@ -420,15 +420,15 @@ CONTAINS
 
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      TYPE(cp_fm_type), DIMENSION(:), POINTER, OPTIONAL  :: mos_old
+      TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: mos_old
 
-      INTEGER                                            :: ispin, ncol, re, im
+      INTEGER                                            :: im, ispin, ncol, re
       REAL(KIND=dp)                                      :: alpha
       TYPE(cp_fm_type)                                   :: mos_occ, mos_occ_im
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_new, rho_old
 
       CALL get_rtp(rtp=rtp, rho_old=rho_old, rho_new=rho_new)
-      
+
       IF (PRESENT(mos_old)) THEN
          ! Used the mos from delta kick. Initialize both real and im part
          DO ispin = 1, SIZE(mos_old)/2
@@ -438,7 +438,7 @@ CONTAINS
             CALL cp_fm_create(mos_occ, &
                               matrix_struct=mos(ispin)%mo_coeff%matrix_struct, &
                               name="mos_occ")
-            !Real part of rho 
+            !Real part of rho
             CALL cp_fm_to_fm(mos_old(re), mos_occ)
             IF (mos(ispin)%uniform_occupation) THEN
                alpha = 3.0_dp - REAL(SIZE(mos_old)/2, dp)
@@ -457,7 +457,7 @@ CONTAINS
                                           alpha=alpha, keep_sparsity=.FALSE.)
             END IF
 
-            ! Add complex part of MOs, i*i=-1 
+            ! Add complex part of MOs, i*i=-1
             CALL cp_fm_to_fm(mos_old(im), mos_occ)
             IF (mos(ispin)%uniform_occupation) THEN
                alpha = 3.0_dp - REAL(SIZE(mos_old)/2, dp)
@@ -477,23 +477,23 @@ CONTAINS
             END IF
             CALL dbcsr_filter(rho_old(re)%matrix, rtp%filter_eps)
             CALL dbcsr_copy(rho_new(re)%matrix, rho_old(re)%matrix)
-            
-            ! Imaginary part of rho 
+
+            ! Imaginary part of rho
             CALL cp_fm_create(mos_occ_im, &
-                          matrix_struct=mos(ispin)%mo_coeff%matrix_struct, &
-                          name="mos_occ_im")
+                              matrix_struct=mos(ispin)%mo_coeff%matrix_struct, &
+                              name="mos_occ_im")
             alpha = 3.0_dp - REAL(SIZE(mos_old)/2, dp)
             CALL cp_fm_to_fm(mos_old(re), mos_occ)
             CALL cp_fm_column_scale(mos_occ, mos(ispin)%occupation_numbers/alpha)
             CALL cp_fm_to_fm(mos_old(im), mos_occ_im)
             CALL cp_fm_column_scale(mos_occ_im, mos(ispin)%occupation_numbers/alpha)
             CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_old(im)%matrix, &
-                                   matrix_v=mos_occ_im, &
-                                   matrix_g=mos_occ, &
-                                   ncol=ncol, &
-                                   alpha=2.0_dp*alpha, &
-                                   symmetry_mode=-1, keep_sparsity=.FALSE.)
-            
+                                       matrix_v=mos_occ_im, &
+                                       matrix_g=mos_occ, &
+                                       ncol=ncol, &
+                                       alpha=2.0_dp*alpha, &
+                                       symmetry_mode=-1, keep_sparsity=.FALSE.)
+
             CALL dbcsr_filter(rho_old(im)%matrix, rtp%filter_eps)
             CALL dbcsr_copy(rho_new(im)%matrix, rho_old(im)%matrix)
             CALL cp_fm_release(mos_occ_im)
@@ -527,9 +527,9 @@ CONTAINS
                                           ncol=ncol, &
                                           alpha=alpha, keep_sparsity=.FALSE.)
             END IF
-         CALL dbcsr_filter(rho_old(re)%matrix, rtp%filter_eps)
-         CALL dbcsr_copy(rho_new(re)%matrix, rho_old(re)%matrix)
-         CALL cp_fm_release(mos_occ)
+            CALL dbcsr_filter(rho_old(re)%matrix, rtp%filter_eps)
+            CALL dbcsr_copy(rho_new(re)%matrix, rho_old(re)%matrix)
+            CALL cp_fm_release(mos_occ)
          END DO
       END IF
 

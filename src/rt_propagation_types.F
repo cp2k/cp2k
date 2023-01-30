@@ -253,7 +253,7 @@ CONTAINS
    END SUBROUTINE rt_prop_create
 
 ! **************************************************************************************************
-!> \brief Initialize the mos for rtp 
+!> \brief Initialize the mos for rtp
 !> \param rtp ...
 !> \param mos ...
 !> \param mpools ...
@@ -262,26 +262,24 @@ CONTAINS
 !> \param init_mos_old ...
 !> \param init_mos_new ...
 !> \param init_mos_next ...
-!> \param init_mos_admn ...      
+!> \param init_mos_admn ...
 ! **************************************************************************************************
    SUBROUTINE rt_prop_create_mos(rtp, mos, mpools, dft_control, mos_aux, init_mos_old, &
-                           init_mos_new, init_mos_next, init_mos_admn)
+                                 init_mos_new, init_mos_next, init_mos_admn)
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos_aux
-      LOGICAL, OPTIONAL                                  :: init_mos_old
-      LOGICAL, OPTIONAL                                  :: init_mos_new
-      LOGICAL, OPTIONAL                                  :: init_mos_next
-      LOGICAL, OPTIONAL                                  :: init_mos_admn
+      LOGICAL, OPTIONAL                                  :: init_mos_old, init_mos_new, &
+                                                            init_mos_next, init_mos_admn
 
-      LOGICAL                                            :: my_mos_old, my_mos_new, &
-                                                            my_mos_next, my_mos_admn
       INTEGER                                            :: i, j, nao, nrow_block, nspin
+      LOGICAL                                            :: my_mos_admn, my_mos_new, my_mos_next, &
+                                                            my_mos_old
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: ao_mo_fmstruct
-      
+
       IF (PRESENT(init_mos_old)) THEN
          my_mos_old = init_mos_old
       ELSE
@@ -305,7 +303,7 @@ CONTAINS
       ELSE
          my_mos_admn = .TRUE.
       END IF
-      
+
       nspin = dft_control%nspins
       CALL mpools_get(mpools, ao_mo_fm_pools=ao_mo_fm_pools)
       ao_mo_fmstruct => fm_pool_get_el_struct(ao_mo_fm_pools(1)%pool)
@@ -317,7 +315,7 @@ CONTAINS
                                nrow_global=nao, ncol_global=nao, &
                                template_fmstruct=ao_mo_fmstruct)
       IF (.NOT. (ASSOCIATED(rtp%mos))) ALLOCATE (rtp%mos)
-      IF (my_mos_old) ALLOCATE (rtp%mos%old(2*nspin)) 
+      IF (my_mos_old) ALLOCATE (rtp%mos%old(2*nspin))
       IF (my_mos_new) ALLOCATE (rtp%mos%new(2*nspin))
       IF (my_mos_next) ALLOCATE (rtp%mos%next(2*nspin))
       NULLIFY (rtp%mos%admm)
@@ -332,14 +330,14 @@ CONTAINS
       DO i = 1, nspin
          DO j = 1, 2
             IF (my_mos_old) CALL cp_fm_create(rtp%mos%old(2*(i - 1) + j), &
-                              matrix_struct=mos(i)%mo_coeff%matrix_struct, &
-                              name="mos_old"//TRIM(ADJUSTL(cp_to_string(2*(i - 1) + j))))
+                                              matrix_struct=mos(i)%mo_coeff%matrix_struct, &
+                                              name="mos_old"//TRIM(ADJUSTL(cp_to_string(2*(i - 1) + j))))
             IF (my_mos_new) CALL cp_fm_create(rtp%mos%new(2*(i - 1) + j), &
-                              matrix_struct=mos(i)%mo_coeff%matrix_struct, &
-                              name="mos_new"//TRIM(ADJUSTL(cp_to_string(2*(i - 1) + j))))
+                                              matrix_struct=mos(i)%mo_coeff%matrix_struct, &
+                                              name="mos_new"//TRIM(ADJUSTL(cp_to_string(2*(i - 1) + j))))
             IF (my_mos_next) CALL cp_fm_create(rtp%mos%next(2*(i - 1) + j), &
-                              matrix_struct=mos(i)%mo_coeff%matrix_struct, &
-                              name="mos_next"//TRIM(ADJUSTL(cp_to_string(2*(i - 1) + j))))
+                                               matrix_struct=mos(i)%mo_coeff%matrix_struct, &
+                                               name="mos_next"//TRIM(ADJUSTL(cp_to_string(2*(i - 1) + j))))
             IF ((dft_control%do_admm) .AND. my_mos_admn) THEN
                CALL cp_fm_create(rtp%mos%admm(2*(i - 1) + j), &
                                  matrix_struct=mos_aux(i)%mo_coeff%matrix_struct, &
@@ -452,7 +450,7 @@ CONTAINS
          DEALLOCATE (rtp%rho)
       END IF
 
-      call rt_prop_release_mos(rtp)
+      CALL rt_prop_release_mos(rtp)
 
       CALL dbcsr_deallocate_matrix(rtp%S_inv)
       CALL dbcsr_deallocate_matrix(rtp%S_half)
@@ -473,14 +471,13 @@ CONTAINS
       IF (.NOT. rtp%linear_scaling) CALL cp_fm_struct_release(rtp%ao_ao_fmstruct)
    END SUBROUTINE rt_prop_release
 
-
 ! **************************************************************************************************
 !> \brief Deallocated the mos for rtp...
 !> \param rtp ...
 ! **************************************************************************************************
    SUBROUTINE rt_prop_release_mos(rtp)
       TYPE(rt_prop_type), INTENT(inout)                  :: rtp
-      
+
       IF (ASSOCIATED(rtp%mos)) THEN
          IF (ASSOCIATED(rtp%mos%old)) &
             CALL cp_fm_vect_dealloc(rtp%mos%old)

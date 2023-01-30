@@ -52,12 +52,6 @@ MODULE rt_delta_pulse
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_get_info, &
         dbcsr_init_p, dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
         dbcsr_type_symmetric
-   
-   USE input_constants,                 ONLY: real_time_propagation,&
-                                              use_restart_wfn,&
-                                              use_rt_restart,&
-                                              use_scf_wfn
-
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_lval,&
                                               section_vals_type,&
@@ -79,8 +73,8 @@ MODULE rt_delta_pulse
                                               build_local_magmom_matrix,&
                                               build_local_moment_matrix
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE rt_propagation_types,            ONLY: rt_prop_create_mos,&
-                                              get_rtp,&
+   USE rt_propagation_types,            ONLY: get_rtp,&
+                                              rt_prop_create_mos,&
                                               rt_prop_type
 #include "../base/base_uses.f90"
 
@@ -94,11 +88,8 @@ MODULE rt_delta_pulse
 
 CONTAINS
 
-
-
-
 ! **************************************************************************************************
-!> \brief Interface to call the delta pulse depending on the type of calculation. 
+!> \brief Interface to call the delta pulse depending on the type of calculation.
 !> \param qs_env ...
 !> \param rtp ...
 !> \param rtp_control ...
@@ -108,39 +99,39 @@ CONTAINS
    SUBROUTINE apply_delta_pulse(qs_env, rtp, rtp_control)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(rt_prop_type), POINTER                        :: rtp
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_old, mos_new
-      TYPE(rtp_control_type), POINTER                    :: rtp_control    
+      TYPE(rtp_control_type), POINTER                    :: rtp_control
+
       LOGICAL                                            :: my_apply_pulse, periodic_cell
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new, mos_old
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
-
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       CALL get_qs_env(qs_env, &
                       cell=cell, &
                       dft_control=dft_control, &
                       matrix_s=matrix_s)
       periodic_cell = ANY(cell%perd > 0)
-      
-      my_apply_pulse = .TRUE. 
+
+      my_apply_pulse = .TRUE.
       CALL get_qs_env(qs_env, mos=mos)
       IF (rtp%linear_scaling) THEN
          IF (.NOT. ASSOCIATED(mos)) THEN
-         CALL cp_warn(__LOCATION__, "Delta Pulse not implemented for Linear-Scaling based ground "//& 
-               "state calculation. If you want to perform a Linear-Scaling RTP from a "//& 
-               "Linear-Scaling GS calculation, restart a GS calculation using an MO-based method "//&
-               "from the results of your previous Linear-Scaling GS calculation "//&
-               "(for 1 SCF loop for instance).")
-         my_apply_pulse = .FALSE.
+            CALL cp_warn(__LOCATION__, "Delta Pulse not implemented for Linear-Scaling based ground "// &
+                         "state calculation. If you want to perform a Linear-Scaling RTP from a "// &
+                         "Linear-Scaling GS calculation, restart a GS calculation using an MO-based method "// &
+                         "from the results of your previous Linear-Scaling GS calculation "// &
+                         "(for 1 SCF loop for instance).")
+            my_apply_pulse = .FALSE.
          ELSE
             ! create temporary mos_old and mos_new to use delta kick routine designed for MOs-based RTP
-            CALL rt_prop_create_mos(rtp, mos, qs_env%mpools, dft_control, & 
+            CALL rt_prop_create_mos(rtp, mos, qs_env%mpools, dft_control, &
                                     init_mos_old=.TRUE., init_mos_new=.TRUE., &
                                     init_mos_next=.FALSE., init_mos_admn=.FALSE.)
          END IF
       END IF
-         
+
       IF (my_apply_pulse) THEN
          CALL get_rtp(rtp=rtp, mos_old=mos_old, mos_new=mos_new)
          IF (rtp_control%apply_delta_pulse) THEN
@@ -179,7 +170,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_old, mos_new
 
-      CHARACTER(len=*), PARAMETER :: routineN ='apply_delta_pulse_electric_periodic'
+      CHARACTER(len=*), PARAMETER :: routineN = 'apply_delta_pulse_electric_periodic'
 
       INTEGER                                            :: handle, icol, idir, irow, ispin, nao, &
                                                             ncol_local, nmo, nrow_local, nvirt, &
@@ -395,7 +386,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_old, mos_new
 
-      CHARACTER(len=*), PARAMETER                        :: routineN ='apply_delta_pulse_electric'
+      CHARACTER(len=*), PARAMETER :: routineN = 'apply_delta_pulse_electric'
 
       INTEGER                                            :: handle, i, nao, nmo
       REAL(KIND=dp), DIMENSION(3)                        :: kvec

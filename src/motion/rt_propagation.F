@@ -13,7 +13,6 @@
 MODULE rt_propagation
    USE bibliography,                    ONLY: Andermatt2016,&
                                               cite_reference
-   USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rtp_control_type
@@ -54,8 +53,6 @@ MODULE rt_propagation
    USE md_environment_types,            ONLY: md_environment_type
    USE pw_env_types,                    ONLY: pw_env_type
    USE qs_core_hamiltonian,             ONLY: qs_matrix_h_allocate_imag_from_real
-   USE qs_dftb_matrices,                ONLY: build_dftb_overlap
-
    USE qs_energy_init,                  ONLY: qs_energies_init
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -72,11 +69,10 @@ MODULE rt_propagation
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               init_mo_set,&
                                               mo_set_type
-
    USE qs_rho_methods,                  ONLY: allocate_rho_ao_imag_from_real
    USE qs_rho_types,                    ONLY: qs_rho_set,&
                                               qs_rho_type
-
+   USE rt_delta_pulse,                  ONLY: apply_delta_pulse
    USE rt_hfx_utils,                    ONLY: rtp_hfx_rebuild
    USE rt_propagation_methods,          ONLY: propagation_step
    USE rt_propagation_output,           ONLY: rt_prop_output
@@ -222,9 +218,9 @@ CONTAINS
                       rtp=rtp, &
                       dft_control=dft_control)
       rtp_control => dft_control%rtp_control
-      
-      IF (rtp_control%initial_wfn == use_scf_wfn) THEN 
-         IF (rtp_control%apply_delta_pulse .OR. rtp_control%apply_delta_pulse_mag) THEN  
+
+      IF (rtp_control%initial_wfn == use_scf_wfn) THEN
+         IF (rtp_control%apply_delta_pulse .OR. rtp_control%apply_delta_pulse_mag) THEN
             CALL apply_delta_pulse(qs_env, rtp, rtp_control)
          ELSE
             IF (.NOT. rtp%linear_scaling) THEN
@@ -244,7 +240,7 @@ CONTAINS
             CALL cp_fm_to_fm(mos_old(i), mos_new(i))
          END DO
          CALL calc_update_rho(qs_env)
-      ELSE 
+      ELSE
          IF (qs_env%rtp%linear_scaling .AND. rtp_control%initial_wfn == use_scf_wfn) THEN
             CALL get_qs_env(qs_env, &
                             matrix_ks=matrix_ks, &
