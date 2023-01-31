@@ -241,7 +241,7 @@ CONTAINS
          END DO
          CALL calc_update_rho(qs_env)
       ELSE
-         IF (qs_env%rtp%linear_scaling .AND. rtp_control%initial_wfn == use_scf_wfn) THEN
+         IF (rtp_control%initial_wfn == use_scf_wfn) THEN
             CALL get_qs_env(qs_env, &
                             matrix_ks=matrix_ks, &
                             mos=mos, &
