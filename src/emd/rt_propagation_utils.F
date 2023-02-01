@@ -338,6 +338,7 @@ CONTAINS
                END IF
                CALL dbcsr_filter(rho_old(re)%matrix, rtp%filter_eps)
                CALL dbcsr_copy(rho_new(re)%matrix, rho_old(re)%matrix)
+               CALL cp_fm_release(mos_occ)
             END DO
             CALL calc_update_rho_sparse(qs_env)
          ELSE
