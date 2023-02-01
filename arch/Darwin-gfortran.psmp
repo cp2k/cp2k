@@ -3,8 +3,8 @@
 # libxc is installed in LIBXC_INCLUDE_DIR / LIBXC_LIB_DIR
 # libint is installed in LIBINT_INCLUDE_DIR / LIBINT_LIB_DIR
 CC       = gcc
-FC       = mpif90
-LD       = mpif90
+FC       = mpifort
+LD       = mpifort
 AR       = ar -r
 RANLIB   = ranlib
 CFLAGS   = -O2 -fopenmp -g
