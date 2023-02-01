@@ -34,4 +34,11 @@ H2O-periodic-dens-pulse-1.inp                          1      1e-13           -1
 H2O-periodic-dens-pulse-2.inp                          1      1e-13           -17.17816524491995
 si8-smearing-rtp-dens.inp                              1      1e-13           -17.17816524491995
 si8-smearing-rtp-dens-pulse-1.inp                      1      1e-13           -17.17816524491995
+# Restart using densitry propagation method from GS calculation.
+# Note: A delta kick is required in the input but should not impact the calculation (delta kick + restart from wfn not implemented yet).
+H2O-dens-restart.inp                               1      1e-13           -17.17842704651846
+H2O-uks-dens-restart.inp                           1      1e-13           -17.17842704651734
+H2O-charged-dens-restart.inp                       1      1e-13           -16.81087707009416
+H2O-periodic-dens-restart.inp                      1      1e-13           -17.17819965973394
+si8-smearing-rtp-dens-restart.inp                  1      1e-13           -31.01409390233567
 #EOF
