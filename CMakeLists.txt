@@ -448,7 +448,7 @@ endif()
 # SIRIUS
 
 if(CP2K_USE_SIRIUS)
-  find_package(sirius REQUIRED)
+  find_package(sirius 7.4 REQUIRED)
   get_target_property(SIRIUS_INCLUDE_DIRS sirius::sirius
                       INTERFACE_INCLUDE_DIRECTORIES)
   if(NOT SIRIUS_INCLUDE_DIRS)
