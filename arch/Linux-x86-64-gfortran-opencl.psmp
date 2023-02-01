@@ -3,8 +3,8 @@
 #              PLUMED 2.7.2, LIBXSMM
 
 CC          = mpicc
-FC          = mpif90
-LD          = mpif90
+FC          = mpifort
+LD          = mpifort
 AR          = gcc-ar -r
 
 GPUVER      = P100

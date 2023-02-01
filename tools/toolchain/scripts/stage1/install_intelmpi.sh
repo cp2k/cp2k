@@ -37,9 +37,9 @@ case "${with_intelmpi}" in
     else
       check_command mpicc "intelmpi" && MPICC="$(command -v mpicc)" || exit 1
       check_command mpicxx "intelmpi" && MPICXX="$(command -v mpicxx)" || exit 1
-      check_command mpif90 "intelmpi" && MPIFC="$(command -v mpif90)" || exit 1
+      check_command mpifort "intelmpi" && MPIFC="$(command -v mpifort)" || exit 1
     fi
-    MPIF90="${MPIFC}"
+    MPIFORT="${MPIFC}"
     MPIF77="${MPIFC}"
     # include path is already handled by compiler wrapper scripts (can cause wrong mpi.mod with GNU Fortran)
     # add_include_from_paths INTELMPI_CFLAGS "mpi.h" $INCLUDE_PATHS
@@ -64,9 +64,9 @@ case "${with_intelmpi}" in
     else
       check_command ${pkg_install_dir}/bin/mpicc "intel" && MPICC="${pkg_install_dir}/bin/mpicc" || exit 1
       check_command ${pkg_install_dir}/bin/mpicxx "intel" && MPICXX="${pkg_install_dir}/bin/mpicxx" || exit 1
-      check_command ${pkg_install_dir}/bin/mpif90 "intel" && MPIFC="${pkg_install_dir}/bin/mpif90" || exit 1
+      check_command ${pkg_install_dir}/bin/mpifort "intel" && MPIFC="${pkg_install_dir}/bin/mpifort" || exit 1
     fi
-    MPIF90="${MPIFC}"
+    MPIFORT="${MPIFC}"
     MPIF77="${MPIFC}"
     # include path is already handled by compiler wrapper scripts (can cause wrong mpi.mod with GNU Fortran)
     #INTELMPI_CFLAGS="-I'${pkg_install_dir}/include'"
@@ -81,7 +81,7 @@ export MPIRUN="${MPIRUN}"
 export MPICC="${MPICC}"
 export MPICXX="${MPICXX}"
 export MPIFC="${MPIFC}"
-export MPIF90="${MPIF90}"
+export MPIFORT="${MPIFORT}"
 export MPIF77="${MPIF77}"
 export INTELMPI_CFLAGS="${INTELMPI_CFLAGS}"
 export INTELMPI_LDFLAGS="${INTELMPI_LDFLAGS}"

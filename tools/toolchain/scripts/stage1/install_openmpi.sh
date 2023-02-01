@@ -79,8 +79,8 @@ case "${with_openmpi}" in
     check_install ${pkg_install_dir}/bin/mpirun "openmpi" && MPIRUN="${pkg_install_dir}/bin/mpirun" || exit 1
     check_install ${pkg_install_dir}/bin/mpicc "openmpi" && MPICC="${pkg_install_dir}/bin/mpicc" || exit 1
     check_install ${pkg_install_dir}/bin/mpicxx "openmpi" && MPICXX="${pkg_install_dir}/bin/mpicxx" || exit 1
-    check_install ${pkg_install_dir}/bin/mpif90 "openmpi" && MPIFC="${pkg_install_dir}/bin/mpif90" || exit 1
-    MPIF90="${MPIFC}"
+    check_install ${pkg_install_dir}/bin/mpifort "openmpi" && MPIFC="${pkg_install_dir}/bin/mpifort" || exit 1
+    MPIFORT="${MPIFC}"
     MPIF77="${MPIFC}"
     OPENMPI_CFLAGS="-I'${pkg_install_dir}/include'"
     OPENMPI_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
@@ -90,8 +90,8 @@ case "${with_openmpi}" in
     check_command mpirun "openmpi" && MPIRUN="$(command -v mpirun)" || exit 1
     check_command mpicc "openmpi" && MPICC="$(command -v mpicc)" || exit 1
     check_command mpic++ "openmpi" && MPICXX="$(command -v mpic++)" || exit 1
-    check_command mpif90 "openmpi" && MPIFC="$(command -v mpif90)" || exit 1
-    MPIF90="${MPIFC}"
+    check_command mpifort "openmpi" && MPIFC="$(command -v mpifort)" || exit 1
+    MPIFORT="${MPIFC}"
     MPIF77="${MPIFC}"
     # Fortran code in CP2K is built via the mpifort wrapper, but we may need additional
     # libraries and linker flags for C/C++-based MPI codepaths, pull them in at this point.
@@ -110,8 +110,8 @@ case "${with_openmpi}" in
     check_command ${pkg_install_dir}/bin/mpirun "openmpi" && MPIRUN="${pkg_install_dir}/bin/mpirun" || exit 1
     check_command ${pkg_install_dir}/bin/mpicc "openmpi" && MPICC="${pkg_install_dir}/bin/mpicc" || exit 1
     check_command ${pkg_install_dir}/bin/mpic++ "openmpi" && MPICXX="${pkg_install_dir}/bin/mpic++" || exit 1
-    check_command ${pkg_install_dir}/bin/mpif90 "openmpi" && MPIFC="${pkg_install_dir}/bin/mpif90" || exit 1
-    MPIF90="${MPIFC}"
+    check_command ${pkg_install_dir}/bin/mpifort "openmpi" && MPIFC="${pkg_install_dir}/bin/mpifort" || exit 1
+    MPIFORT="${MPIFC}"
     MPIF77="${MPIFC}"
     OPENMPI_CFLAGS="-I'${pkg_install_dir}/include'"
     OPENMPI_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
@@ -143,7 +143,7 @@ export MPIRUN="${MPIRUN}"
 export MPICC="${MPICC}"
 export MPICXX="${MPICXX}"
 export MPIFC="${MPIFC}"
-export MPIF90="${MPIF90}"
+export MPIFORT="${MPIFORT}"
 export MPIF77="${MPIF77}"
 export OPENMPI_CFLAGS="${OPENMPI_CFLAGS}"
 export OPENMPI_LDFLAGS="${OPENMPI_LDFLAGS}"

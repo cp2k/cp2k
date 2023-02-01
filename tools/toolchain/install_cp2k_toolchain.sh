@@ -836,7 +836,7 @@ if [ "${ENABLE_CRAY}" = "__TRUE__" ]; then
   export MPICC="${CC}"
   export MPICXX="${CXX}"
   export MPIFC="${FC}"
-  export MPIF90="${MPIFC}"
+  export MPIFORT="${MPIFC}"
   export MPIF77="${MPIFC}"
   # CRAY libsci should contains core math libraries, scalapack
   # doesn't need LDFLAGS or CFLAGS, nor do the one need to
