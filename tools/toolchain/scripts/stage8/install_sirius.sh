@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-sirius_ver="7.3.2"
-sirius_sha256="a256508de6b344345c295ad8642dbb260c4753cd87cc3dd192605c33542955d7"
+sirius_ver="7.4.3"
+sirius_sha256="015679a60a39fa750c5d1bd8fb1ce73945524bef561270d8a171ea2fd4687fec"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -145,6 +145,7 @@ case "$with_sirius" in
         -DCMAKE_Fortran_COMPILER="${MPIFC}" \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DBUILD_SHARED_LIBS=OFF \
+        -DUSE_MEMORY_POOL=OFF \
         -DUSE_ELPA=OFF \
         ${EXTRA_CMAKE_FLAGS} .. \
         > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
@@ -172,6 +173,7 @@ case "$with_sirius" in
           -DUSE_CUDA=ON \
           -DUSE_ELPA=OFF \
           -DGPU_MODEL=P100 \
+          -DUSE_MEMORY_POOL=OFF \
           -DBUILD_SHARED_LIBS=OFF \
           -DCMAKE_CXX_COMPILER="${MPICXX}" \
           -DCMAKE_C_COMPILER="${MPICC}" \
@@ -277,6 +279,7 @@ EOF
 leak:cublasXtDeviceSelect
 leak:sirius::sirius_free_object_handler
 leak:sirius::sddk::memory_pool::free
+leak:sirius::sddk::memory_block_descriptor::free_subblock
 EOF
 fi
 
