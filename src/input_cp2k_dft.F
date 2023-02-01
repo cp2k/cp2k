@@ -8340,7 +8340,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="GAUGE_ORIG_MANUAL", &
                           description="Manually defined gauge origin for magnetic perturbation [in Bohr!]", &
-                          usage="SPATIAL_REF_POINT x y z", &
+                          usage="GAUGE_ORIG_MANUAL x y z", &
                           repeats=.FALSE., &
                           n_var=3, default_r_vals=(/0._dp, 0._dp, 0._dp/), &
                           type_of_var=real_t, &
@@ -8349,7 +8349,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="VG_COM_NL", &
-                          description="apply gauge transformed non-local potential term" //
+                          description="apply gauge transformed non-local potential term"// &
                           " only affects VELOCITY_GAUGE=.TRUE.", &
                           usage="VG_COM_NL T", &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
@@ -8357,7 +8357,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="COM_NL", &
-                          description="Include non-local commutator for periodic delta pulse." //
+                          description="Include non-local commutator for periodic delta pulse."// &
                           " only affects PERIODIC=.TRUE.", &
                           usage="COM_NL", &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
@@ -8366,7 +8366,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="LEN_REP", &
                           description="Use length representation delta pulse (in conjunction with PERIODIC T). "// &
-                          " Note that this is NOT compatible with a periodic calculation!!!"// &
+                          " This corresponds to a 1st order perturbation in the length gauge."// &
+                          " Note that this is NOT compatible with a periodic calculation!"// &
                           " Uses the reference point defined in DFT%PRINT%MOMENTS ", &
                           usage="LEN_REP T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
