@@ -4,6 +4,5 @@
 # in case a new directory is added just add it at the top of the list..
 # the order will be regularly checked and modified...
 QS/regtest-rtp-4
-QS/regtest-rtp-5
 QS/regtest-rtp-6
 DFTB/regtest-vdw

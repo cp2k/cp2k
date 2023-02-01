@@ -32,28 +32,39 @@
     &END
     &MGRID
       NGRIDS 4
-      CUTOFF 100
+      CUTOFF 40
     &END MGRID
     &QS
       METHOD GPW
       EXTRAPOLATION PS
       EXTRAPOLATION_ORDER 2
     &END QS
-    &SCF
-      SCF_GUESS ATOMIC
-      MAX_SCF   100
-      EPS_SCF 1.0e-6
+     &SCF
+      SCF_GUESS MOPAC
+      MAX_SCF   5
+      EPS_SCF 1.0e-7
+      EPS_DIIS 1.0e-7
+      &OUTER_SCF OFF
+        EPS_SCF 1.0E-6
+        MAX_SCF 1
+      &END
+      &OT OFF
+        PRECONDITIONER FULL_ALL
+        ENERGY_GAP 0.001
+      &END OT
       &SMEAR
         METHOD FERMI_DIRAC
-        ELECTRONIC_TEMPERATURE   300.
+        ELECTRONIC_TEMPERATURE   5000.
       &END
       &MIXING
-          METHOD BROYDEN_MIXING
-          ALPHA   0.2
-          BETA   1.5
-          NBROYDEN 8
+          METHOD PULAY_MIXING
+          ALPHA   0.4
+          BETA   1.0
+          NPULAY  5
+          PULAY_ALPHA 0.0
       &END
-      ADDED_MOS   5 5
+      CHOLESKY OFF
+      ADDED_MOS   20 20
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE
@@ -71,7 +82,7 @@
       POTENTIAL  GTH-PBE-q4
     &END
     &TOPOLOGY
-      COORD_FILE_NAME SI_8.xyz
+      COORD_FILE_NAME ../sample_xyz/SI_8.xyz
       COORDINATE XYZ
       CONNECTIVITY OFF
     &END TOPOLOGY
