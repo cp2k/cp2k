@@ -468,7 +468,6 @@ CONTAINS
       IF (ASSOCIATED(rtp%history)) &
          CALL rtp_history_release(rtp)
       DEALLOCATE (rtp%orders)
-      IF (.NOT. rtp%linear_scaling) CALL cp_fm_struct_release(rtp%ao_ao_fmstruct)
    END SUBROUTINE rt_prop_release
 
 ! **************************************************************************************************
@@ -487,6 +486,7 @@ CONTAINS
             CALL cp_fm_vect_dealloc(rtp%mos%next)
          IF (ASSOCIATED(rtp%mos%admm)) &
             CALL cp_fm_vect_dealloc(rtp%mos%admm)
+         CALL cp_fm_struct_release(rtp%ao_ao_fmstruct)
          DEALLOCATE (rtp%mos)
       END IF
 

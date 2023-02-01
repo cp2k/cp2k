@@ -24,8 +24,8 @@
        MAX_ITER 50
        MAT_EXP TAYLOR
        DENSITY_PROPAGATION .TRUE.
-       EXP_ACCURACY 1.0E-15
-       EPS_ITER 1.0E-10
+       EXP_ACCURACY 1.0E-9
+       EPS_ITER 1.0E-9
        PROPAGATOR ETRS
        INITIAL_WFN SCF_WFN
     &END
@@ -40,8 +40,8 @@
     &END QS
     &SCF
       SCF_GUESS ATOMIC
-      MAX_SCF   1000
-      EPS_SCF 1.0e-7
+      MAX_SCF   100
+      EPS_SCF 1.0e-6
       &SMEAR
         METHOD FERMI_DIRAC
         ELECTRONIC_TEMPERATURE   300.
@@ -78,8 +78,8 @@
 &END FORCE_EVAL
 &MOTION
   &MD
-    STEPS 2
-    TIMESTEP [au_t] 0.1
+    STEPS 4
+    TIMESTEP [au_t] 0.05
   &END
 &END MOTION
 
