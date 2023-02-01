@@ -68,8 +68,8 @@ LMAX           := 5
 MAX_CONTR      := 4
 
 CC             := mpicc
-FC             := mpif90
-LD             := mpif90
+FC             := mpifort
+LD             := mpifort
 AR             := ar -r
 
 CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -mtune=$(TARGET_CPU)

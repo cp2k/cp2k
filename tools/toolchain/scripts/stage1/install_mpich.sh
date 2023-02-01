@@ -71,8 +71,8 @@ case "${with_mpich}" in
     check_install ${pkg_install_dir}/bin/mpirun "mpich" && MPIRUN="${pkg_install_dir}/bin/mpirun" || exit 1
     check_install ${pkg_install_dir}/bin/mpicc "mpich" && MPICC="${pkg_install_dir}/bin/mpicc" || exit 1
     check_install ${pkg_install_dir}/bin/mpicxx "mpich" && MPICXX="${pkg_install_dir}/bin/mpicxx" || exit 1
-    check_install ${pkg_install_dir}/bin/mpif90 "mpich" && MPIFC="${pkg_install_dir}/bin/mpif90" || exit 1
-    MPIF90="${MPIFC}"
+    check_install ${pkg_install_dir}/bin/mpifort "mpich" && MPIFC="${pkg_install_dir}/bin/mpifort" || exit 1
+    MPIFORT="${MPIFC}"
     MPIF77="${MPIFC}"
     MPICH_CFLAGS="-I'${pkg_install_dir}/include'"
     MPICH_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
@@ -86,8 +86,8 @@ case "${with_mpich}" in
     else
       check_command mpicxx "mpich" && MPICXX="$(command -v mpicxx)" || exit 1
     fi
-    check_command mpif90 "mpich" && MPIFC="$(command -v mpif90)" || exit 1
-    MPIF90="${MPIFC}"
+    check_command mpifort "mpich" && MPIFC="$(command -v mpifort)" || exit 1
+    MPIFORT="${MPIFC}"
     MPIF77="${MPIFC}"
     check_lib -lmpifort "mpich"
     check_lib -lmpicxx "mpich"
@@ -107,8 +107,8 @@ case "${with_mpich}" in
     check_command ${pkg_install_dir}/bin/mpirun "mpich" && MPIRUN="${pkg_install_dir}/bin/mpirun" || exit 1
     check_command ${pkg_install_dir}/bin/mpicc "mpich" && MPICC="${pkg_install_dir}/bin/mpicc" || exit 1
     check_command ${pkg_install_dir}/bin/mpicxx "mpich" && MPICXX="${pkg_install_dir}/bin/mpicxx" || exit 1
-    check_command ${pkg_install_dir}/bin/mpif90 "mpich" && MPIFC="${pkg_install_dir}/bin/mpif90" || exit 1
-    MPIF90="${MPIFC}"
+    check_command ${pkg_install_dir}/bin/mpifort "mpich" && MPIFC="${pkg_install_dir}/bin/mpifort" || exit 1
+    MPIFORT="${MPIFC}"
     MPIF77="${MPIFC}"
     MPICH_CFLAGS="-I'${pkg_install_dir}/include'"
     MPICH_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
@@ -127,7 +127,7 @@ export MPIRUN="${MPIRUN}"
 export MPICC="${MPICC}"
 export MPICXX="${MPICXX}"
 export MPIFC="${MPIFC}"
-export MPIF90="${MPIF90}"
+export MPIFORT="${MPIFORT}"
 export MPIF77="${MPIF77}"
 export MPICH_CFLAGS="${MPICH_CFLAGS}"
 export MPICH_LDFLAGS="${MPICH_LDFLAGS}"
