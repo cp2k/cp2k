@@ -8285,7 +8285,10 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="INITIAL_WFN", &
-                          description="Controls the initial WFN used for propagation.", &
+                          description="Controls the initial WFN used for propagation. "// &
+                          "Note that some energy contributions may not be "// &
+                          "initialized in the restart cases, for instance "// &
+                          "electronic entropy energy in the case of smearing.", &
                           usage="INITIAL_WFN SCF_WFN", default_i_val=use_scf_wfn, &
                           enum_c_vals=s2a("SCF_WFN", "RESTART_WFN", "RT_RESTART"), &
                           enum_i_vals=(/use_scf_wfn, use_restart_wfn, use_rt_restart/), &
@@ -8299,7 +8302,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="APPLY_DELTA_PULSE", &
                           description="Applies a delta kick to the initial wfn (only RTP for now - the EMD "// &
-                          " case is not yet implemented).", &
+                          " case is not yet implemented). Only work for INITIAL_WFN=SCF_WFN", &
                           usage="APPLY_DELTA_PULSE", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -8307,7 +8310,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="APPLY_DELTA_PULSE_MAG", &
                           description="Applies a magnetic delta kick to the initial wfn (only RTP for now - the EMD "// &
-                          " case is not yet implemented).", &
+                          " case is not yet implemented). Only work for INITIAL_WFN=SCF_WFN", &
                           usage="APPLY_DELTA_PULSE_MAG", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
