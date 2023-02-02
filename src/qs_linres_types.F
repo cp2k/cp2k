@@ -58,6 +58,7 @@ MODULE qs_linres_types
       INTEGER                                   :: restart_every
       REAL(KIND=dp)                             :: energy_gap
       INTEGER                                   :: max_iter
+      INTEGER                                   :: every_n_step
       LOGICAL                                   :: localized_psi0
       LOGICAL                                   :: do_kernel
       LOGICAL                                   :: converged

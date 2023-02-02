@@ -213,6 +213,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="EVERY_N_STEP", &
+                          description="Calculate the response calculation every N step for the dynamic calculation.", &
+                          usage="EVERY_N_STEP 50", default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="RESTART", &
                           description="Restart the response calculation if the restart file exists", &
                           usage="RESTART", &
