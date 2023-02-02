@@ -76,7 +76,7 @@ case "${with_openmpi}" in
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
-    check_install ${pkg_install_dir}/bin/mpirun "openmpi" && MPIRUN="${pkg_install_dir}/bin/mpirun" || exit 1
+    check_install ${pkg_install_dir}/bin/mpiexec "openmpi" && MPIRUN="${pkg_install_dir}/bin/mpiexec" || exit 1
     check_install ${pkg_install_dir}/bin/mpicc "openmpi" && MPICC="${pkg_install_dir}/bin/mpicc" || exit 1
     check_install ${pkg_install_dir}/bin/mpicxx "openmpi" && MPICXX="${pkg_install_dir}/bin/mpicxx" || exit 1
     check_install ${pkg_install_dir}/bin/mpifort "openmpi" && MPIFC="${pkg_install_dir}/bin/mpifort" || exit 1
@@ -87,7 +87,7 @@ case "${with_openmpi}" in
     ;;
   __SYSTEM__)
     echo "==================== Finding OpenMPI from system paths ===================="
-    check_command mpirun "openmpi" && MPIRUN="$(command -v mpirun)" || exit 1
+    check_command mpiexec "openmpi" && MPIRUN="$(command -v mpiexec)" || exit 1
     check_command mpicc "openmpi" && MPICC="$(command -v mpicc)" || exit 1
     check_command mpic++ "openmpi" && MPICXX="$(command -v mpic++)" || exit 1
     check_command mpifort "openmpi" && MPIFC="$(command -v mpifort)" || exit 1
@@ -107,7 +107,7 @@ case "${with_openmpi}" in
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
-    check_command ${pkg_install_dir}/bin/mpirun "openmpi" && MPIRUN="${pkg_install_dir}/bin/mpirun" || exit 1
+    check_command ${pkg_install_dir}/bin/mpiexec "openmpi" && MPIRUN="${pkg_install_dir}/bin/mpiexec" || exit 1
     check_command ${pkg_install_dir}/bin/mpicc "openmpi" && MPICC="${pkg_install_dir}/bin/mpicc" || exit 1
     check_command ${pkg_install_dir}/bin/mpic++ "openmpi" && MPICXX="${pkg_install_dir}/bin/mpic++" || exit 1
     check_command ${pkg_install_dir}/bin/mpifort "openmpi" && MPIFC="${pkg_install_dir}/bin/mpifort" || exit 1
@@ -119,13 +119,13 @@ case "${with_openmpi}" in
 esac
 if [ "${with_openmpi}" != "__DONTUSE__" ]; then
   if [ "${with_openmpi}" != "__SYSTEM__" ]; then
-    mpi_bin="${pkg_install_dir}/bin/mpirun"
+    mpi_bin="${pkg_install_dir}/bin/mpiexec"
     mpicxx_bin="${pkg_install_dir}/bin/mpicxx"
   else
-    mpi_bin="mpirun"
+    mpi_bin="mpiexec"
     mpicxx_bin="mpicxx"
   fi
-  # check openmpi version as reported by mpirun
+  # check openmpi version as reported by mpiexec
   raw_version=$(${mpi_bin} --version 2>&1 |
     grep "(Open MPI)" | awk '{print $4}')
   major_version=$(echo ${raw_version} | cut -d '.' -f 1)

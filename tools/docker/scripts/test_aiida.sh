@@ -45,7 +45,7 @@ adduser --disabled-password --gecos "" ubuntu
 echo "ubuntu ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
 # link mpi executables into path
-MPI_INSTALL_DIR=$(dirname "$(command -v mpirun)")
+MPI_INSTALL_DIR=$(dirname "$(command -v mpiexec)")
 for i in "${MPI_INSTALL_DIR}"/*; do ln -sf "$i" /usr/bin/; done
 
 echo -e "\n========== Installing AiiDA-CP2K plugin =========="

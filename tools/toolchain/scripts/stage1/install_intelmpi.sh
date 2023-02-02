@@ -29,7 +29,7 @@ case "${with_intelmpi}" in
     ;;
   __SYSTEM__)
     echo "==================== Finding Intel MPI from system paths ===================="
-    check_command mpirun "intelmpi" && MPIRUN="$(command -v mpirun)" || exit 1
+    check_command mpiexec "intelmpi" && MPIRUN="$(command -v mpiexec)" || exit 1
     if [ "${with_intel}" != "__DONTUSE__" ]; then
       check_command mpiicc "intelmpi" && MPICC="$(command -v mpiicc)" || exit 1
       check_command mpiicpc "intelmpi" && MPICXX="$(command -v mpiicpc)" || exit 1
@@ -56,7 +56,7 @@ case "${with_intelmpi}" in
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
-    check_command ${pkg_install_dir}/bin/mpirun "intel" && MPIRUN="${pkg_install_dir}/bin/mpirun" || exit 1
+    check_command ${pkg_install_dir}/bin/mpiexec "intel" && MPIRUN="${pkg_install_dir}/bin/mpiexec" || exit 1
     if [ "${with_intel}" != "__DONTUSE__" ]; then
       check_command ${pkg_install_dir}/bin/mpiicc "intel" && MPICC="${pkg_install_dir}/bin/mpiicc" || exit 1
       check_command ${pkg_install_dir}/bin/mpiicpc "intel" && MPICXX="${pkg_install_dir}/bin/mpiicpc" || exit 1

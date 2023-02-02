@@ -26,7 +26,7 @@ be better for performance (`16x6`). To easily place the ranks, Intel MPI
 is used:
 
 ```bash
-mpirun -np 16 \
+mpiexec -np 16 \
   -genv I_MPI_PIN_DOMAIN=auto -genv I_MPI_PIN_ORDER=bunch \
   -genv OMP_PLACES=threads -genv OMP_PROC_BIND=SPREAD \
   -genv OMP_NUM_THREADS=6 \
@@ -49,7 +49,7 @@ elements (`PE`). By default, execution slots are counted in number of physical
 cores which yields `--map-by slot:PE=3` for the same system (mentioned above).
 
 ```bash
-mpirun -np 16 --map-by slot:PE=3 \
+mpiexec -np 16 --map-by slot:PE=3 \
   -x OMP_PLACES=threads -x OMP_PROC_BIND=SPREAD \
   -x OMP_NUM_THREADS=6 \
   exe/Linux-x86-64-intelx/cp2k.psmp workload.inp
@@ -59,7 +59,7 @@ mpirun -np 16 --map-by slot:PE=3 \
 ranks between sockets (see above) appears hard to achieve with OpenMPI
 therefore an undersubscribed system may not be recommended. To display and
 to log the pinning and thread affinization at the startup of an application,
-`mpirun --report-bindings` can be used.
+`mpiexec --report-bindings` can be used.
 
 The end of the next section continues with our example and extends execution
 to multiple nodes of the above-mentioned system.
@@ -105,30 +105,30 @@ filling each node). For the given example, 8 ranks per node with
 12 threads per rank is chosen (`8x12`) and MPI-executed:
 
 ```bash
-mpirun -perhost 8 -host node1,node2,node3,node4,node5,node6,node7,node8 \
+mpiexec -perhost 8 -host node1,node2,node3,node4,node5,node6,node7,node8 \
   -genv I_MPI_PIN_DOMAIN=auto -genv I_MPI_PIN_ORDER=bunch -genv I_MPI_DEBUG=4 \
   -genv OMP_PLACES=threads -genv OMP_PROC_BIND=SPREAD -genv OMP_NUM_THREADS=12 \
   exe/Linux-x86-64-intelx/cp2k.psmp workload.inp
 ```
 
-**NOTE**: For Intel MPI as well as OpenMPI, mpirun's host-list (`mpirun -host`) is setup with unique node-names, and this is the only style that is
+**NOTE**: For Intel MPI as well as OpenMPI, mpiexec's host-list (`mpiexec -host`) is setup with unique node-names, and this is the only style that is
 explained in this article. There is a competing style where nodes names are
 duplicated for the sake of enumerating available ranks (or "execution slots"
 in case of OpenMPI), which is not exercised in this article.
 
 For OpenMPI, the quantity (per node) of the previously mentioned "execution
 slots" (measured in number of physical cores) are sometimes not known to
-OpenMPI (depends on cluster/scheduler setup). For instance, `mpirun` may be
+OpenMPI (depends on cluster/scheduler setup). For instance, `mpiexec` may be
 complaining about an attempt to use too many execution slots simply because
 OpenMPI believes all systems represent a single such slot (instead of 2x24
 cores it only "sees" a single core per system). In such case, it is not
 recommended to "oversubscribe" the system because rank/thread affinity will
-likely be wrong (`mpirun --oversubscribe`). Instead, the list of unique nodes
+likely be wrong (`mpiexec --oversubscribe`). Instead, the list of unique nodes
 names (`-host`) may be augmented with the number of physical cores on each of
 the nodes (e.g., ":48" in our case).
 
 ```bash
-mpirun -npernode 8 -host
+mpiexec -npernode 8 -host
 node1:48,node2:48,node3:48,node4:48,node5:48,node6:48,node7:48,node8:48 \
   --map-by slot:PE=6 --report-bindings \
   -x OMP_PLACES=threads -x OMP_PROC_BIND=SPREAD -x OMP_NUM_THREADS=12 \
@@ -136,9 +136,9 @@ node1:48,node2:48,node3:48,node4:48,node5:48,node6:48,node7:48,node8:48 \
 ```
 
 **NOTE**: It can be still insufficient to augment the nodes with the expected
-number of slots (`:48`). If OpenMPI's mpirun is still complaining, it might
+number of slots (`:48`). If OpenMPI's mpiexec is still complaining, it might
 be caused and solved by the job scheduler. For example, `qsub` (PBS) may be
-instructed with `-l select=8:mpiprocs=48` in the above case (`mpirun` in this
+instructed with `-l select=8:mpiprocs=48` in the above case (`mpiexec` in this
 job can use less than 48 ranks per node).
 
 The plan-script also suggests close-by configurations (lower and higher
