@@ -305,17 +305,17 @@ with_cosma="__INSTALL__"
 with_libvori="__INSTALL__"
 with_libtorch="__DONTUSE__"
 # for MPI, we try to detect system MPI variant
-if (command -v mpirun > /dev/null 2>&1); then
+if (command -v mpiexec > /dev/null 2>&1); then
   # check if we are dealing with openmpi, mpich or intelmpi
-  if (mpirun --version 2>&1 | grep -s -q "HYDRA"); then
+  if (mpiexec --version 2>&1 | grep -s -q "HYDRA"); then
     echo "MPI is detected and it appears to be MPICH"
     export MPI_MODE="mpich"
     with_mpich="__SYSTEM__"
-  elif (mpirun --version 2>&1 | grep -s -q "Open MPI"); then
+  elif (mpiexec --version 2>&1 | grep -s -q "Open MPI"); then
     echo "MPI is detected and it appears to be OpenMPI"
     export MPI_MODE="openmpi"
     with_openmpi="__SYSTEM__"
-  elif (mpirun --version 2>&1 | grep -s -q "Intel"); then
+  elif (mpiexec --version 2>&1 | grep -s -q "Intel"); then
     echo "MPI is detected and it appears to be Intel MPI"
     with_gcc="__DONTUSE__"
     with_intel="__SYSTEM__"

@@ -68,7 +68,7 @@ case "${with_mpich}" in
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
-    check_install ${pkg_install_dir}/bin/mpirun "mpich" && MPIRUN="${pkg_install_dir}/bin/mpirun" || exit 1
+    check_install ${pkg_install_dir}/bin/mpiexec "mpich" && MPIRUN="${pkg_install_dir}/bin/mpiexec" || exit 1
     check_install ${pkg_install_dir}/bin/mpicc "mpich" && MPICC="${pkg_install_dir}/bin/mpicc" || exit 1
     check_install ${pkg_install_dir}/bin/mpicxx "mpich" && MPICXX="${pkg_install_dir}/bin/mpicxx" || exit 1
     check_install ${pkg_install_dir}/bin/mpifort "mpich" && MPIFC="${pkg_install_dir}/bin/mpifort" || exit 1
@@ -79,7 +79,7 @@ case "${with_mpich}" in
     ;;
   __SYSTEM__)
     echo "==================== Finding MPICH from system paths ===================="
-    check_command mpirun "mpich" && MPIRUN="$(command -v mpirun)" || exit 1
+    check_command mpiexec "mpich" && MPIRUN="$(command -v mpiexec)" || exit 1
     check_command mpicc "mpich" && MPICC="$(command -v mpicc)" || exit 1
     if [ $(command -v mpic++ > /dev/null 2>&1) ]; then
       check_command mpic++ "mpich" && MPICXX="$(command -v mpic++)" || exit 1
@@ -104,7 +104,7 @@ case "${with_mpich}" in
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
-    check_command ${pkg_install_dir}/bin/mpirun "mpich" && MPIRUN="${pkg_install_dir}/bin/mpirun" || exit 1
+    check_command ${pkg_install_dir}/bin/mpiexec "mpich" && MPIRUN="${pkg_install_dir}/bin/mpiexec" || exit 1
     check_command ${pkg_install_dir}/bin/mpicc "mpich" && MPICC="${pkg_install_dir}/bin/mpicc" || exit 1
     check_command ${pkg_install_dir}/bin/mpicxx "mpich" && MPICXX="${pkg_install_dir}/bin/mpicxx" || exit 1
     check_command ${pkg_install_dir}/bin/mpifort "mpich" && MPIFC="${pkg_install_dir}/bin/mpifort" || exit 1
@@ -116,9 +116,9 @@ case "${with_mpich}" in
 esac
 if [ "${with_mpich}" != "__DONTUSE__" ]; then
   if [ "${with_mpich}" != "__SYSTEM__" ]; then
-    mpi_bin="${pkg_install_dir}/bin/mpirun"
+    mpi_bin="${pkg_install_dir}/bin/mpiexec"
   else
-    mpi_bin="mpirun"
+    mpi_bin="mpiexec"
   fi
   MPICH_LIBS="-lmpifort -lmpicxx -lmpi"
   cat << EOF > "${BUILDDIR}/setup_mpich"
