@@ -53,11 +53,17 @@ case "${with_openblas}" in
       #
       # Unfortunately, NO_SHARED=1 breaks ScaLAPACK build.
       case "${TARGET_CPU}" in
+        "generic")
+          TARGET="NEHALEM"
+          ;;
         "native")
           TARGET=${OPENBLAS_LIBCORE}
           ;;
-        "generic")
-          TARGET="NEHALEM"
+        "skylake")
+          TARGET="BROADWELL"
+          ;;
+        "skylake-avx512")
+          TARGET="SKYLAKEX"
           ;;
         *)
           TARGET=${TARGET_CPU}
