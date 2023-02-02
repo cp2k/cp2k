@@ -43,5 +43,13 @@ QS/regtest-rel/Hg_rel.inp
 xTB/regtest-5/AdeThyvdW.inp
 xTB/regtest-5/ef_stress1.inp
 xTB/regtest-5/ef_stress3.inp
+QS/regtest-admm-qps/CH4-ADMMS-stress-tensor-numerical.inp
+QS/regtest-xc/3H2_PBE.inp
+QS/regtest-xc/3H2_PBEsol.inp
+QS/regtest-nmr-1/H2O-NMR-1-postgeo.inp
+Fist/regtest-5-vib/N3dye_geoopt.inp
+QS/regtest-rel/h2o-4.inp
+QS/regtest-ps-implicit-1-3/Ar_mixed_aa_planar.inp
+QS/regtest-ps-implicit-1-2/Ar_neumann.inp
 
 #EOF
