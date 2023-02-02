@@ -288,7 +288,7 @@ ifneq ($(USE_GSL),)
 endif
 
 ifeq ($(SHARED), yes)
-   LIBS           += -Wl,-rpath=$(MKL_LIB) -L$(MKL_LIB) -lbmkl_scalapack_lp64
+   LIBS           += -Wl,-rpath=$(MKL_LIB) -L$(MKL_LIB) -lmkl_scalapack_lp64
    LIBS           += -Wl,--start-group
    LIBS           += -lmkl_intel_lp64
    LIBS           += -lmkl_sequential
