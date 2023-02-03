@@ -13,7 +13,6 @@
 MODULE rt_propagation
    USE bibliography,                    ONLY: Andermatt2016,&
                                               cite_reference
-   USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rtp_control_type
@@ -54,7 +53,6 @@ MODULE rt_propagation
    USE md_environment_types,            ONLY: md_environment_type
    USE pw_env_types,                    ONLY: pw_env_type
    USE qs_core_hamiltonian,             ONLY: qs_matrix_h_allocate_imag_from_real
-   USE qs_dftb_matrices,                ONLY: build_dftb_overlap
    USE qs_energy_init,                  ONLY: qs_energies_init
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -74,9 +72,7 @@ MODULE rt_propagation
    USE qs_rho_methods,                  ONLY: allocate_rho_ao_imag_from_real
    USE qs_rho_types,                    ONLY: qs_rho_set,&
                                               qs_rho_type
-   USE rt_delta_pulse,                  ONLY: apply_delta_pulse,&
-                                              apply_delta_pulse_mag,&
-                                              apply_delta_pulse_periodic
+   USE rt_delta_pulse,                  ONLY: apply_delta_pulse
    USE rt_hfx_utils,                    ONLY: rtp_hfx_rebuild
    USE rt_propagation_methods,          ONLY: propagation_step
    USE rt_propagation_output,           ONLY: rt_prop_output
@@ -207,69 +203,57 @@ CONTAINS
 
       INTEGER                                            :: i, ispin, re
       INTEGER, DIMENSION(2)                              :: nelectron_spin
-      LOGICAL                                            :: periodic_cell
-      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new, mos_old
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, rho_new, rho_old
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, rho_new, rho_old
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(rtp_control_type), POINTER                    :: rtp_control
 
-      NULLIFY (matrix_s, dft_control, cell, rtp, rtp_control)
+      NULLIFY (dft_control, rtp, rtp_control)
 
       CALL cite_reference(Andermatt2016)
 
       CALL get_qs_env(qs_env, &
-                      cell=cell, &
                       rtp=rtp, &
-                      matrix_s=matrix_s, &
                       dft_control=dft_control)
       rtp_control => dft_control%rtp_control
 
-      periodic_cell = ANY(cell%perd > 0)
-
-      IF (.NOT. rtp%linear_scaling) THEN
-         CALL get_qs_env(qs_env, mos=mos)
-         CALL get_rtp(rtp=rtp, mos_old=mos_old, mos_new=mos_new)
-         IF (rtp_control%initial_wfn == use_scf_wfn) THEN
-            IF (rtp_control%apply_delta_pulse) THEN
-               IF (dft_control%qs_control%dftb) &
-                  CALL build_dftb_overlap(qs_env, 1, matrix_s)
-               IF (rtp_control%periodic) THEN
-                  CALL apply_delta_pulse_periodic(qs_env, mos_old, mos_new)
-               ELSE
-                  IF (periodic_cell) THEN
-                     CPWARN("This application of the delta pulse is not compatible with PBC!")
-                  END IF
-                  CALL apply_delta_pulse(qs_env, mos_old, mos_new)
-               END IF
-            ELSE IF (rtp_control%apply_delta_pulse_mag) THEN
-               IF (periodic_cell) THEN
-                  CPWARN("This application of the delta pulse is not compatible with PBC!")
-               END IF
-               CALL apply_delta_pulse_mag(qs_env, mos_old, mos_new)
-            ELSE
+      IF (rtp_control%initial_wfn == use_scf_wfn) THEN
+         IF (rtp_control%apply_delta_pulse .OR. rtp_control%apply_delta_pulse_mag) THEN
+            CALL apply_delta_pulse(qs_env, rtp, rtp_control)
+         ELSE
+            IF (.NOT. rtp%linear_scaling) THEN
+               CALL get_rtp(rtp=rtp, mos_old=mos_old)
+               CALL get_qs_env(qs_env, mos=mos)
                DO i = 1, SIZE(mos)
                   CALL cp_fm_to_fm(mos(i)%mo_coeff, mos_old(2*i - 1))
                   CALL cp_fm_set_all(mos_old(2*i), zero, zero)
                END DO
             END IF
          END IF
+      END IF
 
+      IF (.NOT. rtp%linear_scaling) THEN
+         CALL get_rtp(rtp=rtp, mos_old=mos_old, mos_new=mos_new)
          DO i = 1, SIZE(mos_old)
             CALL cp_fm_to_fm(mos_old(i), mos_new(i))
          END DO
          CALL calc_update_rho(qs_env)
       ELSE
-         IF (qs_env%rtp%linear_scaling .AND. rtp_control%initial_wfn == use_scf_wfn) THEN
+         IF (rtp_control%initial_wfn == use_scf_wfn) THEN
             CALL get_qs_env(qs_env, &
                             matrix_ks=matrix_ks, &
                             mos=mos, &
                             nelectron_spin=nelectron_spin)
             IF (ASSOCIATED(mos)) THEN
                !The wavefunction was minimized by an mo based algorith. P is therefore calculated from the mos
-               CALL rt_initialize_rho_from_mos(rtp, mos)
+               IF (ASSOCIATED(rtp%mos) .AND. ASSOCIATED(rtp%mos%old)) THEN
+                  ! Delta kick was applied and the results is in rtp%mos%old
+                  CALL rt_initialize_rho_from_mos(rtp, mos, mos_old=rtp%mos%old)
+               ELSE
+                  CALL rt_initialize_rho_from_mos(rtp, mos)
+               END IF
             ELSE
                !The wavefunction was minimized using a linear scaling method. The density matrix is therefore taken from the ls_scf_env.
                CALL get_rtp(rtp=rtp, rho_old=rho_old, rho_new=rho_new)
