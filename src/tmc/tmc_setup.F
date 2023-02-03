@@ -369,7 +369,7 @@ CONTAINS
       ! create a TMC environment (also to have a params environment)
       CALL tmc_env_create(tmc_env)
       ! duplicate communicator
-      CALL my_mpi_world%dup(para_env%group)
+      CALL my_mpi_world%from_dup(para_env%group)
       ! -- spiltting communicators
       CALL comm%from_split(my_mpi_world, para_env%mepos, 0)
       CALL cp_para_env_create(para_env=tmc_env%tmc_comp_set%para_env_m_ana, &
@@ -868,7 +868,7 @@ CONTAINS
             CPWARN(" mpi ranks are unused, but can be used for analysis.")
 
          ! duplicate communicator
-         CALL my_mpi_world%dup(para_env%group)
+         CALL my_mpi_world%from_dup(para_env%group)
 
          ! determine the master node
          IF (para_env%mepos == para_env%num_pe - 1) THEN

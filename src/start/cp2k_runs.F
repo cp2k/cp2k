@@ -548,7 +548,7 @@ CONTAINS
       ELSE
          ! all processes are slaves
          IF (output_unit > 0) WRITE (output_unit, FMT="(T2,A)") "FARMING| using a slave-only setup"
-         CALL slave_group%dup(para_env%group)
+         CALL slave_group%from_dup(para_env%group)
          CALL slave_group%environ(num_slaves, slave_rank)
       END IF
       IF (output_unit > 0) WRITE (output_unit, FMT="(T2,A,I0)") "FARMING| number of slaves ", num_slaves

@@ -96,7 +96,7 @@ CONTAINS
       IF (own_comm_prv) THEN
          split_info%mp_comm = mp_comm
       ELSE
-         CALL split_info%mp_comm%dup(mp_comm)
+         CALL split_info%mp_comm%from_dup(mp_comm)
       END IF
 
       split_info%igroup = igroup
