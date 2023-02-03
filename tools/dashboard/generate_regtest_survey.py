@@ -272,37 +272,36 @@ def parse_report(report_url: str) -> Optional[Report]:
         print("Could not recognize as regtests report - skipping.")
         return None
 
+    base_dir = None
     curr_dir = None
-    dir_offset = None
     values: Report = cast(Report, {})
     for line in report_txt.split("\n"):
-        if line.endswith("/UNIT"):
-            dir_offset = len(line) - 4  # relies on unit tests starting first.
+        if line.startswith("Work base dir:"):
+            base_dir = line.split(":", 1)[1].strip()
+        elif "/UNIT/" in line:
             continue  # ignore unit-tests
         elif line.startswith(">>>"):
-            curr_dir = line[dir_offset:]
-            continue
+            prefix = f">>> {base_dir}/"
+            assert line.startswith(prefix)
+            curr_dir = line[len(prefix) :]
         elif line.startswith("<<<"):
             curr_dir = None
-            continue
-        elif curr_dir is None:
-            continue  # ignore line
-
-        # Found an actual result line.
-        if "OK" not in line and "WRONG RESULT" not in line:
-            continue  # ignore failed tests
-        parts = line.split()
-        if parts[0].rsplit(".", 1)[1] not in ("inp", "restart"):
-            print("Found strange line:\n" + line)
-            continue
-        test_name = curr_dir + "/" + parts[0]
-        if parts[1] == "-":
-            continue  # test without numeric check
-        try:
-            float(parts[1])  # try parsing float...
-            values[test_name] = parts[1]  # ... but pass on the original string
-        except ValueError:
-            pass  # ignore values which can not be parsed
+        elif curr_dir:
+            # Found an actual result line.
+            if "OK" not in line and "WRONG RESULT" not in line:
+                continue  # ignore failed tests
+            parts = line.split()
+            if parts[0].rsplit(".", 1)[1] not in ("inp", "restart"):
+                print("Found strange line:\n" + line)
+                continue
+            test_name = curr_dir + "/" + parts[0]
+            if parts[1] == "-":
+                continue  # test without numeric check
+            try:
+                float(parts[1])  # try parsing float...
+                values[test_name] = parts[1]  # ... but pass on the original string
+            except ValueError:
+                pass  # ignore values which can not be parsed
 
     return values
 
