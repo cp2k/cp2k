@@ -322,7 +322,8 @@ CONTAINS
       shm_neris_disk = 0
       shm_stor_count_max_val = 0
 
-!$OMP PARALLEL DEFAULT(NONE) SHARED(qs_env,&
+!$OMP PARALLEL DEFAULT(OMP_DEFAULT_NONE_WITH_OOP) &
+!$OMP SHARED(qs_env,&
 !$OMP                                  x_data,&
 !$OMP                                  ks_matrix,&
 !$OMP                                  ehfx,&

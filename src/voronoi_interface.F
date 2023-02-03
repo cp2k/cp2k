@@ -321,15 +321,14 @@ CONTAINS
 #if defined(__LIBVORI)
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'entry_voronoi_or_bqb'
-      INTEGER                                            :: handle, iounit, L1, L2, L3, U1, U2, &
-                                                            U3, ret, i, my_rank, num_pe, tag, &
+      INTEGER                                            :: handle, iounit, &
+                                                            ret, i, tag, &
                                                             nkind, natom, ikind, iat, ord, source, dest, &
                                                             ip, i1, i2, reffac, radius_type, bqb_optimize, &
                                                             bqb_history, nspins, jitter_seed
-      TYPE(mp_comm_type) :: gid
       LOGICAL                                            :: outemp, bqb_skip_first, voro_skip_first, &
                                                             bqb_store_step, bqb_check, voro_sanity, &
-                                                            bqb_overwrite, vori_overwrite, ionode, molprop, &
+                                                            bqb_overwrite, vori_overwrite, molprop, &
                                                             gapw, jitter
       REAL(KIND=dp)                                      :: zeff, qa, fn0, fn1, jitter_amplitude
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -344,8 +343,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
-      INTEGER                                            :: sim_step
-      REAL(KIND=dp)                                      :: r, sim_time
+      REAL(KIND=dp)                                      :: r
       TYPE(qs_subsys_type), POINTER                      :: subsys
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -376,14 +374,7 @@ CONTAINS
                       nkind=nkind, natom=natom, subsys=subsys, dft_control=dft_control, &
                       cell=cell)
 
-      ionode = para_env%ionode
-      my_rank = para_env%mepos
-      num_pe = para_env%num_pe
-      gid = para_env%group
       tag = 1
-
-      sim_step = qs_env%sim_step
-      sim_time = qs_env%sim_time
 
       IF (do_voro /= 0) THEN
          CALL section_vals_val_get(input_voro, "REFINEMENT_FACTOR", i_val=reffac)
@@ -432,20 +423,18 @@ CONTAINS
 
       CALL qs_subsys_get(subsys, particles=particles)
 
-      ! The boundaries for the grid index
-      L1 = rspace_pw%pw_grid%bounds(1, 1)
-      L2 = rspace_pw%pw_grid%bounds(1, 2)
-      L3 = rspace_pw%pw_grid%bounds(1, 3)
-      U1 = rspace_pw%pw_grid%bounds(2, 1)
-      U2 = rspace_pw%pw_grid%bounds(2, 2)
-      U3 = rspace_pw%pw_grid%bounds(2, 3)
-
       ! Temporarily disable floating point traps because libvori raise IEEE754 exceptions.
 #if defined(__HAS_IEEE_EXCEPTIONS)
       CALL ieee_get_halting_mode(IEEE_ALL, halt)
       CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
 #endif
 
+      ASSOCIATE (ionode => para_env%ionode, my_rank => para_env%mepos, &
+                 num_pe => para_env%num_pe, gid => para_env%group, &
+                 sim_step => qs_env%sim_step, sim_time => qs_env%sim_time, &
+                 L1 => rspace_pw%pw_grid%bounds(1, 1), L2 => rspace_pw%pw_grid%bounds(1, 2), &
+                 L3 => rspace_pw%pw_grid%bounds(1, 3), U1 => rspace_pw%pw_grid%bounds(2, 1), &
+                 U2 => rspace_pw%pw_grid%bounds(2, 2), U3 => rspace_pw%pw_grid%bounds(2, 3))
       IF (ionode) THEN
 
          IF (iounit > 0) THEN
@@ -791,6 +780,7 @@ CONTAINS
          DEALLOCATE (particles_r)
          DEALLOCATE (particles_radius)
       END IF
+      END ASSOCIATE
 
 #if defined(__HAS_IEEE_EXCEPTIONS)
       CALL ieee_set_halting_mode(IEEE_ALL, halt)

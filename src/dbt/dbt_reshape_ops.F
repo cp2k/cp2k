@@ -99,7 +99,7 @@ CONTAINS
       ALLOCATE (nblks_send_total(0:numnodes - 1), ndata_send_total(0:numnodes - 1), source=0)
       ALLOCATE (nblks_recv_total(0:numnodes - 1), ndata_recv_total(0:numnodes - 1), source=0)
 
-!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP PARALLEL DEFAULT(OMP_DEFAULT_NONE_WITH_OOP) &
 !$OMP SHARED(tensor_in,tensor_out,summation) &
 !$OMP SHARED(buffer_send,buffer_recv,mp_comm,numnodes) &
 !$OMP SHARED(nblks_send_total,ndata_send_total,nblks_recv_total,ndata_recv_total) &

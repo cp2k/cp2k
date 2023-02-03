@@ -194,8 +194,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       ls_mstruct => ls_scf_env%ls_mstruct
-      CALL dbcsr_get_info(pao%matrix_X, group=group_handle)
-      CALL group%set_handle(group_handle)
 
       IF (gradient) THEN
          CALL pao_calc_grad_lnv_wrt_AB(qs_env, ls_scf_env, matrix_Ma, matrix_Mb)
@@ -335,6 +333,8 @@ CONTAINS
 
       ! sum penalty energies across ranks
       IF (PRESENT(penalty)) THEN
+         CALL dbcsr_get_info(pao%matrix_X, group=group_handle)
+         CALL group%set_handle(group_handle)
          CALL group%sum(penalty)
       END IF
 

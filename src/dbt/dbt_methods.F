@@ -609,7 +609,6 @@ CONTAINS
       INTEGER                                        :: max_mm_dim, max_tensor, &
                                                         unit_nr_prv, ref_tensor, handle
       TYPE(mp_cart_type) :: mp_comm_opt
-      TYPE(mp_comm_type) :: mp_comm
       INTEGER, DIMENSION(SIZE(contract_1))           :: contract_1_mod
       INTEGER, DIMENSION(SIZE(notcontract_1))        :: notcontract_1_mod
       INTEGER, DIMENSION(SIZE(contract_2))           :: contract_2_mod
@@ -707,11 +706,12 @@ CONTAINS
       ! shortcut for empty tensors
       ! this is needed to avoid unnecessary work in case user contracts different portions of a
       ! tensor consecutively to save memory
-      mp_comm = tensor_crop_1%pgrid%mp_comm_2d
-      occ_1 = dbt_get_num_blocks(tensor_crop_1)
-      CALL mp_comm%max(occ_1)
-      occ_2 = dbt_get_num_blocks(tensor_crop_2)
-      CALL mp_comm%max(occ_2)
+      ASSOCIATE (mp_comm => tensor_crop_1%pgrid%mp_comm_2d)
+         occ_1 = dbt_get_num_blocks(tensor_crop_1)
+         CALL mp_comm%max(occ_1)
+         occ_2 = dbt_get_num_blocks(tensor_crop_2)
+         CALL mp_comm%max(occ_2)
+      END ASSOCIATE
 
       IF (occ_1 == 0 .OR. occ_2 == 0) THEN
          CALL dbt_scale(tensor_3, beta)

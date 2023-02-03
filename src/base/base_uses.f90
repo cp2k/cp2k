@@ -52,3 +52,12 @@
 #define CPVERSION2(MAJOR, MINOR) ((MAJOR) * 10000 + (MINOR) * 100)
 #define CPVERSION3(MAJOR, MINOR, UPDATE) (CPVERSION2(MAJOR, MINOR) + (UPDATE))
 #define CPVERSION CPVERSION2
+
+! gfortran before 8.3 complains about internal symbols not being specified in
+! any data clause when using DEFAULT(NONE) and OOP procedures are called from
+! within the parallel region.
+#if __GNUC__ < 8 || (__GNUC__ == 8 && (__GNUC_MINOR__ < 3))
+#define OMP_DEFAULT_NONE_WITH_OOP SHARED
+#else
+#define OMP_DEFAULT_NONE_WITH_OOP NONE
+#endif

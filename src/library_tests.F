@@ -73,8 +73,7 @@ MODULE library_tests
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mpi_perf_test
+   USE message_passing,                 ONLY: mpi_perf_test
    USE minimax_exp,                     ONLY: validate_exp_minimax
    USE mp2_grids,                       ONLY: test_least_square_ft
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -1039,18 +1038,14 @@ CONTAINS
 
       INTEGER                                            :: diag_method, i, i_loop, i_rep, &
                                                             init_method, j, n, n_loop, n_rep, &
-                                                            neig, source, unit_number
+                                                            neig, unit_number
       REAL(KIND=dp)                                      :: t1, t2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buffer
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
       TYPE(cp_fm_type)                                   :: eigenvectors, matrix, work
-      TYPE(mp_comm_type)                                 :: group
       TYPE(rng_stream_type), ALLOCATABLE                 :: rng_stream
-
-      group = para_env%group
-      source = para_env%source
 
       IF (iw > 0) THEN
          WRITE (UNIT=iw, FMT="(/,/,T2,A,/)") "EIGENSOLVER TEST"
@@ -1145,52 +1140,54 @@ CONTAINS
             END SELECT
          END IF
 
-         DO i = 1, n
-            IF (para_env%ionode) THEN
+         ASSOCIATE (group => para_env%group, source => para_env%source)
+            DO i = 1, n
+               IF (para_env%ionode) THEN
+                  SELECT CASE (init_method)
+                  CASE (do_mat_random)
+                     DO j = i, n
+                        buffer(1, j) = rng_stream%next() - 0.5_dp
+                     END DO
+                     !MK activate/modify for a diagonal dominant symmetric matrix:
+                     !MK buffer(1,i) = 10.0_dp*buffer(1,i)
+                  CASE (do_mat_read)
+                     READ (UNIT=unit_number, FMT=*) buffer(1, 1:n)
+                  END SELECT
+               END IF
+               CALL group%bcast(buffer, source)
                SELECT CASE (init_method)
                CASE (do_mat_random)
-                  DO j = i, n
-                     buffer(1, j) = rng_stream%next() - 0.5_dp
-                  END DO
-                  !MK activate/modify for a diagonal dominant symmetric matrix:
-                  !MK buffer(1,i) = 10.0_dp*buffer(1,i)
+                  CALL cp_fm_set_submatrix(fm=matrix, &
+                                           new_values=buffer, &
+                                           start_row=i, &
+                                           start_col=i, &
+                                           n_rows=1, &
+                                           n_cols=n - i + 1, &
+                                           alpha=1.0_dp, &
+                                           beta=0.0_dp, &
+                                           transpose=.FALSE.)
+                  CALL cp_fm_set_submatrix(fm=matrix, &
+                                           new_values=buffer, &
+                                           start_row=i, &
+                                           start_col=i, &
+                                           n_rows=n - i + 1, &
+                                           n_cols=1, &
+                                           alpha=1.0_dp, &
+                                           beta=0.0_dp, &
+                                           transpose=.TRUE.)
                CASE (do_mat_read)
-                  READ (UNIT=unit_number, FMT=*) buffer(1, 1:n)
+                  CALL cp_fm_set_submatrix(fm=matrix, &
+                                           new_values=buffer, &
+                                           start_row=i, &
+                                           start_col=1, &
+                                           n_rows=1, &
+                                           n_cols=n, &
+                                           alpha=1.0_dp, &
+                                           beta=0.0_dp, &
+                                           transpose=.FALSE.)
                END SELECT
-            END IF
-            CALL group%bcast(buffer, source)
-            SELECT CASE (init_method)
-            CASE (do_mat_random)
-               CALL cp_fm_set_submatrix(fm=matrix, &
-                                        new_values=buffer, &
-                                        start_row=i, &
-                                        start_col=i, &
-                                        n_rows=1, &
-                                        n_cols=n - i + 1, &
-                                        alpha=1.0_dp, &
-                                        beta=0.0_dp, &
-                                        transpose=.FALSE.)
-               CALL cp_fm_set_submatrix(fm=matrix, &
-                                        new_values=buffer, &
-                                        start_row=i, &
-                                        start_col=i, &
-                                        n_rows=n - i + 1, &
-                                        n_cols=1, &
-                                        alpha=1.0_dp, &
-                                        beta=0.0_dp, &
-                                        transpose=.TRUE.)
-            CASE (do_mat_read)
-               CALL cp_fm_set_submatrix(fm=matrix, &
-                                        new_values=buffer, &
-                                        start_row=i, &
-                                        start_col=1, &
-                                        n_rows=1, &
-                                        n_cols=n, &
-                                        alpha=1.0_dp, &
-                                        beta=0.0_dp, &
-                                        transpose=.FALSE.)
-            END SELECT
-         END DO
+            END DO
+         END ASSOCIATE
 
          DEALLOCATE (buffer)
 

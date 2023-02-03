@@ -1449,13 +1449,13 @@ CONTAINS
       rho_r%cr3d = 0.0D0
       CALL pw_transfer(rho_r, rho_g)
       dvol = rho_r%pw_grid%dvol
+      CALL mp_group%set_handle(eri_env%eri(1)%csr_mat%mp_group)
 
       ! calculate the integrals
       intcount = 0
       DO isp1 = 1, nspins
          CALL get_mo_set(mo_set=mos(isp1), nmo=nmo1)
          nmm = (nmo1*(nmo1 + 1))/2
-         CALL mp_group%set_handle(eri_env%eri(1)%csr_mat%mp_group)
          irange = get_irange_csr(nmm, mp_group)
          DO i1 = 1, SIZE(orbitals, 1)
             iwa1 = orbitals(i1, isp1)

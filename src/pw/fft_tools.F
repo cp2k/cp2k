@@ -2214,11 +2214,10 @@ CONTAINS
       END DO
 !$OMP END PARALLEL DO
 
-      rbuf => fft_scratch%rbuf3
       num_threads = 1
       my_id = 0
 !$OMP PARALLEL DEFAULT(NONE), &
-!$OMP          PRIVATE(NUM_THREADS, my_id, lb, ub), &
+!$OMP          PRIVATE(NUM_THREADS, my_id, lb, ub) &
 !$OMP          SHARED(rbuf)
 !$    num_threads = MIN(omp_get_max_threads(), SIZE(rbuf, 2))
 !$    my_id = omp_get_thread_num()
