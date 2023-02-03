@@ -1408,7 +1408,6 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_MPI}>:CP2K::SCALAPACK::scalapack>
     $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K::LibXSMM::libxsmmf>
     $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K::LibXSMM::libxsmmext>
-    $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K::LibXSMM::libxsmm>
     CP2K::LAPACK::lapack
     CP2K::BLAS::blas
     $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_Fortran>

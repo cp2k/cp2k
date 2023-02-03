@@ -622,7 +622,7 @@ if(CP2K_USE_LIBXSMM)
   message(STATUS " ")
   message(STATUS "- libxsmm")
   message(STATUS "   - include directories : " ${CP2K_LIBXSMM_INCLUDE_DIRS})
-  message(STATUS "   - libraries :           " ${CP2K_LIBXSMM_LINK_LIBRARIES})
+  message(STATUS "   - libraries :           ${CP2K_LIBXSMMEXT_LINK_LIBRARIES};${CP2K_LIBXSMMF_LINK_LIBRARIES}")
 endif()
 
 if(CP2K_USE_SPLA)
