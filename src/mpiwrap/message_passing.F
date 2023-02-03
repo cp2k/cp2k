@@ -509,6 +509,9 @@ MODULE message_passing
       PROCEDURE, PUBLIC, PASS(comm2), NON_OVERRIDABLE :: from_dup => mp_comm_dup
       PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: free => mp_comm_free
 
+      PROCEDURE, PUBLIC, PASS(comm) :: mp_comm_init
+      GENERIC, PUBLIC :: init => mp_comm_init
+
       PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: environ => mp_environ_l
 
       PROCEDURE, PRIVATE, PASS(sub_comm), NON_OVERRIDABLE :: mp_comm_split, mp_comm_split_direct
@@ -882,6 +885,11 @@ CONTAINS
 #else
          this%handle = handle
 #endif
+
+         #:if type=="comm"
+            CALL this%init()
+         #:endif
+
       END SUBROUTINE mp_${type}$_type_set_handle
 
       ELEMENTAL FUNCTION mp_${type}$_type_get_handle(this) RESULT(handle)
@@ -944,6 +952,7 @@ CONTAINS
 #endif
       debug_comm_count = 1
       mp_comm = mp_comm_world
+      CALL mp_comm%init()
       CALL add_mp_perf_env()
    END SUBROUTINE mp_world_init
 
@@ -994,6 +1003,7 @@ CONTAINS
       mp_new_comm%handle = mp_comm_default_handle
 #endif
       debug_comm_count = debug_comm_count + 1
+      CALL mp_new_comm%init()
       CALL mp_timestop(handle)
    END SUBROUTINE mp_reordering
 
@@ -1507,6 +1517,7 @@ CONTAINS
       comm_cart%handle = mp_comm_default_handle
 #endif
       debug_comm_count = debug_comm_count + 1
+      CALL comm_cart%init()
       CALL mp_timestop(handle)
 
    END SUBROUTINE mp_cart_create
@@ -1617,6 +1628,7 @@ CONTAINS
       sub_comm%handle = mp_comm_default_handle
 #endif
       debug_comm_count = debug_comm_count + 1
+      CALL sub_comm%init()
       CALL mp_timestop(handle)
 
    END SUBROUTINE mp_cart_sub
@@ -1676,15 +1688,25 @@ CONTAINS
       comm2%handle = mp_comm_default_handle
 #endif
       debug_comm_count = debug_comm_count + 1
+      CALL comm2%init()
       CALL mp_timestop(handle)
 
    END SUBROUTINE mp_comm_dup
 
-   SUBROUTINE mp_comm_copy(comm_new, comm_old)
+   ELEMENTAL IMPURE SUBROUTINE mp_comm_copy(comm_new, comm_old)
       CLASS(mp_comm_type), INTENT(IN) :: comm_old
       CLASS(mp_comm_type), INTENT(OUT) :: comm_new
 
       comm_new%handle = comm_old%handle
+      CALL comm_new%init()
+   END SUBROUTINE
+
+   ELEMENTAL SUBROUTINE mp_comm_init(comm)
+      CLASS(mp_comm_type), INTENT(IN) :: comm
+
+! No initialization necessary for mp_comm_type
+      MARK_USED(comm)
+
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -2203,6 +2225,7 @@ CONTAINS
       MARK_USED(key)
 #endif
       debug_comm_count = debug_comm_count + 1
+      CALL sub_comm%init()
       CALL mp_timestop(handle)
 
    END SUBROUTINE mp_comm_split_direct
@@ -2331,6 +2354,7 @@ CONTAINS
       MARK_USED(group_partition)
 #endif
       debug_comm_count = debug_comm_count + 1
+      CALL sub_comm%init()
       CALL mp_timestop(handle)
 
    END SUBROUTINE mp_comm_split
