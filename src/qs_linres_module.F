@@ -216,6 +216,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_calculation_low'
 
       INTEGER                                            :: handle, iounit
+      INTEGER                                            :: every_n_step
       LOGICAL                                            :: dcdr_present, epr_present, issc_present, &
                                                             lr_calculation, nmr_present, &
                                                             polar_present
@@ -240,12 +241,9 @@ CONTAINS
       lr_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%LINRES")
       CALL section_vals_get(lr_section, explicit=lr_calculation)
 
-      ALLOCATE (linres_control) 
-      CALL section_vals_val_get(lr_section, "EVERY_N_STEP", i_val=linres_control%every_n_step)
+      CALL section_vals_val_get(lr_section, "EVERY_N_STEP", i_val=every_n_step)
 
-      IF (lr_calculation .AND. MODULO(qs_env%sim_step, linres_control%every_n_step) == 0) THEN
-         DEALLOCATE (linres_control)
-
+      IF (lr_calculation .AND. MODULO(qs_env%sim_step, every_n_step) == 0) THEN
          CALL linres_init(lr_section, p_env, qs_env)
          iounit = cp_print_key_unit_nr(logger, lr_section, "PRINT%PROGRAM_RUN_INFO", &
                                        extension=".linresLog")
