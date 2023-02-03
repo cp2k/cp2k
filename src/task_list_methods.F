@@ -2286,7 +2286,7 @@ CONTAINS
       END DO
       ALLOCATE (recv_buf_r(SUM(recv_sizes)))
 
-!$OMP PARALLEL DEFAULT(NONE), &
+!$OMP PARALLEL DEFAULT(OMP_DEFAULT_NONE_WITH_OOP) &
 !$OMP          SHARED(desc,send_pair_count,send_pair_disps,nimages),&
 !$OMP          SHARED(last_row,first_row,last_col,first_col),&
 !$OMP          SHARED(pmats,send_buf_r,send_disps,send_sizes),&

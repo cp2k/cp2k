@@ -20,7 +20,6 @@ MODULE qs_external_density
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_comm_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_integrate_function
@@ -61,8 +60,7 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: filename
       INTEGER                                            :: extunit, handle, i, igrid_level, ip, j, &
-                                                            k, master, my_rank, nat, ndum, num_pe, &
-                                                            tag
+                                                            k, master, nat, ndum, tag
       INTEGER, DIMENSION(3)                              :: lbounds, lbounds_local, npoints, &
                                                             npoints_local, ubounds, ubounds_local
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: buffer
@@ -71,7 +69,6 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
-      TYPE(mp_comm_type)                                 :: gid
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_ext_g, rho_ext_r
       TYPE(qs_rho_type), POINTER                         :: rho_external
@@ -115,23 +112,22 @@ CONTAINS
          ext_den_section => section_vals_get_subs_vals(input, "DFT%EXTERNAL_DENSITY")
          CALL section_vals_val_get(ext_den_section, "FILE_DENSITY", c_val=filename)
 
-         gid = rho_ext_r(1)%pw_grid%para%group
-         my_rank = rho_ext_r(1)%pw_grid%para%my_pos
-         num_pe = rho_ext_r(1)%pw_grid%para%group_size
          tag = 1
+         ASSOCIATE (gid => rho_ext_r(1)%pw_grid%para%group, my_rank => rho_ext_r(1)%pw_grid%para%my_pos, &
+                    num_pe => rho_ext_r(1)%pw_grid%para%group_size)
 
-         IF (dft_control%read_external_density) THEN
+            IF (dft_control%read_external_density) THEN
 
-            DO i = 1, 3
-               dr(i) = rs_descs(igrid_level)%rs_desc%dh(i, i)
-            END DO
-            npoints = rs_descs(igrid_level)%rs_desc%npts
-            lbounds = rs_descs(igrid_level)%rs_desc%lb
-            ubounds = rs_descs(igrid_level)%rs_desc%ub
+               DO i = 1, 3
+                  dr(i) = rs_descs(igrid_level)%rs_desc%dh(i, i)
+               END DO
+               npoints = rs_descs(igrid_level)%rs_desc%npts
+               lbounds = rs_descs(igrid_level)%rs_desc%lb
+               ubounds = rs_descs(igrid_level)%rs_desc%ub
 
-            npoints_local = rho_ext_r(1)%pw_grid%npts_local
-            lbounds_local = rho_ext_r(1)%pw_grid%bounds_local(1, :)
-            ubounds_local = rho_ext_r(1)%pw_grid%bounds_local(2, :)
+               npoints_local = rho_ext_r(1)%pw_grid%npts_local
+               lbounds_local = rho_ext_r(1)%pw_grid%bounds_local(1, :)
+               ubounds_local = rho_ext_r(1)%pw_grid%bounds_local(2, :)
 
 !        IF ( my_rank .eq. 0 ) THEN
 !          WRITE(*,*) my_rank,npoints, lbounds, ubounds
@@ -140,74 +136,75 @@ CONTAINS
 !          WRITE(*,*) my_rank,ubounds_local
 !        END IF
 
-            ALLOCATE (buffer(lbounds_local(3):ubounds_local(3)))
+               ALLOCATE (buffer(lbounds_local(3):ubounds_local(3)))
 
-            IF (my_rank == 0) THEN
-               WRITE (*, FMT="(/,/,T2,A)") "INITIALIZING ZMP CONSTRAINED DENSITY METHOD"
-               WRITE (*, FMT="(/,(T3,A,T51,A30))") "ZMP| Reading the target density:     ", filename
+               IF (my_rank == 0) THEN
+                  WRITE (*, FMT="(/,/,T2,A)") "INITIALIZING ZMP CONSTRAINED DENSITY METHOD"
+                  WRITE (*, FMT="(/,(T3,A,T51,A30))") "ZMP| Reading the target density:     ", filename
 
-               CALL open_file(file_name=filename, &
-                              file_status="OLD", &
-                              file_form="FORMATTED", &
-                              file_action="READ", &
-                              unit_number=extunit)
+                  CALL open_file(file_name=filename, &
+                                 file_status="OLD", &
+                                 file_form="FORMATTED", &
+                                 file_action="READ", &
+                                 unit_number=extunit)
 
-               DO i = 1, 2
-                  READ (extunit, *)
+                  DO i = 1, 2
+                     READ (extunit, *)
+                  END DO
+                  READ (extunit, *) nat, rdum
+                  DO i = 1, 3
+                     READ (extunit, *) ndum, rdum
+                     IF (ndum /= npoints(i) .OR. (ABS(rdum(i) - dr(i)) > 1e-4)) THEN
+                        WRITE (*, *) "ZMP | ERROR! | CUBE FILE NOT COINCIDENT WITH INTERNAL GRID ", i
+                        WRITE (*, *) "ZMP | ", ndum, " DIFFERS FROM ", npoints(i)
+                        WRITE (*, *) "ZMP | ", rdum, " DIFFERS FROM ", dr(i)
+                     END IF
+                  END DO
+                  DO i = 1, nat
+                     READ (extunit, *)
+                  END DO
+               END IF
+
+               DO i = lbounds(1), ubounds(1)
+                  DO j = lbounds(2), ubounds(2)
+                     IF (my_rank .EQ. 0) THEN
+                        READ (extunit, *) (buffer(k), k=lbounds(3), ubounds(3))
+                        IF (num_pe .GT. 1) THEN
+                           DO ip = 1, num_pe - 1
+                              CALL gid%send(buffer(lbounds(3):ubounds(3)), ip, tag)
+!                  WRITE(*,*) my_rank," sending to : ",ip
+                           END DO
+!                CALL gid%sync()
+                        END IF
+                     ELSE
+                        master = 0
+                        CALL gid%recv(buffer(lbounds(3):ubounds(3)), master, tag)
+!               WRITE(*,*) my_rank," receiving from master"
+                     END IF
+                     CALL gid%sync()
+
+                     IF ((lbounds_local(1) .LE. i) .AND. (i .LE. ubounds_local(1)) .AND. (lbounds_local(2) .LE. j) &
+                         .AND. (j .LE. ubounds_local(2))) THEN
+                        rs_rho_ext(igrid_level)%r(i, j, lbounds(3):ubounds(3)) = buffer(lbounds(3):ubounds(3))
+                     END IF
+
+                  END DO
                END DO
-               READ (extunit, *) nat, rdum
-               DO i = 1, 3
-                  READ (extunit, *) ndum, rdum
-                  IF (ndum /= npoints(i) .OR. (ABS(rdum(i) - dr(i)) > 1e-4)) THEN
-                     WRITE (*, *) "ZMP | ERROR! | CUBE FILE NOT COINCIDENT WITH INTERNAL GRID ", i
-                     WRITE (*, *) "ZMP | ", ndum, " DIFFERS FROM ", npoints(i)
-                     WRITE (*, *) "ZMP | ", rdum, " DIFFERS FROM ", dr(i)
-                  END IF
-               END DO
-               DO i = 1, nat
-                  READ (extunit, *)
-               END DO
+               IF (my_rank == 0) CALL close_file(unit_number=extunit)
             END IF
 
-            DO i = lbounds(1), ubounds(1)
-               DO j = lbounds(2), ubounds(2)
-                  IF (my_rank .EQ. 0) THEN
-                     READ (extunit, *) (buffer(k), k=lbounds(3), ubounds(3))
-                     IF (num_pe .GT. 1) THEN
-                        DO ip = 1, num_pe - 1
-                           CALL gid%send(buffer(lbounds(3):ubounds(3)), ip, tag)
-!                  WRITE(*,*) my_rank," sending to : ",ip
-                        END DO
-!                CALL gid%sync()
-                     END IF
-                  ELSE
-                     master = 0
-                     CALL gid%recv(buffer(lbounds(3):ubounds(3)), master, tag)
-!               WRITE(*,*) my_rank," receiving from master"
-                  END IF
-                  CALL gid%sync()
-
-                  IF ((lbounds_local(1) .LE. i) .AND. (i .LE. ubounds_local(1)) .AND. (lbounds_local(2) .LE. j) &
-                      .AND. (j .LE. ubounds_local(2))) THEN
-                     rs_rho_ext(igrid_level)%r(i, j, lbounds(3):ubounds(3)) = buffer(lbounds(3):ubounds(3))
-                  END IF
-
-               END DO
+            CALL density_rs2pw(pw_env, rs_rho_ext, rho=rho_ext_r(1), rho_gspace=rho_ext_g(1))
+            DO igrid_level = 1, SIZE(rs_rho_ext)
+               CALL rs_grid_release(rs_rho_ext(igrid_level))
             END DO
-            IF (my_rank == 0) CALL close_file(unit_number=extunit)
-         END IF
-
-         CALL density_rs2pw(pw_env, rs_rho_ext, rho=rho_ext_r(1), rho_gspace=rho_ext_g(1))
-         DO igrid_level = 1, SIZE(rs_rho_ext)
-            CALL rs_grid_release(rs_rho_ext(igrid_level))
-         END DO
-         tot_rho_r_ext(1) = pw_integrate_function(rho_ext_r(1), isign=1)
-         IF (my_rank == 0) THEN
-            WRITE (*, FMT="(T3,A,T61,F20.10)") "ZMP| Total external charge:                    ", &
-               tot_rho_r_ext(1)
-         END IF
-         DEALLOCATE (buffer, rs_rho_ext)
-         CALL gid%sync()
+            tot_rho_r_ext(1) = pw_integrate_function(rho_ext_r(1), isign=1)
+            IF (my_rank == 0) THEN
+               WRITE (*, FMT="(T3,A,T61,F20.10)") "ZMP| Total external charge:                    ", &
+                  tot_rho_r_ext(1)
+            END IF
+            DEALLOCATE (buffer, rs_rho_ext)
+            CALL gid%sync()
+         END ASSOCIATE
       END IF
 
       CALL timestop(handle)

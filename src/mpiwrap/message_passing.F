@@ -25,7 +25,7 @@ MODULE message_passing
                             C_PTR
    USE kinds, ONLY: &
       dp, int_4, int_4_size, int_8, int_8_size, real_4, real_4_size, real_8, &
-      real_8_size
+      real_8_size, default_string_length
    USE machine, ONLY: m_abort
 
 #include "../base/base_uses.f90"
@@ -159,8 +159,8 @@ MODULE message_passing
       MPI_COMM_TYPE :: handle = mp_comm_null_handle
    CONTAINS
       ! Setters/Getters
-      PROCEDURE, PASS :: set_handle => mp_comm_type_set_handle
-      PROCEDURE, PASS :: get_handle => mp_comm_type_get_handle
+      PROCEDURE, PASS, NON_OVERRIDABLE :: set_handle => mp_comm_type_set_handle
+      PROCEDURE, PASS, NON_OVERRIDABLE :: get_handle => mp_comm_type_get_handle
       ! Comparisons
       PROCEDURE, PRIVATE, PASS, NON_OVERRIDABLE :: mp_comm_op_eq
       PROCEDURE, PRIVATE, PASS, NON_OVERRIDABLE :: mp_comm_op_neq
@@ -556,6 +556,9 @@ MODULE message_passing
          mp_rget_rv, mp_rget_dv, mp_rget_cv, mp_rget_zv
 
       PROCEDURE, PUBLIC, PASS(win), NON_OVERRIDABLE :: free => mp_win_free
+      PROCEDURE, PUBLIC, PASS(win_new), NON_OVERRIDABLE :: mp_win_assign
+      GENERIC, PUBLIC :: ASSIGNMENT(=) => mp_win_assign
+
       PROCEDURE, PUBLIC, PASS(win), NON_OVERRIDABLE :: lock_all => mp_win_lock_all
       PROCEDURE, PUBLIC, PASS(win), NON_OVERRIDABLE :: unlock_all => mp_win_unlock_all
       PROCEDURE, PUBLIC, PASS(win), NON_OVERRIDABLE :: flush_all => mp_win_flush_all
@@ -610,6 +613,8 @@ MODULE message_passing
 
       PROCEDURE, PUBLIC, PASS(fh), NON_OVERRIDABLE :: open => mp_file_open
       PROCEDURE, PUBLIC, PASS(fh), NON_OVERRIDABLE :: close => mp_file_close
+      PROCEDURE, PRIVATE, PASS(fh_new), NON_OVERRIDABLE :: mp_file_assign
+      GENERIC, PUBLIC :: ASSIGNMENT(=) => mp_file_assign
 
       PROCEDURE, PUBLIC, PASS(fh), NON_OVERRIDABLE :: get_size => mp_file_get_size
       PROCEDURE, PUBLIC, PASS(fh), NON_OVERRIDABLE :: get_position => mp_file_get_position
@@ -954,7 +959,7 @@ CONTAINS
 !>      should only be called once, at very beginning of CP2K run
 ! **************************************************************************************************
    SUBROUTINE mp_reordering(mp_comm, mp_new_comm, ranks_order)
-      TYPE(mp_comm_type), INTENT(IN)                      :: mp_comm
+      CLASS(mp_comm_type), INTENT(IN)                      :: mp_comm
       CLASS(mp_comm_type), INTENT(out)                     :: mp_new_comm
       INTEGER, DIMENSION(:), CONTIGUOUS, INTENT(IN)                    :: ranks_order
 
@@ -984,8 +989,9 @@ CONTAINS
 
       CALL add_perf(perf_id=1, count=1)
 #else
+      MARK_USED(mp_comm)
       MARK_USED(ranks_order)
-      mp_new_comm%handle = mp_comm%handle
+      mp_new_comm%handle = mp_comm_default_handle
 #endif
       debug_comm_count = debug_comm_count + 1
       CALL mp_timestop(handle)
@@ -998,7 +1004,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp_world_finalize()
 
-      CHARACTER(LEN=4) :: debug_comm_count_char
+      CHARACTER(LEN=default_string_length) :: debug_comm_count_char
 #if defined(__parallel)
       INTEGER                                  :: ierr
       CALL mpi_barrier(MPI_COMM_WORLD, ierr) ! call mpi directly to avoid 0 stack pointer
@@ -1498,7 +1504,7 @@ CONTAINS
 #else
       pos(1:ndims) = 0
       dims = 1
-      comm_cart%handle = mp_comm_default%handle
+      comm_cart%handle = mp_comm_default_handle
 #endif
       debug_comm_count = debug_comm_count + 1
       CALL mp_timestop(handle)
@@ -1550,12 +1556,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_compare'
 
-      INTEGER                                            :: handle, ierr, iout
+      INTEGER                                            :: handle
+#if defined(__parallel)
+      INTEGER :: ierr, iout
+#endif
 
-      ierr = 0
       CALL mp_timeset(routineN, handle)
 
-      iout = 0
       res = 0
 #if defined(__parallel)
       CALL mpi_comm_compare(comm1%handle, comm2%handle, iout, ierr)
@@ -1594,9 +1601,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_cart_sub'
 
-      INTEGER                                            :: handle, ierr
+      INTEGER                                            :: handle
+#if defined(__parallel)
+      INTEGER :: ierr
+#endif
 
-      ierr = 0
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
@@ -1605,7 +1614,7 @@ CONTAINS
 #else
       MARK_USED(comm)
       MARK_USED(rdim)
-      sub_comm%handle = mp_comm_default%handle
+      sub_comm%handle = mp_comm_default_handle
 #endif
       debug_comm_count = debug_comm_count + 1
       CALL mp_timestop(handle)
@@ -1622,16 +1631,18 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_free'
 
-      INTEGER                                            :: handle, ierr
+      INTEGER                                            :: handle
+#if defined(__parallel)
+      INTEGER :: ierr
+#endif
 
-      ierr = 0
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
       CALL mpi_comm_free(comm%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_free @ mp_comm_free")
 #else
-      comm%handle = mp_comm_null%handle
+      comm%handle = mp_comm_null_handle
 #endif
       debug_comm_count = debug_comm_count - 1
       CALL mp_timestop(handle)
@@ -1650,16 +1661,19 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_dup'
 
-      INTEGER                                            :: handle, ierr
+      INTEGER                                            :: handle
+#if defined(__parallel)
+      INTEGER :: ierr
+#endif
 
-      ierr = 0
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
       CALL mpi_comm_dup(comm1%handle, comm2%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_dup @ mp_comm_dup")
 #else
-      comm2%handle = comm1%handle
+      MARK_USED(comm1)
+      comm2%handle = mp_comm_default_handle
 #endif
       debug_comm_count = debug_comm_count + 1
       CALL mp_timestop(handle)
@@ -1686,14 +1700,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_rank_compare'
 
-      INTEGER                                  :: handle, ierr
+      INTEGER                                  :: handle
 #if defined(__parallel)
-      INTEGER                                  :: i, n, n1, n2
+      INTEGER                                  :: i, ierr, n, n1, n2
       INTEGER, ALLOCATABLE, DIMENSION(:)       :: rin
       MPI_GROUP_TYPE :: g1, g2
 #endif
 
-      ierr = 0
       CALL mp_timeset(routineN, handle)
 
       rank = 0
@@ -1743,9 +1756,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_dims_create'
 
-      INTEGER                                            :: handle, ierr, ndim
+      INTEGER                                            :: handle, ndim
+#if defined(__parallel)
+      INTEGER :: ierr
+#endif
 
-      ierr = 0
       CALL mp_timeset(routineN, handle)
 
       ndim = SIZE(dims)
@@ -1773,9 +1788,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_cart_rank'
 
-      INTEGER                                            :: handle, ierr
+      INTEGER                                            :: handle
+#if defined(__parallel)
+      INTEGER :: ierr
+#endif
 
-      ierr = 0
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
@@ -1804,9 +1821,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_wait'
 
-      INTEGER                                            :: handle, ierr
+      INTEGER                                            :: handle
+#if defined(__parallel)
+      INTEGER :: ierr
+#endif
 
-      ierr = 0
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
@@ -1835,9 +1854,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_waitall_1'
 
-      INTEGER                                  :: handle, ierr
+      INTEGER                                  :: handle
 #if defined(__parallel)
-      INTEGER                                  :: count
+      INTEGER                                  :: count, ierr
 #if !defined(__MPI_F08)
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: status
 #else
@@ -1845,7 +1864,6 @@ CONTAINS
 #endif
 #endif
 
-      ierr = 0
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
@@ -1877,9 +1895,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_waitall_2'
 
-      INTEGER                                  :: handle, ierr
+      INTEGER                                  :: handle
 #if defined(__parallel)
-      INTEGER                                  :: count
+      INTEGER                                  :: count, ierr
 #if !defined(__MPI_F08)
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: status
 #else
@@ -1887,7 +1905,6 @@ CONTAINS
 #endif
 #endif
 
-      ierr = 0
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
@@ -1962,13 +1979,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_waitany'
 
-      INTEGER                                  :: handle, ierr
+      INTEGER                                  :: handle
 #if defined(__parallel)
-      INTEGER                                  :: count, i
+      INTEGER                                  :: count, i, ierr
       MPI_REQUEST_TYPE, ALLOCATABLE, DIMENSION(:) :: request_handles
 #endif
 
-      ierr = 0
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
@@ -2006,14 +2022,11 @@ CONTAINS
       TYPE(mp_request_type), DIMENSION(:), INTENT(INOUT) :: requests
       LOGICAL                               :: flag
 
-      INTEGER                               :: ierr
-
 #if defined(__parallel)
-      INTEGER                               :: i
+      INTEGER                               :: i, ierr
       LOGICAL, DIMENSION(:), POINTER        :: flags
 #endif
 
-      ierr = 0
       flag = .TRUE.
 
 #if defined(__parallel)
@@ -2041,11 +2054,9 @@ CONTAINS
       CLASS(mp_request_type), INTENT(inout)                             :: request
       LOGICAL                                            :: flag
 
+#if defined(__parallel)
       INTEGER                                            :: ierr
 
-      ierr = 0
-
-#if defined(__parallel)
       CALL mpi_test(request%handle, flag, MPI_STATUS_IGNORE, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_test @ mp_test_1")
 #else
@@ -2068,15 +2079,10 @@ CONTAINS
       INTEGER, INTENT(out), OPTIONAL           :: completed
       LOGICAL, INTENT(out), OPTIONAL           :: flag
 
-      INTEGER                                  :: ierr
 #if defined(__parallel)
-      INTEGER                                  :: completed_l, count
+      INTEGER                                  :: completed_l, count, ierr
       LOGICAL                                  :: flag_l
-#endif
 
-      ierr = 0
-
-#if defined(__parallel)
       count = SIZE(requests)
 
       CALL mpi_testany_internal(count, requests, completed_l, flag_l, MPI_STATUS_IGNORE, ierr)
@@ -2105,15 +2111,10 @@ CONTAINS
       INTEGER, INTENT(out), OPTIONAL           :: completed
       LOGICAL, INTENT(out), OPTIONAL           :: flag
 
-      INTEGER                                  :: ierr
 #if defined(__parallel)
-      INTEGER                                  :: completed_l, count
+      INTEGER                                  :: completed_l, count, ierr
       LOGICAL                                  :: flag_l
-#endif
 
-      ierr = 0
-
-#if defined(__parallel)
       count = SIZE(requests)
 
       CALL mpi_testany_internal(count, requests, completed_l, flag_l, MPI_STATUS_IGNORE, ierr)
@@ -2182,13 +2183,15 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_split_direct'
 
-      INTEGER                                            :: handle, ierr, my_key
+      INTEGER                                            :: handle
+#if defined(__parallel)
+      INTEGER :: ierr, my_key
+#endif
 
-      ierr = 0
       CALL mp_timeset(routineN, handle)
 
-      my_key = 0
 #if defined(__parallel)
+      my_key = 0
       IF (PRESENT(key)) my_key = key
       CALL mpi_comm_split(comm%handle, color, my_key, sub_comm%handle, ierr)
       IF (ierr /= mpi_success) CALL mp_stop(ierr, routineN)
@@ -2239,15 +2242,14 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp_comm_split', &
                                      routineP = moduleN//':'//routineN
 
-      INTEGER                                  :: handle, ierr, mepos, nnodes
+      INTEGER                                  :: handle, mepos, nnodes
 #if defined(__parallel)
-      INTEGER                                  :: color, i, j, k, &
+      INTEGER                                  :: color, i, ierr, j, k, &
                                                   my_subgroup_min_size, &
                                                   istride, local_stride, irank
       INTEGER, DIMENSION(:), ALLOCATABLE       :: rank_permutation
 #endif
 
-      ierr = 0
       CALL mp_timeset(routineN, handle)
 
       ! actual number of groups
@@ -2344,13 +2346,12 @@ CONTAINS
       INTEGER                                            :: node_rank
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_get_node_global_rank'
-      INTEGER                                            :: handle, ierr, rank
+      INTEGER                                            :: handle
 #if defined(__parallel)
+      INTEGER :: ierr, rank
       TYPE(mp_comm_type) :: comm
 #endif
 
-      ierr = 0
-      rank = 0
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
@@ -2387,8 +2388,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_probe'
 
-      INTEGER                                  :: handle, ierr
+      INTEGER                                  :: handle
 #if defined(__parallel)
+      INTEGER :: ierr
       MPI_STATUS_TYPE     :: status_single
       LOGICAL                                  :: flag
 #endif
@@ -2397,7 +2399,6 @@ CONTAINS
 
       CALL mp_timeset(routineN, handle)
 
-      ierr = 0
 #if defined(__parallel)
       IF (source .EQ. mp_any_source) THEN
          CALL mpi_probe(mp_any_source, mp_any_tag, comm%handle, status_single, ierr)
@@ -2440,13 +2441,15 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_b'
 
-      INTEGER                                            :: handle, ierr, msglen
+      INTEGER                                            :: handle
+#if defined(__parallel)
+      INTEGER :: ierr, msglen
+#endif
 
-      ierr = 0
       CALL mp_timeset(routineN, handle)
 
-      msglen = 1
 #if defined(__parallel)
+      msglen = 1
       CALL mpi_bcast(msg, msglen, MPI_LOGICAL, source, comm%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_bcast @ "//routineN)
       CALL add_perf(perf_id=2, count=1, msg_size=msglen*loglen)
@@ -2471,17 +2474,20 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_bv'
 
-      INTEGER                                            :: handle, ierr, msglen
+      INTEGER                                            :: handle
+#if defined(__parallel)
+      INTEGER :: ierr, msglen
+#endif
 
-      ierr = 0
       CALL mp_timeset(routineN, handle)
 
-      msglen = SIZE(msg)
 #if defined(__parallel)
+      msglen = SIZE(msg)
       CALL mpi_bcast(msg, msglen, MPI_LOGICAL, source, comm%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_bcast @ "//routineN)
       CALL add_perf(perf_id=2, count=1, msg_size=msglen*loglen)
 #else
+      MARK_USED(msg)
       MARK_USED(source)
       MARK_USED(comm)
 #endif
@@ -2511,13 +2517,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_bv'
 
-      INTEGER                                  :: handle, ierr
+      INTEGER                                  :: handle
 #if defined(__parallel)
-      INTEGER                                  :: msglen, my_tag
+      INTEGER                                  :: ierr, msglen, my_tag
       LOGICAL                                  :: foo(1)
 #endif
 
-      ierr = 0
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
@@ -2573,13 +2578,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_bv'
 
-      INTEGER                                  :: handle, ierr
+      INTEGER                                  :: handle
 #if defined(__parallel)
-      INTEGER                                  :: msglen, my_tag
+      INTEGER                                  :: ierr, msglen, my_tag
       LOGICAL                                  :: foo(1)
 #endif
 
-      ierr = 0
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
@@ -2635,13 +2639,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_bm3'
 
-      INTEGER                                  :: handle, ierr
+      INTEGER                                  :: handle
 #if defined(__parallel)
-      INTEGER                                  :: msglen, my_tag
+      INTEGER                                  :: ierr, msglen, my_tag
       LOGICAL                                  :: foo(1)
 #endif
 
-      ierr = 0
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
@@ -2697,13 +2700,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_bm3'
 
-      INTEGER                                  :: handle, ierr
+      INTEGER                                  :: handle
 #if defined(__parallel)
-      INTEGER                                  :: msglen, my_tag
+      INTEGER                                  :: ierr, msglen, my_tag
       LOGICAL                                  :: foo(1)
 #endif
 
-      ierr = 0
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
@@ -2750,13 +2752,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_av'
 
-      INTEGER                                  :: handle, ierr
+      INTEGER                                  :: handle
 #if defined(__parallel)
-      INTEGER                                  :: i, msglen, numtask, taskid
+      INTEGER                                  :: i, ierr, msglen, numtask, taskid
       INTEGER, DIMENSION(:), ALLOCATABLE       :: imsg
 #endif
 
-      ierr = 0
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
@@ -2803,14 +2804,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_am'
 
-      INTEGER                                  :: handle, ierr
+      INTEGER                                  :: handle
 #if defined(__parallel)
-      INTEGER                                  :: i, j, k, msglen, msgsiz, &
+      INTEGER                                  :: i, ierr, j, k, msglen, msgsiz, &
                                                   numtask, taskid
       INTEGER, ALLOCATABLE                     :: imsg(:), imsglen(:)
 #endif
 
-      ierr = 0
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
@@ -2872,13 +2872,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_dv'
 
-      INTEGER                                  :: handle, ierr
+      INTEGER                                  :: handle
 #if defined(__parallel)
-      INTEGER                                  :: msglen
+      INTEGER                                  :: ierr, msglen
       REAL(kind=real_8), ALLOCATABLE           :: res(:)
 #endif
 
-      ierr = 0
       IF ("d" .EQ. "l" .AND. real_8 .EQ. int_8) THEN
          CPABORT("Minimal location not available with long integers @ "//routineN)
       END IF
@@ -2917,13 +2916,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_iv'
 
-      INTEGER                                  :: handle, ierr
+      INTEGER                                  :: handle
 #if defined(__parallel)
-      INTEGER                                  :: msglen
+      INTEGER                                  :: ierr, msglen
       INTEGER(KIND=int_4), ALLOCATABLE         :: res(:)
 #endif
 
-      ierr = 0
       IF ("i" .EQ. "l" .AND. int_4 .EQ. int_8) THEN
          CPABORT("Minimal location not available with long integers @ "//routineN)
       END IF
@@ -2960,13 +2958,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_lv'
 
-      INTEGER                                  :: handle, ierr
+      INTEGER                                  :: handle
 #if defined(__parallel)
-      INTEGER                                  :: msglen
+      INTEGER                                  :: ierr, msglen
       INTEGER(KIND=int_8), ALLOCATABLE         :: res(:)
 #endif
 
-      ierr = 0
       IF ("l" .EQ. "l" .AND. int_8 .EQ. int_8) THEN
          CPABORT("Minimal location not available with long integers @ "//routineN)
       END IF
@@ -3003,13 +3000,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_rv'
 
-      INTEGER                                  :: handle, ierr
+      INTEGER                                  :: handle
 #if defined(__parallel)
-      INTEGER                                  :: msglen
+      INTEGER                                  :: ierr, msglen
       REAL(kind=real_4), ALLOCATABLE           :: res(:)
 #endif
 
-      ierr = 0
       IF ("r" .EQ. "l" .AND. real_4 .EQ. int_8) THEN
          CPABORT("Minimal location not available with long integers @ "//routineN)
       END IF
@@ -3046,13 +3042,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_dv'
 
-      INTEGER                                  :: handle, ierr
+      INTEGER                                  :: handle
 #if defined(__parallel)
-      INTEGER                                  :: msglen
+      INTEGER                                  :: ierr, msglen
       REAL(kind=real_8), ALLOCATABLE           :: res(:)
 #endif
 
-      ierr = 0
       IF ("d" .EQ. "l" .AND. real_8 .EQ. int_8) THEN
          CPABORT("Maximal location not available with long integers @ "//routineN)
       END IF
@@ -3089,13 +3084,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_iv'
 
-      INTEGER                                  :: handle, ierr
+      INTEGER                                  :: handle
 #if defined(__parallel)
-      INTEGER                                  :: msglen
+      INTEGER                                  :: ierr, msglen
       INTEGER(KIND=int_4), ALLOCATABLE         :: res(:)
 #endif
 
-      ierr = 0
       IF ("i" .EQ. "l" .AND. int_4 .EQ. int_8) THEN
          CPABORT("Maximal location not available with long integers @ "//routineN)
       END IF
@@ -3132,13 +3126,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_lv'
 
-      INTEGER                                  :: handle, ierr
+      INTEGER                                  :: handle
 #if defined(__parallel)
-      INTEGER                                  :: msglen
+      INTEGER                                  :: ierr, msglen
       INTEGER(KIND=int_8), ALLOCATABLE         :: res(:)
 #endif
 
-      ierr = 0
       IF ("l" .EQ. "l" .AND. int_8 .EQ. int_8) THEN
          CPABORT("Maximal location not available with long integers @ "//routineN)
       END IF
@@ -3175,13 +3168,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_rv'
 
-      INTEGER                                  :: handle, ierr
+      INTEGER                                  :: handle
 #if defined(__parallel)
-      INTEGER                                  :: msglen
+      INTEGER                                  :: ierr, msglen
       REAL(kind=real_4), ALLOCATABLE           :: res(:)
 #endif
 
-      ierr = 0
       IF ("r" .EQ. "l" .AND. real_4 .EQ. int_8) THEN
          CPABORT("Maximal location not available with long integers @ "//routineN)
       END IF
@@ -3216,12 +3208,14 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_b'
 
-      INTEGER                                            :: handle, ierr, msglen
+      INTEGER                                            :: handle
+#if defined(__parallel)
+      INTEGER :: ierr, msglen
+#endif
 
       CALL mp_timeset(routineN, handle)
-      ierr = 0
-      msglen = 1
 #if defined(__parallel)
+      msglen = 1
       CALL mpi_allreduce(MPI_IN_PLACE, msg, msglen, MPI_LOGICAL, MPI_LOR, comm%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
 #else
@@ -3245,12 +3239,14 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_bv'
 
-      INTEGER                                            :: handle, ierr, msglen
+      INTEGER                                            :: handle
+#if defined(__parallel)
+      INTEGER :: ierr, msglen
+#endif
 
       CALL mp_timeset(routineN, handle)
-      ierr = 0
-      msglen = SIZE(msg)
 #if defined(__parallel)
+      msglen = SIZE(msg)
       IF (msglen .GT. 0) THEN
          CALL mpi_allreduce(MPI_IN_PLACE, msg, msglen, MPI_LOGICAL, MPI_LOR, comm%handle, ierr)
          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
@@ -3278,12 +3274,14 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_isum_bv'
 
-      INTEGER                                            :: handle, ierr, msglen
+      INTEGER                                            :: handle
+#if defined(__parallel)
+      INTEGER :: ierr, msglen
+#endif
 
       CALL mp_timeset(routineN, handle)
-      ierr = 0
-      msglen = SIZE(msg)
 #if defined(__parallel)
+      msglen = SIZE(msg)
 #if !defined(__GNUC__) || __GNUC__ >= 9
       CPASSERT(IS_CONTIGUOUS(msg))
 #endif
@@ -3313,17 +3311,17 @@ CONTAINS
       CHARACTER(len=*), INTENT(OUT)                      :: version
       INTEGER, INTENT(OUT)                               :: resultlen
 
+#if defined(__parallel)
       INTEGER                                            :: ierr
-
-      ierr = 0
+#endif
 
       version = ''
 
 #if defined(__parallel)
+      ierr = 0
       CALL mpi_get_library_version(version, resultlen, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_get_library_version @ mp_get_library_version")
 #else
-      MARK_USED(version)
       resultlen = 0
 #endif
    END SUBROUTINE mp_get_library_version
@@ -3349,18 +3347,17 @@ CONTAINS
       INTEGER, INTENT(IN)                      :: amode_status
       TYPE(mp_info_type), INTENT(IN), OPTIONAL            :: info
 
-      INTEGER                                  :: ierr, istat
 #if defined(__parallel)
+      INTEGER                                  :: ierr
       MPI_INFO_TYPE                           :: my_info
 #else
       CHARACTER(LEN=10)                        :: fstatus, fposition
-      INTEGER                                  :: amode, handle
+      INTEGER                                  :: amode, handle, istat
       LOGICAL                                  :: exists, is_open
 #endif
 
-      ierr = 0
-      istat = 0
 #if defined(__parallel)
+      ierr = 0
       my_info = mpi_info_null
       IF (PRESENT(info)) my_info = info%handle
       CALL mpi_file_open(groupid%handle, filepath, amode_status, my_info, fh%handle, ierr)
@@ -3409,9 +3406,7 @@ CONTAINS
       INTEGER                                  :: ierr
       MPI_INFO_TYPE                           :: my_info
       LOGICAL                                  :: exists
-#endif
 
-#if defined(__parallel)
       ierr = 0
       my_info = mpi_info_null
       IF (PRESENT(info)) my_info = info%handle
@@ -3438,17 +3433,30 @@ CONTAINS
    SUBROUTINE mp_file_close(fh)
       CLASS(mp_file_type), INTENT(INOUT)                             :: fh
 
+#if defined(__parallel)
       INTEGER                                            :: ierr
 
       ierr = 0
+#endif
+      IF (fh%handle == mp_file_null_handle) &
+         CPABORT("Invalid file handle")
 #if defined(__parallel)
       CALL mpi_file_set_errhandler(fh%handle, MPI_ERRORS_RETURN, ierr)
       CALL mpi_file_close(fh%handle, ierr)
       IF (ierr .NE. 0) CALL mp_stop(ierr, "mpi_file_set_errhandler @ mp_file_close")
 #else
       CLOSE (fh%handle)
+      fh%handle = mp_file_null_handle
 #endif
    END SUBROUTINE mp_file_close
+
+   SUBROUTINE mp_file_assign(fh_new, fh_old)
+      CLASS(mp_file_type), INTENT(OUT) :: fh_new
+      CLASS(mp_file_type), INTENT(IN) :: fh_old
+
+      fh_new%handle = fh_old%handle
+
+   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief Returns the file size
@@ -3464,10 +3472,15 @@ CONTAINS
       CLASS(mp_file_type), INTENT(IN)                                :: fh
       INTEGER(kind=file_offset), INTENT(OUT)             :: file_size
 
-      INTEGER                                            :: ierr
-
-      ierr = 0
 #if defined(__parallel)
+      INTEGER                                            :: ierr
+#endif
+
+      IF (fh%handle == mp_file_null_handle) &
+         CPABORT("Invalid file handle")
+
+#if defined(__parallel)
+      ierr = 0
       CALL mpi_file_set_errhandler(fh%handle, MPI_ERRORS_RETURN, ierr)
       CALL mpi_file_get_size(fh%handle, file_size, ierr)
       IF (ierr .NE. 0) CALL mp_stop(ierr, "mpi_file_set_errhandler @ mp_file_get_size")
@@ -3490,10 +3503,15 @@ CONTAINS
       CLASS(mp_file_type), INTENT(IN)                                :: fh
       INTEGER(kind=file_offset), INTENT(OUT)             :: pos
 
-      INTEGER                                            :: ierr
-
-      ierr = 0
 #if defined(__parallel)
+      INTEGER                                            :: ierr
+#endif
+
+      IF (fh%handle == mp_file_null_handle) &
+         CPABORT("Invalid file handle")
+
+#if defined(__parallel)
+      ierr = 0
       CALL mpi_file_set_errhandler(fh%handle, MPI_ERRORS_RETURN, ierr)
       CALL mpi_file_get_position(fh%handle, pos, ierr)
       IF (ierr .NE. 0) CALL mp_stop(ierr, "mpi_file_set_errhandler @ mp_file_get_position")
@@ -3521,7 +3539,12 @@ CONTAINS
 
 #if defined(__parallel)
       INTEGER                                    :: ierr, msg_len
+#endif
 
+      IF (fh%handle == mp_file_null_handle) &
+         CPABORT("Invalid file handle")
+
+#if defined(__parallel)
       msg_len = SIZE(msg)
       IF (PRESENT(msglen)) msg_len = msglen
       CALL MPI_FILE_WRITE_AT(fh%handle, offset, msg, msg_len, MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
@@ -3546,7 +3569,12 @@ CONTAINS
 
 #if defined(__parallel)
       INTEGER                                    :: ierr
+#endif
 
+      IF (fh%handle == mp_file_null_handle) &
+         CPABORT("Invalid file handle")
+
+#if defined(__parallel)
       CALL MPI_FILE_WRITE_AT(fh%handle, offset, msg, LEN(msg), MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) &
          CPABORT("mpi_file_write_at_ch @ mp_file_write_at_ch")
@@ -3573,7 +3601,12 @@ CONTAINS
 
 #if defined(__parallel)
       INTEGER                                    :: ierr, msg_len
+#endif
 
+      IF (fh%handle == mp_file_null_handle) &
+         CPABORT("Invalid file handle")
+
+#if defined(__parallel)
       msg_len = SIZE(msg)
       IF (PRESENT(msglen)) msg_len = msglen
       CALL MPI_FILE_WRITE_AT_ALL(fh%handle, offset, msg, msg_len, MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
@@ -3598,7 +3631,12 @@ CONTAINS
 
 #if defined(__parallel)
       INTEGER                                    :: ierr
+#endif
 
+      IF (fh%handle == mp_file_null_handle) &
+         CPABORT("Invalid file handle")
+
+#if defined(__parallel)
       CALL MPI_FILE_WRITE_AT_ALL(fh%handle, offset, msg, LEN(msg), MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) &
          CPABORT("mpi_file_write_at_all_ch @ mp_file_write_at_all_ch")
@@ -3626,7 +3664,12 @@ CONTAINS
 
 #if defined(__parallel)
       INTEGER                                    :: ierr, msg_len
+#endif
 
+      IF (fh%handle == mp_file_null_handle) &
+         CPABORT("Invalid file handle")
+
+#if defined(__parallel)
       msg_len = SIZE(msg)
       IF (PRESENT(msglen)) msg_len = msglen
       CALL MPI_FILE_READ_AT(fh%handle, offset, msg, msg_len, MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
@@ -3651,7 +3694,12 @@ CONTAINS
 
 #if defined(__parallel)
       INTEGER                                    :: ierr
+#endif
 
+      IF (fh%handle == mp_file_null_handle) &
+         CPABORT("Invalid file handle")
+
+#if defined(__parallel)
       CALL MPI_FILE_READ_AT(fh%handle, offset, msg, LEN(msg), MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) &
          CPABORT("mpi_file_read_at_ch @ mp_file_read_at_ch")
@@ -3678,7 +3726,12 @@ CONTAINS
 
 #if defined(__parallel)
       INTEGER                                    :: ierr, msg_len
+#endif
 
+      IF (fh%handle == mp_file_null_handle) &
+         CPABORT("Invalid file handle")
+
+#if defined(__parallel)
       msg_len = SIZE(msg)
       IF (PRESENT(msglen)) msg_len = msglen
       CALL MPI_FILE_READ_AT_ALL(fh%handle, offset, msg, msg_len, MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
@@ -3703,7 +3756,12 @@ CONTAINS
 
 #if defined(__parallel)
       INTEGER                                    :: ierr
+#endif
 
+      IF (fh%handle == mp_file_null_handle) &
+         CPABORT("Invalid file handle")
+
+#if defined(__parallel)
       CALL MPI_FILE_READ_AT_ALL(fh%handle, offset, msg, LEN(msg), MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) &
          CPABORT("mpi_file_read_at_all_ch @ mp_file_read_at_all_ch")
@@ -3724,10 +3782,10 @@ CONTAINS
       TYPE(mp_type_descriptor_type), INTENT(IN)          :: type_descriptor
       INTEGER, INTENT(OUT)                               :: type_size
 
+#if defined(__parallel)
       INTEGER                                            :: ierr
 
       ierr = 0
-#if defined(__parallel)
       CALL MPI_TYPE_SIZE(type_descriptor%type_handle, type_size, ierr)
       IF (ierr .NE. 0) &
          CPABORT("mpi_type_size failed @ mp_type_size")
@@ -3765,19 +3823,20 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_type_make_struct'
 
-      INTEGER                                  :: i, ierr, n
+      INTEGER                                  :: i, n
       INTEGER, ALLOCATABLE, DIMENSION(:)       :: lengths
 #if defined(__parallel)
+      INTEGER :: ierr
       INTEGER(kind=mpi_address_kind), &
          ALLOCATABLE, DIMENSION(:)              :: displacements
 #endif
       MPI_DATA_TYPE, ALLOCATABLE, DIMENSION(:) :: old_types
 
-      ierr = 0
       n = SIZE(subtypes)
       !type_descriptor%mpi_type_handle = MPI_DATATYPE_NULL
       type_descriptor%length = 1
 #if defined(__parallel)
+      ierr = 0
       CALL mpi_get_address(MPI_BOTTOM, type_descriptor%base, ierr)
       IF (ierr /= 0) &
          CPABORT("MPI_get_address @ "//routineN)
@@ -3819,10 +3878,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_type_free_m'
 
-      INTEGER                                            :: handle, i, ierr
+      INTEGER                                            :: handle, i
+#if defined(__parallel)
+      INTEGER :: ierr
+#endif
 
       CALL mp_timeset(routineN, handle)
-      ierr = 0
 
       ! If the subtype is associated, then it's a user-defined data type.
 
@@ -3833,6 +3894,7 @@ CONTAINS
          DEALLOCATE (type_descriptor%subtype)
       END IF
 #if defined(__parallel)
+      ierr = 0
       CALL MPI_Type_free(type_descriptor%type_handle, ierr)
       IF (ierr /= 0) &
          CPABORT("MPI_Type_free @ "//routineN)
@@ -3917,12 +3979,18 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_set_view_chv'
 
-      INTEGER                                   :: ierr, handle
+      INTEGER                                   :: handle
+#if defined(__parallel)
+      INTEGER :: ierr
+#endif
 
-      ierr = 0
       CALL mp_timeset(routineN, handle)
 
+      IF (fh%handle == mp_file_null_handle) &
+         CPABORT("Invalid file handle")
+
 #if defined(__parallel)
+      ierr = 0
       CALL mpi_file_set_errhandler(fh%handle, MPI_ERRORS_RETURN, ierr)
       CALL MPI_File_set_view(fh%handle, offset, MPI_CHARACTER, &
                              type_descriptor%type_handle, "native", MPI_INFO_NULL, ierr)
@@ -3959,13 +4027,20 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_all_chv'
 
-      INTEGER                                   :: ierr, handle, i
+      INTEGER                                   :: handle
+#if defined(__parallel)
+      INTEGER:: ierr
+#else
+      INTEGER :: i
+#endif
 
-      i = 0
-      ierr = 0
       CALL mp_timeset(routineN, handle)
 
+      IF (fh%handle == mp_file_null_handle) &
+         CPABORT("Invalid file handle")
+
 #if defined(__parallel)
+      ierr = 0
       MARK_USED(type_descriptor)
       CALL MPI_File_read_all(fh%handle, buffer, ndims*msglen, MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) CALL mp_stop(ierr, "mpi_file_set_errhandler @ MPI_File_read_all")
@@ -4010,11 +4085,17 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_write_all_chv'
 
-      INTEGER                                   :: ierr, handle, i
+      INTEGER                                   :: handle
+#if defined(__parallel)
+      INTEGER :: ierr
+#else
+      INTEGER :: i
+#endif
 
-      i = 0
-      ierr = 0
       CALL mp_timeset(routineN, handle)
+
+      IF (fh%handle == mp_file_null_handle) &
+         CPABORT("Invalid file handle")
 
 #if defined(__parallel)
       MARK_USED(type_descriptor)
@@ -4051,9 +4132,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_type_free'
 
-      INTEGER                                   :: ierr, handle
+      INTEGER                                   :: handle
+#if defined(__parallel)
+      INTEGER :: ierr
+#endif
 
-      ierr = 0
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
@@ -4296,13 +4379,15 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_win_free'
 
-      INTEGER                                            :: handle, ierr
+      INTEGER                                            :: handle
+#if defined(__parallel)
+      INTEGER :: ierr
+#endif
 
-      ierr = 0
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-
+      ierr = 0
       CALL mpi_win_free(win%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_free @ "//routineN)
 
@@ -4312,6 +4397,14 @@ CONTAINS
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_win_free
+
+   SUBROUTINE mp_win_assign(win_new, win_old)
+      CLASS(mp_win_type), INTENT(OUT) :: win_new
+      CLASS(mp_win_type), INTENT(IN) :: win_old
+
+      win_new%handle = win_old%handle
+
+   END SUBROUTINE mp_win_assign
 
 ! **************************************************************************************************
 !> \brief Window flush

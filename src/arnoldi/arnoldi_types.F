@@ -26,7 +26,7 @@ MODULE arnoldi_types
    TYPE arnoldi_control_type
       LOGICAL                                 :: local_comp, converged
       INTEGER                                 :: myproc
-      TYPE(mp_comm_type)                      :: mp_group, pcol_group, prow_group
+      TYPE(mp_comm_type)                      :: mp_group, pcol_group
       INTEGER                                 :: max_iter ! Maximum number of iterations
       INTEGER                                 :: current_step ! In case subspace converged early contains last iteration
       INTEGER                                 :: nval_req

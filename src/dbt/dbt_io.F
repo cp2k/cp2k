@@ -125,16 +125,14 @@ CONTAINS
       INTEGER                        :: nproc, myproc, nblock_max, nelement_max
       INTEGER(KIND=int_8)            :: nblock_sum, nelement_sum, nblock_tot
       INTEGER                        :: nblock, nelement, unit_nr_prv
-      TYPE(mp_comm_type)             :: mp_comm
       INTEGER, DIMENSION(2)          :: tmp
       INTEGER, DIMENSION(ndims_tensor(tensor)) :: bdims
       REAL(KIND=dp)              :: occupation
 
-      mp_comm = tensor%pgrid%mp_comm_2d
       unit_nr_prv = prep_output_unit(unit_nr)
       IF (unit_nr_prv == 0) RETURN
 
-      CALL mp_comm%environ(nproc, myproc)
+      CALL tensor%pgrid%mp_comm_2d%environ(nproc, myproc)
 
       nblock = dbt_get_num_blocks(tensor)
       nelement = dbt_get_nze(tensor)
@@ -143,7 +141,7 @@ CONTAINS
       nelement_sum = dbt_get_nze_total(tensor)
 
       tmp = (/nblock, nelement/)
-      CALL mp_comm%max(tmp)
+      CALL tensor%pgrid%mp_comm_2d%max(tmp)
       nblock_max = tmp(1); nelement_max = tmp(2)
 
       CALL blk_dims_tensor(tensor, bdims)

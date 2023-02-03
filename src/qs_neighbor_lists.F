@@ -62,7 +62,6 @@ MODULE qs_neighbor_lists
                                               dp,&
                                               int_8
    USE kpoint_types,                    ONLY: kpoint_type
-   USE message_passing,                 ONLY: mp_comm_type
    USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
    USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
@@ -1646,85 +1645,83 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'write_neighbor_distribution'
       LOGICAL, PARAMETER                                 :: full_output = .FALSE.
 
-      INTEGER                                            :: handle, ikind, inode, ipe, jkind, mype, &
-                                                            n, nkind, nnode, npe
+      INTEGER                                            :: handle, ikind, inode, ipe, jkind, n, &
+                                                            nkind, nnode
       INTEGER(int_8)                                     :: nblock_max, nblock_sum, nelement_max, &
                                                             nelement_sum, tmp(2)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nblock, nelement, nnsgf
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
-      TYPE(mp_comm_type)                                 :: group
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
 
       CALL timeset(routineN, handle)
-      group = para_env%group
-      mype = para_env%mepos + 1
-      npe = para_env%num_pe
+      ASSOCIATE (group => para_env%group, mype => para_env%mepos + 1, npe => para_env%num_pe)
 
-      ! Allocate work storage
-      ALLOCATE (nblock(npe), nelement(npe))
-      nblock(:) = 0
-      nelement(:) = 0
-      nkind = SIZE(qs_kind_set)
-      ALLOCATE (nnsgf(nkind))
-      nnsgf = 1
-      DO ikind = 1, nkind
-         CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
-         IF (ASSOCIATED(orb_basis_set)) THEN
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_set, nsgf=nnsgf(ikind))
-         END IF
-      END DO
+         ! Allocate work storage
+         ALLOCATE (nblock(npe), nelement(npe))
+         nblock(:) = 0
+         nelement(:) = 0
+         nkind = SIZE(qs_kind_set)
+         ALLOCATE (nnsgf(nkind))
+         nnsgf = 1
+         DO ikind = 1, nkind
+            CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
+            IF (ASSOCIATED(orb_basis_set)) THEN
+               CALL get_gto_basis_set(gto_basis_set=orb_basis_set, nsgf=nnsgf(ikind))
+            END IF
+         END DO
 
-      CALL neighbor_list_iterator_create(nl_iterator, ab)
-      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, inode=inode, nnode=nnode)
-         IF (inode == 1) THEN
-            n = nnsgf(ikind)*nnsgf(jkind)
-            nblock(mype) = nblock(mype) + nnode
-            nelement(mype) = nelement(mype) + n*nnode
-         END IF
-      END DO
-      CALL neighbor_list_iterator_release(nl_iterator)
+         CALL neighbor_list_iterator_create(nl_iterator, ab)
+         DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+            CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, inode=inode, nnode=nnode)
+            IF (inode == 1) THEN
+               n = nnsgf(ikind)*nnsgf(jkind)
+               nblock(mype) = nblock(mype) + nnode
+               nelement(mype) = nelement(mype) + n*nnode
+            END IF
+         END DO
+         CALL neighbor_list_iterator_release(nl_iterator)
 
-      IF (full_output) THEN
-         ! XXXXXXXX should gather/scatter this on ionode
-         CALL group%sum(nblock)
-         CALL group%sum(nelement)
-
-         nblock_sum = SUM(INT(nblock, KIND=int_8))
-         nelement_sum = SUM(INT(nelement, KIND=int_8))
-      ELSE
-         nblock_sum = nblock(mype)
-         nblock_max = nblock(mype)
-         nelement_sum = nelement(mype)
-         nelement_max = nelement(mype)
-         tmp = (/nblock_sum, nelement_sum/)
-         CALL group%sum(tmp)
-         nblock_sum = tmp(1); nelement_sum = tmp(2)
-         tmp = (/nblock_max, nelement_max/)
-         CALL group%max(tmp)
-         nblock_max = tmp(1); nelement_max = tmp(2)
-      END IF
-
-      IF (output_unit > 0) THEN
          IF (full_output) THEN
-            WRITE (UNIT=output_unit, &
-                   FMT="(/,/,T2,A,/,/,T3,A,/,/,(T4,I6,T27,I10,T55,I10))") &
-               "DISTRIBUTION OF THE NEIGHBOR LISTS", &
-               "Process   Number of particle pairs   Number of matrix elements", &
-               (ipe - 1, nblock(ipe), nelement(ipe), ipe=1, npe)
-            WRITE (UNIT=output_unit, FMT="(/,T7,A3,T27,I10,T55,I10)") &
-               "Sum", SUM(nblock), SUM(nelement)
+            ! XXXXXXXX should gather/scatter this on ionode
+            CALL group%sum(nblock)
+            CALL group%sum(nelement)
+
+            nblock_sum = SUM(INT(nblock, KIND=int_8))
+            nelement_sum = SUM(INT(nelement, KIND=int_8))
          ELSE
-            WRITE (UNIT=output_unit, FMT="(/,T2,A)") "DISTRIBUTION OF THE NEIGHBOR LISTS"
-            WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Total number of particle pairs:", nblock_sum
-            WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Total number of matrix elements:", nelement_sum
-            WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Average number of particle pairs:", (nblock_sum + npe - 1)/npe
-            WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Maximum number of particle pairs:", nblock_max
-            WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Average number of matrix element:", (nelement_sum + npe - 1)/npe
-            WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Maximum number of matrix elements:", nelement_max
+            nblock_sum = nblock(mype)
+            nblock_max = nblock(mype)
+            nelement_sum = nelement(mype)
+            nelement_max = nelement(mype)
+            tmp = (/nblock_sum, nelement_sum/)
+            CALL group%sum(tmp)
+            nblock_sum = tmp(1); nelement_sum = tmp(2)
+            tmp = (/nblock_max, nelement_max/)
+            CALL group%max(tmp)
+            nblock_max = tmp(1); nelement_max = tmp(2)
          END IF
-      END IF
+
+         IF (output_unit > 0) THEN
+            IF (full_output) THEN
+               WRITE (UNIT=output_unit, &
+                      FMT="(/,/,T2,A,/,/,T3,A,/,/,(T4,I6,T27,I10,T55,I10))") &
+                  "DISTRIBUTION OF THE NEIGHBOR LISTS", &
+                  "Process   Number of particle pairs   Number of matrix elements", &
+                  (ipe - 1, nblock(ipe), nelement(ipe), ipe=1, npe)
+               WRITE (UNIT=output_unit, FMT="(/,T7,A3,T27,I10,T55,I10)") &
+                  "Sum", SUM(nblock), SUM(nelement)
+            ELSE
+               WRITE (UNIT=output_unit, FMT="(/,T2,A)") "DISTRIBUTION OF THE NEIGHBOR LISTS"
+               WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Total number of particle pairs:", nblock_sum
+               WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Total number of matrix elements:", nelement_sum
+               WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Average number of particle pairs:", (nblock_sum + npe - 1)/npe
+               WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Maximum number of particle pairs:", nblock_max
+               WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Average number of matrix element:", (nelement_sum + npe - 1)/npe
+               WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Maximum number of matrix elements:", nelement_max
+            END IF
+         END IF
+      END ASSOCIATE
 
       ! Release work storage
 

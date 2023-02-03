@@ -289,7 +289,8 @@ CONTAINS
          my_adiabatic_rescale_factor = adiabatic_rescale_factor
       END IF
 
-!$OMP PARALLEL DEFAULT(NONE) SHARED(qs_env,&
+      !$OMP PARALLEL DEFAULT(OMP_DEFAULT_NONE_WITH_OOP) &
+!$OMP SHARED(qs_env,&
 !$OMP                                  rho_ao,&
 !$OMP                                  rho_ao_resp,&
 !$OMP                                  with_resp_density,&

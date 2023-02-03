@@ -11,32 +11,32 @@
 !> \author Joost VandeVondele
 ! **************************************************************************************************
 MODULE iterate_matrix
-   USE arnoldi_api, ONLY: arnoldi_data_type, &
-                          arnoldi_extremal
-   USE bibliography, ONLY: Richters2018, &
-                           cite_reference
-   USE cp_log_handling, ONLY: cp_get_default_logger, &
-                              cp_logger_get_default_unit_nr, &
-                              cp_logger_type
-   USE dbcsr_api, ONLY: &
-      dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
-      dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_filter, dbcsr_frobenius_norm, &
-      dbcsr_gershgorin_norm, dbcsr_get_diag, dbcsr_get_info, dbcsr_get_matrix_type, &
-      dbcsr_get_occupation, dbcsr_multiply, dbcsr_norm, dbcsr_norm_maxabsnorm, dbcsr_p_type, &
-      dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_set_diag, dbcsr_trace, dbcsr_transposed, &
-      dbcsr_type, dbcsr_type_no_symmetry
-   USE input_constants, ONLY: ls_scf_submatrix_sign_direct, &
-                              ls_scf_submatrix_sign_direct_muadj, &
-                              ls_scf_submatrix_sign_direct_muadj_lowmem, &
-                              ls_scf_submatrix_sign_ns
-   USE kinds, ONLY: dp, &
-                    int_8
-   USE machine, ONLY: m_flush, &
-                      m_walltime
-   USE mathconstants, ONLY: ifac
-   USE mathlib, ONLY: abnormal_value
-   USE message_passing, ONLY: mp_comm_type
-   USE submatrix_dissection, ONLY: submatrix_dissection_type
+   USE arnoldi_api,                     ONLY: arnoldi_data_type,&
+                                              arnoldi_extremal
+   USE bibliography,                    ONLY: Richters2018,&
+                                              cite_reference
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_unit_nr,&
+                                              cp_logger_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
+        dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_filter, dbcsr_frobenius_norm, &
+        dbcsr_gershgorin_norm, dbcsr_get_diag, dbcsr_get_info, dbcsr_get_matrix_type, &
+        dbcsr_get_occupation, dbcsr_multiply, dbcsr_norm, dbcsr_norm_maxabsnorm, dbcsr_p_type, &
+        dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_set_diag, dbcsr_trace, dbcsr_transposed, &
+        dbcsr_type, dbcsr_type_no_symmetry
+   USE input_constants,                 ONLY: ls_scf_submatrix_sign_direct,&
+                                              ls_scf_submatrix_sign_direct_muadj,&
+                                              ls_scf_submatrix_sign_direct_muadj_lowmem,&
+                                              ls_scf_submatrix_sign_ns
+   USE kinds,                           ONLY: dp,&
+                                              int_8
+   USE machine,                         ONLY: m_flush,&
+                                              m_walltime
+   USE mathconstants,                   ONLY: ifac
+   USE mathlib,                         ONLY: abnormal_value
+   USE message_passing,                 ONLY: mp_comm_type
+   USE submatrix_dissection,            ONLY: submatrix_dissection_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -82,11 +82,10 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: det
       REAL(KIND=dp), INTENT(IN)                          :: threshold
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'determinant'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'determinant'
 
-      INTEGER                                            :: handle, i, max_iter_lanczos, &
-                                                            nsize, order_lanczos, sign_iter, &
-                                                            unit_nr
+      INTEGER                                            :: handle, i, max_iter_lanczos, nsize, &
+                                                            order_lanczos, sign_iter, unit_nr
       INTEGER(KIND=int_8)                                :: flop1
       INTEGER, SAVE                                      :: recursion_depth = 0
       REAL(KIND=dp)                                      :: det0, eps_lanczos, frobnorm, maxnorm, &
@@ -292,7 +291,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_lanczos
       LOGICAL, INTENT(IN), OPTIONAL                      :: silent
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'invert_Taylor'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'invert_Taylor'
 
       INTEGER                                            :: accelerator_type, handle, i, &
                                                             my_max_iter_lanczos, nrows, unit_nr
@@ -479,7 +478,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_lanczos
       LOGICAL, INTENT(IN), OPTIONAL                      :: silent
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'invert_Hotelling'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'invert_Hotelling'
 
       INTEGER                                            :: accelerator_type, handle, i, &
                                                             my_max_iter_lanczos, unit_nr
@@ -487,7 +486,7 @@ CONTAINS
       LOGICAL                                            :: arnoldi_converged, converged, &
                                                             use_inv_guess
       REAL(KIND=dp) :: convergence, frob_matrix, gershgorin_norm, max_ev, maxnorm_matrix, min_ev, &
-                       my_eps_lanczos, my_filter_eps, occ_matrix, scalingf, t1, t2
+         my_eps_lanczos, my_filter_eps, occ_matrix, scalingf, t1, t2
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_type), TARGET                           :: tmp1, tmp2
 
@@ -1012,7 +1011,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: threshold
       INTEGER, INTENT(IN), OPTIONAL                      :: sign_order
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sign_proot'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'matrix_sign_proot'
 
       INTEGER                                            :: handle, order, unit_nr
       INTEGER(KIND=int_8)                                :: flop0, flop1, flop2
@@ -1199,9 +1198,9 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: N
       REAL(KIND=dp), INTENT(IN)                          :: sm(N, N)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(OUT)                           :: eigvals
+         INTENT(OUT)                                     :: eigvals
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(OUT)                           :: eigvecs
+         INTENT(OUT)                                     :: eigvecs
 
       INTEGER                                            :: info, liwork, lwork
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iwork
@@ -1248,13 +1247,13 @@ CONTAINS
 !> \author Michael Lass, Robert Schade
 ! **************************************************************************************************
    SUBROUTINE sign_from_eigdecomp(sm_sign, eigvals, eigvecs, N, mu_correction)
-      INTEGER                          :: N
-      REAL(KIND=dp), INTENT(IN)        :: mu_correction
-      REAL(KIND=dp), INTENT(INOUT)     :: sm_sign(N, N)
-      REAL(KIND=dp), INTENT(IN)        :: eigvals(N)
-      REAL(KIND=dp), INTENT(IN)        :: eigvecs(N, N)
-      INTEGER                          :: i
-      REAL(KIND=dp)                    :: tmp(N, N), modified_eigval
+      INTEGER                                            :: N
+      REAL(KIND=dp), INTENT(IN)                          :: eigvecs(N, N), eigvals(N)
+      REAL(KIND=dp), INTENT(INOUT)                       :: sm_sign(N, N)
+      REAL(KIND=dp), INTENT(IN)                          :: mu_correction
+
+      INTEGER                                            :: i
+      REAL(KIND=dp)                                      :: modified_eigval, tmp(N, N)
 
       sm_sign = 0
       DO i = 1, N
@@ -1286,14 +1285,18 @@ CONTAINS
 !>       2020.05 Created [Michael Lass]
 !> \author Michael Lass
 ! **************************************************************************************************
-   FUNCTION trace_from_eigdecomp(eigvals, eigvecs, firstcol, lastcol, mu_correction) result(trace)
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(IN)   :: eigvals
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), INTENT(IN) :: eigvecs
-      INTEGER, INTENT(IN)                                    :: firstcol, lastcol
-      REAL(KIND=dp), INTENT(IN)                              :: mu_correction
-      INTEGER                                                :: sm_size, i, j
-      REAL(KIND=dp)                                          :: trace, modified_eigval, tmpsum
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)               :: mapped_eigvals
+   FUNCTION trace_from_eigdecomp(eigvals, eigvecs, firstcol, lastcol, mu_correction) RESULT(trace)
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: eigvals
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(IN)                                      :: eigvecs
+      INTEGER, INTENT(IN)                                :: firstcol, lastcol
+      REAL(KIND=dp), INTENT(IN)                          :: mu_correction
+      REAL(KIND=dp)                                      :: trace
+
+      INTEGER                                            :: i, j, sm_size
+      REAL(KIND=dp)                                      :: modified_eigval, tmpsum
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: mapped_eigvals
 
       sm_size = SIZE(eigvals)
       ALLOCATE (mapped_eigvals(sm_size))
@@ -1390,14 +1393,7 @@ CONTAINS
       CALL dissection%init(matrix)
       CALL dissection%get_sm_ids_for_rank(myrank, my_sms)
 
-! gfortran before 8.3 complains about internal symbols not being specified in
-! any data clause when using DEFAULT(NONE) and OOP procedures are called from
-! within the parallel region.
-#if __GNUC__ < 8 || (__GNUC__ == 8 && (__GNUC_MINOR__ < 3))
-      !$OMP PARALLEL DEFAULT(SHARED) &
-#else
-      !$OMP PARALLEL DEFAULT(NONE) &
-#endif
+      !$OMP PARALLEL DEFAULT(OMP_DEFAULT_NONE_WITH_OOP) &
       !$OMP          PRIVATE(sm, sm_sign, sm_size) &
       !$OMP          SHARED(dissection, myrank, my_sms, order, submatrix_sign_method, threshold, unit_nr)
       !$OMP DO SCHEDULE(GUIDED)
@@ -1448,20 +1444,20 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: variant
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sign_submatrix_mu_adjust'
+      REAL(KIND=dp), PARAMETER                           :: initial_increment = 0.01_dp
 
-      INTEGER                                            :: group_handle, handle, i, j, myrank, nblkcols, &
-                                                            sm_size, unit_nr, sm_firstcol, sm_lastcol
+      INTEGER                                            :: group_handle, handle, i, j, myrank, &
+                                                            nblkcols, sm_firstcol, sm_lastcol, &
+                                                            sm_size, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: my_sms
+      LOGICAL                                            :: has_mu_high, has_mu_low
+      REAL(KIND=dp)                                      :: increment, mu_high, mu_low, new_mu, trace
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: sm, sm_sign, tmp
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_distribution_type)                      :: dist
+      TYPE(eigbuf), ALLOCATABLE, DIMENSION(:)            :: eigbufs
+      TYPE(mp_comm_type)                                 :: group
       TYPE(submatrix_dissection_type)                    :: dissection
-      REAL(KIND=dp)                                      :: trace, increment, new_mu, mu_low, mu_high
-      TYPE(eigbuf), DIMENSION(:), ALLOCATABLE            :: eigbufs
-      LOGICAL                                            :: has_mu_low, has_mu_high
-      TYPE(mp_comm_type) :: group
-
-      REAL(KIND=dp), PARAMETER                           :: initial_increment = 0.01_dp
 
       CALL timeset(routineN, handle)
 
@@ -1481,14 +1477,7 @@ CONTAINS
 
       trace = 0.0_dp
 
-! gfortran before 8.3 complains about internal symbols not being specified in
-! any data clause when using DEFAULT(NONE) and OOP procedures are called from
-! within the parallel region.
-#if __GNUC__ < 8 || (__GNUC__ == 8 && (__GNUC_MINOR__ < 3))
-      !$OMP PARALLEL DEFAULT(SHARED) &
-#else
-      !$OMP PARALLEL DEFAULT(NONE) &
-#endif
+      !$OMP PARALLEL DEFAULT(OMP_DEFAULT_NONE_WITH_OOP) &
       !$OMP          PRIVATE(sm, sm_sign, sm_size, sm_firstcol, sm_lastcol, j, tmp) &
       !$OMP          SHARED(dissection, myrank, my_sms, unit_nr, eigbufs, threshold, variant) &
       !$OMP          REDUCTION(+:trace)
@@ -1549,14 +1538,7 @@ CONTAINS
          END IF
 
          trace = 0
-! gfortran before 8.3 complains about internal symbols not being specified in
-! any data clause when using DEFAULT(NONE) and OOP procedures are called from
-! within the parallel region.
-#if __GNUC__ < 8 || (__GNUC__ == 8 && (__GNUC_MINOR__ < 3))
-         !$OMP PARALLEL DEFAULT(SHARED) &
-#else
-         !$OMP PARALLEL DEFAULT(NONE) &
-#endif
+         !$OMP PARALLEL DEFAULT(OMP_DEFAULT_NONE_WITH_OOP) &
          !$OMP          PRIVATE(i, sm_sign, tmp, sm_size, sm_firstcol, sm_lastcol) &
          !$OMP          SHARED(dissection, my_sms, unit_nr, eigbufs, mu, new_mu, nelectron) &
          !$OMP          REDUCTION(+:trace)
@@ -1572,14 +1554,7 @@ CONTAINS
 
       ! Finalize sign matrix from eigendecompositions if we kept all eigenvectors
       IF (variant .EQ. ls_scf_submatrix_sign_direct_muadj) THEN
-! gfortran before 8.3 complains about internal symbols not being specified in
-! any data clause when using DEFAULT(NONE) and OOP procedures are called from
-! within the parallel region.
-#if __GNUC__ < 8 || (__GNUC__ == 8 && (__GNUC_MINOR__ < 3))
-         !$OMP PARALLEL DEFAULT(SHARED) &
-#else
-         !$OMP PARALLEL DEFAULT(NONE) &
-#endif
+         !$OMP PARALLEL DEFAULT(OMP_DEFAULT_NONE_WITH_OOP) &
          !$OMP          PRIVATE(sm, sm_sign, sm_size, sm_firstcol, sm_lastcol, j) &
          !$OMP          SHARED(dissection, myrank, my_sms, unit_nr, eigbufs, mu, new_mu)
          !$OMP DO SCHEDULE(GUIDED)
@@ -1599,14 +1574,7 @@ CONTAINS
 
       ! If we only stored parts of the eigenvectors and mu has changed, we need to recompute sm_sign
       IF ((variant .EQ. ls_scf_submatrix_sign_direct_muadj_lowmem) .AND. (mu .NE. new_mu)) THEN
-! gfortran before 8.3 complains about internal symbols not being specified in
-! any data clause when using DEFAULT(NONE) and OOP procedures are called from
-! within the parallel region.
-#if __GNUC__ < 8 || (__GNUC__ == 8 && (__GNUC_MINOR__ < 3))
-         !$OMP PARALLEL DEFAULT(SHARED) &
-#else
-         !$OMP PARALLEL DEFAULT(NONE) &
-#endif
+         !$OMP PARALLEL DEFAULT(OMP_DEFAULT_NONE_WITH_OOP) &
          !$OMP          PRIVATE(sm, sm_sign, sm_size, sm_firstcol, sm_lastcol, j) &
          !$OMP          SHARED(dissection, myrank, my_sms, unit_nr, eigbufs, mu, new_mu)
          !$OMP DO SCHEDULE(GUIDED)
@@ -1907,7 +1875,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: max_iter_lanczos
       LOGICAL, OPTIONAL                                  :: symmetrize, converged
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sqrt_proot'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'matrix_sqrt_proot'
 
       INTEGER                                            :: choose, handle, i, ii, j, unit_nr
       INTEGER(KIND=int_8)                                :: f, flop1, flop2, flop3, flop4, flop5
