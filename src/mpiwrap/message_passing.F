@@ -338,7 +338,7 @@ MODULE message_passing
          mp_allgather_z12, mp_allgather_z23, mp_allgather_z34, &
          mp_allgather_z22
 
-      PROCEDURE, PRIVATE, PASS(comm) ::  mp_allgatherv_iv, mp_allgatherv_lv, &
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE ::  mp_allgatherv_iv, mp_allgatherv_lv, &
          mp_allgatherv_rv, mp_allgatherv_dv, mp_allgatherv_cv, mp_allgatherv_zv, &
          mp_allgatherv_im2, mp_allgatherv_lm2, mp_allgatherv_rm2, &
          mp_allgatherv_dm2, mp_allgatherv_cm2, mp_allgatherv_zm2
