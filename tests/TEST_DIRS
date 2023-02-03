@@ -335,4 +335,5 @@ Fist/regtest-quip                                           quip
 Fist/regtest-nequip                                         libtorch
 Fist/regtest-16
 QS/regtest-rtp-4
+QS/regtest-rtp-5
 DFTB/regtest-vdw

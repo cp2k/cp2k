@@ -1,0 +1,45 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+# 
+# Description: 
+# Delta pulse using density propagation method
+# Note: For all of these tests setting DENSITY_PROPAGATION to .TRUE. should return the same results (if not decrease the treshold for RTP propagation or start to worry). 
+#
+# 'simple molecule': Testing the different possibility to apply delta pulses
+H2O-dens-pulse-1.inp                                 1      1e-13           -17.16754063268224
+H2O-dens-pulse-2.inp                                 1      1e-13           -17.17094395584866
+H2O-dens-pulse-3.inp                                 1      1e-13           -17.17097876693722
+H2O-dens-pulse-4.inp                                 1      1e-13           -17.17778821654724
+H2O-dens-pulse-5.inp                                 1      1e-13           -17.16699564870017
+# 'simple molecule': same test as previously, testing with UKS  on
+H2O-uks-dens-pulse-1.inp                             1      1e-13           -17.16754063266203
+H2O-uks-dens-pulse-2.inp                             1      1e-13           -17.17094396832539
+H2O-uks-dens-pulse-3.inp                             1      1e-13           -17.17097877203030
+H2O-uks-dens-pulse-4.inp                             1      1e-13           -17.17778822190720
+H2O-uks-dens-pulse-5.inp                             1      1e-13           -17.16699568143762
+# 'simple molecule': same test as previously, charge +1
+H2O-charged-dens-pulse-1.inp                         1      1e-13           -16.80277136764719
+H2O-charged-dens-pulse-2.inp                         1      1e-13           -16.80344505896810
+H2O-charged-dens-pulse-3.inp                         1      1e-13           -16.80402085317819
+H2O-charged-dens-pulse-4.inp                         1      1e-13           -16.81031776489433
+H2O-charged-dens-pulse-5.inp                         1      1e-13           -16.80215384578111
+# 'simple molecule': use wfn-mixing and MOM method to prepare a new initial state. Provide the same results as MO-based for strict treshold.
+H2O-wfn-mix-dens-pulse-1.inp                         1      1e-13           -16.80397942635466
+H2O-mom-dens-pulse-1.inp                             1      1e-13           -16.77310344331094
+# Periodic system: try with molecule in PBC and smearing
+H2O-periodic-dens-pulse-1.inp                        1      1e-13           -17.17071488628162
+H2O-periodic-dens-pulse-2.inp                        1      1e-13           -17.16724674275025
+si8-smearing-rtp-dens.inp                            1      1e-11           -32.38438017820661
+si8-smearing-rtp-dens-pulse-1.inp                    1      1e-11           -30.86382482362951
+# Restart using densitry propagation method from GS calculation.
+# Note: A delta kick is required in the input but should not impact the calculation (delta kick + restart from wfn not implemented yet).
+H2O-dens-restart.inp                                 1      1e-13           -17.17842704651846
+H2O-uks-dens-restart.inp                             1      1e-13           -17.17842704651734
+H2O-charged-dens-restart.inp                         1      1e-13           -16.81087707009416
+H2O-periodic-dens-restart.inp                        1      1e-13           -17.17819965973394
+# Note: the total energy of si8-smearing-rtp-dens-restart.inp is different from si8-smearing-rtp-dens.inp because of the electronic entropy energy. Using restart, currently, the electronic entropy term is missing. 
+si8-smearing-rtp-dens-restart.inp                    1      1e-11           -32.37909123001641
+#EOF

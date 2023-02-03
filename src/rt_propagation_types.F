@@ -122,8 +122,10 @@ MODULE rt_propagation_types
 ! *** Public subroutines ***
 
    PUBLIC :: rt_prop_create, &
+             rt_prop_create_mos, &
              get_rtp, &
              rt_prop_release, &
+             rt_prop_release_mos, &
              rtp_history_create
 CONTAINS
 
@@ -147,9 +149,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: linear_scaling
       TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos_aux
 
-      INTEGER                                            :: i, j, nao, nrow_block, nspin
-      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
-      TYPE(cp_fm_struct_type), POINTER                   :: ao_mo_fmstruct
+      INTEGER                                            :: i, nspin
       TYPE(rtp_control_type), POINTER                    :: rtp_control
 
       CALL cite_reference(Kunert2003)
@@ -180,47 +180,11 @@ CONTAINS
             CALL dbcsr_create(rtp%rho%new(i)%matrix, template=template, matrix_type="N")
          END DO
       ELSE
-         CALL mpools_get(mpools, ao_mo_fm_pools=ao_mo_fm_pools)
-
-         ao_mo_fmstruct => fm_pool_get_el_struct(ao_mo_fm_pools(1)%pool)
-         CALL cp_fm_struct_get(ao_mo_fmstruct, nrow_block=nrow_block)
-         CALL get_mo_set(mos(1), nao=nao)
-
-         CALL cp_fm_struct_create(fmstruct=rtp%ao_ao_fmstruct, &
-                                  nrow_block=nrow_block, ncol_block=nrow_block, &
-                                  nrow_global=nao, ncol_global=nao, &
-                                  template_fmstruct=ao_mo_fmstruct)
-         ALLOCATE (rtp%mos)
-         ALLOCATE (rtp%mos%old(2*nspin))
-         ALLOCATE (rtp%mos%new(2*nspin))
-         ALLOCATE (rtp%mos%next(2*nspin))
-         NULLIFY (rtp%mos%admm)
-         IF (dft_control%do_admm) THEN
-            IF (PRESENT(mos_aux)) THEN
-               CPASSERT(ASSOCIATED(mos_aux))
-            ELSE
-               CPABORT("The optional argument mos_aux is missing which is required with ADMM")
-            END IF
-            ALLOCATE (rtp%mos%admm(2*nspin))
+         IF (PRESENT(mos_aux)) THEN
+            CALL rt_prop_create_mos(rtp, mos, mpools, dft_control, mos_aux)
+         ELSE
+            CALL rt_prop_create_mos(rtp, mos, mpools, dft_control)
          END IF
-         DO i = 1, nspin
-            DO j = 1, 2
-               CALL cp_fm_create(rtp%mos%old(2*(i - 1) + j), &
-                                 matrix_struct=mos(i)%mo_coeff%matrix_struct, &
-                                 name="mos_old"//TRIM(ADJUSTL(cp_to_string(2*(i - 1) + j))))
-               CALL cp_fm_create(rtp%mos%new(2*(i - 1) + j), &
-                                 matrix_struct=mos(i)%mo_coeff%matrix_struct, &
-                                 name="mos_new"//TRIM(ADJUSTL(cp_to_string(2*(i - 1) + j))))
-               CALL cp_fm_create(rtp%mos%next(2*(i - 1) + j), &
-                                 matrix_struct=mos(i)%mo_coeff%matrix_struct, &
-                                 name="mos_next"//TRIM(ADJUSTL(cp_to_string(2*(i - 1) + j))))
-               IF (dft_control%do_admm) THEN
-                  CALL cp_fm_create(rtp%mos%admm(2*(i - 1) + j), &
-                                    matrix_struct=mos_aux(i)%mo_coeff%matrix_struct, &
-                                    name="mos_admm"//TRIM(ADJUSTL(cp_to_string(2*(i - 1) + j))))
-               END IF
-            END DO
-         END DO
       END IF
 
       NULLIFY (rtp%exp_H_old)
@@ -287,6 +251,102 @@ CONTAINS
       rtp%track_imag_density = .FALSE.
 
    END SUBROUTINE rt_prop_create
+
+! **************************************************************************************************
+!> \brief Initialize the mos for rtp
+!> \param rtp ...
+!> \param mos ...
+!> \param mpools ...
+!> \param dft_control ...
+!> \param mos_aux ...
+!> \param init_mos_old ...
+!> \param init_mos_new ...
+!> \param init_mos_next ...
+!> \param init_mos_admn ...
+! **************************************************************************************************
+   SUBROUTINE rt_prop_create_mos(rtp, mos, mpools, dft_control, mos_aux, init_mos_old, &
+                                 init_mos_new, init_mos_next, init_mos_admn)
+      TYPE(rt_prop_type), POINTER                        :: rtp
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
+      TYPE(qs_matrix_pools_type), POINTER                :: mpools
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos_aux
+      LOGICAL, OPTIONAL                                  :: init_mos_old, init_mos_new, &
+                                                            init_mos_next, init_mos_admn
+
+      INTEGER                                            :: i, j, nao, nrow_block, nspin
+      LOGICAL                                            :: my_mos_admn, my_mos_new, my_mos_next, &
+                                                            my_mos_old
+      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
+      TYPE(cp_fm_struct_type), POINTER                   :: ao_mo_fmstruct
+
+      IF (PRESENT(init_mos_old)) THEN
+         my_mos_old = init_mos_old
+      ELSE
+         my_mos_old = .TRUE.
+      END IF
+
+      IF (PRESENT(init_mos_new)) THEN
+         my_mos_new = init_mos_new
+      ELSE
+         my_mos_new = .TRUE.
+      END IF
+
+      IF (PRESENT(init_mos_next)) THEN
+         my_mos_next = init_mos_next
+      ELSE
+         my_mos_next = .TRUE.
+      END IF
+
+      IF (PRESENT(init_mos_admn)) THEN
+         my_mos_admn = init_mos_admn
+      ELSE
+         my_mos_admn = .TRUE.
+      END IF
+
+      nspin = dft_control%nspins
+      CALL mpools_get(mpools, ao_mo_fm_pools=ao_mo_fm_pools)
+      ao_mo_fmstruct => fm_pool_get_el_struct(ao_mo_fm_pools(1)%pool)
+      CALL cp_fm_struct_get(ao_mo_fmstruct, nrow_block=nrow_block)
+      CALL get_mo_set(mos(1), nao=nao)
+
+      CALL cp_fm_struct_create(fmstruct=rtp%ao_ao_fmstruct, &
+                               nrow_block=nrow_block, ncol_block=nrow_block, &
+                               nrow_global=nao, ncol_global=nao, &
+                               template_fmstruct=ao_mo_fmstruct)
+      IF (.NOT. (ASSOCIATED(rtp%mos))) ALLOCATE (rtp%mos)
+      IF (my_mos_old) ALLOCATE (rtp%mos%old(2*nspin))
+      IF (my_mos_new) ALLOCATE (rtp%mos%new(2*nspin))
+      IF (my_mos_next) ALLOCATE (rtp%mos%next(2*nspin))
+      NULLIFY (rtp%mos%admm)
+      IF ((dft_control%do_admm) .AND. my_mos_admn) THEN
+         IF (PRESENT(mos_aux)) THEN
+            CPASSERT(ASSOCIATED(mos_aux))
+         ELSE
+            CPABORT("The optional argument mos_aux is missing which is required with ADMM")
+         END IF
+         ALLOCATE (rtp%mos%admm(2*nspin))
+      END IF
+      DO i = 1, nspin
+         DO j = 1, 2
+            IF (my_mos_old) CALL cp_fm_create(rtp%mos%old(2*(i - 1) + j), &
+                                              matrix_struct=mos(i)%mo_coeff%matrix_struct, &
+                                              name="mos_old"//TRIM(ADJUSTL(cp_to_string(2*(i - 1) + j))))
+            IF (my_mos_new) CALL cp_fm_create(rtp%mos%new(2*(i - 1) + j), &
+                                              matrix_struct=mos(i)%mo_coeff%matrix_struct, &
+                                              name="mos_new"//TRIM(ADJUSTL(cp_to_string(2*(i - 1) + j))))
+            IF (my_mos_next) CALL cp_fm_create(rtp%mos%next(2*(i - 1) + j), &
+                                               matrix_struct=mos(i)%mo_coeff%matrix_struct, &
+                                               name="mos_next"//TRIM(ADJUSTL(cp_to_string(2*(i - 1) + j))))
+            IF ((dft_control%do_admm) .AND. my_mos_admn) THEN
+               CALL cp_fm_create(rtp%mos%admm(2*(i - 1) + j), &
+                                 matrix_struct=mos_aux(i)%mo_coeff%matrix_struct, &
+                                 name="mos_admm"//TRIM(ADJUSTL(cp_to_string(2*(i - 1) + j))))
+            END IF
+         END DO
+      END DO
+
+   END SUBROUTINE rt_prop_create_mos
 
 ! **************************************************************************************************
 !> \brief ...
@@ -389,17 +449,9 @@ CONTAINS
             CALL dbcsr_deallocate_matrix_set(rtp%rho%new)
          DEALLOCATE (rtp%rho)
       END IF
-      IF (ASSOCIATED(rtp%mos)) THEN
-         IF (ASSOCIATED(rtp%mos%old)) &
-            CALL cp_fm_vect_dealloc(rtp%mos%old)
-         IF (ASSOCIATED(rtp%mos%new)) &
-            CALL cp_fm_vect_dealloc(rtp%mos%new)
-         IF (ASSOCIATED(rtp%mos%next)) &
-            CALL cp_fm_vect_dealloc(rtp%mos%next)
-         IF (ASSOCIATED(rtp%mos%admm)) &
-            CALL cp_fm_vect_dealloc(rtp%mos%admm)
-         DEALLOCATE (rtp%mos)
-      END IF
+
+      CALL rt_prop_release_mos(rtp)
+
       CALL dbcsr_deallocate_matrix(rtp%S_inv)
       CALL dbcsr_deallocate_matrix(rtp%S_half)
       CALL dbcsr_deallocate_matrix(rtp%S_minus_half)
@@ -416,9 +468,29 @@ CONTAINS
       IF (ASSOCIATED(rtp%history)) &
          CALL rtp_history_release(rtp)
       DEALLOCATE (rtp%orders)
-      IF (.NOT. rtp%linear_scaling) CALL cp_fm_struct_release(rtp%ao_ao_fmstruct)
    END SUBROUTINE rt_prop_release
 
+! **************************************************************************************************
+!> \brief Deallocated the mos for rtp...
+!> \param rtp ...
+! **************************************************************************************************
+   SUBROUTINE rt_prop_release_mos(rtp)
+      TYPE(rt_prop_type), INTENT(inout)                  :: rtp
+
+      IF (ASSOCIATED(rtp%mos)) THEN
+         IF (ASSOCIATED(rtp%mos%old)) &
+            CALL cp_fm_vect_dealloc(rtp%mos%old)
+         IF (ASSOCIATED(rtp%mos%new)) &
+            CALL cp_fm_vect_dealloc(rtp%mos%new)
+         IF (ASSOCIATED(rtp%mos%next)) &
+            CALL cp_fm_vect_dealloc(rtp%mos%next)
+         IF (ASSOCIATED(rtp%mos%admm)) &
+            CALL cp_fm_vect_dealloc(rtp%mos%admm)
+         CALL cp_fm_struct_release(rtp%ao_ao_fmstruct)
+         DEALLOCATE (rtp%mos)
+      END IF
+
+   END SUBROUTINE rt_prop_release_mos
 ! **************************************************************************************************
 !> \brief ...
 !> \param rtp ...

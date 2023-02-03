@@ -106,7 +106,6 @@ CONTAINS
       CALL dbcsr_set(density_matrix, 0.0_dp)
 
       IF (.NOT. mo_set%uniform_occupation) THEN ! not all orbitals 1..homo are equally occupied
-
          IF (my_use_dbcsr) THEN
             CALL dbcsr_copy(dbcsr_tmp, mo_set%mo_coeff_b)
             CALL dbcsr_scale_by_vector(dbcsr_tmp, mo_set%occupation_numbers(1:mo_set%homo), &
