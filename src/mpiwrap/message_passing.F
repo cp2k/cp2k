@@ -506,7 +506,7 @@ MODULE message_passing
       PROCEDURE, PUBLIC, PASS(comm1), NON_OVERRIDABLE :: compare => mp_comm_compare
       PROCEDURE, PUBLIC, PASS(comm1), NON_OVERRIDABLE :: rank_compare => mp_rank_compare
 
-      PROCEDURE, PUBLIC, PASS(comm2), NON_OVERRIDABLE :: dup => mp_comm_dup
+      PROCEDURE, PUBLIC, PASS(comm2), NON_OVERRIDABLE :: from_dup => mp_comm_dup
       PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: free => mp_comm_free
 
       PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: environ => mp_environ_l

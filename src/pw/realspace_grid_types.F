@@ -352,7 +352,7 @@ CONTAINS
          END IF
 
          desc%group_dim(:) = n_slices(:)
-         CALL desc%group%dup(pw_grid%para%group)
+         CALL desc%group%from_dup(pw_grid%para%group)
          CALL desc%group%environ(desc%group_size, desc%my_pos)
 
          IF (ALL(n_slices == 1)) THEN

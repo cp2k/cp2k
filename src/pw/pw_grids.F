@@ -132,7 +132,7 @@ CONTAINS
       pw_grid%id_nr = grid_tag
 
       ! parallel info
-      CALL pw_grid%para%group%dup(pe_group)
+      CALL pw_grid%para%group%from_dup(pe_group)
       CALL pw_grid%para%group%environ(pw_grid%para%group_size, &
                                       pw_grid%para%my_pos)
       pw_grid%para%group_head_id = 0
