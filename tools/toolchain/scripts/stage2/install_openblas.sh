@@ -59,8 +59,8 @@ case "${with_openblas}" in
         "native")
           TARGET=${OPENBLAS_LIBCORE}
           ;;
-        "skylake")
-          TARGET="BROADWELL"
+        "broadwell" | "skylake")
+          TARGET="HASWELL"
           ;;
         "skylake-avx512")
           TARGET="SKYLAKEX"
