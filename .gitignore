@@ -10,9 +10,6 @@
 # ignore local arch files not meant to be shared
 /arch/local*
 
-# ignore manual generated locally
-/tools/manual/*
-
 # ensure people are not accidentally committing an old .svnignore when copying their stuff
 .svnignore
 
