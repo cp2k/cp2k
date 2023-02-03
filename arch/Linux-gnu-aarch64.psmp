@@ -5,12 +5,12 @@
 # Tested with: GNU 12.2.0, MPICH 4.0.3,
 #              ScaLAPACK 2.2.1, OpenBLAS 0.3.21, FFTW 3.3.10, LIBINT 2.6.0,
 #              LIBXC 6.1.0, ELPA 2022.11.001, PLUMED 2.8.1, SPGLIB 1.16.2,
-#              LIBVORI 220621, GSL 2.7, COSMA 2.6.2, SIRIUS 7.3.2
+#              LIBVORI 220621, GSL 2.7, COSMA 2.6.2, SIRIUS 7.4.3
 #
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
 #
-# Author: Matthias Krack (12.01.2023)
+# Author: Matthias Krack (03.02.2023)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -53,7 +53,7 @@ USE_OPENBLAS   := 0.3.21
 USE_PLUMED     := 2.8.1
 USE_QUIP       := 0.9.10
 USE_SCALAPACK  := 2.2.1
-USE_SIRIUS     := 7.3.2
+USE_SIRIUS     := 7.4.3
 USE_SPGLIB     := 1.16.2
 # Only needed for SIRIUS
 LIBVDWXC_VER   := 0.4.0
