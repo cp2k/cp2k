@@ -13,10 +13,10 @@ MODULE qs_tddfpt2_properties
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_solve
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
-                                              cp_cfm_p_type,&
                                               cp_cfm_release,&
                                               cp_cfm_set_all,&
                                               cp_cfm_to_fm,&
+                                              cp_cfm_type,&
                                               cp_fm_to_cfm
    USE cp_control_types,                ONLY: dft_control_type,&
                                               tddfpt2_control_type
@@ -169,7 +169,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(3)                        :: kvec, reference_point
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:)     :: gamma_00, gamma_inv_00
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: gamma_00, gamma_inv_00
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: ediff_inv, rRc_mos_occ, wfm_ao_ao, &
                                                             wfm_mo_virt_mo_occ
@@ -261,9 +261,8 @@ CONTAINS
             CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_occ(ispin), &
                                      ncol_global=nmo_occ(ispin), context=blacs_env)
 
-            ALLOCATE (gamma_00(ispin)%matrix, gamma_inv_00(ispin)%matrix)
-            CALL cp_cfm_create(gamma_00(ispin)%matrix, fm_struct)
-            CALL cp_cfm_create(gamma_inv_00(ispin)%matrix, fm_struct)
+            CALL cp_cfm_create(gamma_00(ispin), fm_struct)
+            CALL cp_cfm_create(gamma_inv_00(ispin), fm_struct)
 
             DO i_cos_sin = 1, 2
                CALL cp_fm_create(gamma_real_imag(i_cos_sin, ispin), fm_struct)
@@ -311,13 +310,13 @@ CONTAINS
 
                CALL cp_fm_to_cfm(msourcer=gamma_real_imag(1, ispin), &
                                  msourcei=gamma_real_imag(2, ispin), &
-                                 mtarget=gamma_00(ispin)%matrix)
+                                 mtarget=gamma_00(ispin))
 
                ! gamma_inv_00 = Q = [C_0^T (gamma_real - i gamma_imag) C_0] ^ {-1}
-               CALL cp_cfm_set_all(gamma_inv_00(ispin)%matrix, z_zero, z_one)
-               CALL cp_cfm_solve(gamma_00(ispin)%matrix, gamma_inv_00(ispin)%matrix)
+               CALL cp_cfm_set_all(gamma_inv_00(ispin), z_zero, z_one)
+               CALL cp_cfm_solve(gamma_00(ispin), gamma_inv_00(ispin))
 
-               CALL cp_cfm_to_fm(msource=gamma_inv_00(ispin)%matrix, &
+               CALL cp_cfm_to_fm(msource=gamma_inv_00(ispin), &
                                  mtargetr=gamma_real_imag(1, ispin), &
                                  mtargeti=gamma_real_imag(2, ispin))
 
@@ -346,9 +345,8 @@ CONTAINS
                CALL cp_fm_release(gamma_real_imag(i_cos_sin, ispin))
             END DO
 
-            CALL cp_cfm_release(gamma_inv_00(ispin)%matrix)
-            CALL cp_cfm_release(gamma_00(ispin)%matrix)
-            DEALLOCATE (gamma_inv_00(ispin)%matrix, gamma_00(ispin)%matrix)
+            CALL cp_cfm_release(gamma_inv_00(ispin))
+            CALL cp_cfm_release(gamma_00(ispin))
          END DO
          DEALLOCATE (gamma_00, gamma_inv_00, gamma_real_imag, opvec)
          CALL dbcsr_deallocate_matrix_set(berry_cossin_xyz)
