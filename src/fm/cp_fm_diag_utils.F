@@ -431,7 +431,7 @@ CONTAINS
             CALL pdgemr2d(rdinfo%matrix_order, rdinfo%matrix_order, matrix%local_data(1, 1), 1, 1, &
                           matrix%matrix_struct%descriptor, &
                           matrix_new%local_data(1, 1), 1, 1, matrix_new%matrix_struct%descriptor, &
-                          matrix%matrix_struct%context%group)
+                          matrix%matrix_struct%context)
          ELSE
             ! these tasks must help redistribute (they own part of the data),
             ! but need fake 'new' data, and their descriptor must indicate this with -1
@@ -440,7 +440,7 @@ CONTAINS
             CALL pdgemr2d(rdinfo%matrix_order, rdinfo%matrix_order, matrix%local_data(1, 1), 1, 1, &
                           matrix%matrix_struct%descriptor, &
                           fake_local_data(1, 1), 1, 1, fake_descriptor, &
-                          matrix%matrix_struct%context%group)
+                          matrix%matrix_struct%context)
          END IF
       ELSE
          ! No need to redistribute, just return pointers to the original arrays
@@ -506,7 +506,7 @@ CONTAINS
             ! redistribute results on CPUs that hold the redistributed matrix
             CALL pdgemr2d(n, n, eigenvectors_new%local_data(1, 1), 1, 1, eigenvectors_new%matrix_struct%descriptor, &
                           eigenvectors%local_data(1, 1), 1, 1, eigenvectors%matrix_struct%descriptor, &
-                          eigenvectors%matrix_struct%context%group)
+                          eigenvectors%matrix_struct%context)
             CALL cp_fm_release(matrix_new)
             CALL cp_fm_release(eigenvectors_new)
          ELSE
@@ -516,7 +516,7 @@ CONTAINS
             fake_descriptor = -1
             CALL pdgemr2d(n, n, fake_local_data(1, 1), 1, 1, fake_descriptor, &
                           eigenvectors%local_data(1, 1), 1, 1, eigenvectors%matrix_struct%descriptor, &
-                          eigenvectors%matrix_struct%context%group)
+                          eigenvectors%matrix_struct%context)
          END IF
          ! free work
          CALL cp_fm_redistribute_work_finalize(work_redistribute%group_distribution(mepos_old) == 0)

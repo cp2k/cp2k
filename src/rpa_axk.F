@@ -200,7 +200,7 @@ CONTAINS
       CALL cp_fm_set_all(matrix=fm_mat_R_half_gemm, alpha=0.0_dp)
 
       CALL cp_fm_to_fm_submat_general(fm_mat_R_half, fm_mat_R_half_gemm, dimen_RI, dimen_RI, 1, 1, 1, 1, &
-                                      fm_mat_R_half%matrix_struct%context%group)
+                                      fm_mat_R_half%matrix_struct%context)
 
       ! Calculate Gamma_3: Gamma_3 = G*S*R^(1/2) = G*S*R^(1/2) )
       CALL parallel_gemm(transa="T", transb="N", m=dimen_ia, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &

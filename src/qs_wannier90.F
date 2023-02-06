@@ -15,8 +15,7 @@ MODULE qs_wannier90
    USE atomic_kind_types,               ONLY: get_atomic_kind
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell
-   USE cp_blacs_env,                    ONLY: cp_blacs_env_retain,&
-                                              cp_blacs_env_type
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
@@ -33,7 +32,6 @@ MODULE qs_wannier90
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                               cp_logger_type
-   USE cp_para_env,                     ONLY: cp_para_env_retain
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_create,&
                                               dbcsr_deallocate_matrix,&
@@ -345,11 +343,7 @@ CONTAINS
          WRITE (unit=iw, FMT="(/,T2,A)") "Start K-Point Calculation ... "
       END IF
       CALL get_qs_env(qs_env=qs_env_kp, para_env=para_env, blacs_env=blacs_env)
-      kpoint%para_env => para_env
-      CALL cp_para_env_retain(para_env)
-      kpoint%blacs_env_all => blacs_env
-      CALL cp_blacs_env_retain(blacs_env)
-      CALL kpoint_env_initialize(kpoint)
+      CALL kpoint_env_initialize(kpoint, para_env, blacs_env)
       CALL kpoint_initialize_mos(kpoint, mos, nadd)
       CALL kpoint_initialize_mo_set(kpoint)
       !

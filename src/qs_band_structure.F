@@ -13,13 +13,11 @@
 ! **************************************************************************************************
 MODULE qs_band_structure
    USE cell_types,                      ONLY: cell_type
-   USE cp_blacs_env,                    ONLY: cp_blacs_env_retain,&
-                                              cp_blacs_env_type
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE cp_para_env,                     ONLY: cp_para_env_retain
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: read_float_object
    USE dbcsr_api,                       ONLY: dbcsr_p_type
@@ -323,11 +321,7 @@ CONTAINS
       CALL calculate_kpoints_for_bs(kpoint, scheme, group_size_ext, mp_grid, kpgeneral)
 
       CALL get_qs_env(qs_env=qs_env, para_env=para_env, blacs_env=blacs_env)
-      kpoint%para_env => para_env
-      CALL cp_para_env_retain(para_env)
-      kpoint%blacs_env_all => blacs_env
-      CALL cp_blacs_env_retain(blacs_env)
-      CALL kpoint_env_initialize(kpoint)
+      CALL kpoint_env_initialize(kpoint, para_env, blacs_env)
 
       CALL kpoint_initialize_mos(kpoint, qs_env%mos, nadd)
       CALL kpoint_initialize_mo_set(kpoint)

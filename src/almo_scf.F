@@ -45,8 +45,7 @@ MODULE almo_scf
                                               Scheiber2018,&
                                               Staub2019,&
                                               cite_reference
-   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
-                                              cp_blacs_env_retain
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_release
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_syevd
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
@@ -224,7 +223,7 @@ CONTAINS
                       blacs_env=almo_scf_env%blacs_env, &
                       nelectron_spin=almo_scf_env%nelectrons_spin)
       CALL cp_para_env_retain(almo_scf_env%para_env)
-      CALL cp_blacs_env_retain(almo_scf_env%blacs_env)
+      CALL almo_scf_env%blacs_env%retain()
 
       ! copy basic quantities
       almo_scf_env%nspins = dft_control%nspins

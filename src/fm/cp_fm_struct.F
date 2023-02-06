@@ -13,7 +13,6 @@
 ! **************************************************************************************************
 MODULE cp_fm_struct
    USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
-                                              cp_blacs_env_retain,&
                                               cp_blacs_env_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
@@ -181,7 +180,7 @@ CONTAINS
          fmstruct%para_env => context%para_env
       END IF
       IF (PRESENT(para_env)) fmstruct%para_env => para_env
-      CALL cp_blacs_env_retain(fmstruct%context)
+      CALL fmstruct%context%retain()
       CALL cp_para_env_retain(fmstruct%para_env)
 
       IF (PRESENT(nrow_global)) THEN
@@ -290,7 +289,7 @@ CONTAINS
          CALL descinit(fmstruct%descriptor, fmstruct%nrow_global, &
                        fmstruct%ncol_global, fmstruct%nrow_block, &
                        fmstruct%ncol_block, fmstruct%first_p_pos(1), &
-                       fmstruct%first_p_pos(2), fmstruct%context%group, &
+                       fmstruct%first_p_pos(2), fmstruct%context, &
                        fmstruct%local_leading_dimension, stat)
          CPASSERT(stat == 0)
 #endif
@@ -369,7 +368,7 @@ CONTAINS
       IF (ASSOCIATED(fmstruct1, fmstruct2)) THEN
          res = .TRUE.
       ELSE
-         res = (fmstruct1%context%group == fmstruct2%context%group) .AND. &
+         res = (fmstruct1%context == fmstruct2%context) .AND. &
                (fmstruct1%nrow_global == fmstruct2%nrow_global) .AND. &
                (fmstruct1%ncol_global == fmstruct2%ncol_global) .AND. &
                (fmstruct1%local_leading_dimension == &

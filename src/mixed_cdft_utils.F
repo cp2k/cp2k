@@ -18,8 +18,6 @@ MODULE mixed_cdft_utils
                                               cp_1d_r_p_type,&
                                               cp_2d_r_p_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
-                                              cp_blacs_env_release,&
-                                              cp_blacs_env_retain,&
                                               cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
@@ -648,7 +646,6 @@ CONTAINS
       LOGICAL                                            :: is_match
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell_mix
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys_mix
       TYPE(global_environment_type), POINTER             :: globenv
@@ -667,10 +664,11 @@ CONTAINS
          print_section, root_section, rs_grid_section, subsys_section
 
       NULLIFY (cell_mix, subsys_mix, force_env_section, subsys_section, &
-               print_section, root_section, kind_section, force_env_sections, rs_grid_section, &
-               auxbas_pw_pool, pw_env, pw_pools, pw_grid, sendbuffer, qs_env, &
-               mixed_rs_dims, i_force_eval, recvbuffer, recvbuffer2, &
-               blacs_env, globenv, atomic_kind_set, qs_kind_set, rs_descs, rs_grids)
+               print_section, root_section, kind_section, force_env_sections, &
+               rs_grid_section, auxbas_pw_pool, pw_env, pw_pools, pw_grid, &
+               sendbuffer, qs_env, mixed_rs_dims, i_force_eval, recvbuffer, &
+               recvbuffer2, globenv, atomic_kind_set, qs_kind_set, rs_descs, &
+               rs_grids)
 
       logger => cp_get_default_logger()
       CALL force_env_get(force_env=force_env, force_env_section=force_env_section)
@@ -1023,11 +1021,8 @@ CONTAINS
       IF (mixed_env%do_mixed_et) THEN
          NULLIFY (root_section)
          CALL force_env_get(force_env, globenv=globenv, root_section=root_section)
-         CALL cp_blacs_env_create(blacs_env, force_env%para_env, globenv%blacs_grid_layout, &
+         CALL cp_blacs_env_create(mixed_cdft%blacs_env, force_env%para_env, globenv%blacs_grid_layout, &
                                   globenv%blacs_repeatable)
-         mixed_cdft%blacs_env => blacs_env
-         CALL cp_blacs_env_retain(mixed_cdft%blacs_env)
-         CALL cp_blacs_env_release(blacs_env)
       END IF
       CALL cp_print_key_finished_output(iounit, logger, force_env_section, &
                                         "MIXED%MIXED_CDFT%PRINT%PROGRAM_RUN_INFO")

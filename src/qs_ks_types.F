@@ -17,7 +17,6 @@ MODULE qs_ks_types
    USE atprop_types,                    ONLY: atprop_type
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
-                                              cp_blacs_env_retain,&
                                               cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_release,&
                                               dft_control_type
@@ -693,7 +692,7 @@ CONTAINS
          ks_env%para_env => para_env
       END IF
       IF (PRESENT(blacs_env)) THEN
-         CALL cp_blacs_env_retain(blacs_env)
+         CALL blacs_env%retain()
          CALL cp_blacs_env_release(ks_env%blacs_env)
          ks_env%blacs_env => blacs_env
       END IF

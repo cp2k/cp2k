@@ -869,7 +869,7 @@ CONTAINS
       ! copy/redistribute fm_mat_Q_gemm to fm_mat_Q
       CALL cp_fm_set_all(matrix=fm_mat_Q, alpha=0.0_dp)
       CALL cp_fm_to_fm_submat_general(fm_mat_Q_gemm, fm_mat_Q, dimen_RI, dimen_RI, 1, 1, 1, 1, &
-                                      fm_mat_Q_gemm%matrix_struct%context%group)
+                                      fm_mat_Q_gemm%matrix_struct%context)
 
       CALL timestop(handle)
 

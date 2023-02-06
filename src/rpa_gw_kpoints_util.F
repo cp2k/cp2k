@@ -15,8 +15,7 @@ MODULE rpa_gw_kpoints_util
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell,&
                                               pbc
-   USE cp_blacs_env,                    ONLY: cp_blacs_env_retain,&
-                                              cp_blacs_env_type
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_cholesky_decompose,&
                                               cp_cfm_cholesky_invert,&
                                               cp_cfm_column_scale,&
@@ -43,7 +42,6 @@ MODULE rpa_gw_kpoints_util
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
-   USE cp_para_env,                     ONLY: cp_para_env_retain
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_filter, &
@@ -1613,11 +1611,7 @@ CONTAINS
       CALL calculate_kpoints_for_bs(kpoints, scheme, kpgeneral=kpgeneral, mp_grid=mp_grid, &
                                     group_size_ext=group_size_ext)
 
-      kpoints%para_env => para_env
-      CALL cp_para_env_retain(para_env)
-      kpoints%blacs_env_all => blacs_env
-      CALL cp_blacs_env_retain(blacs_env)
-      CALL kpoint_env_initialize(kpoints)
+      CALL kpoint_env_initialize(kpoints, para_env, blacs_env)
 
       ! calculate all MOs that are accessible in the given
       ! Gaussian AO basis, therefore nadd=1E10

@@ -9,8 +9,7 @@ MODULE qs_tddfpt2_types
    USE admm_types,                      ONLY: admm_type,&
                                               get_admm_env
    USE atomic_kind_types,               ONLY: atomic_kind_type
-   USE cp_blacs_env,                    ONLY: cp_blacs_env_type,&
-                                              get_blacs_info
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set,&
@@ -319,7 +318,7 @@ CONTAINS
 
          ALLOCATE (work_matrices%evects_sub(nspins, nstates), work_matrices%Aop_evects_sub(nspins, nstates))
 
-         CALL get_blacs_info(blacs_env, para_env=para_env)
+         CALL blacs_env%get(para_env=para_env)
          igroup = sub_env%group_distribution(para_env%mepos)
          ngroups = sub_env%ngroups
 
@@ -597,7 +596,7 @@ CONTAINS
       IF (sub_env%is_split) THEN
          ALLOCATE (work_matrices%evects_sub(nspins, nstates), work_matrices%Aop_evects_sub(nspins, nstates))
 
-         CALL get_blacs_info(blacs_env, para_env=para_env)
+         CALL blacs_env%get(para_env=para_env)
          igroup = sub_env%group_distribution(para_env%mepos)
          ngroups = sub_env%ngroups
 

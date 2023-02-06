@@ -6,8 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE qs_tddfpt2_restart
-   USE cp_blacs_env,                    ONLY: cp_blacs_env_type,&
-                                              get_blacs_info
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_files,                        ONLY: close_file,&
                                               open_file
@@ -197,7 +196,7 @@ CONTAINS
                                                    extension=".tdwfn", my_local=.FALSE.)
       END IF
 
-      CALL get_blacs_info(blacs_env_global, para_env=para_env_global)
+      CALL blacs_env_global%get(para_env=para_env_global)
 
       IF (para_env_global%ionode) THEN
          INQUIRE (FILE=filename, exist=file_exists)
