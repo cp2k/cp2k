@@ -1381,12 +1381,14 @@ CONTAINS
       TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
       INTEGER, INTENT(in)                                :: ispin
       TYPE(cp_cfm_p_type), DIMENSION(:, :), INTENT(in)   :: g_surf_contacts
-      TYPE(cp_cfm_p_type), DIMENSION(:), INTENT(in), &
+      TYPE(cp_cfm_type), DIMENSION(:), INTENT(in), &
          OPTIONAL                                        :: g_ret_s
       COMPLEX(kind=dp), DIMENSION(:), INTENT(in), &
          OPTIONAL                                        :: g_ret_scale
       TYPE(cp_cfm_p_type), DIMENSION(:, :), INTENT(in), &
-         OPTIONAL                                        :: gamma_contacts, gret_gamma_gadv
+         OPTIONAL                                        :: gamma_contacts
+      TYPE(cp_cfm_type), DIMENSION(:, :), INTENT(in), &
+         OPTIONAL                                        :: gret_gamma_gadv
       REAL(kind=dp), DIMENSION(:), INTENT(out), OPTIONAL :: dos
       COMPLEX(kind=dp), DIMENSION(:), INTENT(out), &
          OPTIONAL                                        :: transm_coeff
@@ -1403,10 +1405,11 @@ CONTAINS
          DIMENSION(:)                                    :: info1
       TYPE(copy_cfm_info_type), ALLOCATABLE, &
          DIMENSION(:, :)                                 :: info2
-      TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:)     :: g_ret_s_group, self_energy_contacts, &
-                                                            zwork1_contacts, zwork2_contacts
-      TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:, :)  :: gamma_contacts_group, &
-                                                            gret_gamma_gadv_group
+      TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:)     :: self_energy_contacts, zwork1_contacts, &
+                                                            zwork2_contacts
+      TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:, :)  :: gamma_contacts_group
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: g_ret_s_group
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:, :)    :: gret_gamma_gadv_group
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: g_ret_imag
       TYPE(cp_fm_type), POINTER                          :: matrix_s
@@ -1467,14 +1470,8 @@ CONTAINS
           PRESENT(dos) .OR. PRESENT(transm_coeff)) THEN
          ALLOCATE (g_ret_s_group(npoints))
 
-         IF (sub_env%ngroups > 1 .OR. .NOT. PRESENT(g_ret_s)) THEN
-            DO ipoint = 1, npoints
-               NULLIFY (g_ret_s_group(ipoint)%matrix)
-            END DO
-         ELSE
-            DO ipoint = 1, npoints
-               g_ret_s_group(ipoint)%matrix => g_ret_s(ipoint)%matrix
-            END DO
+         IF (sub_env%ngroups <= 1 .AND. PRESENT(g_ret_s)) THEN
+            g_ret_s_group(1:npoints) = g_ret_s(1:npoints)
          END IF
       END IF
 
@@ -1505,18 +1502,8 @@ CONTAINS
          END IF
 
          ALLOCATE (gret_gamma_gadv_group(ncontacts, npoints))
-         IF (sub_env%ngroups > 1) THEN
-            DO ipoint = 1, npoints
-               DO icontact = 1, ncontacts
-                  NULLIFY (gret_gamma_gadv_group(icontact, ipoint)%matrix)
-               END DO
-            END DO
-         ELSE
-            DO ipoint = 1, npoints
-               DO icontact = 1, ncontacts
-                  gret_gamma_gadv_group(icontact, ipoint)%matrix => gret_gamma_gadv(icontact, ipoint)%matrix
-               END DO
-            END DO
+         IF (sub_env%ngroups <= 1) THEN
+            gret_gamma_gadv_group(1:ncontacts, 1:npoints) = gret_gamma_gadv(1:ncontacts, 1:npoints)
          END IF
       END IF
 
@@ -1529,8 +1516,7 @@ CONTAINS
                ! at least two parallel groups; otherwise pointers to group-specific matrices have
                ! already been initialised and they point to globally distributed matrices
                IF (ALLOCATED(g_ret_s_group)) THEN
-                  ALLOCATE (g_ret_s_group(ipoint)%matrix)
-                  CALL cp_cfm_create(g_ret_s_group(ipoint)%matrix, fm_struct)
+                  CALL cp_cfm_create(g_ret_s_group(ipoint), fm_struct)
                END IF
             END IF
 
@@ -1546,9 +1532,8 @@ CONTAINS
             IF (sub_env%ngroups > 1) THEN
                IF (ALLOCATED(gret_gamma_gadv_group)) THEN
                   DO icontact = 1, ncontacts
-                     IF (ASSOCIATED(gret_gamma_gadv(icontact, ipoint)%matrix)) THEN
-                        ALLOCATE (gret_gamma_gadv_group(icontact, ipoint)%matrix)
-                        CALL cp_cfm_create(gret_gamma_gadv_group(icontact, ipoint)%matrix, fm_struct)
+                     IF (ASSOCIATED(gret_gamma_gadv(icontact, ipoint)%matrix_struct)) THEN
+                        CALL cp_cfm_create(gret_gamma_gadv_group(icontact, ipoint), fm_struct)
                      END IF
                   END DO
                END IF
@@ -1598,19 +1583,19 @@ CONTAINS
 
                ! retarded Green's function for the scattering region
                IF (PRESENT(just_contact)) THEN
-                  CALL negf_retarded_green_function(g_ret_s=g_ret_s_group(ipoint)%matrix, &
+                  CALL negf_retarded_green_function(g_ret_s=g_ret_s_group(ipoint), &
                                                     omega=omega(ipoint) - v_shift, &
                                                     self_energy_ret_sum=self_energy_contacts(1)%matrix, &
                                                     h_s=negf_env%contacts(just_contact)%h_00(ispin), &
                                                     s_s=negf_env%contacts(just_contact)%s_00)
                ELSE IF (ignore_bias) THEN
-                  CALL negf_retarded_green_function(g_ret_s=g_ret_s_group(ipoint)%matrix, &
+                  CALL negf_retarded_green_function(g_ret_s=g_ret_s_group(ipoint), &
                                                     omega=omega(ipoint) - v_shift, &
                                                     self_energy_ret_sum=self_energy_contacts(1)%matrix, &
                                                     h_s=negf_env%h_s(ispin), &
                                                     s_s=negf_env%s_s)
                ELSE
-                  CALL negf_retarded_green_function(g_ret_s=g_ret_s_group(ipoint)%matrix, &
+                  CALL negf_retarded_green_function(g_ret_s=g_ret_s_group(ipoint), &
                                                     omega=omega(ipoint) - v_shift, &
                                                     self_energy_ret_sum=self_energy_contacts(1)%matrix, &
                                                     h_s=negf_env%h_s(ispin), &
@@ -1619,7 +1604,7 @@ CONTAINS
                END IF
 
                IF (PRESENT(g_ret_scale)) THEN
-                  IF (g_ret_scale(ipoint) /= z_one) CALL cp_cfm_scale(g_ret_scale(ipoint), g_ret_s_group(ipoint)%matrix)
+                  IF (g_ret_scale(ipoint) /= z_one) CALL cp_cfm_scale(g_ret_scale(ipoint), g_ret_s_group(ipoint))
                END IF
             END IF
 
@@ -1627,15 +1612,15 @@ CONTAINS
                ! we do not need contact self energies any longer, so we can use
                ! the array 'self_energy_contacts' as a set of work matrices
                DO icontact = 1, ncontacts
-                  IF (ASSOCIATED(gret_gamma_gadv_group(icontact, ipoint)%matrix)) THEN
+                  IF (ASSOCIATED(gret_gamma_gadv_group(icontact, ipoint)%matrix_struct)) THEN
                      CALL parallel_gemm('N', 'C', nrows, nrows, nrows, &
                                         z_one, gamma_contacts_group(icontact, ipoint)%matrix, &
-                                        g_ret_s_group(ipoint)%matrix, &
+                                        g_ret_s_group(ipoint), &
                                         z_zero, self_energy_contacts(icontact)%matrix)
                      CALL parallel_gemm('N', 'N', nrows, nrows, nrows, &
-                                        z_one, g_ret_s_group(ipoint)%matrix, &
+                                        z_one, g_ret_s_group(ipoint), &
                                         self_energy_contacts(icontact)%matrix, &
-                                        z_zero, gret_gamma_gadv_group(icontact, ipoint)%matrix)
+                                        z_zero, gret_gamma_gadv_group(icontact, ipoint))
                   END IF
                END DO
             END IF
@@ -1647,8 +1632,8 @@ CONTAINS
          IF (sub_env%ngroups > 1) THEN
             NULLIFY (para_env)
             DO ipoint = 1, npoints
-               IF (ASSOCIATED(g_ret_s(ipoint)%matrix)) THEN
-                  CALL cp_cfm_get_info(g_ret_s(ipoint)%matrix, para_env=para_env)
+               IF (ASSOCIATED(g_ret_s(ipoint)%matrix_struct)) THEN
+                  CALL cp_cfm_get_info(g_ret_s(ipoint), para_env=para_env)
                   EXIT
                END IF
             END DO
@@ -1657,23 +1642,23 @@ CONTAINS
                ALLOCATE (info1(npoints))
 
                DO ipoint = 1, npoints
-                  IF (ASSOCIATED(g_ret_s(ipoint)%matrix)) THEN
-                     IF (.NOT. ASSOCIATED(g_ret_s_group(ipoint)%matrix)) THEN
+                  IF (ASSOCIATED(g_ret_s(ipoint)%matrix_struct)) THEN
+                     IF (.NOT. ASSOCIATED(g_ret_s_group(ipoint)%matrix_struct)) THEN
                         CALL cp_cfm_start_copy_general(cfm_dummy, &
-                                                       g_ret_s(ipoint)%matrix, &
+                                                       g_ret_s(ipoint), &
                                                        para_env, info1(ipoint))
                      ELSE
-                        CALL cp_cfm_start_copy_general(g_ret_s_group(ipoint)%matrix, &
-                                                       g_ret_s(ipoint)%matrix, &
+                        CALL cp_cfm_start_copy_general(g_ret_s_group(ipoint), &
+                                                       g_ret_s(ipoint), &
                                                        para_env, info1(ipoint))
                      END IF
                   ELSE
-                     IF (.NOT. ASSOCIATED(g_ret_s_group(ipoint)%matrix)) THEN
+                     IF (.NOT. ASSOCIATED(g_ret_s_group(ipoint)%matrix_struct)) THEN
                         CALL cp_cfm_start_copy_general(cfm_dummy, &
                                                        cfm_dummy, &
                                                        para_env, info1(ipoint))
                      ELSE
-                        CALL cp_cfm_start_copy_general(g_ret_s_group(ipoint)%matrix, &
+                        CALL cp_cfm_start_copy_general(g_ret_s_group(ipoint), &
                                                        cfm_dummy, &
                                                        para_env, info1(ipoint))
                      END IF
@@ -1681,9 +1666,9 @@ CONTAINS
                END DO
 
                DO ipoint = 1, npoints
-                  IF (ASSOCIATED(g_ret_s(ipoint)%matrix)) THEN
-                     CALL cp_cfm_finish_copy_general(g_ret_s(ipoint)%matrix, info1(ipoint))
-                     IF (ASSOCIATED(g_ret_s_group(ipoint)%matrix)) &
+                  IF (ASSOCIATED(g_ret_s(ipoint)%matrix_struct)) THEN
+                     CALL cp_cfm_finish_copy_general(g_ret_s(ipoint), info1(ipoint))
+                     IF (ASSOCIATED(g_ret_s_group(ipoint)%matrix_struct)) &
                         CALL cp_cfm_cleanup_copy_general(info1(ipoint))
                   END IF
                END DO
@@ -1756,8 +1741,8 @@ CONTAINS
 
             pnt2: DO ipoint = 1, npoints
                DO icontact = 1, ncontacts
-                  IF (ASSOCIATED(gret_gamma_gadv(icontact, ipoint)%matrix)) THEN
-                     CALL cp_cfm_get_info(gret_gamma_gadv(icontact, ipoint)%matrix, para_env=para_env)
+                  IF (ASSOCIATED(gret_gamma_gadv(icontact, ipoint)%matrix_struct)) THEN
+                     CALL cp_cfm_get_info(gret_gamma_gadv(icontact, ipoint), para_env=para_env)
                      EXIT pnt2
                   END IF
                END DO
@@ -1768,19 +1753,19 @@ CONTAINS
 
                DO ipoint = 1, npoints
                   DO icontact = 1, ncontacts
-                     IF (ASSOCIATED(gret_gamma_gadv(icontact, ipoint)%matrix)) THEN
-                        IF (ASSOCIATED(gret_gamma_gadv_group(icontact, ipoint)%matrix)) THEN
-                           CALL cp_cfm_start_copy_general(gret_gamma_gadv_group(icontact, ipoint)%matrix, &
-                                                          gret_gamma_gadv(icontact, ipoint)%matrix, &
+                     IF (ASSOCIATED(gret_gamma_gadv(icontact, ipoint)%matrix_struct)) THEN
+                        IF (ASSOCIATED(gret_gamma_gadv_group(icontact, ipoint)%matrix_struct)) THEN
+                           CALL cp_cfm_start_copy_general(gret_gamma_gadv_group(icontact, ipoint), &
+                                                          gret_gamma_gadv(icontact, ipoint), &
                                                           para_env, info2(icontact, ipoint))
                         ELSE
                            CALL cp_cfm_start_copy_general(cfm_dummy, &
-                                                          gret_gamma_gadv(icontact, ipoint)%matrix, &
+                                                          gret_gamma_gadv(icontact, ipoint), &
                                                           para_env, info2(icontact, ipoint))
                         END IF
                      ELSE
-                        IF (ASSOCIATED(gret_gamma_gadv_group(icontact, ipoint)%matrix)) THEN
-                           CALL cp_cfm_start_copy_general(gret_gamma_gadv_group(icontact, ipoint)%matrix, &
+                        IF (ASSOCIATED(gret_gamma_gadv_group(icontact, ipoint)%matrix_struct)) THEN
+                           CALL cp_cfm_start_copy_general(gret_gamma_gadv_group(icontact, ipoint), &
                                                           cfm_dummy, &
                                                           para_env, info2(icontact, ipoint))
                         ELSE
@@ -1794,9 +1779,9 @@ CONTAINS
 
                DO ipoint = 1, npoints
                   DO icontact = 1, ncontacts
-                     IF (ASSOCIATED(gret_gamma_gadv(icontact, ipoint)%matrix)) THEN
-                        CALL cp_cfm_finish_copy_general(gret_gamma_gadv(icontact, ipoint)%matrix, info2(icontact, ipoint))
-                        IF (ASSOCIATED(gret_gamma_gadv_group(icontact, ipoint)%matrix)) THEN
+                     IF (ASSOCIATED(gret_gamma_gadv(icontact, ipoint)%matrix_struct)) THEN
+                        CALL cp_cfm_finish_copy_general(gret_gamma_gadv(icontact, ipoint), info2(icontact, ipoint))
+                        IF (ASSOCIATED(gret_gamma_gadv_group(icontact, ipoint)%matrix_struct)) THEN
                            CALL cp_cfm_cleanup_copy_general(info2(icontact, ipoint))
                         END IF
                      END IF
@@ -1821,8 +1806,8 @@ CONTAINS
          CALL cp_fm_create(g_ret_imag, fm_struct)
 
          DO ipoint = 1, npoints
-            IF (ASSOCIATED(g_ret_s_group(ipoint)%matrix)) THEN
-               CALL cp_cfm_to_fm(g_ret_s_group(ipoint)%matrix, mtargeti=g_ret_imag)
+            IF (ASSOCIATED(g_ret_s_group(ipoint)%matrix_struct)) THEN
+               CALL cp_cfm_to_fm(g_ret_s_group(ipoint), mtargeti=g_ret_imag)
                CALL cp_fm_trace(g_ret_imag, matrix_s, dos(ipoint))
                IF (sub_env%para_env%mepos /= 0) dos(ipoint) = 0.0_dp
             END IF
@@ -1838,11 +1823,11 @@ CONTAINS
          transm_coeff(:) = z_zero
 
          DO ipoint = 1, npoints
-            IF (ASSOCIATED(g_ret_s_group(ipoint)%matrix)) THEN
+            IF (ASSOCIATED(g_ret_s_group(ipoint)%matrix_struct)) THEN
                ! gamma_1 * g_adv_s * gamma_2
                CALL parallel_gemm('N', 'C', nrows, nrows, nrows, &
                                   z_one, gamma_contacts_group(transm_contact1, ipoint)%matrix, &
-                                  g_ret_s_group(ipoint)%matrix, &
+                                  g_ret_s_group(ipoint), &
                                   z_zero, self_energy_contacts(transm_contact1)%matrix)
                CALL parallel_gemm('N', 'N', nrows, nrows, nrows, &
                                   z_one, self_energy_contacts(transm_contact1)%matrix, &
@@ -1850,7 +1835,7 @@ CONTAINS
                                   z_zero, self_energy_contacts(transm_contact2)%matrix)
 
                !  Trace[ g_ret_s * gamma_1 * g_adv_s * gamma_2 ]
-               CALL cp_cfm_trace(g_ret_s_group(ipoint)%matrix, &
+               CALL cp_cfm_trace(g_ret_s_group(ipoint), &
                                  self_energy_contacts(transm_contact2)%matrix, &
                                  transm_coeff(ipoint))
                IF (sub_env%para_env%mepos /= 0) transm_coeff(ipoint) = 0.0_dp
@@ -1865,9 +1850,8 @@ CONTAINS
       ! -- deallocate temporary matrices
       IF (ALLOCATED(g_ret_s_group)) THEN
          DO ipoint = npoints, 1, -1
-            IF ((sub_env%ngroups > 1 .OR. .NOT. PRESENT(g_ret_s)) .AND. ASSOCIATED(g_ret_s_group(ipoint)%matrix)) THEN
-               CALL cp_cfm_release(g_ret_s_group(ipoint)%matrix)
-               DEALLOCATE (g_ret_s_group(ipoint)%matrix)
+            IF (sub_env%ngroups > 1 .OR. .NOT. PRESENT(g_ret_s)) THEN
+               CALL cp_cfm_release(g_ret_s_group(ipoint))
             END IF
          END DO
          DEALLOCATE (g_ret_s_group)
@@ -1889,9 +1873,8 @@ CONTAINS
       IF (ALLOCATED(gret_gamma_gadv_group)) THEN
          DO ipoint = npoints, 1, -1
             DO icontact = ncontacts, 1, -1
-               IF (sub_env%ngroups > 1 .AND. ASSOCIATED(gret_gamma_gadv_group(icontact, ipoint)%matrix)) THEN
-                  CALL cp_cfm_release(gret_gamma_gadv_group(icontact, ipoint)%matrix)
-                  DEALLOCATE (gret_gamma_gadv_group(icontact, ipoint)%matrix)
+               IF (sub_env%ngroups > 1) THEN
+                  CALL cp_cfm_release(gret_gamma_gadv_group(icontact, ipoint))
                END IF
             END DO
          END DO
@@ -1985,7 +1968,7 @@ CONTAINS
                                                             npoles
       REAL(kind=dp)                                      :: mu_base, pi_temperature, temperature, &
                                                             v_external
-      TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:)     :: g_ret_s
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: g_ret_s
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(green_functions_cache_type)                   :: g_surf_cache
@@ -2016,8 +1999,7 @@ CONTAINS
          ALLOCATE (omega(npoles), g_ret_s(npoles))
 
          DO ipole = 1, npoles
-            ALLOCATE (g_ret_s(ipole)%matrix)
-            CALL cp_cfm_create(g_ret_s(ipole)%matrix, fm_struct)
+            CALL cp_cfm_create(g_ret_s(ipole), fm_struct)
 
             omega(ipole) = CMPLX(mu_base, REAL(2*ipole - 1, kind=dp)*pi_temperature, kind=dp)
          END DO
@@ -2069,16 +2051,15 @@ CONTAINS
          CALL green_functions_cache_release(g_surf_cache)
 
          DO ipole = 2, npoles
-            CALL cp_cfm_scale_and_add(z_one, g_ret_s(1)%matrix, z_one, g_ret_s(ipole)%matrix)
+            CALL cp_cfm_scale_and_add(z_one, g_ret_s(1), z_one, g_ret_s(ipole))
          END DO
 
          !Re(-i * (-2*pi*i*kB*T/(-pi) * [Re(G)+i*Im(G)]) == 2*kB*T * Re(G)
-         CALL cp_cfm_to_fm(g_ret_s(1)%matrix, mtargetr=rho_ao_fm)
+         CALL cp_cfm_to_fm(g_ret_s(1), mtargetr=rho_ao_fm)
          CALL cp_fm_scale(2.0_dp*temperature, rho_ao_fm)
 
          DO ipole = npoles, 1, -1
-            CALL cp_cfm_release(g_ret_s(ipole)%matrix)
-            DEALLOCATE (g_ret_s(ipole)%matrix)
+            CALL cp_cfm_release(g_ret_s(ipole))
          END DO
          DEALLOCATE (g_ret_s, omega)
       END IF
@@ -2131,7 +2112,7 @@ CONTAINS
       REAL(kind=dp)                                      :: conv_integr, mu_base, temperature, &
                                                             v_external
       TYPE(ccquad_type)                                  :: cc_env
-      TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:)     :: zdata, zdata_tmp
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: zdata, zdata_tmp
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: integral_imag
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -2196,8 +2177,7 @@ CONTAINS
 
          ALLOCATE (zdata(npoints))
          DO ipoint = 1, npoints
-            ALLOCATE (zdata(ipoint)%matrix)
-            CALL cp_cfm_create(zdata(ipoint)%matrix, fm_struct)
+            CALL cp_cfm_create(zdata(ipoint), fm_struct)
          END DO
 
          DO
@@ -2278,16 +2258,15 @@ CONTAINS
 
             npoints_exist = 0
             DO ipoint = 1, npoints_tmp
-               IF (ASSOCIATED(zdata_tmp(ipoint)%matrix)) THEN
+               IF (ASSOCIATED(zdata_tmp(ipoint)%matrix_struct)) THEN
                   npoints_exist = npoints_exist + 1
-                  zdata(npoints_exist)%matrix => zdata_tmp(ipoint)%matrix
+                  zdata(npoints_exist) = zdata_tmp(ipoint)
                END IF
             END DO
             DEALLOCATE (zdata_tmp)
 
             DO ipoint = npoints_exist + 1, npoints
-               ALLOCATE (zdata(ipoint)%matrix)
-               CALL cp_cfm_create(zdata(ipoint)%matrix, fm_struct)
+               CALL cp_cfm_create(zdata(ipoint), fm_struct)
             END DO
          END DO
 
@@ -2295,10 +2274,7 @@ CONTAINS
          stats%error = stats%error + cc_env%error/pi
 
          DO ipoint = SIZE(zdata_tmp), 1, -1
-            IF (ASSOCIATED(zdata_tmp(ipoint)%matrix)) THEN
-               CALL cp_cfm_release(zdata_tmp(ipoint)%matrix)
-               DEALLOCATE (zdata_tmp(ipoint)%matrix)
-            END IF
+            CALL cp_cfm_release(zdata_tmp(ipoint))
          END DO
          DEALLOCATE (zdata_tmp)
 
@@ -2330,8 +2306,7 @@ CONTAINS
 
          DO WHILE (npoints > 0 .AND. npoints_total < max_points)
             DO ipoint = 1, npoints
-               ALLOCATE (zdata(ipoint)%matrix)
-               CALL cp_cfm_create(zdata(ipoint)%matrix, fm_struct)
+               CALL cp_cfm_create(zdata(ipoint), fm_struct)
             END DO
 
             IF (do_surface_green) THEN
@@ -2467,7 +2442,7 @@ CONTAINS
       REAL(kind=dp)                                      :: conv_density, conv_integr, eta, &
                                                             ln_conv_density, mu_base, mu_contact, &
                                                             temperature_base, temperature_contact
-      TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:, :)  :: zdata
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:, :)    :: zdata
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: integral_real
       TYPE(simpsonrule_type)                             :: sr_env
@@ -2516,11 +2491,6 @@ CONTAINS
             CALL cp_fm_get_info(rho_ao_fm, matrix_struct=fm_struct)
 
             ALLOCATE (xnodes(npoints), zdata(ncontacts, npoints))
-            DO ipoint = 1, npoints
-               DO jcontact = 1, ncontacts
-                  NULLIFY (zdata(jcontact, ipoint)%matrix)
-               END DO
-            END DO
 
             IF (do_surface_green) THEN
                CALL simpsonrule_init(sr_env, xnodes, npoints, integr_lbound, integr_ubound, &
@@ -2548,8 +2518,7 @@ CONTAINS
                END IF
 
                DO ipoint = 1, npoints
-                  ALLOCATE (zdata(icontact, ipoint)%matrix)
-                  CALL cp_cfm_create(zdata(icontact, ipoint)%matrix, fm_struct)
+                  CALL cp_cfm_create(zdata(icontact, ipoint), fm_struct)
                END DO
 
                CALL negf_retarded_green_function_batch(omega=xnodes(1:npoints), &
@@ -2567,7 +2536,7 @@ CONTAINS
                                               temperature_base)
                   fermi_contact = fermi_function(CMPLX(REAL(xnodes(ipoint), kind=dp) - mu_contact, 0.0_dp, kind=dp), &
                                                  temperature_contact)
-                  CALL cp_cfm_scale(fermi_contact - fermi_base, zdata(icontact, ipoint)%matrix)
+                  CALL cp_cfm_scale(fermi_contact - fermi_base, zdata(icontact, ipoint))
                END DO
 
                npoints_total = npoints_total + npoints
@@ -2688,7 +2657,7 @@ CONTAINS
                                                             npoints_total
       REAL(kind=dp) :: conv_density, energy, eta, ln_conv_density, mu_contact1, mu_contact2, &
          temperature_contact1, temperature_contact2, v_contact1, v_contact2
-      TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:)     :: zdata
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: zdata
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_single
       TYPE(cp_fm_type)                                   :: weights
       TYPE(green_functions_cache_type)                   :: g_surf_cache
@@ -2769,15 +2738,14 @@ CONTAINS
                                                  transm_contact2=contact_id2)
 
          DO ipoint = 1, npoints
-            ALLOCATE (zdata(ipoint)%matrix)
-            CALL cp_cfm_create(zdata(ipoint)%matrix, fm_struct_single)
+            CALL cp_cfm_create(zdata(ipoint), fm_struct_single)
 
             energy = REAL(xnodes(ipoint), kind=dp)
             fermi_contact1 = fermi_function(CMPLX(energy - mu_contact1, 0.0_dp, kind=dp), temperature_contact1)
             fermi_contact2 = fermi_function(CMPLX(energy - mu_contact2, 0.0_dp, kind=dp), temperature_contact2)
 
             transmission(1, 1) = transm_coeff(ipoint)*(fermi_contact1 - fermi_contact2)
-            CALL cp_cfm_set_submatrix(zdata(ipoint)%matrix, transmission)
+            CALL cp_cfm_set_submatrix(zdata(ipoint), transmission)
          END DO
 
          CALL green_functions_cache_release(g_surf_cache)
