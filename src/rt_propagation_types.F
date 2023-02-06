@@ -56,63 +56,66 @@ MODULE rt_propagation_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_types'
 
    TYPE rtp_rho_type
-      TYPE(dbcsr_p_type), POINTER, DIMENSION(:) :: new
-      TYPE(dbcsr_p_type), POINTER, DIMENSION(:) :: old
-      TYPE(dbcsr_p_type), POINTER, DIMENSION(:) :: next
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:)     :: new => NULL()
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:)     :: old => NULL()
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:)     :: next => NULL()
    END TYPE rtp_rho_type
 
    TYPE rtp_history_type
-      TYPE(dbcsr_p_type), POINTER, DIMENSION(:, :)               :: rho_history
-      TYPE(dbcsr_p_type), POINTER, DIMENSION(:)                 :: s_history
-      TYPE(cp_fm_type), POINTER, DIMENSION(:, :)                :: mo_history
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:, :)  :: rho_history => NULL()
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:)     :: s_history => NULL()
+      TYPE(cp_fm_type), POINTER, DIMENSION(:, :)    :: mo_history => NULL()
    END TYPE rtp_history_type
 
    TYPE rtp_mos_type
-      TYPE(cp_fm_type), POINTER, DIMENSION(:)     :: new
-      TYPE(cp_fm_type), POINTER, DIMENSION(:)     :: old
-      TYPE(cp_fm_type), POINTER, DIMENSION(:)     :: next
-      TYPE(cp_fm_type), POINTER, DIMENSION(:)     :: admm
+      TYPE(cp_fm_type), POINTER, DIMENSION(:)       :: new => NULL()
+      TYPE(cp_fm_type), POINTER, DIMENSION(:)       :: old => NULL()
+      TYPE(cp_fm_type), POINTER, DIMENSION(:)       :: next => NULL()
+      TYPE(cp_fm_type), POINTER, DIMENSION(:)       :: admm => NULL()
    END TYPE rtp_mos_type
 
    TYPE rt_prop_type
-      TYPE(dbcsr_p_type), POINTER, DIMENSION(:)  :: exp_H_old
-      TYPE(dbcsr_p_type), POINTER, DIMENSION(:)  :: exp_H_new
-      TYPE(dbcsr_p_type), POINTER, DIMENSION(:)  :: H_last_iter
-      TYPE(dbcsr_p_type), POINTER, DIMENSION(:)  :: propagator_matrix
-      TYPE(dbcsr_type), POINTER                 :: S_inv
-      TYPE(dbcsr_type), POINTER                 :: S_half
-      TYPE(dbcsr_type), POINTER                 :: S_minus_half
-      TYPE(dbcsr_type), POINTER                 :: B_mat
-      TYPE(dbcsr_p_type), POINTER, DIMENSION(:)  :: C_mat
-      TYPE(dbcsr_p_type), POINTER, DIMENSION(:)  :: S_der
-      TYPE(dbcsr_p_type), POINTER, DIMENSION(:)  :: SinvH
-      TYPE(dbcsr_p_type), POINTER, DIMENSION(:) :: SinvB
-      TYPE(rtp_rho_type), POINTER                  :: rho
-      TYPE(rtp_mos_type), POINTER                  :: mos
-      REAL(KIND=dp)                               :: energy_old
-      REAL(KIND=dp)                               :: energy_new
-      REAL(KIND=dp)                               :: dt
-      REAL(KIND=dp)                               :: delta_iter
-      REAL(KIND=dp)                               :: delta_iter_old
-      REAL(KIND=dp)                               :: filter_eps
-      REAL(KIND=dp)                               :: filter_eps_small
-      REAL(KIND=dp)                               :: mixing_factor
-      LOGICAL                                     :: mixing
-      LOGICAL                                     :: do_hfx
-      LOGICAL                                     :: track_imag_density
-      INTEGER, DIMENSION(:, :), ALLOCATABLE          :: orders
-      INTEGER                                     :: nsteps, istep, i_start, max_steps
-      INTEGER                                     :: iter
-      INTEGER                                     :: narn_old
-      LOGICAL                                     :: converged
-      LOGICAL                                     :: matrix_update
-      LOGICAL                                     :: write_restart
-      TYPE(rtp_history_type), POINTER              :: history
-      TYPE(cp_fm_struct_type), POINTER            :: ao_ao_fmstruct
-      INTEGER                                     :: lanzcos_max_iter
-      REAL(KIND=dp)                               :: lanzcos_threshold
-      INTEGER                                     :: newton_schulz_order
-      LOGICAL                                     :: linear_scaling
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:)     :: exp_H_old => NULL()
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:)     :: exp_H_new => NULL()
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:)     :: H_last_iter => NULL()
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:)     :: propagator_matrix => NULL()
+      TYPE(dbcsr_type), POINTER                     :: S_inv => NULL()
+      TYPE(dbcsr_type), POINTER                     :: S_half => NULL()
+      TYPE(dbcsr_type), POINTER                     :: S_minus_half => NULL()
+      TYPE(dbcsr_type), POINTER                     :: B_mat => NULL()
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:)     :: C_mat => NULL()
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:)     :: S_der => NULL()
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:)     :: SinvH => NULL()
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:)     :: SinvB => NULL()
+      TYPE(rtp_rho_type), POINTER                   :: rho => NULL()
+      TYPE(rtp_mos_type), POINTER                   :: mos => NULL()
+      REAL(KIND=dp)                                 :: energy_old = 0.0_dp
+      REAL(KIND=dp)                                 :: energy_new = 0.0_dp
+      REAL(KIND=dp)                                 :: dt = 0.0_dp
+      REAL(KIND=dp)                                 :: delta_iter = 0.0_dp
+      REAL(KIND=dp)                                 :: delta_iter_old = 0.0_dp
+      REAL(KIND=dp)                                 :: filter_eps = 0.0_dp
+      REAL(KIND=dp)                                 :: filter_eps_small = 0.0_dp
+      REAL(KIND=dp)                                 :: mixing_factor = 0.0_dp
+      LOGICAL                                       :: mixing = .FALSE.
+      LOGICAL                                       :: do_hfx = .FALSE.
+      LOGICAL                                       :: track_imag_density = .FALSE.
+      INTEGER, DIMENSION(:, :), ALLOCATABLE         :: orders
+      INTEGER                                       :: nsteps = -1
+      INTEGER                                       :: istep = -1
+      INTEGER                                       :: i_start = -1
+      INTEGER                                       :: max_steps = -1
+      INTEGER                                       :: iter = -1
+      INTEGER                                       :: narn_old = -1
+      LOGICAL                                       :: converged = .FALSE.
+      LOGICAL                                       :: matrix_update = .FALSE.
+      LOGICAL                                       :: write_restart = .FALSE.
+      TYPE(rtp_history_type), POINTER               :: history => NULL()
+      TYPE(cp_fm_struct_type), POINTER              :: ao_ao_fmstruct => NULL()
+      INTEGER                                       :: lanzcos_max_iter = -1
+      REAL(KIND=dp)                                 :: lanzcos_threshold = 0.0_dp
+      INTEGER                                       :: newton_schulz_order = -1
+      LOGICAL                                       :: linear_scaling = .FALSE.
    END TYPE rt_prop_type
 
 ! *** Public data types ***
