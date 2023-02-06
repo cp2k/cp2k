@@ -25,9 +25,9 @@ MODULE qs_localization_methods
                                               cp_cfm_trace
    USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
    USE cp_cfm_types,                    ONLY: &
-        cp_cfm_create, cp_cfm_get_element, cp_cfm_get_info, cp_cfm_get_submatrix, cp_cfm_p_type, &
-        cp_cfm_release, cp_cfm_set_all, cp_cfm_set_submatrix, cp_cfm_to_cfm, cp_cfm_to_fm, &
-        cp_cfm_type, cp_fm_to_cfm
+        cp_cfm_create, cp_cfm_get_element, cp_cfm_get_info, cp_cfm_get_submatrix, cp_cfm_release, &
+        cp_cfm_set_all, cp_cfm_set_submatrix, cp_cfm_to_cfm, cp_cfm_to_fm, cp_cfm_type, &
+        cp_fm_to_cfm
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_external_control,             ONLY: external_control
    USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm,&
@@ -1782,14 +1782,14 @@ CONTAINS
                                                             x1, xa, xb, xc
       REAL(KIND=dp), DIMENSION(150)                      :: energy, grad, pos
       REAL(KIND=dp), DIMENSION(:), POINTER               :: evals, fval, fvald
-      TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: c_zij
       TYPE(cp_cfm_type)                                  :: cmat_A, cmat_B, cmat_M, cmat_R, cmat_t1, &
                                                             cmat_t2, cmat_U
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: c_zij
       TYPE(cp_fm_type)                                   :: matrix_A, matrix_G, matrix_G_old, &
                                                             matrix_G_search, matrix_H, matrix_R, &
                                                             matrix_T
 
-      NULLIFY (evals, evals_exp, diag_z, fval, fvald, c_zij)
+      NULLIFY (evals, evals_exp, diag_z, fval, fvald)
 
       CALL timeset(routineN, handle)
       output_unit = cp_logger_get_default_io_unit()
@@ -1807,10 +1807,9 @@ CONTAINS
 
       ! create the three complex matrices Z
       DO idim = 1, ndim
-         ALLOCATE (c_zij(idim)%matrix)
-         CALL cp_cfm_create(c_zij(idim)%matrix, zij(1, 1)%matrix_struct)
-         c_zij(idim)%matrix%local_data = CMPLX(zij(1, idim)%local_data, &
-                                               zij(2, idim)%local_data, dp)
+         CALL cp_cfm_create(c_zij(idim), zij(1, 1)%matrix_struct)
+         c_zij(idim)%local_data = CMPLX(zij(1, idim)%local_data, &
+                                        zij(2, idim)%local_data, dp)
       END DO
 
       CALL cp_fm_create(matrix_A, zij(1, 1)%matrix_struct)
@@ -1857,8 +1856,8 @@ CONTAINS
 
          IF (new_direction .AND. MOD(line_searches, 20) .EQ. 5) THEN ! reset with A .eq. 0
             DO idim = 1, ndim
-               CALL parallel_gemm('N', 'N', n, n, n, cone, c_zij(idim)%matrix, cmat_U, czero, cmat_t1)
-               CALL parallel_gemm('C', 'N', n, n, n, cone, cmat_U, cmat_t1, czero, c_zij(idim)%matrix)
+               CALL parallel_gemm('N', 'N', n, n, n, cone, c_zij(idim), cmat_U, czero, cmat_t1)
+               CALL parallel_gemm('C', 'N', n, n, n, cone, cmat_U, cmat_t1, czero, c_zij(idim))
             END DO
             ! collect rotation matrix
             matrix_H%local_data = REAL(cmat_U%local_data, KIND=dp)
@@ -1880,7 +1879,7 @@ CONTAINS
          CALL cp_cfm_set_all(cmat_M, czero)
          omega = 0.0_dp
          DO idim = 1, ndim
-            CALL parallel_gemm('N', 'N', n, n, n, cone, c_zij(idim)%matrix, cmat_U, czero, cmat_t1) ! t1=ZU
+            CALL parallel_gemm('N', 'N', n, n, n, cone, c_zij(idim), cmat_U, czero, cmat_t1) ! t1=ZU
             CALL parallel_gemm('C', 'N', n, n, n, cone, cmat_U, cmat_t1, czero, cmat_t2) ! t2=(U^T)ZU
             DO i = 1, n
                CALL cp_cfm_get_element(cmat_t2, i, i, diag_z(i, idim))
@@ -2134,10 +2133,9 @@ CONTAINS
       DEALLOCATE (evals, evals_exp, fval, fvald)
 
       DO idim = 1, SIZE(c_zij)
-         zij(1, idim)%local_data = REAL(c_zij(idim)%matrix%local_data, dp)
-         zij(2, idim)%local_data = AIMAG(c_zij(idim)%matrix%local_data)
-         CALL cp_cfm_release(c_zij(idim)%matrix)
-         DEALLOCATE (c_zij(idim)%matrix)
+         zij(1, idim)%local_data = REAL(c_zij(idim)%local_data, dp)
+         zij(2, idim)%local_data = AIMAG(c_zij(idim)%local_data)
+         CALL cp_cfm_release(c_zij(idim))
       END DO
       DEALLOCATE (c_zij)
       DEALLOCATE (diag_z)
