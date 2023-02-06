@@ -155,7 +155,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_create(matrix, matrix_struct, name, use_sp)
       TYPE(cp_fm_type), INTENT(OUT)                      :: matrix
-      TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
+      TYPE(cp_fm_struct_type), TARGET, INTENT(IN)        :: matrix_struct
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: name
       LOGICAL, INTENT(in), OPTIONAL                      :: use_sp
 
@@ -171,7 +171,6 @@ CONTAINS
       CPABORT("full matrices need scalapack for parallel runs")
 #endif
 
-      CPASSERT(ASSOCIATED(matrix_struct))
       context => matrix_struct%context
       matrix%matrix_struct => matrix_struct
       CALL cp_fm_struct_retain(matrix%matrix_struct)

@@ -122,7 +122,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_create(matrix, matrix_struct, name)
       TYPE(cp_cfm_type), INTENT(OUT)                     :: matrix
-      TYPE(cp_fm_struct_type), POINTER, INTENT(IN)       :: matrix_struct
+      TYPE(cp_fm_struct_type), TARGET, INTENT(IN)       :: matrix_struct
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: name
 
       INTEGER                                            :: ncol_local, npcol, nprow, nrow_local
@@ -132,7 +132,6 @@ CONTAINS
       CPABORT("full matrices need ScaLAPACK for parallel run")
 #endif
 
-      CPASSERT(ASSOCIATED(matrix_struct))
       context => matrix_struct%context
       matrix%matrix_struct => matrix_struct
       CALL cp_fm_struct_retain(matrix%matrix_struct)
