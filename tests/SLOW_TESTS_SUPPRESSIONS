@@ -52,5 +52,8 @@ QS/regtest-rel/h2o-4.inp
 QS/regtest-ps-implicit-1-3/Ar_mixed_aa_planar.inp
 QS/regtest-ps-implicit-1-2/Ar_neumann.inp
 LIBTEST/libbqb/test_01.inp
+xTB/regtest-1/si_kp.inp
+QS/regtest-tddfpt-3/ch2o_t2.inp
+QS/regtest-kg/H2_MD.inp
 
 #EOF
