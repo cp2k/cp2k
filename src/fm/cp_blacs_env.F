@@ -14,18 +14,13 @@
 ! **************************************************************************************************
 MODULE cp_blacs_env
    USE cp_array_utils,                  ONLY: cp_2d_i_write
-   USE cp_blacs_calls,                  ONLY: cp_blacs_gridexit,&
-                                              cp_blacs_gridinfo,&
-                                              cp_blacs_gridinit,&
-                                              cp_blacs_set
+   USE cp_context_types,                ONLY: cp_context_type
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_retain
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: gcd
-   USE message_passing,                 ONLY: mp_comm_null,&
-                                              mp_comm_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -39,9 +34,8 @@ MODULE cp_blacs_env
                                                BLACS_GRID_ROW = 2, &
                                                BLACS_GRID_COL = 3
 
-   PUBLIC :: cp_blacs_env_type ! make it accessible only through cp_para_types?
-   PUBLIC :: cp_blacs_env_create, cp_blacs_env_retain, cp_blacs_env_release
-   PUBLIC :: cp_blacs_env_write, get_blacs_info
+   PUBLIC :: cp_blacs_env_type
+   PUBLIC :: cp_blacs_env_create, cp_blacs_env_release
 
 ! **************************************************************************************************
 !> \brief represent a blacs multidimensional parallel environment
@@ -60,14 +54,19 @@ MODULE cp_blacs_env
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   TYPE cp_blacs_env_type
-      INTEGER, DIMENSION(2) :: mepos, num_pe
-      TYPE(mp_comm_type) :: group = mp_comm_null
-      INTEGER :: my_pid, n_pid, ref_count
-      TYPE(cp_para_env_type), POINTER :: para_env
-      INTEGER, DIMENSION(:, :), POINTER :: blacs2mpi
-      INTEGER, DIMENSION(:, :), POINTER :: mpi2blacs
-      LOGICAL :: repeatable
+   TYPE, EXTENDS(cp_context_type) :: cp_blacs_env_type
+      INTEGER, DIMENSION(2) :: mepos = -1, num_pe = -1
+      INTEGER :: my_pid = -1, n_pid = -1, ref_count = -1
+      TYPE(cp_para_env_type), POINTER :: para_env => NULL()
+      INTEGER, DIMENSION(:, :), POINTER :: blacs2mpi => NULL()
+      INTEGER, DIMENSION(:, :), POINTER :: mpi2blacs => NULL()
+      LOGICAL :: repeatable = .FALSE.
+   CONTAINS
+      PROCEDURE, PUBLIC, PASS, NON_OVERRIDABLE :: create => cp_blacs_env_create_low
+      PROCEDURE, PUBLIC, PASS, NON_OVERRIDABLE :: retain => cp_blacs_env_retain
+      PROCEDURE, PUBLIC, PASS, NON_OVERRIDABLE :: release => cp_blacs_env_release_low
+      PROCEDURE, PUBLIC, PASS, NON_OVERRIDABLE :: get => get_blacs_info
+      PROCEDURE, PUBLIC, PASS, NON_OVERRIDABLE :: write => cp_blacs_env_write
    END TYPE cp_blacs_env_type
 
 !***
@@ -95,15 +94,11 @@ CONTAINS
                              my_process_number, number_of_process_rows, &
                              number_of_process_columns, number_of_processes, &
                              para_env, blacs2mpi, mpi2blacs)
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      CLASS(cp_blacs_env_type), INTENT(IN)                :: blacs_env
       INTEGER, INTENT(OUT), OPTIONAL :: my_process_row, my_process_column, my_process_number, &
-         number_of_process_rows, number_of_process_columns, number_of_processes
+                                        number_of_process_rows, number_of_process_columns, number_of_processes
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: blacs2mpi, mpi2blacs
-
-      IF (.NOT. ASSOCIATED(blacs_env)) THEN
-         CPABORT("No BLACS environment")
-      END IF
 
       IF (PRESENT(my_process_row)) my_process_row = blacs_env%mepos(1)
       IF (PRESENT(my_process_column)) my_process_column = blacs_env%mepos(2)
@@ -130,8 +125,32 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE cp_blacs_env_create(blacs_env, para_env, blacs_grid_layout, blacs_repeatable, row_major, grid_2d)
-      TYPE(cp_blacs_env_type), POINTER         :: blacs_env
-      TYPE(cp_para_env_type), POINTER          :: para_env
+      TYPE(cp_blacs_env_type), INTENT(OUT), POINTER      :: blacs_env
+      TYPE(cp_para_env_type), INTENT(INOUT), TARGET      :: para_env
+      INTEGER, INTENT(IN), OPTIONAL                      :: blacs_grid_layout
+      LOGICAL, INTENT(IN), OPTIONAL                      :: blacs_repeatable, row_major
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: grid_2d
+
+      ALLOCATE (blacs_env)
+      CALL blacs_env%create(para_env, blacs_grid_layout, blacs_repeatable, row_major, grid_2d)
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief allocates and initializes a type that represent a blacs context
+!> \param blacs_env the type to initialize
+!> \param para_env the para_env for which a blacs env should be created
+!> \param blacs_grid_layout ...
+!> \param blacs_repeatable ...
+!> \param row_major ...
+!> \param grid_2d ...
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! **************************************************************************************************
+   SUBROUTINE cp_blacs_env_create_low(blacs_env, para_env, blacs_grid_layout, blacs_repeatable, row_major, grid_2d)
+      CLASS(cp_blacs_env_type), INTENT(OUT)    :: blacs_env
+      TYPE(cp_para_env_type), TARGET, INTENT(INOUT) :: para_env
       INTEGER, INTENT(IN), OPTIONAL            :: blacs_grid_layout
       LOGICAL, INTENT(IN), OPTIONAL            :: blacs_repeatable, row_major
       INTEGER, DIMENSION(:), INTENT(IN), &
@@ -154,24 +173,11 @@ CONTAINS
 #endif
 #endif
 
-      CPASSERT(.NOT. ASSOCIATED(blacs_env))
-
-      ALLOCATE (blacs_env)
-      blacs_env%ref_count = 1
-      blacs_env%mepos(:) = 0
-      blacs_env%num_pe(:) = 1
-      blacs_env%my_pid = 0
-      blacs_env%n_pid = 1
-      CALL cp_para_env_retain(para_env)
-      blacs_env%para_env => para_env
-
 #ifdef __SCALAPACK
       ! get the number of cpus for this blacs grid
-      blacs_env%my_pid = para_env%mepos
-      blacs_env%n_pid = para_env%num_pe
       nprow = 1
       npcol = 1
-      npe = blacs_env%n_pid
+      npe = para_env%num_pe
       ! get the layout of this grid
 
       IF (PRESENT(grid_2d)) THEN
@@ -207,31 +213,43 @@ CONTAINS
          END SELECT
       END IF
 
-      ! blacs_env%group will be set to the blacs context for this blacs env, this is not the same as the MPI context
-      blacs_env%group = para_env%group
+      ! blacs_env will be set to the blacs context for this blacs env, this is not the same as the MPI context
       my_row_major = .TRUE.
       IF (PRESENT(row_major)) my_row_major = row_major
       IF (my_row_major) THEN
-         CALL cp_blacs_gridinit(blacs_env%group, "Row-major", nprow, npcol)
+         CALL blacs_env%gridinit(para_env%group, "Row-major", nprow, npcol)
       ELSE
-         CALL cp_blacs_gridinit(blacs_env%group, "Col-major", nprow, npcol)
+         CALL blacs_env%gridinit(para_env%group, "Col-major", nprow, npcol)
       END IF
+
+      ! We set the components of blacs_env here such that we can still use INTENT(OUT) with gridinit
+      blacs_env%my_pid = para_env%mepos
+      blacs_env%n_pid = para_env%num_pe
+      blacs_env%ref_count = 1
 
       my_blacs_repeatable = .FALSE.
       IF (PRESENT(blacs_repeatable)) my_blacs_repeatable = blacs_repeatable
       blacs_env%repeatable = my_blacs_repeatable
-      IF (blacs_env%repeatable) CALL cp_blacs_set(blacs_env%group, 15, 1)
+      IF (blacs_env%repeatable) CALL blacs_env%set(15, 1)
 
       ! fill in the info one needs
-      CALL cp_blacs_gridinfo(blacs_env%group, blacs_env%num_pe(1), &
-                             blacs_env%num_pe(2), blacs_env%mepos(1), blacs_env%mepos(2))
+      CALL blacs_env%gridinfo(blacs_env%num_pe(1), &
+                              blacs_env%num_pe(2), blacs_env%mepos(1), blacs_env%mepos(2))
 
 #else
+      blacs_env%ref_count = 1
+      blacs_env%mepos(:) = 0
+      blacs_env%num_pe(:) = 1
+      blacs_env%my_pid = 0
+      blacs_env%n_pid = 1
       MARK_USED(blacs_grid_layout)
       MARK_USED(blacs_repeatable)
       MARK_USED(grid_2d)
       MARK_USED(row_major)
 #endif
+
+      CALL cp_para_env_retain(para_env)
+      blacs_env%para_env => para_env
 
       ! generate the mappings blacs2mpi and mpi2blacs
       ALLOCATE (blacs_env%blacs2mpi(0:blacs_env%num_pe(1) - 1, 0:blacs_env%num_pe(2) - 1), &
@@ -248,7 +266,7 @@ CONTAINS
             blacs_env%mpi2blacs(2, blacs_env%blacs2mpi(iprow, ipcol)) = ipcol
          END DO
       END DO
-   END SUBROUTINE cp_blacs_env_create
+   END SUBROUTINE cp_blacs_env_create_low
 
 ! **************************************************************************************************
 !> \brief retains the given blacs env
@@ -258,9 +276,8 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE cp_blacs_env_retain(blacs_env)
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      CLASS(cp_blacs_env_type), INTENT(INOUT)            :: blacs_env
 
-      CPASSERT(ASSOCIATED(blacs_env))
       CPASSERT(blacs_env%ref_count > 0)
       blacs_env%ref_count = blacs_env%ref_count + 1
    END SUBROUTINE cp_blacs_env_retain
@@ -279,15 +296,29 @@ CONTAINS
          CPASSERT(blacs_env%ref_count > 0)
          blacs_env%ref_count = blacs_env%ref_count - 1
          IF (blacs_env%ref_count < 1) THEN
-            CALL cp_blacs_gridexit(blacs_env%group)
-            CALL cp_para_env_release(blacs_env%para_env)
-            DEALLOCATE (blacs_env%mpi2blacs)
-            DEALLOCATE (blacs_env%blacs2mpi)
+            CALL blacs_env%release()
             DEALLOCATE (blacs_env)
          END IF
       END IF
       NULLIFY (blacs_env)
    END SUBROUTINE cp_blacs_env_release
+
+! **************************************************************************************************
+!> \brief releases the given blacs_env
+!> \param blacs_env the blacs env to release
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! **************************************************************************************************
+   SUBROUTINE cp_blacs_env_release_low(blacs_env)
+      CLASS(cp_blacs_env_type), INTENT(INOUT)                   :: blacs_env
+
+      CALL blacs_env%gridexit()
+      CALL cp_para_env_release(blacs_env%para_env)
+      DEALLOCATE (blacs_env%mpi2blacs)
+      DEALLOCATE (blacs_env%blacs2mpi)
+
+   END SUBROUTINE cp_blacs_env_release_low
 
 ! **************************************************************************************************
 !> \brief writes the description of the given blacs env
@@ -299,43 +330,29 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE cp_blacs_env_write(blacs_env, unit_nr)
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      CLASS(cp_blacs_env_type), INTENT(IN)                :: blacs_env
       INTEGER, INTENT(in)                                :: unit_nr
 
-      INTEGER                                            :: iostat
-
-      IF (ASSOCIATED(blacs_env)) THEN
-         WRITE (unit=unit_nr, fmt="('  group=',i10,', ref_count=',i10,',')", &
-                iostat=iostat) blacs_env%group%get_handle(), blacs_env%ref_count
-         CPASSERT(iostat == 0)
-         WRITE (unit=unit_nr, fmt="('  mepos=(',i8,',',i8,'),')", &
-                iostat=iostat) blacs_env%mepos(1), blacs_env%mepos(2)
-         CPASSERT(iostat == 0)
-         WRITE (unit=unit_nr, fmt="('  num_pe=(',i8,',',i8,'),')", &
-                iostat=iostat) blacs_env%num_pe(1), blacs_env%num_pe(2)
-         CPASSERT(iostat == 0)
-         IF (ASSOCIATED(blacs_env%blacs2mpi)) THEN
-            WRITE (unit=unit_nr, fmt="('  blacs2mpi=')", advance="no", iostat=iostat)
-            CPASSERT(iostat == 0)
-            CALL cp_2d_i_write(blacs_env%blacs2mpi, unit_nr=unit_nr)
-         ELSE
-            WRITE (unit=unit_nr, fmt="('  blacs2mpi=*null*')", iostat=iostat)
-            CPASSERT(iostat == 0)
-         END IF
-         IF (ASSOCIATED(blacs_env%para_env)) THEN
-            WRITE (unit=unit_nr, fmt="('  para_env=<cp_para_env id=',i6,'>,')") &
-               blacs_env%para_env%group%get_handle()
-         ELSE
-            WRITE (unit=unit_nr, fmt="('  para_env=*null*')")
-         END IF
-         WRITE (unit=unit_nr, fmt="('  my_pid=',i10,', n_pid=',i10,' }')", &
-                iostat=iostat) blacs_env%my_pid, blacs_env%n_pid
-         CPASSERT(iostat == 0)
+      WRITE (unit=unit_nr, fmt="('  group=',i10,', ref_count=',i10,',')") &
+         blacs_env%get_handle(), blacs_env%ref_count
+      WRITE (unit=unit_nr, fmt="('  mepos=(',i8,',',i8,'),')") &
+         blacs_env%mepos(1), blacs_env%mepos(2)
+      WRITE (unit=unit_nr, fmt="('  num_pe=(',i8,',',i8,'),')") &
+         blacs_env%num_pe(1), blacs_env%num_pe(2)
+      IF (ASSOCIATED(blacs_env%blacs2mpi)) THEN
+         WRITE (unit=unit_nr, fmt="('  blacs2mpi=')", advance="no")
+         CALL cp_2d_i_write(blacs_env%blacs2mpi, unit_nr=unit_nr)
       ELSE
-         WRITE (unit=unit_nr, &
-                fmt="(a)", iostat=iostat) ' <cp_blacs_env>:*null* '
-         CPASSERT(iostat == 0)
+         WRITE (unit=unit_nr, fmt="('  blacs2mpi=*null*')")
       END IF
+      IF (ASSOCIATED(blacs_env%para_env)) THEN
+         WRITE (unit=unit_nr, fmt="('  para_env=<cp_para_env id=',i6,'>,')") &
+            blacs_env%para_env%group%get_handle()
+      ELSE
+         WRITE (unit=unit_nr, fmt="('  para_env=*null*')")
+      END IF
+      WRITE (unit=unit_nr, fmt="('  my_pid=',i10,', n_pid=',i10,' }')") &
+         blacs_env%my_pid, blacs_env%n_pid
       CALL m_flush(unit_nr)
    END SUBROUTINE cp_blacs_env_write
 

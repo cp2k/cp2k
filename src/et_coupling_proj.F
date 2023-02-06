@@ -446,9 +446,9 @@ CONTAINS
 
             IF ((c_row_f == c_row) .AND. (c_col_f == c_col)) THEN
                arr(i, j) = mat%local_data(i_p_row, i_p_col)
-               CALL dgebs2d(mat%matrix_struct%context%group, 'All', ' ', 1, 1, arr(i, j), 1)
+               CALL mat%matrix_struct%context%dgebs2d('All', ' ', 1, 1, arr(i, j), 1)
             ELSE
-               CALL dgebr2d(mat%matrix_struct%context%group, 'All', ' ', 1, 1, arr(i, j), 1, c_row_f, c_col_f)
+               CALL mat%matrix_struct%context%dgebr2d('All', ' ', 1, 1, arr(i, j), 1, c_row_f, c_col_f)
             END IF
 
          END DO
@@ -531,14 +531,14 @@ CONTAINS
                         ! Local H element
                         IF ((ch_row_f == ch_row) .AND. (ch_col_f == ch_col)) THEN
                            xh = mat_h%local_data(ih_p_row, ih_p_col)
-                           CALL dgebs2d(mat_h%matrix_struct%context%group, 'All', ' ', 1, 1, xh, 1)
+                           CALL mat_h%matrix_struct%context%dgebs2d('All', ' ', 1, 1, xh, 1)
                            IF ((cw_row_f == cw_row) .AND. (cw_col_f == cw_col)) THEN
                               mat_w%local_data(iw_p_row, iw_p_col) = xh
                            END IF
                            ! Remote H element
                         ELSE
-                           CALL dgebr2d(mat_h%matrix_struct%context%group, &
-                                        'All', ' ', 1, 1, xh, 1, ch_row_f, ch_col_f)
+                           CALL mat_h%matrix_struct%context%dgebr2d( &
+                              'All', ' ', 1, 1, xh, 1, ch_row_f, ch_col_f)
                            IF ((cw_row_f == cw_row) .AND. (cw_col_f == cw_col)) THEN
                               mat_w%local_data(iw_p_row, iw_p_col) = xh
                            END IF
@@ -865,10 +865,10 @@ CONTAINS
             ! local element
             IF ((c_row_f == c_row) .AND. (c_col_f == c_col)) THEN
                c = mo%local_data(i_p_row, i_p_col)
-               CALL dgebs2d(mo%matrix_struct%context%group, 'All', ' ', 1, 1, c, 1)
+               CALL mo%matrix_struct%context%dgebs2d('All', ' ', 1, 1, c, 1)
                ! remote element
             ELSE
-               CALL dgebr2d(mo%matrix_struct%context%group, 'All', ' ', 1, 1, c, 1, c_row_f, c_col_f)
+               CALL mo%matrix_struct%context%dgebr2d('All', ' ', 1, 1, c, 1, c_row_f, c_col_f)
             END IF
 #else
             c = mo%local_data(blk_at(j)%ao_pos + k - 1, id)
@@ -1408,14 +1408,14 @@ CONTAINS
                   ! Local U element
                   IF ((cu_row_f == cu_row) .AND. (cu_col_f == cu_col)) THEN
                      xu = mat_u%local_data(iu_p_row, iu_p_col)
-                     CALL dgebs2d(mat_u%matrix_struct%context%group, 'All', ' ', 1, 1, xu, 1)
+                     CALL mat_u%matrix_struct%context%dgebs2d('All', ' ', 1, 1, xu, 1)
                      IF ((cs_row_f == cs_row) .AND. (cs_col_f == cs_col)) THEN
                         mat_w%local_data(is_p_row, is_p_col) = xu
                      END IF
                      ! Remote U element
                   ELSE
-                     CALL dgebr2d(mat_u%matrix_struct%context%group, &
-                                  'All', ' ', 1, 1, xu, 1, cu_row_f, cu_col_f)
+                     CALL mat_u%matrix_struct%context%dgebr2d( &
+                        'All', ' ', 1, 1, xu, 1, cu_row_f, cu_col_f)
                      IF ((cs_row_f == cs_row) .AND. (cs_col_f == cs_col)) THEN
                         mat_w%local_data(is_p_row, is_p_col) = xu
                      END IF

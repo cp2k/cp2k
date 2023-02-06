@@ -34,7 +34,6 @@ MODULE qs_environment
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
-                                              cp_blacs_env_retain,&
                                               cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               dftb_control_type,&
@@ -58,7 +57,6 @@ MODULE qs_environment
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_env,                     ONLY: cp_para_env_retain
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE cp_symmetry,                     ONLY: write_symmetry
@@ -385,14 +383,9 @@ CONTAINS
       END IF
 
       ! more kpoint stuff
-      kpoints%para_env => para_env
-      CALL cp_para_env_retain(para_env)
-      CALL get_qs_env(qs_env=qs_env, blacs_env=blacs_env)
-      kpoints%blacs_env_all => blacs_env
-      CALL cp_blacs_env_retain(blacs_env)
-      CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints)
+      CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints, blacs_env=blacs_env)
       IF (do_kpoints) THEN
-         CALL kpoint_env_initialize(kpoints)
+         CALL kpoint_env_initialize(kpoints, para_env, blacs_env)
          CALL kpoint_initialize_mos(kpoints, qs_env%mos)
          CALL get_qs_env(qs_env=qs_env, wf_history=wf_history)
          CALL wfi_create_for_kp(wf_history)

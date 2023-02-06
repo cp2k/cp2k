@@ -16,8 +16,7 @@ MODULE rpa_grad
                                               c_associated
    USE cp_array_utils,                  ONLY: cp_1d_r_cp_type,&
                                               cp_3d_r_cp_type
-   USE cp_blacs_env,                    ONLY: cp_blacs_env_type,&
-                                              get_blacs_info
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_fm_basic_linalg,              ONLY: cp_fm_geadd,&
                                               cp_fm_scale_and_add,&
                                               cp_fm_upper_to_full
@@ -294,8 +293,7 @@ CONTAINS
 
       CALL cp_fm_create(rpa_work%fm_mat_Q_copy, matrix_struct=fm_mat_Q%matrix_struct)
 
-      CALL get_blacs_info(fm_mat_S(1)%matrix_struct%context, &
-                          number_of_process_columns=num_pe_col, my_process_column=my_pcol)
+      CALL fm_mat_S(1)%matrix_struct%context%get(number_of_process_columns=num_pe_col, my_process_column=my_pcol)
 
       nspins = SIZE(fm_mat_S)
 
@@ -474,7 +472,7 @@ CONTAINS
 
       tag = 44
 
-      CALL get_blacs_info(fm_mat_S%matrix_struct%context, number_of_process_columns=num_pe_col)
+      CALL fm_mat_S%matrix_struct%context%get(number_of_process_columns=num_pe_col)
       ALLOCATE (sos_mp2_work%index2send(0:num_pe_col - 1), &
                 sos_mp2_work%index2recv(0:num_pe_col - 1))
 
@@ -484,8 +482,8 @@ CONTAINS
       CALL cp_fm_struct_get(fm_mat_S%matrix_struct, para_env=para_env, ncol_locals=ncol_locals, &
                             ncol_local=ncol_local, col_indices=col_indices, &
                             context=context, ncol_block=ncol_block, first_p_pos=first_p_pos, nrow_local=nrow_local)
-      CALL get_blacs_info(context, my_process_row=my_prow, my_process_column=my_pcol, &
-                          blacs2mpi=blacs2mpi)
+      CALL context%get(my_process_row=my_prow, my_process_column=my_pcol, &
+                       blacs2mpi=blacs2mpi)
       first_p_pos_col = first_p_pos(2)
 
       num_ij_pairs = SIZE(sos_mp2_work%pair_list, 2)
@@ -608,7 +606,7 @@ CONTAINS
 
       tag = 44
 
-      CALL get_blacs_info(fm_mat_S%matrix_struct%context, number_of_process_columns=num_pe_col)
+      CALL fm_mat_S%matrix_struct%context%get(number_of_process_columns=num_pe_col)
       ALLOCATE (sos_mp2_work%index2send(0:num_pe_col - 1), &
                 sos_mp2_work%index2recv(0:num_pe_col - 1))
 
@@ -618,8 +616,8 @@ CONTAINS
          CALL cp_fm_struct_get(fm_mat_S%matrix_struct, para_env=para_env, ncol_locals=ncol_locals, &
                                ncol_local=ncol_local, col_indices=col_indices, &
                                context=context, ncol_block=ncol_block, first_p_pos=first_p_pos, nrow_local=nrow_local)
-         CALL get_blacs_info(context, my_process_row=my_prow, my_process_column=my_pcol, &
-                             blacs2mpi=blacs2mpi)
+         CALL context%get(my_process_row=my_prow, my_process_column=my_pcol, &
+                          blacs2mpi=blacs2mpi)
          first_p_pos_col = first_p_pos(2)
 
          NULLIFY (para_env_exchange)
@@ -805,7 +803,7 @@ CONTAINS
          CALL timestop(handle2)
 
          CALL cp_fm_to_fm_submat_general(fm_mat_Q(1), fm_mat_Q_gemm(1), dimen_RI, dimen_RI, 1, 1, 1, 1, &
-                                         fm_mat_Q_gemm(1)%matrix_struct%context%group)
+                                         fm_mat_Q_gemm(1)%matrix_struct%context)
       END IF
 
       DO ispin = 1, nspins
@@ -827,7 +825,7 @@ CONTAINS
             CALL timestop(handle2)
 
             CALL cp_fm_to_fm_submat_general(fm_mat_Q(jspin), fm_mat_Q_gemm(jspin), dimen_RI, dimen_RI, 1, 1, 1, 1, &
-                                            fm_mat_Q_gemm(jspin)%matrix_struct%context%group)
+                                            fm_mat_Q_gemm(jspin)%matrix_struct%context)
          ELSE
             CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virtual(ispin), Eigenval(:, ispin), &
                                    homo(ispin), omega, 0.0_dp)
@@ -1048,7 +1046,7 @@ CONTAINS
       my_P_size = SIZE(mat_work_iaP_3D, 1)
 
       CALL cp_fm_struct_get(fm_struct_S, para_env=para_env)
-      CALL get_blacs_info(fm_struct_S%context, my_process_row=my_prow, blacs2mpi=blacs2mpi, para_env=para_env)
+      CALL fm_struct_S%context%get(my_process_row=my_prow, blacs2mpi=blacs2mpi, para_env=para_env)
 
       CALL get_group_dist(gd_virtual, mepos(1), my_a_start, my_a_end, my_a_size)
       CALL get_group_dist(gd_homo, mepos(2), my_i_start, my_i_end, my_i_size)
@@ -1644,8 +1642,8 @@ CONTAINS
       CALL cp_fm_struct_get(fm_work_iaP%matrix_struct, para_env=para_env, ncol_locals=ncol_locals, &
                             ncol_local=ncol_local, col_indices=col_indices, &
                             context=context, ncol_block=ncol_block, first_p_pos=first_p_pos, nrow_local=nrow_local)
-      CALL get_blacs_info(context, my_process_row=my_prow, my_process_column=my_pcol, &
-                          number_of_process_columns=num_pe_col, blacs2mpi=blacs2mpi)
+      CALL context%get(my_process_row=my_prow, my_process_column=my_pcol, &
+                       number_of_process_columns=num_pe_col, blacs2mpi=blacs2mpi)
       first_p_pos_col = first_p_pos(2)
 
       num_ij_pairs = SIZE(pair_list, 2)
@@ -1802,8 +1800,8 @@ CONTAINS
       CALL cp_fm_struct_get(fm_work_iaP%matrix_struct, para_env=para_env, ncol_locals=ncol_locals, &
                             ncol_local=ncol_local, col_indices=col_indices, &
                             context=context, ncol_block=ncol_block, first_p_pos=first_p_pos, nrow_local=nrow_local)
-      CALL get_blacs_info(context, my_process_row=my_prow, my_process_column=my_pcol, &
-                          number_of_process_columns=num_pe_col, blacs2mpi=blacs2mpi)
+      CALL context%get(my_process_row=my_prow, my_process_column=my_pcol, &
+                       number_of_process_columns=num_pe_col, blacs2mpi=blacs2mpi)
       first_p_pos_col = first_p_pos(2)
 
       num_ab_pairs = SIZE(pair_list, 2)
@@ -1951,8 +1949,8 @@ CONTAINS
 
       tag = 46
 
-      CALL get_blacs_info(fm_mat_S%matrix_struct%context, my_process_row=my_prow, my_process_column=my_pcol, &
-                          number_of_process_columns=num_pe_col, blacs2mpi=blacs2mpi)
+      CALL fm_mat_S%matrix_struct%context%get(my_process_row=my_prow, my_process_column=my_pcol, &
+                                              number_of_process_columns=num_pe_col, blacs2mpi=blacs2mpi)
 
       CALL cp_fm_struct_get(fm_mat_S%matrix_struct, nrow_local=nrow_local, para_env=para_env)
 
@@ -2650,8 +2648,8 @@ CONTAINS
                             ncol_block=ncol_block_global, para_env=para_env, &
                             col_indices=col_indices_global, row_indices=row_indices_global, &
                             nrow_local=nrow_local_global, ncol_local=ncol_local_global)
-      CALL get_blacs_info(fm_sub%matrix_struct%context, blacs2mpi=blacs2mpi_sub, mpi2blacs=mpi2blacs_sub)
-      CALL get_blacs_info(fm_global%matrix_struct%context, blacs2mpi=blacs2mpi_global, mpi2blacs=mpi2blacs_global)
+      CALL fm_sub%matrix_struct%context%get(blacs2mpi=blacs2mpi_sub, mpi2blacs=mpi2blacs_sub)
+      CALL fm_global%matrix_struct%context%get(blacs2mpi=blacs2mpi_global, mpi2blacs=mpi2blacs_global)
 
       IF (para_env%num_pe /= para_env_sub%num_pe) THEN
          CALL timeset(routineN//"_exchange", handle2)

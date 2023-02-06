@@ -14,7 +14,6 @@ MODULE qs_tddfpt2_subgroups
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
-                                              cp_blacs_env_retain,&
                                               cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               qs_control_type,&
@@ -264,7 +263,7 @@ CONTAINS
          CALL cp_para_env_retain(para_env_global)
          sub_env%para_env => para_env_global
 
-         CALL cp_blacs_env_retain(blacs_env_global)
+         CALL blacs_env_global%retain()
          sub_env%blacs_env => blacs_env_global
 
          sub_env%mos_occ(:) = mos_occ(:)

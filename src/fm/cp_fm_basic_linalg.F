@@ -143,7 +143,7 @@ CONTAINS
          END IF
       END IF
       IF (my_beta .NE. 0.0_dp) THEN
-         IF (matrix_a%matrix_struct%context%group /= matrix_b%matrix_struct%context%group) &
+         IF (matrix_a%matrix_struct%context /= matrix_b%matrix_struct%context) &
             CPABORT("matrixes must be in the same blacs context")
 
          IF (cp_fm_struct_equivalent(matrix_a%matrix_struct, &

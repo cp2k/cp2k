@@ -13,9 +13,7 @@
 MODULE negf_subgroup_types
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
-                                              cp_blacs_env_retain,&
-                                              cp_blacs_env_type,&
-                                              get_blacs_info
+                                              cp_blacs_env_type
    USE cp_para_env,                     ONLY: cp_para_env_create,&
                                               cp_para_env_release,&
                                               cp_para_env_retain
@@ -86,7 +84,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL get_blacs_info(blacs_env_global, para_env=para_env_global)
+      CALL blacs_env_global%get(para_env=para_env_global)
       sub_env%mepos_global = para_env_global%mepos
       sub_env%mpi_comm_global = para_env_global%group
 
@@ -116,7 +114,7 @@ CONTAINS
          sub_env%group_distribution(:) = 0
 
          sub_env%blacs_env => blacs_env_global
-         CALL cp_blacs_env_retain(sub_env%blacs_env)
+         CALL sub_env%blacs_env%retain()
 
          sub_env%para_env => para_env_global
          CALL cp_para_env_retain(sub_env%para_env)

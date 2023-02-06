@@ -13,12 +13,8 @@
 !> \author Matthias Krack (22.05.2001)
 ! **************************************************************************************************
 MODULE cp_fm_types
-   USE cp_blacs_calls,                  ONLY: cp_blacs_dgebr2d,&
-                                              cp_blacs_dgebs2d,&
-                                              cp_blacs_gridexit,&
-                                              cp_blacs_gridinfo,&
-                                              cp_blacs_gridinit
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cp_context_types,                ONLY: cp_context_type
    USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
                                               cp_fm_struct_get,&
                                               cp_fm_struct_release,&
@@ -475,10 +471,10 @@ CONTAINS
 
       IF ((iprow == myprow) .AND. (ipcol == mypcol)) THEN
          alpha = a(irow_local, icol_local)
-         CALL cp_blacs_dgebs2d(context%group, 'All', ' ', 1, 1, alpha, 1)
+         CALL context%dgebs2d('All', ' ', 1, 1, alpha, 1)
          IF (PRESENT(local)) local = .TRUE.
       ELSE
-         CALL cp_blacs_dgebr2d(context%group, 'All', ' ', 1, 1, alpha, 1, iprow, ipcol)
+         CALL context%dgebr2d('All', ' ', 1, 1, alpha, 1, iprow, ipcol)
          IF (PRESENT(local)) local = .FALSE.
       END IF
 
@@ -1806,11 +1802,11 @@ CONTAINS
                                          d_firstcol, &
                                          global_context)
 
-      TYPE(cp_fm_type), INTENT(IN)             :: source, destination
-      INTEGER, INTENT(IN)                      :: nrows, ncols, &
-                                                  s_firstrow, s_firstcol, &
-                                                  d_firstrow, d_firstcol
-      TYPE(mp_comm_type), INTENT(IN) ::                                                  global_context
+      TYPE(cp_fm_type), INTENT(IN)                       :: source, destination
+      INTEGER, INTENT(IN)                                :: nrows, ncols, s_firstrow, s_firstcol, &
+                                                            d_firstrow, d_firstcol
+
+      CLASS(cp_context_type), INTENT(IN)        :: global_context
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_to_fm_submat_general'
 
@@ -1966,7 +1962,7 @@ CONTAINS
       INTEGER, DIMENSION(9)                    :: desc
       REAL(KIND=dp), DIMENSION(:), POINTER     :: vecbuf
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: newdat
-      TYPE(mp_comm_type) :: ictxt_loc
+      TYPE(cp_context_type) :: ictxt_loc
       INTEGER, EXTERNAL                        :: numroc
 #endif
 
@@ -1980,9 +1976,8 @@ CONTAINS
       rb = nrow_global
       tag = 0
       ! get a new context
-      ictxt_loc = para_env%group
-      CALL cp_blacs_gridinit(ictxt_loc, 'R', 1, num_pe)
-      CALL cp_blacs_gridinfo(ictxt_loc, nprow, npcol, myprow, mypcol)
+      CALL ictxt_loc%gridinit(para_env%group, 'R', 1, num_pe)
+      CALL ictxt_loc%gridinfo(nprow, npcol, myprow, mypcol)
       CALL descinit(desc, nrow_global, ncol_global, rb, max_block, 0, 0, ictxt_loc, nrow_global, info)
       CPASSERT(info == 0)
       in = numroc(ncol_global, max_block, mypcol, 0, npcol)
@@ -2027,7 +2022,7 @@ CONTAINS
       END DO
       DEALLOCATE (vecbuf)
 
-      CALL cp_blacs_gridexit(ictxt_loc)
+      CALL ictxt_loc%gridexit()
 
       DEALLOCATE (newdat)
 
@@ -2073,7 +2068,7 @@ CONTAINS
       INTEGER, DIMENSION(9)                    :: desc
       REAL(KIND=dp), DIMENSION(:), POINTER     :: vecbuf
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: newdat
-      TYPE(mp_comm_type) :: ictxt_loc
+      TYPE(cp_context_type) :: ictxt_loc
       INTEGER, EXTERNAL                        :: numroc
 #endif
 
@@ -2099,9 +2094,8 @@ CONTAINS
       rb = nrow_global
       tag = 0
       ! get a new context
-      ictxt_loc = para_env%group
-      CALL cp_blacs_gridinit(ictxt_loc, 'R', 1, num_pe)
-      CALL cp_blacs_gridinfo(ictxt_loc, nprow, npcol, myprow, mypcol)
+      CALL ictxt_loc%gridinit(para_env%group, 'R', 1, num_pe)
+      CALL ictxt_loc%gridinfo(nprow, npcol, myprow, mypcol)
       CALL descinit(desc, nrow_global, ncol_global, rb, max_block, 0, 0, ictxt_loc, nrow_global, info)
       CPASSERT(info == 0)
       in = numroc(ncol_global, max_block, mypcol, 0, npcol)
@@ -2155,7 +2149,7 @@ CONTAINS
       END DO
       DEALLOCATE (vecbuf)
 
-      CALL cp_blacs_gridexit(ictxt_loc)
+      CALL ictxt_loc%gridexit()
 
       DEALLOCATE (newdat)
 

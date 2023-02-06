@@ -10,8 +10,6 @@
 !> \author Joost VandeVondele, based on Fawzi's cp_fm_* routines
 ! **************************************************************************************************
 MODULE cp_cfm_types
-   USE cp_blacs_calls,                  ONLY: cp_blacs_zgebr2d,&
-                                              cp_blacs_zgebs2d
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
                                               cp_fm_struct_get,&
@@ -257,9 +255,9 @@ CONTAINS
 
       IF ((iprow == myprow) .AND. (ipcol == mypcol)) THEN
          alpha = matrix%local_data(irow_local, icol_local)
-         CALL cp_blacs_ZGEBS2D(context%group, 'All', ' ', 1, 1, alpha, 1)
+         CALL context%ZGEBS2D('All', ' ', 1, 1, alpha, 1)
       ELSE
-         CALL cp_blacs_ZGEBR2D(context%group, 'All', ' ', 1, 1, alpha, 1, iprow, ipcol)
+         CALL context%ZGEBR2D('All', ' ', 1, 1, alpha, 1, iprow, ipcol)
       END IF
 
 #else

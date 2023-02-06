@@ -16,8 +16,7 @@
 ! **************************************************************************************************
 MODULE cp_fm_diag
 
-   USE cp_blacs_calls, ONLY: cp_blacs_gridexit, &
-                             cp_blacs_gridinit
+   USE cp_context_types, ONLY: cp_context_type
    USE cp_blacs_env, ONLY: cp_blacs_env_type
    USE cp_fm_basic_linalg, ONLY: cp_fm_column_scale, &
                                  cp_fm_gemm, &
@@ -1043,7 +1042,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: a_loc, ev_loc
       INTEGER, DIMENSION(9)                        :: desca, descz, desc_a_block, &
                                                       desc_ev_loc
-      TYPE(mp_comm_type):: allgrp, ictxt, ictxt_loc
+      TYPE(mp_comm_type):: allgrp
+      TYPE(cp_context_type) :: ictxt_loc
       INTEGER, EXTERNAL :: numroc, indxl2g, indxg2l
 #endif
 
@@ -1078,16 +1078,14 @@ CONTAINS
 
       mype = matrix%matrix_struct%para_env%mepos
       npe = matrix%matrix_struct%para_env%num_pe
-      ictxt = matrix%matrix_struct%context%group
       ! Get a new context
-      ictxt_loc = matrix%matrix_struct%para_env%group
-      CALL cp_blacs_gridinit(ictxt_loc, 'Row-major', NPROW*NPCOL, 1)
+      CALL ictxt_loc%gridinit(matrix%matrix_struct%para_env%group, 'Row-major', NPROW*NPCOL, 1)
 
       CALL descinit(desc_a_block, block_dim_row, block_dim_col, block_dim_row, &
                     block_dim_col, 0, 0, ictxt_loc%get_handle(), block_dim_row, info)
 
       CALL pdgemr2d(block_dim_row, block_dim_col, A, 1, start_sec_block, desca, &
-                    A_loc, 1, 1, desc_a_block, ictxt%get_handle())
+                    A_loc, 1, 1, desc_a_block, context%get_handle())
       ! Only the master (root) process received data yet
       CALL allgrp%bcast(A_loc, 0)
 
@@ -1104,7 +1102,7 @@ CONTAINS
       CALL descinit(desc_ev_loc, N, N, ev_row_block_size, N, 0, 0, ictxt_loc%get_handle(), &
                     mynumrows, info)
 
-      CALL pdgemr2d(N, N, EV, 1, 1, descz, EV_loc, 1, 1, desc_ev_loc, ictxt%get_handle())
+      CALL pdgemr2d(N, N, EV, 1, 1, descz, EV_loc, 1, 1, desc_ev_loc, context%get_handle())
 
       ! Start block diagonalization of matrix
 
@@ -1141,12 +1139,12 @@ CONTAINS
       END DO
 
       ! Copy eigenvectors back to the original distribution
-      CALL pdgemr2d(N, N, EV_loc, 1, 1, desc_ev_loc, EV, 1, 1, descz, ictxt%get_handle())
+      CALL pdgemr2d(N, N, EV_loc, 1, 1, desc_ev_loc, EV, 1, 1, descz, context%get_handle())
 
       ! Release work storage
       DEALLOCATE (A_loc, EV_loc, c_ip)
 
-      CALL cp_blacs_gridexit(ictxt_loc)
+      CALL ictxt_loc%gridexit()
 
 #else
 

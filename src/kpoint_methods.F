@@ -261,10 +261,14 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Initialize the kpoint environment
 !> \param kpoint       Kpoint environment
+!> \param para_env ...
+!> \param blacs_env ...
 ! **************************************************************************************************
-   SUBROUTINE kpoint_env_initialize(kpoint)
+   SUBROUTINE kpoint_env_initialize(kpoint, para_env, blacs_env)
 
-      TYPE(kpoint_type), POINTER                         :: kpoint
+      TYPE(kpoint_type), INTENT(INOUT)                   :: kpoint
+      TYPE(cp_para_env_type), INTENT(IN), TARGET         :: para_env
+      TYPE(cp_blacs_env_type), INTENT(IN), TARGET        :: blacs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_env_initialize'
 
@@ -273,17 +277,19 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: dims, pos
       LOGICAL, DIMENSION(2)                              :: rdim
       TYPE(cp_para_cart_type), POINTER                   :: cart
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_full, &
-                                                            para_env_inter_kp, para_env_kp
+      TYPE(cp_para_env_type), POINTER                    :: para_env_full, para_env_inter_kp, &
+                                                            para_env_kp
       TYPE(kpoint_env_p_type), DIMENSION(:), POINTER     :: kp_env
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(mp_cart_type)                                 :: comm_cart, comm_inter_kp, comm_kp
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(ASSOCIATED(kpoint))
-      para_env => kpoint%para_env
-      CPASSERT(ASSOCIATED(para_env))
+      kpoint%para_env => para_env
+      CALL cp_para_env_retain(kpoint%para_env)
+      kpoint%blacs_env_all => blacs_env
+      CALL kpoint%blacs_env_all%retain()
+
       CPASSERT(.NOT. ASSOCIATED(kpoint%kp_env))
 
       NULLIFY (kp_env)

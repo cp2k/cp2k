@@ -17,8 +17,7 @@
 ! **************************************************************************************************
 MODULE cp_dbcsr_operations
    USE mathlib, ONLY: lcm, gcd
-   USE cp_blacs_env, ONLY: cp_blacs_env_type, &
-                           get_blacs_info
+   USE cp_blacs_env, ONLY: cp_blacs_env_type
    USE cp_cfm_types, ONLY: cp_cfm_type
    USE dbcsr_api, ONLY: dbcsr_distribution_get, &
                         dbcsr_convert_sizes_to_offsets, dbcsr_add, &
@@ -428,7 +427,7 @@ CONTAINS
                                row_distribution=row_dist_data, &
                                col_distribution=col_dist_data, &
                                blacs_env=blacs_env)
-      CALL get_blacs_info(blacs_env, para_env=para_env, blacs2mpi=pgrid)
+      CALL blacs_env%get(para_env=para_env, blacs2mpi=pgrid)
 
       ! map to 1D arrays
       row_dist => row_dist_data(:, 1)

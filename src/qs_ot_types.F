@@ -17,7 +17,6 @@ MODULE qs_ot_types
                                               Weber2008,&
                                               cite_reference
    USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
-                                              cp_blacs_env_retain,&
                                               cp_blacs_env_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_m_by_n_from_row_template,&
                                               cp_dbcsr_m_by_n_from_template,&
@@ -324,7 +323,7 @@ CONTAINS
       qs_ot_env%para_env => para_env
       qs_ot_env%blacs_env => context
       CALL cp_para_env_retain(para_env)
-      CALL cp_blacs_env_retain(context)
+      CALL context%retain()
 
       IF (PRESENT(ortho_k)) THEN
          my_ortho_k = ortho_k
