@@ -19,8 +19,8 @@ MODULE negf_methods
                                               cp_cfm_trace
    USE cp_cfm_types,                    ONLY: &
         copy_cfm_info_type, cp_cfm_cleanup_copy_general, cp_cfm_create, &
-        cp_cfm_finish_copy_general, cp_cfm_get_info, cp_cfm_get_submatrix, cp_cfm_p_type, &
-        cp_cfm_release, cp_cfm_set_submatrix, cp_cfm_start_copy_general, cp_cfm_to_fm, cp_cfm_type
+        cp_cfm_finish_copy_general, cp_cfm_get_info, cp_cfm_get_submatrix, cp_cfm_release, &
+        cp_cfm_set_submatrix, cp_cfm_start_copy_general, cp_cfm_to_fm, cp_cfm_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
@@ -1401,9 +1401,8 @@ CONTAINS
          DIMENSION(:)                                    :: info1
       TYPE(copy_cfm_info_type), ALLOCATABLE, &
          DIMENSION(:, :)                                 :: info2
-      TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:)     :: self_energy_contacts, zwork1_contacts, &
-                                                            zwork2_contacts
-      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: g_ret_s_group
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: g_ret_s_group, self_energy_contacts, &
+                                                            zwork1_contacts, zwork2_contacts
       TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:, :)    :: gamma_contacts_group, &
                                                             gret_gamma_gadv_group
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
@@ -1437,28 +1436,24 @@ CONTAINS
       IF (PRESENT(just_contact)) THEN
          CALL cp_fm_get_info(negf_env%contacts(just_contact)%s_01, matrix_struct=fm_struct)
          DO icontact = 1, ncontacts
-            ALLOCATE (zwork1_contacts(icontact)%matrix, zwork2_contacts(icontact)%matrix)
-            CALL cp_cfm_create(zwork1_contacts(icontact)%matrix, fm_struct)
-            CALL cp_cfm_create(zwork2_contacts(icontact)%matrix, fm_struct)
+            CALL cp_cfm_create(zwork1_contacts(icontact), fm_struct)
+            CALL cp_cfm_create(zwork2_contacts(icontact), fm_struct)
          END DO
 
          CALL cp_fm_get_info(negf_env%contacts(just_contact)%s_00, nrow_global=nrows, matrix_struct=fm_struct)
          DO icontact = 1, ncontacts
-            ALLOCATE (self_energy_contacts(icontact)%matrix)
-            CALL cp_cfm_create(self_energy_contacts(icontact)%matrix, fm_struct)
+            CALL cp_cfm_create(self_energy_contacts(icontact), fm_struct)
          END DO
       ELSE
          DO icontact = 1, ncontacts
             CALL cp_fm_get_info(negf_env%s_sc(icontact), matrix_struct=fm_struct)
-            ALLOCATE (zwork1_contacts(icontact)%matrix, zwork2_contacts(icontact)%matrix)
-            CALL cp_cfm_create(zwork1_contacts(icontact)%matrix, fm_struct)
-            CALL cp_cfm_create(zwork2_contacts(icontact)%matrix, fm_struct)
+            CALL cp_cfm_create(zwork1_contacts(icontact), fm_struct)
+            CALL cp_cfm_create(zwork2_contacts(icontact), fm_struct)
          END DO
 
          CALL cp_fm_get_info(negf_env%s_s, nrow_global=nrows, matrix_struct=fm_struct)
          DO icontact = 1, ncontacts
-            ALLOCATE (self_energy_contacts(icontact)%matrix)
-            CALL cp_cfm_create(self_energy_contacts(icontact)%matrix, fm_struct)
+            CALL cp_cfm_create(self_energy_contacts(icontact), fm_struct)
          END DO
       END IF
 
@@ -1527,13 +1522,13 @@ CONTAINS
             IF (PRESENT(just_contact)) THEN
                ! self energy of the "left" (1) and "right" contacts
                DO icontact = 1, ncontacts
-                  CALL negf_contact_self_energy(self_energy_c=self_energy_contacts(icontact)%matrix, &
+                  CALL negf_contact_self_energy(self_energy_c=self_energy_contacts(icontact), &
                                                 omega=omega(ipoint), &
                                                 g_surf_c=g_surf_contacts(icontact, ipoint), &
                                                 h_sc0=negf_env%contacts(just_contact)%h_01(ispin), &
                                                 s_sc0=negf_env%contacts(just_contact)%s_01, &
-                                                zwork1=zwork1_contacts(icontact)%matrix, &
-                                                zwork2=zwork2_contacts(icontact)%matrix, &
+                                                zwork1=zwork1_contacts(icontact), &
+                                                zwork2=zwork2_contacts(icontact), &
                                                 transp=(icontact == 1))
                END DO
             ELSE
@@ -1541,13 +1536,13 @@ CONTAINS
                DO icontact = 1, ncontacts
                   IF (.NOT. ignore_bias) v_external = negf_control%contacts(icontact)%v_external
 
-                  CALL negf_contact_self_energy(self_energy_c=self_energy_contacts(icontact)%matrix, &
+                  CALL negf_contact_self_energy(self_energy_c=self_energy_contacts(icontact), &
                                                 omega=omega(ipoint) - v_external, &
                                                 g_surf_c=g_surf_contacts(icontact, ipoint), &
                                                 h_sc0=negf_env%h_sc(ispin, icontact), &
                                                 s_sc0=negf_env%s_sc(icontact), &
-                                                zwork1=zwork1_contacts(icontact)%matrix, &
-                                                zwork2=zwork2_contacts(icontact)%matrix, &
+                                                zwork1=zwork1_contacts(icontact), &
+                                                zwork2=zwork2_contacts(icontact), &
                                                 transp=.FALSE.)
                END DO
             END IF
@@ -1556,33 +1551,33 @@ CONTAINS
             IF (ALLOCATED(gamma_contacts_group)) THEN
                DO icontact = 1, ncontacts
                   CALL negf_contact_broadening_matrix(gamma_c=gamma_contacts_group(icontact, ipoint), &
-                                                      self_energy_c=self_energy_contacts(icontact)%matrix)
+                                                      self_energy_c=self_energy_contacts(icontact))
                END DO
             END IF
 
             IF (ALLOCATED(g_ret_s_group)) THEN
                ! sum up self energies for all contacts
                DO icontact = 2, ncontacts
-                  CALL cp_cfm_scale_and_add(z_one, self_energy_contacts(1)%matrix, z_one, self_energy_contacts(icontact)%matrix)
+                  CALL cp_cfm_scale_and_add(z_one, self_energy_contacts(1), z_one, self_energy_contacts(icontact))
                END DO
 
                ! retarded Green's function for the scattering region
                IF (PRESENT(just_contact)) THEN
                   CALL negf_retarded_green_function(g_ret_s=g_ret_s_group(ipoint), &
                                                     omega=omega(ipoint) - v_shift, &
-                                                    self_energy_ret_sum=self_energy_contacts(1)%matrix, &
+                                                    self_energy_ret_sum=self_energy_contacts(1), &
                                                     h_s=negf_env%contacts(just_contact)%h_00(ispin), &
                                                     s_s=negf_env%contacts(just_contact)%s_00)
                ELSE IF (ignore_bias) THEN
                   CALL negf_retarded_green_function(g_ret_s=g_ret_s_group(ipoint), &
                                                     omega=omega(ipoint) - v_shift, &
-                                                    self_energy_ret_sum=self_energy_contacts(1)%matrix, &
+                                                    self_energy_ret_sum=self_energy_contacts(1), &
                                                     h_s=negf_env%h_s(ispin), &
                                                     s_s=negf_env%s_s)
                ELSE
                   CALL negf_retarded_green_function(g_ret_s=g_ret_s_group(ipoint), &
                                                     omega=omega(ipoint) - v_shift, &
-                                                    self_energy_ret_sum=self_energy_contacts(1)%matrix, &
+                                                    self_energy_ret_sum=self_energy_contacts(1), &
                                                     h_s=negf_env%h_s(ispin), &
                                                     s_s=negf_env%s_s, &
                                                     v_hartree_s=negf_env%v_hartree_s)
@@ -1601,10 +1596,10 @@ CONTAINS
                      CALL parallel_gemm('N', 'C', nrows, nrows, nrows, &
                                         z_one, gamma_contacts_group(icontact, ipoint), &
                                         g_ret_s_group(ipoint), &
-                                        z_zero, self_energy_contacts(icontact)%matrix)
+                                        z_zero, self_energy_contacts(icontact))
                      CALL parallel_gemm('N', 'N', nrows, nrows, nrows, &
                                         z_one, g_ret_s_group(ipoint), &
-                                        self_energy_contacts(icontact)%matrix, &
+                                        self_energy_contacts(icontact), &
                                         z_zero, gret_gamma_gadv_group(icontact, ipoint))
                   END IF
                END DO
@@ -1777,15 +1772,15 @@ CONTAINS
                CALL parallel_gemm('N', 'C', nrows, nrows, nrows, &
                                   z_one, gamma_contacts_group(transm_contact1, ipoint), &
                                   g_ret_s_group(ipoint), &
-                                  z_zero, self_energy_contacts(transm_contact1)%matrix)
+                                  z_zero, self_energy_contacts(transm_contact1))
                CALL parallel_gemm('N', 'N', nrows, nrows, nrows, &
-                                  z_one, self_energy_contacts(transm_contact1)%matrix, &
+                                  z_one, self_energy_contacts(transm_contact1), &
                                   gamma_contacts_group(transm_contact2, ipoint), &
-                                  z_zero, self_energy_contacts(transm_contact2)%matrix)
+                                  z_zero, self_energy_contacts(transm_contact2))
 
                !  Trace[ g_ret_s * gamma_1 * g_adv_s * gamma_2 ]
                CALL cp_cfm_trace(g_ret_s_group(ipoint), &
-                                 self_energy_contacts(transm_contact2)%matrix, &
+                                 self_energy_contacts(transm_contact2), &
                                  transm_coeff(ipoint))
                IF (sub_env%para_env%mepos /= 0) transm_coeff(ipoint) = 0.0_dp
             END IF
@@ -1830,30 +1825,21 @@ CONTAINS
 
       IF (ALLOCATED(self_energy_contacts)) THEN
          DO icontact = ncontacts, 1, -1
-            IF (ASSOCIATED(self_energy_contacts(icontact)%matrix)) THEN
-               CALL cp_cfm_release(self_energy_contacts(icontact)%matrix)
-               DEALLOCATE (self_energy_contacts(icontact)%matrix)
-            END IF
+            CALL cp_cfm_release(self_energy_contacts(icontact))
          END DO
          DEALLOCATE (self_energy_contacts)
       END IF
 
       IF (ALLOCATED(zwork1_contacts)) THEN
          DO icontact = ncontacts, 1, -1
-            IF (ASSOCIATED(zwork1_contacts(icontact)%matrix)) THEN
-               CALL cp_cfm_release(zwork1_contacts(icontact)%matrix)
-               DEALLOCATE (zwork1_contacts(icontact)%matrix)
-            END IF
+            CALL cp_cfm_release(zwork1_contacts(icontact))
          END DO
          DEALLOCATE (zwork1_contacts)
       END IF
 
       IF (ALLOCATED(zwork2_contacts)) THEN
          DO icontact = ncontacts, 1, -1
-            IF (ASSOCIATED(zwork2_contacts(icontact)%matrix)) THEN
-               CALL cp_cfm_release(zwork2_contacts(icontact)%matrix)
-               DEALLOCATE (zwork2_contacts(icontact)%matrix)
-            END IF
+            CALL cp_cfm_release(zwork2_contacts(icontact))
          END DO
          DEALLOCATE (zwork2_contacts)
       END IF
