@@ -1642,27 +1642,9 @@ CONTAINS
                ALLOCATE (info1(npoints))
 
                DO ipoint = 1, npoints
-                  IF (ASSOCIATED(g_ret_s(ipoint)%matrix_struct)) THEN
-                     IF (.NOT. ASSOCIATED(g_ret_s_group(ipoint)%matrix_struct)) THEN
-                        CALL cp_cfm_start_copy_general(cfm_dummy, &
-                                                       g_ret_s(ipoint), &
-                                                       para_env, info1(ipoint))
-                     ELSE
-                        CALL cp_cfm_start_copy_general(g_ret_s_group(ipoint), &
-                                                       g_ret_s(ipoint), &
-                                                       para_env, info1(ipoint))
-                     END IF
-                  ELSE
-                     IF (.NOT. ASSOCIATED(g_ret_s_group(ipoint)%matrix_struct)) THEN
-                        CALL cp_cfm_start_copy_general(cfm_dummy, &
-                                                       cfm_dummy, &
-                                                       para_env, info1(ipoint))
-                     ELSE
-                        CALL cp_cfm_start_copy_general(g_ret_s_group(ipoint), &
-                                                       cfm_dummy, &
-                                                       para_env, info1(ipoint))
-                     END IF
-                  END IF
+                  CALL cp_cfm_start_copy_general(g_ret_s_group(ipoint), &
+                                                 g_ret_s(ipoint), &
+                                                 para_env, info1(ipoint))
                END DO
 
                DO ipoint = 1, npoints
