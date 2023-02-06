@@ -9,8 +9,8 @@
 !> \brief Storage to keep precomputed surface Green's functions
 ! **************************************************************************************************
 MODULE negf_green_cache
-   USE cp_cfm_types,                    ONLY: cp_cfm_p_type,&
-                                              cp_cfm_release
+   USE cp_cfm_types,                    ONLY: cp_cfm_release,&
+                                              cp_cfm_type
    USE kinds,                           ONLY: dp
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
@@ -33,7 +33,7 @@ MODULE negf_green_cache
 ! **************************************************************************************************
    TYPE green_functions_cache_type
       !> retarded surface Green's functions [ncontacts, nnodes]
-      TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: g_surf_contacts
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:, :)   :: g_surf_contacts
       !> list of points over the normalised interval [-1 .. 1].
       !> Coordinates of actual point where Green's functions were evaluated
       !> can be obtained by using an appropriate rescale_nodes_*() subroutine
@@ -53,9 +53,9 @@ CONTAINS
       TYPE(green_functions_cache_type), INTENT(inout)    :: cache
       INTEGER, INTENT(in)                                :: ncontacts, nnodes_extra
 
-      INTEGER                                            :: i, icontact, nentries_exist
+      INTEGER                                            :: nentries_exist
       LOGICAL                                            :: is_alloc
-      TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:, :)  :: g_surf_contacts
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:, :)    :: g_surf_contacts
 
       is_alloc = ALLOCATED(cache%g_surf_contacts)
 
@@ -70,20 +70,9 @@ CONTAINS
       ALLOCATE (g_surf_contacts(ncontacts, nentries_exist + nnodes_extra))
 
       IF (is_alloc) THEN
-         DO i = 1, nentries_exist
-            DO icontact = 1, ncontacts
-               g_surf_contacts(icontact, i)%matrix => cache%g_surf_contacts(icontact, i)%matrix
-            END DO
-         END DO
-
+         g_surf_contacts(1:ncontacts, 1:nentries_exist) = cache%g_surf_contacts(1:ncontacts, 1:nentries_exist)
          DEALLOCATE (cache%g_surf_contacts)
       END IF
-
-      DO i = 1, nnodes_extra
-         DO icontact = 1, ncontacts
-            NULLIFY (g_surf_contacts(icontact, nentries_exist + i)%matrix)
-         END DO
-      END DO
 
       CALL MOVE_ALLOC(g_surf_contacts, cache%g_surf_contacts)
    END SUBROUTINE green_functions_cache_expand
@@ -98,10 +87,9 @@ CONTAINS
       TYPE(green_functions_cache_type), INTENT(inout)    :: cache
       REAL(kind=dp), DIMENSION(:), INTENT(in)            :: tnodes
 
-      INTEGER                                            :: icontact, ind_new, ind_old, ncontacts, &
-                                                            nnodes
+      INTEGER                                            :: ind_new, ind_old, ncontacts, nnodes
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: indices
-      TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:, :)  :: g_surf_contacts
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:, :)    :: g_surf_contacts
 
       nnodes = SIZE(tnodes)
 
@@ -121,12 +109,9 @@ CONTAINS
 
       DO ind_new = 1, nnodes
          ind_old = indices(ind_new)
-         DO icontact = 1, ncontacts
-            g_surf_contacts(icontact, ind_new)%matrix => cache%g_surf_contacts(icontact, ind_old)%matrix
-         END DO
+         g_surf_contacts(1:ncontacts, ind_new) = cache%g_surf_contacts(1:ncontacts, ind_old)
       END DO
 
-      DEALLOCATE (cache%g_surf_contacts)
       CALL MOVE_ALLOC(g_surf_contacts, cache%g_surf_contacts)
    END SUBROUTINE green_functions_cache_reorder
 
@@ -146,10 +131,7 @@ CONTAINS
          ncontacts = SIZE(cache%g_surf_contacts, 1)
          DO ipoint = SIZE(cache%g_surf_contacts, 2), 1, -1
             DO icontact = ncontacts, 1, -1
-               IF (ASSOCIATED(cache%g_surf_contacts(icontact, ipoint)%matrix)) THEN
-                  CALL cp_cfm_release(cache%g_surf_contacts(icontact, ipoint)%matrix)
-                  DEALLOCATE (cache%g_surf_contacts(icontact, ipoint)%matrix)
-               END IF
+               CALL cp_cfm_release(cache%g_surf_contacts(icontact, ipoint))
             END DO
          END DO
 

@@ -1298,7 +1298,7 @@ CONTAINS
 !>    * 07.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE negf_surface_green_function_batch(g_surf, omega, h0, s0, h1, s1, sub_env, v_external, conv, transp)
-      TYPE(cp_cfm_p_type), DIMENSION(:), INTENT(inout)   :: g_surf
+      TYPE(cp_cfm_type), DIMENSION(:), INTENT(inout)     :: g_surf
       COMPLEX(kind=dp), DIMENSION(:), INTENT(in)         :: omega
       TYPE(cp_fm_type), INTENT(IN)                       :: h0, s0, h1, s1
       TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
@@ -1306,6 +1306,7 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: transp
 
       CHARACTER(len=*), PARAMETER :: routineN = 'negf_surface_green_function_batch'
+      TYPE(cp_cfm_type), PARAMETER                       :: cfm_null = cp_cfm_type()
 
       INTEGER                                            :: handle, igroup, ipoint, npoints
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
@@ -1320,18 +1321,15 @@ CONTAINS
 
       igroup = sub_env%group_distribution(sub_env%mepos_global)
 
-      DO ipoint = 1, npoints
-         NULLIFY (g_surf(ipoint)%matrix)
-      END DO
+      g_surf(1:npoints) = cfm_null
 
       DO ipoint = igroup + 1, npoints, sub_env%ngroups
          IF (debug_this_module) THEN
-            CPASSERT(.NOT. ASSOCIATED(g_surf(ipoint)%matrix))
+            CPASSERT(.NOT. ASSOCIATED(g_surf(ipoint)%matrix_struct))
          END IF
-         ALLOCATE (g_surf(ipoint)%matrix)
-         CALL cp_cfm_create(g_surf(ipoint)%matrix, fm_struct)
+         CALL cp_cfm_create(g_surf(ipoint), fm_struct)
 
-         CALL do_sancho(g_surf(ipoint)%matrix, omega(ipoint) - v_external, &
+         CALL do_sancho(g_surf(ipoint), omega(ipoint) - v_external, &
                         h0, s0, h1, s1, conv, transp, work)
       END DO
 
@@ -1380,7 +1378,7 @@ CONTAINS
       TYPE(negf_control_type), POINTER                   :: negf_control
       TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
       INTEGER, INTENT(in)                                :: ispin
-      TYPE(cp_cfm_p_type), DIMENSION(:, :), INTENT(in)   :: g_surf_contacts
+      TYPE(cp_cfm_type), DIMENSION(:, :), INTENT(in)     :: g_surf_contacts
       TYPE(cp_cfm_type), DIMENSION(:), INTENT(in), &
          OPTIONAL                                        :: g_ret_s
       COMPLEX(kind=dp), DIMENSION(:), INTENT(in), &
@@ -1498,7 +1496,7 @@ CONTAINS
       igroup = sub_env%group_distribution(sub_env%mepos_global)
 
       DO ipoint = 1, npoints
-         IF (ASSOCIATED(g_surf_contacts(1, ipoint)%matrix)) THEN
+         IF (ASSOCIATED(g_surf_contacts(1, ipoint)%matrix_struct)) THEN
             IF (sub_env%ngroups > 1 .OR. .NOT. PRESENT(g_ret_s)) THEN
                ! create a group-specific matrix to store retarded Green's function if there are
                ! at least two parallel groups; otherwise pointers to group-specific matrices have
@@ -1531,7 +1529,7 @@ CONTAINS
                DO icontact = 1, ncontacts
                   CALL negf_contact_self_energy(self_energy_c=self_energy_contacts(icontact)%matrix, &
                                                 omega=omega(ipoint), &
-                                                g_surf_c=g_surf_contacts(icontact, ipoint)%matrix, &
+                                                g_surf_c=g_surf_contacts(icontact, ipoint), &
                                                 h_sc0=negf_env%contacts(just_contact)%h_01(ispin), &
                                                 s_sc0=negf_env%contacts(just_contact)%s_01, &
                                                 zwork1=zwork1_contacts(icontact)%matrix, &
@@ -1545,7 +1543,7 @@ CONTAINS
 
                   CALL negf_contact_self_energy(self_energy_c=self_energy_contacts(icontact)%matrix, &
                                                 omega=omega(ipoint) - v_external, &
-                                                g_surf_c=g_surf_contacts(icontact, ipoint)%matrix, &
+                                                g_surf_c=g_surf_contacts(icontact, ipoint), &
                                                 h_sc0=negf_env%h_sc(ispin, icontact), &
                                                 s_sc0=negf_env%s_sc(icontact), &
                                                 zwork1=zwork1_contacts(icontact)%matrix, &
