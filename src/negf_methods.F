@@ -1667,6 +1667,16 @@ CONTAINS
                                                        g_ret_s(ipoint)%matrix, &
                                                        para_env, info1(ipoint))
                      END IF
+                  ELSE
+                     IF (.NOT. ASSOCIATED(g_ret_s_group(ipoint)%matrix)) THEN
+                        CALL cp_cfm_start_copy_general(cfm_dummy, &
+                                                       cfm_dummy, &
+                                                       para_env, info1(ipoint))
+                     ELSE
+                        CALL cp_cfm_start_copy_general(g_ret_s_group(ipoint)%matrix, &
+                                                       cfm_dummy, &
+                                                       para_env, info1(ipoint))
+                     END IF
                   END IF
                END DO
 
@@ -1701,9 +1711,25 @@ CONTAINS
                DO ipoint = 1, npoints
                   DO icontact = 1, ncontacts
                      IF (ASSOCIATED(gamma_contacts(icontact, ipoint)%matrix)) THEN
-                        CALL cp_cfm_start_copy_general(gamma_contacts_group(icontact, ipoint)%matrix, &
-                                                       gamma_contacts(icontact, ipoint)%matrix, &
-                                                       para_env, info2(icontact, ipoint))
+                        IF (ASSOCIATED(gamma_contacts_group(icontact, ipoint)%matrix)) THEN
+                           CALL cp_cfm_start_copy_general(gamma_contacts_group(icontact, ipoint)%matrix, &
+                                                          gamma_contacts(icontact, ipoint)%matrix, &
+                                                          para_env, info2(icontact, ipoint))
+                        ELSE
+                           CALL cp_cfm_start_copy_general(cfm_dummy, &
+                                                          gamma_contacts(icontact, ipoint)%matrix, &
+                                                          para_env, info2(icontact, ipoint))
+                        END IF
+                     ELSE
+                        IF (ASSOCIATED(gamma_contacts_group(icontact, ipoint)%matrix)) THEN
+                           CALL cp_cfm_start_copy_general(gamma_contacts_group(icontact, ipoint)%matrix, &
+                                                          cfm_dummy, &
+                                                          para_env, info2(icontact, ipoint))
+                        ELSE
+                           CALL cp_cfm_start_copy_general(cfm_dummy, &
+                                                          cfm_dummy, &
+                                                          para_env, info2(icontact, ipoint))
+                        END IF
                      END IF
                   END DO
                END DO
@@ -1743,9 +1769,25 @@ CONTAINS
                DO ipoint = 1, npoints
                   DO icontact = 1, ncontacts
                      IF (ASSOCIATED(gret_gamma_gadv(icontact, ipoint)%matrix)) THEN
-                        CALL cp_cfm_start_copy_general(gret_gamma_gadv_group(icontact, ipoint)%matrix, &
-                                                       gret_gamma_gadv(icontact, ipoint)%matrix, &
-                                                       para_env, info2(icontact, ipoint))
+                        IF (ASSOCIATED(gret_gamma_gadv_group(icontact, ipoint)%matrix)) THEN
+                           CALL cp_cfm_start_copy_general(gret_gamma_gadv_group(icontact, ipoint)%matrix, &
+                                                          gret_gamma_gadv(icontact, ipoint)%matrix, &
+                                                          para_env, info2(icontact, ipoint))
+                        ELSE
+                           CALL cp_cfm_start_copy_general(cfm_dummy, &
+                                                          gret_gamma_gadv(icontact, ipoint)%matrix, &
+                                                          para_env, info2(icontact, ipoint))
+                        END IF
+                     ELSE
+                        IF (ASSOCIATED(gret_gamma_gadv_group(icontact, ipoint)%matrix)) THEN
+                           CALL cp_cfm_start_copy_general(gret_gamma_gadv_group(icontact, ipoint)%matrix, &
+                                                          cfm_dummy, &
+                                                          para_env, info2(icontact, ipoint))
+                        ELSE
+                           CALL cp_cfm_start_copy_general(cfm_dummy, &
+                                                          cfm_dummy, &
+                                                          para_env, info2(icontact, ipoint))
+                        END IF
                      END IF
                   END DO
                END DO
