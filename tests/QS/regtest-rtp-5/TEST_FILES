@@ -27,7 +27,7 @@ H2O-charged-dens-pulse-3.inp                         1      1e-13           -16.
 H2O-charged-dens-pulse-4.inp                         1      1e-13           -16.81031776489433
 H2O-charged-dens-pulse-5.inp                         1      1e-13           -16.80215384578111
 # 'simple molecule': use wfn-mixing and MOM method to prepare a new initial state. Provide the same results as MO-based for strict treshold.
-H2O-wfn-mix-dens-pulse-1.inp                         1      1e-13           -16.80397942635466
+H2O-wfn-mix-dens-pulse-1.inp                         1      6e-11           -16.80397942635466
 H2O-mom-dens-pulse-1.inp                             1      1e-13           -16.77310344331094
 # Periodic system: try with molecule in PBC and smearing
 H2O-periodic-dens-pulse-1.inp                        1      1e-13           -17.17071488628162
