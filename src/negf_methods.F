@@ -20,7 +20,7 @@ MODULE negf_methods
    USE cp_cfm_types,                    ONLY: &
         copy_cfm_info_type, cp_cfm_cleanup_copy_general, cp_cfm_create, &
         cp_cfm_finish_copy_general, cp_cfm_get_info, cp_cfm_get_submatrix, cp_cfm_p_type, &
-        cp_cfm_release, cp_cfm_set_submatrix, cp_cfm_start_copy_general, cp_cfm_to_fm
+        cp_cfm_release, cp_cfm_set_submatrix, cp_cfm_start_copy_general, cp_cfm_to_fm, cp_cfm_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
@@ -372,6 +372,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: log_unit
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'guess_fermi_level'
+      TYPE(cp_fm_type), PARAMETER                        :: fm_dummy = cp_fm_type()
 
       CHARACTER(len=default_string_length)               :: temperature_str
       COMPLEX(kind=dp)                                   :: lbound_cpath, lbound_lpath, ubound_lpath
@@ -385,7 +386,7 @@ CONTAINS
          nelectrons_qs_cell1, offset_au, rscale, t1, t2, trace
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: fm_dummy, rho_ao_fm
+      TYPE(cp_fm_type)                                   :: rho_ao_fm
       TYPE(cp_fm_type), POINTER                          :: matrix_s_fm
       TYPE(cp_para_env_type), POINTER                    :: para_env_global
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, rho_ao_qs_kp
@@ -662,6 +663,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: base_contact, log_unit
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'shift_potential'
+      TYPE(cp_fm_type), PARAMETER                        :: fm_dummy = cp_fm_type()
 
       COMPLEX(kind=dp)                                   :: lbound_cpath, ubound_cpath, ubound_lpath
       INTEGER                                            :: handle, ispin, iter_count, nao, &
@@ -671,7 +673,6 @@ CONTAINS
          t1, t2, temperature, trace, v_shift_guess, v_shift_max, v_shift_min
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: fm_dummy
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: rho_ao_fm
       TYPE(cp_fm_type), POINTER                          :: matrix_s_fm
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -925,6 +926,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'converge_density'
       REAL(kind=dp), PARAMETER :: threshold = 16.0_dp*EPSILON(0.0_dp)
+      TYPE(cp_fm_type), PARAMETER                        :: fm_dummy = cp_fm_type()
 
       COMPLEX(kind=dp)                                   :: lbound_cpath, ubound_cpath, ubound_lpath
       INTEGER                                            :: handle, icontact, image, ispin, &
@@ -936,7 +938,6 @@ CONTAINS
                                                             trace, v_base, v_contact
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: fm_dummy
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: rho_ao_delta_fm, rho_ao_new_fm
       TYPE(cp_fm_type), POINTER                          :: matrix_s_fm
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -1393,6 +1394,7 @@ CONTAINS
                                                             just_contact
 
       CHARACTER(len=*), PARAMETER :: routineN = 'negf_retarded_green_function_batch'
+      TYPE(cp_cfm_type), PARAMETER                       :: cfm_dummy = cp_cfm_type()
 
       INTEGER                                            :: handle, icontact, igroup, ipoint, &
                                                             ncontacts, npoints, nrows
@@ -1656,9 +1658,15 @@ CONTAINS
 
                DO ipoint = 1, npoints
                   IF (ASSOCIATED(g_ret_s(ipoint)%matrix)) THEN
-                     CALL cp_cfm_start_copy_general(g_ret_s_group(ipoint)%matrix, &
-                                                    g_ret_s(ipoint)%matrix, &
-                                                    para_env, info1(ipoint))
+                     IF (.NOT. ASSOCIATED(g_ret_s_group(ipoint)%matrix)) THEN
+                        CALL cp_cfm_start_copy_general(cfm_dummy, &
+                                                       g_ret_s(ipoint)%matrix, &
+                                                       para_env, info1(ipoint))
+                     ELSE
+                        CALL cp_cfm_start_copy_general(g_ret_s_group(ipoint)%matrix, &
+                                                       g_ret_s(ipoint)%matrix, &
+                                                       para_env, info1(ipoint))
+                     END IF
                   END IF
                END DO
 

@@ -155,7 +155,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_create(matrix, matrix_struct, name, use_sp)
       TYPE(cp_fm_type), INTENT(OUT)                      :: matrix
-      TYPE(cp_fm_struct_type), TARGET, INTENT(IN)        :: matrix_struct
+      TYPE(cp_fm_struct_type), INTENT(IN), TARGET        :: matrix_struct
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: name
       LOGICAL, INTENT(in), OPTIONAL                      :: use_sp
 
