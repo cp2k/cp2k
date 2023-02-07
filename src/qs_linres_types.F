@@ -17,11 +17,11 @@ MODULE qs_linres_types
                                               gto_basis_set_type
    USE cp_array_utils,                  ONLY: cp_2d_i_p_type,&
                                               cp_2d_r_p_type
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_type
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_p_type,&
+                                              cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
-                                              dbcsr_type
+   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE kinds,                           ONLY: dp
    USE qs_grid_atom,                    ONLY: grid_atom_type
    USE qs_harmonics_atom,               ONLY: harmonics_atom_type
@@ -204,22 +204,19 @@ MODULE qs_linres_types
 
 ! \param type for dC/dR calculation
    TYPE dcdr_env_type
-      INTEGER :: nao, nmo, orb_center, beta, lambda, output_unit
-      TYPE(dbcsr_type), POINTER :: perturbed_dm_correction => NULL()
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_hc => NULL(), matrix_s1 => NULL(), matrix_t1 => NULL(), &
-                                                   matrix_s => NULL(), matrix_t => NULL(), &
-                                              matrix_ppnl_1 => NULL(), matrix_d_vhxc_dR => NULL(), matrix_core_charge_1 => NULL(), &
-                                                   matrix_nosym_temp => NULL(), &
-                                                   moments => NULL(), &
-                                                   matrix_apply_op_constant => NULL(), &
-                                                   hamiltonian1 => NULL()
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: matrix_vhxc_perturbed_basis => NULL(), &
-                                                      matrix_difdip => NULL()
-      REAL(dp), DIMENSION(:, :), POINTER :: deltaR => NULL(), delta_basis_function => NULL()
-      REAL(dp), DIMENSION(:, :, :, :), POINTER :: apt_subset => NULL(), apt_at_dcdr_per_center => NULL()
-      TYPE(cp_fm_type), DIMENSION(:), POINTER :: mo_coeff => NULL()
-      TYPE(cp_fm_type), DIMENSION(:), POINTER :: dCR => NULL(), dCR_prime => NULL(), &
-                                                 op_dR => NULL(), chc => NULL()
+      INTEGER :: nao, orb_center, beta, lambda, output_unit, nspins
+      INTEGER, DIMENSION(:), ALLOCATABLE :: nmo
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_hc, matrix_s1, matrix_t1, matrix_s, matrix_t, &
+                                                   matrix_ppnl_1, matrix_core_charge_1, &
+                                                   matrix_nosym_temp, &
+                                                   moments, &
+                                                   matrix_apply_op_constant, &
+                                                   hamiltonian1, perturbed_dm_correction
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: matrix_vhxc_perturbed_basis, &
+                                                      matrix_difdip, matrix_d_vhxc_dR
+      REAL(dp), DIMENSION(:, :), POINTER :: deltaR, delta_basis_function
+      REAL(dp), DIMENSION(:, :, :, :), POINTER :: apt_subset, apt_at_dcdr_per_center
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: mo_coeff, dCR, dCR_prime, op_dR, chc
 
       CHARACTER(LEN=30) :: orb_center_name
       TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER :: center_list => NULL()
@@ -231,10 +228,10 @@ MODULE qs_linres_types
 
       LOGICAL :: distributed_origin
 
-      TYPE(cp_fm_struct_type), POINTER :: aoao_fm_struct => NULL()
-      TYPE(cp_fm_struct_type), POINTER :: momo_fm_struct => NULL()
-      TYPE(cp_fm_struct_type), POINTER :: homohomo_fm_struct => NULL()
-      TYPE(cp_fm_struct_type), POINTER :: likemos_fm_struct => NULL()
+      TYPE(cp_fm_struct_type), POINTER :: aoao_fm_struct
+      TYPE(cp_fm_struct_type), POINTER :: homohomo_fm_struct
+      TYPE(cp_fm_struct_p_type), DIMENSION(:), POINTER :: momo_fm_struct
+      TYPE(cp_fm_struct_p_type), DIMENSION(:), POINTER :: likemos_fm_struct
 
       REAL(dp), DIMENSION(:, :, :), POINTER :: apt_el_dcdr => NULL(), apt_nuc_dcdr => NULL(), apt_total_dcdr => NULL()
       REAL(dp), DIMENSION(:, :, :, :), POINTER :: apt_el_dcdr_per_center => NULL(), apt_el_dcdr_per_subset => NULL()
