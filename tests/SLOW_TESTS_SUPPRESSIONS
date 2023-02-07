@@ -55,5 +55,6 @@ LIBTEST/libbqb/test_01.inp
 xTB/regtest-1/si_kp.inp
 QS/regtest-tddfpt-3/ch2o_t2.inp
 QS/regtest-kg/H2_MD.inp
+QS/regtest-nonortho/graph_b111_gapw.inp
 
 #EOF
