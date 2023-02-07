@@ -15,7 +15,6 @@ MODULE matrix_exp
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add,&
                                               cp_cfm_solve
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
-                                              cp_cfm_p_type,&
                                               cp_cfm_release,&
                                               cp_cfm_set_all,&
                                               cp_cfm_to_cfm,&
@@ -351,9 +350,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: square_fac, tmp
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_data_im, local_data_re
-      TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: mult_p
-      TYPE(cp_cfm_type)                                  :: Dpq, T1
-      TYPE(cp_cfm_type), POINTER                         :: fin_p
+      TYPE(cp_cfm_type)                                  :: Dpq, fin_p, T1
+      TYPE(cp_cfm_type), DIMENSION(2)                    :: mult_p
       TYPE(cp_cfm_type), TARGET                          :: Npq, T2, Tres
 
       p = npade
@@ -363,8 +361,6 @@ CONTAINS
       CALL cp_fm_get_info(re_part, local_data=local_data_re, ncol_local=ldim, &
                           nrow_global=ndim)
       CALL cp_fm_get_info(im_part, local_data=local_data_im)
-
-      ALLOCATE (mult_p(2))
 
       CALL cp_cfm_create(Dpq, &
                          matrix_struct=re_part%matrix_struct, &
@@ -390,8 +386,8 @@ CONTAINS
          T2%local_data(:, i) = CMPLX(local_data_re(:, i)/square_fac, local_data_im(:, i)/square_fac, KIND=dp)
       END DO
       CALL cp_cfm_to_cfm(T2, T1)
-      mult_p(1)%matrix => T2
-      mult_p(2)%matrix => Tres
+      mult_p(1) = T2
+      mult_p(2) = Tres
       tmp = 1.0_dp
       CALL cp_cfm_set_all(Npq, z_zero, z_one)
       CALL cp_cfm_set_all(Dpq, z_zero, z_one)
@@ -403,25 +399,25 @@ CONTAINS
          DO i = 2, npade
             IF (i .LE. p) scaleN = CMPLX(fac(p + q - i)*fac(p)/(fac(p + q)*fac(i)*fac(p - i)), 0.0_dp, kind=dp)
             scaleD = CMPLX((-1.0_dp)**i*fac(p + q - i)*fac(q)/(fac(p + q)*fac(i)*fac(q - i)), 0.0_dp, kind=dp)
-            CALL parallel_gemm("N", "N", ndim, ndim, ndim, z_one, T1, mult_p(MOD(i, 2) + 1)%matrix, z_zero, &
-                               mult_p(MOD(i + 1, 2) + 1)%matrix)
-            IF (i .LE. p) CALL cp_cfm_scale_and_add(z_one, Npq, scaleN, mult_p(MOD(i + 1, 2) + 1)%matrix)
-            IF (i .LE. q) CALL cp_cfm_scale_and_add(z_one, Dpq, scaleD, mult_p(MOD(i + 1, 2) + 1)%matrix)
+            CALL parallel_gemm("N", "N", ndim, ndim, ndim, z_one, T1, mult_p(MOD(i, 2) + 1), z_zero, &
+                               mult_p(MOD(i + 1, 2) + 1))
+            IF (i .LE. p) CALL cp_cfm_scale_and_add(z_one, Npq, scaleN, mult_p(MOD(i + 1, 2) + 1))
+            IF (i .LE. q) CALL cp_cfm_scale_and_add(z_one, Dpq, scaleD, mult_p(MOD(i + 1, 2) + 1))
          END DO
       END IF
 
       CALL cp_cfm_solve(Dpq, Npq)
 
-      mult_p(2)%matrix => Npq
-      mult_p(1)%matrix => Tres
+      mult_p(2) = Npq
+      mult_p(1) = Tres
       IF (nsquare .GT. 0) THEN
          DO i = 1, nsquare
-         CALL parallel_gemm("N", "N", ndim, ndim, ndim, z_one, mult_p(MOD(i, 2) + 1)%matrix, mult_p(MOD(i, 2) + 1)%matrix, z_zero, &
-                               mult_p(MOD(i + 1, 2) + 1)%matrix)
-            fin_p => mult_p(MOD(i + 1, 2) + 1)%matrix
+            CALL parallel_gemm("N", "N", ndim, ndim, ndim, z_one, mult_p(MOD(i, 2) + 1), mult_p(MOD(i, 2) + 1), z_zero, &
+                               mult_p(MOD(i + 1, 2) + 1))
+            fin_p = mult_p(MOD(i + 1, 2) + 1)
          END DO
       ELSE
-         fin_p => Npq
+         fin_p = Npq
       END IF
       DO i = 1, ldim
          exp_H(1)%local_data(:, i) = REAL(fin_p%local_data(:, i), KIND=dp)
@@ -433,7 +429,6 @@ CONTAINS
       CALL cp_cfm_release(T1)
       CALL cp_cfm_release(T2)
       CALL cp_cfm_release(Tres)
-      DEALLOCATE (mult_p)
       CALL timestop(handle)
 
    END SUBROUTINE exp_pade_full_complex
@@ -461,9 +456,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: my_fac, square_fac
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_data_im
-      TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: cmult_p
-      TYPE(cp_cfm_type)                                  :: Dpq
-      TYPE(cp_cfm_type), POINTER                         :: fin_p
+      TYPE(cp_cfm_type)                                  :: Dpq, fin_p
+      TYPE(cp_cfm_type), DIMENSION(2)                    :: cmult_p
       TYPE(cp_cfm_type), TARGET                          :: Npq, T1
       TYPE(cp_fm_type)                                   :: T2, Tres
 
@@ -473,7 +467,6 @@ CONTAINS
 
       CALL cp_fm_get_info(im_part, local_data=local_data_im, ncol_local=ldim, nrow_global=ndim)
       square_fac = 1.0_dp/(2.0_dp**REAL(nsquare, dp))
-      ALLOCATE (cmult_p(2))
 
       CALL cp_cfm_create(Dpq, &
                          matrix_struct=im_part%matrix_struct, &
@@ -538,16 +531,16 @@ CONTAINS
 
       CALL cp_cfm_solve(Dpq, Npq)
 
-      cmult_p(2)%matrix => Npq
-      cmult_p(1)%matrix => T1
+      cmult_p(2) = Npq
+      cmult_p(1) = T1
       IF (nsquare .GT. 0) THEN
          DO i = 1, nsquare
-       CALL parallel_gemm("N", "N", ndim, ndim, ndim, z_one, cmult_p(MOD(i, 2) + 1)%matrix, cmult_p(MOD(i, 2) + 1)%matrix, z_zero, &
-                               cmult_p(MOD(i + 1, 2) + 1)%matrix)
-            fin_p => cmult_p(MOD(i + 1, 2) + 1)%matrix
+            CALL parallel_gemm("N", "N", ndim, ndim, ndim, z_one, cmult_p(MOD(i, 2) + 1), cmult_p(MOD(i, 2) + 1), z_zero, &
+                               cmult_p(MOD(i + 1, 2) + 1))
+            fin_p = cmult_p(MOD(i + 1, 2) + 1)
          END DO
       ELSE
-         fin_p => Npq
+         fin_p = Npq
       END IF
 
       DO k = 1, ldim
@@ -560,7 +553,6 @@ CONTAINS
       CALL cp_cfm_release(T1)
       CALL cp_fm_release(T2)
       CALL cp_fm_release(Tres)
-      DEALLOCATE (cmult_p)
       CALL timestop(handle)
    END SUBROUTINE exp_pade_only_imaginary
 

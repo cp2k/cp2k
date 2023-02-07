@@ -31,8 +31,8 @@ MODULE qs_moments
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_lu_decompose
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
-                                              cp_cfm_p_type,&
-                                              cp_cfm_release
+                                              cp_cfm_release,&
+                                              cp_cfm_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
@@ -1252,7 +1252,7 @@ CONTAINS
       REAL(dp), DIMENSION(3)                             :: kvec, qq, rcc, ria
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: eigrmat
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: eigrmat
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: opvec
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: op_fm_set
@@ -1334,8 +1334,7 @@ CONTAINS
          DO i = 1, SIZE(op_fm_set, 1)
             CALL cp_fm_create(op_fm_set(i, ispin), tmp_fm_struct)
          END DO
-         ALLOCATE (eigrmat(ispin)%matrix)
-         CALL cp_cfm_create(eigrmat(ispin)%matrix, op_fm_set(1, ispin)%matrix_struct)
+         CALL cp_cfm_create(eigrmat(ispin), op_fm_set(1, ispin)%matrix_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
       END DO
 
@@ -1485,13 +1484,13 @@ CONTAINS
                END IF
                zdet = CMPLX(1._dp, 0._dp, dp)
                DO ispin = 1, dft_control%nspins
-                  CALL cp_cfm_get_info(eigrmat(ispin)%matrix, ncol_local=tmp_dim)
+                  CALL cp_cfm_get_info(eigrmat(ispin), ncol_local=tmp_dim)
                   DO idim = 1, tmp_dim
-                     eigrmat(ispin)%matrix%local_data(:, idim) = &
+                     eigrmat(ispin)%local_data(:, idim) = &
                         CMPLX(op_fm_set(1, ispin)%local_data(:, idim), &
                               -op_fm_set(2, ispin)%local_data(:, idim), dp)
                   END DO
-                  CALL cp_cfm_lu_decompose(eigrmat(ispin)%matrix, zdeta)
+                  CALL cp_cfm_lu_decompose(eigrmat(ispin), zdeta)
                   zdet = zdet*zdeta
                   IF (dft_control%nspins == 1) THEN
                      zdet = zdet*zdeta
@@ -1516,13 +1515,13 @@ CONTAINS
                   END IF
                   zdet = CMPLX(1._dp, 0._dp, dp)
                   DO ispin = 1, dft_control%nspins
-                     CALL cp_cfm_get_info(eigrmat(ispin)%matrix, ncol_local=tmp_dim)
+                     CALL cp_cfm_get_info(eigrmat(ispin), ncol_local=tmp_dim)
                      DO idim = 1, tmp_dim
-                        eigrmat(ispin)%matrix%local_data(:, idim) = &
+                        eigrmat(ispin)%local_data(:, idim) = &
                            CMPLX(op_fm_set(1, ispin)%local_data(:, idim), &
                                  -op_fm_set(2, ispin)%local_data(:, idim), dp)
                      END DO
-                     CALL cp_cfm_lu_decompose(eigrmat(ispin)%matrix, zdeta)
+                     CALL cp_cfm_lu_decompose(eigrmat(ispin), zdeta)
                      zdet = zdet*zdeta
                      IF (dft_control%nspins == 1) THEN
                         zdet = zdet*zdeta
@@ -1608,8 +1607,7 @@ CONTAINS
 
       DO ispin = 1, dft_control%nspins
          CALL cp_fm_release(opvec(ispin))
-         CALL cp_cfm_release(eigrmat(ispin)%matrix)
-         DEALLOCATE (eigrmat(ispin)%matrix)
+         CALL cp_cfm_release(eigrmat(ispin))
          DO i = 1, SIZE(op_fm_set, 1)
             CALL cp_fm_release(op_fm_set(i, ispin))
          END DO

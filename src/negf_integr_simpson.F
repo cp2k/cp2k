@@ -13,7 +13,6 @@ MODULE negf_integr_simpson
                                               cp_cfm_scale_and_add
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
-                                              cp_cfm_p_type,&
                                               cp_cfm_release,&
                                               cp_cfm_set_all,&
                                               cp_cfm_to_cfm,&
@@ -61,7 +60,7 @@ MODULE negf_integr_simpson
       !> estimated error value on this sub-interval
       REAL(kind=dp)                                      :: error
       !> integrand values at equally spaced points [a, b, c, d, e] located on the curve shape([lb .. ub])
-      TYPE(cp_cfm_type), POINTER                         :: fa, fb, fc, fd, fe
+      TYPE(cp_cfm_type)                        :: fa, fb, fc, fd, fe
    END TYPE simpsonrule_subinterval_type
 
 ! **************************************************************************************************
@@ -195,26 +194,11 @@ CONTAINS
       CALL timeset(routineN, handle)
       IF (ALLOCATED(sr_env%subintervals)) THEN
          DO interval = SIZE(sr_env%subintervals), 1, -1
-            IF (ASSOCIATED(sr_env%subintervals(interval)%fa)) THEN
-               CALL cp_cfm_release(sr_env%subintervals(interval)%fa)
-               DEALLOCATE (sr_env%subintervals(interval)%fa)
-            END IF
-            IF (ASSOCIATED(sr_env%subintervals(interval)%fb)) THEN
-               CALL cp_cfm_release(sr_env%subintervals(interval)%fb)
-               DEALLOCATE (sr_env%subintervals(interval)%fb)
-            END IF
-            IF (ASSOCIATED(sr_env%subintervals(interval)%fc)) THEN
-               CALL cp_cfm_release(sr_env%subintervals(interval)%fc)
-               DEALLOCATE (sr_env%subintervals(interval)%fc)
-            END IF
-            IF (ASSOCIATED(sr_env%subintervals(interval)%fd)) THEN
-               CALL cp_cfm_release(sr_env%subintervals(interval)%fd)
-               DEALLOCATE (sr_env%subintervals(interval)%fd)
-            END IF
-            IF (ASSOCIATED(sr_env%subintervals(interval)%fe)) THEN
-               CALL cp_cfm_release(sr_env%subintervals(interval)%fe)
-               DEALLOCATE (sr_env%subintervals(interval)%fe)
-            END IF
+            CALL cp_cfm_release(sr_env%subintervals(interval)%fa)
+            CALL cp_cfm_release(sr_env%subintervals(interval)%fb)
+            CALL cp_cfm_release(sr_env%subintervals(interval)%fc)
+            CALL cp_cfm_release(sr_env%subintervals(interval)%fd)
+            CALL cp_cfm_release(sr_env%subintervals(interval)%fe)
          END DO
 
          DEALLOCATE (sr_env%subintervals)
@@ -354,9 +338,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE simpsonrule_refine_integral(sr_env, zdata_next)
       TYPE(simpsonrule_type), INTENT(inout)              :: sr_env
-      TYPE(cp_cfm_p_type), DIMENSION(:), INTENT(inout)   :: zdata_next
+      TYPE(cp_cfm_type), DIMENSION(:), INTENT(inout)     :: zdata_next
 
       CHARACTER(len=*), PARAMETER :: routineN = 'simpsonrule_refine_integral'
+      TYPE(cp_cfm_type), PARAMETER                       :: cfm_null = cp_cfm_type()
 
       COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:)        :: zscale
       COMPLEX(kind=dp), CONTIGUOUS, DIMENSION(:, :), &
@@ -399,7 +384,7 @@ CONTAINS
 
       ! rescale integrand values
       DO ipoint = 1, npoints
-         CALL cp_cfm_scale(zscale(ipoint), zdata_next(ipoint)%matrix)
+         CALL cp_cfm_scale(zscale(ipoint), zdata_next(ipoint))
       END DO
 
       DEALLOCATE (zscale)
@@ -417,25 +402,22 @@ CONTAINS
             subintervals(2*interval - 1)%lb = sr_env%subintervals(interval)%lb
             subintervals(2*interval - 1)%ub = 0.5_dp*(sr_env%subintervals(interval)%lb + sr_env%subintervals(interval)%ub)
             subintervals(2*interval - 1)%conv = 0.5_dp*sr_env%subintervals(interval)%conv
-            subintervals(2*interval - 1)%fa => sr_env%subintervals(interval)%fa
-            subintervals(2*interval - 1)%fb => zdata_next(4*interval - 3)%matrix
-            subintervals(2*interval - 1)%fc => sr_env%subintervals(interval)%fb
-            subintervals(2*interval - 1)%fd => zdata_next(4*interval - 2)%matrix
-            subintervals(2*interval - 1)%fe => sr_env%subintervals(interval)%fc
+            subintervals(2*interval - 1)%fa = sr_env%subintervals(interval)%fa
+            subintervals(2*interval - 1)%fb = zdata_next(4*interval - 3)
+            subintervals(2*interval - 1)%fc = sr_env%subintervals(interval)%fb
+            subintervals(2*interval - 1)%fd = zdata_next(4*interval - 2)
+            subintervals(2*interval - 1)%fe = sr_env%subintervals(interval)%fc
 
             subintervals(2*interval)%lb = subintervals(2*interval - 1)%ub
             subintervals(2*interval)%ub = sr_env%subintervals(interval)%ub
             subintervals(2*interval)%conv = subintervals(2*interval - 1)%conv
-            subintervals(2*interval)%fa => sr_env%subintervals(interval)%fc
-            subintervals(2*interval)%fb => zdata_next(4*interval - 1)%matrix
-            subintervals(2*interval)%fc => sr_env%subintervals(interval)%fd
-            subintervals(2*interval)%fd => zdata_next(4*interval)%matrix
-            subintervals(2*interval)%fe => sr_env%subintervals(interval)%fe
+            subintervals(2*interval)%fa = sr_env%subintervals(interval)%fc
+            subintervals(2*interval)%fb = zdata_next(4*interval - 1)
+            subintervals(2*interval)%fc = sr_env%subintervals(interval)%fd
+            subintervals(2*interval)%fd = zdata_next(4*interval)
+            subintervals(2*interval)%fe = sr_env%subintervals(interval)%fe
 
-            NULLIFY (zdata_next(4*interval - 3)%matrix)
-            NULLIFY (zdata_next(4*interval - 2)%matrix)
-            NULLIFY (zdata_next(4*interval - 1)%matrix)
-            NULLIFY (zdata_next(4*interval)%matrix)
+            zdata_next(4*interval - 3:4*interval) = cfm_null
          END DO
 
          DO interval = nintervals + 1, nintervals_exist
@@ -444,7 +426,7 @@ CONTAINS
          DEALLOCATE (sr_env%subintervals)
       ELSE
          ! first time -- allocate matrices and create a new set of intervals
-         CALL cp_cfm_get_info(zdata_next(1)%matrix, matrix_struct=fm_struct)
+         CALL cp_cfm_get_info(zdata_next(1), matrix_struct=fm_struct)
          ALLOCATE (sr_env%integral, sr_env%integral_conv, &
                    sr_env%integral_abc, sr_env%integral_cde, sr_env%integral_ace)
          CALL cp_cfm_create(sr_env%integral, fm_struct)
@@ -465,19 +447,17 @@ CONTAINS
             subintervals(interval)%ub = sr_env%tnodes(4*interval + 1)
             subintervals(interval)%conv = rscale*sr_env%conv
 
-            subintervals(interval)%fa => zdata_next(4*interval - 3)%matrix
-            subintervals(interval)%fb => zdata_next(4*interval - 2)%matrix
-            subintervals(interval)%fc => zdata_next(4*interval - 1)%matrix
-            subintervals(interval)%fd => zdata_next(4*interval)%matrix
-            subintervals(interval)%fe => zdata_next(4*interval + 1)%matrix
+            subintervals(interval)%fa = zdata_next(4*interval - 3)
+            subintervals(interval)%fb = zdata_next(4*interval - 2)
+            subintervals(interval)%fc = zdata_next(4*interval - 1)
+            subintervals(interval)%fd = zdata_next(4*interval)
+            subintervals(interval)%fe = zdata_next(4*interval + 1)
          END DO
       END IF
 
-      ! we kept the originals matrices for internal use, so nullify the pointers
+      ! we kept the originals matrices for internal use, so set the matrix to null
       ! to prevent  alteration of the matrices from the outside
-      DO ipoint = 1, npoints
-         NULLIFY (zdata_next(ipoint)%matrix)
-      END DO
+      zdata_next(1:npoints) = cfm_null
 
       CALL cp_fm_get_info(sr_env%error_fm, local_data=error_rdata)
       CALL cp_cfm_get_info(sr_env%integral_ace, local_data=error_zdata)
@@ -556,7 +536,6 @@ CONTAINS
             IF (.NOT. interval_exists) THEN
                ! interval does not exist anymore, so it is safe to release the matrix
                CALL cp_cfm_release(subintervals(interval)%fa)
-               DEALLOCATE (subintervals(interval)%fa)
             ELSE IF (interval_converged) THEN
                ! the interval still exists and will be released with fe
             END IF
@@ -564,8 +543,6 @@ CONTAINS
             CALL cp_cfm_release(subintervals(interval)%fc)
             CALL cp_cfm_release(subintervals(interval)%fd)
             CALL cp_cfm_release(subintervals(interval)%fe)
-            DEALLOCATE (subintervals(interval)%fb, subintervals(interval)%fc, &
-                        subintervals(interval)%fd, subintervals(interval)%fe)
          END DO
       ELSE
          ! sort subinterval according to their convergence, and drop convergent ones
@@ -606,14 +583,12 @@ CONTAINS
                IF (.NOT. interval_exists) THEN
                   ! interval does not exist anymore, so it is safe to release the matrix
                   CALL cp_cfm_release(subintervals(interval)%fa)
-                  DEALLOCATE (subintervals(interval)%fa)
                ELSE IF (interval_converged) THEN
                   ! the interval still exists and will be released with fe
                END IF
                CALL cp_cfm_release(subintervals(interval)%fb)
                CALL cp_cfm_release(subintervals(interval)%fc)
                CALL cp_cfm_release(subintervals(interval)%fd)
-               DEALLOCATE (subintervals(interval)%fb, subintervals(interval)%fc, subintervals(interval)%fd)
 
                ! Right border: Check for the existence and the convergence of the interval
                ! If the right interval does not exist or has converged, release the matrix
@@ -629,7 +604,6 @@ CONTAINS
                END DO
                IF (.NOT. interval_exists .OR. interval_converged) THEN
                   CALL cp_cfm_release(subintervals(interval)%fe)
-                  DEALLOCATE (subintervals(interval)%fe)
                END IF
             END IF
          END DO

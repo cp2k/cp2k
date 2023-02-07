@@ -17,7 +17,6 @@ MODULE rpa_gw
                                               get_cell
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
-                                              cp_cfm_p_type,&
                                               cp_cfm_release,&
                                               cp_cfm_set_all,&
                                               cp_cfm_to_fm,&
@@ -642,7 +641,6 @@ CONTAINS
 !> \param t_3c_overl_nnP_ic ...
 !> \param t_3c_overl_nnP_ic_reflected ...
 !> \param mat_W ...
-!> \param cfm_mat_W_kp_tau ...
 !> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE deallocate_matrices_gw_im_time(weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, do_ic_model, do_kpoints_cubic_RPA, &
@@ -650,7 +648,7 @@ CONTAINS
                                              t_3c_overl_int_ao_mo, t_3c_O_mo_compressed, t_3c_O_mo_ind, &
                                              t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
                                              t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, mat_W, &
-                                             cfm_mat_W_kp_tau, qs_env)
+                                             qs_env)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: weights_cos_tf_w_to_t, &
@@ -668,13 +666,11 @@ CONTAINS
                                                             t_3c_overl_nnP_ic, &
                                                             t_3c_overl_nnP_ic_reflected
       TYPE(dbcsr_type), POINTER                          :: mat_W
-      TYPE(cp_cfm_p_type), ALLOCATABLE, &
-         DIMENSION(:, :), INTENT(INOUT)                  :: cfm_mat_W_kp_tau
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_matrices_gw_im_time'
 
-      INTEGER                                            :: handle, ikp, ispin, jquad, nspins, unused
+      INTEGER                                            :: handle, ispin, jquad, nspins, unused
       LOGICAL                                            :: my_open_shell
 
       CALL timeset(routineN, handle)
@@ -694,17 +690,6 @@ CONTAINS
          DEALLOCATE (fm_mat_W)
 
          CALL dbcsr_release_P(mat_W)
-
-      ELSE
-         DO jquad = 1, SIZE(cfm_mat_W_kp_tau, 2)
-            DO ikp = 1, SIZE(cfm_mat_W_kp_tau, 1)
-               IF (ASSOCIATED(cfm_mat_W_kp_tau(ikp, jquad)%matrix)) THEN
-                  CALL cp_cfm_release(cfm_mat_W_kp_tau(ikp, jquad)%matrix)
-                  DEALLOCATE (cfm_mat_W_kp_tau(ikp, jquad)%matrix)
-               END IF
-            END DO
-         END DO
-         DEALLOCATE (cfm_mat_W_kp_tau)
 
       END IF
 
