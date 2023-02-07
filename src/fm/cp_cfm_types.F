@@ -79,7 +79,7 @@ MODULE cp_cfm_types
 !> \param matrix the pointer to the matrix
 ! **************************************************************************************************
    TYPE cp_cfm_p_type
-      TYPE(cp_cfm_type), POINTER :: matrix
+      TYPE(cp_cfm_type), POINTER :: matrix => NULL()
    END TYPE cp_cfm_p_type
 
 ! **************************************************************************************************
@@ -91,19 +91,19 @@ MODULE cp_cfm_types
 ! **************************************************************************************************
    TYPE copy_cfm_info_type
       !> number of MPI processes that send data
-      INTEGER                                     :: send_size
+      INTEGER                                     :: send_size = -1
       !> number of locally stored rows (1) and columns (2) of the destination matrix
-      INTEGER, DIMENSION(2)                       :: nlocal_recv
+      INTEGER, DIMENSION(2)                       :: nlocal_recv = -1
       !> number of rows (1) and columns (2) of the ScaLAPACK block of the source matrix
-      INTEGER, DIMENSION(2)                       :: nblock_src
+      INTEGER, DIMENSION(2)                       :: nblock_src = -1
       !> BLACS process grid shape of the source matrix: (1) nproc_row, (2) nproc_col
-      INTEGER, DIMENSION(2)                       :: src_num_pe
+      INTEGER, DIMENSION(2)                       :: src_num_pe = -1
       !> displacements into recv_buf
       INTEGER, ALLOCATABLE, DIMENSION(:)          :: recv_disp
       !> MPI requests for non-blocking receive and send operations
       TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)          :: recv_request, send_request
       !> global column and row indices of locally stored elements of the destination matrix
-      INTEGER, DIMENSION(:), POINTER              :: recv_col_indices, recv_row_indices
+      INTEGER, DIMENSION(:), POINTER              :: recv_col_indices => NULL(), recv_row_indices => NULL()
       !> rank of MPI process with BLACS coordinates (prow, pcol)
       INTEGER, ALLOCATABLE, DIMENSION(:, :)       :: src_blacs2mpi
       !> receiving and sending buffers for non-blocking MPI communication

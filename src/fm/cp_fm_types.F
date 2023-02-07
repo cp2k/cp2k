@@ -130,13 +130,13 @@ MODULE cp_fm_types
 !>      Jan 2017  [Mark T]
 ! **************************************************************************************************
    TYPE copy_info_type
-      INTEGER :: send_size
-      INTEGER, DIMENSION(2) :: nlocal_recv, nblock_src, src_num_pe ! 1->row  2->col
-      TYPE(mp_request_type), DIMENSION(:), POINTER :: send_request, recv_request
-      INTEGER, DIMENSION(:), POINTER       :: recv_disp
-      INTEGER, DIMENSION(:), POINTER       :: recv_col_indices, recv_row_indices
-      INTEGER, DIMENSION(:, :), POINTER    :: src_blacs2mpi
-      REAL(KIND=dp), DIMENSION(:), POINTER :: recv_buf, send_buf
+      INTEGER :: send_size = -1
+      INTEGER, DIMENSION(2) :: nlocal_recv = -1, nblock_src = -1, src_num_pe = -1 ! 1->row  2->col
+      TYPE(mp_request_type), DIMENSION(:), POINTER :: send_request => NULL(), recv_request => NULL()
+      INTEGER, DIMENSION(:), POINTER       :: recv_disp => NULL()
+      INTEGER, DIMENSION(:), POINTER       :: recv_col_indices => NULL(), recv_row_indices => NULL()
+      INTEGER, DIMENSION(:, :), POINTER    :: src_blacs2mpi => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER :: recv_buf => NULL(), send_buf => NULL()
    END TYPE copy_info_type
 
 CONTAINS
