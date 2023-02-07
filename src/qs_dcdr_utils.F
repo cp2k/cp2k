@@ -555,7 +555,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_loc_setting'
 
       INTEGER                                            :: handle, is, istate, max_states, nmo, &
-                                                            nmoloc, nstate, nstate_list(2)
+                                                            nmoloc, nstate, nstate_list(2), ispin
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: state_list
       REAL(dp), DIMENSION(:, :), POINTER                 :: center_array
       TYPE(linres_control_type), POINTER                 :: linres_control
@@ -594,78 +594,50 @@ CONTAINS
       qs_loc_env => linres_control%qs_loc_env
       CALL get_qs_loc_env(qs_loc_env, localized_wfn_control=localized_wfn_control)
 
-      ALLOCATE (dcdr_env%centers_set(1))
-      ALLOCATE (dcdr_env%center_list(1))
-      ALLOCATE (state_list(max_states, 1))
+      ALLOCATE (dcdr_env%centers_set(dcdr_env%nspins))
+      ALLOCATE (dcdr_env%center_list(dcdr_env%nspins))
+      ALLOCATE (state_list(max_states, dcdr_env%nspins))
       state_list(:, :) = HUGE(0)
       nstate_list(:) = HUGE(0)
 
       ! Build the state_list
-      center_array => localized_wfn_control%centers_set(1)%array
-      nstate = 0
-      DO istate = 1, SIZE(center_array, 2)
-         nstate = nstate + 1
-         state_list(nstate, 1) = istate
-      END DO
-      nstate_list(1) = nstate
-
-      ! clustering the states
-      nstate = nstate_list(1)
-      dcdr_env%nstates(1) = nstate
-
-      ALLOCATE (dcdr_env%center_list(1)%array(2, nstate + 1))
-      ALLOCATE (dcdr_env%centers_set(1)%array(3, nstate))
-      dcdr_env%center_list(1)%array(:, :) = HUGE(0)
-      dcdr_env%centers_set(1)%array(:, :) = HUGE(0.0_dp)
-
-      center_array => localized_wfn_control%centers_set(1)%array
-
-      ! point to the psi0 centers
-      SELECT CASE (dcdr_env%orb_center)
-      CASE (current_orb_center_wannier)
-         ! use the wannier center as -center-
-         dcdr_env%nbr_center(1) = nstate
-         DO is = 1, nstate
-            istate = state_list(is, 1)
-            dcdr_env%centers_set(1)%array(1:3, is) = center_array(1:3, istate)
-            dcdr_env%center_list(1)%array(1, is) = is
-            dcdr_env%center_list(1)%array(2, is) = istate
+      do ispin = 1, dcdr_env%nspins
+         center_array => localized_wfn_control%centers_set(ispin)%array
+         nstate = 0
+         DO istate = 1, SIZE(center_array, 2)
+            nstate = nstate + 1
+            state_list(nstate, ispin) = istate
          END DO
-         dcdr_env%center_list(1)%array(1, nstate + 1) = nstate + 1
+         nstate_list(ispin) = nstate
 
-      CASE DEFAULT
-         CPABORT("Unknown orbital center...")
-      END SELECT
+         ! clustering the states
+         nstate = nstate_list(ispin)
+         dcdr_env%nstates(ispin) = nstate
 
-      ! This doesn't do anything right?
-      ! ! hack to make centers_set%array closest to chosen reference
-      ! nsubset = SIZE(molecule_set)
-      ! natoms = SIZE(particle_set)
-      ! ALLOCATE (map_rc(3, natoms))
-      ! ALLOCATE (mapm_rc(3, nsubset))
+         ALLOCATE (dcdr_env%center_list(ispin)%array(2, nstate + 1))
+         ALLOCATE (dcdr_env%centers_set(ispin)%array(3, nstate))
+         dcdr_env%center_list(ispin)%array(:, :) = HUGE(0)
+         dcdr_env%centers_set(ispin)%array(:, :) = HUGE(0.0_dp)
 
-      ! ! Get reference point for this molecule
-      ! NULLIFY (ref_point)
-      ! reference = section_get_ival(section_vals=qs_env%input, &
-      !                              keyword_name="DFT%PRINT%MOMENTS%REFERENCE")
-      ! CALL section_vals_val_get(qs_env%input, "DFT%PRINT%MOMENTS%REF_POINT", r_vals=ref_point)
+         center_array => localized_wfn_control%centers_set(ispin)%array
 
-      ! DO i = 1, nsubset
-      !    first_atom = molecule_set(i)%first_atom
-      !    last_atom = molecule_set(i)%last_atom
+         ! point to the psi0 centers
+         SELECT CASE (dcdr_env%orb_center)
+         CASE (current_orb_center_wannier)
+            ! use the wannier center as -center-
+            dcdr_env%nbr_center(ispin) = nstate
+            DO is = 1, nstate
+               istate = state_list(is, 1)
+               dcdr_env%centers_set(ispin)%array(1:3, is) = center_array(1:3, istate)
+               dcdr_env%center_list(ispin)%array(1, is) = is
+               dcdr_env%center_list(ispin)%array(2, is) = istate
+            END DO
+            dcdr_env%center_list(ispin)%array(1, nstate + 1) = nstate + 1
 
-      !    CALL get_reference_point(rcc, qs_env=qs_env, reference=reference, &
-      !                             ref_point=ref_point, &
-      !                             ifirst=first_atom, ilast=last_atom)
-      !    mapm_rc(:, i) = rcc
-      !    DO j = first_atom, last_atom
-      !       map_rc(:, j) = rcc
-      !    END DO
-      ! END DO
-
-      ! DEALLOCATE (state_list)
-      ! DEALLOCATE (map_rc)
-      ! DEALLOCATE (mapm_rc)
+         CASE DEFAULT
+            CPABORT("Unknown orbital center...")
+         END SELECT
+      enddo
 
       CALL timestop(handle)
    END SUBROUTINE get_loc_setting
