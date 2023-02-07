@@ -206,7 +206,7 @@ CONTAINS
 
       INTEGER                                            :: iter, my_estate
       REAL(KIND=dp)                                      :: mu_max, mu_min, mu_now, my_festate, &
-                                                            N_max, N_min, N_now
+                                                            N_max, N_min
 
       IF (PRESENT(estate) .AND. PRESENT(festate)) THEN
          my_estate = estate
