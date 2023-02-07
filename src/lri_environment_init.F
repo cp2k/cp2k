@@ -182,6 +182,10 @@ CONTAINS
             SELECT CASE (lri_env%distant_pair_method)
             CASE ("EW")
                ! equal weight of 0.5
+               ALLOCATE (lri_env%eweight(nkind))
+               DO i = 1, nkind
+                  lri_env%eweight(i) = 0.5_dp
+               END DO
             CASE ("AW")
                ALLOCATE (lri_env%aradius(nkind))
                DO i = 1, nkind
