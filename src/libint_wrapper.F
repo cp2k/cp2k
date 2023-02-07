@@ -115,6 +115,7 @@ CONTAINS
       libint%prv(1)%oo2ze(1) = 0.5_dp*ZetapEtaInv
       libint%prv(1)%roz(1) = Rho*ZetaInv
       libint%prv(1)%roe(1) = Rho*EtaInv
+      libint%prv(1)%roeze(1) = Rho*ZetapEtaInv
 
       #:for m_max in range(0, 4*libint_max_am_supported)
 #if 4*LIBINT2_MAX_AM_eri > ${m_max}$ - 1
