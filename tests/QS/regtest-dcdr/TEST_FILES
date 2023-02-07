@@ -4,6 +4,7 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 h2o_apt.inp             96     1e-06     -0.879586
+h2o_apt_uks.inp         96     1e-06     -0.879586
 h2o_apt_loc.inp         96     1e-06     -0.879586
 h2o_apt_pbc.inp         96     1e-06     -0.938707
 h2o_apt_pbc_loc.inp     96     1e-06     -0.938770
