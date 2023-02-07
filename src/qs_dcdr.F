@@ -491,9 +491,8 @@ CONTAINS
       REAL(dp), DIMENSION(:, :, :, :), POINTER           :: apt_center, apt_subset
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: centers_set
-      TYPE(cp_fm_type)                                   :: overlap1_MO, tmp_fm, tmp_fm_like_mos, &
-                                                            tmp_fm_momo
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff, overlap1_MO, tmp_fm, &
+                                                            tmp_fm_like_mos, tmp_fm_momo
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -558,6 +557,9 @@ CONTAINS
 
       DO ispin = 1, dcdr_env%nspins
          ! Compute S^(1,R)_(ij)
+
+         ALLOCATE (tmp_fm_like_mos)
+         ALLOCATE (overlap1_MO)
          CALL cp_fm_create(tmp_fm_like_mos, dcdr_env%likemos_fm_struct(ispin)%struct)
          CALL cp_fm_create(overlap1_MO, dcdr_env%momo_fm_struct(ispin)%struct)
          nmo = dcdr_env%nmo(ispin)
@@ -581,9 +583,10 @@ CONTAINS
          ALLOCATE (diagonal_elements(nmo))
 
          ! Allocate temporary matrices
+         ALLOCATE (tmp_fm)
+         ALLOCATE (tmp_fm_momo)
          CALL cp_fm_create(tmp_fm, dcdr_env%likemos_fm_struct(ispin)%struct)
          CALL cp_fm_create(tmp_fm_momo, dcdr_env%momo_fm_struct(ispin)%struct)
-         CALL cp_fm_create(tmp_fm_like_mos, dcdr_env%likemos_fm_struct(ispin)%struct)
 
          ! FIRST CONTRIBUTION: dCR * moments * mo
          this_factor = -2._dp*f_spin
@@ -592,7 +595,6 @@ CONTAINS
                CALL dbcsr_set(dcdr_env%moments(alpha)%matrix, 0.0_dp)
                CALL build_local_moment_matrix(qs_env, dcdr_env%moments, 1, &
                                               ref_point=centers_set(ispin)%array(1:3, icenter))
-               ! ref_point=centers_set(ispin)%array(1:3, icenter))
                CALL multiply_localization(ao_matrix=dcdr_env%moments(alpha)%matrix, &
                                           mo_coeff=dcdr_env%dCR_prime(ispin), work=tmp_fm, nmo=nmo, &
                                           icenter=icenter, &
@@ -634,7 +636,6 @@ CONTAINS
                CALL dbcsr_set(dcdr_env%matrix_difdip(3, dcdr_env%beta)%matrix, 0._dp)
                CALL dipole_deriv_ao(qs_env, dcdr_env%matrix_difdip, dcdr_env%delta_basis_function, &
                                     1, centers_set(ispin)%array(1:3, icenter))
-               ! 1, centers_set(ispin)%array(1:3, icenter))
                CALL multiply_localization(ao_matrix=dcdr_env%matrix_difdip(alpha, dcdr_env%beta)%matrix, &
                                           mo_coeff=mo_coeff, work=tmp_fm, nmo=nmo, &
                                           icenter=icenter, &
@@ -670,6 +671,10 @@ CONTAINS
          CALL cp_fm_release(tmp_fm)
          CALL cp_fm_release(tmp_fm_like_mos)
          CALL cp_fm_release(tmp_fm_momo)
+         DEALLOCATE (overlap1_MO)
+         DEALLOCATE (tmp_fm)
+         DEALLOCATE (tmp_fm_like_mos)
+         DEALLOCATE (tmp_fm_momo)
       END DO !ispin
 
       ! Finally the nuclear contribution: nuclear charge * Kronecker_delta_{dcdr_env%beta,i}
