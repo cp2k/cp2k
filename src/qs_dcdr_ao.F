@@ -623,6 +623,8 @@ CONTAINS
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_g_total)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_r_total)
 
       DO ispin = 1, dcdr_env%nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_g(ispin))
