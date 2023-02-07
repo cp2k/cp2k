@@ -135,7 +135,7 @@ CONTAINS
       TYPE(pw_type)                                      :: rho1_tot_gspace, v_hartree_gspace, &
                                                             v_hartree_rspace
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_g, rho1_g_pw, rho1_r, rho_r, &
-                                                            tau1_r, v_xc, v_xc_tau, v_rspace_new
+                                                            tau1_r, v_rspace_new, v_xc, v_xc_tau
       TYPE(qs_rho_type), POINTER                         :: perturbed_density, rho
       TYPE(section_vals_type), POINTER                   :: input, xc_section
       TYPE(xc_derivative_set_type)                       :: deriv_set
@@ -175,7 +175,7 @@ CONTAINS
          CALL copy_dbcsr_to_fm(dcdr_env%matrix_s1(dcdr_env%beta + 1)%matrix, s1_ao)
       END IF
 
-      do ispin = 1, dcdr_env%nspins
+      DO ispin = 1, dcdr_env%nspins
          CALL dbcsr_set(dcdr_env%perturbed_dm_correction(ispin)%matrix, 0._dp)
          CALL dbcsr_set(dcdr_env%matrix_apply_op_constant(ispin)%matrix, 0.0_dp)
 
@@ -192,7 +192,7 @@ CONTAINS
                             0.0_dp, rho_ao_s1_rho_ao)
 
          CALL copy_fm_to_dbcsr(rho_ao_s1_rho_ao, dcdr_env%perturbed_dm_correction(ispin)%matrix)
-      enddo
+      END DO
 
       CALL cp_fm_release(rho_ao_fm)
       CALL cp_fm_release(rho_ao_s1)
@@ -208,9 +208,9 @@ CONTAINS
 
       ! ... set the density matrix to be the perturbed density matrix
       CALL qs_rho_get(perturbed_density, rho_ao=rho1_ao)
-      do ispin = 1, dcdr_env%nspins
+      DO ispin = 1, dcdr_env%nspins
          CALL dbcsr_copy(rho1_ao(ispin)%matrix, dcdr_env%perturbed_dm_correction(ispin)%matrix)
-      enddo
+      END DO
 
       ! ... updates rho_r and rho_g to the rho%rho_ao.
       CALL qs_rho_update_rho(rho_struct=perturbed_density, &
@@ -270,9 +270,9 @@ CONTAINS
       CALL xc_calc_2nd_deriv(v_xc, v_xc_tau, deriv_set, rho_set, &
                              rho1_r, rho1_g_pw, tau1_r, auxbas_pw_pool, xc_section, gapw=.FALSE.)
 
-      do ispin = 1, dcdr_env%nspins
+      DO ispin = 1, dcdr_env%nspins
          v_rspace_new(ispin) = v_xc(ispin)
-      enddo
+      END DO
       DEALLOCATE (v_xc)
 
       ! Done calculating the potentials
@@ -283,7 +283,7 @@ CONTAINS
       CALL pw_scale(v_hartree_rspace, v_hartree_rspace%pw_grid%dvol)
       DO ispin = 1, dcdr_env%nspins
          CALL pw_scale(v_rspace_new(ispin), v_rspace_new(ispin)%pw_grid%dvol)
-      enddo
+      END DO
 
       DO ispin = 1, dcdr_env%nspins
          CALL dbcsr_set(dcdr_env%matrix_apply_op_constant(ispin)%matrix, 0.0_dp)
@@ -291,21 +291,20 @@ CONTAINS
             v_rspace_new(1)%cr3d = 2.0_dp*v_rspace_new(1)%cr3d + 2.0_dp*v_hartree_rspace%cr3d
          ELSE IF (dcdr_env%nspins == 2) THEN
             v_rspace_new(ispin)%cr3d = v_rspace_new(ispin)%cr3d + &
-                                          v_hartree_rspace%cr3d
-         ENDIF
+                                       v_hartree_rspace%cr3d
+         END IF
 
          CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
                                  hmat=dcdr_env%matrix_apply_op_constant(ispin), &
                                  qs_env=qs_env, &
                                  calculate_forces=.FALSE.)
-      ENDDO
-
+      END DO
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace)
-      do ispin = 1, dcdr_env%nspins
+      DO ispin = 1, dcdr_env%nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new(ispin))
-      enddo
+      END DO
       DEALLOCATE (v_rspace_new)
 
       IF (ASSOCIATED(v_xc_tau)) THEN
@@ -513,12 +512,13 @@ CONTAINS
       INTEGER                                            :: handle, idir, ispin
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_type)                                      :: v_hartree_gspace, v_hartree_rspace, drho_g_total, drho_r_total
-      TYPE(pw_type), DIMENSION(:), POINTER               :: drho_g, drho_r, rho_r, v_xc, v_xc_tau
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: dtau_r
+      TYPE(pw_type)                                      :: drho_g_total, drho_r_total, &
+                                                            v_hartree_gspace, v_hartree_rspace
+      TYPE(pw_type), DIMENSION(:), POINTER               :: drho_g, drho_r, dtau_r, rho_r, v_xc, &
+                                                            v_xc_tau
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: input, xc_section
       TYPE(xc_derivative_set_type)                       :: my_deriv_set
@@ -547,12 +547,12 @@ CONTAINS
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
 
-      do ispin = 1, dcdr_env%nspins
+      DO ispin = 1, dcdr_env%nspins
          CALL pw_pool_create_pw(auxbas_pw_pool, drho_r(ispin), &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, drho_g(ispin), &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      enddo
+      END DO
       CALL pw_pool_create_pw(auxbas_pw_pool, drho_g_total, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, drho_r_total, &
@@ -564,7 +564,7 @@ CONTAINS
          CALL pw_zero(drho_g_total)
          CALL pw_zero(drho_r_total)
 
-         do ispin = 1, dcdr_env%nspins
+         DO ispin = 1, dcdr_env%nspins
             CALL pw_zero(drho_r(ispin))
             CALL pw_zero(drho_g(ispin))
 
@@ -583,7 +583,7 @@ CONTAINS
 
             CALL pw_axpy(drho_g(ispin), drho_g_total)
             CALL pw_axpy(drho_r(ispin), drho_r_total)
-         enddo
+         END DO
          ! Get the Hartree potential corresponding to the perturbed density
          CALL pw_poisson_solve(poisson_env, drho_g_total, &
                                vhartree=v_hartree_gspace)
@@ -605,7 +605,7 @@ CONTAINS
          !-------------------------------!
          ! Add both hartree and xc terms !
          !-------------------------------!
-         do ispin = 1, dcdr_env%nspins
+         DO ispin = 1, dcdr_env%nspins
             ! Can the dvol be different?
             CALL pw_scale(v_xc(ispin), v_xc(ispin)%pw_grid%dvol)
             CALL pw_axpy(v_hartree_rspace, v_xc(ispin), v_hartree_rspace%pw_grid%dvol)
@@ -617,17 +617,17 @@ CONTAINS
 
             ! v_xc gets allocated again in xc_calc_2nd_deriv
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin))
-         enddo ! ispin
+         END DO ! ispin
          DEALLOCATE (v_xc)
       END DO ! idir
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace)
 
-      do ispin = 1, dcdr_env%nspins
+      DO ispin = 1, dcdr_env%nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_g(ispin))
          CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_r(ispin))
-      enddo
+      END DO
 
       DEALLOCATE (drho_g)
       DEALLOCATE (drho_r)
@@ -684,7 +684,7 @@ CONTAINS
       CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
                          vxc_rho=v_hxc_r, vxc_tau=v_tau_rspace, exc=energy%exc)
 
-      do ispin = 1, dcdr_env%nspins
+      DO ispin = 1, dcdr_env%nspins
          CALL pw_scale(v_hxc_r(ispin), v_hxc_r(ispin)%pw_grid%dvol)
 
          ! sum up potentials and integrate
@@ -698,7 +698,7 @@ CONTAINS
                                  lambda=dcdr_env%lambda)
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hxc_r(ispin))
-      enddo
+      END DO
 
       DEALLOCATE (v_hxc_r)
 

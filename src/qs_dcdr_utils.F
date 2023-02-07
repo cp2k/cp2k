@@ -43,9 +43,14 @@ MODULE qs_dcdr_utils
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_methods,               ONLY: get_results
    USE cp_result_types,                 ONLY: cp_result_type
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_init_p, dbcsr_p_type, dbcsr_set, &
-        dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+                                              dbcsr_create,&
+                                              dbcsr_init_p,&
+                                              dbcsr_p_type,&
+                                              dbcsr_set,&
+                                              dbcsr_type,&
+                                              dbcsr_type_no_symmetry,&
+                                              dbcsr_type_symmetric
    USE input_constants,                 ONLY: current_orb_center_wannier,&
                                               use_mom_ref_user
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -554,8 +559,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_loc_setting'
 
-      INTEGER                                            :: handle, is, istate, max_states, nmo, &
-                                                            nmoloc, nstate, nstate_list(2), ispin
+      INTEGER                                            :: handle, is, ispin, istate, max_states, &
+                                                            nmo, nmoloc, nstate, nstate_list(2)
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: state_list
       REAL(dp), DIMENSION(:, :), POINTER                 :: center_array
       TYPE(linres_control_type), POINTER                 :: linres_control
@@ -601,7 +606,7 @@ CONTAINS
       nstate_list(:) = HUGE(0)
 
       ! Build the state_list
-      do ispin = 1, dcdr_env%nspins
+      DO ispin = 1, dcdr_env%nspins
          center_array => localized_wfn_control%centers_set(ispin)%array
          nstate = 0
          DO istate = 1, SIZE(center_array, 2)
@@ -637,7 +642,7 @@ CONTAINS
          CASE DEFAULT
             CPABORT("Unknown orbital center...")
          END SELECT
-      enddo
+      END DO
 
       CALL timestop(handle)
    END SUBROUTINE get_loc_setting
@@ -653,9 +658,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dcdr_env_init'
 
-      INTEGER                                            :: handle, homo, i, isize, j, jg, n_rep, &
-                                                            nao, natom, nmo, nspins, nsubset, &
-                                                            output_unit, reference, unit_number, ispin
+      INTEGER                                            :: handle, homo, i, isize, ispin, j, jg, &
+                                                            n_rep, nao, natom, nmo, nspins, &
+                                                            nsubset, output_unit, reference, &
+                                                            unit_number
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL                                            :: explicit
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
@@ -786,10 +792,10 @@ CONTAINS
                                context=mo_coeff%matrix_struct%context)
       dcdr_env%nao = nao
 
-      ALLOCATE(dcdr_env%nmo(nspins))
-      ALLOCATE(dcdr_env%momo_fm_struct(nspins))
-      ALLOCATE(dcdr_env%likemos_fm_struct(nspins))
-      do ispin = 1, nspins
+      ALLOCATE (dcdr_env%nmo(nspins))
+      ALLOCATE (dcdr_env%momo_fm_struct(nspins))
+      ALLOCATE (dcdr_env%likemos_fm_struct(nspins))
+      DO ispin = 1, nspins
          CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, &
                          nao=nao, nmo=nmo, homo=homo)
          CALL cp_fm_struct_create(dcdr_env%momo_fm_struct(ispin)%struct, nrow_global=nmo, &
@@ -798,7 +804,7 @@ CONTAINS
          CALL cp_fm_struct_create(dcdr_env%likemos_fm_struct(ispin)%struct, &
                                   template_fmstruct=mo_coeff%matrix_struct)
          dcdr_env%nmo(ispin) = nmo
-      enddo
+      END DO
 
       ! Fields of reals
       ALLOCATE (dcdr_env%deltaR(3, natom))
@@ -831,7 +837,7 @@ CONTAINS
       ALLOCATE (dcdr_env%chc(nspins))
       ALLOCATE (dcdr_env%op_dR(nspins))
 
-      do ispin = 1, nspins
+      DO ispin = 1, nspins
          CALL cp_fm_create(dcdr_env%dCR(ispin), dcdr_env%likemos_fm_struct(ispin)%struct)
          CALL cp_fm_create(dcdr_env%dCR_prime(ispin), dcdr_env%likemos_fm_struct(ispin)%struct)
          CALL cp_fm_create(dcdr_env%mo_coeff(ispin), dcdr_env%likemos_fm_struct(ispin)%struct)
@@ -840,7 +846,7 @@ CONTAINS
 
          CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
          CALL cp_fm_to_fm(mo_coeff, dcdr_env%mo_coeff(ispin))
-      enddo
+      END DO
 
       ! DBCSR matrices
       NULLIFY (dcdr_env%hamiltonian1)
@@ -869,7 +875,6 @@ CONTAINS
       CALL dbcsr_allocate_matrix_set(dcdr_env%matrix_hc, 3)
       CALL dbcsr_allocate_matrix_set(dcdr_env%matrix_ppnl_1, 3)
 
-
       ! temporary no_symmetry matrix:
       DO i = 1, 3
          CALL dbcsr_init_p(dcdr_env%matrix_nosym_temp(i)%matrix)
@@ -896,13 +901,13 @@ CONTAINS
          END DO
       END DO
 
-      do ispin = 1, nspins
+      DO ispin = 1, nspins
          CALL dbcsr_init_p(dcdr_env%hamiltonian1(ispin)%matrix)
          CALL dbcsr_init_p(dcdr_env%perturbed_dm_correction(ispin)%matrix)
          CALL dbcsr_init_p(dcdr_env%matrix_apply_op_constant(ispin)%matrix)
          CALL dbcsr_copy(dcdr_env%matrix_apply_op_constant(ispin)%matrix, matrix_ks(1)%matrix)
          CALL dbcsr_copy(dcdr_env%perturbed_dm_correction(ispin)%matrix, matrix_ks(1)%matrix)
-      enddo
+      END DO
 
       ! overlap/kinetic matrix: s(1)    normal overlap matrix;
       !                         s(2:4)  derivatives wrt. nuclear coordinates
@@ -920,14 +925,13 @@ CONTAINS
          CALL dbcsr_copy(dcdr_env%matrix_t1(i)%matrix, dcdr_env%matrix_nosym_temp(1)%matrix)
       END DO
 
-
       ! j=1...3: derivative wrt nucleus A, 4...6: wrt nucleus B
-      do ispin = 1, nspins
+      DO ispin = 1, nspins
          DO j = 1, 6
             CALL dbcsr_init_p(dcdr_env%matrix_vhxc_perturbed_basis(ispin, j)%matrix)
             CALL dbcsr_copy(dcdr_env%matrix_vhxc_perturbed_basis(ispin, j)%matrix, dcdr_env%matrix_s1(1)%matrix)
          END DO
-      enddo
+      END DO
 
       DO i = 1, 3
          CALL dbcsr_init_p(dcdr_env%matrix_hc(i)%matrix)
@@ -946,7 +950,7 @@ CONTAINS
       END DO
 
       DO i = 1, 3
-         do ispin = 1, nspins
+         DO ispin = 1, nspins
             CALL dbcsr_init_p(dcdr_env%matrix_d_vhxc_dR(i, ispin)%matrix)
             CALL dbcsr_copy(dcdr_env%matrix_d_vhxc_dR(i, ispin)%matrix, dcdr_env%matrix_s1(1)%matrix)
          END DO
@@ -954,10 +958,10 @@ CONTAINS
          CALL dbcsr_init_p(dcdr_env%matrix_core_charge_1(i)%matrix)
          CALL dbcsr_copy(dcdr_env%matrix_core_charge_1(i)%matrix, dcdr_env%matrix_s1(1)%matrix)
          CALL dbcsr_set(dcdr_env%matrix_core_charge_1(i)%matrix, 0.0_dp)
-      enddo
+      END DO
 
       ! CHC
-      do ispin = 1, nspins
+      DO ispin = 1, nspins
          CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=nmo)
          CALL cp_fm_create(buf, dcdr_env%likemos_fm_struct(ispin)%struct)
 
@@ -968,7 +972,7 @@ CONTAINS
                             0.0_dp, dcdr_env%chc(ispin))
 
          CALL cp_fm_release(buf)
-      enddo
+      END DO
 
       CALL cp_print_key_finished_output(output_unit, logger, lr_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
@@ -989,9 +993,9 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dcdr_env_type)                                :: dcdr_env
 
+      INTEGER                                            :: ispin
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: dcdr_section
-      INTEGER :: ispin
 
       ! Destroy the logger
       logger => cp_get_default_logger()
@@ -1002,12 +1006,12 @@ CONTAINS
 
       CALL cp_fm_struct_release(dcdr_env%aoao_fm_struct)
       CALL cp_fm_struct_release(dcdr_env%homohomo_fm_struct)
-      do ispin = 1, dcdr_env%nspins
+      DO ispin = 1, dcdr_env%nspins
          CALL cp_fm_struct_release(dcdr_env%momo_fm_struct(ispin)%struct)
          CALL cp_fm_struct_release(dcdr_env%likemos_fm_struct(ispin)%struct)
-      enddo
-      DEALLOCATE(dcdr_env%momo_fm_struct)
-      DEALLOCATE(dcdr_env%likemos_fm_struct)
+      END DO
+      DEALLOCATE (dcdr_env%momo_fm_struct)
+      DEALLOCATE (dcdr_env%likemos_fm_struct)
 
       DEALLOCATE (dcdr_env%deltar)
       DEALLOCATE (dcdr_env%delta_basis_function)
@@ -1030,13 +1034,13 @@ CONTAINS
       END IF
 
       ! Full matrices
-      do ispin = 1, dcdr_env%nspins
+      DO ispin = 1, dcdr_env%nspins
          CALL cp_fm_release(dcdr_env%dCR(ispin))
          CALL cp_fm_release(dcdr_env%dCR_prime(ispin))
          CALL cp_fm_release(dcdr_env%mo_coeff(ispin))
          CALL cp_fm_release(dcdr_env%chc(ispin))
          CALL cp_fm_release(dcdr_env%op_dR(ispin))
-      enddo
+      END DO
 
       DEALLOCATE (dcdr_env%op_dR)
       DEALLOCATE (dcdr_env%dCR)
