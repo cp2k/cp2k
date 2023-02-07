@@ -170,6 +170,7 @@ CONTAINS
       END IF
 
       ! Calculate P_aux = A * P * A^T
+      ALLOCATE (matrix_tmp)
       CALL dbcsr_create(matrix_tmp, template=admm_dm%matrix_A)
       DO ispin = 1, dft_control%nspins
          CALL dbcsr_multiply("N", "N", 1.0_dp, admm_dm%matrix_A, rho_ao(ispin)%matrix, &
