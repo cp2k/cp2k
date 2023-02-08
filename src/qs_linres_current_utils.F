@@ -89,8 +89,7 @@ MODULE qs_linres_current_utils
                                               linres_solver,&
                                               linres_write_restart
    USE qs_linres_op,                    ONLY: set_vecp
-   USE qs_linres_types,                 ONLY: current_env_create,&
-                                              current_env_type,&
+   USE qs_linres_types,                 ONLY: current_env_type,&
                                               deallocate_jrho_atom_set,&
                                               get_current_env,&
                                               init_jrho_atom_set,&
@@ -680,10 +679,7 @@ CONTAINS
       END IF
 
       CALL current_env_cleanup(current_env)
-
-      CALL current_env_create(current_env)
-      !
-      !
+      current_env%gauge_init = .FALSE.
       current_env%chi_tensor(:, :, :) = 0.0_dp
       current_env%chi_tensor_loc(:, :, :) = 0.0_dp
       current_env%nao = nao

@@ -48,7 +48,6 @@ MODULE qs_linres_epr_utils
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_linres_types,                 ONLY: deallocate_nablavks_atom_set,&
-                                              epr_env_create,&
                                               epr_env_type,&
                                               init_nablavks_atom_set,&
                                               linres_control_type,&
@@ -131,8 +130,6 @@ CONTAINS
          WRITE (output_unit, "(/,T20,A,/)") "*** Start EPR g tensor calculation ***"
          WRITE (output_unit, "(T10,A,/)") "Initialization of the EPR environment"
       END IF
-
-      CALL epr_env_create(epr_env)
 
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &

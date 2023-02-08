@@ -48,7 +48,6 @@ MODULE qs_linres_nmr_utils
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_linres_types,                 ONLY: linres_control_type,&
-                                              nmr_env_create,&
                                               nmr_env_type
    USE qs_matrix_pools,                 ONLY: qs_matrix_pools_type
    USE scf_control_types,               ONLY: scf_control_type
@@ -120,8 +119,6 @@ CONTAINS
          WRITE (output_unit, "(T10,A,/)") "Inizialization of the NMR environment"
       END IF
 
-      CALL nmr_env_create(nmr_env)
-      !
       ! If current_density or full_nmr different allocations are required
       nmr_section => section_vals_get_subs_vals(qs_env%input, &
            &                                    "PROPERTIES%LINRES%NMR")

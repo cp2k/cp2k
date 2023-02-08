@@ -89,7 +89,6 @@ MODULE qs_linres_module
                                               dcdr_env_type,&
                                               epr_env_type,&
                                               issc_env_type,&
-                                              linres_control_create,&
                                               linres_control_type,&
                                               nmr_env_type,&
                                               vcd_env_type
@@ -121,8 +120,6 @@ MODULE qs_linres_module
    PUBLIC :: linres_calculation, linres_calculation_low
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_module'
-
-! **************************************************************************************************
 
 CONTAINS
 
@@ -218,7 +215,7 @@ CONTAINS
 
    END SUBROUTINE vcd_linres
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Calculates the derivatives of the MO coefficients dC/dR^lambda_beta
 !>         wrt to nuclear coordinates. The derivative is index by `beta`, the
 !>         electric dipole operator by `alpha`.
@@ -451,7 +448,6 @@ CONTAINS
       NULLIFY (dft_control, linres_control, loc_section, rho, mos, matrix_ks, rho_ao)
 
       ALLOCATE (linres_control)
-      CALL linres_control_create(linres_control)
       CALL set_qs_env(qs_env=qs_env, linres_control=linres_control)
       CALL get_qs_env(qs_env=qs_env, &
                       dft_control=dft_control, matrix_ks=matrix_ks, mos=mos, rho=rho)

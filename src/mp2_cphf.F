@@ -111,8 +111,7 @@ MODULE mp2_cphf
    USE qs_ks_reference,                 ONLY: ks_ref_potential
    USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                               set_ks_env
-   USE qs_linres_types,                 ONLY: linres_control_create,&
-                                              linres_control_type
+   USE qs_linres_types,                 ONLY: linres_control_type
    USE qs_mo_types,                     ONLY: mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_overlap,                      ONLY: build_overlap_matrix
@@ -349,7 +348,6 @@ CONTAINS
       ! Prepare arrays for linres code
       NULLIFY (linres_control)
       ALLOCATE (linres_control)
-      CALL linres_control_create(linres_control)
       linres_control%do_kernel = .TRUE.
       linres_control%lr_triplet = .FALSE.
       linres_control%linres_restart = .FALSE.
