@@ -111,8 +111,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_atom'
 
       INTEGER :: damax_iso_not0_local, handle, i, i1, i2, iat, iatom, icg, ipgf1, ipgf2, ir, &
-         iset1, iset2, iso, iso1, iso1_first, iso1_last, iso2, iso2_first, iso2_last, istat, j, l, &
-         l1, l2, l_iso, l_sub, l_sum, lmax12, lmax_expansion, lmin12, m1s, m2s, max_iso_not0, &
+         iset1, iset2, iso, iso1, iso1_first, iso1_last, iso2, iso2_first, iso2_last, j, l, l1, &
+         l2, l_iso, l_sub, l_sum, lmax12, lmax_expansion, lmin12, m1s, m2s, max_iso_not0, &
          max_iso_not0_local, max_s_harm, maxl, maxso, mepos, n1s, n2s, nr, nset, num_pe, size1, &
          size2
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cg_n_list, dacg_n_list
@@ -168,9 +168,7 @@ CONTAINS
       ALLOCATE (done_vgg(0:2*maxl, 0:indso(1, max_iso_not0)))
       ALLOCATE (int1(nr), int2(nr))
       ALLOCATE (cg_list(2, nsoset(maxl)**2, max_s_harm), cg_n_list(max_s_harm), &
-                dacg_list(2, nsoset(maxl)**2, max_s_harm), dacg_n_list(max_s_harm), &
-                STAT=istat)
-      CPASSERT(istat == 0)
+                dacg_list(2, nsoset(maxl)**2, max_s_harm), dacg_n_list(max_s_harm))
 
       DO iat = bo(1), bo(2)
          iatom = atom_list(iat)
@@ -431,9 +429,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_atom_coeff'
 
-      INTEGER :: bo(2), handle, i, iac, iatom, ibc, icol, ikind, img, irow, ispin, istat, jatom, &
-         jkind, kac, katom, kbc, kkind, len_CPC, len_PC1, max_gau, max_nsgf, mepos, n_cont_a, &
-         n_cont_b, nat_kind, natom, nimages, nkind, nsatbas, nsoctot, nspins, num_pe
+      INTEGER :: bo(2), handle, i, iac, iatom, ibc, icol, ikind, img, irow, ispin, jatom, jkind, &
+         kac, katom, kbc, kkind, len_CPC, len_PC1, max_gau, max_nsgf, mepos, n_cont_a, n_cont_b, &
+         nat_kind, natom, nimages, nkind, nsatbas, nsoctot, nspins, num_pe
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       INTEGER, DIMENSION(3)                              :: cell_b
       INTEGER, DIMENSION(:), POINTER                     :: a_list, list_a, list_b
@@ -539,8 +537,7 @@ CONTAINS
 !$OMP                 , natom, locks, number_of_locks     &
 !$OMP                 )                                   &
 !$OMP          PRIVATE( p_block_spin, ispin               &
-!$OMP                 , p_matrix, istat                   &
-!$OMP                 , mepos                             &
+!$OMP                 , p_matrix, mepos                   &
 !$OMP                 , ikind, jkind, iatom, jatom        &
 !$OMP                 , cell_b, rab, basis_1c             &
 !$OMP                 , basis_set_a, basis_set_b          &
@@ -558,8 +555,7 @@ CONTAINS
 !$OMP                 )
 
       ALLOCATE (p_block_spin(nspins))
-      ALLOCATE (p_matrix(max_nsgf, max_nsgf), STAT=istat)
-      CPASSERT(istat == 0)
+      ALLOCATE (p_matrix(max_nsgf, max_nsgf))
 
 !$OMP SINGLE
 !$    number_of_locks = nspins*natom
@@ -928,9 +924,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho_atom_internals'
 
       INTEGER                                            :: bo(2), handle, iat, iatom, ikind, ispin, &
-                                                            istat, max_iso_not0, maxso, mepos, &
-                                                            nat, natom, nsatbas, nset, nsotot, &
-                                                            nspins, num_pe
+                                                            max_iso_not0, maxso, mepos, nat, &
+                                                            natom, nsatbas, nset, nsotot, nspins, &
+                                                            num_pe
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL                                            :: paw_atom
       TYPE(gto_basis_set_type), POINTER                  :: basis_1c
@@ -977,22 +973,17 @@ CONTAINS
             ALLOCATE (rho_atom_set(iatom)%vrho_rad_h(nspins))
             ALLOCATE (rho_atom_set(iatom)%vrho_rad_s(nspins))
 
-            istat = 0
             ALLOCATE (rho_atom_set(iatom)%cpc_h(nspins), &
                       rho_atom_set(iatom)%cpc_s(nspins), &
                       rho_atom_set(iatom)%drho_rad_h(nspins), &
                       rho_atom_set(iatom)%drho_rad_s(nspins), &
                       rho_atom_set(iatom)%rho_rad_h_d(3, nspins), &
-                      rho_atom_set(iatom)%rho_rad_s_d(3, nspins), &
-                      STAT=istat)
-            CPASSERT(istat == 0)
+                      rho_atom_set(iatom)%rho_rad_s_d(3, nspins))
 
             IF (paw_atom) THEN
                DO ispin = 1, nspins
                   ALLOCATE (rho_atom_set(iatom)%cpc_h(ispin)%r_coef(1:nsatbas, 1:nsatbas), &
-                            rho_atom_set(iatom)%cpc_s(ispin)%r_coef(1:nsatbas, 1:nsatbas), &
-                            STAT=istat)
-                  CPASSERT(istat == 0)
+                            rho_atom_set(iatom)%cpc_s(ispin)%r_coef(1:nsatbas, 1:nsatbas))
 
                   rho_atom_set(iatom)%cpc_h(ispin)%r_coef = 0.0_dp
                   rho_atom_set(iatom)%cpc_s(ispin)%r_coef = 0.0_dp
@@ -1007,9 +998,7 @@ CONTAINS
          DO iat = bo(1), bo(2)
             iatom = atom_list(iat)
             ALLOCATE (rho_atom_set(iatom)%ga_Vlocal_gb_h(nspins), &
-                      rho_atom_set(iatom)%ga_Vlocal_gb_s(nspins), &
-                      STAT=istat)
-            CPASSERT(istat == 0)
+                      rho_atom_set(iatom)%ga_Vlocal_gb_s(nspins))
             IF (paw_atom) THEN
                DO ispin = 1, nspins
                   CALL reallocate(rho_atom_set(iatom)%ga_Vlocal_gb_h(ispin)%r_coef, &
@@ -1045,16 +1034,14 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho_atom_rad'
 
-      INTEGER                                            :: handle, istat, j
+      INTEGER                                            :: handle, j
 
       CALL timeset(routineN, handle)
 
       ALLOCATE (rho_atom_set(iatom)%rho_rad_h(ispin)%r_coef(1:nr, 1:max_iso_not0), &
                 rho_atom_set(iatom)%rho_rad_s(ispin)%r_coef(1:nr, 1:max_iso_not0), &
                 rho_atom_set(iatom)%vrho_rad_h(ispin)%r_coef(1:nr, 1:max_iso_not0), &
-                rho_atom_set(iatom)%vrho_rad_s(ispin)%r_coef(1:nr, 1:max_iso_not0), &
-                STAT=istat)
-      CPASSERT(istat == 0)
+                rho_atom_set(iatom)%vrho_rad_s(ispin)%r_coef(1:nr, 1:max_iso_not0))
 
       rho_atom_set(iatom)%rho_rad_h(ispin)%r_coef = 0.0_dp
       rho_atom_set(iatom)%rho_rad_s(ispin)%r_coef = 0.0_dp
@@ -1062,17 +1049,13 @@ CONTAINS
       rho_atom_set(iatom)%vrho_rad_s(ispin)%r_coef = 0.0_dp
 
       ALLOCATE (rho_atom_set(iatom)%drho_rad_h(ispin)%r_coef(nr, max_iso_not0), &
-                rho_atom_set(iatom)%drho_rad_s(ispin)%r_coef(nr, max_iso_not0), &
-                STAT=istat)
-      CPASSERT(istat == 0)
+                rho_atom_set(iatom)%drho_rad_s(ispin)%r_coef(nr, max_iso_not0))
       rho_atom_set(iatom)%drho_rad_h(ispin)%r_coef = 0.0_dp
       rho_atom_set(iatom)%drho_rad_s(ispin)%r_coef = 0.0_dp
 
       DO j = 1, 3
          ALLOCATE (rho_atom_set(iatom)%rho_rad_h_d(j, ispin)%r_coef(nr, max_iso_not0), &
-                   rho_atom_set(iatom)%rho_rad_s_d(j, ispin)%r_coef(nr, max_iso_not0), &
-                   STAT=istat)
-         CPASSERT(istat == 0)
+                   rho_atom_set(iatom)%rho_rad_s_d(j, ispin)%r_coef(nr, max_iso_not0))
          rho_atom_set(iatom)%rho_rad_h_d(j, ispin)%r_coef = 0.0_dp
          rho_atom_set(iatom)%rho_rad_s_d(j, ispin)%r_coef = 0.0_dp
       END DO
