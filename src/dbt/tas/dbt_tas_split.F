@@ -79,9 +79,8 @@ CONTAINS
 
       INTEGER                                            :: handle, igroup_check, iproc, &
                                                             iproc_group, iproc_group_check, &
-                                                            numproc, numproc_group, &
-                                                            numproc_group_check
-      INTEGER, DIMENSION(2)                              :: pcoord, pcoord_group, pdims, pdims_group
+                                                            numproc_group
+      INTEGER, DIMENSION(2)                              :: pdims, pdims_group
       LOGICAL                                            :: own_comm_prv, to_assert
       TYPE(mp_comm_type)                                 :: mp_comm_group
 
@@ -104,11 +103,12 @@ CONTAINS
 
       CALL mp_comm_group%from_split(mp_comm, igroup)
 
-      CALL mp_comm%environ(numproc, iproc)
-      CALL mp_comm%environ_cart(numproc, pdims, pcoord)
+      CALL mp_comm%get_rank(iproc)
+      CALL mp_comm%get_info_cart(pdims)
       split_info%pdims = pdims
 
-      CALL mp_comm_group%environ(numproc_group, iproc_group)
+      CALL mp_comm_group%get_size(numproc_group)
+      CALL mp_comm_group%get_rank(iproc_group)
 
       IF (iproc == 0) THEN
          to_assert = MOD(numproc_group, pdims(MOD(split_rowcol, 2) + 1)) == 0
@@ -127,9 +127,9 @@ CONTAINS
          CPABORT('inconsistent subgroups')
       END IF
 
-      CALL split_info%mp_comm_group%create(mp_comm_group, 2, pdims_group, pcoord_group)
+      CALL split_info%mp_comm_group%create(mp_comm_group, 2, pdims_group)
 
-      CALL split_info%mp_comm_group%environ(numproc_group_check, iproc_group_check)
+      CALL split_info%mp_comm_group%get_rank(iproc_group_check)
 
       CPASSERT(iproc_group_check .EQ. iproc_group)
 
@@ -158,16 +158,16 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dbt_tas_mp_comm'
 
-      INTEGER                                            :: handle, iproc, numproc
-      INTEGER, DIMENSION(2)                              :: myploc, npdims
+      INTEGER                                            :: handle, numproc
+      INTEGER, DIMENSION(2)                              :: npdims
 
       CALL timeset(routineN, handle)
 
-      CALL mp_comm%environ(numproc, iproc)
+      CALL mp_comm%get_size(numproc)
 
       npdims = dbt_tas_mp_dims(numproc, split_rowcol, nsplit)
 
-      CALL dbt_tas_mp_comm%create(mp_comm, 2, npdims, myploc)
+      CALL dbt_tas_mp_comm%create(mp_comm, 2, npdims)
 
       CALL timestop(handle)
    END FUNCTION
@@ -338,7 +338,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_tas_create_split'
 
       INTEGER                                            :: handle, igroup, iproc, nsplit_opt, &
-                                                            numproc, pdim_nonsplit, pdim_split
+                                                            pdim_nonsplit, pdim_split
       INTEGER, DIMENSION(2)                              :: pcoord, pdims, pdims_group
       LOGICAL                                            :: opt_nsplit_prv
 
@@ -352,8 +352,8 @@ CONTAINS
 
       CPASSERT(nsplit > 0)
 
-      CALL mp_comm%environ(numproc, iproc)
-      CALL mp_comm%environ_cart(numproc, pdims, pcoord)
+      CALL mp_comm%get_rank(iproc)
+      CALL mp_comm%get_info_cart(pdims, pcoord)
 
       SELECT CASE (split_rowcol)
       CASE (rowsplit)

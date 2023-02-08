@@ -205,7 +205,7 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: init_mpi
       INTEGER, INTENT(out)                               :: ierr
 
-      INTEGER                                            :: numtask, taskid, unit_nr
+      INTEGER                                            :: taskid, unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(mp_comm_type)                                 :: mpi_comm_default
 
@@ -261,7 +261,7 @@ CONTAINS
 
          ! Select active offload device when available.
          IF (offload_get_device_count() > 0) THEN
-            CALL mpi_comm_default%environ(numtask=numtask, taskid=taskid)
+            CALL mpi_comm_default%get_rank(taskid)
             CALL offload_set_chosen_device(MOD(taskid, offload_get_device_count()))
          END IF
 

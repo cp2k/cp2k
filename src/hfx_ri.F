@@ -511,7 +511,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env, nkind=nkind, particle_set=particle_set, atomic_kind_set=atomic_kind_set)
       CALL dbt_mp_environ_pgrid(ri_data%pgrid, pdims, pcoord)
-      CALL mp_comm_t3c%create(ri_data%pgrid%mp_comm_2d, 3, pdims, pcoord)
+      CALL mp_comm_t3c%create(ri_data%pgrid%mp_comm_2d, 3, pdims)
       CALL distribution_3d_create(dist_3d, dist_RI, dist_AO_1, dist_AO_2, &
                                   nkind, particle_set, mp_comm_t3c, own_comm=.TRUE.)
       DEALLOCATE (dist_RI, dist_AO_1, dist_AO_2)
@@ -1124,8 +1124,7 @@ CONTAINS
 
       INTEGER                                            :: bsize, bsum, comm_2d_handle, handle, &
                                                             handle2, i_mem, iblock, iproc, ispin, &
-                                                            n_mem, n_mos, nblock, nproc, &
-                                                            unit_nr_dbcsr
+                                                            n_mem, n_mos, nblock, unit_nr_dbcsr
       INTEGER(int_8)                                     :: nblks, nflop
       INTEGER, ALLOCATABLE, DIMENSION(:) :: batch_ranges_1, batch_ranges_2, dist1, dist2, dist3, &
          mem_end, mem_end_block_1, mem_end_block_2, mem_size, mem_start, mem_start_block_1, &
@@ -1243,7 +1242,7 @@ CONTAINS
          batch_ranges_2(:ri_data%n_mem) = mem_start_block_2(:)
          batch_ranges_2(ri_data%n_mem + 1) = mem_end_block_2(ri_data%n_mem) + 1
 
-         CALL para_env%group%environ(nproc, iproc)
+         CALL para_env%group%get_rank(iproc)
 
          CALL create_3c_tensor(t_3c_int_mo_1(1, 1), dist1, dist2, dist3, ri_data%pgrid_1, &
                                ri_data%bsizes_AO_split, ri_data%bsizes_RI_split, mo_bsizes_1, &
@@ -3080,7 +3079,7 @@ CONTAINS
       CALL dbt_destroy(t_3c_template)
 
       CALL dbt_mp_environ_pgrid(ri_data%pgrid, pdims, pcoord)
-      CALL mp_comm_t3c%create(ri_data%pgrid%mp_comm_2d, 3, pdims, pcoord)
+      CALL mp_comm_t3c%create(ri_data%pgrid%mp_comm_2d, 3, pdims)
       CALL distribution_3d_create(dist_3d, dist_RI, dist_AO_1, dist_AO_2, &
                                   nkind, particle_set, mp_comm_t3c, own_comm=.TRUE.)
       DEALLOCATE (dist_RI, dist_AO_1, dist_AO_2)
@@ -3948,7 +3947,7 @@ CONTAINS
                             name="(RI | AO AO)")
 
       CALL dbt_mp_environ_pgrid(ri_data%pgrid, pdims_3d, pcoord_3d)
-      CALL mp_comm_t3c%create(ri_data%pgrid%mp_comm_2d, 3, pdims_3d, pcoord_3d)
+      CALL mp_comm_t3c%create(ri_data%pgrid%mp_comm_2d, 3, pdims_3d)
       CALL distribution_3d_create(dist_nl3c, dist1, dist2, dist3, nkind, particle_set, &
                                   mp_comm_t3c, own_comm=.TRUE.)
       DEALLOCATE (dist1, dist2, dist3)

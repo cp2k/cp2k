@@ -233,10 +233,10 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: src
       TYPE(mp_comm_type), INTENT(IN) :: group
 
-      INTEGER                                            :: i, length, mepos, num_pe
+      INTEGER                                            :: i, length, mepos
       TYPE(message_entry_type), POINTER                  :: curr_entry
 
-      CALL group%environ(num_pe, mepos)
+      CALL group%get_rank(mepos)
 
       IF (mepos /= src .AND. ASSOCIATED(msg%root)) CPABORT("message not empty")
       length = swarm_message_length(msg)

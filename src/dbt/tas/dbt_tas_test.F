@@ -83,9 +83,9 @@ CONTAINS
 
       INTEGER                                            :: col_size, handle, max_col_size, max_nze, &
                                                             max_row_size, mynode, node_holds_blk, &
-                                                            numnodes, nze, row_size
+                                                            nze, row_size
       INTEGER(KIND=int_8)                                :: col, col_s, ncol, nrow, row, row_s
-      INTEGER, DIMENSION(2)                              :: pcoord, pdims
+      INTEGER, DIMENSION(2)                              :: pdims
       INTEGER, DIMENSION(4)                              :: iseed, jseed
       LOGICAL                                            :: reuse_comm_prv, tr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: values
@@ -115,8 +115,8 @@ CONTAINS
          mp_comm_out = dbt_tas_mp_comm(mp_comm, nrows, ncols)
       END IF
 
-      CALL mp_comm_out%environ(numnodes, mynode)
-      CALL mp_comm_out%environ_cart(numnodes, pdims, pcoord)
+      CALL mp_comm_out%get_rank(mynode)
+      CALL mp_comm_out%get_info_cart(pdims)
 
       row_dist_obj = dbt_tas_dist_cyclic(dist_splitsize(1), pdims(1), nrows)
       col_dist_obj = dbt_tas_dist_cyclic(dist_splitsize(2), pdims(2), ncols)
@@ -191,7 +191,7 @@ CONTAINS
       INTEGER, CONTIGUOUS, DIMENSION(:), POINTER :: cd_a, cd_b, cd_c, col_block_sizes_a, &
          col_block_sizes_b, col_block_sizes_c, rd_a, rd_b, rd_c, row_block_sizes_a, &
          row_block_sizes_b, row_block_sizes_c
-      INTEGER, DIMENSION(2)                              :: myploc, npdims
+      INTEGER, DIMENSION(2)                              :: npdims
       TYPE(dbm_distribution_obj)                         :: dist_a, dist_b, dist_c
       TYPE(dbm_type)                                     :: dbm_a, dbm_a_mm, dbm_b, dbm_b_mm, dbm_c, &
                                                             dbm_c_mm
@@ -223,7 +223,7 @@ CONTAINS
 
          CALL dbt_tas_get_split_info(dbt_tas_info(matrix_a), mp_comm=mp_comm)
          npdims(:) = 0
-         CALL comm_dbm%create(mp_comm, 2, npdims, myploc)
+         CALL comm_dbm%create(mp_comm, 2, npdims)
 
          ALLOCATE (rd_a(SIZE(dbm_get_row_block_sizes(dbm_a))))
          ALLOCATE (rd_b(SIZE(dbm_get_row_block_sizes(dbm_b))))
@@ -326,11 +326,11 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: test_tol = 1.0E-10_dp
 
       CHARACTER(LEN=8)                                   :: status_str
-      INTEGER                                            :: io_unit, mynode, numnodes
+      INTEGER                                            :: io_unit, mynode
       INTEGER, CONTIGUOUS, DIMENSION(:), POINTER :: cd_a, cd_b, cd_c, col_block_sizes_a, &
          col_block_sizes_b, col_block_sizes_c, rd_a, rd_b, rd_c, row_block_sizes_a, &
          row_block_sizes_b, row_block_sizes_c
-      INTEGER, DIMENSION(2)                              :: myploc, npdims
+      INTEGER, DIMENSION(2)                              :: npdims
       LOGICAL                                            :: abort, transa_prv, transb_prv
       REAL(KIND=dp)                                      :: norm, rc_cs, sq_cs
       TYPE(dbm_distribution_obj)                         :: dist_a, dist_b, dist_c
@@ -343,7 +343,7 @@ CONTAINS
 !
 
       CALL dbt_tas_get_split_info(dbt_tas_info(matrix_a), mp_comm=mp_comm)
-      CALL mp_comm%environ(numnodes, mynode)
+      CALL mp_comm%get_rank(mynode)
       abort = .FALSE.
       io_unit = -1
       IF (mynode .EQ. 0) io_unit = unit_nr
@@ -357,7 +357,7 @@ CONTAINS
       CALL dbt_tas_convert_to_dbm(matrix_c, dbm_c)
 
       npdims(:) = 0
-      CALL comm_dbm%create(mp_comm, 2, npdims, myploc)
+      CALL comm_dbm%create(mp_comm, 2, npdims)
 
       ALLOCATE (rd_a(SIZE(dbm_get_row_block_sizes(dbm_a))))
       ALLOCATE (rd_b(SIZE(dbm_get_row_block_sizes(dbm_b))))

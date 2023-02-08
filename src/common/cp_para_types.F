@@ -81,16 +81,15 @@ MODULE cp_para_types
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   TYPE cp_para_cart_type
+   TYPE, EXTENDS(mp_cart_type) :: cp_para_cart_type
       LOGICAL :: owns_group
-      INTEGER :: ndims, rank, ntask
+      INTEGER :: rank, ntask
       INTEGER, DIMENSION(:), POINTER :: mepos, source, num_pe
       LOGICAL, DIMENSION(:), POINTER :: periodic
-      TYPE(mp_cart_type) :: group
       INTEGER :: ref_count
    CONTAINS
-      PROCEDURE, PUBLIC, PASS(cart) :: free => cp_para_cart_free
-      PROCEDURE, PUBLIC, PASS(cart) :: init => cp_para_cart_init
+      PROCEDURE, PUBLIC, PASS(comm) :: free => cp_para_cart_free
+      PROCEDURE, PUBLIC, PASS(comm) :: mp_comm_init => cp_para_cart_init
    END TYPE cp_para_cart_type
 
 CONTAINS
@@ -103,7 +102,8 @@ CONTAINS
 
       para_env%source = 0
       para_env%ref_count = 1
-      CALL para_env%group%environ(taskid=para_env%mepos, numtask=para_env%num_pe)
+      CALL para_env%group%get_size(para_env%num_pe)
+      CALL para_env%group%get_rank(para_env%mepos)
       para_env%ionode = para_env%mepos == para_env%source
    END SUBROUTINE cp_para_env_init
 
@@ -136,37 +136,41 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief intializes a cart (multidimensional parallel environment)
-!> \param cart the cart environment to initialize
+!> \param comm ...
 !> \author fawzi
 ! **************************************************************************************************
-   SUBROUTINE cp_para_cart_init(cart)
-      CLASS(cp_para_cart_type), INTENT(INOUT)             :: cart
+   ELEMENTAL IMPURE SUBROUTINE cp_para_cart_init(comm)
+      CLASS(cp_para_cart_type), INTENT(INOUT)             :: comm
 
-      cart%owns_group = .TRUE.
+      INTEGER :: ndims
 
-      ALLOCATE (cart%source(cart%ndims), cart%periodic(cart%ndims), cart%mepos(cart%ndims), &
-                cart%num_pe(cart%ndims))
+      comm%owns_group = .TRUE.
+      ndims = comm%get_ndims()
 
-      cart%source = 0
-      cart%mepos = 0
-      cart%periodic = .FALSE.
-      cart%ref_count = 1
-      cart%ntask = 1
-      CALL cart%group%environ_cart(cart%ndims, cart%num_pe, task_coor=cart%mepos, &
-                                   periods=cart%periodic)
-      CALL cart%group%environ(numtask=cart%ntask, taskid=cart%rank)
+      ALLOCATE (comm%source(ndims), comm%periodic(ndims), comm%mepos(ndims), &
+                comm%num_pe(ndims))
+
+      comm%source = 0
+      comm%mepos = 0
+      comm%periodic = .FALSE.
+      comm%ref_count = 1
+      comm%ntask = 1
+      CALL comm%get_info_cart(comm%num_pe, comm%mepos, &
+                              comm%periodic)
+      CALL comm%get_size(comm%ntask)
+      CALL comm%get_rank(comm%rank)
    END SUBROUTINE cp_para_cart_init
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param cart ...
+!> \param comm ...
 ! **************************************************************************************************
-   SUBROUTINE cp_para_cart_free(cart)
-      CLASS(cp_para_cart_type), INTENT(INOUT) :: cart
+   SUBROUTINE cp_para_cart_free(comm)
+      CLASS(cp_para_cart_type), INTENT(INOUT) :: comm
 
-      IF (cart%owns_group) CALL cart%group%free()
+      IF (comm%owns_group) CALL comm%mp_cart_type%free()
 
-      DEALLOCATE (cart%source, cart%periodic, cart%mepos, cart%num_pe)
+      DEALLOCATE (comm%source, comm%periodic, comm%mepos, comm%num_pe)
 
    END SUBROUTINE cp_para_cart_free
 

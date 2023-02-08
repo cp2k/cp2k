@@ -1184,13 +1184,13 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_ri_init'
 
-      INTEGER                                            :: handle, i_mem, iproc, j_mem, MO_dim, &
-                                                            natom, nkind, nproc
+      INTEGER                                            :: handle, i_mem, j_mem, MO_dim, natom, &
+                                                            nkind, nproc
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bsizes_AO_store, bsizes_RI_store, dist1, &
                                                             dist2, dist3, dist_AO_1, dist_AO_2, &
                                                             dist_RI
       INTEGER, DIMENSION(2)                              :: pdims_2d
-      INTEGER, DIMENSION(3)                              :: pcoord, pdims
+      INTEGER, DIMENSION(3)                              :: pdims
       LOGICAL                                            :: same_op
       TYPE(distribution_3d_type)                         :: dist_3d
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
@@ -1204,7 +1204,7 @@ CONTAINS
 
       natom = SIZE(particle_set)
       nkind = SIZE(qs_kind_set, 1)
-      CALL para_env%group%environ(nproc, iproc)
+      CALL para_env%group%get_size(nproc)
 
       ASSOCIATE (ri_metric => ri_data%ri_metric, hfx_pot => ri_data%hfx_pot)
          IF (ri_metric%potential_type == do_potential_short) THEN
@@ -1231,7 +1231,7 @@ CONTAINS
       ri_data%same_op = same_op
 
       pdims = 0
-      CALL mp_comm_3d%create(para_env%group, 3, pdims, pcoord)
+      CALL mp_comm_3d%create(para_env%group, 3, pdims)
 
       ALLOCATE (ri_data%bsizes_RI(natom))
       ALLOCATE (ri_data%bsizes_AO(natom))

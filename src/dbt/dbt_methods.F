@@ -631,8 +631,7 @@ CONTAINS
       LOGICAL                                        :: do_crop_1, do_crop_2, do_write_3, nodata_3, do_batched, pgrid_changed, &
                                                         pgrid_changed_any, do_change_pgrid(2)
       TYPE(dbt_tas_split_info)                     :: split_opt, split, split_opt_avg
-      INTEGER, DIMENSION(2) :: pdims_2d_opt, pdims_2d, pcoord_2d, pdims_sub, pdims_sub_opt
-      LOGICAL, DIMENSION(2) :: periods_2d
+      INTEGER, DIMENSION(2) :: pdims_2d_opt, pdims_sub, pdims_sub_opt
       REAL(dp) :: pdim_ratio, pdim_ratio_opt
 
       NULLIFY (tensor_contr_1, tensor_contr_2, tensor_contr_3, tensor_crop_1, tensor_crop_2, &
@@ -944,8 +943,6 @@ CONTAINS
                       "Internal process grid optimization disabled because tensors are not in contraction-compatible format")
       END IF
 
-      CALL tensor_large%pgrid%mp_comm_2d%environ_cart(2, pdims_2d, pcoord_2d, periods_2d)
-
       ! optimize process grid during batched contraction
       do_change_pgrid(:) = .FALSE.
       IF ((.NOT. tensors_remapped) .AND. do_batched) THEN
@@ -959,15 +956,15 @@ CONTAINS
                mp_comm_opt = dbt_tas_mp_comm(tensor_small%pgrid%mp_comm_2d, split_opt%split_rowcol, NINT(storage%nsplit_avg))
                CALL dbt_tas_create_split(split_opt_avg, mp_comm_opt, split_opt%split_rowcol, &
                                          NINT(storage%nsplit_avg), own_comm=.TRUE.)
-               CALL split_opt_avg%mp_comm%environ_cart(2, pdims_2d_opt, pcoord_2d, periods_2d)
+               CALL split_opt_avg%mp_comm%get_info_cart(pdims_2d_opt)
             END IF
 
          END ASSOCIATE
 
          IF (do_change_pgrid(1) .AND. .NOT. do_change_pgrid(2)) THEN
             ! check if new grid has better subgrid, if not there is no need to change process grid
-            CALL split_opt_avg%mp_comm_group%environ_cart(2, pdims_sub_opt, pcoord_2d, periods_2d)
-            CALL split%mp_comm_group%environ_cart(2, pdims_sub, pcoord_2d, periods_2d)
+            CALL split_opt_avg%mp_comm_group%get_info_cart(pdims_sub_opt)
+            CALL split%mp_comm_group%get_info_cart(pdims_sub)
 
             pdim_ratio = MAXVAL(REAL(pdims_sub, dp))/MINVAL(pdims_sub)
             pdim_ratio_opt = MAXVAL(REAL(pdims_sub_opt, dp))/MINVAL(pdims_sub_opt)
@@ -1478,8 +1475,7 @@ CONTAINS
       TYPE(dbt_contraction_storage), INTENT(INOUT) :: storage
       TYPE(dbt_tas_split_info), INTENT(IN)           :: split_opt
       TYPE(dbt_tas_split_info), INTENT(IN)           :: split
-      INTEGER, DIMENSION(2) :: pdims_opt, coor, pdims, pdims_sub
-      LOGICAL, DIMENSION(2) :: periods
+      INTEGER, DIMENSION(2) :: pdims, pdims_sub
       LOGICAL, DIMENSION(2) :: do_change_pgrid
       REAL(kind=dp) :: change_criterion, pdims_ratio
       INTEGER :: nsplit_opt, nsplit
@@ -1488,8 +1484,7 @@ CONTAINS
       nsplit_opt = split_opt%ngroup_opt
       nsplit = split%ngroup
 
-      CALL split_opt%mp_comm%environ_cart(2, pdims_opt, coor, periods)
-      CALL split%mp_comm%environ_cart(2, pdims, coor, periods)
+      CALL split%mp_comm%get_info_cart(pdims)
 
       storage%ibatch = storage%ibatch + 1
 
@@ -1506,7 +1501,7 @@ CONTAINS
       do_change_pgrid(:) = .FALSE.
 
       ! check for process grid dimensions
-      CALL split%mp_comm_group%environ_cart(2, pdims_sub, coor, periods)
+      CALL split%mp_comm_group%get_info_cart(pdims_sub)
       change_criterion = MAXVAL(REAL(pdims_sub, dp))/MINVAL(pdims_sub)
       IF (change_criterion > default_pdims_accept_ratio**2) do_change_pgrid(1) = .TRUE.
 

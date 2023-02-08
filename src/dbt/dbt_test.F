@@ -194,14 +194,14 @@ CONTAINS
       INTEGER, DIMENSION(:), ALLOCATABLE          :: map1, map2, map1_ref, map2_ref
       INTEGER, DIMENSION(ndims, factorial(ndims)) :: perm
       INTEGER                                     :: io_unit
-      INTEGER                                     :: mynode, numnodes
+      INTEGER                                     :: mynode
       TYPE(dbt_pgrid_type)                    :: comm_nd
       CHARACTER(LEN=default_string_length)        :: tensor_name
 
       ! Process grid
       pdims(:) = 0
       CALL dbt_pgrid_create(mp_comm, pdims, comm_nd)
-      CALL mp_comm%environ(numnodes, mynode)
+      CALL mp_comm%get_rank(mynode)
 
       io_unit = 0
       IF (mynode .EQ. 0) io_unit = unit_nr
@@ -259,7 +259,7 @@ CONTAINS
             ALLOCATE (map1, source=perm(1:isep, iperm))
             ALLOCATE (map2, source=perm(isep + 1:ndims, iperm))
 
-            CALL mp_comm%environ(numnodes, mynode)
+            CALL mp_comm%get_rank(mynode)
             CALL mp_environ_pgrid(comm_nd, pdims, myploc)
 
             #:for dim in range(1, maxdim+1)
@@ -371,7 +371,7 @@ CONTAINS
       CLASS(mp_comm_type), INTENT(IN)                     :: mp_comm
       LOGICAL, INTENT(IN)                                :: enumerate
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: ${varlist("blk_ind")}$
-      INTEGER                                            :: numnodes, mynode
+      INTEGER                                            :: mynode
 
       INTEGER                                            :: i, ib, my_nblks_alloc, nblks_alloc, proc, nze
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ${varlist("my_blk_ind")}$
@@ -387,7 +387,7 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: blk_index_2d, nblks_2d
 
       nblks_alloc = SIZE(blk_ind_1)
-      CALL mp_comm%environ(numnodes, mynode)
+      CALL mp_comm%get_rank(mynode)
 
       IF (.NOT. enumerate) THEN
          CPASSERT(randmat_counter .NE. 0)
@@ -588,7 +588,7 @@ CONTAINS
                OPTIONAL                          :: bounds_3
             LOGICAL, INTENT(IN), OPTIONAL        :: log_verbose
             LOGICAL, INTENT(IN), OPTIONAL        :: write_int
-            INTEGER                              :: io_unit, mynode, numnodes
+            INTEGER                              :: io_unit, mynode
             TYPE(mp_comm_type) :: mp_comm
             INTEGER, DIMENSION(:), ALLOCATABLE   :: size_1, size_2, size_3, &
                                                     order_t1, order_t2, order_t3
@@ -619,7 +619,7 @@ CONTAINS
             LOGICAL                             :: do_crop_1, do_crop_2
 
             mp_comm = tensor_1%pgrid%mp_comm_2d
-            CALL mp_comm%environ(numnodes, mynode)
+            CALL mp_comm%get_rank(mynode)
             io_unit = -1
             IF (mynode .EQ. 0) io_unit = unit_nr
 

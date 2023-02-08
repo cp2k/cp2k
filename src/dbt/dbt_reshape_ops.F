@@ -60,7 +60,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_reshape'
 
-      INTEGER                                            :: iproc, mynode, numnodes, &
+      INTEGER                                            :: iproc, numnodes, &
                                                             handle, iblk, jblk, offset, ndata, &
                                                             nblks_recv_mythread
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: blks_to_allocate
@@ -94,7 +94,7 @@ CONTAINS
       IF (.NOT. summation_prv) CALL dbt_clear(tensor_out)
 
       mp_comm = tensor_in%pgrid%mp_comm_2d
-      CALL mp_comm%environ(numnodes, mynode)
+      CALL mp_comm%get_size(numnodes)
       ALLOCATE (buffer_send(0:numnodes - 1), buffer_recv(0:numnodes - 1))
       ALLOCATE (nblks_send_total(0:numnodes - 1), ndata_send_total(0:numnodes - 1), source=0)
       ALLOCATE (nblks_recv_total(0:numnodes - 1), ndata_recv_total(0:numnodes - 1), source=0)
@@ -229,13 +229,13 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_communicate_buffer'
 
-      INTEGER                                               :: iproc, mynode, numnodes, &
+      INTEGER                                               :: iproc, numnodes, &
                                                                rec_counter, send_counter, i
       TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:, :)                 :: req_array
       INTEGER                                               :: handle
 
       CALL timeset(routineN, handle)
-      CALL mp_comm%environ(numnodes, mynode)
+      CALL mp_comm%get_size(numnodes)
 
       IF (numnodes > 1) THEN
 !$OMP MASTER

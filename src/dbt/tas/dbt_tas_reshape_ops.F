@@ -84,8 +84,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dbt_tas_reshape'
 
       INTEGER                                            :: a, b, bcount, handle, handle2, iproc, &
-                                                            mynode, nblk, nblk_per_thread, ndata, &
-                                                            numnodes
+                                                            nblk, nblk_per_thread, ndata, numnodes
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:, :)  :: blks_to_allocate, index_recv
       INTEGER(KIND=int_8), DIMENSION(2)                  :: blk_index
       INTEGER(kind=omp_lock_kind), ALLOCATABLE, &
@@ -129,7 +128,7 @@ CONTAINS
 
       info = dbt_tas_info(matrix_in)
       mp_comm = info%mp_comm
-      CALL mp_comm%environ(numnodes, mynode)
+      CALL mp_comm%get_size(numnodes)
       ALLOCATE (buffer_send(0:numnodes - 1))
       ALLOCATE (buffer_recv(0:numnodes - 1))
       ALLOCATE (num_blocks_recv(0:numnodes - 1))
@@ -273,7 +272,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: nodata, move_data
 
       INTEGER                                            :: a, b, nblk_per_thread, nblkcols, nblkrows
-      INTEGER, DIMENSION(2)                              :: pcoord, pdims
+      INTEGER, DIMENSION(2)                              :: pdims
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_dist, row_blk_size, &
                                                             row_dist
       TYPE(dbm_distribution_obj)                         :: dbm_dist
@@ -285,7 +284,7 @@ CONTAINS
       TYPE(dbt_tas_blk_size_repl), TARGET :: repl_blksize
       TYPE(dbt_tas_blk_size_arb), TARGET :: dir_blksize
       TYPE(dbt_tas_distribution_type) :: dist
-      INTEGER :: numnodes, mynode, ngroup
+      INTEGER :: numnodes, ngroup
       INTEGER(kind=omp_lock_kind), ALLOCATABLE, DIMENSION(:) :: locks
       TYPE(dbt_buffer_type), ALLOCATABLE, DIMENSION(:) :: buffer_recv, buffer_send
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_blocks_recv, num_blocks_send, &
@@ -337,8 +336,8 @@ CONTAINS
       mp_comm = info%mp_comm
       ngroup = info%ngroup
 
-      CALL mp_comm%environ(numnodes, mynode)
-      CALL mp_comm%environ_cart(numnodes, pdims, pcoord)
+      CALL mp_comm%get_size(numnodes)
+      CALL mp_comm%get_info_cart(pdims)
 
       SELECT CASE (info%split_rowcol)
       CASE (rowsplit)
@@ -507,8 +506,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dbt_tas_merge'
 
       INTEGER                                            :: a, b, bcount, handle, handle2, iproc, &
-                                                            mynode, nblk, nblk_per_thread, ndata, &
-                                                            numnodes
+                                                            nblk, nblk_per_thread, ndata, numnodes
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:, :)  :: index_recv
       INTEGER(KIND=int_8), DIMENSION(2)                  :: blk_index_i8
       INTEGER(kind=omp_lock_kind), ALLOCATABLE, &
@@ -546,7 +544,7 @@ CONTAINS
 
       info = dbt_tas_info(matrix_in)
       CALL dbt_tas_get_split_info(info, mp_comm=mp_comm)
-      CALL mp_comm%environ(numnodes, mynode)
+      CALL mp_comm%get_size(numnodes)
 
       ALLOCATE (buffer_send(0:numnodes - 1))
       ALLOCATE (buffer_recv(0:numnodes - 1))
@@ -845,11 +843,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_tas_communicate_buffer'
 
-      INTEGER                                            :: handle, iproc, mynode, numnodes, &
+      INTEGER                                            :: handle, iproc, numnodes, &
                                                             rec_counter, send_counter
 
       CALL timeset(routineN, handle)
-      CALL mp_comm%environ(numnodes, mynode)
+      CALL mp_comm%get_size(numnodes)
 
       IF (numnodes > 1) THEN
 

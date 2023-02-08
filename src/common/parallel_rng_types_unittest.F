@@ -22,7 +22,7 @@ PROGRAM parallel_rng_types_TEST
 
    IMPLICIT NONE
 
-   INTEGER                          :: i, nsamples, nargs, stat, mepos, num_pe
+   INTEGER                          :: i, nsamples, nargs, stat, mepos
    LOGICAL                          :: ionode
    REAL(KIND=dp)                    :: t, tend, tmax, tmin, tstart, tsum, tsum2
    TYPE(mp_comm_type) :: mpi_comm
@@ -43,7 +43,7 @@ PROGRAM parallel_rng_types_TEST
    END IF
 
    CALL mp_world_init(mpi_comm)
-   CALL mpi_comm%environ(numtask=num_pe, taskid=mepos)
+   CALL mpi_comm%get_rank(mepos)
    ionode = mepos == 0
 
    CALL check_rng(default_output_unit, ionode)

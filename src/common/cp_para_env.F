@@ -114,21 +114,16 @@ CONTAINS
 !> \brief creates a cart (multidimensional parallel environment)
 !> \param cart the cart environment to create
 !> \param group the mpi communicator
-!> \param ndims the number of dimensions of the cart
 !> \author fawzi
 ! **************************************************************************************************
-   SUBROUTINE cp_cart_create(cart, group, ndims)
+   SUBROUTINE cp_cart_create(cart, group)
       TYPE(cp_para_cart_type), POINTER                   :: cart
 
       CLASS(mp_comm_type), INTENT(in)                     :: group
-      INTEGER, INTENT(in)                                :: ndims
 
       CPASSERT(.NOT. ASSOCIATED(cart))
       ALLOCATE (cart)
-      cart%ndims = ndims
-      cart%group = group
-
-      CALL cart%init()
+      cart = group
 
    END SUBROUTINE cp_cart_create
 

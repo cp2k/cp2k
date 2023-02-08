@@ -701,7 +701,7 @@ CONTAINS
 
          CALL get_qs_env(qs_env, nkind=nkind, particle_set=particle_set)
          CALL dbt_mp_environ_pgrid(pgrid_t3c_overl, pdims, pcoord)
-         CALL mp_comm_t3c_2%create(pgrid_t3c_overl%mp_comm_2d, 3, pdims, pcoord)
+         CALL mp_comm_t3c_2%create(pgrid_t3c_overl%mp_comm_2d, 3, pdims)
          CALL distribution_3d_create(dist_3d, dist_RI, dist_AO_1, dist_AO_2, &
                                      nkind, particle_set, mp_comm_t3c_2, own_comm=.TRUE.)
          DEALLOCATE (dist_RI, dist_AO_1, dist_AO_2)
@@ -911,8 +911,7 @@ CONTAINS
 
       INTEGER                                            :: check_proc, handle, i, iend, ii, ioff, &
                                                             iproc, iproc_glob, istart, loc_a, &
-                                                            loc_P, nblk_per_thread, nproc, &
-                                                            nproc_glob
+                                                            loc_P, nblk_per_thread, nproc
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: block_ind_L_P, block_ind_L_R
       INTEGER, DIMENSION(1)                              :: dist_B_i, map_B_1, map_L_1, map_L_2, &
                                                             sizes_i
@@ -934,7 +933,7 @@ CONTAINS
       iproc = para_env_sub%mepos ! subgroup-local process ID
 
       ! Total number of processes and global process ID
-      CALL mp_comm%environ(nproc_glob, iproc_glob)
+      CALL mp_comm%get_rank(iproc_glob)
 
       ! local block index for R/P and a
       loc_P = igroup + 1; loc_a = iproc + 1

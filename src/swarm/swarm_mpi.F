@@ -108,13 +108,15 @@ CONTAINS
       ! First split split para_env%group into a master- and a workers-groups...
       IF (im_the_master) THEN
          CALL subgroup%from_split(swarm_mpi%world%group, 1)
-         CALL subgroup%environ(subgroup_size, subgroup_rank)
+         CALL subgroup%get_size(subgroup_size)
+         CALL subgroup%get_rank(subgroup_rank)
          IF (subgroup_size /= 1) CPABORT("mp_comm_split_direct failed (master)")
          CALL cp_para_env_create(swarm_mpi%master, group=subgroup)
          !WRITE (*,*) "this is a master ", swarm_mpi%master%mepos, swarm_mpi%master%num_pe
       ELSE
          CALL subgroup%from_split(swarm_mpi%world%group, 2)
-         CALL subgroup%environ(subgroup_size, subgroup_rank)
+         CALL subgroup%get_size(subgroup_size)
+         CALL subgroup%get_rank(subgroup_rank)
          !WRITE (*,*) "Hello, this is a Worker - there are ",subgroup_size, " of us."
          IF (subgroup_size /= swarm_mpi%world%num_pe - 1) CPABORT("mp_comm_split_direct failed (worker)")
       END IF

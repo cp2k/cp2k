@@ -291,7 +291,7 @@ CONTAINS
       CALL dbt_destroy(t_3c_template)
 
       CALL dbt_mp_environ_pgrid(pgrid_t3c, pdims, pcoord)
-      CALL mp_comm_t3c%create(pgrid_t3c%mp_comm_2d, 3, pdims, pcoord)
+      CALL mp_comm_t3c%create(pgrid_t3c%mp_comm_2d, 3, pdims)
       CALL distribution_3d_create(dist_3d, dist_RI, dist_AO_1, dist_AO_2, &
                                   nkind, particle_set, mp_comm_t3c, own_comm=.TRUE.)
       DEALLOCATE (dist_RI, dist_AO_1, dist_AO_2)
