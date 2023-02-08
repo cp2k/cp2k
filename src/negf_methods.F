@@ -1392,7 +1392,6 @@ CONTAINS
                                                             just_contact
 
       CHARACTER(len=*), PARAMETER :: routineN = 'negf_retarded_green_function_batch'
-      TYPE(cp_cfm_type), PARAMETER                       :: cfm_dummy = cp_cfm_type()
 
       INTEGER                                            :: handle, icontact, igroup, ipoint, &
                                                             ncontacts, npoints, nrows
@@ -1697,27 +1696,9 @@ CONTAINS
 
                DO ipoint = 1, npoints
                   DO icontact = 1, ncontacts
-                     IF (ASSOCIATED(gret_gamma_gadv(icontact, ipoint)%matrix_struct)) THEN
-                        IF (ASSOCIATED(gret_gamma_gadv_group(icontact, ipoint)%matrix_struct)) THEN
-                           CALL cp_cfm_start_copy_general(gret_gamma_gadv_group(icontact, ipoint), &
-                                                          gret_gamma_gadv(icontact, ipoint), &
-                                                          para_env, info2(icontact, ipoint))
-                        ELSE
-                           CALL cp_cfm_start_copy_general(cfm_dummy, &
-                                                          gret_gamma_gadv(icontact, ipoint), &
-                                                          para_env, info2(icontact, ipoint))
-                        END IF
-                     ELSE
-                        IF (ASSOCIATED(gret_gamma_gadv_group(icontact, ipoint)%matrix_struct)) THEN
-                           CALL cp_cfm_start_copy_general(gret_gamma_gadv_group(icontact, ipoint), &
-                                                          cfm_dummy, &
-                                                          para_env, info2(icontact, ipoint))
-                        ELSE
-                           CALL cp_cfm_start_copy_general(cfm_dummy, &
-                                                          cfm_dummy, &
-                                                          para_env, info2(icontact, ipoint))
-                        END IF
-                     END IF
+                     CALL cp_cfm_start_copy_general(gret_gamma_gadv_group(icontact, ipoint), &
+                                                    gret_gamma_gadv(icontact, ipoint), &
+                                                    para_env, info2(icontact, ipoint))
                   END DO
                END DO
 

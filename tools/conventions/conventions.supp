@@ -123,6 +123,9 @@ message_passing.fypp: Rank mismatch between actual argument at (1) and actual ar
 message_passing.fypp: Type mismatch between actual argument at (1) and actual argument at (2) (COMPLEX(8)/COMPLEX(4)).
 mltfftsg_tools.F: Found WRITE statement with hardcoded unit in "ctrig" https://cp2k.org/conv#c012
 mode_selective.F: Found READ with unchecked STAT in "bfgs_guess" https://cp2k.org/conv#c001
+negf_methods.F: Found CALL with NULL() as argument in procedure "converge_density" https://cp2k.org/conv#c007
+negf_methods.F: Found CALL with NULL() as argument in procedure "guess_fermi_level" https://cp2k.org/conv#c007
+negf_methods.F: Found CALL with NULL() as argument in procedure "shift_potential" https://cp2k.org/conv#c007
 nequip_unittest.F: Found WRITE statement with hardcoded unit in "nequip_unittest" https://cp2k.org/conv#c012
 pao_param_exp.F: Found lossy conversion real_4_r8 without KIND argument in "zheevd_wrapper" https://cp2k.org/conv#c015
 parallel_gemm_api.F: Found CALL cp_fm_gemm in procedure "parallel_gemm_fm" https://cp2k.org/conv#c008
