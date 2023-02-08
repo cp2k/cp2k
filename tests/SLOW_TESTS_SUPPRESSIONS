@@ -25,6 +25,7 @@ QS/regtest-almo-2/ion-pair.inp
 QS/regtest-almo-trustr/FHchain-dogleg.inp
 QS/regtest-dm-ls-scf-3/C_TRS4.inp
 QS/regtest-hfx-block/H2-block-06.inp
+QS/regtest-hfx-ri/Ne-hybrid-periodic-shortrange.inp
 QS/regtest-kp-2/Ar_1.inp
 QS/regtest-kp-2/cc1.inp
 QS/regtest-kp-2/cc2.inp
