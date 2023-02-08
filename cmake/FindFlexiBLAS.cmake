@@ -40,7 +40,7 @@ if(NOT CP2K_FLEXIBLAS_FOUND)
 endif()
 
 if(CP2K_FLEXIBLAS_FOUND)
-  if(NOT TARGET CP2K_FlexiBLAS::flexiblas)
+  if(NOT TARGET CP2K::BLAS::FlexiBLAS::flexiblas)
     add_library(CP2K::BLAS::FlexiBLAS::flexiblas INTERFACE IMPORTED)
     add_library(CP2K::BLAS::FlexiBLAS::blas ALIAS CP2K::BLAS::FlexiBLAS::flexiblas)
   endif()
