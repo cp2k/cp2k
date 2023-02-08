@@ -801,13 +801,6 @@ qs_linres_current.F: Found WRITE statement with hardcoded unit in "calculate_jrh
 qs_linres_current.F: Found WRITE statement with hardcoded unit in "collocate_gauge_new" https://cp2k.org/conv#c012
 qs_linres_issc_utils.F: Found WRITE statement with hardcoded unit in "issc_issc" https://cp2k.org/conv#c012
 qs_linres_op.F: Procedure 'indxl2g' called with an implicit interface at (1) [-Wimplicit-interface]
-qs_linres_types.F: Found type current_env_type with partial initializer https://cp2k.org/conv#c017
-qs_linres_types.F: Found type dcdr_env_type with partial initializer https://cp2k.org/conv#c017
-qs_linres_types.F: Found type epr_env_type with partial initializer https://cp2k.org/conv#c017
-qs_linres_types.F: Found type issc_env_type with partial initializer https://cp2k.org/conv#c017
-qs_linres_types.F: Found type linres_control_type without initializer https://cp2k.org/conv#c016
-qs_linres_types.F: Found type nmr_env_type with partial initializer https://cp2k.org/conv#c017
-qs_linres_types.F: Found type polar_env_type without initializer https://cp2k.org/conv#c016
 qs_localization_methods.F: Found type set_c_1d_type without initializer https://cp2k.org/conv#c016
 qs_localization_methods.F: Found type set_c_2d_type without initializer https://cp2k.org/conv#c016
 qs_localization_methods.F: Procedure 'pzrot' called with an implicit interface at (1) [-Wimplicit-interface]

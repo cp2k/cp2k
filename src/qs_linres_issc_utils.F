@@ -73,7 +73,6 @@ MODULE qs_linres_issc_utils
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_linres_methods,               ONLY: linres_solver
    USE qs_linres_types,                 ONLY: get_issc_env,&
-                                              issc_env_create,&
                                               issc_env_type,&
                                               linres_control_type
    USE qs_matrix_pools,                 ONLY: qs_matrix_pools_type
@@ -824,8 +823,6 @@ CONTAINS
          WRITE (output_unit, "(T10,A,/)") "Inizialization of the ISSC environment"
       END IF
 
-      CALL issc_env_create(issc_env)
-      !
       issc_section => section_vals_get_subs_vals(qs_env%input, &
            &          "PROPERTIES%LINRES%SPINSPIN")
       !CALL section_vals_val_get(nmr_section,"INTERPOLATE_SHIFT",l_val=nmr_env%interpolate_shift)

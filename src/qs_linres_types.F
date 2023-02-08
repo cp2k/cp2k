@@ -40,8 +40,6 @@ MODULE qs_linres_types
 
    PRIVATE
 
-!****s* qs_linres_types/linres_control_type
-
 ! **************************************************************************************************
 !> \brief General settings for linear response calculations
 !> \param property which quantity is to be calculated by LR
@@ -53,23 +51,21 @@ MODULE qs_linres_types
 !> \author MI
 ! **************************************************************************************************
    TYPE linres_control_type
-      INTEGER                                   :: property
-      INTEGER                                   :: preconditioner_type
-      INTEGER                                   :: restart_every
-      REAL(KIND=dp)                             :: energy_gap
-      INTEGER                                   :: max_iter
-      LOGICAL                                   :: localized_psi0
-      LOGICAL                                   :: do_kernel
-      LOGICAL                                   :: converged
-      LOGICAL                                   :: linres_restart
-      LOGICAL                                   :: lr_triplet
-      REAL(KIND=dp)                             :: eps
-      REAL(KIND=dp)                             :: eps_filter
-      TYPE(qs_loc_env_type), POINTER        :: qs_loc_env
-      CHARACTER(LEN=8)                          :: flag
+      INTEGER                                   :: property = HUGE(0)
+      INTEGER                                   :: preconditioner_type = HUGE(0)
+      INTEGER                                   :: restart_every = HUGE(0)
+      REAL(KIND=dp)                             :: energy_gap = HUGE(0.0_dp)
+      INTEGER                                   :: max_iter = HUGE(0)
+      LOGICAL                                   :: localized_psi0 = .FALSE.
+      LOGICAL                                   :: do_kernel = .FALSE.
+      LOGICAL                                   :: converged = .FALSE.
+      LOGICAL                                   :: linres_restart = .FALSE.
+      LOGICAL                                   :: lr_triplet = .FALSE.
+      REAL(KIND=dp)                             :: eps = HUGE(0.0_dp)
+      REAL(KIND=dp)                             :: eps_filter = TINY(0.0_dp)
+      TYPE(qs_loc_env_type), POINTER            :: qs_loc_env => NULL()
+      CHARACTER(LEN=8)                          :: flag = ""
    END TYPE linres_control_type
-
-!****s* qs_linres_types/current_env_type
 
 ! **************************************************************************************************
 !> \param ref_coun t
@@ -96,165 +92,231 @@ MODULE qs_linres_types
 !> \author MI
 ! **************************************************************************************************
    TYPE current_env_type
-      LOGICAL                                     :: full, simple_done(6), simple_converged(6), do_qmmm
-      LOGICAL                                     :: use_old_gauge_atom, chi_pbc, do_selected_states, &
-                                                     gauge_init, all_pert_op_done
-      LOGICAL, DIMENSION(:, :), POINTER            :: full_done => NULL()
-      INTEGER                                     :: nao, nstates(2), gauge, orb_center, nbr_center(2)
-      INTEGER, DIMENSION(:), POINTER          :: list_cubes => NULL(), &
-                                                 selected_states_on_atom_list => NULL()
-      INTEGER, DIMENSION(:, :, :), POINTER          :: statetrueindex => NULL()
-      CHARACTER(LEN=30)                           :: gauge_name, orb_center_name
-      REAL(dp)                                    :: chi_tensor(3, 3, 2), chi_tensor_loc(3, 3, 2), gauge_atom_radius
-      REAL(dp)                                    :: selected_states_atom_radius
-      REAL(dp), DIMENSION(:, :), POINTER           :: basisfun_center => NULL()
-      TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER :: center_list => NULL()
-      TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER :: centers_set => NULL()
-      TYPE(cp_fm_type), DIMENSION(:, :), POINTER :: psi1_p => NULL(), psi1_rxp => NULL(), psi1_D => NULL()
-      TYPE(cp_fm_type), DIMENSION(:, :), POINTER :: p_psi0 => NULL(), rxp_psi0 => NULL()
-      TYPE(jrho_atom_type), DIMENSION(:), POINTER :: jrho1_atom_set => NULL()
-      TYPE(qs_rho_p_type), DIMENSION(:), POINTER :: jrho1_set => NULL()
-      TYPE(realspace_grid_type), DIMENSION(:), POINTER :: rs_buf => NULL()
+      LOGICAL                                             :: full = .FALSE.
+      LOGICAL                                             :: simple_done(6) = .FALSE.
+      LOGICAL                                             :: simple_converged(6) = .FALSE.
+      LOGICAL                                             :: do_qmmm = .FALSE.
+      LOGICAL                                             :: use_old_gauge_atom = .TRUE.
+      LOGICAL                                             :: chi_pbc = .FALSE.
+      LOGICAL                                             :: do_selected_states = .FALSE.
+      LOGICAL                                             :: gauge_init = .FALSE.
+      LOGICAL                                             :: all_pert_op_done = .FALSE.
+      LOGICAL, DIMENSION(:, :), POINTER                   :: full_done => NULL()
+      INTEGER                                             :: nao = HUGE(1)
+      INTEGER                                             :: nstates(2) = HUGE(1)
+      INTEGER                                             :: gauge = HUGE(1)
+      INTEGER                                             :: orb_center = HUGE(1)
+      INTEGER                                             :: nbr_center(2) = HUGE(1)
+      INTEGER, DIMENSION(:), POINTER                      :: list_cubes => NULL()
+      INTEGER, DIMENSION(:), POINTER                      :: selected_states_on_atom_list => NULL()
+      INTEGER, DIMENSION(:, :, :), POINTER                :: statetrueindex => NULL()
+      CHARACTER(LEN=30)                                   :: gauge_name = ""
+      CHARACTER(LEN=30)                                   :: orb_center_name = ""
+      REAL(dp)                                            :: chi_tensor(3, 3, 2) = 0.0_dp
+      REAL(dp)                                            :: chi_tensor_loc(3, 3, 2) = 0.0_dp
+      REAL(dp)                                            :: gauge_atom_radius = 0.0_dp
+      REAL(dp)                                            :: selected_states_atom_radius = 0.0_dp
+      REAL(dp), DIMENSION(:, :), POINTER                  :: basisfun_center => NULL()
+      TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER         :: center_list => NULL()
+      TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER         :: centers_set => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER          :: psi1_p => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER          :: psi1_rxp => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER          :: psi1_D => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER          :: p_psi0 => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER          :: rxp_psi0 => NULL()
+      TYPE(jrho_atom_type), DIMENSION(:), POINTER         :: jrho1_atom_set => NULL()
+      TYPE(qs_rho_p_type), DIMENSION(:), POINTER          :: jrho1_set => NULL()
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER    :: rs_buf => NULL()
       TYPE(realspace_grid_type), DIMENSION(:, :), POINTER :: rs_gauge => NULL()
-      !
-      TYPE(cp_fm_type), DIMENSION(:), POINTER :: psi0_order => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER             :: psi0_order => NULL()
    END TYPE current_env_type
 
-!*********************************************************************************************************
+! **************************************************************************************************
 ! \param type for polarisability calculation using Berry operator
    TYPE polar_env_type
-      LOGICAL                                      :: do_raman, run_stopped, do_periodic
-      REAL(dp), DIMENSION(:, :), POINTER           :: polar
-      TYPE(cp_fm_type), DIMENSION(:, :), POINTER :: psi1_dBerry, dBerry_psi0
+      LOGICAL                                      :: do_raman = .FALSE.
+      LOGICAL                                      :: run_stopped = .FALSE.
+      LOGICAL                                      :: do_periodic = .TRUE.
+      REAL(dp), DIMENSION(:, :), POINTER           :: polar => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER   :: psi1_dBerry => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER   :: dBerry_psi0 => NULL()
    END TYPE polar_env_type
-! *********************************************************************************************************
+! **************************************************************************************************
 
    TYPE issc_env_type
-      INTEGER                             :: issc_natms
-      INTEGER, DIMENSION(:), POINTER      :: issc_on_atom_list => NULL()
-      LOGICAL                             :: interpolate_issc
-      LOGICAL                             :: do_fc, do_sd, do_pso, do_dso
-      REAL(dp)                            :: issc_gapw_radius, issc_factor, issc_factor_gapw
-      REAL(dp), DIMENSION(:, :, :, :, :), POINTER :: issc => NULL(), issc_loc => NULL()
-      TYPE(cp_fm_type), DIMENSION(:, :), POINTER :: psi1_efg => NULL(), psi1_pso => NULL(), psi1_dso => NULL(), &
-                                                    efg_psi0 => NULL(), pso_psi0 => NULL(), dso_psi0 => NULL()
-      TYPE(cp_fm_type), DIMENSION(:), POINTER :: psi1_fc => NULL()
-      TYPE(cp_fm_type), DIMENSION(:), POINTER :: fc_psi0 => NULL()
-  TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_efg => NULL(), matrix_pso => NULL(), matrix_dso => NULL(), matrix_fc => NULL()
+      INTEGER                                     :: issc_natms = 0
+      INTEGER, DIMENSION(:), POINTER              :: issc_on_atom_list => NULL()
+      LOGICAL                                     :: interpolate_issc = .FALSE.
+      LOGICAL                                     :: do_fc = .FALSE.
+      LOGICAL                                     :: do_sd = .FALSE.
+      LOGICAL                                     :: do_pso = .FALSE.
+      LOGICAL                                     :: do_dso = .FALSE.
+      REAL(dp)                                    :: issc_gapw_radius = 0.0_dp
+      REAL(dp)                                    :: issc_factor = 0.0_dp
+      REAL(dp)                                    :: issc_factor_gapw = 0.0_dp
+      REAL(dp), DIMENSION(:, :, :, :, :), POINTER :: issc => NULL()
+      REAL(dp), DIMENSION(:, :, :, :, :), POINTER :: issc_loc => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER  :: psi1_efg => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER  :: psi1_pso => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER  :: psi1_dso => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER  :: efg_psi0 => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER  :: pso_psi0 => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER  :: dso_psi0 => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER     :: psi1_fc => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER     :: fc_psi0 => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER   :: matrix_efg => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER   :: matrix_pso => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER   :: matrix_dso => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER   :: matrix_fc => NULL()
    END TYPE issc_env_type
 
-! *********************************************************************************************************
+! **************************************************************************************************
    TYPE nmr_env_type
-      INTEGER                             :: n_nics
-      INTEGER, DIMENSION(:), POINTER      :: cs_atom_list => NULL()
-      INTEGER, DIMENSION(:), POINTER      :: do_calc_cs_atom => NULL()
-      LOGICAL                             :: do_nics, interpolate_shift
-      REAL(dp)                            :: shift_gapw_radius, shift_factor, shift_factor_gapw, chi_factor, &
-                                             chi_SI2shiftppm, chi_SI2ppmcgs
-      REAL(dp), DIMENSION(:, :), POINTER :: r_nics => NULL()
-      REAL(dp), DIMENSION(:, :, :), POINTER :: chemical_shift => NULL(), chemical_shift_loc => NULL(), &
-                                               chemical_shift_nics_loc => NULL(), chemical_shift_nics => NULL()
+      INTEGER                               :: n_nics = -1
+      INTEGER, DIMENSION(:), POINTER        :: cs_atom_list => NULL()
+      INTEGER, DIMENSION(:), POINTER        :: do_calc_cs_atom => NULL()
+      LOGICAL                               :: do_nics = .FALSE.
+      LOGICAL                               :: interpolate_shift = .FALSE.
+      REAL(dp)                              :: shift_gapw_radius = 0.0_dp
+      REAL(dp)                              :: shift_factor = 0.0_dp
+      REAL(dp)                              :: shift_factor_gapw = 0.0_dp
+      REAL(dp)                              :: chi_factor = 0.0_dp
+      REAL(dp)                              :: chi_SI2shiftppm = 0.0_dp
+      REAL(dp)                              :: chi_SI2ppmcgs = 0.0_dp
+      REAL(dp), DIMENSION(:, :), POINTER    :: r_nics => NULL()
+      REAL(dp), DIMENSION(:, :, :), POINTER :: chemical_shift => NULL()
+      REAL(dp), DIMENSION(:, :, :), POINTER :: chemical_shift_loc => NULL()
+      REAL(dp), DIMENSION(:, :, :), POINTER :: chemical_shift_nics_loc => NULL()
+      REAL(dp), DIMENSION(:, :, :), POINTER :: chemical_shift_nics => NULL()
    END TYPE nmr_env_type
 
 ! **************************************************************************************************
    TYPE epr_env_type
-      REAL(dp)                                    :: g_free_factor, g_soo_chicorr_factor, g_soo_factor, &
-                                                     g_so_factor, g_so_factor_gapw, g_zke_factor, g_zke
-      REAL(dp), DIMENSION(:, :), POINTER           :: g_total => NULL(), g_so => NULL(), g_soo => NULL()
-      TYPE(qs_rho_p_type), DIMENSION(:, :), POINTER :: nablavks_set => NULL()
+      REAL(dp)                                        :: g_free_factor = 0.0_dp
+      REAL(dp)                                        :: g_soo_chicorr_factor = 0.0_dp
+      REAL(dp)                                        :: g_soo_factor = 0.0_dp
+      REAL(dp)                                        :: g_so_factor = 0.0_dp
+      REAL(dp)                                        :: g_so_factor_gapw = 0.0_dp
+      REAL(dp)                                        :: g_zke_factor = 0.0_dp
+      REAL(dp)                                        :: g_zke = 0.0_dp
+      REAL(dp), DIMENSION(:, :), POINTER              :: g_total => NULL()
+      REAL(dp), DIMENSION(:, :), POINTER              :: g_so => NULL()
+      REAL(dp), DIMENSION(:, :), POINTER              :: g_soo => NULL()
+      TYPE(qs_rho_p_type), DIMENSION(:, :), POINTER   :: nablavks_set => NULL()
       TYPE(nablavks_atom_type), DIMENSION(:), POINTER :: nablavks_atom_set => NULL()
-      TYPE(qs_rho_p_type), DIMENSION(:, :), POINTER :: bind_set => NULL()
-      TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER :: bind_atom_set => NULL()
-      TYPE(rho_atom_type), DIMENSION(:), POINTER :: vks_atom_set => NULL()
+      TYPE(qs_rho_p_type), DIMENSION(:, :), POINTER   :: bind_set => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER  :: bind_atom_set => NULL()
+      TYPE(rho_atom_type), DIMENSION(:), POINTER      :: vks_atom_set => NULL()
    END TYPE epr_env_type
 
 ! **************************************************************************************************
    TYPE nablavks_atom_type
-      TYPE(rho_atom_coeff), DIMENSION(:, :), &
-         POINTER                                :: nablavks_vec_rad_h => NULL(), &
-                                                   nablavks_vec_rad_s => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER :: nablavks_vec_rad_h => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER :: nablavks_vec_rad_s => NULL()
    END TYPE nablavks_atom_type
 
 ! **************************************************************************************************
    TYPE jrho_atom_type
-      TYPE(rho_atom_coeff), DIMENSION(:), &
-         POINTER      :: cjc_h => NULL(), cjc_s => NULL(), cjc0_h => NULL(), cjc0_s => NULL()
-      TYPE(rho_atom_coeff), DIMENSION(:), &
-         POINTER      :: cjc_ii_h => NULL(), cjc_ii_s => NULL()
-      TYPE(rho_atom_coeff), DIMENSION(:), &
-         POINTER      :: cjc_iii_h => NULL(), cjc_iii_s => NULL()
-      TYPE(rho_atom_coeff), DIMENSION(:, :), &
-         POINTER      :: jrho_vec_rad_h => NULL(), &
-                         jrho_vec_rad_s => NULL()
-      TYPE(rho_atom_coeff), DIMENSION(:), &
-         POINTER                               :: jrho_h => NULL(), jrho_s => NULL()
-      TYPE(rho_atom_coeff), DIMENSION(:), &
-         POINTER                               :: jrho_a_h => NULL(), jrho_a_s => NULL()
-      TYPE(rho_atom_coeff), DIMENSION(:), &
-         POINTER                               :: jrho_b_h => NULL(), jrho_b_s => NULL()
-      TYPE(rho_atom_coeff), DIMENSION(:), &
-         POINTER                               :: jrho_a_h_ii => NULL(), jrho_a_s_ii => NULL()
-      TYPE(rho_atom_coeff), DIMENSION(:), &
-         POINTER                               :: jrho_b_h_ii => NULL(), jrho_b_s_ii => NULL()
-      TYPE(rho_atom_coeff), DIMENSION(:), &
-         POINTER                               :: jrho_a_h_iii => NULL(), jrho_a_s_iii => NULL()
-      TYPE(rho_atom_coeff), DIMENSION(:), &
-         POINTER                               :: jrho_b_h_iii => NULL(), jrho_b_s_iii => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER      :: cjc_h => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER      :: cjc_s => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER      :: cjc0_h => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER      :: cjc0_s => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER      :: cjc_ii_h => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER      :: cjc_ii_s => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER      :: cjc_iii_h => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER      :: cjc_iii_s => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER   :: jrho_vec_rad_h => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER   :: jrho_vec_rad_s => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER      :: jrho_h => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER      :: jrho_s => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER      :: jrho_a_h => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER      :: jrho_a_s => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER      :: jrho_b_h => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER      :: jrho_b_s => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER      :: jrho_a_h_ii => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER      :: jrho_a_s_ii => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER      :: jrho_b_h_ii => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER      :: jrho_b_s_ii => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER      :: jrho_a_h_iii => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER      :: jrho_a_s_iii => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER      :: jrho_b_h_iii => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER      :: jrho_b_s_iii => NULL()
    END TYPE jrho_atom_type
 
 ! \param type for dC/dR calculation
    TYPE dcdr_env_type
-      INTEGER :: nao, orb_center, beta, lambda, output_unit, nspins
-      INTEGER, DIMENSION(:), ALLOCATABLE :: nmo
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_hc => NULL(), matrix_s1 => NULL(), matrix_t1 => NULL(), &
-                                                   matrix_s => NULL(), matrix_t => NULL(), &
-                                                   matrix_ppnl_1 => NULL(), &
-                                                   matrix_core_charge_1 => NULL(), &
-                                                   matrix_nosym_temp => NULL(), &
-                                                   matrix_nosym_temp2 => NULL(), &
-                                                   moments => NULL(), &
-                                                   matrix_apply_op_constant => NULL(), &
-                                                   hamiltonian1 => NULL(), &
-                                                   perturbed_dm_correction => NULL()
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: matrix_vhxc_perturbed_basis => NULL(), &
-                                                      matrix_difdip => NULL(), &
-                                                      matrix_d_vhxc_dR => NULL()
-      REAL(dp), DIMENSION(:, :), POINTER :: deltaR => NULL(), delta_basis_function => NULL()
-      REAL(dp), DIMENSION(:, :, :, :), POINTER :: apt_subset => NULL(), apt_at_dcdr_per_center => NULL()
-      TYPE(cp_fm_type), DIMENSION(:), POINTER :: mo_coeff => NULL()
-      TYPE(cp_fm_type), DIMENSION(:), POINTER :: dCR => NULL(), dCR_prime => NULL(), &
-                                                 op_dR => NULL(), chc => NULL()
-
-      CHARACTER(LEN=30) :: orb_center_name
-      TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER :: center_list => NULL()
-      TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER :: centers_set => NULL()
-      INTEGER, DIMENSION(2) :: nbr_center, nstates
-      REAL(dp), DIMENSION(3) :: ref_point, dipole_pos
-      LOGICAL :: localized_psi0
-      INTEGER, POINTER :: list_of_atoms(:) => NULL()
-
-      LOGICAL :: distributed_origin
-
-      TYPE(cp_fm_struct_type), POINTER :: aoao_fm_struct
-      TYPE(cp_fm_struct_type), POINTER :: homohomo_fm_struct
-      TYPE(cp_fm_struct_p_type), DIMENSION(:), POINTER :: momo_fm_struct
-      TYPE(cp_fm_struct_p_type), DIMENSION(:), POINTER :: likemos_fm_struct
-
-      REAL(dp), DIMENSION(:, :, :), POINTER :: apt_el_dcdr => NULL(), apt_nuc_dcdr => NULL(), apt_total_dcdr => NULL()
-      REAL(dp), DIMENSION(:, :, :, :), POINTER :: apt_el_dcdr_per_center => NULL(), apt_el_dcdr_per_subset => NULL()
+      INTEGER                                          :: nao = -1
+      INTEGER                                          :: orb_center = -1
+      INTEGER                                          :: beta = -1
+      INTEGER                                          :: lambda = -1
+      INTEGER                                          :: output_unit = -1
+      INTEGER                                          :: nspins = -1
+      INTEGER, DIMENSION(:), ALLOCATABLE               :: nmo
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: matrix_hc => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: matrix_s1 => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: matrix_t1 => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: matrix_s => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: matrix_t => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: matrix_ppnl_1 => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: matrix_core_charge_1 => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: matrix_nosym_temp => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: matrix_nosym_temp2 => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: moments => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: matrix_apply_op_constant => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: hamiltonian1 => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: perturbed_dm_correction => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER     :: matrix_vhxc_perturbed_basis => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER     :: matrix_difdip => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER     :: matrix_d_vhxc_dR => NULL()
+      REAL(dp), DIMENSION(:, :), POINTER               :: deltaR => NULL()
+      REAL(dp), DIMENSION(:, :), POINTER               :: delta_basis_function => NULL()
+      REAL(dp), DIMENSION(:, :, :, :), POINTER         :: apt_subset => NULL()
+      REAL(dp), DIMENSION(:, :, :, :), POINTER         :: apt_at_dcdr_per_center => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER          :: mo_coeff => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER          :: dCR => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER          :: dCR_prime => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER          :: op_dR => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER          :: chc => NULL()
+      CHARACTER(LEN=30)                                :: orb_center_name = ""
+      TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER      :: center_list => NULL()
+      TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER      :: centers_set => NULL()
+      INTEGER, DIMENSION(2)                            :: nbr_center = -1
+      INTEGER, DIMENSION(2)                            :: nstates = -1
+      REAL(dp), DIMENSION(3)                           :: ref_point = 0.0_dp
+      REAL(dp), DIMENSION(3)                           :: dipole_pos = 0.0_dp
+      LOGICAL                                          :: localized_psi0 = .FALSE.
+      INTEGER, POINTER                                 :: list_of_atoms(:) => NULL()
+      LOGICAL                                          :: distributed_origin = .FALSE.
+      TYPE(cp_fm_struct_type), POINTER                 :: aoao_fm_struct => NULL()
+      TYPE(cp_fm_struct_type), POINTER                 :: homohomo_fm_struct => NULL()
+      TYPE(cp_fm_struct_p_type), DIMENSION(:), POINTER :: momo_fm_struct => NULL()
+      TYPE(cp_fm_struct_p_type), DIMENSION(:), POINTER :: likemos_fm_struct => NULL()
+      REAL(dp), DIMENSION(:, :, :), POINTER            :: apt_el_dcdr => NULL()
+      REAL(dp), DIMENSION(:, :, :), POINTER            :: apt_nuc_dcdr => NULL()
+      REAL(dp), DIMENSION(:, :, :), POINTER            :: apt_total_dcdr => NULL()
+      REAL(dp), DIMENSION(:, :, :, :), POINTER         :: apt_el_dcdr_per_center => NULL()
+      REAL(dp), DIMENSION(:, :, :, :), POINTER         :: apt_el_dcdr_per_subset => NULL()
    END TYPE dcdr_env_type
 
 !  \param type for VCD calculation
    TYPE vcd_env_type
-      TYPE(dcdr_env_type) :: dcdr_env
+      TYPE(dcdr_env_type)    :: dcdr_env = dcdr_env_type()
 
-      INTEGER :: output_unit
-      REAL(dp), DIMENSION(3) :: spatial_origin, spatial_origin_atom, magnetic_origin, magnetic_origin_atom
-      LOGICAL :: distributed_origin, origin_dependent_op_mfp, do_mfp
+      INTEGER                :: output_unit = -1
+      REAL(dp), DIMENSION(3) :: spatial_origin = 0.0_dp
+      REAL(dp), DIMENSION(3) :: spatial_origin_atom = 0.0_dp
+      REAL(dp), DIMENSION(3) :: magnetic_origin = 0.0_dp
+      REAL(dp), DIMENSION(3) :: magnetic_origin_atom = 0.0_dp
+      LOGICAL                :: distributed_origin = .FALSE.
+      LOGICAL                :: origin_dependent_op_mfp = .FALSE.
+      LOGICAL                :: do_mfp = .FALSE.
 
       ! APTs and AATs in velocity form
-      REAL(dp), DIMENSION(:, :, :), POINTER :: apt_el_nvpt, apt_nuc_nvpt, apt_total_nvpt
-      REAL(dp), DIMENSION(:, :, :), POINTER :: aat_atom_nvpt, aat_atom_mfp
+      REAL(dp), DIMENSION(:, :, :), POINTER :: apt_el_nvpt => NULL()
+      REAL(dp), DIMENSION(:, :, :), POINTER :: apt_nuc_nvpt => NULL()
+      REAL(dp), DIMENSION(:, :, :), POINTER :: apt_total_nvpt => NULL()
+      REAL(dp), DIMENSION(:, :, :), POINTER :: aat_atom_nvpt => NULL()
+      REAL(dp), DIMENSION(:, :, :), POINTER :: aat_atom_mfp => NULL()
 
       ! Matrices
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_dSdV => NULL(), &
@@ -302,41 +364,12 @@ MODULE qs_linres_types
 ! *** Public subroutines ***
 
    PUBLIC :: allocate_jrho_atom_rad, deallocate_jrho_atom_set, get_nmr_env, &
-             get_current_env, allocate_jrho_coeff, &
-             init_jrho_atom_set, init_nablavks_atom_set, linres_control_create, &
-             linres_control_release, &
-             set_epr_env, deallocate_nablavks_atom_set, &
-             set2zero_jrho_atom_rad, get_epr_env, &
-             nmr_env_create, epr_env_create, current_env_create, get_issc_env, &
-             set_current_env, issc_env_create, get_polar_env, &
-             polar_env_create, polar_env_release, set_polar_env
+             get_current_env, allocate_jrho_coeff, init_jrho_atom_set, init_nablavks_atom_set, &
+             linres_control_release, set_epr_env, deallocate_nablavks_atom_set, &
+             set2zero_jrho_atom_rad, get_epr_env, get_issc_env, set_current_env, &
+             get_polar_env, polar_env_release, set_polar_env
 
 CONTAINS
-
-! **************************************************************************************************
-!> \brief ...
-!> \param linres_control ...
-! **************************************************************************************************
-   SUBROUTINE linres_control_create(linres_control)
-
-      TYPE(linres_control_type), INTENT(OUT)             :: linres_control
-
-      NULLIFY (linres_control%qs_loc_env)
-      linres_control%property = HUGE(0) !is that used?
-      linres_control%preconditioner_type = HUGE(0)
-      linres_control%restart_every = HUGE(0)
-      linres_control%energy_gap = HUGE(0.0_dp)
-      linres_control%max_iter = HUGE(0)
-      linres_control%localized_psi0 = .FALSE.
-      linres_control%converged = .FALSE.
-      linres_control%linres_restart = .FALSE.
-      linres_control%eps = HUGE(0.0_dp)
-      linres_control%eps_filter = TINY(0.0_dp)
-      linres_control%flag = ""
-      linres_control%do_kernel = .FALSE.
-      linres_control%lr_triplet = .FALSE.
-
-   END SUBROUTINE linres_control_create
 
 ! **************************************************************************************************
 !> \brief ...
@@ -352,105 +385,6 @@ CONTAINS
       END IF
 
    END SUBROUTINE linres_control_release
-
-! **************************************************************************************************
-!> \brief ...
-!> \param current_env ...
-! **************************************************************************************************
-   SUBROUTINE current_env_create(current_env)
-
-      TYPE(current_env_type), INTENT(INOUT)              :: current_env
-
-      current_env%nao = HUGE(1)
-      current_env%gauge = HUGE(1)
-      current_env%orb_center = HUGE(1)
-      current_env%nstates(:) = HUGE(1)
-      current_env%nbr_center(:) = HUGE(1)
-      current_env%use_old_gauge_atom = .TRUE.
-      current_env%chi_pbc = .FALSE.
-      current_env%do_selected_states = .FALSE.
-      current_env%gauge_init = .FALSE.
-      NULLIFY (current_env%full_done)
-      NULLIFY (current_env%list_cubes)
-      NULLIFY (current_env%statetrueindex)
-      NULLIFY (current_env%basisfun_center)
-      NULLIFY (current_env%center_list)
-      NULLIFY (current_env%centers_set)
-      NULLIFY (current_env%psi1_p)
-      NULLIFY (current_env%psi1_rxp)
-      NULLIFY (current_env%psi1_D)
-      NULLIFY (current_env%p_psi0)
-      NULLIFY (current_env%rxp_psi0)
-      NULLIFY (current_env%jrho1_atom_set)
-      NULLIFY (current_env%jrho1_set)
-      NULLIFY (current_env%rs_gauge)
-      NULLIFY (current_env%rs_buf)
-      NULLIFY (current_env%selected_states_on_atom_list)
-      NULLIFY (current_env%psi0_order)
-
-   END SUBROUTINE current_env_create
-
-! **************************************************************************************************
-!> \brief ...
-!> \param nmr_env ...
-! **************************************************************************************************
-   SUBROUTINE nmr_env_create(nmr_env)
-
-      TYPE(nmr_env_type), INTENT(INOUT)                  :: nmr_env
-
-      NULLIFY (nmr_env%chemical_shift)
-      NULLIFY (nmr_env%chemical_shift_loc)
-      NULLIFY (nmr_env%chemical_shift_nics_loc)
-      NULLIFY (nmr_env%chemical_shift_nics)
-      NULLIFY (nmr_env%r_nics)
-      NULLIFY (nmr_env%cs_atom_list)
-      NULLIFY (nmr_env%do_calc_cs_atom)
-
-   END SUBROUTINE nmr_env_create
-
-! **************************************************************************************************
-!> \brief ...
-!> \param issc_env ...
-! **************************************************************************************************
-   SUBROUTINE issc_env_create(issc_env)
-
-      TYPE(issc_env_type), INTENT(INOUT)                 :: issc_env
-
-      NULLIFY (issc_env%issc)
-      NULLIFY (issc_env%issc_loc)
-      NULLIFY (issc_env%psi1_efg)
-      NULLIFY (issc_env%psi1_fc)
-      NULLIFY (issc_env%psi1_pso)
-      NULLIFY (issc_env%psi1_dso)
-      NULLIFY (issc_env%efg_psi0)
-      NULLIFY (issc_env%pso_psi0)
-      NULLIFY (issc_env%dso_psi0)
-      NULLIFY (issc_env%fc_psi0)
-      NULLIFY (issc_env%matrix_efg)
-      NULLIFY (issc_env%matrix_pso)
-      NULLIFY (issc_env%matrix_dso)
-      NULLIFY (issc_env%matrix_fc)
-
-   END SUBROUTINE issc_env_create
-
-! **************************************************************************************************
-!> \brief ...
-!> \param epr_env ...
-! **************************************************************************************************
-   SUBROUTINE epr_env_create(epr_env)
-
-      TYPE(epr_env_type), INTENT(INOUT)                  :: epr_env
-
-      NULLIFY (epr_env%nablavks_set)
-      NULLIFY (epr_env%nablavks_atom_set)
-      NULLIFY (epr_env%bind_set)
-      NULLIFY (epr_env%bind_atom_set)
-      NULLIFY (epr_env%g_total)
-      NULLIFY (epr_env%g_so)
-      NULLIFY (epr_env%g_soo)
-      NULLIFY (epr_env%vks_atom_set)
-
-   END SUBROUTINE epr_env_create
 
 ! **************************************************************************************************
 !> \brief ...
@@ -844,48 +778,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param jrho_atom_set ...
-!> \param natom ...
-! **************************************************************************************************
-   SUBROUTINE allocate_jrho_atom_set(jrho_atom_set, natom)
-
-      TYPE(jrho_atom_type), DIMENSION(:), POINTER        :: jrho_atom_set
-      INTEGER, INTENT(IN)                                :: natom
-
-      INTEGER                                            :: iat
-
-      ALLOCATE (jrho_atom_set(natom))
-
-      DO iat = 1, natom
-         NULLIFY (jrho_atom_set(iat)%cjc0_h)
-         NULLIFY (jrho_atom_set(iat)%cjc0_s)
-         NULLIFY (jrho_atom_set(iat)%cjc_h)
-         NULLIFY (jrho_atom_set(iat)%cjc_s)
-         NULLIFY (jrho_atom_set(iat)%cjc_ii_h)
-         NULLIFY (jrho_atom_set(iat)%cjc_ii_s)
-         NULLIFY (jrho_atom_set(iat)%cjc_iii_h)
-         NULLIFY (jrho_atom_set(iat)%cjc_iii_s)
-         NULLIFY (jrho_atom_set(iat)%jrho_vec_rad_h)
-         NULLIFY (jrho_atom_set(iat)%jrho_vec_rad_s)
-         NULLIFY (jrho_atom_set(iat)%jrho_h)
-         NULLIFY (jrho_atom_set(iat)%jrho_s)
-         NULLIFY (jrho_atom_set(iat)%jrho_a_h)
-         NULLIFY (jrho_atom_set(iat)%jrho_a_s)
-         NULLIFY (jrho_atom_set(iat)%jrho_b_h)
-         NULLIFY (jrho_atom_set(iat)%jrho_b_s)
-         NULLIFY (jrho_atom_set(iat)%jrho_a_h_ii)
-         NULLIFY (jrho_atom_set(iat)%jrho_a_s_ii)
-         NULLIFY (jrho_atom_set(iat)%jrho_b_h_ii)
-         NULLIFY (jrho_atom_set(iat)%jrho_b_s_ii)
-         NULLIFY (jrho_atom_set(iat)%jrho_a_h_iii)
-         NULLIFY (jrho_atom_set(iat)%jrho_a_s_iii)
-         NULLIFY (jrho_atom_set(iat)%jrho_b_h_iii)
-         NULLIFY (jrho_atom_set(iat)%jrho_b_s_iii)
-      END DO
-   END SUBROUTINE allocate_jrho_atom_set
-
-! **************************************************************************************************
-!> \brief ...
-!> \param jrho_atom_set ...
 ! **************************************************************************************************
    SUBROUTINE deallocate_jrho_atom_set(jrho_atom_set)
 
@@ -1199,8 +1091,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'init_jrho_atom_set'
 
-      INTEGER                                            :: handle, iat, iatom, idir, ikind, ispin, &
-                                                            nat, natom, nkind
+      INTEGER                                            :: handle, iat, iatom, ikind, nat, natom, &
+                                                            nkind
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
 
       CALL timeset(routineN, handle)
@@ -1212,8 +1104,7 @@ CONTAINS
       END IF
 
       CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
-
-      CALL allocate_jrho_atom_set(jrho1_atom_set, natom)
+      ALLOCATE (jrho1_atom_set(natom))
 
       nkind = SIZE(atomic_kind_set)
 
@@ -1249,36 +1140,6 @@ CONTAINS
                       jrho1_atom_set(iatom)%cjc_ii_s(nspins), &
                       jrho1_atom_set(iatom)%cjc_iii_h(nspins), &
                       jrho1_atom_set(iatom)%cjc_iii_s(nspins))
-
-            DO ispin = 1, nspins
-               DO idir = 1, 3
-                  NULLIFY (jrho1_atom_set(iatom)%jrho_vec_rad_h(idir, ispin)%r_coef)
-                  NULLIFY (jrho1_atom_set(iatom)%jrho_vec_rad_s(idir, ispin)%r_coef)
-               END DO
-               NULLIFY (jrho1_atom_set(iatom)%jrho_h(ispin)%r_coef)
-               NULLIFY (jrho1_atom_set(iatom)%jrho_s(ispin)%r_coef)
-               NULLIFY (jrho1_atom_set(iatom)%jrho_a_h(ispin)%r_coef)
-               NULLIFY (jrho1_atom_set(iatom)%jrho_a_s(ispin)%r_coef)
-               NULLIFY (jrho1_atom_set(iatom)%jrho_b_h(ispin)%r_coef)
-               NULLIFY (jrho1_atom_set(iatom)%jrho_b_s(ispin)%r_coef)
-               NULLIFY (jrho1_atom_set(iatom)%jrho_a_h_ii(ispin)%r_coef)
-               NULLIFY (jrho1_atom_set(iatom)%jrho_a_s_ii(ispin)%r_coef)
-               NULLIFY (jrho1_atom_set(iatom)%jrho_b_h_ii(ispin)%r_coef)
-               NULLIFY (jrho1_atom_set(iatom)%jrho_b_s_ii(ispin)%r_coef)
-               NULLIFY (jrho1_atom_set(iatom)%jrho_a_h_iii(ispin)%r_coef)
-               NULLIFY (jrho1_atom_set(iatom)%jrho_a_s_iii(ispin)%r_coef)
-               NULLIFY (jrho1_atom_set(iatom)%jrho_b_h_iii(ispin)%r_coef)
-               NULLIFY (jrho1_atom_set(iatom)%jrho_b_s_iii(ispin)%r_coef)
-               NULLIFY (jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef)
-               NULLIFY (jrho1_atom_set(iatom)%cjc0_s(ispin)%r_coef)
-               NULLIFY (jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef)
-               NULLIFY (jrho1_atom_set(iatom)%cjc_s(ispin)%r_coef)
-               NULLIFY (jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef)
-               NULLIFY (jrho1_atom_set(iatom)%cjc_ii_s(ispin)%r_coef)
-               NULLIFY (jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef)
-               NULLIFY (jrho1_atom_set(iatom)%cjc_iii_s(ispin)%r_coef)
-
-            END DO ! ispin
 
          END DO ! iat
 
@@ -1361,25 +1222,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE init_nablavks_atom_set
-
-! **************************************************************************************************
-!> \brief ...
-!> \param polar_env ...
-! **************************************************************************************************
-   SUBROUTINE polar_env_create(polar_env)
-
-      TYPE(polar_env_type), POINTER                      :: polar_env
-
-      CPASSERT(.NOT. ASSOCIATED(polar_env))
-      ALLOCATE (polar_env)
-      polar_env%do_raman = .FALSE.
-      polar_env%do_periodic = .TRUE.
-      polar_env%run_stopped = .FALSE.
-      NULLIFY (polar_env%polar)
-      NULLIFY (polar_env%psi1_dBerry)
-      NULLIFY (polar_env%dBerry_psi0)
-
-   END SUBROUTINE polar_env_create
 
 ! **************************************************************************************************
 !> \brief ...

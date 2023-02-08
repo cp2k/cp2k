@@ -118,8 +118,7 @@ MODULE response_solver
    USE qs_ks_methods,                   ONLY: calc_rho_tot_gspace
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_linres_methods,               ONLY: linres_solver
-   USE qs_linres_types,                 ONLY: linres_control_create,&
-                                              linres_control_type
+   USE qs_linres_types,                 ONLY: linres_control_type
    USE qs_matrix_pools,                 ONLY: mpools_rebuild_fm_pools
    USE qs_mo_methods,                   ONLY: make_basis_sm
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
@@ -226,7 +225,6 @@ CONTAINS
       ! initialize linres_control
       NULLIFY (linres_control)
       ALLOCATE (linres_control)
-      CALL linres_control_create(linres_control)
       linres_control%do_kernel = .TRUE.
       linres_control%lr_triplet = .FALSE.
       linres_control%converged = .FALSE.
@@ -666,7 +664,6 @@ CONTAINS
       ! initialized linres_control
       NULLIFY (linres_control)
       ALLOCATE (linres_control)
-      CALL linres_control_create(linres_control)
       linres_control%do_kernel = .TRUE.
       linres_control%lr_triplet = .FALSE.
       IF (PRESENT(lr_section)) THEN

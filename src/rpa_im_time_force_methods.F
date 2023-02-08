@@ -132,8 +132,7 @@ MODULE rpa_im_time_force_methods
    USE qs_ks_methods,                   ONLY: calc_rho_tot_gspace
    USE qs_ks_reference,                 ONLY: ks_ref_potential
    USE qs_ks_types,                     ONLY: set_ks_env
-   USE qs_linres_types,                 ONLY: linres_control_create,&
-                                              linres_control_type
+   USE qs_linres_types,                 ONLY: linres_control_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
@@ -2121,7 +2120,6 @@ CONTAINS
       lr_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%WF_CORRELATION%LOW_SCALING%CPHF")
 
       ALLOCATE (linres_control)
-      CALL linres_control_create(linres_control)
       CALL section_vals_val_get(lr_section, "MAX_ITER", i_val=linres_control%max_iter)
       CALL section_vals_val_get(lr_section, "EPS_CONV", r_val=linres_control%eps)
       CALL section_vals_val_get(lr_section, "PRECONDITIONER", i_val=linres_control%preconditioner_type)

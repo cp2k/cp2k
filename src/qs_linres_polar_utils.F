@@ -59,7 +59,6 @@ MODULE qs_linres_polar_utils
                                               linres_write_restart
    USE qs_linres_types,                 ONLY: get_polar_env,&
                                               linres_control_type,&
-                                              polar_env_create,&
                                               polar_env_type,&
                                               set_polar_env
    USE qs_matrix_pools,                 ONLY: qs_matrix_pools_type
@@ -135,7 +134,7 @@ CONTAINS
 
       ! Create polar environment if needed
       IF (.NOT. ASSOCIATED(polar_env)) THEN
-         CALL polar_env_create(polar_env)
+         ALLOCATE (polar_env)
          CALL set_qs_env(qs_env=qs_env, polar_env=polar_env)
       END IF
 
