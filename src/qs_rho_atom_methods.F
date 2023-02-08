@@ -49,7 +49,7 @@ MODULE qs_rho_atom_methods
                                               neighbor_list_set_p_type
    USE qs_oce_methods,                  ONLY: proj_blk
    USE qs_oce_types,                    ONLY: oce_matrix_type
-   USE qs_rho_atom_types,               ONLY: allocate_rho_atom_set,&
+   USE qs_rho_atom_types,               ONLY: deallocate_rho_atom_set,&
                                               rho_atom_coeff,&
                                               rho_atom_type
    USE sap_kind_types,                  ONLY: alist_pre_align_blk,&
@@ -558,10 +558,6 @@ CONTAINS
 !$OMP                 )
 
       ALLOCATE (p_block_spin(nspins))
-      DO ispin = 1, nspins
-         NULLIFY (p_block_spin(ispin)%r_coef)
-      END DO
-
       ALLOCATE (p_matrix(max_nsgf, max_nsgf), STAT=istat)
       CPASSERT(istat == 0)
 
@@ -607,7 +603,6 @@ CONTAINS
          END IF
 
          DO ispin = 1, nspins
-            NULLIFY (p_block_spin(ispin)%r_coef)
             CALL dbcsr_get_block_p(matrix=rho_ao(nspins*(img - 1) + ispin)%matrix, &
                                    row=irow, col=icol, BLOCK=p_block_spin(ispin)%r_coef, &
                                    found=found)
@@ -933,7 +928,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho_atom_internals'
 
       INTEGER                                            :: bo(2), handle, iat, iatom, ikind, ispin, &
-                                                            istat, j, max_iso_not0, maxso, mepos, &
+                                                            istat, max_iso_not0, maxso, mepos, &
                                                             nat, natom, nsatbas, nset, nsotot, &
                                                             nspins, num_pe
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
@@ -952,7 +947,10 @@ CONTAINS
 
       nspins = dft_control%nspins
 
-      CALL allocate_rho_atom_set(rho_atom_set, natom)
+      IF (ASSOCIATED(rho_atom_set)) THEN
+         CALL deallocate_rho_atom_set(rho_atom_set)
+      END IF
+      ALLOCATE (rho_atom_set(natom))
 
       DO ikind = 1, SIZE(atomic_kind_set)
 
@@ -980,14 +978,6 @@ CONTAINS
             ALLOCATE (rho_atom_set(iatom)%vrho_rad_s(nspins))
 
             istat = 0
-            DO ispin = 1, nspins
-
-               NULLIFY (rho_atom_set(iatom)%rho_rad_h(ispin)%r_coef, &
-                        rho_atom_set(iatom)%rho_rad_s(ispin)%r_coef, &
-                        rho_atom_set(iatom)%vrho_rad_h(ispin)%r_coef, &
-                        rho_atom_set(iatom)%vrho_rad_s(ispin)%r_coef)
-            END DO
-
             ALLOCATE (rho_atom_set(iatom)%cpc_h(nspins), &
                       rho_atom_set(iatom)%cpc_s(nspins), &
                       rho_atom_set(iatom)%drho_rad_h(nspins), &
@@ -999,9 +989,6 @@ CONTAINS
 
             IF (paw_atom) THEN
                DO ispin = 1, nspins
-                  NULLIFY (rho_atom_set(iatom)%drho_rad_h(ispin)%r_coef, &
-                           rho_atom_set(iatom)%drho_rad_s(ispin)%r_coef)
-
                   ALLOCATE (rho_atom_set(iatom)%cpc_h(ispin)%r_coef(1:nsatbas, 1:nsatbas), &
                             rho_atom_set(iatom)%cpc_s(ispin)%r_coef(1:nsatbas, 1:nsatbas), &
                             STAT=istat)
@@ -1009,19 +996,6 @@ CONTAINS
 
                   rho_atom_set(iatom)%cpc_h(ispin)%r_coef = 0.0_dp
                   rho_atom_set(iatom)%cpc_s(ispin)%r_coef = 0.0_dp
-               END DO
-
-            ELSE
-               DO ispin = 1, nspins
-                  NULLIFY (rho_atom_set(iatom)%cpc_h(ispin)%r_coef)
-                  NULLIFY (rho_atom_set(iatom)%cpc_s(ispin)%r_coef)
-                  NULLIFY (rho_atom_set(iatom)%drho_rad_h(ispin)%r_coef)
-                  NULLIFY (rho_atom_set(iatom)%drho_rad_s(ispin)%r_coef)
-
-                  DO j = 1, 3
-                     NULLIFY (rho_atom_set(iatom)%rho_rad_h_d(j, ispin)%r_coef)
-                     NULLIFY (rho_atom_set(iatom)%rho_rad_s_d(j, ispin)%r_coef)
-                  END DO
                END DO
             END IF
 
@@ -1038,9 +1012,6 @@ CONTAINS
             CPASSERT(istat == 0)
             IF (paw_atom) THEN
                DO ispin = 1, nspins
-                  NULLIFY (rho_atom_set(iatom)%ga_Vlocal_gb_h(ispin)%r_coef)
-                  NULLIFY (rho_atom_set(iatom)%ga_Vlocal_gb_s(ispin)%r_coef)
-
                   CALL reallocate(rho_atom_set(iatom)%ga_Vlocal_gb_h(ispin)%r_coef, &
                                   1, nsotot, 1, nsotot)
                   CALL reallocate(rho_atom_set(iatom)%ga_Vlocal_gb_s(ispin)%r_coef, &
@@ -1048,11 +1019,6 @@ CONTAINS
 
                   rho_atom_set(iatom)%ga_Vlocal_gb_h(ispin)%r_coef = 0.0_dp
                   rho_atom_set(iatom)%ga_Vlocal_gb_s(ispin)%r_coef = 0.0_dp
-               END DO
-            ELSE
-               DO ispin = 1, nspins
-                  NULLIFY (rho_atom_set(iatom)%ga_Vlocal_gb_h(ispin)%r_coef)
-                  NULLIFY (rho_atom_set(iatom)%ga_Vlocal_gb_s(ispin)%r_coef)
                END DO
             END IF
 
@@ -1103,8 +1069,6 @@ CONTAINS
       rho_atom_set(iatom)%drho_rad_s(ispin)%r_coef = 0.0_dp
 
       DO j = 1, 3
-         NULLIFY (rho_atom_set(iatom)%rho_rad_h_d(j, ispin)%r_coef, &
-                  rho_atom_set(iatom)%rho_rad_s_d(j, ispin)%r_coef)
          ALLOCATE (rho_atom_set(iatom)%rho_rad_h_d(j, ispin)%r_coef(nr, max_iso_not0), &
                    rho_atom_set(iatom)%rho_rad_s_d(j, ispin)%r_coef(nr, max_iso_not0), &
                    STAT=istat)

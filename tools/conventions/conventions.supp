@@ -846,9 +846,6 @@ qs_rho0_types.F: Found type mpole_rho_atom without initializer https://cp2k.org/
 qs_rho0_types.F: Found type rho0_atom_type without initializer https://cp2k.org/conv#c016
 qs_rho0_types.F: Found type rho0_mpole_type without initializer https://cp2k.org/conv#c016
 qs_rho_atom_methods.F: Found WRITE statement with hardcoded unit in "init_rho_atom" https://cp2k.org/conv#c012
-qs_rho_atom_types.F: Found type rho_atom_coeff without initializer https://cp2k.org/conv#c016
-qs_rho_atom_types.F: Found type rho_atom_p_type without initializer https://cp2k.org/conv#c016
-qs_rho_atom_types.F: Found type rho_atom_type without initializer https://cp2k.org/conv#c016
 qs_rho_types.F: Found type qs_rho_p_type without initializer https://cp2k.org/conv#c016
 qs_scf_types.F: Found type floating_basis_type without initializer https://cp2k.org/conv#c016
 qs_scf_types.F: Found type krylov_space_type without initializer https://cp2k.org/conv#c016
