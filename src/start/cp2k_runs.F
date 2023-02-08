@@ -486,7 +486,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)     :: str
       INTEGER :: dest, handle, i, i_job_to_restart, ierr, ijob, ijob_current, &
                  ijob_end, ijob_start, iunit, n_jobs_to_run, new_output_unit, &
-                 new_rank, new_size, ngroups, num_slaves, output_unit, primus_slave, &
+                 new_rank, ngroups, num_slaves, output_unit, primus_slave, &
                  slave_rank, source, tag, todo
       INTEGER, DIMENSION(:), POINTER           :: group_distribution, &
                                                   master_slave_partition, &
@@ -533,13 +533,13 @@ CONTAINS
                                      n_subgroups=2, group_partition=master_slave_partition)
          DEALLOCATE (master_slave_partition)
          DEALLOCATE (group_distribution)
-         CALL slave_group%environ(num_slaves, slave_rank)
+         CALL slave_group%get_size(num_slaves)
+         CALL slave_group%get_rank(slave_rank)
 
          IF (para_env%mepos == 0) THEN
             slave = .FALSE.
             master = .TRUE.
             ! on the master node, num_slaves corresponds to the size of the master group
-            ! due to the environ call.
             CPASSERT(num_slaves == 1)
             num_slaves = para_env%num_pe - 1
             slave_rank = -1
@@ -549,7 +549,8 @@ CONTAINS
          ! all processes are slaves
          IF (output_unit > 0) WRITE (output_unit, FMT="(T2,A)") "FARMING| using a slave-only setup"
          CALL slave_group%from_dup(para_env%group)
-         CALL slave_group%environ(num_slaves, slave_rank)
+         CALL slave_group%get_size(num_slaves)
+         CALL slave_group%get_rank(slave_rank)
       END IF
       IF (output_unit > 0) WRITE (output_unit, FMT="(T2,A,I0)") "FARMING| number of slaves ", num_slaves
 
@@ -585,7 +586,7 @@ CONTAINS
          ELSE
             CPABORT("must set either group_size_wish or ngroup_wish")
          END IF
-         CALL new_group%environ(new_size, new_rank)
+         CALL new_group%get_rank(new_rank)
       END IF
 
       ! transfer the info about the slave group distribution to the master

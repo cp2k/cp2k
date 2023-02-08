@@ -298,7 +298,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'transport_initialize'
 
-      INTEGER                                            :: handle, mynode, numnodes, unit_nr
+      INTEGER                                            :: handle, numnodes, unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
@@ -312,7 +312,7 @@ CONTAINS
          unit_nr = -1
       END IF
 
-      CALL logger%para_env%group%environ(numnodes, mynode)
+      CALL logger%para_env%group%get_size(numnodes)
 
       IF (dbcsr_has_symmetry(template_matrix)) THEN
          CALL dbcsr_copy(transport_env%template_matrix_sym, template_matrix)

@@ -30,11 +30,9 @@ MODULE kpoint_methods
         copy_info_type, cp_fm_cleanup_copy_general, cp_fm_create, cp_fm_finish_copy_general, &
         cp_fm_get_info, cp_fm_release, cp_fm_start_copy_general, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE cp_para_env,                     ONLY: cp_cart_create,&
-                                              cp_para_env_create,&
+   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                               cp_para_env_retain
-   USE cp_para_types,                   ONLY: cp_para_cart_type,&
-                                              cp_para_env_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cryssym,                         ONLY: apply_rotation_coord,&
                                               crys_sym_gen,&
                                               csym_type,&
@@ -274,11 +272,9 @@ CONTAINS
 
       INTEGER                                            :: handle, igr, ik, ikk, ngr, niogrp, nkp, &
                                                             nkp_grp, nkp_loc, npe, unit_nr
-      INTEGER, DIMENSION(2)                              :: dims, pos
+      INTEGER, DIMENSION(2)                              :: dims
       LOGICAL, DIMENSION(2)                              :: rdim
-      TYPE(cp_para_cart_type), POINTER                   :: cart
-      TYPE(cp_para_env_type), POINTER                    :: para_env_full, para_env_inter_kp, &
-                                                            para_env_kp
+      TYPE(cp_para_env_type), POINTER                    :: para_env_inter_kp, para_env_kp
       TYPE(kpoint_env_p_type), DIMENSION(:), POINTER     :: kp_env
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(mp_cart_type)                                 :: comm_cart, comm_inter_kp, comm_kp
@@ -314,8 +310,6 @@ CONTAINS
          kpoint%kp_range(2) = nkp
          kpoint%kp_env => kp_env
          ! parallel environments
-         kpoint%para_env_full => para_env
-         CALL cp_para_env_retain(para_env)
          kpoint%para_env_kp => para_env
          CALL cp_para_env_retain(para_env)
          kpoint%para_env_inter_kp => para_env
@@ -352,12 +346,9 @@ CONTAINS
             CPABORT("Number of processors is not divisible by the kpoint group size.")
          END IF
 
-         NULLIFY (cart, para_env_full, para_env_kp, para_env_inter_kp)
-         CALL comm_cart%create(comm_old=para_env%group, ndims=2, dims=dims, pos=pos)
+         NULLIFY (para_env_kp, para_env_inter_kp)
+         CALL comm_cart%create(comm_old=para_env%group, ndims=2, dims=dims)
 
-         CALL cp_cart_create(cart, comm_cart, ndims=2)
-         ALLOCATE (para_env_full)
-         para_env_full = comm_cart
          rdim(2) = .FALSE.
          rdim(1) = .TRUE.
          CALL comm_kp%from_sub(comm=comm_cart, rdim=rdim)
@@ -366,6 +357,7 @@ CONTAINS
          rdim(1) = .FALSE.
          CALL comm_inter_kp%from_sub(comm=comm_cart, rdim=rdim)
          CALL cp_para_env_create(para_env_inter_kp, comm_inter_kp)
+         CALL comm_cart%free()
 
          niogrp = 0
          IF (para_env%ionode) niogrp = 1
@@ -373,8 +365,6 @@ CONTAINS
          kpoint%iogrp = (niogrp == 1)
 
          ! parallel groups
-         kpoint%cart => cart
-         kpoint%para_env_full => para_env_full
          kpoint%para_env_kp => para_env_kp
          kpoint%para_env_inter_kp => para_env_inter_kp
 
@@ -1371,7 +1361,6 @@ CONTAINS
                !
             ELSE
                ! distributed matrices, most general code needed
-               ! CALL dbcsr_get_stored_coordinates(pmat, row, col, pos)
                CALL cp_abort(__LOCATION__, "k-points need FULL_GRID currently. "// &
                              "Reduced grids not yet working correctly")
             END IF

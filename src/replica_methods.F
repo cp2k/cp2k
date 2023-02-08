@@ -129,9 +129,10 @@ CONTAINS
          WRITE (unit_nr, FMT="(T2,A)") "REPLICA| WARNING: number of processors is not divisible by the number of replicas"
          WRITE (unit_nr, FMT="(T2,A,I0,A)") "REPLICA| ", para_env%num_pe - dims(1)*dims(2), " MPI process(es) will be idle"
       END IF
-      CALL comm_cart%create(comm_old=para_env%group, ndims=2, dims=dims, pos=pos)
+      CALL comm_cart%create(comm_old=para_env%group, ndims=2, dims=dims)
       IF (comm_cart /= mp_comm_null) THEN
-         CALL cp_cart_create(cart, comm_cart, ndims=2)
+         CALL comm_cart%get_info_cart(task_coor=pos)
+         CALL cp_cart_create(cart, comm_cart)
          ALLOCATE (para_env_full)
          para_env_full = comm_cart
          rdim(3 - forcedim) = .FALSE.
@@ -143,6 +144,8 @@ CONTAINS
          CALL comm_inter_rep%from_sub(comm=comm_cart, rdim=rdim)
          CALL cp_para_env_create(para_env_inter_rep, comm_inter_rep)
          ALLOCATE (rep_env)
+      ELSE
+         pos = -1
       END IF
       ALLOCATE (gridinfo(2, 0:para_env%num_pe - 1))
       gridinfo = 0

@@ -529,8 +529,10 @@ CONTAINS
          test = .FALSE.
       END IF
 
-      CALL gs_group%environ(numtask_g, g_pos)
-      CALL rs_group%environ_cart(numtask_r, r_dim, r_pos)
+      CALL gs_group%get_size(numtask_g)
+      CALL gs_group%get_rank(g_pos)
+      CALL rs_group%get_size(numtask_r)
+      CALL rs_group%get_info_cart(r_dim, r_pos)
       IF (numtask_g /= numtask_r) THEN
          CPABORT("Real space and G space groups are different.")
       END IF
@@ -953,9 +955,9 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: abuf, bbuf
       INTEGER                                            :: handle, lg(2), lz(3), mcx2, mcy3, mcz1, &
                                                             mcz2, mx1, mx2, mx3, my1, my2, my3, &
-                                                            my_pos, mz1, mz2, mz3, np, &
-                                                            output_unit, sign, stat
-      INTEGER, DIMENSION(2)                              :: dim, pos
+                                                            my_pos, mz1, mz2, mz3, output_unit, &
+                                                            sign, stat
+      INTEGER, DIMENSION(2)                              :: dim
       LOGICAL                                            :: test
       REAL(KIND=dp)                                      :: norm, sum_data
       TYPE(fft_scratch_sizes)                            :: fft_scratch_size
@@ -984,8 +986,8 @@ CONTAINS
       CALL timeset(routineN, handle)
       output_unit = cp_logger_get_default_io_unit()
 
-      CALL group%environ_cart(np, dim, pos)
-      CALL group%rank_cart(pos, my_pos)
+      CALL group%get_info_cart(dim)
+      CALL group%get_rank(my_pos)
 
       IF (PRESENT(debug)) THEN
          test = debug
@@ -2880,7 +2882,7 @@ CONTAINS
 
       INTEGER :: coord(2), DIM(2), handle, i, ix, iz, lg, lmax, m1, m2, &
                  mcx2, mcy3, mcz1, mcz2, mg, mmax, mx1, mx2, my1, my3, mz1, mz2, mz3, &
-                 nbx, nbz, nm, nmax, nmray, nn, np, nx, ny, nyzray, nz, pos(2)
+                 nbx, nbz, nm, nmax, nmray, np, nx, ny, nyzray, nz, pos(2)
       INTEGER, DIMENSION(3)                    :: pcoord
       LOGICAL                                  :: equal
       LOGICAL, DIMENSION(2)                    :: dims
@@ -3006,8 +3008,8 @@ CONTAINS
                ALLOCATE (fft_scratch_new%fft_scratch%a6buf(n(1), my3*mz3))
                fft_scratch_new%fft_scratch%group = fft_sizes%gs_group
 
-               CALL fft_sizes%rs_group%environ_cart(nn, dim, pos)
-               CALL fft_sizes%rs_group%rank_cart(pos, fft_scratch_new%fft_scratch%mip)
+               CALL fft_sizes%rs_group%get_info_cart(dim, pos)
+               CALL fft_sizes%rs_group%get_rank(fft_scratch_new%fft_scratch%mip)
                fft_scratch_new%fft_scratch%dim = dim
                fft_scratch_new%fft_scratch%pos = pos
                mcz1 = fft_sizes%mcz1
@@ -3062,8 +3064,8 @@ CONTAINS
                ALLOCATE (fft_scratch_new%fft_scratch%a5buf(my3*mz3, n(1)))
                ALLOCATE (fft_scratch_new%fft_scratch%a6buf(n(1), my3*mz3))
 
-               CALL fft_sizes%rs_group%environ_cart(nn, dim, pos)
-               CALL fft_sizes%rs_group%rank_cart(pos, fft_scratch_new%fft_scratch%mip)
+               CALL fft_sizes%rs_group%get_info_cart(dim, pos)
+               CALL fft_sizes%rs_group%get_rank(fft_scratch_new%fft_scratch%mip)
                fft_scratch_new%fft_scratch%dim = dim
                fft_scratch_new%fft_scratch%pos = pos
                mcy3 = fft_sizes%mcy3
@@ -3197,8 +3199,8 @@ CONTAINS
                fft_scratch_new%fft_scratch%rsratio = 1._dp
                fft_scratch_new%fft_scratch%group = fft_sizes%gs_group
 
-               CALL fft_sizes%rs_group%environ_cart(nn, dim, pos)
-               CALL fft_sizes%rs_group%rank_cart(pos, fft_scratch_new%fft_scratch%mip)
+               CALL fft_sizes%rs_group%get_info_cart(dim, pos)
+               CALL fft_sizes%rs_group%get_rank(fft_scratch_new%fft_scratch%mip)
                fft_scratch_new%fft_scratch%dim = dim
                fft_scratch_new%fft_scratch%pos = pos
                mcz1 = fft_sizes%mcz1
@@ -3334,7 +3336,8 @@ CONTAINS
       TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: rreq, sreq
 
       CALL group%sync()
-      CALL group%environ(n, pos)
+      CALL group%get_size(n)
+      CALL group%get_rank(pos)
       ALLOCATE (sreq(0:n - 1))
       ALLOCATE (rreq(0:n - 1))
       nr = 0

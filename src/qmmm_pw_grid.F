@@ -161,8 +161,8 @@ CONTAINS
                pw_grid_out%mapn%pos, pw_grid_out%mapn%neg)
 
       !para
-      CALL pw_grid_out%para%group%environ(pw_grid_out%para%group_size, &
-                                          pw_grid_out%para%my_pos)
+      CALL pw_grid_out%para%group%get_size(pw_grid_out%para%group_size)
+      CALL pw_grid_out%para%group%get_rank(pw_grid_out%para%my_pos)
       pw_grid_out%para%group_head_id = pw_grid_in%para%group_head_id
       pw_grid_out%para%group_head = &
          (pw_grid_out%para%group_head_id == pw_grid_out%para%my_pos)

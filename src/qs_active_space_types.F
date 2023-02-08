@@ -309,7 +309,8 @@ CONTAINS
       INTEGER                                            :: numtask, taskid
       REAL(KIND=dp)                                      :: rat
 
-      CALL mp_group%environ(numtask, taskid)
+      CALL mp_group%get_size(numtask)
+      CALL mp_group%get_rank(taskid)
 
       IF (numtask == 1 .AND. taskid == 0) THEN
          irange(1) = 1

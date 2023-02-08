@@ -164,7 +164,7 @@ CONTAINS
          ALLOCATABLE, DIMENSION(:, :)                    :: initial_variables
       INTEGER :: color, energies_unit, handle, history_unit, i_atom, i_el, i_frame, i_free_var, &
          i_var, ierr, mepos_master, mepos_slave, n_atom, n_el, n_frames, n_free_var, n_groups, &
-         n_var, new_env_id, num_pe_master, num_pe_slave, output_unit, restart_unit, state
+         n_var, new_env_id, num_pe_master, output_unit, restart_unit, state
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: free_var_index
       INTEGER, DIMENSION(:), POINTER                     :: group_distribution
       LOGICAL                                            :: should_stop
@@ -233,7 +233,7 @@ CONTAINS
       IF (oi_env%fm_env%group_size > para_env%num_pe) oi_env%fm_env%group_size = para_env%num_pe
 
       CALL mpi_comm_slave%from_split(mpi_comm_master, n_groups, group_distribution, subgroup_min_size=oi_env%fm_env%group_size)
-      CALL mpi_comm_slave%environ(num_pe_slave, mepos_slave)
+      CALL mpi_comm_slave%get_rank(mepos_slave)
       color = 0
       IF (mepos_slave == 0) color = 1
       CALL mpi_comm_slave_primus%from_split(mpi_comm_master, color)
