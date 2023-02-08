@@ -14,6 +14,7 @@ USE_EXCEPTIONS = ("omp_lib", "omp_lib_kinds", "lapack")
 
 # precompile regex
 re_symbol = re.compile(r"^\s*symtree.* symbol: '([^']+)'.*$")
+re_derived_type = re.compile(r"^\s*type spec\s*:\s*\(DERIVED ([^']+)\).*$")
 re_use = re.compile(r" USE-ASSOC\(([^)]+)\)")
 re_conv = re.compile(
     r"__(real_[48]_r8|real_4_c8|cmplx1_4_r8_r8)\[\["
@@ -31,7 +32,7 @@ def process_log_file(fhandle: TextIO) -> None:
 
     module_name = None
 
-    cur_sym = cur_proc = stat_var = stat_stm = None
+    cur_sym = cur_proc = cur_derived_type = cur_value = stat_var = stat_stm = None
     skip_until_DT_END = False
 
     for line in fhandle:
@@ -61,12 +62,30 @@ def process_log_file(fhandle: TextIO) -> None:
                 module_name = cur_proc
 
         elif line.startswith("symtree: ") or len(line) == 0:
-            cur_sym = None
+            # Found new symbole, check default initializers of previous symbole.
+            if cur_sym and cur_sym.startswith("__def_init_"):
+                assert cur_derived_type
+                if not cur_value:
+                    msg(f"Found type {cur_derived_type} without initializer", 16)
+                elif " () " in cur_value or "(() " in cur_value or " ())" in cur_value:
+                    msg(f"Found type {cur_derived_type} with partial initializer", 17)
+
+            # Parse new symbole.
+            cur_sym = cur_derived_type = cur_value = None
             if len(line) == 0:
                 continue
             match = re_symbol.match(line)
             assert match
             cur_sym = match.group(1)
+        elif line.startswith("type spec"):
+            # Only look for derived types because we want to check their initializers.
+            match = re_derived_type.match(line)
+            if match:
+                cur_derived_type = match.group(1)
+
+        elif line.startswith("value:"):
+            # Hold onto values that could be passed to initializes of derived types.
+            cur_value = line
 
         elif line.startswith("attributes:"):
             assert module_name and cur_sym
