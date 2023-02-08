@@ -1,15 +1,15 @@
-almo_scf.F: Found WRITE statement with hardcoded unit in "almo_scf_init"
-al_system_dynamics.F: Found WRITE statement with hardcoded unit in "dump_vel"
-base_hooks.F: Found CALL m_abort in procedure "cp_abort"
-base_hooks.F: Found STOP statement in procedure "cp__a"
-base_hooks.F: Found STOP statement in procedure "cp_abort"
-base_hooks.F: Found STOP statement in procedure "cp__b"
-base_hooks.F: Found WRITE statement with hardcoded unit in "cp_abort"
-base_hooks.F: Found WRITE statement with hardcoded unit in "cp_hint"
-base_hooks.F: Found WRITE statement with hardcoded unit in "cp_warn"
-beta_gamma_psi.F: Found GOTO statement in procedure "bratio"
-bfgs_optimizer.F: Found GOTO statement in procedure "rat_fun_opt"
-cg_test.F: Found WRITE statement with hardcoded unit in "clebsch_gordon_test"
+almo_scf.F: Found WRITE statement with hardcoded unit in "almo_scf_init" https://cp2k.org/conv#c012
+al_system_dynamics.F: Found WRITE statement with hardcoded unit in "dump_vel" https://cp2k.org/conv#c012
+base_hooks.F: Found CALL m_abort in procedure "cp_abort" https://cp2k.org/conv#c008
+base_hooks.F: Found STOP statement in procedure "cp_abort" https://cp2k.org/conv#c011
+base_hooks.F: Found STOP statement in procedure "cp__a" https://cp2k.org/conv#c011
+base_hooks.F: Found STOP statement in procedure "cp__b" https://cp2k.org/conv#c011
+base_hooks.F: Found WRITE statement with hardcoded unit in "cp_abort" https://cp2k.org/conv#c012
+base_hooks.F: Found WRITE statement with hardcoded unit in "cp_hint" https://cp2k.org/conv#c012
+base_hooks.F: Found WRITE statement with hardcoded unit in "cp_warn" https://cp2k.org/conv#c012
+beta_gamma_psi.F: Found GOTO statement in procedure "bratio" https://cp2k.org/conv#c011
+bfgs_optimizer.F: Found GOTO statement in procedure "rat_fun_opt" https://cp2k.org/conv#c011
+cg_test.F: Found WRITE statement with hardcoded unit in "clebsch_gordon_test" https://cp2k.org/conv#c012
 cp_dbcsr_cholesky.F: Procedure 'pdcopy' called with an implicit interface at (1) [-Wimplicit-interface]
 cp_dbcsr_cholesky.F: Procedure 'pdpotrf' called with an implicit interface at (1) [-Wimplicit-interface]
 cp_dbcsr_cholesky.F: Procedure 'pdpotri' called with an implicit interface at (1) [-Wimplicit-interface]
@@ -20,99 +20,99 @@ cp_dbcsr_cholesky.F: Procedure 'pspotrf' called with an implicit interface at (1
 cp_dbcsr_cholesky.F: Procedure 'pspotri' called with an implicit interface at (1) [-Wimplicit-interface]
 cp_dbcsr_cholesky.F: Procedure 'pstrmm' called with an implicit interface at (1) [-Wimplicit-interface]
 cp_dbcsr_cholesky.F: Procedure 'pstrsm' called with an implicit interface at (1) [-Wimplicit-interface]
-cp_dbcsr_operations.F: Found CALL cp_fm_gemm in procedure "cp_dbcsr_plus_fm_fm_t"
-cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "cp_dbcsr_plus_fm_fm_t"
-cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "create_bl_distribution"
-cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "dbcsr_create_dist_block_cyclic"
-cp_ddapc_util.F: Found WRITE statement with hardcoded unit in "debug_charge"
-cp_ddapc_util.F: Found WRITE statement with hardcoded unit in "debug_der_a_matrix"
-cp_ddapc_util.F: Found WRITE statement with hardcoded unit in "debug_der_b_vector"
-cp_error_handling.F: Found CALL mp_abort in procedure "cp_abort_handler"
-cp_files.F: Found CLOSE statement in procedure "close_file"
-cp_files.F: Found OPEN statement in procedure "open_file"
-cp_fm_basic_linalg.F: Found CALL cp_fm_gemm in procedure "cp_complex_fm_gemm"
-cp_fm_diag.F: Found CALL cp_fm_gemm in procedure "cp_fm_geeig_canon"
-cp_lbfgs.F: Found WRITE statement with hardcoded unit in "active"
-cp_lbfgs.F: Found WRITE statement with hardcoded unit in "cauchy"
-cp_lbfgs.F: Found WRITE statement with hardcoded unit in "freev"
-cp_lbfgs.F: Found WRITE statement with hardcoded unit in "lnsrlb"
-cp_lbfgs.F: Found WRITE statement with hardcoded unit in "mainlb"
-cp_lbfgs.F: Found WRITE statement with hardcoded unit in "prn1lb"
-cp_lbfgs.F: Found WRITE statement with hardcoded unit in "prn2lb"
-cp_lbfgs.F: Found WRITE statement with hardcoded unit in "prn3lb"
-cp_lbfgs.F: Found WRITE statement with hardcoded unit in "subsm"
-cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_int_to_string"
-cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_logger_get_default_unit_nr"
-cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_real_dp_to_string"
-cp_parser_inpp_methods.F: Found READ with unchecked STAT in "inpp_process_directive"
-cube_utils.F: Found WRITE statement with hardcoded unit in "return_cube_nonortho"
-d3_poly.F: Found CALL RANDOM_NUMBER in procedure "poly_random"
-dkh_main.F: Found WRITE statement with hardcoded unit in "kintegral"
-dkh_main.F: Found WRITE statement with hardcoded unit in "kintegral_a"
-domain_submatrix_methods.F: Found WRITE statement with hardcoded unit in "print_submatrices"
-dumpdcd.F: Found CLOSE statement in procedure "dumpdcd"
-dumpdcd.F: Found OPEN statement in procedure "dumpdcd"
-dumpdcd.F: Found STOP statement in procedure "abort_program"
-dumpdcd.F: Found STOP statement in procedure "dumpdcd"
-dumpdcd.F: Found WRITE statement with hardcoded unit in "abort_program"
-dumpdcd.F: Found WRITE statement with hardcoded unit in "print_help"
-eip_silicon.F: Found OPEN statement in procedure "eip_bazant_silicon"
-eip_silicon.F: Found OPEN statement in procedure "eip_lenosky_silicon"
-eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_bazant_silicon"
-eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_lenosky_silicon"
-eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_b"
-eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_l"
+cp_dbcsr_operations.F: Found CALL cp_fm_gemm in procedure "cp_dbcsr_plus_fm_fm_t" https://cp2k.org/conv#c008
+cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "cp_dbcsr_plus_fm_fm_t" https://cp2k.org/conv#c012
+cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "create_bl_distribution" https://cp2k.org/conv#c012
+cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "dbcsr_create_dist_block_cyclic" https://cp2k.org/conv#c012
+cp_ddapc_util.F: Found WRITE statement with hardcoded unit in "debug_charge" https://cp2k.org/conv#c012
+cp_ddapc_util.F: Found WRITE statement with hardcoded unit in "debug_der_a_matrix" https://cp2k.org/conv#c012
+cp_ddapc_util.F: Found WRITE statement with hardcoded unit in "debug_der_b_vector" https://cp2k.org/conv#c012
+cp_error_handling.F: Found CALL mp_abort in procedure "cp_abort_handler" https://cp2k.org/conv#c008
+cp_files.F: Found CLOSE statement in procedure "close_file" https://cp2k.org/conv#c011
+cp_files.F: Found OPEN statement in procedure "open_file" https://cp2k.org/conv#c011
+cp_fm_basic_linalg.F: Found CALL cp_fm_gemm in procedure "cp_complex_fm_gemm" https://cp2k.org/conv#c008
+cp_fm_diag.F: Found CALL cp_fm_gemm in procedure "cp_fm_geeig_canon" https://cp2k.org/conv#c008
+cp_lbfgs.F: Found WRITE statement with hardcoded unit in "active" https://cp2k.org/conv#c012
+cp_lbfgs.F: Found WRITE statement with hardcoded unit in "cauchy" https://cp2k.org/conv#c012
+cp_lbfgs.F: Found WRITE statement with hardcoded unit in "freev" https://cp2k.org/conv#c012
+cp_lbfgs.F: Found WRITE statement with hardcoded unit in "lnsrlb" https://cp2k.org/conv#c012
+cp_lbfgs.F: Found WRITE statement with hardcoded unit in "mainlb" https://cp2k.org/conv#c012
+cp_lbfgs.F: Found WRITE statement with hardcoded unit in "prn1lb" https://cp2k.org/conv#c012
+cp_lbfgs.F: Found WRITE statement with hardcoded unit in "prn2lb" https://cp2k.org/conv#c012
+cp_lbfgs.F: Found WRITE statement with hardcoded unit in "prn3lb" https://cp2k.org/conv#c012
+cp_lbfgs.F: Found WRITE statement with hardcoded unit in "subsm" https://cp2k.org/conv#c012
+cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_int_to_string" https://cp2k.org/conv#c012
+cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_logger_get_default_unit_nr" https://cp2k.org/conv#c012
+cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_real_dp_to_string" https://cp2k.org/conv#c012
+cp_parser_inpp_methods.F: Found READ with unchecked STAT in "inpp_process_directive" https://cp2k.org/conv#c001
+cube_utils.F: Found WRITE statement with hardcoded unit in "return_cube_nonortho" https://cp2k.org/conv#c012
+d3_poly.F: Found CALL RANDOM_NUMBER in procedure "poly_random" https://cp2k.org/conv#c009
+dkh_main.F: Found WRITE statement with hardcoded unit in "kintegral_a" https://cp2k.org/conv#c012
+dkh_main.F: Found WRITE statement with hardcoded unit in "kintegral" https://cp2k.org/conv#c012
+domain_submatrix_methods.F: Found WRITE statement with hardcoded unit in "print_submatrices" https://cp2k.org/conv#c012
+dumpdcd.F: Found CLOSE statement in procedure "dumpdcd" https://cp2k.org/conv#c011
+dumpdcd.F: Found OPEN statement in procedure "dumpdcd" https://cp2k.org/conv#c011
+dumpdcd.F: Found STOP statement in procedure "abort_program" https://cp2k.org/conv#c011
+dumpdcd.F: Found STOP statement in procedure "dumpdcd" https://cp2k.org/conv#c011
+dumpdcd.F: Found WRITE statement with hardcoded unit in "abort_program" https://cp2k.org/conv#c012
+dumpdcd.F: Found WRITE statement with hardcoded unit in "print_help" https://cp2k.org/conv#c012
+eip_silicon.F: Found OPEN statement in procedure "eip_bazant_silicon" https://cp2k.org/conv#c011
+eip_silicon.F: Found OPEN statement in procedure "eip_lenosky_silicon" https://cp2k.org/conv#c011
+eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_bazant_silicon" https://cp2k.org/conv#c012
+eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_lenosky_silicon" https://cp2k.org/conv#c012
+eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_b" https://cp2k.org/conv#c012
+eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_l" https://cp2k.org/conv#c012
 et_coupling_proj.F: Procedure 'infog2l' called with an implicit interface at (1) [-Wimplicit-interface]
-extended_system_init.F: Found WRITE statement with hardcoded unit in "init_barostat_variables"
-farming_methods.F: Found CLOSE statement in procedure "farming_parse_input"
-farming_methods.F: Found OPEN statement in procedure "farming_parse_input"
-fparser.F: Found WRITE statement with hardcoded unit in "parseerrmsg"
-free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_norm_sc"
-free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_norm_sc_low"
-free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_trend"
-glbopt_history.F: Found WRITE statement with hardcoded unit in "verify_history_lookup"
-glbopt_mincrawl.F: Found WRITE statement with hardcoded unit in "print_tempdist"
-graphcon.F: Found GOTO statement in procedure "all_permutations"
-graphcon.F: Found WRITE statement with hardcoded unit in "reorder_graph"
-graph.F: Found CALL RANDOM_SEED in procedure "graph"
-graph.F: Found WRITE statement with hardcoded unit in "graph"
-graph_methods.F: Found OPEN statement in procedure "fes_cube_write"
-graph_methods.F: Found WRITE statement with hardcoded unit in "fes_cube_write"
-graph_methods.F: Found WRITE statement with hardcoded unit in "fes_min"
-graph_methods.F: Found WRITE statement with hardcoded unit in "fes_path"
-graph_utils.F: Found WRITE statement with hardcoded unit in "get_val_res"
-hfx_compression_methods.F: Found READ with unchecked STAT in "hfx_decompress_cache"
-hfx_energy_potential.F: Found WRITE statement with hardcoded unit in "print_integrals"
-input_enumeration_types.F: Found WRITE statement with hardcoded unit in "enum_i2c"
-input_parsing.F: Found WRITE statement with hardcoded unit in "section_vals_parse"
-library_tests.F: Found CALL RANDOM_NUMBER in procedure "copy_test"
-library_tests.F: Found CALL RANDOM_NUMBER in procedure "cp_fm_gemm_test"
-library_tests.F: Found CALL RANDOM_NUMBER in procedure "fft_test"
-library_tests.F: Found CALL RANDOM_NUMBER in procedure "rs_pw_transfer_test"
+extended_system_init.F: Found WRITE statement with hardcoded unit in "init_barostat_variables" https://cp2k.org/conv#c012
+farming_methods.F: Found CLOSE statement in procedure "farming_parse_input" https://cp2k.org/conv#c011
+farming_methods.F: Found OPEN statement in procedure "farming_parse_input" https://cp2k.org/conv#c011
+fparser.F: Found WRITE statement with hardcoded unit in "parseerrmsg" https://cp2k.org/conv#c012
+free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_norm_sc" https://cp2k.org/conv#c012
+free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_norm_sc_low" https://cp2k.org/conv#c012
+free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_trend" https://cp2k.org/conv#c012
+glbopt_history.F: Found WRITE statement with hardcoded unit in "verify_history_lookup" https://cp2k.org/conv#c012
+glbopt_mincrawl.F: Found WRITE statement with hardcoded unit in "print_tempdist" https://cp2k.org/conv#c012
+graphcon.F: Found GOTO statement in procedure "all_permutations" https://cp2k.org/conv#c011
+graphcon.F: Found WRITE statement with hardcoded unit in "reorder_graph" https://cp2k.org/conv#c012
+graph.F: Found CALL RANDOM_SEED in procedure "graph" https://cp2k.org/conv#c010
+graph.F: Found WRITE statement with hardcoded unit in "graph" https://cp2k.org/conv#c012
+graph_methods.F: Found OPEN statement in procedure "fes_cube_write" https://cp2k.org/conv#c011
+graph_methods.F: Found WRITE statement with hardcoded unit in "fes_cube_write" https://cp2k.org/conv#c012
+graph_methods.F: Found WRITE statement with hardcoded unit in "fes_min" https://cp2k.org/conv#c012
+graph_methods.F: Found WRITE statement with hardcoded unit in "fes_path" https://cp2k.org/conv#c012
+graph_utils.F: Found WRITE statement with hardcoded unit in "get_val_res" https://cp2k.org/conv#c012
+hfx_compression_methods.F: Found READ with unchecked STAT in "hfx_decompress_cache" https://cp2k.org/conv#c001
+hfx_energy_potential.F: Found WRITE statement with hardcoded unit in "print_integrals" https://cp2k.org/conv#c012
+input_enumeration_types.F: Found WRITE statement with hardcoded unit in "enum_i2c" https://cp2k.org/conv#c012
+input_parsing.F: Found WRITE statement with hardcoded unit in "section_vals_parse" https://cp2k.org/conv#c012
+library_tests.F: Found CALL RANDOM_NUMBER in procedure "copy_test" https://cp2k.org/conv#c009
+library_tests.F: Found CALL RANDOM_NUMBER in procedure "cp_fm_gemm_test" https://cp2k.org/conv#c009
+library_tests.F: Found CALL RANDOM_NUMBER in procedure "fft_test" https://cp2k.org/conv#c009
+library_tests.F: Found CALL RANDOM_NUMBER in procedure "rs_pw_transfer_test" https://cp2k.org/conv#c009
 library_tests.F: Procedure 'pilaenv' called with an implicit interface at (1) [-Wimplicit-interface]
-machine.F: Found CALL m_abort in procedure "m_getcwd"
-machine.F: Found CALL m_abort in procedure "m_hostnm"
-machine.F: Found CALL m_abort in procedure "m_mov"
-machine.F: Found CLOSE statement in procedure "m_memory_details"
-machine.F: Found OPEN statement in procedure "m_cpuinfo"
-machine.F: Found OPEN statement in procedure "m_memory"
-machine.F: Found OPEN statement in procedure "m_memory_details"
-machine.F: Found WRITE statement with hardcoded unit in "m_getcwd"
-machine.F: Found WRITE statement with hardcoded unit in "m_hostnm"
-machine.F: Found WRITE statement with hardcoded unit in "m_mov"
-mathlib.F: Found WRITE statement with hardcoded unit in "diag"
-mc_coordinates.F: Found WRITE statement with hardcoded unit in "generate_cbmc_swap_config"
-mc_move_control.F: Found WRITE statement with hardcoded unit in "mc_move_update"
-memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank1_allocated"
-memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank1_unallocated"
-memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank2_allocated"
-memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank2_unallocated"
-memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_string_rank1_allocated"
-memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_string_rank1_unallocated"
-message_passing.F: Found CALL m_abort in procedure "mp_abort"
-message_passing.F: Found CLOSE statement in procedure "mp_file_close"
-message_passing.F: Found OPEN statement in procedure "mp_file_open"
-message_passing.F: Found STOP statement in procedure "mp_abort"
+machine.F: Found CALL m_abort in procedure "m_getcwd" https://cp2k.org/conv#c008
+machine.F: Found CALL m_abort in procedure "m_hostnm" https://cp2k.org/conv#c008
+machine.F: Found CALL m_abort in procedure "m_mov" https://cp2k.org/conv#c008
+machine.F: Found CLOSE statement in procedure "m_memory_details" https://cp2k.org/conv#c011
+machine.F: Found OPEN statement in procedure "m_cpuinfo" https://cp2k.org/conv#c011
+machine.F: Found OPEN statement in procedure "m_memory_details" https://cp2k.org/conv#c011
+machine.F: Found OPEN statement in procedure "m_memory" https://cp2k.org/conv#c011
+machine.F: Found WRITE statement with hardcoded unit in "m_getcwd" https://cp2k.org/conv#c012
+machine.F: Found WRITE statement with hardcoded unit in "m_hostnm" https://cp2k.org/conv#c012
+machine.F: Found WRITE statement with hardcoded unit in "m_mov" https://cp2k.org/conv#c012
+mathlib.F: Found WRITE statement with hardcoded unit in "diag" https://cp2k.org/conv#c012
+mc_coordinates.F: Found WRITE statement with hardcoded unit in "generate_cbmc_swap_config" https://cp2k.org/conv#c012
+mc_move_control.F: Found WRITE statement with hardcoded unit in "mc_move_update" https://cp2k.org/conv#c012
+memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank1_allocated" https://cp2k.org/conv#c012
+memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank1_unallocated" https://cp2k.org/conv#c012
+memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank2_allocated" https://cp2k.org/conv#c012
+memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank2_unallocated" https://cp2k.org/conv#c012
+memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_string_rank1_allocated" https://cp2k.org/conv#c012
+memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_string_rank1_unallocated" https://cp2k.org/conv#c012
+message_passing.F: Found CALL m_abort in procedure "mp_abort" https://cp2k.org/conv#c008
+message_passing.F: Found CLOSE statement in procedure "mp_file_close" https://cp2k.org/conv#c011
+message_passing.F: Found OPEN statement in procedure "mp_file_open" https://cp2k.org/conv#c011
+message_passing.F: Found STOP statement in procedure "mp_abort" https://cp2k.org/conv#c011
 message_passing.F: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-1)
 message_passing.F: Type mismatch between actual argument at (1) and actual argument at (2) (REAL(8)/INTEGER(4)).
 message_passing.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
@@ -121,94 +121,94 @@ message_passing.fypp: Rank mismatch between actual argument at (1) and actual ar
 message_passing.fypp: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-3)
 message_passing.fypp: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-4)
 message_passing.fypp: Type mismatch between actual argument at (1) and actual argument at (2) (COMPLEX(8)/COMPLEX(4)).
-mltfftsg_tools.F: Found WRITE statement with hardcoded unit in "ctrig"
-mode_selective.F: Found READ with unchecked STAT in "bfgs_guess"
-nequip_unittest.F: Found WRITE statement with hardcoded unit in "nequip_unittest"
-pao_param_exp.F: Found lossy conversion real_4_r8 without KIND argument in "zheevd_wrapper"
-parallel_gemm_api.F: Found CALL cp_fm_gemm in procedure "parallel_gemm_fm"
-parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "dump_reload_check"
-parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "parallel_rng_types_test"
-parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "shuffle_check"
-powell.F: Found GOTO statement in procedure "newuob"
-preconditioner_makes.F: Found WRITE statement with hardcoded unit in "make_full_all"
-preconditioner_makes.F: Found WRITE statement with hardcoded unit in "make_full_all_ortho"
-ps_wavelet_base.F: Found WRITE statement with hardcoded unit in "f_poissonsolver"
-ps_wavelet_base.F: Found WRITE statement with hardcoded unit in "p_poissonsolver"
-ps_wavelet_base.F: Found WRITE statement with hardcoded unit in "s_poissonsolver"
-ps_wavelet_fft3d.F: Found WRITE statement with hardcoded unit in "ctrig"
-ps_wavelet_fft3d.F: Found WRITE statement with hardcoded unit in "fourier_dim"
-ps_wavelet_kernel.F: Found WRITE statement with hardcoded unit in "indices"
-ps_wavelet_scaling_function.F: Found WRITE statement with hardcoded unit in "ftest"
-ps_wavelet_scaling_function.F: Found WRITE statement with hardcoded unit in "scaling_function"
-ps_wavelet_scaling_function.F: Found WRITE statement with hardcoded unit in "wavelet_function"
-ps_wavelet_util.F: Found WRITE statement with hardcoded unit in "p_fft_dimensions"
-ps_wavelet_util.F: Found WRITE statement with hardcoded unit in "s_fft_dimensions"
-pw_grids.F: Found WRITE statement with hardcoded unit in "pw_grid_sort"
-qs_external_density.F: Found WRITE statement with hardcoded unit in "external_read_density"
-qs_fb_env_methods.F: Found CALL cp_fm_gemm in procedure "fb_env_do_diag"
-qs_fb_filter_matrix_methods.F: Found WRITE statement with hardcoded unit in "fb_fltrmat_build_atomic_fltrmat"
-qs_gspace_mixing.F: Found WRITE statement with hardcoded unit in "broyden_mixing_new"
-qs_initial_guess.F: Found WRITE statement with hardcoded unit in "calculate_first_density_matrix"
-qs_linres_atom_current.F: Found WRITE statement with hardcoded unit in "calculate_jrho_atom_rad"
-qs_linres_current.F: Found WRITE statement with hardcoded unit in "box_atoms"
-qs_linres_current.F: Found WRITE statement with hardcoded unit in "box_atoms_new"
-qs_linres_current.F: Found WRITE statement with hardcoded unit in "calculate_jrho_resp"
-qs_linres_current.F: Found WRITE statement with hardcoded unit in "collocate_gauge_new"
-qs_linres_issc_utils.F: Found WRITE statement with hardcoded unit in "issc_issc"
+mltfftsg_tools.F: Found WRITE statement with hardcoded unit in "ctrig" https://cp2k.org/conv#c012
+mode_selective.F: Found READ with unchecked STAT in "bfgs_guess" https://cp2k.org/conv#c001
+nequip_unittest.F: Found WRITE statement with hardcoded unit in "nequip_unittest" https://cp2k.org/conv#c012
+pao_param_exp.F: Found lossy conversion real_4_r8 without KIND argument in "zheevd_wrapper" https://cp2k.org/conv#c015
+parallel_gemm_api.F: Found CALL cp_fm_gemm in procedure "parallel_gemm_fm" https://cp2k.org/conv#c008
+parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "dump_reload_check" https://cp2k.org/conv#c012
+parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "parallel_rng_types_test" https://cp2k.org/conv#c012
+parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "shuffle_check" https://cp2k.org/conv#c012
+powell.F: Found GOTO statement in procedure "newuob" https://cp2k.org/conv#c011
+preconditioner_makes.F: Found WRITE statement with hardcoded unit in "make_full_all" https://cp2k.org/conv#c012
+preconditioner_makes.F: Found WRITE statement with hardcoded unit in "make_full_all_ortho" https://cp2k.org/conv#c012
+ps_wavelet_base.F: Found WRITE statement with hardcoded unit in "f_poissonsolver" https://cp2k.org/conv#c012
+ps_wavelet_base.F: Found WRITE statement with hardcoded unit in "p_poissonsolver" https://cp2k.org/conv#c012
+ps_wavelet_base.F: Found WRITE statement with hardcoded unit in "s_poissonsolver" https://cp2k.org/conv#c012
+ps_wavelet_fft3d.F: Found WRITE statement with hardcoded unit in "ctrig" https://cp2k.org/conv#c012
+ps_wavelet_fft3d.F: Found WRITE statement with hardcoded unit in "fourier_dim" https://cp2k.org/conv#c012
+ps_wavelet_kernel.F: Found WRITE statement with hardcoded unit in "indices" https://cp2k.org/conv#c012
+ps_wavelet_scaling_function.F: Found WRITE statement with hardcoded unit in "ftest" https://cp2k.org/conv#c012
+ps_wavelet_scaling_function.F: Found WRITE statement with hardcoded unit in "scaling_function" https://cp2k.org/conv#c012
+ps_wavelet_scaling_function.F: Found WRITE statement with hardcoded unit in "wavelet_function" https://cp2k.org/conv#c012
+ps_wavelet_util.F: Found WRITE statement with hardcoded unit in "p_fft_dimensions" https://cp2k.org/conv#c012
+ps_wavelet_util.F: Found WRITE statement with hardcoded unit in "s_fft_dimensions" https://cp2k.org/conv#c012
+pw_grids.F: Found WRITE statement with hardcoded unit in "pw_grid_sort" https://cp2k.org/conv#c012
+qs_external_density.F: Found WRITE statement with hardcoded unit in "external_read_density" https://cp2k.org/conv#c012
+qs_fb_env_methods.F: Found CALL cp_fm_gemm in procedure "fb_env_do_diag" https://cp2k.org/conv#c008
+qs_fb_filter_matrix_methods.F: Found WRITE statement with hardcoded unit in "fb_fltrmat_build_atomic_fltrmat" https://cp2k.org/conv#c012
+qs_gspace_mixing.F: Found WRITE statement with hardcoded unit in "broyden_mixing_new" https://cp2k.org/conv#c012
+qs_initial_guess.F: Found WRITE statement with hardcoded unit in "calculate_first_density_matrix" https://cp2k.org/conv#c012
+qs_linres_atom_current.F: Found WRITE statement with hardcoded unit in "calculate_jrho_atom_rad" https://cp2k.org/conv#c012
+qs_linres_current.F: Found WRITE statement with hardcoded unit in "box_atoms" https://cp2k.org/conv#c012
+qs_linres_current.F: Found WRITE statement with hardcoded unit in "box_atoms_new" https://cp2k.org/conv#c012
+qs_linres_current.F: Found WRITE statement with hardcoded unit in "calculate_jrho_resp" https://cp2k.org/conv#c012
+qs_linres_current.F: Found WRITE statement with hardcoded unit in "collocate_gauge_new" https://cp2k.org/conv#c012
+qs_linres_issc_utils.F: Found WRITE statement with hardcoded unit in "issc_issc" https://cp2k.org/conv#c012
 qs_linres_op.F: Procedure 'indxl2g' called with an implicit interface at (1) [-Wimplicit-interface]
 qs_localization_methods.F: Procedure 'pzrot' called with an implicit interface at (1) [-Wimplicit-interface]
 qs_loc_utils.F: Procedure 'pzrot' called with an implicit interface at (1) [-Wimplicit-interface]
-qs_ot.F: Found WRITE statement with hardcoded unit in "qs_ot_generate_rotation"
-qs_rho_atom_methods.F: Found WRITE statement with hardcoded unit in "init_rho_atom"
-se_core_matrix.F: Found WRITE statement with hardcoded unit in "aa"
-se_core_matrix.F: Found WRITE statement with hardcoded unit in "makeds"
-se_core_matrix.F: Found WRITE statement with hardcoded unit in "makes"
-se_fock_matrix_coulomb.F: Found WRITE statement with hardcoded unit in "build_fock_matrix_coulomb_lr"
-se_fock_matrix_dbg.F: Found WRITE statement with hardcoded unit in "dbg_energy_coulomb_lr"
-semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_dcorecore_ana"
-semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_dcore_nucint_ana"
-semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_drotnuc_ana"
-semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_dssss_nucint_ana"
-semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_dterep_ana"
-semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_rotint_ana"
-semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_rotmat_der"
-semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_value"
-semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "rot_2el_2c_first_debug"
+qs_ot.F: Found WRITE statement with hardcoded unit in "qs_ot_generate_rotation" https://cp2k.org/conv#c012
+qs_rho_atom_methods.F: Found WRITE statement with hardcoded unit in "init_rho_atom" https://cp2k.org/conv#c012
+se_core_matrix.F: Found WRITE statement with hardcoded unit in "aa" https://cp2k.org/conv#c012
+se_core_matrix.F: Found WRITE statement with hardcoded unit in "makeds" https://cp2k.org/conv#c012
+se_core_matrix.F: Found WRITE statement with hardcoded unit in "makes" https://cp2k.org/conv#c012
+se_fock_matrix_coulomb.F: Found WRITE statement with hardcoded unit in "build_fock_matrix_coulomb_lr" https://cp2k.org/conv#c012
+se_fock_matrix_dbg.F: Found WRITE statement with hardcoded unit in "dbg_energy_coulomb_lr" https://cp2k.org/conv#c012
+semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_dcorecore_ana" https://cp2k.org/conv#c012
+semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_dcore_nucint_ana" https://cp2k.org/conv#c012
+semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_drotnuc_ana" https://cp2k.org/conv#c012
+semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_dssss_nucint_ana" https://cp2k.org/conv#c012
+semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_dterep_ana" https://cp2k.org/conv#c012
+semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_rotint_ana" https://cp2k.org/conv#c012
+semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_rotmat_der" https://cp2k.org/conv#c012
+semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_value" https://cp2k.org/conv#c012
+semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "rot_2el_2c_first_debug" https://cp2k.org/conv#c012
 semi_empirical_int_debug.F: Procedure 'check_value' called with an implicit interface at (1) [-Wimplicit-interface]
-semi_empirical_mpole_methods.F: Found WRITE statement with hardcoded unit in "semi_empirical_mpole_p_setup"
-spherical_harmonics.F: Found WRITE statement with hardcoded unit in "cgc"
-spherical_harmonics.F: Found WRITE statement with hardcoded unit in "get_factor"
-statistical_methods.F: Found WRITE statement with hardcoded unit in "tests"
-swarm_mpi.F: Found CLOSE statement in procedure "logger_init_master"
-swarm_mpi.F: Found OPEN statement in procedure "logger_finalize"
-task_list_methods.F: Found WRITE statement with hardcoded unit in "generate_qs_task_list"
-timings.F: Found WRITE statement with hardcoded unit in "timestop_handler"
-tmc_analysis.F: Found WRITE statement with hardcoded unit in "print_average_displacement"
-tmc_analysis.F: Found WRITE statement with hardcoded unit in "print_dipole_moment"
-tmc_analysis.F: Found WRITE statement with hardcoded unit in "print_paircorrelation"
-tmc_cancelation.F: Found WRITE statement with hardcoded unit in "add_to_canceling_list"
-tmc_dot_tree.F: Found WRITE statement with hardcoded unit in "create_dot_color"
-tmc_dot_tree.F: Found WRITE statement with hardcoded unit in "create_global_tree_dot_color"
-tmc_messages.F: Found WRITE statement with hardcoded unit in "read_energy_result_message"
-tmc_messages.F: Found WRITE statement with hardcoded unit in "tmc_message"
-topology_constraint_util.F: Found WRITE statement with hardcoded unit in "setup_lcolv"
-topology_constraint_util.F: Found WRITE statement with hardcoded unit in "setup_lg3x3"
-topology_constraint_util.F: Found WRITE statement with hardcoded unit in "setup_lg4x6"
-topology_coordinate_util.F: Found WRITE statement with hardcoded unit in "topology_coordinate_pack"
-topology_generate_util.F: Found WRITE statement with hardcoded unit in "generate_molname_low"
-topology_generate_util.F: Found WRITE statement with hardcoded unit in "topology_generate_molecule"
-topology_gromos.F: Found READ with unchecked STAT in "read_topology_gromos"
-topology_pdb.F: Found READ with unchecked STAT in "read_coordinate_pdb"
-xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_debug"
-xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_test_lsd"
-xc.F: Found OPEN statement in procedure "xc_vxc_pw_create_debug"
-xc.F: Found OPEN statement in procedure "xc_vxc_pw_create_test_lsd"
-xc.F: Found WRITE statement with hardcoded unit in "xc_vxc_pw_create_debug"
-xc.F: Found WRITE statement with hardcoded unit in "xc_vxc_pw_create_test_lsd"
-xyz2dcd.F: Found CLOSE statement in procedure "xyz2dcd"
-xyz2dcd.F: Found OPEN statement in procedure "xyz2dcd"
-xyz2dcd.F: Found STOP statement in procedure "abort_program"
-xyz2dcd.F: Found STOP statement in procedure "xyz2dcd"
-xyz2dcd.F: Found WRITE statement with hardcoded unit in "abort_program"
-xyz2dcd.F: Found WRITE statement with hardcoded unit in "print_help"
-xyz2dcd.F: Found WRITE statement with hardcoded unit in "xyz2dcd"
+semi_empirical_mpole_methods.F: Found WRITE statement with hardcoded unit in "semi_empirical_mpole_p_setup" https://cp2k.org/conv#c012
+spherical_harmonics.F: Found WRITE statement with hardcoded unit in "cgc" https://cp2k.org/conv#c012
+spherical_harmonics.F: Found WRITE statement with hardcoded unit in "get_factor" https://cp2k.org/conv#c012
+statistical_methods.F: Found WRITE statement with hardcoded unit in "tests" https://cp2k.org/conv#c012
+swarm_mpi.F: Found CLOSE statement in procedure "logger_init_master" https://cp2k.org/conv#c011
+swarm_mpi.F: Found OPEN statement in procedure "logger_finalize" https://cp2k.org/conv#c011
+task_list_methods.F: Found WRITE statement with hardcoded unit in "generate_qs_task_list" https://cp2k.org/conv#c012
+timings.F: Found WRITE statement with hardcoded unit in "timestop_handler" https://cp2k.org/conv#c012
+tmc_analysis.F: Found WRITE statement with hardcoded unit in "print_average_displacement" https://cp2k.org/conv#c012
+tmc_analysis.F: Found WRITE statement with hardcoded unit in "print_dipole_moment" https://cp2k.org/conv#c012
+tmc_analysis.F: Found WRITE statement with hardcoded unit in "print_paircorrelation" https://cp2k.org/conv#c012
+tmc_cancelation.F: Found WRITE statement with hardcoded unit in "add_to_canceling_list" https://cp2k.org/conv#c012
+tmc_dot_tree.F: Found WRITE statement with hardcoded unit in "create_dot_color" https://cp2k.org/conv#c012
+tmc_dot_tree.F: Found WRITE statement with hardcoded unit in "create_global_tree_dot_color" https://cp2k.org/conv#c012
+tmc_messages.F: Found WRITE statement with hardcoded unit in "read_energy_result_message" https://cp2k.org/conv#c012
+tmc_messages.F: Found WRITE statement with hardcoded unit in "tmc_message" https://cp2k.org/conv#c012
+topology_constraint_util.F: Found WRITE statement with hardcoded unit in "setup_lcolv" https://cp2k.org/conv#c012
+topology_constraint_util.F: Found WRITE statement with hardcoded unit in "setup_lg3x3" https://cp2k.org/conv#c012
+topology_constraint_util.F: Found WRITE statement with hardcoded unit in "setup_lg4x6" https://cp2k.org/conv#c012
+topology_coordinate_util.F: Found WRITE statement with hardcoded unit in "topology_coordinate_pack" https://cp2k.org/conv#c012
+topology_generate_util.F: Found WRITE statement with hardcoded unit in "generate_molname_low" https://cp2k.org/conv#c012
+topology_generate_util.F: Found WRITE statement with hardcoded unit in "topology_generate_molecule" https://cp2k.org/conv#c012
+topology_gromos.F: Found READ with unchecked STAT in "read_topology_gromos" https://cp2k.org/conv#c001
+topology_pdb.F: Found READ with unchecked STAT in "read_coordinate_pdb" https://cp2k.org/conv#c001
+xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_debug" https://cp2k.org/conv#c011
+xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_test_lsd" https://cp2k.org/conv#c011
+xc.F: Found OPEN statement in procedure "xc_vxc_pw_create_debug" https://cp2k.org/conv#c011
+xc.F: Found OPEN statement in procedure "xc_vxc_pw_create_test_lsd" https://cp2k.org/conv#c011
+xc.F: Found WRITE statement with hardcoded unit in "xc_vxc_pw_create_debug" https://cp2k.org/conv#c012
+xc.F: Found WRITE statement with hardcoded unit in "xc_vxc_pw_create_test_lsd" https://cp2k.org/conv#c012
+xyz2dcd.F: Found CLOSE statement in procedure "xyz2dcd" https://cp2k.org/conv#c011
+xyz2dcd.F: Found OPEN statement in procedure "xyz2dcd" https://cp2k.org/conv#c011
+xyz2dcd.F: Found STOP statement in procedure "abort_program" https://cp2k.org/conv#c011
+xyz2dcd.F: Found STOP statement in procedure "xyz2dcd" https://cp2k.org/conv#c011
+xyz2dcd.F: Found WRITE statement with hardcoded unit in "abort_program" https://cp2k.org/conv#c012
+xyz2dcd.F: Found WRITE statement with hardcoded unit in "print_help" https://cp2k.org/conv#c012
+xyz2dcd.F: Found WRITE statement with hardcoded unit in "xyz2dcd" https://cp2k.org/conv#c012

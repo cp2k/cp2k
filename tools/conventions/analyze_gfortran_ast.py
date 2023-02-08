@@ -25,9 +25,9 @@ def process_log_file(fhandle: TextIO) -> None:
     public_symbols = set()
     used_symbols = set()
 
-    def lprint(message: str) -> None:
+    def msg(message: str, conv_num: int) -> None:
         short_filename = path.basename(fhandle.name)[:-4]
-        print(f"{short_filename}: {message}")
+        print(f"{short_filename}: {message} https://cp2k.org/conv#c{conv_num:03}")
 
     module_name = None
 
@@ -52,7 +52,7 @@ def process_log_file(fhandle: TextIO) -> None:
             elif stat_stm == "ALLOCATE" and tokens[0] == "ASSIGN":
                 pass  # skip lines, it's part of the ALLOCATE statement
             else:
-                lprint(f'Found {stat_stm} with unchecked STAT in "{cur_proc}"')
+                msg(f'Found {stat_stm} with unchecked STAT in "{cur_proc}"', 1)
                 stat_var = stat_stm = None  # reset
 
         elif line.startswith("procedure name ="):
@@ -83,49 +83,49 @@ def process_log_file(fhandle: TextIO) -> None:
                 mod = match.group(1)
                 used_symbols.add(mod + "::" + cur_sym)
                 if "MODULE  USE-ASSOC" in line and mod.lower() not in USE_EXCEPTIONS:
-                    lprint(f'Module "{mod}" USEd without ONLY clause or not PRIVATE')
+                    msg(f'Module "{mod}" USEd without ONLY clause or not PRIVATE', 2)
 
             # if(("SAVE" in line) and ("PARAMETER" not in line) and ("PUBLIC" in line)):
             #    print(loc+': Symbol "'+cur_sym+'" in procedure "'+cur_proc+'" is PUBLIC-SAVE')
 
             if is_impl_save and not is_param and not is_imported and not is_module_name:
-                lprint(f'Symbol "{cur_sym}" in procedure "{cur_proc}" is IMPLICIT-SAVE')
+                msg(f'Symbol "{cur_sym}" in procedure "{cur_proc}" is IMPLICIT-SAVE', 3)
 
             if is_impl_type and not is_imported and not is_func:
-                lprint(f'Symbol "{cur_sym}" in procedure "{cur_proc}" is IMPLICIT-TYPE')
+                msg(f'Symbol "{cur_sym}" in procedure "{cur_proc}" is IMPLICIT-TYPE', 4)
 
             if "THREADPRIVATE" in line:
-                lprint(f'Symbol "{cur_sym}" in procedure "{cur_proc}" is THREADPRIVATE')
+                msg(f'Symbol "{cur_sym}" in procedure "{cur_proc}" is THREADPRIVATE', 5)
 
             if "PUBLIC" in line:
                 public_symbols.add(module_name + "::" + cur_sym)
 
         elif line.startswith("!$OMP PARALLEL"):
             if "DEFAULT(NONE)" not in line:
-                lprint(f'OMP PARALLEL without DEFAULT(NONE) found in "{cur_proc}"')
+                msg(f'OMP PARALLEL without DEFAULT(NONE) found in "{cur_proc}"', 6)
 
         elif line.startswith("CALL"):
             if "NULL()" in line:
-                lprint(f'Found CALL with NULL() as argument in procedure "{cur_proc}"')
+                msg(f'Found CALL with NULL() as argument in procedure "{cur_proc}"', 7)
 
             if tokens[1].lower() in BANNED_CALL:
-                lprint(f'Found CALL {tokens[1]} in procedure "{cur_proc}"')
+                msg(f'Found CALL {tokens[1]} in procedure "{cur_proc}"', 8)
             elif tokens[1].lower().startswith("_gfortran_arandom_"):
-                lprint(f'Found CALL RANDOM_NUMBER in procedure "{cur_proc}"')
+                msg(f'Found CALL RANDOM_NUMBER in procedure "{cur_proc}"', 9)
             elif tokens[1].lower().startswith("_gfortran_random_seed_"):
-                lprint(f'Found CALL RANDOM_SEED in procedure "{cur_proc}"')
+                msg(f'Found CALL RANDOM_SEED in procedure "{cur_proc}"', 10)
 
         elif tokens and tokens[0] in BANNED_STM:
-            lprint(f'Found {tokens[0]} statement in procedure "{cur_proc}"')
+            msg(f'Found {tokens[0]} statement in procedure "{cur_proc}"', 11)
 
         elif line.startswith("WRITE"):
             unit = tokens[1].split("=")[1]
             if unit.isdigit():
-                lprint(f'Found WRITE statement with hardcoded unit in "{cur_proc}"')
+                msg(f'Found WRITE statement with hardcoded unit in "{cur_proc}"', 12)
 
         elif line.startswith("DEALLOCATE") and "STAT=" in line:
             if ":ignore __final_" not in line:  # skip over auto-generated destructors
-                lprint(f'Found DEALLOCATE with STAT argument in "{cur_proc}"')
+                msg(f'Found DEALLOCATE with STAT argument in "{cur_proc}"', 13)
 
         elif "STAT=" in line:  # catches also IOSTAT
             stat_var = line.split("STAT=", 1)[1].split()[0]
@@ -133,14 +133,15 @@ def process_log_file(fhandle: TextIO) -> None:
             skip_until_DT_END = stat_stm in ("READ", "WRITE")
 
         elif "_gfortran_float" in line:
-            lprint(f'Found FLOAT in "{cur_proc}"')
+            msg(f'Found FLOAT in "{cur_proc}"', 14)
 
         elif re_conv.search(line):
             for m in re_conv.finditer(line):
                 args = parse_args(line[m.end() :])
                 if not re.match(r"\((kind = )?[48]\)", args[-1]):
-                    lprint(
-                        f'Found lossy conversion {m.group(1)} without KIND argument in "{cur_proc}"'
+                    msg(
+                        f'Found lossy conversion {m.group(1)} without KIND argument in "{cur_proc}"',
+                        15,
                     )
 
     # check for run-away DT_END search
