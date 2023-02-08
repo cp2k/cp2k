@@ -17,80 +17,34 @@ MODULE qs_rho_atom_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho_atom_types'
 
    TYPE rho_atom_coeff
-      REAL(dp), DIMENSION(:, :), POINTER :: r_coef
+      REAL(dp), DIMENSION(:, :), POINTER :: r_coef => NULL()
    END TYPE rho_atom_coeff
 
    TYPE rho_atom_type
-      TYPE(rho_atom_coeff), DIMENSION(:), &
-         POINTER  :: cpc_h, cpc_s
-      TYPE(rho_atom_coeff), DIMENSION(:), &
-         POINTER  :: rho_rad_h, &
-                     rho_rad_s, &
-                     vrho_rad_h, &
-                     vrho_rad_s
-      TYPE(rho_atom_coeff), DIMENSION(:), &
-         POINTER  :: drho_rad_h, &
-                     drho_rad_s
-      TYPE(rho_atom_coeff), DIMENSION(:, :), &
-         POINTER  :: rho_rad_h_d, &
-                     rho_rad_s_d
-
-      INTEGER                             :: rhoa_of_atom
-      REAL(dp)                            :: exc_h, &
-                                             exc_s
-      TYPE(rho_atom_coeff), DIMENSION(:), &
-         POINTER   :: ga_Vlocal_gb_h, &
-                      ga_Vlocal_gb_s
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER     :: cpc_h => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER     :: cpc_s => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER     :: rho_rad_h => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER     :: rho_rad_s => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER     :: vrho_rad_h => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER     :: vrho_rad_s => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER     :: drho_rad_h => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER     :: drho_rad_s => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER  :: rho_rad_h_d => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER  :: rho_rad_s_d => NULL()
+      INTEGER                                         :: rhoa_of_atom = -1
+      REAL(dp)                                        :: exc_h = 0.0_dp
+      REAL(dp)                                        :: exc_s = 0.0_dp
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER     :: ga_Vlocal_gb_h => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER     :: ga_Vlocal_gb_s => NULL()
    END TYPE rho_atom_type
 
    TYPE rho_atom_p_type
-      TYPE(rho_atom_type), POINTER       :: rho_atom
+      TYPE(rho_atom_type), POINTER :: rho_atom => NULL()
    END TYPE rho_atom_p_type
 
-   PUBLIC :: allocate_rho_atom_set, &
-             deallocate_rho_atom_set, &
-             get_rho_atom
-
-   PUBLIC :: rho_atom_coeff, rho_atom_type
+   PUBLIC :: deallocate_rho_atom_set, get_rho_atom, rho_atom_coeff, rho_atom_type
 
 CONTAINS
-
-! **************************************************************************************************
-!> \brief ...
-!> \param rho_atom_set ...
-!> \param natom ...
-! **************************************************************************************************
-   SUBROUTINE allocate_rho_atom_set(rho_atom_set, natom)
-
-      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
-      INTEGER, INTENT(IN)                                :: natom
-
-      INTEGER                                            :: iat
-
-      IF (ASSOCIATED(rho_atom_set)) THEN
-         CALL deallocate_rho_atom_set(rho_atom_set)
-      END IF
-
-      ALLOCATE (rho_atom_set(natom))
-
-      DO iat = 1, natom
-
-         NULLIFY (rho_atom_set(iat)%cpc_h)
-         NULLIFY (rho_atom_set(iat)%cpc_s)
-         NULLIFY (rho_atom_set(iat)%rho_rad_h)
-         NULLIFY (rho_atom_set(iat)%rho_rad_s)
-         NULLIFY (rho_atom_set(iat)%drho_rad_h)
-         NULLIFY (rho_atom_set(iat)%drho_rad_s)
-         NULLIFY (rho_atom_set(iat)%rho_rad_h_d)
-         NULLIFY (rho_atom_set(iat)%rho_rad_s_d)
-         NULLIFY (rho_atom_set(iat)%vrho_rad_h)
-         NULLIFY (rho_atom_set(iat)%vrho_rad_s)
-         NULLIFY (rho_atom_set(iat)%ga_Vlocal_gb_h)
-         NULLIFY (rho_atom_set(iat)%ga_Vlocal_gb_s)
-
-      END DO
-
-   END SUBROUTINE allocate_rho_atom_set
 
 ! **************************************************************************************************
 !> \brief ...
