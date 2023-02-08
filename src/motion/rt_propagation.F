@@ -248,9 +248,13 @@ CONTAINS
                             nelectron_spin=nelectron_spin)
             IF (ASSOCIATED(mos)) THEN
                !The wavefunction was minimized by an mo based algorith. P is therefore calculated from the mos
-               IF (ASSOCIATED(rtp%mos) .AND. ASSOCIATED(rtp%mos%old)) THEN
-                  ! Delta kick was applied and the results is in rtp%mos%old
-                  CALL rt_initialize_rho_from_mos(rtp, mos, mos_old=rtp%mos%old)
+               IF (ASSOCIATED(rtp%mos)) THEN
+                  IF (ASSOCIATED(rtp%mos%old)) THEN
+                     ! Delta kick was applied and the results is in rtp%mos%old
+                     CALL rt_initialize_rho_from_mos(rtp, mos, mos_old=rtp%mos%old)
+                  ELSE
+                     CALL rt_initialize_rho_from_mos(rtp, mos)
+                  END IF
                ELSE
                   CALL rt_initialize_rho_from_mos(rtp, mos)
                END IF
@@ -263,10 +267,9 @@ CONTAINS
                   CALL dbcsr_copy(rho_new(re)%matrix, qs_env%ls_scf_env%matrix_p(ispin))
                END DO
             END IF
+            CALL calc_update_rho_sparse(qs_env)
          END IF
-         CALL calc_update_rho_sparse(qs_env)
       END IF
-
       ! Modify KS matrix to include the additional terms in the velocity gauge
       IF (rtp_control%velocity_gauge) THEN
          ! As matrix_h and matrix_h_im are not updated by qs_ks_update_qs_env()
