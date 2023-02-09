@@ -43,6 +43,7 @@ endif()
 
 # add target to link against
 if(GenericBLAS_FOUND)
+
   if(NOT TARGET CP2K::BLAS::GenericBLAS::blas)
     add_library(CP2K::BLAS::GenericBLAS::blas INTERFACE IMPORTED)
   endif()

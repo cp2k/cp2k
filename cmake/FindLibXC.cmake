@@ -50,7 +50,7 @@ if(CP2K_LIBXC_FOUND)
     add_library(CP2K::Libxc::xc INTERFACE IMPORTED)
   endif()
 
-  if(LIBXC_INCLUDE_DIRS)
+  if(CP2K_LIBXC_INCLUDE_DIRS)
     set_target_properties(
       CP2K::Libxc::xc PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
                                 "${CP2K_LIBXC_INCLUDE_DIRS}")

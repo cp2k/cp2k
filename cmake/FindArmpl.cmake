@@ -42,6 +42,7 @@ find_package_handle_standard_args(
 
 # add target to link against
 if(CP2K_ARMPL_LP64_FOUND)
+
   if (NOT TARGET Armpl::armpl)
     add_library(CP2K::BLAS::Armpl::armpl INTERFACE IMPORTED)
     # now define an alias to the target library
@@ -60,6 +61,7 @@ if(CP2K_ARMPL_LP64_FOUND)
       endif()
     endforeach()
   endif()
+
 
   set_property(TARGET CP2K::BLAS::Armpl::armpl PROPERTY INTERFACE_INCLUDE_DIRECTORIES
     ${CP2K_ARMPL_INCLUDE_DIRS})
