@@ -126,8 +126,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(dp), DIMENSION(3)                             :: rc
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_matrix_hr_rh', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_matrix_hr_rh'
 
       INTEGER                                            :: handle, i
       REAL(KIND=dp)                                      :: eps_ppnl
@@ -202,8 +201,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: ref_point
       LOGICAL                                            :: direction_Or
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_rpnl_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_rpnl_matrix'
 
       INTEGER                                            :: handle, i, iab, iac, iatom, ibc, icol, &
                                                             ikind, irow, jatom, jkind, kac, kbc, &
@@ -403,8 +401,7 @@ CONTAINS
       LOGICAL                                            :: direction_Or
       REAL(KIND=dp), DIMENSION(3), OPTIONAL              :: rc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_tr_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'build_tr_matrix'
 
       INTEGER                                            :: handle, iatom, icol, ikind, ir, irow, &
                                                             iset, jatom, jkind, jset, ldsab, ltab, &
@@ -642,8 +639,7 @@ CONTAINS
          POINTER                                         :: sab_nl
       REAL(KIND=dp), DIMENSION(3), OPTIONAL              :: rf
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_rcore_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_rcore_matrix'
       INTEGER, PARAMETER                                 :: nexp_max = 30
 
       INTEGER :: atom_a, atom_b, handle, i, iatom, icol, idir, ikind, inode, irow, iset, jatom, &
@@ -993,8 +989,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), DIMENSION(3)                        :: rc
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_matrix_r_vhxc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_matrix_r_vhxc'
 
       INTEGER                                            :: idir, ispin, nspins
       REAL(kind=dp)                                      :: edisp
@@ -1498,8 +1493,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: deltaR
       REAL(KIND=dp), DIMENSION(3)                        :: rcc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_dSdV_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'build_dSdV_matrix'
 
       INTEGER                                            :: handle, i, natom, nspins, output_unit, &
                                                             unit_number
@@ -1616,8 +1610,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       LOGICAL, INTENT(IN)                                :: direction_Or
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_com_rpnl_r', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_com_rpnl_r'
 
       INTEGER :: bi_1, bi_x, bi_xx, bi_xy, bi_xz, bi_y, bi_yy, bi_yz, bi_z, bi_zz, handle, i, iab, &
          iac, iatom, ibc, icol, ikind, irow, j, jatom, jkind, kac, kbc, kkind, na, natom, nb, &
@@ -1931,8 +1924,7 @@ CONTAINS
          POINTER                                         :: particle_set
       INTEGER, INTENT(IN)                                :: pseudoatom
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_dcom_rpnl', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_dcom_rpnl'
 
       INTEGER :: bi_1, bi_x, bi_xx, bi_xy, bi_xz, bi_y, bi_yy, bi_yz, bi_z, bi_zz, handle, i, iab, &
          iac, iatom, ibc, icol, ikind, irow, j, jatom, jkind, kac, kbc, kkind, na, natom, nb, &
@@ -2359,8 +2351,7 @@ CONTAINS
          POINTER                                         :: particle_set
       INTEGER                                            :: pseudoatom
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_drpnl_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_drpnl_matrix'
 
       INTEGER :: bi_1, bi_x, bi_xx, bi_xy, bi_xz, bi_y, bi_yy, bi_yz, bi_z, bi_zz, handle, i, iab, &
          iac, iatom, ibc, icol, ikind, irow, jatom, jkind, kac, kbc, kkind, na, natom, nb, nkind, &
@@ -2680,8 +2671,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: lambda
       LOGICAL                                            :: direction_Or
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'hr_mult_by_delta_1d', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'hr_mult_by_delta_1d'
 
       INTEGER                                            :: handle, iatom, icol, ikind, irow, jatom, &
                                                             jkind, ldsab, mepos, nkind, nseta, &
@@ -2818,8 +2808,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: deltaR
       LOGICAL                                            :: direction_Or
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'hr_mult_by_delta_3d', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'hr_mult_by_delta_3d'
 
       INTEGER                                            :: handle, iatom, icol, ikind, ir, irow, &
                                                             jatom, jkind, ldsab, mepos, nkind, &

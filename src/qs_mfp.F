@@ -92,7 +92,7 @@ CONTAINS
       TYPE(vcd_env_type)                                 :: vcd_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mfp_aat', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mfp_aat'
 
       INTEGER                                            :: alpha, delta, gamma, handle, ikind, &
                                                             ispin, nao, nmo
@@ -530,8 +530,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER                                            :: alpha
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mfp_build_operator_gauge_dependent', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mfp_build_operator_gauge_dependent'
 
       INTEGER                                            :: delta, gamma, handle, ispin, nao, nmo
       REAL(dp)                                           :: eps_ppnl, lc_tmp
@@ -857,8 +856,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER                                            :: alpha
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mfp_build_operator_gauge_independent', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mfp_build_operator_gauge_independent'
 
       INTEGER                                            :: delta, gamma, handle, ispin, nao, nmo
       REAL(dp)                                           :: eps_ppnl, lc_tmp
@@ -1162,7 +1160,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: alpha
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mfp_response', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mfp_response'
 
       INTEGER                                            :: handle, ispin, nspins, output_unit
       LOGICAL                                            :: failure, should_stop
@@ -1279,8 +1277,7 @@ CONTAINS
       LOGICAL                                            :: basis_function_nu
       REAL(dp), DIMENSION(3), OPTIONAL                   :: gauge_origin
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'multiply_by_position', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'multiply_by_position'
 
       INTEGER                                            :: handle, iatom, icol, ikind, inode, irow, &
                                                             jatom, jkind, last_jatom, mepos, &

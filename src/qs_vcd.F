@@ -608,7 +608,7 @@ CONTAINS
       TYPE(vcd_env_type)                                 :: vcd_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'apt_dV', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'apt_dV'
 
       INTEGER                                            :: alpha, handle, i, ikind, ispin, nao, &
                                                             natom, nmo, nspins
@@ -896,8 +896,7 @@ CONTAINS
       TYPE(vcd_env_type)                                 :: vcd_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_per_atom_vcd', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_per_atom_vcd'
 
       INTEGER                                            :: handle, i, ispin, j
       TYPE(cell_type), POINTER                           :: cell
@@ -1025,8 +1024,7 @@ CONTAINS
       TYPE(vcd_env_type)                                 :: vcd_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'vcd_build_op_dV', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'vcd_build_op_dV'
 
       INTEGER                                            :: handle, ispin, nao, natom, nmo, nspins
       REAL(KIND=dp)                                      :: eps_ppnl
@@ -1133,8 +1131,7 @@ CONTAINS
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'vcd_response_dV', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'vcd_response_dV'
 
       INTEGER                                            :: handle, ispin, nspins, output_unit
       LOGICAL                                            :: failure, should_stop

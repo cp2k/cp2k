@@ -129,8 +129,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: order, lambda
       REAL(KIND=dp), DIMENSION(3)                        :: rc
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dipole_velocity_deriv', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dipole_velocity_deriv'
 
       INTEGER :: handle, i, iatom, icol, idir, ikind, inode, irow, iset, j, jatom, jkind, jset, &
          last_jatom, lda, ldab, ldb, M_dim, maxsgf, natom, ncoa, ncob, nkind, nseta, nsetb, sgfa, &

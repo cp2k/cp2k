@@ -780,7 +780,7 @@ CONTAINS
       TYPE(vcd_env_type)                                 :: vcd_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'vcd_print', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'vcd_print'
 
       CHARACTER(LEN=default_string_length)               :: description
       INTEGER                                            :: alpha, beta, delta, gamma, i, l, lambda, &
