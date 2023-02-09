@@ -991,7 +991,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_matrix_r_vhxc'
 
-      INTEGER                                            :: idir, ispin, nspins
+      INTEGER                                            :: handle, idir, ispin, nspins
       REAL(kind=dp)                                      :: edisp
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -1009,6 +1009,8 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho, rho_struct, rho_xc
       TYPE(section_vals_type), POINTER                   :: input, xc_section
       TYPE(virial_type), POINTER                         :: virial
+
+      CALL timeset(routineN, handle)
 
       NULLIFY (matrix_rvxc)
       NULLIFY (matrix_rvxc_desymm)
@@ -1093,6 +1095,9 @@ CONTAINS
 
       CALL dbcsr_deallocate_matrix_set(matrix_rvxc)
       CALL dbcsr_deallocate_matrix_set(matrix_rvxc_desymm)
+
+      CALL timestop(handle)
+
    END SUBROUTINE build_matrix_r_vhxc
 
 ! **************************************************************************************************

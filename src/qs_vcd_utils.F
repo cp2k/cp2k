@@ -99,8 +99,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'vcd_env_init'
 
-      INTEGER                                            :: i, idir, ispin, j, natom, nspins, &
-                                                            output_unit, reference, unit_number
+      INTEGER                                            :: handle, i, idir, ispin, j, natom, &
+                                                            nspins, output_unit, reference, &
+                                                            unit_number
       LOGICAL                                            :: explicit
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
       TYPE(cell_type), POINTER                           :: cell
@@ -114,6 +115,7 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(section_vals_type), POINTER                   :: lr_section, vcd_section
 
+      CALL timeset(routineN, handle)
       vcd_env%do_mfp = .FALSE.
 
       ! Set up the logger
@@ -436,6 +438,7 @@ CONTAINS
       !    WRITE (vcd_env%output_unit, *) 'size(vcd_env%list_of_atoms)', SIZE(vcd_env%dcdr_env%list_of_atoms)
       !    WRITE (vcd_env%output_unit, *) 'vcd_env%list_of_atoms', vcd_env%dcdr_env%list_of_atoms
       ! END IF
+      CALL timestop(handle)
 
    END SUBROUTINE vcd_env_init
 
@@ -452,7 +455,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'vcd_env_cleanup'
 
-      INTEGER                                            :: ispin
+      INTEGER                                            :: handle, ispin
+
+      CALL timeset(routineN, handle)
 
       ! We can't run a NVPT/MFPT calculation without the coefficients dC/dR.
       CALL dcdr_env_cleanup(qs_env, vcd_env%dcdr_env)
@@ -510,6 +515,7 @@ CONTAINS
       CALL dbcsr_deallocate_matrix_set(vcd_env%matrix_r_doublecom)
       CALL dbcsr_deallocate_matrix_set(vcd_env%matrix_nosym_temp_33)
       CALL dbcsr_deallocate_matrix_set(vcd_env%matrix_nosym_temp2_33)
+      CALL timestop(handle)
 
    END SUBROUTINE vcd_env_cleanup
 
@@ -783,8 +789,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'vcd_print'
 
       CHARACTER(LEN=default_string_length)               :: description
-      INTEGER                                            :: alpha, beta, delta, gamma, i, l, lambda, &
-                                                            natom, nsubset, output_unit
+      INTEGER                                            :: alpha, beta, delta, gamma, handle, i, l, &
+                                                            lambda, natom, nsubset, output_unit
       REAL(dp)                                           :: mean, standard_deviation, &
                                                             standard_deviation_sum
       REAL(dp), DIMENSION(:, :, :), POINTER              :: apt_el_dcdr, apt_el_nvpt, apt_nuc_dcdr, &
@@ -800,6 +806,8 @@ CONTAINS
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: vcd_section
+
+      CALL timeset(routineN, handle)
 
       NULLIFY (logger)
 
@@ -995,6 +1003,7 @@ CONTAINS
       END DO
       IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, "(T73,F15.6)") standard_deviation_sum
 
+      CALL timestop(handle)
    END SUBROUTINE vcd_print
 
 END MODULE qs_vcd_utils

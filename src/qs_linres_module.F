@@ -141,8 +141,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_p_env_type)                                :: p_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'vcd_linres'
-
       INTEGER                                            :: beta, i, latom
       LOGICAL                                            :: mfp_is_done, mfp_repeat
       TYPE(vcd_env_type)                                 :: vcd_env
