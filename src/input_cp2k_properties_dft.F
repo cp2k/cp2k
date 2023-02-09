@@ -398,7 +398,7 @@ CONTAINS
 !> \brief creates the input structure used to activate
 !>      calculation of VCD spectra using DFPT
 !> \param section ...
-!> \author Sandra Luber, Edward Ditler
+!> \author Sandra Luber, Tomas Zimmermann, Edward Ditler
 ! **************************************************************************************************
    SUBROUTINE create_vcd_section(section)
 

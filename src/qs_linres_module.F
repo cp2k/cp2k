@@ -17,6 +17,7 @@
 ! **************************************************************************************************
 MODULE qs_linres_module
    USE bibliography,                    ONLY: Ditler2021,&
+                                              Ditler2022,&
                                               Weber2009,&
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type
@@ -146,6 +147,7 @@ CONTAINS
       TYPE(vcd_env_type)                                 :: vcd_env
       LOGICAL :: mfp_repeat, mfp_is_done
 
+      CALL cite_reference(Ditler2022)
 
       ! We need the position perturbation for the velocity perturbation operator
       CALL vcd_env_init(vcd_env, qs_env)
@@ -166,10 +168,6 @@ CONTAINS
          DO beta = 1, 3                   ! in every direction
 
             vcd_env%dcdr_env%beta = beta
-            ! IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) REPEAT('-', 80)
-            ! IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) &
-            !    'vel lambda, beta', vcd_env%dcdr_env%lambda, vcd_env%dcdr_env%beta
-
             vcd_env%dcdr_env%deltaR(vcd_env%dcdr_env%beta, vcd_env%dcdr_env%lambda) = 1._dp
 
             ! Since we do the heavy lifting anyways, we might also calculate the length form APTs here
@@ -184,23 +182,25 @@ CONTAINS
             CALL apt_dV(vcd_env, qs_env)
             CALL aat_dV(vcd_env, qs_env)
 
-            ! Since came so far, we might as well calculate the MFP AATs
-            ! If we use a distributed origin we need to compute the MFP response again for each
-            !   atom, because the reference point changes.
-            IF (.NOT. mfp_is_done .OR. mfp_repeat) THEN
-               DO i = 1, 3
-                  IF (vcd_env%origin_dependent_op_mfp) THEN
-                     CPWARN("Using the origin dependent MFP operator")
-                     CALL mfp_build_operator_gauge_dependent(vcd_env, qs_env, i)
-                  ELSE
-                     CALL mfp_build_operator_gauge_independent(vcd_env, qs_env, i)
-                  ENDIF
-                  CALL mfp_response(vcd_env, p_env, qs_env, i)
-               ENDDO
-               mfp_is_done = .TRUE.
-            ENDIF
+            if (vcd_env%do_mfp) then
+               ! Since came so far, we might as well calculate the MFP AATs
+               ! If we use a distributed origin we need to compute the MFP response again for each
+               !   atom, because the reference point changes.
+               IF (.NOT. mfp_is_done .OR. mfp_repeat) THEN
+                  DO i = 1, 3
+                     IF (vcd_env%origin_dependent_op_mfp) THEN
+                        CPWARN("Using the origin dependent MFP operator")
+                        CALL mfp_build_operator_gauge_dependent(vcd_env, qs_env, i)
+                     ELSE
+                        CALL mfp_build_operator_gauge_independent(vcd_env, qs_env, i)
+                     ENDIF
+                     CALL mfp_response(vcd_env, p_env, qs_env, i)
+                  ENDDO
+                  mfp_is_done = .TRUE.
+               ENDIF
 
-            CALL mfp_aat(vcd_env, qs_env)
+               CALL mfp_aat(vcd_env, qs_env)
+            endif
          END DO ! beta
 
          vcd_env%dcdr_env%apt_total_dcdr(:, :, vcd_env%dcdr_env%lambda) = &
@@ -210,15 +210,12 @@ CONTAINS
          vcd_env%apt_total_nvpt(:, :, vcd_env%dcdr_env%lambda) = &
             vcd_env%apt_el_nvpt(:, :, vcd_env%dcdr_env%lambda) + vcd_env%apt_nuc_nvpt(:, :, vcd_env%dcdr_env%lambda)
 
-         ! ADF prints the AAT with a factor of 4
-         vcd_env%aat_atom_mfp(:, :, vcd_env%dcdr_env%lambda) = vcd_env%aat_atom_mfp(:, :, vcd_env%dcdr_env%lambda)*4._dp
+         if (vcd_env%do_mfp) &
+            vcd_env%aat_atom_mfp(:, :, vcd_env%dcdr_env%lambda) = vcd_env%aat_atom_mfp(:, :, vcd_env%dcdr_env%lambda)*4._dp
 
       END DO !lambda
 
       CALL vcd_print(vcd_env, qs_env)
-      ! IF (vcd_env%do_intensities) &
-      ! CALL calculate_spectrum(qs_env, vcd_env, filename=vcd_env%hessian_filename, natom=natom)
-      ! CALL dcdr_print(vcd_env%dcdr_env, qs_env)
       CALL vcd_env_cleanup(qs_env, vcd_env)
 
    END SUBROUTINE vcd_linres

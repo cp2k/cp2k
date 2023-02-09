@@ -665,7 +665,7 @@ CONTAINS
 !>        The directions alpha, beta are stored in vcd_env%dcdr_env
 !> \param vcd_env ...
 !> \param qs_env ...
-!> \author Edward Ditler
+!> \author Edward Ditler, Tomas Zimmermann
 ! **************************************************************************************************
    SUBROUTINE apt_dV(vcd_env, qs_env)
       TYPE(vcd_env_type)                                 :: vcd_env
@@ -778,10 +778,6 @@ CONTAINS
          apt_dipvel = 2._dp*apt_dipvel
          apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + f_spin*apt_dipvel
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'apt dipvel: ', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, &
-         !    +f_spin*apt_dipvel
       END DO
 
       DO alpha = 1, 3
@@ -796,10 +792,6 @@ CONTAINS
 
          apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + f_spin*apt_hcom
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'apt hcom: ', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, &
-         !    +f_spin*apt_hcom
       END DO  !x/y/z
 
       ! STEP 2: basis function derivative contribution
@@ -817,9 +809,6 @@ CONTAINS
       apt_difdip = -f_spin*apt_difdip
       apt_el(vcd_env%dcdr_env%beta, vcd_env%dcdr_env%beta, vcd_env%dcdr_env%lambda) &
          = apt_el(vcd_env%dcdr_env%beta, vcd_env%dcdr_env%beta, vcd_env%dcdr_env%lambda) + apt_difdip
-      ! IF (vcd_env%output_unit > 0) &
-      !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-      !    'apt difdip_s:', vcd_env%dcdr_env%beta, vcd_env%dcdr_env%beta, vcd_env%dcdr_env%lambda, apt_difdip
 
       !! difdip(j, idir) = < a | r_j | ∂_idir b >
       !! matrix_difdip2(beta, alpha) = < a | r_beta | ∂_alpha b >
@@ -834,9 +823,6 @@ CONTAINS
          apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + apt_difdip
 
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'apt difdip:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, apt_difdip
       END DO !alpha
 
       ! STEP 3: The terms r * [V, r]
@@ -860,9 +846,6 @@ CONTAINS
 
          apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + f_spin*apt_rcom
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'apt rcom: ', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, f_spin*apt_rcom
       END DO !alpha
 
       ! STEP 4: pseudopotential derivative contribution
@@ -873,9 +856,6 @@ CONTAINS
          CALL cp_fm_trace(mo_coeff, buf, apt_dcom)
          apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + f_spin*apt_dcom
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'apt dcom: ', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, f_spin*apt_dcom
       END DO !alpha
 
       ! The reference point dependent terms:
@@ -909,10 +889,6 @@ CONTAINS
 
          apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + f_spin*apt_difdip
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'apt difdip_munu: ', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, &
-         !    +f_spin*apt_difdip
       END DO
 
       ! And the additional factor to rcom
@@ -944,9 +920,6 @@ CONTAINS
 
          apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + f_spin*apt_rcom
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'apt rcom_munu: ', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, +f_spin*apt_rcom
       END DO
 
       ! STEP 5: nuclear contribution
@@ -956,10 +929,6 @@ CONTAINS
       IF (.NOT. ghost) THEN
          apt_nuc(vcd_env%dcdr_env%beta, vcd_env%dcdr_env%beta, vcd_env%dcdr_env%lambda) = &
             apt_nuc(vcd_env%dcdr_env%beta, vcd_env%dcdr_env%beta, vcd_env%dcdr_env%lambda) + charge
-
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'apt nuclear: ', vcd_env%dcdr_env%beta, vcd_env%dcdr_env%beta, vcd_env%dcdr_env%lambda, charge
       END IF
 
       ! STEP 6: deallocations
@@ -1114,7 +1083,7 @@ CONTAINS
 !>               - S1 * C0 * E0                        [STEP 5]
 !> \param vcd_env ...
 !> \param qs_env ...
-!> \author Edward Ditler
+!> \author Edward Ditler, Tomas Zimmermann
 ! **************************************************************************************************
    SUBROUTINE vcd_build_op_dV(vcd_env, qs_env)
       TYPE(vcd_env_type)                                 :: vcd_env
@@ -1220,7 +1189,7 @@ CONTAINS
 !> \param vcd_env ...
 !> \param p_env ...
 !> \param qs_env ...
-!> \author Edward Ditler
+!> \author Edward Ditler, Tomas Zimmermann
 ! **************************************************************************************************
    SUBROUTINE vcd_response_dV(vcd_env, p_env, qs_env)
 

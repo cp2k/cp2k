@@ -251,7 +251,7 @@ MODULE qs_linres_types
 
       INTEGER :: output_unit
       REAL(dp), DIMENSION(3) :: spatial_origin, spatial_origin_atom, magnetic_origin, magnetic_origin_atom
-      LOGICAL :: distributed_origin, origin_dependent_op_mfp
+      LOGICAL :: distributed_origin, origin_dependent_op_mfp, do_mfp
 
       ! APTs and AATs in velocity form
       REAL(dp), DIMENSION(:, :, :), POINTER :: apt_el_nvpt, apt_nuc_nvpt, apt_total_nvpt

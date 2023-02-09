@@ -92,6 +92,7 @@ CONTAINS
 !> \brief ...
 !> \param vcd_env ...
 !> \param qs_env ...
+!> \author Edward Ditler
 ! **************************************************************************************************
    SUBROUTINE mfp_aat(vcd_env, qs_env)
       TYPE(vcd_env_type)                                :: vcd_env
@@ -563,6 +564,7 @@ CONTAINS
 !> \param vcd_env ...
 !> \param qs_env ...
 !> \param alpha ...
+!> \author Edward Ditler
 ! **************************************************************************************************
    SUBROUTINE mfp_build_operator_gauge_dependent(vcd_env, qs_env, alpha)
       TYPE(vcd_env_type)                                :: vcd_env
@@ -904,6 +906,7 @@ CONTAINS
 !> \param vcd_env ...
 !> \param qs_env ...
 !> \param alpha ...
+!> \author Edward Ditler
 ! **************************************************************************************************
    SUBROUTINE mfp_build_operator_gauge_independent(vcd_env, qs_env, alpha)
       TYPE(vcd_env_type)                                :: vcd_env
@@ -1218,6 +1221,7 @@ CONTAINS
 !> \param p_env ...
 !> \param qs_env ...
 !> \param alpha ...
+!> \author Edward Ditler
 ! **************************************************************************************************
    SUBROUTINE mfp_response(vcd_env, p_env, qs_env, alpha)
 
@@ -1332,6 +1336,7 @@ CONTAINS
 !> \param direction           The index of the nuclear position we are multiplying by
 !> \param basis_function_nu   Determines whether we multiply by R^nu or R^mu
 !> \param gauge_origin        The gauge origin, if we do distributed gauge
+!> \author Edward Ditler
 ! **************************************************************************************************
    SUBROUTINE multiply_by_position(matrix, qs_kind_set, particle_set, basis_type, sab_nl, &
                                    direction, basis_function_nu, gauge_origin)

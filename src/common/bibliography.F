@@ -89,7 +89,7 @@ MODULE bibliography
                             Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, Lass2018, cp2kqs2020, &
                             Behler2007, Behler2011, Schran2020a, Schran2020b, &
                             Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Shigeta2001, Heinecke2016, &
-                            Brehm2021, Bussy2021a, Bussy2021b, Ditler2021, Mattiat2019, Mattiat2022
+                            Brehm2021, Bussy2021a, Bussy2021b, Ditler2021, Ditler2022, Mattiat2019, Mattiat2022
 
 CONTAINS
 
@@ -4738,6 +4738,25 @@ CONTAINS
                          "DI 10.1063/5.0041056", &
                          "ER"), &
                          DOI="10.1063/5.0041056")
+
+
+      CALL add_reference(key=Ditler2022, ISI_record=s2a( &
+                         "TY JOUR", &
+                         "PT J", &
+                         "AU Ditler, Edward", &
+                         "   Zimmermann, Tomas", &
+                         "   Kumar, Chandan", &
+                         "   Luber, Sandra", &
+                         "TI Implementation of Nuclear Velocity Perturbation and Magnetic Field Perturbation", &
+                         "     Theory in CP2K and Their Application to Vibrational Circular Dichroism", &
+                         "SO The Journal of Chemical Theory and Computation", &
+                         "PY 2022", &
+                         "VL 18", &
+                         "BP 2448", &
+                         "EP 2461", &
+                         "DI 10.1021/acs.jctc.2c00006", &
+                         "ER"), &
+                         DOI="10.1021/acs.jctc.2c00006")
 
       CALL add_reference(key=Mattiat2019, ISI_record=s2a( &
                          "TY JOUR", &

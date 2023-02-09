@@ -113,9 +113,8 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(section_vals_type), POINTER                   :: lr_section, vcd_section
-      TYPE(vcd_env_type), POINTER                        :: vcd_env_p
 
-      vcd_env_p => vcd_env
+      vcd_env%do_mfp = .false.
 
       ! Set up the logger
       NULLIFY (logger, vcd_section, lr_section)
@@ -865,17 +864,19 @@ CONTAINS
          END DO
       END DO
 
-      IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, "(A)") &
-         'MFP | Write the final AAT matrix per atom (Magnetic Field perturbation)'
-      DO l = 1, natom
-         IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, "(A,I3)") &
-            'MFP | Atom', l
-         DO i = 1, 3
-            IF (vcd_env%output_unit > 0) &
-               WRITE (vcd_env%output_unit, "(A,F15.6,F15.6,F15.6)") &
-               "MFP | ", vcd_env%aat_atom_mfp(i, :, l)
+      if (vcd_env%do_mfp) then
+         IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, "(A)") &
+            'MFP | Write the final AAT matrix per atom (Magnetic Field perturbation)'
+         DO l = 1, natom
+            IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, "(A,I3)") &
+               'MFP | Atom', l
+            DO i = 1, 3
+               IF (vcd_env%output_unit > 0) &
+                  WRITE (vcd_env%output_unit, "(A,F15.6,F15.6,F15.6)") &
+                  "MFP | ", vcd_env%aat_atom_mfp(i, :, l)
+            END DO
          END DO
-      END DO
+      endif
 
       ! Get the dipole
       CALL get_qs_env(qs_env, results=results)
@@ -932,11 +933,13 @@ CONTAINS
                ! + 2._dp*c_light_au*vcd_env%aat_atom_nvpt(alpha, beta, lambda)
             END DO
 
-            ! 3: 2c * sum_lambda aat(alpha, beta, lambda)
-            DO lambda = 1, natom
-               sum_rule_3_mfp(alpha, beta) = sum_rule_3_mfp(alpha, beta) &
-                                             + vcd_env%aat_atom_mfp(alpha, beta, lambda)
-            ENDDO
+            if (vcd_env%do_mfp) then
+               ! 3: 2c * sum_lambda aat(alpha, beta, lambda)
+               DO lambda = 1, natom
+                  sum_rule_3_mfp(alpha, beta) = sum_rule_3_mfp(alpha, beta) &
+                                                + vcd_env%aat_atom_mfp(alpha, beta, lambda)
+               ENDDO
+            endif
 
          END DO ! beta
       END DO   ! alpha

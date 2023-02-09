@@ -189,7 +189,7 @@ CONTAINS
 !> \param cell ...
 !> \param ref_point ...
 !> \param direction_Or ...
-!> \author Edward Ditler
+!> \author Edward Ditler, Tomas Zimmermann
 ! **************************************************************************************************
    SUBROUTINE build_rpnl_matrix(matrix_rv, qs_kind_set, particle_set, sab_all, sap_ppnl, eps_ppnl, &
                                 cell, ref_point, direction_Or)
@@ -1609,7 +1609,7 @@ CONTAINS
 !> \param particle_set ...
 !> \param cell ...
 !> \param direction_Or ...
-!> \author Edward Ditler
+!> \author Edward Ditler, Tomas Zimmermann
 ! **************************************************************************************************
    SUBROUTINE build_com_rpnl_r(matrix_rv, qs_kind_set, sab_all, sap_ppnl, eps_ppnl, &
                                particle_set, cell, direction_Or)
@@ -2588,7 +2588,7 @@ CONTAINS
 !>      - zet{a,b}  : Exponents of the Gaussian-type functions a or b.
 !>      - zetp      : Reciprocal of the sum of the exponents of orbital a and b.
 !>
-!> \author  TZ
+!> \author  Tomas Zimmermann
 ! **************************************************************************************************
    SUBROUTINE ab_opr(la_max, npgfa, rpgfa, la_min, lb_max, npgfb, rpgfb, lb_min, &
                      dab, ab, comabr, ra, rb, direction_Or)
