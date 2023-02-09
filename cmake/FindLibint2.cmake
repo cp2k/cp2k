@@ -49,12 +49,12 @@ if(CP2K_LIBINT2_FOUND)
   if(CP2K_LIBINT2_INCLUDE_DIRS)
     set_target_properties(
       CP2K::Libint2::int2 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
-                                    "${CP2K_LIBINT2_INCLUDE_DIRS}")
+                                     "${CP2K_LIBINT2_INCLUDE_DIRS}")
   endif()
 
   set_target_properties(
     CP2K::Libint2::int2 PROPERTIES INTERFACE_LINK_LIBRARIES
-                                  ${CP2K_LIBINT2_LINK_LIBRARIES})
+                                   ${CP2K_LIBINT2_LINK_LIBRARIES})
 endif()
 
 mark_as_advanced(CP2K_LIBINT2_FOUND CP2K_LIBINT2_LINK_LIBRARIES

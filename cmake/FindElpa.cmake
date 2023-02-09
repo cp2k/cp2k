@@ -36,7 +36,7 @@ if(CP2K_ELPA_FOUND)
   endif()
   set_target_properties(
     CP2K::ELPA::elpa PROPERTIES INTERFACE_LINK_LIBRARIES
-                               "${CP2K_ELPA_LINK_LIBRARIES}")
+                                "${CP2K_ELPA_LINK_LIBRARIES}")
   if(CP2K_ELPA_INCLUDE_DIRS)
     set_target_properties(
       CP2K::ELPA::elpa

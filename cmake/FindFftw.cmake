@@ -73,7 +73,7 @@ foreach(lib_name "fftw3" "fftw3l" "fftw3q" "fftw3f")
     if(CP2K_FFTW3_INCLUDE_DIRS)
       set_target_properties(
         CP2K::FFTW3::${lib_name} PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
-                                           "${CP2K_FFTW3_INCLUDE_DIRS}")
+                                            "${CP2K_FFTW3_INCLUDE_DIRS}")
     endif()
 
     foreach(sub_type "threads" "mpi" "omp")

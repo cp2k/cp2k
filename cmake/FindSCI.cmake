@@ -52,24 +52,26 @@ if(CP2K_LIBSCI_FOUND)
     add_library(CP2K::BLAS::SCI::blas INTERFACE IMPORTED)
 
     if(CP2K_LIBSCI_INCLUDE_DIRS)
-      set_property(TARGET CP2K::BLAS::SCI::sci PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-                                                 "${CP2K_LIBSCI_INCLUDE_DIRS}")
+      set_property(
+        TARGET CP2K::BLAS::SCI::sci PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+                                             "${CP2K_LIBSCI_INCLUDE_DIRS}")
       set_property(
         TARGET CP2K::BLAS::SCI::sci_mp PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-                                         "${CP2K_LIBSCI_INCLUDE_DIRS}")
+                                                "${CP2K_LIBSCI_INCLUDE_DIRS}")
       set_property(
         TARGET CP2K::BLAS::SCI::sci_mpi PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-                                          "${CP2K_LIBSCI_INCLUDE_DIRS}")
+                                                 "${CP2K_LIBSCI_INCLUDE_DIRS}")
       set_property(
-        TARGET CP2K::BLAS::SCI::sci_mpi_mp PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-                                             "${CP2K_LIBSCI_INCLUDE_DIRS}")
+        TARGET CP2K::BLAS::SCI::sci_mpi_mp
+        PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${CP2K_LIBSCI_INCLUDE_DIRS}")
     endif()
 
-    set_property(TARGET CP2K::BLAS::SCI::sci PROPERTY INTERFACE_LINK_LIBRARIES
-                                               ${CP2K_LIBSCI_LINK_LIBRARIES})
+    set_property(
+      TARGET CP2K::BLAS::SCI::sci PROPERTY INTERFACE_LINK_LIBRARIES
+                                           ${CP2K_LIBSCI_LINK_LIBRARIES})
     set_property(
       TARGET CP2K::BLAS::SCI::sci_mp PROPERTY INTERFACE_LINK_LIBRARIES
-                                       ${CP2K_LIBSCI_MP_LINK_LIBRARIES})
+                                              ${CP2K_LIBSCI_MP_LINK_LIBRARIES})
     set_property(
       TARGET CP2K::BLAS::SCI::sci_mpi
       PROPERTY INTERFACE_LINK_LIBRARIES ${CP2K_LIBSCI_MPI_LINK_LIBRARIES}
@@ -79,18 +81,18 @@ if(CP2K_LIBSCI_FOUND)
       PROPERTY INTERFACE_LINK_LIBRARIES ${CP2K_LIBSCI_MPI_MP_LINK_LIBRARIES}
                CP2K::BLAS::SCI::sci_mp)
     set_property(
-      TARGET CP2K::BLAS::SCI::scalapack_link PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-                                               "${CP2K_LIBSCI_INCLUDE_DIRS}")
+      TARGET CP2K::BLAS::SCI::scalapack_link
+      PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${CP2K_LIBSCI_INCLUDE_DIRS}")
   endif()
 
   if(CP2K_BLAS_THREADING MATCHES "sequential")
     set_property(TARGET CP2K::BLAS::SCI::blas PROPERTY INTERFACE_LINK_LIBRARIES
-                                                CP2K::BLAS::SCI::sci)
+                                                       CP2K::BLAS::SCI::sci)
     set_property(TARGET CP2K::BLAS::SCI::scalapack_link
                  PROPERTY INTERFACE_LINK_LIBRARIES CP2K::BLAS::SCI::sci_mpi)
   else()
     set_property(TARGET CP2K::BLAS::SCI::blas PROPERTY INTERFACE_LINK_LIBRARIES
-                                                CP2K::BLAS::SCI::sci_mp)
+                                                       CP2K::BLAS::SCI::sci_mp)
     set_property(TARGET CP2K::BLAS::SCI::scalapack_link
                  PROPERTY INTERFACE_LINK_LIBRARIES CP2K::BLAS::SCI::sci_mpi_mp)
   endif()

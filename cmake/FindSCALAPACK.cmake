@@ -58,13 +58,13 @@ if(CP2K_SCALAPACK_VENDOR STREQUAL "GENERIC")
   endif()
 elseif(TARGET CP2K::BLAS::MKL::scalapack_link)
   # we have mkl check for the different mkl target
-  get_target_property(CP2K_SCALAPACK_LINK_LIBRARIES CP2K::BLAS::MKL::scalapack_link
-                      INTERFACE_LINK_LIBRARIES)
+  get_target_property(CP2K_SCALAPACK_LINK_LIBRARIES
+                      CP2K::BLAS::MKL::scalapack_link INTERFACE_LINK_LIBRARIES)
   set(CP2K_SCALAPACK_FOUND yes)
 elseif(TARGET CP2K::BLAS::SCI::scalapack_link)
   # we have mkl check for the different mkl target
-  get_target_property(CP2K_SCALAPACK_LINK_LIBRARIES CP2K::BLAS::SCI::scalapack_link
-                      INTERFACE_LINK_LIBRARIES)
+  get_target_property(CP2K_SCALAPACK_LINK_LIBRARIES
+                      CP2K::BLAS::SCI::scalapack_link INTERFACE_LINK_LIBRARIES)
   set(CP2K_SCALAPACK_FOUND yes)
 endif()
 
@@ -82,6 +82,6 @@ if(CP2K_SCALAPACK_FOUND)
 
   set_property(
     TARGET CP2K::SCALAPACK::scalapack PROPERTY INTERFACE_LINK_LIBRARIES
-                                              ${CP2K_SCALAPACK_LINK_LIBRARIES})
+                                               ${CP2K_SCALAPACK_LINK_LIBRARIES})
 endif()
 mark_as_advanced(CP2K_SCALAPACK_FOUND CP2K_SCALAPACK_LINK_LIBRARIES)

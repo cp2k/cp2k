@@ -42,15 +42,16 @@ endif()
 if(CP2K_FLEXIBLAS_FOUND)
   if(NOT TARGET CP2K::BLAS::FlexiBLAS::flexiblas)
     add_library(CP2K::BLAS::FlexiBLAS::flexiblas INTERFACE IMPORTED)
-    add_library(CP2K::BLAS::FlexiBLAS::blas ALIAS CP2K::BLAS::FlexiBLAS::flexiblas)
+    add_library(CP2K::BLAS::FlexiBLAS::blas ALIAS
+                CP2K::BLAS::FlexiBLAS::flexiblas)
   endif()
   set_target_properties(
-    CP2K::BLAS::FlexiBLAS::flexiblas PROPERTIES INTERFACE_LINK_LIBRARIES
-                                         "${CP2K_FLEXIBLAS_LINK_LIBRARIES}")
+    CP2K::BLAS::FlexiBLAS::flexiblas
+    PROPERTIES INTERFACE_LINK_LIBRARIES "${CP2K_FLEXIBLAS_LINK_LIBRARIES}")
   if(CP2K_FLEXIBLAS_INCLUDE_DIRS)
     set_target_properties(
-      CP2K::BLAS::FlexiBLAS::flexiblas PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
-                                           "${CP2K_FLEXIBLAS_INCLUDE_DIRS}")
+      CP2K::BLAS::FlexiBLAS::flexiblas
+      PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_FLEXIBLAS_INCLUDE_DIRS}")
   endif()
   set(CP2K_BLAS_VENDOR "FlexiBLAS")
 endif()

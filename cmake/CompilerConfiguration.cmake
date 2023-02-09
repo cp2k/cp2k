@@ -6,8 +6,8 @@
 #!-------------------------------------------------------------------------------------------------!
 
 if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
-  set(CMAKE_Fortran_FLAGS 
-    "-mtune=native -ffree-line-length-512 -ffree-form -std=f2008 -fimplicit-none -Werror=aliasing -Werror=ampersand -Werror=c-binding-type -Werror=intrinsic-shadow -Werror=intrinsics-std -Werror=tabs -Werror=target-lifetime -Werror=underflow -Werror=unused-but-set-variable -Werror=unused-variable  -Werror=conversion -Werror=zerotrip -Wuninitialized -Wno-maybe-uninitialized -Wunused-parameter"
+  set(CMAKE_Fortran_FLAGS
+      "-mtune=native -ffree-line-length-512 -ffree-form -std=f2008 -fimplicit-none -Werror=aliasing -Werror=ampersand -Werror=c-binding-type -Werror=intrinsic-shadow -Werror=intrinsics-std -Werror=tabs -Werror=target-lifetime -Werror=underflow -Werror=unused-but-set-variable -Werror=unused-variable  -Werror=conversion -Werror=zerotrip -Wuninitialized -Wno-maybe-uninitialized -Wunused-parameter"
   )
 
   if(CMAKE_Fortran_COMPILER_VERSION VERSION_GREATER 10)
@@ -20,7 +20,7 @@ if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
       "-O0 -g --coverage -fno-omit-frame-pointer -fcheck=all -ffpe-trap=invalid,zero,overflow -fbacktrace -finit-real=snan -finit-integer=-42 -finit-derived -Werror=realloc-lhs -finline-matmul-limit=0"
   )
   set(CMAKE_Fortran_FLAGS_DEBUG
-    "-fbacktrace -ffree-form -fimplicit-none -std=f2008 -fsanitize=leak -fcheck=all,no-array-temps -ffpe-trap=invalid,zero,overflow -finit-derived -finit-real=snan -finit-integer=-42 -Werror=realloc-lhs -finline-matmul-limit=0"
+      "-fbacktrace -ffree-form -fimplicit-none -std=f2008 -fsanitize=leak -fcheck=all,no-array-temps -ffpe-trap=invalid,zero,overflow -finit-derived -finit-real=snan -finit-integer=-42 -Werror=realloc-lhs -finline-matmul-limit=0"
   )
   if((NOT (USE_MPI)) OR (NOT ("${MPI_Fortran_LIBRARY_VERSION_STRING}" MATCHES
                               "Open MPI")))
@@ -75,7 +75,7 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
   set(CMAKE_C_FLAGS_RELEASE "-O3 -g -funroll-loops -Wall")
   set(CMAKE_C_FLAGS_COVERAGE "-O0 -g --coverage -Wall")
   set(CMAKE_C_FLAGS_DEBUG
-    "-O2 -ggdb -Wall -fsanitize=undefined -fsanitize=address -fsanitize-recover=all -Wall -Wextra -Werror -Wno-vla-parameter -Wno-deprecated-declarations"
+      "-O2 -ggdb -Wall -fsanitize=undefined -fsanitize=address -fsanitize-recover=all -Wall -Wextra -Werror -Wno-vla-parameter -Wno-deprecated-declarations"
   )
   if((NOT (USE_MPI)) OR (NOT ("${MPI_Fortran_LIBRARY_VERSION_STRING}" MATCHES
                               "Open MPI")))

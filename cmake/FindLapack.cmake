@@ -58,11 +58,11 @@ if(CP2K_LAPACK_FOUND)
     add_library(CP2K::LAPACK::LAPACK ALIAS CP2K::LAPACK::lapack)
   endif()
   set_property(TARGET CP2K::LAPACK::lapack PROPERTY INTERFACE_LINK_LIBRARIES
-    ${CP2K_LAPACK_LIBRARIES})
+                                                    ${CP2K_LAPACK_LIBRARIES})
   if(CP2K_LAPACK_INCLUDE_DIRS)
     set_property(
       TARGET CP2K::LAPACK::lapack PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-      ${CP2K_LAPACK_INCLUDE_DIRS})
+                                           ${CP2K_LAPACK_INCLUDE_DIRS})
   endif()
 endif()
 

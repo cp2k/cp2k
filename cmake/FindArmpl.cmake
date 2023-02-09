@@ -37,36 +37,42 @@ endif()
 
 # check if found
 find_package_handle_standard_args(
-  Armpl REQUIRED_VARS CP2K_ARMPL_INCLUDE_DIRS CP2K_ARMPL_LP64_LIBRARIES
-  CP2K_ARMPL_LP64_MP_LIBRARIES CP2K_ARMPL_ILP64_LIBRARIES CP2K_ARMPL_ILP64_MP_LIBRARIES)
+  Armpl
+  REQUIRED_VARS
+    CP2K_ARMPL_INCLUDE_DIRS CP2K_ARMPL_LP64_LIBRARIES
+    CP2K_ARMPL_LP64_MP_LIBRARIES CP2K_ARMPL_ILP64_LIBRARIES
+    CP2K_ARMPL_ILP64_MP_LIBRARIES)
 
 # add target to link against
 if(CP2K_ARMPL_LP64_FOUND)
 
-  if (NOT TARGET Armpl::armpl)
+  if(NOT TARGET Armpl::armpl)
     add_library(CP2K::BLAS::Armpl::armpl INTERFACE IMPORTED)
     # now define an alias to the target library
     add_library(CP2K::BLAS::Armpl::blas ALIAS CP2K::BLAS::Armpl::armpl)
   endif()
 
   # we need to iniitialize the targets of each individual libraries only once.
-  if (NOT TARGET CP2K::BLAS::Armpl::${_var})
+  if(NOT TARGET CP2K::BLAS::Armpl::${_var})
     foreach(_var armpl_ilp64 armpl_lp64 armpl_ilp64_mp armpl_lp64_mp)
       string(TOUPPER "CP2K_${_var}_LINK_LIBRARIES" _var_up)
-        add_library(CP2K::BLAS::Armpl::${_var} INTERFACE IMPORTED)
-        set_property(TARGET CP2K::BLAS::Armpl::${_var} PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-          ${CP2K_ARMPL_INCLUDE_DIRS})
-        set_property(TARGET CP2K::BLAS::Armpl::${_var} PROPERTY INTERFACE_LINK_LIBRARIES
-          "${${_var_up}}")
+      add_library(CP2K::BLAS::Armpl::${_var} INTERFACE IMPORTED)
+      set_property(
+        TARGET CP2K::BLAS::Armpl::${_var} PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+                                                   ${CP2K_ARMPL_INCLUDE_DIRS})
+      set_property(TARGET CP2K::BLAS::Armpl::${_var}
+                   PROPERTY INTERFACE_LINK_LIBRARIES "${${_var_up}}")
       endif()
     endforeach()
   endif()
 
-
-  set_property(TARGET CP2K::BLAS::Armpl::armpl PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-    ${CP2K_ARMPL_INCLUDE_DIRS})
-  set_property(TARGET CP2K::BLAS::Armpl::armpl PROPERTY INTERFACE_LINK_LIBRARIES
-    "CP2K_${CP2K_BLAS_armpl_LIB}_LINK_LIBRARIES")
+  set_property(
+    TARGET CP2K::BLAS::Armpl::armpl PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+                                             ${CP2K_ARMPL_INCLUDE_DIRS})
+  set_property(
+    TARGET CP2K::BLAS::Armpl::armpl
+    PROPERTY INTERFACE_LINK_LIBRARIES
+             "CP2K_${CP2K_BLAS_armpl_LIB}_LINK_LIBRARIES")
 endif()
 
 mark_as_advanced(CP2K_ARMPL_FOUND CP2K_ARMPL_LINK_LIBRARIES

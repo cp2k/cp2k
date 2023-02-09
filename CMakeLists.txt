@@ -227,7 +227,7 @@ add_custom_target(
 
 # MPI
 
-if (CP2K_USE_MPI)
+if(CP2K_USE_MPI)
   get_property(REQUIRED_MPI_COMPONENTS GLOBAL PROPERTY ENABLED_LANGUAGES)
   list(REMOVE_ITEM REQUIRED_MPI_COMPONENTS CUDA) # CUDA does not have an MPI
   # component
@@ -239,28 +239,47 @@ if (CP2K_USE_MPI)
     MPI
     COMPONENTS ${REQUIRED_MPI_COMPONENTS}
     REQUIRED)
-  
+
   if(NOT MPI_Fortran_HAVE_F90_MODULE)
     message(
       FATAL_ERROR
-      "\
+        "\
 The listed MPI implementation does not provide the required mpi.mod interface. \
 When using the GNU compiler in combination with Intel MPI, please use the \
 Intel MPI compiler wrappers. Check the INSTALL.md for more information.")
   endif()
   if("${MPI_Fortran_LIBRARY_VERSION_STRING}" MATCHES "Open MPI v2.1"
-      OR "${MPI_Fortran_LIBRARY_VERSION_STRING}" MATCHES "Open MPI v3.1")
+     OR "${MPI_Fortran_LIBRARY_VERSION_STRING}" MATCHES "Open MPI v3.1")
     message(
       WARNING
-      "RMA with ${MPI_Fortran_LIBRARY_VERSION_STRING} is not supported due to issues with its implementation."
-      " Please use a newer version of OpenMPI or switch to MPICH if you plan on using MPI-RMA."
+        "RMA with ${MPI_Fortran_LIBRARY_VERSION_STRING} is not supported due to issues with its implementation."
+        " Please use a newer version of OpenMPI or switch to MPICH if you plan on using MPI-RMA."
     )
   endif()
 else()
-  if (CP2K_USE_SIRIUS OR CP2K_USE_COSMA OR CP2K_USE_SPLA OR CP2K_USE_ELPA OR CP2K_USE_METIS OR CP2K_USE_PLUMED OR CP2K_USE_PEXSI OR CP2K_USE_QUIP)
-    message(WARNING "SIRIUS, COSMA, SPLA, ELPA, METIS, PLUMED, PEXSI and QUIP require MPI support. Either change -DCP2K_USE_MPI to ON or turn the following dependencies off")
-    foreach(__libs SIRIUS COSMA SPLA ELPA METIS PLUMED PEXSI QUIP)
-      if (CP2K_USE_${__libs})
+  if(CP2K_USE_SIRIUS
+     OR CP2K_USE_COSMA
+     OR CP2K_USE_SPLA
+     OR CP2K_USE_ELPA
+     OR CP2K_USE_METIS
+     OR CP2K_USE_PLUMED
+     OR CP2K_USE_PEXSI
+     OR CP2K_USE_QUIP)
+    message(
+      WARNING
+        "SIRIUS, COSMA, SPLA, ELPA, METIS, PLUMED, PEXSI and QUIP require MPI support. Either change -DCP2K_USE_MPI to ON or turn the following dependencies off"
+    )
+    foreach(
+      __libs
+      SIRIUS
+      COSMA
+      SPLA
+      ELPA
+      METIS
+      PLUMED
+      PEXSI
+      QUIP)
+      if(CP2K_USE_${__libs})
         message(WARNING " - ${__libs}")
       endif()
     endforeach()
@@ -279,8 +298,8 @@ endif()
 
 # in practice it is always for any decent configuration. But I add a flags to
 # turn it off
-if (CP2K_USE_MPI)
-   find_package(SCALAPACK REQUIRED)
+if(CP2K_USE_MPI)
+  find_package(SCALAPACK REQUIRED)
 endif()
 
 # CUDA / ROCM easy for cuda a moving target for hip
@@ -384,8 +403,10 @@ if(CP2K_USE_COSMA)
 
   # check that cosma::cosma_pxgemm and cosma::cosma_prefixed_pxgemm exist
   if(NOT TARGET cosma::cosma_pxgemm OR NOT TARGET cosma::cosma_prefixed_pxgemm)
-	  message(FATAL_ERROR
-            " COSMA needs to be build with scalapack offloading support. COSTA_SCALAPACK and COSMA_SCALAPACK should probably be set properly")
+    message(
+      FATAL_ERROR
+        " COSMA needs to be build with scalapack offloading support. COSTA_SCALAPACK and COSMA_SCALAPACK should probably be set properly"
+    )
   endif()
 endif()
 
@@ -521,10 +542,9 @@ include(GNUInstallDirs)
 get_target_property(CP2K_LIBS cp2k_link_libs INTERFACE_LINK_LIBRARIES)
 configure_file(cp2k.pc.in cp2k.pc @ONLY)
 
-if (TARGET CP2K::BLAS::OpenBLAS::openblas)
+if(TARGET CP2K::BLAS::OpenBLAS::openblas)
   message(WARNING "It works")
 endif()
-
 
 message(
   STATUS "--------------------------------------------------------------------")
@@ -547,15 +567,15 @@ message(STATUS "   - include directories : " ${CP2K_BLAS_INCLUDE_DIRS}
 message(STATUS "   - libraries :           " ${CP2K_BLAS_LINK_LIBRARIES} " "
                ${CP2K_LAPACK_LINK_LIBRARIES})
 
-if (CP2K_USE_MPI)
-message(STATUS " ")
-message(STATUS "- MPI")
-message(STATUS "   - include directories : " ${MPI_INCLUDE_DIRS})
-message(STATUS "   - libraries :           " ${MPI_LIBRARIES})
+if(CP2K_USE_MPI)
+  message(STATUS " ")
+  message(STATUS "- MPI")
+  message(STATUS "   - include directories : " ${MPI_INCLUDE_DIRS})
+  message(STATUS "   - libraries :           " ${MPI_LIBRARIES})
 
-message(STATUS " ")
-message(STATUS "- SCALAPACK:")
-message(STATUS "     - libraries : " ${CP2K_SCALAPACK_LINK_LIBRARIES})
+  message(STATUS " ")
+  message(STATUS "- SCALAPACK:")
+  message(STATUS "     - libraries : " ${CP2K_SCALAPACK_LINK_LIBRARIES})
 endif()
 
 message(STATUS " - Hardware Acceleration:")
@@ -614,7 +634,10 @@ if(CP2K_USE_LIBXSMM)
   message(STATUS " ")
   message(STATUS "- libxsmm")
   message(STATUS "   - include directories : " ${CP2K_LIBXSMM_INCLUDE_DIRS})
-  message(STATUS "   - libraries :           ${CP2K_LIBXSMMEXT_LINK_LIBRARIES};${CP2K_LIBXSMMF_LINK_LIBRARIES}")
+  message(
+    STATUS
+      "   - libraries :           ${CP2K_LIBXSMMEXT_LINK_LIBRARIES};${CP2K_LIBXSMMF_LINK_LIBRARIES}"
+  )
 endif()
 
 if(CP2K_USE_SPLA)
@@ -710,7 +733,7 @@ message(
 
 message(STATUS " List of dependencies not included in this build :")
 
-if (NOT CP2K_USE_MPI)
+if(NOT CP2K_USE_MPI)
   message(STATUS "   - MPI")
 endif()
 

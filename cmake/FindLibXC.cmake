@@ -53,7 +53,7 @@ if(CP2K_LIBXC_FOUND)
   if(CP2K_LIBXC_INCLUDE_DIRS)
     set_target_properties(
       CP2K::Libxc::xc PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
-                                "${CP2K_LIBXC_INCLUDE_DIRS}")
+                                 "${CP2K_LIBXC_INCLUDE_DIRS}")
   endif()
   target_link_libraries(CP2K::Libxc::xc INTERFACE ${CP2K_LIBXC_LINK_LIBRARIES})
 endif()

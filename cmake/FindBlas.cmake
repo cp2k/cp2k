@@ -79,10 +79,12 @@ set(CP2K_BLAS_FOUND FALSE)
 if(NOT CP2K_BLAS_VENDOR MATCHES "auto")
   find_package(${CP2K_BLAS_VENDOR} REQUIRED)
   if(TARGET CP2K::BLAS::${CP2K_BLAS_VENDOR}::blas)
-    get_target_property(CP2K_BLAS_INCLUDE_DIRS CP2K::BLAS::${CP2K_BLAS_VENDOR}::blas
-                        INTERFACE_INCLUDE_DIRECTORIES)
-    get_target_property(CP2K_BLAS_LINK_LIBRARIES CP2K::BLAS::${CP2K_BLAS_VENDOR}::blas
-                        INTERFACE_LINK_LIBRARIES)
+    get_target_property(
+      CP2K_BLAS_INCLUDE_DIRS CP2K::BLAS::${CP2K_BLAS_VENDOR}::blas
+      INTERFACE_INCLUDE_DIRECTORIES)
+    get_target_property(
+      CP2K_BLAS_LINK_LIBRARIES CP2K::BLAS::${CP2K_BLAS_VENDOR}::blas
+      INTERFACE_LINK_LIBRARIES)
     set(CP2K_BLAS_FOUND TRUE)
   endif()
 else()
@@ -92,9 +94,9 @@ else()
     find_package(${_libs})
     if(TARGET CP2K::BLAS::${_libs}::blas)
       get_target_property(CP2K_BLAS_INCLUDE_DIRS CP2K::BLAS::${_libs}::blas
-        INTERFACE_INCLUDE_DIRECTORIES)
+                          INTERFACE_INCLUDE_DIRECTORIES)
       get_target_property(CP2K_BLAS_LINK_LIBRARIES CP2K::BLAS::${_libs}::blas
-        INTERFACE_LINK_LIBRARIES)
+                          INTERFACE_LINK_LIBRARIES)
       set(CP2K_BLAS_VENDOR "${_libs}")
       set(CP2K_BLAS_FOUND TRUE)
       break()
@@ -116,11 +118,12 @@ if(NOT TARGET CP2K::BLAS::blas)
 endif()
 
 set_target_properties(CP2K::BLAS::blas PROPERTIES INTERFACE_LINK_LIBRARIES
-  "${CP2K_BLAS_LINK_LIBRARIES}")
+                                                  "${CP2K_BLAS_LINK_LIBRARIES}")
 
 if(CP2K_BLAS_INCLUDE_DIRS)
-  set_target_properties(CP2K::BLAS::blas PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
-    "${CP2K_BLAS_INCLUDE_DIRS}")
+  set_target_properties(
+    CP2K::BLAS::blas PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
+                                "${CP2K_BLAS_INCLUDE_DIRS}")
 endif()
 
 mark_as_advanced(CP2K_BLAS_INCLUDE_DIRS)

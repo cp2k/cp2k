@@ -50,14 +50,14 @@ if(CP2K_OPENBLAS_FOUND)
     add_library(CP2K::BLAS::OpenBLAS::openblas INTERFACE IMPORTED)
   endif()
   set_property(
-    TARGET CP2K::BLAS::OpenBLAS::openblas PROPERTY INTERFACE_LINK_LIBRARIES
-                                            ${CP2K_OPENBLAS_LINK_LIBRARIES})
+    TARGET CP2K::BLAS::OpenBLAS::openblas
+    PROPERTY INTERFACE_LINK_LIBRARIES ${CP2K_OPENBLAS_LINK_LIBRARIES})
   if(CP2K_OPENBLAS_INCLUDE_DIRS)
     set_property(
-      TARGET CP2K::BLAS::OpenBLAS::openblas PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-                                              ${CP2K_OPENBLAS_INCLUDE_DIRS})
+      TARGET CP2K::BLAS::OpenBLAS::openblas
+      PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CP2K_OPENBLAS_INCLUDE_DIRS})
   endif()
-  if (NOT TARGET CP2K::BLAS::OpenBLAS::blas)
+  if(NOT TARGET CP2K::BLAS::OpenBLAS::blas)
     add_library(CP2K::BLAS::OpenBLAS::blas ALIAS CP2K::BLAS::OpenBLAS::openblas)
   endif()
   set(CP2K_BLAS_VENDOR "OpenBLAS")

@@ -337,7 +337,8 @@ foreach(_libtype "ST" "DYN")
                 "MPI::MPI_CXX"
                 "${_mkl_dep_${_threading}}"
                 "Threads::Threads")
-            add_library(CP2K::BLAS::MKL::blacs_${_tgt_config} INTERFACE IMPORTED)
+            add_library(CP2K::BLAS::MKL::blacs_${_tgt_config} INTERFACE
+                        IMPORTED)
             set_target_properties(
               CP2K::BLAS::MKL::blacs_${_tgt_config}
               PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
@@ -348,7 +349,8 @@ foreach(_libtype "ST" "DYN")
           if(_mkl_scalapack_lib AND NOT TARGET
                                     CP2K::BLAS::MKL::scalapack_${_tgt_config})
             set(_scalapack_libs "${_mkl_scalapack_lib}" "${_blacs_tgt}")
-            add_library(CP2K::BLAS::MKL::scalapack_${_tgt_config} INTERFACE IMPORTED)
+            add_library(CP2K::BLAS::MKL::scalapack_${_tgt_config} INTERFACE
+                        IMPORTED)
             set_target_properties(
               CP2K::BLAS::MKL::scalapack_${_tgt_config}
               PROPERTIES INTERFACE_LINK_LIBRARIES "${_scalapack_libs}")

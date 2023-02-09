@@ -60,7 +60,7 @@ if(NOT TARGET CP2K::LibXSMM::libxsmm)
 
     set_target_properties(
       CP2K::LibXSMM::${__lib} PROPERTIES INTERFACE_LINK_LIBRARIES
-                                        "${${__lib_search_up}_LINK_LIBRARIES}")
+                                         "${${__lib_search_up}_LINK_LIBRARIES}")
 
     if(CP2K_LIBXSMM_INCLUDE_DIRS)
       set_target_properties(
