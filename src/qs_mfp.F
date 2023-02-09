@@ -118,7 +118,7 @@ CONTAINS
       ! Some setup
       ispin = 1
       f_spin = 2._dp
-      nmo = vcd_env%dcdr_env%nmo
+      nmo = vcd_env%dcdr_env%nmo(1)
       nao = vcd_env%dcdr_env%nao
       mo_coeff => vcd_env%dcdr_env%mo_coeff(1)
       aat_atom => vcd_env%aat_atom_mfp
@@ -132,9 +132,9 @@ CONTAINS
 
       ! Set up the matrices
       ALLOCATE(buf, buf2, matrix_dSdB_mo)
-      CALL cp_fm_create(buf, vcd_env%dcdr_env%likemos_fm_struct)
-      CALL cp_fm_create(buf2, vcd_env%dcdr_env%likemos_fm_struct)
-      CALL cp_fm_create(matrix_dSdB_mo, vcd_env%dcdr_env%momo_fm_struct)
+      CALL cp_fm_create(buf, vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
+      CALL cp_fm_create(buf2, vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
+      CALL cp_fm_create(matrix_dSdB_mo, vcd_env%dcdr_env%momo_fm_struct(1)%struct)
 
       ! First prepare the coefficients dCB_prime = -dCB - 0.5 S1_ij
       !   The first negative because we get the negative coefficients out of the linres solver
@@ -598,7 +598,7 @@ CONTAINS
 
       ! Some setup
       ispin = 1
-      nmo = vcd_env%dcdr_env%nmo
+      nmo = vcd_env%dcdr_env%nmo(1)
       nao = vcd_env%dcdr_env%nao
       mo_coeff => vcd_env%dcdr_env%mo_coeff(1)
 
@@ -616,7 +616,7 @@ CONTAINS
       eps_ppnl = dft_control%qs_control%eps_ppnl
 
       ALLOCATE(buf)
-      CALL cp_fm_create(buf, vcd_env%dcdr_env%likemos_fm_struct)
+      CALL cp_fm_create(buf, vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
       CALL cp_fm_set_all(vcd_env%op_dB(ispin), 0._dp)
       CALL cp_fm_set_all(buf, 0._dp)
 
@@ -938,7 +938,7 @@ CONTAINS
 
       ! Some setup
       ispin = 1
-      nmo = vcd_env%dcdr_env%nmo
+      nmo = vcd_env%dcdr_env%nmo(1)
       nao = vcd_env%dcdr_env%nao
       mo_coeff => vcd_env%dcdr_env%mo_coeff(1)
 
@@ -956,7 +956,7 @@ CONTAINS
       eps_ppnl = dft_control%qs_control%eps_ppnl
 
       ALLOCATE(buf)
-      CALL cp_fm_create(buf, vcd_env%dcdr_env%likemos_fm_struct)
+      CALL cp_fm_create(buf, vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
       CALL cp_fm_set_all(vcd_env%op_dB(ispin), 0._dp)
       CALL cp_fm_set_all(buf, 0._dp)
 
@@ -1266,8 +1266,8 @@ CONTAINS
 
       ! allocate the vectors
       psi0_order(1:1) => vcd_env%dcdr_env%mo_coeff(1:1)
-      CALL cp_fm_create(psi1(1), vcd_env%dcdr_env%likemos_fm_struct)
-      CALL cp_fm_create(h1_psi0(1), vcd_env%dcdr_env%likemos_fm_struct)
+      CALL cp_fm_create(psi1(1), vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
+      CALL cp_fm_create(h1_psi0(1), vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
 
       ! Restart
       IF (linres_control%linres_restart) THEN

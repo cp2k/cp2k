@@ -123,13 +123,13 @@ CONTAINS
                       matrix_s=qs_overlap_matrix)
 
       ALLOCATE (tmp_aomo)
-      CALL cp_fm_create(tmp_aomo, vcd_env%dcdr_env%likemos_fm_struct)
+      CALL cp_fm_create(tmp_aomo, vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
 
       ! This factor has to be +1 or -1 in order to get origin independent spectra
       mag_origin_factor = +1._dp
 
       nspins = dft_control%nspins
-      nmo = vcd_env%dcdr_env%nmo
+      nmo = vcd_env%dcdr_env%nmo(1)
       nao = vcd_env%dcdr_env%nao
       mo_coeff => vcd_env%dcdr_env%mo_coeff(1)
       aat_atom => vcd_env%aat_atom_nvpt
@@ -717,7 +717,7 @@ CONTAINS
 
       nspins = dft_control%nspins
       natom = SIZE(particle_set)
-      nmo = vcd_env%dcdr_env%nmo
+      nmo = vcd_env%dcdr_env%nmo(1)
       nao = vcd_env%dcdr_env%nao
 
       apt_el => vcd_env%apt_el_nvpt
@@ -734,16 +734,16 @@ CONTAINS
 
       ! build the full matrices
       ALLOCATE (buf, buf2)
-      CALL cp_fm_create(buf, vcd_env%dcdr_env%likemos_fm_struct)
-      CALL cp_fm_create(buf2, vcd_env%dcdr_env%likemos_fm_struct)
+      CALL cp_fm_create(buf, vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
+      CALL cp_fm_create(buf2, vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
 
       ALLOCATE (matrix_dSdV_mo)
       ALLOCATE (dipvel_mo(3))
       ALLOCATE (hcom_mo(3))
-      CALL cp_fm_create(matrix_dSdV_mo, vcd_env%dcdr_env%momo_fm_struct)
+      CALL cp_fm_create(matrix_dSdV_mo, vcd_env%dcdr_env%momo_fm_struct(1)%struct)
       DO i = 1, 3
-         CALL cp_fm_create(dipvel_mo(i), vcd_env%dcdr_env%momo_fm_struct)
-         CALL cp_fm_create(hcom_mo(i), vcd_env%dcdr_env%momo_fm_struct)
+         CALL cp_fm_create(dipvel_mo(i), vcd_env%dcdr_env%momo_fm_struct(1)%struct)
+         CALL cp_fm_create(hcom_mo(i), vcd_env%dcdr_env%momo_fm_struct(1)%struct)
       END DO
 
       ispin = 1
@@ -1155,13 +1155,13 @@ CONTAINS
 
       nspins = dft_control%nspins
       natom = SIZE(particle_set)
-      nmo = vcd_env%dcdr_env%nmo
+      nmo = vcd_env%dcdr_env%nmo(1)
       nao = vcd_env%dcdr_env%nao
 
       mo_coeff => vcd_env%dcdr_env%mo_coeff(1)
       ispin = 1
       ALLOCATE (buf)
-      CALL cp_fm_create(buf, vcd_env%dcdr_env%likemos_fm_struct)
+      CALL cp_fm_create(buf, vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
 
       CALL build_matrix_hr_rh(vcd_env, qs_env, vcd_env%spatial_origin_atom)
 
@@ -1268,8 +1268,8 @@ CONTAINS
 
       nspins = 1
       psi0_order(1:1) => vcd_env%dcdr_env%mo_coeff(1:1)
-      CALL cp_fm_create(psi1(1), vcd_env%dcdr_env%likemos_fm_struct)
-      CALL cp_fm_create(h1_psi0(1), vcd_env%dcdr_env%likemos_fm_struct)
+      CALL cp_fm_create(psi1(1), vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
+      CALL cp_fm_create(h1_psi0(1), vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
 
       ! Restart
       IF (linres_control%linres_restart) THEN

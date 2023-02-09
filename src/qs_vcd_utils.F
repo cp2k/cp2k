@@ -220,17 +220,17 @@ CONTAINS
       ALLOCATE (vcd_env%op_dV(nspins))
       ALLOCATE (vcd_env%op_dB(nspins))
       DO ispin = 1, nspins
-         CALL cp_fm_create(vcd_env%dCV(ispin), vcd_env%dcdr_env%likemos_fm_struct)
-         CALL cp_fm_create(vcd_env%dCV_prime(ispin), vcd_env%dcdr_env%likemos_fm_struct)
-         CALL cp_fm_create(vcd_env%op_dV(ispin), vcd_env%dcdr_env%likemos_fm_struct)
-         CALL cp_fm_create(vcd_env%op_dB(ispin), vcd_env%dcdr_env%likemos_fm_struct)
+         CALL cp_fm_create(vcd_env%dCV(ispin), vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
+         CALL cp_fm_create(vcd_env%dCV_prime(ispin), vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
+         CALL cp_fm_create(vcd_env%op_dV(ispin), vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
+         CALL cp_fm_create(vcd_env%op_dB(ispin), vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
       END DO
 
       ALLOCATE (vcd_env%dCB(3))
       ALLOCATE (vcd_env%dCB_prime(3))
       do i = 1, 3
-         CALL cp_fm_create(vcd_env%dCB(i), vcd_env%dcdr_env%likemos_fm_struct)
-         CALL cp_fm_create(vcd_env%dCB_prime(i), vcd_env%dcdr_env%likemos_fm_struct)
+         CALL cp_fm_create(vcd_env%dCB(i), vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
+         CALL cp_fm_create(vcd_env%dCB_prime(i), vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
       enddo
 
       ! DBCSR matrices
