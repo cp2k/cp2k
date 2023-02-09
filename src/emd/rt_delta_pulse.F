@@ -272,6 +272,10 @@ CONTAINS
                 cell%h_inv(2, :)*rtp_control%delta_pulse_direction(2) + &
                 cell%h_inv(3, :)*rtp_control%delta_pulse_direction(3)
       kvec = -kvec*twopi*rtp_control%delta_pulse_scale
+      
+      IF (rtp_control%velocity_gauge) THEN
+         rtp_control%vec_pot = rtp_control%vec_pot + kvec
+      END IF
 
       ! struct for fm matrices
       fm_struct => rtp%ao_ao_fmstruct

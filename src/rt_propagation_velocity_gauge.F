@@ -31,6 +31,7 @@ MODULE rt_propagation_velocity_gauge
                                               dbcsr_set,&
                                               dbcsr_type_antisymmetric,&
                                               dbcsr_type_symmetric
+   USE efield_utils,                    ONLY: make_field
    USE external_potential_types,        ONLY: gth_potential_p_type,&
                                               gth_potential_type,&
                                               sgp_potential_p_type,&
@@ -79,7 +80,7 @@ MODULE rt_propagation_velocity_gauge
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_velocity_gauge'
 
-   PUBLIC :: velocity_gauge_ks_matrix
+   PUBLIC :: velocity_gauge_ks_matrix, update_vector_potential
 
 CONTAINS
 
@@ -182,8 +183,7 @@ CONTAINS
       END IF
 
       !get vector potential
-      vec_pot(:) = 0._dp
-      CALL get_vector_potential(dft_control, cell, vec_pot)
+      vec_pot = dft_control%rtp_control%vec_pot
 
       ! allocate and build matrices for linear momentum term
       NULLIFY (momentum)
@@ -252,26 +252,22 @@ CONTAINS
    END SUBROUTINE velocity_gauge_ks_matrix
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Update the vector potential in the case where a time-dependant
+!>        electric field is apply. 
 !> \param dft_control ...
 !> \param cell ...
 !> \param vec_pot ...
 ! **************************************************************************************************
-   PURE SUBROUTINE get_vector_potential(dft_control, cell, vec_pot)
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(cell_type), POINTER                           :: cell
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: vec_pot
+   SUBROUTINE update_vector_potential(qs_env, dft_control)
+      TYPE(qs_environment_type), POINTER, INTENT(INOUT)  :: qs_env
+      TYPE(dft_control_type), POINTER, INTENT(INOUT)     :: dft_control
+      REAL(kind=dp)                                      :: field(3)
+      REAL(dp)                                           :: c
 
-      ! fieldstrength
-      ! for a delta pulse: vec_pot = - c * kvec
-      ! the speed of light cancels in the terms in the velocity gauge Hamiltonian and is not
-      ! taken into account here
-      vec_pot(:) = cell%h_inv(1, :)*dft_control%rtp_control%delta_pulse_direction(1) + &
-                   cell%h_inv(2, :)*dft_control%rtp_control%delta_pulse_direction(2) + &
-                   cell%h_inv(3, :)*dft_control%rtp_control%delta_pulse_direction(3)
-      vec_pot = -vec_pot*twopi*dft_control%rtp_control%delta_pulse_scale
-
-   END SUBROUTINE get_vector_potential
+      c = 137.03599962875_dp
+      CALL make_field(dft_control, field, qs_env%sim_step, qs_env%sim_time)
+      dft_control%rtp_control%vec_pot = dft_control%rtp_control%vec_pot - field*qs_env%rtp%dt
+   END SUBROUTINE update_vector_potential
 
 ! **************************************************************************************************
 !> \brief ...

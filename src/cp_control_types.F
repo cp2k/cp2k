@@ -66,6 +66,7 @@ MODULE cp_control_types
       INTEGER, DIMENSION(3)                :: delta_pulse_direction
       REAL(KIND=dp)                        :: delta_pulse_scale
       LOGICAL                              :: velocity_gauge
+      REAL(KIND=dp), DIMENSION(3)          :: vec_pot
       LOGICAL                              :: nl_gauge_transform
    END TYPE rtp_control_type
 ! **************************************************************************************************
@@ -565,6 +566,7 @@ MODULE cp_control_types
                                               dft_plus_u, &
                                               apply_efield, &
                                               apply_efield_field, &
+                                              apply_vector_potential, &
                                               apply_period_efield, &
                                               apply_external_potential, &
                                               eval_external_potential, &

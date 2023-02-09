@@ -820,6 +820,7 @@ CONTAINS
          CALL group%bcast(mos(ispin)%eigenvalues, source)
          CALL group%bcast(mos(ispin)%uniform_occupation, source)
          CALL group%bcast(mos(ispin)%occupation_numbers, source)
+         
          IF (PRESENT(rt_mos)) THEN
             DO imat = 2*ispin - 1, 2*ispin
                DO i = 1, nmo

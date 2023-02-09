@@ -18,7 +18,8 @@ MODULE rt_propagation_methods
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_release,&
                                               cp_cfm_type
-   USE cp_control_types,                ONLY: rtp_control_type
+   USE cp_control_types,                ONLY: dft_control_type,&
+                                              rtp_control_type
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
@@ -73,7 +74,8 @@ MODULE rt_propagation_methods
    USE rt_propagation_utils,            ONLY: calc_S_derivs,&
                                               calc_update_rho,&
                                               calc_update_rho_sparse
-   USE rt_propagation_velocity_gauge,   ONLY: velocity_gauge_ks_matrix
+   USE rt_propagation_velocity_gauge,   ONLY: velocity_gauge_ks_matrix,&  
+                                              update_vector_potential
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -102,6 +104,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(rt_prop_type), POINTER                        :: rtp
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(rtp_control_type), POINTER                    :: rtp_control
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'propagation_step'
@@ -134,6 +137,9 @@ CONTAINS
          ! add additional terms for the velocity gauge to matrix_h and matrix_h_im
          ! should be called imediately after qs_energies_init and before qs_ks_update_qs_env
          IF (rtp_control%velocity_gauge) THEN
+            CALL get_qs_env(qs_env, dft_control=dft_control)
+            IF (dft_control%apply_vector_potential) & 
+               CALL update_vector_potential(qs_env, dft_control)
             CALL velocity_gauge_ks_matrix(qs_env, subtract_nl_term=.FALSE.)
          END IF
 

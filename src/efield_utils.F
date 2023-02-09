@@ -45,7 +45,8 @@ MODULE efield_utils
 ! *** Public subroutines ***
 
    PUBLIC :: efield_potential, &
-             calculate_ecore_efield
+             calculate_ecore_efield, &
+             make_field
 
 CONTAINS
 
@@ -124,10 +125,10 @@ CONTAINS
 ! **************************************************************************************************
 
    SUBROUTINE make_field(dft_control, field, sim_step, sim_time)
-      TYPE(dft_control_type)                             :: dft_control
-      REAL(dp)                                           :: field(3)
-      INTEGER                                            :: sim_step
-      REAL(KIND=dp)                                      :: sim_time
+      TYPE(dft_control_type), INTENT(IN)                 :: dft_control
+      REAL(dp), INTENT(OUT)                              :: field(3)
+      INTEGER, INTENT(IN)                                :: sim_step
+      REAL(KIND=dp), INTENT(IN)                          :: sim_time
 
       INTEGER                                            :: i, lower, nfield, upper
       REAL(dp)                                           :: c, env, nu, pol(3), strength
@@ -178,7 +179,7 @@ CONTAINS
             field = field + strength*pol(:)
          END IF
       END DO
-
+      
    END SUBROUTINE make_field
 
 ! **************************************************************************************************
@@ -211,8 +212,7 @@ CONTAINS
       NULLIFY (dft_control)
       CALL timeset(routineN, handle)
       CALL get_qs_env(qs_env, dft_control=dft_control)
-      IF (dft_control%apply_efield_field) THEN
-
+      IF (dft_control%apply_efield_field .OR. dft_control%apply_vector_potential) THEN
          my_force = .FALSE.
          IF (PRESENT(calculate_forces)) my_force = calculate_forces
 
