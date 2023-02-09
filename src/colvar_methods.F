@@ -2903,21 +2903,21 @@ CONTAINS
       END SELECT
       r12 = SQRT(xij(1)**2 + xij(2)**2 + xij(3)**2)
 
-      IF(colvar%dist_param%sign_d) THEN
-        SELECT CASE (colvar%dist_param%axis_id)
-        CASE (do_clv_x)
-           colvar%ss = xij(1)
-        CASE (do_clv_y)
-           colvar%ss = xij(2)
-        CASE (do_clv_z)
-           colvar%ss = xij(3)
-        CASE DEFAULT
-           !do_clv_xyz
-        END SELECT
+      IF (colvar%dist_param%sign_d) THEN
+         SELECT CASE (colvar%dist_param%axis_id)
+         CASE (do_clv_x)
+            colvar%ss = xij(1)
+         CASE (do_clv_y)
+            colvar%ss = xij(2)
+         CASE (do_clv_z)
+            colvar%ss = xij(3)
+         CASE DEFAULT
+            !do_clv_xyz
+         END SELECT
 
       ELSE
-        colvar%ss = r12
-      ENDIF
+         colvar%ss = r12
+      END IF
 
       fi(:) = xij/r12
       fj(:) = -xij/r12

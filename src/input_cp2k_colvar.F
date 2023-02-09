@@ -811,14 +811,12 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="SIGN", &
-                          description="Whether the distance along one Cartesian axiz has to be considered with sign. "// &
-                          " Yhis option is valid only if only one dimension is selected.", &
+                          description="Whether the distance along one Cartesian axis has to be considered with sign. "// &
+                          " This option is valid if only one dimension is selected.", &
                           usage="SIGN", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-
-
 
       ! Must be present in each colvar and handled properly
       CALL create_point_section(subsection)

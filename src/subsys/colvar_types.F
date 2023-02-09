@@ -462,7 +462,7 @@ CONTAINS
       CASE (dist_colvar_id)
          ALLOCATE (colvar%dist_param)
          colvar%dist_param%axis_id = do_clv_xyz
-         colvar%dist_param%sign_d = .false.
+         colvar%dist_param%sign_d = .FALSE.
       CASE (coord_colvar_id)
          ALLOCATE (colvar%coord_param)
       CASE (population_colvar_id)
