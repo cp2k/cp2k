@@ -17,12 +17,11 @@ MODULE qs_linres_types
                                               gto_basis_set_type
    USE cp_array_utils,                  ONLY: cp_2d_i_p_type,&
                                               cp_2d_r_p_type
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_type,&
-                                              cp_fm_struct_p_type
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_p_type,&
+                                              cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
-                                              dbcsr_type
+   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE kinds,                           ONLY: dp
    USE qs_grid_atom,                    ONLY: grid_atom_type
    USE qs_harmonics_atom,               ONLY: harmonics_atom_type
@@ -215,7 +214,7 @@ MODULE qs_linres_types
                                                    matrix_nosym_temp2 => NULL(), &
                                                    moments => NULL(), &
                                                    matrix_apply_op_constant => NULL(), &
-                                                   hamiltonian1 => NULL(),&
+                                                   hamiltonian1 => NULL(), &
                                                    perturbed_dm_correction => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: matrix_vhxc_perturbed_basis => NULL(), &
                                                       matrix_difdip => NULL(), &

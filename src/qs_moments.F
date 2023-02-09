@@ -119,6 +119,7 @@ CONTAINS
 !> \param difdip ...
 !> \param order The order of the derivative (1 for dipole moment)
 !> \param lambda The atom on which we take the derivative
+!> \param rc ...
 !> \author Edward Ditler
 ! **************************************************************************************************
    SUBROUTINE dipole_velocity_deriv(qs_env, difdip, order, lambda, rc)

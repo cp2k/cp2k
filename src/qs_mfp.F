@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2021 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2023 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -14,16 +14,11 @@ MODULE qs_mfp
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                               cp_fm_trace
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                              cp_fm_struct_release,&
-                                              cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -39,6 +34,7 @@ MODULE qs_mfp
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -48,8 +44,7 @@ MODULE qs_mfp
    USE qs_linres_methods,               ONLY: linres_solver
    USE qs_linres_types,                 ONLY: linres_control_type,&
                                               vcd_env_type
-   USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_type
+   USE qs_mo_types,                     ONLY: mo_set_type
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                               get_neighbor_list_set_p,&
                                               neighbor_list_iterate,&
@@ -57,11 +52,10 @@ MODULE qs_mfp
                                               neighbor_list_iterator_p_type,&
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
-   USE qs_vcd_ao,               ONLY: build_rpnl_matrix,&
-                                              hr_mult_by_delta_1d
-   USE qs_vcd_utils,                   ONLY: vcd_read_restart,&
-                                              vcd_write_restart
    USE qs_p_env_types,                  ONLY: qs_p_env_type
+   USE qs_vcd_ao,                       ONLY: hr_mult_by_delta_1d
+   USE qs_vcd_utils,                    ONLY: vcd_read_restart,&
+                                              vcd_write_restart
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 !$ USE OMP_LIB, ONLY: omp_lock_kind, &
@@ -95,7 +89,7 @@ CONTAINS
 !> \author Edward Ditler
 ! **************************************************************************************************
    SUBROUTINE mfp_aat(vcd_env, qs_env)
-      TYPE(vcd_env_type)                                :: vcd_env
+      TYPE(vcd_env_type)                                 :: vcd_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mfp_aat', routineP = moduleN//':'//routineN
@@ -132,7 +126,7 @@ CONTAINS
       gauge_origin(:) = 0._dp
 
       ! Set up the matrices
-      ALLOCATE(buf, buf2, matrix_dSdB_mo)
+      ALLOCATE (buf, buf2, matrix_dSdB_mo)
       CALL cp_fm_create(buf, vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
       CALL cp_fm_create(buf2, vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
       CALL cp_fm_create(matrix_dSdB_mo, vcd_env%dcdr_env%momo_fm_struct(1)%struct)
@@ -152,7 +146,7 @@ CONTAINS
                          -0.5_dp, mo_coeff, matrix_dSdB_mo, &
                          0.0_dp, vcd_env%dCB_prime(alpha))
 
-      ENDDO
+      END DO
 
       ! The AATs in MFP consist of four terms
       !
@@ -185,15 +179,12 @@ CONTAINS
                CALL cp_fm_trace(buf, mo_coeff, tmp_trace)
 
                aat_moment_der = aat_moment_der - lc_tmp*tmp_trace
-            ENDDO
-         ENDDO
+            END DO
+         END DO
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_moment_der
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'aat mfp-moment_der:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_moment_der
-      ENDDO
+      END DO
 
       ! And additionally we have the reference dependence
       !  + ε_{alpha gamma delta} * P0 * < mu | R^mu_gamma * r_delta ∂_beta | nu > * delta_nu^lambda
@@ -241,20 +232,17 @@ CONTAINS
                aat_tmp = aat_tmp + lc_tmp*tmp_trace &
                          *vcd_env%spatial_origin_atom(delta)*vcd_env%magnetic_origin_atom(gamma)
 
-            ENDDO
-         ENDDO
+            END DO
+         END DO
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'aat mfp-moment_der_ref:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
-      ENDDO
+      END DO
 
       ! ii)    (i CB_alpha) * C0 * < mu | d/dR_beta^\lambda nu >
       !         = - (i CB_alpha) * C0 * < mu | ∂_beta | nu > * delta_nu^lambda
       !
-      ! dipvel_ao = + < a | ∂ | b >, so I can take that an multiply with the delta
+      ! dipvel_ao = + < a | ∂ | b >, so I can take that and multiply with the delta
       CALL dbcsr_desymmetrize(vcd_env%dipvel_ao(vcd_env%dcdr_env%beta)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix)
       CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, qs_kind_set, "ORB", &
                                sab_all, direction_Or=.TRUE., lambda=vcd_env%dcdr_env%lambda)
@@ -273,12 +261,8 @@ CONTAINS
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_linmom
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'aat mfp-linmom-dCdB:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_linmom
       END DO
 
-      ! CPWARN("mfp-linmom-dSdB is printed, but not included in the total MFP AAT")
       DO alpha = 1, 3
          CALL cp_fm_set_all(buf, 0.0_dp)
          aat_linmom = 0.0_dp
@@ -292,9 +276,6 @@ CONTAINS
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_linmom
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'aat mfp-linmom-dSdB:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_linmom
       END DO
 
       ! The reference dependent dSdB term is
@@ -321,7 +302,6 @@ CONTAINS
                                          qs_kind_set, particle_set, "ORB", sab_all, gamma, basis_function_nu=.TRUE., &
                                          gauge_origin=gauge_origin)
 
-               ! !! A = alpha*A + beta*B or
                ! - < mu | nu > * R^mu_gamma + < mu | nu > * R^nu_gamma
                CALL dbcsr_add(vcd_env%dcdr_env%matrix_nosym_temp2(1)%matrix, &
                               vcd_env%dcdr_env%matrix_nosym_temp2(2)%matrix, -1._dp, +1._dp)
@@ -330,8 +310,8 @@ CONTAINS
                CALL dbcsr_add(vcd_env%dcdr_env%matrix_nosym_temp2(3)%matrix, &
                               vcd_env%dcdr_env%matrix_nosym_temp2(1)%matrix, &
                               1._dp, vcd_env%spatial_origin_atom(delta)*lc_tmp/2._dp)
-            ENDDO
-         ENDDO
+            END DO
+         END DO
 
          ! With the reference dependent overlap derivative in vcd_env%dcdr_env%matrix_nosym_temp2(3)%matrix,
          !  we now build the corresponding coefficients as buf2 = -0.5 * C0 * S1(ref)
@@ -353,11 +333,8 @@ CONTAINS
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_linmom
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'aat mfp-linmom-dSdB_ref:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_linmom
 
-      ENDDO
+      END DO
 
       ! iv)   -1/c * ε_{alpha gamma delta} * C0 * CR_beta * < mu | r_delta | nu > * R^mu_gamma
       DO alpha = 1, 3
@@ -377,15 +354,12 @@ CONTAINS
                CALL cp_fm_trace(buf, vcd_env%dcdr_env%dCR_prime(ispin), tmp_trace)
 
                aat_moment = aat_moment - lc_tmp*tmp_trace
-            ENDDO
-         ENDDO
+            END DO
+         END DO
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_moment
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'aat mfp-moment:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_moment
-      ENDDO
+      END DO
 
       ! And additionally we have the reference dependence
       ! - ε_{alpha gamma delta} * C0 * CR_beta * < mu | R^mu_gamma r_delta | nu >
@@ -422,15 +396,12 @@ CONTAINS
 
                aat_moment = aat_moment + lc_tmp*tmp_trace &
                             *vcd_env%magnetic_origin_atom(gamma)*vcd_env%spatial_origin_atom(delta)
-            ENDDO
-         ENDDO
+            END DO
+         END DO
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_moment
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'aat mfp-moment_ref:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_moment
-      ENDDO
+      END DO
 
       ! i)       2 * (iCB_alpha) * CR_beta * S0
       !
@@ -446,9 +417,6 @@ CONTAINS
          ! dCB_prime * dCR_prime = + iP1
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_overlap
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'aat mfp-overlap-dCdB:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_overlap
       END DO
 
       DO alpha = 1, 3
@@ -463,9 +431,6 @@ CONTAINS
          ! dCB_prime * dCR_prime = + iP1
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_overlap
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'aat mfp-overlap-dSdB:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_overlap
       END DO
 
       ! The reference dependent dSdB term is
@@ -500,8 +465,8 @@ CONTAINS
                ! and accumulate the results
                CALL dbcsr_add(vcd_env%dcdr_env%matrix_nosym_temp2(3)%matrix, vcd_env%dcdr_env%matrix_nosym_temp2(1)%matrix, &
                               1._dp, -vcd_env%spatial_origin_atom(delta)*lc_tmp/2._dp)
-            ENDDO
-         ENDDO
+            END DO
+         END DO
 
          ! With the reference dependent overlap derivative in vcd_env%dcdr_env%matrix_nosym_temp2(3)%matrix,
          !  we now build the corresponding coefficients as buf2 = -0.5 * C0 * S1(ref)
@@ -523,10 +488,7 @@ CONTAINS
          ! dCB_prime * dCR_prime = + iP1
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_overlap
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'aat mfp-overlap-dSdB_ref:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_overlap
-      ENDDO
+      END DO
 
       ! Nuclear contribution
       CALL get_atomic_kind(particle_set(vcd_env%dcdr_env%lambda)%atomic_kind, kind_number=ikind)
@@ -542,19 +504,16 @@ CONTAINS
 
                aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
                   = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp/4.
-               ! IF (vcd_env%output_unit > 0) &
-               !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-               !    'aat mfp-nuclear:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
-            ENDDO
-         ENDDO
-      ENDIF
+            END DO
+         END DO
+      END IF
 
       CALL cp_fm_release(buf)
       CALL cp_fm_release(buf2)
       CALL cp_fm_release(matrix_dSdB_mo)
-      DEALLOCATE(buf)
-      DEALLOCATE(buf2)
-      DEALLOCATE(matrix_dSdB_mo)
+      DEALLOCATE (buf)
+      DEALLOCATE (buf2)
+      DEALLOCATE (matrix_dSdB_mo)
 
       CALL timestop(handle)
    END SUBROUTINE mfp_aat
@@ -567,7 +526,7 @@ CONTAINS
 !> \author Edward Ditler
 ! **************************************************************************************************
    SUBROUTINE mfp_build_operator_gauge_dependent(vcd_env, qs_env, alpha)
-      TYPE(vcd_env_type)                                :: vcd_env
+      TYPE(vcd_env_type)                                 :: vcd_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER                                            :: alpha
 
@@ -617,7 +576,7 @@ CONTAINS
 
       eps_ppnl = dft_control%qs_control%eps_ppnl
 
-      ALLOCATE(buf)
+      ALLOCATE (buf)
       CALL cp_fm_create(buf, vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
       CALL cp_fm_set_all(vcd_env%op_dB(ispin), 0._dp)
       CALL cp_fm_set_all(buf, 0._dp)
@@ -689,13 +648,11 @@ CONTAINS
             CALL dbcsr_add(vcd_env%dcdr_env%matrix_nosym_temp(3)%matrix, &
                            vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, 1._dp, lc_tmp/2._dp)
 
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(3)%matrix, mo_coeff, &
                                    vcd_env%op_dB(ispin), ncol=nmo, alpha=1._dp, beta=1.0_dp)
-      ! CALL write_dbcsr1(vcd_env%dcdr_env%matrix_nosym_temp(3)%matrix, "op_dB-hamiltonian", 0, alpha, qs_env)
-      ! CALL write_cpfm(vcd_env%op_dB(ispin), "op_dB_fm-hamiltonian", 0, alpha)
 
       ! The third term in the operator is
       !    i/2c sum_{gamma delta} ε_{alpha gamma delta}
@@ -709,8 +666,8 @@ CONTAINS
          DO delta = 1, 3
             CALL dbcsr_set(vcd_env%matrix_nosym_temp_33(gamma, delta)%matrix, 0._dp)
             CALL dbcsr_set(vcd_env%matrix_nosym_temp2_33(gamma, delta)%matrix, 0._dp)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
       ! V * r_delta * R^eta_gamma
       CALL build_com_vnl_giao(qs_kind_set=qs_kind_set, sab_all=sab_all, sap_ppnl=sap_ppnl, &
                               eps_ppnl=dft_control%qs_control%eps_ppnl, &
@@ -736,14 +693,12 @@ CONTAINS
             ! - r_delta * V * R^eta_gamma
             CALL dbcsr_add(vcd_env%dcdr_env%matrix_nosym_temp(3)%matrix, vcd_env%matrix_nosym_temp2_33(gamma, delta)%matrix, &
                            1._dp, -lc_tmp)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       ! Same factor 1/2 as above for Hr - rH
       CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(3)%matrix, mo_coeff, &
                                    vcd_env%op_dB(ispin), ncol=nmo, alpha=1._dp/2._dp, beta=1.0_dp)
-      ! CALL write_dbcsr1(vcd_env%dcdr_env%matrix_nosym_temp(3)%matrix, "op_dB-pseudo", 0, alpha, qs_env)
-      ! CALL write_cpfm(vcd_env%op_dB(ispin), "op_dB_fm-pseudo", 0, alpha)
 
       ! And the O^mag dependent term:
       !    - sum_\eta  < O^mag * [Vnl^eta, r_delta] >
@@ -757,12 +712,10 @@ CONTAINS
             CALL dbcsr_desymmetrize(vcd_env%hcom(delta)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix)
             CALL dbcsr_add(vcd_env%dcdr_env%matrix_nosym_temp(3)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, &
                            1._dp, vcd_env%magnetic_origin_atom(gamma)*lc_tmp/(2._dp))
-         ENDDO
-      ENDDO
+         END DO
+      END DO
       CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(3)%matrix, mo_coeff, &
                                    vcd_env%op_dB(ispin), ncol=nmo, alpha=1.0_dp, beta=1.0_dp)
-      ! CALL write_dbcsr1(vcd_env%dcdr_env%matrix_nosym_temp(3)%matrix, "op_dB-pseudo2", 0, alpha, qs_env)
-      ! CALL write_cpfm(vcd_env%op_dB(ispin), "op_dB_fm-pseudo2", 0, alpha)
 
       ! The fourth term in the operator is
       !  -i/2c sum_{gamma delta} ε_{alpha gamma delta}
@@ -784,8 +737,6 @@ CONTAINS
       END DO
       CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(3)%matrix, mo_coeff, &
                                    vcd_env%op_dB(ispin), ncol=nmo, alpha=1.0_dp, beta=1.0_dp)
-      ! CALL write_dbcsr1(vcd_env%dcdr_env%matrix_nosym_temp(3)%matrix, "op_dB-moments_der", 0, alpha, qs_env)
-      ! CALL write_cpfm(vcd_env%op_dB(ispin), "op_dB_fm-moments_der", 0, alpha)
 
       ! And the O^mag dependent term
       !   + i/2c sum_{gamma delta} ε_{alpha gamma delta}
@@ -804,8 +755,6 @@ CONTAINS
       END DO
       CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(3)%matrix, mo_coeff, &
                                    vcd_env%op_dB(ispin), ncol=nmo, alpha=1.0_dp, beta=1.0_dp)
-      ! CALL write_dbcsr1(vcd_env%dcdr_env%matrix_nosym_temp(3)%matrix, "op_dB-moments_der2", 0, alpha, qs_env)
-      ! CALL write_cpfm(vcd_env%op_dB(ispin), "op_dB_fm-moments_der2", 0, alpha)
 
       ! And the overlap derivative
       !   i/2c * sum_{gamma delta} ε_{alpha gamma delta}
@@ -832,24 +781,21 @@ CONTAINS
                                       qs_kind_set, particle_set, "ORB", sab_all, gamma, basis_function_nu=.TRUE., &
                                       gauge_origin=gauge_origin)
 
-            ! !! A = alpha*A + beta*B or
             CALL dbcsr_add(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, &
                            vcd_env%dcdr_env%matrix_nosym_temp(2)%matrix, 1._dp, -1._dp)
 
             ! and accumulate the results
             CALL dbcsr_add(vcd_env%matrix_dSdB(alpha)%matrix, &
                            vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, 1._dp, lc_tmp/2._dp)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       ! the overlap derivative goes in as -S(1,B) * C0 * E0
       CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_dSdB(alpha)%matrix, mo_coeff, &
                                    buf, ncol=nmo, alpha=1.0_dp, beta=0.0_dp)
       CALL parallel_gemm('N', 'N', nao, nmo, nmo, &
-                   -1.0_dp, buf, vcd_env%dcdr_env%chc(ispin), &   ! the negative sign is here
-                   1.0_dp, vcd_env%op_dB(ispin))
-      ! CALL write_dbcsr1(vcd_env%matrix_dSdB(alpha)%matrix, "op_dB-overlap", 0, alpha, qs_env)
-      ! CALL write_cpfm(vcd_env%op_dB(ispin), "op_dB_fm-overlap", 0, alpha)
+                         -1.0_dp, buf, vcd_env%dcdr_env%chc(ispin), &   ! the negative sign is here
+                         1.0_dp, vcd_env%op_dB(ispin))
 
       ! And the reference dependent part of the overlap
       CALL dbcsr_set(vcd_env%dcdr_env%matrix_nosym_temp2(3)%matrix, 0._dp)
@@ -880,20 +826,18 @@ CONTAINS
             ! and accumulate the results
             CALL dbcsr_add(vcd_env%dcdr_env%matrix_nosym_temp2(3)%matrix, vcd_env%dcdr_env%matrix_nosym_temp2(1)%matrix, &
                            1._dp, vcd_env%spatial_origin_atom(delta)*lc_tmp/2._dp)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp2(3)%matrix, mo_coeff, &
                                    buf, ncol=nmo, alpha=1.0_dp, beta=0.0_dp)
       CALL parallel_gemm('N', 'N', nao, nmo, nmo, &
-                   -1.0_dp, buf, vcd_env%dcdr_env%chc(ispin), &   ! again, the negative sign is here
-                   1.0_dp, vcd_env%op_dB(ispin))
-      ! CALL write_dbcsr1(vcd_env%dcdr_env%matrix_nosym_temp2(3)%matrix, "op_dB-overlap_ref", 0, alpha, qs_env)
-      ! CALL write_cpfm(vcd_env%op_dB(ispin), "op_dB_fm-overlap_ref", 0, alpha)
+                         -1.0_dp, buf, vcd_env%dcdr_env%chc(ispin), &   ! again, the negative sign is here
+                         1.0_dp, vcd_env%op_dB(ispin))
 
       ! CALL cp_fm_set_all(vcd_env%op_dB(ispin), 0._dp)
       CALL cp_fm_release(buf)
-      DEALLOCATE(buf)
+      DEALLOCATE (buf)
 
       ! We have built op_dB but plug -op_dB into the linres_solver
       ! CALL cp_fm_scale(-1.0_dp, vcd_env%op_dB(ispin))
@@ -909,7 +853,7 @@ CONTAINS
 !> \author Edward Ditler
 ! **************************************************************************************************
    SUBROUTINE mfp_build_operator_gauge_independent(vcd_env, qs_env, alpha)
-      TYPE(vcd_env_type)                                :: vcd_env
+      TYPE(vcd_env_type)                                 :: vcd_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER                                            :: alpha
 
@@ -958,7 +902,7 @@ CONTAINS
 
       eps_ppnl = dft_control%qs_control%eps_ppnl
 
-      ALLOCATE(buf)
+      ALLOCATE (buf)
       CALL cp_fm_create(buf, vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
       CALL cp_fm_set_all(vcd_env%op_dB(ispin), 0._dp)
       CALL cp_fm_set_all(buf, 0._dp)
@@ -1016,13 +960,11 @@ CONTAINS
             CALL dbcsr_add(vcd_env%dcdr_env%matrix_nosym_temp(3)%matrix, &
                            vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, 1._dp, lc_tmp/2._dp)
 
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(3)%matrix, mo_coeff, &
                                    vcd_env%op_dB(ispin), ncol=nmo, alpha=1._dp, beta=1.0_dp)
-      ! CALL write_dbcsr1(vcd_env%dcdr_env%matrix_nosym_temp(3)%matrix, "op_dB-hamiltonian", 0, alpha, qs_env)
-      ! CALL write_cpfm(vcd_env%op_dB(ispin), "op_dB_fm-hamiltonian", 0, alpha)
 
       ! The second term in the operator is
       !    i/2c sum_{gamma delta} ε_{alpha gamma delta}
@@ -1036,8 +978,8 @@ CONTAINS
          DO delta = 1, 3
             CALL dbcsr_set(vcd_env%matrix_nosym_temp_33(gamma, delta)%matrix, 0._dp)
             CALL dbcsr_set(vcd_env%matrix_nosym_temp2_33(gamma, delta)%matrix, 0._dp)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
       ! V * r_delta * R^eta_gamma
       CALL build_com_vnl_giao(qs_kind_set=qs_kind_set, sab_all=sab_all, sap_ppnl=sap_ppnl, &
                               eps_ppnl=dft_control%qs_control%eps_ppnl, &
@@ -1065,14 +1007,12 @@ CONTAINS
             CALL dbcsr_add(vcd_env%dcdr_env%matrix_nosym_temp(3)%matrix, &
                            vcd_env%matrix_nosym_temp2_33(gamma, delta)%matrix, &
                            1._dp, -lc_tmp)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       ! Same factor 1/2 as above for Hr - rH
       CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(3)%matrix, mo_coeff, &
                                    vcd_env%op_dB(ispin), ncol=nmo, alpha=1._dp/2._dp, beta=1.0_dp)
-      ! CALL write_dbcsr1(vcd_env%dcdr_env%matrix_nosym_temp(3)%matrix, "op_dB-pseudo", 0, alpha, qs_env)
-      ! CALL write_cpfm(vcd_env%op_dB(ispin), "op_dB_fm-pseudo", 0, alpha)
 
       ! The third term in the operator is
       !  -i/2c sum_{gamma delta} ε_{alpha gamma delta}
@@ -1094,8 +1034,6 @@ CONTAINS
       END DO
       CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(3)%matrix, mo_coeff, &
                                    vcd_env%op_dB(ispin), ncol=nmo, alpha=1.0_dp, beta=1.0_dp)
-      ! CALL write_dbcsr1(vcd_env%dcdr_env%matrix_nosym_temp(3)%matrix, "op_dB-moments_der", 0, alpha, qs_env)
-      ! CALL write_cpfm(vcd_env%op_dB(ispin), "op_dB_fm-moments_der", 0, alpha)
 
       ! And the R^nu dependent term
       !   + i/2c sum_{gamma delta} ε_{alpha gamma delta}
@@ -1118,8 +1056,6 @@ CONTAINS
       END DO
       CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(3)%matrix, mo_coeff, &
                                    vcd_env%op_dB(ispin), ncol=nmo, alpha=1.0_dp, beta=1.0_dp)
-      ! CALL write_dbcsr1(vcd_env%dcdr_env%matrix_nosym_temp(3)%matrix, "op_dB-moments_der2", 0, alpha, qs_env)
-      ! CALL write_cpfm(vcd_env%op_dB(ispin), "op_dB_fm-moments_der2", 0, alpha)
 
       ! And the overlap derivative
       !   i/2c * sum_{gamma delta} ε_{alpha gamma delta}
@@ -1153,8 +1089,8 @@ CONTAINS
             ! and accumulate the results
             CALL dbcsr_add(vcd_env%matrix_dSdB(alpha)%matrix, &
                            vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, 1._dp, lc_tmp/2._dp)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       ! the overlap derivative goes in as -S(1,B) * C0 * E0
       CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_dSdB(alpha)%matrix, mo_coeff, &
@@ -1162,8 +1098,6 @@ CONTAINS
       CALL parallel_gemm('N', 'N', nao, nmo, nmo, &
                          -1.0_dp, buf, vcd_env%dcdr_env%chc(ispin), &   ! the negative sign is here
                          1.0_dp, vcd_env%op_dB(ispin))
-      ! CALL write_dbcsr1(vcd_env%matrix_dSdB(alpha)%matrix, "op_dB-overlap", 0, alpha, qs_env)
-      ! CALL write_cpfm(vcd_env%op_dB(ispin), "op_dB_fm-overlap", 0, alpha)
 
       ! And the reference dependent part of the overlap
       CALL dbcsr_set(vcd_env%dcdr_env%matrix_nosym_temp2(3)%matrix, 0._dp)
@@ -1194,20 +1128,18 @@ CONTAINS
             ! and accumulate the results
             CALL dbcsr_add(vcd_env%dcdr_env%matrix_nosym_temp2(3)%matrix, vcd_env%dcdr_env%matrix_nosym_temp2(1)%matrix, &
                            1._dp, vcd_env%spatial_origin_atom(delta)*lc_tmp/2._dp)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp2(3)%matrix, mo_coeff, &
                                    buf, ncol=nmo, alpha=1.0_dp, beta=0.0_dp)
       CALL parallel_gemm('N', 'N', nao, nmo, nmo, &
-                   -1.0_dp, buf, vcd_env%dcdr_env%chc(ispin), &   ! again, the negative sign is here
-                   1.0_dp, vcd_env%op_dB(ispin))
-      ! CALL write_dbcsr1(vcd_env%dcdr_env%matrix_nosym_temp2(3)%matrix, "op_dB-overlap_ref", 0, alpha, qs_env)
-      ! CALL write_cpfm(vcd_env%op_dB(ispin), "op_dB_fm-overlap_ref", 0, alpha)
+                         -1.0_dp, buf, vcd_env%dcdr_env%chc(ispin), &   ! again, the negative sign is here
+                         1.0_dp, vcd_env%op_dB(ispin))
 
       ! CALL cp_fm_set_all(vcd_env%op_dB(ispin), 0._dp)
       CALL cp_fm_release(buf)
-      DEALLOCATE(buf)
+      DEALLOCATE (buf)
 
       ! We have built op_dB but plug -op_dB into the linres_solver
       ! CALL cp_fm_scale(-1.0_dp, vcd_env%op_dB(ispin))
@@ -1225,20 +1157,17 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mfp_response(vcd_env, p_env, qs_env, alpha)
 
-      TYPE(vcd_env_type)                                :: vcd_env
-      TYPE(qs_p_env_type)                               :: p_env
+      TYPE(vcd_env_type)                                 :: vcd_env
+      TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: alpha
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mfp_response', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ispin, nao, nmo, nspins, &
-                                                            output_unit
+      INTEGER                                            :: handle, ispin, nspins, output_unit
       LOGICAL                                            :: failure, should_stop
       TYPE(cp_fm_type), DIMENSION(1)                     :: h1_psi0, psi1
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: psi0_order
-      TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
@@ -1250,7 +1179,6 @@ CONTAINS
 
       NULLIFY (linres_control, lr_section, logger)
 
-
       CALL get_qs_env(qs_env=qs_env, &
                       dft_control=dft_control, &
                       linres_control=linres_control, &
@@ -1259,14 +1187,14 @@ CONTAINS
       logger => cp_get_default_logger()
       lr_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%LINRES")
       vcd_section => section_vals_get_subs_vals(qs_env%input, &
-                                                 "PROPERTIES%LINRES%VCD")
+                                                "PROPERTIES%LINRES%VCD")
 
       output_unit = cp_print_key_unit_nr(logger, lr_section, "PRINT%PROGRAM_RUN_INFO", &
                                          extension=".linresLog")
       IF (output_unit > 0) THEN
          WRITE (UNIT=output_unit, FMT="(T10,A,/)") &
             "*** Self consistent optimization of the magnetic response wavefunction ***"
-      ENDIF
+      END IF
 
       ! allocate the vectors
       psi0_order(1:1) => vcd_env%dcdr_env%mo_coeff(1:1)
@@ -1279,13 +1207,13 @@ CONTAINS
       ELSE
          DO ispin = 1, nspins
             CALL cp_fm_set_all(psi1(ispin), 0.0_dp)
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       IF (output_unit > 0) THEN
          WRITE (output_unit, *) &
             "Response to the perturbation operator referring to the magnetic field in "//ACHAR(alpha + 119)
-      ENDIF
+      END IF
 
       ! First response to get dCR
       ! (H0-E0) psi1 = (H1-E1) psi0
@@ -1297,7 +1225,7 @@ CONTAINS
          CALL cp_fm_set_all(vcd_env%dCB(alpha), 0.0_dp)
          CALL cp_fm_set_all(h1_psi0(ispin), 0.0_dp)
          CALL cp_fm_to_fm(vcd_env%op_dB(ispin), h1_psi0(ispin))
-      ENDDO
+      END DO
 
       linres_control%lr_triplet = .FALSE. ! we do singlet response
       linres_control%do_kernel = .FALSE. ! no coupled response since imaginary perturbation
@@ -1306,7 +1234,7 @@ CONTAINS
                          output_unit, should_stop)
       DO ispin = 1, nspins
          CALL cp_fm_to_fm(psi1(ispin), vcd_env%dCB(alpha))
-      ENDDO
+      END DO
 
       ! Write the new result to the restart file
       IF (linres_control%linres_restart) THEN
@@ -1476,7 +1404,7 @@ CONTAINS
                matrix_block(:, :) = matrix_block(:, :)*particle_set(iatom)%r(direction)
                !$OMP END CRITICAL(blockadd)
             END IF
-         ENDIF
+         END IF
       END DO
 !$OMP END PARALLEL
       CALL neighbor_list_iterator_release(nl_iterator)

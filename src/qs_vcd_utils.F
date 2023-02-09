@@ -114,7 +114,7 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(section_vals_type), POINTER                   :: lr_section, vcd_section
 
-      vcd_env%do_mfp = .false.
+      vcd_env%do_mfp = .FALSE.
 
       ! Set up the logger
       NULLIFY (logger, vcd_section, lr_section)
@@ -137,7 +137,7 @@ CONTAINS
          WRITE (output_unit, "(/,T20,A,/)") "*** Start NVPT/MFPT calculation ***"
       END IF
 
-      ! Just to make sure. The memory requirements are tiny. 
+      ! Just to make sure. The memory requirements are tiny.
       CALL init_orbital_pointers(12)
 
       CALL section_vals_val_get(vcd_section, "DISTRIBUTED_ORIGIN", l_val=vcd_env%distributed_origin)
@@ -227,10 +227,10 @@ CONTAINS
 
       ALLOCATE (vcd_env%dCB(3))
       ALLOCATE (vcd_env%dCB_prime(3))
-      do i = 1, 3
+      DO i = 1, 3
          CALL cp_fm_create(vcd_env%dCB(i), vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
          CALL cp_fm_create(vcd_env%dCB_prime(i), vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
-      enddo
+      END DO
 
       ! DBCSR matrices
       CALL dbcsr_allocate_matrix_set(vcd_env%moments_der, 9, 3)
@@ -470,10 +470,10 @@ CONTAINS
          CALL cp_fm_release(vcd_env%op_dB(ispin))
       END DO
 
-      do ispin = 1, 3
+      DO ispin = 1, 3
          CALL cp_fm_release(vcd_env%dCB(ispin))
          CALL cp_fm_release(vcd_env%dCB_prime(ispin))
-      enddo
+      END DO
 
       DEALLOCATE (vcd_env%dCV)
       DEALLOCATE (vcd_env%dCV_prime)
@@ -793,8 +793,8 @@ CONTAINS
       REAL(dp), DIMENSION(:, :, :, :), POINTER           :: apt_center_dcdr, apt_subset_dcdr
       REAL(kind=dp), DIMENSION(3, 3)                     :: sum_rule_0, sum_rule_0_second, &
                                                             sum_rule_1, sum_rule_2, &
-                                                            sum_rule_2_second, sum_rule_3_second, &
-                                                            sum_rule_3_mfp
+                                                            sum_rule_2_second, sum_rule_3_mfp, &
+                                                            sum_rule_3_second
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_result_type), POINTER                      :: results
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
@@ -851,7 +851,6 @@ CONTAINS
          END DO
       END DO
 
-
       IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, "(A)") &
          'NVP | Write the final AAT matrix per atom (Velocity perturbation)'
       DO l = 1, natom
@@ -864,7 +863,7 @@ CONTAINS
          END DO
       END DO
 
-      if (vcd_env%do_mfp) then
+      IF (vcd_env%do_mfp) THEN
          IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, "(A)") &
             'MFP | Write the final AAT matrix per atom (Magnetic Field perturbation)'
          DO l = 1, natom
@@ -876,7 +875,7 @@ CONTAINS
                   "MFP | ", vcd_env%aat_atom_mfp(i, :, l)
             END DO
          END DO
-      endif
+      END IF
 
       ! Get the dipole
       CALL get_qs_env(qs_env, results=results)
@@ -933,13 +932,13 @@ CONTAINS
                ! + 2._dp*c_light_au*vcd_env%aat_atom_nvpt(alpha, beta, lambda)
             END DO
 
-            if (vcd_env%do_mfp) then
+            IF (vcd_env%do_mfp) THEN
                ! 3: 2c * sum_lambda aat(alpha, beta, lambda)
                DO lambda = 1, natom
                   sum_rule_3_mfp(alpha, beta) = sum_rule_3_mfp(alpha, beta) &
                                                 + vcd_env%aat_atom_mfp(alpha, beta, lambda)
-               ENDDO
-            endif
+               END DO
+            END IF
 
          END DO ! beta
       END DO   ! alpha

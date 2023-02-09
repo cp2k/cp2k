@@ -4739,7 +4739,6 @@ CONTAINS
                          "ER"), &
                          DOI="10.1063/5.0041056")
 
-
       CALL add_reference(key=Ditler2022, ISI_record=s2a( &
                          "TY JOUR", &
                          "PT J", &

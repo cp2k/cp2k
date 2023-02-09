@@ -93,6 +93,10 @@ MODULE qs_linres_module
                                               linres_control_type,&
                                               nmr_env_type,&
                                               vcd_env_type
+   USE qs_mfp,                          ONLY: mfp_aat,&
+                                              mfp_build_operator_gauge_dependent,&
+                                              mfp_build_operator_gauge_independent,&
+                                              mfp_response
    USE qs_mo_types,                     ONLY: mo_set_type
    USE qs_p_env_methods,                ONLY: p_env_create,&
                                               p_env_psi0_changed
@@ -109,10 +113,6 @@ MODULE qs_linres_module
    USE qs_vcd_utils,                    ONLY: vcd_env_cleanup,&
                                               vcd_env_init,&
                                               vcd_print
-   USE qs_mfp, ONLY: mfp_build_operator_gauge_independent, &
-                     mfp_build_operator_gauge_dependent,&
-                     mfp_response, &
-                     mfp_aat
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -143,9 +143,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'vcd_linres'
 
-      INTEGER                                            :: beta, latom, i
+      INTEGER                                            :: beta, i, latom
+      LOGICAL                                            :: mfp_is_done, mfp_repeat
       TYPE(vcd_env_type)                                 :: vcd_env
-      LOGICAL :: mfp_repeat, mfp_is_done
 
       CALL cite_reference(Ditler2022)
 
@@ -182,8 +182,8 @@ CONTAINS
             CALL apt_dV(vcd_env, qs_env)
             CALL aat_dV(vcd_env, qs_env)
 
-            if (vcd_env%do_mfp) then
-               ! Since came so far, we might as well calculate the MFP AATs
+            IF (vcd_env%do_mfp) THEN
+               ! Since we came so far, we might as well calculate the MFP AATs
                ! If we use a distributed origin we need to compute the MFP response again for each
                !   atom, because the reference point changes.
                IF (.NOT. mfp_is_done .OR. mfp_repeat) THEN
@@ -193,14 +193,14 @@ CONTAINS
                         CALL mfp_build_operator_gauge_dependent(vcd_env, qs_env, i)
                      ELSE
                         CALL mfp_build_operator_gauge_independent(vcd_env, qs_env, i)
-                     ENDIF
+                     END IF
                      CALL mfp_response(vcd_env, p_env, qs_env, i)
-                  ENDDO
+                  END DO
                   mfp_is_done = .TRUE.
-               ENDIF
+               END IF
 
                CALL mfp_aat(vcd_env, qs_env)
-            endif
+            END IF
          END DO ! beta
 
          vcd_env%dcdr_env%apt_total_dcdr(:, :, vcd_env%dcdr_env%lambda) = &
@@ -210,7 +210,7 @@ CONTAINS
          vcd_env%apt_total_nvpt(:, :, vcd_env%dcdr_env%lambda) = &
             vcd_env%apt_el_nvpt(:, :, vcd_env%dcdr_env%lambda) + vcd_env%apt_nuc_nvpt(:, :, vcd_env%dcdr_env%lambda)
 
-         if (vcd_env%do_mfp) &
+         IF (vcd_env%do_mfp) &
             vcd_env%aat_atom_mfp(:, :, vcd_env%dcdr_env%lambda) = vcd_env%aat_atom_mfp(:, :, vcd_env%dcdr_env%lambda)*4._dp
 
       END DO !lambda

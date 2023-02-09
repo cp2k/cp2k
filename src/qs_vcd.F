@@ -16,11 +16,7 @@ MODULE qs_vcd
                                               cp_fm_scale,&
                                               cp_fm_scale_and_add,&
                                               cp_fm_trace
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                              cp_fm_struct_release,&
-                                              cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -50,8 +46,7 @@ MODULE qs_vcd
    USE qs_linres_methods,               ONLY: linres_solver
    USE qs_linres_types,                 ONLY: linres_control_type,&
                                               vcd_env_type
-   USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_type
+   USE qs_mo_types,                     ONLY: mo_set_type
    USE qs_moments,                      ONLY: dipole_velocity_deriv
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_p_env_types,                  ONLY: qs_p_env_type
@@ -189,9 +184,6 @@ CONTAINS
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'aat quadr_der:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
       END DO
 
       !  (B):   - P^0 * ε_{alpha gamma delta} * < mu | r_gamma | nu > * (delta == beta) * (nu == lambda)
@@ -217,9 +209,6 @@ CONTAINS
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'aat moment_off:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
       END DO
 
       !  (C):   + iP^1 * ε_{alpha gamma delta} * < mu | r_gamma ∂_delta | nu >
@@ -243,9 +232,6 @@ CONTAINS
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'aat quadr_dcv:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
       END DO
 
       ! The PP part consists of four contributions
@@ -268,9 +254,6 @@ CONTAINS
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'aat r_rxvr:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
       END DO
 
       !  (E):  + P^0 * ε_{alpha gamma delta} * < mu | r_gamma [V, r_delta] r_beta | nu > * (nu == lambda)
@@ -286,9 +269,6 @@ CONTAINS
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'aat rxvr_r:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
       END DO
 
       !  (F):  - P^0 * ε_{alpha gamma delta} * < mu | r_gamma [[V, r_beta], r_delta] | nu > * (eta == lambda)
@@ -302,9 +282,6 @@ CONTAINS
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-            ! 'aat r_doublecom:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
       END DO
 
       !  (G):   - iP^1 * ε_{alpha gamma delta} * < mu | r_gamma [V, r_delta] | nu >
@@ -318,9 +295,6 @@ CONTAINS
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
               + aat_tmp
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'aat pp_dcv:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
       END DO
 
       ! All the reference dependent stuff
@@ -344,9 +318,6 @@ CONTAINS
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'aat quadr_dcv_ref:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
       END DO
 
       !  (G):  - iP^1 * ε_{alpha gamma delta} * < mu | [V, r_delta] | nu > * (- R_gamma)
@@ -368,9 +339,6 @@ CONTAINS
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'aat pp_dcv_ref:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
       END DO
 
       !  mag_vel, vel, mag
@@ -395,10 +363,6 @@ CONTAINS
                ! There is a negative sign here, because the routine dipole_velocity_deriv calculates
                !   the derivatives with respect to nuclear positions and we need electronic positions
                aat_tmp = aat_tmp - lc_tmp*aat_prefactor*tmp_trace*(-vcd_env%magnetic_origin_atom(gamma))
-               ! IF (vcd_env%output_unit > 0) &
-               !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-               !    'aat quadr_der_ref_mag:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda,  &
-               !    - lc_tmp * aat_prefactor * tmp_trace * (-vcd_env%magnetic_origin_atom(gamma))
 
                ! This part doesn't appear in the APT
                ! ii)  - R_beta * < mu | r_gamma ∂_delta | nu > * (mu - nu)
@@ -412,10 +376,6 @@ CONTAINS
                ! There is a negative sign here, because the routine dipole_velocity_deriv calculates
                !   the derivatives with respect to nuclear positions and we need electronic positions
                aat_tmp = aat_tmp - lc_tmp*aat_prefactor*tmp_trace*(-vcd_env%spatial_origin_atom(vcd_env%dcdr_env%beta))
-               ! IF (vcd_env%output_unit > 0) &
-               !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-               !    'aat quadr_der_ref_vel:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda,  &
-               !    - lc_tmp * aat_prefactor * tmp_trace * (-vcd_env%spatial_origin_atom(vcd_env%dcdr_env%beta))
 
                ! i)   + R_beta R_gamma * < mu | ∂_delta | nu > * (mu - nu)
                ! mag_vel
@@ -433,20 +393,12 @@ CONTAINS
                CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
                aat_tmp = aat_tmp + lc_tmp*aat_prefactor*tmp_trace* &
                          (vcd_env%spatial_origin_atom(vcd_env%dcdr_env%beta)*vcd_env%magnetic_origin_atom(gamma))
-               ! IF (vcd_env%output_unit > 0) &
-               !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-               !    'aat quadr_der_ref_magvel:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, &
-               !    lc_tmp * aat_prefactor * tmp_trace * &
-               !                            (vcd_env%spatial_origin_atom(vcd_env%dcdr_env%beta) * vcd_env%magnetic_origin_atom(gamma))
 
             END DO
          END DO
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'aat quadr_der_ref:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
       END DO
 
       ! (B):  P^0 * ε_{alpha gamma beta} * < mu | nu > * (nu == lambda) * R_gamma
@@ -471,9 +423,6 @@ CONTAINS
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'aat moment_off_ref:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
       END DO
 
       !  (D):  - P^0 * ε_{alpha gamma delta} * < mu | r_gamma r_beta [V, r_delta] | nu > * (mu == lambda)
@@ -537,9 +486,6 @@ CONTAINS
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'aat r_rxvr_ref:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
       END DO
 
       !  (E):  + P^0 * ε_{alpha gamma delta} * < mu | r_gamma [V, r_delta] r_beta | nu > * (nu == lambda)
@@ -602,9 +548,6 @@ CONTAINS
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'aat rxvr_r_ref:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
       END DO
 
       !  (F):  - P^0 * ε_{alpha gamma delta} * < mu | [[V, r_beta], r_delta] | nu > * (eta == lambda) * (-R_gamma)
@@ -628,9 +571,6 @@ CONTAINS
 
          aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-         ! IF (vcd_env%output_unit > 0) &
-         !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-         !    'aat r_doublecom_ref:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp
       END DO
 
       ! Nuclear contribution
@@ -647,9 +587,6 @@ CONTAINS
 
                aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
                   = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-               ! IF (vcd_env%output_unit > 0) &
-               !    WRITE (vcd_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") &
-               !    'aat nuclear:', vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda, aat_tmp/4._dp
             END DO
          END DO
       END IF
@@ -683,9 +620,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: deltaR
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_fm_type), DIMENSION(:), POINTER          :: dipvel_mo, hcom_mo
-      TYPE(cp_fm_type), POINTER                        :: buf, buf2, matrix_dSdV_mo
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: dipvel_mo, hcom_mo
+      TYPE(cp_fm_type), POINTER                          :: buf, buf2, matrix_dSdV_mo, mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
@@ -1075,7 +1011,7 @@ CONTAINS
 !>               - i S0 * C^(1,R)
 !>               + i S0 * C0 * (C0 * S^(1,R) * C0)
 !>               - S1 * C0 * E0
-!>  
+!>
 !>     H1 * C0 = + i (Hr - rH) * C0                    [STEP 1]
 !>               + i[∂]δ * C0                          [STEP 2]
 !>               - i[V, r]δ * C0                       [STEP 3]
@@ -1200,13 +1136,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'vcd_response_dV', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ispin, nao, nmo, nspins, &
-                                                            output_unit
+      INTEGER                                            :: handle, ispin, nspins, output_unit
       LOGICAL                                            :: failure, should_stop
       TYPE(cp_fm_type), DIMENSION(1)                     :: h1_psi0, psi1
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: psi0_order
-      TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control

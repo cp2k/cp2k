@@ -8,7 +8,6 @@ MODULE qs_vcd_ao
    USE ai_contraction,                  ONLY: block_add,&
                                               contraction
    USE ai_kinetic,                      ONLY: kinetic
-   USE ai_overlap,                      ONLY: overlap_ab
    USE ai_overlap_ppl,                  ONLY: ppl_integral
    USE ao_util,                         ONLY: exp_radius_very_extended
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -110,7 +109,6 @@ MODULE qs_vcd_ao
              build_tr_matrix, &
              build_rcore_matrix, &
              build_rpnl_matrix, &
-             ! build_matrix_r_vhxc_direct, &
              build_matrix_r_vhxc, &
              build_matrix_hr_rh
 
@@ -1480,12 +1478,6 @@ CONTAINS
       !   *** Release work storage ***
 
       DEALLOCATE (habt, rhab, workt, h_block)
-
-      ! IF (ASSOCIATED(rs_v)) THEN
-      !    DO i = 1, SIZE(rs_v)
-      !       CALL rs_grid_release(rs_v(i))
-      !    END DO
-      ! END IF
 
       CALL timestop(handle)
 

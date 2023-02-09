@@ -1615,7 +1615,6 @@ CONTAINS
 
    END SUBROUTINE build_com_nl_mag
 
-
 ! **************************************************************************************************
 !> \brief Calculate matrix_rv(gamma, delta) = < R^eta_gamma * Vnl * r_delta > for GIAOs
 !> \param qs_kind_set ...
@@ -1645,8 +1644,7 @@ CONTAINS
       TYPE(cell_type), INTENT(IN), OPTIONAL, POINTER     :: cell
       LOGICAL                                            :: direction_Or
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_com_vnl_giao', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_com_vnl_giao'
 
       INTEGER :: delta, gamma, handle, i, i_1, i_x, i_y, i_z, iab, iac, iatom, ibc, icol, ikind, &
          irow, j, jatom, jkind, kac, kbc, kkind, na, natom, nb, nkind, np, order, slot
@@ -1683,7 +1681,7 @@ CONTAINS
          CPASSERT(PRESENT(cell)) ! need cell as well if refpoint is provided
          rf = ref_point
          my_ref = .TRUE.
-      ENDIF
+      END IF
 
       nkind = SIZE(qs_kind_set)
 
@@ -1702,7 +1700,7 @@ CONTAINS
                              particle_set=particle_set, cell=cell)
       ELSE
          CALL build_sap_ints(sap_int, sap_ppnl, qs_kind_set, order, moment_mode=.TRUE.)
-      ENDIF
+      END IF
 
       ! *** Set up a sorting index
       CALL sap_sort(sap_int)
@@ -1715,7 +1713,7 @@ CONTAINS
          ELSE
             NULLIFY (basis_set(ikind)%gto_basis_set)
          END IF
-      ENDDO
+      END DO
 
       CALL get_neighbor_list_set_p(neighbor_list_sets=sab_all)
       ! *** All integrals needed have been calculated and stored in sap_int
@@ -1770,8 +1768,8 @@ CONTAINS
                                       blocks_rv(i, j)%block, found)
                blocks_rv(i, j)%block(:, :) = 0.0_dp
                CPASSERT(found)
-            ENDDO
-         ENDDO
+            END DO
+         END DO
 
          ! loop over all kinds for projector atom
          ! < iatom | katom > h < katom | jatom >
@@ -1808,17 +1806,17 @@ CONTAINS
                               blocks_rv(gamma, delta)%block(1:na, 1:nb) = blocks_rv(gamma, delta)%block(1:na, 1:nb) + &
                                                           MATMUL(achint(1:na, 1:np, i_1), TRANSPOSE(bcint(1:nb, 1:np, delta + 1))) &
                                                   *(particle_set(alist_ac%clist(kac)%catom)%r(gamma) - particle_set(jatom)%r(gamma))
-                           ENDDO
-                        ENDDO
+                           END DO
+                        END DO
                      ELSE                   ! r_delta * V * (R^eta_gamma - R^nu_gamma)
                         DO delta = 1, 3
                            DO gamma = 1, 3
                               blocks_rv(gamma, delta)%block(1:na, 1:nb) = blocks_rv(gamma, delta)%block(1:na, 1:nb) + &
                                                           MATMUL(achint(1:na, 1:np, delta + 1), TRANSPOSE(bcint(1:nb, 1:np, i_1))) &
                                                   *(particle_set(alist_ac%clist(kac)%catom)%r(gamma) - particle_set(jatom)%r(gamma))
-                           ENDDO
-                        ENDDO
-                     ENDIF
+                           END DO
+                        END DO
+                     END IF
 
 !$                   CALL omp_unset_lock(locks(hash))
                      EXIT ! We have found a match and there can be only one single match
@@ -1829,8 +1827,8 @@ CONTAINS
          DO delta = 1, 3
             DO gamma = 1, 3
                NULLIFY (blocks_rv(gamma, delta)%block)
-            ENDDO
-         ENDDO
+            END DO
+         END DO
          DEALLOCATE (blocks_rv)
       END DO
 

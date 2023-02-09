@@ -459,7 +459,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      ! The origin of the magnetic dipole oeprator (r - MAGNETIC_ORIGIN) x momentum
+      ! The origin of the magnetic dipole operator (r - MAGNETIC_ORIGIN) x momentum
       CALL keyword_create(keyword, __LOCATION__, name="MAGNETIC_ORIGIN", &
                           description="Gauge origin of the magnetic dipole operator.", &
                           enum_c_vals=s2a("COM", "COAC", "USER_DEFINED", "ZERO"), &
