@@ -89,6 +89,7 @@ MODULE colvar_types
 ! **************************************************************************************************
    TYPE dist_colvar_type
       INTEGER       :: i_at, j_at, axis_id
+      LOGICAL       :: sign_d
    END TYPE dist_colvar_type
 
 ! **************************************************************************************************
@@ -461,6 +462,7 @@ CONTAINS
       CASE (dist_colvar_id)
          ALLOCATE (colvar%dist_param)
          colvar%dist_param%axis_id = do_clv_xyz
+         colvar%dist_param%sign_d = .FALSE.
       CASE (coord_colvar_id)
          ALLOCATE (colvar%coord_param)
       CASE (population_colvar_id)
@@ -1398,6 +1400,7 @@ CONTAINS
          colvar_out%dist_param%i_at = colvar_in%dist_param%i_at + my_offset
          colvar_out%dist_param%j_at = colvar_in%dist_param%j_at + my_offset
          colvar_out%dist_param%axis_id = colvar_in%dist_param%axis_id
+         colvar_out%dist_param%sign_d = colvar_in%dist_param%sign_d
       CASE (coord_colvar_id)
          colvar_out%coord_param%n_atoms_to = colvar_in%coord_param%n_atoms_to
          colvar_out%coord_param%n_atoms_to_b = colvar_in%coord_param%n_atoms_to_b
