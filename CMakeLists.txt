@@ -380,20 +380,12 @@ if(CP2K_USE_LIBXC)
 endif()
 
 if(CP2K_USE_COSMA)
-  find_package(cosma REQUIRED HINTS "${COSMA_ROOT}" "$ENV(COSMA_ROOT)")
-  get_target_property(COSMA_INCLUDE_DIRS cosma::cosma
-                      INTERFACE_INCLUDE_DIRECTORIES)
-  if(NOT COSMA_INCLUDE_DIRS)
-    set(COSMA_INCLUDE_DIRS "/usr/include;/usr/include/cosma")
-  endif()
+  find_package(cosma REQUIRED)
 
   # check that cosma::cosma_pxgemm and cosma::cosma_prefixed_pxgemm exist
   if(NOT TARGET cosma::cosma_pxgemm OR NOT TARGET cosma::cosma_prefixed_pxgemm)
-    message(ERROR_ERROR
-            " COSMA needs to be build with scalapack offloading support")
-    message(
-      FATAL_ERROR
-        " COSTA_SCALAPACK and COSMA_SCALAPACK should probably be set properly")
+	  message(FATAL_ERROR
+            " COSMA needs to be build with scalapack offloading support. COSTA_SCALAPACK and COSMA_SCALAPACK should probably be set properly")
   endif()
 endif()
 
