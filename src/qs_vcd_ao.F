@@ -1232,7 +1232,6 @@ CONTAINS
       maxpgf = 0
       DO ikind = 1, nkind
          CALL get_qs_kind(qs_kind_set(ikind), &
-                          softb=my_gapw, &
                           basis_set=orb_basis_set, basis_type=my_basis_type)
 
          IF (.NOT. ASSOCIATED(orb_basis_set)) CYCLE
@@ -1304,7 +1303,6 @@ CONTAINS
 
                IF (ikind .NE. ikind_old) THEN
                   CALL get_qs_kind(qs_kind_set(ikind), &
-                                   softb=my_gapw, &
                                    basis_set=orb_basis_set, basis_type=my_basis_type)
 
                   CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
@@ -1322,7 +1320,6 @@ CONTAINS
 
                IF (jkind .NE. jkind_old) THEN
                   CALL get_qs_kind(qs_kind_set(jkind), &
-                                   softb=my_gapw, &
                                    basis_set=orb_basis_set, basis_type=my_basis_type)
                   CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                                          first_sgf=first_sgfb, &

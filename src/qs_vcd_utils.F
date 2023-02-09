@@ -17,7 +17,6 @@ MODULE qs_vcd_utils
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_get_submatrix,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_submatrix,&
                                               cp_fm_type
@@ -47,8 +46,7 @@ MODULE qs_vcd_utils
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE molecule_types,                  ONLY: molecule_type
    USE moments_utils,                   ONLY: get_reference_point
    USE orbital_pointers,                ONLY: init_orbital_pointers
@@ -220,31 +218,19 @@ CONTAINS
       ALLOCATE (vcd_env%dCV(nspins))
       ALLOCATE (vcd_env%dCV_prime(nspins))
       ALLOCATE (vcd_env%op_dV(nspins))
+      ALLOCATE (vcd_env%op_dB(nspins))
+      DO ispin = 1, nspins
+         CALL cp_fm_create(vcd_env%dCV(ispin), vcd_env%dcdr_env%likemos_fm_struct)
+         CALL cp_fm_create(vcd_env%dCV_prime(ispin), vcd_env%dcdr_env%likemos_fm_struct)
+         CALL cp_fm_create(vcd_env%op_dV(ispin), vcd_env%dcdr_env%likemos_fm_struct)
+         CALL cp_fm_create(vcd_env%op_dB(ispin), vcd_env%dcdr_env%likemos_fm_struct)
+      END DO
 
       ALLOCATE (vcd_env%dCB(3))
       ALLOCATE (vcd_env%dCB_prime(3))
-      ALLOCATE (vcd_env%op_dB(nspins))
-      DO ispin = 1, nspins
-         NULLIFY (vcd_env%dCV(ispin)%matrix)
-         NULLIFY (vcd_env%dCV_prime(ispin)%matrix)
-         NULLIFY (vcd_env%op_dV(ispin)%matrix)
-
-         ALLOCATE (vcd_env%dCV(ispin)%matrix)
-         ALLOCATE (vcd_env%dCV_prime(ispin)%matrix)
-         ALLOCATE (vcd_env%op_dV(ispin)%matrix)
-         ALLOCATE (vcd_env%op_dB(ispin)%matrix)
-
-         CALL cp_fm_create(vcd_env%dCV(ispin)%matrix, vcd_env%dcdr_env%likemos_fm_struct)
-         CALL cp_fm_create(vcd_env%dCV_prime(ispin)%matrix, vcd_env%dcdr_env%likemos_fm_struct)
-         CALL cp_fm_create(vcd_env%op_dV(ispin)%matrix, vcd_env%dcdr_env%likemos_fm_struct)
-         CALL cp_fm_create(vcd_env%op_dB(ispin)%matrix, vcd_env%dcdr_env%likemos_fm_struct)
-      END DO
-
       do i = 1, 3
-         ALLOCATE (vcd_env%dCB(i)%matrix)
-         ALLOCATE (vcd_env%dCB_prime(i)%matrix)
-         CALL cp_fm_create(vcd_env%dCB(i)%matrix, vcd_env%dcdr_env%likemos_fm_struct)
-         CALL cp_fm_create(vcd_env%dCB_prime(i)%matrix, vcd_env%dcdr_env%likemos_fm_struct)
+         CALL cp_fm_create(vcd_env%dCB(i), vcd_env%dcdr_env%likemos_fm_struct)
+         CALL cp_fm_create(vcd_env%dCB_prime(i), vcd_env%dcdr_env%likemos_fm_struct)
       enddo
 
       ! DBCSR matrices
@@ -479,23 +465,15 @@ CONTAINS
       DEALLOCATE (vcd_env%aat_atom_mfp)
 
       DO ispin = 1, SIZE(vcd_env%dCV)
-         CALL cp_fm_release(vcd_env%dCV(ispin)%matrix)
-         CALL cp_fm_release(vcd_env%dCV_prime(ispin)%matrix)
-         CALL cp_fm_release(vcd_env%op_dV(ispin)%matrix)
-         CALL cp_fm_release(vcd_env%op_dB(ispin)%matrix)
-
-         DEALLOCATE (vcd_env%dCV(ispin)%matrix)
-         DEALLOCATE (vcd_env%dCV_prime(ispin)%matrix)
-         DEALLOCATE (vcd_env%op_dV(ispin)%matrix)
-         DEALLOCATE (vcd_env%op_dB(ispin)%matrix)
+         CALL cp_fm_release(vcd_env%dCV(ispin))
+         CALL cp_fm_release(vcd_env%dCV_prime(ispin))
+         CALL cp_fm_release(vcd_env%op_dV(ispin))
+         CALL cp_fm_release(vcd_env%op_dB(ispin))
       END DO
 
       do ispin = 1, 3
-         CALL cp_fm_release(vcd_env%dCB(ispin)%matrix)
-         CALL cp_fm_release(vcd_env%dCB_prime(ispin)%matrix)
-
-         DEALLOCATE (vcd_env%dCB(ispin)%matrix)
-         DEALLOCATE (vcd_env%dCB_prime(ispin)%matrix)
+         CALL cp_fm_release(vcd_env%dCB(ispin))
+         CALL cp_fm_release(vcd_env%dCB_prime(ispin))
       enddo
 
       DEALLOCATE (vcd_env%dCV)
@@ -549,7 +527,7 @@ CONTAINS
    SUBROUTINE vcd_read_restart(qs_env, linres_section, vec, lambda, beta, tag)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: linres_section
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: vec
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: vec
       INTEGER, INTENT(IN)                                :: lambda, beta
       CHARACTER(LEN=*)                                   :: tag
 
@@ -624,7 +602,7 @@ CONTAINS
          END IF
       END IF
 
-      CALL mp_bcast(file_exists, source, group)
+      CALL group%bcast(file_exists, source)
 
       IF (file_exists) THEN
 
@@ -635,12 +613,12 @@ CONTAINS
          !
          ! read headers
          IF (rst_unit > 0) READ (rst_unit, IOSTAT=iostat) lambda_tmp, beta_tmp, nspins_tmp, nao_tmp
-         CALL mp_bcast(iostat, source, group)
+         CALL group%bcast(iostat, source)
 
-         CALL mp_bcast(beta_tmp, source, group)
-         CALL mp_bcast(lambda_tmp, source, group)
-         CALL mp_bcast(nspins_tmp, source, group)
-         CALL mp_bcast(nao_tmp, source, group)
+         CALL group%bcast(beta_tmp, source)
+         CALL group%bcast(lambda_tmp, source)
+         CALL group%bcast(nspins_tmp, source)
+         CALL group%bcast(nao_tmp, source)
 
          ! check that the number nao, nmo and nspins are
          ! the same as in the current mos
@@ -659,7 +637,7 @@ CONTAINS
             CALL cp_fm_get_info(mo_coeff, ncol_global=nmo)
             !
             IF (rst_unit > 0) READ (rst_unit) nmo_tmp
-            CALL mp_bcast(nmo_tmp, source, group)
+            CALL group%bcast(nmo_tmp, source)
             IF (nmo_tmp .NE. nmo) CPABORT("nmo not consistent")
             !
             ! read the response
@@ -668,8 +646,8 @@ CONTAINS
                DO j = 1, i_block
                   IF (rst_unit > 0) READ (rst_unit) vecbuffer(1:nao, j)
                END DO
-               CALL mp_bcast(vecbuffer, source, group)
-               CALL cp_fm_set_submatrix(vec(ispin)%matrix, vecbuffer, 1, i, nao, i_block)
+               CALL group%bcast(vecbuffer, source)
+               CALL cp_fm_set_submatrix(vec(ispin), vecbuffer, 1, i, nao, i_block)
             END DO
          END DO
 
@@ -703,7 +681,7 @@ CONTAINS
    SUBROUTINE vcd_write_restart(qs_env, linres_section, vec, lambda, beta, tag)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: linres_section
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: vec
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: vec
       INTEGER, INTENT(IN)                                :: lambda, beta
       CHARACTER(LEN=*)                                   :: tag
 
@@ -767,13 +745,13 @@ CONTAINS
          IF (rst_unit > 0) WRITE (rst_unit) lambda, beta, nspins, nao
 
          DO ispin = 1, nspins
-            CALL cp_fm_get_info(vec(ispin)%matrix, ncol_global=nmo)
+            CALL cp_fm_get_info(vec(ispin), ncol_global=nmo)
 
             IF (rst_unit > 0) WRITE (rst_unit) nmo
 
             DO i = 1, nmo, MAX(max_block, 1)
                i_block = MIN(max_block, nmo - i + 1)
-               CALL cp_fm_get_submatrix(vec(ispin)%matrix, vecbuffer, 1, i, nao, i_block)
+               CALL cp_fm_get_submatrix(vec(ispin), vecbuffer, 1, i, nao, i_block)
                ! doing this in one write would increase efficiency, but breaks RESTART compatibility.
                ! to old ones, and in cases where max_block is different between runs, as might happen during
                ! restarts with a different number of CPUs

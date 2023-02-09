@@ -149,6 +149,7 @@ CONTAINS
 
       ! We need the position perturbation for the velocity perturbation operator
       CALL vcd_env_init(vcd_env, qs_env)
+
       mfp_repeat = vcd_env%distributed_origin
       mfp_is_done = .FALSE.
 
@@ -163,6 +164,7 @@ CONTAINS
          CALL prepare_per_atom_vcd(vcd_env, qs_env)
 
          DO beta = 1, 3                   ! in every direction
+
             vcd_env%dcdr_env%beta = beta
             ! IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) REPEAT('-', 80)
             ! IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) &
@@ -198,8 +200,6 @@ CONTAINS
                mfp_is_done = .TRUE.
             ENDIF
 
-            IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) ""
-            IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) 'MFP AAT contributions:'
             CALL mfp_aat(vcd_env, qs_env)
          END DO ! beta
 
@@ -210,17 +210,8 @@ CONTAINS
          vcd_env%apt_total_nvpt(:, :, vcd_env%dcdr_env%lambda) = &
             vcd_env%apt_el_nvpt(:, :, vcd_env%dcdr_env%lambda) + vcd_env%apt_nuc_nvpt(:, :, vcd_env%dcdr_env%lambda)
 
-         IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) ""
-         IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, *) "Total AAT (MFP):"
-         IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, "(A,I3,A,F15.10)") &
-            'Atom', vcd_env%dcdr_env%lambda
-
          ! ADF prints the AAT with a factor of 4
          vcd_env%aat_atom_mfp(:, :, vcd_env%dcdr_env%lambda) = vcd_env%aat_atom_mfp(:, :, vcd_env%dcdr_env%lambda)*4._dp
-         DO i = 1, 3
-            IF (vcd_env%output_unit > 0) &
-               WRITE (vcd_env%output_unit, "(F15.10,F15.10,F15.10)") vcd_env%aat_atom_mfp(i, :, vcd_env%dcdr_env%lambda)
-         END DO
 
       END DO !lambda
 

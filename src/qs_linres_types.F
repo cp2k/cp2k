@@ -274,12 +274,12 @@ MODULE qs_linres_types
                                                       matrix_nosym_temp_33 => NULL(), &
                                                       matrix_nosym_temp2_33 => NULL()
 
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: dCV => NULL(), &
-                                                   dCV_prime => NULL(), &
-                                                   op_dV => NULL(), &
-                                                   dCB => NULL(), &
-                                                   dCB_prime => NULL(), &
-                                                   op_dB => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: dCV => NULL(), &
+                                                 dCV_prime => NULL(), &
+                                                 op_dV => NULL(), &
+                                                 dCB => NULL(), &
+                                                 dCB_prime => NULL(), &
+                                                 op_dB => NULL()
    END TYPE vcd_env_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_types'

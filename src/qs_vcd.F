@@ -21,7 +21,6 @@ MODULE qs_vcd
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -132,7 +131,7 @@ CONTAINS
       nspins = dft_control%nspins
       nmo = vcd_env%dcdr_env%nmo
       nao = vcd_env%dcdr_env%nao
-      mo_coeff => vcd_env%dcdr_env%mo_coeff(1)%matrix
+      mo_coeff => vcd_env%dcdr_env%mo_coeff(1)
       aat_atom => vcd_env%aat_atom_nvpt
 
       ! I_{alpha beta}^lambda = 1/2c \sum_j^occ ...
@@ -233,7 +232,7 @@ CONTAINS
                IF (lc_tmp == 0._dp) CYCLE
 
                CALL cp_dbcsr_sm_fm_multiply(vcd_env%moments_der(gamma, delta)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
-               CALL cp_fm_trace(tmp_aomo, vcd_env%dCV_prime(1)%matrix, tmp_trace)
+               CALL cp_fm_trace(tmp_aomo, vcd_env%dCV_prime(1), tmp_trace)
 
                ! mo_coeff * dCV_prime = + iP1
                ! moments_der(moment, delta) = - < a | moment \partial_\delta | b >
@@ -311,7 +310,7 @@ CONTAINS
       !  (G):   - iP^1 * ε_{alpha gamma delta} * < mu | r_gamma [V, r_delta] | nu >
       DO alpha = 1, 3
          CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_rxrv(alpha)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
-         CALL cp_fm_trace(tmp_aomo, vcd_env%dCV_prime(1)%matrix, aat_tmp)
+         CALL cp_fm_trace(tmp_aomo, vcd_env%dCV_prime(1), aat_tmp)
 
          !  I can take the positive, because build_com_mom_nl computes r x [r, V]
          aat_tmp = 2._dp*aat_prefactor*aat_tmp
@@ -335,7 +334,7 @@ CONTAINS
                IF (lc_tmp == 0._dp) CYCLE
                ! dipvel_ao = + < a | ∂ | b >
                CALL cp_dbcsr_sm_fm_multiply(vcd_env%dipvel_ao(delta)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
-               CALL cp_fm_trace(tmp_aomo, vcd_env%dCV_prime(1)%matrix, tmp_trace)
+               CALL cp_fm_trace(tmp_aomo, vcd_env%dCV_prime(1), tmp_trace)
 
                ! The negative sign is due to (r - O^mag_gamma) and otherwise this is
                !   exactly the APT dipvel(beta, delta) * (-O^mag_gamma)
@@ -360,7 +359,7 @@ CONTAINS
                ! hcom = < a | [r, V] | b > = - < a | [V, r] | b >
                ! mo_coeff * dCV_prime = + iP1
                CALL cp_dbcsr_sm_fm_multiply(vcd_env%hcom(delta)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
-               CALL cp_fm_trace(tmp_aomo, vcd_env%dCV_prime(1)%matrix, tmp_trace)
+               CALL cp_fm_trace(tmp_aomo, vcd_env%dCV_prime(1), tmp_trace)
 
                ! This is exactly APT hcom(beta, delta)
                aat_tmp = aat_tmp + 2._dp*aat_prefactor*tmp_trace*lc_tmp*(-vcd_env%magnetic_origin_atom(gamma))
@@ -684,8 +683,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: deltaR
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: dipvel_mo, hcom_mo
-      TYPE(cp_fm_p_type), POINTER                        :: buf, buf2, matrix_dSdV_mo
+      TYPE(cp_fm_type), DIMENSION(:), POINTER          :: dipvel_mo, hcom_mo
+      TYPE(cp_fm_type), POINTER                        :: buf, buf2, matrix_dSdV_mo
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
@@ -725,7 +724,7 @@ CONTAINS
       apt_nuc => vcd_env%apt_nuc_nvpt
       apt_total => vcd_env%apt_total_nvpt
 
-      mo_coeff => vcd_env%dcdr_env%mo_coeff(1)%matrix
+      mo_coeff => vcd_env%dcdr_env%mo_coeff(1)
       deltaR => vcd_env%dcdr_env%deltaR
 
       f_spin = 1.0_dp
@@ -735,21 +734,16 @@ CONTAINS
 
       ! build the full matrices
       ALLOCATE (buf, buf2)
-      ALLOCATE (buf%matrix, buf2%matrix)
-      CALL cp_fm_create(buf%matrix, vcd_env%dcdr_env%likemos_fm_struct)
-      CALL cp_fm_create(buf2%matrix, vcd_env%dcdr_env%likemos_fm_struct)
+      CALL cp_fm_create(buf, vcd_env%dcdr_env%likemos_fm_struct)
+      CALL cp_fm_create(buf2, vcd_env%dcdr_env%likemos_fm_struct)
 
       ALLOCATE (matrix_dSdV_mo)
       ALLOCATE (dipvel_mo(3))
       ALLOCATE (hcom_mo(3))
-      ALLOCATE (matrix_dSdV_mo%matrix)
-      CALL cp_fm_create(matrix_dSdV_mo%matrix, vcd_env%dcdr_env%momo_fm_struct)
+      CALL cp_fm_create(matrix_dSdV_mo, vcd_env%dcdr_env%momo_fm_struct)
       DO i = 1, 3
-         ALLOCATE (dipvel_mo(i)%matrix)
-         ALLOCATE (hcom_mo(i)%matrix)
-
-         CALL cp_fm_create(dipvel_mo(i)%matrix, vcd_env%dcdr_env%momo_fm_struct)
-         CALL cp_fm_create(hcom_mo(i)%matrix, vcd_env%dcdr_env%momo_fm_struct)
+         CALL cp_fm_create(dipvel_mo(i), vcd_env%dcdr_env%momo_fm_struct)
+         CALL cp_fm_create(hcom_mo(i), vcd_env%dcdr_env%momo_fm_struct)
       END DO
 
       ispin = 1
@@ -758,27 +752,27 @@ CONTAINS
       ! <mu|∂_alpha|nu> and <mu|[r_alpha, V]|nu> in AO basis
       ! We compute tr(c_1^* x ∂_munu x c_0) + tr(c_0 x ∂_munu x c_1)
       ! We compute tr(c_1^* x [,]_munu x c_0) + tr(c_0 x [,]_munu x c_1)
-      CALL cp_fm_scale_and_add(0._dp, vcd_env%dCV_prime(1)%matrix, -1._dp, vcd_env%dCV(1)%matrix)
-      CALL cp_fm_set_all(buf%matrix, 0.0_dp)
+      CALL cp_fm_scale_and_add(0._dp, vcd_env%dCV_prime(1), -1._dp, vcd_env%dCV(1))
+      CALL cp_fm_set_all(buf, 0.0_dp)
 
       ! Ref independent
       CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_dSdV(vcd_env%dcdr_env%beta)%matrix, mo_coeff, &
-                                   buf%matrix, ncol=nmo)
+                                   buf, ncol=nmo)
       CALL cp_fm_gemm("T", "N", nmo, nmo, nao, &
-                      1.0_dp, mo_coeff, buf%matrix, &
-                      0.0_dp, matrix_dSdV_mo%matrix)
+                      1.0_dp, mo_coeff, buf, &
+                      0.0_dp, matrix_dSdV_mo)
 
       CALL cp_fm_gemm("N", "N", nao, nmo, nmo, &
-                      -0.5_dp, mo_coeff, matrix_dSdV_mo%matrix, &
-                      1.0_dp, vcd_env%dCV_prime(1)%matrix)
+                      -0.5_dp, mo_coeff, matrix_dSdV_mo, &
+                      1.0_dp, vcd_env%dCV_prime(1))
 
       ! + i∂ - i[Vnl, r]
       DO alpha = 1, 3
-         CALL cp_fm_set_all(buf%matrix, 0.0_dp)
+         CALL cp_fm_set_all(buf, 0.0_dp)
          apt_dipvel = 0.0_dp
 
-         CALL cp_dbcsr_sm_fm_multiply(vcd_env%dipvel_ao(alpha)%matrix, mo_coeff, buf%matrix, ncol=nmo)
-         CALL cp_fm_trace(buf%matrix, vcd_env%dCV_prime(1)%matrix, apt_dipvel)
+         CALL cp_dbcsr_sm_fm_multiply(vcd_env%dipvel_ao(alpha)%matrix, mo_coeff, buf, ncol=nmo)
+         CALL cp_fm_trace(buf, vcd_env%dCV_prime(1), apt_dipvel)
          ! dipvel_ao = + < a | ∂ | b >
          ! mo_coeff * dCV_prime = + iP1
          apt_dipvel = 2._dp*apt_dipvel
@@ -791,10 +785,10 @@ CONTAINS
       END DO
 
       DO alpha = 1, 3
-         CALL cp_fm_set_all(buf%matrix, 0.0_dp)
+         CALL cp_fm_set_all(buf, 0.0_dp)
          apt_hcom = 0.0_dp
-         CALL cp_dbcsr_sm_fm_multiply(vcd_env%hcom(alpha)%matrix, mo_coeff, buf%matrix, ncol=nmo)
-         CALL cp_fm_trace(buf%matrix, vcd_env%dCV_prime(1)%matrix, apt_hcom)
+         CALL cp_dbcsr_sm_fm_multiply(vcd_env%hcom(alpha)%matrix, mo_coeff, buf, ncol=nmo)
+         CALL cp_fm_trace(buf, vcd_env%dCV_prime(1), apt_hcom)
 
          ! hcom = < a | [r, V] | b > = - < a | [V, r] | b >
          ! mo_coeff * dCV_prime = + iP1
@@ -817,8 +811,8 @@ CONTAINS
                                vcd_env%dcdr_env%lambda, direction_Or=.TRUE.)
 
       CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(vcd_env%dcdr_env%beta)%matrix, mo_coeff, &
-                                   buf%matrix, ncol=nmo, alpha=1._dp, beta=0._dp)
-      CALL cp_fm_trace(mo_coeff, buf%matrix, apt_difdip)
+                                   buf, ncol=nmo, alpha=1._dp, beta=0._dp)
+      CALL cp_fm_trace(mo_coeff, buf, apt_difdip)
 
       apt_difdip = -f_spin*apt_difdip
       apt_el(vcd_env%dcdr_env%beta, vcd_env%dcdr_env%beta, vcd_env%dcdr_env%lambda) &
@@ -831,9 +825,9 @@ CONTAINS
       !! matrix_difdip2(beta, alpha) = < a | r_beta | ∂_alpha b >
       DO alpha = 1, 3 ! x/y/z for differentiated AO
          CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_difdip2(vcd_env%dcdr_env%beta, alpha)%matrix, mo_coeff, &
-                                      buf%matrix, ncol=nmo, alpha=1._dp, beta=0._dp)
+                                      buf, ncol=nmo, alpha=1._dp, beta=0._dp)
 
-         CALL cp_fm_trace(mo_coeff, buf%matrix, apt_difdip)
+         CALL cp_fm_trace(mo_coeff, buf, apt_difdip)
          ! There is a negative sign here, because the routine dipole_velocity_deriv calculates
          !   the derivatives with respect to nuclear positions and we need electronic positions
          apt_difdip = -f_spin*apt_difdip
@@ -860,9 +854,9 @@ CONTAINS
          CALL dbcsr_add(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(2)%matrix, &
                         1.0_dp, -1.0_dp)
 
-         CALL cp_fm_set_all(buf%matrix, 0.0_dp)
-         CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, buf%matrix, ncol=nmo)
-         CALL cp_fm_trace(mo_coeff, buf%matrix, apt_rcom)
+         CALL cp_fm_set_all(buf, 0.0_dp)
+         CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, buf, ncol=nmo)
+         CALL cp_fm_trace(mo_coeff, buf, apt_rcom)
 
          apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + f_spin*apt_rcom
@@ -874,9 +868,9 @@ CONTAINS
       ! STEP 4: pseudopotential derivative contribution
       ! vcd_env%matrix_dcom(alpha, vcd_env%dcdr_env%beta) = - < mu | [ [V, r_beta], r_alpha ] | nu >
       DO alpha = 1, 3 !x/y/z for differentiated AO
-         CALL cp_fm_set_all(buf%matrix, 0.0_dp)
-         CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_dcom(alpha, vcd_env%dcdr_env%beta)%matrix, mo_coeff, buf%matrix, ncol=nmo)
-         CALL cp_fm_trace(mo_coeff, buf%matrix, apt_dcom)
+         CALL cp_fm_set_all(buf, 0.0_dp)
+         CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_dcom(alpha, vcd_env%dcdr_env%beta)%matrix, mo_coeff, buf, ncol=nmo)
+         CALL cp_fm_trace(mo_coeff, buf, apt_dcom)
          apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
             = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + f_spin*apt_dcom
          ! IF (vcd_env%output_unit > 0) &
@@ -905,9 +899,9 @@ CONTAINS
          CALL dbcsr_add(vcd_env%dcdr_env%matrix_nosym_temp2(alpha)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(alpha)%matrix, &
                         1._dp, -1._dp)
 
-         CALL cp_fm_set_all(buf%matrix, 0.0_dp)
-         CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp2(alpha)%matrix, mo_coeff, buf%matrix, ncol=nmo)
-         CALL cp_fm_trace(mo_coeff, buf%matrix, apt_difdip)
+         CALL cp_fm_set_all(buf, 0.0_dp)
+         CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp2(alpha)%matrix, mo_coeff, buf, ncol=nmo)
+         CALL cp_fm_trace(mo_coeff, buf, apt_difdip)
 
          ! And the whole contribution is
          ! - < a | db/dr > * (mu - nu) * ref_point
@@ -943,9 +937,9 @@ CONTAINS
          CALL dbcsr_add(vcd_env%dcdr_env%matrix_nosym_temp(alpha)%matrix, &
                         vcd_env%dcdr_env%matrix_nosym_temp2(alpha)%matrix, -1._dp, +1._dp)
 
-         CALL cp_fm_set_all(buf%matrix, 0.0_dp)
-         CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(alpha)%matrix, mo_coeff, buf%matrix, ncol=nmo)
-         CALL cp_fm_trace(mo_coeff, buf%matrix, apt_rcom)
+         CALL cp_fm_set_all(buf, 0.0_dp)
+         CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(alpha)%matrix, mo_coeff, buf, ncol=nmo)
+         CALL cp_fm_trace(mo_coeff, buf, apt_rcom)
          apt_rcom = -vcd_env%spatial_origin_atom(vcd_env%dcdr_env%beta)*apt_rcom
 
          apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
@@ -972,21 +966,17 @@ CONTAINS
       CALL dbcsr_deallocate_matrix_set(matrix_dcoml)
       CALL dbcsr_deallocate_matrix_set(matrix_dcomr)
 
-      CALL cp_fm_release(buf%matrix)
-      CALL cp_fm_release(buf2%matrix)
-      CALL cp_fm_release(matrix_dSdV_mo%matrix)
-      DEALLOCATE (buf%matrix)
-      DEALLOCATE (buf2%matrix)
-      DEALLOCATE (matrix_dSdV_mo%matrix)
+      CALL cp_fm_release(buf)
+      CALL cp_fm_release(buf2)
+      CALL cp_fm_release(matrix_dSdV_mo)
+      DEALLOCATE (buf)
+      DEALLOCATE (buf2)
       DO i = 1, 3
-         CALL cp_fm_release(dipvel_mo(i)%matrix)
-         CALL cp_fm_release(hcom_mo(i)%matrix)
-
-         DEALLOCATE (dipvel_mo(i)%matrix)
-         DEALLOCATE (hcom_mo(i)%matrix)
+         CALL cp_fm_release(dipvel_mo(i))
+         CALL cp_fm_release(hcom_mo(i))
       END DO
 
-      DEALLOCATE (matrix_dSdV_mo, dipvel_mo, hcom_mo, buf, buf2)
+      DEALLOCATE (matrix_dSdV_mo, dipvel_mo, hcom_mo)
 
       CALL timestop(handle)
    END SUBROUTINE apt_dV
@@ -1037,7 +1027,7 @@ CONTAINS
                CALL dbcsr_set(vcd_env%matrix_difdip2(i, j)%matrix, 0._dp)
             END DO
          END DO
-         CALL cp_fm_set_all(vcd_env%op_dV(ispin)%matrix, 0._dp)
+         CALL cp_fm_set_all(vcd_env%op_dV(ispin), 0._dp)
          CALL dbcsr_set(vcd_env%matrix_hxc_dsdv(ispin)%matrix, 0._dp)
       END DO
 
@@ -1168,7 +1158,7 @@ CONTAINS
       nmo = vcd_env%dcdr_env%nmo
       nao = vcd_env%dcdr_env%nao
 
-      mo_coeff => vcd_env%dcdr_env%mo_coeff(1)%matrix
+      mo_coeff => vcd_env%dcdr_env%mo_coeff(1)
       ispin = 1
       ALLOCATE (buf)
       CALL cp_fm_create(buf, vcd_env%dcdr_env%likemos_fm_struct)
@@ -1188,36 +1178,36 @@ CONTAINS
                      1.0_dp, -1.0_dp)
 
       CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, &
-                                   vcd_env%op_dV(ispin)%matrix, ncol=nmo, alpha=1.0_dp, beta=0.0_dp)
+                                   vcd_env%op_dV(ispin), ncol=nmo, alpha=1.0_dp, beta=0.0_dp)
 
       ! STEP 2: electronic momentum operator contribution
       CALL cp_dbcsr_sm_fm_multiply(vcd_env%dipvel_ao_delta(vcd_env%dcdr_env%beta)%matrix, mo_coeff, &
-                                   vcd_env%op_dV(ispin)%matrix, &
+                                   vcd_env%op_dV(ispin), &
                                    ncol=nmo, alpha=1.0_dp, beta=1.0_dp)
 
       ! STEP 3: +dV_ppnl/dV, but build_drpnl_matrix gives the negative of dV_ppnl
       ! The arguments (-1, 1) are swapped wrt to the hr-rh term, implying that
       ! direction_Or and direction_hr do what they should.
       CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_drpnl(vcd_env%dcdr_env%beta)%matrix, mo_coeff, &
-                                   vcd_env%op_dV(ispin)%matrix, &
+                                   vcd_env%op_dV(ispin), &
                                    ncol=nmo, alpha=-1.0_dp, beta=1.0_dp)
 
       ! STEP 4: - S0 * C^(1,R)
-      CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_s1(1)%matrix, vcd_env%dcdr_env%dCR_prime(1)%matrix, &
-                                   vcd_env%op_dV(1)%matrix, ncol=nmo, alpha=-1.0_dp, beta=1.0_dp)
+      CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_s1(1)%matrix, vcd_env%dcdr_env%dCR_prime(1), &
+                                   vcd_env%op_dV(1), ncol=nmo, alpha=-1.0_dp, beta=1.0_dp)
 
       ! STEP 5: -S(1,V) * C0 * E0
       CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_dSdV(vcd_env%dcdr_env%beta)%matrix, mo_coeff, &
                                    buf, nmo, alpha=1.0_dp, beta=0.0_dp)
       CALL parallel_gemm('N', 'N', nao, nmo, nmo, &
-                         -1.0_dp, buf, vcd_env%dcdr_env%chc(ispin)%matrix, &
-                         1.0_dp, vcd_env%op_dV(ispin)%matrix)
+                         -1.0_dp, buf, vcd_env%dcdr_env%chc(ispin), &
+                         1.0_dp, vcd_env%op_dV(ispin))
 
       CALL cp_fm_release(buf)
       DEALLOCATE (buf)
 
       ! We have built op_dV but plug -op_dV into the linres_solver
-      CALL cp_fm_scale(-1.0_dp, vcd_env%op_dV(1)%matrix)
+      CALL cp_fm_scale(-1.0_dp, vcd_env%op_dV(1))
 
       ! Revert the matrices
       CALL build_matrix_hr_rh(vcd_env, qs_env, [0._dp, 0._dp, 0._dp])
@@ -1244,7 +1234,8 @@ CONTAINS
       INTEGER                                            :: handle, ispin, nao, nmo, nspins, &
                                                             output_unit
       LOGICAL                                            :: failure, should_stop
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: dCV, h1_psi0, op_dV, psi0_order, psi1
+      TYPE(cp_fm_type), DIMENSION(1)                     :: h1_psi0, psi1
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: psi0_order
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -1256,9 +1247,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       failure = .FALSE.
 
-      NULLIFY (dft_control, linres_control, lr_section, vcd_section, &
-               logger, psi1, h1_psi0, mo_coeff, &
-               tmp_fm_struct, dCV, op_dV)
+      NULLIFY (linres_control, lr_section, logger)
 
       CALL get_qs_env(qs_env=qs_env, &
                       dft_control=dft_control, &
@@ -1277,37 +1266,17 @@ CONTAINS
             "*** Self consistent optimization of the response wavefunction ***"
       END IF
 
-      ! allocate the vectors
-      nspins = dft_control%nspins
-      ALLOCATE (psi0_order(nspins))
-      ALLOCATE (psi1(nspins), h1_psi0(nspins))
-      DO ispin = 1, nspins
-         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
-         psi0_order(ispin)%matrix => mo_coeff
-         CALL cp_fm_get_info(mo_coeff, ncol_global=nmo, nrow_global=nao)
-         NULLIFY (tmp_fm_struct, &
-                  psi1(ispin)%matrix, &
-                  h1_psi0(ispin)%matrix)
-         CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
-                                  ncol_global=nmo, &
-                                  context=mo_coeff%matrix_struct%context)
-         ALLOCATE (psi1(ispin)%matrix, h1_psi0(ispin)%matrix)
-         CALL cp_fm_create(psi1(ispin)%matrix, tmp_fm_struct)
-         CALL cp_fm_create(h1_psi0(ispin)%matrix, tmp_fm_struct)
-         CALL cp_fm_struct_release(tmp_fm_struct)
-      END DO
+      nspins = 1
+      psi0_order(1:1) => vcd_env%dcdr_env%mo_coeff(1:1)
+      CALL cp_fm_create(psi1(1), vcd_env%dcdr_env%likemos_fm_struct)
+      CALL cp_fm_create(h1_psi0(1), vcd_env%dcdr_env%likemos_fm_struct)
 
       ! Restart
       IF (linres_control%linres_restart) THEN
          CALL vcd_read_restart(qs_env, lr_section, psi1, vcd_env%dcdr_env%lambda, vcd_env%dcdr_env%beta, "dCdV")
       ELSE
-         DO ispin = 1, nspins
-            CALL cp_fm_set_all(psi1(ispin)%matrix, 0.0_dp)
-         END DO
+         CALL cp_fm_set_all(psi1(1), 0.0_dp)
       END IF
-
-      dCV => vcd_env%dCV
-      op_dV => vcd_env%op_dV
 
       IF (output_unit > 0) THEN
          WRITE (output_unit, *) &
@@ -1322,9 +1291,9 @@ CONTAINS
       ! psi0_order = the unperturbed wavefunction
       ! Second response to get dCV
       DO ispin = 1, nspins
-         CALL cp_fm_set_all(dCV(ispin)%matrix, 0.0_dp)
-         CALL cp_fm_set_all(h1_psi0(ispin)%matrix, 0.0_dp)
-         CALL cp_fm_to_fm(op_dV(ispin)%matrix, h1_psi0(ispin)%matrix)
+         CALL cp_fm_set_all(vcd_env%dCV(ispin), 0.0_dp)
+         CALL cp_fm_set_all(h1_psi0(ispin), 0.0_dp)
+         CALL cp_fm_to_fm(vcd_env%op_dV(ispin), h1_psi0(ispin))
       END DO
 
       linres_control%lr_triplet = .FALSE. ! we do singlet response
@@ -1333,7 +1302,7 @@ CONTAINS
       CALL linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, &
                          output_unit, should_stop)
       DO ispin = 1, nspins
-         CALL cp_fm_to_fm(psi1(ispin)%matrix, dCV(ispin)%matrix)
+         CALL cp_fm_to_fm(psi1(ispin), vcd_env%dCV(ispin))
       END DO
 
       ! Write the new result to the restart file
@@ -1342,13 +1311,9 @@ CONTAINS
       END IF
 
       ! clean up
-      DO ispin = 1, nspins
-         CALL cp_fm_release(psi1(ispin)%matrix)
-         CALL cp_fm_release(h1_psi0(ispin)%matrix)
-         DEALLOCATE (psi1(ispin)%matrix)
-         DEALLOCATE (h1_psi0(ispin)%matrix)
-      END DO
-      DEALLOCATE (psi1, h1_psi0, psi0_order)
+      CALL cp_fm_release(psi1(1))
+      CALL cp_fm_release(h1_psi0(1))
+
       CALL cp_print_key_finished_output(output_unit, logger, lr_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
 
