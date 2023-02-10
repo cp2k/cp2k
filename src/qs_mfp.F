@@ -1278,8 +1278,13 @@ CONTAINS
                                                             jatom, jkind, last_jatom, mepos, &
                                                             nkind, nseta, nsetb, nthread
       INTEGER, DIMENSION(3)                              :: cell
+      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
+                                                            npgfb, nsgfa, nsgfb
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: do_symmetric, found
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: matrix_block
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: matrix_block, rpgfa, rpgfb, scon_a, &
+                                                            scon_b, zeta, zetb
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
       TYPE(neighbor_list_iterator_p_type), &
@@ -1307,8 +1312,9 @@ CONTAINS
 !$OMP SHARED (basis_function_nu, direction, particle_set, gauge_origin) &
 !$OMP PRIVATE (matrix_block,mepos,ikind,jkind,iatom,jatom,cell) &
 !$OMP PRIVATE (basis_set_a,basis_set_b) &
-!$OMP PRIVATE (nseta, nsetb) &
-!$OMP PRIVATE (irow, icol, found, inode, last_jatom)
+!$OMP PRIVATE (first_sgfa, la_max, la_min, npgfa, nsgfa, nseta, rpgfa, set_radius_a) &
+!$OMP PRIVATE (zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, nsgfb) &
+!$OMP PRIVATE (zetb, scon_a, scon_b, irow, icol, found, inode, last_jatom)
 
       mepos = 0
 !$    mepos = omp_get_thread_num()
@@ -1320,83 +1326,77 @@ CONTAINS
          IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
          basis_set_b => basis_set_list(jkind)%gto_basis_set
          IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
+         ! basis ikind
+         first_sgfa => basis_set_a%first_sgf
+         la_max => basis_set_a%lmax
+         la_min => basis_set_a%lmin
+         npgfa => basis_set_a%npgf
+         nseta = basis_set_a%nset
+         nsgfa => basis_set_a%nsgf_set
+         rpgfa => basis_set_a%pgf_radius
+         set_radius_a => basis_set_a%set_radius
+         scon_a => basis_set_a%scon
+         zeta => basis_set_a%zet
+         ! basis jkind
+         first_sgfb => basis_set_b%first_sgf
+         lb_max => basis_set_b%lmax
+         lb_min => basis_set_b%lmin
+         npgfb => basis_set_b%npgf
+         nsetb = basis_set_b%nset
+         nsgfb => basis_set_b%nsgf_set
+         rpgfb => basis_set_b%pgf_radius
+         set_radius_b => basis_set_b%set_radius
+         scon_b => basis_set_b%scon
+         zetb => basis_set_b%zet
 
-         ASSOCIATE ( &
-            ! basis ikind
-            first_sgfa => basis_set_a%first_sgf, &
-            la_max => basis_set_a%lmax, &
-            la_min => basis_set_a%lmin, &
-            npgfa => basis_set_a%npgf, &
-            nsgfa => basis_set_a%nsgf_set, &
-            rpgfa => basis_set_a%pgf_radius, &
-            set_radius_a => basis_set_a%set_radius, &
-            sphi_a => basis_set_a%sphi, &
-            zeta => basis_set_a%zet, &
-            scon_a => basis_set_a%scon, &
-            ! basis jkind, &
-            first_sgfb => basis_set_b%first_sgf, &
-            lb_max => basis_set_b%lmax, &
-            lb_min => basis_set_b%lmin, &
-            npgfb => basis_set_b%npgf, &
-            nsgfb => basis_set_b%nsgf_set, &
-            rpgfb => basis_set_b%pgf_radius, &
-            set_radius_b => basis_set_b%set_radius, &
-            sphi_b => basis_set_b%sphi, &
-            zetb => basis_set_b%zet, &
-            scon_b => basis_set_b%scon)
+         IF (inode == 1) last_jatom = 0
 
-            nseta = basis_set_a%nset
-            nsetb = basis_set_b%nset
+         ! this guarantees minimum image convention
+         ! anything else would not make sense
+         IF (jatom == last_jatom) THEN
+            CYCLE
+         END IF
 
-            IF (inode == 1) last_jatom = 0
+         last_jatom = jatom
 
-            ! this guarantees minimum image convention
-            ! anything else would not make sense
-            IF (jatom == last_jatom) THEN
-               CYCLE
-            END IF
-
-            last_jatom = jatom
-
-            IF (do_symmetric) THEN
-               IF (iatom <= jatom) THEN
-                  irow = iatom
-                  icol = jatom
-               ELSE
-                  irow = jatom
-                  icol = iatom
-               END IF
-            ELSE
+         IF (do_symmetric) THEN
+            IF (iatom <= jatom) THEN
                irow = iatom
                icol = jatom
+            ELSE
+               irow = jatom
+               icol = iatom
             END IF
+         ELSE
+            irow = iatom
+            icol = jatom
+         END IF
 
-            NULLIFY (matrix_block)
-            CALL dbcsr_get_block_p(matrix, irow, icol, matrix_block, found)
-            CPASSERT(found)
+         NULLIFY (matrix_block)
+         CALL dbcsr_get_block_p(matrix, irow, icol, matrix_block, found)
+         CPASSERT(found)
 
-            IF (PRESENT(gauge_origin)) THEN
-               IF (basis_function_nu) THEN
-                  !$OMP CRITICAL(blockadd)
-                  matrix_block(:, :) = matrix_block(:, :)*(particle_set(jatom)%r(direction) - gauge_origin(direction))
-                  !$OMP END CRITICAL(blockadd)
-               ELSE
-                  !$OMP CRITICAL(blockadd)
-                  matrix_block(:, :) = matrix_block(:, :)*(particle_set(iatom)%r(direction) - gauge_origin(direction))
-                  !$OMP END CRITICAL(blockadd)
-               END IF
-            ELSE IF (.NOT. PRESENT(gauge_origin)) THEN
-               IF (basis_function_nu) THEN
-                  !$OMP CRITICAL(blockadd)
-                  matrix_block(:, :) = matrix_block(:, :)*particle_set(jatom)%r(direction)
-                  !$OMP END CRITICAL(blockadd)
-               ELSE
-                  !$OMP CRITICAL(blockadd)
-                  matrix_block(:, :) = matrix_block(:, :)*particle_set(iatom)%r(direction)
-                  !$OMP END CRITICAL(blockadd)
-               END IF
+         IF (PRESENT(gauge_origin)) THEN
+            IF (basis_function_nu) THEN
+               !$OMP CRITICAL(blockadd)
+               matrix_block(:, :) = matrix_block(:, :)*(particle_set(jatom)%r(direction) - gauge_origin(direction))
+               !$OMP END CRITICAL(blockadd)
+            ELSE
+               !$OMP CRITICAL(blockadd)
+               matrix_block(:, :) = matrix_block(:, :)*(particle_set(iatom)%r(direction) - gauge_origin(direction))
+               !$OMP END CRITICAL(blockadd)
             END IF
-         END ASSOCIATE
+         ELSE IF (.NOT. PRESENT(gauge_origin)) THEN
+            IF (basis_function_nu) THEN
+               !$OMP CRITICAL(blockadd)
+               matrix_block(:, :) = matrix_block(:, :)*particle_set(jatom)%r(direction)
+               !$OMP END CRITICAL(blockadd)
+            ELSE
+               !$OMP CRITICAL(blockadd)
+               matrix_block(:, :) = matrix_block(:, :)*particle_set(iatom)%r(direction)
+               !$OMP END CRITICAL(blockadd)
+            END IF
+         END IF
       END DO
 !$OMP END PARALLEL
       CALL neighbor_list_iterator_release(nl_iterator)
