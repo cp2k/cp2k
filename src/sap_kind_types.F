@@ -264,8 +264,9 @@ CONTAINS
 !> \param refpoint optionally the reference point for moment calculation
 !> \param particle_set needed if refpoint is present
 !> \param cell needed if refpoint is present
+!> \param pseudoatom If we want to constrain the calculations to katom == pseudoatom
 ! **************************************************************************************************
-   SUBROUTINE build_sap_ints(sap_int, sap_ppnl, qs_kind_set, nder, moment_mode, refpoint, particle_set, cell)
+   SUBROUTINE build_sap_ints(sap_int, sap_ppnl, qs_kind_set, nder, moment_mode, refpoint, particle_set, cell, pseudoatom)
       TYPE(sap_int_type), DIMENSION(:), INTENT(INOUT), &
          POINTER                                         :: sap_int
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -278,6 +279,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), INTENT(IN), &
          OPTIONAL, POINTER                               :: particle_set
       TYPE(cell_type), INTENT(IN), OPTIONAL, POINTER     :: cell
+      INTEGER, OPTIONAL                                  :: pseudoatom
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_sap_ints'
 
@@ -408,7 +410,7 @@ CONTAINS
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
 !$OMP SHARED  (basis_set, gpotential, spotential, maxder, ncoset, my_momentmode, ldai_nl, &
-!$OMP          sap_ppnl, sap_int, nkind, ldsab, ldai, nder, nco, my_ref, cell, particle_set, rf) &
+!$OMP          sap_ppnl, sap_int, nkind, ldsab, ldai, nder, nco, my_ref, cell, particle_set, rf, pseudoatom) &
 !$OMP PRIVATE (ikind, kkind, iatom, katom, nlist, ilist, nneighbor, jneighbor, &
 !$OMP          cell_c, rac, iac, first_sgfa, la_max, la_min, npgfa, nseta, nsgfa, nsgf_seta, &
 !$OMP          slot, sphi_a, zeta, cprj, hprj, lppnl, nppnl, nprj_ppnl, &
@@ -509,6 +511,15 @@ CONTAINS
          clist%achint = 0._dp
          clist%nsgf_cnt = 0
          NULLIFY (clist%sgf_list)
+
+         IF (PRESENT(pseudoatom)) THEN
+            IF (pseudoatom /= katom) THEN
+               clist%maxac = MAXVAL(ABS(clist%acint(:, :, 1)))
+               clist%maxach = MAXVAL(ABS(clist%achint(:, :, 1)))
+               IF (.NOT. dogth) DEALLOCATE (radp)
+               CYCLE
+            END IF
+         END IF
 
          DO iset = 1, nseta
             ncoa = npgfa(iset)*ncoset(la_max(iset))

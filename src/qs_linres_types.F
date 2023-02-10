@@ -206,17 +206,24 @@ MODULE qs_linres_types
    TYPE dcdr_env_type
       INTEGER :: nao, orb_center, beta, lambda, output_unit, nspins
       INTEGER, DIMENSION(:), ALLOCATABLE :: nmo
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_hc, matrix_s1, matrix_t1, matrix_s, matrix_t, &
-                                                   matrix_ppnl_1, matrix_core_charge_1, &
-                                                   matrix_nosym_temp, &
-                                                   moments, &
-                                                   matrix_apply_op_constant, &
-                                                   hamiltonian1, perturbed_dm_correction
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: matrix_vhxc_perturbed_basis, &
-                                                      matrix_difdip, matrix_d_vhxc_dR
-      REAL(dp), DIMENSION(:, :), POINTER :: deltaR, delta_basis_function
-      REAL(dp), DIMENSION(:, :, :, :), POINTER :: apt_subset, apt_at_dcdr_per_center
-      TYPE(cp_fm_type), DIMENSION(:), POINTER :: mo_coeff, dCR, dCR_prime, op_dR, chc
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_hc => NULL(), matrix_s1 => NULL(), matrix_t1 => NULL(), &
+                                                   matrix_s => NULL(), matrix_t => NULL(), &
+                                                   matrix_ppnl_1 => NULL(), &
+                                                   matrix_core_charge_1 => NULL(), &
+                                                   matrix_nosym_temp => NULL(), &
+                                                   matrix_nosym_temp2 => NULL(), &
+                                                   moments => NULL(), &
+                                                   matrix_apply_op_constant => NULL(), &
+                                                   hamiltonian1 => NULL(), &
+                                                   perturbed_dm_correction => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: matrix_vhxc_perturbed_basis => NULL(), &
+                                                      matrix_difdip => NULL(), &
+                                                      matrix_d_vhxc_dR => NULL()
+      REAL(dp), DIMENSION(:, :), POINTER :: deltaR => NULL(), delta_basis_function => NULL()
+      REAL(dp), DIMENSION(:, :, :, :), POINTER :: apt_subset => NULL(), apt_at_dcdr_per_center => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: mo_coeff => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: dCR => NULL(), dCR_prime => NULL(), &
+                                                 op_dR => NULL(), chc => NULL()
 
       CHARACTER(LEN=30) :: orb_center_name
       TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER :: center_list => NULL()
@@ -237,13 +244,58 @@ MODULE qs_linres_types
       REAL(dp), DIMENSION(:, :, :, :), POINTER :: apt_el_dcdr_per_center => NULL(), apt_el_dcdr_per_subset => NULL()
    END TYPE dcdr_env_type
 
+!  \param type for VCD calculation
+   TYPE vcd_env_type
+      TYPE(dcdr_env_type) :: dcdr_env
+
+      INTEGER :: output_unit
+      REAL(dp), DIMENSION(3) :: spatial_origin, spatial_origin_atom, magnetic_origin, magnetic_origin_atom
+      LOGICAL :: distributed_origin, origin_dependent_op_mfp, do_mfp
+
+      ! APTs and AATs in velocity form
+      REAL(dp), DIMENSION(:, :, :), POINTER :: apt_el_nvpt, apt_nuc_nvpt, apt_total_nvpt
+      REAL(dp), DIMENSION(:, :, :), POINTER :: aat_atom_nvpt, aat_atom_mfp
+
+      ! Matrices
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_dSdV => NULL(), &
+                                                   matrix_drpnl => NULL(), &
+                                                   matrix_hxc_dsdv => NULL(), &
+                                                   hcom => NULL(), &
+                                                   dipvel_ao => NULL(), &
+                                                   dipvel_ao_delta => NULL(), &
+                                                   matrix_rxrv => NULL(), &
+                                                   matrix_dSdB => NULL()
+
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: matrix_hr => NULL(), &
+                                                      matrix_rh => NULL(), &
+                                                      matrix_difdip2 => NULL(), &
+                                                      moments_der => NULL(), &
+                                                      moments_der_right => NULL(), &
+                                                      moments_der_left => NULL(), &
+                                                      matrix_r_doublecom => NULL(), &
+                                                      matrix_rcomr => NULL(), &
+                                                      matrix_rrcom => NULL(), &
+                                                      matrix_dcom => NULL(), &
+                                                      matrix_r_rxvr => NULL(), &
+                                                      matrix_rxvr_r => NULL(), &
+                                                      matrix_nosym_temp_33 => NULL(), &
+                                                      matrix_nosym_temp2_33 => NULL()
+
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: dCV => NULL(), &
+                                                 dCV_prime => NULL(), &
+                                                 op_dV => NULL(), &
+                                                 dCB => NULL(), &
+                                                 dCB_prime => NULL(), &
+                                                 op_dB => NULL()
+   END TYPE vcd_env_type
+
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_types'
 
 ! *** Public data types ***
 
    PUBLIC :: linres_control_type, &
              nmr_env_type, issc_env_type, jrho_atom_type, &
-             epr_env_type, dcdr_env_type, &
+             epr_env_type, dcdr_env_type, vcd_env_type, &
              nablavks_atom_type, current_env_type, &
              polar_env_type
 
