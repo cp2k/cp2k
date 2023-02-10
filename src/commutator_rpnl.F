@@ -195,100 +195,104 @@ CONTAINS
             spot = ASSOCIATED(spotential(kkind)%sgp_potential)
             IF ((.NOT. gpot) .AND. (.NOT. spot)) CYCLE
             ! get definition of basis set
-            first_sgfa => basis_set(ikind)%gto_basis_set%first_sgf
-            la_max => basis_set(ikind)%gto_basis_set%lmax
-            la_min => basis_set(ikind)%gto_basis_set%lmin
-            npgfa => basis_set(ikind)%gto_basis_set%npgf
-            nseta = basis_set(ikind)%gto_basis_set%nset
-            nsgfa = basis_set(ikind)%gto_basis_set%nsgf
-            nsgf_seta => basis_set(ikind)%gto_basis_set%nsgf_set
-            rpgfa => basis_set(ikind)%gto_basis_set%pgf_radius
-            set_radius_a => basis_set(ikind)%gto_basis_set%set_radius
-            sphi_a => basis_set(ikind)%gto_basis_set%sphi
-            zeta => basis_set(ikind)%gto_basis_set%zet
-            ! get definition of PP projectors
-            IF (gpot) THEN
-               alpha_ppnl => gpotential(kkind)%gth_potential%alpha_ppnl
-               cprj => gpotential(kkind)%gth_potential%cprj
-               lppnl = gpotential(kkind)%gth_potential%lppnl
-               nppnl = gpotential(kkind)%gth_potential%nppnl
-               nprj_ppnl => gpotential(kkind)%gth_potential%nprj_ppnl
-               ppnl_radius = gpotential(kkind)%gth_potential%ppnl_radius
-               vprj_ppnl => gpotential(kkind)%gth_potential%vprj_ppnl
-            ELSEIF (spot) THEN
-               CPABORT('SGP not implemented')
-            ELSE
-               CPABORT('PPNL unknown')
-            END IF
+            ASSOCIATE ( &
+               first_sgfa => basis_set(ikind)%gto_basis_set%first_sgf, &
+               la_max => basis_set(ikind)%gto_basis_set%lmax, &
+               la_min => basis_set(ikind)%gto_basis_set%lmin, &
+               npgfa => basis_set(ikind)%gto_basis_set%npgf, &
+               nsgf_seta => basis_set(ikind)%gto_basis_set%nsgf_set, &
+               rpgfa => basis_set(ikind)%gto_basis_set%pgf_radius, &
+               set_radius_a => basis_set(ikind)%gto_basis_set%set_radius, &
+               sphi_a => basis_set(ikind)%gto_basis_set%sphi, &
+               zeta => basis_set(ikind)%gto_basis_set%zet &
+               )
+               nseta = basis_set(ikind)%gto_basis_set%nset
+               nsgfa = basis_set(ikind)%gto_basis_set%nsgf
+
+               ! get definition of PP projectors
+               IF (gpot) THEN
+                  alpha_ppnl => gpotential(kkind)%gth_potential%alpha_ppnl
+                  cprj => gpotential(kkind)%gth_potential%cprj
+                  lppnl = gpotential(kkind)%gth_potential%lppnl
+                  nppnl = gpotential(kkind)%gth_potential%nppnl
+                  nprj_ppnl => gpotential(kkind)%gth_potential%nprj_ppnl
+                  ppnl_radius = gpotential(kkind)%gth_potential%ppnl_radius
+                  vprj_ppnl => gpotential(kkind)%gth_potential%vprj_ppnl
+               ELSEIF (spot) THEN
+                  CPABORT('SGP not implemented')
+               ELSE
+                  CPABORT('PPNL unknown')
+               END IF
 !$OMP CRITICAL(sap_int_critical)
-            IF (.NOT. ASSOCIATED(sap_int(iac)%alist)) THEN
-               sap_int(iac)%a_kind = ikind
-               sap_int(iac)%p_kind = kkind
-               sap_int(iac)%nalist = nlist
-               ALLOCATE (sap_int(iac)%alist(nlist))
-               DO i = 1, nlist
-                  NULLIFY (sap_int(iac)%alist(i)%clist)
-                  sap_int(iac)%alist(i)%aatom = 0
-                  sap_int(iac)%alist(i)%nclist = 0
-               END DO
-            END IF
-            IF (.NOT. ASSOCIATED(sap_int(iac)%alist(ilist)%clist)) THEN
-               sap_int(iac)%alist(ilist)%aatom = iatom
-               sap_int(iac)%alist(ilist)%nclist = nneighbor
-               ALLOCATE (sap_int(iac)%alist(ilist)%clist(nneighbor))
-               DO i = 1, nneighbor
-                  sap_int(iac)%alist(ilist)%clist(i)%catom = 0
-               END DO
-            END IF
-!$OMP END CRITICAL(sap_int_critical)
-            dac = SQRT(SUM(rac*rac))
-            clist => sap_int(iac)%alist(ilist)%clist(jneighbor)
-            clist%catom = katom
-            clist%cell = cell_c
-            clist%rac = rac
-            ALLOCATE (clist%acint(nsgfa, nppnl, maxder), &
-                      clist%achint(nsgfa, nppnl, maxder))
-            clist%acint = 0._dp
-            clist%achint = 0._dp
-            clist%nsgf_cnt = 0
-            NULLIFY (clist%sgf_list)
-            DO iset = 1, nseta
-               ncoa = npgfa(iset)*ncoset(la_max(iset))
-               sgfa = first_sgfa(1, iset)
-               work = 0._dp
-               prjc = 1
-               DO l = 0, lppnl
-                  nprjc = nprj_ppnl(l)*nco(l)
-                  IF (nprjc == 0) CYCLE
-                  rprjc(1) = ppnl_radius
-                  IF (set_radius_a(iset) + rprjc(1) < dac) CYCLE
-                  lc_max = l + 2*(nprj_ppnl(l) - 1)
-                  lc_min = l
-                  zetc(1) = alpha_ppnl(l)
-                  ncoc = ncoset(lc_max)
-                  ! Calculate the primitive overlap and dipole moment integrals
-                  CALL overlap(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
-                               lc_max, lc_min, 1, rprjc, zetc, rac, dac, sab(:, :, 1), 0, .FALSE., ai_work, ldai)
-                  CALL moment(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
-                              lc_max, 1, zetc, rprjc, 1, rac, (/0._dp, 0._dp, 0._dp/), sab(:, :, 2:4))
-                  ! *** Transformation step projector functions (cartesian->spherical) ***
-                  DO i = 1, maxder
-                     CALL dgemm("N", "N", ncoa, nprjc, ncoc, 1.0_dp, sab(1, 1, i), ldsab, &
-                                cprj(1, prjc), SIZE(cprj, 1), 0.0_dp, work(1, 1, i), ldsab)
+               IF (.NOT. ASSOCIATED(sap_int(iac)%alist)) THEN
+                  sap_int(iac)%a_kind = ikind
+                  sap_int(iac)%p_kind = kkind
+                  sap_int(iac)%nalist = nlist
+                  ALLOCATE (sap_int(iac)%alist(nlist))
+                  DO i = 1, nlist
+                     NULLIFY (sap_int(iac)%alist(i)%clist)
+                     sap_int(iac)%alist(i)%aatom = 0
+                     sap_int(iac)%alist(i)%nclist = 0
                   END DO
-                  prjc = prjc + nprjc
+               END IF
+               IF (.NOT. ASSOCIATED(sap_int(iac)%alist(ilist)%clist)) THEN
+                  sap_int(iac)%alist(ilist)%aatom = iatom
+                  sap_int(iac)%alist(ilist)%nclist = nneighbor
+                  ALLOCATE (sap_int(iac)%alist(ilist)%clist(nneighbor))
+                  DO i = 1, nneighbor
+                     sap_int(iac)%alist(ilist)%clist(i)%catom = 0
+                  END DO
+               END IF
+!$OMP END CRITICAL(sap_int_critical)
+               dac = SQRT(SUM(rac*rac))
+               clist => sap_int(iac)%alist(ilist)%clist(jneighbor)
+               clist%catom = katom
+               clist%cell = cell_c
+               clist%rac = rac
+               ALLOCATE (clist%acint(nsgfa, nppnl, maxder), &
+                         clist%achint(nsgfa, nppnl, maxder))
+               clist%acint = 0._dp
+               clist%achint = 0._dp
+               clist%nsgf_cnt = 0
+               NULLIFY (clist%sgf_list)
+               DO iset = 1, nseta
+                  ncoa = npgfa(iset)*ncoset(la_max(iset))
+                  sgfa = first_sgfa(1, iset)
+                  work = 0._dp
+                  prjc = 1
+                  DO l = 0, lppnl
+                     nprjc = nprj_ppnl(l)*nco(l)
+                     IF (nprjc == 0) CYCLE
+                     rprjc(1) = ppnl_radius
+                     IF (set_radius_a(iset) + rprjc(1) < dac) CYCLE
+                     lc_max = l + 2*(nprj_ppnl(l) - 1)
+                     lc_min = l
+                     zetc(1) = alpha_ppnl(l)
+                     ncoc = ncoset(lc_max)
+                     ! Calculate the primitive overlap and dipole moment integrals
+                     CALL overlap(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
+                                  lc_max, lc_min, 1, rprjc, zetc, rac, dac, sab(:, :, 1), 0, .FALSE., ai_work, ldai)
+                     CALL moment(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
+                                 lc_max, 1, zetc, rprjc, 1, rac, (/0._dp, 0._dp, 0._dp/), sab(:, :, 2:4))
+                     ! *** Transformation step projector functions (cartesian->spherical) ***
+                     DO i = 1, maxder
+                        CALL dgemm("N", "N", ncoa, nprjc, ncoc, 1.0_dp, sab(1, 1, i), ldsab, &
+                                   cprj(1, prjc), SIZE(cprj, 1), 0.0_dp, work(1, 1, i), ldsab)
+                     END DO
+                     prjc = prjc + nprjc
+                  END DO
+                  DO i = 1, maxder
+                     ! Contraction step (basis functions)
+                     CALL dgemm("T", "N", nsgf_seta(iset), nppnl, ncoa, 1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                                work(1, 1, i), ldsab, 0.0_dp, clist%acint(sgfa, 1, i), nsgfa)
+                     ! Multiply with interaction matrix(h)
+                     CALL dgemm("N", "N", nsgf_seta(iset), nppnl, nppnl, 1.0_dp, clist%acint(sgfa, 1, i), nsgfa, &
+                                vprj_ppnl(1, 1), SIZE(vprj_ppnl, 1), 0.0_dp, clist%achint(sgfa, 1, i), nsgfa)
+                  END DO
                END DO
-               DO i = 1, maxder
-                  ! Contraction step (basis functions)
-                  CALL dgemm("T", "N", nsgf_seta(iset), nppnl, ncoa, 1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                             work(1, 1, i), ldsab, 0.0_dp, clist%acint(sgfa, 1, i), nsgfa)
-                  ! Multiply with interaction matrix(h)
-                  CALL dgemm("N", "N", nsgf_seta(iset), nppnl, nppnl, 1.0_dp, clist%acint(sgfa, 1, i), nsgfa, &
-                             vprj_ppnl(1, 1), SIZE(vprj_ppnl, 1), 0.0_dp, clist%achint(sgfa, 1, i), nsgfa)
-               END DO
-            END DO
-            clist%maxac = MAXVAL(ABS(clist%acint(:, :, 1)))
-            clist%maxach = MAXVAL(ABS(clist%achint(:, :, 1)))
+               clist%maxac = MAXVAL(ABS(clist%acint(:, :, 1)))
+               clist%maxach = MAXVAL(ABS(clist%achint(:, :, 1)))
+            END ASSOCIATE
          END DO
 
          DEALLOCATE (sab, ai_work, work)
@@ -1523,6 +1527,7 @@ CONTAINS
                      IF (alist_ac%clist(kac)%catom /= alist_bc%clist(kbc)%catom) CYCLE
                      IF (ALL(cell_b + alist_bc%clist(kbc)%cell - alist_ac%clist(kac)%cell == 0)) THEN
                         IF (alist_ac%clist(kac)%maxac*alist_bc%clist(kbc)%maxach < eps_ppnl) CYCLE
+
                         acint => alist_ac%clist(kac)%acint
                         bcint => alist_bc%clist(kbc)%acint
                         achint => alist_ac%clist(kac)%achint
