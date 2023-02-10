@@ -18,7 +18,7 @@ cp2k_set_default_paths(SCALAPACK "SCALAPACK")
 # distro if found
 
 if(CP2K_SCALAPACK_VENDOR STREQUAL "GENERIC")
-  if(TARGET CP2K_MKL::scalapack_link)
+  if(TARGET CP2K::BLAS::MKL::scalapack_link)
     message("-----------------------------------------------------------------")
     message("-                  FindScalapack warning                        -")
     message("-----------------------------------------------------------------")
@@ -29,7 +29,7 @@ if(CP2K_SCALAPACK_VENDOR STREQUAL "GENERIC")
     )
   endif()
 
-  if(TARGET CP2K_SCI::scalapack_link)
+  if(TARGET CP2K::BLAS::SCI::scalapack_link)
     message("-----------------------------------------------------------------")
     message("-                  FindScalapack warning                        -")
     message("-----------------------------------------------------------------")
@@ -45,7 +45,7 @@ if(CP2K_SCALAPACK_VENDOR STREQUAL "GENERIC")
   # try to detect location with pkgconfig
   find_package(PkgConfig QUIET)
   if(PKG_CONFIG_FOUND)
-    pkg_check_modules(CP2K_SCALAPACK "scalapack")
+    pkg_check_modules(CP2K_SCALAPACK IMPORTED_TARGET GLOBAL "scalapack")
   endif()
 
   # this should be enough for detecting scalapack compiled by hand. If scalapack
@@ -56,15 +56,15 @@ if(CP2K_SCALAPACK_VENDOR STREQUAL "GENERIC")
   if(NOT CP2K_SCALAPACK_FOUND)
     cp2k_find_libraries(SCALAPACK "scalapack")
   endif()
-elseif(TARGET CP2K_MKL::scalapack_link)
+elseif(TARGET CP2K::BLAS::MKL::scalapack_link)
   # we have mkl check for the different mkl target
-  get_target_property(CP2K_SCALAPACK_LINK_LIBRARIES CP2K_MKL::scalapack_link
-                      INTERFACE_LINK_LIBRARIES)
+  get_target_property(CP2K_SCALAPACK_LINK_LIBRARIES
+                      CP2K::BLAS::MKL::scalapack_link INTERFACE_LINK_LIBRARIES)
   set(CP2K_SCALAPACK_FOUND yes)
-elseif(TARGET CP2K_SCI::scalapack_link)
+elseif(TARGET CP2K::BLAS::SCI::scalapack_link)
   # we have mkl check for the different mkl target
-  get_target_property(CP2K_SCALAPACK_LINK_LIBRARIES CP2K_SCI::scalapack_link
-                      INTERFACE_LINK_LIBRARIES)
+  get_target_property(CP2K_SCALAPACK_LINK_LIBRARIES
+                      CP2K::BLAS::SCI::scalapack_link INTERFACE_LINK_LIBRARIES)
   set(CP2K_SCALAPACK_FOUND yes)
 endif()
 
@@ -76,12 +76,12 @@ find_package_handle_standard_args(SCALAPACK
 # add target to link against
 if(CP2K_SCALAPACK_FOUND)
 
-  if(NOT TARGET CP2K_SCALAPACK::scalapack)
-    add_library(CP2K_SCALAPACK::scalapack INTERFACE IMPORTED)
+  if(NOT TARGET CP2K::SCALAPACK::scalapack)
+    add_library(CP2K::SCALAPACK::scalapack INTERFACE IMPORTED)
   endif()
 
   set_property(
-    TARGET CP2K_SCALAPACK::scalapack PROPERTY INTERFACE_LINK_LIBRARIES
-                                              ${CP2K_SCALAPACK_LINK_LIBRARIES})
+    TARGET CP2K::SCALAPACK::scalapack PROPERTY INTERFACE_LINK_LIBRARIES
+                                               ${CP2K_SCALAPACK_LINK_LIBRARIES})
 endif()
 mark_as_advanced(CP2K_SCALAPACK_FOUND CP2K_SCALAPACK_LINK_LIBRARIES)

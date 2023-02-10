@@ -22,10 +22,10 @@ cp2k_include_dirs(FFTW3 "metis.h")
 find_package_handle_standard_args(Metis DEFAULT_MSG CP2K_METIS_LINK_LIBRARIES
                                   CP2K_METIS_INCLUDE_DIRS CP2K_METIS_FOUND)
 
-if(CP2K_METIS_FOUND AND NOT TARGET CP2K_metis::metis)
-  add_library(CP2K_metis::metis INTERFACE IMPORTED)
+if(CP2K_METIS_FOUND AND NOT TARGET CP2K::metis::metis)
+  add_library(CP2K::metis::metis INTERFACE IMPORTED)
   set_target_properties(
-    CP2K_metis::metis
+    CP2K::metis::metis
     PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_METIS_INCLUDE_DIRS}"
                INTERFACE_LINK_LIBRARIES "${CP2K_METIS_LINK_LIBRARIES}")
 endif()

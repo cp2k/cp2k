@@ -80,6 +80,7 @@ option(CP2K_DEBUG_MODE "Enable several additional options for debugging cp2k."
 option(CP2K_USE_SIRIUS "Enable plane wave dft calculations with sirius" OFF)
 option(CP2K_USE_FFTW3 "Use fftw3 for the calculating fast fourier transforms"
        ON)
+option(CP2K_USE_MPI "Enable MPI support" ON)
 option(CP2K_USE_ELPA "Enable elpa support" OFF)
 option(CP2K_USE_PEXSI "Enable pexsi support" OFF)
 option(CP2K_USE_SUPERLU "Enable superlu support" OFF)
@@ -105,6 +106,8 @@ cmake_dependent_option(CP2K_ENABLE_FFTW3_OPENMP_SUPPORT
                        "Enable FFTW openmp support" ON "CP2K_USE_FFTW3" OFF)
 cmake_dependent_option(CP2K_ENABLE_FFTW3_THREADS_SUPPORT
                        "Enable FFTW THREADS support" OFF "CP2K_USE_FFTW3" OFF)
+cmake_dependent_option(CP2K_ENABLE_F08_MPI "Enable MPI Fortran 2008 interface"
+                       OFF "CP2K_USE_MPI" OFF)
 
 set(CP2K_SCALAPACK_VENDOR_LIST "MKL" "SCI" "GENERIC")
 set(CP2K_SCALAPACK_VENDOR
@@ -226,33 +229,64 @@ add_custom_target(
 
 # MPI
 
-get_property(REQUIRED_MPI_COMPONENTS GLOBAL PROPERTY ENABLED_LANGUAGES)
-list(REMOVE_ITEM REQUIRED_MPI_COMPONENTS CUDA) # CUDA does not have an MPI
-# component
-if(NOT CMAKE_CROSSCOMPILING) # when cross compiling, assume the users know
-  # what they are doing
-  set(MPI_DETERMINE_LIBRARY_VERSION TRUE)
-endif()
-find_package(
-  MPI
-  COMPONENTS ${REQUIRED_MPI_COMPONENTS}
-  REQUIRED)
+if(CP2K_USE_MPI)
+  get_property(REQUIRED_MPI_COMPONENTS GLOBAL PROPERTY ENABLED_LANGUAGES)
+  list(REMOVE_ITEM REQUIRED_MPI_COMPONENTS CUDA) # CUDA does not have an MPI
+  # component
+  if(NOT CMAKE_CROSSCOMPILING) # when cross compiling, assume the users know
+    # what they are doing
+    set(MPI_DETERMINE_LIBRARY_VERSION TRUE)
+  endif()
+  find_package(
+    MPI
+    COMPONENTS ${REQUIRED_MPI_COMPONENTS}
+    REQUIRED)
 
-if(NOT MPI_Fortran_HAVE_F90_MODULE)
-  message(
-    FATAL_ERROR
-      "\
+  if(NOT MPI_Fortran_HAVE_F90_MODULE)
+    message(
+      FATAL_ERROR
+        "\
 The listed MPI implementation does not provide the required mpi.mod interface. \
 When using the GNU compiler in combination with Intel MPI, please use the \
 Intel MPI compiler wrappers. Check the INSTALL.md for more information.")
-endif()
-if("${MPI_Fortran_LIBRARY_VERSION_STRING}" MATCHES "Open MPI v2.1"
-   OR "${MPI_Fortran_LIBRARY_VERSION_STRING}" MATCHES "Open MPI v3.1")
-  message(
-    WARNING
-      "RMA with ${MPI_Fortran_LIBRARY_VERSION_STRING} is not supported due to issues with its implementation."
-      " Please use a newer version of OpenMPI or switch to MPICH if you plan on using MPI-RMA."
-  )
+  endif()
+  if("${MPI_Fortran_LIBRARY_VERSION_STRING}" MATCHES "Open MPI v2.1"
+     OR "${MPI_Fortran_LIBRARY_VERSION_STRING}" MATCHES "Open MPI v3.1")
+    message(
+      WARNING
+        "RMA with ${MPI_Fortran_LIBRARY_VERSION_STRING} is not supported due to issues with its implementation."
+        " Please use a newer version of OpenMPI or switch to MPICH if you plan on using MPI-RMA."
+    )
+  endif()
+else()
+  if(CP2K_USE_SIRIUS
+     OR CP2K_USE_COSMA
+     OR CP2K_USE_SPLA
+     OR CP2K_USE_ELPA
+     OR CP2K_USE_METIS
+     OR CP2K_USE_PLUMED
+     OR CP2K_USE_PEXSI
+     OR CP2K_USE_QUIP)
+    message(
+      WARNING
+        "SIRIUS, COSMA, SPLA, ELPA, METIS, PLUMED, PEXSI and QUIP require MPI support. Either change -DCP2K_USE_MPI to ON or turn the following dependencies off"
+    )
+    foreach(
+      __libs
+      SIRIUS
+      COSMA
+      SPLA
+      ELPA
+      METIS
+      PLUMED
+      PEXSI
+      QUIP)
+      if(CP2K_USE_${__libs})
+        message(WARNING " - ${__libs}")
+      endif()
+    endforeach()
+    message(FATAL_ERROR " -- ")
+  endif()
 endif()
 
 # BLAS & LAPACK, PkgConfig
@@ -266,7 +300,9 @@ endif()
 
 # in practice it is always for any decent configuration. But I add a flags to
 # turn it off
-find_package(SCALAPACK REQUIRED)
+if(CP2K_USE_MPI)
+  find_package(SCALAPACK REQUIRED)
+endif()
 
 # CUDA / ROCM easy for cuda a moving target for hip
 
@@ -335,20 +371,20 @@ elseif(CP2K_USE_ACCEL MATCHES "HIP")
 
   set(CMAKE_HIP_ARCHITECTURES gfx801 gfx900 gfx90a)
   if(NOT CMAKE_BUILD_TYPE)
-    set(HIP_RELEASE_OPTIONS "-O3 -g -DNDEBUG")
+    set(HIP_RELEASE_OPTIONS "-O3 -g -DNDEBUG --std=c++11")
   elseif(${CMAKE_BUILD_TYPE} STREQUAL "RelWithDebInfo")
-    set(HIP_RELEASE_OPTIONS "-O3 -g -DNDEBUG")
+    set(HIP_RELEASE_OPTIONS "-O3 -g -DNDEBUG --std=c++11")
   elseif(${CMAKE_BUILD_TYPE} STREQUAL "Release")
-    set(HIP_RELEASE_OPTIONS "-O3 -DNDEBUG")
+    set(HIP_RELEASE_OPTIONS "-O3 -DNDEBUG --std=c++11")
   elseif(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-    set(HIP_RELEASE_OPTIONS "-O0 -g")
+    set(HIP_RELEASE_OPTIONS "-O0 -g --std=c++11")
   endif()
 
   set(CP2K_ACC_ARCH_NUMBER ${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}})
   set(CP2K_USE_HIP ON)
 endif()
 
-find_package(DBCSR 2.2.0 REQUIRED)
+find_package(DBCSR 2.4 REQUIRED)
 
 # =================================================================================================
 # PACKAGE DISCOVERY (compiler configuration can impact package discovery)
@@ -365,20 +401,14 @@ if(CP2K_USE_LIBXC)
 endif()
 
 if(CP2K_USE_COSMA)
-  find_package(cosma REQUIRED HINTS "${COSMA_ROOT}" "$ENV(COSMA_ROOT)")
-  get_target_property(COSMA_INCLUDE_DIRS cosma::cosma
-                      INTERFACE_INCLUDE_DIRECTORIES)
-  if(NOT COSMA_INCLUDE_DIRS)
-    set(COSMA_INCLUDE_DIRS "/usr/include;/usr/include/cosma")
-  endif()
+  find_package(cosma REQUIRED)
 
   # check that cosma::cosma_pxgemm and cosma::cosma_prefixed_pxgemm exist
   if(NOT TARGET cosma::cosma_pxgemm OR NOT TARGET cosma::cosma_prefixed_pxgemm)
-    message(ERROR_ERROR
-            " COSMA needs to be build with scalapack offloading support")
     message(
       FATAL_ERROR
-        " COSTA_SCALAPACK and COSMA_SCALAPACK should probably be set properly")
+        " COSMA needs to be build with scalapack offloading support. COSTA_SCALAPACK and COSMA_SCALAPACK should probably be set properly"
+    )
   endif()
 endif()
 
@@ -397,14 +427,14 @@ if(CP2K_USE_FFTW3)
   endif()
 
   if((CP2K_ENABLE_FFTW3_THREADS_SUPPORT) AND (NOT TARGET
-                                              CP2K_FFTW3::fftw3_threads))
+                                              CP2K::FFTW3::fftw3_threads))
     message(
       FATAL_ERROR
         "fftw3 was compiled without multithreading support (--enable-threads option in fftw build system)."
     )
   endif()
 
-  if((CP2K_ENABLE_FFTW3_OPENMP_SUPPORT) AND (NOT TARGET CP2K_FFTW3::fftw3_omp))
+  if((CP2K_ENABLE_FFTW3_OPENMP_SUPPORT) AND (NOT TARGET CP2K::FFTW3::fftw3_omp))
     message(
       FATAL_ERROR
         "fftw3 was compiled without openmp support  (--enable-openmp option in fftw build system)."
@@ -481,6 +511,13 @@ if(CP2K_USE_LIBTORCH)
   find_package(Torch REQUIRED)
 endif()
 
+if(CP2K_USE_MPI_F08 AND NOT MPI_Fortran_HAVE_F08_MODULE)
+  message(
+    FATAL_ERROR
+      "The Fortran 2008 interface is not supported by the MPI implementation found by cmake."
+  )
+endif()
+
 # OPTION HANDLING
 
 # make sure that the default build type is RELEASE
@@ -535,14 +572,27 @@ message(STATUS "   - include directories : " ${CP2K_BLAS_INCLUDE_DIRS}
 message(STATUS "   - libraries :           " ${CP2K_BLAS_LINK_LIBRARIES} " "
                ${CP2K_LAPACK_LINK_LIBRARIES})
 
-message(STATUS " ")
-message(STATUS "- MPI")
-message(STATUS "   - include directories : " ${MPI_INCLUDE_DIRS})
-message(STATUS "   - libraries :           " ${MPI_LIBRARIES})
+if(CP2K_USE_MPI)
+  message(STATUS " ")
+  message(STATUS "- MPI")
+  message(STATUS "   - include directories : " ${MPI_INCLUDE_DIRS})
+  message(STATUS "   - libraries :           " ${MPI_LIBRARIES})
 
-message(STATUS " ")
-message(STATUS "- SCALAPACK:")
-message(STATUS "     - libraries : " ${CP2K_SCALAPACK_LINK_LIBRARIES})
+  if(CP2K_USE_MPI_F08)
+    message(STATUS "   - MPI_08 :              ON")
+  endif()
+
+  if(MPI_Fortran_HAVE_F08_MODULE AND NOT CP2K_USE_MPI_F08)
+    message(
+      STATUS
+        "  - MPI_08 is supposed by MPI but turned off by default. To use it add -DCP2K_USE_MPI_F08=ON to cmake"
+    )
+  endif()
+
+  message(STATUS " ")
+  message(STATUS "- SCALAPACK:")
+  message(STATUS "     - libraries : " ${CP2K_SCALAPACK_LINK_LIBRARIES})
+endif()
 
 message(STATUS " - Hardware Acceleration:")
 message(STATUS "                         ")
@@ -600,7 +650,10 @@ if(CP2K_USE_LIBXSMM)
   message(STATUS " ")
   message(STATUS "- libxsmm")
   message(STATUS "   - include directories : " ${CP2K_LIBXSMM_INCLUDE_DIRS})
-  message(STATUS "   - libraries :           " ${CP2K_LIBXSMM_LINK_LIBRARIES})
+  message(
+    STATUS
+      "   - libraries :           ${CP2K_LIBXSMMEXT_LINK_LIBRARIES};${CP2K_LIBXSMMF_LINK_LIBRARIES}"
+  )
 endif()
 
 if(CP2K_USE_SPLA)
@@ -695,6 +748,10 @@ message(
   STATUS "--------------------------------------------------------------------")
 
 message(STATUS " List of dependencies not included in this build :")
+
+if(NOT CP2K_USE_MPI)
+  message(STATUS "   - MPI")
+endif()
 
 if(NOT CP2K_USE_SIRIUS)
   message(STATUS "   - SIRIUS")

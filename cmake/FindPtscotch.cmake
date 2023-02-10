@@ -51,10 +51,10 @@ find_package_handle_standard_args(
   CP2K_SCOTCHERR_LINK_LIBRARIES
   CP2K_PTESMUMPS_LINK_LIBRARIES)
 
-if(CP2K_PTSCOTCH_FOUND AND NOT TARGET CP2K_ptscotch::ptscotch)
-  add_library(CP2K_ptscotch::ptscotch INTERFACE IMPORTED)
+if(CP2K_PTSCOTCH_FOUND AND NOT TARGET CP2K::ptscotch::ptscotch)
+  add_library(CP2K::ptscotch::ptscotch INTERFACE IMPORTED)
   set_target_properties(
-    CP2K_ptscotch::ptscotch
+    CP2K::ptscotch::ptscotch
     PROPERTIES
       INTERFACE_INCLUDE_DIRECTORIES "${PTSCOTCH_INCLUDE_DIRS}"
       INTERFACE_LINK_LIBRARIES

@@ -1359,11 +1359,11 @@ endforeach()
 
 add_library(cp2k "${CP2K_SRCS};${CP2K_SRCS_C};${CP2K_SRCS_GPU}")
 
-target_compile_features(cp2k PUBLIC cxx_std_11)
+target_compile_features(cp2k PUBLIC cxx_std_14)
 target_compile_features(cp2k PUBLIC c_std_99)
 target_compile_features(cp2k PUBLIC cuda_std_11)
 
-set_target_properties(cp2k PROPERTIES CXX_STANDARD 11)
+set_target_properties(cp2k PROPERTIES CXX_STANDARD 14)
 set_target_properties(cp2k PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES "CXX")
 
 # =================================================================================================
@@ -1381,19 +1381,18 @@ add_library(cp2k_link_libs INTERFACE)
 target_link_libraries(
   cp2k_link_libs
   INTERFACE
-    $<$<BOOL:${CP2K_USE_PEXSI}>:PEXSI::pexsi>
     $<$<BOOL:${CP2K_USE_SIRIUS}>:sirius::sirius>
-    $<$<BOOL:${CP2K_USE_VORI}>:CP2K_VORI::vori>
-    $<$<BOOL:${CP2K_USE_PEXSI}>:CP2K_PEXSI::pexsi>
-    $<$<BOOL:${CP2K_USE_PEXSI}>:CP2K_ptscotch::ptscotch>
-    $<$<BOOL:${CP2K_USE_SPGLIB}>:CP2K_LIBSPG::libspg>
-    $<$<BOOL:${CP2K_USE_LIBXC}>:CP2K_Libxc::xc>
-    $<$<BOOL:${CP2K_USE_ELPA}>:CP2K_ELPA::elpa>
-    $<$<BOOL:${CP2K_USE_FFTW3}>:CP2K_FFTW3::fftw3>
-    $<$<BOOL:${CP2K_ENABLE_FFTW3_THREADS_SUPPORT}>:CP2K_FFTW3::fftw3_threads>
-    $<$<BOOL:${CP2K_ENABLE_FFTW3_OPENMP_SUPPORT}>:CP2K_FFTW3::fftw3_omp>
+    $<$<BOOL:${CP2K_USE_VORI}>:CP2K::VORI::vori>
+    $<$<BOOL:${CP2K_USE_PEXSI}>:CP2K::PEXSI::pexsi>
+    $<$<BOOL:${CP2K_USE_PEXSI}>:CP2K::ptscotch::ptscotch>
+    $<$<BOOL:${CP2K_USE_SPGLIB}>:CP2K::LIBSPG::libspg>
+    $<$<BOOL:${CP2K_USE_LIBXC}>:CP2K::Libxc::xc>
+    $<$<BOOL:${CP2K_USE_ELPA}>:CP2K::ELPA::elpa>
+    $<$<BOOL:${CP2K_USE_FFTW3}>:CP2K::FFTW3::fftw3>
+    $<$<BOOL:${CP2K_ENABLE_FFTW3_THREADS_SUPPORT}>:CP2K::FFTW3::fftw3_threads>
+    $<$<BOOL:${CP2K_ENABLE_FFTW3_OPENMP_SUPPORT}>:CP2K::FFTW3::fftw3_omp>
     $<$<BOOL:${CP2K_USE_SPLA}>:SPLA::spla>
-    $<$<BOOL:${CP2K_USE_LIBINT2}>:CP2K_Libint2::int2>
+    $<$<BOOL:${CP2K_USE_LIBINT2}>:CP2K::Libint2::int2>
     $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma_prefixed_pxgemm>
     $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma>
     $<$<BOOL:${CP2K_USE_COSMA}>:costa::costa>
@@ -1406,15 +1405,14 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_HIP}>:hip::hipfft>
     $<$<BOOL:${CP2K_USE_HIP}>:roc::hipblas>
     $<$<BOOL:${CP2K_USE_HIP}>:hip::device>
-    CP2K_SCALAPACK::scalapack
-    $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K_LibXSMM::libxsmmf>
-    $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K_LibXSMM::libxsmmext>
-    $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K_LibXSMM::libxsmm>
-    CP2K_LAPACK::lapack
-    CP2K_BLAS::blas
-    MPI::MPI_Fortran
-    MPI::MPI_C
-    MPI::MPI_CXX
+    $<$<BOOL:${CP2K_USE_MPI}>:CP2K::SCALAPACK::scalapack>
+    $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K::LibXSMM::libxsmmf>
+    $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K::LibXSMM::libxsmmext>
+    CP2K::LAPACK::lapack
+    CP2K::BLAS::blas
+    $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_Fortran>
+    $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_C>
+    $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_CXX>
     OpenMP::OpenMP_Fortran
     OpenMP::OpenMP_C
     OpenMP::OpenMP_CXX)
@@ -1442,14 +1440,18 @@ string(TIMESTAMP CP2K_TIMESTAMP "%Y-%m-%d %H:%M:%S")
 target_link_libraries(cp2k PUBLIC cp2k_link_libs)
 target_compile_definitions(
   cp2k
-  PUBLIC __parallel
-         __SCALAPACK
+  PUBLIC $<$<BOOL:${CP2K_USE_MPI}>:__parallel>
+         $<$<BOOL:${CP2K_USE_MPI}>:__SCALAPACK>
+         $<$<BOOL:${CP2K_ENABLE_F08_MPI}>:__MPI_08>
          __COMPILE_DATE=\"${CP2K_TIMESTAMP}\"
          __COMPILE_HOST=\"${CP2K_HOST_NAME}\"
          __COMPILE_REVISION=\"${CP2K_GIT_HASH}\"
          __DATA_DIR=\"${CMAKE_INSTALL_FULL_DATAROOTDIR}/cp2k/data\"
          __COMPILE_ARCH=\"${CMAKE_SYSTEM_PROCESSOR}\"
          $<$<CONFIG:Release>:NDEBUG>
+         $<$<CONFIG:COVERAGE>:__NO_ABORT>
+         $<$<CONFIG:DEBUG>:__HAS_IEEE_EXCEPTIONS>
+         $<$<CONFIG:DEBUG>:__CHECK_DIAG>
          $<$<BOOL:${CP2K_USE_PEXSI}>:__PEXSI>
          $<$<BOOL:${CP2K_USE_PLUMED2}>:__PLUMED2>
          $<$<BOOL:${CP2K_USE_QUIP}>:__QUIP>
@@ -1531,7 +1533,7 @@ add_executable(xyz2dcd motion/xyz2dcd.F)
 add_executable(libcp2k_unittest start/libcp2k_unittest.c)
 add_executable(nequip_unittest nequip_unittest.F)
 
-set_target_properties(cp2k-bin PROPERTIES CXX_STANDARD 11)
+set_target_properties(cp2k-bin PROPERTIES CXX_STANDARD 14)
 set_target_properties(cp2k-bin PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES
                                           "CXX")
 set_target_properties(cp2k-bin PROPERTIES LINKER_LANGUAGE "CXX")
@@ -1540,7 +1542,7 @@ target_link_libraries(cp2k-bin PUBLIC cp2k)
 
 foreach(_app ${__CP2K_APPS})
   set_target_properties(${_app} PROPERTIES LINKER_LANGUAGE "CXX")
-  set_target_properties(${_app} PROPERTIES CXX_STANDARD 11)
+  set_target_properties(${_app} PROPERTIES CXX_STANDARD 14)
   set_target_properties(${_app} PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES
                                            "CXX")
   target_compile_features(${_app} PUBLIC c_std_99)
@@ -1574,9 +1576,9 @@ foreach(_app ${__GRID_APPS})
     ${_app}
     PUBLIC $<$<BOOL:${CP2K_USE_CUDA}>:CUDA::cudart>
            $<$<BOOL:${CP2K_USE_HIP}>:hip::device>
-           $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K_LibXSMM::libxsmmf>
-           $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K_LibXSMM::libxsmm>
-           CP2K_BLAS::blas
+           $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K::LibXSMM::libxsmmf>
+           $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K::LibXSMM::libxsmm>
+           CP2K::BLAS::blas
            OpenMP::OpenMP_C
            m)
 
@@ -1618,11 +1620,11 @@ target_link_libraries(
   dbm_miniapp
   PUBLIC $<$<BOOL:${CP2K_USE_CUDA}>:CUDA::cudart>
          $<$<BOOL:${CP2K_USE_HIP}>:hip::device>
-         $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K_LibXSMM::libxsmmf>
-         $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K_LibXSMM::libxsmmext>
-         $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K_LibXSMM::libxsmm>
-         MPI::MPI_C
-         CP2K_BLAS::blas
+         $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K::LibXSMM::libxsmmf>
+         $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K::LibXSMM::libxsmmext>
+         $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K::LibXSMM::libxsmm>
+         $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_C>
+         CP2K::BLAS::blas
          OpenMP::OpenMP_C
          m)
 

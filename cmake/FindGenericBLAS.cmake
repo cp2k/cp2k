@@ -43,14 +43,15 @@ endif()
 
 # add target to link against
 if(GenericBLAS_FOUND)
-  if(NOT TARGET CP2K_GenericBLAS::blas)
-    add_library(CP2K_GenericBLAS::blas INTERFACE IMPORTED)
+
+  if(NOT TARGET CP2K::BLAS::GenericBLAS::blas)
+    add_library(CP2K::BLAS::GenericBLAS::blas INTERFACE IMPORTED)
   endif()
-  set_property(TARGET CP2K_GenericBLAS::blas PROPERTY INTERFACE_LINK_LIBRARIES
-                                                      ${GenericBLAS_LIBRARIES})
+  set_property(TARGET CP2K::BLAS::GenericBLAS::blas
+               PROPERTY INTERFACE_LINK_LIBRARIES ${GenericBLAS_LIBRARIES})
   set_property(
-    TARGET CP2K_GenericBLAS::blas PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-                                           ${GenericBLAS_INCLUDE_DIRS})
+    TARGET CP2K::BLAS::GenericBLAS::blas PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+                                                  ${GenericBLAS_INCLUDE_DIRS})
 endif()
 
 # prevent clutter in cache

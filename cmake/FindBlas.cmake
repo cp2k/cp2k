@@ -78,22 +78,24 @@ set(CP2K_BLAS_FOUND FALSE)
 
 if(NOT CP2K_BLAS_VENDOR MATCHES "auto")
   find_package(${CP2K_BLAS_VENDOR} REQUIRED)
-  if(TARGET CP2K_${CP2K_BLAS_VENDOR}::blas)
-    get_target_property(CP2K_BLAS_INCLUDE_DIRS CP2K_${CP2K_BLAS_VENDOR}::blas
-                        INTERFACE_INCLUDE_DIRECTORIES)
-    get_target_property(CP2K_BLAS_LINK_LIBRARIES CP2K_${CP2K_BLAS_VENDOR}::blas
-                        INTERFACE_LINK_LIBRARIES)
+  if(TARGET CP2K::BLAS::${CP2K_BLAS_VENDOR}::blas)
+    get_target_property(
+      CP2K_BLAS_INCLUDE_DIRS CP2K::BLAS::${CP2K_BLAS_VENDOR}::blas
+      INTERFACE_INCLUDE_DIRECTORIES)
+    get_target_property(
+      CP2K_BLAS_LINK_LIBRARIES CP2K::BLAS::${CP2K_BLAS_VENDOR}::blas
+      INTERFACE_LINK_LIBRARIES)
     set(CP2K_BLAS_FOUND TRUE)
   endif()
 else()
-  # search for any blas implementation
+  # search for any blas implementation and exit imediately if one is found
   foreach(_libs ${__BLAS_VENDOR_LIST})
     # i exclude the first item of the list
     find_package(${_libs})
-    if(TARGET CP2K_${_libs}::blas)
-      get_target_property(CP2K_BLAS_INCLUDE_DIRS CP2K_${_libs}::blas
+    if(TARGET CP2K::BLAS::${_libs}::blas)
+      get_target_property(CP2K_BLAS_INCLUDE_DIRS CP2K::BLAS::${_libs}::blas
                           INTERFACE_INCLUDE_DIRECTORIES)
-      get_target_property(CP2K_BLAS_LINK_LIBRARIES CP2K_${_libs}::blas
+      get_target_property(CP2K_BLAS_LINK_LIBRARIES CP2K::BLAS::${_libs}::blas
                           INTERFACE_LINK_LIBRARIES)
       set(CP2K_BLAS_VENDOR "${_libs}")
       set(CP2K_BLAS_FOUND TRUE)
@@ -111,16 +113,17 @@ else()
                                                        CP2K_BLAS_VENDOR)
 endif()
 
-if(NOT TARGET CP2K_BLAS::blas)
-  add_library(CP2K_BLAS::blas INTERFACE IMPORTED)
+if(NOT TARGET CP2K::BLAS::blas)
+  add_library(CP2K::BLAS::blas INTERFACE IMPORTED)
 endif()
 
-set_target_properties(CP2K_BLAS::blas PROPERTIES INTERFACE_LINK_LIBRARIES
-                                                 "${CP2K_BLAS_LINK_LIBRARIES}")
+set_target_properties(CP2K::BLAS::blas PROPERTIES INTERFACE_LINK_LIBRARIES
+                                                  "${CP2K_BLAS_LINK_LIBRARIES}")
 
 if(CP2K_BLAS_INCLUDE_DIRS)
-  set_target_properties(CP2K_BLAS::blas PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
-                                                   "${CP2K_BLAS_INCLUDE_DIRS}")
+  set_target_properties(
+    CP2K::BLAS::blas PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
+                                "${CP2K_BLAS_INCLUDE_DIRS}")
 endif()
 
 mark_as_advanced(CP2K_BLAS_INCLUDE_DIRS)
