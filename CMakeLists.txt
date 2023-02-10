@@ -106,6 +106,8 @@ cmake_dependent_option(CP2K_ENABLE_FFTW3_OPENMP_SUPPORT
                        "Enable FFTW openmp support" ON "CP2K_USE_FFTW3" OFF)
 cmake_dependent_option(CP2K_ENABLE_FFTW3_THREADS_SUPPORT
                        "Enable FFTW THREADS support" OFF "CP2K_USE_FFTW3" OFF)
+cmake_dependent_option(CP2K_ENABLE_F08_MPI "Enable MPI Fortran 2008 interface"
+                       OFF "CP2K_USE_MPI" OFF)
 
 set(CP2K_SCALAPACK_VENDOR_LIST "MKL" "SCI" "GENERIC")
 set(CP2K_SCALAPACK_VENDOR
@@ -509,6 +511,13 @@ if(CP2K_USE_LIBTORCH)
   find_package(Torch REQUIRED)
 endif()
 
+if(CP2K_USE_MPI_F08 AND NOT MPI_Fortran_HAVE_F08_MODULE)
+  message(
+    FATAL_ERROR
+      "The Fortran 2008 interface is not supported by the MPI implementation found by cmake."
+  )
+endif()
+
 # OPTION HANDLING
 
 # make sure that the default build type is RELEASE
@@ -542,10 +551,6 @@ include(GNUInstallDirs)
 get_target_property(CP2K_LIBS cp2k_link_libs INTERFACE_LINK_LIBRARIES)
 configure_file(cp2k.pc.in cp2k.pc @ONLY)
 
-if(TARGET CP2K::BLAS::OpenBLAS::openblas)
-  message(WARNING "It works")
-endif()
-
 message(
   STATUS "--------------------------------------------------------------------")
 message(
@@ -572,6 +577,17 @@ if(CP2K_USE_MPI)
   message(STATUS "- MPI")
   message(STATUS "   - include directories : " ${MPI_INCLUDE_DIRS})
   message(STATUS "   - libraries :           " ${MPI_LIBRARIES})
+
+  if(CP2K_USE_MPI_F08)
+    message(STATUS "   - MPI_08 :              ON")
+  endif()
+
+  if(MPI_Fortran_HAVE_F08_MODULE AND NOT CP2K_USE_MPI_F08)
+    message(
+      STATUS
+        "  - MPI_08 is supposed by MPI but turned off by default. To use it add -DCP2K_USE_MPI_F08=ON to cmake"
+    )
+  endif()
 
   message(STATUS " ")
   message(STATUS "- SCALAPACK:")

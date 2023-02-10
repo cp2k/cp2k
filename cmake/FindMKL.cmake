@@ -375,8 +375,7 @@ if(MKL_FOUND)
     set(BLAS_mkl_INTFACE "intel")
   endif()
 
-  if(CP2K_BLAS_THREADING MATCHES "thread" OR CP2K_BLAS_THREADING MATCHES
-                                             "gnu-thread")
+  if(CP2K_BLAS_THREADING MATCHES "thread|gnu-thread")
     set(BLAS_mkl_thread__ "omp")
   endif()
 

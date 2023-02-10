@@ -1442,6 +1442,7 @@ target_compile_definitions(
   cp2k
   PUBLIC $<$<BOOL:${CP2K_USE_MPI}>:__parallel>
          $<$<BOOL:${CP2K_USE_MPI}>:__SCALAPACK>
+         $<$<BOOL:${CP2K_ENABLE_F08_MPI}>:__MPI_08>
          __COMPILE_DATE=\"${CP2K_TIMESTAMP}\"
          __COMPILE_HOST=\"${CP2K_HOST_NAME}\"
          __COMPILE_REVISION=\"${CP2K_GIT_HASH}\"
