@@ -124,8 +124,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dipole_velocity_deriv(qs_env, difdip, order, lambda, rc)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(dbcsr_p_type), DIMENSION(:, :), &
-         INTENT(INOUT), POINTER                          :: difdip
+      TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(INOUT) :: difdip
       INTEGER, INTENT(IN)                                :: order, lambda
       REAL(KIND=dp), DIMENSION(3)                        :: rc
 
@@ -134,18 +133,12 @@ CONTAINS
       INTEGER :: handle, i, iatom, icol, idir, ikind, inode, irow, iset, j, jatom, jkind, jset, &
          last_jatom, lda, ldab, ldb, M_dim, maxsgf, natom, ncoa, ncob, nkind, nseta, nsetb, sgfa, &
          sgfb
-      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
-                                                            npgfb, nsgfa, nsgfb
-      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: found
       REAL(dp)                                           :: dab
       REAL(dp), DIMENSION(3)                             :: ra, rab, rac, rb, rbc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: difmab
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: mab
-      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: difmab2
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: mab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: difmab, difmab2
       TYPE(block_p_type), ALLOCATABLE, DIMENSION(:, :)   :: mint, mint2
       TYPE(cell_type), POINTER                           :: cell
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
@@ -212,98 +205,101 @@ CONTAINS
          IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
 
          ! basis ikind
-         first_sgfa => basis_set_a%first_sgf
-         la_max => basis_set_a%lmax
-         la_min => basis_set_a%lmin
-         npgfa => basis_set_a%npgf
-         nseta = basis_set_a%nset
-         nsgfa => basis_set_a%nsgf_set
-         rpgfa => basis_set_a%pgf_radius
-         set_radius_a => basis_set_a%set_radius
-         sphi_a => basis_set_a%sphi
-         zeta => basis_set_a%zet
-         ! basis jkind
-         first_sgfb => basis_set_b%first_sgf
-         lb_max => basis_set_b%lmax
-         lb_min => basis_set_b%lmin
-         npgfb => basis_set_b%npgf
-         nsetb = basis_set_b%nset
-         nsgfb => basis_set_b%nsgf_set
-         rpgfb => basis_set_b%pgf_radius
-         set_radius_b => basis_set_b%set_radius
-         sphi_b => basis_set_b%sphi
-         zetb => basis_set_b%zet
+         ASSOCIATE ( &
+            first_sgfa => basis_set_a%first_sgf, &
+            la_max => basis_set_a%lmax, &
+            la_min => basis_set_a%lmin, &
+            npgfa => basis_set_a%npgf, &
+            nsgfa => basis_set_a%nsgf_set, &
+            rpgfa => basis_set_a%pgf_radius, &
+            set_radius_a => basis_set_a%set_radius, &
+            sphi_a => basis_set_a%sphi, &
+            zeta => basis_set_a%zet, &
+            ! basis jkind, &
+            first_sgfb => basis_set_b%first_sgf, &
+            lb_max => basis_set_b%lmax, &
+            lb_min => basis_set_b%lmin, &
+            npgfb => basis_set_b%npgf, &
+            nsgfb => basis_set_b%nsgf_set, &
+            rpgfb => basis_set_b%pgf_radius, &
+            set_radius_b => basis_set_b%set_radius, &
+            sphi_b => basis_set_b%sphi, &
+            zetb => basis_set_b%zet)
 
-         IF (inode == 1) last_jatom = 0
+            nseta = basis_set_a%nset
+            nsetb = basis_set_b%nset
 
-         ! this guarantees minimum image convention
-         ! anything else would not make sense
-         IF (jatom == last_jatom) THEN
-            CYCLE
-         END IF
+            IF (inode == 1) last_jatom = 0
 
-         last_jatom = jatom
+            ! this guarantees minimum image convention
+            ! anything else would not make sense
+            IF (jatom == last_jatom) THEN
+               CYCLE
+            END IF
 
-         irow = iatom
-         icol = jatom
+            last_jatom = jatom
 
-         DO i = 1, 3
-         DO j = 1, 3
-            NULLIFY (mint(i, j)%block)
-            CALL dbcsr_get_block_p(matrix=difdip(i, j)%matrix, &
-                                   row=irow, col=icol, BLOCK=mint(i, j)%block, &
-                                   found=found)
-            CPASSERT(found)
-            mint(i, j)%block = 0._dp
-         END DO
-         END DO
+            irow = iatom
+            icol = jatom
 
-         ! With and without MIC, rab(:) is the vector giving us the coordinates of rb.
-         ra = pbc(particle_set(iatom)%r(:), cell)
-         rb(:) = ra(:) + rab(:)
-         rac = pbc(rc, ra, cell)
-         rbc = rac + rab
-         dab = norm2(rab)
+            DO i = 1, 3
+            DO j = 1, 3
+               NULLIFY (mint(i, j)%block)
+               CALL dbcsr_get_block_p(matrix=difdip(i, j)%matrix, &
+                                      row=irow, col=icol, BLOCK=mint(i, j)%block, &
+                                      found=found)
+               CPASSERT(found)
+               mint(i, j)%block = 0._dp
+            END DO
+            END DO
 
-         DO iset = 1, nseta
-            ncoa = npgfa(iset)*ncoset(la_max(iset))
-            sgfa = first_sgfa(1, iset)
-            DO jset = 1, nsetb
-               IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
-               ncob = npgfb(jset)*ncoset(lb_max(jset))
-               sgfb = first_sgfb(1, jset)
-               ldab = MAX(ncoa, ncob)
-               lda = ncoset(la_max(iset))*npgfa(iset)
-               ldb = ncoset(lb_max(jset))*npgfb(jset)
-               ALLOCATE (difmab(lda, ldb, M_dim, 3))
+            ! With and without MIC, rab(:) is the vector giving us the coordinates of rb.
+            ra = pbc(particle_set(iatom)%r(:), cell)
+            rb(:) = ra(:) + rab(:)
+            rac = pbc(rc, ra, cell)
+            rbc = rac + rab
+            dab = norm2(rab)
 
-               ! Calculate integral difmab(beta, alpha) = (a|r_beta|db_alpha)
-               ! difmab(beta, alpha) = < a | r_beta | ∂_alpha b >
-               ! difmab(j, idir) = < a | r_j | ∂_idir b >
-               CALL diff_momop_velocity(la_max(iset), npgfa(iset), zeta(:, iset), &
-                                        rpgfa(:, iset), la_min(iset), lb_max(jset), npgfb(jset), &
-                                        zetb(:, jset), rpgfb(:, jset), lb_min(jset), order, rac, rbc, &
-                                        difmab, lambda=lambda, iatom=iatom, jatom=jatom)
+            DO iset = 1, nseta
+               ncoa = npgfa(iset)*ncoset(la_max(iset))
+               sgfa = first_sgfa(1, iset)
+               DO jset = 1, nsetb
+                  IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
+                  ncob = npgfb(jset)*ncoset(lb_max(jset))
+                  sgfb = first_sgfb(1, jset)
+                  ldab = MAX(ncoa, ncob)
+                  lda = ncoset(la_max(iset))*npgfa(iset)
+                  ldb = ncoset(lb_max(jset))*npgfb(jset)
+                  ALLOCATE (difmab(lda, ldb, M_dim, 3))
 
-!                  *** Contraction step ***
+                  ! Calculate integral difmab(beta, alpha) = (a|r_beta|db_alpha)
+                  ! difmab(beta, alpha) = < a | r_beta | ∂_alpha b >
+                  ! difmab(j, idir) = < a | r_j | ∂_idir b >
+                  CALL diff_momop_velocity(la_max(iset), npgfa(iset), zeta(:, iset), &
+                                           rpgfa(:, iset), la_min(iset), lb_max(jset), npgfb(jset), &
+                                           zetb(:, jset), rpgfb(:, jset), lb_min(jset), order, rac, rbc, &
+                                           difmab, lambda=lambda, iatom=iatom, jatom=jatom)
 
-               DO idir = 1, 3 ! derivative of AO function
-               DO j = 1, 3     ! position operator r_j
-                  CALL dgemm("N", "N", ncoa, nsgfb(jset), ncob, &
-                             1.0_dp, difmab(1, 1, j, idir), SIZE(difmab, 1), &
-                             sphi_b(1, sgfb), SIZE(sphi_b, 1), &
-                             0.0_dp, work(1, 1), SIZE(work, 1))
+                  !                  *** Contraction step ***
 
-                  CALL dgemm("T", "N", nsgfa(iset), nsgfb(jset), ncoa, &
-                             1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                             work(1, 1), SIZE(work, 1), &
-                             1.0_dp, mint(j, idir)%block(sgfa, sgfb), &
-                             SIZE(mint(j, idir)%block, 1))
-               END DO !j
-               END DO !idir
-               DEALLOCATE (difmab)
-            END DO !jset
-         END DO !iset
+                  DO idir = 1, 3 ! derivative of AO function
+                  DO j = 1, 3     ! position operator r_j
+                     CALL dgemm("N", "N", ncoa, nsgfb(jset), ncob, &
+                                1.0_dp, difmab(1, 1, j, idir), SIZE(difmab, 1), &
+                                sphi_b(1, sgfb), SIZE(sphi_b, 1), &
+                                0.0_dp, work(1, 1), SIZE(work, 1))
+
+                     CALL dgemm("T", "N", nsgfa(iset), nsgfb(jset), ncoa, &
+                                1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                                work(1, 1), SIZE(work, 1), &
+                                1.0_dp, mint(j, idir)%block(sgfa, sgfb), &
+                                SIZE(mint(j, idir)%block, 1))
+                  END DO !j
+                  END DO !idir
+                  DEALLOCATE (difmab)
+               END DO !jset
+            END DO !iset
+         END ASSOCIATE
       END DO!iterator
 
       CALL neighbor_list_iterator_release(nl_iterator)
@@ -332,7 +328,7 @@ CONTAINS
    SUBROUTINE build_dsdv_moments(qs_env, moments, nmoments, ref_point, ref_points, basis_type)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: moments
+      TYPE(dbcsr_p_type), DIMENSION(:)                   :: moments
       INTEGER, INTENT(IN)                                :: nmoments
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: ref_point
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
@@ -344,16 +340,11 @@ CONTAINS
       INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, jatom, jkind, jset, last_jatom, &
          maxco, maxsgf, natom, ncoa, ncob, nkind, nm, nseta, nsetb, sgfa, sgfb
       INTEGER, DIMENSION(3)                              :: image_cell
-      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, npgfa, npgfb, &
-                                                            nsgfa, nsgfb
-      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: found
       REAL(KIND=dp)                                      :: dab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: mab
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rac, rb, rbc, rc
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb
       TYPE(block_p_type), ALLOCATABLE, DIMENSION(:)      :: mint
       TYPE(cell_type), POINTER                           :: cell
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
@@ -419,122 +410,126 @@ CONTAINS
          basis_set_b => basis_set_list(jkind)%gto_basis_set
          IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
          ! basis ikind
-         first_sgfa => basis_set_a%first_sgf
-         la_max => basis_set_a%lmax
-         la_min => basis_set_a%lmin
-         npgfa => basis_set_a%npgf
-         nseta = basis_set_a%nset
-         nsgfa => basis_set_a%nsgf_set
-         rpgfa => basis_set_a%pgf_radius
-         set_radius_a => basis_set_a%set_radius
-         sphi_a => basis_set_a%sphi
-         zeta => basis_set_a%zet
-         ! basis jkind
-         first_sgfb => basis_set_b%first_sgf
-         lb_max => basis_set_b%lmax
-         npgfb => basis_set_b%npgf
-         nsetb = basis_set_b%nset
-         nsgfb => basis_set_b%nsgf_set
-         rpgfb => basis_set_b%pgf_radius
-         set_radius_b => basis_set_b%set_radius
-         sphi_b => basis_set_b%sphi
-         zetb => basis_set_b%zet
+         ASSOCIATE ( &
+            first_sgfa => basis_set_a%first_sgf, &
+            la_max => basis_set_a%lmax, &
+            la_min => basis_set_a%lmin, &
+            npgfa => basis_set_a%npgf, &
+            nsgfa => basis_set_a%nsgf_set, &
+            rpgfa => basis_set_a%pgf_radius, &
+            set_radius_a => basis_set_a%set_radius, &
+            sphi_a => basis_set_a%sphi, &
+            zeta => basis_set_a%zet, &
+            ! basis jkind, &
+            first_sgfb => basis_set_b%first_sgf, &
+            lb_max => basis_set_b%lmax, &
+            lb_min => basis_set_b%lmin, &
+            npgfb => basis_set_b%npgf, &
+            nsgfb => basis_set_b%nsgf_set, &
+            rpgfb => basis_set_b%pgf_radius, &
+            set_radius_b => basis_set_b%set_radius, &
+            sphi_b => basis_set_b%sphi, &
+            zetb => basis_set_b%zet)
 
-         IF (inode == 1) last_jatom = 0
+            nseta = basis_set_a%nset
+            nsetb = basis_set_b%nset
 
-         ! this guarantees minimum image convention
-         ! anything else would not make sense
-         IF (jatom == last_jatom) THEN
-            CYCLE
-         END IF
+            IF (inode == 1) last_jatom = 0
 
-         last_jatom = jatom
+            ! this guarantees minimum image convention
+            ! anything else would not make sense
+            IF (jatom == last_jatom) THEN
+               CYCLE
+            END IF
 
-         IF (iatom <= jatom) THEN
-            irow = iatom
-            icol = jatom
-         ELSE
-            irow = jatom
-            icol = iatom
-         END IF
+            last_jatom = jatom
 
-         DO i = 1, nm
-            NULLIFY (mint(i)%block)
-            CALL dbcsr_get_block_p(matrix=moments(i)%matrix, &
-                                   row=irow, col=icol, BLOCK=mint(i)%block, found=found)
-            mint(i)%block = 0._dp
-         END DO
+            IF (iatom <= jatom) THEN
+               irow = iatom
+               icol = jatom
+            ELSE
+               irow = jatom
+               icol = iatom
+            END IF
 
-         ! fold atomic position back into unit cell
-         IF (PRESENT(ref_points)) THEN
-            rc(:) = 0.5_dp*(ref_points(:, iatom) + ref_points(:, jatom))
-         ELSE IF (PRESENT(ref_point)) THEN
-            rc(:) = ref_point(:)
-         ELSE
-            rc(:) = 0._dp
-         END IF
-         ! using PBC here might screw a molecule that fits the box (but e.g. hasn't been shifted by center_molecule)
-         ! by folding around the center, such screwing can be avoided for a proper choice of center.
-         ! we dont use PBC at this point
+            DO i = 1, nm
+               NULLIFY (mint(i)%block)
+               CALL dbcsr_get_block_p(matrix=moments(i)%matrix, &
+                                      row=irow, col=icol, BLOCK=mint(i)%block, found=found)
+               mint(i)%block = 0._dp
+            END DO
 
-         ! With and without MIC, rab(:) is the vector giving us the coordinates of rb.
-         ra(:) = particle_set(iatom)%r(:)
-         rb(:) = ra(:) + rab(:)
-         rac = pbc(rc, ra, cell)
-         rbc = rac + rab
+            ! fold atomic position back into unit cell
+            IF (PRESENT(ref_points)) THEN
+               rc(:) = 0.5_dp*(ref_points(:, iatom) + ref_points(:, jatom))
+            ELSE IF (PRESENT(ref_point)) THEN
+               rc(:) = ref_point(:)
+            ELSE
+               rc(:) = 0._dp
+            END IF
+            ! using PBC here might screw a molecule that fits the box (but e.g. hasn't been shifted by center_molecule)
+            ! by folding around the center, such screwing can be avoided for a proper choice of center.
+            ! we dont use PBC at this point
 
-         dab = NORM2(rab)
+            ! With and without MIC, rab(:) is the vector giving us the coordinates of rb.
+            ra(:) = particle_set(iatom)%r(:)
+            rb(:) = ra(:) + rab(:)
+            rac = pbc(rc, ra, cell)
+            rbc = rac + rab
 
-         DO iset = 1, nseta
+            dab = NORM2(rab)
 
-            ncoa = npgfa(iset)*ncoset(la_max(iset))
-            sgfa = first_sgfa(1, iset)
+            DO iset = 1, nseta
 
-            DO jset = 1, nsetb
+               ncoa = npgfa(iset)*ncoset(la_max(iset))
+               sgfa = first_sgfa(1, iset)
 
-               IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
+               DO jset = 1, nsetb
 
-               ncob = npgfb(jset)*ncoset(lb_max(jset))
-               sgfb = first_sgfb(1, jset)
+                  IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
 
-               ! Calculate the primitive integrals
-               CALL moment(la_max(iset), npgfa(iset), zeta(:, iset), &
-                           rpgfa(:, iset), la_min(iset), &
-                           lb_max(jset), npgfb(jset), zetb(:, jset), &
-                           rpgfb(:, jset), nmoments, rac, rbc, mab)
+                  ncob = npgfb(jset)*ncoset(lb_max(jset))
+                  sgfb = first_sgfb(1, jset)
 
-               ! Contraction step
-               DO i = 1, nm
+                  ! Calculate the primitive integrals
+                  CALL moment(la_max(iset), npgfa(iset), zeta(:, iset), &
+                              rpgfa(:, iset), la_min(iset), &
+                              lb_max(jset), npgfb(jset), zetb(:, jset), &
+                              rpgfb(:, jset), nmoments, rac, rbc, mab)
 
-                  CALL dgemm("N", "N", ncoa, nsgfb(jset), ncob, &
-                             1.0_dp, mab(1, 1, i), SIZE(mab, 1), &
-                             sphi_b(1, sgfb), SIZE(sphi_b, 1), &
-                             0.0_dp, work(1, 1), SIZE(work, 1))
+                  ! Contraction step
+                  DO i = 1, nm
 
-                  IF (iatom <= jatom) THEN
+                     CALL dgemm("N", "N", ncoa, nsgfb(jset), ncob, &
+                                1.0_dp, mab(1, 1, i), SIZE(mab, 1), &
+                                sphi_b(1, sgfb), SIZE(sphi_b, 1), &
+                                0.0_dp, work(1, 1), SIZE(work, 1))
 
-                     CALL dgemm("T", "N", nsgfa(iset), nsgfb(jset), ncoa, &
-                                1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                                work(1, 1), SIZE(work, 1), &
-                                1.0_dp, mint(i)%block(sgfa, sgfb), &
-                                SIZE(mint(i)%block, 1))
+                     IF (iatom <= jatom) THEN
 
-                  ELSE
+                        CALL dgemm("T", "N", nsgfa(iset), nsgfb(jset), ncoa, &
+                                   1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                                   work(1, 1), SIZE(work, 1), &
+                                   1.0_dp, mint(i)%block(sgfa, sgfb), &
+                                   SIZE(mint(i)%block, 1))
 
-                     CALL dgemm("T", "N", nsgfb(jset), nsgfa(iset), ncoa, &
-                                1.0_dp, work(1, 1), SIZE(work, 1), &
-                                sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                                1.0_dp, mint(i)%block(sgfb, sgfa), &
-                                SIZE(mint(i)%block, 1))
+                     ELSE
 
-                  END IF
+                        CALL dgemm("T", "N", nsgfb(jset), nsgfa(iset), ncoa, &
+                                   1.0_dp, work(1, 1), SIZE(work, 1), &
+                                   sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                                   1.0_dp, mint(i)%block(sgfb, sgfa), &
+                                   SIZE(mint(i)%block, 1))
+
+                     END IF
+
+                  END DO
 
                END DO
-
             END DO
-         END DO
+         END ASSOCIATE
 
-      END DO
+      END DO ! iterator
 
       CALL neighbor_list_iterator_release(nl_iterator)
 

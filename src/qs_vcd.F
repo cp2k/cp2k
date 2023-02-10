@@ -5,13 +5,11 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 MODULE qs_vcd
-   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                              get_atomic_kind
+   USE atomic_kind_types,               ONLY: get_atomic_kind
    USE cell_types,                      ONLY: cell_type
    USE commutator_rpnl,                 ONLY: build_com_mom_nl
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
-                                              dbcsr_deallocate_matrix_set
+   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                               cp_fm_scale,&
                                               cp_fm_scale_and_add,&
@@ -25,12 +23,9 @@ MODULE qs_vcd
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_desymmetrize,&
-                                              dbcsr_distribution_type,&
-                                              dbcsr_p_type,&
                                               dbcsr_set
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
@@ -42,7 +37,6 @@ MODULE qs_vcd
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_linres_methods,               ONLY: linres_solver
    USE qs_linres_types,                 ONLY: linres_control_type,&
                                               vcd_env_type
@@ -90,16 +84,15 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'aat_dV'
+      INTEGER, PARAMETER                                 :: ispin = 1
 
       INTEGER                                            :: alpha, delta, gamma, handle, ikind, &
                                                             my_index, nao, nmo, nspins
       LOGICAL                                            :: ghost
       REAL(dp)                                           :: aat_prefactor, aat_tmp, charge, lc_tmp, &
-                                                            mag_origin_factor, tmp_trace
+                                                            tmp_trace
       REAL(dp), DIMENSION(3, 3)                          :: aat_tmp_33
-      REAL(dp), DIMENSION(:, :, :), POINTER              :: aat_atom
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, tmp_aomo
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: qs_overlap_matrix
+      TYPE(cp_fm_type)                                   :: tmp_aomo
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_all, sab_orb, sap_ppnl
@@ -114,486 +107,479 @@ CONTAINS
                       sab_orb=sab_orb, &
                       sab_all=sab_all, &
                       particle_set=particle_set, &
-                      qs_kind_set=qs_kind_set, &
-                      matrix_s=qs_overlap_matrix)
+                      qs_kind_set=qs_kind_set)
 
-      ALLOCATE (tmp_aomo)
-      CALL cp_fm_create(tmp_aomo, vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
-
-      ! This factor has to be +1 or -1 in order to get origin independent spectra
-      mag_origin_factor = +1._dp
+      CALL cp_fm_create(tmp_aomo, vcd_env%dcdr_env%likemos_fm_struct(ispin)%struct)
 
       nspins = dft_control%nspins
-      nmo = vcd_env%dcdr_env%nmo(1)
+      nmo = vcd_env%dcdr_env%nmo(ispin)
       nao = vcd_env%dcdr_env%nao
-      mo_coeff => vcd_env%dcdr_env%mo_coeff(1)
-      aat_atom => vcd_env%aat_atom_nvpt
+      ASSOCIATE (mo_coeff => vcd_env%dcdr_env%mo_coeff(ispin), aat_atom => vcd_env%aat_atom_nvpt)
 
-      ! I_{alpha beta}^lambda = 1/2c \sum_j^occ ...
-      aat_prefactor = 1.0_dp!/(c_light_au * 2._dp)
-      IF (nspins .EQ. 1) aat_prefactor = aat_prefactor*2.0_dp
+         ! I_{alpha beta}^lambda = 1/2c \sum_j^occ ...
+         aat_prefactor = 1.0_dp!/(c_light_au * 2._dp)
+         IF (nspins .EQ. 1) aat_prefactor = aat_prefactor*2.0_dp
 
-      ! The non-PP part of the AAT consists of four contributions:
-      !  (A1):  + P^0 * ε_{alpha gamma delta} * < mu | r_beta r_gamma ∂_delta | nu > * (mu == lambda)
-      !  (A2):  - P^0 * ε_{alpha gamma delta} * < mu | r_gamma r_beta ∂_delta | nu > * (nu == lambda)
-      !  (B):   - P^0 * ε_{alpha gamma delta} * < mu | r_gamma | nu > * (delta == beta) * (nu == lambda)
-      !  (C):   + iP^1 * ε_{alpha gamma delta} * < mu | r_gamma ∂_delta | nu >
+         ! The non-PP part of the AAT consists of four contributions:
+         !  (A1):  + P^0 * ε_{alpha gamma delta} * < mu | r_beta r_gamma ∂_delta | nu > * (mu == lambda)
+         !  (A2):  - P^0 * ε_{alpha gamma delta} * < mu | r_gamma r_beta ∂_delta | nu > * (nu == lambda)
+         !  (B):   - P^0 * ε_{alpha gamma delta} * < mu | r_gamma | nu > * (delta == beta) * (nu == lambda)
+         !  (C):   + iP^1 * ε_{alpha gamma delta} * < mu | r_gamma ∂_delta | nu >
 
-      ! (A1) + P^0 * ε_{alpha gamma delta} * < mu | r_beta r_gamma ∂_delta | nu > * (mu == lambda)
-      ! (A2) - P^0 * ε_{alpha gamma delta} * < mu | r_gamma r_beta ∂_delta | nu > * (nu == lambda)
-      ! Conjecture : It doesn't matter that the beta and gamma are swapped around!
-      !               We define o = | ∂_delta nu >
-      !                 and then < a | r_beta r_gamma | o > = < a | r_gamma r_beta | o>
-      ! (A) + P^0 * ε_{alpha gamma delta} * < mu | r_beta r_gamma ∂_delta | nu > * (mu == lambda - nu == lambda)
-      ! We have built the matrices - < mu | r_beta r_gamma ∂_delta | nu > in vcd_env%moments_der
-      ! moments_der(1:9; 1:3) = moments_der(x, y, z, xx, xy, xz, yy, yz, zz;
-      !                                     x, y, z)
+         ! (A1) + P^0 * ε_{alpha gamma delta} * < mu | r_beta r_gamma ∂_delta | nu > * (mu == lambda)
+         ! (A2) - P^0 * ε_{alpha gamma delta} * < mu | r_gamma r_beta ∂_delta | nu > * (nu == lambda)
+         ! Conjecture : It doesn't matter that the beta and gamma are swapped around!
+         !               We define o = | ∂_delta nu >
+         !                 and then < a | r_beta r_gamma | o > = < a | r_gamma r_beta | o>
+         ! (A) + P^0 * ε_{alpha gamma delta} * < mu | r_beta r_gamma ∂_delta | nu > * (mu == lambda - nu == lambda)
+         ! We have built the matrices - < mu | r_beta r_gamma ∂_delta | nu > in vcd_env%moments_der
+         ! moments_der(1:9; 1:3) = moments_der(x, y, z, xx, xy, xz, yy, yz, zz;
+         !                                     x, y, z)
 
-      aat_tmp_33 = 0._dp
-      DO gamma = 1, 3
-         my_index = multipole_2d_to_1d(vcd_env%dcdr_env%beta, gamma)
-         DO delta = 1, 3
-            ! moments_der(moment, delta) = - < a | moment \partial_\delta | b >
-            ! matrix_nosym_temp = - < mu | r_beta r_gamma ∂_delta | nu > * (mu - nu)
-            CALL dbcsr_copy(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, &
-                            vcd_env%moments_der_right(my_index, delta)%matrix)
-            CALL dbcsr_add(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, &
-                           vcd_env%moments_der_left(my_index, delta)%matrix, &
-                           1._dp, -1._dp)
-
-            CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
-            CALL cp_fm_trace(mo_coeff, tmp_aomo, aat_tmp_33(gamma, delta))
-         END DO
-      END DO
-
-      DO alpha = 1, 3
-         aat_tmp = 0._dp
-
-         ! There are two remaining combinations for gamma and delta.
+         aat_tmp_33 = 0._dp
          DO gamma = 1, 3
+            my_index = multipole_2d_to_1d(vcd_env%dcdr_env%beta, gamma)
             DO delta = 1, 3
-               lc_tmp = Levi_Civita(alpha, gamma, delta)
-               IF (lc_tmp == 0._dp) CYCLE
-
                ! moments_der(moment, delta) = - < a | moment \partial_\delta | b >
                ! matrix_nosym_temp = - < mu | r_beta r_gamma ∂_delta | nu > * (mu - nu)
-               ! Because of the negative in moments_der, we need another negative sign here.
-               aat_tmp = aat_tmp + lc_tmp*aat_prefactor*aat_tmp_33(gamma, delta)
+               CALL dbcsr_copy(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, &
+                               vcd_env%moments_der_right(my_index, delta)%matrix)
+               CALL dbcsr_add(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, &
+                              vcd_env%moments_der_left(my_index, delta)%matrix, &
+                              1._dp, -1._dp)
+
+               CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
+               CALL cp_fm_trace(mo_coeff, tmp_aomo, aat_tmp_33(gamma, delta))
             END DO
          END DO
 
-         aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
-            = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-      END DO
+         DO alpha = 1, 3
+            aat_tmp = 0._dp
 
-      !  (B):   - P^0 * ε_{alpha gamma delta} * < mu | r_gamma | nu > * (delta == beta) * (nu == lambda)
-      !      =  - P^0 * ε_{alpha gamma beta} * < mu | r_gamma | nu > * (nu == lambda)
+            ! There are two remaining combinations for gamma and delta.
+            DO gamma = 1, 3
+               DO delta = 1, 3
+                  lc_tmp = Levi_Civita(alpha, gamma, delta)
+                  IF (lc_tmp == 0._dp) CYCLE
 
-      DO alpha = 1, 3
-         aat_tmp = 0._dp
+                  ! moments_der(moment, delta) = - < a | moment \partial_\delta | b >
+                  ! matrix_nosym_temp = - < mu | r_beta r_gamma ∂_delta | nu > * (mu - nu)
+                  ! Because of the negative in moments_der, we need another negative sign here.
+                  aat_tmp = aat_tmp + lc_tmp*aat_prefactor*aat_tmp_33(gamma, delta)
+               END DO
+            END DO
 
-         DO gamma = 1, 3
-            lc_tmp = Levi_Civita(alpha, gamma, vcd_env%dcdr_env%beta)
-            IF (lc_tmp == 0._dp) CYCLE
+            aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
+               = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
+         END DO
 
-            ! matrix_nosym_temp = < mu | r_gamma | nu > * (nu == lambda)
-            CALL dbcsr_desymmetrize(vcd_env%dcdr_env%moments(gamma)%matrix, &
-                                    vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix)
+         !  (B):   - P^0 * ε_{alpha gamma delta} * < mu | r_gamma | nu > * (delta == beta) * (nu == lambda)
+         !      =  - P^0 * ε_{alpha gamma beta} * < mu | r_gamma | nu > * (nu == lambda)
+
+         DO alpha = 1, 3
+            aat_tmp = 0._dp
+
+            DO gamma = 1, 3
+               lc_tmp = Levi_Civita(alpha, gamma, vcd_env%dcdr_env%beta)
+               IF (lc_tmp == 0._dp) CYCLE
+
+               ! matrix_nosym_temp = < mu | r_gamma | nu > * (nu == lambda)
+               CALL dbcsr_desymmetrize(vcd_env%dcdr_env%moments(gamma)%matrix, &
+                                       vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix)
+               CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, qs_kind_set, "ORB", &
+                                        sab_all, direction_Or=.TRUE., lambda=vcd_env%dcdr_env%lambda)
+
+               CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
+               CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
+               aat_tmp = aat_tmp - lc_tmp*aat_prefactor*tmp_trace
+            END DO
+
+            aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
+               = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
+         END DO
+
+         !  (C):   + iP^1 * ε_{alpha gamma delta} * < mu | r_gamma ∂_delta | nu >
+         DO alpha = 1, 3
+            aat_tmp = 0._dp
+
+            DO gamma = 1, 3
+               DO delta = 1, 3
+                  lc_tmp = Levi_Civita(alpha, gamma, delta)
+                  IF (lc_tmp == 0._dp) CYCLE
+
+                  CALL cp_dbcsr_sm_fm_multiply(vcd_env%moments_der(gamma, delta)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
+                  CALL cp_fm_trace(tmp_aomo, vcd_env%dCV_prime(ispin), tmp_trace)
+
+                  ! mo_coeff * dCV_prime = + iP1
+                  ! moments_der(moment, delta) = - < a | moment \partial_\delta | b >
+                  ! so we need the opposite sign.
+                  aat_tmp = aat_tmp - 2._dp*aat_prefactor*tmp_trace*lc_tmp
+               END DO
+            END DO
+
+            aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
+               = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
+         END DO
+
+         ! The PP part consists of four contributions
+         !  (D):  - P^0 * ε_{alpha gamma delta} * < mu | r_beta r_gamma [V, r_delta] | nu > * (mu == lambda)
+         !  (E):  + P^0 * ε_{alpha gamma delta} * < mu | r_gamma [V, r_delta] r_beta | nu > * (nu == lambda)
+         !  (F):  - P^0 * ε_{alpha gamma delta} * < mu | r_gamma [[V, r_beta], r_delta] | nu > * (eta == lambda)
+         !  (G):  - iP^1 * ε_{alpha gamma delta} * < mu | r_gamma [V, r_delta] | nu >
+
+         !  (D):  - P^0 * ε_{alpha gamma delta} * < mu | r_beta r_gamma [V, r_delta] | nu > * (mu == lambda)
+         !    The negative of this is in vcd_env%matrix_r_rxvr
+         DO alpha = 1, 3
+            CALL dbcsr_copy(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, &
+                            vcd_env%matrix_r_rxvr(alpha, vcd_env%dcdr_env%beta)%matrix)
+            CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, qs_kind_set, "ORB", &
+                                     sab_all, direction_Or=.FALSE., lambda=vcd_env%dcdr_env%lambda)
+
+            CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
+            CALL cp_fm_trace(mo_coeff, tmp_aomo, aat_tmp)
+            aat_tmp = -aat_prefactor*aat_tmp
+
+            aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
+               = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
+         END DO
+
+         !  (E):  + P^0 * ε_{alpha gamma delta} * < mu | r_gamma [V, r_delta] r_beta | nu > * (nu == lambda)
+         !    This is in vcd_env%matrix_rxvr_r
+         DO alpha = 1, 3
+           CALL dbcsr_copy(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, vcd_env%matrix_rxvr_r(alpha, vcd_env%dcdr_env%beta)%matrix)
             CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, qs_kind_set, "ORB", &
                                      sab_all, direction_Or=.TRUE., lambda=vcd_env%dcdr_env%lambda)
 
             CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
-            CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
-            aat_tmp = aat_tmp - lc_tmp*aat_prefactor*tmp_trace
+            CALL cp_fm_trace(mo_coeff, tmp_aomo, aat_tmp)
+            aat_tmp = aat_prefactor*aat_tmp
+
+            aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
+               = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
          END DO
 
-         aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
-            = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-      END DO
+         !  (F):  - P^0 * ε_{alpha gamma delta} * < mu | r_gamma [[V, r_beta], r_delta] | nu > * (eta == lambda)
+         !        + P^0 * ε_{alpha gamma delta} * < mu | [[V, r_beta], r_delta] | nu > * (eta == lambda) * R_gamma
+         !    The negative is in vcd_env%matrix_r_doublecom
+         DO alpha = 1, 3
+            CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_r_doublecom(alpha, vcd_env%dcdr_env%beta)%matrix, &
+                                         mo_coeff, tmp_aomo, ncol=nmo)
+            CALL cp_fm_trace(mo_coeff, tmp_aomo, aat_tmp)
+            aat_tmp = -aat_prefactor*aat_tmp
 
-      !  (C):   + iP^1 * ε_{alpha gamma delta} * < mu | r_gamma ∂_delta | nu >
-      DO alpha = 1, 3
-         aat_tmp = 0._dp
+            aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
+               = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
+         END DO
 
-         DO gamma = 1, 3
-            DO delta = 1, 3
-               lc_tmp = Levi_Civita(alpha, gamma, delta)
-               IF (lc_tmp == 0._dp) CYCLE
+         !  (G):   - iP^1 * ε_{alpha gamma delta} * < mu | r_gamma [V, r_delta] | nu >
+         DO alpha = 1, 3
+            CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_rxrv(alpha)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
+            CALL cp_fm_trace(tmp_aomo, vcd_env%dCV_prime(ispin), aat_tmp)
 
-               CALL cp_dbcsr_sm_fm_multiply(vcd_env%moments_der(gamma, delta)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
-               CALL cp_fm_trace(tmp_aomo, vcd_env%dCV_prime(1), tmp_trace)
+            !  I can take the positive, because build_com_mom_nl computes r x [r, V]
+            aat_tmp = 2._dp*aat_prefactor*aat_tmp
 
-               ! mo_coeff * dCV_prime = + iP1
-               ! moments_der(moment, delta) = - < a | moment \partial_\delta | b >
-               ! so we need the opposite sign.
-               aat_tmp = aat_tmp - 2._dp*aat_prefactor*tmp_trace*lc_tmp
+            aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
+               = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
+                 + aat_tmp
+         END DO
+
+         ! All the reference dependent stuff
+         ! (C) iP^1 * ε_{alpha gamma delta} * < mu | ∂_delta | nu > * (- R_gamma)
+         DO alpha = 1, 3
+            aat_tmp = 0._dp
+
+            DO gamma = 1, 3
+               DO delta = 1, 3
+                  lc_tmp = Levi_Civita(alpha, gamma, delta)
+                  IF (lc_tmp == 0._dp) CYCLE
+                  ! dipvel_ao = + < a | ∂ | b >
+                  CALL cp_dbcsr_sm_fm_multiply(vcd_env%dipvel_ao(delta)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
+                  CALL cp_fm_trace(tmp_aomo, vcd_env%dCV_prime(ispin), tmp_trace)
+
+                  ! The negative sign is due to (r - O^mag_gamma) and otherwise this is
+                  !   exactly the APT dipvel(beta, delta) * (-O^mag_gamma)
+                  aat_tmp = aat_tmp + 2._dp*aat_prefactor*tmp_trace*lc_tmp*(-vcd_env%magnetic_origin_atom(gamma))
+               END DO
             END DO
+
+            aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
+               = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
          END DO
 
-         aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
-            = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-      END DO
-
-      ! The PP part consists of four contributions
-      !  (D):  - P^0 * ε_{alpha gamma delta} * < mu | r_beta r_gamma [V, r_delta] | nu > * (mu == lambda)
-      !  (E):  + P^0 * ε_{alpha gamma delta} * < mu | r_gamma [V, r_delta] r_beta | nu > * (nu == lambda)
-      !  (F):  - P^0 * ε_{alpha gamma delta} * < mu | r_gamma [[V, r_beta], r_delta] | nu > * (eta == lambda)
-      !  (G):  - iP^1 * ε_{alpha gamma delta} * < mu | r_gamma [V, r_delta] | nu >
-
-      !  (D):  - P^0 * ε_{alpha gamma delta} * < mu | r_beta r_gamma [V, r_delta] | nu > * (mu == lambda)
-      !    The negative of this is in vcd_env%matrix_r_rxvr
-      DO alpha = 1, 3
-         CALL dbcsr_copy(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, &
-                         vcd_env%matrix_r_rxvr(alpha, vcd_env%dcdr_env%beta)%matrix)
-         CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, qs_kind_set, "ORB", &
-                                  sab_all, direction_Or=.FALSE., lambda=vcd_env%dcdr_env%lambda)
-
-         CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
-         CALL cp_fm_trace(mo_coeff, tmp_aomo, aat_tmp)
-         aat_tmp = -aat_prefactor*aat_tmp
-
-         aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
-            = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-      END DO
-
-      !  (E):  + P^0 * ε_{alpha gamma delta} * < mu | r_gamma [V, r_delta] r_beta | nu > * (nu == lambda)
-      !    This is in vcd_env%matrix_rxvr_r
-      DO alpha = 1, 3
-         CALL dbcsr_copy(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, vcd_env%matrix_rxvr_r(alpha, vcd_env%dcdr_env%beta)%matrix)
-         CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, qs_kind_set, "ORB", &
-                                  sab_all, direction_Or=.TRUE., lambda=vcd_env%dcdr_env%lambda)
-
-         CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
-         CALL cp_fm_trace(mo_coeff, tmp_aomo, aat_tmp)
-         aat_tmp = aat_prefactor*aat_tmp
-
-         aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
-            = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-      END DO
-
-      !  (F):  - P^0 * ε_{alpha gamma delta} * < mu | r_gamma [[V, r_beta], r_delta] | nu > * (eta == lambda)
-      !        + P^0 * ε_{alpha gamma delta} * < mu | [[V, r_beta], r_delta] | nu > * (eta == lambda) * R_gamma
-      !    The negative is in vcd_env%matrix_r_doublecom
-      DO alpha = 1, 3
-         CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_r_doublecom(alpha, vcd_env%dcdr_env%beta)%matrix, &
-                                      mo_coeff, tmp_aomo, ncol=nmo)
-         CALL cp_fm_trace(mo_coeff, tmp_aomo, aat_tmp)
-         aat_tmp = -aat_prefactor*aat_tmp
-
-         aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
-            = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-      END DO
-
-      !  (G):   - iP^1 * ε_{alpha gamma delta} * < mu | r_gamma [V, r_delta] | nu >
-      DO alpha = 1, 3
-         CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_rxrv(alpha)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
-         CALL cp_fm_trace(tmp_aomo, vcd_env%dCV_prime(1), aat_tmp)
-
-         !  I can take the positive, because build_com_mom_nl computes r x [r, V]
-         aat_tmp = 2._dp*aat_prefactor*aat_tmp
-
-         aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
-            = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
-              + aat_tmp
-      END DO
-
-      ! All the reference dependent stuff
-      ! (C) iP^1 * ε_{alpha gamma delta} * < mu | ∂_delta | nu > * (- R_gamma)
-      DO alpha = 1, 3
-         aat_tmp = 0._dp
-
-         DO gamma = 1, 3
-            DO delta = 1, 3
-               lc_tmp = Levi_Civita(alpha, gamma, delta)
-               IF (lc_tmp == 0._dp) CYCLE
-               ! dipvel_ao = + < a | ∂ | b >
-               CALL cp_dbcsr_sm_fm_multiply(vcd_env%dipvel_ao(delta)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
-               CALL cp_fm_trace(tmp_aomo, vcd_env%dCV_prime(1), tmp_trace)
-
-               ! The negative sign is due to (r - O^mag_gamma) and otherwise this is
-               !   exactly the APT dipvel(beta, delta) * (-O^mag_gamma)
-               aat_tmp = aat_tmp + 2._dp*aat_prefactor*tmp_trace*lc_tmp*(-vcd_env%magnetic_origin_atom(gamma))
-            END DO
-         END DO
-
-         aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
-            = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-      END DO
-
-      !  (G):  - iP^1 * ε_{alpha gamma delta} * < mu | [V, r_delta] | nu > * (- R_gamma)
-      DO alpha = 1, 3
-         aat_tmp = 0._dp
-         DO gamma = 1, 3
-            DO delta = 1, 3
-               lc_tmp = Levi_Civita(alpha, gamma, delta)
-               IF (lc_tmp == 0._dp) CYCLE
-               ! hcom = < a | [r, V] | b > = - < a | [V, r] | b >
-               ! mo_coeff * dCV_prime = + iP1
-               CALL cp_dbcsr_sm_fm_multiply(vcd_env%hcom(delta)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
-               CALL cp_fm_trace(tmp_aomo, vcd_env%dCV_prime(1), tmp_trace)
-
-               ! This is exactly APT hcom(beta, delta)
-               aat_tmp = aat_tmp + 2._dp*aat_prefactor*tmp_trace*lc_tmp*(-vcd_env%magnetic_origin_atom(gamma))
-            END DO
-         END DO
-
-         aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
-            = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-      END DO
-
-      !  mag_vel, vel, mag
-      ! Ai)   + ε_{alpha gamma delta} * R_beta R_gamma * < mu | ∂_delta | nu > * (mu - nu)
-      ! Aii)  + ε_{alpha gamma delta} * (-R_beta) * < mu | r_gamma ∂_delta | nu > * (mu - nu)
-      ! Aiii) + ε_{alpha gamma delta} * (-R_gamma) * < mu | r_beta ∂_delta | nu > * (mu - nu)
-      DO alpha = 1, 3
-         aat_tmp = 0._dp
-         DO gamma = 1, 3
-            DO delta = 1, 3
-               lc_tmp = Levi_Civita(alpha, gamma, delta)
-               IF (lc_tmp == 0._dp) CYCLE
-               ! iii) - R_gamma * < mu | r_beta ∂_delta | nu > * (mu - nu)
-               ! mag
-               ! matrix_difdip2(beta, alpha) = - < a | r_beta | ∂_alpha b >  * (mu - nu)
-               !   so I need matrix_difdip2(beta, delta)
-               ! Only this part correspond to the APT difdip(beta, alpha)
-               CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_difdip2(vcd_env%dcdr_env%beta, delta)%matrix, mo_coeff, &
-                                            tmp_aomo, ncol=nmo)
-               CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
-
-               ! There is a negative sign here, because the routine dipole_velocity_deriv calculates
-               !   the derivatives with respect to nuclear positions and we need electronic positions
-               aat_tmp = aat_tmp - lc_tmp*aat_prefactor*tmp_trace*(-vcd_env%magnetic_origin_atom(gamma))
-
-               ! This part doesn't appear in the APT
-               ! ii)  - R_beta * < mu | r_gamma ∂_delta | nu > * (mu - nu)
-               ! vel
-               ! matrix_difdip2(beta, alpha) = - < a | r_beta | ∂_alpha b > * (mu - nu)
-               !   so I need matrix_difdip2(gamma, delta)
-               CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_difdip2(gamma, delta)%matrix, mo_coeff, &
-                                            tmp_aomo, ncol=nmo)
-               CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
-
-               ! There is a negative sign here, because the routine dipole_velocity_deriv calculates
-               !   the derivatives with respect to nuclear positions and we need electronic positions
-               aat_tmp = aat_tmp - lc_tmp*aat_prefactor*tmp_trace*(-vcd_env%spatial_origin_atom(vcd_env%dcdr_env%beta))
-
-               ! i)   + R_beta R_gamma * < mu | ∂_delta | nu > * (mu - nu)
-               ! mag_vel
-               ! dipvel_ao = + < a | ∂ | b >
-               CALL dbcsr_desymmetrize(vcd_env%dipvel_ao(delta)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix)
-               CALL dbcsr_desymmetrize(vcd_env%dipvel_ao(delta)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(2)%matrix)
-               CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, qs_kind_set, "ORB", &
-                                        sab_all, direction_Or=.FALSE., lambda=vcd_env%dcdr_env%lambda)
-               CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(2)%matrix, qs_kind_set, "ORB", &
-                                        sab_all, direction_Or=.TRUE., lambda=vcd_env%dcdr_env%lambda)
-               CALL dbcsr_add(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(2)%matrix, &
-                              1._dp, -1._dp)
-
-               CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
-               CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
-               aat_tmp = aat_tmp + lc_tmp*aat_prefactor*tmp_trace* &
-                         (vcd_env%spatial_origin_atom(vcd_env%dcdr_env%beta)*vcd_env%magnetic_origin_atom(gamma))
-
-            END DO
-         END DO
-
-         aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
-            = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-      END DO
-
-      ! (B):  P^0 * ε_{alpha gamma beta} * < mu | nu > * (nu == lambda) * R_gamma
-      DO alpha = 1, 3
-         aat_tmp = 0._dp
-
-         DO gamma = 1, 3
-            lc_tmp = Levi_Civita(alpha, gamma, vcd_env%dcdr_env%beta)
-            IF (lc_tmp == 0._dp) CYCLE
-            CALL dbcsr_set(vcd_env%dcdr_env%matrix_nosym_temp(vcd_env%dcdr_env%beta)%matrix, 0.0_dp)
-            CALL dbcsr_desymmetrize(vcd_env%dcdr_env%matrix_s1(1)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix)
-            CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, qs_kind_set, "ORB", sab_all, &
-                                     vcd_env%dcdr_env%lambda, direction_Or=.TRUE.)
-            CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
-            CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
-
-            ! This is in total positive because we are calculating
-            !  -1/2c * P * < a | b > * (delta == beta) * (nu == lambda) * (-R_gamma)
-            ! The whole term corresponds to difdip_s
-            aat_tmp = aat_tmp + lc_tmp*aat_prefactor*tmp_trace*vcd_env%magnetic_origin_atom(gamma)
-         END DO
-
-         aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
-            = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-      END DO
-
-      !  (D):  - P^0 * ε_{alpha gamma delta} * < mu | r_gamma r_beta [V, r_delta] | nu > * (mu == lambda)
-      !  mag, vel, mag_vel
-      ! Di)   - ε_{alpha gamma delta} * (-R_gamma) * < mu | r_beta [V, r_delta] | nu > * (mu == lambda)
-      ! Dii)  - ε_{alpha gamma delta} * (-R_beta) * < mu | r_gamma [V, r_delta] | nu > * (mu == lambda)
-      ! Diii) - ε_{alpha gamma delta} * R_beta R_gamma * < mu | [V, r_delta] | nu > * (mu == lambda)
-
-      DO alpha = 1, 3
-         aat_tmp = 0._dp
-         CALL dbcsr_set(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, 0._dp)
-
-         DO gamma = 1, 3
-            DO delta = 1, 3
-               lc_tmp = Levi_Civita(alpha, gamma, delta)
-               IF (lc_tmp == 0._dp) CYCLE
-               ! vcd_env%matrix_rrcom(alpha, beta) = r_beta * [V, r_alpha]
-
-               ! This corresponds to rcom
-               ! Di) mag
-               ! -(-R_gamma) * < mu | r_beta [V, r_delta] | nu > * (mu == lambda)
-               ! vcd_env%matrix_rrcom(alpha, beta) = r_beta * [V, r_alpha]
-               !  so I need vcd_env%matrix_rrcom(delta, beta)
-               !  The multiplication with delta was not done for all directions
-               CALL dbcsr_copy(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, &
-                               vcd_env%matrix_rrcom(delta, vcd_env%dcdr_env%beta)%matrix)
-               CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, qs_kind_set, "ORB", &
-                                        sab_all, direction_Or=.FALSE., lambda=vcd_env%dcdr_env%lambda)
-               CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
-               CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
-               ! The sign is positive in total, because we have the negative coordinate and the whole term was negative
-               aat_tmp = aat_tmp + aat_prefactor*tmp_trace*lc_tmp*vcd_env%magnetic_origin_atom(gamma)
-
-               ! This doesn't appear in the APT formula
-               ! Dii) vel
-               ! -(-R_beta) * < mu | r_gamma [V, r_delta] | nu > * (mu == lambda)
-               ! vcd_env%matrix_rrcom(alpha, beta) = r_beta * [V, r_alpha]
-               !  so I need vcd_env%matrix_rrcom(delta, gamma)
-               !  The multiplication with delta was already done in SUBROUTINE apt_dV
-               CALL dbcsr_copy(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, vcd_env%matrix_rrcom(delta, gamma)%matrix)
-               CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, qs_kind_set, "ORB", &
-                                        sab_all, direction_Or=.FALSE., lambda=vcd_env%dcdr_env%lambda)
-               CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
-               CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
-               aat_tmp = aat_tmp + aat_prefactor*tmp_trace*lc_tmp*vcd_env%spatial_origin_atom(vcd_env%dcdr_env%beta)
-
-               ! Diii) mag_vel
-               !  - R_beta R_gamma * < mu | [V, r_delta] | nu >
-               ! hcom(delta) = - [V, r_delta]
-               CALL dbcsr_desymmetrize(vcd_env%hcom(delta)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix)
-               CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, qs_kind_set, "ORB", &
-                                        sab_all, direction_Or=.FALSE., lambda=vcd_env%dcdr_env%lambda)
-               CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
-               CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
-               ! No need for a negative sign, because hcom already contains the negative sign.
-               aat_tmp = aat_tmp + &
-                         aat_prefactor*tmp_trace*lc_tmp &
-                         *(vcd_env%spatial_origin_atom(vcd_env%dcdr_env%beta)*vcd_env%magnetic_origin_atom(gamma))
-            END DO
-         END DO
-
-         aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
-            = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-      END DO
-
-      !  (E):  + P^0 * ε_{alpha gamma delta} * < mu | r_gamma [V, r_delta] r_beta | nu > * (nu == lambda)
-      !  mag, vel, mag_vel
-      ! Ei)   + ε_{alpha gamma delta} * (-R_gamma) * < mu | [V, r_delta] r_beta | nu > * (nu == lambda)
-      ! Eii)  + ε_{alpha gamma delta} * (-R_beta) * < mu | r_gamma [V, r_delta] | nu > * (nu == lambda)
-      ! Eiii) + ε_{alpha gamma delta} * R_beta R_gamma * < mu | [V, r_delta] | nu > * (nu == lambda)
-      DO alpha = 1, 3
-         aat_tmp = 0._dp
-         CALL dbcsr_set(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, 0._dp)
-
-         DO gamma = 1, 3
-            DO delta = 1, 3
-               lc_tmp = Levi_Civita(alpha, gamma, delta)
-               IF (lc_tmp == 0._dp) CYCLE
-               ! vcd_env%matrix_rrcom(alpha, beta) = r_beta * [V, r_alpha]
-               ! vcd_env%matrix_rcomr(alpha, beta) = [V, r_alpha] * r_beta
-
-               ! This corresponds to rcom
-               ! Ei) mag
-               ! (-R_gamma) * < mu | [V, r_delta] r_beta | nu > * (nu == lambda)
-               ! vcd_env%matrix_rcomr(alpha, beta) = [V, r_alpha] * r_beta
-               !  so I need vcd_env%matrix_rcomr(delta, beta)
-               CALL dbcsr_copy(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, &
-                               vcd_env%matrix_rcomr(delta, vcd_env%dcdr_env%beta)%matrix)
-               CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, qs_kind_set, "ORB", &
-                                        sab_all, direction_Or=.TRUE., lambda=vcd_env%dcdr_env%lambda)
-
-               CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
-               CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
-               aat_tmp = aat_tmp + aat_prefactor*tmp_trace*lc_tmp*(-vcd_env%magnetic_origin_atom(gamma))
-
-               ! This doesn't appear in the APT formula
-               ! E2) vel
-               ! (-R_beta) * < mu | r_gamma [V, r_delta] | nu > * (nu == lambda)
-               ! vcd_env%matrix_rrcom(alpha, beta) = r_beta * [V, r_alpha]
-               !  so I need vcd_env%matrix_rrcom(delta, gamma)
-               CALL dbcsr_copy(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, vcd_env%matrix_rrcom(delta, gamma)%matrix)
-               CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, qs_kind_set, "ORB", &
-                                        sab_all, direction_Or=.TRUE., lambda=vcd_env%dcdr_env%lambda)
-
-               CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
-               CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
-               aat_tmp = aat_tmp + aat_prefactor*tmp_trace*lc_tmp*(-vcd_env%spatial_origin_atom(vcd_env%dcdr_env%beta))
-
-               ! E3) mag_vel
-               ! R_beta R_gamma * < mu | [V, r_delta] | nu > * (nu == lambda)
-               CALL dbcsr_desymmetrize(vcd_env%hcom(delta)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix)
-               CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, qs_kind_set, "ORB", &
-                                        sab_all, direction_Or=.TRUE., lambda=vcd_env%dcdr_env%lambda)
-
-               CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
-               CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
-               ! There has to be a minus here, because hcom = [r, V] = - [V, r]
-               aat_tmp = aat_tmp - &
-                         aat_prefactor*tmp_trace*lc_tmp* &
-                         (vcd_env%spatial_origin_atom(vcd_env%dcdr_env%beta)*vcd_env%magnetic_origin_atom(gamma))
-            END DO
-         END DO
-
-         aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
-            = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-      END DO
-
-      !  (F):  - P^0 * ε_{alpha gamma delta} * < mu | [[V, r_beta], r_delta] | nu > * (eta == lambda) * (-R_gamma)
-      ! This corresponds to APT dcom
-      DO alpha = 1, 3
-         aat_tmp = 0._dp
-
-         DO gamma = 1, 3
-            DO delta = 1, 3
-               lc_tmp = Levi_Civita(alpha, gamma, delta)
-               IF (lc_tmp == 0._dp) CYCLE
-               ! vcd_env%matrix_dcom(alpha, vcd_env%dcdr_env%beta) = - < mu | [ [V, r_beta], r_alpha ] | nu >
-               !  so I need matrix_dcom(delta, vcd_env%dcdr_env%beta)
-               CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_dcom(delta, vcd_env%dcdr_env%beta)%matrix, &
-                                            mo_coeff, tmp_aomo, ncol=nmo)
-               CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
-               ! matrix_dcom has the negative sign and we include the negative sign of the coordinate
-               aat_tmp = aat_tmp + aat_prefactor*tmp_trace*lc_tmp*(-vcd_env%magnetic_origin_atom(gamma))
-            END DO
-         END DO
-
-         aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
-            = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
-      END DO
-
-      ! Nuclear contribution
-      CALL get_atomic_kind(particle_set(vcd_env%dcdr_env%lambda)%atomic_kind, kind_number=ikind)
-      CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge, ghost=ghost)
-      IF (.NOT. ghost) THEN
+         !  (G):  - iP^1 * ε_{alpha gamma delta} * < mu | [V, r_delta] | nu > * (- R_gamma)
          DO alpha = 1, 3
             aat_tmp = 0._dp
             DO gamma = 1, 3
-               IF (Levi_Civita(alpha, gamma, vcd_env%dcdr_env%beta) == 0._dp) CYCLE
-               aat_tmp = aat_tmp + charge &
-                         *Levi_Civita(alpha, gamma, vcd_env%dcdr_env%beta) &
-                         *(particle_set(vcd_env%dcdr_env%lambda)%r(gamma) - vcd_env%magnetic_origin_atom(gamma))
+               DO delta = 1, 3
+                  lc_tmp = Levi_Civita(alpha, gamma, delta)
+                  IF (lc_tmp == 0._dp) CYCLE
+                  ! hcom = < a | [r, V] | b > = - < a | [V, r] | b >
+                  ! mo_coeff * dCV_prime = + iP1
+                  CALL cp_dbcsr_sm_fm_multiply(vcd_env%hcom(delta)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
+                  CALL cp_fm_trace(tmp_aomo, vcd_env%dCV_prime(ispin), tmp_trace)
 
-               aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
-                  = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
+                  ! This is exactly APT hcom(beta, delta)
+                  aat_tmp = aat_tmp + 2._dp*aat_prefactor*tmp_trace*lc_tmp*(-vcd_env%magnetic_origin_atom(gamma))
+               END DO
             END DO
+
+            aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
+               = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
          END DO
-      END IF
+
+         !  mag_vel, vel, mag
+         ! Ai)   + ε_{alpha gamma delta} * R_beta R_gamma * < mu | ∂_delta | nu > * (mu - nu)
+         ! Aii)  + ε_{alpha gamma delta} * (-R_beta) * < mu | r_gamma ∂_delta | nu > * (mu - nu)
+         ! Aiii) + ε_{alpha gamma delta} * (-R_gamma) * < mu | r_beta ∂_delta | nu > * (mu - nu)
+         DO alpha = 1, 3
+            aat_tmp = 0._dp
+            DO gamma = 1, 3
+               DO delta = 1, 3
+                  lc_tmp = Levi_Civita(alpha, gamma, delta)
+                  IF (lc_tmp == 0._dp) CYCLE
+                  ! iii) - R_gamma * < mu | r_beta ∂_delta | nu > * (mu - nu)
+                  ! mag
+                  ! matrix_difdip2(beta, alpha) = - < a | r_beta | ∂_alpha b >  * (mu - nu)
+                  !   so I need matrix_difdip2(beta, delta)
+                  ! Only this part correspond to the APT difdip(beta, alpha)
+                  CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_difdip2(vcd_env%dcdr_env%beta, delta)%matrix, mo_coeff, &
+                                               tmp_aomo, ncol=nmo)
+                  CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
+
+                  ! There is a negative sign here, because the routine dipole_velocity_deriv calculates
+                  !   the derivatives with respect to nuclear positions and we need electronic positions
+                  aat_tmp = aat_tmp - lc_tmp*aat_prefactor*tmp_trace*(-vcd_env%magnetic_origin_atom(gamma))
+
+                  ! This part doesn't appear in the APT
+                  ! ii)  - R_beta * < mu | r_gamma ∂_delta | nu > * (mu - nu)
+                  ! vel
+                  ! matrix_difdip2(beta, alpha) = - < a | r_beta | ∂_alpha b > * (mu - nu)
+                  !   so I need matrix_difdip2(gamma, delta)
+                  CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_difdip2(gamma, delta)%matrix, mo_coeff, &
+                                               tmp_aomo, ncol=nmo)
+                  CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
+
+                  ! There is a negative sign here, because the routine dipole_velocity_deriv calculates
+                  !   the derivatives with respect to nuclear positions and we need electronic positions
+                  aat_tmp = aat_tmp - lc_tmp*aat_prefactor*tmp_trace*(-vcd_env%spatial_origin_atom(vcd_env%dcdr_env%beta))
+
+                  ! i)   + R_beta R_gamma * < mu | ∂_delta | nu > * (mu - nu)
+                  ! mag_vel
+                  ! dipvel_ao = + < a | ∂ | b >
+                  CALL dbcsr_desymmetrize(vcd_env%dipvel_ao(delta)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix)
+                  CALL dbcsr_desymmetrize(vcd_env%dipvel_ao(delta)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(2)%matrix)
+                  CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, qs_kind_set, "ORB", &
+                                           sab_all, direction_Or=.FALSE., lambda=vcd_env%dcdr_env%lambda)
+                  CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(2)%matrix, qs_kind_set, "ORB", &
+                                           sab_all, direction_Or=.TRUE., lambda=vcd_env%dcdr_env%lambda)
+                  CALL dbcsr_add(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(2)%matrix, &
+                                 1._dp, -1._dp)
+
+                  CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
+                  CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
+                  aat_tmp = aat_tmp + lc_tmp*aat_prefactor*tmp_trace* &
+                            (vcd_env%spatial_origin_atom(vcd_env%dcdr_env%beta)*vcd_env%magnetic_origin_atom(gamma))
+
+               END DO
+            END DO
+
+            aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
+               = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
+         END DO
+
+         ! (B):  P^0 * ε_{alpha gamma beta} * < mu | nu > * (nu == lambda) * R_gamma
+         DO alpha = 1, 3
+            aat_tmp = 0._dp
+
+            DO gamma = 1, 3
+               lc_tmp = Levi_Civita(alpha, gamma, vcd_env%dcdr_env%beta)
+               IF (lc_tmp == 0._dp) CYCLE
+               CALL dbcsr_set(vcd_env%dcdr_env%matrix_nosym_temp(vcd_env%dcdr_env%beta)%matrix, 0.0_dp)
+               CALL dbcsr_desymmetrize(vcd_env%dcdr_env%matrix_s1(1)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix)
+               CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, qs_kind_set, "ORB", sab_all, &
+                                        vcd_env%dcdr_env%lambda, direction_Or=.TRUE.)
+               CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
+               CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
+
+               ! This is in total positive because we are calculating
+               !  -1/2c * P * < a | b > * (delta == beta) * (nu == lambda) * (-R_gamma)
+               ! The whole term corresponds to difdip_s
+               aat_tmp = aat_tmp + lc_tmp*aat_prefactor*tmp_trace*vcd_env%magnetic_origin_atom(gamma)
+            END DO
+
+            aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
+               = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
+         END DO
+
+         !  (D):  - P^0 * ε_{alpha gamma delta} * < mu | r_gamma r_beta [V, r_delta] | nu > * (mu == lambda)
+         !  mag, vel, mag_vel
+         ! Di)   - ε_{alpha gamma delta} * (-R_gamma) * < mu | r_beta [V, r_delta] | nu > * (mu == lambda)
+         ! Dii)  - ε_{alpha gamma delta} * (-R_beta) * < mu | r_gamma [V, r_delta] | nu > * (mu == lambda)
+         ! Diii) - ε_{alpha gamma delta} * R_beta R_gamma * < mu | [V, r_delta] | nu > * (mu == lambda)
+
+         DO alpha = 1, 3
+            aat_tmp = 0._dp
+            CALL dbcsr_set(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, 0._dp)
+
+            DO gamma = 1, 3
+               DO delta = 1, 3
+                  lc_tmp = Levi_Civita(alpha, gamma, delta)
+                  IF (lc_tmp == 0._dp) CYCLE
+                  ! vcd_env%matrix_rrcom(alpha, beta) = r_beta * [V, r_alpha]
+
+                  ! This corresponds to rcom
+                  ! Di) mag
+                  ! -(-R_gamma) * < mu | r_beta [V, r_delta] | nu > * (mu == lambda)
+                  ! vcd_env%matrix_rrcom(alpha, beta) = r_beta * [V, r_alpha]
+                  !  so I need vcd_env%matrix_rrcom(delta, beta)
+                  !  The multiplication with delta was not done for all directions
+                  CALL dbcsr_copy(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, &
+                                  vcd_env%matrix_rrcom(delta, vcd_env%dcdr_env%beta)%matrix)
+                  CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, qs_kind_set, "ORB", &
+                                           sab_all, direction_Or=.FALSE., lambda=vcd_env%dcdr_env%lambda)
+                  CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
+                  CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
+                  ! The sign is positive in total, because we have the negative coordinate and the whole term was negative
+                  aat_tmp = aat_tmp + aat_prefactor*tmp_trace*lc_tmp*vcd_env%magnetic_origin_atom(gamma)
+
+                  ! This doesn't appear in the APT formula
+                  ! Dii) vel
+                  ! -(-R_beta) * < mu | r_gamma [V, r_delta] | nu > * (mu == lambda)
+                  ! vcd_env%matrix_rrcom(alpha, beta) = r_beta * [V, r_alpha]
+                  !  so I need vcd_env%matrix_rrcom(delta, gamma)
+                  !  The multiplication with delta was already done in SUBROUTINE apt_dV
+                  CALL dbcsr_copy(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, vcd_env%matrix_rrcom(delta, gamma)%matrix)
+                  CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, qs_kind_set, "ORB", &
+                                           sab_all, direction_Or=.FALSE., lambda=vcd_env%dcdr_env%lambda)
+                  CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
+                  CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
+                  aat_tmp = aat_tmp + aat_prefactor*tmp_trace*lc_tmp*vcd_env%spatial_origin_atom(vcd_env%dcdr_env%beta)
+
+                  ! Diii) mag_vel
+                  !  - R_beta R_gamma * < mu | [V, r_delta] | nu >
+                  ! hcom(delta) = - [V, r_delta]
+                  CALL dbcsr_desymmetrize(vcd_env%hcom(delta)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix)
+                  CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, qs_kind_set, "ORB", &
+                                           sab_all, direction_Or=.FALSE., lambda=vcd_env%dcdr_env%lambda)
+                  CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
+                  CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
+                  ! No need for a negative sign, because hcom already contains the negative sign.
+                  aat_tmp = aat_tmp + &
+                            aat_prefactor*tmp_trace*lc_tmp &
+                            *(vcd_env%spatial_origin_atom(vcd_env%dcdr_env%beta)*vcd_env%magnetic_origin_atom(gamma))
+               END DO
+            END DO
+
+            aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
+               = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
+         END DO
+
+         !  (E):  + P^0 * ε_{alpha gamma delta} * < mu | r_gamma [V, r_delta] r_beta | nu > * (nu == lambda)
+         !  mag, vel, mag_vel
+         ! Ei)   + ε_{alpha gamma delta} * (-R_gamma) * < mu | [V, r_delta] r_beta | nu > * (nu == lambda)
+         ! Eii)  + ε_{alpha gamma delta} * (-R_beta) * < mu | r_gamma [V, r_delta] | nu > * (nu == lambda)
+         ! Eiii) + ε_{alpha gamma delta} * R_beta R_gamma * < mu | [V, r_delta] | nu > * (nu == lambda)
+         DO alpha = 1, 3
+            aat_tmp = 0._dp
+            CALL dbcsr_set(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, 0._dp)
+
+            DO gamma = 1, 3
+               DO delta = 1, 3
+                  lc_tmp = Levi_Civita(alpha, gamma, delta)
+                  IF (lc_tmp == 0._dp) CYCLE
+                  ! vcd_env%matrix_rrcom(alpha, beta) = r_beta * [V, r_alpha]
+                  ! vcd_env%matrix_rcomr(alpha, beta) = [V, r_alpha] * r_beta
+
+                  ! This corresponds to rcom
+                  ! Ei) mag
+                  ! (-R_gamma) * < mu | [V, r_delta] r_beta | nu > * (nu == lambda)
+                  ! vcd_env%matrix_rcomr(alpha, beta) = [V, r_alpha] * r_beta
+                  !  so I need vcd_env%matrix_rcomr(delta, beta)
+                  CALL dbcsr_copy(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, &
+                                  vcd_env%matrix_rcomr(delta, vcd_env%dcdr_env%beta)%matrix)
+                  CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, qs_kind_set, "ORB", &
+                                           sab_all, direction_Or=.TRUE., lambda=vcd_env%dcdr_env%lambda)
+
+                  CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
+                  CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
+                  aat_tmp = aat_tmp + aat_prefactor*tmp_trace*lc_tmp*(-vcd_env%magnetic_origin_atom(gamma))
+
+                  ! This doesn't appear in the APT formula
+                  ! E2) vel
+                  ! (-R_beta) * < mu | r_gamma [V, r_delta] | nu > * (nu == lambda)
+                  ! vcd_env%matrix_rrcom(alpha, beta) = r_beta * [V, r_alpha]
+                  !  so I need vcd_env%matrix_rrcom(delta, gamma)
+                  CALL dbcsr_copy(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, vcd_env%matrix_rrcom(delta, gamma)%matrix)
+                  CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, qs_kind_set, "ORB", &
+                                           sab_all, direction_Or=.TRUE., lambda=vcd_env%dcdr_env%lambda)
+
+                  CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
+                  CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
+                  aat_tmp = aat_tmp + aat_prefactor*tmp_trace*lc_tmp*(-vcd_env%spatial_origin_atom(vcd_env%dcdr_env%beta))
+
+                  ! E3) mag_vel
+                  ! R_beta R_gamma * < mu | [V, r_delta] | nu > * (nu == lambda)
+                  CALL dbcsr_desymmetrize(vcd_env%hcom(delta)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix)
+                  CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, qs_kind_set, "ORB", &
+                                           sab_all, direction_Or=.TRUE., lambda=vcd_env%dcdr_env%lambda)
+
+                  CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, tmp_aomo, ncol=nmo)
+                  CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
+                  ! There has to be a minus here, because hcom = [r, V] = - [V, r]
+                  aat_tmp = aat_tmp - &
+                            aat_prefactor*tmp_trace*lc_tmp* &
+                            (vcd_env%spatial_origin_atom(vcd_env%dcdr_env%beta)*vcd_env%magnetic_origin_atom(gamma))
+               END DO
+            END DO
+
+            aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
+               = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
+         END DO
+
+         !  (F):  - P^0 * ε_{alpha gamma delta} * < mu | [[V, r_beta], r_delta] | nu > * (eta == lambda) * (-R_gamma)
+         ! This corresponds to APT dcom
+         DO alpha = 1, 3
+            aat_tmp = 0._dp
+
+            DO gamma = 1, 3
+               DO delta = 1, 3
+                  lc_tmp = Levi_Civita(alpha, gamma, delta)
+                  IF (lc_tmp == 0._dp) CYCLE
+                  ! vcd_env%matrix_dcom(alpha, vcd_env%dcdr_env%beta) = - < mu | [ [V, r_beta], r_alpha ] | nu >
+                  !  so I need matrix_dcom(delta, vcd_env%dcdr_env%beta)
+                  CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_dcom(delta, vcd_env%dcdr_env%beta)%matrix, &
+                                               mo_coeff, tmp_aomo, ncol=nmo)
+                  CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
+                  ! matrix_dcom has the negative sign and we include the negative sign of the coordinate
+                  aat_tmp = aat_tmp + aat_prefactor*tmp_trace*lc_tmp*(-vcd_env%magnetic_origin_atom(gamma))
+               END DO
+            END DO
+
+            aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
+               = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
+         END DO
+
+         ! Nuclear contribution
+         CALL get_atomic_kind(particle_set(vcd_env%dcdr_env%lambda)%atomic_kind, kind_number=ikind)
+         CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge, ghost=ghost)
+         IF (.NOT. ghost) THEN
+            DO alpha = 1, 3
+               aat_tmp = 0._dp
+               DO gamma = 1, 3
+                  IF (Levi_Civita(alpha, gamma, vcd_env%dcdr_env%beta) == 0._dp) CYCLE
+                  aat_tmp = aat_tmp + charge &
+                            *Levi_Civita(alpha, gamma, vcd_env%dcdr_env%beta) &
+                            *(particle_set(vcd_env%dcdr_env%lambda)%r(gamma) - vcd_env%magnetic_origin_atom(gamma))
+
+                  aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
+                     = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp
+               END DO
+            END DO
+         END IF
+      END ASSOCIATE
 
       CALL cp_fm_release(tmp_aomo)
-      DEALLOCATE (tmp_aomo)
-      NULLIFY (qs_overlap_matrix)
       CALL timestop(handle)
    END SUBROUTINE aat_dV
 
@@ -609,279 +595,228 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'apt_dV'
+      INTEGER, PARAMETER                                 :: ispin = 1
+      REAL(dp), PARAMETER                                :: f_spin = 2._dp
 
-      INTEGER                                            :: alpha, handle, i, ikind, ispin, nao, &
-                                                            natom, nmo, nspins
+      INTEGER                                            :: alpha, handle, ikind, nao, nmo
       LOGICAL                                            :: ghost
-      REAL(dp)                                           :: charge, eps_ppnl, f_spin
-      REAL(dp), DIMENSION(:, :, :), POINTER              :: apt_el, apt_nuc, apt_total
+      REAL(dp)                                           :: charge
       REAL(KIND=dp)                                      :: apt_dcom, apt_difdip, apt_dipvel, &
                                                             apt_hcom, apt_rcom
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: deltaR
-      TYPE(atomic_kind_type), POINTER                    :: atomic_kind
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: dipvel_mo, hcom_mo
-      TYPE(cp_fm_type), POINTER                          :: buf, buf2, matrix_dSdV_mo, mo_coeff
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_dcoml, matrix_dcomr
-      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(cp_fm_type)                                   :: buf, matrix_dSdV_mo
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_all, sab_orb, sap_ppnl
+         POINTER                                         :: sab_all
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (matrix_dcoml, matrix_dcomr)
-      NULLIFY (matrix_dSdV_mo, buf, dipvel_mo, hcom_mo)
-
       CALL get_qs_env(qs_env=qs_env, &
-                      dft_control=dft_control, &
-                      sap_ppnl=sap_ppnl, &
-                      sab_orb=sab_orb, &
                       sab_all=sab_all, &
                       particle_set=particle_set, &
-                      dbcsr_dist=dbcsr_dist, &
-                      qs_kind_set=qs_kind_set, &
-                      cell=cell, &
-                      para_env=para_env, &
-                      matrix_s=matrix_s)
+                      qs_kind_set=qs_kind_set)
 
-      eps_ppnl = dft_control%qs_control%eps_ppnl
-
-      nspins = dft_control%nspins
-      natom = SIZE(particle_set)
-      nmo = vcd_env%dcdr_env%nmo(1)
+      nmo = vcd_env%dcdr_env%nmo(ispin)
       nao = vcd_env%dcdr_env%nao
 
-      apt_el => vcd_env%apt_el_nvpt
-      apt_nuc => vcd_env%apt_nuc_nvpt
-      apt_total => vcd_env%apt_total_nvpt
+      ASSOCIATE (apt_el => vcd_env%apt_el_nvpt, &
+                 apt_nuc => vcd_env%apt_nuc_nvpt, &
+                 apt_total => vcd_env%apt_total_nvpt, &
+                 mo_coeff => vcd_env%dcdr_env%mo_coeff(ispin), &
+                 deltaR => vcd_env%dcdr_env%deltaR)
 
-      mo_coeff => vcd_env%dcdr_env%mo_coeff(1)
-      deltaR => vcd_env%dcdr_env%deltaR
+         ! build the full matrices
+         CALL cp_fm_create(buf, vcd_env%dcdr_env%likemos_fm_struct(ispin)%struct)
+         CALL cp_fm_create(matrix_dSdV_mo, vcd_env%dcdr_env%momo_fm_struct(ispin)%struct)
 
-      f_spin = 1.0_dp
-      IF (nspins .EQ. 1) f_spin = 2.0_dp
+         ! STEP 1: dCV contribution (dipvel + commutator)
+         ! <mu|∂_alpha|nu> and <mu|[r_alpha, V]|nu> in AO basis
+         ! We compute tr(c_1^* x ∂_munu x c_0) + tr(c_0 x ∂_munu x c_1)
+         ! We compute tr(c_1^* x [,]_munu x c_0) + tr(c_0 x [,]_munu x c_1)
+         CALL cp_fm_scale_and_add(0._dp, vcd_env%dCV_prime(ispin), -1._dp, vcd_env%dCV(ispin))
 
-      CALL get_qs_env(qs_env, para_env=para_env)
+         ! Ref independent
+         CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_dSdV(vcd_env%dcdr_env%beta)%matrix, mo_coeff, &
+                                      buf, ncol=nmo)
+         CALL cp_fm_gemm("T", "N", nmo, nmo, nao, &
+                         1.0_dp, mo_coeff, buf, &
+                         0.0_dp, matrix_dSdV_mo)
 
-      ! build the full matrices
-      ALLOCATE (buf, buf2)
-      CALL cp_fm_create(buf, vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
-      CALL cp_fm_create(buf2, vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
+         CALL cp_fm_gemm("N", "N", nao, nmo, nmo, &
+                         -0.5_dp, mo_coeff, matrix_dSdV_mo, &
+                         1.0_dp, vcd_env%dCV_prime(ispin))
 
-      ALLOCATE (matrix_dSdV_mo)
-      ALLOCATE (dipvel_mo(3))
-      ALLOCATE (hcom_mo(3))
-      CALL cp_fm_create(matrix_dSdV_mo, vcd_env%dcdr_env%momo_fm_struct(1)%struct)
-      DO i = 1, 3
-         CALL cp_fm_create(dipvel_mo(i), vcd_env%dcdr_env%momo_fm_struct(1)%struct)
-         CALL cp_fm_create(hcom_mo(i), vcd_env%dcdr_env%momo_fm_struct(1)%struct)
-      END DO
+         ! + i∂ - i[Vnl, r]
+         DO alpha = 1, 3
+            CALL cp_fm_set_all(buf, 0.0_dp)
+            apt_dipvel = 0.0_dp
 
-      ispin = 1
+            CALL cp_dbcsr_sm_fm_multiply(vcd_env%dipvel_ao(alpha)%matrix, mo_coeff, buf, ncol=nmo)
+            CALL cp_fm_trace(buf, vcd_env%dCV_prime(ispin), apt_dipvel)
+            ! dipvel_ao = + < a | ∂ | b >
+            ! mo_coeff * dCV_prime = + iP1
+            apt_dipvel = 2._dp*apt_dipvel
+            apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
+               = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + f_spin*apt_dipvel
+         END DO
 
-      ! STEP 1: dCV contribution (dipvel + commutator)
-      ! <mu|∂_alpha|nu> and <mu|[r_alpha, V]|nu> in AO basis
-      ! We compute tr(c_1^* x ∂_munu x c_0) + tr(c_0 x ∂_munu x c_1)
-      ! We compute tr(c_1^* x [,]_munu x c_0) + tr(c_0 x [,]_munu x c_1)
-      CALL cp_fm_scale_and_add(0._dp, vcd_env%dCV_prime(1), -1._dp, vcd_env%dCV(1))
-      CALL cp_fm_set_all(buf, 0.0_dp)
+         DO alpha = 1, 3
+            CALL cp_fm_set_all(buf, 0.0_dp)
+            apt_hcom = 0.0_dp
+            CALL cp_dbcsr_sm_fm_multiply(vcd_env%hcom(alpha)%matrix, mo_coeff, buf, ncol=nmo)
+            CALL cp_fm_trace(buf, vcd_env%dCV_prime(ispin), apt_hcom)
 
-      ! Ref independent
-      CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_dSdV(vcd_env%dcdr_env%beta)%matrix, mo_coeff, &
-                                   buf, ncol=nmo)
-      CALL cp_fm_gemm("T", "N", nmo, nmo, nao, &
-                      1.0_dp, mo_coeff, buf, &
-                      0.0_dp, matrix_dSdV_mo)
+            ! hcom = < a | [r, V] | b > = - < a | [V, r] | b >
+            ! mo_coeff * dCV_prime = + iP1
+            apt_hcom = +2._dp*apt_hcom
 
-      CALL cp_fm_gemm("N", "N", nao, nmo, nmo, &
-                      -0.5_dp, mo_coeff, matrix_dSdV_mo, &
-                      1.0_dp, vcd_env%dCV_prime(1))
+            apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
+               = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + f_spin*apt_hcom
+         END DO  !x/y/z
 
-      ! + i∂ - i[Vnl, r]
-      DO alpha = 1, 3
-         CALL cp_fm_set_all(buf, 0.0_dp)
-         apt_dipvel = 0.0_dp
-
-         CALL cp_dbcsr_sm_fm_multiply(vcd_env%dipvel_ao(alpha)%matrix, mo_coeff, buf, ncol=nmo)
-         CALL cp_fm_trace(buf, vcd_env%dCV_prime(1), apt_dipvel)
-         ! dipvel_ao = + < a | ∂ | b >
-         ! mo_coeff * dCV_prime = + iP1
-         apt_dipvel = 2._dp*apt_dipvel
-         apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
-            = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + f_spin*apt_dipvel
-      END DO
-
-      DO alpha = 1, 3
-         CALL cp_fm_set_all(buf, 0.0_dp)
-         apt_hcom = 0.0_dp
-         CALL cp_dbcsr_sm_fm_multiply(vcd_env%hcom(alpha)%matrix, mo_coeff, buf, ncol=nmo)
-         CALL cp_fm_trace(buf, vcd_env%dCV_prime(1), apt_hcom)
-
-         ! hcom = < a | [r, V] | b > = - < a | [V, r] | b >
-         ! mo_coeff * dCV_prime = + iP1
-         apt_hcom = +2._dp*apt_hcom
-
-         apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
-            = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + f_spin*apt_hcom
-      END DO  !x/y/z
-
-      ! STEP 2: basis function derivative contribution
+         ! STEP 2: basis function derivative contribution
       !! difdip_s
-      CALL dbcsr_set(vcd_env%dcdr_env%matrix_nosym_temp(vcd_env%dcdr_env%beta)%matrix, 0.0_dp)
-      CALL dbcsr_desymmetrize(vcd_env%dcdr_env%matrix_s1(1)%matrix, &
-                              vcd_env%dcdr_env%matrix_nosym_temp(vcd_env%dcdr_env%beta)%matrix)
-      CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(vcd_env%dcdr_env%beta)%matrix, qs_kind_set, "ORB", sab_all, &
-                               vcd_env%dcdr_env%lambda, direction_Or=.TRUE.)
+         CALL dbcsr_set(vcd_env%dcdr_env%matrix_nosym_temp(vcd_env%dcdr_env%beta)%matrix, 0.0_dp)
+         CALL dbcsr_desymmetrize(vcd_env%dcdr_env%matrix_s1(1)%matrix, &
+                                 vcd_env%dcdr_env%matrix_nosym_temp(vcd_env%dcdr_env%beta)%matrix)
+         CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(vcd_env%dcdr_env%beta)%matrix, qs_kind_set, "ORB", sab_all, &
+                                  vcd_env%dcdr_env%lambda, direction_Or=.TRUE.)
 
-      CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(vcd_env%dcdr_env%beta)%matrix, mo_coeff, &
-                                   buf, ncol=nmo, alpha=1._dp, beta=0._dp)
-      CALL cp_fm_trace(mo_coeff, buf, apt_difdip)
+         CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(vcd_env%dcdr_env%beta)%matrix, mo_coeff, &
+                                      buf, ncol=nmo, alpha=1._dp, beta=0._dp)
+         CALL cp_fm_trace(mo_coeff, buf, apt_difdip)
 
-      apt_difdip = -f_spin*apt_difdip
-      apt_el(vcd_env%dcdr_env%beta, vcd_env%dcdr_env%beta, vcd_env%dcdr_env%lambda) &
-         = apt_el(vcd_env%dcdr_env%beta, vcd_env%dcdr_env%beta, vcd_env%dcdr_env%lambda) + apt_difdip
+         apt_difdip = -f_spin*apt_difdip
+         apt_el(vcd_env%dcdr_env%beta, vcd_env%dcdr_env%beta, vcd_env%dcdr_env%lambda) &
+            = apt_el(vcd_env%dcdr_env%beta, vcd_env%dcdr_env%beta, vcd_env%dcdr_env%lambda) + apt_difdip
 
       !! difdip(j, idir) = < a | r_j | ∂_idir b >
       !! matrix_difdip2(beta, alpha) = < a | r_beta | ∂_alpha b >
-      DO alpha = 1, 3 ! x/y/z for differentiated AO
-         CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_difdip2(vcd_env%dcdr_env%beta, alpha)%matrix, mo_coeff, &
-                                      buf, ncol=nmo, alpha=1._dp, beta=0._dp)
+         DO alpha = 1, 3 ! x/y/z for differentiated AO
+            CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_difdip2(vcd_env%dcdr_env%beta, alpha)%matrix, mo_coeff, &
+                                         buf, ncol=nmo, alpha=1._dp, beta=0._dp)
 
-         CALL cp_fm_trace(mo_coeff, buf, apt_difdip)
-         ! There is a negative sign here, because the routine dipole_velocity_deriv calculates
-         !   the derivatives with respect to nuclear positions and we need electronic positions
-         apt_difdip = -f_spin*apt_difdip
-         apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
-            = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + apt_difdip
+            CALL cp_fm_trace(mo_coeff, buf, apt_difdip)
+            ! There is a negative sign here, because the routine dipole_velocity_deriv calculates
+            !   the derivatives with respect to nuclear positions and we need electronic positions
+            apt_difdip = -f_spin*apt_difdip
+            apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
+               = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + apt_difdip
 
-      END DO !alpha
+         END DO !alpha
 
-      ! STEP 3: The terms r * [V, r]
-      ! vcd_env%matrix_rrcom(alpha, beta) = r_beta * [V, r_alpha]
-      ! vcd_env%matrix_rcomr(alpha, beta) = [V, r_alpha] * r_beta
-      DO alpha = 1, 3 ! x/y/z for differentiated AO
-         CALL dbcsr_copy(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, vcd_env%matrix_rcomr(alpha, vcd_env%dcdr_env%beta)%matrix)
-         CALL dbcsr_copy(vcd_env%dcdr_env%matrix_nosym_temp(2)%matrix, vcd_env%matrix_rrcom(alpha, vcd_env%dcdr_env%beta)%matrix)
+         ! STEP 3: The terms r * [V, r]
+         ! vcd_env%matrix_rrcom(alpha, beta) = r_beta * [V, r_alpha]
+         ! vcd_env%matrix_rcomr(alpha, beta) = [V, r_alpha] * r_beta
+         DO alpha = 1, 3 ! x/y/z for differentiated AO
+            CALL dbcsr_copy(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, vcd_env%matrix_rcomr(alpha, vcd_env%dcdr_env%beta)%matrix)
+            CALL dbcsr_copy(vcd_env%dcdr_env%matrix_nosym_temp(2)%matrix, vcd_env%matrix_rrcom(alpha, vcd_env%dcdr_env%beta)%matrix)
 
-         CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, qs_kind_set, "ORB", &
-                                  sab_all, direction_Or=.TRUE., lambda=vcd_env%dcdr_env%lambda)
-         CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(2)%matrix, qs_kind_set, "ORB", &
-                                  sab_all, direction_Or=.FALSE., lambda=vcd_env%dcdr_env%lambda)
+            CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, qs_kind_set, "ORB", &
+                                     sab_all, direction_Or=.TRUE., lambda=vcd_env%dcdr_env%lambda)
+            CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(2)%matrix, qs_kind_set, "ORB", &
+                                     sab_all, direction_Or=.FALSE., lambda=vcd_env%dcdr_env%lambda)
 
-         CALL dbcsr_add(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(2)%matrix, &
-                        1.0_dp, -1.0_dp)
+            CALL dbcsr_add(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(2)%matrix, &
+                           1.0_dp, -1.0_dp)
 
-         CALL cp_fm_set_all(buf, 0.0_dp)
-         CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, buf, ncol=nmo)
-         CALL cp_fm_trace(mo_coeff, buf, apt_rcom)
+            CALL cp_fm_set_all(buf, 0.0_dp)
+            CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, buf, ncol=nmo)
+            CALL cp_fm_trace(mo_coeff, buf, apt_rcom)
 
-         apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
-            = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + f_spin*apt_rcom
-      END DO !alpha
+            apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
+               = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + f_spin*apt_rcom
+         END DO !alpha
 
-      ! STEP 4: pseudopotential derivative contribution
-      ! vcd_env%matrix_dcom(alpha, vcd_env%dcdr_env%beta) = - < mu | [ [V, r_beta], r_alpha ] | nu >
-      DO alpha = 1, 3 !x/y/z for differentiated AO
-         CALL cp_fm_set_all(buf, 0.0_dp)
-         CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_dcom(alpha, vcd_env%dcdr_env%beta)%matrix, mo_coeff, buf, ncol=nmo)
-         CALL cp_fm_trace(mo_coeff, buf, apt_dcom)
-         apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
-            = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + f_spin*apt_dcom
-      END DO !alpha
+         ! STEP 4: pseudopotential derivative contribution
+         ! vcd_env%matrix_dcom(alpha, vcd_env%dcdr_env%beta) = - < mu | [ [V, r_beta], r_alpha ] | nu >
+         DO alpha = 1, 3 !x/y/z for differentiated AO
+            CALL cp_fm_set_all(buf, 0.0_dp)
+            CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_dcom(alpha, vcd_env%dcdr_env%beta)%matrix, mo_coeff, buf, ncol=nmo)
+            CALL cp_fm_trace(mo_coeff, buf, apt_dcom)
+            apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
+               = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + f_spin*apt_dcom
+         END DO !alpha
 
-      ! The reference point dependent terms:
+         ! The reference point dependent terms:
       !! difdip_munu
-      ! The additional term here is < a | db/dr(alpha)> * (delta_a - delta_b) * ref_point(beta)
-      ! in qs_env%matrix_s1(2:4) there is < da/dR | b > = - < da/dr | b > = < a | db/dr >
-      DO alpha = 1, 3
-         CALL dbcsr_set(vcd_env%dcdr_env%matrix_nosym_temp(alpha)%matrix, 0._dp)
-         CALL dbcsr_set(vcd_env%dcdr_env%matrix_nosym_temp2(alpha)%matrix, 0._dp)
-         CALL dbcsr_desymmetrize(vcd_env%dcdr_env%matrix_s(alpha + 1)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(alpha)%matrix)
-         CALL dbcsr_copy(vcd_env%dcdr_env%matrix_nosym_temp2(alpha)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(alpha)%matrix)
+         ! The additional term here is < a | db/dr(alpha)> * (delta_a - delta_b) * ref_point(beta)
+         ! in qs_env%matrix_s1(2:4) there is < da/dR | b > = - < da/dr | b > = < a | db/dr >
+         DO alpha = 1, 3
+            CALL dbcsr_set(vcd_env%dcdr_env%matrix_nosym_temp(alpha)%matrix, 0._dp)
+            CALL dbcsr_set(vcd_env%dcdr_env%matrix_nosym_temp2(alpha)%matrix, 0._dp)
+            CALL dbcsr_desymmetrize(vcd_env%dcdr_env%matrix_s(alpha + 1)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(alpha)%matrix)
+            CALL dbcsr_copy(vcd_env%dcdr_env%matrix_nosym_temp2(alpha)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(alpha)%matrix)
 
-         ! < a | db/dr(alpha) > * R^lambda_beta * delta^lambda_nu
-         CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(alpha)%matrix, qs_kind_set, "ORB", sab_all, &
-                                  vcd_env%dcdr_env%lambda, direction_Or=.TRUE.)
-         ! < a | db/dr(alpha) > * R^lambda_beta * delta^lambda_mu
-         CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp2(alpha)%matrix, qs_kind_set, "ORB", sab_all, &
-                                  vcd_env%dcdr_env%lambda, direction_Or=.FALSE.)
+            ! < a | db/dr(alpha) > * R^lambda_beta * delta^lambda_nu
+            CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(alpha)%matrix, qs_kind_set, "ORB", sab_all, &
+                                     vcd_env%dcdr_env%lambda, direction_Or=.TRUE.)
+            ! < a | db/dr(alpha) > * R^lambda_beta * delta^lambda_mu
+            CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp2(alpha)%matrix, qs_kind_set, "ORB", sab_all, &
+                                     vcd_env%dcdr_env%lambda, direction_Or=.FALSE.)
 
-         ! < a | db/dr > * R^lambda_beta * ( delta^lambda_mu - delta^lambda_nu )
-         CALL dbcsr_add(vcd_env%dcdr_env%matrix_nosym_temp2(alpha)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(alpha)%matrix, &
-                        1._dp, -1._dp)
+            ! < a | db/dr > * R^lambda_beta * ( delta^lambda_mu - delta^lambda_nu )
+            CALL dbcsr_add(vcd_env%dcdr_env%matrix_nosym_temp2(alpha)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(alpha)%matrix, &
+                           1._dp, -1._dp)
 
-         CALL cp_fm_set_all(buf, 0.0_dp)
-         CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp2(alpha)%matrix, mo_coeff, buf, ncol=nmo)
-         CALL cp_fm_trace(mo_coeff, buf, apt_difdip)
+            CALL cp_fm_set_all(buf, 0.0_dp)
+            CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp2(alpha)%matrix, mo_coeff, buf, ncol=nmo)
+            CALL cp_fm_trace(mo_coeff, buf, apt_difdip)
 
-         ! And the whole contribution is
-         ! - < a | db/dr > * (mu - nu) * ref_point
-         apt_difdip = -apt_difdip*vcd_env%spatial_origin_atom(vcd_env%dcdr_env%beta)
+            ! And the whole contribution is
+            ! - < a | db/dr > * (mu - nu) * ref_point
+            apt_difdip = -apt_difdip*vcd_env%spatial_origin_atom(vcd_env%dcdr_env%beta)
 
-         apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
-            = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + f_spin*apt_difdip
-      END DO
+            apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
+               = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + f_spin*apt_difdip
+         END DO
 
-      ! And the additional factor to rcom
-      ! < mu | [V, r] | nu > * R^lambda_beta * delta^lambda_mu
-      ! - < mu | [V, r] | nu > * R^lambda_beta * delta^lambda_nu
-      !
-      !                  vcd_env%hcom(alpha) = - < mu | [V, r_alpha] | nu >
-      ! particle_set(lambda)%r(vcd_env%dcdr_env%beta) = R^lambda_beta
+         ! And the additional factor to rcom
+         ! < mu | [V, r] | nu > * R^lambda_beta * delta^lambda_mu
+         ! - < mu | [V, r] | nu > * R^lambda_beta * delta^lambda_nu
+         !
+         !                  vcd_env%hcom(alpha) = - < mu | [V, r_alpha] | nu >
+         ! particle_set(lambda)%r(vcd_env%dcdr_env%beta) = R^lambda_beta
 
-      DO alpha = 1, 3
-         CALL dbcsr_set(vcd_env%dcdr_env%matrix_nosym_temp(alpha)%matrix, 0._dp)
-         CALL dbcsr_desymmetrize(vcd_env%hcom(alpha)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(alpha)%matrix)
-         CALL dbcsr_copy(vcd_env%dcdr_env%matrix_nosym_temp2(alpha)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(alpha)%matrix)
+         DO alpha = 1, 3
+            CALL dbcsr_set(vcd_env%dcdr_env%matrix_nosym_temp(alpha)%matrix, 0._dp)
+            CALL dbcsr_desymmetrize(vcd_env%hcom(alpha)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(alpha)%matrix)
+            CALL dbcsr_copy(vcd_env%dcdr_env%matrix_nosym_temp2(alpha)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(alpha)%matrix)
 
-         ! < mu | [V, r] | nu > * delta^lambda_nu
-         CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(alpha)%matrix, qs_kind_set, "ORB", sab_all, &
-                                  vcd_env%dcdr_env%lambda, direction_Or=.TRUE.)
-         ! < mu | [V, r] | nu > * delta^lambda_mu
-         CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp2(alpha)%matrix, qs_kind_set, "ORB", sab_all, &
-                                  vcd_env%dcdr_env%lambda, direction_Or=.FALSE.)
+            ! < mu | [V, r] | nu > * delta^lambda_nu
+            CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp(alpha)%matrix, qs_kind_set, "ORB", sab_all, &
+                                     vcd_env%dcdr_env%lambda, direction_Or=.TRUE.)
+            ! < mu | [V, r] | nu > * delta^lambda_mu
+            CALL hr_mult_by_delta_1d(vcd_env%dcdr_env%matrix_nosym_temp2(alpha)%matrix, qs_kind_set, "ORB", sab_all, &
+                                     vcd_env%dcdr_env%lambda, direction_Or=.FALSE.)
 
-         CALL dbcsr_add(vcd_env%dcdr_env%matrix_nosym_temp(alpha)%matrix, &
-                        vcd_env%dcdr_env%matrix_nosym_temp2(alpha)%matrix, -1._dp, +1._dp)
+            CALL dbcsr_add(vcd_env%dcdr_env%matrix_nosym_temp(alpha)%matrix, &
+                           vcd_env%dcdr_env%matrix_nosym_temp2(alpha)%matrix, -1._dp, +1._dp)
 
-         CALL cp_fm_set_all(buf, 0.0_dp)
-         CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(alpha)%matrix, mo_coeff, buf, ncol=nmo)
-         CALL cp_fm_trace(mo_coeff, buf, apt_rcom)
-         apt_rcom = -vcd_env%spatial_origin_atom(vcd_env%dcdr_env%beta)*apt_rcom
+            CALL cp_fm_set_all(buf, 0.0_dp)
+            CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(alpha)%matrix, mo_coeff, buf, ncol=nmo)
+            CALL cp_fm_trace(mo_coeff, buf, apt_rcom)
+            apt_rcom = -vcd_env%spatial_origin_atom(vcd_env%dcdr_env%beta)*apt_rcom
 
-         apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
-            = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + f_spin*apt_rcom
-      END DO
+            apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
+               = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + f_spin*apt_rcom
+         END DO
 
-      ! STEP 5: nuclear contribution
-      atomic_kind => particle_set(vcd_env%dcdr_env%lambda)%atomic_kind
-      CALL get_atomic_kind(atomic_kind, kind_number=ikind)
-      CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge, ghost=ghost)
-      IF (.NOT. ghost) THEN
-         apt_nuc(vcd_env%dcdr_env%beta, vcd_env%dcdr_env%beta, vcd_env%dcdr_env%lambda) = &
-            apt_nuc(vcd_env%dcdr_env%beta, vcd_env%dcdr_env%beta, vcd_env%dcdr_env%lambda) + charge
-      END IF
+         ! STEP 5: nuclear contribution
+         ASSOCIATE (atomic_kind => particle_set(vcd_env%dcdr_env%lambda)%atomic_kind)
+            CALL get_atomic_kind(atomic_kind, kind_number=ikind)
+            CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge, ghost=ghost)
+            IF (.NOT. ghost) THEN
+               apt_nuc(vcd_env%dcdr_env%beta, vcd_env%dcdr_env%beta, vcd_env%dcdr_env%lambda) = &
+                  apt_nuc(vcd_env%dcdr_env%beta, vcd_env%dcdr_env%beta, vcd_env%dcdr_env%lambda) + charge
+            END IF
+         END ASSOCIATE
 
-      ! STEP 6: deallocations
-      CALL dbcsr_deallocate_matrix_set(matrix_dcoml)
-      CALL dbcsr_deallocate_matrix_set(matrix_dcomr)
+         ! STEP 6: deallocations
+         CALL cp_fm_release(buf)
+         CALL cp_fm_release(matrix_dSdV_mo)
 
-      CALL cp_fm_release(buf)
-      CALL cp_fm_release(buf2)
-      CALL cp_fm_release(matrix_dSdV_mo)
-      DEALLOCATE (buf)
-      DEALLOCATE (buf2)
-      DO i = 1, 3
-         CALL cp_fm_release(dipvel_mo(i))
-         CALL cp_fm_release(hcom_mo(i))
-      END DO
-
-      DEALLOCATE (matrix_dSdV_mo, dipvel_mo, hcom_mo)
+      END ASSOCIATE
 
       CALL timestop(handle)
    END SUBROUTINE apt_dV
@@ -900,19 +835,16 @@ CONTAINS
 
       INTEGER                                            :: handle, i, ispin, j
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_all, sab_orb, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env=qs_env, ks_env=ks_env, dft_control=dft_control, mos=mos, &
-                      sab_orb=sab_orb, sab_all=sab_all, sap_ppnl=sap_ppnl, para_env=para_env, &
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, &
+                      sab_orb=sab_orb, sab_all=sab_all, sap_ppnl=sap_ppnl, &
                       qs_kind_set=qs_kind_set, particle_set=particle_set, cell=cell)
 
       IF (vcd_env%distributed_origin) THEN
@@ -1025,46 +957,22 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'vcd_build_op_dV'
+      INTEGER, PARAMETER                                 :: ispin = 1
 
-      INTEGER                                            :: handle, ispin, nao, natom, nmo, nspins
-      REAL(KIND=dp)                                      :: eps_ppnl
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_fm_type), POINTER                          :: buf, mo_coeff
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      INTEGER                                            :: handle, nao, nmo
+      TYPE(cp_fm_type)                                   :: buf
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_all, sap_ppnl
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+         POINTER                                         :: sab_all
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env=qs_env, &
-                      dft_control=dft_control, &
-                      mos=mos, &
-                      para_env=para_env, &
-                      particle_set=particle_set, &
-                      dbcsr_dist=dbcsr_dist, &
                       sab_all=sab_all, &
-                      sap_ppnl=sap_ppnl, &
-                      qs_kind_set=qs_kind_set, &
-                      cell=cell, &
-                      matrix_ks=matrix_ks)
+                      qs_kind_set=qs_kind_set)
 
-      eps_ppnl = dft_control%qs_control%eps_ppnl
-
-      nspins = dft_control%nspins
-      natom = SIZE(particle_set)
       nmo = vcd_env%dcdr_env%nmo(1)
       nao = vcd_env%dcdr_env%nao
-
-      mo_coeff => vcd_env%dcdr_env%mo_coeff(1)
-      ispin = 1
-      ALLOCATE (buf)
-      CALL cp_fm_create(buf, vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
 
       CALL build_matrix_hr_rh(vcd_env, qs_env, vcd_env%spatial_origin_atom)
 
@@ -1080,34 +988,36 @@ CONTAINS
                      vcd_env%dcdr_env%matrix_nosym_temp(2)%matrix, &
                      1.0_dp, -1.0_dp)
 
-      CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, &
-                                   vcd_env%op_dV(ispin), ncol=nmo, alpha=1.0_dp, beta=0.0_dp)
+      ASSOCIATE (mo_coeff => vcd_env%dcdr_env%mo_coeff(ispin))
+         CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, &
+                                      vcd_env%op_dV(ispin), ncol=nmo, alpha=1.0_dp, beta=0.0_dp)
 
-      ! STEP 2: electronic momentum operator contribution
-      CALL cp_dbcsr_sm_fm_multiply(vcd_env%dipvel_ao_delta(vcd_env%dcdr_env%beta)%matrix, mo_coeff, &
-                                   vcd_env%op_dV(ispin), &
-                                   ncol=nmo, alpha=1.0_dp, beta=1.0_dp)
+         ! STEP 2: electronic momentum operator contribution
+         CALL cp_dbcsr_sm_fm_multiply(vcd_env%dipvel_ao_delta(vcd_env%dcdr_env%beta)%matrix, mo_coeff, &
+                                      vcd_env%op_dV(ispin), &
+                                      ncol=nmo, alpha=1.0_dp, beta=1.0_dp)
 
-      ! STEP 3: +dV_ppnl/dV, but build_drpnl_matrix gives the negative of dV_ppnl
-      ! The arguments (-1, 1) are swapped wrt to the hr-rh term, implying that
-      ! direction_Or and direction_hr do what they should.
-      CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_drpnl(vcd_env%dcdr_env%beta)%matrix, mo_coeff, &
-                                   vcd_env%op_dV(ispin), &
-                                   ncol=nmo, alpha=-1.0_dp, beta=1.0_dp)
+         ! STEP 3: +dV_ppnl/dV, but build_drpnl_matrix gives the negative of dV_ppnl
+         ! The arguments (-1, 1) are swapped wrt to the hr-rh term, implying that
+         ! direction_Or and direction_hr do what they should.
+         CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_drpnl(vcd_env%dcdr_env%beta)%matrix, mo_coeff, &
+                                      vcd_env%op_dV(ispin), &
+                                      ncol=nmo, alpha=-1.0_dp, beta=1.0_dp)
 
-      ! STEP 4: - S0 * C^(1,R)
-      CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_s1(1)%matrix, vcd_env%dcdr_env%dCR_prime(1), &
-                                   vcd_env%op_dV(1), ncol=nmo, alpha=-1.0_dp, beta=1.0_dp)
+         ! STEP 4: - S0 * C^(1,R)
+         CALL cp_fm_create(buf, vcd_env%dcdr_env%likemos_fm_struct(ispin)%struct)
+         CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_s1(1)%matrix, vcd_env%dcdr_env%dCR_prime(ispin), &
+                                      vcd_env%op_dV(1), ncol=nmo, alpha=-1.0_dp, beta=1.0_dp)
 
-      ! STEP 5: -S(1,V) * C0 * E0
-      CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_dSdV(vcd_env%dcdr_env%beta)%matrix, mo_coeff, &
-                                   buf, nmo, alpha=1.0_dp, beta=0.0_dp)
-      CALL parallel_gemm('N', 'N', nao, nmo, nmo, &
-                         -1.0_dp, buf, vcd_env%dcdr_env%chc(ispin), &
-                         1.0_dp, vcd_env%op_dV(ispin))
+         ! STEP 5: -S(1,V) * C0 * E0
+         CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_dSdV(vcd_env%dcdr_env%beta)%matrix, mo_coeff, &
+                                      buf, nmo, alpha=1.0_dp, beta=0.0_dp)
+         CALL parallel_gemm('N', 'N', nao, nmo, nmo, &
+                            -1.0_dp, buf, vcd_env%dcdr_env%chc(ispin), &
+                            1.0_dp, vcd_env%op_dV(ispin))
 
-      CALL cp_fm_release(buf)
-      DEALLOCATE (buf)
+         CALL cp_fm_release(buf)
+      END ASSOCIATE
 
       ! We have built op_dV but plug -op_dV into the linres_solver
       CALL cp_fm_scale(-1.0_dp, vcd_env%op_dV(1))
@@ -1132,13 +1042,12 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'vcd_response_dV'
+      INTEGER, PARAMETER                                 :: ispin = 1
 
-      INTEGER                                            :: handle, ispin, nspins, output_unit
+      INTEGER                                            :: handle, output_unit
       LOGICAL                                            :: failure, should_stop
       TYPE(cp_fm_type), DIMENSION(1)                     :: h1_psi0, psi1
-      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: psi0_order
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(section_vals_type), POINTER                   :: lr_section, vcd_section
@@ -1149,7 +1058,6 @@ CONTAINS
       NULLIFY (linres_control, lr_section, logger)
 
       CALL get_qs_env(qs_env=qs_env, &
-                      dft_control=dft_control, &
                       linres_control=linres_control, &
                       mos=mos)
 
@@ -1165,53 +1073,50 @@ CONTAINS
             "*** Self consistent optimization of the response wavefunction ***"
       END IF
 
-      nspins = 1
-      psi0_order(1:1) => vcd_env%dcdr_env%mo_coeff(1:1)
-      CALL cp_fm_create(psi1(1), vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
-      CALL cp_fm_create(h1_psi0(1), vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
+      ASSOCIATE (psi0_order => vcd_env%dcdr_env%mo_coeff)
+         CALL cp_fm_create(psi1(ispin), vcd_env%dcdr_env%likemos_fm_struct(ispin)%struct)
+         CALL cp_fm_create(h1_psi0(ispin), vcd_env%dcdr_env%likemos_fm_struct(ispin)%struct)
 
-      ! Restart
-      IF (linres_control%linres_restart) THEN
-         CALL vcd_read_restart(qs_env, lr_section, psi1, vcd_env%dcdr_env%lambda, vcd_env%dcdr_env%beta, "dCdV")
-      ELSE
-         CALL cp_fm_set_all(psi1(1), 0.0_dp)
-      END IF
+         ! Restart
+         IF (linres_control%linres_restart) THEN
+            CALL vcd_read_restart(qs_env, lr_section, psi1, vcd_env%dcdr_env%lambda, vcd_env%dcdr_env%beta, "dCdV")
+         ELSE
+            CALL cp_fm_set_all(psi1(ispin), 0.0_dp)
+         END IF
 
-      IF (output_unit > 0) THEN
-         WRITE (output_unit, *) &
-            "Response to the perturbation operator referring to the velocity of atom ", &
-            vcd_env%dcdr_env%lambda, " in "//ACHAR(vcd_env%dcdr_env%beta + 119)
-      END IF
+         IF (output_unit > 0) THEN
+            WRITE (output_unit, *) &
+               "Response to the perturbation operator referring to the velocity of atom ", &
+               vcd_env%dcdr_env%lambda, " in "//ACHAR(vcd_env%dcdr_env%beta + 119)
+         END IF
 
-      ! First response to get dCR
-      ! (H0-E0) psi1 = (H1-E1) psi0
-      ! psi1 = the perturbed wavefunction
-      ! h1_psi0 = (H1-E1)
-      ! psi0_order = the unperturbed wavefunction
-      ! Second response to get dCV
-      DO ispin = 1, nspins
+         ! First response to get dCR
+         ! (H0-E0) psi1 = (H1-E1) psi0
+         ! psi1 = the perturbed wavefunction
+         ! h1_psi0 = (H1-E1)
+         ! psi0_order = the unperturbed wavefunction
+         ! Second response to get dCV
          CALL cp_fm_set_all(vcd_env%dCV(ispin), 0.0_dp)
          CALL cp_fm_set_all(h1_psi0(ispin), 0.0_dp)
          CALL cp_fm_to_fm(vcd_env%op_dV(ispin), h1_psi0(ispin))
-      END DO
 
-      linres_control%lr_triplet = .FALSE. ! we do singlet response
-      linres_control%do_kernel = .FALSE. ! no coupled response since imaginary perturbation
-      linres_control%converged = .FALSE.
-      CALL linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, &
-                         output_unit, should_stop)
-      DO ispin = 1, nspins
+         linres_control%lr_triplet = .FALSE. ! we do singlet response
+         linres_control%do_kernel = .FALSE. ! no coupled response since imaginary perturbation
+         linres_control%converged = .FALSE.
+         CALL linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, &
+                            output_unit, should_stop)
          CALL cp_fm_to_fm(psi1(ispin), vcd_env%dCV(ispin))
-      END DO
 
-      ! Write the new result to the restart file
-      IF (linres_control%linres_restart) THEN
-         CALL vcd_write_restart(qs_env, lr_section, psi1, vcd_env%dcdr_env%lambda, vcd_env%dcdr_env%beta, "dCdV")
-      END IF
+         ! Write the new result to the restart file
+         IF (linres_control%linres_restart) THEN
+            CALL vcd_write_restart(qs_env, lr_section, psi1, vcd_env%dcdr_env%lambda, vcd_env%dcdr_env%beta, "dCdV")
+         END IF
+
+      END ASSOCIATE
 
       ! clean up
-      CALL cp_fm_release(psi1(1))
-      CALL cp_fm_release(h1_psi0(1))
+      CALL cp_fm_release(psi1(ispin))
+      CALL cp_fm_release(h1_psi0(ispin))
 
       CALL cp_print_key_finished_output(output_unit, logger, lr_section, &
                                         "PRINT%PROGRAM_RUN_INFO")

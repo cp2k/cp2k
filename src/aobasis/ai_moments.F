@@ -89,8 +89,7 @@ CONTAINS
 
       INTEGER                                            :: alpha, beta, lda, lda_min, ldb, ldb_min
       REAL(KIND=dp)                                      :: dab, rab(3)
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: difmab_tmp
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: mab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: difmab_tmp, mab
 
       rab = rbc - rac
       dab = SQRT(SUM(rab**2))
