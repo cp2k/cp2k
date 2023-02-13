@@ -136,7 +136,7 @@ CONTAINS
 
       logger => cp_get_default_logger()
       unit_nr = -1
-      IF (logger%para_env%ionode) &
+      IF (logger%para_env%is_source()) &
          unit_nr = cp_logger_get_default_unit_nr(logger)
 
       IF (unit_nr > 0) THEN
@@ -356,7 +356,7 @@ CONTAINS
       END DO
 
       IF (write_it) THEN
-         IF (para_env%ionode) THEN
+         IF (para_env%is_source()) THEN
             CALL open_file(file_name=output_file, file_status="UNKNOWN", &
                            file_action="WRITE", unit_number=unit_nr)
          ELSE
@@ -368,7 +368,7 @@ CONTAINS
                                 unit_nr)
             END DO
          END DO
-         IF (para_env%ionode) CALL close_file(unit_number=unit_nr)
+         IF (para_env%is_source()) CALL close_file(unit_number=unit_nr)
       END IF
 
    END SUBROUTINE update_derived_basis_sets
@@ -432,7 +432,7 @@ CONTAINS
          END DO
       END DO
 
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          CALL open_file(file_name=opt_bas%work_basis_file, file_status="UNKNOWN", &
                         file_action="WRITE", unit_number=unit_nr)
       ELSE
@@ -451,7 +451,7 @@ CONTAINS
                              unit_nr)
          END DO
       END DO
-      IF (para_env%ionode) CALL close_file(unit_number=unit_nr)
+      IF (para_env%is_source()) CALL close_file(unit_number=unit_nr)
 
    END SUBROUTINE generate_derived_basis_sets
 

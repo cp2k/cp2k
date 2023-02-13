@@ -168,7 +168,7 @@ CONTAINS
 
       ! create context of simulation
       CALL pwdft_env_get(pwdft_env, para_env=para_env)
-      sirius_mpi_comm = para_env%group%get_handle()
+      sirius_mpi_comm = para_env%get_handle()
       CALL sirius_create_context(sirius_mpi_comm, sctx)
 
 !     the "fun" starts.
@@ -758,7 +758,7 @@ CONTAINS
 
       NULLIFY (logger)
       logger => cp_get_default_logger()
-      ionode = logger%para_env%ionode
+      ionode = logger%para_env%is_source()
       iounit = cp_logger_get_default_io_unit(logger)
 
       ! Density of States

@@ -1302,7 +1302,7 @@ CONTAINS
       DO ispin = 1, SIZE(matrix1)
          dotproduct = dotproduct + accurate_dot_product(matrix1(ispin)%local_data, matrix2(ispin)%local_data)
       END DO
-      CALL matrix1(1)%matrix_struct%para_env%group%sum(dotproduct)
+      CALL matrix1(1)%matrix_struct%para_env%sum(dotproduct)
 
    END FUNCTION accurate_dot_product_spin
 
@@ -1429,11 +1429,11 @@ CONTAINS
                                 matrix_p=rho_ao(1)%matrix)
       IF (debug_forces) THEN
          deb(1:3) = force(1)%kinetic(1:3, 1) - deb(1:3)
-         CALL para_env%group%sum(deb)
+         CALL para_env%sum(deb)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dT       ", deb
          IF (use_virial) THEN
             e_dummy = third_tr(virial%pv_virial) - e_dummy
-            CALL para_env%group%sum(e_dummy)
+            CALL para_env%sum(e_dummy)
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: T          ", e_dummy
          END IF
       END IF
@@ -1458,11 +1458,11 @@ CONTAINS
                              nimages=1, basis_type="ORB")
          IF (debug_forces) THEN
             deb(1:3) = force(1)%gth_ppl(1:3, 1) - deb(1:3)
-            CALL para_env%group%sum(deb)
+            CALL para_env%sum(deb)
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dHppl    ", deb
             IF (use_virial) THEN
                e_dummy = third_tr(virial%pv_virial) - e_dummy
-               CALL para_env%group%sum(e_dummy)
+               CALL para_env%sum(e_dummy)
                IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: Hppl       ", e_dummy
             END IF
          END IF
@@ -1478,11 +1478,11 @@ CONTAINS
                               nimages=1, basis_type="ORB")
          IF (debug_forces) THEN
             deb(1:3) = force(1)%gth_ppnl(1:3, 1) - deb(1:3)
-            CALL para_env%group%sum(deb)
+            CALL para_env%sum(deb)
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dHppnl   ", deb
             IF (use_virial) THEN
                e_dummy = third_tr(virial%pv_virial) - e_dummy
-               CALL para_env%group%sum(e_dummy)
+               CALL para_env%sum(e_dummy)
                IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: Hppnl      ", e_dummy
             END IF
          END IF
@@ -1504,7 +1504,7 @@ CONTAINS
          END IF
          IF (debug_forces) THEN
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: xc       ", third_tr(h_stress)
-            CALL para_env%group%sum(virial%pv_xc(1, 1))
+            CALL para_env%sum(virial%pv_xc(1, 1))
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: Corr xc   ", third_tr(virial%pv_xc)
          END IF
       ELSE
@@ -1556,11 +1556,11 @@ CONTAINS
       END IF
       IF (debug_forces) THEN
          deb(1:3) = force(1)%rho_elec(1:3, 1) - deb(1:3)
-         CALL para_env%group%sum(deb)
+         CALL para_env%sum(deb)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dVhxc    ", deb
          IF (use_virial) THEN
             e_dummy = third_tr(virial%pv_virial) - e_dummy
-            CALL para_env%group%sum(e_dummy)
+            CALL para_env%sum(e_dummy)
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: Vhxc      ", e_dummy
          END IF
       END IF
@@ -1639,11 +1639,11 @@ CONTAINS
       CALL integrate_v_core_rspace(vh_rspace, qs_env)
       IF (debug_forces) THEN
          deb(:) = force(1)%rho_core(:, 1)
-         CALL para_env%group%sum(deb)
+         CALL para_env%sum(deb)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: core      ", deb
          IF (use_virial) THEN
             e_dummy = third_tr(virial%pv_virial) - e_dummy
-            CALL para_env%group%sum(e_dummy)
+            CALL para_env%sum(e_dummy)
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: core      ", e_dummy
          END IF
       END IF
@@ -1723,24 +1723,24 @@ CONTAINS
          virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - pv_virial)
          IF (debug_forces) THEN
             e_dummy = third_tr(virial%pv_virial - pv_virial)
-            CALL para_env%group%sum(e_dummy)
+            CALL para_env%sum(e_dummy)
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: Kh       ", e_dummy
          END IF
          virial%pv_exc = virial%pv_exc + h_stress
          virial%pv_virial = virial%pv_virial + h_stress
          IF (debug_forces) THEN
             e_dummy = third_tr(h_stress)
-            CALL para_env%group%sum(e_dummy)
+            CALL para_env%sum(e_dummy)
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: Kxc       ", e_dummy
          END IF
       END IF
       IF (debug_forces) THEN
          deb(:) = force(1)%rho_elec(:, 1) - deb
-         CALL para_env%group%sum(deb)
+         CALL para_env%sum(deb)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P0*Khxc    ", deb
          IF (use_virial) THEN
             e_dummy = third_tr(virial%pv_virial) - e_dummy
-            CALL para_env%group%sum(e_dummy)
+            CALL para_env%sum(e_dummy)
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: Khxc      ", e_dummy
          END IF
       END IF
@@ -1792,11 +1792,11 @@ CONTAINS
          END IF
          IF (debug_forces) THEN
             deb(1:3) = force(1)%fock_4c(1:3, 1) - deb(1:3)
-            CALL para_env%group%sum(deb)
+            CALL para_env%sum(deb)
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*hfx  ", deb
             IF (use_virial) THEN
                e_dummy = third_tr(virial%pv_fock_4c)
-               CALL para_env%group%sum(e_dummy)
+               CALL para_env%sum(e_dummy)
                IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: hfx    ", e_dummy
             END IF
          END IF
@@ -1824,11 +1824,11 @@ CONTAINS
             CALL admm_projection_derivative(qs_env, p_env%kpp1_admm, rho_ao)
             IF (debug_forces) THEN
                deb(:) = force(1)%overlap_admm(:, 1) - deb
-               CALL para_env%group%sum(deb)
+               CALL para_env%sum(deb)
                IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*KADMM*dS'", deb
                IF (use_virial) THEN
                   e_dummy = third_tr(virial%pv_virial) - e_dummy
-                  CALL para_env%group%sum(e_dummy)
+                  CALL para_env%sum(e_dummy)
                   IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: KADMM*S'  ", e_dummy
                END IF
             END IF
@@ -1892,11 +1892,11 @@ CONTAINS
                DEALLOCATE (vadmm_rspace)
                IF (debug_forces) THEN
                   deb(:) = force(1)%rho_elec(:, 1) - deb
-                  CALL para_env%group%sum(deb)
+                  CALL para_env%sum(deb)
                   IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*VADMM' ", deb
                   IF (use_virial) THEN
                      e_dummy = third_tr(virial%pv_virial) - e_dummy
-                     CALL para_env%group%sum(e_dummy)
+                     CALL para_env%sum(e_dummy)
                      IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: VADMM'   ", e_dummy
                   END IF
                END IF
@@ -1923,11 +1923,11 @@ CONTAINS
             END IF
             IF (debug_forces) THEN
                deb(:) = force(1)%overlap_admm(:, 1) - deb
-               CALL para_env%group%sum(deb)
+               CALL para_env%sum(deb)
                IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*VADMM*dS'", deb
                IF (use_virial) THEN
                   e_dummy = third_tr(virial%pv_virial) - e_dummy
-                  CALL para_env%group%sum(e_dummy)
+                  CALL para_env%sum(e_dummy)
                   IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: VADMM*S'  ", e_dummy
                END IF
             END IF
@@ -1964,11 +1964,11 @@ CONTAINS
 
       IF (debug_forces) THEN
          deb = force(1)%overlap(1:3, 1)
-         CALL para_env%group%sum(deb)
+         CALL para_env%sum(deb)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: W*dS     ", deb
          IF (use_virial) THEN
             e_dummy = third_tr(virial%pv_virial) - e_dummy
-            CALL para_env%group%sum(e_dummy)
+            CALL para_env%sum(e_dummy)
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: S         ", e_dummy
          END IF
       END IF
@@ -1990,7 +1990,7 @@ CONTAINS
          virial%pv_virial = virial%pv_virial + qs_env%mp2_env%ri_grad%mp2_virial
          IF (debug_forces) THEN
             e_dummy = third_tr(virial%pv_mp2)
-            CALL para_env%group%sum(e_dummy)
+            CALL para_env%sum(e_dummy)
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: MP2nonsep  ", e_dummy
          END IF
       END IF

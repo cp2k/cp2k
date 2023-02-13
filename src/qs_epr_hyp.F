@@ -27,7 +27,6 @@ MODULE qs_epr_hyp
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi
-   USE message_passing,                 ONLY: mp_comm_type
    USE particle_types,                  ONLY: particle_type
    USE periodic_table,                  ONLY: ptable
    USE physcon,                         ONLY: a_bohr,&
@@ -99,7 +98,6 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
-      TYPE(mp_comm_type)                                 :: group
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_grid_type), POINTER                        :: pw_grid
@@ -143,7 +141,6 @@ CONTAINS
                       rho=rho, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
                       rho_atom_set=rho_atom_set, pw_env=pw_env, &
                       particle_set=particle_set, para_env=para_env)
-      group = para_env%group
 
       IF (output_unit > 0) THEN
          WRITE (UNIT=output_unit, FMT="(/,T2,A,/,T2,A)") &
@@ -351,10 +348,10 @@ CONTAINS
       END DO
 
       ! Global sum
-      CALL group%sync()
-      CALL group%sum(hypaniso)
-      CALL group%sum(hypiso)
-      CALL group%sum(hypiso_one)
+      CALL para_env%sync()
+      CALL para_env%sum(hypaniso)
+      CALL para_env%sum(hypiso)
+      CALL para_env%sum(hypiso_one)
 
       ! Print hyperfine matrices
       IF (output_unit > 0) THEN

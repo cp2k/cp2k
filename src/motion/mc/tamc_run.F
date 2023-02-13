@@ -306,7 +306,7 @@ CONTAINS
 ! set some values...will use get_globenv if that ever comes around
 
 ! initialize the random numbers
-!       IF (para_env%ionode) THEN
+!       IF (para_env%is_source()) THEN
       rng_stream_mc = rng_stream_type(name="Random numbers for monte carlo acc/rej", &
                                       distribution_type=UNIFORM)
 !       ENDIF
@@ -333,7 +333,7 @@ CONTAINS
       CALL set_mc_par(mc_par, ensemble=ensemble, nstep=nmccycles, iprint=iprint, temperature=temp, &
                       beta=1.0_dp/temp/boltzmann*joule, exp_max_val=0.9_dp*LOG(HUGE(0.0_dp)), &
                       exp_min_val=0.9_dp*LOG(TINY(0.0_dp)), max_val=HUGE(0.0_dp), min_val=0.0_dp, &
-                      source=para_env%source, group=para_env%group, ionode=para_env%ionode, rand2skip=rand2skip)
+                      source=para_env%source, group=para_env, ionode=para_env%is_source(), rand2skip=rand2skip)
 
       output_unit = cp_logger_get_default_io_unit(logger)
       IF (output_unit > 0) THEN
@@ -467,7 +467,7 @@ CONTAINS
 !             particles=particles)
 
          CALL virial_evaluate(atomic_kinds%els, particles%els, local_particles, &
-                              virial, force_env%para_env%group)
+                              virial, force_env%para_env)
 
          CALL md_energy(md_env, md_ener)
 !        CALL md_write_output(md_env) !inits the print env at itimes == 0 also writes trajectories
@@ -639,7 +639,7 @@ CONTAINS
       DEALLOCATE (md_env)
       ! Clean restartable sections..
       IF (my_rm_restart_info) CALL remove_restart_info(force_env%root_section)
-!     IF (para_env%ionode) THEN
+!     IF (para_env%is_source()) THEN
 !     ENDIF
       CALL MC_ENV_RELEASE(mc_env)
       DEALLOCATE (mc_env)
@@ -961,7 +961,7 @@ CONTAINS
       !    *** Velocity Verlet for Langeving *** v(t+1/2)--> v(t+1)
       CALL tamc_velocities_colvar(force_env, An)
 !       CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-!          local_particles, virial, para_env%group)
+!          local_particles, virial, para_env)
 
    END SUBROUTINE langevinVEC
 

@@ -1554,7 +1554,7 @@ CONTAINS
       !  Collect data if there was no communication in this thermostat
       IF (csvr%map_info%dis_type == do_thermo_no_communication) THEN
          ! Collect data if there was no communication in this thermostat
-         CALL para_env%group%sum(dwork)
+         CALL para_env%sum(dwork)
       ELSE
          ! Perform some check and collect data in case of communicating thermostats
          CALL communication_thermo_low2(dwork, rng_record_length, csvr%glob_num_csvr, para_env)
@@ -1675,7 +1675,7 @@ CONTAINS
       !  Collect data if there was no communication in this thermostat
       IF (gle%map_info%dis_type == do_thermo_no_communication) THEN
          ! Collect data if there was no communication in this thermostat
-         CALL para_env%group%sum(dwork)
+         CALL para_env%sum(dwork)
       ELSE
          ! Perform some check and collect data in case of communicating thermostats
          CALL communication_thermo_low2(dwork, rng_record_length, glob_num, para_env)
@@ -1685,7 +1685,7 @@ CONTAINS
 
       ALLOCATE (gle_per_proc(para_env%num_pe))
       gle_per_proc(:) = 0
-      CALL para_env%group%allgather(gle%loc_num_gle, gle_per_proc)
+      CALL para_env%allgather(gle%loc_num_gle, gle_per_proc)
 
       ! Thermostat S variable info for restart
       NULLIFY (s_tmp)
@@ -1709,8 +1709,8 @@ CONTAINS
          ELSE
             work(:) = 0.0_dp
          END IF
-         CALL para_env%group%bcast(work, iproc - 1)
-         CALL para_env%group%bcast(index, iproc - 1)
+         CALL para_env%bcast(work, iproc - 1)
+         CALL para_env%bcast(index, iproc - 1)
          counter = 0
          DO i = 1, gle%ndim
             DO j = 1, gle_per_proc(iproc)
@@ -1764,7 +1764,7 @@ CONTAINS
       ALLOCATE (nhc_per_proc(para_env%num_pe))
       nhc_per_proc(:) = 0
 
-      CALL para_env%group%allgather(numneed, nhc_per_proc)
+      CALL para_env%allgather(numneed, nhc_per_proc)
       tot_nhcneed = nhc%glob_num_nhc
 
       NULLIFY (work, index)
@@ -1789,8 +1789,8 @@ CONTAINS
          ELSE
             work(:) = 0.0_dp
          END IF
-         CALL para_env%group%bcast(work, iproc - 1)
-         CALL para_env%group%bcast(index, iproc - 1)
+         CALL para_env%bcast(work, iproc - 1)
+         CALL para_env%bcast(index, iproc - 1)
          counter = 0
          DO i = 1, nhc_len
             DO j = 1, nhc_per_proc(iproc)
@@ -1820,8 +1820,8 @@ CONTAINS
          ELSE
             work(:) = 0.0_dp
          END IF
-         CALL para_env%group%bcast(work, iproc - 1)
-         CALL para_env%group%bcast(index, iproc - 1)
+         CALL para_env%bcast(work, iproc - 1)
+         CALL para_env%bcast(index, iproc - 1)
          counter = 0
          DO i = 1, nhc_len
             DO j = 1, nhc_per_proc(iproc)
@@ -1851,8 +1851,8 @@ CONTAINS
          ELSE
             work(:) = 0.0_dp
          END IF
-         CALL para_env%group%bcast(work, iproc - 1)
-         CALL para_env%group%bcast(index, iproc - 1)
+         CALL para_env%bcast(work, iproc - 1)
+         CALL para_env%bcast(index, iproc - 1)
          counter = 0
          DO i = 1, nhc_len
             DO j = 1, nhc_per_proc(iproc)
@@ -1882,8 +1882,8 @@ CONTAINS
          ELSE
             work(:) = 0.0_dp
          END IF
-         CALL para_env%group%bcast(work, iproc - 1)
-         CALL para_env%group%bcast(index, iproc - 1)
+         CALL para_env%bcast(work, iproc - 1)
+         CALL para_env%bcast(index, iproc - 1)
          counter = 0
          DO i = 1, nhc_len
             DO j = 1, nhc_per_proc(iproc)

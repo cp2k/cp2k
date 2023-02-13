@@ -251,8 +251,8 @@ CONTAINS
                DO iat = bo(1), bo(2)
                   iatom = atom_list(iat)
                   DO ispin = 1, nspins
-                     CALL para_env%group%bcast(my_rho_atom(iatom)%cpc_h(ispin)%r_coef, ip)
-                     CALL para_env%group%bcast(my_rho_atom(iatom)%cpc_s(ispin)%r_coef, ip)
+                     CALL para_env%bcast(my_rho_atom(iatom)%cpc_h(ispin)%r_coef, ip)
+                     CALL para_env%bcast(my_rho_atom(iatom)%cpc_s(ispin)%r_coef, ip)
                   END DO
                END DO
             END DO

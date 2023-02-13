@@ -14,8 +14,7 @@
 MODULE mp2_grids
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
-   USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                              cp_para_env_split
+   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_set
@@ -421,10 +420,10 @@ CONTAINS
 
       ! bcast the result
       IF (para_env%mepos == 0) THEN
-         CALL para_env%group%bcast(right_term_ref, 0)
+         CALL para_env%bcast(right_term_ref, 0)
       ELSE
          right_term_ref = 0.0_dp
-         CALL para_env%group%bcast(right_term_ref, 0)
+         CALL para_env%bcast(right_term_ref, 0)
       END IF
 
       ! 5) start iteration for solving the non-linear equation by bisection
@@ -477,7 +476,7 @@ CONTAINS
       END IF
 
       a_scaling_ext = a_scaling
-      CALL para_env%group%bcast(a_scaling_ext, 0)
+      CALL para_env%bcast(a_scaling_ext, 0)
 
       DEALLOCATE (cottj)
       DEALLOCATE (iaia_RI)
@@ -569,9 +568,10 @@ CONTAINS
       !
 
       color_col = fm_mat_S%matrix_struct%context%mepos(2)
-      CALL cp_para_env_split(para_env_col, para_env_RPA, color_col)
+      ALLOCATE (para_env_col)
+      CALL para_env_col%from_split(para_env_RPA, color_col)
 
-      CALL para_env_col%group%sum(iaia_RI_dp)
+      CALL para_env_col%sum(iaia_RI_dp)
 
       ! convert the iaia_RI_dp into double-double precision
       ALLOCATE (iaia_RI(ncol_local))
@@ -609,10 +609,11 @@ CONTAINS
 
       ! sum the result with the processes of the RPA_group having the same row
       color_row = fm_mat_S%matrix_struct%context%mepos(1)
-      CALL cp_para_env_split(para_env_row, para_env_RPA, color_row)
+      ALLOCATE (para_env_row)
+      CALL para_env_row%from_split(para_env_RPA, color_row)
 
       ! allocate communication array for rows
-      CALL para_env_row%group%sum(right_term_ref)
+      CALL para_env_row%sum(right_term_ref)
 
       CALL cp_para_env_release(para_env_row)
 
@@ -697,12 +698,12 @@ CONTAINS
       END DO
 
       ! sum the contribution from all proc, starting form the row group
-      CALL para_env%group%sum(left_term)
-      CALL para_env%group%sum(first_deriv)
+      CALL para_env%sum(left_term)
+      CALL para_env%sum(first_deriv)
 
       IF (my_open_shell) THEN
-         CALL para_env%group%sum(left_term_beta)
-         CALL para_env%group%sum(first_deriv_beta)
+         CALL para_env%sum(left_term_beta)
+         CALL para_env%sum(first_deriv_beta)
 
          left_term = left_term + left_term_beta
          first_deriv = first_deriv + first_deriv_beta
@@ -1487,7 +1488,7 @@ CONTAINS
       tmp(1) = e_homo
       tmp(2) = -e_lumo
       tmp(3) = max_eig_diff
-      CALL para_env%group%max(tmp)
+      CALL para_env%max(tmp)
 
       gap = -tmp(2) - tmp(1)
       e_fermi = (tmp(1) - tmp(2))*0.5_dp

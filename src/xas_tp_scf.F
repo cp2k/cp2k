@@ -368,12 +368,12 @@ CONTAINS
          CALL m_flush(output_unit)
       END IF
 
-      CALL para_env%group%sync()
+      CALL para_env%sync()
       CALL qs_ks_did_change(ks_env, rho_changed=.TRUE.)
 
       CALL cls_prepare_states(xas_control, xas_env, qs_env, iatom, xas_section, output_unit)
 
-      CALL para_env%group%sync()
+      CALL para_env%sync()
 
       CALL cp_print_key_finished_output(output_unit, logger, xas_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
@@ -557,7 +557,7 @@ CONTAINS
          !
       END IF
 
-      CALL para_env%group%sync()
+      CALL para_env%sync()
       !Calculate the virtual states from the KS matrix matrix_ks(1)
       IF (nvirtual2 .GT. 0) THEN
          NULLIFY (mo_coeff)
@@ -598,7 +598,7 @@ CONTAINS
          DEALLOCATE (local_preconditioner)
       END IF
 
-      CALL para_env%group%sync()
+      CALL para_env%sync()
       ! Prapare arrays for the calculation of the spectrum
       IF (.NOT. xas_control%xas_method == xas_dscf) THEN
          ! Copy the final vectors in the array

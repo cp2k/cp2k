@@ -15,8 +15,7 @@
 MODULE cp_blacs_env
    USE cp_array_utils,                  ONLY: cp_2d_i_write
    USE cp_context_types,                ONLY: cp_context_type
-   USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                              cp_para_env_retain
+   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
@@ -217,9 +216,9 @@ CONTAINS
       my_row_major = .TRUE.
       IF (PRESENT(row_major)) my_row_major = row_major
       IF (my_row_major) THEN
-         CALL blacs_env%gridinit(para_env%group, "Row-major", nprow, npcol)
+         CALL blacs_env%gridinit(para_env, "Row-major", nprow, npcol)
       ELSE
-         CALL blacs_env%gridinit(para_env%group, "Col-major", nprow, npcol)
+         CALL blacs_env%gridinit(para_env, "Col-major", nprow, npcol)
       END IF
 
       ! We set the components of blacs_env here such that we can still use INTENT(OUT) with gridinit
@@ -248,7 +247,7 @@ CONTAINS
       MARK_USED(row_major)
 #endif
 
-      CALL cp_para_env_retain(para_env)
+      CALL para_env%retain()
       blacs_env%para_env => para_env
 
       ! generate the mappings blacs2mpi and mpi2blacs
@@ -257,7 +256,7 @@ CONTAINS
       CPASSERT(stat == 0)
       blacs_env%blacs2mpi = 0
       blacs_env%blacs2mpi(blacs_env%mepos(1), blacs_env%mepos(2)) = para_env%mepos
-      CALL para_env%group%sum(blacs_env%blacs2mpi)
+      CALL para_env%sum(blacs_env%blacs2mpi)
       ALLOCATE (blacs_env%mpi2blacs(2, 0:para_env%num_pe - 1))
       blacs_env%mpi2blacs = -1
       DO ipcol = 0, blacs_env%num_pe(2) - 1
@@ -347,7 +346,7 @@ CONTAINS
       END IF
       IF (ASSOCIATED(blacs_env%para_env)) THEN
          WRITE (unit=unit_nr, fmt="('  para_env=<cp_para_env id=',i6,'>,')") &
-            blacs_env%para_env%group%get_handle()
+            blacs_env%para_env%get_handle()
       ELSE
          WRITE (unit=unit_nr, fmt="('  para_env=*null*')")
       END IF

@@ -130,7 +130,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       group_distribution_p => group_distribution
-      CALL opt_group%from_split(para_env%group, n_groups_created, group_distribution_p, &
+      CALL opt_group%from_split(para_env, n_groups_created, group_distribution_p, &
                                 n_subgroups=SIZE(opt_bas%group_partition), group_partition=opt_bas%group_partition)
       opt_bas%opt_id = group_distribution(para_env%mepos) + 1
       opt_bas%n_groups_created = n_groups_created
@@ -184,8 +184,8 @@ CONTAINS
       para_env = mpi_comm_opt
 
       is = -1
-      IF (para_env%ionode) is = para_env_top%mepos
-      CALL para_env_top%group%allgather(is, opt_bas%sub_sources)
+      IF (para_env%is_source()) is = para_env_top%mepos
+      CALL para_env_top%allgather(is, opt_bas%sub_sources)
 
       CALL init_training_force_envs(opt_bas, f_env_id, input_declaration, matrix_s_inv, para_env, mpi_comm_opt)
 
@@ -196,10 +196,10 @@ CONTAINS
       DO iopt = 0, opt_bas%powell_param%maxfun
          CALL compute_residuum_vectors(opt_bas, f_env_id, matrix_S_inv, tot_time, &
                                        para_env_top, para_env, iopt)
-         IF (para_env_top%ionode) &
+         IF (para_env_top%is_source()) &
             CALL powell_optimize(opt_bas%powell_param%nvar, opt_bas%x_opt, opt_bas%powell_param)
-         CALL para_env_top%group%bcast(opt_bas%powell_param%state, para_env_top%source)
-         CALL para_env_top%group%bcast(opt_bas%x_opt, para_env_top%source)
+         CALL para_env_top%bcast(opt_bas%powell_param%state, para_env_top%source)
+         CALL para_env_top%bcast(opt_bas%x_opt, para_env_top%source)
          CALL update_free_vars(opt_bas)
          write_basis = MOD(iopt, opt_bas%write_frequency) == 0
          CALL update_derived_basis_sets(opt_bas, write_basis, opt_bas%output_basis_file, &
@@ -208,12 +208,12 @@ CONTAINS
       END DO
 
       ! ======= Update the basis set and print the final basis  =======
-      IF (para_env_top%ionode) THEN
+      IF (para_env_top%is_source()) THEN
          opt_bas%powell_param%state = 8
          CALL powell_optimize(opt_bas%powell_param%nvar, opt_bas%x_opt, opt_bas%powell_param)
       END IF
 
-      CALL para_env_top%group%bcast(opt_bas%x_opt, para_env_top%source)
+      CALL para_env_top%bcast(opt_bas%x_opt, para_env_top%source)
       CALL update_free_vars(opt_bas)
       CALL update_derived_basis_sets(opt_bas, .TRUE., opt_bas%output_basis_file, &
                                      para_env_top)
@@ -350,14 +350,14 @@ CONTAINS
 
       DEALLOCATE (start_time)
 
-      IF (.NOT. para_env%ionode) THEN
+      IF (.NOT. para_env%is_source()) THEN
          f_vec = 0.0_dp; cond_vec = 0.0_dp; my_time = 0.0_dp; energy = 0.0_dp
       END IF
       ! collect date from all subgroup ionodes on the main ionode
-      CALL para_env_top%group%sum(gdata)
+      CALL para_env_top%sum(gdata)
 
       opt_bas%powell_param%f = 0.0_dp
-      IF (para_env_top%ionode) THEN
+      IF (para_env_top%is_source()) THEN
          DO icalc = 1, SIZE(f_vec)
             icomb = MOD(icalc - 1, opt_bas%ncombinations)
             opt_bas%powell_param%f = opt_bas%powell_param%f + &
@@ -369,13 +369,13 @@ CONTAINS
       ELSE
          f_vec = 0.0_dp; cond_vec = 0.0_dp; my_time = 0.0_dp; energy = 0.0_dp
       END IF
-      CALL para_env_top%group%bcast(opt_bas%powell_param%f, para_env_top%source)
+      CALL para_env_top%bcast(opt_bas%powell_param%f, para_env_top%source)
 
       ! output info if required
       CALL output_opt_info(f_vec, cond_vec, my_time, tot_time, opt_bas, iopt, para_env_top)
       DEALLOCATE (gdata)
 
-      CALL para_env_top%group%sync()
+      CALL para_env_top%sync()
 
       CALL timestop(handle)
 
@@ -667,7 +667,7 @@ CONTAINS
       tot_time = tot_time + my_time
 
       unit_nr = -1
-      IF (para_env_top%ionode .AND. (MOD(iopt, opt_bas%write_frequency) == 0 .OR. iopt == opt_bas%powell_param%maxfun)) &
+      IF (para_env_top%is_source() .AND. (MOD(iopt, opt_bas%write_frequency) == 0 .OR. iopt == opt_bas%powell_param%maxfun)) &
          unit_nr = cp_logger_get_default_unit_nr(logger)
 
       IF (unit_nr .GT. 0) THEN

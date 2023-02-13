@@ -18,8 +18,7 @@ MODULE cp_fm_struct
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type,&
                                               cp_to_string
-   USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                              cp_para_env_retain
+   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
@@ -125,7 +124,7 @@ CONTAINS
                                   local_leading_dimension, template_fmstruct, square_blocks, force_block)
 
       TYPE(cp_fm_struct_type), POINTER             :: fmstruct
-      TYPE(cp_para_env_type), POINTER, OPTIONAL    :: para_env
+      TYPE(cp_para_env_type), TARGET, OPTIONAL    :: para_env
       INTEGER, INTENT(in), OPTIONAL                :: nrow_global, ncol_global
       INTEGER, INTENT(in), OPTIONAL                :: nrow_block, ncol_block
       INTEGER, INTENT(in), OPTIONAL                :: local_leading_dimension
@@ -181,7 +180,7 @@ CONTAINS
       END IF
       IF (PRESENT(para_env)) fmstruct%para_env => para_env
       CALL fmstruct%context%retain()
-      CALL cp_para_env_retain(fmstruct%para_env)
+      CALL fmstruct%para_env%retain()
 
       IF (PRESENT(nrow_global)) THEN
          fmstruct%nrow_global = nrow_global
@@ -236,8 +235,8 @@ CONTAINS
          numroc(fmstruct%ncol_global, fmstruct%ncol_block, &
                 fmstruct%context%mepos(2), fmstruct%first_p_pos(2), &
                 fmstruct%context%num_pe(2))
-      CALL fmstruct%para_env%group%sum(fmstruct%nrow_locals)
-      CALL fmstruct%para_env%group%sum(fmstruct%ncol_locals)
+      CALL fmstruct%para_env%sum(fmstruct%nrow_locals)
+      CALL fmstruct%para_env%sum(fmstruct%ncol_locals)
       fmstruct%nrow_locals(:) = fmstruct%nrow_locals(:)/fmstruct%context%num_pe(2)
       fmstruct%ncol_locals(:) = fmstruct%ncol_locals(:)/fmstruct%context%num_pe(1)
 

@@ -121,7 +121,7 @@ CONTAINS
       tb = (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb)
 
       logger => cp_get_default_logger()
-      IF (logger%para_env%ionode) THEN
+      IF (logger%para_env%is_source()) THEN
          iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          iounit = -1
@@ -182,7 +182,7 @@ CONTAINS
                      cdip(1:3) = cdip(1:3) - charge*ria(1:3)
                   END DO
                END DO
-               CALL para_env%group%sum(cdip)
+               CALL para_env%sum(cdip)
                !
                ! electronic contribution
                CALL get_qs_env(qs_env=qs_env, rho=rho, matrix_s=matrix_s)

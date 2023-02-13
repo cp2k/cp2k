@@ -222,7 +222,7 @@ CONTAINS
          END IF
       END DO
 
-      CALL para_env%group%sum(itest)
+      CALL para_env%sum(itest)
       IF (itest > 0) optimize = .TRUE.
 
    END SUBROUTINE check_shell_core_distance

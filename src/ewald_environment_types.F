@@ -16,8 +16,7 @@ MODULE ewald_environment_types
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                              cp_para_env_retain
+   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE input_cp2k_poisson,              ONLY: create_ewald_section
@@ -148,7 +147,7 @@ CONTAINS
       IF (PRESENT(gmax)) gmax = ewald_env%gmax
       IF (PRESENT(ns_max)) ns_max = ewald_env%ns_max
       IF (PRESENT(o_spline)) o_spline = ewald_env%o_spline
-      IF (PRESENT(group)) group = ewald_env%para_env%group
+      IF (PRESENT(group)) group = ewald_env%para_env
       IF (PRESENT(para_env)) para_env => ewald_env%para_env
       IF (PRESENT(poisson_section)) poisson_section => ewald_env%poisson_section
       IF (PRESENT(interaction_cutoffs)) interaction_cutoffs => &
@@ -223,7 +222,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       NULLIFY (ewald_env%poisson_section)
-      CALL cp_para_env_retain(para_env)
+      CALL para_env%retain()
       ewald_env%para_env => para_env
       NULLIFY (ewald_env%interaction_cutoffs) ! allocated and initialized later
    END SUBROUTINE ewald_env_create

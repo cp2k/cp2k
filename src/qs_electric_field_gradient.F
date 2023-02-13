@@ -548,7 +548,7 @@ CONTAINS
          m1s = m1s + maxso
       END DO ! iset1
 
-      CALL para_env%group%sum(vlimit)
+      CALL para_env%sum(vlimit)
 
       DEALLOCATE (o2nindex)
       DEALLOCATE (CPC_sphere)

@@ -1355,7 +1355,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE init(Nder, iunit, mepos, group)
       INTEGER, INTENT(IN)                                :: Nder, iunit, mepos
-      TYPE(mp_comm_type), INTENT(IN)                     :: group
+
+      CLASS(mp_comm_type), INTENT(IN)                     :: group
 
       INTEGER                                            :: I
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: chunk

@@ -426,7 +426,7 @@ CONTAINS
             icol = icol + 1
          END IF
       END DO
-      CALL matrix_a%matrix_struct%para_env%group%prod(determinant)
+      CALL matrix_a%matrix_struct%para_env%prod(determinant)
 #else
       lda = SIZE(a, 1)
       CALL zgetrf(nrow_global, nrow_global, a(1, 1), lda, ipivot, info)
@@ -714,7 +714,7 @@ CONTAINS
                icol = icol + 1
             END IF
          END DO
-         CALL matrix_a%matrix_struct%para_env%group%prod(determinant)
+         CALL matrix_a%matrix_struct%para_env%prod(determinant)
       END IF
 
       CALL pzgetrs("N", nrow_global, nrow_global, a(1, 1), 1, 1, desca, &
@@ -964,7 +964,7 @@ CONTAINS
       nprow = context%num_pe(1)
       npcol = context%num_pe(2)
 
-      group = matrix_a%matrix_struct%para_env%group
+      group = matrix_a%matrix_struct%para_env
 
       nrow_local = MIN(matrix_a%matrix_struct%nrow_locals(myprow), matrix_b%matrix_struct%nrow_locals(myprow))
       ncol_local = MIN(matrix_a%matrix_struct%ncol_locals(mypcol), matrix_b%matrix_struct%ncol_locals(mypcol))

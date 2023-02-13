@@ -813,7 +813,7 @@ CONTAINS
 
       CALL m_memory()
       max_memory = m_memory_max
-      CALL para_env%group%max(max_memory)
+      CALL para_env%max(max_memory)
 
    END FUNCTION sample_memory
 

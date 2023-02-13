@@ -937,7 +937,7 @@ CONTAINS
                ELSE
                   pblk = 0.0_dp
                END IF
-               CALL para_env%group%sum(pblk)
+               CALL para_env%sum(pblk)
                force_a(:) = 0._dp
                force_b(:) = 0._dp
                IF (use_virial) THEN
@@ -1033,7 +1033,7 @@ CONTAINS
             END DO
             DEALLOCATE (map_it2)
             ! update KS matrix
-            CALL para_env%group%sum(hmat)
+            CALL para_env%sum(hmat)
             CALL dbcsr_get_block_p(matrix=ksmat, row=atom_a, col=atom_a, BLOCK=h_block, found=found)
             IF (found) THEN
                h_block(1:nsgfa, 1:nsgfa) = h_block(1:nsgfa, 1:nsgfa) + hmat(1:nsgfa, 1:nsgfa)

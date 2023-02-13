@@ -25,7 +25,6 @@ MODULE dm_ls_scf_create
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
-   USE cp_para_env,                     ONLY: cp_para_env_retain
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE input_constants,                 ONLY: &
@@ -99,7 +98,7 @@ CONTAINS
 
       ! get a useful output_unit
       logger => cp_get_default_logger()
-      IF (logger%para_env%ionode) THEN
+      IF (logger%para_env%is_source()) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -122,7 +121,7 @@ CONTAINS
       ! copy some basic stuff
       ls_scf_env%nspins = dft_control%nspins
       ls_scf_env%natoms = SIZE(particle_set, 1)
-      CALL cp_para_env_retain(ls_scf_env%para_env)
+      CALL ls_scf_env%para_env%retain()
 
       ! initialize block to group to defined molecules
       ALLOCATE (ls_scf_env%ls_mstruct%atom_to_molecule(ls_scf_env%natoms))
@@ -149,7 +148,7 @@ CONTAINS
       IF (ls_scf_env%do_pexsi) THEN
          IF (dft_control%qs_control%eps_filter_matrix .NE. 0.0_dp) &
             CPABORT("EPS_FILTER_MATRIX must be set to 0 for PEXSI.")
-         CALL lib_pexsi_init(ls_scf_env%pexsi, ls_scf_env%para_env%group, ls_scf_env%nspins)
+         CALL lib_pexsi_init(ls_scf_env%pexsi, ls_scf_env%para_env, ls_scf_env%nspins)
       END IF
 
       ! initialize PAO

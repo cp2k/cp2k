@@ -149,7 +149,6 @@ CONTAINS
          TYPE(dbcsr_distribution_type)                       :: bc_dist
          TYPE(dbcsr_iterator_type)                           :: iter
          INTEGER, DIMENSION(:, :), POINTER                   :: pgrid
-         TYPE(mp_comm_type) :: group
 
          CALL timeset(routineN, handle)
 
@@ -158,7 +157,6 @@ CONTAINS
          #:endif
 
          ! Create processor grid
-         group = fm%matrix_struct%para_env%group
          pgrid => fm%matrix_struct%context%blacs2mpi
 
          ! Create a block-cyclic distribution compatible with the FM matrix.
@@ -170,7 +168,7 @@ CONTAINS
          CALL dbcsr_create_dist_block_cyclic(bc_dist, &
                                              nrows=nrow_global, ncolumns=ncol_global, & ! Actual full matrix size
                                              nrow_block=nrow_block, ncol_block=ncol_block, & ! BLACS parameters
-                                             group_handle=group%get_handle(), pgrid=pgrid, &
+                                             group_handle=fm%matrix_struct%para_env%get_handle(), pgrid=pgrid, &
                                              row_blk_sizes=row_blk_size, col_blk_sizes=col_blk_size) ! block-cyclic row/col sizes
 
          ! Create the block-cyclic DBCSR matrix
@@ -436,7 +434,7 @@ CONTAINS
       !col_cluster => col_dist_data(:, 2)
 
       CALL dbcsr_distribution_new(dist, &
-                                  group=para_env%group%get_handle(), pgrid=pgrid, &
+                                  group=para_env%get_handle(), pgrid=pgrid, &
                                   row_dist=row_dist, &
                                   col_dist=col_dist)
 

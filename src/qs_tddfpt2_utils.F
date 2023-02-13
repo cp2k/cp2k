@@ -422,9 +422,9 @@ CONTAINS
          END DO
       END DO
 
-      CALL para_env%group%sum(sum_sign_array)
-      CALL para_env%group%min(minrow_neg_array)
-      CALL para_env%group%min(minrow_pos_array)
+      CALL para_env%sum(sum_sign_array)
+      CALL para_env%min(minrow_neg_array)
+      CALL para_env%min(minrow_pos_array)
 
       DO icol_local = 1, nmo_occ
          IF (sum_sign_array(icol_local) > 0) THEN
@@ -504,9 +504,9 @@ CONTAINS
             END DO
          END DO
 
-         CALL para_env%group%sum(sum_sign_array)
-         CALL para_env%group%min(minrow_neg_array)
-         CALL para_env%group%min(minrow_pos_array)
+         CALL para_env%sum(sum_sign_array)
+         CALL para_env%min(minrow_neg_array)
+         CALL para_env%min(minrow_pos_array)
          DO icol_local = 1, nmo_virt
             IF (sum_sign_array(icol_local) > 0) THEN
                ! most of the expansion coefficients are positive => MO's phase = +1

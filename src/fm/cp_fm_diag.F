@@ -515,7 +515,7 @@ CONTAINS
       CALL pdsyevd('V', 'U', n, m(1, 1), 1, 1, descm, eigenvalues(1), v(1, 1), 1, 1, descv, &
                    work(1), lwork, iwork(1), liwork, myinfo)
 
-      IF (matrix%matrix_struct%para_env%ionode .AND. (myinfo /= 0)) THEN
+      IF (matrix%matrix_struct%para_env%is_source() .AND. (myinfo /= 0)) THEN
          WRITE (message, "(A,I0,A)") "ERROR in PDSYEVD: Work space query failed (INFO = ", myinfo, ")"
          IF (PRESENT(info)) THEN
             CPWARN(TRIM(message))
@@ -548,7 +548,7 @@ CONTAINS
 #if defined (__HAS_IEEE_EXCEPTIONS)
       CALL ieee_set_halting_mode(IEEE_ALL, halt)
 #endif
-      IF (matrix%matrix_struct%para_env%ionode .AND. (myinfo /= 0)) THEN
+      IF (matrix%matrix_struct%para_env%is_source() .AND. (myinfo /= 0)) THEN
          WRITE (message, "(A,I0,A)") "ERROR in PDSYEVD: Matrix diagonalization failed (INFO = ", myinfo, ")"
          IF (PRESENT(info)) THEN
             CPWARN(TRIM(message))
@@ -649,7 +649,7 @@ CONTAINS
       needs_evecs = PRESENT(eigenvectors)
 
       logger => cp_get_default_logger()
-      ionode = logger%para_env%ionode
+      ionode = logger%para_env%is_source()
       n = matrix%matrix_struct%nrow_global
 
       ! by default allocate all needed space
@@ -977,7 +977,7 @@ CONTAINS
       CALL cp_fm_upper_to_full(matrix, work)
 
       ! Print some warnings/notes
-      IF (matrix%matrix_struct%para_env%ionode .AND. my_verbose) THEN
+      IF (matrix%matrix_struct%para_env%is_source() .AND. my_verbose) THEN
          condition_number = ABS(eigenvalues(ncol_global)/eigenvalues(1))
          WRITE (UNIT=cp_logger_get_default_unit_nr(), FMT="(/,(T2,A,ES15.6))") &
             "CP_FM_POWER: smallest eigenvalue:", eigenvalues(1), &
@@ -1054,7 +1054,7 @@ CONTAINS
 #if defined(__SCALAPACK)
       context => matrix%matrix_struct%context
       source = matrix%matrix_struct%para_env%source
-      allgrp = matrix%matrix_struct%para_env%group
+      allgrp = matrix%matrix_struct%para_env
 
       myprow = context%mepos(1)
       mypcol = context%mepos(2)
@@ -1079,7 +1079,7 @@ CONTAINS
       mype = matrix%matrix_struct%para_env%mepos
       npe = matrix%matrix_struct%para_env%num_pe
       ! Get a new context
-      CALL ictxt_loc%gridinit(matrix%matrix_struct%para_env%group, 'Row-major', NPROW*NPCOL, 1)
+      CALL ictxt_loc%gridinit(matrix%matrix_struct%para_env, 'Row-major', NPROW*NPCOL, 1)
 
       CALL descinit(desc_a_block, block_dim_row, block_dim_col, block_dim_row, &
                     block_dim_col, 0, 0, ictxt_loc%get_handle(), block_dim_row, info)

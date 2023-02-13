@@ -666,7 +666,7 @@ CONTAINS
       END DO !iatom
 
       ! now create a fm_matrix for the L matrix
-      CALL para_env%group%sum(L_full_matrix)
+      CALL para_env%sum(L_full_matrix)
 
       ! create a sub blacs_env
       NULLIFY (blacs_env)
@@ -908,7 +908,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL para_env%group%sum(Lai)
+      CALL para_env%sum(Lai)
 
       DO iiB = 1, occupied
          IF (MOD(iiB, para_env%num_pe) == para_env%mepos) THEN
@@ -918,7 +918,7 @@ CONTAINS
          END IF
       END DO
 
-      CALL para_env%group%sum(Lai)
+      CALL para_env%sum(Lai)
 
       DEALLOCATE (set_list_kl)
 
@@ -1196,11 +1196,11 @@ CONTAINS
 
       IF (mp2_env%potential_parameter%potential_type == do_potential_TShPSC) THEN
          IF (l_max > init_TShPSC_lmax) THEN
-            IF (para_env%ionode) THEN
+            IF (para_env%is_source()) THEN
                CALL open_file(unit_number=unit_id, file_name=mp2_env%potential_parameter%filename)
             END IF
-            CALL init(l_max, unit_id, para_env%mepos, para_env%group)
-            IF (para_env%ionode) THEN
+            CALL init(l_max, unit_id, para_env%mepos, para_env)
+            IF (para_env%is_source()) THEN
                CALL close_file(unit_id)
             END IF
             init_TShPSC_lmax = l_max

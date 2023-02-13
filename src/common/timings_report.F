@@ -120,15 +120,15 @@ CONTAINS
       ! and the actual dictionary are consistent in the loop below, preventing out of bounds.
       ! this hack makes sure they are called before
       routineN = ""
-      CALL para_env%group%bcast(routineN, 0)
+      CALL para_env%bcast(routineN, 0)
       sending_rank = 0
-      CALL para_env%group%max(sending_rank)
-      CALL para_env%group%sum(sending_rank)
+      CALL para_env%max(sending_rank)
+      CALL para_env%sum(sending_rank)
       foobar = 0.0_dp
-      CALL para_env%group%max(foobar)
+      CALL para_env%max(foobar)
       dbuf = 0.0_dp
-      CALL para_env%group%maxloc(dbuf)
-      CALL para_env%group%sum(foobar)
+      CALL para_env%maxloc(dbuf)
+      CALL para_env%sum(foobar)
       ! end hack
 
       ! Array collected is used as a bit field.
@@ -140,14 +140,14 @@ CONTAINS
          ! does any rank have uncollected stats?
          sending_rank = -1
          IF (.NOT. ALL(collected == 1)) sending_rank = para_env%mepos
-         CALL para_env%group%max(sending_rank)
+         CALL para_env%max(sending_rank)
          IF (sending_rank < 0) EXIT ! every rank got all routines collected
          IF (sending_rank == para_env%mepos) THEN
             local_routine_id = MINLOC(collected, dim=1)
             r_stat => list_get(timer_env%routine_stats, local_routine_id)
             routineN = r_stat%routineN
          END IF
-         CALL para_env%group%bcast(routineN, sending_rank)
+         CALL para_env%bcast(routineN, sending_rank)
 
          ! Create new report for routineN
          ALLOCATE (r_report)
@@ -179,25 +179,25 @@ CONTAINS
          END IF
 
          ! collect stats of routineN via MPI
-         CALL para_env%group%max(r_report%max_total_calls)
-         CALL para_env%group%sum(r_report%sum_total_calls)
-         CALL para_env%group%sum(r_report%sum_stackdepth)
+         CALL para_env%max(r_report%max_total_calls)
+         CALL para_env%sum(r_report%sum_total_calls)
+         CALL para_env%sum(r_report%sum_stackdepth)
 
          ! get value and rank of the maximum inclusive cost
          dbuf = (/r_report%max_icost, REAL(para_env%mepos, KIND=dp)/)
-         CALL para_env%group%maxloc(dbuf)
+         CALL para_env%maxloc(dbuf)
          r_report%max_icost = dbuf(1)
          r_report%max_irank = INT(dbuf(2))
 
-         CALL para_env%group%sum(r_report%sum_icost)
+         CALL para_env%sum(r_report%sum_icost)
 
          ! get value and rank of the maximum exclusive cost
          dbuf = (/r_report%max_ecost, REAL(para_env%mepos, KIND=dp)/)
-         CALL para_env%group%maxloc(dbuf)
+         CALL para_env%maxloc(dbuf)
          r_report%max_ecost = dbuf(1)
          r_report%max_erank = INT(dbuf(2))
 
-         CALL para_env%group%sum(r_report%sum_ecost)
+         CALL para_env%sum(r_report%sum_ecost)
       END DO
 
    END SUBROUTINE collect_reports_from_ranks

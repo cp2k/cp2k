@@ -878,7 +878,7 @@ CONTAINS
 
       NULLIFY (logger)
 
-      CALL para_env%group%sum(nr_ions)
+      CALL para_env%sum(nr_ions)
       logger => cp_get_default_logger()
 
       iw = cp_print_key_unit_nr(logger, mm_section, "PRINT%PROGRAM_RUN_INFO", &

@@ -360,7 +360,7 @@ CONTAINS
                             input_declaration=input_declaration, &
                             input_path=input_file_name, &
                             output_unit=output_unit, &
-                            mpi_comm=para_env%group)
+                            mpi_comm=para_env)
 
       CALL f_env_add_defaults(f_env_id, f_env)
       force_env => f_env%force_env

@@ -267,7 +267,7 @@ CONTAINS
             END DO
          END DO
 
-         CALL para_env%group%sum(ascii)
+         CALL para_env%sum(ascii)
 
          CALL section_rng_val_set(rng_section=rng_section, nsize=nparticle, ascii=ascii)
 
@@ -337,7 +337,7 @@ CONTAINS
             CALL section_vals_val_get(subsys_section, "TOPOLOGY%COORD_FILE_NAME", &
                                       c_val=coord_file_name)
             output_unit = 0
-            IF (para_env%ionode) THEN
+            IF (para_env%is_source()) THEN
                CALL open_file(file_name=TRIM(ADJUSTL(coord_file_name)), &
                               file_action="READWRITE", &
                               file_form="FORMATTED", &

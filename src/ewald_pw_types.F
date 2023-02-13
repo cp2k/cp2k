@@ -191,7 +191,7 @@ CONTAINS
             CALL pw_poisson_create(ewald_pw%poisson_env)
          END IF
          CALL pw_grid_create(pw_small_grid, mp_comm_self)
-         CALL pw_grid_create(pw_big_grid, para_env%group)
+         CALL pw_grid_create(pw_big_grid, para_env)
          IF (ns_max == 2*(ns_max/2)) THEN
             CPABORT("ns_max has to be odd.")
          END IF
@@ -253,7 +253,7 @@ CONTAINS
          IF (.NOT. ASSOCIATED(ewald_pw%poisson_env)) THEN
             CALL pw_poisson_create(ewald_pw%poisson_env)
          END IF
-         CALL pw_grid_create(pw_big_grid, para_env%group)
+         CALL pw_grid_create(pw_big_grid, para_env)
          npts_s = gmax
          CALL pw_grid_setup(cell_ref%hmat, pw_big_grid, grid_span=HALFSPACE, npts=npts_s, spherical=.TRUE., &
                             rs_dims=(/para_env%num_pe, 1/), iounit=output_unit, fft_usage=.TRUE.)

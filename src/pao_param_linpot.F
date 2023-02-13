@@ -126,7 +126,7 @@ CONTAINS
       IF (pao%precondition) &
          CALL pao_param_linpot_preconditioner(pao)
 
-      CALL para_env%group%sync() ! ensure that timestop is not called too early
+      CALL para_env%sync() ! ensure that timestop is not called too early
 
       CALL timestop(handle)
    END SUBROUTINE pao_param_init_linpot

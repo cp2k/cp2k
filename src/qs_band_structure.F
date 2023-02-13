@@ -149,7 +149,7 @@ CONTAINS
             io_default = .TRUE.
          ELSE
             io_default = .FALSE.
-            IF (para_env%ionode) THEN
+            IF (para_env%is_source()) THEN
                CALL open_file(filename, unit_number=bs_data_unit, file_status="UNKNOWN", file_action="WRITE", &
                               file_position="APPEND")
             ELSE
@@ -254,8 +254,8 @@ CONTAINS
                      eigval(1:nmo) = 0.0_dp
                      occnum(1:nmo) = 0.0_dp
                   END IF
-                  CALL kpoint%para_env_inter_kp%group%sum(eigval)
-                  CALL kpoint%para_env_inter_kp%group%sum(occnum)
+                  CALL kpoint%para_env_inter_kp%sum(eigval)
+                  CALL kpoint%para_env_inter_kp%sum(occnum)
                   IF (bs_data_unit > 0) THEN
                      WRITE (UNIT=bs_data_unit, FMT="(A,I0,T15,A,I0,A,T24,3(1X,F14.8),3X,F14.8)") &
                         "#  Point ", ik, "  Spin ", ispin, ":", xkp(1:3, ik), wkp(ik)
@@ -281,7 +281,7 @@ CONTAINS
 
          ! Close output files
          IF (.NOT. io_default) THEN
-            IF (para_env%ionode) CALL close_file(bs_data_unit)
+            IF (para_env%is_source()) CALL close_file(bs_data_unit)
          END IF
 
       END IF

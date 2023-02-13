@@ -271,7 +271,7 @@ CONTAINS
 
       logger => cp_get_default_logger()
 
-      IF (logger%para_env%ionode) THEN
+      IF (logger%para_env%is_source()) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger)
          WRITE (unit_nr, *) ""
          WRITE (unit_nr, *) "NNP| Neural Network Potential Force Environment"
@@ -298,7 +298,7 @@ CONTAINS
       nnp_env%normnodes = .FALSE.
       nnp_env%n_hlayer = 0
 
-      IF (logger%para_env%ionode) THEN
+      IF (logger%para_env%is_source()) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger)
          WRITE (unit_nr, *) "NNP| Reading NNP input from file: ", TRIM(file_name)
       END IF
@@ -626,7 +626,7 @@ CONTAINS
 
       ! read scaling information from file
       IF (nnp_env%scale_acsf .OR. nnp_env%center_acsf .OR. nnp_env%scale_sigma_acsf) THEN
-         IF (logger%para_env%ionode) THEN
+         IF (logger%para_env%is_source()) THEN
             WRITE (unit_nr, *) "NNP| Reading scaling information from file: ", TRIM(file_name)
          END IF
          CALL section_vals_val_get(nnp_env%nnp_input, "SCALE_FILE_NAME", &
@@ -695,12 +695,12 @@ CONTAINS
       END DO
       DO i_com = 1, nnp_env%n_committee
          CALL section_vals_val_get(model_section, "WEIGHTS", c_val=base_name, i_rep_section=i_com)
-         IF (logger%para_env%ionode) THEN
+         IF (logger%para_env%is_source()) THEN
             WRITE (unit_nr, *) "NNP| Initializing weights for model: ", i_com
          END IF
          DO i = 1, nnp_env%n_ele
             WRITE (file_name, '(A,I0.3,A)') TRIM(base_name)//".", nnp_env%nuc_ele(i), ".data"
-            IF (logger%para_env%ionode) THEN
+            IF (logger%para_env%is_source()) THEN
                WRITE (unit_nr, *) "NNP| Reading weights from file: ", TRIM(file_name)
             END IF
             CALL parser_create(parser, file_name, para_env=logger%para_env)
@@ -749,7 +749,7 @@ CONTAINS
       nnp_env%bias = .FALSE.
       IF (explicit) THEN
          IF (nnp_env%n_committee > 1) THEN
-            IF (logger%para_env%ionode) THEN
+            IF (logger%para_env%is_source()) THEN
                WRITE (unit_nr, *) "NNP| Biasing of committee disagreement enabled"
             END IF
             nnp_env%bias = .TRUE.
@@ -767,7 +767,7 @@ CONTAINS
                   CPABORT("ALIGN_NNP_ENERGIES size mismatch wrt committee size.")
                END IF
                nnp_env%bias_e_avrg(:) = work
-               IF (logger%para_env%ionode) THEN
+               IF (logger%para_env%is_source()) THEN
                   WRITE (unit_nr, *) "NNP| Biasing is aligned by shifting the energy prediction of the C-NNP members"
                END IF
             END IF
@@ -776,7 +776,7 @@ CONTAINS
          END IF
       END IF
 
-      IF (logger%para_env%ionode) THEN
+      IF (logger%para_env%is_source()) THEN
          WRITE (unit_nr, *) "NNP| NNP force environment initialized"
       END IF
 

@@ -24,7 +24,7 @@ MODULE cp_para_env
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_para_env'
 
-   PUBLIC :: cp_para_env_retain, cp_para_env_release, cp_para_env_create, cp_para_env_split
+   PUBLIC :: cp_para_env_release, cp_para_env_create
    PUBLIC :: cp_cart_create, cp_cart_release
 !***
 CONTAINS
@@ -44,46 +44,10 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(para_env))
       ALLOCATE (para_env)
-      para_env%group = group
+      para_env%mp_comm_type = group
       para_env%owns_group = .TRUE.
       CALL para_env%init()
    END SUBROUTINE cp_para_env_create
-
-! **************************************************************************************************
-!> \brief retains the para object (to be called when you want to keep a
-!>      shared copy of this object)
-!> \param para_env the new group
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   SUBROUTINE cp_para_env_retain(para_env)
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
-
-      CPASSERT(ASSOCIATED(para_env))
-      CPASSERT(para_env%ref_count > 0)
-      para_env%ref_count = para_env%ref_count + 1
-   END SUBROUTINE cp_para_env_retain
-
-! **************************************************************************************************
-!> \brief splits the communicator of the template para_env according to the provided color
-!> \param para_env para_env with new sub communicator
-!> \param para_env_template para_env to be split
-!> \param color all processes with same color will belong to the same sub communicator
-! **************************************************************************************************
-   SUBROUTINE cp_para_env_split(para_env, para_env_template, color)
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_template
-      INTEGER, INTENT(IN)                                :: color
-
-      TYPE(mp_comm_type)                                 :: comm
-
-      CPASSERT(para_env_template%ref_count > 0)
-      CALL comm%from_split(para_env_template%group, color)
-      NULLIFY (para_env)
-      CALL cp_para_env_create(para_env, comm)
-
-   END SUBROUTINE cp_para_env_split
 
 ! **************************************************************************************************
 !> \brief releases the para object (to be called when you don't want anymore

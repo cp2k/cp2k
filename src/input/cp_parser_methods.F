@@ -241,7 +241,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       parser%buffer%input_lines = ""
-      IF (parser%para_env%ionode) THEN
+      IF (parser%para_env%is_source()) THEN
          iline = 0
          istat = 0
          parser%buffer%buffer_id = parser%buffer%buffer_id + 1
@@ -345,12 +345,12 @@ CONTAINS
 
       para_env => parser%para_env
       IF (para_env%num_pe > 1) THEN
-         CALL para_env%group%bcast(parser%buffer%buffer_id, para_env%source)
-         CALL para_env%group%bcast(parser%buffer%present_line_number, para_env%source)
-         CALL para_env%group%bcast(parser%buffer%last_line_number, para_env%source)
-         CALL para_env%group%bcast(parser%buffer%istat, para_env%source)
-         CALL para_env%group%bcast(parser%buffer%input_line_numbers, para_env%source)
-         CALL para_env%group%bcast(parser%buffer%input_lines, para_env%source)
+         CALL para_env%bcast(parser%buffer%buffer_id, para_env%source)
+         CALL para_env%bcast(parser%buffer%present_line_number, para_env%source)
+         CALL para_env%bcast(parser%buffer%last_line_number, para_env%source)
+         CALL para_env%bcast(parser%buffer%istat, para_env%source)
+         CALL para_env%bcast(parser%buffer%input_line_numbers, para_env%source)
+         CALL para_env%bcast(parser%buffer%input_lines, para_env%source)
       END IF
 
       CALL timestop(handle)

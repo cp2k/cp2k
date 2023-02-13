@@ -3354,13 +3354,13 @@ CONTAINS
       output_unit = cp_logger_get_default_io_unit()
       CPASSERT(ASSOCIATED(donor_state))
       CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
-      group = para_env%group
+      group = para_env
       source = para_env%source
 
       file_exists = .FALSE.
       rst_unit = -1
 
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
 
          INQUIRE (FILE=filename, EXIST=file_exists)
          IF (.NOT. file_exists) CPABORT("Trying to read non-existing XAS_TDP restart file")
@@ -3416,7 +3416,7 @@ CONTAINS
       END DO
 
       !closing file
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          CALL close_file(unit_number=rst_unit)
       END IF
 

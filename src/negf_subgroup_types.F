@@ -14,9 +14,7 @@ MODULE negf_subgroup_types
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
-   USE cp_para_env,                     ONLY: cp_para_env_create,&
-                                              cp_para_env_release,&
-                                              cp_para_env_retain
+   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE message_passing,                 ONLY: mp_comm_type
    USE negf_control_types,              ONLY: negf_control_type
@@ -40,21 +38,19 @@ MODULE negf_subgroup_types
       !> If it is >1 then the global MPI communicator has actually been split into subgroups.
       !> All other components of the structure are always initialised regardless of the split status
       !> (they simply point to the corresponding global variables if no splitting has been made).
-      INTEGER                                            :: ngroups
+      INTEGER                                            :: ngroups = -1
       !> global MPI rank of the given processor. Local MPI rank can be obtained as para_env%mepos.
       !> Useful to find out the current group index by accessing the 'group_distribution' array.
-      INTEGER                                            :: mepos_global
+      INTEGER                                            :: mepos_global = -1
       !> global MPI communicator
-      TYPE(mp_comm_type)                                 :: mpi_comm_global
-      !> MPI communicator of the current parallel group
-      TYPE(mp_comm_type)                                 :: mpi_comm
+      TYPE(mp_comm_type)                                 :: mpi_comm_global = mp_comm_type()
       !> group_distribution(0:num_pe) : a process with rank 'i' belongs to the parallel group
       !> with index 'group_distribution(i)'
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: group_distribution
       !> group-specific BLACS parallel environment
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env => NULL()
       !> group-specific MPI parallel environment
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env => NULL()
    END TYPE negf_subgroup_env_type
 
 CONTAINS
@@ -86,7 +82,7 @@ CONTAINS
 
       CALL blacs_env_global%get(para_env=para_env_global)
       sub_env%mepos_global = para_env_global%mepos
-      sub_env%mpi_comm_global = para_env_global%group
+      sub_env%mpi_comm_global = para_env_global
 
       ! ++ split mpi communicator if
       !    a) the requested number of processors per group > 0 (means that the split has been requested explicitly), and
@@ -96,18 +92,18 @@ CONTAINS
       IF (is_split) THEN
          ALLOCATE (sub_env%group_distribution(0:para_env_global%num_pe - 1))
 
-         CALL sub_env%mpi_comm%from_split(comm=para_env_global%group, ngroups=sub_env%ngroups, &
+         ALLOCATE (sub_env%para_env)
+         CALL sub_env%para_env%from_split(comm=para_env_global, ngroups=sub_env%ngroups, &
                                           group_distribution=sub_env%group_distribution, subgroup_min_size=negf_control%nprocs)
 
          ! ++ create a new parallel environment based on the given sub-communicator)
-         NULLIFY (sub_env%blacs_env, sub_env%para_env)
-         CALL cp_para_env_create(sub_env%para_env, sub_env%mpi_comm)
+         NULLIFY (sub_env%blacs_env)
 
          ! use the default (SQUARE) BLACS grid layout and non-repeatable BLACS collective operations
          ! by omitting optional parameters 'blacs_grid_layout' and 'blacs_repeatable'.
          CALL cp_blacs_env_create(sub_env%blacs_env, sub_env%para_env, blacs_grid_layout, blacs_repeatable)
       ELSE
-         sub_env%mpi_comm = para_env_global%group
+         sub_env%para_env => para_env_global
          sub_env%ngroups = 1
 
          ALLOCATE (sub_env%group_distribution(0:para_env_global%num_pe - 1))
@@ -117,7 +113,7 @@ CONTAINS
          CALL sub_env%blacs_env%retain()
 
          sub_env%para_env => para_env_global
-         CALL cp_para_env_retain(sub_env%para_env)
+         CALL sub_env%para_env%retain()
       END IF
 
       CALL timestop(handle)
@@ -141,8 +137,6 @@ CONTAINS
       CALL cp_blacs_env_release(sub_env%blacs_env)
       CALL cp_para_env_release(sub_env%para_env)
 
-      ! do not need to call mp_comm_free() as the MPI sub-communicator sub_env%mpi_comm
-      ! has already been released by the subroutine cp_para_env_release()
       IF (ALLOCATED(sub_env%group_distribution)) &
          DEALLOCATE (sub_env%group_distribution)
 

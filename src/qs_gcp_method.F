@@ -244,11 +244,11 @@ CONTAINS
       CALL neighbor_list_iterator_release(nl_iterator)
 
       ! set gCP energy
-      CALL para_env%group%sum(egcp)
+      CALL para_env%sum(egcp)
       energy = egcp
       IF (verbose) THEN
-         CALL para_env%group%sum(egcpat)
-         CALL para_env%group%sum(ngcpat)
+         CALL para_env%sum(egcpat)
+         CALL para_env%sum(ngcpat)
       END IF
 
       IF (unit_nr > 0) THEN
@@ -271,7 +271,7 @@ CONTAINS
             ikind = kind_of(iatom)
             atom_a = atom_of_kind(iatom)
             fdij(1:3) = force(ikind)%gcp(:, atom_a)
-            CALL para_env%group%sum(fdij)
+            CALL para_env%sum(fdij)
             gnorm = gnorm + SUM(ABS(fdij))
             IF (unit_nr > 0) WRITE (unit_nr, "(i5,i7,3F20.14)") iatom, ikind, fdij
          END DO
@@ -282,7 +282,7 @@ CONTAINS
          END IF
          IF (use_virial) THEN
             dvirial = virial%pv_virial - dvirial
-            CALL para_env%group%sum(dvirial)
+            CALL para_env%sum(dvirial)
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, *) " Stress Tensor (gCP)"
                WRITE (unit_nr, "(3G20.12)") dvirial

@@ -627,7 +627,7 @@ CONTAINS
       ! get the maximum number of local pairs on all nodes (size of the mssg)
       ! remember how many pairs we have local
       npairs_local = npairs
-      CALL para_env%group%max(npairs)
+      CALL para_env%max(npairs)
 
       ! allocate message
       ALLOCATE (pairs(2, npairs))
@@ -641,7 +641,7 @@ CONTAINS
       ! better would be a scheme where duplicates are removed in a tree-like reduction scheme.
       ! this step can be needlessly memory intensive in the current implementation.
 
-      IF (para_env%source .EQ. para_env%mepos) THEN
+      IF (para_env%is_source()) THEN
          ALLOCATE (msg_gather(2, npairs*para_env%num_pe))
       ELSE
          ALLOCATE (msg_gather(2, 1))
@@ -649,7 +649,7 @@ CONTAINS
 
       msg_gather = 0
 
-      CALL para_env%group%gather(pairs, msg_gather, para_env%source)
+      CALL para_env%gather(pairs, msg_gather, para_env%source)
 
       DEALLOCATE (pairs)
 
@@ -695,12 +695,12 @@ CONTAINS
       !WRITE(*,'(A27,40X,I6,1X,A6)') ' KG| Vertex coloring result', ncolors, 'colors'
 
       ! broadcast the number of colors to all nodes
-      CALL para_env%group%bcast(ncolors, para_env%source)
+      CALL para_env%bcast(ncolors, para_env%source)
 
       IF (.NOT. ALLOCATED(color_of_node)) ALLOCATE (color_of_node(nmol))
 
       ! broadcast the resulting coloring to all nodes.....
-      CALL para_env%group%bcast(color_of_node, para_env%source)
+      CALL para_env%bcast(color_of_node, para_env%source)
 
       IF ((kg_env%nsubsets .NE. 0) .AND. (ncolors .NE. kg_env%nsubsets)) THEN
          ! number of subsets has changed

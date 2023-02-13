@@ -457,7 +457,7 @@ CONTAINS
             CALL cp_fm_set_all(fm_mat_RI_global_work, 0.0_dp)
             CALL copy_dbcsr_to_fm(mat_P_omega_re, fm_mat_RI_global_work)
 
-            CALL para_env%group%sync()
+            CALL para_env%sync()
 
             IF (ikp_local == jkp) THEN
                CALL cp_fm_copy_general(fm_mat_RI_global_work, fm_mat_work, para_env)
@@ -465,7 +465,7 @@ CONTAINS
                CALL cp_fm_copy_general(fm_mat_RI_global_work, fm_dummy, para_env)
             END IF
 
-            CALL para_env%group%sync()
+            CALL para_env%sync()
 
          END DO
 
@@ -480,7 +480,7 @@ CONTAINS
             CALL cp_fm_set_all(fm_mat_RI_global_work, 0.0_dp)
             CALL copy_dbcsr_to_fm(mat_P_omega_im, fm_mat_RI_global_work)
 
-            CALL para_env%group%sync()
+            CALL para_env%sync()
 
             IF (ikp_local == jkp) THEN
                CALL cp_fm_copy_general(fm_mat_RI_global_work, fm_mat_work, para_env)
@@ -488,7 +488,7 @@ CONTAINS
                CALL cp_fm_copy_general(fm_mat_RI_global_work, fm_dummy, para_env)
             END IF
 
-            CALL para_env%group%sync()
+            CALL para_env%sync()
 
          END DO
 
@@ -498,7 +498,7 @@ CONTAINS
 
       END IF
 
-      CALL para_env%group%sync()
+      CALL para_env%sync()
 
       CALL timestop(handle)
 
@@ -554,7 +554,7 @@ CONTAINS
             END IF
          END DO
       END DO
-      CALL para_env%group%sum(trace_Qomega)
+      CALL para_env%sum(trace_Qomega)
 
       CALL cp_cfm_to_cfm(cfm_mat_Q, cfm_mat_Q_tmp)
 
@@ -619,7 +619,7 @@ CONTAINS
             END IF
          END DO
       END DO
-      CALL para_env%group%sum(Q_log)
+      CALL para_env%sum(Q_log)
 
       FComega = 0.0_dp
       DO iiB = 1, dimen_RI
@@ -1160,7 +1160,7 @@ CONTAINS
 
          DO jkp = 1, nkp
 
-            CALL para_env%group%sync()
+            CALL para_env%sync()
 
             IF (ikp_local == jkp) THEN
                CALL cp_fm_copy_general(fm_mat_work_local, fm_mat_work_global, para_env)
@@ -1168,7 +1168,7 @@ CONTAINS
                CALL cp_fm_copy_general(fm_dummy, fm_mat_work_global, para_env)
             END IF
 
-            CALL para_env%group%sync()
+            CALL para_env%sync()
 
             DO iquad = 1, num_integ_points
 

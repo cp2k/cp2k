@@ -643,7 +643,7 @@ CONTAINS
 
       IF (calculate_forces) THEN
          DO ikind = 1, SIZE(atomic_kind_set)
-            CALL para_env%group%sum(force(ikind)%efield)
+            CALL para_env%sum(force(ikind)%efield)
          END DO
          DEALLOCATE (cosab, sinab, work, dcosab, dsinab)
          DO i = 1, 3
@@ -1138,7 +1138,7 @@ CONTAINS
 
       IF (calculate_forces) THEN
          DO ikind = 1, SIZE(atomic_kind_set)
-            CALL para_env%group%sum(force(ikind)%efield)
+            CALL para_env%sum(force(ikind)%efield)
          END DO
          DEALLOCATE (force_tmp)
          DEALLOCATE (cosab, sinab, work, dcosab, dsinab)

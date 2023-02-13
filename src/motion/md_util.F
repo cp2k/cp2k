@@ -124,7 +124,7 @@ CONTAINS
                                                    my_local=.FALSE.)
       END IF
       ! read file
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          INQUIRE (FILE=filename, exist=exist)
          IF (.NOT. exist) THEN
             CPABORT("File "//filename//" is not found.")
@@ -148,11 +148,11 @@ CONTAINS
       END IF
       ! broadcast to all compulational nodes. note that it is assumed
       ! that source is the ionode
-      CALL para_env%group%bcast(dof, para_env%source)
-      CALL para_env%group%bcast(eigenvalues, para_env%source)
-      CALL para_env%group%bcast(eigenvectors, para_env%source)
+      CALL para_env%bcast(dof, para_env%source)
+      CALL para_env%bcast(eigenvalues, para_env%source)
+      CALL para_env%bcast(eigenvectors, para_env%source)
       ! close file
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          CALL close_file(unit_number=unit_nr)
       END IF
    END SUBROUTINE read_vib_eigs_unformatted

@@ -158,7 +158,7 @@ CONTAINS
       CALL add_mp_perf_env()
 
       ! Init the default logger
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          my_output_unit = output_unit
       ELSE
          my_output_unit = -1
@@ -247,11 +247,11 @@ CONTAINS
       all_pid(:) = 0
       all_pid(para_env%mepos + 1) = r_pid
 
-      CALL para_env%group%sum(all_pid)
+      CALL para_env%sum(all_pid)
       ALLOCATE (all_host(30, para_env%num_pe))
       all_host(:, :) = 0
       CALL string_to_ascii(r_host_name, all_host(:, para_env%mepos + 1))
-      CALL para_env%group%sum(all_host)
+      CALL para_env%sum(all_host)
       IF (output_unit > 0) THEN
 
          WRITE (UNIT=output_unit, FMT="(T2,A)") ""
@@ -287,7 +287,7 @@ CONTAINS
 
       IF (m_procrun(r_pid) .EQ. 1) THEN
          CALL string_to_ascii(r_host_name, all_host(:, para_env%mepos + 1))
-         CALL para_env%group%sum(all_host)
+         CALL para_env%sum(all_host)
       END IF
 
       IF (output_unit > 0) THEN
@@ -433,7 +433,7 @@ CONTAINS
       iw = cp_print_key_unit_nr(logger, root_section, "GLOBAL%PRINT/RNG_CHECK", &
                                 extension=".Log")
       IF (iw > 0) THEN
-         CALL check_rng(iw, para_env%ionode)
+         CALL check_rng(iw, para_env%is_source())
       END IF
 
       CALL cp_print_key_finished_output(iw, logger, root_section, &
@@ -563,7 +563,7 @@ CONTAINS
 
       IF (trace .AND. (.NOT. trace_master .OR. para_env%mepos == 0)) THEN
          unit_nr = -1
-         IF (logger%para_env%ionode .OR. .NOT. trace_master) &
+         IF (logger%para_env%is_source() .OR. .NOT. trace_master) &
             unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
          WRITE (tracing_string, "(I6.6,A1,I6.6)") para_env%mepos, ":", para_env%num_pe
          IF (ASSOCIATED(trace_routines)) THEN
@@ -644,13 +644,13 @@ CONTAINS
       Slab_avr = Slab
       SReclaimable_avr = SReclaimable
       MemLikelyFree_avr = MemLikelyFree
-      CALL para_env%group%sum(MemTotal_avr); MemTotal_avr = MemTotal_avr/para_env%num_pe/1024
-      CALL para_env%group%sum(MemFree_avr); MemFree_avr = MemFree_avr/para_env%num_pe/1024
-      CALL para_env%group%sum(Buffers_avr); Buffers_avr = Buffers_avr/para_env%num_pe/1024
-      CALL para_env%group%sum(Cached_avr); Cached_avr = Cached_avr/para_env%num_pe/1024
-      CALL para_env%group%sum(Slab_avr); Slab_avr = Slab_avr/para_env%num_pe/1024
-      CALL para_env%group%sum(SReclaimable_avr); SReclaimable_avr = SReclaimable_avr/para_env%num_pe/1024
-      CALL para_env%group%sum(MemLikelyFree_avr); MemLikelyFree_avr = MemLikelyFree_avr/para_env%num_pe/1024
+      CALL para_env%sum(MemTotal_avr); MemTotal_avr = MemTotal_avr/para_env%num_pe/1024
+      CALL para_env%sum(MemFree_avr); MemFree_avr = MemFree_avr/para_env%num_pe/1024
+      CALL para_env%sum(Buffers_avr); Buffers_avr = Buffers_avr/para_env%num_pe/1024
+      CALL para_env%sum(Cached_avr); Cached_avr = Cached_avr/para_env%num_pe/1024
+      CALL para_env%sum(Slab_avr); Slab_avr = Slab_avr/para_env%num_pe/1024
+      CALL para_env%sum(SReclaimable_avr); SReclaimable_avr = SReclaimable_avr/para_env%num_pe/1024
+      CALL para_env%sum(MemLikelyFree_avr); MemLikelyFree_avr = MemLikelyFree_avr/para_env%num_pe/1024
 
       MemTotal_min = -MemTotal
       MemFree_min = -MemFree
@@ -659,13 +659,13 @@ CONTAINS
       Slab_min = -Slab
       SReclaimable_min = -SReclaimable
       MemLikelyFree_min = -MemLikelyFree
-      CALL para_env%group%max(MemTotal_min); MemTotal_min = -MemTotal_min/1024
-      CALL para_env%group%max(MemFree_min); MemFree_min = -MemFree_min/1024
-      CALL para_env%group%max(Buffers_min); Buffers_min = -Buffers_min/1024
-      CALL para_env%group%max(Cached_min); Cached_min = -Cached_min/1024
-      CALL para_env%group%max(Slab_min); Slab_min = -Slab_min/1024
-      CALL para_env%group%max(SReclaimable_min); SReclaimable_min = -SReclaimable_min/1024
-      CALL para_env%group%max(MemLikelyFree_min); MemLikelyFree_min = -MemLikelyFree_min/1024
+      CALL para_env%max(MemTotal_min); MemTotal_min = -MemTotal_min/1024
+      CALL para_env%max(MemFree_min); MemFree_min = -MemFree_min/1024
+      CALL para_env%max(Buffers_min); Buffers_min = -Buffers_min/1024
+      CALL para_env%max(Cached_min); Cached_min = -Cached_min/1024
+      CALL para_env%max(Slab_min); Slab_min = -Slab_min/1024
+      CALL para_env%max(SReclaimable_min); SReclaimable_min = -SReclaimable_min/1024
+      CALL para_env%max(MemLikelyFree_min); MemLikelyFree_min = -MemLikelyFree_min/1024
 
       MemTotal_max = MemTotal
       MemFree_max = MemFree
@@ -674,13 +674,13 @@ CONTAINS
       Slab_max = Slab
       SReclaimable_max = SReclaimable
       MemLikelyFree_max = MemLikelyFree
-      CALL para_env%group%max(MemTotal_max); MemTotal_max = MemTotal_max/1024
-      CALL para_env%group%max(MemFree_max); MemFree_max = MemFree_max/1024
-      CALL para_env%group%max(Buffers_max); Buffers_max = Buffers_max/1024
-      CALL para_env%group%max(Cached_max); Cached_max = Cached_max/1024
-      CALL para_env%group%max(Slab_max); Slab_max = Slab_max/1024
-      CALL para_env%group%max(SReclaimable_max); SReclaimable_max = SReclaimable_max/1024
-      CALL para_env%group%max(MemLikelyFree_max); MemLikelyFree_max = MemLikelyFree_max/1024
+      CALL para_env%max(MemTotal_max); MemTotal_max = MemTotal_max/1024
+      CALL para_env%max(MemFree_max); MemFree_max = MemFree_max/1024
+      CALL para_env%max(Buffers_max); Buffers_max = Buffers_max/1024
+      CALL para_env%max(Cached_max); Cached_max = Cached_max/1024
+      CALL para_env%max(Slab_max); Slab_max = Slab_max/1024
+      CALL para_env%max(SReclaimable_max); SReclaimable_max = SReclaimable_max/1024
+      CALL para_env%max(MemLikelyFree_max); MemLikelyFree_max = MemLikelyFree_max/1024
 
       MemTotal = MemTotal/1024
       MemFree = MemFree/1024
@@ -1251,7 +1251,7 @@ CONTAINS
             WRITE (UNIT=iw, FMT="()")
             WRITE (UNIT=iw, FMT="(T2,A)") "-------------------------------------------------------------------------------"
          END IF
-         IF (cg_mode == CALLGRAPH_ALL .OR. para_env%ionode) &
+         IF (cg_mode == CALLGRAPH_ALL .OR. para_env%is_source()) &
             CALL timings_report_callgraph(TRIM(cg_filename)//".callgraph")
       END IF
 
@@ -1261,7 +1261,7 @@ CONTAINS
       CALL rm_mp_perf_env()
       CALL rm_timer_env()
 
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          iw = cp_print_key_unit_nr(logger, root_section, "GLOBAL%PROGRAM_RUN_INFO", &
                                    extension=".log")
 

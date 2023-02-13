@@ -21,8 +21,7 @@ MODULE qs_ks_types
    USE cp_control_types,                ONLY: dft_control_release,&
                                               dft_control_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
-   USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                              cp_para_env_retain
+   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_types,                 ONLY: cp_result_type
    USE cp_subsys_types,                 ONLY: cp_subsys_type
@@ -687,7 +686,7 @@ CONTAINS
          ks_env%pw_env => pw_env
       END IF
       IF (PRESENT(para_env)) THEN
-         CALL cp_para_env_retain(para_env)
+         CALL para_env%retain()
          CALL cp_para_env_release(ks_env%para_env)
          ks_env%para_env => para_env
       END IF

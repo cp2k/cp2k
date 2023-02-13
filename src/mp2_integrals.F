@@ -431,7 +431,7 @@ CONTAINS
          CALL m_flush(unit_nr)
       END IF
 
-      CALL para_env%group%sync() ! sync to see memory output
+      CALL para_env%sync() ! sync to see memory output
 
       ! in case we do imaginary time, we need the overlap tensor (alpha beta P) or trunc. Coulomb tensor
       IF (.NOT. do_im_time) THEN
@@ -542,7 +542,7 @@ CONTAINS
                END DO
                CALL contract_B_L(BIb_C(ispin)%array, my_Lrows, gd_B_virtual(ispin)%sizes, &
                                  gd_array%sizes, qs_env%mp2_env%eri_blksize, &
-                                 ngroup, color_sub, para_env%group, para_env_sub)
+                                 ngroup, color_sub, para_env, para_env_sub)
             END DO
 
             IF (my_do_gw) THEN
@@ -555,7 +555,7 @@ CONTAINS
                                                my_B_all_end, my_B_all_start)
                   END DO
                   CALL contract_B_L(BIb_C_gw(ispin)%array, my_Lrows, gd_B_all%sizes, gd_array%sizes, qs_env%mp2_env%eri_blksize, &
-                                    ngroup, color_sub, para_env%group, para_env_sub)
+                                    ngroup, color_sub, para_env, para_env_sub)
                END DO
             END IF
 
@@ -569,7 +569,7 @@ CONTAINS
                                             my_B_all_end, my_B_all_start)
                END DO
                CALL contract_B_L(BIb_C_bse_ab, my_Lrows, gd_B_virt_bse%sizes, gd_array%sizes, qs_env%mp2_env%eri_blksize, &
-                                 ngroup, color_sub, para_env%group, para_env_sub)
+                                 ngroup, color_sub, para_env, para_env_sub)
 
                ! B^ij_P matrix elements for BSE
                DO LLL = 1, my_group_L_size
@@ -579,7 +579,7 @@ CONTAINS
                                             my_B_occ_bse_end, my_B_occ_bse_start)
                END DO
                CALL contract_B_L(BIb_C_bse_ij, my_Lrows, gd_B_occ_bse%sizes, gd_array%sizes, qs_env%mp2_env%eri_blksize, &
-                                 ngroup, color_sub, para_env%group, para_env_sub)
+                                 ngroup, color_sub, para_env, para_env_sub)
 
             END IF
 
@@ -661,7 +661,7 @@ CONTAINS
          CALL get_qs_env(qs_env, natom=natom, nkind=nkind, dft_control=dft_control)
 
          pdims_t3c = 0
-         CALL dbt_pgrid_create(para_env%group, pdims_t3c, pgrid_t3c_overl)
+         CALL dbt_pgrid_create(para_env, pdims_t3c, pgrid_t3c_overl)
 
          ! set up basis
          ALLOCATE (sizes_RI(natom), sizes_AO(natom))
@@ -740,7 +740,7 @@ CONTAINS
          CALL pgf_block_sizes(atomic_kind_set, basis_set_ri_aux, min_bsize, sizes_RI_split)
 
          pdims_t3c = 0
-         CALL dbt_pgrid_create(para_env%group, pdims_t3c, pgrid_t3c_M)
+         CALL dbt_pgrid_create(para_env, pdims_t3c, pgrid_t3c_M)
 
          ASSOCIATE (cut_memory => qs_env%mp2_env%ri_rpa_im_time%cut_memory)
             CALL create_tensor_batches(sizes_AO_split, cut_memory, starts_array_mc, ends_array_mc, &
@@ -852,7 +852,7 @@ CONTAINS
             END DO
          END DO
 
-         CALL para_env%group%sum(memory_3c)
+         CALL para_env%sum(memory_3c)
 
          compression_factor = REAL(nze, dp)*1.0E-06*8.0_dp/memory_3c
 
@@ -903,7 +903,8 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: sizes_B, sizes_L
       INTEGER, DIMENSION(2), INTENT(IN)                  :: blk_size
       INTEGER, INTENT(IN)                                :: ngroup, igroup
-      TYPE(mp_comm_type)                                 :: mp_comm
+
+      CLASS(mp_comm_type), INTENT(IN)                    :: mp_comm
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'contract_B_L'
@@ -1128,7 +1129,7 @@ CONTAINS
                           col_indices=col_indices)
 
       intermed_mat%max_row_col_local = MAX(nrow_local, ncol_local)
-      CALL para_env_sub%group%max(intermed_mat%max_row_col_local)
+      CALL para_env_sub%max(intermed_mat%max_row_col_local)
 
       ALLOCATE (intermed_mat%local_col_row_info(0:intermed_mat%max_row_col_local, 2))
       intermed_mat%local_col_row_info = 0
@@ -1433,7 +1434,7 @@ CONTAINS
 
             ! first exchange information on the local data
             rec_col_row_info = 0
-            CALL para_env_sub%group%sendrecv(local_col_row_info, proc_send, rec_col_row_info, proc_receive)
+            CALL para_env_sub%sendrecv(local_col_row_info, proc_send, rec_col_row_info, proc_receive)
             nrow_rec = rec_col_row_info(0, 1)
             ncol_rec = rec_col_row_info(0, 2)
 
@@ -1447,7 +1448,7 @@ CONTAINS
             rec_BI = 0.0_dp
 
             ! then send and receive the real data
-            CALL para_env_sub%group%sendrecv(local_BI, proc_send, rec_BI, proc_receive)
+            CALL para_env_sub%sendrecv(local_BI, proc_send, rec_BI, proc_receive)
 
             ! accumulate the received data on BIb_jb buffer
             DO jjB = 1, ncol_rec

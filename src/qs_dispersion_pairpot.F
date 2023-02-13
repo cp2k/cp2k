@@ -47,7 +47,6 @@ MODULE qs_dispersion_pairpot
                                               dp
    USE mathconstants,                   ONLY: twopi
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_comm_type
    USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: bohr,&
@@ -1304,7 +1303,7 @@ CONTAINS
 
       debugx = dispersion_env%verbose
       debugall = debugx
-      debug = debugx .AND. para_env%ionode
+      debug = debugx .AND. para_env%is_source()
       nkind = SIZE(atomic_kind_set)
 
       NULLIFY (logger)
@@ -1471,7 +1470,7 @@ CONTAINS
          CALL d3_cnumber(qs_env, dispersion_env, cnumbers, dcnum, ghost, floating, atomnumber, &
                          calculate_forces, debugall)
 
-         CALL para_env%group%sum(cnumbers)
+         CALL para_env%sum(cnumbers)
          ! for parallel runs we have to update dcnum on all processors
          IF (calculate_forces .OR. debugall) THEN
             CALL dcnum_distribute(dcnum, para_env)
@@ -2052,7 +2051,7 @@ CONTAINS
                END DO
             END DO
             IF (use_virial) THEN
-               IF (para_env%ionode) THEN
+               IF (para_env%is_source()) THEN
                   DO i = 1, 3
                      virial%pv_virial(i, i) = virial%pv_virial(i, i) + (elrc6 + elrc8 + 2._dp*elrc9)
                   END DO
@@ -2079,17 +2078,17 @@ CONTAINS
       END IF
 
       ! set dispersion energy
-      CALL para_env%group%sum(evdw)
+      CALL para_env%sum(evdw)
       evdw = evdw + (elrc6 + elrc8 + elrc9)
       energy = evdw
 
       IF ((dispersion_env%pp_type == vdw_pairpot_dftd3 .OR. &
            dispersion_env%pp_type == vdw_pairpot_dftd3bj) .AND. debugall) THEN
-         CALL para_env%group%sum(e6tot)
-         CALL para_env%group%sum(e8tot)
-         CALL para_env%group%sum(e9tot)
-         CALL para_env%group%sum(nab)
-         CALL para_env%group%sum(nabc)
+         CALL para_env%sum(e6tot)
+         CALL para_env%sum(e8tot)
+         CALL para_env%sum(e9tot)
+         CALL para_env%sum(nab)
+         CALL para_env%sum(nabc)
          e6tot = e6tot + elrc6
          e8tot = e8tot + elrc8
          e9tot = e9tot + elrc9
@@ -2123,7 +2122,7 @@ CONTAINS
             ikind = kind_of(iatom)
             atom_a = atom_of_kind(iatom)
             fdij(1:3) = force(ikind)%dispersion(:, atom_a)
-            CALL para_env%group%sum(fdij)
+            CALL para_env%sum(fdij)
             gnorm = gnorm + SUM(ABS(fdij))
             IF (unit_nr > 0) WRITE (unit_nr, "(i5,i7,3F20.14)") iatom, ikind, fdij
          END DO
@@ -2134,7 +2133,7 @@ CONTAINS
          END IF
          IF (use_virial) THEN
             dvirial = virial%pv_virial - dvirial
-            CALL para_env%group%sum(dvirial)
+            CALL para_env%sum(dvirial)
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, *) "Stress Tensor (dispersion)"
                WRITE (unit_nr, "(3G20.12)") dvirial
@@ -2263,19 +2262,19 @@ CONTAINS
                                                             nlines, nn
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: pars
 
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          ! Read the DFT-D3 C6AB parameters from file "filename"
          CALL open_file(file_name=filename, unit_number=funit, file_form="FORMATTED")
          READ (funit, *) nl, nlines
       END IF
-      CALL para_env%group%bcast(nl, para_env%source)
-      CALL para_env%group%bcast(nlines, para_env%source)
+      CALL para_env%bcast(nl, para_env%source)
+      CALL para_env%bcast(nlines, para_env%source)
       ALLOCATE (pars(nl))
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          READ (funit, *) pars(1:nl)
          CALL close_file(unit_number=funit)
       END IF
-      CALL para_env%group%bcast(pars, para_env%source)
+      CALL para_env%bcast(pars, para_env%source)
 
       ! Store C6AB coefficients in an array
       c6ab = -1._dp
@@ -3352,12 +3351,10 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: list, nloc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dvals
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rik
-      TYPE(mp_comm_type)                                 :: group
 
 ! we only have to do something if this is a parallel run
 
       IF (para_env%num_pe > 1) THEN
-         group = para_env%group
          natom = SIZE(dcnum)
          !pack my dcnum data
          ALLOCATE (nloc(natom))
@@ -3366,7 +3363,7 @@ CONTAINS
          END DO
          ntot = SUM(nloc)
          ntmax = ntot
-         CALL group%max(ntmax)
+         CALL para_env%max(ntmax)
          ALLOCATE (list(ntmax), dvals(ntmax), rik(3, ntmax))
          list = 0
          dvals = 0._dp
@@ -3382,11 +3379,11 @@ CONTAINS
          END DO
          DO ipe = 1, para_env%num_pe - 1
             !send/receive packed data
-            CALL group%shift(nloc)
+            CALL para_env%shift(nloc)
             !unpack received data
-            CALL group%shift(list)
-            CALL group%shift(dvals)
-            CALL group%shift(rik)
+            CALL para_env%shift(list)
+            CALL para_env%shift(dvals)
+            CALL para_env%shift(rik)
             !add data to local dcnum
             i = 0
             DO ia = 1, natom

@@ -1334,7 +1334,7 @@ CONTAINS
             IF (para_env%mepos == 0) THEN
                CALL open_file(unit_number=unit_id, file_name=potential_parameter%filename)
             END IF
-            CALL init(m_max, unit_id, para_env%mepos, para_env%group)
+            CALL init(m_max, unit_id, para_env%mepos, para_env)
             IF (para_env%mepos == 0) THEN
                CALL close_file(unit_id)
             END IF
@@ -1962,7 +1962,7 @@ CONTAINS
             IF (para_env%mepos == 0) THEN
                CALL open_file(unit_number=unit_id, file_name=potential_parameter%filename)
             END IF
-            CALL init(m_max, unit_id, para_env%mepos, para_env%group)
+            CALL init(m_max, unit_id, para_env%mepos, para_env)
             IF (para_env%mepos == 0) THEN
                CALL close_file(unit_id)
             END IF
@@ -2391,7 +2391,7 @@ CONTAINS
             IF (para_env%mepos == 0) THEN
                CALL open_file(unit_number=unit_id, file_name=potential_parameter%filename)
             END IF
-            CALL init(m_max, unit_id, para_env%mepos, para_env%group)
+            CALL init(m_max, unit_id, para_env%mepos, para_env)
             IF (para_env%mepos == 0) THEN
                CALL close_file(unit_id)
             END IF
@@ -2625,7 +2625,7 @@ CONTAINS
             IF (para_env%mepos == 0) THEN
                CALL open_file(unit_number=unit_id, file_name=potential_parameter%filename)
             END IF
-            CALL init(m_max, unit_id, para_env%mepos, para_env%group)
+            CALL init(m_max, unit_id, para_env%mepos, para_env)
             IF (para_env%mepos == 0) THEN
                CALL close_file(unit_id)
             END IF

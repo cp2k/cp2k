@@ -232,9 +232,9 @@ SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
                END IF
                ! some callers expect pres_int to be available on all ranks. Also, here master is not necessarily a single rank.
                ! Assume at least master==0
-               CALL para_env%group%bcast(gopt_env%cell_env%pres_int, 0)
+               CALL para_env%bcast(gopt_env%cell_env%pres_int, 0)
                IF (gopt_env%cell_env%constraint_id /= fix_none) &
-                  CALL para_env%group%bcast(gopt_env%cell_env%pres_constr, 0)
+                  CALL para_env%bcast(gopt_env%cell_env%pres_constr, 0)
             END IF
          END BLOCK
       CASE (default_cell_geo_opt_id, default_cell_md_id)
@@ -324,9 +324,9 @@ SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
                END IF
                ! some callers expect pres_int to be available on all ranks. Also, here master is not necessarily a single rank.
                ! Assume at least master==0
-               CALL para_env%group%bcast(gopt_env%cell_env%pres_int, 0)
+               CALL para_env%bcast(gopt_env%cell_env%pres_int, 0)
                IF (gopt_env%cell_env%constraint_id /= fix_none) &
-                  CALL para_env%group%bcast(gopt_env%cell_env%pres_constr, 0)
+                  CALL para_env%bcast(gopt_env%cell_env%pres_constr, 0)
             END IF
          END BLOCK
       CASE DEFAULT

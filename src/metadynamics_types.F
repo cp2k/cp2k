@@ -11,8 +11,7 @@
 !>      01.2005 created [fawzi and ale]
 ! **************************************************************************************************
 MODULE metadynamics_types
-   USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                              cp_para_env_retain
+   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
@@ -162,7 +161,7 @@ CONTAINS
       meta_env%restart = .TRUE.
       meta_env%n_colvar = n_colvar
       meta_env%para_env => para_env
-      CALL cp_para_env_retain(para_env)
+      CALL para_env%retain()
 
       meta_env%ekin_s = 0.0_dp
       meta_env%epot_s = 0.0_dp

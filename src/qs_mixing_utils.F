@@ -623,8 +623,8 @@ CONTAINS
             DO ig = 1, ng
                g2max = MAX(g2max, g2(ig))
             END DO
-            CALL para_env%group%min(g2min)
-            CALL para_env%group%max(g2max)
+            CALL para_env%min(g2min)
+            CALL para_env%max(g2max)
             ! fdamp/g2 varies between (bconst-1) and 0
             ! i.e. p_metric varies between bconst and 1
             ! fdamp = (bconst-1.0_dp)*g2min
@@ -653,7 +653,7 @@ CONTAINS
             DO ig = 1, ng
                IF (g2(ig) > 1.E-10_dp) g2min = MIN(g2min, g2(ig))
             END DO
-            CALL para_env%group%min(g2min)
+            CALL para_env%min(g2min)
             fdamp = (bconst - 1.0_dp)*g2min
             DO ig = 1, ng
                mixing_store%p_metric(ig) = (g2(ig) + fdamp)/MAX(g2(ig), 1.E-10_dp)
@@ -673,7 +673,7 @@ CONTAINS
                   mixing_store%ig_global_index(ig) = ig_count
                END DO
             END IF
-            CALL para_env%group%bcast(ig_count, iproc)
+            CALL para_env%bcast(ig_count, iproc)
          END DO
       END IF
 

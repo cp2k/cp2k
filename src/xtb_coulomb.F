@@ -316,8 +316,8 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
                       force=force, para_env=para_env)
-      CALL para_env%group%sum(gmcharge(:, 1))
-      CALL para_env%group%sum(gchrg(:, :, 1))
+      CALL para_env%sum(gmcharge(:, 1))
+      CALL para_env%sum(gchrg(:, :, 1))
 
       IF (xtb_control%coulomb_lr) THEN
          IF (do_ewald) THEN

@@ -286,11 +286,11 @@ CONTAINS
       END IF
 
       CALL get_qs_env(qs_env, para_env=para_env)
-      CALL para_env%group%sum(nntot)
-      CALL para_env%group%sum(nnlist)
-      CALL para_env%group%sum(nncell)
+      CALL para_env%sum(nntot)
+      CALL para_env%sum(nnlist)
+      CALL para_env%sum(nncell)
 
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          ! Write the Wannier90 input file "seed_name.win"
          WRITE (filename, '(A,A)') TRIM(seed_name), ".win"
          CALL open_file(filename, unit_number=iunit, file_status="UNKNOWN", file_action="WRITE")
@@ -360,7 +360,7 @@ CONTAINS
       !
       ! Calculate and print Overlaps
       !
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          WRITE (filename, '(A,A)') TRIM(seed_name), ".mmn"
          CALL open_file(filename, unit_number=iunit, file_status="UNKNOWN", file_action="WRITE")
          CALL m_datum(datx)
@@ -507,14 +507,14 @@ CONTAINS
                CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, fmk1(2), fm_tmp, -1.0_dp, mmn_imag)
                !
                ! write to output file
-               IF (para_env%ionode) THEN
+               IF (para_env%is_source()) THEN
                   WRITE (iunit, "(2I8,3I5)") ik, ik2, nncell(1:3, ik, i)
                END IF
                DO ib2 = 1, nmo
                   DO ib1 = 1, nmo
                      CALL cp_fm_get_element(mmn_real, ib1, ib2, rmmn)
                      CALL cp_fm_get_element(mmn_imag, ib1, ib2, cmmn)
-                     IF (para_env%ionode) THEN
+                     IF (para_env%is_source()) THEN
                         WRITE (iunit, "(2E30.14)") rmmn, cmmn
                      END IF
                   END DO
@@ -540,7 +540,7 @@ CONTAINS
       CALL dbcsr_deallocate_matrix(rmatrix)
       CALL dbcsr_deallocate_matrix(cmatrix)
       !
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          CALL close_file(iunit)
       END IF
       !
@@ -552,7 +552,7 @@ CONTAINS
       CALL get_mo_set(kp%mos(1, 1), nmo=nmo)
       ALLOCATE (eigval(nmo))
       CALL get_kpoint_info(kpoint, nkp=nkp, kp_range=kp_range, xkp=xkp)
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          WRITE (filename, '(A,A)') TRIM(seed_name), ".eig"
          CALL open_file(filename, unit_number=iunit, file_status="UNKNOWN", file_action="WRITE")
       ELSE
@@ -570,7 +570,7 @@ CONTAINS
             ELSE
                eigval(1:nmo) = 0.0_dp
             END IF
-            CALL kpoint%para_env_inter_kp%group%sum(eigval)
+            CALL kpoint%para_env_inter_kp%sum(eigval)
             eigval(1:nmo) = eigval(1:nmo)*evolt
             ! output
             IF (iunit > 0) THEN
@@ -580,7 +580,7 @@ CONTAINS
             END IF
          END DO
       END DO
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          CALL close_file(iunit)
       END IF
       !

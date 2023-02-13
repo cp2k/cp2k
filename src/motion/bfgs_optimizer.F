@@ -497,7 +497,7 @@ CONTAINS
             dg(l) = dg(l) + local_data(i, k)*g(j)
          END DO
       END DO
-      CALL para_env%group%sum(dg)
+      CALL para_env%sum(dg)
 
       set = .FALSE.
 
@@ -657,7 +657,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL para_env%group%sum(work)
+      CALL para_env%sum(work)
 
       gdx = DDOT(ndf, dg, 1, dx, 1)
       gdx = one/gdx
@@ -790,7 +790,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL para_env%group%sum(dr)
+      CALL para_env%sum(dr)
 
    END SUBROUTINE geoopt_get_step
 
@@ -879,7 +879,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL para_env%group%sum(work)
+      CALL para_env%sum(work)
       ener2 = DDOT(ndf, dr, 1, work, 1)
       pred = ener1 + 0.5_dp*ener2
       conv = .FALSE.
@@ -1044,7 +1044,7 @@ CONTAINS
       fixed = 1.0_dp
       CALL fix_atom_control(force_env, fixed)
       DO i = 1, 3
-         CALL hess_mat%matrix_struct%para_env%group%min(fixed(i, :))
+         CALL hess_mat%matrix_struct%para_env%min(fixed(i, :))
       END DO
       rho_ij = 0
       !XXXX insert proper rows !XXX

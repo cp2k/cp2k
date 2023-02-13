@@ -554,49 +554,49 @@ CONTAINS
                IF (is_not_associated) THEN
                   zero_coeff = 0.0_dp; tmp_coeff => zero_coeff
                END IF
-               CALL para_env%group%sum(tmp_coeff)
+               CALL para_env%sum(tmp_coeff)
 
                tmp_coeff => jrho1_atom_set(iatom)%cjc0_s(ispin)%r_coef
                IF (is_not_associated) THEN
                   zero_coeff = 0.0_dp; tmp_coeff => zero_coeff
                END IF
-               CALL para_env%group%sum(tmp_coeff)
+               CALL para_env%sum(tmp_coeff)
 
                tmp_coeff => jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef
                IF (is_not_associated) THEN
                   zero_coeff = 0.0_dp; tmp_coeff => zero_coeff
                END IF
 
-               CALL para_env%group%sum(tmp_coeff)
+               CALL para_env%sum(tmp_coeff)
                tmp_coeff => jrho1_atom_set(iatom)%cjc_s(ispin)%r_coef
                IF (is_not_associated) THEN
                   zero_coeff = 0.0_dp; tmp_coeff => zero_coeff
                END IF
-               CALL para_env%group%sum(tmp_coeff)
+               CALL para_env%sum(tmp_coeff)
 
                tmp_coeff => jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef
                IF (is_not_associated) THEN
                   zero_coeff = 0.0_dp; tmp_coeff => zero_coeff
                END IF
-               CALL para_env%group%sum(tmp_coeff)
+               CALL para_env%sum(tmp_coeff)
 
                tmp_coeff => jrho1_atom_set(iatom)%cjc_ii_s(ispin)%r_coef
                IF (is_not_associated) THEN
                   zero_coeff = 0.0_dp; tmp_coeff => zero_coeff
                END IF
-               CALL para_env%group%sum(tmp_coeff)
+               CALL para_env%sum(tmp_coeff)
 
                tmp_coeff => jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef
                IF (is_not_associated) THEN
                   zero_coeff = 0.0_dp; tmp_coeff => zero_coeff
                END IF
-               CALL para_env%group%sum(tmp_coeff)
+               CALL para_env%sum(tmp_coeff)
 
                tmp_coeff => jrho1_atom_set(iatom)%cjc_iii_s(ispin)%r_coef
                IF (is_not_associated) THEN
                   zero_coeff = 0.0_dp; tmp_coeff => zero_coeff
                END IF
-               CALL para_env%group%sum(tmp_coeff)
+               CALL para_env%sum(tmp_coeff)
 
                IF (ASSOCIATED(jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef)) &
                   nbr_dbl = nbr_dbl + 8.0_dp*REAL(SIZE(jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef), dp)

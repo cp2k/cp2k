@@ -84,7 +84,7 @@ CONTAINS
       logger => cp_get_default_logger()
       my_label = "PINT|"
 
-      IF (logger%para_env%ionode) THEN
+      IF (logger%para_env%is_source()) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger)
          WRITE (unit_nr, '(T2,A)') TRIM(my_label)//" "//TRIM(line)
       END IF
@@ -503,7 +503,7 @@ CONTAINS
             RETURN
          END IF
 
-         ! cp_print_key_unit_nr returns -1 on nodes other than logger%para_env%ionode
+         ! cp_print_key_unit_nr returns -1 on nodes other than logger%para_env%is_source()
          IF (unit_nr > 0) THEN
 
             ! please keep the format explanation up to date
@@ -579,7 +579,7 @@ CONTAINS
             RETURN
          END IF
 
-         ! cp_print_key_unit_nr returns -1 on nodes other than logger%para_env%ionode
+         ! cp_print_key_unit_nr returns -1 on nodes other than logger%para_env%is_source()
          IF (unit_nr > 0) THEN
 
             ! please keep the format explanation up to date
@@ -650,7 +650,7 @@ CONTAINS
       msgstr = TRIM(ADJUSTL(msgstr))//" "//TRIM(ADJUSTL(stmp))
       msgstr = TRIM(ADJUSTL(msgstr))//" "//TRIM(ADJUSTL(time_unit))//"."
 
-      IF (logger%para_env%ionode) THEN
+      IF (logger%para_env%is_source()) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger)
          WRITE (unit_nr, '(T2,A)') "PINT| "//TRIM(ADJUSTL(msgstr))
       END IF
@@ -659,7 +659,7 @@ CONTAINS
       stmp = ""
       WRITE (stmp, *) pint_env%energy(e_conserved_id)
       msgstr = "Total energy = "//TRIM(ADJUSTL(stmp))
-      IF (logger%para_env%ionode) THEN
+      IF (logger%para_env%is_source()) THEN
          WRITE (unit_nr, '(T2,A)') "PINT| "//TRIM(ADJUSTL(msgstr))
       END IF
 

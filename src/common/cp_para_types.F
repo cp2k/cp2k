@@ -15,7 +15,6 @@
 ! **************************************************************************************************
 MODULE cp_para_types
    USE message_passing,                 ONLY: mp_cart_type,&
-                                              mp_comm_null,&
                                               mp_comm_type
 
    IMPLICIT NONE
@@ -29,8 +28,6 @@ MODULE cp_para_types
 ! **************************************************************************************************
 !> \brief stores all the informations relevant to an mpi environment
 !> \param mepos rank of the actual processor
-!> \param group id of the actual mpi communicator (I know that it is confusing,
-!>        but this is not the mpi group)
 !> \param num_pe number of processors in the communicator
 !> \param source rank of a special processor (for example the one for i-o,
 !>        or the master
@@ -42,15 +39,15 @@ MODULE cp_para_types
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   TYPE cp_para_env_type
-      LOGICAL :: owns_group, ionode
-      INTEGER :: mepos, source, num_pe, ref_count
-      TYPE(mp_comm_type) :: group = mp_comm_null
+   TYPE, EXTENDS(mp_comm_type) :: cp_para_env_type
+      LOGICAL :: owns_group = .TRUE.
+      INTEGER :: mepos = -1, source = -1, num_pe = -1, ref_count = -1
    CONTAINS
-      PROCEDURE, PUBLIC, PASS(para_env) :: init => cp_para_env_init
-      PROCEDURE, PRIVATE, PASS(para_env) :: cp_para_env_assign
-      GENERIC, PUBLIC :: ASSIGNMENT(=) => cp_para_env_assign
-      PROCEDURE, PUBLIC, PASS(para_env) :: free => cp_para_env_free
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_comm_init => cp_para_env_init
+      PROCEDURE, PRIVATE, PASS(comm_new), NON_OVERRIDABLE :: mp_comm_assign => cp_para_env_assign
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_comm_free => cp_para_env_free
+      PROCEDURE, PUBLIC, PASS(para_env), NON_OVERRIDABLE :: retain => cp_para_env_retain
+      PROCEDURE, PUBLIC, PASS(para_env), NON_OVERRIDABLE :: is_source => cp_para_env_is_source
    END TYPE cp_para_env_type
 
 ! **************************************************************************************************
@@ -61,13 +58,12 @@ MODULE cp_para_types
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    TYPE cp_para_env_p_type
-      TYPE(cp_para_env_type), POINTER :: para_env
+      TYPE(cp_para_env_type), POINTER :: para_env => NULL()
    END TYPE cp_para_env_p_type
 
 ! **************************************************************************************************
 !> \brief represent a multidimensional parallel environment
 !> \param mepos the position of the actual processor
-!> \param group id of the actual group (context, communicator)
 !> \param num_pe number of processors in the group in each dimension
 !> \param source id of a special processor (for example the one for i-o,
 !>        or the master
@@ -82,55 +78,78 @@ MODULE cp_para_types
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    TYPE, EXTENDS(mp_cart_type) :: cp_para_cart_type
-      LOGICAL :: owns_group
-      INTEGER :: rank, ntask
-      INTEGER, DIMENSION(:), POINTER :: mepos, source, num_pe
-      LOGICAL, DIMENSION(:), POINTER :: periodic
-      INTEGER :: ref_count
+      LOGICAL :: owns_group = .TRUE.
+      INTEGER :: rank = -1, ntask = -1
+      INTEGER, DIMENSION(:), POINTER :: mepos => NULL(), source => NULL(), num_pe => NULL()
+      LOGICAL, DIMENSION(:), POINTER :: periodic => NULL()
+      INTEGER :: ref_count = -1
    CONTAINS
-      PROCEDURE, PUBLIC, PASS(comm) :: free => cp_para_cart_free
-      PROCEDURE, PUBLIC, PASS(comm) :: mp_comm_init => cp_para_cart_init
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_comm_free => cp_para_cart_free
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_comm_init => cp_para_cart_init
+      PROCEDURE, PUBLIC, PASS(cart), NON_OVERRIDABLE :: retain => cp_para_cart_retain
    END TYPE cp_para_cart_type
 
 CONTAINS
 ! **************************************************************************************************
 !> \brief ...
-!> \param para_env ...
+!> \param comm ...
 ! **************************************************************************************************
-   SUBROUTINE cp_para_env_init(para_env)
-      CLASS(cp_para_env_type), INTENT(INOUT)                  :: para_env
+   ELEMENTAL IMPURE SUBROUTINE cp_para_env_init(comm)
+      CLASS(cp_para_env_type), INTENT(INOUT)                  :: comm
 
-      para_env%source = 0
-      para_env%ref_count = 1
-      CALL para_env%group%get_size(para_env%num_pe)
-      CALL para_env%group%get_rank(para_env%mepos)
-      para_env%ionode = para_env%mepos == para_env%source
+      comm%source = 0
+      comm%ref_count = 1
+      CALL comm%mp_comm_type%get_size(comm%num_pe)
+      CALL comm%mp_comm_type%get_rank(comm%mepos)
    END SUBROUTINE cp_para_env_init
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param para_env ...
-!> \param comm ...
+!> \param comm_new ...
+!> \param comm_old ...
 ! **************************************************************************************************
-   SUBROUTINE cp_para_env_assign(para_env, comm)
-      CLASS(cp_para_env_type), INTENT(INOUT) :: para_env
-      CLASS(mp_comm_type), INTENT(IN) :: comm
+   ELEMENTAL IMPURE SUBROUTINE cp_para_env_assign(comm_new, comm_old)
+      CLASS(cp_para_env_type), INTENT(OUT) :: comm_new
+      CLASS(mp_comm_type), INTENT(IN) :: comm_old
 
-      para_env%group = comm
-      para_env%owns_group = .FALSE.
+      comm_new%mp_comm_type = comm_old
+      comm_new%owns_group = .FALSE.
 
-      CALL para_env%init()
+      CALL comm_new%init()
 
    END SUBROUTINE cp_para_env_assign
 
 ! **************************************************************************************************
 !> \brief ...
 !> \param para_env ...
+!> \return ...
 ! **************************************************************************************************
-   SUBROUTINE cp_para_env_free(para_env)
+   ELEMENTAL LOGICAL FUNCTION cp_para_env_is_source(para_env)
+      CLASS(cp_para_env_type), INTENT(IN) :: para_env
+
+      cp_para_env_is_source = para_env%source == para_env%mepos
+
+   END FUNCTION cp_para_env_is_source
+
+! **************************************************************************************************
+!> \brief ...
+!> \param para_env ...
+! **************************************************************************************************
+   ELEMENTAL SUBROUTINE cp_para_env_retain(para_env)
       CLASS(cp_para_env_type), INTENT(INOUT) :: para_env
 
-      IF (para_env%owns_group) CALL para_env%group%free()
+      para_env%ref_count = para_env%ref_count + 1
+
+   END SUBROUTINE cp_para_env_retain
+
+! **************************************************************************************************
+!> \brief ...
+!> \param comm ...
+! **************************************************************************************************
+   SUBROUTINE cp_para_env_free(comm)
+      CLASS(cp_para_env_type), INTENT(INOUT) :: comm
+
+      IF (comm%owns_group) CALL comm%mp_comm_type%free()
 
    END SUBROUTINE cp_para_env_free
 
@@ -160,6 +179,17 @@ CONTAINS
       CALL comm%get_size(comm%ntask)
       CALL comm%get_rank(comm%rank)
    END SUBROUTINE cp_para_cart_init
+
+! **************************************************************************************************
+!> \brief ...
+!> \param cart ...
+! **************************************************************************************************
+   ELEMENTAL SUBROUTINE cp_para_cart_retain(cart)
+      CLASS(cp_para_cart_type), INTENT(INOUT) :: cart
+
+      cart%ref_count = cart%ref_count + 1
+
+   END SUBROUTINE cp_para_cart_retain
 
 ! **************************************************************************************************
 !> \brief ...

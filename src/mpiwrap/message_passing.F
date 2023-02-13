@@ -509,9 +509,10 @@ MODULE message_passing
       PROCEDURE, PUBLIC, PASS(comm1), NON_OVERRIDABLE :: rank_compare => mp_rank_compare
 
       PROCEDURE, PUBLIC, PASS(comm2), NON_OVERRIDABLE :: from_dup => mp_comm_dup
-      PROCEDURE, PUBLIC, PASS(comm) :: free => mp_comm_free
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_comm_free
+      GENERIC, PUBLIC :: free => mp_comm_free
 
-      PROCEDURE, PUBLIC, PASS(comm) :: mp_comm_init
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_comm_init
       GENERIC, PUBLIC :: init => mp_comm_init
 
       PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: get_size => mp_comm_size
@@ -521,8 +522,8 @@ MODULE message_passing
       PROCEDURE, PRIVATE, PASS(sub_comm), NON_OVERRIDABLE :: mp_comm_split, mp_comm_split_direct
       GENERIC, PUBLIC :: from_split => mp_comm_split, mp_comm_split_direct
       PROCEDURE, PUBLIC, PASS(mp_new_comm), NON_OVERRIDABLE :: from_reordering => mp_reordering
-      PROCEDURE, PRIVATE, PASS(comm_new), NON_OVERRIDABLE :: mp_comm_copy
-      GENERIC, PUBLIC :: ASSIGNMENT(=) => mp_comm_copy
+      PROCEDURE, PRIVATE, PASS(comm_new) :: mp_comm_assign
+      GENERIC, PUBLIC :: ASSIGNMENT(=) => mp_comm_assign
    END TYPE
 
    TYPE mp_request_type
@@ -916,7 +917,7 @@ CONTAINS
 !>      should only be called once
 ! **************************************************************************************************
       SUBROUTINE mp_world_init(mp_comm)
-         TYPE(mp_comm_type), INTENT(OUT)                     :: mp_comm
+         CLASS(mp_comm_type), INTENT(OUT)                     :: mp_comm
 #if defined(__parallel)
          INTEGER                                  :: ierr
 !$       INTEGER                                  :: provided_tsl
@@ -1692,7 +1693,7 @@ CONTAINS
 
       END SUBROUTINE mp_comm_dup
 
-      ELEMENTAL IMPURE SUBROUTINE mp_comm_copy(comm_new, comm_old)
+      ELEMENTAL IMPURE SUBROUTINE mp_comm_assign(comm_new, comm_old)
          CLASS(mp_comm_type), INTENT(IN) :: comm_old
          CLASS(mp_comm_type), INTENT(OUT) :: comm_new
 
@@ -3366,7 +3367,7 @@ CONTAINS
 !>      11.2012 created [Hossein Bani-Hashemian]
 ! **************************************************************************************************
       SUBROUTINE mp_file_open(groupid, fh, filepath, amode_status, info)
-         TYPE(mp_comm_type), INTENT(IN)                      :: groupid
+         CLASS(mp_comm_type), INTENT(IN)                      :: groupid
          CLASS(mp_file_type), INTENT(OUT)                     :: fh
          CHARACTER(len=*), INTENT(IN)             :: filepath
          INTEGER, INTENT(IN)                      :: amode_status
@@ -4518,7 +4519,7 @@ CONTAINS
 !>      quickly adapted benchmark code, will only work on an even number of CPUs.
 ! **************************************************************************************************
       SUBROUTINE mpi_perf_test(comm, npow, output_unit)
-         TYPE(mp_comm_type), INTENT(IN) :: comm
+         CLASS(mp_comm_type), INTENT(IN) :: comm
          INTEGER, INTENT(IN)                      :: npow, output_unit
 
 #if defined(__parallel)

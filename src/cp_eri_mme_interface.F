@@ -712,27 +712,27 @@ CONTAINS
                                                             GR_count_3c, RR_count_3c
 
       IF (PRESENT(G_count_2c)) THEN
-         CALL para_env%group%sum(G_count_2c)
+         CALL para_env%sum(G_count_2c)
          param%G_count_2c = param%G_count_2c + G_count_2c
       END IF
 
       IF (PRESENT(R_count_2c)) THEN
-         CALL para_env%group%sum(R_count_2c)
+         CALL para_env%sum(R_count_2c)
          param%R_count_2c = param%R_count_2c + R_count_2c
       END IF
 
       IF (PRESENT(GG_count_3c)) THEN
-         CALL para_env%group%sum(GG_count_3c)
+         CALL para_env%sum(GG_count_3c)
          param%GG_count_3c = param%GG_count_3c + GG_count_3c
       END IF
 
       IF (PRESENT(GR_count_3c)) THEN
-         CALL para_env%group%sum(GR_count_3c)
+         CALL para_env%sum(GR_count_3c)
          param%GR_count_3c = param%GR_count_3c + GR_count_3c
       END IF
 
       IF (PRESENT(RR_count_3c)) THEN
-         CALL para_env%group%sum(RR_count_3c)
+         CALL para_env%sum(RR_count_3c)
          param%RR_count_3c = param%RR_count_3c + RR_count_3c
       END IF
 

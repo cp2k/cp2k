@@ -368,7 +368,7 @@ CONTAINS
 
       INTEGER                                            :: lp
 
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          lp = LEN_TRIM(project_name)
          project_name(lp + 1:LEN(project_name)) = suffix
          CALL open_file(file_name=project_name, file_status="UNKNOWN", &

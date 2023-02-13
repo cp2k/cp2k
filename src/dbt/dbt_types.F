@@ -1351,7 +1351,7 @@ CONTAINS
 !> \author Patrick Seewald
 ! **************************************************************************************************
          SUBROUTINE dbt_pgrid_create(mp_comm, dims, pgrid, tensor_dims)
-            TYPE(mp_comm_type), INTENT(IN) :: mp_comm
+            CLASS(mp_comm_type), INTENT(IN) :: mp_comm
             INTEGER, DIMENSION(:), INTENT(INOUT) :: dims
             TYPE(dbt_pgrid_type), INTENT(OUT) :: pgrid
             INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL :: tensor_dims

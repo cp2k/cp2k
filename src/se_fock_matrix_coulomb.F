@@ -451,7 +451,7 @@ CONTAINS
       CALL dbcsr_deallocate_matrix_set(diagmat_ks)
 
       ! Two-centers one-electron terms
-      CALL para_env%group%sum(ecore2)
+      CALL para_env%sum(ecore2)
       energy%hartree = ecore2 - energy%core
 !      WRITE ( *, * ) 'IN SE_F_COUL', ecore2, energy%core
 
@@ -656,9 +656,9 @@ CONTAINS
             END DO
          END DO
       END DO
-      CALL para_env%group%sum(se_nddo_mpole%charge)
-      CALL para_env%group%sum(se_nddo_mpole%dipole)
-      CALL para_env%group%sum(se_nddo_mpole%quadrupole)
+      CALL para_env%sum(se_nddo_mpole%charge)
+      CALL para_env%sum(se_nddo_mpole%dipole)
+      CALL para_env%sum(se_nddo_mpole%quadrupole)
 
       ! Initialize for virial
       IF (use_virial) THEN
@@ -686,7 +686,7 @@ CONTAINS
             efield0=se_nddo_mpole%efield0, efield1=se_nddo_mpole%efield1, efield2=se_nddo_mpole%efield2, iw=iw, &
             do_debug=.TRUE.)
          ! Only SR force have to be summed up.. the one in g-space are already fully local..
-         CALL para_env%group%sum(forces_r)
+         CALL para_env%sum(forces_r)
       ELSE
          CALL ewald_multipole_evaluate( &
             ewald_env, ewald_pw, se_nonbond_env, cell, &
@@ -709,14 +709,14 @@ CONTAINS
       IF (use_virial) THEN
          ! Sum up contribution of pv_glob on each thread and keep only one copy of pv_local
          virial%pv_virial = virial%pv_virial + pv_glob
-         IF (para_env%ionode) THEN
+         IF (para_env%is_source()) THEN
             virial%pv_virial = virial%pv_virial + pv_local
          END IF
       END IF
 
       ! Debug Statements
       IF (debug_this_module) THEN
-         CALL para_env%group%sum(energy_glob)
+         CALL para_env%sum(energy_glob)
          WRITE (*, *) "TOTAL ENERGY AFTER EWALD:", energy_local + energy_glob + e_neut + e_self, &
             energy_local, energy_glob, e_neut, e_self
       END IF
@@ -781,7 +781,7 @@ CONTAINS
          END DO
       END DO
       ! Sum nuclear energy contribution
-      CALL para_env%group%sum(enuc)
+      CALL para_env%sum(enuc)
       energy%core_overlap = energy%core_overlap + energy%core_overlap0 + 0.5_dp*enuc
 
       ! Debug Statements
@@ -1161,9 +1161,9 @@ CONTAINS
       END IF
 
       ! collect information on potential, field, field gradient
-      CALL para_env%group%sum(efield0)
-      CALL para_env%group%sum(efield1)
-      CALL para_env%group%sum(efield2)
+      CALL para_env%sum(efield0)
+      CALL para_env%sum(efield1)
+      CALL para_env%sum(efield2)
       se_nddo_mpole%efield0 = se_nddo_mpole%efield0 - efield0
       se_nddo_mpole%efield1 = se_nddo_mpole%efield1 - efield1
       se_nddo_mpole%efield2 = se_nddo_mpole%efield2 - efield2
@@ -1173,8 +1173,8 @@ CONTAINS
       DEALLOCATE (efield2)
 
       ! Corrections for two-centers one-electron terms + nuclear terms
-      CALL para_env%group%sum(enuclear)
-      CALL para_env%group%sum(ecore2)
+      CALL para_env%sum(enuclear)
+      CALL para_env%sum(ecore2)
       energy%hartree = energy%hartree + ecore2
       energy%core_overlap = enuclear
       CALL finalize_se_taper(se_taper)
@@ -1492,7 +1492,7 @@ CONTAINS
       CALL dbcsr_deallocate_matrix_set(diagmat_ks)
 
       ! Two-centers one-electron terms
-      CALL para_env%group%sum(ecore2)
+      CALL para_env%sum(ecore2)
       energy%hartree = energy%hartree + ecore2
 
       CALL timestop(handle)

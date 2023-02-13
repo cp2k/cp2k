@@ -146,9 +146,9 @@ CONTAINS
       ALLOCATE (this%ends(0:para_env%num_pe - 1))
       ALLOCATE (this%sizes(0:para_env%num_pe - 1))
 
-      CALL para_env%group%allgather(starts, this%starts)
-      CALL para_env%group%allgather(ends, this%ends)
-      CALL para_env%group%allgather(sizes, this%sizes)
+      CALL para_env%allgather(starts, this%starts)
+      CALL para_env%allgather(ends, this%ends)
+      CALL para_env%allgather(sizes, this%sizes)
 
       CALL timestop(handle)
 
@@ -175,9 +175,9 @@ CONTAINS
       ALLOCATE (this%ends(0:para_env%num_pe - 1))
       ALLOCATE (this%sizes(0:para_env%num_pe - 1))
 
-      CALL para_env%group%allgather(group_dist_ext%starts, this%starts)
-      CALL para_env%group%allgather(group_dist_ext%ends, this%ends)
-      CALL para_env%group%allgather(group_dist_ext%sizes, this%sizes)
+      CALL para_env%allgather(group_dist_ext%starts, this%starts)
+      CALL para_env%allgather(group_dist_ext%ends, this%ends)
+      CALL para_env%allgather(group_dist_ext%sizes, this%sizes)
 
       CALL timestop(handle)
 

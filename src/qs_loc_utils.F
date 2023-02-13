@@ -1092,10 +1092,10 @@ CONTAINS
                                                    my_local=.FALSE.)
       END IF
 
-      IF (para_env%ionode) INQUIRE (FILE=filename, exist=file_exists)
+      IF (para_env%is_source()) INQUIRE (FILE=filename, exist=file_exists)
 
       IF (file_exists) THEN
-         IF (para_env%ionode) THEN
+         IF (para_env%is_source()) THEN
             CALL open_file(file_name=filename, &
                            file_action="READ", &
                            file_form="UNFORMATTED", &
@@ -1110,15 +1110,15 @@ CONTAINS
          IF (output_unit > 0) WRITE (output_unit, "(/,T10,A)") &
             "Restart file not available filename=<"//TRIM(filename)//'>'
       END IF
-      ASSOCIATE (group => para_env%group, source => para_env%source)
-         CALL group%bcast(file_exists, source)
+      ASSOCIATE (source => para_env%source)
+         CALL para_env%bcast(file_exists, source)
 
          IF (file_exists) THEN
             restart_found = .TRUE.
 
-            CALL group%bcast(qs_loc_env%localized_wfn_control%set_of_states, source)
-            CALL group%bcast(qs_loc_env%localized_wfn_control%lu_bound_states, source)
-            CALL group%bcast(qs_loc_env%localized_wfn_control%nloc_states, source)
+            CALL para_env%bcast(qs_loc_env%localized_wfn_control%set_of_states, source)
+            CALL para_env%bcast(qs_loc_env%localized_wfn_control%lu_bound_states, source)
+            CALL para_env%bcast(qs_loc_env%localized_wfn_control%nloc_states, source)
 
             max_nloc = MAXVAL(qs_loc_env%localized_wfn_control%nloc_states(:))
 
@@ -1135,7 +1135,7 @@ CONTAINS
                ELSE
                   nmo = SIZE(evals(ispin)%array, 1)
                END IF
-               IF (para_env%ionode .AND. (nmo > 0)) THEN
+               IF (para_env%is_source() .AND. (nmo > 0)) THEN
                   nloc = qs_loc_env%localized_wfn_control%nloc_states(ispin)
                   READ (rst_unit) qs_loc_env%localized_wfn_control%loc_states(1:nloc, ispin)
                   IF (do_homo .OR. do_mixed) THEN
@@ -1171,25 +1171,25 @@ CONTAINS
 
                END IF
                IF (do_homo .OR. do_mixed) THEN
-                  CALL group%bcast(mos(ispin)%eigenvalues, source)
-                  CALL group%bcast(mos(ispin)%occupation_numbers, source)
+                  CALL para_env%bcast(mos(ispin)%eigenvalues, source)
+                  CALL para_env%bcast(mos(ispin)%occupation_numbers, source)
                ELSE
-                  CALL para_env%group%bcast(evals(ispin)%array, source)
+                  CALL para_env%bcast(evals(ispin)%array, source)
                END IF
 
                DO i = 1, nmo
-                  IF (para_env%ionode) THEN
+                  IF (para_env%is_source()) THEN
                      READ (rst_unit) vecbuffer
                   ELSE
                      vecbuffer(1, :) = 0.0_dp
                   END IF
-                  CALL group%bcast(vecbuffer, source)
+                  CALL para_env%bcast(vecbuffer, source)
                   CALL cp_fm_set_submatrix(mos_localized(ispin), &
                                            vecbuffer, 1, i, nao, 1, transpose=.TRUE.)
                END DO
             END DO
 
-            CALL group%bcast(qs_loc_env%localized_wfn_control%loc_states, source)
+            CALL para_env%bcast(qs_loc_env%localized_wfn_control%loc_states, source)
 
             DEALLOCATE (vecbuffer)
 
@@ -1197,7 +1197,7 @@ CONTAINS
       END ASSOCIATE
 
       ! Close restart file
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          IF (file_exists) CALL close_file(unit_number=rst_unit)
       END IF
 

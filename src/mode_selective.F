@@ -332,7 +332,7 @@ CONTAINS
       END IF
       IF (ms_vib%select_id == 0) &
          CPABORT("no frequency, range or involved atoms specified ")
-      ionode = para_env%ionode
+      ionode = para_env%is_source()
       SELECT CASE (guess)
       CASE (ms_guess_atomic)
          ms_vib%initial_guess = 1
@@ -421,8 +421,8 @@ CONTAINS
          CALL molden_guess(ms_vib_section, input, para_env, ms_vib, mass, ncoord, nrep, logger)
          ms_vib%mat_size = 0
       END SELECT
-      CALL para_env%group%bcast(ms_vib%b_vec, para_env%source)
-      CALL para_env%group%bcast(ms_vib%delta_vec, para_env%source)
+      CALL para_env%bcast(ms_vib%b_vec, para_env%source)
+      CALL para_env%bcast(ms_vib%delta_vec, para_env%source)
       DO i = 1, nrep
          ms_vib%step_r(i) = dx/SQRT(DOT_PRODUCT(ms_vib%delta_vec(:, i), ms_vib%delta_vec(:, i)))
          ms_vib%step_b(i) = SQRT(DOT_PRODUCT(ms_vib%step_r(i)*ms_vib%b_vec(:, i), ms_vib%step_r(i)*ms_vib%b_vec(:, i)))
@@ -467,7 +467,7 @@ CONTAINS
       ALLOCATE (ms_vib%hes_bfgs(ncoord, ncoord))
       ALLOCATE (ms_vib%eig_bfgs(ncoord))
 
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          CALL section_vals_val_get(ms_vib_section, "RESTART_FILE_NAME", c_val=hes_filename)
          IF (hes_filename == "") hes_filename = "HESSIAN"
          CALL open_file(file_name=hes_filename, file_status="OLD", &
@@ -527,8 +527,8 @@ CONTAINS
          DEALLOCATE (tmplist)
       END IF
 
-      CALL para_env%group%bcast(ms_vib%b_vec, para_env%source)
-      CALL para_env%group%bcast(ms_vib%delta_vec, para_env%source)
+      CALL para_env%bcast(ms_vib%b_vec, para_env%source)
+      CALL para_env%bcast(ms_vib%delta_vec, para_env%source)
 
       DEALLOCATE (ms_vib%hes_bfgs)
       DEALLOCATE (ms_vib%eig_bfgs)
@@ -589,7 +589,7 @@ CONTAINS
          CPASSERT(stat == 0)
          ms_vib%mat_size = mat
       END IF
-      CALL para_env%group%bcast(ms_vib%mat_size, para_env%source)
+      CALL para_env%bcast(ms_vib%mat_size, para_env%source)
       ALLOCATE (ms_vib%b_mat(ncoord, ms_vib%mat_size))
       ALLOCATE (ms_vib%s_mat(ncoord, ms_vib%mat_size))
       IF (calc_intens) THEN
@@ -611,9 +611,9 @@ CONTAINS
             END IF
          END IF
       END IF
-      CALL para_env%group%bcast(ms_vib%b_mat, para_env%source)
-      CALL para_env%group%bcast(ms_vib%s_mat, para_env%source)
-      IF (calc_intens) CALL para_env%group%bcast(ms_vib%dip_deriv, para_env%source)
+      CALL para_env%bcast(ms_vib%b_mat, para_env%source)
+      CALL para_env%bcast(ms_vib%s_mat, para_env%source)
+      IF (calc_intens) CALL para_env%bcast(ms_vib%dip_deriv, para_env%source)
       ALLOCATE (approx_H(ms_vib%mat_size, ms_vib%mat_size))
       ALLOCATE (eigenval(ms_vib%mat_size))
       ALLOCATE (ind(ms_vib%mat_size))
@@ -688,7 +688,7 @@ CONTAINS
          cp_print_key_unit_nr(logger, input, "VIBRATIONAL_ANALYSIS%PRINT%MOLDEN_VIB", &
                               extension=".mol", file_status='UNKNOWN', &
                               file_action="READ")
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
 
          IF (ms_filename == "") THEN
             iw = output_molden
@@ -797,8 +797,8 @@ CONTAINS
          DEALLOCATE (tmplist)
 
       END IF
-      CALL para_env%group%bcast(ms_vib%b_vec, para_env%source)
-      CALL para_env%group%bcast(ms_vib%delta_vec, para_env%source)
+      CALL para_env%bcast(ms_vib%b_vec, para_env%source)
+      CALL para_env%bcast(ms_vib%delta_vec, para_env%source)
 
       IF (ms_filename == "") CALL cp_print_key_finished_output(output_molden, logger, input, &
                                                                "VIBRATIONAL_ANALYSIS%PRINT%MOLDEN_VIB")

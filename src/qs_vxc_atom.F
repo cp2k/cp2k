@@ -400,7 +400,7 @@ CONTAINS
 
          END DO ! ikind
 
-         CALL para_env%group%sum(exc1)
+         CALL para_env%sum(exc1)
 
          IF (ASSOCIATED(rho_h)) THEN
             DEALLOCATE (rho_h)

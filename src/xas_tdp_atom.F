@@ -31,7 +31,6 @@ MODULE xas_tdp_atom
                                               cp_dbcsr_cholesky_invert
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE cp_para_env,                     ONLY: cp_para_env_create
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_release, &
@@ -567,7 +566,7 @@ CONTAINS
 
       END DO !iter
       CALL dbcsr_iterator_stop(iter)
-      CALL para_env%group%sum(n_neighbors)
+      CALL para_env%sum(n_neighbors)
 
       ! Allocate the neighbor_set arrays at the correct length
       DO ibase = 1, nbase
@@ -607,7 +606,7 @@ CONTAINS
 
       ! Make sure the info is shared among the procs
       DO ibase = 1, nbase
-         CALL para_env%group%sum(my_neighbor_set(ibase)%array)
+         CALL para_env%sum(my_neighbor_set(ibase)%array)
       END DO
 
       ! Gather all indices if asked for it
@@ -1091,7 +1090,7 @@ CONTAINS
             DO iat = 1, natom
                IF ((.NOT. ANY(xas_atom_env%exat_neighbors(iex)%array == iat)) &
                    .AND. (.NOT. xas_atom_env%excited_atoms(iex) == iat)) CYCLE
-               CALL para_env%group%sum(xas_atom_env%ri_dcoeff(iat, ispin, iex)%array)
+               CALL para_env%sum(xas_atom_env%ri_dcoeff(iat, ispin, iex)%array)
             END DO !iat
          END DO !ispin
       END DO !iex
@@ -1877,7 +1876,6 @@ CONTAINS
       TYPE(cp_1d_r_p_type), DIMENSION(:, :), POINTER     :: ri_dcoeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_comm_type)                                 :: subcomm
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: input, xc_functionals
@@ -1930,9 +1928,7 @@ CONTAINS
       batch_info%ipe = ipe
 
       !create a subcommunicator for this batch
-      CALL subcomm%from_split(para_env%group, ibatch)
-      NULLIFY (batch_info%para_env)
-      CALL cp_para_env_create(batch_info%para_env, subcomm)
+      CALL batch_info%para_env%from_split(para_env, ibatch)
 
 !  Precompute the spherical orbital of the RI basis (and maybe their gradient) on the grids of the
 !  excited atoms. Needed for the GGA integration and to actually put the density on the grid
@@ -1984,12 +1980,12 @@ CONTAINS
          END DO
 
          ! make sure contributions from different procs are summed up
-         CALL batch_info%para_env%group%sum(rho_set%rhoa)
-         CALL batch_info%para_env%group%sum(rho_set%rhob)
+         CALL batch_info%para_env%sum(rho_set%rhoa)
+         CALL batch_info%para_env%sum(rho_set%rhob)
          IF (do_gga) THEN
             DO dir = 1, 3
-               CALL batch_info%para_env%group%sum(rho_set%drhoa(dir)%array)
-               CALL batch_info%para_env%group%sum(rho_set%drhob(dir)%array)
+               CALL batch_info%para_env%sum(rho_set%drhoa(dir)%array)
+               CALL batch_info%para_env%sum(rho_set%drhob(dir)%array)
             END DO
          END IF
 
@@ -2024,7 +2020,7 @@ CONTAINS
       CALL release_batch_info(batch_info)
 
       !Not necessary to sync, but makes sure that any load inbalance is reported here
-      CALL para_env%group%sync()
+      CALL para_env%sync()
 
       CALL timestop(handle)
 
@@ -2216,7 +2212,7 @@ CONTAINS
       ri_sphi_so => xas_atom_env%ri_sphi_so(ikind)%array
       ALLOCATE (int_sgf(nsgf, nsgf))
       DO i = 1, ub
-         CALL batch_info%para_env%group%sum(int_so(i)%array)
+         CALL batch_info%para_env%sum(int_so(i)%array)
          CALL contract_so2sgf(int_sgf, int_so(i)%array, ri_basis, ri_sphi_so)
          CALL daxpy(nsgf*nsgf, 1.0_dp, int_sgf, 1, int_fxc(iatom, i)%array, 1)
       END DO

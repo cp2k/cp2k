@@ -108,7 +108,7 @@ CONTAINS
       CALL dbt_copy_matrix_to_tensor(mat_SinvVSinv, t_SinvVSinv_tmp)
       pdims = 0
       CALL mp_dims_create(para_env%num_pe, pdims)
-      CALL dbt_pgrid_create(para_env%group, pdims, pgrid_2d)
+      CALL dbt_pgrid_create(para_env, pdims, pgrid_2d)
       CALL create_2c_tensor(t_SinvVSinv, dist_1, dist_2, pgrid_2d, sizes_RI_split, sizes_RI_split, &
                             name="(RI|RI)")
       DEALLOCATE (dist_1, dist_2)
@@ -278,7 +278,7 @@ CONTAINS
 !$OMP END PARALLEL
 
       Delta_Sigma_Neaton = Delta_Sigma_Neaton + Delta_Sigma_Neaton_prv
-      CALL para_env%group%sum(Delta_Sigma_Neaton)
+      CALL para_env%sum(Delta_Sigma_Neaton)
 
       CALL timestop(handle)
 

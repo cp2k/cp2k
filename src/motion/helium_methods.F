@@ -155,7 +155,7 @@ CONTAINS
       NULLIFY (env_all)
       ALLOCATE (env_all(logger%para_env%num_pe))
       env_all(:) = 0
-      CALL logger%para_env%group%allgather(mepos, env_all)
+      CALL logger%para_env%allgather(mepos, env_all)
 
       ! create new communicator for processors with helium_env
       IF (mepos == 0) THEN
@@ -163,7 +163,7 @@ CONTAINS
       ELSE
          color_sub = 1
       END IF
-      CALL new_comm%from_split(logger%para_env%group, color_sub)
+      CALL new_comm%from_split(logger%para_env, color_sub)
       ! release new_comm for processors without helium_env
       IF (mepos == 0) THEN
          CALL new_comm%free()
@@ -173,8 +173,6 @@ CONTAINS
       IF (mepos .GT. 0) THEN
          ALLOCATE (helium_env(mepos))
          DO k = 1, mepos
-            !NULLIFY (helium_env%para_env)
-            !CALL cp_para_env_create(helium_env%para_env, new_comm)
             helium_env(k)%comm = new_comm
             NULLIFY (helium_env(k)%env_all)
             helium_env(k)%env_all => env_all
@@ -386,7 +384,7 @@ CONTAINS
 
          END DO ! k
 
-         IF (logger%para_env%ionode) THEN
+         IF (logger%para_env%is_source()) THEN
             CALL section_vals_val_get(helium_section, "POTENTIAL_FILE_NAME", &
                                       c_val=potential_file_name)
             CALL open_file(file_name=TRIM(potential_file_name), &
@@ -426,7 +424,7 @@ CONTAINS
          CALL helium_env(1)%comm%bcast(he_mass, logger%para_env%source)
          isize = (pdx + 1)*(pdx + 2) + 1
          ALLOCATE (pot_transfer(nlines, isize))
-         IF (logger%para_env%ionode) THEN
+         IF (logger%para_env%is_source()) THEN
             IF (expl_pot) THEN
                DO i = 1, nlines
                   READ (input_unit, *) pot_transfer(i, :)
@@ -1161,10 +1159,10 @@ CONTAINS
                END IF
             END IF
             !! Update pint_env force, assume always one helium_env at IONODE
-            !IF (pint_env%logger%para_env%ionode) THEN
+            !IF (pint_env%logger%para_env%is_source()) THEN
             !   pint_env%f(:, :) = pint_env%f(:, :) + helium_env(1)%helium%force_avrg(:, :)
             !END IF
-            !CALL pint_env%logger%para_env%group%bcast(pint_env%f,&
+            !CALL pint_env%logger%para_env%bcast(pint_env%f,&
             !              pint_env%logger%para_env%source)
 
          END IF
@@ -1873,7 +1871,7 @@ CONTAINS
 
       NULLIFY (logger)
       logger => cp_get_default_logger()
-      IF (logger%para_env%ionode) THEN
+      IF (logger%para_env%is_source()) THEN
          CALL section_vals_val_get(helium_env(1)%helium%input, &
                                    "MOTION%PINT%HELIUM%RNG_SEED", &
                                    i_val=helium_seed)

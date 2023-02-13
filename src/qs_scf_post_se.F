@@ -515,8 +515,8 @@ CONTAINS
             END DO
          END DO
          !
-         CALL para_env%group%sum(charges)
-         CALL para_env%group%sum(mcharge)
+         CALL para_env%sum(charges)
+         CALL para_env%sum(mcharge)
          !
          IF (unit_nr > 0) THEN
             WRITE (UNIT=unit_nr, FMT="(/,/,T2,A)") "POPULATION ANALYSIS"

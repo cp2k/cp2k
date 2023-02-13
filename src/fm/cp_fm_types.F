@@ -26,7 +26,6 @@ MODULE cp_fm_types
                                               sp
    USE message_passing,                 ONLY: cp2k_is_parallel,&
                                               mp_any_source,&
-                                              mp_comm_type,&
                                               mp_proc_null,&
                                               mp_request_null,&
                                               mp_request_type,&
@@ -266,7 +265,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! guarantee same seed over all tasks
-      CALL matrix%matrix_struct%para_env%group%bcast(seed, 0)
+      CALL matrix%matrix_struct%para_env%bcast(seed, 0)
 
       rng = rng_stream_type("cp_fm_init_random_stream", distribution_type=UNIFORM, &
                             extended_precision=.TRUE., seed=seed)
@@ -417,7 +416,7 @@ CONTAINS
          END IF
       END DO
 #endif
-      CALL matrix%matrix_struct%para_env%group%sum(diag)
+      CALL matrix%matrix_struct%para_env%sum(diag)
 
    END SUBROUTINE cp_fm_get_diag
 
@@ -779,7 +778,7 @@ CONTAINS
          END IF
       END DO
 
-      CALL para_env%group%sum(target_m)
+      CALL para_env%sum(target_m)
 
       CALL timestop(handle)
 
@@ -926,9 +925,9 @@ CONTAINS
 
          END IF
 
-         CALL matrix%matrix_struct%para_env%group%sum(a_max_vec)
-         CALL matrix%matrix_struct%para_env%group%sum(ir_max_vec)
-         CALL matrix%matrix_struct%para_env%group%sum(ic_max_vec)
+         CALL matrix%matrix_struct%para_env%sum(a_max_vec)
+         CALL matrix%matrix_struct%para_env%sum(ir_max_vec)
+         CALL matrix%matrix_struct%para_env%sum(ic_max_vec)
 
          my_max = 0.0_dp
          DO i = 0, num_pe - 1
@@ -944,7 +943,7 @@ CONTAINS
 
       END IF
 
-      CALL matrix%matrix_struct%para_env%group%max(a_max)
+      CALL matrix%matrix_struct%para_env%max(a_max)
 
       CALL timestop(handle)
 
@@ -990,7 +989,7 @@ CONTAINS
             values(row_indices(i)) = values(row_indices(i)) + ABS(my_block(i, j))
          END DO
       END DO
-      CALL matrix%matrix_struct%para_env%group%sum(values)
+      CALL matrix%matrix_struct%para_env%sum(values)
       a_max = MAXVAL(values)
       DEALLOCATE (values)
 
@@ -1029,7 +1028,7 @@ CONTAINS
             norm_array(col_indices(j)) = norm_array(col_indices(j)) + my_block(i, j)*my_block(i, j)
          END DO
       END DO
-      CALL matrix%matrix_struct%para_env%group%sum(norm_array)
+      CALL matrix%matrix_struct%para_env%sum(norm_array)
       norm_array = SQRT(norm_array)
 
       CALL timestop(handle)
@@ -1095,7 +1094,7 @@ CONTAINS
          END DO
       END DO
       END IF
-      CALL matrix%matrix_struct%para_env%group%sum(sum_array)
+      CALL matrix%matrix_struct%para_env%sum(sum_array)
 
       CALL timestop(handle)
    END SUBROUTINE
@@ -1383,7 +1382,6 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: recv_col_indices, recv_row_indices, &
                                                             send_col_indices, send_row_indices
       TYPE(cp_fm_struct_type), POINTER                   :: recv_dist, send_dist
-      TYPE(mp_comm_type)                                 :: global_comm
       TYPE(mp_request_type), DIMENSION(6)                :: recv_req, send_req
 
       CALL timeset(routineN, handle)
@@ -1409,7 +1407,6 @@ CONTAINS
          NULLIFY (recv_col_indices, recv_row_indices, send_col_indices, send_row_indices)
 
          ! The 'global' communicator contains both the source and destination decompositions
-         global_comm = para_env%group
          global_size = para_env%num_pe
          global_rank = para_env%mepos
 
@@ -1434,7 +1431,7 @@ CONTAINS
          ! Map the rank in the source/dest communicator to the global rank
          ALLOCATE (all_ranks(0:global_size - 1))
 
-         CALL global_comm%allgather(send_rank, all_ranks)
+         CALL para_env%allgather(send_rank, all_ranks)
          IF (ASSOCIATED(recv_dist)) THEN
             ALLOCATE (source2global(0:COUNT(all_ranks .NE. mp_proc_null) - 1))
             DO i = 0, global_size - 1
@@ -1444,7 +1441,7 @@ CONTAINS
             END DO
          END IF
 
-         CALL global_comm%allgather(recv_rank, all_ranks)
+         CALL para_env%allgather(recv_rank, all_ranks)
          IF (ASSOCIATED(send_dist)) THEN
             ALLOCATE (dest2global(0:COUNT(all_ranks .NE. mp_proc_null) - 1))
             DO i = 0, global_size - 1
@@ -1462,26 +1459,26 @@ CONTAINS
          send_req(:) = mp_request_null
          IF (global_rank == 0) THEN
             recv_req(:) = mp_request_null
-            CALL global_comm%irecv(src_block, mp_any_source, recv_req(1), tag=src_tag)
-            CALL global_comm%irecv(dest_block, mp_any_source, recv_req(2), tag=dest_tag)
-            CALL global_comm%irecv(src_num_pe, mp_any_source, recv_req(3), tag=src_tag)
-            CALL global_comm%irecv(dest_num_pe, mp_any_source, recv_req(4), tag=dest_tag)
+            CALL para_env%irecv(src_block, mp_any_source, recv_req(1), tag=src_tag)
+            CALL para_env%irecv(dest_block, mp_any_source, recv_req(2), tag=dest_tag)
+            CALL para_env%irecv(src_num_pe, mp_any_source, recv_req(3), tag=src_tag)
+            CALL para_env%irecv(dest_num_pe, mp_any_source, recv_req(4), tag=dest_tag)
          END IF
 
          IF (ASSOCIATED(send_dist)) THEN
             IF ((send_rank .EQ. 0)) THEN
                ! need to use separate buffers here in case this is actually global rank 0
                src_block_tmp = (/send_dist%nrow_block, send_dist%ncol_block/)
-               CALL global_comm%isend(src_block_tmp, 0, send_req(1), tag=src_tag)
-               CALL global_comm%isend(send_dist%context%num_pe, 0, send_req(2), tag=src_tag)
+               CALL para_env%isend(src_block_tmp, 0, send_req(1), tag=src_tag)
+               CALL para_env%isend(send_dist%context%num_pe, 0, send_req(2), tag=src_tag)
             END IF
          END IF
 
          IF (ASSOCIATED(recv_dist)) THEN
             IF ((recv_rank .EQ. 0)) THEN
                dest_block_tmp = (/recv_dist%nrow_block, recv_dist%ncol_block/)
-               CALL global_comm%isend(dest_block_tmp, 0, send_req(3), tag=dest_tag)
-               CALL global_comm%isend(recv_dist%context%num_pe, 0, send_req(4), tag=dest_tag)
+               CALL para_env%isend(dest_block_tmp, 0, send_req(3), tag=dest_tag)
+               CALL para_env%isend(recv_dist%context%num_pe, 0, send_req(4), tag=dest_tag)
             END IF
          END IF
 
@@ -1491,19 +1488,19 @@ CONTAINS
             ALLOCATE (info%src_blacs2mpi(0:src_num_pe(1) - 1, 0:src_num_pe(2) - 1), &
                       dest_blacs2mpi(0:dest_num_pe(1) - 1, 0:dest_num_pe(2) - 1) &
                       )
-            CALL global_comm%irecv(info%src_blacs2mpi, mp_any_source, recv_req(5), tag=src_tag)
-            CALL global_comm%irecv(dest_blacs2mpi, mp_any_source, recv_req(6), tag=dest_tag)
+            CALL para_env%irecv(info%src_blacs2mpi, mp_any_source, recv_req(5), tag=src_tag)
+            CALL para_env%irecv(dest_blacs2mpi, mp_any_source, recv_req(6), tag=dest_tag)
          END IF
 
          IF (ASSOCIATED(send_dist)) THEN
             IF ((send_rank .EQ. 0)) THEN
-               CALL global_comm%isend(send_dist%context%blacs2mpi(:, :), 0, send_req(5), tag=src_tag)
+               CALL para_env%isend(send_dist%context%blacs2mpi(:, :), 0, send_req(5), tag=src_tag)
             END IF
          END IF
 
          IF (ASSOCIATED(recv_dist)) THEN
             IF ((recv_rank .EQ. 0)) THEN
-               CALL global_comm%isend(recv_dist%context%blacs2mpi(:, :), 0, send_req(6), tag=dest_tag)
+               CALL para_env%isend(recv_dist%context%blacs2mpi(:, :), 0, send_req(6), tag=dest_tag)
             END IF
          END IF
 
@@ -1512,10 +1509,10 @@ CONTAINS
          END IF
 
          ! Finally, broadcast the data to all processes in the global communicator
-         CALL global_comm%bcast(src_block, 0)
-         CALL global_comm%bcast(dest_block, 0)
-         CALL global_comm%bcast(src_num_pe, 0)
-         CALL global_comm%bcast(dest_num_pe, 0)
+         CALL para_env%bcast(src_block, 0)
+         CALL para_env%bcast(dest_block, 0)
+         CALL para_env%bcast(src_num_pe, 0)
+         CALL para_env%bcast(dest_num_pe, 0)
          info%src_num_pe(1:2) = src_num_pe(1:2)
          info%nblock_src(1:2) = src_block(1:2)
          IF (global_rank .NE. 0) THEN
@@ -1523,8 +1520,8 @@ CONTAINS
                       dest_blacs2mpi(0:dest_num_pe(1) - 1, 0:dest_num_pe(2) - 1) &
                       )
          END IF
-         CALL global_comm%bcast(info%src_blacs2mpi, 0)
-         CALL global_comm%bcast(dest_blacs2mpi, 0)
+         CALL para_env%bcast(info%src_blacs2mpi, 0)
+         CALL para_env%bcast(dest_blacs2mpi, 0)
 
          recv_size = dest_num_pe(1)*dest_num_pe(2)
          send_size = src_num_pe(1)*src_num_pe(2)
@@ -1595,8 +1592,8 @@ CONTAINS
             ! Issue receive calls on ranks which expect data
             DO k = 0, send_size - 1
                IF (recv_count(k) .GT. 0) THEN
-                  CALL global_comm%irecv(info%recv_buf(info%recv_disp(k) + 1:info%recv_disp(k) + recv_count(k)), &
-                                         source2global(k), info%recv_request(k))
+                  CALL para_env%irecv(info%recv_buf(info%recv_disp(k) + 1:info%recv_disp(k) + recv_count(k)), &
+                                      source2global(k), info%recv_request(k))
                END IF
             END DO
             DEALLOCATE (source2global)
@@ -1660,8 +1657,8 @@ CONTAINS
             ! For each non-zero send_count, call mpi_isend
             DO k = 0, recv_size - 1
                IF (send_count(k) .GT. 0) THEN
-                  CALL global_comm%isend(info%send_buf(send_disp(k) + 1:send_disp(k) + send_count(k)), &
-                                         dest2global(k), info%send_request(k))
+                  CALL para_env%isend(info%send_buf(send_disp(k) + 1:send_disp(k) + send_count(k)), &
+                                      dest2global(k), info%send_request(k))
                END IF
             END DO
             DEALLOCATE (send_count, send_disp, dest2global)
@@ -1976,7 +1973,7 @@ CONTAINS
       rb = nrow_global
       tag = 0
       ! get a new context
-      CALL ictxt_loc%gridinit(para_env%group, 'R', 1, num_pe)
+      CALL ictxt_loc%gridinit(para_env, 'R', 1, num_pe)
       CALL ictxt_loc%gridinfo(nprow, npcol, myprow, mypcol)
       CALL descinit(desc, nrow_global, ncol_global, rb, max_block, 0, 0, ictxt_loc, nrow_global, info)
       CPASSERT(info == 0)
@@ -2006,10 +2003,10 @@ CONTAINS
             ! do nothing
          ELSE
             IF (ipcol == mypcol) THEN
-               CALL para_env%group%send(vecbuf(:), 0, tag)
+               CALL para_env%send(vecbuf(:), 0, tag)
             END IF
             IF (mypcol == 0) THEN
-               CALL para_env%group%recv(vecbuf(:), ipcol, tag)
+               CALL para_env%recv(vecbuf(:), ipcol, tag)
             END IF
          END IF
 
@@ -2094,7 +2091,7 @@ CONTAINS
       rb = nrow_global
       tag = 0
       ! get a new context
-      CALL ictxt_loc%gridinit(para_env%group, 'R', 1, num_pe)
+      CALL ictxt_loc%gridinit(para_env, 'R', 1, num_pe)
       CALL ictxt_loc%gridinfo(nprow, npcol, myprow, mypcol)
       CALL descinit(desc, nrow_global, ncol_global, rb, max_block, 0, 0, ictxt_loc, nrow_global, info)
       CPASSERT(info == 0)
@@ -2126,10 +2123,10 @@ CONTAINS
             ! do nothing
          ELSE
             IF (ipcol == mypcol) THEN
-               CALL para_env%group%send(vecbuf(:), 0, tag)
+               CALL para_env%send(vecbuf(:), 0, tag)
             END IF
             IF (mypcol == 0) THEN
-               CALL para_env%group%recv(vecbuf(:), ipcol, tag)
+               CALL para_env%recv(vecbuf(:), ipcol, tag)
             END IF
          END IF
 
@@ -2206,7 +2203,7 @@ CONTAINS
                READ (unit) vecbuf(:, k)
             END DO
          END IF
-         CALL para_env%group%bcast(vecbuf, 0)
+         CALL para_env%bcast(vecbuf, 0)
          CALL cp_fm_set_submatrix(fm, vecbuf, start_row=1, start_col=j, n_cols=n_cols)
 
       END DO

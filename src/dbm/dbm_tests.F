@@ -52,7 +52,7 @@ CONTAINS
                             bs_m, bs_n, bs_k, sparsities, alpha, beta, &
                             n_loops, eps, retain_sparsity, always_checksum)
 
-      TYPE(mp_comm_type), INTENT(IN)                     :: mp_group
+      CLASS(mp_comm_type), INTENT(IN)                     :: mp_group
       INTEGER, INTENT(IN)                                :: io_unit
       INTEGER, DIMENSION(:), INTENT(in)                  :: matrix_sizes
       LOGICAL, DIMENSION(2), INTENT(in)                  :: trs

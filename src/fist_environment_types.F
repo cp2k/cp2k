@@ -20,8 +20,7 @@ MODULE fist_environment_types
    USE cell_types,                      ONLY: cell_release,&
                                               cell_retain,&
                                               cell_type
-   USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                              cp_para_env_retain
+   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_types,                 ONLY: cp_result_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
@@ -239,7 +238,7 @@ CONTAINS
       ALLOCATE (fist_env%qmmm_env)
       CALL qmmm_env_mm_create(fist_env%qmmm_env)
       NULLIFY (fist_env%subsys)
-      CALL cp_para_env_retain(para_env)
+      CALL para_env%retain()
       fist_env%para_env => para_env
 
    END SUBROUTINE init_fist_env

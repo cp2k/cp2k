@@ -340,7 +340,7 @@ CONTAINS
 
       ![NB] perhap be controlled by some &PRINT section?
       CALL cp_subsys_get(subsys, para_env=para_env)
-      IF (para_env%ionode .AND. output_unit > 0) THEN
+      IF (para_env%is_source() .AND. output_unit > 0) THEN
          WRITE (unit=output_unit, fmt='(A,A,I6,A,I5,A,I5,A,I5)') &
             "QMMM FORCE MIXING final count (not including links): ", &
             " N_QM core_list ", COUNT(new_labels == force_mixing_label_QM_core_list), &

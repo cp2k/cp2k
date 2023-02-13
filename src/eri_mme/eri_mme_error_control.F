@@ -475,8 +475,8 @@ CONTAINS
                                           2.0_dp/3.0_dp, prefactor)
       END DO
 
-      CALL para_env%group%sum(S_G_l)
-      CALL para_env%group%sum(S_G_u)
+      CALL para_env%sum(S_G_l)
+      CALL para_env%sum(S_G_u)
 
       S_G_u = S_G_u*2.0_dp ! to include negative values of G
 

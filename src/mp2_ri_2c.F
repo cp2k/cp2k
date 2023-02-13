@@ -52,8 +52,7 @@ MODULE mp2_ri_2c
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                              cp_para_env_split
+   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
@@ -783,7 +782,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: eri_method
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub, para_env_L
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
+      TYPE(cp_para_env_type), INTENT(OUT), POINTER       :: para_env_L
       REAL(KIND=dp), INTENT(IN)                          :: mp2_memory
       TYPE(cp_fm_type), INTENT(OUT)                      :: fm_matrix_L
       INTEGER, INTENT(IN)                                :: ngroup, color_sub
@@ -916,7 +916,8 @@ CONTAINS
 
       ! create the L group
       color_L = para_env%mepos/best_group_size
-      CALL cp_para_env_split(para_env_L, para_env, color_L)
+      ALLOCATE (para_env_L)
+      CALL para_env_L%from_split(para_env, color_L)
 
       ! create the blacs_L
       NULLIFY (blacs_env_L)
@@ -925,7 +926,8 @@ CONTAINS
       ! now create the exchange group (for communication only between members not belonging to the
       ! same group
       sub_sub_color = para_env_sub%mepos
-      CALL cp_para_env_split(para_env_exchange, para_env_L, sub_sub_color)
+      ALLOCATE (para_env_exchange)
+      CALL para_env_exchange%from_split(para_env_L, sub_sub_color)
 
       ! create the full matrix L defined in the L group
       CALL create_matrix_L(fm_matrix_L, blacs_env_L, dimen_RI, para_env_L, "fm_matrix_L", fm_matrix_L_extern)
@@ -968,7 +970,7 @@ CONTAINS
             ALLOCATE (L_external_col(dimen_RI, rec_L_size))
             L_external_col = 0.0_dp
 
-            CALL para_env_exchange%group%sendrecv(L_local_col, proc_send_static, L_external_col, proc_receive_static)
+            CALL para_env_exchange%sendrecv(L_local_col, proc_send_static, L_external_col, proc_receive_static)
 
             DO jjB = 1, ncol_local
                j_global = col_indices(jjB)
@@ -994,9 +996,10 @@ CONTAINS
 
       ! create the new group for the sum of the local data over all processes
       sub_sub_color = para_env_L%mepos
-      CALL cp_para_env_split(para_env_exchange, para_env, sub_sub_color)
+      ALLOCATE (para_env_exchange)
+      CALL para_env_exchange%from_split(para_env, sub_sub_color)
 
-      CALL para_env_exchange%group%sum(fm_matrix_L%local_data)
+      CALL para_env_exchange%sum(fm_matrix_L%local_data)
 
       CALL cp_para_env_release(para_env_exchange)
 
@@ -1099,10 +1102,11 @@ CONTAINS
       ! Step 1: Get a communicator connecting processes with same id within subgroups
       ! use that group_size_L is divisible by the total number of processes (see above)
       group_size_L = para_env%num_pe/matrix%matrix_struct%para_env%num_pe
-      CALL cp_para_env_split(para_env_exchange, para_env, matrix%matrix_struct%para_env%mepos)
+      ALLOCATE (para_env_exchange)
+      CALL para_env_exchange%from_split(para_env, matrix%matrix_struct%para_env%mepos)
 
       ALLOCATE (num_eval(0:group_size_L - 1))
-      CALL para_env_exchange%group%allgather(num_small_evals, num_eval)
+      CALL para_env_exchange%allgather(num_small_evals, num_eval)
 
       num_small_evals = MINVAL(num_eval)
 
@@ -1113,8 +1117,8 @@ CONTAINS
          needed_evals = nrow - num_small_evals
 
          ! Step 3: Broadcast your local data to all other processes
-         CALL para_env_exchange%group%bcast(evecs%local_data, pos_max(1))
-         CALL para_env_exchange%group%bcast(cond_num, pos_max(1))
+         CALL para_env_exchange%bcast(evecs%local_data, pos_max(1))
+         CALL para_env_exchange%bcast(cond_num, pos_max(1))
       END IF
 
       DEALLOCATE (num_eval)
@@ -1242,7 +1246,7 @@ CONTAINS
 
       CALL timeset(routineN//"_2", handle2)
 
-      CALL para_env%group%alltoall(num_entries_send, num_entries_rec, 1)
+      CALL para_env%alltoall(num_entries_send, num_entries_rec, 1)
 
       CALL timestop(handle2)
 
@@ -1753,7 +1757,7 @@ CONTAINS
       local_L(:, :) = local_L_internal(1:nrow_local, 1:ncol_local)
 
       max_row_col_local = MAX(nrow_local, ncol_local)
-      CALL para_env%group%max(max_row_col_local)
+      CALL para_env%max(max_row_col_local)
 
       ALLOCATE (local_col_row_info(0:max_row_col_local, 2))
       local_col_row_info = 0
@@ -1785,7 +1789,7 @@ CONTAINS
       DO proc_shift = 1, para_env%num_pe - 1
          ! first exchange information on the local data
          rec_col_row_info = 0
-         CALL para_env%group%sendrecv(local_col_row_info, proc_send_static, rec_col_row_info, proc_receive_static)
+         CALL para_env%sendrecv(local_col_row_info, proc_send_static, rec_col_row_info, proc_receive_static)
          nrow_rec = rec_col_row_info(0, 1)
          ncol_rec = rec_col_row_info(0, 2)
 
@@ -1799,7 +1803,7 @@ CONTAINS
          rec_L = 0.0_dp
 
          ! then send and receive the real data
-         CALL para_env%group%sendrecv(local_L, proc_send_static, rec_L, proc_receive_static)
+         CALL para_env%sendrecv(local_L, proc_send_static, rec_L, proc_receive_static)
 
          ! accumulate the received data on my_Lrows
          DO jjB = 1, ncol_rec

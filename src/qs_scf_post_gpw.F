@@ -2078,8 +2078,8 @@ CONTAINS
                      nr = 0
                      niso = 0
                   END IF
-                  CALL para_env%group%sum(nr)
-                  CALL para_env%group%sum(niso)
+                  CALL para_env%sum(nr)
+                  CALL para_env%sum(niso)
 
                   ALLOCATE (bfun(nr, niso))
                   bfun = 0._dp
@@ -2088,7 +2088,7 @@ CONTAINS
                         bfun(:, :) = bfun + rho_atom%rho_rad_h(ispin)%r_coef - rho_atom%rho_rad_s(ispin)%r_coef
                      END IF
                   END DO
-                  CALL para_env%group%sum(bfun)
+                  CALL para_env%sum(bfun)
                   ccdens(:, 1, ikind) = ppdens(:, 1, ikind)
                   ccdens(:, 2, ikind) = 0._dp
                   IF (unit_nr > 0) THEN
@@ -3312,7 +3312,7 @@ CONTAINS
             interact_adjm((ind - 1)*4 + 4) = jkind
          END DO
 
-         CALL para_env%group%sum(interact_adjm)
+         CALL para_env%sum(interact_adjm)
 
          unit_nr = cp_print_key_unit_nr(logger, dft_section, "PRINT%ADJMAT_WRITE", &
                                         extension=".adjmat", file_form="FORMATTED", &

@@ -281,7 +281,7 @@ CONTAINS
          DEALLOCATE (scaling_factor)
 
          logger => cp_get_default_logger()
-         IF (logger%para_env%ionode) THEN
+         IF (logger%para_env%is_source()) THEN
             iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
             WRITE (iounit, *) " maxabs difference ", &
                MAXVAL(ABS(weighted_vectors%local_data - 2.0_dp*gradient%local_data))

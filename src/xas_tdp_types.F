@@ -19,7 +19,6 @@ MODULE xas_tdp_types
    USE cp_files,                        ONLY: file_exists
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_distribution_release,&
                                               dbcsr_distribution_type,&
@@ -312,7 +311,7 @@ MODULE xas_tdp_types
    END TYPE harmonics_atom_p_type
 
    TYPE batch_info_type
-      TYPE(cp_para_env_type), POINTER             :: para_env
+      TYPE(cp_para_env_type)             :: para_env
       INTEGER                                     :: batch_size
       INTEGER                                     :: nbatch
       INTEGER                                     :: ibatch
@@ -1402,7 +1401,7 @@ CONTAINS
 
       INTEGER                                            :: i
 
-      CALL cp_para_env_release(batch_info%para_env)
+      CALL batch_info%para_env%free()
 
       IF (ASSOCIATED(batch_info%so_proc_info)) THEN
          DO i = 1, SIZE(batch_info%so_proc_info)

@@ -809,7 +809,7 @@ CONTAINS
       CALL dbt_batched_contract_finalize(t_3c_2)
       CALL dbt_batched_contract_finalize(ri_data%t_3c_int_ctr_3(1, 1))
 
-      CALL para_env%group%sum(memory_3c)
+      CALL para_env%sum(memory_3c)
       compression_factor = REAL(nze_O, dp)*1.0E-06*8.0_dp/memory_3c
 
       IF (unit_nr > 0) THEN
@@ -1049,7 +1049,7 @@ CONTAINS
          CALL get_qs_env(qs_env, para_env=para_env)
          DO ispin = 1, SIZE(my_rho_ao, 1)
             nblks = dbcsr_get_num_blocks(my_rho_ao(ispin, 1)%matrix)
-            CALL para_env%group%sum(nblks)
+            CALL para_env%sum(nblks)
             IF (nblks == 0) THEN
                CPABORT("received empty density matrix")
             END IF
@@ -1192,7 +1192,7 @@ CONTAINS
 
       DEALLOCATE (dist1, dist2)
 
-      CALL para_env%group%sync()
+      CALL para_env%sync()
       t1 = m_walltime()
 
       DO ispin = 1, nspins
@@ -1242,7 +1242,7 @@ CONTAINS
          batch_ranges_2(:ri_data%n_mem) = mem_start_block_2(:)
          batch_ranges_2(ri_data%n_mem + 1) = mem_end_block_2(ri_data%n_mem) + 1
 
-         CALL para_env%group%get_rank(iproc)
+         CALL para_env%get_rank(iproc)
 
          CALL create_3c_tensor(t_3c_int_mo_1(1, 1), dist1, dist2, dist3, ri_data%pgrid_1, &
                                ri_data%bsizes_AO_split, ri_data%bsizes_RI_split, mo_bsizes_1, &
@@ -1268,7 +1268,7 @@ CONTAINS
          IF (do_initialize) THEN
             pdims(:) = 0
 
-            CALL dbt_pgrid_create(para_env%group, pdims, pgrid, &
+            CALL dbt_pgrid_create(para_env, pdims, pgrid, &
                                   tensor_dims=[SIZE(ri_data%bsizes_RI_fit), &
                                                (homo(ispin) - 1)/ri_data%n_mem + 1, &
                                                SIZE(ri_data%bsizes_AO_fit)])
@@ -1431,7 +1431,7 @@ CONTAINS
       CALL dbt_pgrid_destroy(pgrid_2d)
       CALL dbt_destroy(ks_t)
 
-      CALL para_env%group%sync()
+      CALL para_env%sync()
       t2 = m_walltime()
 
       ri_data%dbcsr_time = ri_data%dbcsr_time + t2 - t1
@@ -1523,7 +1523,7 @@ CONTAINS
       CALL dbt_create(ri_data%t_3c_int_ctr_2(1, 1), t_3c_1)
       CALL dbt_create(ri_data%t_3c_int_ctr_1(1, 1), t_3c_3)
 
-      CALL para_env%group%sync()
+      CALL para_env%sync()
       t1 = m_walltime()
 
       flops_ks_max = 0; flops_p_max = 0
@@ -1669,7 +1669,7 @@ CONTAINS
 
       END DO
 
-      CALL para_env%group%sync()
+      CALL para_env%sync()
       t2 = m_walltime()
 
       ri_data%dbcsr_time = ri_data%dbcsr_time + t2 - t1
@@ -1758,13 +1758,13 @@ CONTAINS
                       para_env=para_env)
 
       pdims(:) = 0
-      CALL dbt_pgrid_create(para_env%group, pdims, pgrid_1, tensor_dims=[SIZE(ri_data%bsizes_AO_split), &
-                                                                         SIZE(ri_data%bsizes_RI_split), &
-                                                                         SIZE(ri_data%bsizes_AO_split)])
+      CALL dbt_pgrid_create(para_env, pdims, pgrid_1, tensor_dims=[SIZE(ri_data%bsizes_AO_split), &
+                                                                   SIZE(ri_data%bsizes_RI_split), &
+                                                                   SIZE(ri_data%bsizes_AO_split)])
       pdims(:) = 0
-      CALL dbt_pgrid_create(para_env%group, pdims, pgrid_2, tensor_dims=[SIZE(ri_data%bsizes_RI_split), &
-                                                                         SIZE(ri_data%bsizes_AO_split), &
-                                                                         SIZE(ri_data%bsizes_AO_split)])
+      CALL dbt_pgrid_create(para_env, pdims, pgrid_2, tensor_dims=[SIZE(ri_data%bsizes_RI_split), &
+                                                                   SIZE(ri_data%bsizes_AO_split), &
+                                                                   SIZE(ri_data%bsizes_AO_split)])
 
       CALL create_3c_tensor(t_3c_ao_ri_ao, dist1, dist2, dist3, pgrid_1, &
                             ri_data%bsizes_AO_split, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, &
@@ -1957,7 +1957,7 @@ CONTAINS
             CALL dbt_batched_contract_init(t_3c_der_RI(i_xyz), batch_range_2=batch_ranges_RI)
          END DO
 
-         CALL para_env%group%sync()
+         CALL para_env%sync()
          t1 = m_walltime()
 
          ! 2) Loop over batches
@@ -2370,7 +2370,7 @@ CONTAINS
       END DO
       CALL dbt_copy(ri_data%t_3c_int_ctr_2(1, 1), ri_data%t_3c_int_ctr_1(1, 1))
 
-      CALL para_env%group%sync()
+      CALL para_env%sync()
       t2 = m_walltime()
 
       ri_data%dbcsr_time = ri_data%dbcsr_time + t2 - t1
@@ -2556,7 +2556,7 @@ CONTAINS
 
       CALL dbt_create(t_3c_ri_ao_ao, t_3c_int_2)
 
-      CALL para_env%group%sync()
+      CALL para_env%sync()
       t1 = m_walltime()
 
       !Pre-calculate the necessary 2-center quantities
@@ -2839,7 +2839,7 @@ CONTAINS
       CALL dbt_batched_contract_finalize(t_3c_5)
       CALL dbt_batched_contract_finalize(t_3c_sparse)
 
-      CALL para_env%group%sync()
+      CALL para_env%sync()
       t2 = m_walltime()
 
       CALL dbt_copy(t_3c_int, ri_data%t_3c_int_ctr_2(1, 1), move_data=.TRUE.)
@@ -3133,7 +3133,7 @@ CONTAINS
          CALL dbt_destroy(t_3c_der_AO_prv(1, 1, i_xyz))
       END DO
 
-      CALL para_env%group%sum(memory)
+      CALL para_env%sum(memory)
       compression_factor = REAL(nze_tot, dp)*1.0E-06*8.0_dp/memory
       IF (ri_data%unit_nr > 0) THEN
          WRITE (UNIT=ri_data%unit_nr, FMT="((T3,A,T66,F11.2,A4))") &
@@ -3853,7 +3853,7 @@ CONTAINS
       pdims_3d(2) = pdims_2d(2)
       pdims_3d(3) = 1
 
-      CALL dbt_pgrid_create(para_env%group, pdims_3d, pgrid_3d)
+      CALL dbt_pgrid_create(para_env, pdims_3d, pgrid_3d)
       CALL dbt_distribution_new(dist_3d, pgrid_3d, dist1, dist2, dist3)
       CALL dbt_create(rho_ao_t_3d, "rho_ao_3d", dist_3d, [1, 2], [3], ri_data%bsizes_AO_split, &
                       ri_data%bsizes_AO_split, [1])
@@ -3933,7 +3933,7 @@ CONTAINS
       CALL dbt_default_distvec(SIZE(ri_data%bsizes_RI_split), pdims_2d(1), ri_data%bsizes_RI_split, dist1)
       CALL dbt_default_distvec(1, pdims_2d(2), [1], dist2)
 
-      CALL dbt_pgrid_create(para_env%group, pdims_2d, pgrid_2d)
+      CALL dbt_pgrid_create(para_env, pdims_2d, pgrid_2d)
       CALL dbt_distribution_new(dist_2d, pgrid_2d, dist1, dist2)
       CALL dbt_create(density_coeffs_t, "density_coeffs", dist_2d, [1], [2], ri_data%bsizes_RI_split, [1])
       CALL dbt_create(density_coeffs_t, density_tmp)
@@ -4026,7 +4026,7 @@ CONTAINS
       END DO
       CALL dbt_iterator_stop(iter)
 !$OMP END PARALLEL
-      CALL para_env%group%sum(density_coeffs)
+      CALL para_env%sum(density_coeffs)
 
       CALL dbt_destroy(t2c_ri_ints)
       CALL dbt_destroy(t2c_ri_inv)

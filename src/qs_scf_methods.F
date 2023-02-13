@@ -521,7 +521,7 @@ CONTAINS
       END DO
       CALL dbcsr_iterator_stop(iter)
 
-      CALL para_env%group%max(delta)
+      CALL para_env%max(delta)
 
       CALL timestop(handle)
 

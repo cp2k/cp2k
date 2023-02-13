@@ -35,7 +35,6 @@ MODULE cp_dbcsr_output
                                               int_8
    USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: symmetrize_matrix
-   USE message_passing,                 ONLY: mp_comm_type
    USE orbital_pointers,                ONLY: nso
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
@@ -90,10 +89,8 @@ CONTAINS
                                                             nsgf, row1, row2
       LOGICAL                                            :: my_omit_headers
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: matrix
-      TYPE(mp_comm_type)                                 :: group
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-      group = para_env%group
       IF (.NOT. ASSOCIATED(blacs_matrix%matrix_struct)) RETURN
       CALL cp_fm_get_info(blacs_matrix, name=matrix_name, nrow_global=nrow_global, &
                           ncol_global=ncol_global)
@@ -177,16 +174,13 @@ CONTAINS
       INTEGER                                            :: col1, col2, dim_col, dim_row, row1, row2
       LOGICAL                                            :: my_omit_headers, print_sym
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: matrix
-      TYPE(mp_comm_type)                                 :: group
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-
-      group = para_env%group
 
       NULLIFY (matrix)
 
       CALL copy_repl_dbcsr_to_repl_fm(sparse_matrix, matrix)
 
-      CALL group%sum(matrix)
+      CALL para_env%sum(matrix)
 
       SELECT CASE (dbcsr_get_matrix_type(sparse_matrix))
       CASE (dbcsr_type_symmetric)
@@ -361,11 +355,8 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: lshell
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
-      TYPE(mp_comm_type)                                 :: group
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-
-      group = para_env%group
 
       IF (output_unit > 0) THEN
          CALL m_flush(output_unit)
@@ -484,7 +475,7 @@ CONTAINS
          DEALLOCATE (last_sgf)
       END IF
 
-      CALL group%sync()
+      CALL para_env%sync()
       IF (output_unit > 0) CALL m_flush(output_unit)
 
    END SUBROUTINE write_matrix_sym
@@ -519,9 +510,6 @@ CONTAINS
       CHARACTER(LEN=35)                                  :: fmtstr2
       INTEGER                                            :: from, icol, irow, jcol, left, ncol, &
                                                             ndigits, right, to, width
-      TYPE(mp_comm_type)                                 :: group
-
-      group = para_env%group
 
       IF (output_unit > 0) THEN
          CALL m_flush(output_unit)
@@ -582,7 +570,7 @@ CONTAINS
          WRITE (UNIT=output_unit, FMT="(/)")
       END IF
 
-      CALL group%sync()
+      CALL para_env%sync()
       IF (output_unit > 0) CALL m_flush(output_unit)
 
    END SUBROUTINE write_matrix_gen
@@ -612,15 +600,13 @@ CONTAINS
       LOGICAL                                            :: ionode
       REAL(KIND=dp)                                      :: occupation
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(mp_comm_type)                                 :: group
 
       NULLIFY (logger)
       logger => cp_get_default_logger()
 
       CALL timeset(routineN, handle)
 
-      group = para_env%group
-      ionode = para_env%ionode
+      ionode = para_env%is_source()
       mype = para_env%mepos + 1
       npe = para_env%num_pe
 
@@ -642,8 +628,8 @@ CONTAINS
 
       IF (full_output) THEN
          ! XXXXXXXX should gather/scatter this on ionode
-         CALL group%sum(nblock)
-         CALL group%sum(nelement)
+         CALL para_env%sum(nblock)
+         CALL para_env%sum(nelement)
 
          nblock_sum = SUM(INT(nblock, KIND=int_8))
          nelement_sum = SUM(INT(nelement, KIND=int_8))
@@ -652,10 +638,10 @@ CONTAINS
          nblock_max = nblock(mype)
          nelement_sum = nelement(mype)
          nelement_max = nelement(mype)
-         CALL group%sum(nblock_sum)
-         CALL group%sum(nelement_sum)
+         CALL para_env%sum(nblock_sum)
+         CALL para_env%sum(nelement_sum)
          tmp = (/nblock_max, nelement_max/)
-         CALL group%max(tmp)
+         CALL para_env%max(tmp)
          nblock_max = tmp(1); nelement_max = tmp(2)
       END IF
 

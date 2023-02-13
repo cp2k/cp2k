@@ -230,7 +230,7 @@ CONTAINS
          CALL release_local_fixd_list(lfixd_list)
 
          IF (.NOT. PRESENT(w)) THEN
-            CALL force_env%para_env%group%sum(force)
+            CALL force_env%para_env%sum(force)
             DO iparticle = 1, natom
                shell_index = particle_set(iparticle)%shell_index
                IF (shell_index == 0) THEN

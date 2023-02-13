@@ -34,8 +34,7 @@ MODULE f77_interface
         cp_get_default_logger, cp_logger_create, cp_logger_get_default_unit_nr, cp_logger_release, &
         cp_logger_retain, cp_logger_type, cp_rm_default_logger, cp_to_string
    USE cp_output_handling,              ONLY: cp_iterate
-   USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                              cp_para_env_retain
+   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_methods,               ONLY: get_results,&
                                               test_for_result
@@ -205,9 +204,8 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: init_mpi
       INTEGER, INTENT(out)                               :: ierr
 
-      INTEGER                                            :: taskid, unit_nr
+      INTEGER                                            :: unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(mp_comm_type)                                 :: mpi_comm_default
 
       IF (.NOT. module_initialized) THEN
          ! install error handler hooks
@@ -222,21 +220,20 @@ CONTAINS
          ! get runtime information
          CALL get_runtime_info()
 
+         ! re-create the para_env and log with correct (reordered) ranks
+         ALLOCATE (default_para_env)
          IF (init_mpi) THEN
             ! get the default system wide communicator
-            CALL mp_world_init(mpi_comm_default)
+            CALL mp_world_init(default_para_env)
          ELSE
-            mpi_comm_default = mp_comm_world
+            default_para_env = mp_comm_world
          END IF
 
          CALL string_table_allocate()
          CALL add_mp_perf_env()
          CALL add_timer_env()
 
-         ! re-create the para_env and log with correct (reordered) ranks
-         ALLOCATE (default_para_env)
-         default_para_env = mpi_comm_default
-         IF (default_para_env%ionode) THEN
+         IF (default_para_env%is_source()) THEN
             unit_nr = default_output_unit
          ELSE
             unit_nr = -1
@@ -261,23 +258,22 @@ CONTAINS
 
          ! Select active offload device when available.
          IF (offload_get_device_count() > 0) THEN
-            CALL mpi_comm_default%get_rank(taskid)
-            CALL offload_set_chosen_device(MOD(taskid, offload_get_device_count()))
+            CALL offload_set_chosen_device(MOD(default_para_env%mepos, offload_get_device_count()))
          END IF
 
          ! Initialize the DBCSR configuration
          ! Attach the time handler hooks to DBCSR
 #if defined __DBCSR_ACC
          IF (offload_get_device_count() > 0) THEN
-            CALL dbcsr_init_lib(default_para_env%group%get_handle(), timeset_hook, timestop_hook, &
+            CALL dbcsr_init_lib(default_para_env%get_handle(), timeset_hook, timestop_hook, &
                                 cp_abort_hook, cp_warn_hook, io_unit=unit_nr, &
                                 accdrv_active_device_id=offload_get_chosen_device())
          ELSE
-            CALL dbcsr_init_lib(default_para_env%group%get_handle(), timeset_hook, timestop_hook, &
+            CALL dbcsr_init_lib(default_para_env%get_handle(), timeset_hook, timestop_hook, &
                                 cp_abort_hook, cp_warn_hook, io_unit=unit_nr)
          END IF
 #else
-         CALL dbcsr_init_lib(default_para_env%group%get_handle(), timeset_hook, timestop_hook, &
+         CALL dbcsr_init_lib(default_para_env%get_handle(), timeset_hook, timestop_hook, &
                              cp_abort_hook, cp_warn_hook, io_unit=unit_nr)
 #endif
          CALL pw_gpu_init()
@@ -552,7 +548,8 @@ CONTAINS
       TYPE(section_type), POINTER                        :: input_declaration
       CHARACTER(len=*), INTENT(in)                       :: input_path
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: output_path
-      TYPE(mp_comm_type), INTENT(IN), OPTIONAL           :: mpi_comm
+
+      CLASS(mp_comm_type), INTENT(IN), OPTIONAL           :: mpi_comm
       INTEGER, INTENT(in), OPTIONAL                      :: output_unit
       LOGICAL, INTENT(in), OPTIONAL                      :: owns_out_unit
       TYPE(section_vals_type), OPTIONAL, POINTER         :: input
@@ -564,11 +561,11 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: old_dir, wdir
       INTEGER :: handle, i, ierr2, iforce_eval, isubforce_eval, k, method_name_id, my_group, &
-         nforce_eval, ngroups, nsubforce_size, unit_nr
+                 nforce_eval, ngroups, nsubforce_size, unit_nr
       INTEGER, DIMENSION(:), POINTER                     :: group_distribution, i_force_eval, &
                                                             lgroup_distribution
       LOGICAL :: check, do_qmmm_force_mixing, multiple_subsys, my_echo, my_owns_out_unit, &
-         use_motion_section, use_multiple_para_env
+                 use_motion_section, use_multiple_para_env
       TYPE(cp_logger_type), POINTER                      :: logger, my_logger
       TYPE(cp_para_env_type), POINTER                    :: my_para_env, para_env
       TYPE(eip_environment_type), POINTER                :: eip_env
@@ -589,8 +586,8 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_type), POINTER                        :: section
       TYPE(section_vals_type), POINTER :: fe_section, force_env_section, force_env_sections, &
-         fp_section, input_file, qmmm_section, qmmmx_section, root_section, subsys_section, &
-         wrk_section
+                                          fp_section, input_file, qmmm_section, qmmmx_section, root_section, subsys_section, &
+                                          wrk_section
       TYPE(timer_env_type), POINTER                      :: timer_env
 
       CPASSERT(ASSOCIATED(input_declaration))
@@ -602,7 +599,7 @@ CONTAINS
          para_env = mpi_comm
       ELSE
          para_env => default_para_env
-         CALL cp_para_env_retain(para_env)
+         CALL para_env%retain()
       END IF
 
       CALL timeset(routineN, handle)
@@ -623,7 +620,7 @@ CONTAINS
       IF (PRESENT(output_unit)) THEN
          unit_nr = output_unit
       ELSE
-         IF (para_env%ionode) THEN
+         IF (para_env%is_source()) THEN
             IF (output_path == "__STD_OUT__") THEN
                unit_nr = default_output_unit
             ELSE
@@ -658,7 +655,7 @@ CONTAINS
       CALL section_vals_val_get(input_file, "GLOBAL%ECHO_INPUT", &
                                 l_val=my_echo)
       ! echo after check?
-      IF (para_env%ionode .AND. my_echo) THEN
+      IF (para_env%is_source() .AND. my_echo) THEN
          CALL section_vals_write(input_file, unit_nr=cp_logger_get_default_unit_nr(logger), &
                                  hide_root=.TRUE., hide_defaults=.FALSE.)
       END IF
@@ -904,7 +901,7 @@ CONTAINS
       DEALLOCATE (i_force_eval)
       timer_env => get_timer_env()
       mp_perf_env => get_mp_perf_env()
-      CALL para_env%group%max(last_f_env_id)
+      CALL para_env%max(last_f_env_id)
       last_f_env_id = last_f_env_id + 1
       new_env_id = last_f_env_id
       n_f_envs = n_f_envs + 1
@@ -1454,9 +1451,9 @@ CONTAINS
          para_env = mpi_comm
       ELSE
          para_env => default_para_env
-         CALL cp_para_env_retain(para_env)
+         CALL para_env%retain()
       END IF
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          IF (output_file_path == "__STD_OUT__") THEN
             unit_nr = default_output_unit
          ELSE
@@ -1478,7 +1475,7 @@ CONTAINS
       input_file => read_input(input_declaration, input_file_path, initial_variables=initial_variables, &
                                para_env=para_env)
       CALL check_cp2k_input(input_declaration, input_file, para_env=para_env, output_unit=unit_nr)
-      IF (my_echo_input .AND. para_env%ionode) THEN
+      IF (my_echo_input .AND. para_env%is_source()) THEN
          CALL section_vals_write(input_file, &
                                  unit_nr=cp_logger_get_default_unit_nr(logger, local=.FALSE.), hide_root=.TRUE., &
                                  hide_defaults=.FALSE.)

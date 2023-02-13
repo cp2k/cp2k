@@ -30,8 +30,6 @@ MODULE kpoint_methods
         copy_info_type, cp_fm_cleanup_copy_general, cp_fm_create, cp_fm_finish_copy_general, &
         cp_fm_get_info, cp_fm_release, cp_fm_start_copy_general, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE cp_para_env,                     ONLY: cp_para_env_create,&
-                                              cp_para_env_retain
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cryssym,                         ONLY: apply_rotation_coord,&
                                               crys_sym_gen,&
@@ -272,17 +270,16 @@ CONTAINS
 
       INTEGER                                            :: handle, igr, ik, ikk, ngr, niogrp, nkp, &
                                                             nkp_grp, nkp_loc, npe, unit_nr
-      INTEGER, DIMENSION(2)                              :: dims
-      LOGICAL, DIMENSION(2)                              :: rdim
+      INTEGER, DIMENSION(2)                              :: dims, pos
       TYPE(cp_para_env_type), POINTER                    :: para_env_inter_kp, para_env_kp
       TYPE(kpoint_env_p_type), DIMENSION(:), POINTER     :: kp_env
       TYPE(kpoint_env_type), POINTER                     :: kp
-      TYPE(mp_cart_type)                                 :: comm_cart, comm_inter_kp, comm_kp
+      TYPE(mp_cart_type)                                 :: comm_cart
 
       CALL timeset(routineN, handle)
 
       kpoint%para_env => para_env
-      CALL cp_para_env_retain(kpoint%para_env)
+      CALL kpoint%para_env%retain()
       kpoint%blacs_env_all => blacs_env
       CALL kpoint%blacs_env_all%retain()
 
@@ -311,9 +308,9 @@ CONTAINS
          kpoint%kp_env => kp_env
          ! parallel environments
          kpoint%para_env_kp => para_env
-         CALL cp_para_env_retain(para_env)
+         CALL kpoint%para_env_kp%retain()
          kpoint%para_env_inter_kp => para_env
-         CALL cp_para_env_retain(para_env)
+         CALL kpoint%para_env_inter_kp%retain()
          kpoint%iogrp = .TRUE.
          kpoint%nkp_groups = 1
       ELSE
@@ -346,22 +343,18 @@ CONTAINS
             CPABORT("Number of processors is not divisible by the kpoint group size.")
          END IF
 
-         NULLIFY (para_env_kp, para_env_inter_kp)
-         CALL comm_cart%create(comm_old=para_env%group, ndims=2, dims=dims)
-
-         rdim(2) = .FALSE.
-         rdim(1) = .TRUE.
-         CALL comm_kp%from_sub(comm=comm_cart, rdim=rdim)
-         CALL cp_para_env_create(para_env_kp, comm_kp)
-         rdim(2) = .TRUE.
-         rdim(1) = .FALSE.
-         CALL comm_inter_kp%from_sub(comm=comm_cart, rdim=rdim)
-         CALL cp_para_env_create(para_env_inter_kp, comm_inter_kp)
+         ! Create the subgroups, one for each k-point group and one interconnecting group
+         CALL comm_cart%create(comm_old=para_env, ndims=2, dims=dims)
+         CALL comm_cart%get_info_cart(task_coor=pos)
+         ALLOCATE (para_env_kp)
+         CALL para_env_kp%from_split(comm_cart, pos(2))
+         ALLOCATE (para_env_inter_kp)
+         CALL para_env_inter_kp%from_split(comm_cart, pos(1))
          CALL comm_cart%free()
 
          niogrp = 0
-         IF (para_env%ionode) niogrp = 1
-         CALL para_env_kp%group%sum(niogrp)
+         IF (para_env%is_source()) niogrp = 1
+         CALL para_env_kp%sum(niogrp)
          kpoint%iogrp = (niogrp == 1)
 
          ! parallel groups
@@ -638,7 +631,7 @@ CONTAINS
       itm(1) = MAXVAL(ABS(list(1, 1:icount)))
       itm(2) = MAXVAL(ABS(list(2, 1:icount)))
       itm(3) = MAXVAL(ABS(list(3, 1:icount)))
-      CALL para_env%group%max(itm)
+      CALL para_env%max(itm)
       it = MAXVAL(itm(1:3))
       IF (ASSOCIATED(kpoint%cell_to_index)) THEN
          DEALLOCATE (kpoint%cell_to_index)
@@ -652,7 +645,7 @@ CONTAINS
          i3 = list(3, ic)
          cti(i1, i2, i3) = ic
       END DO
-      CALL para_env%group%sum(cti)
+      CALL para_env%sum(cti)
       ncount = 0
       DO i1 = -itm(1), itm(1)
          DO i2 = -itm(2), itm(2)
@@ -855,7 +848,7 @@ CONTAINS
          END DO
       END DO
       CALL get_kpoint_info(kpoint, para_env_inter_kp=para_env_inter_kp)
-      CALL para_env_inter_kp%group%sum(weig)
+      CALL para_env_inter_kp%sum(weig)
 
       CALL get_kpoint_info(kpoint, wkp=wkp)
       IF (smear%do_smear) THEN
