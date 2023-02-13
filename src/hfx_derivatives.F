@@ -265,7 +265,7 @@ CONTAINS
           my_x_data(1, 1)%potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
          IF (l_max > init_t_c_g0_lmax) THEN
             CALL open_file(unit_number=unit_id, file_name=my_x_data(1, 1)%potential_parameter%filename)
-            CALL init(l_max, unit_id, para_env%mepos, para_env%group)
+            CALL init(l_max, unit_id, para_env%mepos, para_env)
             CALL close_file(unit_id)
             init_t_c_g0_lmax = l_max
          END IF
@@ -1583,7 +1583,7 @@ CONTAINS
       IF (actual_x_data%memory_parameter%recalc_forces) THEN
          tmp_i8(1:6) = (/shm_storage_counter_integrals, shm_neris_onthefly, shm_neris_incore, &
                          shm_neris_total, shm_nprim_ints, shm_stor_count_max_val/)
-         CALL para_env%group%sum(tmp_i8)
+         CALL para_env%sum(tmp_i8)
          shm_storage_counter_integrals = tmp_i8(1)
          shm_neris_onthefly = tmp_i8(2)
          shm_neris_incore = tmp_i8(3)

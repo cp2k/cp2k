@@ -890,7 +890,7 @@ CONTAINS
 
       ! get the maximum number of local atoms across the procs.
       max_natoms_local = natoms_local
-      CALL para_env%group%max(max_natoms_local)
+      CALL para_env%max(max_natoms_local)
 
       ! create the halos, one for each local atom
       ALLOCATE (halos(natoms_local))

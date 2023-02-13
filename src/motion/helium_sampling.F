@@ -119,8 +119,8 @@ CONTAINS
       END IF
 
       ! Distribute steps for processors without helium_env
-      CALL logger%para_env%group%bcast(num_steps, logger%para_env%source)
-      CALL logger%para_env%group%bcast(tot_steps, logger%para_env%source)
+      CALL logger%para_env%bcast(num_steps, logger%para_env%source)
+      CALL logger%para_env%bcast(tot_steps, logger%para_env%source)
 
       DO step = 1, num_steps
 
@@ -366,7 +366,7 @@ CONTAINS
                helium_env(k)%helium%force_avrg(:, :) = helium_env(1)%helium%force_avrg(:, :)
             END DO
          ELSE IF (helium_env(1)%helium%get_helium_forces == helium_forces_last) THEN
-            IF (logger%para_env%ionode) THEN
+            IF (logger%para_env%is_source()) THEN
                sel_mp_source = INT(helium_env(1)%helium%rng_stream_uniform%next() &
                                    *REAL(helium_env(1)%helium%num_env, dp))
             END IF

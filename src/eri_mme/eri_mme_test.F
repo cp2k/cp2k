@@ -125,7 +125,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL para_env%group%sum(time)
+      CALL para_env%sum(time)
 
       IF (test_accuracy) THEN
          I_diff(:, :, :, :) = ABS(I_test - I_ref)
@@ -275,7 +275,7 @@ CONTAINS
                END DO
                CALL CPU_TIME(t1)
                time = t1 - t0
-               CALL para_env%group%sum(time)
+               CALL para_env%sum(time)
                IF (iw > 0) THEN
                   WRITE (iw, '(T11, I1, 1X, I1, 1X, I1, 1X, ES9.2, 1X, ES9.2, 1X, ES9.2, 1X, ES9.2)') &
                      la, lb, lc, zet(izeta), zet(izetb), zet(izetc), time/nrep

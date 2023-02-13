@@ -383,7 +383,7 @@ CONTAINS
 
       NULLIFY (logger)
       logger => cp_get_default_logger()
-      IF (logger%para_env%ionode) THEN
+      IF (logger%para_env%is_source()) THEN
          iw = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          iw = -1

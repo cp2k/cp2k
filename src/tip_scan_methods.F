@@ -274,7 +274,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env, para_env=para_env)
 
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          CALL open_file(file_name=scan_env%tip_cube_file, &
                         file_status="OLD", &
                         file_form="FORMATTED", &
@@ -292,11 +292,11 @@ CONTAINS
          CALL close_file(unit_number=extunit)
       END IF
 
-      CALL para_env%group%bcast(npts, para_env%source)
-      CALL para_env%group%bcast(dcell, para_env%source)
+      CALL para_env%bcast(npts, para_env%source)
+      CALL para_env%bcast(dcell, para_env%source)
 
       NULLIFY (pw_grid)
-      CALL pw_grid_create(pw_grid, para_env%group)
+      CALL pw_grid_create(pw_grid, para_env)
       CALL pw_grid_setup(dcell, pw_grid, npts=npts)
       CALL pw_create(scan_env%tip_pw_r, pw_grid, use_data=REALDATA3D, in_space=REALSPACE)
 !deb

@@ -25,7 +25,6 @@ MODULE ec_environment
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
-   USE cp_para_env,                     ONLY: cp_para_env_retain
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE ec_env_types,                    ONLY: energy_correction_type
@@ -158,7 +157,7 @@ CONTAINS
          CPASSERT(PRESENT(ec_section))
          ! get a useful output_unit
          logger => cp_get_default_logger()
-         IF (logger%para_env%ionode) THEN
+         IF (logger%para_env%is_source()) THEN
             unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
          ELSE
             unit_nr = -1
@@ -377,7 +376,7 @@ CONTAINS
       ! copy some basic stuff
       ls_env%nspins = dft_control%nspins
       ls_env%natoms = SIZE(particle_set, 1)
-      CALL cp_para_env_retain(ls_env%para_env)
+      CALL ls_env%para_env%retain()
 
       ! initialize block to group to defined molecules
       ALLOCATE (ls_env%ls_mstruct%atom_to_molecule(ls_env%natoms))

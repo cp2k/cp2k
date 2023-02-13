@@ -232,7 +232,7 @@ CONTAINS
       NULLIFY (force)
       NULLIFY (particle_set)
 
-      group = para_env%group
+      group = para_env
 
       only_molecule = .FALSE.
       IF (PRESENT(molecular)) only_molecule = molecular

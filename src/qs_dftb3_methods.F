@@ -136,7 +136,7 @@ CONTAINS
          END DO
       END DO
       CALL get_qs_env(qs_env=qs_env, para_env=para_env)
-      CALL para_env%group%sum(eb3)
+      CALL para_env%sum(eb3)
       energy%dftb3 = eb3
 
       ! Forces and Virial

@@ -131,7 +131,7 @@ CONTAINS
 
       ! Redirecting output into a new file
       output_file_path = input_file_path(1:lp)//".out"
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          CALL open_file(file_name=output_file_path, file_status="UNKNOWN", &
                         file_action="WRITE", file_position="APPEND", unit_number=unit_nr)
       ELSE
@@ -167,7 +167,7 @@ CONTAINS
 
       INTEGER                                            :: unit_nr
 
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          unit_nr = cp_logger_get_default_unit_nr(new_logger)
          CALL close_file(unit_number=unit_nr)
       END IF

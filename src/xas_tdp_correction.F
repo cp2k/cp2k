@@ -618,7 +618,7 @@ CONTAINS
                CALL dbt_destroy(aj_Ib)
             END DO
 
-            CALL para_env%group%sum(parts)
+            CALL para_env%sum(parts)
             s1 = parts(1); ds1 = parts(2)
             s2 = parts(3); ds2 = parts(4)
 
@@ -884,7 +884,7 @@ CONTAINS
 
                END DO
 
-               CALL para_env%group%sum(parts)
+               CALL para_env%sum(parts)
                s1 = parts(1); ds1 = parts(2)
                s2 = parts(3); ds2 = parts(4)
 
@@ -970,7 +970,7 @@ CONTAINS
       nsgf_x = SIZE(xas_tdp_env%ri_inv_ex, 1)
       nblk_ri = 1
 
-      CALL dbt_pgrid_create(para_env%group, pdims, t_pgrid)
+      CALL dbt_pgrid_create(para_env, pdims, t_pgrid)
       ALLOCATE (proc_dist_1(natom), proc_dist_2(natom), orb_blk_size(natom))
       CALL dbt_get_info(xas_tdp_env%ri_3c_ex, proc_dist_1=proc_dist_1, proc_dist_2=proc_dist_2, &
                         blk_size_1=orb_blk_size)
@@ -1012,7 +1012,7 @@ CONTAINS
       !create the pgrid, based on the 2D dbcsr grid
       CALL dbt_pgrid_destroy(t_pgrid)
       pdims = 0
-      CALL dbt_pgrid_create(para_env%group, pdims, t_pgrid, tensor_dims=[natom, natom, 1])
+      CALL dbt_pgrid_create(para_env, pdims, t_pgrid, tensor_dims=[natom, natom, 1])
 
       !cyclic distribution accross all directions.
       ALLOCATE (proc_dist_3(nblk_ri))
@@ -1105,7 +1105,7 @@ CONTAINS
          !Create the tensor pgrid. AOs and RI independent from spin
          IF (ispin == 1) THEN
             CALL dbt_get_info(pq_X, pdims=pdims, nblks_total=nblk_pqX)
-            CALL dbt_pgrid_create(para_env%group, pdims, t_pgrid)
+            CALL dbt_pgrid_create(para_env, pdims, t_pgrid)
             nblk_aos = nblk_pqX(1)
             nblk_ri = nblk_pqX(3)
          END IF
@@ -1135,7 +1135,7 @@ CONTAINS
          CALL dbt_default_distvec(nblk_aos, SIZE(mat_pgrid, 1), ao_blk_size, ao_row_dist)
          CALL dbt_default_distvec(nblk_mos(ispin), SIZE(mat_pgrid, 2), mo_blk_size(ispin)%array, &
                                   mo_col_dist(ispin)%array)
-         CALL dbcsr_distribution_new(mat_dist, group=para_env%group%get_handle(), pgrid=mat_pgrid, &
+         CALL dbcsr_distribution_new(mat_dist, group=para_env%get_handle(), pgrid=mat_pgrid, &
                                      row_dist=ao_row_dist, col_dist=mo_col_dist(ispin)%array)
 
          CALL dbcsr_create(dbcsr_mo_coeffs, name="MO coeffs", matrix_type="N", dist=mat_dist, &
@@ -1319,7 +1319,7 @@ CONTAINS
 
          !preapre (oI_Y) tensor and (pI|Y) tensor in proper dist and blk sizes
          pdims_2d(1) = SIZE(mat_pgrid, 1); pdims_2d(2) = SIZE(mat_pgrid, 2)
-         CALL dbt_pgrid_create(para_env%group, pdims_2d, t_pgrid)
+         CALL dbt_pgrid_create(para_env, pdims_2d, t_pgrid)
 
          ALLOCATE (ri_col_dist(nblk_ri), ao_row_dist(nblk_aos), mo_row_dist(nblk_mos))
          CALL dbt_get_info(t_work, proc_dist_1=ao_row_dist)
@@ -1355,7 +1355,7 @@ CONTAINS
          !get optimal pgrid  for (oI|Y)
          CALL dbt_pgrid_destroy(t_pgrid)
          pdims_2d = 0
-         CALL dbt_pgrid_create(para_env%group, pdims_2d, t_pgrid, tensor_dims=[nblk_mos, nblk_ri])
+         CALL dbt_pgrid_create(para_env, pdims_2d, t_pgrid, tensor_dims=[nblk_mos, nblk_ri])
 
          CALL dbt_default_distvec(nblk_aos, pdims_2d(1), ao_blk_size, ao_row_dist)
          CALL dbt_default_distvec(nblk_mos, pdims_2d(1), mo_blk_size, mo_row_dist)

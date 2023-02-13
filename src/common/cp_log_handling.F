@@ -383,7 +383,7 @@ CONTAINS
       END IF
 
       IF (logger%default_local_unit_nr == -1) THEN
-         IF (logger%para_env%ionode) THEN
+         IF (logger%para_env%is_source()) THEN
             logger%default_local_unit_nr = logger%default_global_unit_nr
             logger%close_local_unit_on_dealloc = .FALSE.
          END IF
@@ -598,7 +598,7 @@ CONTAINS
       IF (PRESENT(skip_not_ionode)) skip = skip_not_ionode
       IF (.NOT. loc) THEN
          IF (lggr%default_global_unit_nr <= 0) THEN
-            IF (lggr%para_env%ionode) THEN
+            IF (lggr%para_env%is_source()) THEN
                CALL cp_logger_generate_filename(lggr, filename, lggr%global_filename, &
                                                 ".out", local=.FALSE.)
                CALL open_file(TRIM(filename), file_status="unknown", &
@@ -620,7 +620,7 @@ CONTAINS
                CALL m_hostnm(host_name)
                PRINT *, " *** Error trying to WRITE to the local logger ***"
                PRINT *, " *** MPI_id           = ", lggr%para_env%mepos
-               PRINT *, " *** MPI_Communicator = ", lggr%para_env%group%get_handle()
+               PRINT *, " *** MPI_Communicator = ", lggr%para_env%get_handle()
                PRINT *, " *** PID              = ", pid
                PRINT *, " *** Hostname         = "//TRIM(host_name)
                CALL print_stack(default_output_unit)
@@ -639,7 +639,7 @@ CONTAINS
                            unit_number=lggr%default_local_unit_nr)
             WRITE (UNIT=lggr%default_local_unit_nr, FMT='(/,T2,A,I0,A,I0,A)', IOSTAT=iostat) &
                '*** Local logger file of MPI task ', lggr%para_env%mepos, &
-               ' in communicator ', lggr%para_env%group%get_handle(), ' ***'
+               ' in communicator ', lggr%para_env%get_handle(), ' ***'
             IF (iostat == 0) THEN
                CALL m_getpid(pid)
                CALL m_hostnm(host_name)
@@ -653,7 +653,7 @@ CONTAINS
                CALL m_hostnm(host_name)
                PRINT *, " *** Error trying to WRITE to the local logger ***"
                PRINT *, " *** MPI_id           = ", lggr%para_env%mepos
-               PRINT *, " *** MPI_Communicator = ", lggr%para_env%group%get_handle()
+               PRINT *, " *** MPI_Communicator = ", lggr%para_env%get_handle()
                PRINT *, " *** PID              = ", pid
                PRINT *, " *** Hostname         = "//TRIM(host_name)
                CALL print_stack(default_output_unit)
@@ -688,7 +688,7 @@ CONTAINS
          para_env%ref_count = para_env%ref_count - 1
          IF (para_env%ref_count < 1) THEN
             IF (para_env%owns_group) THEN
-               CALL para_env%group%free()
+               CALL para_env%free()
             END IF
             DEALLOCATE (para_env)
          END IF

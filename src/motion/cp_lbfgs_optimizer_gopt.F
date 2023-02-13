@@ -26,8 +26,7 @@ MODULE cp_lbfgs_optimizer_gopt
                               cp_to_string
    USE cp_output_handling, ONLY: cp_print_key_finished_output, &
                                  cp_print_key_unit_nr
-   USE cp_para_env, ONLY: cp_para_env_release, &
-                          cp_para_env_retain
+   USE cp_para_env, ONLY: cp_para_env_release
    USE cp_para_types, ONLY: cp_para_env_type
    USE cp_subsys_types, ONLY: cp_subsys_type
    USE force_env_types, ONLY: force_env_get, &
@@ -206,7 +205,7 @@ CONTAINS
       IF (PRESENT(m)) optimizer%m = m
       optimizer%master = para_env%source
       optimizer%para_env => para_env
-      CALL cp_para_env_retain(para_env)
+      CALL para_env%retain()
       optimizer%obj_funct => obj_funct
       CALL gopt_f_retain(obj_funct)
       optimizer%max_f_per_iter = 20
@@ -254,7 +253,7 @@ CONTAINS
          ALLOCATE (optimizer%gradient(n))
          optimizer%gradient(:) = 0.0_dp
       END IF
-      CALL optimizer%para_env%group%bcast(optimizer%x, optimizer%master)
+      CALL optimizer%para_env%bcast(optimizer%x, optimizer%master)
       optimizer%status = 0
 
       CALL timestop(handle)
@@ -561,7 +560,7 @@ CONTAINS
                CPWARN("unknown task '"//optimizer%task//"'")
             END IF
          END IF ifMaster
-         CALL optimizer%para_env%group%bcast(optimizer%status, optimizer%master)
+         CALL optimizer%para_env%bcast(optimizer%status, optimizer%master)
          ! Dump info
          IF (optimizer%status == 3) THEN
             its = 0
@@ -599,10 +598,10 @@ CONTAINS
                   CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
                END IF
             END IF
-            CALL optimizer%para_env%group%bcast(optimizer%x, optimizer%master)
+            CALL optimizer%para_env%bcast(optimizer%x, optimizer%master)
          CASE (2)
             !op=2 begin new iter
-            CALL optimizer%para_env%group%bcast(optimizer%x, optimizer%master)
+            CALL optimizer%para_env%bcast(optimizer%x, optimizer%master)
             t_old = m_walltime()
          CASE (3)
             !op=3 ended iter
@@ -610,7 +609,7 @@ CONTAINS
             dataunit = cp_print_key_unit_nr(logger, geo_section, &
                                             "PRINT%PROGRAM_RUN_INFO", extension=".geoLog")
             IF (is_master) its = optimizer%isave(30)
-            CALL optimizer%para_env%group%bcast(its, optimizer%master)
+            CALL optimizer%para_env%bcast(its, optimizer%master)
 
             ! Some IO and Convergence check
             t_now = m_walltime()
@@ -619,7 +618,7 @@ CONTAINS
             CALL gopt_f_io(optimizer%obj_funct, force_env, force_env%root_section, &
                            its, optimizer%f, dataunit, optimizer%eold, optimizer%emin, wildcard, gopt_param, &
                            SIZE(optimizer%x), optimizer%x - xold, optimizer%gradient, conv, used_time=t_diff)
-            CALL optimizer%para_env%group%bcast(conv, optimizer%master)
+            CALL optimizer%para_env%bcast(conv, optimizer%master)
             CALL cp_print_key_finished_output(dataunit, logger, geo_section, &
                                               "PRINT%PROGRAM_RUN_INFO")
             optimizer%eold = optimizer%f
@@ -648,7 +647,7 @@ CONTAINS
             EXIT
          CASE (5)
             ! op=5 abnormal exit ()
-            CALL optimizer%para_env%group%bcast(optimizer%task, optimizer%master)
+            CALL optimizer%para_env%bcast(optimizer%task, optimizer%master)
          CASE (6)
             ! deallocated
             CPABORT("step on a deallocated opt structure ")
@@ -665,7 +664,7 @@ CONTAINS
          justEntred = .FALSE.
       END DO
 
-      CALL optimizer%para_env%group%bcast(optimizer%x, optimizer%master)
+      CALL optimizer%para_env%bcast(optimizer%x, optimizer%master)
       CALL cp_opt_gopt_bcast_res(optimizer, &
                                  n_iter=optimizer%n_iter, &
                                  f=optimizer%f, last_f=optimizer%last_f, &
@@ -707,7 +706,7 @@ CONTAINS
          results = (/REAL(optimizer%isave(30), kind=dp), &
                      optimizer%f, optimizer%dsave(2), optimizer%dsave(13)/)
       END IF
-      CALL optimizer%para_env%group%bcast(results, optimizer%master)
+      CALL optimizer%para_env%bcast(results, optimizer%master)
       IF (PRESENT(n_iter)) n_iter = NINT(results(1))
       IF (PRESENT(f)) f = results(2)
       IF (PRESENT(last_f)) last_f = results(3)

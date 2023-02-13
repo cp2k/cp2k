@@ -799,7 +799,7 @@ CONTAINS
             CALL neighbor_list_iterator_release(nl_iterator)
 
          END DO
-         CALL para_env%group%sum(fobj)
+         CALL para_env%sum(fobj)
 
       END IF
 

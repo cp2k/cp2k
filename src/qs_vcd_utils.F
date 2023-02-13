@@ -46,7 +46,6 @@ MODULE qs_vcd_utils
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_comm_type
    USE molecule_types,                  ONLY: molecule_type
    USE moments_utils,                   ONLY: get_reference_point
    USE orbital_pointers,                ONLY: init_orbital_pointers
@@ -536,7 +535,6 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      TYPE(mp_comm_type)                                 :: group
       TYPE(section_vals_type), POINTER                   :: print_key
 
       file_exists = .FALSE.
@@ -554,11 +552,10 @@ CONTAINS
                       mos=mos)
 
       nspins = SIZE(mos)
-      group = para_env%group
       source = para_env%source !ionode???
 
       rst_unit = -1
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          CALL section_vals_val_get(linres_section, "WFN_RESTART_FILE_NAME", &
                                    n_rep_val=n_rep_val)
 
@@ -595,7 +592,7 @@ CONTAINS
          END IF
       END IF
 
-      CALL group%bcast(file_exists, source)
+      CALL para_env%bcast(file_exists, source)
 
       IF (file_exists) THEN
 
@@ -606,12 +603,12 @@ CONTAINS
          !
          ! read headers
          IF (rst_unit > 0) READ (rst_unit, IOSTAT=iostat) lambda_tmp, beta_tmp, nspins_tmp, nao_tmp
-         CALL group%bcast(iostat, source)
+         CALL para_env%bcast(iostat, source)
 
-         CALL group%bcast(beta_tmp, source)
-         CALL group%bcast(lambda_tmp, source)
-         CALL group%bcast(nspins_tmp, source)
-         CALL group%bcast(nao_tmp, source)
+         CALL para_env%bcast(beta_tmp, source)
+         CALL para_env%bcast(lambda_tmp, source)
+         CALL para_env%bcast(nspins_tmp, source)
+         CALL para_env%bcast(nao_tmp, source)
 
          ! check that the number nao, nmo and nspins are
          ! the same as in the current mos
@@ -629,7 +626,7 @@ CONTAINS
             CALL cp_fm_get_info(mo_coeff, ncol_global=nmo)
             !
             IF (rst_unit > 0) READ (rst_unit) nmo_tmp
-            CALL group%bcast(nmo_tmp, source)
+            CALL para_env%bcast(nmo_tmp, source)
             IF (nmo_tmp .NE. nmo) CPABORT("nmo not consistent")
             !
             ! read the response
@@ -638,7 +635,7 @@ CONTAINS
                DO j = 1, i_block
                   IF (rst_unit > 0) READ (rst_unit) vecbuffer(1:nao, j)
                END DO
-               CALL group%bcast(vecbuffer, source)
+               CALL para_env%bcast(vecbuffer, source)
                CALL cp_fm_set_submatrix(vec(ispin), vecbuffer, 1, i, nao, i_block)
             END DO
          END DO
@@ -652,7 +649,7 @@ CONTAINS
 
       END IF
 
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          IF (file_exists) CALL close_file(unit_number=rst_unit)
       END IF
 

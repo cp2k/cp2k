@@ -134,7 +134,7 @@ CONTAINS
                   s2 = s2 + local_data(i, j)**2
                END DO
             END DO
-            CALL para_env%group%sum(s2)
+            CALL para_env%sum(s2)
             s_square = s_square_ideal + nbeta - s2
             ! Only needed for constraining or restraining (\cal S)
             IF (PRESENT(mo_derivs)) THEN

@@ -357,7 +357,7 @@ CONTAINS
 
       n = matrix%matrix_struct%nrow_global
       context => matrix%matrix_struct%context
-      group = matrix%matrix_struct%para_env%group
+      group = matrix%matrix_struct%para_env
 
       myprow = context%mepos(1)
       mypcol = context%mepos(2)
@@ -395,7 +395,7 @@ CONTAINS
       IF (use_qr .AND. elpa_qr_unsafe .AND. elpa_should_print) &
          check_eigenvalues = .TRUE.
 
-      CALL matrix%matrix_struct%para_env%group%bcast(check_eigenvalues, matrix%matrix_struct%para_env%source)
+      CALL matrix%matrix_struct%para_env%bcast(check_eigenvalues, matrix%matrix_struct%para_env%source)
 
       IF (check_eigenvalues) THEN
          ! Allocate and initialize needed temporaries to compute eigenvalues without ELPA QR

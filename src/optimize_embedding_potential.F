@@ -794,7 +794,7 @@ CONTAINS
       ALLOCATE (coef(dimen_var_aux))
       coef = 0.0_dp
 
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
 
          ! Get the restart file name
          CALL embed_restart_file_name(filename, section)
@@ -823,7 +823,7 @@ CONTAINS
       END IF
 
       ! Broadcast the coefficients on all processes
-      CALL para_env%group%bcast(coef, para_env%source)
+      CALL para_env%bcast(coef, para_env%source)
 
       ! Copy to fm_type structure
       ! Information about full matrix gradient
@@ -1291,7 +1291,7 @@ CONTAINS
       CALL integrate_v_rspace_one_center(rho_r, qs_env, lri, &
                                          .FALSE., "RI_AUX")
       DO ikind = 1, SIZE(lri)
-         CALL para_env%group%sum(lri(ikind)%v_int)
+         CALL para_env%sum(lri(ikind)%v_int)
       END DO
 
       pot_grad = 0.0_dp
@@ -1313,7 +1313,7 @@ CONTAINS
          CALL integrate_v_rspace_one_center(rho_spin, qs_env, lri, &
                                             .FALSE., "RI_AUX")
          DO ikind = 1, SIZE(lri)
-            CALL para_env%group%sum(lri(ikind)%v_int)
+            CALL para_env%sum(lri(ikind)%v_int)
          END DO
 
          start_pos = dimen_aux + 1
@@ -1839,7 +1839,7 @@ CONTAINS
             l_global = row_indices(LLL)
             wf_vector(l_global) = embed_pot_coef_spinless%local_data(LLL, 1)
          END DO
-         CALL para_env%group%sum(wf_vector)
+         CALL para_env%sum(wf_vector)
 
          ! Calculate the variable part of the embedding potential
          CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
@@ -1866,7 +1866,7 @@ CONTAINS
             l_global = row_indices(LLL)
             wf_vector(l_global) = embed_pot_coef_spin%local_data(LLL, 1)
          END DO
-         CALL para_env%group%sum(wf_vector)
+         CALL para_env%sum(wf_vector)
 
          ! Calculate the variable part of the embedding potential
          CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
@@ -1888,7 +1888,7 @@ CONTAINS
             l_global = row_indices(LLL)
             wf_vector(l_global) = embed_pot_coef%local_data(LLL, 1)
          END DO
-         CALL para_env%group%sum(wf_vector)
+         CALL para_env%sum(wf_vector)
 
          ! Calculate the variable part of the embedding potential
          CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
@@ -2389,7 +2389,7 @@ CONTAINS
                red_eigenval_map(l_global) = 1
             END IF
          END DO
-         CALL para_env%group%sum(red_eigenval_map)
+         CALL para_env%sum(red_eigenval_map)
 
          ! Set shift as -hess_min and find step on the reduced space of negative-value
          ! eigenvectors
@@ -2453,7 +2453,7 @@ CONTAINS
          END IF
       END DO
 
-      CALL para_env%group%sum(step)
+      CALL para_env%sum(step)
 
       step_minus_trad = SQRT(step) - trust_rad
 

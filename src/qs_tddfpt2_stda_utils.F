@@ -644,7 +644,7 @@ CONTAINS
                CALL tb_spme_evaluate(ewald_env, ewald_pw, particle_set, cell, &
                                      gtcharge, tcharge, calculate_forces, virial, use_virial, atprop)
                ! add self charge interaction contribution
-               IF (para_env%ionode) THEN
+               IF (para_env%is_source()) THEN
                   gtcharge(:, 1) = gtcharge(:, 1) - 2._dp*alpha*oorootpi*tcharge(:)
                END IF
             ELSE
@@ -661,7 +661,7 @@ CONTAINS
                   END DO
                END DO
             END IF
-            CALL para_env%group%sum(gtcharge)
+            CALL para_env%sum(gtcharge)
             ! expand charges
             ! TV(mu) = TC(a of mu)
             tv(1:nsgf) = 0.0_dp

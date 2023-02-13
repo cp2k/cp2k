@@ -679,7 +679,7 @@ CONTAINS
                   END DO
                END DO
             END IF
-            CALL para_env%group%sum(weight)
+            CALL para_env%sum(weight)
             IF (unit_nr > 0) THEN
                DO ia = 1, na
                   IF (ispin == 1 .AND. ia == 1) THEN

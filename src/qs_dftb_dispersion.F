@@ -248,7 +248,7 @@ CONTAINS
          CALL neighbor_list_iterator_release(nl_iterator)
 
          ! set dispersion energy
-         CALL para_env%group%sum(evdw)
+         CALL para_env%sum(evdw)
          energy%dispersion = evdw
 
       END IF

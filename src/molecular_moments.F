@@ -151,7 +151,7 @@ CONTAINS
                   nstates(1) = 0
                END IF
                nstates(2) = para_env%mepos
-               CALL para_env%group%maxloc(nstates)
+               CALL para_env%maxloc(nstates)
                IF (nstates(1) == 0) CYCLE
                ns = nstates(1)
                iproc = nstates(2)
@@ -161,7 +161,7 @@ CONTAINS
                ELSE
                   states(:) = 0
                END IF
-               CALL para_env%group%bcast(states, iproc)
+               CALL para_env%bcast(states, iproc)
                ! assemble local states for this molecule
                ASSOCIATE (mo_localized => mo_local(ispin))
                   CALL cp_fm_get_info(mo_localized, ncol_global=ncol_global, nrow_global=nrow_global)
@@ -250,8 +250,8 @@ CONTAINS
             END IF
          END DO
       END DO
-      CALL para_env%group%sum(moment_set)
-      CALL para_env%group%sum(charge_set)
+      CALL para_env%sum(moment_set)
+      CALL para_env%sum(charge_set)
 
       iounit = cp_print_key_unit_nr(logger, loc_print_key, "MOLECULAR_MOMENTS", &
                                     extension=".MolMom", middle_name="MOLECULAR_MOMENTS")

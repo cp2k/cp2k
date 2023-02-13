@@ -21,8 +21,7 @@
 MODULE cp_parser_types
    USE cp_files,                        ONLY: close_file,&
                                               open_file
-   USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                              cp_para_env_retain
+   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_buffer_types,          ONLY: buffer_type,&
                                               create_buffer_type,&
@@ -189,14 +188,14 @@ CONTAINS
       ! para_env
       IF (PRESENT(para_env)) THEN
          parser%para_env => para_env
-         CALL cp_para_env_retain(para_env)
+         CALL para_env%retain()
       ELSE
          ALLOCATE (parser%para_env)
          parser%para_env = mp_comm_self
       END IF
 
       !   *** Get the logical output unit number for error messages ***
-      IF (parser%para_env%ionode) THEN
+      IF (parser%para_env%is_source()) THEN
          IF (PRESENT(unit_nr)) THEN
             parser%input_unit = unit_nr
             IF (PRESENT(file_name)) parser%input_file_name = file_name

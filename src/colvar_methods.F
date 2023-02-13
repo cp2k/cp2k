@@ -2205,21 +2205,21 @@ CONTAINS
                natom_iforce = SIZE(particles(iforce_eval)%list%els)
 
                ! Only the rank 0 process collect info for each computation
-               IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%ionode) THEN
+               IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%is_source()) THEN
                   glob_natoms(iforce_eval) = natom_iforce
                END IF
             END DO
 
             ! Handling Parallel execution
-            CALL force_env%para_env%group%sync()
-            CALL force_env%para_env%group%sum(glob_natoms)
+            CALL force_env%para_env%sync()
+            CALL force_env%para_env%sum(glob_natoms)
 
             ! Transfer forces
             DO iforce_eval = 1, nforce_eval
                ALLOCATE (global_forces(iforce_eval)%forces(3, glob_natoms(iforce_eval)))
                global_forces(iforce_eval)%forces = 0.0_dp
                IF (ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) THEN
-                  IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%ionode) THEN
+                  IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%is_source()) THEN
                      ! Forces
                      DO iparticle = 1, glob_natoms(iforce_eval)
                         global_forces(iforce_eval)%forces(:, iparticle) = &
@@ -2227,7 +2227,7 @@ CONTAINS
                      END DO
                   END IF
                END IF
-               CALL force_env%para_env%group%sum(global_forces(iforce_eval)%forces)
+               CALL force_env%para_env%sum(global_forces(iforce_eval)%forces)
             END DO
 
             wrk_section => colvar%u_param%mixed_energy_section

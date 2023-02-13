@@ -704,8 +704,8 @@ CONTAINS
 
       CALL timeset("fb_fltrmat_add_blkcol_mpi", handle_mpi)
 
-      CALL para_env%group%alltoall(send_buf, send_sizes, send_disps, &
-                                   recv_buf, recv_sizes, recv_disps)
+      CALL para_env%alltoall(send_buf, send_sizes, send_disps, &
+                             recv_buf, recv_sizes, recv_disps)
 
       CALL timestop(handle_mpi)
 

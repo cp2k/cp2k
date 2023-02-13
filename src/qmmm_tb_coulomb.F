@@ -194,7 +194,7 @@ CONTAINS
                                gmcharge, mcharge, calculate_forces, virial, use_virial, atprop)
       END SELECT
       !
-      CALL para_env%group%sum(gmcharge(:, 1))
+      CALL para_env%sum(gmcharge(:, 1))
       !
       ! add self charge interaction and background charge contribution
       gmcharge(:, 1) = gmcharge(:, 1) - 2._dp*alpha*oorootpi*mcharge(:)

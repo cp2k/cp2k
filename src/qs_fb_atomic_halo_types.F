@@ -786,10 +786,10 @@ CONTAINS
          max_natoms = MAX(max_natoms, nhalo_atoms)
          min_natoms = MIN(min_natoms, nhalo_atoms)
       END DO
-      CALL para_env%group%max(max_natoms)
-      CALL para_env%group%min(min_natoms)
-      CALL para_env%group%sum(total_n_halos)
-      CALL para_env%group%sum(total_n_halo_atoms)
+      CALL para_env%max(max_natoms)
+      CALL para_env%min(min_natoms)
+      CALL para_env%sum(total_n_halos)
+      CALL para_env%sum(total_n_halo_atoms)
       ave_natoms = REAL(total_n_halo_atoms, dp)/REAL(total_n_halos, dp)
       ! write info
       IF (unit_nr > 0) THEN

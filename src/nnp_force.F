@@ -125,7 +125,7 @@ CONTAINS
                    (logger%para_env%mepos + 1), 1)
       ALLOCATE (allcalc(logger%para_env%num_pe))
       allcalc(:) = 0
-      CALL logger%para_env%group%allgather(mecalc, allcalc)
+      CALL logger%para_env%allgather(mecalc, allcalc)
       istart = 1
       DO i = 2, logger%para_env%mepos + 1
          istart = istart + allcalc(i - 1)
@@ -197,7 +197,7 @@ CONTAINS
       END DO ! loop over num_atoms
 
       ! calculate energy:
-      CALL logger%para_env%group%sum(nnp%atomic_energy(:, :))
+      CALL logger%para_env%sum(nnp%atomic_energy(:, :))
       nnp%committee_energy(:) = SUM(nnp%atomic_energy, 1)
       nnp%nnp_potential_energy = SUM(nnp%committee_energy)/REAL(nnp%n_committee, dp)
 
@@ -208,7 +208,7 @@ CONTAINS
                nnp%committee_forces(k, (nnp%sort(j)), :) = nnp%myforce(k, j, :)
             END DO
          END DO
-         CALL logger%para_env%group%sum(nnp%committee_forces)
+         CALL logger%para_env%sum(nnp%committee_forces)
          nnp%nnp_forces(:, :) = SUM(nnp%committee_forces, DIM=3)/REAL(nnp%n_committee, dp)
          DO j = 1, nnp%num_atoms
             particle_set(j)%f(:) = nnp%nnp_forces(:, j)
@@ -216,7 +216,7 @@ CONTAINS
       END IF
 
       IF (calc_stress) THEN
-         CALL logger%para_env%group%sum(nnp%committee_stress)
+         CALL logger%para_env%sum(nnp%committee_stress)
          virial%pv_virial = SUM(nnp%committee_stress, DIM=3)/REAL(nnp%n_committee, dp)
       END IF
 
@@ -347,7 +347,7 @@ CONTAINS
       END IF
 
       ! Output structures with extrapolation warning on any processor
-      CALL logger%para_env%group%sum(nnp%output_expol)
+      CALL logger%para_env%sum(nnp%output_expol)
       IF (nnp%output_expol) THEN
          print_key => section_vals_get_subs_vals(print_section, "EXTRAPOLATION")
          IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN

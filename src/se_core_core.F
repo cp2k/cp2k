@@ -248,7 +248,7 @@ CONTAINS
          DEALLOCATE (atom_of_kind)
       END IF
 
-      CALL para_env%group%sum(enuclear)
+      CALL para_env%sum(enuclear)
       energy%core_overlap = enuclear
       energy%core_overlap0 = enuclear
 

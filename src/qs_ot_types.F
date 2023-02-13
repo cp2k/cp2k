@@ -24,8 +24,7 @@ MODULE qs_ot_types
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
                                               cp_fm_struct_type
-   USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                              cp_para_env_retain
+   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_init_p,&
                                               dbcsr_p_type,&
@@ -322,7 +321,7 @@ CONTAINS
 
       qs_ot_env%para_env => para_env
       qs_ot_env%blacs_env => context
-      CALL cp_para_env_retain(para_env)
+      CALL para_env%retain()
       CALL context%retain()
 
       IF (PRESENT(ortho_k)) THEN

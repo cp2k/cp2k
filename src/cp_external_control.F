@@ -54,7 +54,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE set_external_comm(comm, in_external_master_id, &
                                 in_scf_energy_message_tag, in_exit_tag)
-      TYPE(mp_comm_type), INTENT(IN)                     :: comm
+      CLASS(mp_comm_type), INTENT(IN)                     :: comm
       INTEGER, INTENT(IN)                                :: in_external_master_id
       INTEGER, INTENT(IN), OPTIONAL                      :: in_scf_energy_message_tag, in_exit_tag
 
@@ -129,7 +129,7 @@ CONTAINS
          IF (tag .EQ. exit_tag) should_stop = .TRUE.
       END IF
 
-      IF (logger%para_env%ionode) THEN
+      IF (logger%para_env%is_source()) THEN
          ! files will only be checked every 20 seconds, or if the clock wraps/does not exist,
          ! otherwise 64 waters on 64 cores can spend up to 10% of time here, on lustre
          ! however, if should_stop has been true, we should always check
@@ -223,7 +223,7 @@ CONTAINS
             END IF
          END IF
       END IF
-      CALL logger%para_env%group%bcast(should_stop, logger%para_env%source)
+      CALL logger%para_env%bcast(should_stop, logger%para_env%source)
 
       check_always = should_stop
 

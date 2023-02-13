@@ -96,20 +96,20 @@ CONTAINS
       CASE (xc_vdw_fun_nonloc)
          ! setup information on non local functionals
          filename = dispersion_env%kernel_file_name
-         IF (para_env%ionode) THEN
+         IF (para_env%is_source()) THEN
             ! Read the kernel information from file "filename"
             CALL open_file(file_name=filename, unit_number=funit, file_form="FORMATTED")
             READ (funit, *) nqs, nr_points
             READ (funit, *) dispersion_env%r_max
          END IF
-         CALL para_env%group%bcast(nqs, para_env%source)
-         CALL para_env%group%bcast(nr_points, para_env%source)
-         CALL para_env%group%bcast(dispersion_env%r_max, para_env%source)
+         CALL para_env%bcast(nqs, para_env%source)
+         CALL para_env%bcast(nr_points, para_env%source)
+         CALL para_env%bcast(dispersion_env%r_max, para_env%source)
          ALLOCATE (dispersion_env%q_mesh(nqs), dispersion_env%kernel(0:nr_points, nqs, nqs), &
                    dispersion_env%d2phi_dk2(0:nr_points, nqs, nqs))
          dispersion_env%nqs = nqs
          dispersion_env%nr_points = nr_points
-         IF (para_env%ionode) THEN
+         IF (para_env%is_source()) THEN
             !! Read in the values of the q points used to generate this kernel
             READ (funit, "(1p, 4e23.14)") dispersion_env%q_mesh
             !! For each pair of q values, read in the function phi_q1_q2(k).
@@ -133,9 +133,9 @@ CONTAINS
             END DO
             CALL close_file(unit_number=funit)
          END IF
-         CALL para_env%group%bcast(dispersion_env%q_mesh, para_env%source)
-         CALL para_env%group%bcast(dispersion_env%kernel, para_env%source)
-         CALL para_env%group%bcast(dispersion_env%d2phi_dk2, para_env%source)
+         CALL para_env%bcast(dispersion_env%q_mesh, para_env%source)
+         CALL para_env%bcast(dispersion_env%kernel, para_env%source)
+         CALL para_env%bcast(dispersion_env%d2phi_dk2, para_env%source)
          ! 2nd derivates for interpolation
          ALLOCATE (dispersion_env%d2y_dx2(nqs, nqs))
          CALL initialize_spline_interpolation(dispersion_env%q_mesh, dispersion_env%d2y_dx2)
@@ -404,7 +404,7 @@ CONTAINS
       !! of SOLER equation 11.  Add the energy we find to the output variable etxc.
       !! --------------------------------------------------------------------------------------------------
       sumnp = np
-      CALL para_env%group%sum(sumnp)
+      CALL para_env%sum(sumnp)
       IF (use_virial) THEN
          ! calculates kernel contribution to stress
          CALL vdW_energy(thetas_g, dispersion_env, Ec_nl, energy_only, virial)
@@ -424,7 +424,7 @@ CONTAINS
             Ec_nl = 0.5_dp*Ec_nl + beta*SUM(rho(:))*grid%vol/sumnp
          END SELECT
       END IF
-      CALL para_env%group%sum(Ec_nl)
+      CALL para_env%sum(Ec_nl)
       IF (nl_type == vdw_nl_RVV10) Ec_nl = Ec_nl*dispersion_env%scale_rvv10
       edispersion = Ec_nl
 

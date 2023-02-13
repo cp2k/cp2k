@@ -260,7 +260,7 @@ CONTAINS
          rse_corr = rse_corr + corr
       END DO
 
-      CALL para_env%group%sum(rse_corr)
+      CALL para_env%sum(rse_corr)
 
       rse_corr = rse_corr/nspins
 
@@ -633,7 +633,7 @@ CONTAINS
 
       END DO
 
-      CALL para_env%group%sum(rse_corr)
+      CALL para_env%sum(rse_corr)
       rse_corr = rse_corr/nspins
 
       CALL timestop(handle)

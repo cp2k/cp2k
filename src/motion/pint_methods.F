@@ -207,7 +207,7 @@ CONTAINS
       IF ((prep < 1) .OR. (prep > para_env%num_pe) .OR. &
           (MOD(prep*nrep, para_env%num_pe) /= 0)) THEN
          prep = para_env%num_pe/gcd(para_env%num_pe, nrep)
-         IF (para_env%ionode) THEN
+         IF (para_env%is_source()) THEN
             WRITE (UNIT=msg, FMT=*) "PINT WARNING: Adjusting number of processors per replica to ", prep
             CPWARN(msg)
          END IF
@@ -398,7 +398,7 @@ CONTAINS
          ALLOCATE (pint_env%normalmode_env)
          CALL normalmode_env_create(pint_env%normalmode_env, &
                                     transform_section, p=pint_env%p, kT=pint_env%kT, propagator=pint_env%propagator%prop_kind)
-         IF (para_env%ionode) THEN
+         IF (para_env%is_source()) THEN
             IF (pint_env%harm_integrator == integrate_numeric) THEN
                IF (10.0_dp*pint_env%dt/REAL(pint_env%nrespa, dp) > &
                    twopi/(pint_env%p*SQRT(MAXVAL(pint_env%normalmode_env%lambda))* &
@@ -1472,7 +1472,7 @@ CONTAINS
          END IF
          ! Beadwise constraints
          IF (pint_env%beadwise_constraints) THEN
-            IF (pint_env%logger%para_env%ionode) THEN
+            IF (pint_env%logger%para_env%is_source()) THEN
                CALL pint_u2x(pint_env, ux=pint_env%uv, x=pint_env%v)
                DO ib = 1, pint_env%p
                   DO i = 1, nparticle
@@ -1506,12 +1506,12 @@ CONTAINS
                CALL pint_x2u(pint_env, ux=pint_env%uv, x=pint_env%v)
             END IF
             ! Broadcast updated velocities to other nodes
-            CALL pint_env%logger%para_env%group%bcast(pint_env%uv, &
-                                                      pint_env%logger%para_env%source)
+            CALL pint_env%logger%para_env%bcast(pint_env%uv, &
+                                                pint_env%logger%para_env%source)
             ! Centroid constraints
          ELSE
             ! Transform positions and velocities to Cartesian coordinates:
-            IF (pint_env%logger%para_env%ionode) THEN
+            IF (pint_env%logger%para_env%is_source()) THEN
                DO i = 1, nparticle
                   DO j = 1, 3
                      particle_set(i)%r(j) = pint_env%x(1, j + (i - 1)*3)/factor
@@ -1532,8 +1532,8 @@ CONTAINS
                                    local_particles)
             END IF
             ! Broadcast updated velocities to other nodes
-            CALL pint_env%logger%para_env%group%bcast(vel, &
-                                                      pint_env%logger%para_env%source)
+            CALL pint_env%logger%para_env%bcast(vel, &
+                                                pint_env%logger%para_env%source)
             ! Transform back to normal modes
             DO i = 1, nparticle
                DO j = 1, 3
@@ -1683,11 +1683,11 @@ CONTAINS
       ! Assume that helium has been already initialized and helium_env(1)
       ! contains proper forces in force_avrg array at ionode
       IF (PRESENT(helium_env)) THEN
-         IF (logger%para_env%ionode) THEN
+         IF (logger%para_env%is_source()) THEN
             pint_env%f(:, :) = pint_env%f(:, :) + helium_env(1)%helium%force_avrg(:, :)
          END IF
-         CALL logger%para_env%group%bcast(pint_env%f, &
-                                          logger%para_env%source)
+         CALL logger%para_env%bcast(pint_env%f, &
+                                    logger%para_env%source)
       END IF
       CALL pint_f2uf(pint_env)
 
@@ -1865,7 +1865,7 @@ CONTAINS
       pint_env%logger => cp_get_default_logger()
 
       ! assume that ionode always has at least one helium_env
-      IF (pint_env%logger%para_env%ionode) THEN
+      IF (pint_env%logger%para_env%is_source()) THEN
          print_key => section_vals_get_subs_vals(helium_env(1)%helium%input, &
                                                  "MOTION%PINT%HELIUM%PRINT%RHO")
       END IF
@@ -1875,7 +1875,7 @@ CONTAINS
 
       ! output the interaction potential into a cubefile
       ! assume that ionode always has at least one helium_env
-      IF (pint_env%logger%para_env%ionode) THEN
+      IF (pint_env%logger%para_env%is_source()) THEN
 
          unit_nr = cp_print_key_unit_nr( &
                    pint_env%logger, &
@@ -2105,7 +2105,7 @@ CONTAINS
 
             ! Apply centroid constraints (SHAKE)
             IF (pint_env%simpar%constraint) THEN
-               IF (pint_env%logger%para_env%ionode) THEN
+               IF (pint_env%logger%para_env%is_source()) THEN
                   DO i = 1, nparticle
                      DO j = 1, 3
                         pos(j, i) = pint_env%ux(1, j + (i - 1)*3)
@@ -2126,10 +2126,10 @@ CONTAINS
                                      mp_comm_self, local_particles)
                END IF
                ! Positions and velocities of centroid were constrained by SHAKE
-               CALL pint_env%logger%para_env%group%bcast(pos, &
-                                                         pint_env%logger%para_env%source)
-               CALL pint_env%logger%para_env%group%bcast(vel, &
-                                                         pint_env%logger%para_env%source)
+               CALL pint_env%logger%para_env%bcast(pos, &
+                                                   pint_env%logger%para_env%source)
+               CALL pint_env%logger%para_env%bcast(vel, &
+                                                   pint_env%logger%para_env%source)
                ! Transform back to normal modes:
                DO i = 1, nparticle
                   DO j = 1, 3
@@ -2158,11 +2158,11 @@ CONTAINS
                IF (PRESENT(helium_env)) THEN
                   CALL helium_step(helium_env, pint_env)
                   !Update force of solute in pint_env
-                  IF (pint_env%logger%para_env%ionode) THEN
+                  IF (pint_env%logger%para_env%is_source()) THEN
                      pint_env%f(:, :) = pint_env%f(:, :) + helium_env(1)%helium%force_avrg(:, :)
                   END IF
-                  CALL pint_env%logger%para_env%group%bcast(pint_env%f, &
-                                                            pint_env%logger%para_env%source)
+                  CALL pint_env%logger%para_env%bcast(pint_env%f, &
+                                                      pint_env%logger%para_env%source)
                END IF
 
                CALL pint_f2uf(pint_env)
@@ -2283,7 +2283,7 @@ CONTAINS
 
                ! Apply centroid constraints (RATTLE)
                IF (pint_env%simpar%constraint) THEN
-                  IF (pint_env%logger%para_env%ionode) THEN
+                  IF (pint_env%logger%para_env%is_source()) THEN
                      ! Reset particle r, due to force calc:
                      DO i = 1, nparticle
                         DO j = 1, 3
@@ -2309,8 +2309,8 @@ CONTAINS
                   END IF
                   ! Velocities of centroid were constrained by RATTLE
                   ! Broadcast updated velocities to other nodes
-                  CALL pint_env%logger%para_env%group%bcast(vel, &
-                                                            pint_env%logger%para_env%source)
+                  CALL pint_env%logger%para_env%bcast(vel, &
+                                                      pint_env%logger%para_env%source)
 
                   DO i = 1, nparticle
                      DO j = 1, 3
@@ -2404,7 +2404,7 @@ CONTAINS
          IF (pint_env%simpar%constraint) THEN
             ! Beadwise constraints
             IF (pint_env%beadwise_constraints) THEN
-               IF (pint_env%logger%para_env%ionode) THEN
+               IF (pint_env%logger%para_env%is_source()) THEN
                   ! Transform positions and velocities to Cartesian coordinates:
                   CALL pint_u2x(pint_env, ux=pint_env%ux_t, x=pint_env%x)
                   CALL pint_u2x(pint_env, ux=pint_env%uv_t, x=pint_env%v)
@@ -2438,13 +2438,13 @@ CONTAINS
                   CALL pint_x2u(pint_env, ux=pint_env%uv_t, x=pint_env%v)
                END IF
                ! Broadcast positions and velocities to all nodes
-               CALL pint_env%logger%para_env%group%bcast(pint_env%ux_t, &
-                                                         pint_env%logger%para_env%source)
-               CALL pint_env%logger%para_env%group%bcast(pint_env%uv_t, &
-                                                         pint_env%logger%para_env%source)
+               CALL pint_env%logger%para_env%bcast(pint_env%ux_t, &
+                                                   pint_env%logger%para_env%source)
+               CALL pint_env%logger%para_env%bcast(pint_env%uv_t, &
+                                                   pint_env%logger%para_env%source)
                ! Centroid constraints
             ELSE
-               IF (pint_env%logger%para_env%ionode) THEN
+               IF (pint_env%logger%para_env%is_source()) THEN
                   ! Transform positions and velocities to Cartesian coordinates:
                   DO i = 1, nparticle
                      DO j = 1, 3
@@ -2465,10 +2465,10 @@ CONTAINS
                                      mp_comm_self, local_particles)
                END IF
                ! Broadcast positions and velocities to all nodes
-               CALL pint_env%logger%para_env%group%bcast(pos, &
-                                                         pint_env%logger%para_env%source)
-               CALL pint_env%logger%para_env%group%bcast(vel, &
-                                                         pint_env%logger%para_env%source)
+               CALL pint_env%logger%para_env%bcast(pos, &
+                                                   pint_env%logger%para_env%source)
+               CALL pint_env%logger%para_env%bcast(vel, &
+                                                   pint_env%logger%para_env%source)
                ! Transform back to normal modes:
                DO i = 1, nparticle
                   DO j = 1, 3
@@ -2490,11 +2490,11 @@ CONTAINS
          IF (PRESENT(helium_env)) THEN
             CALL helium_step(helium_env, pint_env)
             !Update force of solute in pint_env
-            IF (pint_env%logger%para_env%ionode) THEN
+            IF (pint_env%logger%para_env%is_source()) THEN
                pint_env%f(:, :) = pint_env%f(:, :) + helium_env(1)%helium%force_avrg(:, :)
             END IF
-            CALL pint_env%logger%para_env%group%bcast(pint_env%f, &
-                                                      pint_env%logger%para_env%source)
+            CALL pint_env%logger%para_env%bcast(pint_env%f, &
+                                                pint_env%logger%para_env%source)
          END IF
          CALL pint_f2uf(pint_env)
          ! set the centroid forces to 0 if FIX_CENTROID_POS
@@ -2534,7 +2534,7 @@ CONTAINS
          IF (pint_env%simpar%constraint) THEN
             ! Beadwise constraints
             IF (pint_env%beadwise_constraints) THEN
-               IF (pint_env%logger%para_env%ionode) THEN
+               IF (pint_env%logger%para_env%is_source()) THEN
                   ! Transform positions and velocities to Cartesian coordinates:
                   ! Reset particle r, due to force calc:
                   CALL pint_u2x(pint_env, ux=pint_env%ux, x=pint_env%x)
@@ -2563,11 +2563,11 @@ CONTAINS
                   ! Transform back to normal modes:
                   CALL pint_x2u(pint_env, ux=pint_env%uv, x=pint_env%v)
                END IF
-               CALL pint_env%logger%para_env%group%bcast(pint_env%uv, &
-                                                         pint_env%logger%para_env%source)
+               CALL pint_env%logger%para_env%bcast(pint_env%uv, &
+                                                   pint_env%logger%para_env%source)
                ! Centroid constraints
             ELSE
-               IF (pint_env%logger%para_env%ionode) THEN
+               IF (pint_env%logger%para_env%is_source()) THEN
                   ! Transform positions and velocities to Cartesian coordinates:
                   ! Reset particle r, due to force calc:
                   DO i = 1, nparticle
@@ -2587,8 +2587,8 @@ CONTAINS
                END IF
                ! Velocities of centroid were constrained by RATTLE
                ! Broadcast updated velocities to other nodes
-               CALL pint_env%logger%para_env%group%bcast(vel, &
-                                                         pint_env%logger%para_env%source)
+               CALL pint_env%logger%para_env%bcast(vel, &
+                                                   pint_env%logger%para_env%source)
 
                ! Transform back to normal modes:
                ! Multiply with SQRT(n_beads) due to normal mode transformation

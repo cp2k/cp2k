@@ -297,7 +297,7 @@ CONTAINS
          CPASSERT(.NOT. use_virial)
       END IF
 
-      CALL para_env%group%sum(gmcharge(:, 1))
+      CALL para_env%sum(gmcharge(:, 1))
 
       IF (do_ewald) THEN
          ! add self charge interaction and background charge contribution

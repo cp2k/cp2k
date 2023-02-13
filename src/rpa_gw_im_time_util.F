@@ -226,7 +226,7 @@ CONTAINS
       DEALLOCATE (basis_set_ao, basis_set_ri_aux)
 
       pdims = 0
-      CALL dbt_pgrid_create(para_env%group, pdims, pgrid_AO, &
+      CALL dbt_pgrid_create(para_env, pdims, pgrid_AO, &
                             tensor_dims=[SIZE(sizes_RI_split), SIZE(sizes_AO_split), SIZE(sizes_AO_split)])
 
       pdims_2d = 0
@@ -234,11 +234,11 @@ CONTAINS
 
       ! we iterate over MO blocks for saving memory during contraction, thus we should not parallelize over MO dimension
       pdims = [pdims_2d(1), pdims_2d(2), 1]
-      CALL dbt_pgrid_create(para_env%group, pdims, pgrid_MO, &
+      CALL dbt_pgrid_create(para_env, pdims, pgrid_MO, &
                             tensor_dims=[SIZE(sizes_RI_split), SIZE(sizes_AO_split), 1])
 
       pdims_2d = 0
-      CALL dbt_pgrid_create(para_env%group, pdims_2d, pgrid_2d, &
+      CALL dbt_pgrid_create(para_env, pdims_2d, pgrid_2d, &
                             tensor_dims=[SIZE(sizes_AO_split), nmo])
 
       CALL create_3c_tensor(t_3c_overl_int_ao_ao, dist1, dist2, dist3, pgrid_AO, &
@@ -302,7 +302,7 @@ CONTAINS
 
       IF (do_ic_model) THEN
          pdims = 0
-         CALL dbt_pgrid_create(para_env%group, pdims, pgrid_ic, &
+         CALL dbt_pgrid_create(para_env, pdims, pgrid_ic, &
                                tensor_dims=[SIZE(sizes_RI_split), nmo, nmo])
 
          CALL create_3c_tensor(t_3c_overl_int_mo_ao, dist1, dist2, dist3, pgrid_ic, &
@@ -363,7 +363,7 @@ CONTAINS
          norm = 0.0_dp
 
          CALL dbcsr_get_diag(mat_norm, norm)
-         CALL para_env%group%sum(norm)
+         CALL para_env%sum(norm)
 
          DO imo = bounds(1, 1), bounds(2, 1)
             norm(imo) = 1.0_dp/SQRT(norm(imo))
@@ -412,7 +412,7 @@ CONTAINS
          CALL compress_tensor(t_3c_overl_int_ao_mo, t_3c_O_mo_ind, t_3c_O_mo_compressed, &
                               qs_env%mp2_env%ri_rpa_im_time%eps_compress, memory_3c)
 
-         CALL para_env%group%sum(memory_3c)
+         CALL para_env%sum(memory_3c)
          compression_factor = REAL(nze, dp)*1.0E-06*8.0_dp/memory_3c
 
          IF (unit_nr > 0) THEN
@@ -609,7 +609,7 @@ CONTAINS
 
          END DO
 
-         CALL para_env%group%alltoall(sizes_send, sizes_rec, 2)
+         CALL para_env%alltoall(sizes_send, sizes_rec, 2)
 
          DO imepos = 0, para_env%num_pe - 1
             num_entries_rec(imepos) = sizes_rec(2*imepos)

@@ -171,11 +171,11 @@ CONTAINS
       END IF
       ! Select algorithm for S-matrix initialization
       IF (matrix_init == matrix_init_cholesky) THEN
-         IF (para_env%ionode) THEN
+         IF (para_env%is_source()) THEN
             CALL pint_write_line("PIGLET| Initalizing S-matrices using cholesky decomposition.")
          END IF
       ELSE IF (matrix_init == matrix_init_diagonal) THEN
-         IF (para_env%ionode) THEN
+         IF (para_env%is_source()) THEN
             CALL pint_write_line("PIGLET| Initalizing S-matrices using full diagonalization.")
          END IF
       ELSE
@@ -183,7 +183,7 @@ CONTAINS
          matrix_init = matrix_init_cholesky
       END IF
 
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          ! Read input matrices
          WRITE (default_format, '(A,I10,A)') "(A", default_string_length, ")"
          CALL section_vals_val_get(section, "MATRICES_FILE_NAME", &
@@ -250,10 +250,10 @@ CONTAINS
          CALL close_file(unit_number=input_unit)
       END IF
       ! communicate A and C matrix to other nodes
-      CALL para_env%group%bcast(piglet_therm%a_mat, &
-                                para_env%source)
-      CALL para_env%group%bcast(piglet_therm%c_mat, &
-                                para_env%source)
+      CALL para_env%bcast(piglet_therm%a_mat, &
+                          para_env%source)
+      CALL para_env%bcast(piglet_therm%c_mat, &
+                          para_env%source)
 
       !prepare Random number generator
       NULLIFY (rng_section)

@@ -217,7 +217,7 @@ CONTAINS
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          settings%bo = auxbas_pw_pool%pw_grid%bounds_local
          ! Only the rank 0 process collects info about pw_grid and CDFT
-         IF (force_env_qs%para_env%ionode) THEN
+         IF (force_env_qs%para_env%is_source()) THEN
             ! Grid settings
             settings%grid_span(iforce_eval) = auxbas_pw_pool%pw_grid%grid_span
             settings%npts(:, iforce_eval) = auxbas_pw_pool%pw_grid%npts
@@ -315,13 +315,13 @@ CONTAINS
          END IF
       END DO
       ! Make sure the grids are consistent
-      CALL force_env%para_env%group%sum(settings%grid_span)
-      CALL force_env%para_env%group%sum(settings%npts)
-      CALL force_env%para_env%group%sum(settings%cutoff)
-      CALL force_env%para_env%group%sum(settings%rel_cutoff)
-      CALL force_env%para_env%group%sum(settings%spherical)
-      CALL force_env%para_env%group%sum(settings%rs_dims)
-      CALL force_env%para_env%group%sum(settings%odd)
+      CALL force_env%para_env%sum(settings%grid_span)
+      CALL force_env%para_env%sum(settings%npts)
+      CALL force_env%para_env%sum(settings%cutoff)
+      CALL force_env%para_env%sum(settings%rel_cutoff)
+      CALL force_env%para_env%sum(settings%spherical)
+      CALL force_env%para_env%sum(settings%rs_dims)
+      CALL force_env%para_env%sum(settings%odd)
       is_match = .TRUE.
       DO iforce_eval = 2, nforce_eval
          is_match = is_match .AND. (settings%grid_span(1) == settings%grid_span(iforce_eval))
@@ -339,9 +339,9 @@ CONTAINS
       IF (settings%spherical(1) == 1) settings%is_spherical = .TRUE.
       IF (settings%odd(1) == 1) settings%is_odd = .TRUE.
       ! Make sure CDFT settings are consistent
-      CALL force_env%para_env%group%sum(settings%atoms)
+      CALL force_env%para_env%sum(settings%atoms)
       IF (mixed_cdft%run_type == mixed_cdft_parallel) &
-         CALL force_env%para_env%group%sum(settings%coeffs)
+         CALL force_env%para_env%sum(settings%coeffs)
       settings%ncdft = 0
       DO i = 1, SIZE(settings%atoms, 1)
          DO iforce_eval = 2, nforce_eval
@@ -358,12 +358,12 @@ CONTAINS
                        "Parallel mode mixed CDFT requires identical constraint definitions in both CDFT states. "// &
                        "Switch to serial mode or disable keyword PARALLEL_BUILD if you "// &
                        "want to use nonidentical constraint definitions.")
-      CALL force_env%para_env%group%sum(settings%si)
-      CALL force_env%para_env%group%sum(settings%sr)
+      CALL force_env%para_env%sum(settings%si)
+      CALL force_env%para_env%sum(settings%sr)
       DO i = 1, SIZE(settings%sb, 1)
-         CALL force_env%para_env%group%sum(settings%sb(i, 1))
+         CALL force_env%para_env%sum(settings%sb(i, 1))
          DO iforce_eval = 2, nforce_eval
-            CALL force_env%para_env%group%sum(settings%sb(i, iforce_eval))
+            CALL force_env%para_env%sum(settings%sb(i, iforce_eval))
             IF (settings%sb(i, 1) .NEQV. settings%sb(i, iforce_eval)) is_match = .FALSE.
          END DO
       END DO
@@ -399,7 +399,7 @@ CONTAINS
             END IF
             CALL get_qs_env(qs_env, dft_control=dft_control)
             cdft_control => dft_control%qs_control%cdft_control
-            IF (force_env_qs%para_env%ionode) THEN
+            IF (force_env_qs%para_env%is_source()) THEN
                DO igroup = 1, SIZE(cdft_control%group)
                   array_sizes(iforce_eval, igroup, 1) = SIZE(cdft_control%group(igroup)%atoms)
                   array_sizes(iforce_eval, igroup, 2) = SIZE(cdft_control%group(igroup)%coeff)
@@ -407,7 +407,7 @@ CONTAINS
             END IF
          END DO
          ! Sum up array sizes and check consistency
-         CALL force_env%para_env%group%sum(array_sizes)
+         CALL force_env%para_env%sum(array_sizes)
          IF (ANY(array_sizes(:, :, 1) /= array_sizes(1, 1, 1)) .OR. &
              ANY(array_sizes(:, :, 2) /= array_sizes(1, 1, 2))) &
             mixed_cdft%identical_constraints = .FALSE.
@@ -437,7 +437,7 @@ CONTAINS
                END IF
                CALL get_qs_env(qs_env, dft_control=dft_control)
                cdft_control => dft_control%qs_control%cdft_control
-               IF (force_env_qs%para_env%ionode) THEN
+               IF (force_env_qs%para_env%is_source()) THEN
                   DO i = 1, settings%si(4, 1)
                      atoms(iforce_eval, i)%array(:) = cdft_control%group(i)%atoms
                      coeff(iforce_eval, i)%array(:) = cdft_control%group(i)%coeff
@@ -448,9 +448,9 @@ CONTAINS
             ! Sum up constraint definitions and check consistency
             DO i = 1, settings%si(4, 1)
                DO iforce_eval = 1, nforce_eval
-                  CALL force_env%para_env%group%sum(atoms(iforce_eval, i)%array)
-                  CALL force_env%para_env%group%sum(coeff(iforce_eval, i)%array)
-                  CALL force_env%para_env%group%sum(constraint_type(iforce_eval, i))
+                  CALL force_env%para_env%sum(atoms(iforce_eval, i)%array)
+                  CALL force_env%para_env%sum(coeff(iforce_eval, i)%array)
+                  CALL force_env%para_env%sum(constraint_type(iforce_eval, i))
                END DO
                DO iforce_eval = 2, nforce_eval
                   DO iatom = 1, SIZE(atoms(1, i)%array)
@@ -588,7 +588,7 @@ CONTAINS
          cdft_control%becke_control%eps_cavity = settings%sr(3, 1)
          nkinds = 0
          IF (cdft_control%becke_control%cutoff_type == becke_cutoff_element) THEN
-            CALL force_env%para_env%group%sum(settings%cutoffs)
+            CALL force_env%para_env%sum(settings%cutoffs)
             DO i = 1, SIZE(settings%cutoffs, 1)
                IF (settings%cutoffs(i, 1) /= settings%cutoffs(i, 2)) is_match = .FALSE.
                IF (settings%cutoffs(i, 1) /= 0.0_dp) nkinds = nkinds + 1
@@ -602,7 +602,7 @@ CONTAINS
          END IF
          nkinds = 0
          IF (cdft_control%becke_control%adjust) THEN
-            CALL force_env%para_env%group%sum(settings%radii)
+            CALL force_env%para_env%sum(settings%radii)
             DO i = 1, SIZE(settings%radii, 1)
                IF (settings%radii(i, 1) /= settings%radii(i, 2)) is_match = .FALSE.
                IF (settings%radii(i, 1) /= 0.0_dp) nkinds = nkinds + 1
@@ -688,7 +688,7 @@ CONTAINS
       ! Init structures only needed when the CDFT states are treated in parallel
       IF (mixed_cdft%run_type == mixed_cdft_parallel) THEN
          ! Start building the mixed auxbas_pw_pool
-         CALL pw_grid_create(pw_grid, force_env%para_env%group)
+         CALL pw_grid_create(pw_grid, force_env%para_env)
          CALL pw_env_create(mixed_cdft%pw_env)
          ! Decide what kind of layout to use and setup the grid
          ! Processor mappings currently supported:
@@ -835,15 +835,15 @@ CONTAINS
                sendbuffer = (/bo_mixed(1, 1), bo_mixed(2, 1)/)
             END IF
             ! Communicate bounds in steps
-            CALL force_env%para_env%group%isend(msgin=sendbuffer, dest=mixed_cdft%dest_list(1), &
-                                                request=req(1))
-            CALL force_env%para_env%group%irecv(msgout=recvbuffer, source=mixed_cdft%source_list(1), &
-                                                request=req(2))
-            CALL force_env%para_env%group%irecv(msgout=recvbuffer2, source=mixed_cdft%source_list(2), &
-                                                request=req(3))
+            CALL force_env%para_env%isend(msgin=sendbuffer, dest=mixed_cdft%dest_list(1), &
+                                          request=req(1))
+            CALL force_env%para_env%irecv(msgout=recvbuffer, source=mixed_cdft%source_list(1), &
+                                          request=req(2))
+            CALL force_env%para_env%irecv(msgout=recvbuffer2, source=mixed_cdft%source_list(2), &
+                                          request=req(3))
             CALL req(1)%wait()
-            CALL force_env%para_env%group%isend(msgin=sendbuffer, dest=mixed_cdft%dest_list(2), &
-                                                request=req(1))
+            CALL force_env%para_env%isend(msgin=sendbuffer, dest=mixed_cdft%dest_list(2), &
+                                          request=req(1))
             CALL mp_waitall(req)
             mixed_cdft%recv_bo(1:2) = recvbuffer
             mixed_cdft%recv_bo(3:4) = recvbuffer2
@@ -945,7 +945,7 @@ CONTAINS
          CALL force_env_get(force_env, root_section=root_section)
          ALLOCATE (mixed_cdft%sub_logger(nforce_eval - 1))
          DO i = 1, nforce_eval - 1
-            IF (force_env%para_env%ionode) THEN
+            IF (force_env%para_env%is_source()) THEN
                CALL section_vals_val_get(root_section, "GLOBAL%PROJECT_NAME", &
                                          c_val=input_file_path)
                lp = LEN_TRIM(input_file_path)
@@ -1086,12 +1086,12 @@ CONTAINS
          CALL get_qs_env(qs_env, dft_control=dft_control)
          CPASSERT(ASSOCIATED(dft_control))
          nspins = dft_control%nspins
-         IF (force_env_qs%para_env%ionode) &
+         IF (force_env_qs%para_env%is_source()) &
             has_occupation_numbers(iforce_eval) = ALLOCATED(dft_control%qs_control%cdft_control%occupations)
       END DO
-      CALL force_env%para_env%group%sum(has_occupation_numbers(1))
+      CALL force_env%para_env%sum(has_occupation_numbers(1))
       DO iforce_eval = 2, nforce_eval
-         CALL force_env%para_env%group%sum(has_occupation_numbers(iforce_eval))
+         CALL force_env%para_env%sum(has_occupation_numbers(iforce_eval))
          IF (has_occupation_numbers(1) .NEQV. has_occupation_numbers(iforce_eval)) &
             CALL cp_abort(__LOCATION__, &
                           "Mixing of uniform and non-uniform occupations is not allowed.")
@@ -1118,14 +1118,14 @@ CONTAINS
                   CALL force_env_get(force_env%sub_force_env(iforce_eval)%force_env, qs_env=qs_env)
                END IF
                CALL get_qs_env(qs_env, dft_control=dft_control)
-               IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%ionode) THEN
+               IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%is_source()) THEN
                   DO ivar = 1, nvar
                      mixed_cdft%constraint_type(ivar, iforce_eval) = &
                         dft_control%qs_control%cdft_control%group(ivar)%constraint_type
                   END DO
                END IF
             END DO
-            CALL force_env%para_env%group%sum(mixed_cdft%constraint_type)
+            CALL force_env%para_env%sum(mixed_cdft%constraint_type)
          END IF
       END IF
       ! Transfer data from sub_force_envs to temporaries
@@ -1229,7 +1229,7 @@ CONTAINS
             DO ispin = 1, nspins
                IF (ncol_mo(ispin) /= SIZE(dft_control%qs_control%cdft_control%occupations(ispin)%array)) &
                   CPABORT("Array dimensions dont match.")
-               IF (force_env_qs%para_env%ionode) THEN
+               IF (force_env_qs%para_env%is_source()) THEN
                   ALLOCATE (occno_tmp(iforce_eval, ispin)%array(ncol_mo(ispin)))
                   occno_tmp(iforce_eval, ispin)%array = dft_control%qs_control%cdft_control%occupations(ispin)%array
                END IF
@@ -1327,7 +1327,7 @@ CONTAINS
                   mixed_cdft%occupations(iforce_eval, ispin)%array = occno_tmp(iforce_eval, ispin)%array
                   DEALLOCATE (occno_tmp(iforce_eval, ispin)%array)
                END IF
-               CALL force_env%para_env%group%sum(mixed_cdft%occupations(iforce_eval, ispin)%array)
+               CALL force_env%para_env%sum(mixed_cdft%occupations(iforce_eval, ispin)%array)
             END DO
          END DO
          DEALLOCATE (occno_tmp)

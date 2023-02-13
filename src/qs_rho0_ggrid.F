@@ -616,7 +616,7 @@ CONTAINS
 
                IF (grid_distributed) THEN
                   ! Sum result over all processors
-                  CALL para_env%group%sum(intloc)
+                  CALL para_env%sum(intloc)
                END IF
 
                IF (j == mepos) THEN

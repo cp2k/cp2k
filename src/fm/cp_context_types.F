@@ -119,7 +119,7 @@ CONTAINS
 !> \brief ...
 !> \param this ...
 !> \param what :
-!>     WHAT = 0 : Handle indicating default system context;  ! DO NOT USE (i.e. use para_env%group)
+!>     WHAT = 0 : Handle indicating default system context;  ! DO NOT USE (i.e. use para_env)
 !>     WHAT = 1 : The BLACS message ID range;
 !>     WHAT = 2 : The BLACS debug level the library was compiled with;
 !>     WHAT = 10: Handle indicating the system context used to define the BLACS context whose handle is ICONTXT;

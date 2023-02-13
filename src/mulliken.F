@@ -252,7 +252,7 @@ CONTAINS
          END DO
          CALL dbcsr_iterator_stop(iter)
       END DO
-      CALL para_env%group%sum(charges)
+      CALL para_env%sum(charges)
 
    END SUBROUTINE compute_charges
 
@@ -298,7 +298,7 @@ CONTAINS
       END DO
       CALL dbcsr_iterator_stop(iter)
 
-      CALL para_env%group%sum(charges)
+      CALL para_env%sum(charges)
 
    END SUBROUTINE compute_charges_single
 
@@ -357,8 +357,8 @@ CONTAINS
          END DO
          CALL dbcsr_iterator_stop(iter)
       END DO
-      CALL para_env%group%sum(charges)
-      CALL para_env%group%sum(dcharges)
+      CALL para_env%sum(charges)
+      CALL para_env%sum(dcharges)
 
    END SUBROUTINE compute_dcharges
 
@@ -736,7 +736,7 @@ CONTAINS
          END DO
          CALL dbcsr_iterator_stop(iter)
       END DO
-      CALL para_env%group%sum(charges)
+      CALL para_env%sum(charges)
 
       CALL timestop(handle)
 
@@ -799,7 +799,7 @@ CONTAINS
          END DO
          CALL dbcsr_iterator_stop(iter)
       END DO
-      CALL para_env%group%sum(charges)
+      CALL para_env%sum(charges)
 
       CALL timestop(handle)
 

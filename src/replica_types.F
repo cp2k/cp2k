@@ -242,7 +242,7 @@ CONTAINS
             vals(:, irep) = 0._dp
          END IF
       END DO
-      CALL rep_env%para_env_inter_rep%group%sum(vals)
+      CALL rep_env%para_env_inter_rep%sum(vals)
       CALL timestop(handle)
    END SUBROUTINE rep_env_sync
 
@@ -267,10 +267,6 @@ CONTAINS
       CPASSERT(rep_env%ref_count > 0)
       CPASSERT(SIZE(results) == rep_env%nrep)
       DO irep = 1, nrep
-!         source = 0
-!         IF (rep_env%rep_is_local(irep)) source = rep_env%para_env_inter_rep%mepos
-!         CALL rep_env%para_env_inter_rep%group%sum(source)
-! above three lines should be the same as just:
          source = rep_env%inter_rep_rank(rep_env%replica_owner(irep))
          CALL cp_results_mp_bcast(results(irep)%results, source, rep_env%para_env_inter_rep)
       END DO

@@ -403,7 +403,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       logger => cp_get_default_logger()
-      IF (logger%para_env%ionode) THEN
+      IF (logger%para_env%is_source()) THEN
          iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          iounit = -1
@@ -460,7 +460,7 @@ CONTAINS
       CALL dbcsr_deallocate_matrix_set(matrix_wz)
       IF (debug_forces) THEN
          fodeb(1:3) = force(1)%overlap(1:3, 1) - fodeb(1:3)
-         CALL para_env%group%sum(fodeb)
+         CALL para_env%sum(fodeb)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Wx*dS ", fodeb
       END IF
 
@@ -496,7 +496,7 @@ CONTAINS
       CALL dbcsr_deallocate_matrix_set(matrix_wz)
       IF (debug_forces) THEN
          fodeb(1:3) = force(1)%overlap(1:3, 1) - fodeb(1:3)
-         CALL para_env%group%sum(fodeb)
+         CALL para_env%sum(fodeb)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: xWx*dS ", fodeb
       END IF
 
@@ -516,7 +516,7 @@ CONTAINS
          CALL dbcsr_deallocate_matrix_set(scrm)
          IF (debug_forces) THEN
             fodeb(1:3) = force(1)%overlap(1:3, 1) - fodeb(1:3)
-            CALL para_env%group%sum(fodeb)
+            CALL para_env%sum(fodeb)
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: WK*dS ", fodeb
          END IF
       END IF
@@ -525,7 +525,7 @@ CONTAINS
          ALLOCATE (ftot2(3, natom))
          CALL total_qs_force(ftot2, force, atomic_kind_set)
          fodeb(1:3) = ftot2(1:3, 1) - ftot1(1:3, 1)
-         CALL para_env%group%sum(fodeb)
+         CALL para_env%sum(fodeb)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T30,3F16.8)") "DEBUG:: Excitation Force", fodeb
          DEALLOCATE (ftot1, ftot2)
       END IF
@@ -579,7 +579,7 @@ CONTAINS
       CALL dbcsr_dot(matrix_pe, matrix_s, tmp)
       IF (ABS(tmp) > 1.e-08_dp) THEN
          logger => cp_get_default_logger()
-         IF (logger%para_env%ionode) THEN
+         IF (logger%para_env%is_source()) THEN
             iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
          ELSE
             iounit = -1
@@ -786,7 +786,7 @@ CONTAINS
 
       IF (ABS(rhotot) > 1.e-08_dp) THEN
          logger => cp_get_default_logger()
-         IF (logger%para_env%ionode) THEN
+         IF (logger%para_env%is_source()) THEN
             iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
          ELSE
             iounit = -1

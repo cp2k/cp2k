@@ -1204,7 +1204,7 @@ CONTAINS
       logger => cp_get_default_logger()
 
       my_label = "NNP| "
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger)
          WRITE (unit_nr, '(1X,A,1X,10(I2,1X))') TRIM(my_label)//" Activation functions:", nnp%actfnct(:)
          DO i = 1, nnp%n_ele

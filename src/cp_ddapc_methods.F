@@ -764,7 +764,7 @@ CONTAINS
          END DO ! iparticle2
       END DO ! iparticle1
       !NB sum over parallelized contributions of different nodes
-      CALL cp_para_env%group%sum(EwM)
+      CALL cp_para_env%sum(EwM)
       idim = 0
       DO iparticle2 = 1, SIZE(particle_set)
          ip2 = (iparticle2 - 1)*SIZE(radii)

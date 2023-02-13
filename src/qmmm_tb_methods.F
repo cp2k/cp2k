@@ -451,7 +451,7 @@ CONTAINS
                DEALLOCATE (charges_mm)
             END DO
          END IF
-         CALL para_env%group%sum(qpot)
+         CALL para_env%sum(qpot)
          ! Add Ewald and TB short range corrections
          ! This is effectively using a minimum image convention!
          ! Set rcutoff to values compatible with alpha Ewald
@@ -789,7 +789,7 @@ CONTAINS
          END IF
          !
          ! Transfer QM gradients to the QM particles..
-         CALL para_env%group%sum(Forces_QM)
+         CALL para_env%sum(Forces_QM)
          DO ikind = 1, nkind
             CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=list)
             DO i = 1, SIZE(list)
@@ -985,7 +985,7 @@ CONTAINS
                CALL deallocate_particle_set(atoms_mm)
                DEALLOCATE (charges_mm)
                ! transfer MM forces
-               CALL para_env%group%sum(Forces_MM)
+               CALL para_env%sum(Forces_MM)
                DO Imp = 1, nmm
                   Imm = Pot%mm_atom_index(Imp)
                   Forces(:, Imm) = Forces(:, Imm) - Forces_MM(:, Imp)
@@ -1026,7 +1026,7 @@ CONTAINS
                   END IF
                   CALL deallocate_particle_set(atoms_mm)
                   ! transfer MM forces
-                  CALL para_env%group%sum(Forces_MM)
+                  CALL para_env%sum(Forces_MM)
                   DO Imp = 1, nmm
                      Imm = Pot%mm_atom_index(Imp)
                      Forces_added_charges(:, Imm) = Forces_added_charges(:, Imm) - Forces_MM(:, Imp)
@@ -1034,8 +1034,8 @@ CONTAINS
                   DEALLOCATE (Forces_MM)
                END DO
             END IF
-            CALL para_env%group%sum(qpot)
-            CALL para_env%group%sum(Forces_QM)
+            CALL para_env%sum(qpot)
+            CALL para_env%sum(Forces_QM)
             ! Add Ewald and DFTB short range corrections
             ! This is effectively using a minimum image convention!
             ! Set rcutoff to values compatible with alpha Ewald
@@ -1205,7 +1205,7 @@ CONTAINS
          END IF
          !
          ! Transfer QM gradients to the QM particles..
-         CALL para_env%group%sum(Forces_QM)
+         CALL para_env%sum(Forces_QM)
          DO ikind = 1, nkind
             CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=list)
             DO i = 1, SIZE(list)

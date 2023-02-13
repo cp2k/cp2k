@@ -142,8 +142,8 @@ CONTAINS
 
       !Do not mess with charges if using a non-default kind_set
       IF (.NOT. extern) THEN
-         CALL para_env%group%sum(rho1_h_tot)
-         CALL para_env%group%sum(rho1_s_tot)
+         CALL para_env%sum(rho1_h_tot)
+         CALL para_env%sum(rho1_s_tot)
          DO ispin = 1, nspins
             qs_charges%total_rho1_hard(ispin) = -rho1_h_tot(ispin)
             qs_charges%total_rho1_soft(ispin) = -rho1_s_tot(ispin)

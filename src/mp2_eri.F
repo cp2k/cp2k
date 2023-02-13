@@ -315,9 +315,9 @@ CONTAINS
 
       END IF
 
-      CALL para_env%group%sum(hab)
-      IF (PRESENT(hdab)) CALL para_env%group%sum(hdab)
-      IF (PRESENT(hadb)) CALL para_env%group%sum(hadb)
+      CALL para_env%sum(hab)
+      IF (PRESENT(hdab)) CALL para_env%sum(hdab)
+      IF (PRESENT(hadb)) CALL para_env%sum(hadb)
 
       CALL timestop(handle)
    END SUBROUTINE mp2_eri_2c_integrate

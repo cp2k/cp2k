@@ -54,7 +54,7 @@ CONTAINS
       logger => cp_get_default_logger()
 
       my_label = "NNP| "
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger)
          DO i = 1, nnp%n_ele
             WRITE (unit_nr, *) TRIM(my_label)//" Neural network specification for element "// &

@@ -750,7 +750,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL para_env%group%max(delta_max)
+      CALL para_env%max(delta_max)
       IF (pao%iw > 0) WRITE (pao%iw, *) 'PAO| checked gradient, max delta:', delta_max
       IF (delta_max > pao%check_grad_tol) CALL cp_abort(__LOCATION__, &
                                                         "Analytic and numeric gradients differ too much:"//cp_to_string(delta_max))
@@ -987,7 +987,7 @@ CONTAINS
       IF (SIZE(pao%ml_training_set) > 0) &
          CALL pao_ml_forces(pao, qs_env, pao%matrix_G, forces)
 
-      CALL para_env%group%sum(forces)
+      CALL para_env%sum(forces)
       DO iatom = 1, natoms
          particle_set(iatom)%f = particle_set(iatom)%f + forces(iatom, :)
       END DO

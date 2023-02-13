@@ -719,7 +719,7 @@ CONTAINS
                CALL dgemm('T', 'N', nmob, nmob, SIZE(hc%local_data, 1), 1.0_dp, a_loc(1, 1), &
                           SIZE(hc%local_data, 1), b_loc(1, 1), SIZE(hc%local_data, 1), 0.0_dp, a_block(1, 1), nmob)
             END IF
-            CALL hc%matrix_struct%para_env%group%sum(a_block)
+            CALL hc%matrix_struct%para_env%sum(a_block)
 
             !Compute the residual matrix R for next
             !factorisation
@@ -759,7 +759,7 @@ CONTAINS
                   CALL dgemm('T', 'N', nmob, nmob, SIZE(hc%local_data, 1), 1.0_dp, a_loc(1, 1), &
                              SIZE(hc%local_data, 1), b_loc(1, 1), SIZE(hc%local_data, 1), 0.0_dp, a_block(1, 1), nmob)
                END IF
-               CALL hc%matrix_struct%para_env%group%sum(a_block)
+               CALL hc%matrix_struct%para_env%sum(a_block)
 
                !Compute the residual matrix R for next
                !factorisation
@@ -839,7 +839,7 @@ CONTAINS
                           SIZE(v_tmp%local_data, 1), b_loc(1, 1), SIZE(v_tmp%local_data, 1), &
                           0.0_dp, q_mat(1, 1), nmob)
             END IF
-            CALL hc%matrix_struct%para_env%group%sum(q_mat)
+            CALL hc%matrix_struct%para_env%sum(q_mat)
 
             ALLOCATE (itaken(ndim))
             itaken = 0

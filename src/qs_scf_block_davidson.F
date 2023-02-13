@@ -556,7 +556,7 @@ CONTAINS
 
          CALL dbcsr_multiply('t', 'n', 1.0_dp, mo_coeff_b, matrix_hc, 0.0_dp, matrix_mm, last_column=k)
          CALL dbcsr_get_diag(matrix_mm, ritz_coeff)
-         CALL mo_coeff%matrix_struct%para_env%group%sum(ritz_coeff)
+         CALL mo_coeff%matrix_struct%para_env%sum(ritz_coeff)
 
          ! extended subspace P Z = P [H - theta S]C  this ia another matrix of type and size as mo_coeff_b
          CALL dbcsr_init_p(matrix_z)

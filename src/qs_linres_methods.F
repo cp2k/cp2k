@@ -58,7 +58,6 @@ MODULE qs_linres_methods
                                               dp
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
-   USE message_passing,                 ONLY: mp_comm_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE preconditioner,                  ONLY: apply_preconditioner,&
                                               make_preconditioner
@@ -919,7 +918,6 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      TYPE(mp_comm_type)                                 :: group
       TYPE(section_vals_type), POINTER                   :: print_key
 
       file_exists = .FALSE.
@@ -937,11 +935,10 @@ CONTAINS
                       mos=mos)
 
       nspins = SIZE(mos)
-      group = para_env%group
       source = para_env%source !ionode???
 
       rst_unit = -1
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          CALL section_vals_val_get(linres_section, "WFN_RESTART_FILE_NAME", &
                                    n_rep_val=n_rep_val)
 
@@ -981,7 +978,7 @@ CONTAINS
          END IF
       END IF
 
-      CALL group%bcast(file_exists, source)
+      CALL para_env%bcast(file_exists, source)
 
       IF (file_exists) THEN
 
@@ -1000,17 +997,17 @@ CONTAINS
 
             IF (PRESENT(ind)) THEN
                IF (rst_unit > 0) READ (rst_unit, IOSTAT=iostat) ind, ivec_tmp, nspins_tmp, nao_tmp
-               CALL group%bcast(iostat, source)
-               CALL group%bcast(ind, source)
+               CALL para_env%bcast(iostat, source)
+               CALL para_env%bcast(ind, source)
             ELSE
                IF (rst_unit > 0) READ (rst_unit, IOSTAT=iostat) ivec_tmp, nspins_tmp, nao_tmp
-               CALL group%bcast(iostat, source)
+               CALL para_env%bcast(iostat, source)
             END IF
 
             IF (iostat .NE. 0) EXIT
-            CALL group%bcast(ivec_tmp, source)
-            CALL group%bcast(nspins_tmp, source)
-            CALL group%bcast(nao_tmp, source)
+            CALL para_env%bcast(ivec_tmp, source)
+            CALL para_env%bcast(nspins_tmp, source)
+            CALL para_env%bcast(nao_tmp, source)
 
             ! check that the number nao, nmo and nspins are
             ! the same as in the current mos
@@ -1022,7 +1019,7 @@ CONTAINS
                CALL cp_fm_get_info(mo_coeff, ncol_global=nmo)
                !
                IF (rst_unit > 0) READ (rst_unit) nmo_tmp
-               CALL group%bcast(nmo_tmp, source)
+               CALL para_env%bcast(nmo_tmp, source)
                IF (nmo_tmp .NE. nmo) CPABORT("nmo not consistent")
                !
                ! read the response
@@ -1032,7 +1029,7 @@ CONTAINS
                      IF (rst_unit > 0) READ (rst_unit) vecbuffer(1:nao, j)
                   END DO
                   IF (iv .EQ. ivec_tmp) THEN
-                     CALL group%bcast(vecbuffer, source)
+                     CALL para_env%bcast(vecbuffer, source)
                      CALL cp_fm_set_submatrix(vec(ispin), vecbuffer, 1, i, nao, i_block)
                   END IF
                END DO
@@ -1049,7 +1046,7 @@ CONTAINS
 
       END IF
 
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          IF (file_exists) CALL close_file(unit_number=rst_unit)
       END IF
 

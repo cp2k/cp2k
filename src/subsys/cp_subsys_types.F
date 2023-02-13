@@ -27,8 +27,7 @@ MODULE cp_subsys_types
                                               scaled_to_real
    USE colvar_types,                    ONLY: colvar_p_release,&
                                               colvar_p_type
-   USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                              cp_para_env_retain
+   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_types,                 ONLY: cp_result_release,&
                                               cp_result_retain,&
@@ -261,7 +260,7 @@ CONTAINS
          subsys%molecules => molecules
       END IF
       IF (PRESENT(para_env)) THEN
-         CALL cp_para_env_retain(para_env)
+         CALL para_env%retain()
          CALL cp_para_env_release(subsys%para_env)
          subsys%para_env => para_env
       END IF

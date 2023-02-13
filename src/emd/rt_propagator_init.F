@@ -118,7 +118,7 @@ CONTAINS
       IF (rtp_control%mat_exp == do_pade .AND. rtp%linear_scaling) THEN
          ! get a useful output_unit
          logger => cp_get_default_logger()
-         IF (logger%para_env%ionode) THEN
+         IF (logger%para_env%is_source()) THEN
             unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
             WRITE (unit_nr, *) "linear_scaling currently does not support pade exponentials, switching to taylor"
          END IF

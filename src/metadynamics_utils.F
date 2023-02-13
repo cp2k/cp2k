@@ -530,7 +530,7 @@ CONTAINS
       para_env => logger%para_env
 
       ! Locally dump information on file..
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          ! Generate file name for the specific Hill
          i = multiple_walkers%walker_id
          filename = TRIM(multiple_walkers%walkers_file_name(i))//"_"// &
@@ -572,15 +572,15 @@ CONTAINS
             filename = TRIM(multiple_walkers%walkers_file_name(i))//"_"// &
                        TRIM(ADJUSTL(cp_to_string(i_hills)))
 
-            IF (para_env%ionode) THEN
+            IF (para_env%is_source()) THEN
                INQUIRE (FILE=TRIM(filename), EXIST=exist)
             END IF
-            CALL para_env%group%bcast(exist, para_env%source)
+            CALL para_env%bcast(exist, para_env%source)
             DO WHILE (exist)
                ! Read information from the walker's file
                ! We shouldn't care too much about the concurrency of these I/O instructions..
                ! In case, they can be fixed in the future..
-               IF (para_env%ionode) THEN
+               IF (para_env%is_source()) THEN
                   CALL open_file(file_name=filename, file_status="OLD", &
                                  file_form="FORMATTED", file_action="READ", &
                                  file_position="REWIND", unit_number=unit_nr)
@@ -592,7 +592,7 @@ CONTAINS
                   IF (hills_env%wtcontrol) READ (unit_nr, *) delta_s_ss0_buf(2, 0)
                   CALL close_file(unit_nr)
                END IF
-               CALL para_env%group%bcast(delta_s_ss0_buf, para_env%source)
+               CALL para_env%bcast(delta_s_ss0_buf, para_env%source)
                ww = delta_s_ss0_buf(1, 0)
                IF (hills_env%wtcontrol) invdt = delta_s_ss0_buf(2, 0)
                DO ih = 1, n_colvar
@@ -610,10 +610,10 @@ CONTAINS
                i_hills = i_hills + 1
                filename = TRIM(multiple_walkers%walkers_file_name(i))//"_"// &
                           TRIM(ADJUSTL(cp_to_string(i_hills)))
-               IF (para_env%ionode) THEN
+               IF (para_env%is_source()) THEN
                   INQUIRE (FILE=TRIM(filename), EXIST=exist)
                END IF
-               CALL para_env%group%bcast(exist, para_env%source)
+               CALL para_env%bcast(exist, para_env%source)
             END DO
 
             delta_hills = i_hills - 1 - multiple_walkers%walkers_status(i)

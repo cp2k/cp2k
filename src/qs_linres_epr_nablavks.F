@@ -206,7 +206,7 @@ CONTAINS
 
       logger => cp_get_default_logger()
       lr_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%LINRES")
-      ionode = logger%para_env%ionode
+      ionode = logger%para_env%is_source()
 
       output_unit = cp_print_key_unit_nr(logger, lr_section, "PRINT%PROGRAM_RUN_INFO", &
                                          extension=".linresLog")

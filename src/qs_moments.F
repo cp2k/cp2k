@@ -2418,7 +2418,7 @@ CONTAINS
             END DO
          END DO
       END DO
-      CALL para_env%group%sum(rmom(:, 2))
+      CALL para_env%sum(rmom(:, 2))
       rmom(:, :) = -rmom(:, :)
       rmom(:, 3) = rmom(:, 1) + rmom(:, 2)
 

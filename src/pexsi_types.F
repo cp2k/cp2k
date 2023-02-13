@@ -119,7 +119,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE lib_pexsi_init(pexsi_env, mp_group, nspin)
       TYPE(lib_pexsi_env), INTENT(INOUT)                 :: pexsi_env
-      TYPE(mp_comm_type), INTENT(IN)                     :: mp_group
+
+      CLASS(mp_comm_type), INTENT(IN)                     :: mp_group
       INTEGER, INTENT(IN)                                :: nspin
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'lib_pexsi_init'
@@ -129,7 +130,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
 
       logger => cp_get_default_logger()
-      IF (logger%para_env%ionode) THEN
+      IF (logger%para_env%is_source()) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1

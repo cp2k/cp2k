@@ -308,11 +308,11 @@ CONTAINS
          CALL shake_control(gci, local_molecules, molecule_set, molecule_kind_set, &
                             particle_set, pos, vel, dt, simpar%shake_tol, &
                             simpar%info_constraint, simpar%lagrange_multipliers, &
-                            simpar%dump_lm, cell, para_env%group, local_particles)
+                            simpar%dump_lm, cell, para_env, local_particles)
       END IF
 
       ! Broadcast the new particle positions
-      CALL update_particle_set(particle_set, para_env%group, pos=pos)
+      CALL update_particle_set(particle_set, para_env, pos=pos)
 
       DEALLOCATE (pos)
 
@@ -355,11 +355,11 @@ CONTAINS
          CALL rattle_control(gci, local_molecules, molecule_set, molecule_kind_set, &
                              particle_set, vel, dt, simpar%shake_tol, &
                              simpar%info_constraint, simpar%lagrange_multipliers, &
-                             simpar%dump_lm, cell, para_env%group, local_particles)
+                             simpar%dump_lm, cell, para_env, local_particles)
       END IF
 
       ! Broadcast the new particle velocities
-      CALL update_particle_set(particle_set, para_env%group, vel=vel)
+      CALL update_particle_set(particle_set, para_env, vel=vel)
 
       DEALLOCATE (vel)
 
@@ -369,10 +369,10 @@ CONTAINS
 
       ! Update virial
       IF (simpar%constraint) CALL pv_constraint(gci, local_molecules, molecule_set, &
-                                                molecule_kind_set, particle_set, virial, para_env%group)
+                                                molecule_kind_set, particle_set, virial, para_env)
 
       CALL virial_evaluate(atomic_kind_set, particle_set, local_particles, &
-                           virial, para_env%group)
+                           virial, para_env)
 
    END SUBROUTINE langevin
 
@@ -467,7 +467,7 @@ CONTAINS
       ! Apply thermostat over the full set of shells if required
       IF (shell_adiabatic) THEN
          CALL apply_thermostat_shells(thermostat_shell, atomic_kind_set, particle_set, &
-                                      local_particles, para_env%group, shell_particle_set=shell_particle_set, &
+                                      local_particles, para_env, shell_particle_set=shell_particle_set, &
                                       core_particle_set=core_particle_set)
       END IF
 
@@ -490,7 +490,7 @@ CONTAINS
          CALL shake_control(gci, local_molecules, molecule_set, &
                             molecule_kind_set, particle_set, tmp%pos, tmp%vel, dt, simpar%shake_tol, &
                             simpar%info_constraint, simpar%lagrange_multipliers, simpar%dump_lm, &
-                            cell, para_env%group, local_particles)
+                            cell, para_env, local_particles)
       END IF
 
       ! Broadcast the new particle positions and deallocate pos part of temporary
@@ -545,12 +545,12 @@ CONTAINS
          IF (simpar%constraint) CALL rattle_control(gci, local_molecules, molecule_set, &
                                                     molecule_kind_set, particle_set, tmp%vel, dt, simpar%shake_tol, &
                                                     simpar%info_constraint, simpar%lagrange_multipliers, simpar%dump_lm, &
-                                                    cell, para_env%group, local_particles)
+                                                    cell, para_env, local_particles)
 
          ! Apply thermostat over the full set of shell if required
          IF (shell_adiabatic) THEN
             CALL apply_thermostat_shells(thermostat_shell, atomic_kind_set, particle_set, &
-                                         local_particles, para_env%group, vel=tmp%vel, &
+                                         local_particles, para_env, vel=tmp%vel, &
                                          shell_vel=tmp%shell_vel, core_vel=tmp%core_vel)
          END IF
 
@@ -576,10 +576,10 @@ CONTAINS
 
       ! Update virial
       IF (simpar%constraint) CALL pv_constraint(gci, local_molecules, &
-                                                molecule_set, molecule_kind_set, particle_set, virial, para_env%group)
+                                                molecule_set, molecule_kind_set, particle_set, virial, para_env)
 
       CALL virial_evaluate(atomic_kind_set, particle_set, &
-                           local_particles, virial, para_env%group)
+                           local_particles, virial, para_env)
 
    END SUBROUTINE nve
 
@@ -805,18 +805,18 @@ CONTAINS
       ! Apply Thermostat over the full set of particles
       IF (shell_adiabatic) THEN
 !       CALL apply_thermostat_particles(thermostat_part, molecule_kind_set, molecule_set,&
-!            particle_set, local_molecules, para_env%group, shell_adiabatic=shell_adiabatic,&
+!            particle_set, local_molecules, para_env, shell_adiabatic=shell_adiabatic,&
 !            shell_particle_set=shell_particle_set, core_particle_set=core_particle_set)
 
          CALL apply_thermostat_shells(thermostat_shell, atomic_kind_set, particle_set, &
-                                      local_particles, para_env%group, shell_particle_set=shell_particle_set, &
+                                      local_particles, para_env, shell_particle_set=shell_particle_set, &
                                       core_particle_set=core_particle_set)
       ELSE
          CALL apply_thermostat_particles(thermostat_fast, force_env, molecule_kind_set, molecule_set, &
-                                         particle_set, local_molecules, local_particles, para_env%group)
+                                         particle_set, local_molecules, local_particles, para_env)
 
          CALL apply_thermostat_particles(thermostat_slow, force_env, molecule_kind_set, molecule_set, &
-                                         particle_set, local_molecules, local_particles, para_env%group)
+                                         particle_set, local_molecules, local_particles, para_env)
       END IF
 
       IF (simpar%constraint) CALL getold(gci, local_molecules, molecule_set, &
@@ -848,7 +848,7 @@ CONTAINS
          CALL shake_control(gci, local_molecules, molecule_set, &
                             molecule_kind_set, particle_set, tmp%pos, tmp%vel, dt, simpar%shake_tol, &
                             simpar%info_constraint, simpar%lagrange_multipliers, simpar%dump_lm, &
-                            cell, para_env%group, local_particles)
+                            cell, para_env, local_particles)
       END IF
 
       ! Broadcast the new particle positions and deallocate pos components of temporary
@@ -873,23 +873,23 @@ CONTAINS
       IF (simpar%constraint) CALL rattle_control(gci, local_molecules, molecule_set, &
                                                  molecule_kind_set, particle_set, tmp%vel, dt, simpar%shake_tol, &
                                                  simpar%info_constraint, simpar%lagrange_multipliers, simpar%dump_lm, &
-                                                 cell, para_env%group, local_particles)
+                                                 cell, para_env, local_particles)
 
       ! Apply Thermostat over the full set of particles
       IF (shell_adiabatic) THEN
          !  CALL apply_thermostat_particles(thermostat_part,molecule_kind_set, molecule_set, &
-         !       particle_set, local_molecules, para_env%group, shell_adiabatic=shell_adiabatic,&
+         !       particle_set, local_molecules, para_env, shell_adiabatic=shell_adiabatic,&
          !       vel= tmp%vel, shell_vel= tmp%shell_vel, core_vel= tmp%core_vel)
 
          CALL apply_thermostat_shells(thermostat_shell, atomic_kind_set, particle_set, &
-                                      local_particles, para_env%group, vel=tmp%vel, shell_vel=tmp%shell_vel, &
+                                      local_particles, para_env, vel=tmp%vel, shell_vel=tmp%shell_vel, &
                                       core_vel=tmp%core_vel)
       ELSE
          CALL apply_thermostat_particles(thermostat_slow, force_env, molecule_kind_set, molecule_set, &
-                                         particle_set, local_molecules, local_particles, para_env%group, vel=tmp%vel)
+                                         particle_set, local_molecules, local_particles, para_env, vel=tmp%vel)
 
          CALL apply_thermostat_particles(thermostat_fast, force_env, molecule_kind_set, molecule_set, &
-                                         particle_set, local_molecules, local_particles, para_env%group, vel=tmp%vel)
+                                         particle_set, local_molecules, local_particles, para_env, vel=tmp%vel)
       END IF
 
       ! Broadcast the new particle velocities and deallocate temporary
@@ -904,11 +904,11 @@ CONTAINS
 
       ! Update constraint virial
       IF (simpar%constraint) CALL pv_constraint(gci, local_molecules, &
-                                                molecule_set, molecule_kind_set, particle_set, virial, para_env%group)
+                                                molecule_set, molecule_kind_set, particle_set, virial, para_env)
 
       !     **  Evaluate Virial
       CALL virial_evaluate(atomic_kind_set, particle_set, &
-                           local_particles, virial, para_env%group)
+                           local_particles, virial, para_env)
 
    END SUBROUTINE nvt_adiabatic
 
@@ -1013,15 +1013,15 @@ CONTAINS
       ! Apply Thermostat over the full set of particles
       IF (shell_adiabatic) THEN
          CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set, &
-                                  particle_set, local_molecules, local_particles, para_env%group, shell_adiabatic=shell_adiabatic, &
+                                        particle_set, local_molecules, local_particles, para_env, shell_adiabatic=shell_adiabatic, &
                                          shell_particle_set=shell_particle_set, core_particle_set=core_particle_set)
 
          CALL apply_thermostat_shells(thermostat_shell, atomic_kind_set, particle_set, &
-                                      local_particles, para_env%group, shell_particle_set=shell_particle_set, &
+                                      local_particles, para_env, shell_particle_set=shell_particle_set, &
                                       core_particle_set=core_particle_set)
       ELSE
          CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set, &
-                                         particle_set, local_molecules, local_particles, para_env%group)
+                                         particle_set, local_molecules, local_particles, para_env)
       END IF
 
       IF (simpar%constraint) CALL getold(gci, local_molecules, molecule_set, &
@@ -1053,7 +1053,7 @@ CONTAINS
          CALL shake_control(gci, local_molecules, molecule_set, &
                             molecule_kind_set, particle_set, tmp%pos, tmp%vel, dt, simpar%shake_tol, &
                             simpar%info_constraint, simpar%lagrange_multipliers, simpar%dump_lm, &
-                            cell, para_env%group, local_particles)
+                            cell, para_env, local_particles)
       END IF
 
       ! Broadcast the new particle positions and deallocate pos components of temporary
@@ -1116,20 +1116,20 @@ CONTAINS
       IF (simpar%constraint) CALL rattle_control(gci, local_molecules, molecule_set, &
                                                  molecule_kind_set, particle_set, tmp%vel, dt, simpar%shake_tol, &
                                                  simpar%info_constraint, simpar%lagrange_multipliers, simpar%dump_lm, &
-                                                 cell, para_env%group, local_particles)
+                                                 cell, para_env, local_particles)
 
       ! Apply Thermostat over the full set of particles
       IF (shell_adiabatic) THEN
          CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set, &
-                                  particle_set, local_molecules, local_particles, para_env%group, shell_adiabatic=shell_adiabatic, &
+                                        particle_set, local_molecules, local_particles, para_env, shell_adiabatic=shell_adiabatic, &
                                          vel=tmp%vel, shell_vel=tmp%shell_vel, core_vel=tmp%core_vel)
 
          CALL apply_thermostat_shells(thermostat_shell, atomic_kind_set, particle_set, &
-                                      local_particles, para_env%group, vel=tmp%vel, shell_vel=tmp%shell_vel, &
+                                      local_particles, para_env, vel=tmp%vel, shell_vel=tmp%shell_vel, &
                                       core_vel=tmp%core_vel)
       ELSE
          CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set, &
-                                         particle_set, local_molecules, local_particles, para_env%group, vel=tmp%vel)
+                                         particle_set, local_molecules, local_particles, para_env, vel=tmp%vel)
       END IF
 
       ! Broadcast the new particle velocities and deallocate temporary
@@ -1144,11 +1144,11 @@ CONTAINS
 
       ! Update constraint virial
       IF (simpar%constraint) CALL pv_constraint(gci, local_molecules, &
-                                                molecule_set, molecule_kind_set, particle_set, virial, para_env%group)
+                                                molecule_set, molecule_kind_set, particle_set, virial, para_env)
 
       !     **  Evaluate Virial
       CALL virial_evaluate(atomic_kind_set, particle_set, &
-                           local_particles, virial, para_env%group)
+                           local_particles, virial, para_env)
 
    END SUBROUTINE nvt
 
@@ -1243,7 +1243,7 @@ CONTAINS
 
       IF (first_time) THEN
          CALL virial_evaluate(atomic_kind_set, particle_set, &
-                              local_particles, virial, para_env%group)
+                              local_particles, virial, para_env)
       END IF
 
       ! Allocate work storage for positions and velocities
@@ -1273,24 +1273,24 @@ CONTAINS
       IF (first_time) eps_0 = npt(1, 1)%eps
 
       ! Apply thermostat to  barostat
-      CALL apply_thermostat_baro(thermostat_baro, npt, para_env%group)
+      CALL apply_thermostat_baro(thermostat_baro, npt, para_env)
 
       ! Apply Thermostat over the full set of particles
       IF (simpar%ensemble /= npe_i_ensemble) THEN
          IF (shell_adiabatic) THEN
             CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set, &
-                                  particle_set, local_molecules, local_particles, para_env%group, shell_adiabatic=shell_adiabatic, &
+                                        particle_set, local_molecules, local_particles, para_env, shell_adiabatic=shell_adiabatic, &
                                             shell_particle_set=shell_particle_set, core_particle_set=core_particle_set)
 
          ELSE
             CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set, &
-                                            particle_set, local_molecules, local_particles, para_env%group)
+                                            particle_set, local_molecules, local_particles, para_env)
          END IF
       END IF
 
       ! Apply Thermostat over the core-shell motion
       CALL apply_thermostat_shells(thermostat_shell, atomic_kind_set, particle_set, &
-                                   local_particles, para_env%group, shell_particle_set=shell_particle_set, &
+                                   local_particles, para_env, shell_particle_set=shell_particle_set, &
                                    core_particle_set=core_particle_set)
 
       IF (simpar%constraint) THEN
@@ -1329,7 +1329,7 @@ CONTAINS
 
          CALL update_pv(gci, simpar, atomic_kind_set, particle_set, &
                         local_molecules, molecule_set, molecule_kind_set, &
-                        local_particles, kin, pv_kin, virial, para_env%group)
+                        local_particles, kin, pv_kin, virial, para_env)
          CALL update_veps(cell, npt, simpar, pv_kin, kin, virial, infree)
 
          tmp%arg_r(1) = (0.5_dp*npt(1, 1)%v*dt)* &
@@ -1370,7 +1370,7 @@ CONTAINS
 
          IF (simpar%constraint) CALL shake_roll_control(gci, local_molecules, &
                                                       molecule_set, molecule_kind_set, particle_set, tmp%pos, tmp%vel, dt, simpar, &
-                                                        roll_tol, iroll, vector_r, vector_v, para_env%group, cell=cell, &
+                                                        roll_tol, iroll, vector_r, vector_v, para_env, cell=cell, &
                                                         local_particles=local_particles)
       END DO SR
 
@@ -1424,7 +1424,7 @@ CONTAINS
 
          CALL update_pv(gci, simpar, atomic_kind_set, tmp%vel, particle_set, &
                         local_molecules, molecule_set, molecule_kind_set, &
-                        local_particles, kin, pv_kin, virial, para_env%group)
+                        local_particles, kin, pv_kin, virial, para_env)
          CALL update_veps(cell, npt, simpar, pv_kin, kin, virial, infree)
       END DO RR
 
@@ -1432,23 +1432,23 @@ CONTAINS
       IF (simpar%ensemble /= npe_i_ensemble) THEN
          IF (shell_adiabatic) THEN
             CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set, &
-                                  particle_set, local_molecules, local_particles, para_env%group, shell_adiabatic=shell_adiabatic, &
+                                        particle_set, local_molecules, local_particles, para_env, shell_adiabatic=shell_adiabatic, &
                                             vel=tmp%vel, shell_vel=tmp%shell_vel, core_vel=tmp%core_vel)
          ELSE
             CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set, &
-                                            particle_set, local_molecules, local_particles, para_env%group, vel=tmp%vel)
+                                            particle_set, local_molecules, local_particles, para_env, vel=tmp%vel)
          END IF
       END IF
 
       ! Apply Thermostat over the core-shell motion
       IF (ASSOCIATED(thermostat_shell)) THEN
          CALL apply_thermostat_shells(thermostat_shell, atomic_kind_set, particle_set, &
-                                      local_particles, para_env%group, vel=tmp%vel, shell_vel=tmp%shell_vel, &
+                                      local_particles, para_env, vel=tmp%vel, shell_vel=tmp%shell_vel, &
                                       core_vel=tmp%core_vel)
       END IF
 
       ! Apply Thermostat to Barostat
-      CALL apply_thermostat_baro(thermostat_baro, npt, para_env%group)
+      CALL apply_thermostat_baro(thermostat_baro, npt, para_env)
 
       ! Annealing of particle velocities is only possible when no thermostat is active
       IF (simpar%ensemble == npe_i_ensemble .AND. simpar%annealing) THEN
@@ -1469,10 +1469,10 @@ CONTAINS
 
       ! Update constraint virial
       IF (simpar%constraint) CALL pv_constraint(gci, local_molecules, &
-                                                molecule_set, molecule_kind_set, particle_set, virial, para_env%group)
+                                                molecule_set, molecule_kind_set, particle_set, virial, para_env)
 
       CALL virial_evaluate(atomic_kind_set, particle_set, &
-                           local_particles, virial, para_env%group)
+                           local_particles, virial, para_env)
 
       ! Deallocate old variables
       CALL deallocate_old(old)
@@ -1751,7 +1751,7 @@ CONTAINS
 
       IF (first_time) THEN
          CALL virial_evaluate(atomic_kind_set, particle_set, &
-                              local_particles, virial, para_env%group)
+                              local_particles, virial, para_env)
       END IF
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
@@ -1797,7 +1797,7 @@ CONTAINS
          END IF
          CALL update_pv(gci, simpar, atomic_kind_set, particle_set, &
                         local_molecules, molecule_set, molecule_kind_set, &
-                        local_particles, kin, pv_kin, virial, para_env%group)
+                        local_particles, kin, pv_kin, virial, para_env)
          CALL update_veps(cell, npt, simpar, pv_kin, kin, virial, infree)
 
          tmp%arg_r(1) = (0.5_dp*npt(1, 1)%v*dt)* &
@@ -1844,7 +1844,7 @@ CONTAINS
 
          IF (simpar%constraint) CALL shake_roll_control(gci, local_molecules, &
                                                       molecule_set, molecule_kind_set, particle_set, tmp%pos, tmp%vel, dt, simpar, &
-                                                        roll_tol, iroll, vector_r, vector_v, para_env%group, cell=cell, &
+                                                        roll_tol, iroll, vector_r, vector_v, para_env, cell=cell, &
                                                         local_particles=local_particles)
       END DO SR
 
@@ -1888,7 +1888,7 @@ CONTAINS
 
          CALL update_pv(gci, simpar, atomic_kind_set, tmp%vel, particle_set, &
                         local_molecules, molecule_set, molecule_kind_set, &
-                        local_particles, kin, pv_kin, virial, para_env%group)
+                        local_particles, kin, pv_kin, virial, para_env)
          CALL update_veps(cell, npt, simpar, pv_kin, kin, virial, infree)
       END DO RR
 
@@ -1900,10 +1900,10 @@ CONTAINS
 
       ! Update constraint virial
       IF (simpar%constraint) CALL pv_constraint(gci, local_molecules, &
-                                                molecule_set, molecule_kind_set, particle_set, virial, para_env%group)
+                                                molecule_set, molecule_kind_set, particle_set, virial, para_env)
 
       CALL virial_evaluate(atomic_kind_set, particle_set, &
-                           local_particles, virial, para_env%group)
+                           local_particles, virial, para_env)
 
       ! Deallocate old variables
       CALL deallocate_old(old)
@@ -1993,7 +1993,7 @@ CONTAINS
 
       IF (first_time) THEN
          CALL virial_evaluate(atomic_kind_set, particle_set, &
-                              local_particles, virial, para_env%group)
+                              local_particles, virial, para_env)
       END IF
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
@@ -2016,7 +2016,7 @@ CONTAINS
 
       ! perform damping on velocities
       CALL damp_v(molecule_kind_set, molecule_set, particle_set, local_molecules, &
-                  gamma1, npt(1, 1), dt, para_env%group)
+                  gamma1, npt(1, 1), dt, para_env)
 
       IF (simpar%constraint) THEN
          ! Possibly update the target values
@@ -2046,7 +2046,7 @@ CONTAINS
          END IF
          CALL update_pv(gci, simpar, atomic_kind_set, particle_set, &
                         local_molecules, molecule_set, molecule_kind_set, &
-                        local_particles, kin, pv_kin, virial, para_env%group)
+                        local_particles, kin, pv_kin, virial, para_env)
          CALL update_veps(cell, npt, simpar, pv_kin, kin, virial, infree)
 
          ! perform damping on the barostat momentum
@@ -2090,7 +2090,7 @@ CONTAINS
 
          IF (simpar%constraint) CALL shake_roll_control(gci, local_molecules, &
                                                       molecule_set, molecule_kind_set, particle_set, tmp%pos, tmp%vel, dt, simpar, &
-                                                        roll_tol, iroll, vector_r, vector_v, para_env%group, cell=cell, &
+                                                        roll_tol, iroll, vector_r, vector_v, para_env, cell=cell, &
                                                         local_particles=local_particles)
       END DO SR
 
@@ -2136,7 +2136,7 @@ CONTAINS
 
          CALL update_pv(gci, simpar, atomic_kind_set, tmp%vel, particle_set, &
                         local_molecules, molecule_set, molecule_kind_set, &
-                        local_particles, kin, pv_kin, virial, para_env%group)
+                        local_particles, kin, pv_kin, virial, para_env)
          CALL update_veps(cell, npt, simpar, pv_kin, kin, virial, infree)
 
          ! perform damping on the barostat momentum
@@ -2146,7 +2146,7 @@ CONTAINS
 
       ! perform damping on velocities
       CALL damp_v(molecule_kind_set, molecule_set, particle_set, local_molecules, &
-                  tmp%vel, gamma1, npt(1, 1), dt, para_env%group)
+                  tmp%vel, gamma1, npt(1, 1), dt, para_env)
 
       IF (simpar%annealing) tmp%vel(:, :) = tmp%vel(:, :)*simpar%f_annealing
 
@@ -2156,10 +2156,10 @@ CONTAINS
 
       ! Update constraint virial
       IF (simpar%constraint) CALL pv_constraint(gci, local_molecules, &
-                                                molecule_set, molecule_kind_set, particle_set, virial, para_env%group)
+                                                molecule_set, molecule_kind_set, particle_set, virial, para_env)
 
       CALL virial_evaluate(atomic_kind_set, particle_set, &
-                           local_particles, virial, para_env%group)
+                           local_particles, virial, para_env)
 
       ! Deallocate old variables
       CALL deallocate_old(old)
@@ -2258,7 +2258,7 @@ CONTAINS
 
       IF (first_time) THEN
          CALL virial_evaluate(atomic_kind_set, particle_set, &
-                              local_particles, virial, para_env%group)
+                              local_particles, virial, para_env)
       END IF
 
       ! Allocate work storage for positions and velocities
@@ -2277,23 +2277,23 @@ CONTAINS
       CALL allocate_tmp(md_env, tmp, nparticle, nshell, shell_adiabatic)
 
       ! Apply Thermostat to Barostat
-      CALL apply_thermostat_baro(thermostat_baro, npt, para_env%group)
+      CALL apply_thermostat_baro(thermostat_baro, npt, para_env)
 
       ! Apply Thermostat over the full set of particles
       IF (simpar%ensemble /= npe_f_ensemble) THEN
          IF (shell_adiabatic) THEN
             CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set, &
-                                  particle_set, local_molecules, local_particles, para_env%group, shell_adiabatic=shell_adiabatic, &
+                                        particle_set, local_molecules, local_particles, para_env, shell_adiabatic=shell_adiabatic, &
                                             shell_particle_set=shell_particle_set, core_particle_set=core_particle_set)
          ELSE
             CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set, &
-                                            particle_set, local_molecules, local_particles, para_env%group)
+                                            particle_set, local_molecules, local_particles, para_env)
          END IF
       END IF
 
       ! Apply Thermostat over the core-shell motion
       CALL apply_thermostat_shells(thermostat_shell, atomic_kind_set, particle_set, &
-                                   local_particles, para_env%group, shell_particle_set=shell_particle_set, &
+                                   local_particles, para_env, shell_particle_set=shell_particle_set, &
                                    core_particle_set=core_particle_set)
 
       IF (simpar%constraint) THEN
@@ -2321,7 +2321,7 @@ CONTAINS
          END IF
          CALL update_pv(gci, simpar, atomic_kind_set, particle_set, &
                         local_molecules, molecule_set, molecule_kind_set, &
-                        local_particles, kin, pv_kin, virial, para_env%group)
+                        local_particles, kin, pv_kin, virial, para_env)
          CALL update_veps(cell, npt, simpar, pv_kin, kin, virial, infree, &
                           virial_components=barostat%virial_components)
 
@@ -2360,7 +2360,7 @@ CONTAINS
          IF (simpar%constraint) CALL shake_roll_control(gci, local_molecules, &
                                                         molecule_set, molecule_kind_set, particle_set, tmp%pos, tmp%vel, dt, &
                                                         simpar, roll_tol, iroll, vector_r, vector_v, &
-                                                        para_env%group, u=tmp%u, cell=cell, &
+                                                        para_env, u=tmp%u, cell=cell, &
                                                         local_particles=local_particles)
       END DO SR
 
@@ -2416,7 +2416,7 @@ CONTAINS
 
          CALL update_pv(gci, simpar, atomic_kind_set, tmp%vel, particle_set, &
                         local_molecules, molecule_set, molecule_kind_set, &
-                        local_particles, kin, pv_kin, virial, para_env%group)
+                        local_particles, kin, pv_kin, virial, para_env)
          CALL update_veps(cell, npt, simpar, pv_kin, kin, virial, infree, &
                           virial_components=barostat%virial_components)
       END DO RR
@@ -2425,24 +2425,24 @@ CONTAINS
       IF (simpar%ensemble /= npe_f_ensemble) THEN
          IF (shell_adiabatic) THEN
             CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set, &
-                                  particle_set, local_molecules, local_particles, para_env%group, shell_adiabatic=shell_adiabatic, &
+                                        particle_set, local_molecules, local_particles, para_env, shell_adiabatic=shell_adiabatic, &
                                             vel=tmp%vel, shell_vel=tmp%shell_vel, core_vel=tmp%core_vel)
 
          ELSE
             CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set, &
-                                            particle_set, local_molecules, local_particles, para_env%group, vel=tmp%vel)
+                                            particle_set, local_molecules, local_particles, para_env, vel=tmp%vel)
          END IF
       END IF
 
       ! Apply Thermostat over the core-shell motion
       IF (ASSOCIATED(thermostat_shell)) THEN
          CALL apply_thermostat_shells(thermostat_shell, atomic_kind_set, particle_set, &
-                                      local_particles, para_env%group, vel=tmp%vel, shell_vel=tmp%shell_vel, &
+                                      local_particles, para_env, vel=tmp%vel, shell_vel=tmp%shell_vel, &
                                       core_vel=tmp%core_vel)
       END IF
 
       ! Apply Thermostat to Barostat
-      CALL apply_thermostat_baro(thermostat_baro, npt, para_env%group)
+      CALL apply_thermostat_baro(thermostat_baro, npt, para_env)
 
       ! Annealing of particle velocities is only possible when no thermostat is active
       IF (simpar%ensemble == npe_f_ensemble .AND. simpar%annealing) THEN
@@ -2464,10 +2464,10 @@ CONTAINS
       ! Update constraint virial
       IF (simpar%constraint) &
          CALL pv_constraint(gci, local_molecules, molecule_set, &
-                            molecule_kind_set, particle_set, virial, para_env%group)
+                            molecule_kind_set, particle_set, virial, para_env)
 
       CALL virial_evaluate(atomic_kind_set, particle_set, &
-                           local_particles, virial, para_env%group)
+                           local_particles, virial, para_env)
 
       ! Deallocate old variables
       CALL deallocate_old(old)
@@ -2589,11 +2589,11 @@ CONTAINS
             CALL shake_control(gci, local_molecules, molecule_set, &
                                molecule_kind_set, particle_set, pos, vel, dt, simpar%shake_tol, &
                                simpar%info_constraint, simpar%lagrange_multipliers, simpar%dump_lm, cell, &
-                               para_env%group, local_particles)
+                               para_env, local_particles)
          END IF
 
          ! Broadcast the new particle positions
-         CALL update_particle_set(particle_set, para_env%group, pos=pos)
+         CALL update_particle_set(particle_set, para_env, pos=pos)
          DO iparticle = 1, SIZE(particle_set)
             particle_set_respa(iparticle)%r = particle_set(iparticle)%r
          END DO
@@ -2621,7 +2621,7 @@ CONTAINS
          IF (simpar%constraint) CALL rattle_control(gci, local_molecules, molecule_set, &
                                                     molecule_kind_set, particle_set, vel, dt, simpar%shake_tol, &
                                                     simpar%info_constraint, simpar%lagrange_multipliers, &
-                                                    simpar%dump_lm, cell, para_env%group, local_particles)
+                                                    simpar%dump_lm, cell, para_env, local_particles)
 
          IF (simpar%annealing) vel(:, :) = vel(:, :)*simpar%f_annealing
       END DO
@@ -2648,7 +2648,7 @@ CONTAINS
       END DO
 
       ! Broadcast the new particle velocities
-      CALL update_particle_set(particle_set, para_env%group, vel=vel)
+      CALL update_particle_set(particle_set, para_env, vel=vel)
 
       DEALLOCATE (vel)
 

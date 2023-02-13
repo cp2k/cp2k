@@ -219,7 +219,7 @@ CONTAINS
 
       ! finalize fft libs
 
-      CALL fft_do_cleanup(fft_type, wisdom_file, para_env%ionode)
+      CALL fft_do_cleanup(fft_type, wisdom_file, para_env%is_source())
 
    END SUBROUTINE finalize_fft
 

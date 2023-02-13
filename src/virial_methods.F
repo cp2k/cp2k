@@ -60,7 +60,7 @@ CONTAINS
                          particles=particles)
 
       CALL virial_evaluate(atomic_kinds%els, particles%els, local_particles, &
-                           virial, para_env%group)
+                           virial, para_env)
 
    END SUBROUTINE virial_update
 
@@ -82,7 +82,8 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(virial_type), INTENT(INOUT)                   :: virial
-      TYPE(mp_comm_type), INTENT(IN)                     :: igroup
+
+      CLASS(mp_comm_type), INTENT(IN)                     :: igroup
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'virial_evaluate'
 

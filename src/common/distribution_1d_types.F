@@ -24,8 +24,7 @@
 MODULE distribution_1d_types
 
    USE cp_array_utils,                  ONLY: cp_1d_i_p_type
-   USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                              cp_para_env_retain
+   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE parallel_rng_types,              ONLY: rng_stream_p_type
 #include "../base/base_uses.f90"
@@ -102,7 +101,7 @@ CONTAINS
       distribution_1d%ref_count = 1
 
       distribution_1d%para_env => para_env
-      CALL cp_para_env_retain(para_env)
+      CALL para_env%retain()
 
       NULLIFY (distribution_1d%list, distribution_1d%n_el)
 

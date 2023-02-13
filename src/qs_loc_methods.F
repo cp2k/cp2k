@@ -1424,7 +1424,7 @@ CONTAINS
          DEALLOCATE (moments)
       END DO
 
-      CALL para_env%group%sum(moment_set)
+      CALL para_env%sum(moment_set)
 
       IF (output_unit_sm > 0) THEN
          WRITE (UNIT=output_unit_sm, FMT='(A,T13,A,I1)') "#", &
@@ -1576,7 +1576,7 @@ CONTAINS
          DEALLOCATE (moments)
       END DO
 
-      CALL para_env%group%sum(moment_set)
+      CALL para_env%sum(moment_set)
 
       IF (output_unit_sm > 0) THEN
          WRITE (UNIT=output_unit_sm, FMT='(A,T13,A,I1)') "#", &

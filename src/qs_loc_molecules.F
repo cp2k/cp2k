@@ -93,7 +93,7 @@ CONTAINS
       natom_loc = natom_max
       natom = natom_max
 
-      CALL para_env%group%max(natom_max)
+      CALL para_env%max(natom_max)
 
       ALLOCATE (r(3, natom_max))
 
@@ -140,7 +140,7 @@ CONTAINS
          mydist(1) = distance(local_location)
          mydist(2) = para_env%mepos
 
-         CALL para_env%group%minloc(mydist)
+         CALL para_env%minloc(mydist)
 
          IF (mydist(2) == para_env%mepos) THEN
             wfc_to_atom_map(istate) = local_location

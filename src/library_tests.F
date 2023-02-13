@@ -165,7 +165,7 @@ CONTAINS
       !
       ! runtest 7 has been deleted and can be recycled
       !
-      IF (runtest(8) /= 0) CALL mpi_perf_test(para_env%group, runtest(8), iw)
+      IF (runtest(8) /= 0) CALL mpi_perf_test(para_env, runtest(8), iw)
       !
       IF (runtest(10) /= 0) CALL validate_exp_minimax(runtest(10), iw)
       !
@@ -272,7 +272,7 @@ CONTAINS
       CALL section_vals_val_get(test_section, 'MINIMAX', i_val=runtest(10))
       CALL section_vals_val_get(test_section, 'LEAST_SQ_FT', i_val=runtest(11))
 
-      CALL para_env%group%sync()
+      CALL para_env%sync()
    END SUBROUTINE test_input
 
 ! **************************************************************************************************
@@ -298,7 +298,7 @@ CONTAINS
 ! test for copy --> Cache size
 
       siz = ABS(runtest(1))
-      IF (para_env%ionode) WRITE (iw, '(//,A,/)') " Test of copy ( F95 ) "
+      IF (para_env%is_source()) WRITE (iw, '(//,A,/)') " Test of copy ( F95 ) "
       DO i = 6, 24
          len = 2**i
          IF (8.0_dp*REAL(len, KIND=dp) > max_memory*0.5_dp) EXIT
@@ -325,7 +325,7 @@ CONTAINS
             perf = 0.0_dp
          END IF
 
-         IF (para_env%ionode) THEN
+         IF (para_env%is_source()) THEN
             WRITE (iw, '(A,i2,i10,A,T59,F14.4,A)') " Copy test:   Size = 2^", i, &
                len/1024, " Kwords", perf, " Mcopy/s"
          END IF
@@ -333,7 +333,7 @@ CONTAINS
          DEALLOCATE (ca)
          DEALLOCATE (cb)
       END DO
-      CALL para_env%group%sync()
+      CALL para_env%sync()
    END SUBROUTINE copy_test
 
 ! **************************************************************************************************
@@ -360,7 +360,7 @@ CONTAINS
 
       IF (test_matmul) THEN
          siz = ABS(runtest(2))
-         IF (para_env%ionode) WRITE (iw, '(//,A,/)') " Test of matmul ( F95 ) "
+         IF (para_env%is_source()) WRITE (iw, '(//,A,/)') " Test of matmul ( F95 ) "
          DO i = 5, siz, 2
             len = 2**i + 1
             IF (8.0_dp*REAL(len*len, KIND=dp) > max_memory*0.3_dp) EXIT
@@ -387,7 +387,7 @@ CONTAINS
             tend = m_walltime()
             t = tend - tstart + threshold
             perf = REAL(ntim, KIND=dp)*2.0_dp*REAL(len, KIND=dp)**3*1.e-6_dp/t
-            IF (para_env%ionode) THEN
+            IF (para_env%is_source()) THEN
                WRITE (iw, '(A,i6,T59,F14.4,A)') &
                   " Matrix multiply test: c = a * b         Size = ", len, perf, " Mflop/s"
             END IF
@@ -404,7 +404,7 @@ CONTAINS
                perf = 0.0_dp
             END IF
 
-            IF (para_env%ionode) THEN
+            IF (para_env%is_source()) THEN
                WRITE (iw, '(A,i6,T59,F14.4,A)') &
                   " Matrix multiply test: a = a * b         Size = ", len, perf, " Mflop/s"
             END IF
@@ -422,7 +422,7 @@ CONTAINS
                perf = 0.0_dp
             END IF
 
-            IF (para_env%ionode) THEN
+            IF (para_env%is_source()) THEN
                WRITE (iw, '(A,i6,T59,F14.4,A)') &
                   " Matrix multiply test: c = a * b(T)      Size = ", len, perf, " Mflop/s"
             END IF
@@ -440,7 +440,7 @@ CONTAINS
                perf = 0.0_dp
             END IF
 
-            IF (para_env%ionode) THEN
+            IF (para_env%is_source()) THEN
                WRITE (iw, '(A,i6,T59,F14.4,A)') &
                   " Matrix multiply test: c = a(T) * b      Size = ", len, perf, " Mflop/s"
             END IF
@@ -454,7 +454,7 @@ CONTAINS
       ! test for matrix multpies
       IF (test_dgemm) THEN
          siz = ABS(runtest(5))
-         IF (para_env%ionode) WRITE (iw, '(//,A,/)') " Test of matmul ( BLAS ) "
+         IF (para_env%is_source()) WRITE (iw, '(//,A,/)') " Test of matmul ( BLAS ) "
          DO i = 5, siz, 2
             len = 2**i + 1
             IF (8.0_dp*REAL(len*len, KIND=dp) > max_memory*0.3_dp) EXIT
@@ -486,7 +486,7 @@ CONTAINS
                perf = 0.0_dp
             END IF
 
-            IF (para_env%ionode) THEN
+            IF (para_env%is_source()) THEN
                WRITE (iw, '(A,i6,T59,F14.4,A)') &
                   " Matrix multiply test: c = a * b         Size = ", len, perf, " Mflop/s"
             END IF
@@ -503,7 +503,7 @@ CONTAINS
                perf = 0.0_dp
             END IF
 
-            IF (para_env%ionode) THEN
+            IF (para_env%is_source()) THEN
                WRITE (iw, '(A,i6,T59,F14.4,A)') &
                   " Matrix multiply test: a = a * b         Size = ", len, perf, " Mflop/s"
             END IF
@@ -520,7 +520,7 @@ CONTAINS
                perf = 0.0_dp
             END IF
 
-            IF (para_env%ionode) THEN
+            IF (para_env%is_source()) THEN
                WRITE (iw, '(A,i6,T59,F14.4,A)') &
                   " Matrix multiply test: c = a * b(T)      Size = ", len, perf, " Mflop/s"
             END IF
@@ -537,7 +537,7 @@ CONTAINS
                perf = 0.0_dp
             END IF
 
-            IF (para_env%ionode) THEN
+            IF (para_env%is_source()) THEN
                WRITE (iw, '(A,i6,T59,F14.4,A)') &
                   " Matrix multiply test: c = a(T) * b      Size = ", len, perf, " Mflop/s"
             END IF
@@ -548,7 +548,7 @@ CONTAINS
          END DO
       END IF
 
-      CALL para_env%group%sync()
+      CALL para_env%sync()
 
    END SUBROUTINE matmul_test
 
@@ -581,7 +581,7 @@ CONTAINS
 
 ! test for 3d FFT
 
-      IF (para_env%ionode) WRITE (iw, '(//,A,/)') " Test of 3D-FFT "
+      IF (para_env%is_source()) WRITE (iw, '(//,A,/)') " Test of 3D-FFT "
       siz = ABS(runtest(3))
 
       DO iall = 1, 100
@@ -633,14 +633,14 @@ CONTAINS
                   perf = 0.0_dp
                END IF
 
-               IF (para_env%ionode) THEN
+               IF (para_env%is_source()) THEN
                   WRITE (iw, '(T2,A,A,i6,T59,F14.4,A)') &
                      ADJUSTR(method), " test (in-place)    Size = ", len, perf, " Mflop/s"
                END IF
                DEALLOCATE (ca)
                DEALLOCATE (ra)
             END DO
-            IF (para_env%ionode) WRITE (iw, *)
+            IF (para_env%is_source()) WRITE (iw, *)
             ! test if input data is preserved
             len = 24
             n = len
@@ -656,11 +656,11 @@ CONTAINS
             CALL fft3d(FWFFT, n, ca, cb)
             tdiff = MAXVAL(ABS(ca - cc))
             IF (tdiff > 1.0E-12_dp) THEN
-               IF (para_env%ionode) &
+               IF (para_env%is_source()) &
                   WRITE (iw, '(T2,A,A,A)') ADJUSTR(method), "         FWFFT ", &
                   "             Input array is changed in out-of-place FFT !"
             ELSE
-               IF (para_env%ionode) &
+               IF (para_env%is_source()) &
                   WRITE (iw, '(T2,A,A,A)') ADJUSTR(method), "         FWFFT ", &
                   "         Input array is not changed in out-of-place FFT !"
             END IF
@@ -668,15 +668,15 @@ CONTAINS
             CALL fft3d(BWFFT, n, ca, cb)
             tdiff = MAXVAL(ABS(ca - cc))
             IF (tdiff > 1.0E-12_dp) THEN
-               IF (para_env%ionode) &
+               IF (para_env%is_source()) &
                   WRITE (iw, '(T2,A,A,A)') ADJUSTR(method), "         BWFFT ", &
                   "             Input array is changed in out-of-place FFT !"
             ELSE
-               IF (para_env%ionode) &
+               IF (para_env%is_source()) &
                   WRITE (iw, '(T2,A,A,A)') ADJUSTR(method), "         BWFFT ", &
                   "         Input array is not changed in out-of-place FFT !"
             END IF
-            IF (para_env%ionode) WRITE (iw, *)
+            IF (para_env%is_source()) WRITE (iw, *)
 
             DEALLOCATE (ra)
             DEALLOCATE (ca)
@@ -740,7 +740,7 @@ CONTAINS
       NULLIFY (grid)
       CALL section_vals_val_get(rs_pw_transfer_section, "GRID", i_vals=i_vals)
       np = i_vals
-      CALL pw_grid_create(grid, para_env%group)
+      CALL pw_grid_create(grid, para_env)
       CALL pw_grid_setup(box%hmat, grid, grid_span=FULLSPACE, npts=np, fft_usage=.TRUE., iounit=iw)
       no = grid%npts
 
@@ -773,19 +773,19 @@ CONTAINS
       END IF
 
       ! go for the real loops, sync to get max timings
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          WRITE (iw, '(T2,A)') ""
          WRITE (iw, '(T2,A)') "Timing rs_pw_transfer routine"
          WRITE (iw, '(T2,A)') ""
          WRITE (iw, '(T2,A)') "iteration      time[s]"
       END IF
       DO i_loop = 1, N_loop
-         CALL para_env%group%sync()
+         CALL para_env%sync()
          tstart = m_walltime()
          CALL rs_pw_transfer(rs_grid, ca, dir)
-         CALL para_env%group%sync()
+         CALL para_env%sync()
          tend = m_walltime()
-         IF (para_env%ionode) THEN
+         IF (para_env%is_source()) THEN
             WRITE (iw, '(T2,I9,1X,F12.6)') i_loop, tend - tstart
          END IF
       END DO
@@ -900,7 +900,7 @@ CONTAINS
 
             distribution_layout = layouts(:, i_layout)
 
-            CALL pw_grid_create(grid, para_env%group)
+            CALL pw_grid_create(grid, para_env)
 
             CALL section_vals_val_get(pw_transfer_section, "PW_GRID", i_rep_section=i_rep, i_val=itmp)
 
@@ -960,11 +960,11 @@ CONTAINS
             flops = PRODUCT(no)*30.0_dp*LOG(REAL(MAXVAL(no), KIND=dp))
             tstart = m_walltime()
             DO ip = 1, n_loop
-               CALL para_env%group%sync()
+               CALL para_env%sync()
                t_start(ip) = m_walltime()
                CALL pw_transfer(ca, cb, debug)
                CALL pw_transfer(cb, cc, debug)
-               CALL para_env%group%sync()
+               CALL para_env%sync()
                t_end(ip) = m_walltime()
             END DO
             tend = m_walltime()
@@ -976,13 +976,13 @@ CONTAINS
             END IF
 
             em = MAXVAL(ABS(ca%cc(:) - cc%cc(:)))
-            CALL para_env%group%max(em)
+            CALL para_env%max(em)
             et = SUM(ABS(ca%cc(:) - cc%cc(:)))
-            CALL para_env%group%sum(et)
+            CALL para_env%sum(et)
             t_min = MINVAL(t_end - t_start)
             t_max = MAXVAL(t_end - t_start)
 
-            IF (para_env%ionode) THEN
+            IF (para_env%is_source()) THEN
                WRITE (iw, *)
                WRITE (iw, '(A,T67,E14.6)') " Parallel FFT Tests: Maximal Error ", em
                WRITE (iw, '(A,T67,E14.6)') " Parallel FFT Tests: Total Error ", et
@@ -1124,7 +1124,7 @@ CONTAINS
          ALLOCATE (buffer(1, n))
 
          ! generate initial matrix, either by reading a file, or using random numbers
-         IF (para_env%ionode) THEN
+         IF (para_env%is_source()) THEN
             SELECT CASE (init_method)
             CASE (do_mat_random)
                rng_stream = rng_stream_type( &
@@ -1140,58 +1140,56 @@ CONTAINS
             END SELECT
          END IF
 
-         ASSOCIATE (group => para_env%group, source => para_env%source)
-            DO i = 1, n
-               IF (para_env%ionode) THEN
-                  SELECT CASE (init_method)
-                  CASE (do_mat_random)
-                     DO j = i, n
-                        buffer(1, j) = rng_stream%next() - 0.5_dp
-                     END DO
-                     !MK activate/modify for a diagonal dominant symmetric matrix:
-                     !MK buffer(1,i) = 10.0_dp*buffer(1,i)
-                  CASE (do_mat_read)
-                     READ (UNIT=unit_number, FMT=*) buffer(1, 1:n)
-                  END SELECT
-               END IF
-               CALL group%bcast(buffer, source)
+         DO i = 1, n
+            IF (para_env%is_source()) THEN
                SELECT CASE (init_method)
                CASE (do_mat_random)
-                  CALL cp_fm_set_submatrix(fm=matrix, &
-                                           new_values=buffer, &
-                                           start_row=i, &
-                                           start_col=i, &
-                                           n_rows=1, &
-                                           n_cols=n - i + 1, &
-                                           alpha=1.0_dp, &
-                                           beta=0.0_dp, &
-                                           transpose=.FALSE.)
-                  CALL cp_fm_set_submatrix(fm=matrix, &
-                                           new_values=buffer, &
-                                           start_row=i, &
-                                           start_col=i, &
-                                           n_rows=n - i + 1, &
-                                           n_cols=1, &
-                                           alpha=1.0_dp, &
-                                           beta=0.0_dp, &
-                                           transpose=.TRUE.)
+                  DO j = i, n
+                     buffer(1, j) = rng_stream%next() - 0.5_dp
+                  END DO
+                  !MK activate/modify for a diagonal dominant symmetric matrix:
+                  !MK buffer(1,i) = 10.0_dp*buffer(1,i)
                CASE (do_mat_read)
-                  CALL cp_fm_set_submatrix(fm=matrix, &
-                                           new_values=buffer, &
-                                           start_row=i, &
-                                           start_col=1, &
-                                           n_rows=1, &
-                                           n_cols=n, &
-                                           alpha=1.0_dp, &
-                                           beta=0.0_dp, &
-                                           transpose=.FALSE.)
+                  READ (UNIT=unit_number, FMT=*) buffer(1, 1:n)
                END SELECT
-            END DO
-         END ASSOCIATE
+            END IF
+            CALL para_env%bcast(buffer, para_env%source)
+            SELECT CASE (init_method)
+            CASE (do_mat_random)
+               CALL cp_fm_set_submatrix(fm=matrix, &
+                                        new_values=buffer, &
+                                        start_row=i, &
+                                        start_col=i, &
+                                        n_rows=1, &
+                                        n_cols=n - i + 1, &
+                                        alpha=1.0_dp, &
+                                        beta=0.0_dp, &
+                                        transpose=.FALSE.)
+               CALL cp_fm_set_submatrix(fm=matrix, &
+                                        new_values=buffer, &
+                                        start_row=i, &
+                                        start_col=i, &
+                                        n_rows=n - i + 1, &
+                                        n_cols=1, &
+                                        alpha=1.0_dp, &
+                                        beta=0.0_dp, &
+                                        transpose=.TRUE.)
+            CASE (do_mat_read)
+               CALL cp_fm_set_submatrix(fm=matrix, &
+                                        new_values=buffer, &
+                                        start_row=i, &
+                                        start_col=1, &
+                                        n_rows=1, &
+                                        n_cols=n, &
+                                        alpha=1.0_dp, &
+                                        beta=0.0_dp, &
+                                        transpose=.FALSE.)
+            END SELECT
+         END DO
 
          DEALLOCATE (buffer)
 
-         IF (para_env%ionode) THEN
+         IF (para_env%is_source()) THEN
             SELECT CASE (init_method)
             CASE (do_mat_read)
                CALL close_file(unit_number=unit_number)
@@ -1461,7 +1459,7 @@ CONTAINS
                                    i_rep_section=i_rep, r_val=filter_eps)
          CALL section_vals_val_get(input_section, "ALWAYS_CHECKSUM", i_rep_section=i_rep, l_val=always_checksum)
 
-         CALL dbcsr_run_tests(para_env%group%get_handle(), iw, nproc, &
+         CALL dbcsr_run_tests(para_env%get_handle(), iw, nproc, &
                               (/m, n, k/), &
                               (/transa_p, transb_p/), &
                               bs_m, bs_n, bs_k, &
@@ -1516,7 +1514,7 @@ CONTAINS
          CALL section_vals_val_get(input_section, "filter_eps", i_rep_section=i_rep, r_val=filter_eps)
          CALL section_vals_val_get(input_section, "ALWAYS_CHECKSUM", i_rep_section=i_rep, l_val=always_checksum)
 
-         CALL dbm_run_tests(mp_group=para_env%group, &
+         CALL dbm_run_tests(mp_group=para_env, &
                             io_unit=iw, &
                             matrix_sizes=(/m, n, k/), &
                             trs=(/transa_p, transb_p/), &

@@ -135,7 +135,7 @@ CONTAINS
 
       number = number_of_thermostats
       sum_of_thermostats = number
-      CALL para_env%group%sum(sum_of_thermostats)
+      CALL para_env%sum(sum_of_thermostats)
 
 !    check = (number==number_of_thermostats)
 !    CPPrecondition(check,cp_fatal_level,routineP,failure)
@@ -1038,7 +1038,7 @@ CONTAINS
                   atm_offset = atm_offset + natom
                END DO
             END DO
-            CALL para_env%group%sum(tot_const)
+            CALL para_env%sum(tot_const)
          ELSE
             ALLOCATE (const_mol(nkind))
             ALLOCATE (tot_const(nkind))
@@ -1135,7 +1135,7 @@ CONTAINS
       END DO
 
       ALLOCATE (array_num_massive_atm(para_env%num_pe))
-      CALL para_env%group%allgather(num_massive_atm_local, array_num_massive_atm)
+      CALL para_env%allgather(num_massive_atm_local, array_num_massive_atm)
 
       num_massive_atm = SUM(array_num_massive_atm)
       ALLOCATE (massive_atom_list(num_massive_atm))
@@ -1151,7 +1151,7 @@ CONTAINS
          ELSE
             work(:) = 0
          END IF
-         CALL para_env%group%bcast(work, iproc - 1)
+         CALL para_env%bcast(work, iproc - 1)
          DO i = 1, ncount
             massive_atom_list(offset + i) = work(i)
          END DO

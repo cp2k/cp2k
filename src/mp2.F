@@ -274,7 +274,7 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
           (mp2_env%method .NE. ri_mp2_laplace)) THEN
          CALL m_memory(mem)
          mem_real = (mem + 1024*1024 - 1)/(1024*1024)
-         CALL para_env%group%max(mem_real)
+         CALL para_env%max(mem_real)
          mp2_env%mp2_memory = mp2_env%mp2_memory - mem_real
          IF (mp2_env%mp2_memory < 0.0_dp) mp2_env%mp2_memory = 1.0_dp
 

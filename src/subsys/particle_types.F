@@ -120,7 +120,8 @@ CONTAINS
    SUBROUTINE update_particle_set(particle_set, int_group, pos, vel, for, add)
 
       TYPE(particle_type), INTENT(INOUT)                 :: particle_set(:)
-      TYPE(mp_comm_type), INTENT(IN)                     :: int_group
+
+      CLASS(mp_comm_type), INTENT(IN)                     :: int_group
       REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: pos(:, :), vel(:, :), for(:, :)
       LOGICAL, INTENT(IN), OPTIONAL                      :: add
 

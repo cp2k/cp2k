@@ -27,13 +27,9 @@ MODULE cp_fm_diag_utils
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
-   USE cp_para_env,                     ONLY: cp_para_env_create,&
-                                              cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: gcd
-   USE message_passing,                 ONLY: mp_comm_null,&
-                                              mp_comm_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -44,12 +40,12 @@ MODULE cp_fm_diag_utils
 
    ! Information on redistribution
    TYPE, PUBLIC :: cp_fm_redistribute_info
-      INTEGER :: matrix_order
-      INTEGER :: num_pe_old ! number of processes before a potential redistribute
-      INTEGER :: num_pe_new ! number of processes after a potential redistribute
-      INTEGER :: num_pe_opt ! optimal number of processes for the given matrix
-      INTEGER :: num_pe_max_nz_col ! the maximal number of processes s.t. no column has zero width, may be < 0 if ignored
-      LOGICAL :: redistribute ! whether or not the matrix was actually redistributed
+      INTEGER :: matrix_order = -1
+      INTEGER :: num_pe_old = -1 ! number of processes before a potential redistribute
+      INTEGER :: num_pe_new = -1 ! number of processes after a potential redistribute
+      INTEGER :: num_pe_opt = -1 ! optimal number of processes for the given matrix
+      INTEGER :: num_pe_max_nz_col = -1 ! the maximal number of processes s.t. no column has zero width, may be < 0 if ignored
+      LOGICAL :: redistribute = .FALSE. ! whether or not the matrix was actually redistributed
    CONTAINS
       PROCEDURE, PASS(self) :: write => cp_fm_redistribute_info_write
    END TYPE
@@ -57,15 +53,14 @@ MODULE cp_fm_diag_utils
    ! Container for redistribution settings and temporary work structs
    TYPE cp_fm_redistribute_type
       ! Settings
-      INTEGER                                  :: a, x
-      LOGICAL                                  :: should_print
-      LOGICAL                                  :: elpa_force_redistribute
+      INTEGER                                  :: a = -1, x = -1
+      LOGICAL                                  :: should_print = .FALSE.
+      LOGICAL                                  :: elpa_force_redistribute = .FALSE.
       ! Temporaries
-      TYPE(mp_comm_type)                       :: subgroup
-      INTEGER, DIMENSION(:), POINTER           :: group_distribution, &
-                                                  group_partition
-      TYPE(cp_blacs_env_type), POINTER         :: blacs_env_new
-      TYPE(cp_para_env_type), POINTER          :: para_env_new
+      INTEGER, DIMENSION(:), POINTER           :: group_distribution => NULL(), &
+                                                  group_partition => NULL()
+      TYPE(cp_blacs_env_type), POINTER         :: blacs_env_new => NULL()
+      TYPE(cp_para_env_type), POINTER          :: para_env_new => NULL()
    END TYPE cp_fm_redistribute_type
 
    ! Permanent instance of the redistribute type
@@ -114,20 +109,6 @@ CONTAINS
    END SUBROUTINE cp_fm_redistribute_info_write
 
 ! **************************************************************************************************
-!> \brief  Initializes temporary storage needed when redistributing arrays
-!> \author Nico Holmberg [01.2018]
-! **************************************************************************************************
-   SUBROUTINE cp_fm_redistribute_work_init()
-
-      work_redistribute%subgroup = mp_comm_null
-      NULLIFY (work_redistribute%group_distribution)
-      NULLIFY (work_redistribute%group_partition)
-      NULLIFY (work_redistribute%blacs_env_new)
-      NULLIFY (work_redistribute%para_env_new)
-
-   END SUBROUTINE cp_fm_redistribute_work_init
-
-! **************************************************************************************************
 !> \brief  Releases the temporary storage needed when redistributing arrays
 !> \param  has_redistributed flag that determines if the processors holds a part of the
 !>                           redistributed array
@@ -139,15 +120,14 @@ CONTAINS
       IF (ASSOCIATED(work_redistribute%group_distribution)) THEN
          IF (has_redistributed) THEN
             CALL cp_blacs_env_release(work_redistribute%blacs_env_new)
-            CALL cp_para_env_release(work_redistribute%para_env_new)
-         ELSE
-            CALL work_redistribute%subgroup%free()
          END IF
+         CALL work_redistribute%para_env_new%free()
+         DEALLOCATE (work_redistribute%para_env_new)
          DEALLOCATE (work_redistribute%group_distribution)
          DEALLOCATE (work_redistribute%group_partition)
       END IF
       ! Return work to its initial state
-      CALL cp_fm_redistribute_work_init()
+      work_redistribute = cp_fm_redistribute_type()
 
    END SUBROUTINE cp_fm_redistribute_work_finalize
 
@@ -173,7 +153,7 @@ CONTAINS
       work_redistribute%should_print = should_print
       work_redistribute%elpa_force_redistribute = elpa_force_redistribute
       ! Init work
-      CALL cp_fm_redistribute_work_init()
+      work_redistribute = cp_fm_redistribute_type()
 
    END SUBROUTINE cp_fm_redistribute_init
 
@@ -384,7 +364,7 @@ CONTAINS
          END IF
          CALL rdinfo%write(io_unit)
       END IF
-      CALL para_env%group%sync()
+      CALL para_env%sync()
 
       ! if the optimal is smaller than num_pe, we will redistribute the input matrix
       IF (rdinfo%redistribute) THEN
@@ -392,17 +372,12 @@ CONTAINS
          ALLOCATE (work_redistribute%group_distribution(0:rdinfo%num_pe_old - 1))
          ALLOCATE (work_redistribute%group_partition(0:1))
          work_redistribute%group_partition = (/rdinfo%num_pe_new, rdinfo%num_pe_old - rdinfo%num_pe_new/)
-         CALL work_redistribute%subgroup%from_split(comm=para_env%group, &
-                                                    ngroups=ngroups, group_distribution=work_redistribute%group_distribution, &
-                                                    n_subgroups=2, group_partition=work_redistribute%group_partition)
+         ALLOCATE (work_redistribute%para_env_new)
+         CALL work_redistribute%para_env_new%from_split( &
+            comm=para_env, ngroups=ngroups, group_distribution=work_redistribute%group_distribution, &
+            n_subgroups=2, group_partition=work_redistribute%group_partition)
 
          IF (work_redistribute%group_distribution(mepos_old) == 0) THEN
-
-            ! create para_env, might need a proper bound to this para_env
-            NULLIFY (work_redistribute%para_env_new)
-            CALL cp_para_env_create(work_redistribute%para_env_new, work_redistribute%subgroup)
-            ! test a sync
-            CALL work_redistribute%para_env_new%group%sync()
 
             ! create blacs, should inherit the preferences for the layout and so on, from the higher level
             NULLIFY (work_redistribute%blacs_env_new)
@@ -522,7 +497,7 @@ CONTAINS
          CALL cp_fm_redistribute_work_finalize(work_redistribute%group_distribution(mepos_old) == 0)
 
          ! finally, also the eigenvalues need to end up on the non-group member tasks
-         CALL para_env%group%bcast(eig, 0)
+         CALL para_env%bcast(eig, 0)
       END IF
 
 #else

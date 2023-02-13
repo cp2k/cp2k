@@ -653,7 +653,7 @@ CONTAINS
       DEALLOCATE (hab, pab)
 
       CALL get_qs_env(qs_env=qs_env, para_env=para_env)
-      CALL para_env%group%sum(fval)
+      CALL para_env%sum(fval)
 
       CALL timestop(handle)
 

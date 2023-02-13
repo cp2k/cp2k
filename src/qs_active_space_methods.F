@@ -1008,7 +1008,7 @@ CONTAINS
          END IF
          nn1 = (n1*(n1 + 1))/2
          nn2 = (n2*(n2 + 1))/2
-         CALL dbcsr_csr_create(eri_mat, nn1, nn2, 0_int_8, 0, 0, para_env%group%get_handle())
+         CALL dbcsr_csr_create(eri_mat, nn1, nn2, 0_int_8, 0, 0, para_env%get_handle())
          active_space_env%eri%norb = nmo
       END DO
 
@@ -1842,7 +1842,7 @@ CONTAINS
             IF (.NOT. do_mo) CYCLE
             CALL calculate_wavefunction(mo_coeff, imo, wf_r, wf_g, atomic_kind_set, &
                                         qs_kind_set, cell, dft_control, particle_set, pw_env)
-            IF (para_env%ionode) THEN
+            IF (para_env%is_source()) THEN
                WRITE (filename, '(A,A1,I4.4,A1,I1.1,A)') TRIM(filebody), "_", imo, "_", isp, ".cube"
                CALL open_file(filename, unit_number=unit_nr, file_status="UNKNOWN", file_action="WRITE")
                WRITE (title, *) "Active Orbital ", imo, " spin ", isp
@@ -1850,7 +1850,7 @@ CONTAINS
                unit_nr = -1
             END IF
             CALL cp_pw_to_cube(wf_r, unit_nr, title, particles=particles, stride=istride)
-            IF (para_env%ionode) THEN
+            IF (para_env%is_source()) THEN
                CALL close_file(unit_nr)
             END IF
          END DO
@@ -2685,7 +2685,7 @@ CONTAINS
       p_act_filename = active_space_env%p_act_filename
 
       ! Read matrices into fm objects
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          ! Check, whether the file exists
          INQUIRE (FILE=p_act_filename, exist=exist)
          IF (.NOT. exist) &
@@ -2732,7 +2732,7 @@ CONTAINS
          END IF
 
          ! Close restart file
-         IF (para_env%ionode) THEN
+         IF (para_env%is_source()) THEN
             CALL close_file(unit_number=p_active_unit)
          END IF
 
@@ -2740,8 +2740,8 @@ CONTAINS
 
       ! Copy to full matrix structure
       ! Broadcast the DM on all processes
-      CALL para_env%group%bcast(p_act, para_env%source)
-      IF (nspins .EQ. 2) CALL para_env%group%bcast(p_act_beta, para_env%source)
+      CALL para_env%bcast(p_act, para_env%source)
+      IF (nspins .EQ. 2) CALL para_env%bcast(p_act_beta, para_env%source)
 
       DO ispin = 1, nspins
          ! Copy to fm_type structure

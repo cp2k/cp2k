@@ -738,7 +738,7 @@ CONTAINS
                                                fm=rho_ao_fm(ispin), &
                                                atomlist_row=negf_control%atomlist_S_screening, &
                                                atomlist_col=negf_control%atomlist_S_screening, &
-                                               subsys=subsys, mpi_comm_global=para_env%group, &
+                                               subsys=subsys, mpi_comm_global=para_env, &
                                                do_upper_diag=.TRUE., do_lower=.TRUE.)
 
          CALL cp_fm_trace(rho_ao_fm(ispin), matrix_s_fm, trace)
@@ -1032,7 +1032,7 @@ CONTAINS
                                                fm=rho_ao_delta_fm(ispin), &
                                                atomlist_row=negf_control%atomlist_S_screening, &
                                                atomlist_col=negf_control%atomlist_S_screening, &
-                                               subsys=subsys, mpi_comm_global=para_env%group, &
+                                               subsys=subsys, mpi_comm_global=para_env, &
                                                do_upper_diag=.TRUE., do_lower=.TRUE.)
 
          CALL cp_fm_trace(rho_ao_delta_fm(ispin), matrix_s_fm, trace)
@@ -1233,7 +1233,7 @@ CONTAINS
                                                         fm=negf_env%h_s(ispin), &
                                                         atomlist_row=negf_control%atomlist_S_screening, &
                                                         atomlist_col=negf_control%atomlist_S_screening, &
-                                                        subsys=subsys, mpi_comm_global=para_env%group, &
+                                                        subsys=subsys, mpi_comm_global=para_env, &
                                                         do_upper_diag=.TRUE., do_lower=.TRUE.)
 
                END DO

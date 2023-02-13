@@ -935,7 +935,7 @@ CONTAINS
       atomic_kind_set => atomic_kinds%els
       particle_set => particles%els
       CALL virial_evaluate(atomic_kind_set, particle_set, local_particles, &
-                           virial, para_env%group)
+                           virial, para_env)
       CALL write_stress_tensor(virial, cell, motion_section, its, 0.0_dp)
 
       ! Write the cell

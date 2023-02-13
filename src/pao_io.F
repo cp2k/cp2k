@@ -111,7 +111,7 @@ CONTAINS
                       particle_set=particle_set)
 
       ! read and check restart file on first rank only
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          CALL pao_read_raw(pao%restart_file, param, hmat, kinds, atom2kind, positions, xblocks)
 
          ! check cell
@@ -152,12 +152,12 @@ CONTAINS
       CALL dbcsr_get_info(pao%matrix_X, row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes)
       DO iatom = 1, natoms
          ALLOCATE (buffer(row_blk_sizes(iatom), col_blk_sizes(iatom)))
-         IF (para_env%ionode) THEN
+         IF (para_env%is_source()) THEN
             CPASSERT(row_blk_sizes(iatom) == SIZE(xblocks(iatom)%p, 1))
             CPASSERT(col_blk_sizes(iatom) == SIZE(xblocks(iatom)%p, 2))
             buffer = xblocks(iatom)%p
          END IF
-         CALL para_env%group%bcast(buffer, para_env%source)
+         CALL para_env%bcast(buffer, para_env%source)
          CALL dbcsr_get_block_p(matrix=pao%matrix_X, row=iatom, col=iatom, block=block_X, found=found)
          IF (ASSOCIATED(block_X)) &
             block_X = buffer
@@ -413,7 +413,7 @@ CONTAINS
 
       ! although just rank-0 writes the trajectory it requires collective MPI calls
       unit_max = unit_nr
-      CALL para_env%group%max(unit_max)
+      CALL para_env%max(unit_max)
       IF (unit_max > 0) THEN
          IF (pao%iw > 0) WRITE (pao%iw, '(A,A)') " PAO| Writing restart file."
          IF (unit_nr > 0) &
@@ -464,7 +464,7 @@ CONTAINS
             mpi_buffer(:, :) = 0.0_dp
          END IF
 
-         CALL para_env%group%sum(mpi_buffer)
+         CALL para_env%sum(mpi_buffer)
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, fmt="(A,1X,I10,1X)", advance='no') label, iatom
             WRITE (unit_nr, *) mpi_buffer

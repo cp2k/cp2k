@@ -212,8 +212,8 @@ CONTAINS
             END DO
          END DO
       END DO
-      CALL para_env%group%sum(dipole_set)
-      CALL para_env%group%sum(charge_set)
+      CALL para_env%sum(dipole_set)
+      CALL para_env%sum(charge_set)
 
       iounit = cp_print_key_unit_nr(logger, loc_print_key, "MOLECULAR_DIPOLES", &
                                     extension=".MolDip", middle_name="MOLECULAR_DIPOLES")

@@ -349,7 +349,7 @@ CONTAINS
       CALL force_env_get(force_env, para_env=para_env)
 
       hasdata = .FALSE.
-      ionode = para_env%ionode
+      ionode = para_env%is_source()
 
       output_unit = cp_logger_get_default_io_unit()
 
@@ -385,7 +385,7 @@ CONTAINS
          ! do communication on master node only...
          header = ""
 
-         CALL para_env%group%sync()
+         CALL para_env%sync()
 
          ! non-blocking sync to avoid useless CPU consumption
          IF (ionode) THEN
@@ -393,12 +393,12 @@ CONTAINS
             wait_msg = 0
             DO iwait = 0, para_env%num_pe - 1
                IF (iwait /= para_env%source) THEN
-                  CALL para_env%group%send(msg=wait_msg, dest=iwait, tag=666)
+                  CALL para_env%send(msg=wait_msg, dest=iwait, tag=666)
                END IF
             END DO
          ELSE
-            CALL para_env%group%irecv(msgout=wait_msg, source=para_env%source, &
-                                      tag=666, request=wait_req(2))
+            CALL para_env%irecv(msgout=wait_msg, source=para_env%source, &
+                                tag=666, request=wait_req(2))
             CALL mp_testany(wait_req(2:), flag=fwait)
             DO WHILE (.NOT. fwait)
                CALL mp_testany(wait_req(2:), flag=fwait)
@@ -406,14 +406,14 @@ CONTAINS
             END DO
          END IF
 
-         CALL para_env%group%sync()
+         CALL para_env%sync()
 
-         CALL para_env%group%bcast(header, para_env%source)
+         CALL para_env%bcast(header, para_env%source)
 
          IF (output_unit > 0) WRITE (output_unit, *) " @ DRIVER MODE: Message from server: ", TRIM(header)
          IF (TRIM(header) == "STATUS") THEN
 
-            CALL para_env%group%sync()
+            CALL para_env%sync()
             IF (ionode) THEN ! does not  need init (well, maybe it should, just to check atom numbers and the like... )
                IF (hasdata) THEN
                   CALL writebuffer(socket, "HAVEDATA    ", MSGLEN)
@@ -421,7 +421,7 @@ CONTAINS
                   CALL writebuffer(socket, "READY       ", MSGLEN)
                END IF
             END IF
-            CALL para_env%group%sync()
+            CALL para_env%sync()
          ELSE IF (TRIM(header) == "POSDATA") THEN
             IF (ionode) THEN
                CALL readbuffer(socket, mxmat, 9)
@@ -432,12 +432,12 @@ CONTAINS
                cellh = TRANSPOSE(cellh)
                cellih = TRANSPOSE(cellih)
             END IF
-            CALL para_env%group%bcast(cellh, para_env%source)
-            CALL para_env%group%bcast(cellih, para_env%source)
-            CALL para_env%group%bcast(nat, para_env%source)
+            CALL para_env%bcast(cellh, para_env%source)
+            CALL para_env%bcast(cellih, para_env%source)
+            CALL para_env%bcast(nat, para_env%source)
             IF (.NOT. ALLOCATED(combuf)) ALLOCATE (combuf(3*nat))
             IF (ionode) CALL readbuffer(socket, combuf, nat*3)
-            CALL para_env%group%bcast(combuf, para_env%source)
+            CALL para_env%bcast(combuf, para_env%source)
 
             CALL force_env_get(force_env, subsys=subsys)
             IF (nat /= subsys%particles%n_els) &
