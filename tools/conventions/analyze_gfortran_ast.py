@@ -8,8 +8,6 @@ from os import path
 from typing import TextIO, List
 
 
-BANNED_STM = ("GOTO", "FORALL", "OPEN", "CLOSE", "STOP")
-BANNED_CALL = ("cp_fm_gemm", "m_abort", "mp_abort")
 USE_EXCEPTIONS = ("omp_lib", "omp_lib_kinds", "lapack")
 
 # precompile regex
@@ -65,10 +63,10 @@ def process_log_file(fhandle: TextIO) -> None:
             # Found new symbole, check default initializers of previous symbole.
             if cur_sym and cur_sym.startswith("__def_init_"):
                 assert cur_derived_type
-                if not cur_value:
+                if not cur_value or any(
+                    x in cur_value for x in [" () ", "(() ", " ())"]
+                ):
                     msg(f"Found type {cur_derived_type} without initializer", 16)
-                elif " () " in cur_value or "(() " in cur_value or " ())" in cur_value:
-                    msg(f"Found type {cur_derived_type} with partial initializer", 17)
 
             # Parse new symbole.
             cur_sym = cur_derived_type = cur_value = None
@@ -126,16 +124,27 @@ def process_log_file(fhandle: TextIO) -> None:
         elif line.startswith("CALL"):
             if "NULL()" in line:
                 msg(f'Found CALL with NULL() as argument in procedure "{cur_proc}"', 7)
-
-            if tokens[1].lower() in BANNED_CALL:
-                msg(f'Found CALL {tokens[1]} in procedure "{cur_proc}"', 8)
+            elif tokens[1].lower() == "cp_fm_gemm":
+                msg(f'Found CALL cp_fm_gemm in procedure "{cur_proc}"', 101)
+            elif tokens[1].lower() == "m_abort":
+                msg(f'Found CALL m_abort in procedure "{cur_proc}"', 102)
+            elif tokens[1].lower() == "mp_abort":
+                msg(f'Found CALL mp_abort in procedure "{cur_proc}"', 103)
             elif tokens[1].lower().startswith("_gfortran_arandom_"):
-                msg(f'Found CALL RANDOM_NUMBER in procedure "{cur_proc}"', 9)
+                msg(f'Found CALL RANDOM_NUMBER in procedure "{cur_proc}"', 104)
             elif tokens[1].lower().startswith("_gfortran_random_seed_"):
-                msg(f'Found CALL RANDOM_SEED in procedure "{cur_proc}"', 10)
+                msg(f'Found CALL RANDOM_SEED in procedure "{cur_proc}"', 105)
 
-        elif tokens and tokens[0] in BANNED_STM:
-            msg(f'Found {tokens[0]} statement in procedure "{cur_proc}"', 11)
+        elif line.startswith("GOTO"):
+            msg(f'Found GOTO statement in procedure "{cur_proc}"', 201)
+        elif line.startswith("FORALL"):
+            msg(f'Found FORALL statement in procedure "{cur_proc}"', 202)
+        elif line.startswith("OPEN"):
+            msg(f'Found OPEN statement in procedure "{cur_proc}"', 203)
+        elif line.startswith("CLOSE"):
+            msg(f'Found CLOSE statement in procedure "{cur_proc}"', 204)
+        elif line.startswith("STOP"):
+            msg(f'Found STOP statement in procedure "{cur_proc}"', 205)
 
         elif line.startswith("WRITE"):
             unit = tokens[1].split("=")[1]
