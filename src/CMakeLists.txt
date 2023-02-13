@@ -581,6 +581,7 @@ list(
   qs_loc_utils.F
   qs_matrix_pools.F
   qs_matrix_w.F
+  qs_mfp.F
   qs_mixing_utils.F
   qs_mo_io.F
   qs_moments.F
@@ -658,6 +659,9 @@ list(
   qs_tensors.F
   qs_tensors_types.F
   qs_update_s_mstruct.F
+  qs_vcd.F
+  qs_vcd_ao.F
+  qs_vcd_utils.F
   qs_vxc_atom.F
   qs_vxc.F
   qs_wannier90.F
