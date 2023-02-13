@@ -56,7 +56,7 @@ MODULE qs_tddfpt2_restart
    INTEGER, PARAMETER, PRIVATE          :: nderivs = 3
    INTEGER, PARAMETER, PRIVATE          :: maxspins = 2
 
-   PUBLIC :: tddfpt_write_restart, tddfpt_read_restart, tddfpt_write_newtonx_output
+   PUBLIC :: tddfpt_write_restart, tddfpt_read_restart, tddfpt_write_newtonx_output, tddfpt_check_orthonormality
 
 ! **************************************************************************************************
 

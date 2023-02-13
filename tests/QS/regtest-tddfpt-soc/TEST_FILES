@@ -1,0 +1,9 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+regtest-Ar-S.inp              104    4.0E-06           20.8357607201
+regtest-Ar-T.inp              104    4.0E-06           20.8357607201
+regtest-Ne-S.inp              104    4.0E-06           45.3245164440
+#EOF

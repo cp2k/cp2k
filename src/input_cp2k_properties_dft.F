@@ -1603,6 +1603,34 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      ! SOC functional
+
+      CALL section_create(subsection, __LOCATION__, name="SOC", &
+                          description="Is jet to be implemented", &
+                          n_keywords=2, n_subsections=0, repeats=.FALSE.)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_FILTER", &
+                          variants=s2a("EPS_FILTER_MATRIX"), &
+                          description="The threshold used for sparse matrix operations", &
+                          usage="EPS_FILTER {real}", &
+                          type_of_var=real_t, &
+                          default_r_val=1.0E-10_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="GRID", &
+                          variants=(/"ATOMIC_GRID"/), &
+                          description="Specification of the atomic angular and radial grids for "// &
+                          "a atomic kind. This keyword must be repeated for all kinds!  "// &
+                          "Usage: GRID < LEBEDEV_GRID > < RADIAL_GRID >", &
+                          usage="GRID {string} {integer} {integer}", &
+                          n_var=3, type_of_var=char_t, repeats=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       ! kernel XC functional
       CALL create_xc_section(subsection)
       CALL section_add_subsection(section, subsection)
@@ -1757,6 +1785,33 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="SCALE_WITH_PHASES", &
                           description="Scale ES eigenvectors with phases of occupied and virtuals MOs.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
+      !! SOC PRINT SECTION
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name="SOC_PRINT", &
+                                       description="Controls the printout of the tddfpt2_soc modul", &
+                                       print_level=debug_print_level + 1, filename="SOC")
+      CALL keyword_create(keyword, __LOCATION__, name="UNIT_eV", &
+                          description="Will detrement if output in eVolt will be printef.", &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="UNIT_wn", &
+                          description="Will detrement if output in wavenumbers will be printed.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="SPLITTING", &
+                          description="Will add the SOC-Splitting as additional output", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="SOME", &
+                          description="Will add the SOC-Matrix as additional output in a different file", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)

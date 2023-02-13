@@ -512,6 +512,9 @@ MODULE cp_control_types
       !> user-defined reference point
       REAL(kind=dp), DIMENSION(:), POINTER :: dipole_ref_point
       !
+      ! SOC subsection
+      LOGICAL                              :: do_soc
+      !
       ! MGRID subsection
       !
       !> number of plain-wave grids
@@ -920,6 +923,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ALLOCATE (tddfpt_control)
+      tddfpt_control%do_soc = .FALSE.
 
       CALL timestop(handle)
    END SUBROUTINE tddfpt2_control_create

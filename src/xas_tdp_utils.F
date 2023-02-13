@@ -86,7 +86,8 @@ MODULE xas_tdp_utils
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_tdp_utils'
 
-   PUBLIC :: setup_xas_tdp_prob, solve_xas_tdp_prob, include_rcs_soc, include_os_soc
+   PUBLIC :: setup_xas_tdp_prob, solve_xas_tdp_prob, include_rcs_soc, &
+             include_os_soc, rcs_amew_soc_elements
 
    !A helper type for SOC
    TYPE dbcsr_soc_package_type
