@@ -815,7 +815,7 @@ CONTAINS
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_all
+         POINTER                                         :: sab_orb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
@@ -828,12 +828,12 @@ CONTAINS
       nders = 1                                    ! only first order derivatives
       dimders = ncoset(nders) - 1
 
-      NULLIFY (qs_kind_set, particle_set, sab_all, cell)
+      NULLIFY (qs_kind_set, particle_set, sab_orb, cell)
       CALL get_qs_env(qs_env=qs_env, &
                       qs_kind_set=qs_kind_set, &
                       particle_set=particle_set, &
                       cell=cell, &
-                      sab_all=sab_all)
+                      sab_orb=sab_orb)
 
       nkind = SIZE(qs_kind_set)
 
@@ -889,7 +889,7 @@ CONTAINS
 
       ! Calculate derivatives looping over neighbour list
       NULLIFY (nl_iterator)
-      CALL neighbor_list_iterator_create(nl_iterator, sab_all)
+      CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, inode=inode, &
                                 iatom=iatom, jatom=jatom, r=rab)
@@ -947,8 +947,13 @@ CONTAINS
 
             last_jatom = jatom
 
-            irow = iatom
-            icol = jatom
+            IF (iatom <= jatom) THEN
+               irow = iatom
+               icol = jatom
+            ELSE
+               irow = jatom
+               icol = iatom
+            END IF
 
             IF (nmoments > 0) THEN
                DO i = 1, nm
@@ -1034,11 +1039,19 @@ CONTAINS
                                    sphi_b(1, sgfb), SIZE(sphi_b, 1), &
                                    0.0_dp, work(1, 1), SIZE(work, 1))
 
-                        CALL dgemm("T", "N", nsgfa(iset), nsgfb(jset), ncoa, &
-                                   1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                                   work(1, 1), SIZE(work, 1), &
-                                   1.0_dp, mom_block(i)%block(sgfa, sgfb), &
-                                   SIZE(mom_block(i)%block, 1))
+                        IF (iatom <= jatom) THEN
+                           CALL dgemm("T", "N", nsgfa(iset), nsgfb(jset), ncoa, &
+                                      1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                                      work(1, 1), SIZE(work, 1), &
+                                      1.0_dp, mom_block(i)%block(sgfa, sgfb), &
+                                      SIZE(mom_block(i)%block, 1))
+                        ELSE
+                           CALL dgemm("T", "N", nsgfb(jset), nsgfa(iset), ncoa, &
+                                      1.0_dp, work(1, 1), SIZE(work, 1), &
+                                      sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                                      1.0_dp, mom_block(i)%block(sgfb, sgfa), &
+                                      SIZE(mom_block(i)%block, 1))
+                        END IF
                      END DO
                   END IF
 
@@ -1050,11 +1063,19 @@ CONTAINS
                                       sphi_b(1, sgfb), SIZE(sphi_b, 1), &
                                       0._dp, work(1, 1), SIZE(work, 1))
 
-                           CALL dgemm("T", "N", nsgfa(iset), nsgfb(jset), ncoa, &
-                                      1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                                      work(1, 1), SIZE(work, 1), &
-                                      1._dp, mom_block_der(i, ider)%block(sgfa, sgfb), &
-                                      SIZE(mom_block_der(i, ider)%block, 1))
+                           IF (iatom <= jatom) THEN
+                              CALL dgemm("T", "N", nsgfa(iset), nsgfb(jset), ncoa, &
+                                         1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                                         work(1, 1), SIZE(work, 1), &
+                                         1._dp, mom_block_der(i, ider)%block(sgfa, sgfb), &
+                                         SIZE(mom_block_der(i, ider)%block, 1))
+                           ELSE
+                              CALL dgemm("T", "N", nsgfb(jset), nsgfa(iset), ncoa, &
+                                         -1.0_dp, work(1, 1), SIZE(work, 1), &
+                                         sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                                         1.0_dp, mom_block_der(i, ider)%block(sgfb, sgfa), &
+                                         SIZE(mom_block_der(i, ider)%block, 1))
+                           END IF
                         END DO
                      END DO
                   END IF
@@ -2300,8 +2321,8 @@ CONTAINS
          ALLOCATE (moments(i)%matrix)
          IF (my_velreprs .AND. (nmom >= 2)) THEN
             CALL dbcsr_create(moments(i)%matrix, template=matrix_s(1)%matrix, &
-                              matrix_type=dbcsr_type_no_symmetry)
-            CALL cp_dbcsr_alloc_block_from_nbl(moments(i)%matrix, sab_all)
+                              matrix_type=dbcsr_type_symmetric)
+            CALL cp_dbcsr_alloc_block_from_nbl(moments(i)%matrix, sab_orb)
          ELSE
             CALL dbcsr_copy(moments(i)%matrix, matrix_s(1)%matrix, "Moments")
          END IF
@@ -2316,8 +2337,8 @@ CONTAINS
             DO idir = 1, 3 ! d/dx, d/dy, d/dz
                CALL dbcsr_init_p(moments_der(i, idir)%matrix)
                CALL dbcsr_create(moments_der(i, idir)%matrix, template=matrix_s(1)%matrix, &
-                                 matrix_type=dbcsr_type_no_symmetry)
-               CALL cp_dbcsr_alloc_block_from_nbl(moments_der(i, idir)%matrix, sab_all)
+                                 matrix_type=dbcsr_type_antisymmetric)
+               CALL cp_dbcsr_alloc_block_from_nbl(moments_der(i, idir)%matrix, sab_orb)
                CALL dbcsr_set(moments_der(i, idir)%matrix, 0.0_dp)
             END DO
          END DO
