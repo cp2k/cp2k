@@ -771,7 +771,8 @@ CONTAINS
    END SUBROUTINE build_local_moment_matrix
 
 ! **************************************************************************************************
-!> \brief Calculate derivatives of multipole moments assuming the moments are already calculated
+!> \brief Calculate right-hand sided derivatives of multipole moments, e. g. < a | xy d/dz | b >
+!>        Optionally stores the multipole moments themselves for free.
 !>        Note that the multipole moments are symmetric while their derivatives are anti-symmetric
 !>        Only first derivatives are performed, e. g. x d/dy
 !> \param qs_env ...
@@ -796,9 +797,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_local_moments_der_matrix'
 
-      INTEGER :: handle, i, iatom, icol, idir, ii, ikind, inode, ipgf, irow, iset, j, jatom, &
-         jkind, jpgf, jset, last_jatom, M_dim, maxco, maxsgf, na, nb, ncoa, ncob, nda, ndb, nders, &
-         nkind, nm, nmom_build, nseta, nsetb, sgfa, sgfb
+      INTEGER :: dimders, handle, i, iatom, icol, ider, ii, ikind, inode, ipgf, irow, iset, j, &
+         jatom, jkind, jpgf, jset, last_jatom, M_dim, maxco, maxsgf, na, nb, ncoa, ncob, nda, ndb, &
+         nders, nkind, nm, nmom_build, nseta, nsetb, sgfa, sgfb
       LOGICAL                                            :: found
       REAL(KIND=dp)                                      :: dab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
@@ -824,7 +825,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      nders = 1                                    ! only first derivatives
+      nders = 1                                    ! only first order derivatives
+      dimders = ncoset(nders) - 1
 
       NULLIFY (qs_kind_set, particle_set, sab_all, cell)
       CALL get_qs_env(qs_env=qs_env, &
@@ -856,15 +858,15 @@ CONTAINS
       IF (nmoments_der > 0) THEN
          M_dim = ncoset(nmoments_der) - 1
          CPASSERT(SIZE(moments_der, dim=1) == M_dim)
-         CPASSERT(SIZE(moments_der, dim=2) == 3)
+         CPASSERT(SIZE(moments_der, dim=2) == dimders)
          ! storage for integrals
-         ALLOCATE (difmab(maxco, maxco, M_dim, 3))
+         ALLOCATE (difmab(maxco, maxco, M_dim, dimders))
          difmab(:, :, :, :) = 0.0_dp
          ! blocks
-         ALLOCATE (mom_block_der(M_dim, 3))
+         ALLOCATE (mom_block_der(M_dim, dimders))
          DO i = 1, M_dim
-            DO idir = 1, 3
-               NULLIFY (mom_block_der(i, idir)%block)
+            DO ider = 1, dimders
+               NULLIFY (mom_block_der(i, ider)%block)
             END DO
          END DO
       END IF
@@ -960,14 +962,14 @@ CONTAINS
             END IF
             IF (nmoments_der > 0) THEN
                DO i = 1, M_dim
-                  DO idir = 1, 3
-                     NULLIFY (mom_block_der(i, idir)%block)
-                     CALL dbcsr_get_block_p(matrix=moments_der(i, idir)%matrix, &
+                  DO ider = 1, dimders
+                     NULLIFY (mom_block_der(i, ider)%block)
+                     CALL dbcsr_get_block_p(matrix=moments_der(i, ider)%matrix, &
                                             row=irow, col=icol, &
-                                            block=mom_block_der(i, idir)%block, &
+                                            block=mom_block_der(i, ider)%block, &
                                             found=found)
-                     CPASSERT(found .AND. ASSOCIATED(mom_block_der(i, idir)%block))
-                     mom_block_der(i, idir)%block = 0._dp
+                     CPASSERT(found .AND. ASSOCIATED(mom_block_der(i, ider)%block))
+                     mom_block_der(i, ider)%block = 0._dp
                   END DO
                END DO
             END IF
@@ -1042,17 +1044,17 @@ CONTAINS
 
                   IF (nmoments_der > 0) THEN
                      DO i = 1, M_dim
-                        DO idir = 1, 3
+                        DO ider = 1, dimders
                            CALL dgemm("N", "N", ncoa, nsgfb(jset), ncob, &
-                                      1.0_dp, difmab(1, 1, i, idir), SIZE(difmab, 1), &
+                                      1.0_dp, difmab(1, 1, i, ider), SIZE(difmab, 1), &
                                       sphi_b(1, sgfb), SIZE(sphi_b, 1), &
                                       0._dp, work(1, 1), SIZE(work, 1))
 
                            CALL dgemm("T", "N", nsgfa(iset), nsgfb(jset), ncoa, &
                                       1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
                                       work(1, 1), SIZE(work, 1), &
-                                      1._dp, mom_block_der(i, idir)%block(sgfa, sgfb), &
-                                      SIZE(mom_block_der(i, idir)%block, 1))
+                                      1._dp, mom_block_der(i, ider)%block(sgfa, sgfb), &
+                                      SIZE(mom_block_der(i, ider)%block, 1))
                         END DO
                      END DO
                   END IF
@@ -1076,8 +1078,8 @@ CONTAINS
       IF (nmoments_der > 0) THEN
          DEALLOCATE (difmab)
          DO i = 1, M_dim
-            DO idir = 1, 3
-               NULLIFY (mom_block_der(i, idir)%block)
+            DO ider = 1, dimders
+               NULLIFY (mom_block_der(i, ider)%block)
             END DO
          END DO
          DEALLOCATE (mom_block_der)
