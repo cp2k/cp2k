@@ -12,39 +12,45 @@
 !> \author Michele Ceriotti 03.2012
 ! **************************************************************************************************
 MODULE ipi_driver
-   USE ISO_C_BINDING,                   ONLY: C_CHAR,&
-                                              C_DOUBLE,&
-                                              C_INT,&
-                                              C_LOC,&
-                                              C_NULL_CHAR,&
-                                              C_PTR
-   USE bibliography,                    ONLY: Ceriotti2014,&
-                                              Kapil2016,&
-                                              cite_reference
-   USE cell_methods,                    ONLY: cell_create,&
-                                              init_cell
-   USE cell_types,                      ONLY: cell_release,&
-                                              cell_type
-   USE cp_external_control,             ONLY: external_control
-   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                              cp_subsys_set,&
-                                              cp_subsys_type
-   USE force_env_methods,               ONLY: force_env_calc_energy_force
-   USE force_env_types,                 ONLY: force_env_get,&
-                                              force_env_type
-   USE global_types,                    ONLY: global_environment_type
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                              section_vals_type,&
-                                              section_vals_val_get
-   USE kinds,                           ONLY: default_path_length,&
-                                              default_string_length,&
-                                              dp,&
-                                              int_4
-   USE message_passing,                 ONLY: mp_para_env_type,&
-                                              mp_request_type,&
-                                              mp_testany
-   USE virial_types,                    ONLY: virial_type
+   USE ISO_C_BINDING, ONLY: C_CHAR, &
+                            C_DOUBLE, &
+                            C_INT, &
+                            C_LOC, &
+                            C_NULL_CHAR, &
+                            C_PTR
+   USE bibliography, ONLY: Ceriotti2014, &
+                           Kapil2016, &
+                           cite_reference
+   USE cell_methods, ONLY: cell_create, &
+                           init_cell
+   USE cell_types, ONLY: cell_release, &
+                         cell_type
+   USE cp_external_control, ONLY: external_control
+   USE cp_log_handling, ONLY: cp_logger_get_default_io_unit
+   USE cp_subsys_types, ONLY: cp_subsys_get, &
+                              cp_subsys_set, &
+                              cp_subsys_type
+   USE force_env_methods, ONLY: force_env_calc_energy_force
+   USE force_env_types, ONLY: force_env_get, &
+                              force_env_type
+   USE global_types, ONLY: global_environment_type
+   USE input_section_types, ONLY: section_vals_get_subs_vals, &
+                                  section_vals_type, &
+                                  section_vals_val_get
+   USE kinds, ONLY: default_path_length, &
+                    default_string_length, &
+                    dp, &
+                    int_4
+   USE message_passing, ONLY: mp_para_env_type, &
+                              mp_request_type, &
+                              mp_testany
+#ifndef __NO_SOCKETS
+   USE sockets_interface, ONLY: writebuffer, &
+                                readbuffer, &
+                                open_connect_socket, &
+                                uwait
+#endif
+   USE virial_types, ONLY: virial_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -55,243 +61,7 @@ MODULE ipi_driver
 
    PUBLIC :: run_driver
 
-#ifndef __NO_IPI_DRIVER
-   INTERFACE writebuffer
-      MODULE PROCEDURE writebuffer_s, &
-         writebuffer_d, writebuffer_dv, &
-         writebuffer_i
-
-   END INTERFACE
-
-   INTERFACE readbuffer
-      MODULE PROCEDURE readbuffer_s, &
-         readbuffer_dv, readbuffer_d, &
-         readbuffer_i
-
-   END INTERFACE
-
-   INTERFACE
-      SUBROUTINE uwait(sec) BIND(C, NAME="uwait")
-         USE ISO_C_BINDING, ONLY: C_DOUBLE
-      REAL(C_DOUBLE)                                     :: sec
-
-      END SUBROUTINE
-   END INTERFACE
-
-   INTERFACE
-      SUBROUTINE open_socket(psockfd, inet, port, host) BIND(C)
-         IMPORT
-         INTEGER(KIND=C_INT)                      :: psockfd, inet, port
-         CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: host
-
-      END SUBROUTINE open_socket
-
-      SUBROUTINE writebuffer_csocket(psockfd, pdata, plen) BIND(C, name="writebuffer")
-         IMPORT
-         INTEGER(KIND=C_INT)                      :: psockfd
-         TYPE(C_PTR), VALUE                       :: pdata
-         INTEGER(KIND=C_INT)                      :: plen
-
-      END SUBROUTINE writebuffer_csocket
-
-      SUBROUTINE readbuffer_csocket(psockfd, pdata, plen) BIND(C, name="readbuffer")
-         IMPORT
-         INTEGER(KIND=C_INT)                      :: psockfd
-         TYPE(C_PTR), VALUE                       :: pdata
-         INTEGER(KIND=C_INT)                      :: plen
-
-      END SUBROUTINE readbuffer_csocket
-   END INTERFACE
-#endif
-
 CONTAINS
-
-#ifndef __NO_IPI_DRIVER
-! **************************************************************************************************
-!> \brief ...
-!> \param psockfd ...
-!> \param fdata ...
-! **************************************************************************************************
-   SUBROUTINE writebuffer_d(psockfd, fdata)
-      INTEGER, INTENT(IN)                                :: psockfd
-      REAL(KIND=dp), INTENT(IN)                          :: fdata
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'writebuffer_d'
-
-      INTEGER                                            :: handle
-      REAL(KIND=C_DOUBLE), TARGET                        :: cdata
-
-      CALL timeset(routineN, handle)
-
-      cdata = fdata
-      CALL writebuffer_csocket(psockfd, c_loc(cdata), 8)
-
-      CALL timestop(handle)
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param psockfd ...
-!> \param fdata ...
-! **************************************************************************************************
-   SUBROUTINE writebuffer_i(psockfd, fdata)
-      INTEGER, INTENT(IN)                                :: psockfd, fdata
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'writebuffer_i'
-
-      INTEGER                                            :: handle
-      INTEGER(KIND=C_INT), TARGET                        :: cdata
-
-      CALL timeset(routineN, handle)
-
-      cdata = fdata
-      CALL writebuffer_csocket(psockfd, c_loc(cdata), 4)
-
-      CALL timestop(handle)
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param psockfd ...
-!> \param fstring ...
-!> \param plen ...
-! **************************************************************************************************
-   SUBROUTINE writebuffer_s(psockfd, fstring, plen)
-      INTEGER, INTENT(IN)                                :: psockfd
-      CHARACTER(LEN=*), INTENT(IN)                       :: fstring
-      INTEGER, INTENT(IN)                                :: plen
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'writebuffer_s'
-
-      INTEGER                                            :: handle, i
-      CHARACTER(LEN=1, KIND=C_CHAR), TARGET              :: cstring(plen)
-
-      CALL timeset(routineN, handle)
-
-      DO i = 1, plen
-         cstring(i) = fstring(i:i)
-      END DO
-      CALL writebuffer_csocket(psockfd, c_loc(cstring(1)), plen)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param psockfd ...
-!> \param fdata ...
-!> \param plen ...
-! **************************************************************************************************
-   SUBROUTINE writebuffer_dv(psockfd, fdata, plen)
-      INTEGER, INTENT(IN)                                :: psockfd, plen
-      REAL(KIND=dp), INTENT(IN), TARGET                  :: fdata(plen)
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'writebuffer_dv'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      CALL writebuffer_csocket(psockfd, c_loc(fdata(1)), 8*plen)
-
-      CALL timestop(handle)
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param psockfd ...
-!> \param fdata ...
-! **************************************************************************************************
-   SUBROUTINE readbuffer_d(psockfd, fdata)
-      INTEGER, INTENT(IN)                                :: psockfd
-      REAL(KIND=dp), INTENT(OUT)                         :: fdata
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'readbuffer_d'
-
-      INTEGER                                            :: handle
-      REAL(KIND=C_DOUBLE), TARGET                        :: cdata
-
-      CALL timeset(routineN, handle)
-
-      CALL readbuffer_csocket(psockfd, c_loc(cdata), 8)
-      fdata = cdata
-
-      CALL timestop(handle)
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param psockfd ...
-!> \param fdata ...
-! **************************************************************************************************
-   SUBROUTINE readbuffer_i(psockfd, fdata)
-      INTEGER, INTENT(IN)                                :: psockfd
-      INTEGER, INTENT(OUT)                               :: fdata
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'readbuffer_i'
-
-      INTEGER                                            :: handle
-      INTEGER(KIND=C_INT), TARGET                        :: cdata
-
-      CALL timeset(routineN, handle)
-
-      CALL readbuffer_csocket(psockfd, c_loc(cdata), 4)
-      fdata = cdata
-
-      CALL timestop(handle)
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param psockfd ...
-!> \param fstring ...
-!> \param plen ...
-! **************************************************************************************************
-   SUBROUTINE readbuffer_s(psockfd, fstring, plen)
-      INTEGER, INTENT(IN)                                :: psockfd
-      CHARACTER(LEN=*), INTENT(OUT)                      :: fstring
-      INTEGER, INTENT(IN)                                :: plen
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'readbuffer_s'
-
-      INTEGER                                            :: handle, i
-      CHARACTER(LEN=1, KIND=C_CHAR), TARGET              :: cstring(plen)
-
-      CALL timeset(routineN, handle)
-
-      CALL readbuffer_csocket(psockfd, c_loc(cstring(1)), plen)
-      fstring = ""
-      DO i = 1, plen
-         fstring(i:i) = cstring(i)
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param psockfd ...
-!> \param fdata ...
-!> \param plen ...
-! **************************************************************************************************
-   SUBROUTINE readbuffer_dv(psockfd, fdata, plen)
-      INTEGER, INTENT(IN)                                :: psockfd, plen
-      REAL(KIND=dp), INTENT(OUT), TARGET                 :: fdata(plen)
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'readbuffer_dv'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      CALL readbuffer_csocket(psockfd, c_loc(fdata(1)), 8*plen)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE
-#endif
 
 ! **************************************************************************************************
 !> \brief ...
@@ -308,10 +78,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'run_driver'
 
-#ifdef __NO_IPI_DRIVER
+#ifdef __NO_SOCKETS
       INTEGER                                  :: handle
       CALL timeset(routineN, handle)
-      CPABORT("CP2K was compiled with the __NO_IPI_DRIVER option!")
+      CPABORT("CP2K was compiled with the __NO_SOCKETS option!")
       MARK_USED(globenv)
       MARK_USED(force_env)
 #else
@@ -374,7 +144,7 @@ CONTAINS
       END IF
 
       c_hostname = TRIM(drv_hostname)//C_NULL_CHAR
-      IF (ionode) CALL open_socket(socket, i_drv_unix, drv_port, c_hostname)
+      IF (ionode) CALL open_connect_socket(socket, i_drv_unix, drv_port, c_hostname)
 
       NULLIFY (wait_msg)
       ALLOCATE (wait_msg(1))

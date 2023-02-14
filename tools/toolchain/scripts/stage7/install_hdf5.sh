@@ -80,13 +80,6 @@ export HDF5_LDFLAGS="${HDF5_LDFLAGS}"
 export CP_DFLAGS="\${CP_DFLAGS} -D__HDF5"
 export CP_CFLAGS="\${CP_CFLAGS} ${HDF5_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${HDF5_LDFLAGS}"
-####################################################
-#
-# include hdf5 only if sirius is activated and build
-# depends them on mpi
-#
-####################################################
-
 export CP_LIBS="${HDF5_LIBS} \${CP_LIBS}"
 export HDF5_ROOT="$pkg_install_dir"
 export HDF5_LIBRARIES="$HDF5_LIBS"

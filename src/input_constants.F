@@ -1097,10 +1097,14 @@ MODULE input_constants
                                                do_lri_opt_coeff = 1, &
                                                do_lri_opt_exps = 2
 
-   ! Active smape model parameters
+   ! Active space model parameters
    INTEGER, PARAMETER, PUBLIC               :: hf_model = 100, &
                                                rsdft_model = 101, &
                                                dmft_model = 102
+
+   ! Active space external solvers
+   INTEGER, PARAMETER, PUBLIC               :: no_solver = 200, &
+                                               qiskit_solver = 201
 
    ! callgraph parameters
    INTEGER, PARAMETER, PUBLIC               :: callgraph_none = 0, &
