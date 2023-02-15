@@ -311,7 +311,7 @@ if (command -v mpiexec > /dev/null 2>&1); then
     echo "MPI is detected and it appears to be MPICH"
     export MPI_MODE="mpich"
     with_mpich="__SYSTEM__"
-  elif (mpiexec --version 2>&1 | grep -s -q "Open MPI"); then
+  elif (mpiexec --version 2>&1 | grep -s -q "OpenRTE"); then
     echo "MPI is detected and it appears to be OpenMPI"
     export MPI_MODE="openmpi"
     with_openmpi="__SYSTEM__"
