@@ -40,6 +40,7 @@ MODULE cp_para_types
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    TYPE, EXTENDS(mp_comm_type) :: cp_para_env_type
+      ! We set it to true because to have less initialization steps in case we create a new communicator
       LOGICAL :: owns_group = .TRUE.
       INTEGER :: mepos = -1, source = -1, num_pe = -1, ref_count = -1
    CONTAINS
@@ -78,6 +79,7 @@ MODULE cp_para_types
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    TYPE, EXTENDS(mp_cart_type) :: cp_para_cart_type
+      ! We set it to true because to have less initialization steps in case we create a new communicator
       LOGICAL :: owns_group = .TRUE.
       INTEGER :: rank = -1, ntask = -1
       INTEGER, DIMENSION(:), POINTER :: mepos => NULL(), source => NULL(), num_pe => NULL()
