@@ -522,7 +522,7 @@ MODULE message_passing
       PROCEDURE, PRIVATE, PASS(sub_comm), NON_OVERRIDABLE :: mp_comm_split, mp_comm_split_direct
       GENERIC, PUBLIC :: from_split => mp_comm_split, mp_comm_split_direct
       PROCEDURE, PUBLIC, PASS(mp_new_comm), NON_OVERRIDABLE :: from_reordering => mp_reordering
-      PROCEDURE, PRIVATE, PASS(comm_new) :: mp_comm_assign
+      PROCEDURE, PRIVATE, PASS(comm_new), NON_OVERRIDABLE :: mp_comm_assign
       GENERIC, PUBLIC :: ASSIGNMENT(=) => mp_comm_assign
    END TYPE
 
@@ -1704,18 +1704,21 @@ CONTAINS
 
          comm_new%handle = comm_old%handle
          comm_new%ndims = comm_old%ndims
-         CALL comm_new%init()
+         CALL comm_new%init(.FALSE.)
       END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief Initializes the communicator (mostly relevant for its derived classes)
 !> \param comm ...
 ! **************************************************************************************************
-      ELEMENTAL IMPURE SUBROUTINE mp_comm_init(comm)
+      ELEMENTAL IMPURE SUBROUTINE mp_comm_init(comm, owns_group)
          CLASS(mp_comm_type), INTENT(INOUT) :: comm
+         LOGICAL, INTENT(IN), OPTIONAL :: owns_group
 
 ! No initialization necessary for mp_comm_type
          MARK_USED(comm)
+! The mp_comm_type do not care about ownership yet, this is just relevant for cp_para_*_type
+         MARK_USED(owns_group)
 
       END SUBROUTINE
 

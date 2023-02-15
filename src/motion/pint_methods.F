@@ -800,7 +800,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(para_env))
       CPASSERT(ASSOCIATED(input))
-      CPASSERT(para_env%ref_count > 0)
+      CPASSERT(para_env%is_valid())
       CPASSERT(input%ref_count > 0)
       unit_nr = cp_logger_get_default_io_unit()
       CALL pint_create(pint_env, input, input_declaration, para_env)
@@ -874,7 +874,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(para_env))
       CPASSERT(ASSOCIATED(input))
-      CPASSERT(para_env%ref_count > 0)
+      CPASSERT(para_env%is_valid())
       CPASSERT(input%ref_count > 0)
 
       ! check if helium solvent is present
