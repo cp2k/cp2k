@@ -45,7 +45,6 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(para_env))
       ALLOCATE (para_env)
       para_env%mp_comm_type = group
-      para_env%owns_group = .TRUE.
       CALL para_env%init()
    END SUBROUTINE cp_para_env_create
 
@@ -64,12 +63,9 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       IF (ASSOCIATED(para_env)) THEN
-         CPASSERT(para_env%ref_count > 0)
-         para_env%ref_count = para_env%ref_count - 1
-         IF (para_env%ref_count < 1) THEN
-            CALL para_env%free()
-            DEALLOCATE (para_env)
-         END IF
+         CPASSERT(para_env%is_valid())
+         CALL para_env%free()
+         IF (.NOT. para_env%is_valid()) DEALLOCATE (para_env)
       END IF
       NULLIFY (para_env)
    END SUBROUTINE cp_para_env_release
@@ -87,7 +83,8 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(cart))
       ALLOCATE (cart)
-      cart = group
+      cart%mp_comm_type = group
+      CALL cart%init()
 
    END SUBROUTINE cp_cart_create
 
@@ -100,12 +97,9 @@ CONTAINS
       TYPE(cp_para_cart_type), POINTER                   :: cart
 
       IF (ASSOCIATED(cart)) THEN
-         CPASSERT(cart%ref_count > 0)
-         cart%ref_count = cart%ref_count - 1
-         IF (cart%ref_count == 0) THEN
-            CALL cart%free()
-            DEALLOCATE (cart)
-         END IF
+         CPASSERT(cart%is_valid())
+         CALL cart%free()
+         IF (.NOT. cart%is_valid()) DEALLOCATE (cart)
       END IF
       NULLIFY (cart)
    END SUBROUTINE cp_cart_release

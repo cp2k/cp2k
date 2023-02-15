@@ -344,9 +344,9 @@ CONTAINS
       IF (PRESENT(para_env)) logger%para_env => para_env
       IF (.NOT. ASSOCIATED(logger%para_env)) &
          CPABORT(routineP//" para env not associated")
-      IF (logger%para_env%ref_count < 1) &
+      IF (.NOT. logger%para_env%is_valid()) &
          CPABORT(routineP//" para_env%ref_count<1")
-      logger%para_env%ref_count = logger%para_env%ref_count + 1
+      CALL logger%para_env%retain()
 
       IF (PRESENT(print_level)) logger%print_level = print_level
 
@@ -682,16 +682,11 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       IF (ASSOCIATED(para_env)) THEN
-         IF (para_env%ref_count < 1) THEN
+         IF (.NOT. para_env%is_valid()) THEN
             CPABORT(routineP//" para_env%ref_count<1")
          END IF
-         para_env%ref_count = para_env%ref_count - 1
-         IF (para_env%ref_count < 1) THEN
-            IF (para_env%owns_group) THEN
-               CALL para_env%free()
-            END IF
-            DEALLOCATE (para_env)
-         END IF
+         CALL para_env%free()
+         IF (.NOT. para_env%is_valid()) DEALLOCATE (para_env)
       END IF
       NULLIFY (para_env)
    END SUBROUTINE my_cp_para_env_release
