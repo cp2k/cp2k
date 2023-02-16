@@ -12,8 +12,7 @@ MODULE qs_mfp
    USE commutator_rpnl,                 ONLY: build_com_vnl_giao
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                              cp_fm_trace
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_trace
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
@@ -312,13 +311,13 @@ CONTAINS
             !  we now build the corresponding coefficients as buf2 = -0.5 * C0 * S1(ref)
             CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp2(3)%matrix, mo_coeff, &
                                          buf, ncol=nmo, alpha=1._dp, beta=0._dp)
-            CALL cp_fm_gemm("T", "N", nmo, nmo, nao, &
-                            1.0_dp, mo_coeff, buf, &
-                            0.0_dp, matrix_dSdB_mo)
+            CALL parallel_gemm("T", "N", nmo, nmo, nao, &
+                               1.0_dp, mo_coeff, buf, &
+                               0.0_dp, matrix_dSdB_mo)
 
-            CALL cp_fm_gemm("N", "N", nao, nmo, nmo, &
-                            -0.5_dp, mo_coeff, matrix_dSdB_mo, &
-                            0.0_dp, buf2)
+            CALL parallel_gemm("N", "N", nao, nmo, nmo, &
+                               -0.5_dp, mo_coeff, matrix_dSdB_mo, &
+                               0.0_dp, buf2)
 
             ! vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix still is < a | ∂ | b > * (nu==lambda)
             CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix, mo_coeff, buf, ncol=nmo)
@@ -467,13 +466,13 @@ CONTAINS
             !  we now build the corresponding coefficients as buf2 = -0.5 * C0 * S1(ref)
             CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_nosym_temp2(3)%matrix, mo_coeff, &
                                          buf, ncol=nmo, alpha=1._dp, beta=0._dp)
-            CALL cp_fm_gemm("T", "N", nmo, nmo, nao, &
-                            1.0_dp, mo_coeff, buf, &
-                            0.0_dp, matrix_dSdB_mo)
+            CALL parallel_gemm("T", "N", nmo, nmo, nao, &
+                               1.0_dp, mo_coeff, buf, &
+                               0.0_dp, matrix_dSdB_mo)
 
-            CALL cp_fm_gemm("N", "N", nao, nmo, nmo, &
-                            -0.5_dp, mo_coeff, matrix_dSdB_mo, &
-                            0.0_dp, buf2)
+            CALL parallel_gemm("N", "N", nao, nmo, nmo, &
+                               -0.5_dp, mo_coeff, matrix_dSdB_mo, &
+                               0.0_dp, buf2)
 
             CALL cp_dbcsr_sm_fm_multiply(vcd_env%dcdr_env%matrix_s(1)%matrix, vcd_env%dcdr_env%dCR_prime(ispin), buf, ncol=nmo)
             CALL cp_fm_trace(buf, buf2, aat_overlap)
