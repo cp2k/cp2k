@@ -850,7 +850,7 @@ CONTAINS
       IF (calculate_forces .AND. dft_control%do_admm) CALL calc_admm_ovlp_forces(qs_env)
 
       ! deal with low spin roks
-      CALL low_spin_roks(energy, qs_env, dft_control, just_energy, &
+      CALL low_spin_roks(energy, qs_env, dft_control, do_hfx, just_energy, &
                          calculate_forces, auxbas_pw_pool)
 
       ! deal with sic on explicit orbitals

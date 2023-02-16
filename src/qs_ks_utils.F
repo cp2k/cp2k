@@ -53,6 +53,9 @@ MODULE qs_ks_utils
         dbcsr_add, dbcsr_copy, dbcsr_deallocate_matrix, dbcsr_dot, dbcsr_get_info, dbcsr_init_p, &
         dbcsr_multiply, dbcsr_p_type, dbcsr_release_p, dbcsr_scale, dbcsr_scale_by_vector, &
         dbcsr_set, dbcsr_type
+   USE hfx_admm_utils,                  ONLY: tddft_hfx_matrix
+   USE hfx_derivatives,                 ONLY: derivatives_four_center
+   USE hfx_types,                       ONLY: hfx_type
    USE input_constants,                 ONLY: &
         cdft_alpha_constraint, cdft_beta_constraint, cdft_charge_constraint, &
         cdft_magnetization_constraint, do_admm_aux_exch_func_none, do_admm_exch_scaling_merlot, &
@@ -142,34 +145,39 @@ CONTAINS
 !> \param energy ...
 !> \param qs_env ...
 !> \param dft_control ...
+!> \param do_hfx ...
 !> \param just_energy ...
 !> \param calculate_forces ...
 !> \param auxbas_pw_pool ...
 ! **************************************************************************************************
-   SUBROUTINE low_spin_roks(energy, qs_env, dft_control, just_energy, &
+   SUBROUTINE low_spin_roks(energy, qs_env, dft_control, do_hfx, just_energy, &
                             calculate_forces, auxbas_pw_pool)
 
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      LOGICAL, INTENT(IN)                                :: just_energy, calculate_forces
+      LOGICAL, INTENT(IN)                                :: do_hfx, just_energy, calculate_forces
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
 
       CHARACTER(*), PARAMETER                            :: routineN = 'low_spin_roks'
 
-      INTEGER                                            :: handle, ispin, iterm, k, k_alpha, &
+      INTEGER                                            :: handle, irep, ispin, iterm, k, k_alpha, &
                                                             k_beta, n_rep, Nelectron, Nspin, Nterms
       INTEGER, DIMENSION(:), POINTER                     :: ivec
       INTEGER, DIMENSION(:, :, :), POINTER               :: occupations
       LOGICAL                                            :: compute_virial, in_range, &
                                                             uniform_occupation
-      REAL(KIND=dp)                                      :: exc
+      REAL(KIND=dp)                                      :: ehfx, exc
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc_tmp
       REAL(KIND=dp), DIMENSION(:), POINTER               :: energy_scaling, rvec, scaling
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_h, matrix_p, mo_derivs, rho_ao
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_h, matrix_hfx, matrix_p, mdummy, &
+                                                            mo_derivs, rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p2
       TYPE(dbcsr_type), POINTER                          :: dbcsr_deriv, fm_deriv, fm_scaled, &
                                                             mo_coeff
+      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_array
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: xc_pw_pool
@@ -177,13 +185,33 @@ CONTAINS
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r, tau, vxc, vxc_tau
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(section_vals_type), POINTER                   :: input, low_spin_roks_section, xc_section
+      TYPE(section_vals_type), POINTER                   :: hfx_section, input, &
+                                                            low_spin_roks_section, xc_section
       TYPE(virial_type), POINTER                         :: virial
 
       IF (.NOT. dft_control%low_spin_roks) RETURN
-      NULLIFY (ks_env, rho_ao)
 
       CALL timeset(routineN, handle)
+
+      NULLIFY (ks_env, rho_ao)
+
+      ! Test for not compatible options
+      IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
+         CALL cp_abort(__LOCATION__, "GAPW/GAPW_XC are not compatible with low spin ROKS method.")
+      END IF
+      IF (dft_control%do_admm) THEN
+         CALL cp_abort(__LOCATION__, "ADMM not compatible with low spin ROKS method.")
+      END IF
+      IF (dft_control%do_admm) THEN
+         IF (qs_env%admm_env%aux_exch_func /= do_admm_aux_exch_func_none) THEN
+            CALL cp_abort(__LOCATION__, "ADMM with XC correction functional "// &
+                          "not compatible with low spin ROKS method.")
+         END IF
+      END IF
+      IF (dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb .OR. &
+          dft_control%qs_control%xtb) THEN
+         CALL cp_abort(__LOCATION__, "SE/xTB/DFTB are not compatible with low spin ROKS method.")
+      END IF
 
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
@@ -199,6 +227,7 @@ CONTAINS
 
       compute_virial = virial%pv_calculate .AND. (.NOT. virial%pv_numer)
       xc_section => section_vals_get_subs_vals(input, "DFT%XC")
+      hfx_section => section_vals_get_subs_vals(input, "DFT%XC%HF")
 
       ! some assumptions need to be checked
       ! we have two spins
@@ -209,6 +238,9 @@ CONTAINS
       CPASSERT(uniform_occupation)
       CALL get_mo_set(mo_set=mo_array(2), mo_coeff_b=mo_coeff, uniform_occupation=uniform_occupation)
       CPASSERT(uniform_occupation)
+      IF (do_hfx .AND. calculate_forces .AND. compute_virial) THEN
+         CALL cp_abort(__LOCATION__, "ROKS virial with HFX not available.")
+      END IF
 
       NULLIFY (dbcsr_deriv)
       CALL dbcsr_init_p(dbcsr_deriv)
@@ -266,6 +298,16 @@ CONTAINS
                          name="KS matrix low spin roks")
          CALL dbcsr_set(matrix_h(ispin)%matrix, 0.0_dp)
       END DO
+
+      IF (do_hfx) THEN
+         NULLIFY (matrix_hfx)
+         CALL dbcsr_allocate_matrix_set(matrix_hfx, Nspin)
+         DO ispin = 1, Nspin
+            ALLOCATE (matrix_hfx(ispin)%matrix)
+            CALL dbcsr_copy(matrix_hfx(ispin)%matrix, rho_ao(1)%matrix, &
+                            name="HFX matrix low spin roks")
+         END DO
+      END IF
 
       ! grids in real and g space for rho and vxc
       ! tau functionals are not supported
@@ -328,20 +370,56 @@ CONTAINS
 
          energy%exc = energy%exc + energy_scaling(iterm)*exc
 
+         IF (do_hfx) THEN
+            ! Add Hartree-Fock contribution
+            DO ispin = 1, Nspin
+               CALL dbcsr_set(matrix_hfx(ispin)%matrix, 0.0_dp)
+            END DO
+            ehfx = energy%ex
+            CALL tddft_hfx_matrix(matrix_hfx, matrix_p, qs_env, &
+                                  recalc_integrals=.FALSE., update_energy=.TRUE.)
+            energy%ex = ehfx + energy_scaling(iterm)*energy%ex
+         END IF
+
          ! add the corresponding derivatives to the MO derivatives
          IF (.NOT. just_energy) THEN
             ! get the potential in matrix form
             DO ispin = 1, Nspin
+               CALL dbcsr_set(matrix_h(ispin)%matrix, 0.0_dp)
                ! use a work_v_rspace
                work_v_rspace%cr3d = (energy_scaling(iterm)*vxc(ispin)%pw_grid%dvol)* &
                                     vxc(ispin)%cr3d
-               ! zero first ?!
-               CALL dbcsr_set(matrix_h(ispin)%matrix, 0.0_dp)
                CALL integrate_v_rspace(v_rspace=work_v_rspace, pmat=matrix_p(ispin), hmat=matrix_h(ispin), &
                                        qs_env=qs_env, calculate_forces=calculate_forces)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc(ispin))
             END DO
             DEALLOCATE (vxc)
+
+            IF (do_hfx) THEN
+               ! add HFX contribution
+               DO ispin = 1, Nspin
+                  CALL dbcsr_add(matrix_h(ispin)%matrix, matrix_hfx(ispin)%matrix, &
+                                 1.0_dp, energy_scaling(iterm))
+               END DO
+               IF (calculate_forces) THEN
+                  CALL get_qs_env(qs_env, x_data=x_data, para_env=para_env)
+                  IF (x_data(1, 1)%n_rep_hf /= 1) THEN
+                     CALL cp_abort(__LOCATION__, "Multiple HFX section forces not compatible "// &
+                                   "with low spin ROKS method.")
+                  END IF
+                  IF (x_data(1, 1)%do_hfx_ri) THEN
+                     CALL cp_abort(__LOCATION__, "HFX_RI forces not compatible with low spin ROKS method.")
+                  ELSE
+                     irep = 1
+                     NULLIFY (mdummy)
+                     matrix_p2(1:Nspin, 1:1) => matrix_p(1:Nspin)
+                     CALL derivatives_four_center(qs_env, matrix_p2, mdummy, hfx_section, para_env, &
+                                                  irep, compute_virial, &
+                                                  adiabatic_rescale_factor=energy_scaling(iterm))
+                  END IF
+               END IF
+
+            END IF
 
             ! add this to the mo_derivs, again based on the alpha mo_coeff
             DO ispin = 1, Nspin
@@ -366,6 +444,9 @@ CONTAINS
       DEALLOCATE (rho_r, rho_g)
       CALL dbcsr_deallocate_matrix_set(matrix_p)
       CALL dbcsr_deallocate_matrix_set(matrix_h)
+      IF (do_hfx) THEN
+         CALL dbcsr_deallocate_matrix_set(matrix_hfx)
+      END IF
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, work_v_rspace)
 
