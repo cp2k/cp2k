@@ -5,7 +5,7 @@
 &END GLOBAL
 &MOTION
   &GEO_OPT
-     MAX_ITER 2
+     MAX_ITER 1
   &END
 &END
 
@@ -25,7 +25,7 @@
     &END
 
     &MGRID
-      CUTOFF 300
+      CUTOFF 200
     &END MGRID
 
     &QS
@@ -34,15 +34,17 @@
 
     &SCF
        SCF_GUESS ATOMIC 
-       EPS_SCF 1.0E-5
-       MAX_SCF 20
+       EPS_SCF 5.0E-5
+       MAX_SCF 15
        &OT
-         PRECONDITIONER FULL_KINETIC
+         MINIMIZER DIIS
+         PRECONDITIONER FULL_SINGLE_INVERSE
+         STEPSIZE 0.1
          ROTATION
        &END
        &OUTER_SCF
-          EPS_SCF 1.0E-5
-          MAX_SCF 4
+          EPS_SCF 5.0E-5
+          MAX_SCF 5
        &END
     &END SCF
 
@@ -58,7 +60,7 @@
 
   &SUBSYS
     &CELL
-      ABC 6.0 6.0 6.0
+      ABC 5.0 5.0 5.0
       PERIODIC NONE
     &END CELL
 
