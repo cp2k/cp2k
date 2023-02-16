@@ -434,10 +434,6 @@ CONTAINS
       CALL cp_print_key_finished_output(output_unit, logger, lr_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
 
-      ! IF (vcd_env%output_unit > 0) THEN
-      !    WRITE (vcd_env%output_unit, *) 'size(vcd_env%list_of_atoms)', SIZE(vcd_env%dcdr_env%list_of_atoms)
-      !    WRITE (vcd_env%output_unit, *) 'vcd_env%list_of_atoms', vcd_env%dcdr_env%list_of_atoms
-      ! END IF
       CALL timestop(handle)
 
    END SUBROUTINE vcd_env_init
@@ -628,7 +624,6 @@ CONTAINS
          ! check that the number nao, nmo and nspins are
          ! the same as in the current mos
          IF (nspins_tmp .NE. nspins) THEN
-            PRINT *, 'nspins_tmp, nspins', nspins_tmp, nspins
             CPABORT("nspins not consistent")
          END IF
          IF (nao_tmp .NE. nao) CPABORT("nao not consistent")

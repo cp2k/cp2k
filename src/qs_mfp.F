@@ -79,7 +79,6 @@ MODULE qs_mfp
                                                           0.0_dp, 0.0_dp, 1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, -1.0_dp, 0.0_dp, 0.0_dp, &
                                                         0.0_dp, -1.0_dp, 0.0_dp, 1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp/), &
                                                                      (/3, 3, 3/))
-   INTEGER, DIMENSION(3, 3), PARAMETER :: multipole_2d_to_1d = RESHAPE([4, 5, 6, 5, 7, 8, 6, 8, 9], [3, 3])
 CONTAINS
 
 ! **************************************************************************************************
@@ -134,13 +133,13 @@ CONTAINS
             ! CALL cp_fm_scale_and_add(0._dp, vcd_env%dCB_prime(alpha), -1._dp, vcd_env%dCB(alpha))
             CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_dSdB(alpha)%matrix, mo_coeff, &
                                          buf, ncol=nmo, alpha=1._dp, beta=0._dp)
-            CALL cp_fm_gemm("T", "N", nmo, nmo, nao, &
-                            1.0_dp, mo_coeff, buf, &
-                            0.0_dp, matrix_dSdB_mo)
+            CALL parallel_gemm("T", "N", nmo, nmo, nao, &
+                               1.0_dp, mo_coeff, buf, &
+                               0.0_dp, matrix_dSdB_mo)
 
-            CALL cp_fm_gemm("N", "N", nao, nmo, nmo, &
-                            -0.5_dp, mo_coeff, matrix_dSdB_mo, &
-                            0.0_dp, vcd_env%dCB_prime(alpha))
+            CALL parallel_gemm("N", "N", nao, nmo, nmo, &
+                               -0.5_dp, mo_coeff, matrix_dSdB_mo, &
+                               0.0_dp, vcd_env%dCB_prime(alpha))
 
          END DO
 
@@ -1157,7 +1156,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mfp_response'
 
-      INTEGER                                            :: handle, ispin, nspins, output_unit
+      INTEGER                                            :: handle, output_unit
       LOGICAL                                            :: failure, should_stop
       TYPE(cp_fm_type), DIMENSION(1)                     :: h1_psi0, psi1
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -1190,16 +1189,14 @@ CONTAINS
 
       ! allocate the vectors
       ASSOCIATE (psi0_order => vcd_env%dcdr_env%mo_coeff)
-         CALL cp_fm_create(psi1(ispin), vcd_env%dcdr_env%likemos_fm_struct(ispin)%struct)
-         CALL cp_fm_create(h1_psi0(ispin), vcd_env%dcdr_env%likemos_fm_struct(ispin)%struct)
+         CALL cp_fm_create(psi1(1), vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
+         CALL cp_fm_create(h1_psi0(1), vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
 
          ! Restart
          IF (linres_control%linres_restart) THEN
             CALL vcd_read_restart(qs_env, lr_section, psi1, vcd_env%dcdr_env%lambda, alpha, "dCdB")
          ELSE
-            DO ispin = 1, nspins
-               CALL cp_fm_set_all(psi1(ispin), 0.0_dp)
-            END DO
+            CALL cp_fm_set_all(psi1(1), 0.0_dp)
          END IF
 
          IF (output_unit > 0) THEN
@@ -1213,20 +1210,16 @@ CONTAINS
          ! h1_psi0 = (H1-E1)
          ! psi0_order = the unperturbed wavefunction
          ! Second response to get dCB
-         DO ispin = 1, nspins
-            CALL cp_fm_set_all(vcd_env%dCB(alpha), 0.0_dp)
-            CALL cp_fm_set_all(h1_psi0(ispin), 0.0_dp)
-            CALL cp_fm_to_fm(vcd_env%op_dB(ispin), h1_psi0(ispin))
-         END DO
+         CALL cp_fm_set_all(vcd_env%dCB(alpha), 0.0_dp)
+         CALL cp_fm_set_all(h1_psi0(1), 0.0_dp)
+         CALL cp_fm_to_fm(vcd_env%op_dB(1), h1_psi0(1))
 
          linres_control%lr_triplet = .FALSE. ! we do singlet response
          linres_control%do_kernel = .FALSE. ! no coupled response since imaginary perturbation
          linres_control%converged = .FALSE.
          CALL linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, &
                             output_unit, should_stop)
-         DO ispin = 1, nspins
-            CALL cp_fm_to_fm(psi1(ispin), vcd_env%dCB(alpha))
-         END DO
+         CALL cp_fm_to_fm(psi1(1), vcd_env%dCB(alpha))
 
          ! Write the new result to the restart file
          IF (linres_control%linres_restart) THEN
