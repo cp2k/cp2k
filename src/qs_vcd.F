@@ -905,8 +905,8 @@ CONTAINS
 
       DO i = 1, 9
          DO j = 1, 3 ! derivatives
-            CALL dbcsr_copy(vcd_env%moments_der_right(i, j)%matrix, vcd_env%moments_der(i, j)%matrix) ! A2
-            CALL dbcsr_copy(vcd_env%moments_der_left(i, j)%matrix, vcd_env%moments_der(i, j)%matrix)  ! A1
+            CALL dbcsr_desymmetrize(vcd_env%moments_der(i, j)%matrix, vcd_env%moments_der_right(i, j)%matrix) ! A2
+            CALL dbcsr_desymmetrize(vcd_env%moments_der(i, j)%matrix, vcd_env%moments_der_left(i, j)%matrix)  ! A1
 
             !  - < mu | r_beta r_gamma ∂_delta | nu > * (mu/nu == lambda)
             CALL hr_mult_by_delta_1d(vcd_env%moments_der_right(i, j)%matrix, qs_kind_set, "ORB", &
