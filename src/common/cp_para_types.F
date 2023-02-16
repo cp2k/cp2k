@@ -85,8 +85,8 @@ MODULE cp_para_types
       ! We set it to true because to have less initialization steps in case we create a new communicator
       LOGICAL :: owns_group = .TRUE.
       INTEGER, PUBLIC :: rank = -1, ntask = -1
-      INTEGER, DIMENSION(:), POINTER, PUBLIC :: mepos => NULL(), source => NULL(), num_pe => NULL()
-      LOGICAL, DIMENSION(:), POINTER, PUBLIC :: periodic => NULL()
+      INTEGER, DIMENSION(:), ALLOCATABLE, PUBLIC :: mepos, source, num_pe
+      LOGICAL, DIMENSION(:), ALLOCATABLE, PUBLIC :: periodic
       INTEGER :: ref_count = -1
    CONTAINS
       PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_comm_free => cp_para_cart_free
