@@ -265,14 +265,16 @@ CONTAINS
             CALL dbcsr_init_p(vcd_env%moments_der_right(i, idir)%matrix)
             CALL dbcsr_init_p(vcd_env%moments_der_left(i, idir)%matrix)
 
-            CALL dbcsr_copy(vcd_env%moments_der(i, idir)%matrix, vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix)
+            CALL dbcsr_create(vcd_env%moments_der(i, idir)%matrix, template=matrix_ks(1)%matrix, &
+                              matrix_type=dbcsr_type_antisymmetric)
+            CALL cp_dbcsr_alloc_block_from_nbl(vcd_env%moments_der(i, idir)%matrix, sab_orb)
             CALL dbcsr_set(vcd_env%moments_der(i, idir)%matrix, 0.0_dp)
 
             ! And the ones which will be multiplied by delta_(mu/nu)
             CALL dbcsr_copy(vcd_env%moments_der_right(i, idir)%matrix, &
-                            vcd_env%moments_der(i, idir)%matrix)
+                            vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix)
             CALL dbcsr_copy(vcd_env%moments_der_left(i, idir)%matrix, &
-                            vcd_env%moments_der(i, idir)%matrix)
+                            vcd_env%dcdr_env%matrix_nosym_temp(1)%matrix)
          END DO
       END DO
 
