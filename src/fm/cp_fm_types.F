@@ -14,7 +14,7 @@
 ! **************************************************************************************************
 MODULE cp_fm_types
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_context_types,                ONLY: cp_context_type
+   USE cp_blacs_types,                  ONLY: cp_blacs_type
    USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
                                               cp_fm_struct_get,&
                                               cp_fm_struct_release,&
@@ -1803,7 +1803,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nrows, ncols, s_firstrow, s_firstcol, &
                                                             d_firstrow, d_firstcol
 
-      CLASS(cp_context_type), INTENT(IN)        :: global_context
+      CLASS(cp_blacs_type), INTENT(IN)        :: global_context
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_to_fm_submat_general'
 
@@ -1959,7 +1959,7 @@ CONTAINS
       INTEGER, DIMENSION(9)                    :: desc
       REAL(KIND=dp), DIMENSION(:), POINTER     :: vecbuf
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: newdat
-      TYPE(cp_context_type) :: ictxt_loc
+      TYPE(cp_blacs_type) :: ictxt_loc
       INTEGER, EXTERNAL                        :: numroc
 #endif
 
@@ -1975,7 +1975,7 @@ CONTAINS
       ! get a new context
       CALL ictxt_loc%gridinit(para_env, 'R', 1, num_pe)
       CALL ictxt_loc%gridinfo(nprow, npcol, myprow, mypcol)
-      CALL descinit(desc, nrow_global, ncol_global, rb, max_block, 0, 0, ictxt_loc, nrow_global, info)
+      CALL descinit(desc, nrow_global, ncol_global, rb, max_block, 0, 0, ictxt_loc%get_handle(), nrow_global, info)
       CPASSERT(info == 0)
       in = numroc(ncol_global, max_block, mypcol, 0, npcol)
 
@@ -2065,7 +2065,7 @@ CONTAINS
       INTEGER, DIMENSION(9)                    :: desc
       REAL(KIND=dp), DIMENSION(:), POINTER     :: vecbuf
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: newdat
-      TYPE(cp_context_type) :: ictxt_loc
+      TYPE(cp_blacs_type) :: ictxt_loc
       INTEGER, EXTERNAL                        :: numroc
 #endif
 
@@ -2093,7 +2093,7 @@ CONTAINS
       ! get a new context
       CALL ictxt_loc%gridinit(para_env, 'R', 1, num_pe)
       CALL ictxt_loc%gridinfo(nprow, npcol, myprow, mypcol)
-      CALL descinit(desc, nrow_global, ncol_global, rb, max_block, 0, 0, ictxt_loc, nrow_global, info)
+      CALL descinit(desc, nrow_global, ncol_global, rb, max_block, 0, 0, ictxt_loc%get_handle(), nrow_global, info)
       CPASSERT(info == 0)
       in = numroc(ncol_global, max_block, mypcol, 0, npcol)
 
