@@ -11,16 +11,14 @@ date --utc --rfc-3339=seconds
 
 (
   set -e # abort if error is encountered
-  cd ../../
   make -j ARCH=Linux-x86-64-gfortran VERSION="dumpast" > make_conventions1.out
   make -j ARCH=local_warn VERSION="psmp" > make_conventions2.out
 )
 MAKE_EXIT_CODE=$?
 
 if ((MAKE_EXIT_CODE)); then
-  cd ../../obj/local_warn/psmp/
   echo ""
-  grep -B 2 Error ./*.warn
+  grep -B 2 Error ./obj/local_warn/psmp/*.warn
   echo ""
   echo "Summary: Compilation failed."
   echo "Status: FAILED"
@@ -29,7 +27,7 @@ else
 
   set -o errexit
 
-  ./analyze_gfortran_ast.py ../../obj/Linux-x86-64-gfortran/dumpast/*.ast > ast.issues
-  ./analyze_gfortran_warnings.py ../../obj/local_warn/psmp/*.warn > warn.issues
-  ./summarize_issues.py --suppressions=conventions.supp ./*.issues
+  ./tools/conventions/analyze_gfortran_ast.py ./obj/Linux-x86-64-gfortran/dumpast/*.ast > ast.issues
+  ./tools/conventions/analyze_gfortran_warnings.py ./obj/local_warn/psmp/*.warn > warn.issues
+  ./tools/conventions/summarize_issues.py --suppressions=./tools/conventions/conventions.supp ./*.issues
 fi
