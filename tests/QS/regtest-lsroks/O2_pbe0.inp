@@ -3,14 +3,6 @@
   RUN_TYPE ENERGY
   PRINT_LEVEL MEDIUM
 &END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 50
-    TIMESTEP 0.5
-    TEMPERATURE 300.0
-  &END MD
-&END MOTION
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -32,7 +24,7 @@
     &SCF
        SCF_GUESS ATOMIC
        EPS_SCF 1.0E-6
-       MAX_SCF 3
+       MAX_SCF 10
        &OT
          ROTATION
        &END
@@ -42,7 +34,7 @@
        &END
     &END SCF
     &XC
-      &XC_FUNCTIONAL PADE
+      &XC_FUNCTIONAL PBE0
       &END XC_FUNCTIONAL
     &END XC
   &END DFT

@@ -1544,6 +1544,18 @@ CONTAINS
                           "Try UKS instead of ROKS")
          END IF
       END IF
+      IF (dft_control%low_spin_roks) THEN
+         SELECT CASE (dft_control%qs_control%method_id)
+         CASE DEFAULT
+         CASE (do_method_xtb, do_method_dftb)
+            CALL cp_abort(__LOCATION__, &
+                          "xTB/DFTB methods are not compatible with low spin ROKS.")
+         CASE (do_method_rm1, do_method_am1, do_method_mndo, do_method_pm3, &
+               do_method_pm6, do_method_pm6fm, do_method_mndod, do_method_pnnl)
+            CALL cp_abort(__LOCATION__, &
+                          "SE methods are not compatible with low spin ROKS.")
+         END SELECT
+      END IF
 
       ! in principle the restricted calculation could be performed
       ! using just one set of MOs and special casing most of the code
@@ -1576,7 +1588,7 @@ CONTAINS
 
       CALL set_qs_env(qs_env, mos=mos)
 
-! allocate mos when switch_surf_dip is triggered [SGh]
+      ! allocate mos when switch_surf_dip is triggered [SGh]
       IF (dft_control%switch_surf_dip) THEN
          ALLOCATE (mos_last_converged(dft_control%nspins))
          DO ispin = 1, dft_control%nspins
