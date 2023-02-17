@@ -127,7 +127,7 @@ CONTAINS
       ALLOCATE (cart)
       CALL cart%create(comm_old=para_env, ndims=2, dims=dims)
       IF (cart /= mp_comm_null) THEN
-         pos = cart%mepos
+         pos = cart%mepos_cart
          ALLOCATE (para_env_full)
          para_env_full = cart
          ALLOCATE (para_env_f)
@@ -169,14 +169,14 @@ CONTAINS
          NULLIFY (rep_env%results)
 
          rep_env%force_dim = forcedim
-         rep_env%my_rep_group = cart%mepos(3 - forcedim)
+         rep_env%my_rep_group = cart%mepos_cart(3 - forcedim)
          ALLOCATE (rep_env%inter_rep_rank(0:para_env_inter_rep%num_pe - 1), &
                    rep_env%force_rank(0:para_env_f%num_pe - 1))
          rep_env%inter_rep_rank = 0
          rep_env%inter_rep_rank(rep_env%my_rep_group) = para_env_inter_rep%mepos
          CALL para_env_inter_rep%sum(rep_env%inter_rep_rank)
          rep_env%force_rank = 0
-         rep_env%force_rank(cart%mepos(forcedim)) = para_env_f%mepos
+         rep_env%force_rank(cart%mepos_cart(forcedim)) = para_env_f%mepos
          CALL para_env_f%sum(rep_env%force_rank)
 
          CALL section_vals_val_get(input, "GLOBAL%PROJECT_NAME", &

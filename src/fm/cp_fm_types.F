@@ -1954,8 +1954,8 @@ CONTAINS
       INTEGER                                  :: i, i_block, icol_local, &
                                                   in, info, ipcol, &
                                                   iprow, irow_local, &
-                                                  mepos, mypcol, myprow, &
-                                                  npcol, nprow, num_pe, rb, tag
+                                                  mepos, &
+                                                  num_pe, rb, tag
       INTEGER, DIMENSION(9)                    :: desc
       REAL(KIND=dp), DIMENSION(:), POINTER     :: vecbuf
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: newdat
@@ -1974,49 +1974,51 @@ CONTAINS
       tag = 0
       ! get a new context
       CALL ictxt_loc%gridinit(para_env, 'R', 1, num_pe)
-      CALL ictxt_loc%gridinfo(nprow, npcol, myprow, mypcol)
       CALL descinit(desc, nrow_global, ncol_global, rb, max_block, 0, 0, ictxt_loc%get_handle(), nrow_global, info)
       CPASSERT(info == 0)
-      in = numroc(ncol_global, max_block, mypcol, 0, npcol)
+      ASSOCIATE (nprow => ictxt_loc%num_pe(1), npcol => ictxt_loc%num_pe(2), &
+                 myprow => ictxt_loc%mepos(1), mypcol => ictxt_loc%mepos(2))
+         in = numroc(ncol_global, max_block, mypcol, 0, npcol)
 
-      ALLOCATE (newdat(nrow_global, MAX(1, in)))
+         ALLOCATE (newdat(nrow_global, MAX(1, in)))
 
-      ! do the actual scalapack to cols reordering
-      CALL pdgemr2d(nrow_global, ncol_global, fm%local_data, 1, 1, &
-                    fm%matrix_struct%descriptor, &
-                    newdat, 1, 1, desc, ictxt_loc%get_handle())
+         ! do the actual scalapack to cols reordering
+         CALL pdgemr2d(nrow_global, ncol_global, fm%local_data, 1, 1, &
+                       fm%matrix_struct%descriptor, &
+                       newdat, 1, 1, desc, ictxt_loc%get_handle())
 
-      ALLOCATE (vecbuf(nrow_global*max_block))
-      vecbuf = HUGE(1.0_dp) ! init for valgrind
+         ALLOCATE (vecbuf(nrow_global*max_block))
+         vecbuf = HUGE(1.0_dp) ! init for valgrind
 
-      DO i = 1, ncol_global, MAX(max_block, 1)
-         i_block = MIN(max_block, ncol_global - i + 1)
-         CALL infog2l(1, i, desc, nprow, npcol, myprow, mypcol, &
-                      irow_local, icol_local, iprow, ipcol)
-         IF (ipcol == mypcol) THEN
-            DO j = 1, i_block
-               vecbuf((j - 1)*nrow_global + 1:nrow_global*j) = newdat(:, icol_local + j - 1)
-            END DO
-         END IF
-
-         IF (ipcol == 0) THEN
-            ! do nothing
-         ELSE
+         DO i = 1, ncol_global, MAX(max_block, 1)
+            i_block = MIN(max_block, ncol_global - i + 1)
+            CALL infog2l(1, i, desc, nprow, npcol, myprow, mypcol, &
+                         irow_local, icol_local, iprow, ipcol)
             IF (ipcol == mypcol) THEN
-               CALL para_env%send(vecbuf(:), 0, tag)
+               DO j = 1, i_block
+                  vecbuf((j - 1)*nrow_global + 1:nrow_global*j) = newdat(:, icol_local + j - 1)
+               END DO
             END IF
-            IF (mypcol == 0) THEN
-               CALL para_env%recv(vecbuf(:), ipcol, tag)
+
+            IF (ipcol == 0) THEN
+               ! do nothing
+            ELSE
+               IF (ipcol == mypcol) THEN
+                  CALL para_env%send(vecbuf(:), 0, tag)
+               END IF
+               IF (mypcol == 0) THEN
+                  CALL para_env%recv(vecbuf(:), ipcol, tag)
+               END IF
             END IF
-         END IF
 
-         IF (unit > 0) THEN
-            DO j = 1, i_block
-               WRITE (unit) vecbuf((j - 1)*nrow_global + 1:nrow_global*j)
-            END DO
-         END IF
+            IF (unit > 0) THEN
+               DO j = 1, i_block
+                  WRITE (unit) vecbuf((j - 1)*nrow_global + 1:nrow_global*j)
+               END DO
+            END IF
 
-      END DO
+         END DO
+      END ASSOCIATE
       DEALLOCATE (vecbuf)
 
       CALL ictxt_loc%gridexit()
@@ -2059,8 +2061,7 @@ CONTAINS
       INTEGER                                  :: i_block, icol_local, &
                                                   in, info, ipcol, &
                                                   iprow, irow_local, &
-                                                  mepos, mypcol, myprow, &
-                                                  npcol, nprow, num_pe, rb, tag, k, &
+                                                  mepos, num_pe, rb, tag, k, &
                                                   icol, irow
       INTEGER, DIMENSION(9)                    :: desc
       REAL(KIND=dp), DIMENSION(:), POINTER     :: vecbuf
@@ -2092,58 +2093,60 @@ CONTAINS
       tag = 0
       ! get a new context
       CALL ictxt_loc%gridinit(para_env, 'R', 1, num_pe)
-      CALL ictxt_loc%gridinfo(nprow, npcol, myprow, mypcol)
       CALL descinit(desc, nrow_global, ncol_global, rb, max_block, 0, 0, ictxt_loc%get_handle(), nrow_global, info)
       CPASSERT(info == 0)
-      in = numroc(ncol_global, max_block, mypcol, 0, npcol)
+      ASSOCIATE (nprow => ictxt_loc%num_pe(1), npcol => ictxt_loc%num_pe(2), &
+                 myprow => ictxt_loc%mepos(1), mypcol => ictxt_loc%mepos(2))
+         in = numroc(ncol_global, max_block, mypcol, 0, npcol)
 
-      ALLOCATE (newdat(nrow_global, MAX(1, in)))
+         ALLOCATE (newdat(nrow_global, MAX(1, in)))
 
-      ! do the actual scalapack to cols reordering
-      CALL pdgemr2d(nrow_global, ncol_global, fm%local_data, 1, 1, &
-                    fm%matrix_struct%descriptor, &
-                    newdat, 1, 1, desc, ictxt_loc%get_handle())
+         ! do the actual scalapack to cols reordering
+         CALL pdgemr2d(nrow_global, ncol_global, fm%local_data, 1, 1, &
+                       fm%matrix_struct%descriptor, &
+                       newdat, 1, 1, desc, ictxt_loc%get_handle())
 
-      ALLOCATE (vecbuf(nrow_global*max_block))
-      vecbuf = HUGE(1.0_dp) ! init for valgrind
-      irow = 1
-      icol = 1
+         ALLOCATE (vecbuf(nrow_global*max_block))
+         vecbuf = HUGE(1.0_dp) ! init for valgrind
+         irow = 1
+         icol = 1
 
-      DO i = 1, ncol_global, MAX(max_block, 1)
-         i_block = MIN(max_block, ncol_global - i + 1)
-         CALL infog2l(1, i, desc, nprow, npcol, myprow, mypcol, &
-                      irow_local, icol_local, iprow, ipcol)
-         IF (ipcol == mypcol) THEN
-            DO j = 1, i_block
-               vecbuf((j - 1)*nrow_global + 1:nrow_global*j) = newdat(:, icol_local + j - 1)
-            END DO
-         END IF
-
-         IF (ipcol == 0) THEN
-            ! do nothing
-         ELSE
+         DO i = 1, ncol_global, MAX(max_block, 1)
+            i_block = MIN(max_block, ncol_global - i + 1)
+            CALL infog2l(1, i, desc, nprow, npcol, myprow, mypcol, &
+                         irow_local, icol_local, iprow, ipcol)
             IF (ipcol == mypcol) THEN
-               CALL para_env%send(vecbuf(:), 0, tag)
-            END IF
-            IF (mypcol == 0) THEN
-               CALL para_env%recv(vecbuf(:), ipcol, tag)
-            END IF
-         END IF
-
-         IF (unit > 0) THEN
-            DO j = 1, i_block
-               DO k = (j - 1)*nrow_global + 1, nrow_global*j
-                  WRITE (UNIT=unit, FMT=my_value_format) irow, icol, vecbuf(k)
-                  irow = irow + 1
-                  IF (irow > nrow_global) THEN
-                     irow = 1
-                     icol = icol + 1
-                  END IF
+               DO j = 1, i_block
+                  vecbuf((j - 1)*nrow_global + 1:nrow_global*j) = newdat(:, icol_local + j - 1)
                END DO
-            END DO
-         END IF
+            END IF
 
-      END DO
+            IF (ipcol == 0) THEN
+               ! do nothing
+            ELSE
+               IF (ipcol == mypcol) THEN
+                  CALL para_env%send(vecbuf(:), 0, tag)
+               END IF
+               IF (mypcol == 0) THEN
+                  CALL para_env%recv(vecbuf(:), ipcol, tag)
+               END IF
+            END IF
+
+            IF (unit > 0) THEN
+               DO j = 1, i_block
+                  DO k = (j - 1)*nrow_global + 1, nrow_global*j
+                     WRITE (UNIT=unit, FMT=my_value_format) irow, icol, vecbuf(k)
+                     irow = irow + 1
+                     IF (irow > nrow_global) THEN
+                        irow = 1
+                        icol = icol + 1
+                     END IF
+                  END DO
+               END DO
+            END IF
+
+         END DO
+      END ASSOCIATE
       DEALLOCATE (vecbuf)
 
       CALL ictxt_loc%gridexit()

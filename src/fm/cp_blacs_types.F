@@ -32,10 +32,11 @@ MODULE cp_blacs_types
 #if defined(__SCALAPACK)
       INTEGER :: context_handle = -1
 #endif
+      INTEGER, DIMENSION(2), PUBLIC :: mepos = -1, num_pe = -1
    CONTAINS
       PROCEDURE, PUBLIC, PASS(this), NON_OVERRIDABLE :: gridinit => cp_blacs_gridinit
       PROCEDURE, PUBLIC, PASS(this), NON_OVERRIDABLE :: gridexit => cp_blacs_gridexit
-      PROCEDURE, PUBLIC, PASS(this), NON_OVERRIDABLE :: gridinfo => cp_blacs_gridinfo
+      PROCEDURE, PRIVATE, PASS(this), NON_OVERRIDABLE :: gridinfo => cp_blacs_gridinfo
       PROCEDURE, PUBLIC, PASS(this), NON_OVERRIDABLE :: set => cp_blacs_set
       PROCEDURE, PUBLIC, PASS(this), NON_OVERRIDABLE :: zgebs2d => cp_blacs_zgebs2d
       PROCEDURE, PUBLIC, PASS(this), NON_OVERRIDABLE :: dgebs2d => cp_blacs_dgebs2d
@@ -78,6 +79,7 @@ CONTAINS
       MARK_USED(nprow)
       MARK_USED(npcol)
 #endif
+      CALL this%gridinfo()
    END SUBROUTINE cp_blacs_gridinit
 
 ! **************************************************************************************************
@@ -96,22 +98,15 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param this ...
-!> \param nprow ...
-!> \param npcol ...
-!> \param myprow ...
-!> \param mypcol ...
 ! **************************************************************************************************
-   SUBROUTINE cp_blacs_gridinfo(this, nprow, npcol, myprow, mypcol)
-      CLASS(cp_blacs_type), INTENT(IN)  :: this
-      INTEGER, INTENT(OUT) :: nprow, npcol, myprow, mypcol
+   SUBROUTINE cp_blacs_gridinfo(this)
+      CLASS(cp_blacs_type), INTENT(INOUT)  :: this
 #if defined(__SCALAPACK)
-      CALL blacs_gridinfo(this%context_handle, nprow, npcol, myprow, mypcol)
+      CALL blacs_gridinfo(this%context_handle, this%num_pe(1), this%num_pe(2), this%mepos(1), this%mepos(2))
 #else
       MARK_USED(this)
-      nprow = 1
-      npcol = 1
-      myprow = 0
-      mypcol = 0
+      this%num_pe = 1
+      this%mepos = 0
 #endif
    END SUBROUTINE cp_blacs_gridinfo
 

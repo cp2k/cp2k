@@ -312,7 +312,7 @@ CONTAINS
          unit_nr = -1
       END IF
 
-      CALL logger%para_env%get_size(numnodes)
+      numnodes = logger%para_env%num_pe
 
       IF (dbcsr_has_symmetry(template_matrix)) THEN
          CALL dbcsr_copy(transport_env%template_matrix_sym, template_matrix)

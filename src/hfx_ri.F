@@ -80,7 +80,8 @@ MODULE hfx_ri
                                               dp,&
                                               int_8
    USE machine,                         ONLY: m_walltime
-   USE message_passing,                 ONLY: mp_cart_type
+   USE message_passing,                 ONLY: mp_cart_type,&
+                                              mp_comm_type
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -1140,7 +1141,7 @@ CONTAINS
       TYPE(dbt_type)                                     :: ks_t, ks_t_mat, mo_coeff_t, &
                                                             mo_coeff_t_split
       TYPE(dbt_type), DIMENSION(1, 1)                    :: t_3c_int_mo_1, t_3c_int_mo_2
-      TYPE(mp_cart_type)                                 :: comm_2d
+      TYPE(mp_comm_type)                                 :: comm_2d
 
       CALL timeset(routineN, handle)
 
@@ -1242,7 +1243,7 @@ CONTAINS
          batch_ranges_2(:ri_data%n_mem) = mem_start_block_2(:)
          batch_ranges_2(ri_data%n_mem + 1) = mem_end_block_2(ri_data%n_mem) + 1
 
-         CALL para_env%get_rank(iproc)
+         iproc = para_env%mepos
 
          CALL create_3c_tensor(t_3c_int_mo_1(1, 1), dist1, dist2, dist3, ri_data%pgrid_1, &
                                ri_data%bsizes_AO_split, ri_data%bsizes_RI_split, mo_bsizes_1, &

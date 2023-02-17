@@ -142,8 +142,8 @@ CONTAINS
       CALL cite_reference(Lin2013)
 
       pexsi_env%mp_group = mp_group
-      CALL pexsi_env%mp_group%get_size(numnodes)
-      CALL pexsi_env%mp_group%get_rank(mynode)
+      numnodes = pexsi_env%mp_group%num_pe
+      mynode = pexsi_env%mp_group%mepos
 
       ! Use all nodes available per pole by default or if the user tries to use
       ! more nodes than MPI size
@@ -273,7 +273,7 @@ CONTAINS
                                                             muInertiaTolerance, muMax0, muMin0, &
                                                             muPEXSISafeGuard, temperature
 
-      CALL pexsi_env%mp_group%get_size(numnodes)
+      numnodes = pexsi_env%mp_group%num_pe
 
       CALL cp_pexsi_get_options(pexsi_env%options, temperature=temperature, gap=gap, &
                                 numPole=numPole, muMin0=muMin0, muMax0=muMax0, muInertiaTolerance= &

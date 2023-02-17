@@ -956,15 +956,15 @@ CONTAINS
                mp_comm_opt = dbt_tas_mp_comm(tensor_small%pgrid%mp_comm_2d, split_opt%split_rowcol, NINT(storage%nsplit_avg))
                CALL dbt_tas_create_split(split_opt_avg, mp_comm_opt, split_opt%split_rowcol, &
                                          NINT(storage%nsplit_avg), own_comm=.TRUE.)
-               CALL split_opt_avg%mp_comm%get_info_cart(pdims_2d_opt)
+               pdims_2d_opt = split_opt_avg%mp_comm%num_pe_cart
             END IF
 
          END ASSOCIATE
 
          IF (do_change_pgrid(1) .AND. .NOT. do_change_pgrid(2)) THEN
             ! check if new grid has better subgrid, if not there is no need to change process grid
-            CALL split_opt_avg%mp_comm_group%get_info_cart(pdims_sub_opt)
-            CALL split%mp_comm_group%get_info_cart(pdims_sub)
+            pdims_sub_opt = split_opt_avg%mp_comm_group%num_pe_cart
+            pdims_sub = split%mp_comm_group%num_pe_cart
 
             pdim_ratio = MAXVAL(REAL(pdims_sub, dp))/MINVAL(pdims_sub)
             pdim_ratio_opt = MAXVAL(REAL(pdims_sub_opt, dp))/MINVAL(pdims_sub_opt)
@@ -1484,7 +1484,7 @@ CONTAINS
       nsplit_opt = split_opt%ngroup_opt
       nsplit = split%ngroup
 
-      CALL split%mp_comm%get_info_cart(pdims)
+      pdims = split%mp_comm%num_pe_cart
 
       storage%ibatch = storage%ibatch + 1
 
@@ -1501,7 +1501,7 @@ CONTAINS
       do_change_pgrid(:) = .FALSE.
 
       ! check for process grid dimensions
-      CALL split%mp_comm_group%get_info_cart(pdims_sub)
+      pdims_sub = split%mp_comm_group%num_pe_cart
       change_criterion = MAXVAL(REAL(pdims_sub, dp))/MINVAL(pdims_sub)
       IF (change_criterion > default_pdims_accept_ratio**2) do_change_pgrid(1) = .TRUE.
 

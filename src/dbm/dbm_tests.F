@@ -77,11 +77,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! Create MPI processor grid.
-      CALL mp_group%get_size(numnodes)
+      numnodes = mp_group%num_pe
       npdims(:) = 0
       CALL mp_dims_create(numnodes, npdims)
       CALL cart_group%create(mp_group, 2, npdims)
-      CALL cart_group%get_info_cart(npdims)
+      npdims = cart_group%num_pe_cart
 
       ! Initialize random number generator.
       randmat_counter = 12341313
@@ -221,7 +221,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL group%get_size(numnodes)
+      numnodes = group%num_pe
 
       CALL dbm_create_from_template(matrix_c_orig, "Original Matrix C", matrix_c)
       CALL dbm_copy(matrix_c_orig, matrix_c)
@@ -288,7 +288,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL group%get_rank(mynode)
+      mynode = group%mepos
 
       ! Check that the counter was initialised (or has not overflowed)
       CPASSERT(randmat_counter .NE. 0)

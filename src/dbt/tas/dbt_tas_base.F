@@ -625,7 +625,7 @@ CONTAINS
 
       NULLIFY (col_blk_size, row_blk_size)
       CALL timeset(routineN, handle)
-      CALL info%mp_comm%get_info_cart(pdims)
+      pdims = info%mp_comm%num_pe_cart
 
       name = dbm_get_name(matrix_dbm)
       row_blk_size => dbm_get_row_block_sizes(matrix_dbm)

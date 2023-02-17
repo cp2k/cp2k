@@ -113,8 +113,8 @@ CONTAINS
          IF (swarm_mpi%master%num_pe /= 1) CPABORT("mp_comm_split_direct failed (master)")
       ELSE
          CALL subgroup%from_split(swarm_mpi%world, 2)
-         CALL subgroup%get_size(subgroup_size)
-         CALL subgroup%get_rank(subgroup_rank)
+         subgroup_size = subgroup%num_pe
+         subgroup_rank = subgroup%mepos
          IF (subgroup_size /= swarm_mpi%world%num_pe - 1) CPABORT("mp_comm_split_direct failed (worker)")
       END IF
 

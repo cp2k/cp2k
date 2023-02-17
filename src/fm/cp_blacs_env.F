@@ -39,9 +39,6 @@ MODULE cp_blacs_env
 ! **************************************************************************************************
 !> \brief represent a blacs multidimensional parallel environment
 !>      (for the mpi corrispective see cp_paratypes/cp_para_cart_type)
-!> \param mepos the position of the actual processor (2D)
-!> \param group id of the actual group (context, communicator)
-!> \param num_pe number of processors in the group in each dimension
 !> \param ref_count the reference count, when it is zero this object gets
 !>        deallocated
 !> \param my_pid process id of the actual processor
@@ -54,7 +51,6 @@ MODULE cp_blacs_env
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    TYPE, EXTENDS(cp_blacs_type) :: cp_blacs_env_type
-      INTEGER, DIMENSION(2) :: mepos = -1, num_pe = -1
       INTEGER :: my_pid = -1, n_pid = -1, ref_count = -1
       TYPE(cp_para_env_type), POINTER :: para_env => NULL()
       INTEGER, DIMENSION(:, :), POINTER :: blacs2mpi => NULL()
@@ -155,7 +151,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN), &
          OPTIONAL                               :: grid_2d
 
-      INTEGER                                  :: ipcol, iprow, stat
+      INTEGER                                  :: ipcol, iprow
 #if defined(__parallel)
       INTEGER                                  :: gcd_max, ipe, jpe, &
                                                   my_blacs_grid_layout, &
@@ -230,14 +226,11 @@ CONTAINS
       blacs_env%repeatable = my_blacs_repeatable
       IF (blacs_env%repeatable) CALL blacs_env%set(15, 1)
 
-      ! fill in the info one needs
-      CALL blacs_env%gridinfo(blacs_env%num_pe(1), &
-                              blacs_env%num_pe(2), blacs_env%mepos(1), blacs_env%mepos(2))
-
 #else
+      ! In serial mode, we just have to setup the object
+      CALL blacs_env%gridinit(para_env, "Row-major", 1, 1)
+
       blacs_env%ref_count = 1
-      blacs_env%mepos(:) = 0
-      blacs_env%num_pe(:) = 1
       blacs_env%my_pid = 0
       blacs_env%n_pid = 1
       MARK_USED(blacs_grid_layout)
@@ -250,9 +243,7 @@ CONTAINS
       blacs_env%para_env => para_env
 
       ! generate the mappings blacs2mpi and mpi2blacs
-      ALLOCATE (blacs_env%blacs2mpi(0:blacs_env%num_pe(1) - 1, 0:blacs_env%num_pe(2) - 1), &
-                stat=stat)
-      CPASSERT(stat == 0)
+      ALLOCATE (blacs_env%blacs2mpi(0:blacs_env%num_pe(1) - 1, 0:blacs_env%num_pe(2) - 1))
       blacs_env%blacs2mpi = 0
       blacs_env%blacs2mpi(blacs_env%mepos(1), blacs_env%mepos(2)) = para_env%mepos
       CALL para_env%sum(blacs_env%blacs2mpi)

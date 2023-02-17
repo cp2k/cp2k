@@ -263,10 +263,11 @@ CONTAINS
          nyzray => pw1%pw_grid%para%nyzray
          bo => pw1%pw_grid%para%bo
 
-         CALL gs_group%get_size(numtask_g)
-         CALL gs_group%get_rank(g_pos)
-         CALL rs_group%get_size(numtask_r)
-         CALL rs_group%get_info_cart(r_dim, r_pos)
+         numtask_g = gs_group%num_pe
+         g_pos = gs_group%mepos
+         numtask_r = rs_group%num_pe
+         r_dim = rs_group%num_pe_cart
+         r_pos = rs_group%mepos_cart
          IF (numtask_g /= numtask_r) THEN
             CPABORT("Real space and G space groups are different.")
          END IF
@@ -442,10 +443,11 @@ CONTAINS
          nyzray => pw1%pw_grid%para%nyzray
          bo => pw1%pw_grid%para%bo
 
-         CALL gs_group%get_size(numtask_g)
-         CALL gs_group%get_rank(g_pos)
-         CALL rs_group%get_size(numtask_r)
-         CALL rs_group%get_info_cart(r_dim, r_pos)
+         numtask_g = gs_group%num_pe
+         g_pos = gs_group%mepos
+         numtask_r = rs_group%num_pe
+         r_dim = rs_group%num_pe_cart
+         r_pos = rs_group%mepos_cart
          IF (numtask_g /= numtask_r) THEN
             CPABORT("Real space and G space groups are different.")
          END IF

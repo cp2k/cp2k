@@ -113,8 +113,8 @@ CONTAINS
       CALL comm_2d_1%from_sub(mp_comm_3d, [.TRUE., .TRUE., .FALSE.])
       CALL comm_2d_2%from_sub(mp_comm_3d, [.FALSE., .TRUE., .TRUE.])
 
-      CALL comm_2d_1%get_info_cart(task_coor=mp_coor_1)
-      CALL comm_2d_2%get_info_cart(task_coor=mp_coor_2)
+      mp_coor_1 = comm_2d_1%mepos_cart
+      mp_coor_2 = comm_2d_2%mepos_cart
 
       CPASSERT(mp_coor_1(2) == mp_coor_2(1))
 
@@ -181,7 +181,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL mp_comm_2d%get_info_cart(mp_dims, mp_coor)
+      mp_dims = mp_comm_2d%num_pe_cart
+      mp_coor = mp_comm_2d%mepos_cart
       ALLOCATE (para_env)
       para_env = mp_comm_2d
       CALL cp_blacs_env_create(blacs_env, para_env, &

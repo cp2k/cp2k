@@ -43,7 +43,7 @@ PROGRAM parallel_rng_types_TEST
    END IF
 
    CALL mp_world_init(mpi_comm)
-   CALL mpi_comm%get_rank(mepos)
+   mepos = mpi_comm%mepos
    ionode = mepos == 0
 
    CALL check_rng(default_output_unit, ionode)

@@ -128,7 +128,7 @@ CONTAINS
 
       info = dbt_tas_info(matrix_in)
       mp_comm = info%mp_comm
-      CALL mp_comm%get_size(numnodes)
+      numnodes = mp_comm%num_pe
       ALLOCATE (buffer_send(0:numnodes - 1))
       ALLOCATE (buffer_recv(0:numnodes - 1))
       ALLOCATE (num_blocks_recv(0:numnodes - 1))
@@ -336,8 +336,8 @@ CONTAINS
       mp_comm = info%mp_comm
       ngroup = info%ngroup
 
-      CALL mp_comm%get_size(numnodes)
-      CALL mp_comm%get_info_cart(pdims)
+      numnodes = mp_comm%num_pe
+      pdims = mp_comm%num_pe_cart
 
       SELECT CASE (info%split_rowcol)
       CASE (rowsplit)
@@ -544,7 +544,7 @@ CONTAINS
 
       info = dbt_tas_info(matrix_in)
       CALL dbt_tas_get_split_info(info, mp_comm=mp_comm)
-      CALL mp_comm%get_size(numnodes)
+      numnodes = mp_comm%num_pe
 
       ALLOCATE (buffer_send(0:numnodes - 1))
       ALLOCATE (buffer_recv(0:numnodes - 1))
@@ -847,7 +847,7 @@ CONTAINS
                                                             rec_counter, send_counter
 
       CALL timeset(routineN, handle)
-      CALL mp_comm%get_size(numnodes)
+      numnodes = mp_comm%num_pe
 
       IF (numnodes > 1) THEN
 

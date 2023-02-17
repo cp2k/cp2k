@@ -159,6 +159,8 @@ MODULE message_passing
       MPI_COMM_TYPE :: handle = mp_comm_null_handle
       ! Number of dimensions within a Cartesian topology (useful with mp_cart_type)
       INTEGER :: ndims = 1
+      ! Meta data to the communicator
+      INTEGER, PUBLIC :: mepos = -1, source = -1, num_pe = -1
    CONTAINS
       ! Setters/Getters
       PROCEDURE, PASS, NON_OVERRIDABLE :: set_handle => mp_comm_type_set_handle
@@ -644,11 +646,14 @@ MODULE message_passing
    END TYPE
 
    TYPE, EXTENDS(mp_comm_type) :: mp_cart_type
+      INTEGER, DIMENSION(:), ALLOCATABLE, PUBLIC :: mepos_cart, num_pe_cart
+      LOGICAL, DIMENSION(:), ALLOCATABLE, PUBLIC :: periodic
    CONTAINS
       PROCEDURE, PUBLIC, PASS(comm_cart), NON_OVERRIDABLE :: create => mp_cart_create
       PROCEDURE, PUBLIC, PASS(sub_comm), NON_OVERRIDABLE :: from_sub => mp_cart_sub
+      PROCEDURE, PRIVATE, PASS(comm) :: mp_comm_init => mp_cart_init
 
-      PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: get_info_cart => mp_cart_get
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: get_info_cart => mp_cart_get
 
       PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: coords => mp_cart_coords
       PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: rank_cart => mp_cart_rank
@@ -1377,7 +1382,6 @@ CONTAINS
 #if defined(__parallel)
          CALL mpi_comm_rank(comm%handle, taskid, ierr)
          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_rank @ mp_comm_rank")
-
 #else
          MARK_USED(comm)
          taskid = 0
@@ -1476,12 +1480,12 @@ CONTAINS
 
          CLASS(mp_comm_type), INTENT(IN) :: comm_old
          INTEGER, INTENT(IN)                      :: ndims
-         INTEGER, INTENT(INOUT), CONTIGUOUS                   :: dims(:)
+         INTEGER, INTENT(INOUT)                   :: dims(ndims)
          CLASS(mp_cart_type), INTENT(OUT) :: comm_cart
 
          CHARACTER(len=*), PARAMETER :: routineN = 'mp_cart_create'
 
-         INTEGER                                  :: handle, ierr, nodes
+         INTEGER                                  :: handle, ierr
 #if defined(__parallel)
          LOGICAL, DIMENSION(1:ndims)              :: period
          LOGICAL                                  :: reorder
@@ -1490,14 +1494,10 @@ CONTAINS
          ierr = 0
          CALL mp_timeset(routineN, handle)
 
-         nodes = 0
          comm_cart%handle = comm_old%handle
 #if defined(__parallel)
 
-         CALL mpi_comm_size(comm_old%handle, nodes, ierr)
-         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_size @ mp_cart_create")
-
-         IF (ANY(dims == 0)) CALL mpi_dims_create(nodes, ndims, dims, ierr)
+         IF (ANY(dims == 0)) CALL mpi_dims_create(comm_old%num_pe, ndims, dims, ierr)
          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_dims_create @ mp_cart_create")
 
          ! FIX ME.  Quick hack to avoid problems with realspace grids for compilers
@@ -1519,6 +1519,33 @@ CONTAINS
          CALL mp_timestop(handle)
 
       END SUBROUTINE mp_cart_create
+
+      ELEMENTAL IMPURE SUBROUTINE mp_cart_init(comm, owns_group)
+         CLASS(mp_cart_type), INTENT(INOUT) :: comm
+         LOGICAL, INTENT(IN), OPTIONAL :: owns_group
+
+         MARK_USED(owns_group)
+
+         CALL comm%mp_comm_type%init()
+
+         IF (ALLOCATED(comm%periodic)) DEALLOCATE (comm%periodic)
+         IF (ALLOCATED(comm%mepos_cart)) DEALLOCATE (comm%mepos_cart)
+         IF (ALLOCATED(comm%num_pe_cart)) DEALLOCATE (comm%num_pe_cart)
+
+         ASSOCIATE (ndims => comm%ndims)
+
+            ALLOCATE (comm%periodic(ndims), comm%mepos_cart(ndims), &
+                      comm%num_pe_cart(ndims))
+         END ASSOCIATE
+
+         comm%mepos_cart = 0
+         comm%periodic = .FALSE.
+         IF (comm%handle /= mp_comm_null_handle) THEN
+            CALL comm%get_info_cart(comm%num_pe_cart, comm%mepos_cart, &
+                                    comm%periodic)
+         END IF
+
+      END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief wrapper to MPI_Cart_coords
@@ -1656,6 +1683,12 @@ CONTAINS
          comm%handle = mp_comm_null_handle
 #endif
          debug_comm_count = debug_comm_count - 1
+
+         SELECT TYPE (comm)
+         CLASS IS (mp_cart_type)
+            DEALLOCATE (comm%periodic, comm%mepos_cart, comm%num_pe_cart)
+         END SELECT
+
          CALL mp_timestop(handle)
 
       END SUBROUTINE mp_comm_free
@@ -1715,10 +1748,14 @@ CONTAINS
          CLASS(mp_comm_type), INTENT(INOUT) :: comm
          LOGICAL, INTENT(IN), OPTIONAL :: owns_group
 
-! No initialization necessary for mp_comm_type
-         MARK_USED(comm)
-! The mp_comm_type do not care about ownership yet, this is just relevant for cp_para_*_type
+         ! The mp_comm_type does not care about ownership yet, this is just relevant for cp_para_*_type
          MARK_USED(owns_group)
+
+         IF (comm%handle /= mp_comm_null_handle) THEN
+            comm%source = 0
+            CALL comm%get_size(comm%num_pe)
+            CALL comm%get_rank(comm%mepos)
+         END IF
 
       END SUBROUTINE
 

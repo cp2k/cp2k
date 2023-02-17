@@ -133,8 +133,8 @@ CONTAINS
 
       ! parallel info
       CALL pw_grid%para%group%from_dup(pe_group)
-      CALL pw_grid%para%group%get_size(pw_grid%para%group_size)
-      CALL pw_grid%para%group%get_rank(pw_grid%para%my_pos)
+      pw_grid%para%group_size = pw_grid%para%group%num_pe
+      pw_grid%para%my_pos = pw_grid%para%group%mepos
       pw_grid%para%group_head_id = 0
       pw_grid%para%group_head = &
          (pw_grid%para%group_head_id == pw_grid%para%my_pos)
@@ -833,8 +833,8 @@ CONTAINS
          mp_comm_old = mp_comm_self
          CALL pw_grid%para%rs_group%create(mp_comm_old, 2, &
                                            pw_grid%para%rs_dims)
-         CALL pw_grid%para%rs_group%get_info_cart(pw_grid%para%rs_dims, &
-                                                  pw_grid%para%rs_pos)
+         pw_grid%para%rs_dims = pw_grid%para%rs_group%num_pe_cart
+         pw_grid%para%rs_pos = pw_grid%para%rs_group%mepos_cart
          CALL pw_grid%para%rs_group%rank_cart(pw_grid%para%rs_pos, pw_grid%para%rs_mpo)
          pw_grid%para%group_size = 1
          ALLOCATE (pw_grid%para%bo(2, 3, 0:0, 3))
@@ -918,8 +918,8 @@ CONTAINS
          !..create group for real space distribution
          CALL pw_grid%para%rs_group%create(pw_grid%para%group, 2, &
                                            pw_grid%para%rs_dims)
-         CALL pw_grid%para%rs_group%get_info_cart(pw_grid%para%rs_dims, &
-                                                  pw_grid%para%rs_pos)
+         pw_grid%para%rs_dims = pw_grid%para%rs_group%num_pe_cart
+         pw_grid%para%rs_pos = pw_grid%para%rs_group%mepos_cart
          CALL pw_grid%para%rs_group%rank_cart(pw_grid%para%rs_pos, pw_grid%para%rs_mpo)
 
          IF (PRESENT(bounds_local)) THEN

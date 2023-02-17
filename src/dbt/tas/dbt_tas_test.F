@@ -115,8 +115,8 @@ CONTAINS
          mp_comm_out = dbt_tas_mp_comm(mp_comm, nrows, ncols)
       END IF
 
-      CALL mp_comm_out%get_rank(mynode)
-      CALL mp_comm_out%get_info_cart(pdims)
+      mynode = mp_comm_out%mepos
+      pdims = mp_comm_out%num_pe_cart
 
       row_dist_obj = dbt_tas_dist_cyclic(dist_splitsize(1), pdims(1), nrows)
       col_dist_obj = dbt_tas_dist_cyclic(dist_splitsize(2), pdims(2), ncols)
@@ -343,7 +343,7 @@ CONTAINS
 !
 
       CALL dbt_tas_get_split_info(dbt_tas_info(matrix_a), mp_comm=mp_comm)
-      CALL mp_comm%get_rank(mynode)
+      mynode = mp_comm%mepos
       abort = .FALSE.
       io_unit = -1
       IF (mynode .EQ. 0) io_unit = unit_nr

@@ -142,7 +142,7 @@ CONTAINS
 
       CALL dbt_tas_get_split_info(matrix%dist%info, mp_comm, ngroup, igroup, mp_comm_group, split_rowcol)
       CALL dbt_tas_get_info(matrix, name=name)
-      CALL mp_comm%get_size(nproc)
+      nproc = mp_comm%num_pe
 
       nblock = dbt_tas_get_num_blocks(matrix)
       nelement = dbt_tas_get_nze(matrix)
@@ -232,9 +232,9 @@ CONTAINS
 
       CALL dbt_tas_get_split_info(info, mp_comm, nsplit, igroup, mp_comm_group, split_rowcol, pgrid_offset)
 
-      CALL mp_comm%get_rank(mynode)
-      CALL mp_comm%get_info_cart(dims)
-      CALL mp_comm_group%get_info_cart(groupdims)
+      mynode = mp_comm%mepos
+      dims = mp_comm%num_pe_cart
+      groupdims = mp_comm_group%num_pe_cart
 
       IF (unit_nr_prv > 0) THEN
          SELECT CASE (split_rowcol)
