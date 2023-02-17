@@ -345,7 +345,7 @@ CONTAINS
 
          ! Create the subgroups, one for each k-point group and one interconnecting group
          CALL comm_cart%create(comm_old=para_env, ndims=2, dims=dims)
-         CALL comm_cart%get_info_cart(task_coor=pos)
+         pos = comm_cart%mepos_cart
          ALLOCATE (para_env_kp)
          CALL para_env_kp%from_split(comm_cart, pos(2))
          ALLOCATE (para_env_inter_kp)

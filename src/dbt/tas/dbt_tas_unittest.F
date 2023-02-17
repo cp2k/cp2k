@@ -53,7 +53,7 @@ PROGRAM dbt_tas_unittest
 
    CALL mp_world_init(mp_comm)
 
-   CALL mp_comm%get_rank(mynode)
+   mynode = mp_comm%mepos
 
    ! Select active offload device when available.
    IF (offload_get_device_count() > 0) THEN

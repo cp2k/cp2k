@@ -24,8 +24,7 @@ MODULE dbt_test
    USE dbt_block, ONLY: block_nd
    USE dbt_types, ONLY: &
       dbt_create, dbt_destroy, dbt_type, dbt_distribution_type, &
-      dbt_distribution_destroy, &
-      dims_tensor, ndims_tensor, dbt_distribution_new, dbt_nd_mp_comm, &
+      dbt_distribution_destroy, dims_tensor, ndims_tensor, dbt_distribution_new, &
       mp_environ_pgrid, dbt_pgrid_type, dbt_pgrid_create, dbt_pgrid_destroy, dbt_get_info, &
       dbt_default_distvec
    USE dbt_io, ONLY: &
@@ -201,7 +200,7 @@ CONTAINS
       ! Process grid
       pdims(:) = 0
       CALL dbt_pgrid_create(mp_comm, pdims, comm_nd)
-      CALL mp_comm%get_rank(mynode)
+      mynode = mp_comm%mepos
 
       io_unit = 0
       IF (mynode .EQ. 0) io_unit = unit_nr
@@ -259,7 +258,7 @@ CONTAINS
             ALLOCATE (map1, source=perm(1:isep, iperm))
             ALLOCATE (map2, source=perm(isep + 1:ndims, iperm))
 
-            CALL mp_comm%get_rank(mynode)
+            mynode = mp_comm%mepos
             CALL mp_environ_pgrid(comm_nd, pdims, myploc)
 
             #:for dim in range(1, maxdim+1)
@@ -387,7 +386,7 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: blk_index_2d, nblks_2d
 
       nblks_alloc = SIZE(blk_ind_1)
-      CALL mp_comm%get_rank(mynode)
+      mynode = mp_comm%mepos
 
       IF (.NOT. enumerate) THEN
          CPASSERT(randmat_counter .NE. 0)
@@ -619,7 +618,7 @@ CONTAINS
             LOGICAL                             :: do_crop_1, do_crop_2
 
             mp_comm = tensor_1%pgrid%mp_comm_2d
-            CALL mp_comm%get_rank(mynode)
+            mynode = mp_comm%mepos
             io_unit = -1
             IF (mynode .EQ. 0) io_unit = unit_nr
 

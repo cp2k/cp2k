@@ -533,8 +533,8 @@ CONTAINS
                                      n_subgroups=2, group_partition=master_slave_partition)
          DEALLOCATE (master_slave_partition)
          DEALLOCATE (group_distribution)
-         CALL slave_group%get_size(num_slaves)
-         CALL slave_group%get_rank(slave_rank)
+         num_slaves = slave_group%num_pe
+         slave_rank = slave_group%mepos
 
          IF (para_env%mepos == 0) THEN
             slave = .FALSE.
@@ -549,8 +549,8 @@ CONTAINS
          ! all processes are slaves
          IF (output_unit > 0) WRITE (output_unit, FMT="(T2,A)") "FARMING| using a slave-only setup"
          CALL slave_group%from_dup(para_env)
-         CALL slave_group%get_size(num_slaves)
-         CALL slave_group%get_rank(slave_rank)
+         num_slaves = slave_group%num_pe
+         slave_rank = slave_group%mepos
       END IF
       IF (output_unit > 0) WRITE (output_unit, FMT="(T2,A,I0)") "FARMING| number of slaves ", num_slaves
 
@@ -586,7 +586,7 @@ CONTAINS
          ELSE
             CPABORT("must set either group_size_wish or ngroup_wish")
          END IF
-         CALL new_group%get_rank(new_rank)
+         new_rank = new_group%mepos
       END IF
 
       ! transfer the info about the slave group distribution to the master

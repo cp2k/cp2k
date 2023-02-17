@@ -103,12 +103,12 @@ CONTAINS
 
       CALL mp_comm_group%from_split(mp_comm, igroup)
 
-      CALL mp_comm%get_rank(iproc)
-      CALL mp_comm%get_info_cart(pdims)
+      iproc = mp_comm%mepos
+      pdims = mp_comm%num_pe_cart
       split_info%pdims = pdims
 
-      CALL mp_comm_group%get_size(numproc_group)
-      CALL mp_comm_group%get_rank(iproc_group)
+      numproc_group = mp_comm_group%num_pe
+      iproc_group = mp_comm_group%mepos
 
       IF (iproc == 0) THEN
          to_assert = MOD(numproc_group, pdims(MOD(split_rowcol, 2) + 1)) == 0
@@ -129,7 +129,7 @@ CONTAINS
 
       CALL split_info%mp_comm_group%create(mp_comm_group, 2, pdims_group)
 
-      CALL split_info%mp_comm_group%get_rank(iproc_group_check)
+      iproc_group_check = split_info%mp_comm_group%mepos
 
       CPASSERT(iproc_group_check .EQ. iproc_group)
 
@@ -163,7 +163,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL mp_comm%get_size(numproc)
+      numproc = mp_comm%num_pe
 
       npdims = dbt_tas_mp_dims(numproc, split_rowcol, nsplit)
 
@@ -352,8 +352,9 @@ CONTAINS
 
       CPASSERT(nsplit > 0)
 
-      CALL mp_comm%get_rank(iproc)
-      CALL mp_comm%get_info_cart(pdims, pcoord)
+      iproc = mp_comm%mepos
+      pdims = mp_comm%num_pe_cart
+      pcoord = mp_comm%mepos_cart
 
       SELECT CASE (split_rowcol)
       CASE (rowsplit)

@@ -236,7 +236,7 @@ CONTAINS
       INTEGER                                            :: i, length, mepos
       TYPE(message_entry_type), POINTER                  :: curr_entry
 
-      CALL group%get_rank(mepos)
+      mepos = group%mepos
 
       IF (mepos /= src .AND. ASSOCIATED(msg%root)) CPABORT("message not empty")
       length = swarm_message_length(msg)

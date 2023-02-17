@@ -934,7 +934,7 @@ CONTAINS
       iproc = para_env_sub%mepos ! subgroup-local process ID
 
       ! Total number of processes and global process ID
-      CALL mp_comm%get_rank(iproc_glob)
+      iproc_glob = mp_comm%mepos
 
       ! local block index for R/P and a
       loc_P = igroup + 1; loc_a = iproc + 1

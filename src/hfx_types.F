@@ -1204,7 +1204,7 @@ CONTAINS
 
       natom = SIZE(particle_set)
       nkind = SIZE(qs_kind_set, 1)
-      CALL para_env%get_size(nproc)
+      nproc = para_env%num_pe
 
       ASSOCIATE (ri_metric => ri_data%ri_metric, hfx_pot => ri_data%hfx_pot)
          IF (ri_metric%potential_type == do_potential_short) THEN

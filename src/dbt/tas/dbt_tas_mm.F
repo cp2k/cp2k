@@ -252,7 +252,7 @@ CONTAINS
       END IF
 
       CALL dbt_tas_get_split_info(dbt_tas_info(matrix_a), mp_comm=mp_comm)
-      CALL mp_comm%get_size(numproc)
+      numproc = mp_comm%num_pe
 
       ! derive optimal matrix layout and split factor from occupancies
       nze_a = dbt_tas_get_nze_total(matrix_a)
@@ -405,8 +405,8 @@ CONTAINS
 
       CALL dbt_tas_get_split_info(info, nsplit=nsplit, mp_comm=mp_comm, mp_comm_group=mp_comm_group)
 
-      CALL mp_comm%get_size(numproc)
-      CALL mp_comm_group%get_info_cart(pdims_sub)
+      numproc = mp_comm%num_pe
+      pdims_sub = mp_comm_group%num_pe_cart
 
       opt_pgrid = .NOT. accept_pgrid_dims(pdims_sub, relative=.TRUE.)
 
@@ -850,7 +850,7 @@ CONTAINS
          nodata_prv = .FALSE.
       END IF
 
-      CALL mp_comm%get_info_cart(pdims)
+      pdims = mp_comm%num_pe_cart
 
       dims = [dbt_tas_nblkrows_total(matrix_in), dbt_tas_nblkcols_total(matrix_in)]
 
@@ -1050,7 +1050,7 @@ CONTAINS
             comm_new = dbt_tas_mp_comm(mp_comm, rowsplit, nsplit_prv)
             CALL dbt_tas_create_split(split_info, comm_new, rowsplit, nsplit_prv)
 
-            CALL comm_new%get_info_cart(pdims)
+            pdims = comm_new%num_pe_cart
 
             ! use a very simple cyclic distribution that may not be load balanced if block
             ! sizes are not equal. However we can not use arbitrary distributions
@@ -1264,9 +1264,9 @@ CONTAINS
       ! check if communicators are equivalent
       ! Note: mpi_comm_compare is not sufficient since this does not compare associated Cartesian grids.
       ! It's sufficient to check dimensions of global grid, subgrids will be determined later on (change_split)
-      CALL info_b%mp_comm%get_size(numproc)
-      CALL info_a%mp_comm%get_info_cart(pdims_a)
-      CALL info_b%mp_comm%get_info_cart(pdims_b)
+      numproc = info_b%mp_comm%num_pe
+      pdims_a = info_a%mp_comm%num_pe_cart
+      pdims_b = info_b%mp_comm%num_pe_cart
       IF (.NOT. array_eq(pdims_a, pdims_b)) THEN
          IF (unit_nr_prv > 0) THEN
             WRITE (unit_nr_prv, *) "mp dims not compatible:", pdims_a, "|", pdims_b
@@ -1347,7 +1347,7 @@ CONTAINS
       transposed = dim_split_template .NE. dim_split_matrix
       IF (transposed) trans = .NOT. trans
 
-      CALL info_template%mp_comm%get_info_cart(pdims)
+      pdims = info_template%mp_comm%num_pe_cart
 
       SELECT CASE (dim_split_template)
       CASE (1)
@@ -1619,7 +1619,7 @@ CONTAINS
       nbrows = SIZE(rbsize)
       nbcols = SIZE(rcsize)
       dist_old = dbm_get_distribution(matrix_in)
-      CALL mp_comm_cart%get_info_cart(pdims)
+      pdims = mp_comm_cart%num_pe_cart
 
       ALLOCATE (row_dist(nbrows), col_dist(nbcols))
       CALL dbt_tas_default_distvec(nbrows, pdims(1), rbsize, row_dist)

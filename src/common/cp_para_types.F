@@ -27,10 +27,6 @@ MODULE cp_para_types
 
 ! **************************************************************************************************
 !> \brief stores all the informations relevant to an mpi environment
-!> \param mepos rank of the actual processor
-!> \param num_pe number of processors in the communicator
-!> \param source rank of a special processor (for example the one for i-o,
-!>        or the master
 !> \param owns_group if it owns the group (and thus should free it when
 !>        this object is deallocated)
 !> \param ref_count the reference count, when it is zero this object gets
@@ -41,9 +37,8 @@ MODULE cp_para_types
 ! **************************************************************************************************
    TYPE, EXTENDS(mp_comm_type) :: cp_para_env_type
       PRIVATE
-      ! We set it to true because to have less initialization steps in case we create a new communicator
+      ! We set it to true to have less initialization steps in case we create a new communicator
       LOGICAL :: owns_group = .TRUE.
-      INTEGER, PUBLIC :: mepos = -1, source = -1, num_pe = -1
       INTEGER :: ref_count = -1
    CONTAINS
       PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_comm_init => cp_para_env_init
@@ -66,9 +61,9 @@ MODULE cp_para_types
 
 ! **************************************************************************************************
 !> \brief represent a multidimensional parallel environment
-!> \param mepos the position of the actual processor
-!> \param num_pe number of processors in the group in each dimension
-!> \param source id of a special processor (for example the one for i-o,
+!> \param mepos_cart the position of the actual processor
+!> \param num_pe_cart number of processors in the group in each dimension
+!> \param source_cart id of a special processor (for example the one for i-o,
 !>        or the master
 !> \param owns_group if it owns the group (and thus should free it when
 !>        this object is deallocated)
@@ -82,11 +77,8 @@ MODULE cp_para_types
 ! **************************************************************************************************
    TYPE, EXTENDS(mp_cart_type) :: cp_para_cart_type
       PRIVATE
-      ! We set it to true because to have less initialization steps in case we create a new communicator
+      ! We set it to true to have less initialization steps in case we create a new communicator
       LOGICAL :: owns_group = .TRUE.
-      INTEGER, PUBLIC :: rank = -1, ntask = -1
-      INTEGER, DIMENSION(:), ALLOCATABLE, PUBLIC :: mepos, source, num_pe
-      LOGICAL, DIMENSION(:), ALLOCATABLE, PUBLIC :: periodic
       INTEGER :: ref_count = -1
    CONTAINS
       PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_comm_free => cp_para_cart_free
@@ -105,12 +97,11 @@ CONTAINS
       CLASS(cp_para_env_type), INTENT(INOUT)                  :: comm
       LOGICAL, INTENT(IN), OPTIONAL :: owns_group
 
-      IF (PRESENT(owns_group)) comm%owns_group = owns_group
+      CALL comm%mp_comm_type%init()
 
-      comm%source = 0
+      IF (PRESENT(owns_group)) comm%owns_group = owns_group
       comm%ref_count = 1
-      CALL comm%mp_comm_type%get_size(comm%num_pe)
-      CALL comm%mp_comm_type%get_rank(comm%mepos)
+
    END SUBROUTINE cp_para_env_init
 
 ! **************************************************************************************************
@@ -172,23 +163,11 @@ CONTAINS
       CLASS(cp_para_cart_type), INTENT(INOUT)             :: comm
       LOGICAL, INTENT(IN), OPTIONAL :: owns_group
 
-      INTEGER :: ndims
+      CALL comm%mp_cart_type%init()
 
       IF (PRESENT(owns_group)) comm%owns_group = owns_group
-      ndims = comm%get_ndims()
 
-      ALLOCATE (comm%source(ndims), comm%periodic(ndims), comm%mepos(ndims), &
-                comm%num_pe(ndims))
-
-      comm%source = 0
-      comm%mepos = 0
-      comm%periodic = .FALSE.
       comm%ref_count = 1
-      comm%ntask = 1
-      CALL comm%get_info_cart(comm%num_pe, comm%mepos, &
-                              comm%periodic)
-      CALL comm%get_size(comm%ntask)
-      CALL comm%get_rank(comm%rank)
    END SUBROUTINE cp_para_cart_init
 
 ! **************************************************************************************************
@@ -223,9 +202,11 @@ CONTAINS
 
       comm%ref_count = comm%ref_count - 1
       IF (comm%ref_count <= 0) THEN
-         IF (comm%owns_group) CALL comm%mp_cart_type%free()
-
-         DEALLOCATE (comm%source, comm%periodic, comm%mepos, comm%num_pe)
+         IF (comm%owns_group) THEN
+            CALL comm%mp_cart_type%free()
+         ELSE
+            DEALLOCATE (comm%periodic, comm%mepos_cart, comm%num_pe_cart)
+         END IF
       END IF
 
    END SUBROUTINE cp_para_cart_free

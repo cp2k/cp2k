@@ -132,7 +132,7 @@ CONTAINS
       unit_nr_prv = prep_output_unit(unit_nr)
       IF (unit_nr_prv == 0) RETURN
 
-      CALL tensor%pgrid%mp_comm_2d%get_size(nproc)
+      nproc = tensor%pgrid%mp_comm_2d%num_pe
 
       nblock = dbt_get_num_blocks(tensor)
       nelement = dbt_get_nze(tensor)
@@ -190,7 +190,7 @@ CONTAINS
       DO WHILE (dbt_iterator_blocks_left(iterator))
          CALL dbt_iterator_next_block(iterator, blk_index, blk_size=blk_size)
          CALL dbt_get_stored_coordinates(tensor, blk_index, proc)
-         CALL tensor%pgrid%mp_comm_2d%get_rank(mynode)
+         mynode = tensor%pgrid%mp_comm_2d%mepos
          CPASSERT(proc .EQ. mynode)
          #:for ndim in ndims
             IF (ndims_tensor(tensor) == ${ndim}$) THEN
@@ -284,7 +284,7 @@ CONTAINS
             DO WHILE (dbt_iterator_blocks_left(iterator))
                CALL dbt_iterator_next_block(iterator, blk_index, blk_size=blk_size)
                CALL dbt_get_stored_coordinates(tensor, blk_index, proc)
-               CALL tensor%pgrid%mp_comm_2d%get_rank(mynode)
+               mynode = tensor%pgrid%mp_comm_2d%mepos
                CPASSERT(proc .EQ. mynode)
                #:for ndim in ndims
                   IF (ndims_tensor(tensor) == ${ndim}$) THEN

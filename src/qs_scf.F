@@ -439,8 +439,8 @@ CONTAINS
             CALL cp_abort(__LOCATION__, &
                           " Trying to access result ("//TRIM(description)// &
                           ") which is not correctly stored.")
+         CALL external_comm%set_handle(NINT(res_val_3(1)))
       END IF
-      CALL external_comm%set_handle(NINT(res_val_3(1)))
       ext_master_id = NINT(res_val_3(2))
       scf_energy_message_tag = NINT(res_val_3(3))
 

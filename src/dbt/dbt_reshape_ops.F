@@ -94,7 +94,7 @@ CONTAINS
       IF (.NOT. summation_prv) CALL dbt_clear(tensor_out)
 
       mp_comm = tensor_in%pgrid%mp_comm_2d
-      CALL mp_comm%get_size(numnodes)
+      numnodes = mp_comm%num_pe
       ALLOCATE (buffer_send(0:numnodes - 1), buffer_recv(0:numnodes - 1))
       ALLOCATE (nblks_send_total(0:numnodes - 1), ndata_send_total(0:numnodes - 1), source=0)
       ALLOCATE (nblks_recv_total(0:numnodes - 1), ndata_recv_total(0:numnodes - 1), source=0)
@@ -235,7 +235,7 @@ CONTAINS
       INTEGER                                               :: handle
 
       CALL timeset(routineN, handle)
-      CALL mp_comm%get_size(numnodes)
+      numnodes = mp_comm%num_pe
 
       IF (numnodes > 1) THEN
 !$OMP MASTER

@@ -233,7 +233,7 @@ CONTAINS
       IF (oi_env%fm_env%group_size > para_env%num_pe) oi_env%fm_env%group_size = para_env%num_pe
 
       CALL mpi_comm_slave%from_split(mpi_comm_master, n_groups, group_distribution, subgroup_min_size=oi_env%fm_env%group_size)
-      CALL mpi_comm_slave%get_rank(mepos_slave)
+      mepos_slave = mpi_comm_slave%mepos
       color = 0
       IF (mepos_slave == 0) color = 1
       CALL mpi_comm_slave_primus%from_split(mpi_comm_master, color)
