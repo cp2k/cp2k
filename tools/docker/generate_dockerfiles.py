@@ -193,15 +193,20 @@ RUN ./test_coverage.sh "{version}" 2>&1 | tee report.log
 # ======================================================================================
 def conventions() -> str:
     return (
-        install_cp2k(version="psmp", arch="local_warn")
-        + rf"""
+        rf"""
 # Run test for conventions.
-COPY ./arch/Linux-x86-64-gfortran.dumpast ./arch/
+WORKDIR /opt/cp2k
+COPY ./Makefile .
+COPY ./src ./src
+COPY ./exts ./exts
+COPY ./tools/build_utils ./tools/build_utils
 COPY ./tools/conventions ./tools/conventions
-WORKDIR ./tools/conventions
+COPY ./arch/Linux-x86-64-gfortran.dumpast ./arch/
 RUN /bin/bash -ec " \
+    ln -vs /opt/cp2k-toolchain/install/arch/local_warn.psmp ./arch/ && \
     source /opt/cp2k-toolchain/install/setup && \
-   ./test_conventions.sh |& tee report.log"
+    ./tools/conventions/test_conventions.sh |& tee report.log && \
+    rm -rf lib obj exe"
 """
         + print_cached_report()
     )
@@ -358,6 +363,7 @@ def install_cp2k(
         run_lines.append(f"rm -rf lib obj exe/{arch}/libcp2k_unittest.{version}")
     else:
         run_lines.append(f"( {build_command} &> /dev/null || true )")
+        run_lines.append(f"rm -rf lib obj")
 
     # Ensure MPI is dynamically linked, which is needed e.g. for Shifter.
     if version.startswith("p"):

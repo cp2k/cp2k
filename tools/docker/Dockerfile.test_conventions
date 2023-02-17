@@ -59,30 +59,19 @@ COPY ./tools/toolchain/scripts/arch_base.tmpl \
      ./scripts/
 RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 
-# Install CP2K using local_warn.psmp.
+# Run test for conventions.
 WORKDIR /opt/cp2k
 COPY ./Makefile .
 COPY ./src ./src
 COPY ./exts ./exts
 COPY ./tools/build_utils ./tools/build_utils
-RUN /bin/bash -c " \
-    mkdir -p arch && \
-    ln -vs /opt/cp2k-toolchain/install/arch/local_warn.psmp ./arch/ && \
-    echo 'Compiling cp2k...' && \
-    source /opt/cp2k-toolchain/install/setup && \
-    ( make -j ARCH=local_warn VERSION=psmp &> /dev/null || true ) && \
-    ( [ ! -f ./exe/local_warn/cp2k.psmp ] || ldd ./exe/local_warn/cp2k.psmp | grep -q libmpi )"
-COPY ./data ./data
-COPY ./tests ./tests
-COPY ./tools/regtesting ./tools/regtesting
-
-# Run test for conventions.
-COPY ./arch/Linux-x86-64-gfortran.dumpast ./arch/
 COPY ./tools/conventions ./tools/conventions
-WORKDIR ./tools/conventions
+COPY ./arch/Linux-x86-64-gfortran.dumpast ./arch/
 RUN /bin/bash -ec " \
+    ln -vs /opt/cp2k-toolchain/install/arch/local_warn.psmp ./arch/ && \
     source /opt/cp2k-toolchain/install/setup && \
-   ./test_conventions.sh |& tee report.log"
+    ./tools/conventions/test_conventions.sh |& tee report.log && \
+    rm -rf lib obj exe"
 
 # Output the report if the image is old and was therefore pulled from the build cache.
 CMD cat $(find ./report.log -mmin +10) | sed '/^Summary:/ s/$/ (cached)/'
