@@ -34,8 +34,8 @@
 
     &SCF
        SCF_GUESS ATOMIC 
-       EPS_SCF 5.0E-5
-       MAX_SCF 15
+       EPS_SCF 1.0E-4
+       MAX_SCF 20
        &OT
          MINIMIZER DIIS
          PRECONDITIONER FULL_SINGLE_INVERSE
@@ -43,25 +43,20 @@
          ROTATION
        &END
        &OUTER_SCF
-          EPS_SCF 5.0E-5
-          MAX_SCF 5
+          EPS_SCF 1.0E-4
+          MAX_SCF 3
        &END
     &END SCF
 
     &XC
-      &XC_FUNCTIONAL PBE
+      &XC_FUNCTIONAL PADE
       &END XC_FUNCTIONAL
     &END XC
-    &POISSON
-     POISSON_SOLVER MT
-     PERIODIC NONE
-    &END POISSON
   &END DFT
 
   &SUBSYS
     &CELL
       ABC 5.0 5.0 5.0
-      PERIODIC NONE
     &END CELL
 
     &COORD
@@ -80,7 +75,7 @@
       POTENTIAL GTH-PBE-q4
     &END KIND
     &KIND H
-      BASIS_SET DZVP-GTH-PBE
+      BASIS_SET DZV-GTH-PBE
       POTENTIAL GTH-PBE-q1
     &END KIND
   &END SUBSYS
