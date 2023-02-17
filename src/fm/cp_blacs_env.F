@@ -14,7 +14,7 @@
 ! **************************************************************************************************
 MODULE cp_blacs_env
    USE cp_array_utils,                  ONLY: cp_2d_i_write
-   USE cp_context_types,                ONLY: cp_context_type
+   USE cp_blacs_types,                  ONLY: cp_blacs_type
    USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
@@ -53,7 +53,7 @@ MODULE cp_blacs_env
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   TYPE, EXTENDS(cp_context_type) :: cp_blacs_env_type
+   TYPE, EXTENDS(cp_blacs_type) :: cp_blacs_env_type
       INTEGER, DIMENSION(2) :: mepos = -1, num_pe = -1
       INTEGER :: my_pid = -1, n_pid = -1, ref_count = -1
       TYPE(cp_para_env_type), POINTER :: para_env => NULL()
@@ -212,7 +212,6 @@ CONTAINS
          END SELECT
       END IF
 
-      ! blacs_env will be set to the blacs context for this blacs env, this is not the same as the MPI context
       my_row_major = .TRUE.
       IF (PRESENT(row_major)) my_row_major = row_major
       IF (my_row_major) THEN

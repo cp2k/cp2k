@@ -15,19 +15,19 @@
 !>      12.2003 created [Joost]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
-MODULE cp_context_types
+MODULE cp_blacs_types
 
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_comm_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_context_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_blacs_types'
    PRIVATE
 
-   PUBLIC :: cp_context_type
+   PUBLIC :: cp_blacs_type
 
-   TYPE cp_context_type
+   TYPE cp_blacs_type
       PRIVATE
 #if defined(__SCALAPACK)
       INTEGER :: context_handle = -1
@@ -62,7 +62,7 @@ CONTAINS
 !> \param npcol ...
 ! **************************************************************************************************
    SUBROUTINE cp_blacs_gridinit(this, comm, order, nprow, npcol)
-      CLASS(cp_context_type), INTENT(OUT) :: this
+      CLASS(cp_blacs_type), INTENT(OUT) :: this
       CLASS(mp_comm_type), INTENT(IN) :: comm
       CHARACTER(len=1), INTENT(IN):: order
       INTEGER, INTENT(IN)    :: nprow, npcol
@@ -85,7 +85,7 @@ CONTAINS
 !> \param this ...
 ! **************************************************************************************************
    SUBROUTINE cp_blacs_gridexit(this)
-      CLASS(cp_context_type), INTENT(IN) :: this
+      CLASS(cp_blacs_type), INTENT(IN) :: this
 #if defined(__SCALAPACK)
       CALL blacs_gridexit(this%context_handle)
 #else
@@ -102,7 +102,7 @@ CONTAINS
 !> \param mypcol ...
 ! **************************************************************************************************
    SUBROUTINE cp_blacs_gridinfo(this, nprow, npcol, myprow, mypcol)
-      CLASS(cp_context_type), INTENT(IN)  :: this
+      CLASS(cp_blacs_type), INTENT(IN)  :: this
       INTEGER, INTENT(OUT) :: nprow, npcol, myprow, mypcol
 #if defined(__SCALAPACK)
       CALL blacs_gridinfo(this%context_handle, nprow, npcol, myprow, mypcol)
@@ -129,7 +129,7 @@ CONTAINS
 !> \param val ...
 ! **************************************************************************************************
    SUBROUTINE cp_blacs_set(this, what, val)
-      CLASS(cp_context_type), INTENT(IN) :: this
+      CLASS(cp_blacs_type), INTENT(IN) :: this
       INTEGER, INTENT(IN)  :: what, val
 #if defined(__SCALAPACK)
       CALL blacs_set(this%context_handle, what, val)
@@ -151,7 +151,7 @@ CONTAINS
 !> \param LDA ...
 ! **************************************************************************************************
    SUBROUTINE cp_blacs_zgebs2d(this, SCOPE, TOP, M, N, A, LDA)
-      CLASS(cp_context_type), INTENT(IN)     :: this
+      CLASS(cp_blacs_type), INTENT(IN)     :: this
       CHARACTER(len=1), INTENT(IN) :: SCOPE, TOP
       INTEGER, INTENT(IN)     :: M, N, LDA
       COMPLEX(KIND=dp)            :: A
@@ -180,7 +180,7 @@ CONTAINS
 !> \param CSRC ...
 ! **************************************************************************************************
    SUBROUTINE cp_blacs_zgebr2d(this, SCOPE, TOP, M, N, A, LDA, RSRC, CSRC)
-      CLASS(cp_context_type), INTENT(IN)     :: this
+      CLASS(cp_blacs_type), INTENT(IN)     :: this
       CHARACTER(len=1), INTENT(IN) :: SCOPE, TOP
       INTEGER, INTENT(IN)     :: M, N, LDA
       INTEGER, INTENT(IN)     :: RSRC, CSRC
@@ -211,7 +211,7 @@ CONTAINS
 !> \param LDA ...
 ! **************************************************************************************************
    SUBROUTINE cp_blacs_dgebs2d(this, SCOPE, TOP, M, N, A, LDA)
-      CLASS(cp_context_type), INTENT(IN)     :: this
+      CLASS(cp_blacs_type), INTENT(IN)     :: this
       CHARACTER(len=1), INTENT(IN) :: SCOPE, TOP
       INTEGER, INTENT(IN)     :: M, N, LDA
       REAL(KIND=dp)               :: A
@@ -240,7 +240,7 @@ CONTAINS
 !> \param CSRC ...
 ! **************************************************************************************************
    SUBROUTINE cp_blacs_dgebr2d(this, SCOPE, TOP, M, N, A, LDA, RSRC, CSRC)
-      CLASS(cp_context_type), INTENT(IN)     :: this
+      CLASS(cp_blacs_type), INTENT(IN)     :: this
       CHARACTER(len=1), INTENT(IN) :: SCOPE, TOP
       INTEGER, INTENT(IN)     :: M, N, LDA
       INTEGER, INTENT(IN)     :: RSRC, CSRC
@@ -266,7 +266,7 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    ELEMENTAL INTEGER FUNCTION cp_blacs_get_handle(this)
-      CLASS(cp_context_type), INTENT(IN) :: this
+      CLASS(cp_blacs_type), INTENT(IN) :: this
 #if defined(__SCALAPACK)
       cp_blacs_get_handle = this%context_handle
 #else
@@ -282,7 +282,7 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    ELEMENTAL LOGICAL FUNCTION cp_context_is_equal(this, other)
-      CLASS(cp_context_type), INTENT(IN) :: this, other
+      CLASS(cp_blacs_type), INTENT(IN) :: this, other
 #if defined(__SCALAPACK)
       cp_context_is_equal = (this%context_handle == other%context_handle)
 #else
@@ -299,7 +299,7 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    ELEMENTAL LOGICAL FUNCTION cp_context_is_not_equal(this, other)
-      CLASS(cp_context_type), INTENT(IN) :: this, other
+      CLASS(cp_blacs_type), INTENT(IN) :: this, other
 #if defined(__SCALAPACK)
       cp_context_is_not_equal = (this%context_handle /= other%context_handle)
 #else
@@ -309,4 +309,4 @@ CONTAINS
 #endif
    END FUNCTION cp_context_is_not_equal
 
-END MODULE cp_context_types
+END MODULE cp_blacs_types

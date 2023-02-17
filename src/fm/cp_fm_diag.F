@@ -16,7 +16,7 @@
 ! **************************************************************************************************
 MODULE cp_fm_diag
 
-   USE cp_context_types, ONLY: cp_context_type
+   USE cp_blacs_types, ONLY: cp_blacs_type
    USE cp_blacs_env, ONLY: cp_blacs_env_type
    USE cp_fm_basic_linalg, ONLY: cp_fm_column_scale, &
                                  cp_fm_gemm, &
@@ -1043,7 +1043,7 @@ CONTAINS
       INTEGER, DIMENSION(9)                        :: desca, descz, desc_a_block, &
                                                       desc_ev_loc
       TYPE(mp_comm_type):: allgrp
-      TYPE(cp_context_type) :: ictxt_loc
+      TYPE(cp_blacs_type) :: ictxt_loc
       INTEGER, EXTERNAL :: numroc, indxl2g, indxg2l
 #endif
 
