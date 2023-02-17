@@ -35,7 +35,7 @@
 
     &SCF
        SCF_GUESS ATOMIC 
-       EPS_SCF 5.0E-4
+       EPS_SCF 5.0E-6
        MAX_SCF 20
        &OT
          MINIMIZER DIIS
@@ -44,14 +44,18 @@
          ROTATION
        &END
        &OUTER_SCF
-          EPS_SCF 5.0E-4
+          EPS_SCF 5.0E-6
           MAX_SCF 5
        &END
     &END SCF
 
     &XC
-      &XC_FUNCTIONAL PBE0
+#     &XC_FUNCTIONAL PBE0
+#     &END XC_FUNCTIONAL
+      &XC_FUNCTIONAL NONE
       &END XC_FUNCTIONAL
+      &HF
+      &END HF
     &END XC
     &POISSON
      POISSON_SOLVER MT
@@ -61,7 +65,7 @@
 
   &SUBSYS
     &CELL
-      ABC 5.0 5.0 5.0
+      ABC 4.0 4.0 4.0
       PERIODIC NONE
     &END CELL
 
@@ -73,17 +77,14 @@
     &END COORD
 
     &KIND O
-#      BASIS_SET DZVP-GTH-PBE
       BASIS_SET cFIT3
       POTENTIAL GTH-PBE-q6
     &END KIND
     &KIND C
-#      BASIS_SET DZVP-GTH-PBE
       BASIS_SET cFIT3
       POTENTIAL GTH-PBE-q4
     &END KIND
     &KIND H
-#      BASIS_SET DZVP-GTH-PBE
       BASIS_SET cFIT3
       POTENTIAL GTH-PBE-q1
     &END KIND
