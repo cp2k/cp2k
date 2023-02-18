@@ -149,6 +149,8 @@ async def main() -> None:
         elif any(re.fullmatch(p, batch.name) for p in cfg.skipdirs):
             num_skipdirs += 1
         else:
+            # Need to keep a reference of the task to protect it from garbage collection.
+            # asyncio.create_task not available before Python 3.7
             tasks.append(asyncio.get_event_loop().create_task(run_batch(batch, cfg)))
 
     if num_restrictdirs:
@@ -416,9 +418,7 @@ class Cp2kShell:
             self._child.terminate()  # Give mpiexec a chance to shutdown
         except ProcessLookupError:
             pass
-        # Read output to prevent a zombie process, but do it in the background.
-        # asyncio.create_task not available before Python 3.7
-        asyncio.get_event_loop().create_task(self._child.communicate())
+        await self._child.communicate()  # Read output to prevent a zombie process.
         self._child = None
 
     async def start(self) -> None:
