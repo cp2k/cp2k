@@ -64,7 +64,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'excited_state_energy'
       LOGICAL, PARAMETER                                 :: debug_forces = .FALSE.
 
-      INTEGER                                            :: handle, nkind, unit_nr
+      INTEGER                                            :: handle, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: natom_of_kind
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -96,8 +96,6 @@ CONTAINS
             END IF
             ! prepare force array
             CALL get_qs_env(qs_env, force=ks_force, atomic_kind_set=atomic_kind_set)
-            nkind = SIZE(atomic_kind_set)
-            ALLOCATE (natom_of_kind(nkind))
             CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom_of_kind=natom_of_kind)
             NULLIFY (lr_force)
             CALL allocate_qs_force(lr_force, natom_of_kind)

@@ -185,17 +185,15 @@ CONTAINS
                                                             iatom_local, ikind, imol, natom, &
                                                             natom_a, natom_local_a, natom_local_b, &
                                                             nel, nkind
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom2mol, listindex, listsort
-      INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind, local_cols_array, &
-                                                            local_rows_array
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom2mol, atom_of_kind, listindex, &
+                                                            listsort
+      INTEGER, DIMENSION(:), POINTER                     :: local_cols_array, local_rows_array
 
       CALL timeset(routineN, handle)
 
       nkind = SIZE(atomic_kind_set)
       natom = SIZE(particle_set)
-      ALLOCATE (atom_of_kind(natom))
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
-                               atom_of_kind=atom_of_kind)
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
 
       IF (molecule_only) THEN
          ALLOCATE (atom2mol(natom))
@@ -269,8 +267,6 @@ CONTAINS
          DEALLOCATE (listsort, listindex)
 
       END DO
-
-      DEALLOCATE (atom_of_kind)
 
       CALL timestop(handle)
 

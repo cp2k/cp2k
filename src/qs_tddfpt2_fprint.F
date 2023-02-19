@@ -113,8 +113,7 @@ CONTAINS
       LOGICAL, PARAMETER                                 :: debug_forces = .FALSE.
 
       INTEGER                                            :: handle, iounit, is, ispin, istate, iw, &
-                                                            iwunit, kstate, natom, nkind, nspins, &
-                                                            nstates
+                                                            iwunit, kstate, natom, nspins, nstates
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: alist, natom_of_kind, state_list
       REAL(KIND=dp)                                      :: eener, threshold
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -177,8 +176,6 @@ CONTAINS
 
          ! prepare force array
          CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, natom=natom)
-         nkind = SIZE(atomic_kind_set)
-         ALLOCATE (natom_of_kind(nkind))
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom_of_kind=natom_of_kind)
          NULLIFY (td_force, gs_force)
          CALL allocate_qs_force(gs_force, natom_of_kind)
@@ -259,7 +256,7 @@ CONTAINS
          CALL set_qs_env(qs_env, force=ks_force)
          CALL deallocate_qs_force(gs_force)
          CALL deallocate_qs_force(td_force)
-         DEALLOCATE (natom_of_kind, state_list)
+         DEALLOCATE (state_list)
 
          ex_env%state = kstate
          ex_env%evalue = eener

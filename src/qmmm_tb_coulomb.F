@@ -83,8 +83,8 @@ CONTAINS
       INTEGER                                            :: atom_i, atom_j, blk, ewald_type, handle, &
                                                             i, ia, iatom, ikind, jatom, jkind, &
                                                             natom, nmat
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(3)                              :: periodic
-      INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind, kind_of
       LOGICAL                                            :: found, use_virial
       REAL(KIND=dp)                                      :: alpha, deth, dfr, dr, fi, fr, gmij
       REAL(KIND=dp), DIMENSION(3)                        :: fij, rij
@@ -205,7 +205,6 @@ CONTAINS
       energy%qmmm_el = energy%qmmm_el + 0.5_dp*SUM(mcharge(:)*gmcharge(:, 1))
       !
       IF (calculate_forces) THEN
-         ALLOCATE (atom_of_kind(natom), kind_of(natom))
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
                                   kind_of=kind_of, &
                                   atom_of_kind=atom_of_kind)
@@ -259,9 +258,6 @@ CONTAINS
          END IF
       END IF
 
-      IF (calculate_forces) THEN
-         DEALLOCATE (atom_of_kind, kind_of)
-      END IF
       DEALLOCATE (gmcharge)
 
       CALL timestop(handle)

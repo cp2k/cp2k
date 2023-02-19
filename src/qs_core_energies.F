@@ -259,7 +259,6 @@ CONTAINS
       zeff(:) = 0.0_dp
 
       IF (calculate_forces) THEN
-         ALLOCATE (atom_of_kind(natom))
          CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
       END IF
 

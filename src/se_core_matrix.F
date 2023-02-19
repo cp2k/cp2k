@@ -86,8 +86,7 @@ CONTAINS
 
       INTEGER :: after, atom_a, atom_b, handle, i, iatom, icol, icor, ikind, inode, irow, itype, &
          iw, j, jatom, jkind, natom, natorb_a, nkind, nr_a, nra, nrb
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nrt
-      INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, nrt
       LOGICAL                                            :: defined, found, omit_headers, use_virial
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: se_defined
       REAL(KIND=dp)                                      :: delta, dr, econst, eheat, eisol, kh, &
@@ -166,8 +165,6 @@ CONTAINS
          IF (SIZE(matrix_p) == 2) THEN
             CALL dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
          END IF
-         natom = SIZE(particle_set)
-         ALLOCATE (atom_of_kind(natom))
          delta = dft_control%qs_control%se_control%delta
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
                                   atom_of_kind=atom_of_kind)

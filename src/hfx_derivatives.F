@@ -434,8 +434,6 @@ CONTAINS
 
       !! Get screening parameter
 
-      ALLOCATE (atom_of_kind(natom))
-      ALLOCATE (kind_of(natom))
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
                                atom_of_kind=atom_of_kind, &
                                kind_of=kind_of)

@@ -72,9 +72,9 @@ CONTAINS
       CHARACTER(*), PARAMETER :: routineN = 'calculate_lri_ks_matrix'
 
       INTEGER :: atom_a, atom_b, col, handle, i, iac, iatom, ic, ikind, ilist, jatom, jkind, &
-         jneighbor, mepos, natom, nba, nbb, nfa, nfb, nkind, nlist, nm, nn, nthread, row
+         jneighbor, mepos, nba, nbb, nfa, nfb, nkind, nlist, nm, nn, nthread, row
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       INTEGER, DIMENSION(3)                              :: cell
-      INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
       LOGICAL                                            :: found, trans, use_cell_mapping
       REAL(KIND=dp)                                      :: dab, fw, isn, isna, isnb, rab(3), &
                                                             threshold
@@ -89,7 +89,7 @@ CONTAINS
          POINTER                                         :: soo_list
 
       CALL timeset(routineN, handle)
-      NULLIFY (atom_of_kind, h_block, lrii, nl_iterator, soo_list)
+      NULLIFY (h_block, lrii, nl_iterator, soo_list)
 
       threshold = lri_env%eps_o3_int
 
@@ -105,10 +105,7 @@ CONTAINS
          nthread = 1
 !$       nthread = omp_get_max_threads()
 
-         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom=natom)
-         ALLOCATE (atom_of_kind(natom))
-         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
-                                  atom_of_kind=atom_of_kind)
+         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
          CALL neighbor_list_iterator_create(nl_iterator, soo_list, nthread=nthread)
 !$OMP PARALLEL DEFAULT(NONE)&
 !$OMP SHARED (nthread,nl_iterator,nkind,atom_of_kind,threshold,lri_env,lri_v_int,&
@@ -265,7 +262,6 @@ CONTAINS
          END DO
 
          CALL neighbor_list_iterator_release(nl_iterator)
-         DEALLOCATE (atom_of_kind)
 
       END IF
 
@@ -309,7 +305,6 @@ CONTAINS
       natom = SIZE(bas_ptr, 2)
       nbas = bas_ptr(2, natom)
       ALLOCATE (fvec(nbas), fout(nbas))
-      ALLOCATE (atom_of_kind(natom), kind_of(natom))
       CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
       DO iatom = 1, natom
          ikind = kind_of(iatom)
@@ -319,7 +314,6 @@ CONTAINS
          n = i2 - i1 + 1
          fvec(i1:i2) = lri_v_int(ikind)%v_int(atom_a, 1:n)
       END DO
-      DEALLOCATE (atom_of_kind, kind_of)
       ! f(T) * R^(-1)*n
       ftrm1n = SUM(fvec(:)*lri_env%ri_fit%rm1n(:))
       lri_env%ri_fit%ftrm1n(ispin) = ftrm1n

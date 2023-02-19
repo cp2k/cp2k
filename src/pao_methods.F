@@ -403,12 +403,10 @@ CONTAINS
 
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL get_qs_env(qs_env, &
                       matrix_s=matrix_s, &
-                      particle_set=particle_set, &
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set)
 
@@ -423,7 +421,6 @@ CONTAINS
       ! Can't use matrix_ks from ls_scf_qs_atomic_guess(), because it's not rotationally invariant.
       ! getting H0 directly from the atomic code
       CALL calculate_atomic_fock_matrix(pao%matrix_H0, &
-                                        particle_set, &
                                         atomic_kind_set, &
                                         qs_kind_set, &
                                         ounit=pao%iw)

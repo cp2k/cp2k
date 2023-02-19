@@ -207,7 +207,6 @@ CONTAINS
       natom = SIZE(particle_set)
       IF (calculate_forces) THEN
          CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, force=force)
-         ALLOCATE (atom_of_kind(natom))
          CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
       END IF
       ci = 0.0_dp
@@ -395,7 +394,6 @@ CONTAINS
          END DO
          CALL neighbor_list_iterator_release(nl_iterator)
          DEALLOCATE (basis_set_list)
-         DEALLOCATE (atom_of_kind)
       END IF
 
       CALL timestop(handle)

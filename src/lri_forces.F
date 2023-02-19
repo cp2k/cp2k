@@ -170,9 +170,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_v_dadr_sr'
 
       INTEGER :: atom_a, atom_b, handle, i, iac, iatom, ic, ikind, ilist, ispin, jatom, jkind, &
-         jneighbor, k, mepos, natom, nba, nbb, nfa, nfb, nkind, nlist, nn, nspin, nthread
+         jneighbor, k, mepos, nba, nbb, nfa, nfb, nkind, nlist, nn, nspin, nthread
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       INTEGER, DIMENSION(3)                              :: cell
-      INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
       LOGICAL                                            :: found, use_cell_mapping
       REAL(KIND=dp)                                      :: ai, dab, dfw, fw, isn, threshold
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: vint
@@ -197,7 +197,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (atom_of_kind, lri_coef, lri_force, lrii, lri_rho, lrho, &
+      NULLIFY (lri_coef, lri_force, lrii, lri_rho, lrho, &
                nl_iterator, pbij, pmat, soo_list, v_dadra, v_dadrb)
       NULLIFY (dssn, dsst, dtvec, sdssn, sdsst, sdt, st)
 
@@ -210,10 +210,7 @@ CONTAINS
 !$       nthread = omp_get_max_threads()
          use_cell_mapping = (SIZE(pmatrix, 2) > 1)
 
-         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom=natom)
-         ALLOCATE (atom_of_kind(natom))
-         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
-                                  atom_of_kind=atom_of_kind)
+         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
 
          DO ispin = 1, nspin
 
@@ -407,8 +404,6 @@ CONTAINS
 
          END DO
 
-         DEALLOCATE (atom_of_kind)
-
       END IF
 
       CALL timestop(handle)
@@ -440,9 +435,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_v_dadr_ff'
 
       INTEGER :: atom_a, atom_b, handle, i, iac, iatom, ic, ikind, ilist, ispin, jatom, jkind, &
-         jneighbor, k, mepos, natom, nba, nbb, nfa, nfb, nkind, nlist, nn, nspin, nthread
+         jneighbor, k, mepos, nba, nbb, nfa, nfb, nkind, nlist, nn, nspin, nthread
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       INTEGER, DIMENSION(3)                              :: cell
-      INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
       LOGICAL                                            :: found, use_cell_mapping
       REAL(KIND=dp)                                      :: ai, dab, dfw, fw, isna, isnb, threshold
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pab, wab, wbb
@@ -465,7 +460,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (atom_of_kind, lri_coef, lrii, lri_rho, lrho, &
+      NULLIFY (lri_coef, lrii, lri_rho, lrho, &
                nl_iterator, pbij, pmat, soo_list, v_dadra, v_dadrb)
 
       IF (ASSOCIATED(lri_env%soo_list)) THEN
@@ -477,10 +472,7 @@ CONTAINS
 !$       nthread = omp_get_max_threads()
          use_cell_mapping = (SIZE(pmatrix, 2) > 1)
 
-         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom=natom)
-         ALLOCATE (atom_of_kind(natom))
-         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
-                                  atom_of_kind=atom_of_kind)
+         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
 
          DO ispin = 1, nspin
 
@@ -663,8 +655,6 @@ CONTAINS
 
          END DO
 
-         DEALLOCATE (atom_of_kind)
-
       END IF
 
       CALL timestop(handle)
@@ -759,9 +749,9 @@ CONTAINS
 
       INTEGER                                            :: atom_a, atom_b, atom_c, handle, i, i1, &
                                                             i2, iatom, ikind, ispin, jatom, jkind, &
-                                                            katom, kkind, m, mepos, natom, nkind, &
-                                                            nspin, nthread
-      INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
+                                                            katom, kkind, m, mepos, nkind, nspin, &
+                                                            nthread
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       INTEGER, DIMENSION(:, :), POINTER                  :: bas_ptr
       REAL(KIND=dp)                                      :: fscal
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, force_c, rij, rik, rjk
@@ -783,8 +773,6 @@ CONTAINS
 
       bas_ptr => lri_env%ri_fit%bas_ptr
 
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom=natom)
-      ALLOCATE (atom_of_kind(natom))
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
 
       ! contribution from 3-center overlap integral derivatives
@@ -848,8 +836,6 @@ CONTAINS
       END DO
 !$OMP END PARALLEL
       CALL o3c_iterator_release(o3c_iterator)
-
-      DEALLOCATE (atom_of_kind)
 
       CALL timestop(handle)
 

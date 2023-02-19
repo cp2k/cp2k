@@ -335,12 +335,9 @@ CONTAINS
       nimages = dft_control%nimages
       CPASSERT(nimages == 1)
 
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of)
+
       natom = SIZE(particle_set, 1)
-      ALLOCATE (kind_of(natom))
-
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
-                               kind_of=kind_of)
-
       ALLOCATE (last_sgf_global(0:natom))
       last_sgf_global(0) = 0
       DO iatom = 1, natom
@@ -371,7 +368,7 @@ CONTAINS
          DEALLOCATE (actual_x_data%full_ks_beta)
       END IF
 
-      DEALLOCATE (kind_of, last_sgf_global)
+      DEALLOCATE (last_sgf_global)
 
    END SUBROUTINE scale_and_add_fock_to_ks_matrix
 

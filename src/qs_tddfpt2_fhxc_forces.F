@@ -1212,7 +1212,8 @@ CONTAINS
       ALLOCATE (last_sgf(natom))
       CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf, last_sgf=last_sgf)
 
-      CALL get_qs_env(qs_env, ks_env=ks_env, matrix_s=matrix_s, sab_orb=sab_orb)
+      CALL get_qs_env(qs_env, ks_env=ks_env, matrix_s=matrix_s, sab_orb=sab_orb, atomic_kind_set=atomic_kind_set)
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of, atom_of_kind=atom_of_kind)
 
       ! calculate Loewdin transformed Davidson trial vector tilde(X)=S^1/2*X
       ! and tilde(tilde(X))=S^1/2_A*tilde(X)_A
@@ -1250,11 +1251,6 @@ CONTAINS
          IF (do_coulomb) THEN
             !
             IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
-            !
-            ALLOCATE (kind_of(natom), atom_of_kind(natom))
-            CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set)
-            CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of, &
-                                     atom_of_kind=atom_of_kind)
             !
             tcharge(:) = 0.0_dp
             DO jspin = 1, nspins
@@ -1426,7 +1422,6 @@ CONTAINS
                                        matrix_g=vcvec, ncol=norb, alpha=2.0_dp*alpha, symmetry_mode=1)
             CALL cp_fm_release(vcvec)
             CALL cp_fm_release(cvcmat)
-            DEALLOCATE (atom_of_kind, kind_of)
          END IF
          !
          ! *** Exchange contribution
@@ -1436,11 +1431,6 @@ CONTAINS
             IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
             !
             norb = nactive(ispin)
-            !
-            ALLOCATE (kind_of(natom), atom_of_kind(natom))
-            CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set)
-            CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of, &
-                                     atom_of_kind=atom_of_kind)
             !
             tempmat => work%shalf
             CALL dbcsr_create(pdens, template=tempmat, matrix_type=dbcsr_type_no_symmetry)
@@ -1572,7 +1562,6 @@ CONTAINS
             !
             CALL dbcsr_release(pdens)
             CALL dbcsr_release(ptrans)
-            DEALLOCATE (kind_of, atom_of_kind)
             !
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)

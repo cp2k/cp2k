@@ -707,7 +707,6 @@ CONTAINS
       CALL dbt_create(force_data%t_2c_K, t_2c_RI_2)
       CALL dbt_create(force_data%t_2c_der_ovlp(1), t_2c_AO)
 
-      ALLOCATE (atom_of_kind(natom), kind_of(natom))
       CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of, atom_of_kind=atom_of_kind)
 
       ! Always do the batching of the MO on mu and sigma, such that it is consistent between
@@ -1209,7 +1208,6 @@ CONTAINS
       CALL dbt_create(force_data%t_2c_K, t_2c_RI_2)
       CALL dbt_create(force_data%t_2c_der_ovlp(1), t_2c_AO)
 
-      ALLOCATE (atom_of_kind(natom), kind_of(natom))
       CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of, atom_of_kind=atom_of_kind)
 
       ! Always do the batching of the MO on mu and sigma, such that it is consistent between
@@ -2679,7 +2677,6 @@ CONTAINS
 
       ALLOCATE (wf_vector(n_RI))
 
-      ALLOCATE (atom_of_kind(natom), kind_of(natom))
       CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of, atom_of_kind=atom_of_kind)
 
       ALLOCATE (iproc_map(natom))
@@ -2900,7 +2897,6 @@ CONTAINS
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, nkind=nkind, particle_set=particle_set, &
                       cell=cell, atomic_kind_set=atomic_kind_set, natom=natom, para_env=para_env)
 
-      ALLOCATE (atom_of_kind(natom), kind_of(natom))
       CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of, atom_of_kind=atom_of_kind)
 
       ALLOCATE (basis_set_ri_aux(nkind))

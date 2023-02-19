@@ -216,7 +216,6 @@ CONTAINS
       CALL get_qs_kind_set(my_kind_set, maxsgf=max_nsgf, maxgtops=max_gau, basis_type="GAPW_1C")
 
       IF (forces) THEN
-         ALLOCATE (atom_of_kind(natom))
          CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
          ldCPC = max_gau
          use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
@@ -554,9 +553,6 @@ CONTAINS
       CALL nl_hash_table_release(nl_hash_table)
 
       DEALLOCATE (basis_set_list)
-      IF (forces) THEN
-         DEALLOCATE (atom_of_kind)
-      END IF
 
       CALL timestop(handle)
 

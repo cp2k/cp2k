@@ -262,7 +262,6 @@ CONTAINS
       natom = SIZE(particle_set)
       IF (calculate_forces) THEN
          CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, force=force)
-         ALLOCATE (atom_of_kind(natom))
          CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
       END IF
       zi(:) = CMPLX(1._dp, 0._dp, dp)
@@ -646,7 +645,6 @@ CONTAINS
          DO ikind = 1, SIZE(atomic_kind_set)
             CALL para_env%group%sum(force(ikind)%efield)
          END DO
-         DEALLOCATE (atom_of_kind)
          DEALLOCATE (cosab, sinab, work, dcosab, dsinab)
          DO i = 1, 3
             DEALLOCATE (dcost(i, 1)%block, dsint(i, 1)%block)
@@ -747,7 +745,6 @@ CONTAINS
       natom = SIZE(particle_set)
       IF (calculate_forces) THEN
          CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, force=force)
-         ALLOCATE (atom_of_kind(natom))
          CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
          ALLOCATE (force_tmp(natom, 3, 3))
          force_tmp = 0.0_dp
@@ -1143,7 +1140,6 @@ CONTAINS
          DO ikind = 1, SIZE(atomic_kind_set)
             CALL para_env%group%sum(force(ikind)%efield)
          END DO
-         DEALLOCATE (atom_of_kind)
          DEALLOCATE (force_tmp)
          DEALLOCATE (cosab, sinab, work, dcosab, dsinab)
          DO i = 1, 3

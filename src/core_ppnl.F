@@ -664,9 +664,7 @@ CONTAINS
 
          DEALLOCATE (basis_set, gpotential, spotential)
          IF (calculate_forces) THEN
-            ALLOCATE (atom_of_kind(natom), kind_of(natom))
-            CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, &
-                                     kind_of=kind_of)
+            CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
 !$OMP DO
             DO iatom = 1, natom
                atom_a = atom_of_kind(iatom)

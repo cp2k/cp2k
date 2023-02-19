@@ -563,7 +563,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_to_csr_screening'
 
       INTEGER :: atom_a, atom_b, handle, iatom, icol, ikind, ipgf, irow, iset, isgf, ishell, &
-         jatom, jkind, jpgf, jset, jsgf, jshell, natom, nkind, nset_a, nset_b
+         jatom, jkind, jpgf, jset, jsgf, jshell, nkind, nset_a, nset_b
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       INTEGER, DIMENSION(:), POINTER                     :: npgf_a, npgf_b, nshell_a, nshell_b
       INTEGER, DIMENSION(:, :), POINTER                  :: l_a, l_b
@@ -594,14 +594,12 @@ CONTAINS
       CALL get_ks_env(ks_env, &
                       sab_orb=neighbour_list, &
                       atomic_kind_set=atomic_kind_set, &
-                      natom=natom, &
                       qs_kind_set=qs_kind_set, &
                       dft_control=dft_control)
 
       eps_pgf_orb = dft_control%qs_control%eps_pgf_orb
 
       nkind = SIZE(qs_kind_set)
-      ALLOCATE (atom_of_kind(natom))
       CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
       CPASSERT(SIZE(neighbour_list) > 0)
       CALL get_neighbor_list_set_p(neighbor_list_sets=neighbour_list, symmetric=do_symmetric)

@@ -83,9 +83,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'se_core_core_interaction'
 
       INTEGER                                            :: atom_a, atom_b, handle, iab, iatom, &
-                                                            ikind, itype, jatom, jkind, natom, &
-                                                            nkind
-      INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
+                                                            ikind, itype, jatom, jkind, nkind
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       LOGICAL                                            :: anag, atener, defined, use_virial
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: se_defined
       REAL(KIND=dp)                                      :: delta, dr1, dr3inv(3), enuc, enucij, &
@@ -135,8 +134,7 @@ CONTAINS
       atener = atprop%energy
       IF (atener) THEN
          CALL get_qs_env(qs_env=qs_env, particle_set=particle_set)
-         natom = SIZE(particle_set)
-         CALL atprop_array_init(atprop%atecc, natom)
+         CALL atprop_array_init(atprop%atecc, natom=SIZE(particle_set))
       END IF
 
       ! Retrieve some information if GKS ewald scheme is used
@@ -156,8 +154,6 @@ CONTAINS
       ! Possibly compute forces
       IF (calculate_forces) THEN
          CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, force=force)
-         natom = SIZE(particle_set)
-         ALLOCATE (atom_of_kind(natom))
          delta = se_control%delta
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
       END IF

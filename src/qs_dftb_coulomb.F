@@ -111,8 +111,8 @@ CONTAINS
 
       INTEGER :: atom_i, atom_j, blk, ewald_type, handle, i, ia, iac, iatom, ic, icol, ikind, img, &
          irow, is, jatom, jkind, natom, natorb_a, natorb_b, nimg, nkind, nmat
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(3)                              :: cellind, periodic
-      INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind, kind_of
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: defined, do_ewald, do_gamma_stress, &
                                                             found, hb_sr_damp, use_virial
@@ -323,8 +323,6 @@ CONTAINS
       END IF
 
       IF (calculate_forces) THEN
-         ALLOCATE (atom_of_kind(natom), kind_of(natom))
-
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
                                   kind_of=kind_of, &
                                   atom_of_kind=atom_of_kind)
@@ -540,9 +538,6 @@ CONTAINS
          CALL release_sap_int(sap_int)
       END IF
 
-      IF (calculate_forces) THEN
-         DEALLOCATE (atom_of_kind, kind_of)
-      END IF
       DEALLOCATE (gmcharge)
 
       CALL timestop(handle)

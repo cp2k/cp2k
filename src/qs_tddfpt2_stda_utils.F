@@ -682,7 +682,6 @@ CONTAINS
          !
          IF (do_exchange) THEN ! option to explicitly switch off exchange
             ! (exchange contributes also if hfx_fraction=0)
-            ALLOCATE (kind_of(natom))
             CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set)
             CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of)
             !

@@ -829,9 +829,9 @@ CONTAINS
 
       INTEGER                                            :: atom_a, atom_b, handle, iac, iatom, &
                                                             ikind, ilist, ispin, jatom, jkind, &
-                                                            jneighbor, nat, natom, nfa, nfb, &
-                                                            nkind, nspin
-      INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
+                                                            jneighbor, natom, nfa, nfb, nkind, &
+                                                            nspin
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       REAL(KIND=dp)                                      :: dab, fw, rab(3), str
       REAL(KIND=dp), DIMENSION(:), POINTER               :: aci, acj, tot_rho_r
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
@@ -849,7 +849,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
 
       CALL timeset(routineN, handle)
-      NULLIFY (aci, acj, atomic_kind, atom_of_kind, lri_coef, lri_rho, &
+      NULLIFY (aci, acj, atomic_kind, lri_coef, lri_rho, &
                nl_iterator, soo_list, rho_r, rho_g, tot_rho_r)
 
       IF (ASSOCIATED(lri_env%soo_list)) THEN
@@ -863,8 +863,6 @@ CONTAINS
          nspin = lri_density%nspin
          nkind = lri_env%lri_ints%nkind
 
-         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom=nat)
-         ALLOCATE (atom_of_kind(nat))
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
                                   atom_of_kind=atom_of_kind)
 
@@ -970,8 +968,6 @@ CONTAINS
             !
             IF (lri_env%exact_1c_terms) CALL dbcsr_release(pmat_diag)
          END DO
-
-         DEALLOCATE (atom_of_kind)
 
       END IF
 
