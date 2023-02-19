@@ -102,10 +102,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_dftb_matrices'
 
       INTEGER :: after, atom_a, atom_b, handle, i, iatom, ic, icol, ikind, img, irow, iw, jatom, &
-         jkind, l1, l2, la, lb, llm, lmaxi, lmaxj, m, n1, n2, n_urpoly, natom, natorb_a, natorb_b, &
+         jkind, l1, l2, la, lb, llm, lmaxi, lmaxj, m, n1, n2, n_urpoly, natorb_a, natorb_b, &
          nderivatives, ngrd, ngrdcut, nimg, nkind, spdim
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       INTEGER, DIMENSION(3)                              :: cell
-      INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: defined, found, omit_headers, use_virial
       REAL(KIND=dp)                                      :: ddr, dgrd, dr, erep, erepij, f0, f1, &
@@ -209,16 +209,12 @@ CONTAINS
                               alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
             END DO
          END IF
-         natom = SIZE(particle_set)
-         ALLOCATE (atom_of_kind(natom))
-         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
-                                  atom_of_kind=atom_of_kind)
+         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
          use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
       END IF
       ! atomic energy decomposition
       IF (atprop%energy) THEN
-         natom = SIZE(particle_set)
-         CALL atprop_array_init(atprop%atecc, natom)
+         CALL atprop_array_init(atprop%atecc, natom=SIZE(particle_set))
       END IF
 
       NULLIFY (cell_to_index)
@@ -235,7 +231,6 @@ CONTAINS
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
                                 iatom=iatom, jatom=jatom, r=rij, cell=cell)
-         CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
          CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind_a)
          CALL get_dftb_atom_param(dftb_kind_a, &
                                   defined=defined, lmax=lmaxi, skself=skself, &
@@ -491,7 +486,6 @@ CONTAINS
                               beta_scalar=-1.0_dp)
             END DO
          END IF
-         DEALLOCATE (atom_of_kind)
       END IF
 
       CALL timestop(handle)

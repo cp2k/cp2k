@@ -340,8 +340,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_v_transl'
 
-      INTEGER                                            :: col, handle, i_block, kind_a, kind_b, &
-                                                            natom, row
+      INTEGER                                            :: col, handle, i_block, kind_a, kind_b, row
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       REAL(dp), DIMENSION(3)                             :: ra, rab_L, rb
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
@@ -352,10 +351,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (basis_set_a, basis_set_b, data_block)
-
-      natom = SIZE(particle_set)
-
-      ALLOCATE (kind_of(natom))
 
       CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
 

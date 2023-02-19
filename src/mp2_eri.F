@@ -185,9 +185,6 @@ CONTAINS
       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
                       cell=cell, particle_set=particle_set, natom=natom, nkind=nkind)
 
-      ALLOCATE (atom_of_kind(natom))
-      ALLOCATE (kind_of(natom))
-      ALLOCATE (natom_of_kind(nkind))
       CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of, natom_of_kind=natom_of_kind, atom_of_kind=atom_of_kind)
 
       IF (PRESENT(force_a)) CALL mp2_eri_allocate_forces(force_a, natom_of_kind)
@@ -709,9 +706,6 @@ CONTAINS
                       cell=cell, &
                       nkind=nkind)
 
-      ALLOCATE (atom_of_kind(natom))
-      ALLOCATE (kind_of(natom))
-      ALLOCATE (natom_of_kind(nkind))
       CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of, natom_of_kind=natom_of_kind)
 
       IF (PRESENT(force_a)) CALL mp2_eri_allocate_forces(force_a, natom_of_kind)
@@ -1427,8 +1421,6 @@ CONTAINS
 
       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
                       particle_set=particle_set, natom=natom, nkind=nkind)
-
-      ALLOCATE (kind_of(natom))
 
       CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
 

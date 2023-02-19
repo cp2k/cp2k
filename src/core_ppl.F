@@ -621,9 +621,7 @@ CONTAINS
       END IF
 
       IF (calculate_forces) THEN
-         ALLOCATE (atom_of_kind(natom), kind_of(natom))
-         CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, &
-                                  kind_of=kind_of)
+         CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
 !$OMP DO
          DO iatom = 1, natom
             atom_a = atom_of_kind(iatom)
@@ -716,9 +714,7 @@ CONTAINS
 
       force_thread = 0.0_dp
       pv_thread = 0.0_dp
-      ALLOCATE (atom_of_kind(natom), kind_of(natom))
-      CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, &
-                               kind_of=kind_of)
+      CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
 
       ALLOCATE (basis_set_list(nkind))
       DO ikind = 1, nkind

@@ -744,8 +744,7 @@ CONTAINS
                CALL cp_dbcsr_alloc_block_from_nbl(tmatrix, sab_orb)
                CALL dbcsr_set(tmatrix, 0.0_dp)
             END DO
-            CALL calculate_atomic_block_dm(p_rmpv, refmatrix, &
-                                           particle_set, atomic_kind_set, qs_kind_set, &
+            CALL calculate_atomic_block_dm(p_rmpv, refmatrix, atomic_kind_set, qs_kind_set, &
                                            dft_control%nspins, nelectron_spin, 0, para_env)
          CASE (do_loc_cpo_restart)
             my_guess_atomic = .FALSE.

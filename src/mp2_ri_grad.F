@@ -138,8 +138,7 @@ CONTAINS
 
       INTEGER                                            :: dimen, eri_method, handle, handle2, i, &
                                                             ikind, ispin, itmp(2), L_counter, LLL, &
-                                                            my_P_end, my_P_size, my_P_start, &
-                                                            natom, nspins
+                                                            my_P_end, my_P_size, my_P_start, nspins
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, natom_of_kind, &
                                                             virtual
       LOGICAL                                            :: alpha_beta, use_virial
@@ -244,7 +243,6 @@ CONTAINS
       ! check if we want to calculate the virial
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
-      ALLOCATE (natom_of_kind(SIZE(atomic_kind_set)))
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom_of_kind=natom_of_kind)
       NULLIFY (mp2_force)
       CALL allocate_qs_force(mp2_force, natom_of_kind)
@@ -336,10 +334,6 @@ CONTAINS
       ELSEIF (eri_method == do_eri_gpw) THEN
          CALL get_qs_env(qs_env, ks_env=ks_env)
 
-         natom = SIZE(particle_set)
-
-         ALLOCATE (kind_of(natom))
-         ALLOCATE (atom_of_kind(natom))
          CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of, atom_of_kind=atom_of_kind)
 
          ! Supporting stuff for GPW

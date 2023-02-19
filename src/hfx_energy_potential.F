@@ -483,10 +483,7 @@ CONTAINS
       nkimages = dft_control%nimages
       CPASSERT(nkimages == 1)
 
-      ALLOCATE (kind_of(natom))
-
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
-                               kind_of=kind_of)
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of)
 
       !! precompute maximum nco and allocate scratch
       ncos_max = 0

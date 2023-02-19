@@ -375,7 +375,6 @@ CONTAINS
                                       natoms, para_env, id_nr, dft_section, natom_mismatch)
             IF (natom_mismatch) density_guess = safe_density_guess
          ELSE
-            CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
             CALL read_mo_set_from_restart(mo_array, atomic_kind_set, qs_kind_set, particle_set, para_env, &
                                           id_nr=id_nr, multiplicity=dft_control%multiplicity, dft_section=dft_section, &
                                           natom_mismatch=natom_mismatch)
@@ -628,8 +627,7 @@ CONTAINS
                "              and electronic configurations assigned to each atomic kind"
          END IF
 
-         CALL calculate_atomic_block_dm(p_rmpv, s_sparse(1)%matrix, &
-                                        particle_set, atomic_kind_set, qs_kind_set, &
+         CALL calculate_atomic_block_dm(p_rmpv, s_sparse(1)%matrix, atomic_kind_set, qs_kind_set, &
                                         nspin, nelectron_spin, ounit, para_env)
 
          DO ispin = 1, nspin
@@ -1077,15 +1075,12 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief returns a block diagonal fock matrix.
 !> \param matrix_f ...
-!> \param particle_set ...
 !> \param atomic_kind_set ...
 !> \param qs_kind_set ...
 !> \param ounit ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_atomic_fock_matrix(matrix_f, particle_set, atomic_kind_set, &
-                                           qs_kind_set, ounit)
+   SUBROUTINE calculate_atomic_fock_matrix(matrix_f, atomic_kind_set, qs_kind_set, ounit)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_f
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       INTEGER, INTENT(IN)                                :: ounit
@@ -1102,7 +1097,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ALLOCATE (kind_of(SIZE(particle_set)))
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of)
       ALLOCATE (fmat(SIZE(atomic_kind_set)))
 
@@ -1135,7 +1129,7 @@ CONTAINS
       DO ikind = 1, SIZE(atomic_kind_set)
          DEALLOCATE (fmat(ikind)%mat)
       END DO
-      DEALLOCATE (fmat, kind_of)
+      DEALLOCATE (fmat)
 
       CALL timestop(handle)
 

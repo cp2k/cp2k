@@ -143,7 +143,6 @@ CONTAINS
       nkind = SIZE(atomic_kind_set)
       natom = SIZE(particle_set)
 
-      ALLOCATE (atom_of_kind(natom))
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
 
       IF (calculate_forces) THEN
@@ -481,7 +480,7 @@ CONTAINS
       END DO
       kg_env%tnadd_mat => matrix_kg
 
-      DEALLOCATE (atom_of_kind, basis_set_list)
+      DEALLOCATE (basis_set_list)
 
       IF (calculate_forces) THEN
          ! *** If LSD, then recover alpha density and beta density     ***

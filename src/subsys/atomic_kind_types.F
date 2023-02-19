@@ -217,70 +217,75 @@ CONTAINS
 !> \param shell_check_distance ...
 !> \param damping_present ...
 ! **************************************************************************************************
-   SUBROUTINE get_atomic_kind_set(atomic_kind_set, &
-                                  atom_of_kind, kind_of, natom_of_kind, &
-                                  maxatom, &
-                                  natom, &
-                                  nshell, &
-                                  fist_potential_present, &
-                                  shell_present, shell_adiabatic, &
-                                  shell_check_distance, &
-                                  damping_present)
+   SUBROUTINE get_atomic_kind_set(atomic_kind_set, atom_of_kind, kind_of, natom_of_kind, maxatom, &
+                                  natom, nshell, fist_potential_present, shell_present, &
+                                  shell_adiabatic, shell_check_distance, damping_present)
 
-      TYPE(atomic_kind_type), DIMENSION(:), INTENT(IN)   :: atomic_kind_set
-      INTEGER, DIMENSION(:), INTENT(OUT), OPTIONAL       :: atom_of_kind, kind_of, natom_of_kind
+      TYPE(atomic_kind_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: atomic_kind_set
+      INTEGER, ALLOCATABLE, DIMENSION(:), OPTIONAL       :: atom_of_kind, kind_of, natom_of_kind
       INTEGER, INTENT(OUT), OPTIONAL                     :: maxatom, natom, nshell
       LOGICAL, INTENT(OUT), OPTIONAL                     :: fist_potential_present, shell_present, &
                                                             shell_adiabatic, shell_check_distance, &
                                                             damping_present
 
-      INTEGER                                            :: atom_a, iatom, ikind, nkind
-      TYPE(damping_p_type), POINTER                      :: damping
-      TYPE(fist_potential_type), POINTER                 :: fist_potential
-      TYPE(shell_kind_type), POINTER                     :: shell
+      INTEGER                                            :: atom_a, iatom, ikind, my_natom
+
+      CPASSERT(ASSOCIATED(atomic_kind_set))
+
+      ! Compute number of atoms which is needed for possible allocations later.
+      my_natom = 0
+      DO ikind = 1, SIZE(atomic_kind_set)
+         my_natom = my_natom + atomic_kind_set(ikind)%natom
+      END DO
 
       IF (PRESENT(maxatom)) maxatom = 0
-      IF (PRESENT(natom)) natom = 0
+      IF (PRESENT(natom)) natom = my_natom
       IF (PRESENT(nshell)) nshell = 0
       IF (PRESENT(shell_present)) shell_present = .FALSE.
       IF (PRESENT(shell_adiabatic)) shell_adiabatic = .FALSE.
       IF (PRESENT(shell_check_distance)) shell_check_distance = .FALSE.
       IF (PRESENT(damping_present)) damping_present = .FALSE.
-      IF (PRESENT(atom_of_kind)) atom_of_kind(:) = 0
-      IF (PRESENT(kind_of)) kind_of(:) = 0
-      IF (PRESENT(natom_of_kind)) natom_of_kind(:) = 0
+      IF (PRESENT(atom_of_kind)) THEN
+         ALLOCATE (atom_of_kind(my_natom))
+         atom_of_kind(:) = 0
+      END IF
+      IF (PRESENT(kind_of)) THEN
+         ALLOCATE (kind_of(my_natom))
+         kind_of(:) = 0
+      END IF
+      IF (PRESENT(natom_of_kind)) THEN
+         ALLOCATE (natom_of_kind(SIZE(atomic_kind_set)))
+         natom_of_kind(:) = 0
+      END IF
 
-      nkind = SIZE(atomic_kind_set)
-      DO ikind = 1, nkind
+      DO ikind = 1, SIZE(atomic_kind_set)
          ASSOCIATE (atomic_kind => atomic_kind_set(ikind))
-            CALL get_atomic_kind(atomic_kind=atomic_kind, &
-                                 fist_potential=fist_potential, &
-                                 shell=shell, &
-                                 damping=damping)
             IF (PRESENT(maxatom)) THEN
                maxatom = MAX(maxatom, atomic_kind%natom)
             END IF
-            IF (PRESENT(natom)) THEN
-               natom = natom + atomic_kind_set(ikind)%natom
-            END IF
             IF (PRESENT(fist_potential_present)) THEN
-               IF (ASSOCIATED(fist_potential)) THEN
+               IF (ASSOCIATED(atomic_kind%fist_potential)) THEN
                   fist_potential_present = .TRUE.
                END IF
             END IF
             IF (PRESENT(shell_present)) THEN
-               IF (ASSOCIATED(shell)) THEN
+               IF (ASSOCIATED(atomic_kind%shell)) THEN
                   shell_present = .TRUE.
                END IF
             END IF
-            IF (PRESENT(shell_adiabatic) .AND. ASSOCIATED(shell)) THEN
-               IF (.NOT. shell_adiabatic) shell_adiabatic = (shell%massfrac /= 0.0_dp)
+            IF (PRESENT(shell_adiabatic) .AND. ASSOCIATED(atomic_kind%shell)) THEN
+               IF (.NOT. shell_adiabatic) THEN
+                  shell_adiabatic = (atomic_kind%shell%massfrac /= 0.0_dp)
+               END IF
             END IF
-            IF (PRESENT(shell_check_distance) .AND. ASSOCIATED(shell)) THEN
-               IF (.NOT. shell_check_distance) shell_check_distance = (shell%max_dist > 0.0_dp)
+            IF (PRESENT(shell_check_distance) .AND. ASSOCIATED(atomic_kind%shell)) THEN
+               IF (.NOT. shell_check_distance) THEN
+                  shell_check_distance = (atomic_kind%shell%max_dist > 0.0_dp)
+               END IF
             END IF
             IF (PRESENT(damping_present)) THEN
-               IF (ASSOCIATED(damping)) THEN
+               IF (ASSOCIATED(atomic_kind%damping)) THEN
                   damping_present = .TRUE.
                END IF
             END IF
@@ -297,7 +302,7 @@ CONTAINS
                END DO
             END IF
             IF (PRESENT(natom_of_kind)) THEN
-               natom_of_kind(ikind) = atomic_kind_set(ikind)%natom
+               natom_of_kind(ikind) = atomic_kind%natom
             END IF
          END ASSOCIATE
       END DO

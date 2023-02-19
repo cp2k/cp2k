@@ -86,10 +86,9 @@ CONTAINS
 
       INTEGER                                            :: atom_a, atom_b, handle, iatom, icol, &
                                                             ikind, integral_screening, irow, &
-                                                            jatom, jkind, natom, natorb_a, nkind, &
-                                                            nspins
+                                                            jatom, jkind, natorb_a, nkind, nspins
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       INTEGER, DIMENSION(2)                              :: size_p_block_a
-      INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
       LOGICAL                                            :: anag, check, defined, found, switch, &
                                                             use_virial
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: se_defined
@@ -146,8 +145,6 @@ CONTAINS
       nkind = SIZE(atomic_kind_set)
       IF (calculate_forces) THEN
          CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, force=force)
-         natom = SIZE(particle_set)
-         ALLOCATE (atom_of_kind(natom))
          delta = se_control%delta
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
       END IF
@@ -266,9 +263,6 @@ CONTAINS
 
       DEALLOCATE (se_kind_list, se_defined)
 
-      IF (calculate_forces) THEN
-         DEALLOCATE (atom_of_kind)
-      END IF
       CALL finalize_se_taper(se_taper)
 
       CALL timestop(handle)

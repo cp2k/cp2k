@@ -564,7 +564,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER                                            :: dimen_aux
 
-      INTEGER                                            :: iatom, ikind, natom, nsgf
+      INTEGER                                            :: iatom, ikind, nsgf
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -576,19 +576,14 @@ CONTAINS
                       qs_kind_set=qs_kind_set, &
                       atomic_kind_set=atomic_kind_set)
 
-      natom = SIZE(particle_set)
-      ALLOCATE (kind_of(natom))
-
       CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
 
       dimen_aux = 0
-      DO iatom = 1, natom
+      DO iatom = 1, SIZE(particle_set)
          ikind = kind_of(iatom)
          CALL get_qs_kind(qs_kind=qs_kind_set(ikind), nsgf=nsgf, basis_type="RI_AUX")
          dimen_aux = dimen_aux + nsgf
       END DO
-
-      DEALLOCATE (kind_of)
 
    END SUBROUTINE find_aux_dimen
 

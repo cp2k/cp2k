@@ -88,7 +88,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_c_mat_force_fm'
 
-      INTEGER                                            :: handle, i, im, ispin, nao, natom, nmo, re
+      INTEGER                                            :: handle, i, im, ispin, nao, nmo, re
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
       REAL(KIND=dp)                                      :: alpha
@@ -118,10 +118,6 @@ CONTAINS
       ALLOCATE (rho_im_sparse)
       CALL dbcsr_create(tmp_dbcsr, template=SinvH(1)%matrix)
       CALL dbcsr_create(rho_im_sparse, template=SinvH(1)%matrix)
-
-      natom = SIZE(particle_set)
-      ALLOCATE (atom_of_kind(natom))
-      ALLOCATE (kind_of(natom))
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
 
@@ -173,8 +169,6 @@ CONTAINS
 
       CALL dbcsr_release(tmp_dbcsr)
       CALL dbcsr_release(rho_im_sparse)
-      DEALLOCATE (atom_of_kind)
-      DEALLOCATE (kind_of)
       DEALLOCATE (tmp_dbcsr)
       DEALLOCATE (rho_im_sparse)
 
@@ -197,7 +191,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_c_mat_force_ls'
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
-      INTEGER                                            :: handle, i, im, ispin, natom, re
+      INTEGER                                            :: handle, i, im, ispin, re
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: C_mat, rho_new, S_der, SinvB, SinvH
@@ -221,10 +215,6 @@ CONTAINS
       rtp_control => dft_control%rtp_control
       CALL get_rtp(rtp=rtp, C_mat=C_mat, S_der=S_der, S_inv=S_inv, &
                    SinvH=SinvH, SinvB=SinvB)
-
-      natom = SIZE(particle_set)
-      ALLOCATE (atom_of_kind(natom))
-      ALLOCATE (kind_of(natom))
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
 
@@ -260,9 +250,6 @@ CONTAINS
       CALL dbcsr_deallocate_matrix(tmp)
       CALL dbcsr_deallocate_matrix(tmp2)
       CALL dbcsr_deallocate_matrix(tmp3)
-
-      DEALLOCATE (atom_of_kind)
-      DEALLOCATE (kind_of)
 
       CALL timestop(handle)
 

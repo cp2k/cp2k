@@ -459,9 +459,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, pgf_blk_sizes_tmp
       INTEGER, DIMENSION(:), POINTER                     :: nsgf_set
 
-      CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
-      ALLOCATE (kind_of(natom))
-      CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
+      CALL get_atomic_kind_set(atomic_kind_set, natom=natom, kind_of=kind_of)
 
       nblk = 0
       DO iatom = 1, natom

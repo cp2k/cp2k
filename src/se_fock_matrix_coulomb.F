@@ -126,10 +126,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_coulomb'
 
-      INTEGER :: atom_a, atom_b, handle, iatom, ikind, inode, ispin, itype, jatom, jkind, natom, &
+      INTEGER :: atom_a, atom_b, handle, iatom, ikind, inode, ispin, itype, jatom, jkind, &
          natorb_a, natorb_a2, natorb_b, natorb_b2, nkind, nspins
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: se_natorb
-      INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, se_natorb
       LOGICAL                                            :: anag, atener, check, defined, found, &
                                                             switch, use_virial
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: se_defined
@@ -197,10 +196,7 @@ CONTAINS
       nkind = SIZE(atomic_kind_set)
       IF (calculate_forces) THEN
          CALL get_qs_env(qs_env=qs_env, force=force)
-         natom = SIZE(particle_set)
          delta = se_control%delta
-         ! Allocate atom index for kind
-         ALLOCATE (atom_of_kind(natom))
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
       END IF
 
@@ -454,10 +450,6 @@ CONTAINS
       CALL dbcsr_deallocate_matrix_set(diagmat_p)
       CALL dbcsr_deallocate_matrix_set(diagmat_ks)
 
-      IF (calculate_forces) THEN
-         DEALLOCATE (atom_of_kind)
-      END IF
-
       ! Two-centers one-electron terms
       CALL para_env%group%sum(ecore2)
       energy%hartree = ecore2 - energy%core
@@ -493,7 +485,7 @@ CONTAINS
       INTEGER :: atom_a, ewald_type, forces_g_size, handle, iatom, ikind, ilist, indi, indj, &
          ispin, itype, iw, jint, natoms, natorb_a, nkind, nlocal_particles, node, nparticle_local, &
          nspins, size_1c_int
-      INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       LOGICAL                                            :: anag, atener, defined, found, use_virial
       LOGICAL, DIMENSION(3)                              :: task
       REAL(KIND=dp)                                      :: e_neut, e_self, energy_glob, &
@@ -678,9 +670,6 @@ CONTAINS
       iw = cp_print_key_unit_nr(logger, se_section, "PRINT%EWALD_INFO", extension=".seLog")
       IF (calculate_forces) THEN
          CALL get_qs_env(qs_env=qs_env, force=force)
-
-         ! Allocate atom index for kind
-         ALLOCATE (atom_of_kind(natoms))
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
 
          ! Allocate and zeroing arrays
@@ -811,7 +800,6 @@ CONTAINS
 
       ! Set the Fock matrix contribution to SCP
       IF (calculate_forces) THEN
-         DEALLOCATE (atom_of_kind)
          DEALLOCATE (forces_g)
          DEALLOCATE (forces_r)
       END IF
@@ -854,10 +842,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_coul_lrc'
 
-      INTEGER :: atom_a, atom_b, handle, iatom, ikind, inode, itype, jatom, jkind, natom, &
-         natorb_a, natorb_a2, natorb_b, natorb_b2, nkind, nspins, size1, size2
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: se_natorb
-      INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
+      INTEGER :: atom_a, atom_b, handle, iatom, ikind, inode, itype, jatom, jkind, natorb_a, &
+         natorb_a2, natorb_b, natorb_b2, nkind, nspins, size1, size2
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, se_natorb
       LOGICAL                                            :: anag, atener, check, defined, found, &
                                                             switch, use_virial
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: se_defined
@@ -921,10 +908,7 @@ CONTAINS
       nkind = SIZE(atomic_kind_set)
       IF (calculate_forces) THEN
          CALL get_qs_env(qs_env=qs_env, force=force)
-         natom = SIZE(particle_set)
          delta = se_control%delta
-         ! Allocate atom index for kind
-         ALLOCATE (atom_of_kind(natom))
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
       END IF
 
@@ -1176,10 +1160,6 @@ CONTAINS
          pv_glob(3, 3) = pv_glob(3, 3) + ptens33
       END IF
 
-      IF (calculate_forces) THEN
-         DEALLOCATE (atom_of_kind)
-      END IF
-
       ! collect information on potential, field, field gradient
       CALL para_env%group%sum(efield0)
       CALL para_env%group%sum(efield1)
@@ -1223,8 +1203,7 @@ CONTAINS
 
       INTEGER :: atom_a, atom_b, ewald_type, handle, iatom, ikind, inode, ispin, itype, jatom, &
          jkind, natoms, natorb_a, natorb_a2, natorb_b, natorb_b2, nkind, nlocal_particles, nspins
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: se_natorb
-      INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, se_natorb
       LOGICAL                                            :: anag, atener, check, defined, found, &
                                                             switch
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: se_defined
@@ -1312,7 +1291,6 @@ CONTAINS
       ! Possibly compute forces
       IF (calculate_forces) THEN
          CALL get_qs_env(qs_env=qs_env, force=force)
-         ALLOCATE (atom_of_kind(natoms))
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
       END IF
       itype = get_se_type(dft_control%qs_control%method_id)
@@ -1512,10 +1490,6 @@ CONTAINS
       END DO
       CALL dbcsr_deallocate_matrix_set(diagmat_p)
       CALL dbcsr_deallocate_matrix_set(diagmat_ks)
-
-      IF (calculate_forces) THEN
-         DEALLOCATE (atom_of_kind)
-      END IF
 
       ! Two-centers one-electron terms
       CALL para_env%group%sum(ecore2)

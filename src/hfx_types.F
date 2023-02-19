@@ -585,7 +585,7 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: char_val
       INTEGER :: handle, i, i_thread, iatom, ikind, int_val, irep, jkind, max_set, n_rep_hf, &
          n_threads, natom, natom_a, natom_b, nkind, nseta, nsetb, pbc_shells, storage_id
-      INTEGER, DIMENSION(:), POINTER                     :: atom2kind, kind_of
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom2kind, kind_of
       LOGICAL                                            :: do_ri, logic_val, my_do_exx
       REAL(dp)                                           :: real_val
       TYPE(hfx_type), POINTER                            :: actual_x_data
@@ -894,10 +894,9 @@ CONTAINS
                   END IF
                END IF
                ALLOCATE (actual_x_data%map_atom_to_kind_atom(natom))
-               ALLOCATE (kind_of(natom))
-               ALLOCATE (atom2kind(nkind))
                CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
 
+               ALLOCATE (atom2kind(nkind))
                atom2kind = 0
                DO iatom = 1, natom
                   ikind = kind_of(iatom)

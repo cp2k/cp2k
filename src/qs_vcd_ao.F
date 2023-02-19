@@ -638,8 +638,8 @@ CONTAINS
 
       INTEGER :: atom_a, atom_b, handle, i, iatom, icol, idir, ikind, inode, irow, iset, jatom, &
          jkind, jset, katom, kkind, ldai, ldsab, maxco, maxder, maxl, maxlgto, maxlppl, maxnset, &
-         maxsgf, mepos, n_local, natom, ncoa, ncob, nder, nexp_lpot, nexp_ppl, nimages, nkind, &
-         nloc, nseta, nsetb, nthread, sgfa, sgfb
+         maxsgf, mepos, n_local, ncoa, ncob, nder, nexp_lpot, nexp_ppl, nimages, nkind, nloc, &
+         nseta, nsetb, nthread, sgfa, sgfb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       INTEGER, DIMENSION(1:10)                           :: nrloc
       INTEGER, DIMENSION(3)                              :: cellind
@@ -695,11 +695,9 @@ CONTAINS
       cval_ppl = 0
 
       nkind = SIZE(atomic_kind_set)
-      natom = SIZE(particle_set)
 
       dokp = (nimages > 1)
 
-      ALLOCATE (atom_of_kind(natom))
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
 
       maxder = ncoset(nder)

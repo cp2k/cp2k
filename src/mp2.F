@@ -287,8 +287,6 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
       nspins = dft_control%nspins
       natom = SIZE(particle_set, 1)
 
-      ALLOCATE (kind_of(natom))
-
       CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
       nkind = SIZE(atomic_kind_set, 1)
 

@@ -1346,7 +1346,6 @@ CONTAINS
       IF (calculate_forces .OR. debugall) THEN
          NULLIFY (force)
          CALL get_qs_env(qs_env=qs_env, force=force)
-         ALLOCATE (atom_of_kind(natom), kind_of(natom))
          CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
          use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
          IF (use_virial .AND. debugall) THEN
@@ -1357,7 +1356,6 @@ CONTAINS
          END IF
       ELSE IF ((dispersion_env%pp_type == vdw_pairpot_dftd3 .OR. &
                 dispersion_env%pp_type == vdw_pairpot_dftd3bj) .AND. dispersion_env%doabc) THEN
-         ALLOCATE (atom_of_kind(natom), kind_of(natom))
          CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
       END IF
 
@@ -2144,10 +2142,6 @@ CONTAINS
                WRITE (unit_nr, *)
             END IF
          END IF
-      END IF
-
-      IF (calculate_forces .OR. debugall .OR. dispersion_env%doabc) THEN
-         DEALLOCATE (atom_of_kind, kind_of)
       END IF
 
       DEALLOCATE (dodisp, ghost, floating, atomnumber, rcpbc, radd2, c6d2)

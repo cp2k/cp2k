@@ -716,7 +716,6 @@ CONTAINS
 
       CALL neighbor_list_iterator_release(nl_iterator)
 
-      ALLOCATE (kind_of(natom))
       CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
 
       DO iatom = 1, natom

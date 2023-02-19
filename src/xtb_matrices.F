@@ -249,7 +249,6 @@ CONTAINS
       NULLIFY (particle_set)
       CALL get_qs_env(qs_env=qs_env, particle_set=particle_set)
       natom = SIZE(particle_set)
-      ALLOCATE (atom_of_kind(natom))
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxsgf=maxs, basis_type="ORB")
 
@@ -353,7 +352,7 @@ CONTAINS
             kcnlk(3, ikind) = 0.0_dp
          END IF
       END DO
-      ALLOCATE (huckel(5, natom), kind_of(natom))
+      ALLOCATE (huckel(5, natom))
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of)
       DO iatom = 1, natom
          ikind = kind_of(iatom)
@@ -950,8 +949,6 @@ CONTAINS
       END IF
 
       DEALLOCATE (basis_set_list)
-      DEALLOCATE (kind_of)
-      DEALLOCATE (atom_of_kind)
       IF (calculate_forces) THEN
          IF (SIZE(matrix_p, 1) == 2) THEN
             DO img = 1, nimg
@@ -1079,7 +1076,6 @@ CONTAINS
       NULLIFY (particle_set)
       CALL get_qs_env(qs_env=qs_env, particle_set=particle_set)
       natom = SIZE(particle_set)
-      ALLOCATE (atom_of_kind(natom))
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxsgf=maxs, basis_type="ORB")
 
@@ -1152,7 +1148,7 @@ CONTAINS
             kcnlk(3, ikind) = 0.0_dp
          END IF
       END DO
-      ALLOCATE (huckel(5, natom), kind_of(natom))
+      ALLOCATE (huckel(5, natom))
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of)
       DO iatom = 1, natom
          ikind = kind_of(iatom)
@@ -1509,8 +1505,6 @@ CONTAINS
       DEALLOCATE (kijab)
 
       DEALLOCATE (basis_set_list)
-      DEALLOCATE (kind_of)
-      DEALLOCATE (atom_of_kind)
 
       CALL timestop(handle)
 
