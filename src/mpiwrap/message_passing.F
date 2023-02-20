@@ -885,9 +885,12 @@ CONTAINS
          mp_${type}$_op_neq = (${type}$1%handle .NE. ${type}$2%handle)
       END FUNCTION mp_${type}$_op_neq
 
-      ELEMENTAL #{if type=="comm"}#IMPURE #{endif}#SUBROUTINE mp_${type}$_type_set_handle(this, handle)
+      ELEMENTAL #{if type=="comm"}#IMPURE #{endif}#SUBROUTINE mp_${type}$_type_set_handle(this, handle #{if type=="comm"}#, ndims#{endif}#)
       CLASS(mp_${type}$_type), INTENT(INOUT) :: this
       INTEGER, INTENT(IN) :: handle
+      #:if type=="comm"
+         INTEGER, INTENT(IN), OPTIONAL :: ndims
+      #:endif
 
 #if defined(__parallel) && defined(__MPI_F08)
       this%handle%mpi_val = handle
@@ -896,6 +899,13 @@ CONTAINS
 #endif
 
       #:if type=="comm"
+         SELECT TYPE (this)
+         CLASS IS (mp_cart_type)
+            IF (.NOT. PRESENT(ndims)) &
+               CALL cp_abort(__LOCATION__, &
+                             "Setup of a cartesian communicator requires information on the number of dimensions!")
+         END SELECT
+         IF (PRESENT(ndims)) this%ndims = ndims
          CALL this%init()
       #:endif
 
