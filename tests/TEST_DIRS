@@ -319,7 +319,7 @@ QS/regtest-pao-3
 DFTB/regtest-debug
 optimize_input/regtest-1
 FE/regtest-2
-QS/regtest-lsroks
+QS/regtest-lsroks                                           libint
 NEB/regtest-3
 QS/regtest-linearscaling
 SE/regtest-3-1
