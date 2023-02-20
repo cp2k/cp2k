@@ -50,7 +50,8 @@ MODULE qs_tddfpt2_fhxc
    USE qs_tddfpt2_densities,            ONLY: tddfpt_construct_aux_fit_density
    USE qs_tddfpt2_lri_utils,            ONLY: tddfpt2_lri_Amat
    USE qs_tddfpt2_operators,            ONLY: tddfpt_apply_coulomb,&
-                                              tddfpt_apply_xc
+                                              tddfpt_apply_xc,&
+                                              tddfpt_apply_xc_potential
    USE qs_tddfpt2_stda_types,           ONLY: stda_env_type
    USE qs_tddfpt2_stda_utils,           ONLY: stda_calculate_kernel
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
@@ -229,11 +230,15 @@ CONTAINS
          ! C_x d^{2}E_{x}^{DFT}[\rho] / d\rho^2
          ! + C_{HF} d^{2}E_{x, ADMM}^{DFT}[\rho] / d\rho^2 in case of ADMM calculation
          IF (gapw_xc) THEN
-            CALL tddfpt_apply_xc(A_ia_rspace=work_matrices%A_ia_rspace_sub, kernel_env=kernel_env, &
-                                 rho_ia_struct=work_matrices%rho_xc_struct_sub, &
-                                 is_rks_triplets=is_rks_triplets, pw_env=sub_env%pw_env, &
-                                 work_v_xc=work_matrices%wpw_rspace_sub, &
-                                 work_v_xc_tau=work_matrices%wpw_tau_rspace_sub)
+            IF (kernel_env%do_exck) THEN
+               CPABORT("NYA")
+            ELSE
+               CALL tddfpt_apply_xc(A_ia_rspace=work_matrices%A_ia_rspace_sub, kernel_env=kernel_env, &
+                                    rho_ia_struct=work_matrices%rho_xc_struct_sub, &
+                                    is_rks_triplets=is_rks_triplets, pw_env=sub_env%pw_env, &
+                                    work_v_xc=work_matrices%wpw_rspace_sub, &
+                                    work_v_xc_tau=work_matrices%wpw_tau_rspace_sub)
+            END IF
             DO ispin = 1, nspins
                CALL pw_scale(work_matrices%A_ia_rspace_sub(ispin), &
                              work_matrices%A_ia_rspace_sub(ispin)%pw_grid%dvol)
@@ -245,11 +250,16 @@ CONTAINS
                CALL pw_zero(work_matrices%A_ia_rspace_sub(ispin))
             END DO
          ELSE
-            CALL tddfpt_apply_xc(A_ia_rspace=work_matrices%A_ia_rspace_sub, kernel_env=kernel_env, &
-                                 rho_ia_struct=work_matrices%rho_orb_struct_sub, &
-                                 is_rks_triplets=is_rks_triplets, pw_env=sub_env%pw_env, &
-                                 work_v_xc=work_matrices%wpw_rspace_sub, &
-                                 work_v_xc_tau=work_matrices%wpw_tau_rspace_sub)
+            IF (kernel_env%do_exck) THEN
+               CALL tddfpt_apply_xc_potential(work_matrices%A_ia_rspace_sub, work_matrices%fxc_rspace_sub, &
+                                              work_matrices%rho_orb_struct_sub)
+            ELSE
+               CALL tddfpt_apply_xc(A_ia_rspace=work_matrices%A_ia_rspace_sub, kernel_env=kernel_env, &
+                                    rho_ia_struct=work_matrices%rho_orb_struct_sub, &
+                                    is_rks_triplets=is_rks_triplets, pw_env=sub_env%pw_env, &
+                                    work_v_xc=work_matrices%wpw_rspace_sub, &
+                                    work_v_xc_tau=work_matrices%wpw_tau_rspace_sub)
+            END IF
          END IF
          IF (gapw .OR. gapw_xc) THEN
             rho_atom_set => sub_env%local_rho_set%rho_atom_set

@@ -45,6 +45,7 @@ MODULE qs_kernel_types
       !> first and second derivatives of exchange-correlation functional
       TYPE(xc_derivative_set_type)                       :: xc_deriv_set
       !> XC input section
+      LOGICAL                                            :: do_exck
       TYPE(section_vals_type), POINTER                   :: xc_section => Null()
       !> flags which indicate required components of the exchange-correlation functional
       !> (density, gradient, etc)

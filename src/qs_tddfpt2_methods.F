@@ -58,7 +58,8 @@ MODULE qs_tddfpt2_methods
    USE qs_2nd_kernel_ao,                ONLY: build_dm_response
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_kernel_methods,               ONLY: create_kernel_env
+   USE qs_kernel_methods,               ONLY: create_fxc_kernel,&
+                                              create_kernel_env
    USE qs_kernel_types,                 ONLY: full_kernel_env_type,&
                                               kernel_env_type,&
                                               release_kernel_env
@@ -247,7 +248,8 @@ CONTAINS
 
          ! allocate pools and work matrices
          nstates = tddfpt_control%nstates
-         CALL tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, do_hfx, do_admm, qs_env, sub_env)
+         CALL tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, do_hfx, do_admm, do_exck, &
+                                          qs_env, sub_env)
 
          CALL tddfpt_construct_ground_state_orb_density(rho_orb_struct=work_matrices%rho_orb_struct_sub, &
                                                         rho_xc_struct=work_matrices%rho_xc_struct_sub, &
@@ -293,6 +295,13 @@ CONTAINS
                                    is_rks_triplets=tddfpt_control%rks_triplets, sub_env=sub_env)
             kernel_env%full_kernel => full_kernel_env
             NULLIFY (kernel_env%admm_kernel)
+         END IF
+         ! Fxc from kernel definition
+         kernel_env%full_kernel%do_exck = do_exck
+         ! initilize xc kernel
+         IF (do_exck) THEN
+            CALL create_fxc_kernel(work_matrices%rho_orb_struct_sub, work_matrices%fxc_rspace_sub, &
+                                   xc_section, tddfpt_control%rks_triplets, sub_env)
          END IF
       ELSE IF (tddfpt_control%kernel == tddfpt_kernel_stda) THEN
          ! sTDA kernel
@@ -715,12 +724,12 @@ CONTAINS
                              "the one used for the ground-state calculation. A ground-state 'admm_env' cannot be reused.")
             END IF
             ! SET HFX_KERNEL and/or XC_KERNEL
-            IF (exhfxk) THEN
+            IF (exk) THEN
                do_exck = .TRUE.
             ELSE
                do_exck = .FALSE.
             END IF
-            IF (exk) THEN
+            IF (exhfxk) THEN
                do_hfxlr = .TRUE.
             ELSE
                do_hfxlr = .FALSE.

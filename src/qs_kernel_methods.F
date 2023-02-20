@@ -19,6 +19,7 @@ MODULE qs_kernel_methods
    USE kinds,                           ONLY: dp
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
+   USE pw_methods,                      ONLY: pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -45,7 +46,7 @@ MODULE qs_kernel_methods
 
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
 
-   PUBLIC :: create_kernel_env
+   PUBLIC :: create_kernel_env, create_fxc_kernel
 
 CONTAINS
 
@@ -211,5 +212,53 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE create_kernel_env
+
+! **************************************************************************************************
+!> \brief Create the xc kernel potential for the approximate Fxc kernel model
+!> \param rho_struct ...
+!> \param fxc_rspace ...
+!> \param xc_section ...
+!> \param is_rks_triplets ...
+!> \param sub_env ...
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE create_fxc_kernel(rho_struct, fxc_rspace, xc_section, is_rks_triplets, sub_env, qs_env)
+      TYPE(qs_rho_type), POINTER                         :: rho_struct
+      TYPE(pw_type), DIMENSION(:), POINTER               :: fxc_rspace
+      TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
+      LOGICAL, INTENT(in)                                :: is_rks_triplets
+      TYPE(tddfpt_subgroup_env_type), INTENT(in), &
+         OPTIONAL                                        :: sub_env
+      TYPE(qs_environment_type), INTENT(in), OPTIONAL, &
+         POINTER                                         :: qs_env
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_fxc_kernel'
+
+      INTEGER                                            :: handle, ispin, nspins
+
+      MARK_USED(rho_struct)
+      MARK_USED(xc_section)
+      MARK_USED(is_rks_triplets)
+      MARK_USED(sub_env)
+      MARK_USED(qs_env)
+
+      CALL timeset(routineN, handle)
+
+      nspins = SIZE(fxc_rspace)
+      DO ispin = 1, nspins
+         CALL pw_zero(fxc_rspace(ispin))
+      END DO
+
+      IF (PRESENT(sub_env)) THEN
+!        pw_env => sub_env%pw_env
+!        dbcsr_dist => sub_env%dbcsr_dist
+!        sab_orb => sub_env%sab_orb
+!        nspins = SIZE(sub_env%mos_occ)
+      ELSE
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE create_fxc_kernel
 
 END MODULE qs_kernel_methods
