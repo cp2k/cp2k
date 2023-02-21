@@ -41,8 +41,8 @@ MODULE cp_para_types
       LOGICAL :: owns_group = .TRUE.
       INTEGER :: ref_count = -1
    CONTAINS
-      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_comm_init => cp_para_env_init
-      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_comm_free => cp_para_env_free
+      PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: mp_comm_init => cp_para_env_init
+      PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: mp_comm_free => cp_para_env_free
       PROCEDURE, PUBLIC, PASS(para_env), NON_OVERRIDABLE :: retain => cp_para_env_retain
       PROCEDURE, PUBLIC, PASS(para_env), NON_OVERRIDABLE :: is_source => cp_para_env_is_source
       PROCEDURE, PUBLIC, PASS(para_env), NON_OVERRIDABLE :: is_valid => cp_para_env_is_valid
@@ -81,8 +81,8 @@ MODULE cp_para_types
       LOGICAL :: owns_group = .TRUE.
       INTEGER :: ref_count = -1
    CONTAINS
-      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_comm_free => cp_para_cart_free
-      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_comm_init => cp_para_cart_init
+      PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: mp_comm_free => cp_para_cart_free
+      PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: mp_comm_init => cp_para_cart_init
       PROCEDURE, PUBLIC, PASS(cart), NON_OVERRIDABLE :: retain => cp_para_cart_retain
       PROCEDURE, PUBLIC, PASS(cart), NON_OVERRIDABLE :: is_valid => cp_para_cart_is_valid
    END TYPE cp_para_cart_type
