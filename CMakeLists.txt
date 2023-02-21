@@ -25,7 +25,7 @@ endif()
 include(CMakeDependentOption)
 cmake_policy(SET CMP0048 NEW)
 
-set(VERSION_MAJOR 22)
+set(VERSION_MAJOR 23)
 # anything above 12 is to indicate that it is devel-branch. The git hash commit
 # is the only important information to give. It is retrieved few lines below.
 set(VERSION_MINOR 99)
@@ -273,7 +273,7 @@ else()
     )
     foreach(
       __libs
-      SIRIUS
+      sirius
       COSMA
       SPLA
       ELPA
@@ -365,7 +365,6 @@ if(CP2K_USE_ACCEL MATCHES "CUDA")
 elseif(CP2K_USE_ACCEL MATCHES "HIP")
   enable_language(HIP)
   # Find hip
-  find_package(hip REQUIRED IMPORTED CONFIG)
   find_package(hipfft REQUIRED IMPORTED CONFIG)
   find_package(hipblas REQUIRED IMPORTED CONFIG)
 
@@ -479,11 +478,6 @@ endif()
 
 if(CP2K_USE_SIRIUS)
   find_package(sirius 7.4 REQUIRED)
-  get_target_property(SIRIUS_INCLUDE_DIRS sirius::sirius
-                      INTERFACE_INCLUDE_DIRECTORIES)
-  if(NOT SIRIUS_INCLUDE_DIRS)
-    set(SIRIUS_INCLUDE_DIRS "/usr/include;/usr/include/sirius")
-  endif()
 endif()
 
 if(CP2K_USE_SUPERLU)
@@ -817,7 +811,24 @@ if(NOT CP2K_USE_LIBTORCH)
   message(STATUS "   - libtorch")
 endif()
 
-message(
-  STATUS "                                                                    ")
-message(
-  STATUS "                                                                    ")
+message(STATUS "\m\n")
+
+
+# files needed for cmake
+
+write_basic_package_version_file(
+  "${PROJECT_BINARY_DIR}/cp2kConfigVersion.cmake"
+  VERSION "${CP2K_VERSION}"
+  COMPATIBILITY SameMajorVersion)
+
+
+configure_file("${PROJECT_SOURCE_DIR}/cmake/cp2kConfig.cmake.in"
+  "${PROJECT_BINARY_DIR}/cp2kConfig.cmake"
+  @ONLY)
+install(FILES "${PROJECT_BINARY_DIR}/cp2kConfig.cmake"
+  "${PROJECT_BINARY_DIR}/cp2kConfigVersion.cmake"
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/cp2k")
+
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/cmake"
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/cp2k"
+  FILES_MATCHING PATTERN "*.cmake")
