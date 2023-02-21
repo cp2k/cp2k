@@ -289,7 +289,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: root_section
 
       INTEGER                                            :: output_unit
-      LOGICAL                                            :: I_am_rank0
       TYPE(cp_logger_type), POINTER                      :: logger, old_logger
 
       NULLIFY (logger, old_logger)
@@ -308,8 +307,7 @@ CONTAINS
       CALL swarm_mpi%world%sync()
 
       ! do this only on master's rank 0
-      I_am_rank0 = swarm_mpi%world%mepos == swarm_mpi%world%source
-      IF (I_am_rank0 .AND. output_unit /= default_output_unit) THEN
+      IF (swarm_mpi%world%is_source() .AND. output_unit /= default_output_unit) THEN
          output_unit = old_logger%default_local_unit_nr
          OPEN (unit=output_unit, file=swarm_mpi%master_output_path, &
                status="UNKNOWN", action="WRITE", position="APPEND")

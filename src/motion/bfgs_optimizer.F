@@ -145,7 +145,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       CALL section_vals_val_get(geo_section, "BFGS%TRUST_RADIUS", r_val=rad)
       print_key => section_vals_get_subs_vals(geo_section, "BFGS%RESTART")
-      ionode = para_env%mepos == para_env%source
+      ionode = para_env%is_source()
       maxiter = gopt_param%max_iter
       conv = .FALSE.
       rat = 0.0_dp

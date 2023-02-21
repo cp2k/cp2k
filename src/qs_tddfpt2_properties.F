@@ -706,7 +706,7 @@ CONTAINS
 
       ! *** excitation analysis ***
       IF (do_exc_analysis) THEN
-         CPASSERT(log_unit <= 0 .OR. para_env%mepos == para_env%source)
+         CPASSERT(log_unit <= 0 .OR. para_env%is_source())
          nmo_virt_occ_alpha = INT(nmo_virt(1), int_8)*INT(nmo_occ(1), int_8)
 
          IF (log_unit > 0) THEN
@@ -780,7 +780,7 @@ CONTAINS
                nmo_virt_occ = nmo_virt_occ + nmo_virt8(ispin)*nmo_occ8(ispin)
             END DO
 
-            IF (para_env%mepos == para_env%source) THEN
+            IF (para_env%is_source()) THEN
                ! master node
                ALLOCATE (nexcs_recv(para_env%num_pe), recv_handlers(para_env%num_pe), recv_handlers2(para_env%num_pe))
 
@@ -855,7 +855,7 @@ CONTAINS
 
             ! sort non-negligible excitations on the master node according to their amplitudes,
             ! uncompress indices and print summary information
-            IF (para_env%mepos == para_env%source .AND. log_unit > 0) THEN
+            IF (para_env%is_source() .AND. log_unit > 0) THEN
                weights_neg_abs_recv(:) = -ABS(weights_recv)
                CALL sort(weights_neg_abs_recv, INT(nexcs), inds)
 
@@ -883,7 +883,7 @@ CONTAINS
             END IF
 
             ! deallocate temporary arrays
-            IF (para_env%mepos == para_env%source) &
+            IF (para_env%is_source()) &
                DEALLOCATE (weights_recv, weights_neg_abs_recv, inds_recv, inds)
          END DO
 

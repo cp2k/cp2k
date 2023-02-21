@@ -361,7 +361,7 @@ CONTAINS
 
       sweeps = 0
       unit_nr = -1
-      IF (rmat%matrix_struct%para_env%mepos .EQ. rmat%matrix_struct%para_env%source) THEN
+      IF (rmat%matrix_struct%para_env%is_source()) THEN
          unit_nr = cp_logger_get_default_unit_nr()
          WRITE (unit_nr, '(T4,A )') " Localization by iterative Jacobi rotation"
       END IF
@@ -472,7 +472,7 @@ CONTAINS
       sweeps = 0
       IF (PRESENT(out_each)) THEN
          unit_nr = -1
-         IF (c_rmat_local%matrix_struct%para_env%mepos .EQ. c_rmat_local%matrix_struct%para_env%source) THEN
+         IF (c_rmat_local%matrix_struct%para_env%is_source()) THEN
             unit_nr = cp_logger_get_default_unit_nr()
          END IF
          alpha = 0.0_dp
@@ -850,7 +850,7 @@ CONTAINS
       END IF
 
       unit_nr = -1
-      IF (rmat%matrix_struct%para_env%mepos .EQ. rmat%matrix_struct%para_env%source) THEN
+      IF (rmat%matrix_struct%para_env%is_source()) THEN
          unit_nr = cp_logger_get_default_unit_nr()
          WRITE (unit_nr, '(T4,A )') " Localization by combined Jacobi rotations and Non-Linear Conjugate Gradient"
       END IF
@@ -1632,7 +1632,7 @@ CONTAINS
       CALL cp_fm_to_fm(mat_t, mat_R)
 
       unit_nr = -1
-      IF (cmat_A%matrix_struct%para_env%mepos .EQ. cmat_A%matrix_struct%para_env%source) THEN
+      IF (cmat_A%matrix_struct%para_env%is_source()) THEN
          unit_nr = cp_logger_get_default_unit_nr()
          WRITE (unit_nr, '(T2,A7,A6,1X,A20,A12,A12,A12)') &
             "CRAZY| ", "Iter", "value    ", "gradient", "Max. eval", "limit"
@@ -1974,8 +1974,7 @@ CONTAINS
                CALL cp_fm_scale_and_add(beta_pr, matrix_G_search, -1.0_dp, matrix_G_old)
                CALL cp_fm_trace(matrix_G_search, matrix_G_old, normg_cross)
                IF (normg_cross .GE. 0) THEN ! back to SD
-                  IF (matrix_A%matrix_struct%para_env%mepos .EQ. &
-                      matrix_A%matrix_struct%para_env%source) THEN
+                  IF (matrix_A%matrix_struct%para_env%is_source()) THEN
                      WRITE (cp_logger_get_default_unit_nr(), *) "!"
                   END IF
                   beta_pr = 0.0_dp
