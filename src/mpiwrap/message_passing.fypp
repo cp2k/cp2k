@@ -30,7 +30,7 @@
 ! **************************************************************************************************
    SUBROUTINE mp_shift_${nametype1}$m(msg, comm, displ_in)
 
-      ${type1}$, INTENT(INOUT)                   :: msg(:, :)
+      ${type1}$, CONTIGUOUS, INTENT(INOUT)                   :: msg(:, :)
       CLASS(mp_comm_type), INTENT(IN)                      :: comm
       INTEGER, INTENT(IN), OPTIONAL            :: displ_in
 
@@ -86,7 +86,7 @@
 ! **************************************************************************************************
    SUBROUTINE mp_shift_${nametype1}$ (msg, comm, displ_in)
 
-      ${type1}$, INTENT(INOUT)                   :: msg(:)
+      ${type1}$, CONTIGUOUS, INTENT(INOUT)                   :: msg(:)
       CLASS(mp_comm_type), INTENT(IN)                      :: comm
       INTEGER, INTENT(IN), OPTIONAL            :: displ_in
 
@@ -788,7 +788,7 @@
 !> \note see mp_recv_${nametype1}$
 ! **************************************************************************************************
    SUBROUTINE mp_recv_${nametype1}$v(msg, source, tag, comm)
-      ${type1}$, INTENT(INOUT)                   :: msg(:)
+      ${type1}$, CONTIGUOUS, INTENT(INOUT)                   :: msg(:)
       INTEGER, INTENT(INOUT)                   :: source, tag
       CLASS(mp_comm_type), INTENT(IN) :: comm
 
@@ -829,7 +829,7 @@
 !> \note see mp_recv_${nametype1}$
 ! **************************************************************************************************
    SUBROUTINE mp_recv_${nametype1}$m2(msg, source, tag, comm)
-      ${type1}$, INTENT(INOUT)                   :: msg(:, :)
+      ${type1}$, CONTIGUOUS, INTENT(INOUT)                   :: msg(:, :)
       INTEGER, INTENT(INOUT)                   :: source, tag
       CLASS(mp_comm_type), INTENT(IN) :: comm
 
@@ -870,7 +870,7 @@
 !> \note see mp_recv_${nametype1}$
 ! **************************************************************************************************
    SUBROUTINE mp_recv_${nametype1}$m3(msg, source, tag, comm)
-      ${type1}$, INTENT(INOUT)                   :: msg(:, :, :)
+      ${type1}$, CONTIGUOUS, INTENT(INOUT)                   :: msg(:, :, :)
       INTEGER, INTENT(INOUT)                   :: source, tag
       CLASS(mp_comm_type), INTENT(IN) :: comm
 
@@ -911,8 +911,8 @@
 !>      mpi_bcast
 ! **************************************************************************************************
    SUBROUTINE mp_bcast_${nametype1}$ (msg, source, comm)
-      ${type1}$                                  :: msg
-      INTEGER                                  :: source
+      ${type1}$, INTENT(INOUT)                                  :: msg
+      INTEGER, INTENT(IN)                                  :: source
       CLASS(mp_comm_type), INTENT(IN) :: comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_${nametype1}$'
@@ -982,8 +982,8 @@
 !> \note see mp_bcast_${nametype1}$1
 ! **************************************************************************************************
    SUBROUTINE mp_bcast_${nametype1}$v(msg, source, comm)
-      ${type1}$                                  :: msg(:)
-      INTEGER                                  :: source
+      ${type1}$, CONTIGUOUS, INTENT(INOUT)                                  :: msg(:)
+      INTEGER, INTENT(IN)                                  :: source
       CLASS(mp_comm_type), INTENT(IN) :: comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_${nametype1}$v'
@@ -1031,6 +1031,9 @@
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
+#if !defined(__GNUC__) || __GNUC__ >= 9
+      CPASSERT(IS_CONTIGUOUS(msg))
+#endif
       msglen = SIZE(msg)
       CALL mpi_ibcast(msg, msglen, ${mpi_type1}$, source, comm%handle, request%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_ibcast @ "//routineN)
@@ -1052,8 +1055,8 @@
 !> \note see mp_bcast_${nametype1}$1
 ! **************************************************************************************************
    SUBROUTINE mp_bcast_${nametype1}$m(msg, source, comm)
-      ${type1}$                                  :: msg(:, :)
-      INTEGER                                  :: source
+      ${type1}$, CONTIGUOUS, INTENT(INOUT)                                  :: msg(:, :)
+      INTEGER, INTENT(IN)                                  :: source
       CLASS(mp_comm_type), INTENT(IN) :: comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_im'
@@ -1086,8 +1089,8 @@
 !> \note see mp_bcast_${nametype1}$1
 ! **************************************************************************************************
    SUBROUTINE mp_bcast_${nametype1}$3(msg, source, comm)
-      ${type1}$                                  :: msg(:, :, :)
-      INTEGER                                  :: source
+      ${type1}$, CONTIGUOUS                                  :: msg(:, :, :)
+      INTEGER, INTENT(IN)                                  :: source
       CLASS(mp_comm_type), INTENT(IN) :: comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_${nametype1}$3'
@@ -1198,6 +1201,9 @@
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
+#if !defined(__GNUC__) || __GNUC__ >= 9
+      CPASSERT(IS_CONTIGUOUS(msg))
+#endif
       msglen = SIZE(msg)
       IF (msglen > 0) THEN
          CALL mpi_iallreduce(MPI_IN_PLACE, msg, msglen, ${mpi_type1}$, MPI_SUM, comm%handle, request%handle, ierr)
@@ -1221,7 +1227,7 @@
 !> \note see mp_sum_${nametype1}$
 ! **************************************************************************************************
    SUBROUTINE mp_sum_${nametype1}$m(msg, comm)
-      ${type1}$, INTENT(INOUT)                   :: msg(:, :)
+      ${type1}$, CONTIGUOUS, INTENT(INOUT)                   :: msg(:, :)
       CLASS(mp_comm_type), INTENT(IN) :: comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_${nametype1}$m'
@@ -1294,7 +1300,7 @@
 !> \note see mp_sum_${nametype1}$
 ! **************************************************************************************************
    SUBROUTINE mp_sum_${nametype1}$m4(msg, comm)
-      ${type1}$, INTENT(INOUT)                   :: msg(:, :, :, :)
+      ${type1}$, CONTIGUOUS, INTENT(INOUT)                   :: msg(:, :, :, :)
       CLASS(mp_comm_type), INTENT(IN) :: comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_${nametype1}$m4'
@@ -1331,7 +1337,7 @@
 !>      mpi_reduce
 ! **************************************************************************************************
    SUBROUTINE mp_sum_root_${nametype1}$v(msg, root, comm)
-      ${type1}$, INTENT(INOUT)                   :: msg(:)
+      ${type1}$, CONTIGUOUS, INTENT(INOUT)                   :: msg(:)
       INTEGER, INTENT(IN)                      :: root
       CLASS(mp_comm_type), INTENT(IN) :: comm
 
@@ -1379,7 +1385,7 @@
 !> \note see mp_sum_root_${nametype1}$v
 ! **************************************************************************************************
    SUBROUTINE mp_sum_root_${nametype1}$m(msg, root, comm)
-      ${type1}$, INTENT(INOUT)                   :: msg(:, :)
+      ${type1}$, CONTIGUOUS, INTENT(INOUT)                   :: msg(:, :)
       INTEGER, INTENT(IN)                      :: root
       CLASS(mp_comm_type), INTENT(IN) :: comm
 
@@ -1496,7 +1502,7 @@
 !> \note see mp_max_${nametype1}$
 ! **************************************************************************************************
    SUBROUTINE mp_max_${nametype1}$v(msg, comm)
-      ${type1}$, INTENT(INOUT)                   :: msg(:)
+      ${type1}$, CONTIGUOUS, INTENT(INOUT)                   :: msg(:)
       CLASS(mp_comm_type), INTENT(IN) :: comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_max_${nametype1}$v'
@@ -1631,8 +1637,8 @@
 !>      mpi_scatter
 ! **************************************************************************************************
    SUBROUTINE mp_scatter_${nametype1}$v(msg_scatter, msg, root, comm)
-      ${type1}$, INTENT(IN)                      :: msg_scatter(:)
-      ${type1}$, INTENT(OUT)                     :: msg(:)
+      ${type1}$, CONTIGUOUS, INTENT(IN)                      :: msg_scatter(:)
+      ${type1}$, CONTIGUOUS, INTENT(OUT)                     :: msg(:)
       INTEGER, INTENT(IN)                      :: root
       CLASS(mp_comm_type), INTENT(IN) :: comm
 
@@ -1684,6 +1690,9 @@
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
+#if !defined(__GNUC__) || __GNUC__ >= 9
+      CPASSERT(IS_CONTIGUOUS(msg_scatter))
+#endif
       msglen = 1
       CALL mpi_iscatter(msg_scatter, msglen, ${mpi_type1}$, msg, &
                         msglen, ${mpi_type1}$, root, comm%handle, request%handle, ierr)
@@ -1723,6 +1732,9 @@
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
+#if !defined(__GNUC__) || __GNUC__ >= 9
+      CPASSERT(IS_CONTIGUOUS(msg_scatter))
+#endif
       msglen = SIZE(msg)
       CALL mpi_iscatter(msg_scatter, msglen, ${mpi_type1}$, msg, &
                         msglen, ${mpi_type1}$, root, comm%handle, request%handle, ierr)
@@ -1763,6 +1775,12 @@
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
+#if !defined(__GNUC__) || __GNUC__ >= 9
+      CPASSERT(IS_CONTIGUOUS(msg_scatter))
+      CPASSERT(IS_CONTIGUOUS(msg))
+      CPASSERT(IS_CONTIGUOUS(sendcounts))
+      CPASSERT(IS_CONTIGUOUS(displs))
+#endif
       CALL mpi_iscatterv(msg_scatter, sendcounts, displs, ${mpi_type1}$, msg, &
                          recvcount, ${mpi_type1}$, root, comm%handle, request%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_iscatterv @ "//routineN)
@@ -1790,7 +1808,7 @@
 ! **************************************************************************************************
    SUBROUTINE mp_gather_${nametype1}$ (msg, msg_gather, root, comm)
       ${type1}$, INTENT(IN)                      :: msg
-      ${type1}$, INTENT(OUT)                     :: msg_gather(:)
+      ${type1}$, CONTIGUOUS, INTENT(OUT)                     :: msg_gather(:)
       INTEGER, INTENT(IN)                      :: root
       CLASS(mp_comm_type), INTENT(IN) :: comm
 
@@ -1830,8 +1848,8 @@
 !> \note see mp_gather_${nametype1}$
 ! **************************************************************************************************
    SUBROUTINE mp_gather_${nametype1}$v(msg, msg_gather, root, comm)
-      ${type1}$, INTENT(IN)                      :: msg(:)
-      ${type1}$, INTENT(OUT)                     :: msg_gather(:)
+      ${type1}$, CONTIGUOUS, INTENT(IN)                      :: msg(:)
+      ${type1}$, CONTIGUOUS, INTENT(OUT)                     :: msg_gather(:)
       INTEGER, INTENT(IN)                      :: root
       CLASS(mp_comm_type), INTENT(IN) :: comm
 
@@ -1871,8 +1889,8 @@
 !> \note see mp_gather_${nametype1}$
 ! **************************************************************************************************
    SUBROUTINE mp_gather_${nametype1}$m(msg, msg_gather, root, comm)
-      ${type1}$, INTENT(IN)                      :: msg(:, :)
-      ${type1}$, INTENT(OUT)                     :: msg_gather(:, :)
+      ${type1}$, CONTIGUOUS, INTENT(IN)                      :: msg(:, :)
+      ${type1}$, CONTIGUOUS, INTENT(OUT)                     :: msg_gather(:, :)
       INTEGER, INTENT(IN)                      :: root
       CLASS(mp_comm_type), INTENT(IN) :: comm
 
@@ -2035,6 +2053,8 @@
 #if !defined(__GNUC__) || __GNUC__ >= 9
       CPASSERT(IS_CONTIGUOUS(sendbuf))
       CPASSERT(IS_CONTIGUOUS(recvbuf))
+      CPASSERT(IS_CONTIGUOUS(recvcounts))
+      CPASSERT(IS_CONTIGUOUS(displs))
 #endif
       CALL mpi_igatherv(sendbuf, sendcount, ${mpi_type1}$, &
                         recvbuf, recvcounts, displs, ${mpi_type1}$, &
@@ -2673,6 +2693,8 @@
 #if !defined(__GNUC__) || __GNUC__ >= 9
       CPASSERT(IS_CONTIGUOUS(msgout))
       CPASSERT(IS_CONTIGUOUS(msgin))
+      CPASSERT(IS_CONTIGUOUS(rcount))
+      CPASSERT(IS_CONTIGUOUS(rdispl))
 #endif
 
       scount = SIZE(msgout)
@@ -3843,7 +3865,7 @@
 !> \author UB
 ! **************************************************************************************************
    SUBROUTINE mp_allocate_${nametype1}$ (DATA, len, stat)
-      ${type1}$, DIMENSION(:), POINTER      :: DATA
+      ${type1}$, CONTIGUOUS, DIMENSION(:), POINTER      :: DATA
       INTEGER, INTENT(IN)                 :: len
       INTEGER, INTENT(OUT), OPTIONAL      :: stat
 
@@ -3875,7 +3897,7 @@
 !> \author UB
 ! **************************************************************************************************
    SUBROUTINE mp_deallocate_${nametype1}$ (DATA, stat)
-      ${type1}$, DIMENSION(:), POINTER      :: DATA
+      ${type1}$, CONTIGUOUS, DIMENSION(:), POINTER      :: DATA
       INTEGER, INTENT(OUT), OPTIONAL      :: stat
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_deallocate_${nametype1}$'
@@ -3970,7 +3992,7 @@
 !> \par STREAM-I/O mapping   WRITE
 ! **************************************************************************************************
    SUBROUTINE mp_file_write_at_all_${nametype1}$v(fh, offset, msg, msglen)
-      ${type1}$, INTENT(IN)                      :: msg(:)
+      ${type1}$, CONTIGUOUS, INTENT(IN)                      :: msg(:)
       CLASS(mp_file_type), INTENT(IN)                        :: fh
       INTEGER, INTENT(IN), OPTIONAL              :: msglen
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
@@ -4172,7 +4194,7 @@
 !> \param[out] stat      (optional) allocation status result
 ! **************************************************************************************************
    SUBROUTINE mp_alloc_mem_${nametype1}$ (DATA, len, stat)
-      ${type1}$, DIMENSION(:), POINTER           :: DATA
+      ${type1}$, CONTIGUOUS, DIMENSION(:), POINTER           :: DATA
       INTEGER, INTENT(IN)                      :: len
       INTEGER, INTENT(OUT), OPTIONAL           :: stat
 
@@ -4212,7 +4234,7 @@
 !> \param[out] stat      (optional) allocation status result
 ! **************************************************************************************************
    SUBROUTINE mp_free_mem_${nametype1}$ (DATA, stat)
-      ${type1}$, DIMENSION(:), &
+      ${type1}$, CONTIGUOUS, DIMENSION(:), &
          POINTER, ASYNCHRONOUS                                :: DATA
       INTEGER, INTENT(OUT), OPTIONAL           :: stat
 

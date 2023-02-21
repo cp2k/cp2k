@@ -455,7 +455,7 @@ CONTAINS
    SUBROUTINE cp_fm_redistribute_end(matrix, eigenvectors, eig, matrix_new, eigenvectors_new)
 
       TYPE(cp_fm_type), INTENT(IN)             :: matrix, eigenvectors
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: eig
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT) :: eig
       TYPE(cp_fm_type), INTENT(INOUT)          :: matrix_new, eigenvectors_new
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_redistribute_end'
