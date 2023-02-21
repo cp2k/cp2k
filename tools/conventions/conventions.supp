@@ -96,7 +96,6 @@ colvar_types.F: Found type wc_colvar_type without initializer https://cp2k.org/c
 colvar_types.F: Found type xyz_diag_colvar_type without initializer https://cp2k.org/conv#c016
 colvar_types.F: Found type xyz_outerdiag_colvar_type without initializer https://cp2k.org/conv#c016
 cp2k_shell.F: Found type cp2k_shell_type without initializer https://cp2k.org/conv#c016
-cp_blacs_env.F: Found type cp_blacs_env_type without initializer https://cp2k.org/conv#c016
 cp_control_types.F: Found type admm_control_type without initializer https://cp2k.org/conv#c016
 cp_control_types.F: Found type ddapc_restraint_type without initializer https://cp2k.org/conv#c016
 cp_control_types.F: Found type dftb_control_type without initializer https://cp2k.org/conv#c016
@@ -143,8 +142,6 @@ cp_files.F: Found OPEN statement in procedure "open_file" https://cp2k.org/conv#
 cp_files.F: Found type preconnection_type without initializer https://cp2k.org/conv#c016
 cp_fm_basic_linalg.F: Found CALL cp_fm_gemm in procedure "cp_complex_fm_gemm" https://cp2k.org/conv#c101
 cp_fm_diag.F: Found CALL cp_fm_gemm in procedure "cp_fm_geeig_canon" https://cp2k.org/conv#c101
-cp_fm_diag_utils.F: Found type cp_fm_redistribute_info without initializer https://cp2k.org/conv#c016
-cp_fm_diag_utils.F: Found type cp_fm_redistribute_type without initializer https://cp2k.org/conv#c016
 cp_fm_pool_types.F: Found type cp_fm_pool_p_type without initializer https://cp2k.org/conv#c016
 cp_fm_pool_types.F: Found type cp_fm_pool_type without initializer https://cp2k.org/conv#c016
 cp_fm_struct.F: Found type cp_fm_struct_p_type without initializer https://cp2k.org/conv#c016
@@ -188,9 +185,6 @@ cp_min_heap.F: Found type cp_heap_node_e without initializer https://cp2k.org/co
 cp_min_heap.F: Found type cp_heap_node without initializer https://cp2k.org/conv#c016
 cp_min_heap.F: Found type cp_heap_type without initializer https://cp2k.org/conv#c016
 cp_output_handling.F: Found type cp_out_flags_type without initializer https://cp2k.org/conv#c016
-cp_para_types.F: Found type cp_para_cart_type without initializer https://cp2k.org/conv#c016
-cp_para_types.F: Found type cp_para_env_p_type without initializer https://cp2k.org/conv#c016
-cp_para_types.F: Found type cp_para_env_type without initializer https://cp2k.org/conv#c016
 cp_parser_buffer_types.F: Found type buffer_type without initializer https://cp2k.org/conv#c016
 cp_parser_ilist_types.F: Found type ilist_type without initializer https://cp2k.org/conv#c016
 cp_parser_inpp_methods.F: Found READ with unchecked STAT in "inpp_process_directive" https://cp2k.org/conv#c001
@@ -281,9 +275,6 @@ eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_bazant_silicon"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_lenosky_silicon" https://cp2k.org/conv#c012
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_b" https://cp2k.org/conv#c012
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_l" https://cp2k.org/conv#c012
-embed_types.F: Found type embed_env_type without initializer https://cp2k.org/conv#c016
-embed_types.F: Found type opt_dmfet_pot_type without initializer https://cp2k.org/conv#c016
-embed_types.F: Found type opt_embed_pot_type without initializer https://cp2k.org/conv#c016
 eri_mme_types.F: Found type eri_mme_param without initializer https://cp2k.org/conv#c016
 eri_mme_types.F: Found type minimax_grid without initializer https://cp2k.org/conv#c016
 et_coupling_proj.F: Found type et_cpl_atom without initializer https://cp2k.org/conv#c016
@@ -550,7 +541,6 @@ mixed_cdft_types.F: Found type p_buffers without initializer https://cp2k.org/co
 mixed_cdft_types.F: Found type repl_info without initializer https://cp2k.org/conv#c016
 mixed_energy_types.F: Found type mixed_energy_type without initializer https://cp2k.org/conv#c016
 mixed_energy_types.F: Found type mixed_force_type without initializer https://cp2k.org/conv#c016
-mixed_environment_types.F: Found type mixed_environment_type without initializer https://cp2k.org/conv#c016
 mltfftsg_tools.F: Found WRITE statement with hardcoded unit in "ctrig" https://cp2k.org/conv#c012
 mm_mapping_library.F: Found type ff_map_type without initializer https://cp2k.org/conv#c016
 mode_selective.F: Found READ with unchecked STAT in "bfgs_guess" https://cp2k.org/conv#c001
@@ -614,7 +604,6 @@ negf_methods.F: Found CALL with NULL() as argument in procedure "converge_densit
 negf_methods.F: Found CALL with NULL() as argument in procedure "guess_fermi_level" https://cp2k.org/conv#c007
 negf_methods.F: Found CALL with NULL() as argument in procedure "shift_potential" https://cp2k.org/conv#c007
 negf_methods.F: Found type integration_status_type without initializer https://cp2k.org/conv#c016
-negf_subgroup_types.F: Found type negf_subgroup_env_type without initializer https://cp2k.org/conv#c016
 nequip_unittest.F: Found WRITE statement with hardcoded unit in "nequip_unittest" https://cp2k.org/conv#c012
 nnp_environment_types.F: Found type nnp_acsf_ang_type without initializer https://cp2k.org/conv#c016
 nnp_environment_types.F: Found type nnp_acsf_rad_type without initializer https://cp2k.org/conv#c016
@@ -854,7 +843,6 @@ qs_scf_types.F: Found type subspace_env_type without initializer https://cp2k.or
 qs_tddfpt2_stda_types.F: Found type stda_env_type without initializer https://cp2k.org/conv#c016
 qs_tddfpt2_stda_types.F: Found type stda_kind_p_type without initializer https://cp2k.org/conv#c016
 qs_tddfpt2_stda_types.F: Found type stda_kind_type without initializer https://cp2k.org/conv#c016
-qs_tddfpt2_subgroups.F: Found type tddfpt_subgroup_env_type without initializer https://cp2k.org/conv#c016
 qs_tddfpt2_types.F: Found type tddfpt_ground_state_mos without initializer https://cp2k.org/conv#c016
 qs_tddfpt2_types.F: Found type tddfpt_work_matrices without initializer https://cp2k.org/conv#c016
 qs_tddfpt_types.F: Found type tddfpt_env_type without initializer https://cp2k.org/conv#c016
@@ -862,7 +850,6 @@ qs_tddfpt_utils.F: Found type simple_solution_sorter without initializer https:/
 qs_tensors_types.F: Found type distribution_3d_type without initializer https://cp2k.org/conv#c016
 qs_tensors_types.F: Found type neighbor_list_3c_iterator_type without initializer https://cp2k.org/conv#c016
 qs_tensors_types.F: Found type neighbor_list_3c_type without initializer https://cp2k.org/conv#c016
-qs_vcd.F: Found CALL cp_fm_gemm in procedure "apt_dv" https://cp2k.org/conv#c101
 qs_wannier90.F: Found type berry_matrix_type without initializer https://cp2k.org/conv#c016
 qs_wf_history_types.F: Found type qs_wf_history_p_type without initializer https://cp2k.org/conv#c016
 qs_wf_history_types.F: Found type qs_wf_history_type without initializer https://cp2k.org/conv#c016
