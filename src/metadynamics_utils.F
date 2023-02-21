@@ -575,7 +575,7 @@ CONTAINS
             IF (para_env%is_source()) THEN
                INQUIRE (FILE=TRIM(filename), EXIST=exist)
             END IF
-            CALL para_env%bcast(exist, para_env%source)
+            CALL para_env%bcast(exist)
             DO WHILE (exist)
                ! Read information from the walker's file
                ! We shouldn't care too much about the concurrency of these I/O instructions..
@@ -592,7 +592,7 @@ CONTAINS
                   IF (hills_env%wtcontrol) READ (unit_nr, *) delta_s_ss0_buf(2, 0)
                   CALL close_file(unit_nr)
                END IF
-               CALL para_env%bcast(delta_s_ss0_buf, para_env%source)
+               CALL para_env%bcast(delta_s_ss0_buf)
                ww = delta_s_ss0_buf(1, 0)
                IF (hills_env%wtcontrol) invdt = delta_s_ss0_buf(2, 0)
                DO ih = 1, n_colvar
@@ -613,7 +613,7 @@ CONTAINS
                IF (para_env%is_source()) THEN
                   INQUIRE (FILE=TRIM(filename), EXIST=exist)
                END IF
-               CALL para_env%bcast(exist, para_env%source)
+               CALL para_env%bcast(exist)
             END DO
 
             delta_hills = i_hills - 1 - multiple_walkers%walkers_status(i)

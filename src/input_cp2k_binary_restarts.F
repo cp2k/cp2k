@@ -140,12 +140,12 @@ CONTAINS
          END IF
       END IF
 
-      CALL para_env%bcast(natomkind, para_env%source)
-      CALL para_env%bcast(natom, para_env%source)
-      CALL para_env%bcast(ncore, para_env%source)
-      CALL para_env%bcast(nshell, para_env%source)
-      CALL para_env%bcast(nmoleculekind, para_env%source)
-      CALL para_env%bcast(nmolecule, para_env%source)
+      CALL para_env%bcast(natomkind)
+      CALL para_env%bcast(natom)
+      CALL para_env%bcast(ncore)
+      CALL para_env%bcast(nshell)
+      CALL para_env%bcast(nmoleculekind)
+      CALL para_env%bcast(nmolecule)
 
       ALLOCATE (id_name(natomkind))
       ! Read atomic kind names
@@ -156,7 +156,7 @@ CONTAINS
                                            TRIM(ADJUSTL(cp_to_string(istat)))//")", &
                                            input_unit)
          END IF
-         CALL para_env%bcast(string, para_env%source)
+         CALL para_env%bcast(string)
          id_name(ikind) = str2id(string)
       END DO
 
@@ -191,7 +191,7 @@ CONTAINS
                                         TRIM(ADJUSTL(cp_to_string(istat)))//")", &
                                         input_unit)
       END IF
-      CALL para_env%bcast(ibuf, para_env%source)
+      CALL para_env%bcast(ibuf)
       DO iatom = 1, natom
          ikind = ibuf(iatom)
          atom_info%id_atmname(iatom) = id_name(ikind)
@@ -206,7 +206,7 @@ CONTAINS
                                         TRIM(ADJUSTL(cp_to_string(istat)))//")", &
                                         input_unit)
       END IF
-      CALL para_env%bcast(atom_info%r, para_env%source)
+      CALL para_env%bcast(atom_info%r)
 
       ! Read molecule information if available
       IF (nmolecule > 0) THEN
@@ -219,7 +219,7 @@ CONTAINS
                                               TRIM(ADJUSTL(cp_to_string(istat)))//")", &
                                               input_unit)
             END IF
-            CALL para_env%bcast(string, para_env%source)
+            CALL para_env%bcast(string)
             id_name(ikind) = str2id(string)
          END DO
          ! Read molecule kind numbers
@@ -229,7 +229,7 @@ CONTAINS
                                            TRIM(ADJUSTL(cp_to_string(istat)))//")", &
                                            input_unit)
          END IF
-         CALL para_env%bcast(ibuf, para_env%source)
+         CALL para_env%bcast(ibuf)
          DO iatom = 1, natom
             ikind = ibuf(iatom)
             atom_info%id_molname(iatom) = id_name(ikind)
@@ -242,7 +242,7 @@ CONTAINS
                                            TRIM(ADJUSTL(cp_to_string(istat)))//")", &
                                            input_unit)
          END IF
-         CALL para_env%bcast(atom_info%resid, para_env%source)
+         CALL para_env%bcast(atom_info%resid)
          DO iatom = 1, natom
             atom_info%id_resname(iatom) = str2id(s2s(cp_to_string(atom_info%resid(iatom))))
          END DO
@@ -403,7 +403,7 @@ CONTAINS
          END IF
       END IF
 
-      CALL para_env%bcast(exit_routine, para_env%source)
+      CALL para_env%bcast(exit_routine)
       IF (exit_routine) THEN
          IF (para_env%is_source()) CALL close_file(unit_number=input_unit, &
                                                    keep_preconnection=.TRUE.)
@@ -422,7 +422,7 @@ CONTAINS
                                         TRIM(ADJUSTL(cp_to_string(istat)))//")", &
                                         input_unit)
       END IF
-      CALL para_env%bcast(rbuf, para_env%source)
+      CALL para_env%bcast(rbuf)
 
       DO iparticle = 1, nparticle
          particle_set(iparticle)%r(1:3) = rbuf(1:3, iparticle)
@@ -440,7 +440,7 @@ CONTAINS
                                         input_unit)
       END IF
 
-      CALL para_env%bcast(ibuf, para_env%source)
+      CALL para_env%bcast(ibuf)
 
       DO iparticle = 1, nparticle
          particle_set(iparticle)%atom_index = ibuf(iparticle)
@@ -593,8 +593,8 @@ CONTAINS
          END DO
       END IF
 
-      CALL para_env%bcast(nbuf, para_env%source)
-      CALL para_env%bcast(have_velocities, para_env%source)
+      CALL para_env%bcast(nbuf)
+      CALL para_env%bcast(have_velocities)
 
       IF (have_velocities) THEN
 
@@ -609,7 +609,7 @@ CONTAINS
          END IF
 
          IF (nbuf == nparticle) THEN
-            CALL para_env%bcast(rbuf, para_env%source)
+            CALL para_env%bcast(rbuf)
             DO iparticle = 1, nparticle
                particle_set(iparticle)%v(1:3) = rbuf(1:3, iparticle)
             END DO
@@ -738,7 +738,7 @@ CONTAINS
          END IF
       END IF
 
-      CALL para_env%bcast(nhc_size, para_env%source)
+      CALL para_env%bcast(nhc_size)
 
       IF (nhc_size > 0) THEN
 
@@ -756,7 +756,7 @@ CONTAINS
                   "&COORD", rbuf(1:nhc_size)
             END IF
          END IF
-         CALL para_env%bcast(rbuf, para_env%source)
+         CALL para_env%bcast(rbuf)
          DO i = 1, SIZE(nhc%nvt, 2)
             idx = (nhc%map_info%index(i) - 1)*nhc%nhc_len
             DO j = 1, SIZE(nhc%nvt, 1)
@@ -776,7 +776,7 @@ CONTAINS
                   "&VELOCITY", rbuf(1:nhc_size)
             END IF
          END IF
-         CALL para_env%bcast(rbuf, para_env%source)
+         CALL para_env%bcast(rbuf)
          DO i = 1, SIZE(nhc%nvt, 2)
             idx = (nhc%map_info%index(i) - 1)*nhc%nhc_len
             DO j = 1, SIZE(nhc%nvt, 1)
@@ -796,7 +796,7 @@ CONTAINS
                   "&MASS:", rbuf(1:nhc_size)
             END IF
          END IF
-         CALL para_env%bcast(rbuf, para_env%source)
+         CALL para_env%bcast(rbuf)
          DO i = 1, SIZE(nhc%nvt, 2)
             idx = (nhc%map_info%index(i) - 1)*nhc%nhc_len
             DO j = 1, SIZE(nhc%nvt, 1)
@@ -816,7 +816,7 @@ CONTAINS
                   "&FORCE", rbuf(1:nhc_size)
             END IF
          END IF
-         CALL para_env%bcast(rbuf, para_env%source)
+         CALL para_env%bcast(rbuf)
          DO i = 1, SIZE(nhc%nvt, 2)
             idx = (nhc%map_info%index(i) - 1)*nhc%nhc_len
             DO j = 1, SIZE(nhc%nvt, 1)

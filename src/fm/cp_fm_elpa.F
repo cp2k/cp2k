@@ -395,7 +395,7 @@ CONTAINS
       IF (use_qr .AND. elpa_qr_unsafe .AND. elpa_should_print) &
          check_eigenvalues = .TRUE.
 
-      CALL matrix%matrix_struct%para_env%bcast(check_eigenvalues, matrix%matrix_struct%para_env%source)
+      CALL matrix%matrix_struct%para_env%bcast(check_eigenvalues)
 
       IF (check_eigenvalues) THEN
          ! Allocate and initialize needed temporaries to compute eigenvalues without ELPA QR

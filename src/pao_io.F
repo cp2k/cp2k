@@ -157,7 +157,7 @@ CONTAINS
             CPASSERT(col_blk_sizes(iatom) == SIZE(xblocks(iatom)%p, 2))
             buffer = xblocks(iatom)%p
          END IF
-         CALL para_env%bcast(buffer, para_env%source)
+         CALL para_env%bcast(buffer)
          CALL dbcsr_get_block_p(matrix=pao%matrix_X, row=iatom, col=iatom, block=block_X, found=found)
          IF (ASSOCIATED(block_X)) &
             block_X = buffer

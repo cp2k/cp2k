@@ -345,12 +345,12 @@ CONTAINS
 
       para_env => parser%para_env
       IF (para_env%num_pe > 1) THEN
-         CALL para_env%bcast(parser%buffer%buffer_id, para_env%source)
-         CALL para_env%bcast(parser%buffer%present_line_number, para_env%source)
-         CALL para_env%bcast(parser%buffer%last_line_number, para_env%source)
-         CALL para_env%bcast(parser%buffer%istat, para_env%source)
-         CALL para_env%bcast(parser%buffer%input_line_numbers, para_env%source)
-         CALL para_env%bcast(parser%buffer%input_lines, para_env%source)
+         CALL para_env%bcast(parser%buffer%buffer_id)
+         CALL para_env%bcast(parser%buffer%present_line_number)
+         CALL para_env%bcast(parser%buffer%last_line_number)
+         CALL para_env%bcast(parser%buffer%istat)
+         CALL para_env%bcast(parser%buffer%input_line_numbers)
+         CALL para_env%bcast(parser%buffer%input_lines)
       END IF
 
       CALL timestop(handle)

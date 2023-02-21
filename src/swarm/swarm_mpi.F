@@ -166,7 +166,7 @@ CONTAINS
             CLOSE (output_unit)
       END IF
 
-      CALL swarm_mpi%world%bcast(swarm_mpi%master_output_path, swarm_mpi%world%source)
+      CALL swarm_mpi%world%bcast(swarm_mpi%master_output_path)
 
       IF (ASSOCIATED(swarm_mpi%master)) &
          CALL error_add_new_logger(swarm_mpi%master, swarm_mpi%master_output_path)

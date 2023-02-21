@@ -2267,14 +2267,14 @@ CONTAINS
          CALL open_file(file_name=filename, unit_number=funit, file_form="FORMATTED")
          READ (funit, *) nl, nlines
       END IF
-      CALL para_env%bcast(nl, para_env%source)
-      CALL para_env%bcast(nlines, para_env%source)
+      CALL para_env%bcast(nl)
+      CALL para_env%bcast(nlines)
       ALLOCATE (pars(nl))
       IF (para_env%is_source()) THEN
          READ (funit, *) pars(1:nl)
          CALL close_file(unit_number=funit)
       END IF
-      CALL para_env%bcast(pars, para_env%source)
+      CALL para_env%bcast(pars)
 
       ! Store C6AB coefficients in an array
       c6ab = -1._dp

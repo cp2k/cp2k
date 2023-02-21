@@ -310,7 +310,7 @@ CONTAINS
          CALL cp_print_key_finished_output(output_unit, logger, farming_section, &
                                            "PROGRAM_RUN_INFO")
       END IF
-      CALL para_env%bcast(farming_env%restart_n, para_env%source)
+      CALL para_env%bcast(farming_env%restart_n)
 
    END SUBROUTINE
 

@@ -653,7 +653,7 @@ CONTAINS
 
       DEALLOCATE (pairs)
 
-      IF (para_env%source .EQ. para_env%mepos) THEN
+      IF (para_env%is_source()) THEN
 
          ! shift all non-zero entries to the beginning of the array and count the number of actual pairs
          npairs = 0
@@ -695,12 +695,12 @@ CONTAINS
       !WRITE(*,'(A27,40X,I6,1X,A6)') ' KG| Vertex coloring result', ncolors, 'colors'
 
       ! broadcast the number of colors to all nodes
-      CALL para_env%bcast(ncolors, para_env%source)
+      CALL para_env%bcast(ncolors)
 
       IF (.NOT. ALLOCATED(color_of_node)) ALLOCATE (color_of_node(nmol))
 
       ! broadcast the resulting coloring to all nodes.....
-      CALL para_env%bcast(color_of_node, para_env%source)
+      CALL para_env%bcast(color_of_node)
 
       IF ((kg_env%nsubsets .NE. 0) .AND. (ncolors .NE. kg_env%nsubsets)) THEN
          ! number of subsets has changed

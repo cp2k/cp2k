@@ -198,9 +198,9 @@ CONTAINS
             success = .FALSE. ! EOF
          END IF
       END IF
-      CALL shell%para_env%bcast(success, shell%para_env%source)
+      CALL shell%para_env%bcast(success)
       IF (.NOT. success) RETURN
-      CALL shell%para_env%bcast(line, shell%para_env%source)
+      CALL shell%para_env%bcast(line)
 
       ! extract command
       line = TRIM(line)
@@ -578,7 +578,7 @@ CONTAINS
          CALL uppercase(line)
          IF (.NOT. my_assert(TRIM(line) == '*END', 'missing *END', shell)) RETURN
       END IF
-      CALL shell%para_env%bcast(pos, shell%para_env%source)
+      CALL shell%para_env%bcast(pos)
       CALL get_pos(shell%env_id, old_pos, n_el=3*n_atom, ierr=ierr)
       IF (.NOT. my_assert(ierr == 0, 'get_pos error', shell)) RETURN
       CALL set_pos(shell%env_id, new_pos=pos, n_el=3*n_atom, ierr=ierr)
@@ -612,7 +612,7 @@ CONTAINS
          IF (.NOT. my_assert(iostat == 0, 'setcell read failed', shell)) RETURN
          cell(:, :) = cell(:, :)/shell%pos_fact
       END IF
-      CALL shell%para_env%bcast(cell, shell%para_env%source)
+      CALL shell%para_env%bcast(cell)
       CALL set_cell(shell%env_id, new_cell=cell, ierr=ierr)
       IF (.NOT. my_assert(ierr == 0, 'set_cell failed', shell)) RETURN
    END SUBROUTINE set_cell_command

@@ -1110,91 +1110,89 @@ CONTAINS
          IF (output_unit > 0) WRITE (output_unit, "(/,T10,A)") &
             "Restart file not available filename=<"//TRIM(filename)//'>'
       END IF
-      ASSOCIATE (source => para_env%source)
-         CALL para_env%bcast(file_exists, source)
+      CALL para_env%bcast(file_exists)
 
-         IF (file_exists) THEN
-            restart_found = .TRUE.
+      IF (file_exists) THEN
+         restart_found = .TRUE.
 
-            CALL para_env%bcast(qs_loc_env%localized_wfn_control%set_of_states, source)
-            CALL para_env%bcast(qs_loc_env%localized_wfn_control%lu_bound_states, source)
-            CALL para_env%bcast(qs_loc_env%localized_wfn_control%nloc_states, source)
+         CALL para_env%bcast(qs_loc_env%localized_wfn_control%set_of_states)
+         CALL para_env%bcast(qs_loc_env%localized_wfn_control%lu_bound_states)
+         CALL para_env%bcast(qs_loc_env%localized_wfn_control%nloc_states)
 
-            max_nloc = MAXVAL(qs_loc_env%localized_wfn_control%nloc_states(:))
+         max_nloc = MAXVAL(qs_loc_env%localized_wfn_control%nloc_states(:))
 
-            ALLOCATE (vecbuffer(1, nao))
-            IF (ASSOCIATED(qs_loc_env%localized_wfn_control%loc_states)) THEN
-               DEALLOCATE (qs_loc_env%localized_wfn_control%loc_states)
-            END IF
-            ALLOCATE (qs_loc_env%localized_wfn_control%loc_states(max_nloc, 2))
-            qs_loc_env%localized_wfn_control%loc_states = 0
-
-            DO ispin = 1, nspin
-               IF (do_homo .OR. do_mixed) THEN
-                  nmo = mos(ispin)%nmo
-               ELSE
-                  nmo = SIZE(evals(ispin)%array, 1)
-               END IF
-               IF (para_env%is_source() .AND. (nmo > 0)) THEN
-                  nloc = qs_loc_env%localized_wfn_control%nloc_states(ispin)
-                  READ (rst_unit) qs_loc_env%localized_wfn_control%loc_states(1:nloc, ispin)
-                  IF (do_homo .OR. do_mixed) THEN
-                     READ (rst_unit) nmo_read, homo_read, lfomo_read, nelectron_read
-                     ALLOCATE (eig_read(nmo_read), occ_read(nmo_read))
-                     eig_read = 0.0_dp
-                     occ_read = 0.0_dp
-                     READ (rst_unit) eig_read(1:nmo_read), occ_read(1:nmo_read)
-                  ELSE
-                     READ (rst_unit) nmo_read
-                     ALLOCATE (eig_read(nmo_read))
-                     eig_read = 0.0_dp
-                     READ (rst_unit) eig_read(1:nmo_read)
-                  END IF
-                  IF (nmo_read < nmo) &
-                     CALL cp_warn(__LOCATION__, &
-                                  "The number of MOs on the restart unit is smaller than the number of "// &
-                                  "the allocated MOs. ")
-                  IF (nmo_read > nmo) &
-                     CALL cp_warn(__LOCATION__, &
-                                  "The number of MOs on the restart unit is greater than the number of "// &
-                                  "the allocated MOs. The read MO set will be truncated!")
-
-                  nmo = MIN(nmo, nmo_read)
-                  IF (do_homo .OR. do_mixed) THEN
-                     mos(ispin)%eigenvalues(1:nmo) = eig_read(1:nmo)
-                     mos(ispin)%occupation_numbers(1:nmo) = occ_read(1:nmo)
-                     DEALLOCATE (eig_read, occ_read)
-                  ELSE
-                     evals(ispin)%array(1:nmo) = eig_read(1:nmo)
-                     DEALLOCATE (eig_read)
-                  END IF
-
-               END IF
-               IF (do_homo .OR. do_mixed) THEN
-                  CALL para_env%bcast(mos(ispin)%eigenvalues, source)
-                  CALL para_env%bcast(mos(ispin)%occupation_numbers, source)
-               ELSE
-                  CALL para_env%bcast(evals(ispin)%array, source)
-               END IF
-
-               DO i = 1, nmo
-                  IF (para_env%is_source()) THEN
-                     READ (rst_unit) vecbuffer
-                  ELSE
-                     vecbuffer(1, :) = 0.0_dp
-                  END IF
-                  CALL para_env%bcast(vecbuffer, source)
-                  CALL cp_fm_set_submatrix(mos_localized(ispin), &
-                                           vecbuffer, 1, i, nao, 1, transpose=.TRUE.)
-               END DO
-            END DO
-
-            CALL para_env%bcast(qs_loc_env%localized_wfn_control%loc_states, source)
-
-            DEALLOCATE (vecbuffer)
-
+         ALLOCATE (vecbuffer(1, nao))
+         IF (ASSOCIATED(qs_loc_env%localized_wfn_control%loc_states)) THEN
+            DEALLOCATE (qs_loc_env%localized_wfn_control%loc_states)
          END IF
-      END ASSOCIATE
+         ALLOCATE (qs_loc_env%localized_wfn_control%loc_states(max_nloc, 2))
+         qs_loc_env%localized_wfn_control%loc_states = 0
+
+         DO ispin = 1, nspin
+            IF (do_homo .OR. do_mixed) THEN
+               nmo = mos(ispin)%nmo
+            ELSE
+               nmo = SIZE(evals(ispin)%array, 1)
+            END IF
+            IF (para_env%is_source() .AND. (nmo > 0)) THEN
+               nloc = qs_loc_env%localized_wfn_control%nloc_states(ispin)
+               READ (rst_unit) qs_loc_env%localized_wfn_control%loc_states(1:nloc, ispin)
+               IF (do_homo .OR. do_mixed) THEN
+                  READ (rst_unit) nmo_read, homo_read, lfomo_read, nelectron_read
+                  ALLOCATE (eig_read(nmo_read), occ_read(nmo_read))
+                  eig_read = 0.0_dp
+                  occ_read = 0.0_dp
+                  READ (rst_unit) eig_read(1:nmo_read), occ_read(1:nmo_read)
+               ELSE
+                  READ (rst_unit) nmo_read
+                  ALLOCATE (eig_read(nmo_read))
+                  eig_read = 0.0_dp
+                  READ (rst_unit) eig_read(1:nmo_read)
+               END IF
+               IF (nmo_read < nmo) &
+                  CALL cp_warn(__LOCATION__, &
+                               "The number of MOs on the restart unit is smaller than the number of "// &
+                               "the allocated MOs. ")
+               IF (nmo_read > nmo) &
+                  CALL cp_warn(__LOCATION__, &
+                               "The number of MOs on the restart unit is greater than the number of "// &
+                               "the allocated MOs. The read MO set will be truncated!")
+
+               nmo = MIN(nmo, nmo_read)
+               IF (do_homo .OR. do_mixed) THEN
+                  mos(ispin)%eigenvalues(1:nmo) = eig_read(1:nmo)
+                  mos(ispin)%occupation_numbers(1:nmo) = occ_read(1:nmo)
+                  DEALLOCATE (eig_read, occ_read)
+               ELSE
+                  evals(ispin)%array(1:nmo) = eig_read(1:nmo)
+                  DEALLOCATE (eig_read)
+               END IF
+
+            END IF
+            IF (do_homo .OR. do_mixed) THEN
+               CALL para_env%bcast(mos(ispin)%eigenvalues)
+               CALL para_env%bcast(mos(ispin)%occupation_numbers)
+            ELSE
+               CALL para_env%bcast(evals(ispin)%array)
+            END IF
+
+            DO i = 1, nmo
+               IF (para_env%is_source()) THEN
+                  READ (rst_unit) vecbuffer
+               ELSE
+                  vecbuffer(1, :) = 0.0_dp
+               END IF
+               CALL para_env%bcast(vecbuffer)
+               CALL cp_fm_set_submatrix(mos_localized(ispin), &
+                                        vecbuffer, 1, i, nao, 1, transpose=.TRUE.)
+            END DO
+         END DO
+
+         CALL para_env%bcast(qs_loc_env%localized_wfn_control%loc_states)
+
+         DEALLOCATE (vecbuffer)
+
+      END IF
 
       ! Close restart file
       IF (para_env%is_source()) THEN

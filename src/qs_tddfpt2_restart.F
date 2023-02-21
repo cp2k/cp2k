@@ -203,7 +203,7 @@ CONTAINS
 
          IF (.NOT. file_exists) THEN
             nstates_read = 0
-            CALL para_env_global%bcast(nstates_read, para_env_global%source)
+            CALL para_env_global%bcast(nstates_read)
 
             CALL cp_warn(__LOCATION__, &
                          "User requested to restart the TDDFPT wave functions from the file '"//TRIM(filename)// &
@@ -260,7 +260,7 @@ CONTAINS
                          " excited states were requested.")
          END IF
       END IF
-      CALL para_env_global%bcast(nstates_read, para_env_global%source)
+      CALL para_env_global%bcast(nstates_read)
 
       ! exit if restart file does not exist
       IF (nstates_read <= 0) THEN
@@ -278,7 +278,7 @@ CONTAINS
          END IF
          DEALLOCATE (evals_read)
       END IF
-      CALL para_env_global%bcast(evals, para_env_global%source)
+      CALL para_env_global%bcast(evals)
 
       DO istate = 1, nstates_read
          DO ispin = 1, nspins

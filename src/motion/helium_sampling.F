@@ -119,8 +119,8 @@ CONTAINS
       END IF
 
       ! Distribute steps for processors without helium_env
-      CALL logger%para_env%bcast(num_steps, logger%para_env%source)
-      CALL logger%para_env%bcast(tot_steps, logger%para_env%source)
+      CALL logger%para_env%bcast(num_steps)
+      CALL logger%para_env%bcast(tot_steps)
 
       DO step = 1, num_steps
 

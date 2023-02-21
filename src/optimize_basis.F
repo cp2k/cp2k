@@ -198,8 +198,8 @@ CONTAINS
                                        para_env_top, para_env, iopt)
          IF (para_env_top%is_source()) &
             CALL powell_optimize(opt_bas%powell_param%nvar, opt_bas%x_opt, opt_bas%powell_param)
-         CALL para_env_top%bcast(opt_bas%powell_param%state, para_env_top%source)
-         CALL para_env_top%bcast(opt_bas%x_opt, para_env_top%source)
+         CALL para_env_top%bcast(opt_bas%powell_param%state)
+         CALL para_env_top%bcast(opt_bas%x_opt)
          CALL update_free_vars(opt_bas)
          write_basis = MOD(iopt, opt_bas%write_frequency) == 0
          CALL update_derived_basis_sets(opt_bas, write_basis, opt_bas%output_basis_file, &
@@ -213,7 +213,7 @@ CONTAINS
          CALL powell_optimize(opt_bas%powell_param%nvar, opt_bas%x_opt, opt_bas%powell_param)
       END IF
 
-      CALL para_env_top%bcast(opt_bas%x_opt, para_env_top%source)
+      CALL para_env_top%bcast(opt_bas%x_opt)
       CALL update_free_vars(opt_bas)
       CALL update_derived_basis_sets(opt_bas, .TRUE., opt_bas%output_basis_file, &
                                      para_env_top)
@@ -369,7 +369,7 @@ CONTAINS
       ELSE
          f_vec = 0.0_dp; cond_vec = 0.0_dp; my_time = 0.0_dp; energy = 0.0_dp
       END IF
-      CALL para_env_top%bcast(opt_bas%powell_param%f, para_env_top%source)
+      CALL para_env_top%bcast(opt_bas%powell_param%f)
 
       ! output info if required
       CALL output_opt_info(f_vec, cond_vec, my_time, tot_time, opt_bas, iopt, para_env_top)

@@ -176,19 +176,19 @@ CONTAINS
       END IF
 
       ! broadcast parsed raw training data
-      CALL para_env%bcast(nkinds, para_env%source)
-      CALL para_env%bcast(natoms, para_env%source)
+      CALL para_env%bcast(nkinds)
+      CALL para_env%bcast(natoms)
       IF (.NOT. para_env%is_source()) THEN
          ALLOCATE (hmat(3, 3))
          ALLOCATE (kindsmap(nkinds))
          ALLOCATE (positions(natoms, 3))
          ALLOCATE (atom2kind(natoms))
       END IF
-      CALL para_env%bcast(hmat, para_env%source)
-      CALL para_env%bcast(kindsmap, para_env%source)
-      CALL para_env%bcast(atom2kind, para_env%source)
-      CALL para_env%bcast(positions, para_env%source)
-      CALL para_env%bcast(ml_range, para_env%source)
+      CALL para_env%bcast(hmat)
+      CALL para_env%bcast(kindsmap)
+      CALL para_env%bcast(atom2kind)
+      CALL para_env%bcast(positions)
+      CALL para_env%bcast(ml_range)
 
       IF (ml_range(1) /= 1 .OR. ml_range(2) /= natoms) &
          CPWARN("Skipping some atoms for PAO-ML training.")

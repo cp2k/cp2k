@@ -504,8 +504,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mo_set_from_restart'
 
       CHARACTER(LEN=default_path_length)                 :: file_name
-      INTEGER                                            :: handle, ispin, natom, nspin, &
-                                                            restart_unit, source
+      INTEGER                                            :: handle, ispin, natom, nspin, restart_unit
       LOGICAL                                            :: exist, my_cdft
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -516,8 +515,6 @@ CONTAINS
 
       nspin = SIZE(mo_array)
       restart_unit = -1
-
-      source = para_env%source
 
       IF (para_env%is_source()) THEN
 
@@ -542,7 +539,7 @@ CONTAINS
 
       IF (PRESENT(natom_mismatch)) THEN
          ! read_mos_restart_low only the io_node returns natom_mismatch, must broadcast it
-         CALL para_env%bcast(natom_mismatch, source)
+         CALL para_env%bcast(natom_mismatch)
          IF (natom_mismatch) THEN
             IF (para_env%is_source()) CALL close_file(unit_number=restart_unit)
             CALL timestop(handle)
@@ -592,8 +589,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_rt_mos_from_restart'
 
       CHARACTER(LEN=default_path_length)                 :: file_name
-      INTEGER                                            :: handle, ispin, natom, nspin, &
-                                                            restart_unit, source
+      INTEGER                                            :: handle, ispin, natom, nspin, restart_unit
       LOGICAL                                            :: exist
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -602,8 +598,6 @@ CONTAINS
 
       nspin = SIZE(mo_array)
       restart_unit = -1
-
-      source = para_env%source
 
       IF (para_env%is_source()) THEN
 
@@ -668,7 +662,7 @@ CONTAINS
       INTEGER :: homo, homo_read, i, iatom, ikind, imat, irow, iset, iset_read, ishell, &
          ishell_read, iso, ispin, lfomo_read, lmax, lshell, my_mult, nao, nao_read, natom_read, &
          nelectron, nelectron_read, nmo, nmo_read, nnshell, nset, nset_max, nshell_max, nspin, &
-         nspin_read, offset_read, source
+         nspin_read, offset_read
       INTEGER, DIMENSION(:), POINTER                     :: nset_info, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l, nshell_info
       INTEGER, DIMENSION(:, :, :), POINTER               :: nso_info, offset_info
@@ -686,7 +680,6 @@ CONTAINS
       nao = mos(1)%nao
       my_mult = 0
       IF (PRESENT(multiplicity)) my_mult = multiplicity
-      source = para_env%source
 
       IF (para_env%is_source()) THEN
          READ (rst_unit) natom_read, nspin_read, nao_read, nset_max, nshell_max
@@ -743,7 +736,7 @@ CONTAINS
       END IF ! ionode
 
       ! make natom_match and natom_mismatch uniform across all nodes
-      CALL para_env%bcast(natom_match, source)
+      CALL para_env%bcast(natom_match)
       IF (PRESENT(natom_mismatch)) natom_mismatch = .NOT. natom_match
       ! handle natom_match false
       IF (.NOT. natom_match) THEN
@@ -756,7 +749,7 @@ CONTAINS
          END IF
       END IF
 
-      CALL para_env%bcast(nspin_read, source)
+      CALL para_env%bcast(nspin_read)
 
       ALLOCATE (vecbuffer(1, nao))
 
@@ -806,13 +799,13 @@ CONTAINS
             END IF
          END IF
 
-         CALL para_env%bcast(nmo, source)
-         CALL para_env%bcast(mos(ispin)%homo, source)
-         CALL para_env%bcast(mos(ispin)%lfomo, source)
-         CALL para_env%bcast(mos(ispin)%nelectron, source)
-         CALL para_env%bcast(mos(ispin)%eigenvalues, source)
-         CALL para_env%bcast(mos(ispin)%uniform_occupation, source)
-         CALL para_env%bcast(mos(ispin)%occupation_numbers, source)
+         CALL para_env%bcast(nmo)
+         CALL para_env%bcast(mos(ispin)%homo)
+         CALL para_env%bcast(mos(ispin)%lfomo)
+         CALL para_env%bcast(mos(ispin)%nelectron)
+         CALL para_env%bcast(mos(ispin)%eigenvalues)
+         CALL para_env%bcast(mos(ispin)%uniform_occupation)
+         CALL para_env%bcast(mos(ispin)%occupation_numbers)
 
          IF (PRESENT(rt_mos)) THEN
             DO imat = 2*ispin - 1, 2*ispin
@@ -822,7 +815,7 @@ CONTAINS
                   ELSE
                      vecbuffer(1, :) = 0.0_dp
                   END IF
-                  CALL para_env%bcast(vecbuffer, source)
+                  CALL para_env%bcast(vecbuffer)
                   CALL cp_fm_set_submatrix(rt_mos(imat), &
                                            vecbuffer, 1, i, nao, 1, transpose=.TRUE.)
                END DO
@@ -906,7 +899,7 @@ CONTAINS
 
                END IF
 
-               CALL para_env%bcast(vecbuffer, source)
+               CALL para_env%bcast(vecbuffer)
                CALL cp_fm_set_submatrix(mos(ispin)%mo_coeff, &
                                         vecbuffer, 1, i, nao, 1, transpose=.TRUE.)
             END DO

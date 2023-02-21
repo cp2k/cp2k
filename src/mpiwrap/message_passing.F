@@ -211,14 +211,28 @@ MODULE message_passing
          mp_bcast_d, mp_bcast_dv, mp_bcast_dm, mp_bcast_d3, &
          mp_bcast_c, mp_bcast_cv, mp_bcast_cm, mp_bcast_c3, &
          mp_bcast_z, mp_bcast_zv, mp_bcast_zm, mp_bcast_z3, &
-         mp_bcast_b, mp_bcast_bv, mp_bcast_av, mp_bcast_am
+         mp_bcast_b, mp_bcast_bv, mp_bcast_av, mp_bcast_am, &
+         mp_bcast_i_src, mp_bcast_iv_src, mp_bcast_im_src, mp_bcast_i3_src, &
+         mp_bcast_l_src, mp_bcast_lv_src, mp_bcast_lm_src, mp_bcast_l3_src, &
+         mp_bcast_r_src, mp_bcast_rv_src, mp_bcast_rm_src, mp_bcast_r3_src, &
+         mp_bcast_d_src, mp_bcast_dv_src, mp_bcast_dm_src, mp_bcast_d3_src, &
+         mp_bcast_c_src, mp_bcast_cv_src, mp_bcast_cm_src, mp_bcast_c3_src, &
+         mp_bcast_z_src, mp_bcast_zv_src, mp_bcast_zm_src, mp_bcast_z3_src, &
+         mp_bcast_b_src, mp_bcast_bv_src, mp_bcast_av_src, mp_bcast_am_src
       GENERIC, PUBLIC :: bcast => mp_bcast_i, mp_bcast_iv, mp_bcast_im, mp_bcast_i3, &
          mp_bcast_l, mp_bcast_lv, mp_bcast_lm, mp_bcast_l3, &
          mp_bcast_r, mp_bcast_rv, mp_bcast_rm, mp_bcast_r3, &
          mp_bcast_d, mp_bcast_dv, mp_bcast_dm, mp_bcast_d3, &
          mp_bcast_c, mp_bcast_cv, mp_bcast_cm, mp_bcast_c3, &
          mp_bcast_z, mp_bcast_zv, mp_bcast_zm, mp_bcast_z3, &
-         mp_bcast_b, mp_bcast_bv, mp_bcast_av, mp_bcast_am
+         mp_bcast_b, mp_bcast_bv, mp_bcast_av, mp_bcast_am, &
+         mp_bcast_i_src, mp_bcast_iv_src, mp_bcast_im_src, mp_bcast_i3_src, &
+         mp_bcast_l_src, mp_bcast_lv_src, mp_bcast_lm_src, mp_bcast_l3_src, &
+         mp_bcast_r_src, mp_bcast_rv_src, mp_bcast_rm_src, mp_bcast_r3_src, &
+         mp_bcast_d_src, mp_bcast_dv_src, mp_bcast_dm_src, mp_bcast_d3_src, &
+         mp_bcast_c_src, mp_bcast_cv_src, mp_bcast_cm_src, mp_bcast_c3_src, &
+         mp_bcast_z_src, mp_bcast_zv_src, mp_bcast_zm_src, mp_bcast_z3_src, &
+         mp_bcast_b_src, mp_bcast_bv_src, mp_bcast_av_src, mp_bcast_am_src
 
       PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_ibcast_i, mp_ibcast_iv, &
          mp_ibcast_l, mp_ibcast_lv, mp_ibcast_r, mp_ibcast_rv, &
@@ -520,6 +534,7 @@ MODULE message_passing
       PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: get_size => mp_comm_size
       PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: get_rank => mp_comm_rank
       PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: get_ndims => mp_comm_get_ndims
+      PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: is_source => mp_comm_is_source
 
       PROCEDURE, PRIVATE, PASS(sub_comm), NON_OVERRIDABLE :: mp_comm_split, mp_comm_split_direct
       GENERIC, PUBLIC :: from_split => mp_comm_split, mp_comm_split_direct
@@ -1751,6 +1766,18 @@ CONTAINS
       END SUBROUTINE
 
 ! **************************************************************************************************
+!> \brief check whether the local process is the source process
+!> \param para_env ...
+!> \return ...
+! **************************************************************************************************
+      ELEMENTAL LOGICAL FUNCTION mp_comm_is_source(comm)
+         CLASS(mp_comm_type), INTENT(IN) :: comm
+
+         mp_comm_is_source = comm%source == comm%mepos
+
+      END FUNCTION mp_comm_is_source
+
+! **************************************************************************************************
 !> \brief Initializes the communicator (mostly relevant for its derived classes)
 !> \param comm ...
 ! **************************************************************************************************
@@ -2552,6 +2579,37 @@ CONTAINS
 !> \param source ...
 !> \param comm ...
 ! **************************************************************************************************
+      SUBROUTINE mp_bcast_b_src(msg, comm)
+         LOGICAL, INTENT(INOUT)                                            :: msg
+         CLASS(mp_comm_type), INTENT(IN) :: comm
+
+         CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_b_src'
+
+         INTEGER                                            :: handle
+#if defined(__parallel)
+         INTEGER :: ierr, msglen
+#endif
+
+         CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+         msglen = 1
+         CALL mpi_bcast(msg, msglen, MPI_LOGICAL, comm%source, comm%handle, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_bcast @ "//routineN)
+         CALL add_perf(perf_id=2, count=1, msg_size=msglen*loglen)
+#else
+         MARK_USED(msg)
+         MARK_USED(comm)
+#endif
+         CALL mp_timestop(handle)
+      END SUBROUTINE mp_bcast_b_src
+
+! **************************************************************************************************
+!> \brief ...
+!> \param msg ...
+!> \param source ...
+!> \param comm ...
+! **************************************************************************************************
       SUBROUTINE mp_bcast_bv(msg, source, comm)
          LOGICAL, CONTIGUOUS, INTENT(INOUT)                 :: msg(:)
          INTEGER, INTENT(IN)                                            :: source
@@ -2578,6 +2636,36 @@ CONTAINS
 #endif
          CALL mp_timestop(handle)
       END SUBROUTINE mp_bcast_bv
+
+! **************************************************************************************************
+!> \brief ...
+!> \param msg ...
+!> \param comm ...
+! **************************************************************************************************
+      SUBROUTINE mp_bcast_bv_src(msg, comm)
+         LOGICAL, CONTIGUOUS, INTENT(INOUT)                 :: msg(:)
+         CLASS(mp_comm_type), INTENT(IN) :: comm
+
+         CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_bv_src'
+
+         INTEGER                                            :: handle
+#if defined(__parallel)
+         INTEGER :: ierr, msglen
+#endif
+
+         CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+         msglen = SIZE(msg)
+         CALL mpi_bcast(msg, msglen, MPI_LOGICAL, comm%source, comm%handle, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_bcast @ "//routineN)
+         CALL add_perf(perf_id=2, count=1, msg_size=msglen*loglen)
+#else
+         MARK_USED(msg)
+         MARK_USED(comm)
+#endif
+         CALL mp_timestop(handle)
+      END SUBROUTINE mp_bcast_bv_src
 
 ! **************************************************************************************************
 !> \brief Non-blocking send of logical vector data
@@ -2839,7 +2927,7 @@ CONTAINS
 
          INTEGER                                  :: handle
 #if defined(__parallel)
-         INTEGER                                  :: i, ierr, msglen, taskid
+         INTEGER                                  :: i, ierr, msglen
          INTEGER, DIMENSION(:), ALLOCATABLE       :: imsg
 #endif
 
@@ -2847,8 +2935,7 @@ CONTAINS
 
 #if defined(__parallel)
 
-         CALL comm%get_rank(taskid)
-         IF (taskid == source) msglen = LEN_TRIM(msg)
+         IF (comm%mepos == source) msglen = LEN_TRIM(msg)
 
          CALL comm%bcast(msglen, source)
          ! this is a workaround to avoid problems on the T3E
@@ -2879,6 +2966,54 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param msg ...
+!> \param comm ...
+! **************************************************************************************************
+      SUBROUTINE mp_bcast_av_src(msg, comm)
+         CHARACTER(LEN=*), INTENT(INOUT)          :: msg
+         CLASS(mp_comm_type), INTENT(IN) :: comm
+
+         CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_av_src'
+
+         INTEGER                                  :: handle
+#if defined(__parallel)
+         INTEGER                                  :: i, ierr, msglen
+         INTEGER, DIMENSION(:), ALLOCATABLE       :: imsg
+#endif
+
+         CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+
+         IF (comm%is_source()) msglen = LEN_TRIM(msg)
+
+         CALL comm%bcast(msglen, comm%source)
+         ! this is a workaround to avoid problems on the T3E
+         ! at the moment we have a data alignment error when trying to
+         ! broadcast characters on the T3E (not always!)
+         ! JH 19/3/99 on galileo
+         ! CALL mpi_bcast(msg,msglen,MPI_CHARACTER,source,gid%handle,ierr)
+         ALLOCATE (imsg(1:msglen))
+         DO i = 1, msglen
+            imsg(i) = ICHAR(msg(i:i))
+         END DO
+         CALL mpi_bcast(imsg, msglen, MPI_INTEGER, comm%source, comm%handle, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_bcast @ "//routineN)
+         msg = ""
+         DO i = 1, msglen
+            msg(i:i) = CHAR(imsg(i))
+         END DO
+         DEALLOCATE (imsg)
+         CALL add_perf(perf_id=2, count=1, msg_size=msglen*charlen)
+#else
+         MARK_USED(msg)
+         MARK_USED(comm)
+#endif
+         CALL mp_timestop(handle)
+      END SUBROUTINE mp_bcast_av_src
+
+! **************************************************************************************************
+!> \brief ...
+!> \param msg ...
 !> \param source ...
 !> \param comm ...
 ! **************************************************************************************************
@@ -2891,21 +3026,21 @@ CONTAINS
 
          INTEGER                                  :: handle
 #if defined(__parallel)
-         INTEGER                                  :: i, ierr, j, k, msglen, msgsiz, &
-                                                     taskid
+         INTEGER                                  :: i, ierr, j, k, msglen, msgsiz
          INTEGER, ALLOCATABLE                     :: imsg(:), imsglen(:)
 #endif
 
          CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-         CALL comm%get_rank(taskid)
          msgsiz = SIZE(msg)
          ! Determine size of the minimum array of integers to broadcast the string
          ALLOCATE (imsglen(1:msgsiz))
-         DO j = 1, msgsiz
-            IF (taskid == source) imsglen(j) = LEN_TRIM(msg(j))
-         END DO
+         IF (comm%mepos == source) THEN
+            DO j = 1, msgsiz
+               imsglen(j) = LEN_TRIM(msg(j))
+            END DO
+         END IF
          CALL comm%bcast(imsglen, source)
          msglen = SUM(imsglen)
          ! this is a workaround to avoid problems on the T3E
@@ -2940,6 +3075,61 @@ CONTAINS
 #endif
          CALL mp_timestop(handle)
       END SUBROUTINE mp_bcast_am
+
+      SUBROUTINE mp_bcast_am_src(msg, comm)
+         CHARACTER(LEN=*), CONTIGUOUS, INTENT(INOUT)      :: msg(:)
+         CLASS(mp_comm_type), INTENT(IN) :: comm
+
+         CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_am_src'
+
+         INTEGER                                  :: handle
+#if defined(__parallel)
+         INTEGER                                  :: i, ierr, j, k, msglen, msgsiz
+         INTEGER, ALLOCATABLE                     :: imsg(:), imsglen(:)
+#endif
+
+         CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+         msgsiz = SIZE(msg)
+         ! Determine size of the minimum array of integers to broadcast the string
+         ALLOCATE (imsglen(1:msgsiz))
+         DO j = 1, msgsiz
+            imsglen(j) = LEN_TRIM(msg(j))
+         END DO
+         CALL comm%bcast(imsglen, comm%source)
+         msglen = SUM(imsglen)
+         ! this is a workaround to avoid problems on the T3E
+         ! at the moment we have a data alignment error when trying to
+         ! broadcast characters on the T3E (not always!)
+         ! JH 19/3/99 on galileo
+         ALLOCATE (imsg(1:msglen))
+         k = 0
+         DO j = 1, msgsiz
+            DO i = 1, imsglen(j)
+               k = k + 1
+               imsg(k) = ICHAR(msg(j) (i:i))
+            END DO
+         END DO
+         CALL mpi_bcast(imsg, msglen, MPI_INTEGER, comm%source, comm%handle, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_bcast @ "//routineN)
+         msg = ""
+         k = 0
+         DO j = 1, msgsiz
+            DO i = 1, imsglen(j)
+               k = k + 1
+               msg(j) (i:i) = CHAR(imsg(k))
+            END DO
+         END DO
+         DEALLOCATE (imsg)
+         DEALLOCATE (imsglen)
+         CALL add_perf(perf_id=2, count=1, msg_size=msglen*charlen*msgsiz)
+#else
+         MARK_USED(msg)
+         MARK_USED(comm)
+#endif
+         CALL mp_timestop(handle)
+      END SUBROUTINE mp_bcast_am_src
 
 ! **************************************************************************************************
 !> \brief Finds the location of the minimal element in a vector.
@@ -4599,9 +4789,9 @@ CONTAINS
          ! set system sizes !
          ngrid = 10**npow
 
-         CALL mpi_comm_rank(comm%handle, taskid, ierror)
-         CALL mpi_comm_size(comm%handle, Nprocs, ierror)
-         ionode = (taskid == 0)
+         taskid = comm%mepos
+         nprocs = comm%num_pe
+         ionode = comm%is_source()
          IF (ionode .AND. output_unit > 0) THEN
             WRITE (output_unit, *) "Running with ", nprocs
             WRITE (output_unit, *) "running messages with npow = ", npow

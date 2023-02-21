@@ -938,6 +938,38 @@
    END SUBROUTINE mp_bcast_${nametype1}$
 
 ! **************************************************************************************************
+!> \brief Broadcasts a datum to all processes. Convenience function using the source of the communicator
+!> \param[in] msg             Datum to broadcast
+!> \param[in] comm             Message passing environment identifier
+!> \par MPI mapping
+!>      mpi_bcast
+! **************************************************************************************************
+   SUBROUTINE mp_bcast_${nametype1}$_src(msg, comm)
+      ${type1}$, INTENT(INOUT)                                  :: msg
+      CLASS(mp_comm_type), INTENT(IN) :: comm
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_${nametype1}$_src'
+
+      INTEGER                                  :: handle
+#if defined(__parallel)
+      INTEGER :: ierr, msglen
+#endif
+
+      CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+      msglen = 1
+      CALL mpi_bcast(msg, msglen, ${mpi_type1}$, comm%source, comm%handle, ierr)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_bcast @ "//routineN)
+      CALL add_perf(perf_id=2, count=1, msg_size=msglen*${bytes1}$)
+#else
+      MARK_USED(msg)
+      MARK_USED(comm)
+#endif
+      CALL mp_timestop(handle)
+   END SUBROUTINE mp_bcast_${nametype1}$_src
+
+! **************************************************************************************************
 !> \brief Broadcasts a datum to all processes.
 !> \param[in] msg             Datum to broadcast
 !> \param[in] source          Processes which broadcasts
@@ -1009,6 +1041,37 @@
    END SUBROUTINE mp_bcast_${nametype1}$v
 
 ! **************************************************************************************************
+!> \brief Broadcasts rank-1 data to all processes, uses the source of the communicator, convenience function
+!> \param[in] msg             Data to broadcast
+!> \param comm ...
+!> \note see mp_bcast_${nametype1}$1
+! **************************************************************************************************
+   SUBROUTINE mp_bcast_${nametype1}$v_src(msg, comm)
+      ${type1}$, CONTIGUOUS, INTENT(INOUT)                                  :: msg(:)
+      CLASS(mp_comm_type), INTENT(IN) :: comm
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_${nametype1}$v_src'
+
+      INTEGER                                  :: handle
+#if defined(__parallel)
+      INTEGER :: ierr, msglen
+#endif
+
+      CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+      msglen = SIZE(msg)
+      CALL mpi_bcast(msg, msglen, ${mpi_type1}$, comm%source, comm%handle, ierr)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_bcast @ "//routineN)
+      CALL add_perf(perf_id=2, count=1, msg_size=msglen*${bytes1}$)
+#else
+      MARK_USED(msg)
+      MARK_USED(comm)
+#endif
+      CALL mp_timestop(handle)
+   END SUBROUTINE mp_bcast_${nametype1}$v_src
+
+! **************************************************************************************************
 !> \brief Broadcasts rank-1 data to all processes
 !> \param[in] msg             Data to broadcast
 !> \param source ...
@@ -1059,7 +1122,7 @@
       INTEGER, INTENT(IN)                                  :: source
       CLASS(mp_comm_type), INTENT(IN) :: comm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_im'
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_${nametype1}$m'
 
       INTEGER                                  :: handle
 #if defined(__parallel)
@@ -1080,6 +1143,38 @@
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_bcast_${nametype1}$m
+
+! **************************************************************************************************
+!> \brief Broadcasts rank-2 data to all processes
+!> \param[in] msg             Data to broadcast
+!> \param source ...
+!> \param comm ...
+!> \note see mp_bcast_${nametype1}$1
+! **************************************************************************************************
+   SUBROUTINE mp_bcast_${nametype1}$m_src(msg, comm)
+      ${type1}$, CONTIGUOUS, INTENT(INOUT)                                  :: msg(:, :)
+      CLASS(mp_comm_type), INTENT(IN) :: comm
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_${nametype1}$m_src'
+
+      INTEGER                                  :: handle
+#if defined(__parallel)
+      INTEGER :: ierr, msglen
+#endif
+
+      CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+      msglen = SIZE(msg)
+      CALL mpi_bcast(msg, msglen, ${mpi_type1}$, comm%source, comm%handle, ierr)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_bcast @ "//routineN)
+      CALL add_perf(perf_id=2, count=1, msg_size=msglen*${bytes1}$)
+#else
+      MARK_USED(msg)
+      MARK_USED(comm)
+#endif
+      CALL mp_timestop(handle)
+   END SUBROUTINE mp_bcast_${nametype1}$m_src
 
 ! **************************************************************************************************
 !> \brief Broadcasts rank-3 data to all processes
@@ -1114,6 +1209,38 @@
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_bcast_${nametype1}$3
+
+! **************************************************************************************************
+!> \brief Broadcasts rank-3 data to all processes. Uses the source of the communicator for convenience
+!> \param[in] msg             Data to broadcast
+!> \param source ...
+!> \param comm ...
+!> \note see mp_bcast_${nametype1}$1
+! **************************************************************************************************
+   SUBROUTINE mp_bcast_${nametype1}$3_src(msg, comm)
+      ${type1}$, CONTIGUOUS                                  :: msg(:, :, :)
+      CLASS(mp_comm_type), INTENT(IN) :: comm
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_${nametype1}$3_src'
+
+      INTEGER                                  :: handle
+#if defined(__parallel)
+      INTEGER :: ierr, msglen
+#endif
+
+      CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+      msglen = SIZE(msg)
+      CALL mpi_bcast(msg, msglen, ${mpi_type1}$, comm%source, comm%handle, ierr)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_bcast @ "//routineN)
+      CALL add_perf(perf_id=2, count=1, msg_size=msglen*${bytes1}$)
+#else
+      MARK_USED(msg)
+      MARK_USED(comm)
+#endif
+      CALL mp_timestop(handle)
+   END SUBROUTINE mp_bcast_${nametype1}$3_src
 
 ! **************************************************************************************************
 !> \brief Sums a datum from all processes with result left on all processes.

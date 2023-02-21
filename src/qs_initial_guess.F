@@ -299,8 +299,8 @@ CONTAINS
                CALL wfn_restart_file_name(file_name, exist, dft_section, logger)
             END IF
          END IF
-         CALL para_env%bcast(exist, para_env%source)
-         CALL para_env%bcast(file_name, para_env%source)
+         CALL para_env%bcast(exist)
+         CALL para_env%bcast(file_name)
          IF (.NOT. exist) THEN
             CALL cp_warn(__LOCATION__, &
                          "User requested to restart the wavefunction from the file named: "// &
@@ -315,8 +315,8 @@ CONTAINS
          END IF
          IF (para_env%is_source()) &
             CALL wfn_restart_file_name(file_name, exist, dft_section, logger)
-         CALL para_env%bcast(exist, para_env%source)
-         CALL para_env%bcast(file_name, para_env%source)
+         CALL para_env%bcast(exist)
+         CALL para_env%bcast(file_name)
          nvec = qs_env%wf_history%memory_depth
          not_read = nvec + 1
          ! At this level we read the saved backup RESTART files..
@@ -326,7 +326,7 @@ CONTAINS
             IF (j /= 0) filename = TRIM(file_name)//".bak-"//ADJUSTL(cp_to_string(j))
             IF (para_env%is_source()) &
                INQUIRE (FILE=filename, exist=exist)
-            CALL para_env%bcast(exist, para_env%source)
+            CALL para_env%bcast(exist)
             IF ((.NOT. exist) .AND. (i < not_read)) THEN
                not_read = i
             END IF
@@ -335,7 +335,7 @@ CONTAINS
             density_guess = restart_guess
             filename = TRIM(file_name)
             IF (para_env%is_source()) INQUIRE (FILE=filename, exist=exist)
-            CALL para_env%bcast(exist, para_env%source)
+            CALL para_env%bcast(exist)
             IF (.NOT. exist) THEN
                CALL cp_warn(__LOCATION__, &
                             "User requested to restart the wavefunction from a series of restart files named: "// &
