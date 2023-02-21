@@ -511,10 +511,10 @@ MODULE message_passing
       PROCEDURE, PUBLIC, PASS(comm1), NON_OVERRIDABLE :: rank_compare => mp_rank_compare
 
       PROCEDURE, PUBLIC, PASS(comm2), NON_OVERRIDABLE :: from_dup => mp_comm_dup
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_comm_free
+      PROCEDURE, PUBLIC, PASS(comm) :: mp_comm_free
       GENERIC, PUBLIC :: free => mp_comm_free
 
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_comm_init
+      PROCEDURE, PUBLIC, PASS(comm) :: mp_comm_init
       GENERIC, PUBLIC :: init => mp_comm_init
 
       PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: get_size => mp_comm_size
@@ -524,7 +524,7 @@ MODULE message_passing
       PROCEDURE, PRIVATE, PASS(sub_comm), NON_OVERRIDABLE :: mp_comm_split, mp_comm_split_direct
       GENERIC, PUBLIC :: from_split => mp_comm_split, mp_comm_split_direct
       PROCEDURE, PUBLIC, PASS(mp_new_comm), NON_OVERRIDABLE :: from_reordering => mp_reordering
-      PROCEDURE, PRIVATE, PASS(comm_new), NON_OVERRIDABLE :: mp_comm_assign
+      PROCEDURE, PUBLIC, PASS(comm_new), NON_OVERRIDABLE :: mp_comm_assign
       GENERIC, PUBLIC :: ASSIGNMENT(=) => mp_comm_assign
    END TYPE
 
@@ -651,7 +651,7 @@ MODULE message_passing
    CONTAINS
       PROCEDURE, PUBLIC, PASS(comm_cart), NON_OVERRIDABLE :: create => mp_cart_create
       PROCEDURE, PUBLIC, PASS(sub_comm), NON_OVERRIDABLE :: from_sub => mp_cart_sub
-      PROCEDURE, PRIVATE, PASS(comm) :: mp_comm_init => mp_cart_init
+      PROCEDURE, PUBLIC, PASS(comm) :: mp_comm_init => mp_cart_init
 
       PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: get_info_cart => mp_cart_get
 
