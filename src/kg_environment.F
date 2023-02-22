@@ -649,7 +649,7 @@ CONTAINS
 
       msg_gather = 0
 
-      CALL para_env%gather(pairs, msg_gather, para_env%source)
+      CALL para_env%gather(pairs, msg_gather)
 
       DEALLOCATE (pairs)
 

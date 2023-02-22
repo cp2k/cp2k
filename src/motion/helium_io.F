@@ -1893,8 +1893,7 @@ CONTAINS
 
          ! pass the message from all processors to logger%para_env%source
          helium%rtmp_p_ndim_np_1d(:) = 0.0_dp
-         CALL logger%para_env%gather(helium%rtmp_p_ndim_1d, helium%rtmp_p_ndim_np_1d, &
-                                     logger%para_env%source)
+         CALL logger%para_env%gather(helium%rtmp_p_ndim_1d, helium%rtmp_p_ndim_np_1d)
 
          IF (logger%para_env%is_source()) THEN
 

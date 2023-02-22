@@ -305,22 +305,40 @@ MODULE message_passing
          mp_gather_r, mp_gather_rv, mp_gather_rm, &
          mp_gather_d, mp_gather_dv, mp_gather_dm, &
          mp_gather_c, mp_gather_cv, mp_gather_cm, &
-         mp_gather_z, mp_gather_zv, mp_gather_zm
+         mp_gather_z, mp_gather_zv, mp_gather_zm, &
+         mp_gather_i_src, mp_gather_iv_src, mp_gather_im_src, &
+         mp_gather_l_src, mp_gather_lv_src, mp_gather_lm_src, &
+         mp_gather_r_src, mp_gather_rv_src, mp_gather_rm_src, &
+         mp_gather_d_src, mp_gather_dv_src, mp_gather_dm_src, &
+         mp_gather_c_src, mp_gather_cv_src, mp_gather_cm_src, &
+         mp_gather_z_src, mp_gather_zv_src, mp_gather_zm_src
       GENERIC, PUBLIC :: gather => mp_gather_i, mp_gather_iv, mp_gather_im, &
          mp_gather_l, mp_gather_lv, mp_gather_lm, &
          mp_gather_r, mp_gather_rv, mp_gather_rm, &
          mp_gather_d, mp_gather_dv, mp_gather_dm, &
          mp_gather_c, mp_gather_cv, mp_gather_cm, &
-         mp_gather_z, mp_gather_zv, mp_gather_zm
+         mp_gather_z, mp_gather_zv, mp_gather_zm, &
+         mp_gather_i_src, mp_gather_iv_src, mp_gather_im_src, &
+         mp_gather_l_src, mp_gather_lv_src, mp_gather_lm_src, &
+         mp_gather_r_src, mp_gather_rv_src, mp_gather_rm_src, &
+         mp_gather_d_src, mp_gather_dv_src, mp_gather_dm_src, &
+         mp_gather_c_src, mp_gather_cv_src, mp_gather_cm_src, &
+         mp_gather_z_src, mp_gather_zv_src, mp_gather_zm_src
 
       PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_gatherv_iv, &
          mp_gatherv_lv, mp_gatherv_rv, mp_gatherv_dv, &
          mp_gatherv_cv, mp_gatherv_zv, mp_gatherv_lm2, mp_gatherv_rm2, &
-         mp_gatherv_dm2, mp_gatherv_cm2, mp_gatherv_zm2
+         mp_gatherv_dm2, mp_gatherv_cm2, mp_gatherv_zm2, mp_gatherv_iv_src, &
+         mp_gatherv_lv_src, mp_gatherv_rv_src, mp_gatherv_dv_src, &
+         mp_gatherv_cv_src, mp_gatherv_zv_src, mp_gatherv_lm2_src, mp_gatherv_rm2_src, &
+         mp_gatherv_dm2_src, mp_gatherv_cm2_src, mp_gatherv_zm2_src
       GENERIC, PUBLIC :: gatherv => mp_gatherv_iv, &
          mp_gatherv_lv, mp_gatherv_rv, mp_gatherv_dv, &
          mp_gatherv_cv, mp_gatherv_zv, mp_gatherv_lm2, mp_gatherv_rm2, &
-         mp_gatherv_dm2, mp_gatherv_cm2, mp_gatherv_zm2
+         mp_gatherv_dm2, mp_gatherv_cm2, mp_gatherv_zm2, mp_gatherv_iv_src, &
+         mp_gatherv_lv_src, mp_gatherv_rv_src, mp_gatherv_dv_src, &
+         mp_gatherv_cv_src, mp_gatherv_zv_src, mp_gatherv_lm2_src, mp_gatherv_rm2_src, &
+         mp_gatherv_dm2_src, mp_gatherv_cm2_src, mp_gatherv_zm2_src
 
       PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_igatherv_iv, &
          mp_igatherv_lv, mp_igatherv_rv, mp_igatherv_dv, &

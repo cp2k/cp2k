@@ -2418,7 +2418,7 @@ CONTAINS
          buffer_in(2*i) = shm_cost_vector(2*i)
       END DO
 
-      CALL para_env%gatherv(buffer_in, buffer_out, bins_per_rank, rdispl, para_env%source)
+      CALL para_env%gatherv(buffer_in, buffer_out, bins_per_rank, rdispl)
 
       IF (iw > 0) THEN
 
