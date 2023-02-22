@@ -505,8 +505,8 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: oe_corr
 
-      INTEGER                                            :: ia, iat, iatom, ikind, ir, ispin, mepos, &
-                                                            na, natom, nr, ns, nspins, num_pe, orb
+      INTEGER                                            :: ia, iat, iatom, ikind, ir, ispin, na, &
+                                                            natom, nr, ns, nspins, orb
       INTEGER, DIMENSION(2)                              :: bo, homo, ncol, nrow
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
@@ -676,9 +676,7 @@ CONTAINS
          ALLOCATE (drho_h(1:4, 1:na, 1:nr, 1:nspins), drho_s(1:4, 1:na, 1:nr, 1:nspins))
 
          ! Distribute the atoms of this kind
-         num_pe = para_env%num_pe
-         mepos = para_env%mepos
-         bo = get_limit(natom, num_pe, mepos)
+         bo = get_limit(natom, para_env%num_pe, para_env%mepos)
 
          DO iat = 1, natom !bo(1),bo(2)
             iatom = atom_list(iat)

@@ -125,8 +125,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'lib_pexsi_init'
 
-      INTEGER                                            :: handle, ispin, mynode, npSymbFact, &
-                                                            numnodes, unit_nr
+      INTEGER                                            :: handle, ispin, npSymbFact, &
+                                                            unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger
 
       logger => cp_get_default_logger()
@@ -142,46 +142,46 @@ CONTAINS
       CALL cite_reference(Lin2013)
 
       pexsi_env%mp_group = mp_group
-      numnodes = pexsi_env%mp_group%num_pe
-      mynode = pexsi_env%mp_group%mepos
+      ASSOCIATE (numnodes => pexsi_env%mp_group%num_pe, mynode => pexsi_env%mp_group%mepos)
 
-      ! Use all nodes available per pole by default or if the user tries to use
-      ! more nodes than MPI size
-      IF ((pexsi_env%num_ranks_per_pole .GT. numnodes) &
-          .OR. (pexsi_env%num_ranks_per_pole .EQ. 0)) THEN
-         pexsi_env%num_ranks_per_pole = numnodes
-      END IF
+         ! Use all nodes available per pole by default or if the user tries to use
+         ! more nodes than MPI size
+         IF ((pexsi_env%num_ranks_per_pole .GT. numnodes) &
+             .OR. (pexsi_env%num_ranks_per_pole .EQ. 0)) THEN
+            pexsi_env%num_ranks_per_pole = numnodes
+         END IF
 
-      ! Find num_ranks_per_pole from user input MIN_RANKS_PER_POLE s.t. num_ranks_per_pole
-      ! is the smallest number greater or equal to min_ranks_per_pole that divides
-      ! MPI size without remainder.
-      DO WHILE (MOD(numnodes, pexsi_env%num_ranks_per_pole) .NE. 0)
-         pexsi_env%num_ranks_per_pole = pexsi_env%num_ranks_per_pole + 1
-      END DO
+         ! Find num_ranks_per_pole from user input MIN_RANKS_PER_POLE s.t. num_ranks_per_pole
+         ! is the smallest number greater or equal to min_ranks_per_pole that divides
+         ! MPI size without remainder.
+         DO WHILE (MOD(numnodes, pexsi_env%num_ranks_per_pole) .NE. 0)
+            pexsi_env%num_ranks_per_pole = pexsi_env%num_ranks_per_pole + 1
+         END DO
 
-      CALL cp_pexsi_get_options(pexsi_env%options, npSymbFact=npSymbFact)
-      IF ((npSymbFact .GT. pexsi_env%num_ranks_per_pole) .OR. (npSymbFact .EQ. 0)) THEN
-         ! Use maximum possible number of ranks for symbolic factorization
-         CALL cp_pexsi_set_options(pexsi_env%options, npSymbFact=pexsi_env%num_ranks_per_pole)
-      END IF
+         CALL cp_pexsi_get_options(pexsi_env%options, npSymbFact=npSymbFact)
+         IF ((npSymbFact .GT. pexsi_env%num_ranks_per_pole) .OR. (npSymbFact .EQ. 0)) THEN
+            ! Use maximum possible number of ranks for symbolic factorization
+            CALL cp_pexsi_set_options(pexsi_env%options, npSymbFact=pexsi_env%num_ranks_per_pole)
+         END IF
 
-      ! Create dimensions for MPI cartesian grid for PEXSI
-      pexsi_env%mp_dims = 0
-      CALL mp_dims_create(pexsi_env%num_ranks_per_pole, pexsi_env%mp_dims)
+         ! Create dimensions for MPI cartesian grid for PEXSI
+         pexsi_env%mp_dims = 0
+         CALL mp_dims_create(pexsi_env%num_ranks_per_pole, pexsi_env%mp_dims)
 
-      ! allocations with nspin
-      pexsi_env%nspin = nspin
-      ALLOCATE (pexsi_env%kTS(nspin))
-      pexsi_env%kTS(:) = 0.0_dp
-      ALLOCATE (pexsi_env%max_ev_vector(nspin))
-      ALLOCATE (pexsi_env%matrix_w(nspin))
-      DO ispin = 1, pexsi_env%nspin
-         ALLOCATE (pexsi_env%matrix_w(ispin)%matrix)
-      END DO
+         ! allocations with nspin
+         pexsi_env%nspin = nspin
+         ALLOCATE (pexsi_env%kTS(nspin))
+         pexsi_env%kTS(:) = 0.0_dp
+         ALLOCATE (pexsi_env%max_ev_vector(nspin))
+         ALLOCATE (pexsi_env%matrix_w(nspin))
+         DO ispin = 1, pexsi_env%nspin
+            ALLOCATE (pexsi_env%matrix_w(ispin)%matrix)
+         END DO
 
-      ! Initialize PEXSI
-      pexsi_env%plan = cp_pexsi_plan_initialize(pexsi_env%mp_group, pexsi_env%mp_dims(1), &
-                                                pexsi_env%mp_dims(2), mynode)
+         ! Initialize PEXSI
+         pexsi_env%plan = cp_pexsi_plan_initialize(pexsi_env%mp_group, pexsi_env%mp_dims(1), &
+                                                   pexsi_env%mp_dims(2), mynode)
+      END ASSOCIATE
 
       pexsi_env%do_adaptive_tol_nel = .FALSE.
 

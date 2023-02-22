@@ -37,6 +37,7 @@ MODULE mp2_ri_gpw
    USE machine,                         ONLY: m_flush,&
                                               m_memory,&
                                               m_walltime
+   USE message_passing,                 ONLY: mp_comm_type
    USE mp2_ri_grad_util,                ONLY: complete_gamma
    USE mp2_types,                       ONLY: mp2_type,&
                                               three_dim_real_array
@@ -101,7 +102,7 @@ CONTAINS
          my_group_L_start, my_i, my_ij_pairs, my_j, my_new_group_L_size, ngroup, nspins, &
          num_integ_group, proc_receive, proc_send, proc_shift, rec_B_size, rec_B_virtual_end, &
          rec_B_virtual_start, rec_L_size, send_B_size, send_B_virtual_end, send_B_virtual_start, &
-         send_i, send_ij_index, send_j, start_point, sub_P_color, tag, total_ij_pairs
+         send_i, send_ij_index, send_j, start_point, tag, total_ij_pairs
       INTEGER, ALLOCATABLE, DIMENSION(:) :: integ_group_pos2color_sub, my_B_size, &
          my_B_virtual_end, my_B_virtual_start, num_ij_pairs, sizes_array_orig, virtual
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ij_map
@@ -119,8 +120,7 @@ CONTAINS
          POINTER                                         :: external_ab, external_i_aL
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: BI_C_rec
-      TYPE(cp_para_env_type), POINTER                    :: para_env_exchange, para_env_P, &
-                                                            para_env_rep
+      TYPE(cp_para_env_type), POINTER                    :: para_env_exchange, para_env_rep
       TYPE(dgemm_counter_type)                           :: dgemm_counter
       TYPE(three_dim_real_array), ALLOCATABLE, &
          DIMENSION(:)                                    :: B_ia_Q
@@ -662,15 +662,17 @@ CONTAINS
          DEALLOCATE (B_ia_Q)
 
          IF (nspins == 1) mp2_env%ri_grad%P_ab(1)%array(:, :) = mp2_env%ri_grad%P_ab(1)%array(:, :)*2.0_dp
-         sub_P_color = para_env_sub%mepos
-         ALLOCATE (para_env_P)
-         CALL para_env_P%from_split(para_env, sub_P_color)
-         DO ispin = 1, nspins
-            CALL para_env_P%sum(mp2_env%ri_grad%P_ab(ispin)%array)
-            CALL para_env%sum(mp2_env%ri_grad%P_ij(ispin)%array)
-         END DO
-         ! release para_env_P
-         CALL cp_para_env_release(para_env_P)
+         BLOCK
+            TYPE(mp_comm_type) :: comm
+            CALL comm%from_split(para_env, para_env_sub%mepos)
+            DO ispin = 1, nspins
+               ! P_ab is only replicated over all subgroups
+               CALL comm%sum(mp2_env%ri_grad%P_ab(ispin)%array)
+               ! P_ij is replicated over all processes
+               CALL para_env%sum(mp2_env%ri_grad%P_ij(ispin)%array)
+            END DO
+            CALL comm%free()
+         END BLOCK
       END IF
 
       CALL release_group_dist(gd_array)
