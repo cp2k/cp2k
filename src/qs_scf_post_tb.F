@@ -802,7 +802,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fmstruct, ao_lumo_struct
       TYPE(cp_fm_type)                                   :: KS_tmp, MO_tmp, S_tmp, work
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: lumos
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: lumos
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s

@@ -66,7 +66,8 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: dft_section
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: unoccupied_orbs
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: unoccupied_orbs
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       INTEGER                                            :: output_unit
@@ -140,6 +141,8 @@ CONTAINS
                CALL cp_fm_to_fm(mos(orig_spin_index)%mo_coeff, matrix_x, 1, &
                                 mos(orig_spin_index)%nmo - orig_mo_index + 1, 1)
             ELSE
+               IF (.NOT. ASSOCIATED(unoccupied_orbs)) &
+                  CPABORT("If ORIG_IS_VIRTUAL is set, the array unoccupied_orbs must be associated!")
                CALL cp_fm_to_fm(unoccupied_orbs(orig_spin_index), matrix_x, 1, orig_mo_index, 1)
             END IF
 
