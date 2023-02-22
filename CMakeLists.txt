@@ -28,7 +28,7 @@ cmake_policy(SET CMP0048 NEW)
 set(VERSION_MAJOR 23)
 # anything above 12 is to indicate that it is devel-branch. The git hash commit
 # is the only important information to give. It is retrieved few lines below.
-set(VERSION_MINOR 99)
+set(VERSION_MINOR 1)
 set(VERSION_PATCH 00)
 
 project(
@@ -477,7 +477,7 @@ endif()
 # SIRIUS
 
 if(CP2K_USE_SIRIUS)
-  find_package(sirius 7.4 REQUIRED)
+  find_package(sirius REQUIRED)
 endif()
 
 if(CP2K_USE_SUPERLU)
@@ -543,7 +543,7 @@ include(CustomTargets)
 include(GNUInstallDirs)
 
 get_target_property(CP2K_LIBS cp2k_link_libs INTERFACE_LINK_LIBRARIES)
-configure_file(cp2k.pc.in cp2k.pc @ONLY)
+configure_file(cmake/cp2k.pc.in cp2k.pc @ONLY)
 
 message(
   STATUS "--------------------------------------------------------------------")
@@ -811,8 +811,7 @@ if(NOT CP2K_USE_LIBTORCH)
   message(STATUS "   - libtorch")
 endif()
 
-message(STATUS "\m\n")
-
+message(STATUS "\n\n")
 
 # files needed for cmake
 
@@ -821,14 +820,14 @@ write_basic_package_version_file(
   VERSION "${CP2K_VERSION}"
   COMPATIBILITY SameMajorVersion)
 
-
 configure_file("${PROJECT_SOURCE_DIR}/cmake/cp2kConfig.cmake.in"
-  "${PROJECT_BINARY_DIR}/cp2kConfig.cmake"
-  @ONLY)
+               "${PROJECT_BINARY_DIR}/cp2kConfig.cmake" @ONLY)
 install(FILES "${PROJECT_BINARY_DIR}/cp2kConfig.cmake"
-  "${PROJECT_BINARY_DIR}/cp2kConfigVersion.cmake"
-  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/cp2k")
+              "${PROJECT_BINARY_DIR}/cp2kConfigVersion.cmake"
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/cp2k")
 
-install(DIRECTORY "${PROJECT_SOURCE_DIR}/cmake"
+install(
+  DIRECTORY "${PROJECT_SOURCE_DIR}/cmake"
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/cp2k"
-  FILES_MATCHING PATTERN "*.cmake")
+  FILES_MATCHING
+  PATTERN "*.cmake")

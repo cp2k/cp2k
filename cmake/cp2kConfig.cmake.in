@@ -1,0 +1,107 @@
+#!-------------------------------------------------------------------------------------------------!
+#!   CP2K: A general program to perform molecular dynamics simulations                             !
+#!   Copyright 2000-2023 CP2K developers group <https://cp2k.org>                                  !
+#!                                                                                                 !
+#!   SPDX-License-Identifier: GPL-2.0-or-later                                                     !
+#!-------------------------------------------------------------------------------------------------!
+
+
+cmake_minimum_required(VERSION 3.22)
+
+# store CXX compiler id. Used in MKL package.
+set(SIRIUS_CXX_COMPILER_ID @CMAKE_CXX_COMPILER_ID@)
+if(NOT ${CMAKE_CXX_COMPILER_ID})
+  set(CMAKE_CXX_COMPILER_ID ${SIRIUS_CXX_COMPILER_ID})
+endif()
+
+set(CP2K_BLAS_VENDOR @CP2K_BLAS_VENDOR@)
+set(CP2K_SCALAPACK_VENDOR @CP2K_SCALAPACK_VENDOR@)
+
+find_package(Lapack REQUIRED)
+find_package(DBCSR 2.4 REQUIRED)
+
+if(@CP2K_USE_LIBXSMM@
+  find_package(LibXSMM REQUIRED)
+endif()
+
+if (@@CP2K_USE_HIP@)
+  # Find hip
+  find_package(hipfft REQUIRED IMPORTED CONFIG)
+  find_package(hipblas REQUIRED IMPORTED CONFIG)
+endif()
+
+if (@@CP2K_USE_CUDA@)
+  find_package(CUDAToolkit REQUIRED)
+endif()
+if(@CP2K_USE_ELPA)
+  find_package(Elpa REQUIRED)
+endif()
+
+if(@CP2K_USE_LIBXC@)
+  find_package(LibXC 6 REQUIRED EXACT)
+endif()
+
+if(@CP2K_USE_COSMA@)
+  find_package(cosma REQUIRED)
+endif()
+
+if (@@CP2K_USE_MPI@)
+  find_package(MPI REQUIRED)
+  find_package(SCALAPACK REQUIRED)
+endif()
+
+if(@CP2K_USE_FFTW3@)
+  find_package(Fftw REQUIRED)
+endif()
+  # QUIP
+if(@CP2K_USE_QUIP@)
+  find_package(Quip REQUIRED)
+endif()
+
+# libint
+
+if(@CP2K_USE_LIBINT2@)
+  find_package(Libint2 REQUIRED)
+endif()
+
+# spglib
+
+if(@CP2K_USE_SPGLIB@)
+  find_package(LibSPG REQUIRED)
+endif()
+
+if(@CP2K_USE_SPLA@)
+  find_package(SPLA REQUIRED)
+endif()
+
+if(@CP2K_USE_SIRIUS@)
+  find_package(sirius REQUIRED)
+endif()
+
+if(@CP2K_USE_SUPERLU@)
+  find_package(SuperLU REQUIRED)
+endif()
+
+if(@CP2K_USE_PARMETIS@)
+  find_package(Metis)
+endif()
+
+if(@CP2K_USE_PTSCOTCH@)
+  find_package(Ptscotch REQUIRED)
+endif()
+
+if(@CP2K_USE_PEXSI@)
+  # PEXSI 1.2 uses cmake as build system
+  find_package(PEXSI REQUIRED)
+endif()
+
+if(@CP2K_USE_PLUMED@)
+  find_package(Plumed REQUIRED)
+endif()
+
+if(@CP2K_USE_LIBTORCH@)
+  find_package(Torch REQUIRED)
+endif()
+
+# Include SIRIUS target
+include("${CMAKE_CURRENT_LIST_DIR}/cp2kTargets.cmake")

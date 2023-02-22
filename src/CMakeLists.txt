@@ -8,7 +8,38 @@
 include(fypp-sources)
 include(GNUInstallDirs) # required to get a proper LIBDIR variable
 include(CMakePackageConfigHelpers)
-include(compiled_files)
+configure_file(base/base_uses.f90 base/base_uses.f90 @ONLY)
+
+# take all fortran files we can find.
+file(GLOB_RECURSE CP2K_SRCS_F "*.F")
+
+# search for c files that are not included in the dependencies
+
+set(CP2K_SRCS_C "sockets.c")
+set(TMPFILES "")
+foreach(__dir "pw" "pw/fpga" "pw/gpu" "start" "base")
+  file(GLOB_RECURSE TMPFILES "${__dir}/*.c")
+  list(APPEND CP2K_SRCS_C "${TMPFILES}")
+  set(TMPFILES "")
+endforeach()
+
+list(
+  APPEND
+  __CP2K_APPS
+  "memory_utilities_unittest"
+  "parallel_rng_types_unittest"
+  "graph"
+  "dumpdcd"
+  "xyz2dcd"
+  "libcp2k_unittest"
+  "nequip_unittest")
+
+# remove those files from the cp2k library as they contain a main function
+
+foreach(__app __${__CP2K_APPS})
+  list(REMOVE_ITEM CP2K_SRCS_F "${__app}.F")
+endforeach()
+set(CP2K_SRCS_GPU "pw/gpu/pw_gpu_kernels.cu")
 
 add_fypp_sources(CP2K_SRCS ${CP2K_SRCS_F})
 
@@ -26,8 +57,8 @@ target_compile_features(cp2k PUBLIC cxx_std_14)
 target_compile_features(cp2k PUBLIC c_std_99)
 target_compile_features(cp2k PUBLIC cuda_std_11)
 
-set_target_properties(cp2k PROPERTIES CXX_STANDARD 14)
 set_target_properties(cp2k PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES "CXX")
+set_target_properties(cp2k PROPERTIES Fortran_MODULE_DIRECTORY mod_files)
 
 # =================================================================================================
 # main CP2K OBJECT LIBRARY
@@ -38,6 +69,28 @@ if(CP2K_USE_ACCEL MATCHES "CUDA")
   include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 elseif(CP2K_USE_ACCEL MATCHES "HIP")
   set_property(TARGET cp2k PROPERTY HIP_ARCHITECTURES ${CP2K_ACC_ARCH_NUMBER})
+endif()
+
+add_subdirectory(offload)
+add_subdirectory(grid)
+add_subdirectory(dbm)
+
+# mix the target and variables pointing to the include directories.
+
+include_directories(
+  ${CMAKE_MPI_INCLUDE_DIRECTORIES}
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/base>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/dbcsrx>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/motion>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/dbm>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/mod_files>)
+
+if(DEFINED ENV{CPATH})
+  string(REPLACE ":" ";" INCLUDE_LIST $ENV{CPATH})
+  include_directories(${INCLUDE_LIST})
 endif()
 
 add_library(cp2k_link_libs INTERFACE)
@@ -56,18 +109,19 @@ target_link_libraries(
     $<$<BOOL:${CP2K_ENABLE_FFTW3_OPENMP_SUPPORT}>:CP2K::FFTW3::fftw3_omp>
     $<$<BOOL:${CP2K_USE_SPLA}>:SPLA::spla>
     $<$<BOOL:${CP2K_USE_LIBINT2}>:CP2K::Libint2::int2>
+    $<$<BOOL:${CP2K_USE_TORCH}>:${TORCH_LIBRARIES}>
     $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma_prefixed_pxgemm>
     $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma>
-    $<$<BOOL:${CP2K_USE_COSMA}>:costa::costa>
     DBCSR::dbcsr
-    $<$<BOOL:${CP2K_USE_TORCH}>:${TORCH_LIBRARIES}>
+    cp2k_grid
+    cp2k_dbm
     $<$<BOOL:${CP2K_USE_CUDA}>:CUDA::cufft>
     $<$<BOOL:${CP2K_USE_CUDA}>:CUDA::cufftw>
     $<$<BOOL:${CP2K_USE_CUDA}>:CUDA::cublas>
     $<$<BOOL:${CP2K_USE_CUDA}>:CUDA::cudart>
     $<$<BOOL:${CP2K_USE_HIP}>:hip::hipfft>
     $<$<BOOL:${CP2K_USE_HIP}>:roc::hipblas>
-    $<$<BOOL:${CP2K_USE_HIP}>:hip::device>
+    $<$<BOOL:${CP2K_USE_HIP}>:hip::host>
     $<$<BOOL:${CP2K_USE_MPI}>:CP2K::SCALAPACK::scalapack>
     $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K::LibXSMM::libxsmmf>
     $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K::LibXSMM::libxsmmext>
@@ -79,24 +133,6 @@ target_link_libraries(
     OpenMP::OpenMP_Fortran
     OpenMP::OpenMP_C
     OpenMP::OpenMP_CXX)
-
-# mix the target and variables pointing to the include directories.
-
-include_directories(
-  ${CMAKE_MPI_INCLUDE_DIRECTORIES}
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/base>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/dbcsrx>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/motion>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/grid>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/dbm>)
-
-if(DEFINED ENV{CPATH})
-  string(REPLACE ":" ";" INCLUDE_LIST $ENV{CPATH})
-  include_directories(${INCLUDE_LIST})
-endif()
 
 string(TIMESTAMP CP2K_TIMESTAMP "%Y-%m-%d %H:%M:%S")
 
@@ -145,42 +181,19 @@ target_compile_definitions(
 if(CP2K_USE_CUDA OR CP2K_USE_HIP)
   # these checks are only relevant when the debug mode is on
 
-  if(NOT CP2K_DBCSR_USE_CPU_ONLY)
-    target_compile_definitions(cp2k PUBLIC __DBCSR_ACC)
-  endif()
-
-  # the next three are off by default
-  if(CP2K_DISABLE_GRID_GPU)
-    target_compile_definitions(cp2k PUBLIC __NO_OFFLOAD_GRID)
-  endif()
-
-  if(CP2K_DISABLE_PW_GPU)
-    target_compile_definitions(cp2k PUBLIC __NO_OFFLOAD_PW)
-  endif()
-
-  if(CP2K_DISABLE_DBM_GPU)
-    target_compile_definitions(cp2k PUBLIC __NO_OFFLOAD_DBM)
-  endif()
+  target_compile_definitions(
+    cp2k
+    PUBLIC $<$<NOT:$<BOOL:${CP2K_DBCSR_USE_CPU_ONLY}>>:__DBCSR_ACC>
+           $<$<BOOL:${CP2K_DISABLE_GRID_GPU}>:__NO_OFFLOAD_GRID>
+           $<$<BOOL:${CP2K_DISABLE_PW_GPU}>:__NO_OFFLOAD_PW>
+           $<$<BOOL:${CP2K_DISABLE_DBM_GPU}>:__NO_OFFLOAD_DBM>)
 endif()
 
 if(CP2K_USE_HIP)
-  foreach(__src ${CP2K_SRCS_GPU})
-    set_source_files_properties(${__src} PROPERTIES LANGUAGE HIP)
-  endforeach()
+  set_source_files_properties(${CP2K_SRCS_GPU} PROPERTIES LANGUAGE HIP)
   set_target_properties(cp2k PROPERTIES HIP_ARCHITECTURES
                                         "${CP2K_ACC_ARCH_NUMBER}")
 endif()
-
-list(
-  APPEND
-  __CP2K_APPS
-  "memory_utilities_unittest"
-  "parallel_rng_types_unittest"
-  "graph"
-  "dumpdcd"
-  "xyz2dcd"
-  "libcp2k_unittest"
-  "nequip_unittest")
 
 add_executable(cp2k-bin start/cp2k.F)
 set_target_properties(
@@ -209,6 +222,7 @@ foreach(_app ${__CP2K_APPS})
   set_target_properties(${_app} PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES
                                            "CXX")
   target_compile_features(${_app} PUBLIC c_std_99)
+
   if(CP2K_USE_ACCEL MATCHES HIP)
     set_target_properties(${_app} PROPERTIES HIP_ARCHITECTURES
                                              ${CP2K_ACC_ARCH_NUMBER})
@@ -216,98 +230,11 @@ foreach(_app ${__CP2K_APPS})
   target_link_libraries(${_app} PUBLIC cp2k)
 endforeach()
 
-#
-# apps included in the grid module
-#
-
-list(APPEND __GRID_APPS "grid_miniapp" "grid_unittest")
-
-add_executable(grid_miniapp grid/grid_miniapp.c)
-target_link_libraries(grid_miniapp PUBLIC cp2k)
-
-add_executable(grid_unittest grid/grid_unittest.c)
-target_link_libraries(grid_unittest PUBLIC cp2k)
-
-foreach(_app ${__GRID_APPS})
-  set_target_properties(${_app} PROPERTIES LINKER_LANGUAGE C)
-  target_compile_features(${_app} PUBLIC c_std_99)
-
-  target_link_libraries(
-    ${_app}
-    PUBLIC $<$<BOOL:${CP2K_USE_CUDA}>:CUDA::cudart>
-           $<$<BOOL:${CP2K_USE_HIP}>:hip::device>
-           $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K::LibXSMM::libxsmmf>
-           $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K::LibXSMM::libxsmm>
-           CP2K::BLAS::blas
-           OpenMP::OpenMP_C
-           m)
-
-  target_include_directories(
-    ${_app} PUBLIC $<$<BOOL:${CP2K_USE_CUDA}>:${CMAKE_CUDA_INCLUDE_DIRECTORIES}>
-                   $<$<BOOL:${CP2K_USE_HIP}>:${CMAKE_HIP_INCLUDE_DIRECTORIES}>)
-
-  target_compile_definitions(
-    ${_app}
-    PUBLIC $<$<BOOL:${CP2K_USE_CUDA}>:__OFFLOAD_CUDA>
-           $<$<BOOL:${CP2K_USE_HIP}>:__OFFLOAD_HIP>
-           $<$<STREQUAL:CP2K_BLAS_VENDOR,"MKL">:__MKL>
-           $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>)
-
-  target_compile_features(${_app} PUBLIC $<$<BOOL:CP2K_USE_CUDA>:cuda_std_11>)
-
-  if(CP2K_USE_CUDA)
-    set_target_properties(${_app} PROPERTIES CUDA_ARCHITECTURES
-                                             ${CP2K_ACC_ARCH_NUMBER})
-  endif()
-
-  # cmake 3.21 is needed for this
-  if(CP2K_USE_HIP)
-    set_target_properties(${_app} PROPERTIES HIP_ARCHITECTURES
-                                             ${CP2K_ACC_ARCH_NUMBER})
-  endif()
-endforeach()
-
-#
-# apps included in dbm
-#
-
-add_executable(dbm_miniapp dbm/dbm_miniapp.c)
-target_link_libraries(dbm_miniapp PUBLIC cp2k)
-set_target_properties(dbm_miniapp PROPERTIES LINKER_LANGUAGE C)
-target_compile_features(dbm_miniapp PUBLIC c_std_99)
-
-target_link_libraries( dbm_miniapp PUBLIC
-  $<$<BOOL:${CP2K_USE_CUDA}>:CUDA::cudart>
-  $<$<BOOL:${CP2K_USE_HIP}>:hip::host>
-  $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K::LibXSMM::libxsmm>
-  $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K::LibXSMM::libxsmmext>
-  $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_C> CP2K::BLAS::blas OpenMP::OpenMP_C m)
-
-target_compile_definitions(
-  dbm_miniapp
-  PUBLIC $<$<BOOL:${CP2K_USE_CUDA}>:__OFFLOAD_CUDA>
-         $<$<BOOL:${CP2K_USE_HIP}>:__OFFLOAD_HIP>
-         $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>)
-
-if(CP2K_DISABLE_DBM_GPU)
-  if(CP2K_USE_CUDA)
-    target_compile_features(dbm_miniapp PUBLIC cuda_std_11)
-    set_target_properties(dbm_miniapp PROPERTIES CUDA_ARCHITECTURES
-                                                 ${CP2K_ACC_ARCH_NUMBER})
-  endif()
-
-  # cmake 3.21 is needed for this
-  if(CP2K_USE_HIP)
-    set_target_properties(dbm_miniapp PROPERTIES HIP_ARCHITECTURES
-                                                 ${CP2K_ACC_ARCH_NUMBER})
-  endif()
-endif()
-
 # installation
 
-foreach(_app ${__GRID_APPS} ${__CP2K_APPS} cp2k-bin)
+foreach(_app ${__CP2K_APPS} cp2k-bin)
   install(
-    TARGETS ${_app}
+    TARGETS ${__CP2K_APPS}
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     INCLUDES
@@ -316,4 +243,18 @@ endforeach()
 
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/data"
         DESTINATION "${CMAKE_INSTALL_FULL_DATAROOTDIR}/cp2k")
-install(TARGETS cp2k LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+
+install(
+  TARGETS cp2k cp2k_link_libs cp2k_grid cp2k_offload cp2k_dbm
+  EXPORT cp2k_targets
+  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+install(
+  EXPORT cp2k_targets
+  FILE cp2kTargets.cmake
+  NAMESPACE cp2k::
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/cp2k")
+install(
+  DIRECTORY "${PROJECT_BINARY_DIR}/src/mod_files"
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/cp2k"
+  FILES_MATCHING
+  PATTERN "*.mod")
