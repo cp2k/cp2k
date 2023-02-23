@@ -7,7 +7,7 @@ gunicorn==20.1.0
 itsdangerous==2.1.2
 Jinja2==3.1.2
 linkify-it-py==1.0.3
-markdown-it-py==2.1.0
+markdown-it-py==2.2.0
 MarkupSafe==2.1.1
 mdformat==0.7.16
 mdformat-gfm==0.3.5
