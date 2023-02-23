@@ -86,7 +86,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: B_ia_Q
       INTEGER, INTENT(IN)                                :: dimen_RI, homo, virtual
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env, para_env_sub
       INTEGER, INTENT(IN)                                :: ngroup, my_group_L_size, &
                                                             my_group_L_start, my_group_L_end, &
                                                             my_B_size, my_B_virtual_start
@@ -343,7 +343,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: homo, my_B_size, virtual, &
                                                             my_B_virtual_start, my_ia_start, &
                                                             my_ia_end, my_ia_size, my_group_L_size
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_B_virtual
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mat_3d_to_2d'
@@ -418,7 +418,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: homo, my_B_size, virtual, &
                                                             my_B_virtual_start, my_ia_start, &
                                                             my_ia_end, my_ia_size, my_group_L_size
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_B_virtual
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mat_3d_to_2d_gamma'
@@ -1253,7 +1253,7 @@ CONTAINS
                                  gd_ia, dbcsr_Gamma, mo_coeff_o)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Gamma_2D
       INTEGER, INTENT(IN)                                :: homo, virtual, dimen_ia
-      TYPE(cp_para_env_type), POINTER                    :: para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
       INTEGER, INTENT(IN)                                :: my_ia_start, my_ia_end, my_group_L_size
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_ia
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: dbcsr_Gamma

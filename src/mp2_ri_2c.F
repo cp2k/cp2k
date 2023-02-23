@@ -994,7 +994,7 @@ CONTAINS
       ! create the new group for the sum of the local data over all processes
       BLOCK
          TYPE(mp_comm_type) :: comm_exchange
-         CALL comm_exchange%from_split(para_env, para_env_L%mepos)
+         comm_exchange = fm_matrix_L%matrix_struct%context%interconnect(para_env)
          CALL comm_exchange%sum(fm_matrix_L%local_data)
          CALL comm_exchange%free()
       END BLOCK
@@ -1055,7 +1055,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_eval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: evals
       TYPE(cp_fm_type)                                   :: evecs
-      TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
+      TYPE(mp_comm_type)                                 :: comm_exchange
 
       CALL timeset(routineN, handle)
 
@@ -1098,11 +1098,10 @@ CONTAINS
       ! Step 1: Get a communicator connecting processes with same id within subgroups
       ! use that group_size_L is divisible by the total number of processes (see above)
       group_size_L = para_env%num_pe/matrix%matrix_struct%para_env%num_pe
-      ALLOCATE (para_env_exchange)
-      CALL para_env_exchange%from_split(para_env, matrix%matrix_struct%para_env%mepos)
+      comm_exchange = matrix%matrix_struct%context%interconnect(para_env)
 
       ALLOCATE (num_eval(0:group_size_L - 1))
-      CALL para_env_exchange%allgather(num_small_evals, num_eval)
+      CALL comm_exchange%allgather(num_small_evals, num_eval)
 
       num_small_evals = MINVAL(num_eval)
 
@@ -1113,13 +1112,13 @@ CONTAINS
          needed_evals = nrow - num_small_evals
 
          ! Step 3: Broadcast your local data to all other processes
-         CALL para_env_exchange%bcast(evecs%local_data, pos_max(1))
-         CALL para_env_exchange%bcast(cond_num, pos_max(1))
+         CALL comm_exchange%bcast(evecs%local_data, pos_max(1))
+         CALL comm_exchange%bcast(cond_num, pos_max(1))
       END IF
 
       DEALLOCATE (num_eval)
 
-      CALL cp_para_env_release(para_env_exchange)
+      CALL comm_exchange%free()
 
       CALL reset_size_matrix(matrix, needed_evals, matrix%matrix_struct)
 
