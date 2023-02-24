@@ -30,6 +30,7 @@ MODULE qs_tddfpt2_operators
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
+                                              pw_multiply,&
                                               pw_scale,&
                                               pw_transfer,&
                                               pw_zero
@@ -63,7 +64,8 @@ MODULE qs_tddfpt2_operators
    INTEGER, PARAMETER, PRIVATE          :: nderivs = 3
    INTEGER, PARAMETER, PRIVATE          :: maxspins = 2
 
-   PUBLIC :: tddfpt_apply_energy_diff, tddfpt_apply_coulomb, tddfpt_apply_xc, tddfpt_apply_hfx
+   PUBLIC :: tddfpt_apply_energy_diff, tddfpt_apply_coulomb, tddfpt_apply_xc, tddfpt_apply_hfx, &
+             tddfpt_apply_xc_potential
 
 ! **************************************************************************************************
 
@@ -229,7 +231,8 @@ CONTAINS
 !>                         potential with respect to the response density (modified on exit)
 !> \param work_v_xc_tau ...
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_apply_xc(A_ia_rspace, kernel_env, rho_ia_struct, is_rks_triplets, pw_env, work_v_xc, work_v_xc_tau)
+   SUBROUTINE tddfpt_apply_xc(A_ia_rspace, kernel_env, rho_ia_struct, is_rks_triplets, &
+                              pw_env, work_v_xc, work_v_xc_tau)
       TYPE(pw_type), DIMENSION(:), INTENT(IN)            :: A_ia_rspace
       TYPE(full_kernel_env_type), INTENT(in)             :: kernel_env
       TYPE(qs_rho_type), POINTER                         :: rho_ia_struct
@@ -237,17 +240,18 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_type), DIMENSION(:), POINTER               :: work_v_xc, work_v_xc_tau
 
-      INTEGER                                            :: ispin
+      INTEGER                                            :: ispin, nspins
 
+      nspins = SIZE(A_ia_rspace)
       IF (kernel_env%deriv2_analytic) THEN
-         CALL tddfpt_apply_xc_analytic(A_ia_rspace, kernel_env, rho_ia_struct, is_rks_triplets, &
+         CALL tddfpt_apply_xc_analytic(kernel_env, rho_ia_struct, is_rks_triplets, nspins, &
                                        pw_env, work_v_xc, work_v_xc_tau)
       ELSE
-         CALL tddfpt_apply_xc_fd(A_ia_rspace, kernel_env, rho_ia_struct, is_rks_triplets, &
+         CALL tddfpt_apply_xc_fd(kernel_env, rho_ia_struct, is_rks_triplets, nspins, &
                                  pw_env, work_v_xc, work_v_xc_tau)
       END IF
 
-      DO ispin = 1, SIZE(work_v_xc)
+      DO ispin = 1, nspins
          ! pw2 = pw2 + alpha * pw1
          CALL pw_axpy(work_v_xc(ispin), A_ia_rspace(ispin), kernel_env%alpha)
       END DO
@@ -255,13 +259,48 @@ CONTAINS
    END SUBROUTINE tddfpt_apply_xc
 
 ! **************************************************************************************************
-!> \brief Update A_ia_munu by adding exchange-correlation term.
+!> \brief Routine for applying fxc potential
 !> \param A_ia_rspace      action of TDDFPT operator on trial vectors expressed in a plane wave
 !>                         representation (modified on exit)
+!> \param fxc_rspace ...
+!> \param rho_ia_struct    response density for the given trial vector
+!> \param is_rks_triplets ...
+! **************************************************************************************************
+   SUBROUTINE tddfpt_apply_xc_potential(A_ia_rspace, fxc_rspace, rho_ia_struct, is_rks_triplets)
+      TYPE(pw_type), DIMENSION(:), INTENT(IN)            :: A_ia_rspace
+      TYPE(pw_type), DIMENSION(:), POINTER               :: fxc_rspace
+      TYPE(qs_rho_type), POINTER                         :: rho_ia_struct
+      LOGICAL, INTENT(in)                                :: is_rks_triplets
+
+      INTEGER                                            :: nspins
+      REAL(KIND=dp)                                      :: alpha
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_r
+
+      nspins = SIZE(A_ia_rspace)
+      alpha = 1.0_dp
+      CALL qs_rho_get(rho_ia_struct, rho_r=rho1_r)
+      IF (nspins == 2) THEN
+         CALL pw_multiply(A_ia_rspace(1), fxc_rspace(1), rho1_r(1), alpha)
+         CALL pw_multiply(A_ia_rspace(1), fxc_rspace(2), rho1_r(2), alpha)
+         CALL pw_multiply(A_ia_rspace(2), fxc_rspace(3), rho1_r(2), alpha)
+         CALL pw_multiply(A_ia_rspace(2), fxc_rspace(2), rho1_r(1), alpha)
+      ELSE IF (is_rks_triplets) THEN
+         CALL pw_multiply(A_ia_rspace(1), fxc_rspace(1), rho1_r(1), alpha)
+         CALL pw_multiply(A_ia_rspace(1), fxc_rspace(2), rho1_r(1), -alpha)
+      ELSE
+         CALL pw_multiply(A_ia_rspace(1), fxc_rspace(1), rho1_r(1), alpha)
+         CALL pw_multiply(A_ia_rspace(1), fxc_rspace(2), rho1_r(1), alpha)
+      END IF
+
+   END SUBROUTINE tddfpt_apply_xc_potential
+
+! **************************************************************************************************
+!> \brief Update A_ia_munu by adding exchange-correlation term.
 !> \param kernel_env       kernel environment
 !> \param rho_ia_struct    response density for the given trial vector
 !> \param is_rks_triplets  indicates that the triplet excited states calculation using
 !>                         spin-unpolarised molecular orbitals has been requested
+!> \param nspins ...
 !> \param pw_env           plain wave environment
 !> \param work_v_xc        work real-space grid to store the gradient of the exchange-correlation
 !>                         potential with respect to the response density (modified on exit)
@@ -275,24 +314,24 @@ CONTAINS
 !> \note Based on the subroutine kpp1_calc_k_p_p1() which was originally created by
 !>       Mohamed Fawzi on 10.2002.
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_apply_xc_analytic(A_ia_rspace, kernel_env, rho_ia_struct, is_rks_triplets, pw_env, work_v_xc, work_v_xc_tau)
-      TYPE(pw_type), DIMENSION(:), INTENT(IN)            :: A_ia_rspace
+   SUBROUTINE tddfpt_apply_xc_analytic(kernel_env, rho_ia_struct, is_rks_triplets, nspins, &
+                                       pw_env, work_v_xc, work_v_xc_tau)
       TYPE(full_kernel_env_type), INTENT(in)             :: kernel_env
       TYPE(qs_rho_type), POINTER                         :: rho_ia_struct
       LOGICAL, INTENT(in)                                :: is_rks_triplets
+      INTEGER, INTENT(in)                                :: nspins
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_type), DIMENSION(:), POINTER               :: work_v_xc, work_v_xc_tau
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_xc_analytic'
 
-      INTEGER                                            :: handle, ispin, nspins
+      INTEGER                                            :: handle, ispin
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_ia_g, rho_ia_g2, rho_ia_r, &
                                                             rho_ia_r2, tau_ia_r, tau_ia_r2
 
       CALL timeset(routineN, handle)
 
-      nspins = SIZE(A_ia_rspace)
       CALL qs_rho_get(rho_ia_struct, rho_g=rho_ia_g, rho_r=rho_ia_r, tau_r=tau_ia_r)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
@@ -350,28 +389,28 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Update A_ia_munu by adding exchange-correlation term using finite difference methods.
-!> \param A_ia_rspace      action of TDDFPT operator on trial vectors expressed in a plane wave
-!>                         representation (modified on exit)
 !> \param kernel_env       kernel environment
 !> \param rho_ia_struct    response density for the given trial vector
 !> \param is_rks_triplets  indicates that the triplet excited states calculation using
 !>                         spin-unpolarised molecular orbitals has been requested
+!> \param nspins ...
 !> \param pw_env           plain wave environment
 !> \param work_v_xc        work real-space grid to store the gradient of the exchange-correlation
 !>                         potential with respect to the response density (modified on exit)
 !> \param work_v_xc_tau ...
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_apply_xc_fd(A_ia_rspace, kernel_env, rho_ia_struct, is_rks_triplets, pw_env, work_v_xc, work_v_xc_tau)
-      TYPE(pw_type), DIMENSION(:), INTENT(IN)            :: A_ia_rspace
+   SUBROUTINE tddfpt_apply_xc_fd(kernel_env, rho_ia_struct, is_rks_triplets, nspins, &
+                                 pw_env, work_v_xc, work_v_xc_tau)
       TYPE(full_kernel_env_type), INTENT(in)             :: kernel_env
       TYPE(qs_rho_type), POINTER                         :: rho_ia_struct
       LOGICAL, INTENT(in)                                :: is_rks_triplets
+      INTEGER, INTENT(in)                                :: nspins
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_type), DIMENSION(:), POINTER               :: work_v_xc, work_v_xc_tau
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_xc_fd'
 
-      INTEGER                                            :: handle, ispin, nspins
+      INTEGER                                            :: handle, ispin
       LOGICAL                                            :: lsd, singlet, triplet
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_g, rho1_r, tau1_r
@@ -379,7 +418,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      nspins = SIZE(A_ia_rspace)
       CALL qs_rho_get(rho_ia_struct, rho_r=rho1_r, rho_g=rho1_g, tau_r=tau1_r)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       DO ispin = 1, nspins
@@ -401,9 +439,9 @@ CONTAINS
       END IF
 
       IF (ASSOCIATED(tau1_r)) THEN
-      DO ispin = 1, nspins
-         CALL pw_zero(work_v_xc_tau(ispin))
-      END DO
+         DO ispin = 1, nspins
+            CALL pw_zero(work_v_xc_tau(ispin))
+         END DO
       END IF
 
       CALL xc_calc_2nd_deriv_numerical(work_v_xc, work_v_xc_tau, rho_set, rho1_r, rho1_g, tau1_r, &

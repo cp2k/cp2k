@@ -169,6 +169,10 @@ MODULE qs_tddfpt2_types
       !> group-specific copy of a real-space grid for the kinetic energy density
       TYPE(pw_type), DIMENSION(:), POINTER             :: wpw_tau_rspace_sub
       !
+      ! *** real space pw grid to hold fxc kernel <> A_ia_rspace_sub ***
+      !
+      TYPE(pw_type), DIMENSION(:), POINTER             :: fxc_rspace_sub
+      !
       ! *** globally distributed matrices required to compute exact exchange terms ***
       !
       !> globally distributed version of the matrix 'rho_ao_orb_fm_sub' to store the electron density
@@ -210,18 +214,19 @@ CONTAINS
 !> \param do_hfx         flag that requested to allocate work matrices required for computation
 !>                       of exact-exchange terms
 !> \param do_admm ...
+!> \param do_exck ...
 !> \param qs_env         Quickstep environment
 !> \param sub_env        parallel group environment
 !> \par History
 !>    * 02.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, do_hfx, do_admm, &
+   SUBROUTINE tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, do_hfx, do_admm, do_exck, &
                                           qs_env, sub_env)
       TYPE(tddfpt_work_matrices), INTENT(out)            :: work_matrices
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       INTEGER, INTENT(in)                                :: nstates
-      LOGICAL, INTENT(in)                                :: do_hfx, do_admm
+      LOGICAL, INTENT(in)                                :: do_hfx, do_admm, do_exck
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
 
@@ -423,6 +428,16 @@ CONTAINS
                                 use_data=REALDATA3D, in_space=REALSPACE)
       END DO
 
+      ! fxc kernel potential real space grid
+      IF (do_exck) THEN
+         ! we need spins: aa, ab, bb
+         ALLOCATE (work_matrices%fxc_rspace_sub(3))
+         DO ispin = 1, 3
+            CALL pw_pool_create_pw(auxbas_pw_pool, work_matrices%fxc_rspace_sub(ispin), &
+                                   use_data=REALDATA3D, in_space=REALSPACE)
+         END DO
+      END IF
+
       ! GAPW initializations
       IF (dft_control%qs_control%gapw) THEN
          CALL get_qs_env(qs_env, &
@@ -621,6 +636,7 @@ CONTAINS
                work_matrices%hfx_rho_ao_asymm, work_matrices%hfx_hmat_asymm)
       NULLIFY (work_matrices%A_ia_rspace_sub, work_matrices%wpw_gspace_sub, &
                work_matrices%wpw_rspace_sub)
+      NULLIFY (work_matrices%fxc_rspace_sub)
       NULLIFY (work_matrices%A_ia_munu_sub)
 
       NULLIFY (work_matrices%ewald_env)
@@ -698,6 +714,12 @@ CONTAINS
          END DO
          DEALLOCATE (work_matrices%A_ia_rspace_sub, work_matrices%wpw_gspace_sub, &
                      work_matrices%wpw_rspace_sub, work_matrices%wpw_tau_rspace_sub)
+         IF (ASSOCIATED(work_matrices%fxc_rspace_sub)) THEN
+            DO ispin = SIZE(work_matrices%fxc_rspace_sub), 1, -1
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, work_matrices%fxc_rspace_sub(ispin))
+            END DO
+            DEALLOCATE (work_matrices%fxc_rspace_sub)
+         END IF
       END IF
 
       IF (ASSOCIATED(work_matrices%rho_aux_fit_struct_sub)) THEN

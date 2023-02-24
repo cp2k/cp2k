@@ -20,6 +20,7 @@ MODULE xc_pade
    USE bibliography,                    ONLY: Goedecker1996,&
                                               cite_reference
    USE kinds,                           ONLY: dp
+   USE pw_types,                        ONLY: pw_type
    USE xc_derivative_desc,              ONLY: deriv_rho,&
                                               deriv_rhoa,&
                                               deriv_rhob
@@ -63,7 +64,7 @@ MODULE xc_pade
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_pade'
 
-   PUBLIC :: pade_lda_pw_eval, pade_lsd_pw_eval, pade_info, pade_init
+   PUBLIC :: pade_lda_pw_eval, pade_lsd_pw_eval, pade_info, pade_init, pade_fxc_eval
 
    REAL(KIND=dp) :: eps_rho
    LOGICAL :: debug_flag
@@ -799,6 +800,50 @@ CONTAINS
       END IF
 
    END SUBROUTINE pade_lsd_3
+
+! **************************************************************************************************
+!> \brief ...
+!> \param rho_a ...
+!> \param rho_b ...
+!> \param fxc_aa ...
+!> \param fxc_ab ...
+!> \param fxc_bb ...
+! **************************************************************************************************
+   SUBROUTINE pade_fxc_eval(rho_a, rho_b, fxc_aa, fxc_ab, fxc_bb)
+      TYPE(pw_type), INTENT(IN)                          :: rho_a, rho_b
+      TYPE(pw_type), INTENT(INOUT)                       :: fxc_aa, fxc_ab, fxc_bb
+
+      INTEGER                                            :: i, j, k
+      INTEGER, DIMENSION(2, 3)                           :: bo
+      REAL(KIND=dp)                                      :: eaa, eab, ebb, rhoa, rhob, rs
+      REAL(KIND=dp), DIMENSION(4)                        :: fx
+
+      bo(1:2, 1:3) = rho_a%pw_grid%bounds_local(1:2, 1:3)
+!$OMP PARALLEL DO PRIVATE(i,j,k,fx,rhoa,rhob,rs,eaa,eab,ebb) DEFAULT(NONE)&
+!$OMP SHARED(bo,rho_a,rho_b,fxc_aa,fxc_ab,fxc_bb)
+      DO k = bo(1, 3), bo(2, 3)
+         DO j = bo(1, 2), bo(2, 2)
+            DO i = bo(1, 1), bo(2, 1)
+
+               rhoa = rho_a%cr3d(i, j, k)
+               rhob = rho_b%cr3d(i, j, k)
+               fx(1) = rhoa + rhob
+
+               CALL calc_rs(fx(1), rs)
+               CALL calc_fx(rhoa, rhob, fx, 2)
+
+               eaa = 0.0_dp; eab = 0.0_dp; ebb = 0.0_dp
+               CALL pade_lsd_2(rhoa, rhob, rs, fx, eaa, eab, ebb)
+
+               fxc_aa%cr3d(i, j, k) = eaa
+               fxc_ab%cr3d(i, j, k) = eab
+               fxc_bb%cr3d(i, j, k) = ebb
+
+            END DO
+         END DO
+      END DO
+
+   END SUBROUTINE pade_fxc_eval
 
 END MODULE xc_pade
 

@@ -561,6 +561,10 @@ MODULE input_constants
                                                xc_funct_b3lyp = 10, &
                                                xc_funct_pbe0 = 11, &
                                                xc_funct_beefvdw = 12
+   INTEGER, PARAMETER, PUBLIC               :: fxc_none = 0, &
+                                               fxc_funct_pade = 1, &
+                                               fxc_funct_lda = 2, &
+                                               fxc_funct_gga = 3
    INTEGER, PARAMETER, PUBLIC               :: sic_none = 0, &
                                                sic_mauri_us = 1, &
                                                sic_mauri_spz = 2, &

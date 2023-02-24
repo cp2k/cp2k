@@ -1205,7 +1205,7 @@ CONTAINS
              pw_out%in_use == REALDATA1D) THEN
             IF (my_alpha == 1.0_dp) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
-               pw_out%cr = pw_out%cr + pw1%cr + pw2%cr
+               pw_out%cr = pw_out%cr + pw1%cr*pw2%cr
 !$OMP END PARALLEL WORKSHARE
                flop = REAL(2*SIZE(pw2%cr), KIND=dp)
             ELSE

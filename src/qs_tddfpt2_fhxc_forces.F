@@ -445,6 +445,9 @@ CONTAINS
       END IF
 
       ! XC
+      IF (full_kernel%do_exck) THEN
+         CPABORT("NYA")
+      END IF
       NULLIFY (fxc_rho, fxc_tau, gxc_rho, gxc_tau)
       xc_section => full_kernel%xc_section
       CALL section_vals_val_get(xc_section, "XC_FUNCTIONAL%_SECTION_PARAMETERS_", &
