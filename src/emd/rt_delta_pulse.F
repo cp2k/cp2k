@@ -273,6 +273,10 @@ CONTAINS
                 cell%h_inv(3, :)*rtp_control%delta_pulse_direction(3)
       kvec = -kvec*twopi*rtp_control%delta_pulse_scale
 
+      IF (rtp_control%velocity_gauge) THEN
+         rtp_control%vec_pot = rtp_control%vec_pot + kvec
+      END IF
+
       ! struct for fm matrices
       fm_struct => rtp%ao_ao_fmstruct
 
@@ -416,6 +420,10 @@ CONTAINS
       kvec = -kvec*twopi
       ! scaling will make the things not periodic with the cell, which would only be good for gas phase systems ?
       kvec(:) = dft_control%rtp_control%delta_pulse_scale*kvec
+
+      IF (rtp_control%velocity_gauge) THEN
+         rtp_control%vec_pot = rtp_control%vec_pot + kvec
+      END IF
 
       ! calculate exponentials (= Berry moments)
       NULLIFY (cosmat, sinmat)

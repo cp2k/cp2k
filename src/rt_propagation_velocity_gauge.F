@@ -31,6 +31,7 @@ MODULE rt_propagation_velocity_gauge
                                               dbcsr_set,&
                                               dbcsr_type_antisymmetric,&
                                               dbcsr_type_symmetric
+   USE efield_utils,                    ONLY: make_field
    USE external_potential_types,        ONLY: gth_potential_p_type,&
                                               gth_potential_type,&
                                               sgp_potential_p_type,&
@@ -41,7 +42,6 @@ MODULE rt_propagation_velocity_gauge
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
    USE mathconstants,                   ONLY: one,&
-                                              twopi,&
                                               zero
    USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                               nco,&
@@ -79,7 +79,7 @@ MODULE rt_propagation_velocity_gauge
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_velocity_gauge'
 
-   PUBLIC :: velocity_gauge_ks_matrix
+   PUBLIC :: velocity_gauge_ks_matrix, update_vector_potential
 
 CONTAINS
 
@@ -128,6 +128,7 @@ CONTAINS
                sap_ppnl, particle_set, qs_kind_set, atomic_kind_set, virial, force, matrix_p, rho, matrix_nl)
 
       CALL get_qs_env(qs_env, &
+                      rho=rho, &
                       dft_control=dft_control, &
                       sab_orb=sab_orb, &
                       sap_ppnl=sap_ppnl, &
@@ -182,8 +183,7 @@ CONTAINS
       END IF
 
       !get vector potential
-      vec_pot(:) = 0._dp
-      CALL get_vector_potential(dft_control, cell, vec_pot)
+      vec_pot = dft_control%rtp_control%vec_pot
 
       ! allocate and build matrices for linear momentum term
       NULLIFY (momentum)
@@ -216,10 +216,12 @@ CONTAINS
       DO idir = 1, 3
          factor = factor + vec_pot(idir)**2
       END DO
+
       DO image = 1, nimages
          CALL dbcsr_add(matrix_h(1, image)%matrix, matrix_s(1, image)%matrix, one, 0.5*factor)
       END DO
 
+      ! add Non local term
       IF (ppnl_present) THEN
          IF (dft_control%rtp_control%nl_gauge_transform) THEN
             NULLIFY (nl_term)
@@ -252,26 +254,21 @@ CONTAINS
    END SUBROUTINE velocity_gauge_ks_matrix
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Update the vector potential in the case where a time-dependant
+!>        electric field is apply.
+!> \param qs_env ...
 !> \param dft_control ...
-!> \param cell ...
-!> \param vec_pot ...
 ! **************************************************************************************************
-   PURE SUBROUTINE get_vector_potential(dft_control, cell, vec_pot)
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(cell_type), POINTER                           :: cell
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: vec_pot
+   SUBROUTINE update_vector_potential(qs_env, dft_control)
+      TYPE(qs_environment_type), INTENT(INOUT), POINTER  :: qs_env
+      TYPE(dft_control_type), INTENT(INOUT), POINTER     :: dft_control
 
-      ! fieldstrength
-      ! for a delta pulse: vec_pot = - c * kvec
-      ! the speed of light cancels in the terms in the velocity gauge Hamiltonian and is not
-      ! taken into account here
-      vec_pot(:) = cell%h_inv(1, :)*dft_control%rtp_control%delta_pulse_direction(1) + &
-                   cell%h_inv(2, :)*dft_control%rtp_control%delta_pulse_direction(2) + &
-                   cell%h_inv(3, :)*dft_control%rtp_control%delta_pulse_direction(3)
-      vec_pot = -vec_pot*twopi*dft_control%rtp_control%delta_pulse_scale
+      REAL(kind=dp)                                      :: field(3)
 
-   END SUBROUTINE get_vector_potential
+      CALL make_field(dft_control, field, qs_env%sim_step, qs_env%sim_time)
+      dft_control%rtp_control%vec_pot = dft_control%rtp_control%vec_pot - field*qs_env%rtp%dt
+
+   END SUBROUTINE update_vector_potential
 
 ! **************************************************************************************************
 !> \brief ...

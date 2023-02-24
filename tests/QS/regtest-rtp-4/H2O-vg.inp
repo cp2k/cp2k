@@ -27,11 +27,8 @@
       &END XC_FUNCTIONAL
     &END XC
     &REAL_TIME_PROPAGATION
-       APPLY_DELTA_PULSE F
        VELOCITY_GAUGE T
        VG_COM_NL T
-       DELTA_PULSE_DIRECTION 1 0 0
-       DELTA_PULSE_SCALE 0.001
        MAX_ITER 50
        MAT_EXP PADE
        EXP_ACCURACY 1.0E-10
@@ -39,6 +36,17 @@
        PROPAGATOR ETRS
        INITIAL_WFN SCF_WFN ! RT_RESTART
     &END
+    &EFIELD
+       #Equivalent to a pulse scale of 0.001 with this cell size (7 7 7)
+       INTENSITY 7.917741E+11
+       POLARISATION 1 0 0
+       ENVELOP CONSTANT
+       WAVELENGTH [nm] 1000
+       &CONSTANT_ENV
+         START_STEP 0
+         END_STEP 1
+       &END CONSTANT_ENV
+    &END EFIELD
     &PRINT
       &MOMENTS
         PERIODIC .FALSE.
