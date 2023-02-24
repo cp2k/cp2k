@@ -82,6 +82,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="DEBUG_FORCES", &
+                          description="Activate printing of intermediate forces in excited state force calculations.", &
+                          usage="DEBUG_FORCES T", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_exstate_section
 
 END MODULE input_cp2k_exstate

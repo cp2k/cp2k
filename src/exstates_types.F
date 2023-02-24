@@ -45,8 +45,9 @@ MODULE exstates_types
       INTEGER                                            :: state
       REAL(KIND=dp)                                      :: evalue
       INTEGER                                            :: xc_kernel_method
-      TYPE(cp_fm_type), POINTER, DIMENSION(:)          :: evect => NULL()
-      TYPE(cp_fm_type), POINTER, DIMENSION(:)          :: cpmos => NULL()
+      LOGICAL                                            :: debug_forces = .FALSE.
+      TYPE(cp_fm_type), POINTER, DIMENSION(:)            :: evect => NULL()
+      TYPE(cp_fm_type), POINTER, DIMENSION(:)            :: cpmos => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_pe => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hz => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_pe_admm => NULL()
@@ -56,9 +57,9 @@ MODULE exstates_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_px1_admm_asymm => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_wx1 => NULL()
       TYPE(pw_type)                                      :: vh_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER             :: vxc_rspace => NULL()
-      TYPE(pw_type), DIMENSION(:), POINTER             :: vtau_rspace => NULL()
-      TYPE(pw_type), DIMENSION(:), POINTER             :: vadmm_rspace => NULL()
+      TYPE(pw_type), DIMENSION(:), POINTER               :: vxc_rspace => NULL()
+      TYPE(pw_type), DIMENSION(:), POINTER               :: vtau_rspace => NULL()
+      TYPE(pw_type), DIMENSION(:), POINTER               :: vadmm_rspace => NULL()
       TYPE(local_rho_type), POINTER                      :: local_rho_set => NULL()
       TYPE(local_rho_type), POINTER                      :: local_rho_set_admm => NULL()
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: fingerprint
@@ -201,6 +202,8 @@ CONTAINS
          CALL section_vals_val_get(dft_section, "EXCITED_STATES%STATE", i_val=ex_env%state)
          CALL section_vals_val_get(dft_section, "EXCITED_STATES%XC_KERNEL_METHOD", &
                                    i_val=ex_env%xc_kernel_method)
+         CALL section_vals_val_get(dft_section, "EXCITED_STATES%DEBUG_FORCES", &
+                                   l_val=ex_env%debug_forces)
       ELSE
          ex_env%state = 0
          ex_env%xc_kernel_method = xc_kernel_method_best

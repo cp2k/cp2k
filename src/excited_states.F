@@ -62,7 +62,6 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: calculate_forces
 
       CHARACTER(len=*), PARAMETER :: routineN = 'excited_state_energy'
-      LOGICAL, PARAMETER                                 :: debug_forces = .FALSE.
 
       INTEGER                                            :: handle, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: natom_of_kind
@@ -111,7 +110,7 @@ CONTAINS
             ELSEIF (dft_control%qs_control%dftb) THEN
                CPABORT("Not available")
             ELSEIF (dft_control%qs_control%xtb) THEN
-               CALL response_force_xtb(qs_env, p_env, ex_env%matrix_hz, ex_env, debug=debug_forces)
+               CALL response_force_xtb(qs_env, p_env, ex_env%matrix_hz, ex_env, debug=ex_env%debug_forces)
             ELSE
                ! KS-DFT
                CALL response_force(qs_env=qs_env, vh_rspace=ex_env%vh_rspace, &
@@ -120,7 +119,7 @@ CONTAINS
                                    matrix_pz=ex_env%matrix_px1, matrix_pz_admm=p_env%p1_admm, &
                                    matrix_wz=p_env%w1, &
                                    p_env=p_env, ex_env=ex_env, &
-                                   debug=debug_forces)
+                                   debug=ex_env%debug_forces)
             END IF
             ! add TD and KS forces
             CALL get_qs_env(qs_env, force=lr_force)

@@ -77,9 +77,6 @@ MODULE qs_ks_reference
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_reference'
 
-   LOGICAL, PARAMETER                   :: debug_stress = .TRUE.
-   LOGICAL, PARAMETER                   :: debug_forces = .TRUE.
-
    PUBLIC :: ks_ref_potential, ks_ref_potential_atom
 
 ! **************************************************************************************************
