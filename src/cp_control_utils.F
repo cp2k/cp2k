@@ -399,13 +399,19 @@ CONTAINS
       ! Read the finite field input section
       dft_control%apply_efield = .FALSE.
       dft_control%apply_efield_field = .FALSE. !this is for RTP
+      dft_control%apply_vector_potential = .FALSE. !this is for RTP
       tmp_section => section_vals_get_subs_vals(dft_section, "EFIELD")
       CALL section_vals_get(tmp_section, n_repetition=nrep, explicit=is_present)
       IF (is_present) THEN
          ALLOCATE (dft_control%efield_fields(nrep))
          CALL read_efield_sections(dft_control, tmp_section)
          IF (do_rtp) THEN
-            dft_control%apply_efield_field = .TRUE.
+            IF (.NOT. dft_control%rtp_control%velocity_gauge) THEN
+               dft_control%apply_efield_field = .TRUE.
+            ELSE
+               dft_control%apply_vector_potential = .TRUE.
+               dft_control%rtp_control%vec_pot = 0.0_dp
+            END IF
          ELSE
             dft_control%apply_efield = .TRUE.
             CPASSERT(nrep == 1)

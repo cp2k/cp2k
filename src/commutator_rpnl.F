@@ -413,8 +413,12 @@ CONTAINS
    END SUBROUTINE build_com_rpnl
 
 ! **************************************************************************************************
-!> \brief Calculate [r,Vnl], r x [r,Vnl] or [rr,Vnl] in AO basis
-!>        reference point is required for the two latter options
+!> \brief Calculate [r,Vnl] (matrix_rv), r x [r,Vnl] (matrix_rxrv)
+!>        or [rr,Vnl] (matrix_rrv) in AO basis.
+!>        Reference point is required for the two latter options
+!>        Update: Calculate rxVnlxr (matrix_rvr) and rxrxVnl + Vnlxrxr (matrix_rrv_vrr)
+!>        in AO basis. Added in the first place for current correction in
+!>        the VG formalism (first order wrt vector potential).
 !> \param qs_kind_set ...
 !> \param sab_all ...
 !> \param sap_ppnl ...
@@ -424,6 +428,8 @@ CONTAINS
 !> \param matrix_rv ...
 !> \param matrix_rxrv ...
 !> \param matrix_rrv ...
+!> \param matrix_rvr ...
+!> \param matrix_rrv_vrr ...
 !> \param matrix_r_rxvr ...
 !> \param matrix_rxvr_r ...
 !> \param matrix_r_doublecom ...
@@ -431,7 +437,7 @@ CONTAINS
 !> \param ref_point ...
 ! **************************************************************************************************
    SUBROUTINE build_com_mom_nl(qs_kind_set, sab_all, sap_ppnl, eps_ppnl, particle_set, cell, matrix_rv, matrix_rxrv, &
-                               matrix_rrv, matrix_r_rxvr, matrix_rxvr_r, matrix_r_doublecom, pseudoatom, ref_point)
+                    matrix_rrv, matrix_rvr, matrix_rrv_vrr, matrix_r_rxvr, matrix_rxvr_r, matrix_r_doublecom, pseudoatom, ref_point)
 
       TYPE(qs_kind_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: qs_kind_set
@@ -442,7 +448,8 @@ CONTAINS
          POINTER                                         :: particle_set
       TYPE(cell_type), INTENT(IN), POINTER               :: cell
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT), &
-         OPTIONAL                                        :: matrix_rv, matrix_rxrv, matrix_rrv
+         OPTIONAL                                        :: matrix_rv, matrix_rxrv, matrix_rrv, &
+                                                            matrix_rvr, matrix_rrv_vrr
       TYPE(dbcsr_p_type), DIMENSION(:, :), &
          INTENT(INOUT), OPTIONAL                         :: matrix_r_rxvr, matrix_rxvr_r, &
                                                             matrix_r_doublecom
@@ -458,12 +465,13 @@ CONTAINS
                                                             kac, kbc, kkind, na, natom, nb, nkind, &
                                                             np, order, slot
       INTEGER, DIMENSION(3)                              :: cell_b
-      LOGICAL :: asso_r_doublecom, asso_r_rxvr, asso_rrv, asso_rv, asso_rxrv, asso_rxvr_r, &
-         do_symmetric, found, go, my_r_doublecom, my_r_rxvr, my_ref, my_rrv, my_rv, my_rxrv, &
-         my_rxvr_r, periodic, ppnl_present
+      LOGICAL :: asso_r_doublecom, asso_r_rxvr, asso_rrv, asso_rrv_vrr, asso_rv, asso_rvr, &
+         asso_rxrv, asso_rxvr_r, do_symmetric, found, go, my_r_doublecom, my_r_rxvr, my_ref, &
+         my_rrv, my_rrv_vrr, my_rv, my_rvr, my_rxrv, my_rxvr_r, periodic, ppnl_present
       REAL(KIND=dp), DIMENSION(3)                        :: rab, rf
       TYPE(alist_type), POINTER                          :: alist_ac, alist_bc
-      TYPE(block_p_type), ALLOCATABLE, DIMENSION(:)      :: blocks_rrv, blocks_rv, blocks_rxrv
+      TYPE(block_p_type), ALLOCATABLE, DIMENSION(:)      :: blocks_rrv, blocks_rrv_vrr, blocks_rv, &
+                                                            blocks_rvr, blocks_rxrv
       TYPE(block_p_type), ALLOCATABLE, DIMENSION(:, :)   :: blocks_r_doublecom, blocks_r_rxvr, &
                                                             blocks_rxvr_r
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
@@ -487,13 +495,17 @@ CONTAINS
       my_rxrv = .FALSE.
       my_rrv = .FALSE.
       my_rv = .FALSE.
+      my_rvr = .FALSE.
+      my_rrv_vrr = .FALSE.
       IF (PRESENT(matrix_r_doublecom)) my_r_doublecom = .TRUE.
       IF (PRESENT(matrix_r_rxvr)) my_r_rxvr = .TRUE.
       IF (PRESENT(matrix_rxvr_r)) my_rxvr_r = .TRUE.
       IF (PRESENT(matrix_rxrv)) my_rxrv = .TRUE.
       IF (PRESENT(matrix_rrv)) my_rrv = .TRUE.
       IF (PRESENT(matrix_rv)) my_rv = .TRUE.
-      IF (.NOT. (my_rv .OR. my_rxrv .OR. my_rrv .OR. my_r_rxvr .OR. my_rxvr_r .OR. my_r_doublecom)) THEN
+      IF (PRESENT(matrix_rvr)) my_rvr = .TRUE.
+      IF (PRESENT(matrix_rrv_vrr)) my_rrv_vrr = .TRUE.
+      IF (.NOT. (my_rv .OR. my_rxrv .OR. my_rrv .OR. my_rvr .OR. my_rrv_vrr .OR. my_r_rxvr .OR. my_rxvr_r .OR. my_r_doublecom)) THEN
          CPABORT('No dbcsr matrix provided for commutator calculation!')
       END IF
 
@@ -502,6 +514,8 @@ CONTAINS
       IF (my_rxrv .OR. my_rrv .OR. my_r_rxvr .OR. my_rxvr_r .OR. my_r_doublecom) THEN
          order = 2
          CPASSERT(PRESENT(ref_point)) ! need reference point for r x [r,Vnl] and [rr,Vnl]
+      ELSE IF (my_rvr .OR. my_rrv_vrr) THEN
+         order = 2
       ELSE
          order = 1
       END IF
@@ -561,15 +575,21 @@ CONTAINS
 
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
-!$OMP SHARED  (basis_set, matrix_rv, matrix_rxrv, matrix_rrv, matrix_r_doublecom, &
-!$OMP          sap_int, natom, nkind, eps_ppnl, my_rv, my_rxrv, my_rrv, my_r_doublecom, locks, sab_all, &
+!$OMP SHARED  (basis_set, matrix_rv, matrix_rxrv, matrix_rrv, &
+!$OMP          matrix_rvr, matrix_rrv_vrr, matrix_r_doublecom, &
+!$OMP          sap_int, natom, nkind, eps_ppnl, locks, sab_all, &
+!$OMP          my_rv, my_rxrv, my_rrv, my_rvr, my_rrv_vrr, &
+!$OMP          my_r_doublecom, &
 !$OMP          matrix_r_rxvr, matrix_rxvr_r, my_r_rxvr, my_rxvr_r, &
 !$OMP          pseudoatom, do_symmetric) &
 !$OMP PRIVATE (ikind, jkind, iatom, jatom, cell_b, rab, &
-!$OMP          iab, irow, icol, blocks_rv, blocks_rxrv, blocks_rrv, blocks_r_rxvr, blocks_rxvr_r, blocks_r_doublecom, &
+!$OMP          iab, irow, icol, &
+!$OMP          blocks_rv, blocks_rxrv, blocks_rrv, blocks_rvr, blocks_rrv_vrr, &
+!$OMP          blocks_r_rxvr, blocks_rxvr_r, blocks_r_doublecom, &
 !$OMP          found, iac, ibc, alist_ac, alist_bc, &
 !$OMP          na, np, nb, kkind, kac, kbc, i, &
-!$OMP          go, asso_rv, asso_rxrv, asso_rrv, asso_r_rxvr, asso_rxvr_r, asso_r_doublecom, hash)
+!$OMP          go, asso_rv, asso_rxrv, asso_rrv, asso_rvr, asso_rrv_vrr, &
+!$OMP          asso_r_rxvr, asso_rxvr_r, asso_r_doublecom, hash)
 
 !$OMP SINGLE
 !$    ALLOCATE (locks(nlock))
@@ -619,7 +639,12 @@ CONTAINS
          IF (my_rrv) THEN
             ALLOCATE (blocks_rrv(6))
          END IF
-
+         IF (my_rvr) THEN
+            ALLOCATE (blocks_rvr(6))
+         END IF
+         IF (my_rrv_vrr) THEN
+            ALLOCATE (blocks_rrv_vrr(6))
+         END IF
          IF (my_r_rxvr) THEN
             ALLOCATE (blocks_r_rxvr(3, 3))
          END IF
@@ -649,6 +674,18 @@ CONTAINS
          IF (my_rrv) THEN
             DO ind = 1, 6
                CALL dbcsr_get_block_p(matrix_rrv(ind)%matrix, irow, icol, blocks_rrv(ind)%block, found)
+            END DO
+         END IF
+
+         IF (my_rvr) THEN
+            DO ind = 1, 6
+               CALL dbcsr_get_block_p(matrix_rvr(ind)%matrix, irow, icol, blocks_rvr(ind)%block, found)
+            END DO
+         END IF
+
+         IF (my_rrv_vrr) THEN
+            DO ind = 1, 6
+               CALL dbcsr_get_block_p(matrix_rrv_vrr(ind)%matrix, irow, icol, blocks_rrv_vrr(ind)%block, found)
             END DO
          END IF
 
@@ -701,6 +738,20 @@ CONTAINS
                         ASSOCIATED(blocks_rrv(3)%block) .AND. ASSOCIATED(blocks_rrv(4)%block) .AND. &
                         ASSOCIATED(blocks_rrv(5)%block) .AND. ASSOCIATED(blocks_rrv(6)%block))
             go = go .AND. asso_rrv
+         END IF
+
+         IF (my_rvr) THEN
+            asso_rvr = (ASSOCIATED(blocks_rvr(1)%block) .AND. ASSOCIATED(blocks_rvr(2)%block) .AND. &
+                        ASSOCIATED(blocks_rvr(3)%block) .AND. ASSOCIATED(blocks_rvr(4)%block) .AND. &
+                        ASSOCIATED(blocks_rvr(5)%block) .AND. ASSOCIATED(blocks_rvr(6)%block))
+            go = go .AND. asso_rvr
+         END IF
+
+         IF (my_rrv_vrr) THEN
+            asso_rrv_vrr = (ASSOCIATED(blocks_rrv_vrr(1)%block) .AND. ASSOCIATED(blocks_rrv_vrr(2)%block) .AND. &
+                            ASSOCIATED(blocks_rrv_vrr(3)%block) .AND. ASSOCIATED(blocks_rrv_vrr(4)%block) .AND. &
+                            ASSOCIATED(blocks_rrv_vrr(5)%block) .AND. ASSOCIATED(blocks_rrv_vrr(6)%block))
+            go = go .AND. asso_rrv_vrr
          END IF
 
          IF (my_r_rxvr) THEN
@@ -995,6 +1046,96 @@ CONTAINS
                                                                    MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 9)))   ! -Vyz
                                  blocks_rrv(6)%block(1:nb, 1:na) = blocks_rrv(6)%block(1:nb, 1:na) - &
                                                                    MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 10)))   ! -Vzz
+                              END IF
+                           END IF
+
+                           IF (my_rvr) THEN
+                              ! r_alpha * Vnl * r_beta
+                              IF (iatom <= jatom) THEN
+                                 blocks_rvr(1)%block(1:na, 1:nb) = blocks_rvr(1)%block(1:na, 1:nb) + &
+                                                                   MATMUL(achint(1:na, 1:np, 2), TRANSPOSE(bcint(1:nb, 1:np, 2)))   ! xVx
+                                 blocks_rvr(2)%block(1:na, 1:nb) = blocks_rvr(2)%block(1:na, 1:nb) + &
+                                                                   MATMUL(achint(1:na, 1:np, 2), TRANSPOSE(bcint(1:nb, 1:np, 3)))   ! xVy
+                                 blocks_rvr(3)%block(1:na, 1:nb) = blocks_rvr(3)%block(1:na, 1:nb) + &
+                                                                   MATMUL(achint(1:na, 1:np, 2), TRANSPOSE(bcint(1:nb, 1:np, 4)))   ! xVz
+                                 blocks_rvr(4)%block(1:na, 1:nb) = blocks_rvr(4)%block(1:na, 1:nb) + &
+                                                                   MATMUL(achint(1:na, 1:np, 3), TRANSPOSE(bcint(1:nb, 1:np, 3)))   ! yVy
+                                 blocks_rvr(5)%block(1:na, 1:nb) = blocks_rvr(5)%block(1:na, 1:nb) + &
+                                                                   MATMUL(achint(1:na, 1:np, 3), TRANSPOSE(bcint(1:nb, 1:np, 4)))   ! yVz
+                                 blocks_rvr(6)%block(1:na, 1:nb) = blocks_rvr(6)%block(1:na, 1:nb) + &
+                                                                   MATMUL(achint(1:na, 1:np, 4), TRANSPOSE(bcint(1:nb, 1:np, 4)))   ! zVz
+                              ELSE
+                                 blocks_rvr(1)%block(1:nb, 1:na) = blocks_rvr(1)%block(1:nb, 1:na) + &
+                                                                   MATMUL(bchint(1:nb, 1:np, 2), TRANSPOSE(acint(1:na, 1:np, 2)))   ! xVx
+                                 blocks_rvr(2)%block(1:nb, 1:na) = blocks_rvr(2)%block(1:nb, 1:na) + &
+                                                                   MATMUL(bchint(1:nb, 1:np, 2), TRANSPOSE(acint(1:na, 1:np, 3)))   ! xVy
+                                 blocks_rvr(3)%block(1:nb, 1:na) = blocks_rvr(3)%block(1:nb, 1:na) + &
+                                                                   MATMUL(bchint(1:nb, 1:np, 2), TRANSPOSE(acint(1:na, 1:np, 4)))   ! xVz
+                                 blocks_rvr(4)%block(1:nb, 1:na) = blocks_rvr(4)%block(1:nb, 1:na) + &
+                                                                   MATMUL(bchint(1:nb, 1:np, 3), TRANSPOSE(acint(1:na, 1:np, 3)))   ! yVy
+                                 blocks_rvr(5)%block(1:nb, 1:na) = blocks_rvr(5)%block(1:nb, 1:na) + &
+                                                                   MATMUL(bchint(1:nb, 1:np, 3), TRANSPOSE(acint(1:na, 1:np, 4)))   ! yVz
+                                 blocks_rvr(6)%block(1:nb, 1:na) = blocks_rvr(6)%block(1:nb, 1:na) + &
+                                                                   MATMUL(bchint(1:nb, 1:np, 4), TRANSPOSE(acint(1:na, 1:np, 4)))   ! zVz
+                              END IF
+                           END IF
+
+                           IF (my_rrv_vrr) THEN
+                              ! r_alpha * r_beta * Vnl
+                              IF (iatom <= jatom) THEN
+                                 blocks_rrv_vrr(1)%block(1:na, 1:nb) = blocks_rrv_vrr(1)%block(1:na, 1:nb) + &
+                                                              MATMUL(achint(1:na, 1:np, 5), TRANSPOSE(bcint(1:nb, 1:np, 1)))   ! xxV
+                                 blocks_rrv_vrr(2)%block(1:na, 1:nb) = blocks_rrv_vrr(2)%block(1:na, 1:nb) + &
+                                                              MATMUL(achint(1:na, 1:np, 6), TRANSPOSE(bcint(1:nb, 1:np, 1)))   ! xyV
+                                 blocks_rrv_vrr(3)%block(1:na, 1:nb) = blocks_rrv_vrr(3)%block(1:na, 1:nb) + &
+                                                              MATMUL(achint(1:na, 1:np, 7), TRANSPOSE(bcint(1:nb, 1:np, 1)))   ! xzV
+                                 blocks_rrv_vrr(4)%block(1:na, 1:nb) = blocks_rrv_vrr(4)%block(1:na, 1:nb) + &
+                                                              MATMUL(achint(1:na, 1:np, 8), TRANSPOSE(bcint(1:nb, 1:np, 1)))   ! yyV
+                                 blocks_rrv_vrr(5)%block(1:na, 1:nb) = blocks_rrv_vrr(5)%block(1:na, 1:nb) + &
+                                                              MATMUL(achint(1:na, 1:np, 9), TRANSPOSE(bcint(1:nb, 1:np, 1)))   ! yzV
+                                 blocks_rrv_vrr(6)%block(1:na, 1:nb) = blocks_rrv_vrr(6)%block(1:na, 1:nb) + &
+                                                             MATMUL(achint(1:na, 1:np, 10), TRANSPOSE(bcint(1:nb, 1:np, 1)))   ! zzV
+                              ELSE
+                                 blocks_rrv_vrr(1)%block(1:nb, 1:na) = blocks_rrv_vrr(1)%block(1:nb, 1:na) + &
+                                                              MATMUL(bchint(1:nb, 1:np, 5), TRANSPOSE(acint(1:na, 1:np, 1)))   ! xxV
+                                 blocks_rrv_vrr(2)%block(1:nb, 1:na) = blocks_rrv_vrr(2)%block(1:nb, 1:na) + &
+                                                              MATMUL(bchint(1:nb, 1:np, 6), TRANSPOSE(acint(1:na, 1:np, 1)))   ! xyV
+                                 blocks_rrv_vrr(3)%block(1:nb, 1:na) = blocks_rrv_vrr(3)%block(1:nb, 1:na) + &
+                                                              MATMUL(bchint(1:nb, 1:np, 7), TRANSPOSE(acint(1:na, 1:np, 1)))   ! xzV
+                                 blocks_rrv_vrr(4)%block(1:nb, 1:na) = blocks_rrv_vrr(4)%block(1:nb, 1:na) + &
+                                                              MATMUL(bchint(1:nb, 1:np, 8), TRANSPOSE(acint(1:na, 1:np, 1)))   ! yyV
+                                 blocks_rrv_vrr(5)%block(1:nb, 1:na) = blocks_rrv_vrr(5)%block(1:nb, 1:na) + &
+                                                              MATMUL(bchint(1:nb, 1:np, 9), TRANSPOSE(acint(1:na, 1:np, 1)))   ! yzV
+                                 blocks_rrv_vrr(6)%block(1:nb, 1:na) = blocks_rrv_vrr(6)%block(1:nb, 1:na) + &
+                                                             MATMUL(bchint(1:nb, 1:np, 10), TRANSPOSE(acint(1:na, 1:np, 1)))   ! zzV
+                              END IF
+                              ! + Vnl * r_alpha * r_beta
+                              IF (iatom <= jatom) THEN
+                                 blocks_rrv_vrr(1)%block(1:na, 1:nb) = blocks_rrv_vrr(1)%block(1:na, 1:nb) + &
+                                                             MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 5)))   ! +Vxx
+                                 blocks_rrv_vrr(2)%block(1:na, 1:nb) = blocks_rrv_vrr(2)%block(1:na, 1:nb) + &
+                                                             MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 6)))   ! +Vxy
+                                 blocks_rrv_vrr(3)%block(1:na, 1:nb) = blocks_rrv_vrr(3)%block(1:na, 1:nb) + &
+                                                             MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 7)))   ! +Vxz
+                                 blocks_rrv_vrr(4)%block(1:na, 1:nb) = blocks_rrv_vrr(4)%block(1:na, 1:nb) + &
+                                                             MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 8)))   ! +Vyy
+                                 blocks_rrv_vrr(5)%block(1:na, 1:nb) = blocks_rrv_vrr(5)%block(1:na, 1:nb) + &
+                                                             MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 9)))   ! +Vyz
+                                 blocks_rrv_vrr(6)%block(1:na, 1:nb) = blocks_rrv_vrr(6)%block(1:na, 1:nb) + &
+                                                            MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 10)))   ! +Vzz
+                              ELSE
+                                 blocks_rrv_vrr(1)%block(1:nb, 1:na) = blocks_rrv_vrr(1)%block(1:nb, 1:na) + &
+                                                             MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 5)))   ! +Vxx
+                                 blocks_rrv_vrr(2)%block(1:nb, 1:na) = blocks_rrv_vrr(2)%block(1:nb, 1:na) + &
+                                                             MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 6)))   ! +Vxy
+                                 blocks_rrv_vrr(3)%block(1:nb, 1:na) = blocks_rrv_vrr(3)%block(1:nb, 1:na) + &
+                                                             MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 7)))   ! +Vxz
+                                 blocks_rrv_vrr(4)%block(1:nb, 1:na) = blocks_rrv_vrr(4)%block(1:nb, 1:na) + &
+                                                             MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 8)))   ! +Vyy
+                                 blocks_rrv_vrr(5)%block(1:nb, 1:na) = blocks_rrv_vrr(5)%block(1:nb, 1:na) + &
+                                                             MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 9)))   ! +Vyz
+                                 blocks_rrv_vrr(6)%block(1:nb, 1:na) = blocks_rrv_vrr(6)%block(1:nb, 1:na) + &
+                                                            MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 10)))   ! +Vzz
                               END IF
                            END IF
 
@@ -1324,6 +1465,18 @@ CONTAINS
                NULLIFY (blocks_rrv(ind)%block)
             END DO
             DEALLOCATE (blocks_rrv)
+         END IF
+         IF (my_rvr) THEN
+            DO ind = 1, 6
+               NULLIFY (blocks_rvr(ind)%block)
+            END DO
+            DEALLOCATE (blocks_rvr)
+         END IF
+         IF (my_rrv_vrr) THEN
+            DO ind = 1, 6
+               NULLIFY (blocks_rrv_vrr(ind)%block)
+            END DO
+            DEALLOCATE (blocks_rrv_vrr)
          END IF
          IF (my_r_rxvr) THEN
             DO ind = 1, 3

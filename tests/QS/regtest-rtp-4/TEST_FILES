@@ -7,5 +7,5 @@
 # Delta pulse in the length representation, velocity gauge and magnetic delta pulse
 H2O-delta-mag.inp                                    1      1e-13           -17.17816619814588
 H2O-delta-lenrep.inp                                 1      1e-13           -17.17816511743962
-H2O-vg.inp                                           1      1e-13           -17.17816524491995
+H2O-vg.inp                                           1      1e-13           -17.17816522919518
 #EOF

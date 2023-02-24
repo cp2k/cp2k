@@ -16,24 +16,26 @@ MODULE efield_utils
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type,&
                                               efield_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
+   USE dbcsr_api,                       ONLY: dbcsr_add,&
+                                              dbcsr_copy,&
+                                              dbcsr_p_type,&
+                                              dbcsr_set
    USE input_constants,                 ONLY: constant_env,&
                                               custom_env,&
                                               gaussian_env,&
                                               ramp_env
-   USE kahan_sum,                       ONLY: accurate_dot_product
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
    USE particle_types,                  ONLY: particle_type
-   USE pw_types,                        ONLY: pw_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE qs_rho_types,                    ONLY: qs_rho_get,&
-                                              qs_rho_type
+   USE qs_moments,                      ONLY: build_local_moment_matrix
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -44,75 +46,64 @@ MODULE efield_utils
 
 ! *** Public subroutines ***
 
-   PUBLIC :: efield_potential, &
-             calculate_ecore_efield
+   PUBLIC :: efield_potential_lengh_gauge, &
+             calculate_ecore_efield, &
+             make_field
 
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief computes the time dependend potential on the grid
+!> \brief Replace the original implementation of the electric-electronic
+!>        interaction in the lenght gauge. This calculation is no longer done in
+!>        the grid but using matrices to match the velocity gauge implementation.
+!>        Note: The energy is store in energy%core and computed later on.
 !> \param qs_env ...
-!> \param v_efield_rspace ...
-!> \author Florian Schiffmann (02.09)
+!> \author Guillaume Le Breton (02.23)
 ! **************************************************************************************************
 
-   SUBROUTINE efield_potential(qs_env, v_efield_rspace)
+   SUBROUTINE efield_potential_lengh_gauge(qs_env)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_type)                                      :: v_efield_rspace
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'efield_potential'
+      CHARACTER(len=*), PARAMETER :: routineN = 'efield_potential_lengh_gauge'
 
-      INTEGER                                            :: handle, i, j, k
-      INTEGER, DIMENSION(2, 3)                           :: bo_global, bo_local
-      REAL(kind=dp)                                      :: dvol, efield_ener, field(3)
-      REAL(kind=dp), DIMENSION(3)                        :: dr, grid_p
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      INTEGER                                            :: handle, i, image
+      REAL(kind=dp)                                      :: field(3)
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, moments
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
-      TYPE(qs_energy_type), POINTER                      :: energy
-      TYPE(qs_rho_type), POINTER                         :: rho
 
-      NULLIFY (dft_control, para_env, rho_r)
+      NULLIFY (dft_control)
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, &
-                      energy=energy, &
-                      rho=rho, &
                       dft_control=dft_control, &
-                      para_env=para_env)
+                      matrix_h_kp=matrix_h, &
+                      matrix_s=matrix_s)
 
-      CALL qs_rho_get(rho, rho_r=rho_r)
+      NULLIFY (moments)
+      CALL dbcsr_allocate_matrix_set(moments, 3)
+      DO i = 1, 3
+         ALLOCATE (moments(i)%matrix)
+         CALL dbcsr_copy(moments(i)%matrix, matrix_s(1)%matrix, "Moments")
+         CALL dbcsr_set(moments(i)%matrix, 0.0_dp)
+      END DO
 
-      v_efield_rspace%cr3d = 0.0_dp
-
-      bo_local = v_efield_rspace%pw_grid%bounds_local
-      bo_global = v_efield_rspace%pw_grid%bounds
-
-      dvol = v_efield_rspace%pw_grid%dvol
-      dr = v_efield_rspace%pw_grid%dr
+      CALL build_local_moment_matrix(qs_env, moments, 1)
 
       CALL make_field(dft_control, field, qs_env%sim_step, qs_env%sim_time)
 
-      DO k = bo_local(1, 3), bo_local(2, 3)
-         DO j = bo_local(1, 2), bo_local(2, 2)
-            DO i = bo_local(1, 1), bo_local(2, 1)
-               grid_p(1) = (i - bo_global(1, 1))*dr(1)
-               grid_p(2) = (j - bo_global(1, 2))*dr(2)
-               grid_p(3) = (k - bo_global(1, 3))*dr(3)
-               v_efield_rspace%cr3d(i, j, k) = v_efield_rspace%cr3d(i, j, k) + DOT_PRODUCT(field(:), grid_p(:))
-            END DO
+      DO i = 1, 3
+         DO image = 1, dft_control%nimages
+            CALL dbcsr_add(matrix_h(1, image)%matrix, moments(i)%matrix, 1.0_dp, field(i))
          END DO
       END DO
-      efield_ener = 0.0_dp
-      DO i = 1, dft_control%nspins
-         efield_ener = efield_ener + accurate_dot_product(v_efield_rspace%cr3d, rho_r(i)%cr3d)*dvol
-      END DO
-      CALL para_env%group%sum(efield_ener)
-      energy%efield = efield_ener
+
+      CALL dbcsr_deallocate_matrix_set(moments)
+
       CALL timestop(handle)
 
-   END SUBROUTINE efield_potential
+   END SUBROUTINE efield_potential_lengh_gauge
 
 ! **************************************************************************************************
 !> \brief computes the amplitude of the efield within a given envelop
@@ -124,10 +115,10 @@ CONTAINS
 ! **************************************************************************************************
 
    SUBROUTINE make_field(dft_control, field, sim_step, sim_time)
-      TYPE(dft_control_type)                             :: dft_control
-      REAL(dp)                                           :: field(3)
-      INTEGER                                            :: sim_step
-      REAL(KIND=dp)                                      :: sim_time
+      TYPE(dft_control_type), INTENT(IN)                 :: dft_control
+      REAL(dp), INTENT(OUT)                              :: field(3)
+      INTEGER, INTENT(IN)                                :: sim_step
+      REAL(KIND=dp), INTENT(IN)                          :: sim_time
 
       INTEGER                                            :: i, lower, nfield, upper
       REAL(dp)                                           :: c, env, nu, pol(3), strength
@@ -182,7 +173,10 @@ CONTAINS
    END SUBROUTINE make_field
 
 ! **************************************************************************************************
-!> \brief computes the force and the energy due to a efield on the cores
+!> \brief Computes the force and the energy due to a efield on the cores
+!>        Note: In the velocity gauge, the energy term is not added because
+!>        it would lead to an unbalanced energy (center of negative charge not
+!>        computed in velocity gauge).
 !> \param qs_env ...
 !> \param calculate_forces ...
 !> \author Florian Schiffmann (02.09)
@@ -212,7 +206,6 @@ CONTAINS
       CALL timeset(routineN, handle)
       CALL get_qs_env(qs_env, dft_control=dft_control)
       IF (dft_control%apply_efield_field) THEN
-
          my_force = .FALSE.
          IF (PRESENT(calculate_forces)) my_force = calculate_forces
 

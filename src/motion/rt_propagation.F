@@ -349,7 +349,6 @@ CONTAINS
          qs_env%sim_step = i_step
          rtp%istep = i_step - rtp%i_start
          CALL calculate_ecore_efield(qs_env, .FALSE.)
-         !
          IF (dft_control%apply_external_potential) THEN
             IF (.NOT. dft_control%expot_control%static) THEN
                dft_control%eval_external_potential = .TRUE.

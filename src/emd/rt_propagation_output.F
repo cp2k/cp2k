@@ -42,6 +42,7 @@ MODULE rt_propagation_output
         dbcsr_get_occupation, dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_scale, &
         dbcsr_set, dbcsr_type
+   USE efield_utils,                    ONLY: make_field
    USE input_constants,                 ONLY: ehrenfest,&
                                               real_time_propagation
    USE input_section_types,             ONLY: section_get_ivals,&
@@ -198,11 +199,14 @@ CONTAINS
                                         "PRINT%PROGRAM_RUN_INFO")
 
       IF (rtp%converged) THEN
+         dft_section => section_vals_get_subs_vals(input, "DFT")
+         IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                              dft_section, "REAL_TIME_PROPAGATION%PRINT%FIELD"), cp_p_file)) &
+            CALL print_field_applied(qs_env, dft_section)
          CALL make_moment(qs_env)
          IF (.NOT. dft_control%qs_control%dftb) THEN
             CALL write_available_results(qs_env=qs_env, rtp=rtp)
          END IF
-         dft_section => section_vals_get_subs_vals(input, "DFT")
          IF (rtp%linear_scaling) THEN
             CALL get_rtp(rtp=rtp, rho_new=rho_new)
             IF (BTEST(cp_print_key_should_output(logger%iter_info, &
@@ -797,5 +801,65 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE write_available_results
+
+! **************************************************************************************************
+!> \brief Print the field applied to the system. Either the electric
+!>        field or the vector potential depending on the gauge used
+!> \param qs_env ...
+!> \param dft_section ...
+!> \par History
+!>      2023-01  Created [Guillaume Le Breton]
+! **************************************************************************************************
+   SUBROUTINE print_field_applied(qs_env, dft_section)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(section_vals_type), POINTER                   :: dft_section
+
+      CHARACTER(LEN=3), DIMENSION(3)                     :: rlab
+      CHARACTER(LEN=default_path_length)                 :: filename
+      INTEGER                                            :: i, output_unit, unit_nr
+      REAL(kind=dp)                                      :: field(3), to_write(3)
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dft_control_type), POINTER                    :: dft_control
+
+      NULLIFY (dft_control)
+
+      logger => cp_get_default_logger()
+      output_unit = cp_logger_get_default_io_unit(logger)
+
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+
+      unit_nr = cp_print_key_unit_nr(logger, dft_section, &
+                                     "REAL_TIME_PROPAGATION%PRINT%FIELD", extension=".dat")
+
+      IF (output_unit > 0) THEN
+         IF (unit_nr /= output_unit) THEN
+            INQUIRE (UNIT=unit_nr, NAME=filename)
+            WRITE (UNIT=output_unit, FMT="(/,T2,A,2(/,T3,A),/)") &
+               "FIELD", "The field applied is written to the file:", &
+               TRIM(filename)
+            WRITE (UNIT=unit_nr, FMT="(/,(T2,A,T40,I6))") &
+               "Real time propagation step:", qs_env%sim_step
+         ELSE
+            WRITE (UNIT=output_unit, FMT="(/,T2,A)") "FIELD APPLIED"
+         END IF
+      END IF
+
+      rlab = [CHARACTER(LEN=3) :: "X", "Y", "Z"]
+
+      IF (dft_control%apply_efield_field) THEN
+         WRITE (unit_nr, "(T3,A)") "Electric Field in atomic units:"
+         CALL make_field(dft_control, field, qs_env%sim_step, qs_env%sim_time)
+         to_write = field
+      ELSE IF (dft_control%apply_vector_potential) THEN
+         WRITE (unit_nr, "(T3,A)") "Vector potential in atomic units:"
+         to_write = dft_control%rtp_control%vec_pot
+      ELSE
+         to_write = 0._dp
+      END IF
+
+      WRITE (unit_nr, "(T5,3(A,A,E16.8,1X))") &
+         (TRIM(rlab(i)), "=", to_write(i), i=1, 3)
+
+   END SUBROUTINE print_field_applied
 
 END MODULE rt_propagation_output

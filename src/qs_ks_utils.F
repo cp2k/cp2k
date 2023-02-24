@@ -1254,7 +1254,6 @@ CONTAINS
 !> \param v_rspace_new_aux_fit ...
 !> \param v_tau_rspace ...
 !> \param v_tau_rspace_aux_fit ...
-!> \param v_efield_rspace ...
 !> \param v_sic_rspace ...
 !> \param v_spin_ddapc_rest_r ...
 !> \param v_sccs_rspace ...
@@ -1269,7 +1268,7 @@ CONTAINS
    SUBROUTINE sum_up_and_integrate(qs_env, ks_matrix, rho, my_rho, &
                                    vppl_rspace, v_rspace_new, &
                                    v_rspace_new_aux_fit, v_tau_rspace, &
-                                   v_tau_rspace_aux_fit, v_efield_rspace, &
+                                   v_tau_rspace_aux_fit, &
                                    v_sic_rspace, v_spin_ddapc_rest_r, &
                                    v_sccs_rspace, v_rspace_embed, cdft_control, &
                                    calculate_forces)
@@ -1281,8 +1280,8 @@ CONTAINS
       TYPE(pw_type), POINTER                             :: vppl_rspace
       TYPE(pw_type), DIMENSION(:), POINTER               :: v_rspace_new, v_rspace_new_aux_fit, &
                                                             v_tau_rspace, v_tau_rspace_aux_fit
-      TYPE(pw_type), POINTER                             :: v_efield_rspace, v_sic_rspace, &
-                                                            v_spin_ddapc_rest_r, v_sccs_rspace
+      TYPE(pw_type), POINTER                             :: v_sic_rspace, v_spin_ddapc_rest_r, &
+                                                            v_sccs_rspace
       TYPE(pw_type), DIMENSION(:), POINTER               :: v_rspace_embed
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       LOGICAL, INTENT(in)                                :: calculate_forces
@@ -1413,11 +1412,6 @@ CONTAINS
                                              cdft_control%strength(igroup)
                END DO
             END IF
-            ! The efield contribution
-            IF (dft_control%apply_efield_field) THEN
-               v_rspace_new(ispin)%cr3d = v_rspace_new(ispin)%cr3d + &
-                                          v_efield_rspace%cr3d
-            END IF
             ! functional derivative of the Hartree energy wrt the density in the presence of dielectric
             ! (vhartree + v_eps); v_eps is nonzero only if the dielectric constant is defind as a function
             ! of the charge density
@@ -1522,10 +1516,6 @@ CONTAINS
          CPASSERT(dft_control%sic_method_id == sic_none)
          CPASSERT(.NOT. dft_control%qs_control%ddapc_restraint_is_spin)
          DO ispin = 1, nspins
-            ! the efield contribution
-            IF (dft_control%apply_efield_field) THEN
-               v_rspace%cr3d = v_rspace%cr3d + v_efield_rspace%cr3d
-            END IF
             ! extra contribution attributed to the dependency of the dielectric constant to the charge density
             IF (poisson_env%parameters%solver .EQ. pw_poisson_implicit) THEN
                dvol = poisson_env%implicit_env%v_eps%pw_grid%dvol
