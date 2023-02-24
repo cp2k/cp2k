@@ -16,7 +16,7 @@ jobs:
         with:
           submodules: recursive
       - name: Set release tarball name
-        run: echo ::set-env name=TARBALL_NAME::$(echo cp2k-${GITHUB_REF##*/v}.tar.bz2)
+        run: echo "TARBALL_NAME=cp2k-${GITHUB_REF##*/v}.tar.bz2" >> $GITHUB_ENV
       - name: Install prerequisites
         run: |
           pip install git-archive-all
