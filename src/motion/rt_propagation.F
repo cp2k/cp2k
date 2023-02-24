@@ -110,7 +110,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
 
       INTEGER                                            :: aspc_order
-      LOGICAL                                            :: ks_is_complex, magnetic, vel_reprs
+      LOGICAL                                            :: magnetic, vel_reprs
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -160,16 +160,16 @@ CONTAINS
       CALL section_vals_get(hfx_sections, explicit=rtp%do_hfx)
       CALL section_vals_val_get(print_moments_section, "MAGNETIC", l_val=magnetic)
       CALL section_vals_val_get(print_moments_section, "VEL_REPRS", l_val=vel_reprs)
-      rtp%track_imag_density = magnetic .OR. vel_reprs .OR. rtp_control%velocity_gauge &
-                               .OR. rtp%do_hfx .OR. (.NOT. rtp_control%fixed_ions)
-      ks_is_complex = rtp%do_hfx .OR. rtp_control%velocity_gauge
+
+      rtp%track_imag_density = magnetic .OR. vel_reprs .OR. rtp_control%velocity_gauge .OR. rtp%do_hfx
+      rtp%propagate_complex_ks = rtp%do_hfx .OR. rtp_control%velocity_gauge
 
       CALL rt_init_complex_quantities(qs_env, imag_p=rtp%track_imag_density, &
-                                      imag_ks=ks_is_complex, imag_h=rtp_control%velocity_gauge)
+                                      imag_ks=rtp%propagate_complex_ks, imag_h=rtp_control%velocity_gauge)
 
       ! Hmm, not really like to initialize with the structure of S but I reckon it is
       ! done everywhere like this
-      IF (rtp%track_imag_density) CALL rtp_hfx_rebuild(qs_env)
+      IF (rtp%do_hfx) CALL rtp_hfx_rebuild(qs_env)
 
       CALL init_propagation_run(qs_env)
       IF (.NOT. rtp_control%fixed_ions) THEN

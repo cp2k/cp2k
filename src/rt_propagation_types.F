@@ -99,6 +99,7 @@ MODULE rt_propagation_types
       REAL(KIND=dp)                                 :: mixing_factor = 0.0_dp
       LOGICAL                                       :: mixing = .FALSE.
       LOGICAL                                       :: do_hfx = .FALSE.
+      LOGICAL                                       :: propagate_complex_ks = .FALSE.
       LOGICAL                                       :: track_imag_density = .FALSE.
       INTEGER, DIMENSION(:, :), ALLOCATABLE         :: orders
       INTEGER                                       :: nsteps = -1
