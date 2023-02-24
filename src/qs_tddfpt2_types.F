@@ -430,8 +430,9 @@ CONTAINS
 
       ! fxc kernel potential real space grid
       IF (do_exck) THEN
-         ALLOCATE (work_matrices%fxc_rspace_sub(nspins))
-         DO ispin = 1, nspins
+         ! we need spins: aa, ab, bb
+         ALLOCATE (work_matrices%fxc_rspace_sub(3))
+         DO ispin = 1, 3
             CALL pw_pool_create_pw(auxbas_pw_pool, work_matrices%fxc_rspace_sub(ispin), &
                                    use_data=REALDATA3D, in_space=REALSPACE)
          END DO

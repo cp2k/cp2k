@@ -264,22 +264,33 @@ CONTAINS
 !>                         representation (modified on exit)
 !> \param fxc_rspace ...
 !> \param rho_ia_struct    response density for the given trial vector
+!> \param is_rks_triplets ...
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_apply_xc_potential(A_ia_rspace, fxc_rspace, rho_ia_struct)
+   SUBROUTINE tddfpt_apply_xc_potential(A_ia_rspace, fxc_rspace, rho_ia_struct, is_rks_triplets)
       TYPE(pw_type), DIMENSION(:), INTENT(IN)            :: A_ia_rspace
       TYPE(pw_type), DIMENSION(:), POINTER               :: fxc_rspace
       TYPE(qs_rho_type), POINTER                         :: rho_ia_struct
+      LOGICAL, INTENT(in)                                :: is_rks_triplets
 
-      INTEGER                                            :: ispin, nspins
+      INTEGER                                            :: nspins
       REAL(KIND=dp)                                      :: alpha
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_r
 
       nspins = SIZE(A_ia_rspace)
       alpha = 1.0_dp
       CALL qs_rho_get(rho_ia_struct, rho_r=rho1_r)
-      DO ispin = 1, nspins
-         CALL pw_multiply(A_ia_rspace(ispin), fxc_rspace(ispin), rho1_r(ispin), alpha)
-      END DO
+      IF (nspins == 2) THEN
+         CALL pw_multiply(A_ia_rspace(1), fxc_rspace(1), rho1_r(1), alpha)
+         CALL pw_multiply(A_ia_rspace(1), fxc_rspace(2), rho1_r(2), alpha)
+         CALL pw_multiply(A_ia_rspace(2), fxc_rspace(3), rho1_r(2), alpha)
+         CALL pw_multiply(A_ia_rspace(2), fxc_rspace(2), rho1_r(1), alpha)
+      ELSE IF (is_rks_triplets) THEN
+         CALL pw_multiply(A_ia_rspace(1), fxc_rspace(1), rho1_r(1), alpha)
+         CALL pw_multiply(A_ia_rspace(1), fxc_rspace(2), rho1_r(1), -alpha)
+      ELSE
+         CALL pw_multiply(A_ia_rspace(1), fxc_rspace(1), rho1_r(1), alpha)
+         CALL pw_multiply(A_ia_rspace(1), fxc_rspace(2), rho1_r(1), alpha)
+      END IF
 
    END SUBROUTINE tddfpt_apply_xc_potential
 

@@ -19,7 +19,8 @@ MODULE qs_kernel_methods
    USE kinds,                           ONLY: dp
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_methods,                      ONLY: pw_zero
+   USE pw_methods,                      ONLY: pw_axpy,&
+                                              pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -35,6 +36,7 @@ MODULE qs_kernel_methods
                                               tddfpt_subgroup_env_type
    USE xc,                              ONLY: xc_prep_2nd_deriv
    USE xc_derivatives,                  ONLY: xc_functionals_get_needs
+   USE xc_fxc_kernel,                   ONLY: calc_fxc_kernel
    USE xc_rho_set_types,                ONLY: xc_rho_set_create
 #include "./base/base_uses.f90"
 
@@ -226,35 +228,67 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(pw_type), DIMENSION(:), POINTER               :: fxc_rspace
       TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
-      LOGICAL, INTENT(in)                                :: is_rks_triplets
-      TYPE(tddfpt_subgroup_env_type), INTENT(in), &
-         OPTIONAL                                        :: sub_env
-      TYPE(qs_environment_type), INTENT(in), OPTIONAL, &
-         POINTER                                         :: qs_env
+      LOGICAL, INTENT(IN)                                :: is_rks_triplets
+      TYPE(tddfpt_subgroup_env_type), INTENT(IN)         :: sub_env
+      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_fxc_kernel'
 
       INTEGER                                            :: handle, ispin, nspins
-
-      MARK_USED(rho_struct)
-      MARK_USED(xc_section)
-      MARK_USED(is_rks_triplets)
-      MARK_USED(sub_env)
-      MARK_USED(qs_env)
+      LOGICAL                                            :: rho_g_valid, tau_r_valid
+      REAL(KIND=dp)                                      :: factor
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r, tau_r
+      TYPE(pw_type), POINTER                             :: rho_nlcc, rho_nlcc_g
+      TYPE(section_vals_type), POINTER                   :: xc_kernel
 
       CALL timeset(routineN, handle)
 
-      nspins = SIZE(fxc_rspace)
-      DO ispin = 1, nspins
+      pw_env => sub_env%pw_env
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+
+      NULLIFY (rho_r, rho_g, tau_r)
+      CALL qs_rho_get(rho_struct, &
+                      tau_r_valid=tau_r_valid, &
+                      rho_g_valid=rho_g_valid, &
+                      rho_r=rho_r, &
+                      rho_g=rho_g, &
+                      tau_r=tau_r)
+
+      IF (.NOT. tau_r_valid) NULLIFY (tau_r)
+      IF (.NOT. rho_g_valid) NULLIFY (rho_g)
+
+      nspins = SIZE(rho_r)
+
+      NULLIFY (rho_nlcc, rho_nlcc_g)!deb
+      CALL get_qs_env(qs_env, &
+                      rho_nlcc=rho_nlcc, &
+                      rho_nlcc_g=rho_nlcc_g)
+      ! add the nlcc densities
+      IF (ASSOCIATED(rho_nlcc)) THEN
+         factor = 1.0_dp
+         DO ispin = 1, nspins
+            CALL pw_axpy(rho_nlcc, rho_r(ispin), factor)
+            CALL pw_axpy(rho_nlcc_g, rho_g(ispin), factor)
+         END DO
+      END IF
+
+      DO ispin = 1, SIZE(fxc_rspace)
          CALL pw_zero(fxc_rspace(ispin))
       END DO
 
-      IF (PRESENT(sub_env)) THEN
-!        pw_env => sub_env%pw_env
-!        dbcsr_dist => sub_env%dbcsr_dist
-!        sab_orb => sub_env%sab_orb
-!        nspins = SIZE(sub_env%mos_occ)
-      ELSE
+      xc_kernel => section_vals_get_subs_vals(xc_section, "XC_KERNEL")
+      CALL calc_fxc_kernel(fxc_rspace, rho_r, rho_g, tau_r, &
+                           xc_kernel, is_rks_triplets, auxbas_pw_pool)
+
+      ! remove the nlcc densities (keep stuff in original state)
+      IF (ASSOCIATED(rho_nlcc)) THEN
+         factor = -1.0_dp
+         DO ispin = 1, nspins
+            CALL pw_axpy(rho_nlcc, rho_r(ispin), factor)
+            CALL pw_axpy(rho_nlcc_g, rho_g(ispin), factor)
+         END DO
       END IF
 
       CALL timestop(handle)

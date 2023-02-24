@@ -252,7 +252,7 @@ CONTAINS
          ELSE
             IF (kernel_env%do_exck) THEN
                CALL tddfpt_apply_xc_potential(work_matrices%A_ia_rspace_sub, work_matrices%fxc_rspace_sub, &
-                                              work_matrices%rho_orb_struct_sub)
+                                              work_matrices%rho_orb_struct_sub, is_rks_triplets)
             ELSE
                CALL tddfpt_apply_xc(A_ia_rspace=work_matrices%A_ia_rspace_sub, kernel_env=kernel_env, &
                                     rho_ia_struct=work_matrices%rho_orb_struct_sub, &

@@ -20,12 +20,13 @@ MODULE input_cp2k_xc
                                               cp_print_key_section_create,&
                                               high_print_level
    USE input_constants,                 ONLY: &
-        do_adiabatic_hybrid_mcy3, do_adiabatic_model_pade, gaussian, slater, vdw_nl_drsll, &
-        vdw_nl_lmkll, vdw_nl_rvv10, vdw_pairpot_dftd2, vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, &
-        xc_funct_b3lyp, xc_funct_beefvdw, xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, &
-        xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, xc_funct_pbe, xc_funct_pbe0, &
-        xc_funct_tpss, xc_none, xc_pot_energy_none, xc_pot_energy_sum_eigenvalues, &
-        xc_pot_energy_xc_functional, xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
+        do_adiabatic_hybrid_mcy3, do_adiabatic_model_pade, fxc_funct_gga, fxc_funct_lda, &
+        fxc_funct_pade, fxc_none, gaussian, slater, vdw_nl_drsll, vdw_nl_lmkll, vdw_nl_rvv10, &
+        vdw_pairpot_dftd2, vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, xc_funct_b3lyp, &
+        xc_funct_beefvdw, xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, xc_funct_no_shortcut, &
+        xc_funct_olyp, xc_funct_pade, xc_funct_pbe, xc_funct_pbe0, xc_funct_tpss, xc_none, &
+        xc_pot_energy_none, xc_pot_energy_sum_eigenvalues, xc_pot_energy_xc_functional, &
+        xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
    USE input_cp2k_hfx,                  ONLY: create_hfx_section
    USE input_cp2k_mp2,                  ONLY: create_mp2_section
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -783,7 +784,6 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="XC_KERNEL", &
@@ -793,23 +793,28 @@ CONTAINS
                           "Cannot be combined with XC_FUNCTIONAL or XC_POTENTIAL.", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
-      NULLIFY (subsection, keyword)
-      CALL section_create(subsection, __LOCATION__, name="UZH2022", &
-                          description="Uses the UZH2022 xc kernel", &
-                          n_keywords=3, n_subsections=0, repeats=.TRUE.)
-      CALL keyword_create(keyword, __LOCATION__, name="ALPHA", &
-                          description="Value of the alpha parameter (default = 1.19).", &
-                          usage="ALPHA 1.19", default_r_val=1.19_dp)
-      CALL section_add_keyword(subsection, keyword)
+      NULLIFY (keyword)
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+         description="Selection of kernel functionals.", &
+         usage="&XC_KERNEL LDAfxc", &
+         enum_c_vals=s2a("PADEfxc", "LDAfxc", "GGAfxc", "NONE"), &
+         enum_i_vals=(/fxc_funct_pade, fxc_funct_lda, fxc_funct_gga, fxc_none/), &
+         enum_desc=s2a("Fxc based on LDA PADE approximation", &
+                       "Fxc based on LDA functionals", &
+                       "Fxc model from fit to PBE functional", &
+                       "NONE"), &
+         default_i_val=fxc_none, &
+         lone_keyword_i_val=fxc_none)
+      CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="BETA", &
-                          description="Value of the beta parameter (default = 0.01).", &
-                          usage="BETA 0.01", default_r_val=0.01_dp)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
 
+      CALL keyword_create(keyword, __LOCATION__, name="PARAMETER", &
+                          description="List of parameters specific to the kernel function", &
+                          usage="PARAMETER <REAL> .. <REAL>", &
+                          type_of_var=real_t, n_var=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="SCALE_X", &
                           description="Scaling parameter for exchange kernel.", &
                           usage="SCALE_X 0.2", default_r_val=1.0_dp)

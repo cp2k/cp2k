@@ -18,6 +18,7 @@ MODULE xc_perdew_wang
    #:include "xc_perdew_wang.fypp"
 
    USE kinds, ONLY: dp
+   USE pw_types, ONLY: pw_type
    USE xc_derivative_set_types, ONLY: xc_derivative_set_type, &
                                       xc_dset_get_derivative
    USE xc_derivative_types, ONLY: xc_derivative_get, &
@@ -46,7 +47,7 @@ MODULE xc_perdew_wang
       fpp = 0.584822362263464620726223866376013788782_dp ! d^2f(0)/dz^2
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_perdew_wang'
 
-   PUBLIC :: perdew_wang_info, perdew_wang_lda_eval, perdew_wang_lsd_eval
+   PUBLIC :: perdew_wang_info, perdew_wang_lda_eval, perdew_wang_lsd_eval, perdew_wang_fxc_calc
 
 CONTAINS
 
@@ -418,6 +419,53 @@ CONTAINS
       END DO
 
    END SUBROUTINE perdew_wang_lsd_calc
+
+! **************************************************************************************************
+!> \brief ...
+!> \param rho_a ...
+!> \param rho_b ...
+!> \param fxc_aa ...
+!> \param fxc_ab ...
+!> \param fxc_bb ...
+!> \param scalec ...
+!> \param eps_rho ...
+! **************************************************************************************************
+   SUBROUTINE perdew_wang_fxc_calc(rho_a, rho_b, fxc_aa, fxc_ab, fxc_bb, scalec, eps_rho)
+      TYPE(pw_type), INTENT(IN)                          :: rho_a, rho_b
+      TYPE(pw_type), INTENT(INOUT)                       :: fxc_aa, fxc_ab, fxc_bb
+      REAL(kind=dp), INTENT(in)                          :: scalec, eps_rho
+
+      INTEGER                                            :: i, j, k
+      INTEGER, DIMENSION(2, 3)                           :: bo
+      REAL(KIND=dp)                                      :: rho, rhoa, rhob, eaa, eab, ebb
+      REAL(KIND=dp), DIMENSION(0:9)                      :: ed
+
+      CALL perdew_wang_init(pw_orig, eps_rho)
+      bo(1:2, 1:3) = rho_a%pw_grid%bounds_local(1:2, 1:3)
+!$OMP PARALLEL DO PRIVATE(i,j,k,rho,rhoa,rhob,ed,eaa,eab,ebb) DEFAULT(NONE)&
+!$OMP SHARED(bo,rho_a,rho_b,fxc_aa,fxc_ab,fxc_bb,scalec,eps_rho)
+      DO k = bo(1, 3), bo(2, 3)
+         DO j = bo(1, 2), bo(2, 2)
+            DO i = bo(1, 1), bo(2, 1)
+               rhoa = rho_a%cr3d(i, j, k)
+               rhob = rho_b%cr3d(i, j, k)
+               rho = rhoa + rhob
+               IF (rho > eps_rho) THEN
+                  ed = 0.0_dp
+                  CALL pw_lsd_ed_loc(rhoa, rhob, ed, 2)
+                  ed = ed*scalec
+                  eaa = 2.0_dp*ed(1) + rho*ed(3)
+                  eab = ed(1) + ed(2) + rho*ed(4)
+                  ebb = 2.0_dp*ed(2) + rho*ed(5)
+                  fxc_aa%cr3d(i, j, k) = fxc_aa%cr3d(i, j, k) + eaa
+                  fxc_ab%cr3d(i, j, k) = fxc_ab%cr3d(i, j, k) + eab
+                  fxc_bb%cr3d(i, j, k) = fxc_bb%cr3d(i, j, k) + ebb
+               END IF
+            END DO
+         END DO
+      END DO
+
+   END SUBROUTINE perdew_wang_fxc_calc
 
    @:calc_g()
 

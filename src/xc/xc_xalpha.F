@@ -21,6 +21,7 @@ MODULE xc_xalpha
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
+   USE pw_types,                        ONLY: pw_type
    USE xc_derivative_desc,              ONLY: deriv_rho,&
                                               deriv_rhoa,&
                                               deriv_rhob
@@ -45,7 +46,7 @@ MODULE xc_xalpha
                                f23 = 2.0_dp*f13, &
                                f43 = 4.0_dp*f13
 
-   PUBLIC :: xalpha_info, xalpha_lda_eval, xalpha_lsd_eval
+   PUBLIC :: xalpha_info, xalpha_lda_eval, xalpha_lsd_eval, xalpha_fxc_eval
 
    REAL(KIND=dp) :: xparam, flda, flsd
    REAL(KIND=dp) :: eps_rho
@@ -544,6 +545,51 @@ CONTAINS
       END DO
 
    END SUBROUTINE xalpha_lsd_3
+
+! **************************************************************************************************
+!> \brief ...
+!> \param rho_a ...
+!> \param rho_b ...
+!> \param fxc_aa ...
+!> \param fxc_bb ...
+!> \param scale_x ...
+!> \param eps_rho ...
+! **************************************************************************************************
+   SUBROUTINE xalpha_fxc_eval(rho_a, rho_b, fxc_aa, fxc_bb, scale_x, eps_rho)
+      TYPE(pw_type), INTENT(IN)                          :: rho_a, rho_b
+      TYPE(pw_type), INTENT(INOUT)                       :: fxc_aa, fxc_bb
+      REAL(KIND=dp), INTENT(IN)                          :: scale_x, eps_rho
+
+      INTEGER                                            :: i, j, k
+      INTEGER, DIMENSION(2, 3)                           :: bo
+      REAL(KIND=dp)                                      :: eaa, ebb, f, flda, flsd, rhoa, rhob
+
+      flda = -3.0_dp/4.0_dp*(3.0_dp/pi)**f13
+      flsd = flda*2.0_dp**f13
+      f = f13*f43*flsd*scale_x
+      bo(1:2, 1:3) = rho_a%pw_grid%bounds_local(1:2, 1:3)
+!$OMP PARALLEL DO PRIVATE(i,j,k,rhoa,rhob,eaa,ebb) DEFAULT(NONE)&
+!$OMP SHARED(bo,rho_a,rho_b,fxc_aa,fxc_bb,f,eps_rho)
+      DO k = bo(1, 3), bo(2, 3)
+         DO j = bo(1, 2), bo(2, 2)
+            DO i = bo(1, 1), bo(2, 1)
+
+               rhoa = rho_a%cr3d(i, j, k)
+               IF (rhoa > eps_rho) THEN
+                  eaa = rhoa**(-f23)
+                  fxc_aa%cr3d(i, j, k) = fxc_aa%cr3d(i, j, k) + f*eaa
+               END IF
+               rhob = rho_b%cr3d(i, j, k)
+               IF (rhob > eps_rho) THEN
+                  ebb = rhob**(-f23)
+                  fxc_bb%cr3d(i, j, k) = fxc_bb%cr3d(i, j, k) + f*ebb
+               END IF
+
+            END DO
+         END DO
+      END DO
+
+   END SUBROUTINE xalpha_fxc_eval
 
 END MODULE xc_xalpha
 

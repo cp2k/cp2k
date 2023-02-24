@@ -301,7 +301,7 @@ CONTAINS
          ! initilize xc kernel
          IF (do_exck) THEN
             CALL create_fxc_kernel(work_matrices%rho_orb_struct_sub, work_matrices%fxc_rspace_sub, &
-                                   xc_section, tddfpt_control%rks_triplets, sub_env)
+                                   xc_section, tddfpt_control%rks_triplets, sub_env, qs_env)
          END IF
       ELSE IF (tddfpt_control%kernel == tddfpt_kernel_stda) THEN
          ! sTDA kernel
