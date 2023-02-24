@@ -436,6 +436,8 @@ CONTAINS
             CALL pw_pool_create_pw(auxbas_pw_pool, work_matrices%fxc_rspace_sub(ispin), &
                                    use_data=REALDATA3D, in_space=REALSPACE)
          END DO
+      ELSE
+         NULLIFY (work_matrices%fxc_rspace_sub)
       END IF
 
       ! GAPW initializations

@@ -55,6 +55,7 @@ MODULE cp2k_debug
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env
    USE qs_kind_types,                   ONLY: qs_kind_type
+   USE string_utilities,                ONLY: uppercase
    USE virial_types,                    ONLY: cp_virial,&
                                               virial_set,&
                                               virial_type,&
@@ -78,14 +79,19 @@ CONTAINS
 
       TYPE(force_env_type), POINTER                      :: force_env
 
+      CHARACTER(LEN=3)                                   :: cval1
       CHARACTER(LEN=3*default_string_length)             :: message
       CHARACTER(LEN=60)                                  :: line
+      CHARACTER(LEN=80), DIMENSION(:), POINTER           :: cval2
       CHARACTER(LEN=default_string_length)               :: description
-      INTEGER                                            :: i, ip, iw, j, k, np, stress_tensor
+      INTEGER                                            :: i, ip, irep, iw, j, k, np, nrep, &
+                                                            stress_tensor
       LOGICAL                                            :: check_failed, debug_dipole, &
                                                             debug_forces, debug_polar, &
                                                             debug_stress_tensor, skip, &
                                                             stop_on_mismatch
+      LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: do_dof_atom_coor
+      LOGICAL, DIMENSION(3)                              :: do_dof_dipole
       REAL(KIND=dp)                                      :: amplitude, dd, de, derr, difference, dx, &
                                                             eps_no_error_check, std_value, &
                                                             sum_of_differences
@@ -126,12 +132,40 @@ CONTAINS
                                 r_val=dx)
       CALL section_vals_val_get(root_section, "DEBUG%DE", &
                                 r_val=de)
+      CALL section_vals_val_get(root_section, "DEBUG%CHECK_DIPOLE_DIRS", &
+                                c_val=cval1)
       dx = ABS(dx)
       CALL section_vals_val_get(root_section, "DEBUG%EPS_NO_ERROR_CHECK", &
                                 r_val=eps_no_error_check)
       eps_no_error_check = MAX(eps_no_error_check, EPSILON(0.0_dp))
       CALL section_vals_val_get(root_section, "DEBUG%STOP_ON_MISMATCH", &
                                 l_val=stop_on_mismatch)
+
+      ! set active DOF
+      CALL uppercase(cval1)
+      do_dof_dipole(1) = (INDEX(cval1, "X") /= 0)
+      do_dof_dipole(2) = (INDEX(cval1, "Y") /= 0)
+      do_dof_dipole(3) = (INDEX(cval1, "Z") /= 0)
+      NULLIFY (cval2)
+      IF (debug_forces) THEN
+         np = subsys%particles%n_els
+         ALLOCATE (do_dof_atom_coor(3, np))
+         CALL section_vals_val_get(root_section, "DEBUG%CHECK_ATOM_FORCE", n_rep_val=nrep)
+         IF (nrep > 0) THEN
+            do_dof_atom_coor = .FALSE.
+            DO irep = 1, nrep
+               CALL section_vals_val_get(root_section, "DEBUG%CHECK_ATOM_FORCE", i_rep_val=irep, &
+                                         c_vals=cval2)
+               READ (cval2(1), FMT="(I10)") k
+               CALL uppercase(cval2(2))
+               do_dof_atom_coor(1, k) = (INDEX(cval2(2), "X") /= 0)
+               do_dof_atom_coor(2, k) = (INDEX(cval2(2), "Y") /= 0)
+               do_dof_atom_coor(3, k) = (INDEX(cval2(2), "Z") /= 0)
+            END DO
+         ELSE
+            do_dof_atom_coor = .TRUE.
+         END IF
+      END IF
 
       logger => cp_get_default_logger()
       iw = cp_print_key_unit_nr(logger, root_section, "DEBUG%PROGRAM_RUN_INFO", &
@@ -270,57 +304,69 @@ CONTAINS
          ALLOCATE (numer_forces(subsys%particles%n_els, 3))
          Atom: DO ip = 1, np
             Coord: DO k = 1, 3
-               numer_energy = 0.0_dp
-               std_value = particles(ip)%r(k)
-               DO j = 1, 2
-                  particles(ip)%r(k) = std_value - (-1.0_dp)**j*dx
-                  SELECT CASE (force_env%in_use)
-                  CASE (use_qs_force)
-                     CALL get_qs_env(force_env%qs_env, qs_kind_set=qs_kind_set)
-                     CALL write_qs_particle_coordinates(particles, qs_kind_set, subsys_section, "DEBUG")
-                  CASE DEFAULT
-                     CALL write_fist_particle_coordinates(particles, subsys_section)
-                  END SELECT
-                  ! Compute energy
-                  CALL force_env_calc_energy_force(force_env, &
-                                                   calc_force=.FALSE., &
-                                                   calc_stress_tensor=.FALSE., &
-                                                   consistent_energies=.TRUE.)
-                  CALL force_env_get(force_env, potential_energy=numer_energy(j))
-               END DO
-               particles(ip)%r(k) = std_value
-               numer_forces(ip, k) = -0.5_dp*(numer_energy(1) - numer_energy(2))/dx
-               IF (iw > 0) THEN
-                  WRITE (UNIT=iw, FMT="(/,T2,A,T17,A,F7.4,A,T34,A,F7.4,A,T52,A,T68,A)") &
-                     "DEBUG| Atom", "E("//ACHAR(119 + k)//" +", dx, ")", &
-                     "E("//ACHAR(119 + k)//" -", dx, ")", &
-                     "f(numerical)", "f(analytical)"
-                  WRITE (UNIT=iw, FMT="(T2,A,I5,4(1X,F16.8))") &
-                     "DEBUG|", ip, numer_energy(1:2), numer_forces(ip, k), analyt_forces(ip, k)
+               IF (do_dof_atom_coor(k, ip)) THEN
+                  numer_energy = 0.0_dp
+                  std_value = particles(ip)%r(k)
+                  DO j = 1, 2
+                     particles(ip)%r(k) = std_value - (-1.0_dp)**j*dx
+                     SELECT CASE (force_env%in_use)
+                     CASE (use_qs_force)
+                        CALL get_qs_env(force_env%qs_env, qs_kind_set=qs_kind_set)
+                        CALL write_qs_particle_coordinates(particles, qs_kind_set, subsys_section, "DEBUG")
+                     CASE DEFAULT
+                        CALL write_fist_particle_coordinates(particles, subsys_section)
+                     END SELECT
+                     ! Compute energy
+                     CALL force_env_calc_energy_force(force_env, &
+                                                      calc_force=.FALSE., &
+                                                      calc_stress_tensor=.FALSE., &
+                                                      consistent_energies=.TRUE.)
+                     CALL force_env_get(force_env, potential_energy=numer_energy(j))
+                  END DO
+                  particles(ip)%r(k) = std_value
+                  numer_forces(ip, k) = -0.5_dp*(numer_energy(1) - numer_energy(2))/dx
+                  IF (iw > 0) THEN
+                     WRITE (UNIT=iw, FMT="(/,T2,A,T17,A,F7.4,A,T34,A,F7.4,A,T52,A,T68,A)") &
+                        "DEBUG| Atom", "E("//ACHAR(119 + k)//" +", dx, ")", &
+                        "E("//ACHAR(119 + k)//" -", dx, ")", &
+                        "f(numerical)", "f(analytical)"
+                     WRITE (UNIT=iw, FMT="(T2,A,I5,4(1X,F16.8))") &
+                        "DEBUG|", ip, numer_energy(1:2), numer_forces(ip, k), analyt_forces(ip, k)
+                  END IF
+               ELSE
+                  numer_forces(ip, k) = 0.0_dp
                END IF
             END DO Coord
             ! Check analytical forces using the numerical forces as reference
             my_maxerr = maxerr
             err(1:3) = 0.0_dp
             DO k = 1, 3
-               ! Calculate percentage but ignore very small force values
-               IF (ABS(analyt_forces(ip, k)) >= eps_no_error_check) THEN
-                  err(k) = 100.0_dp*(numer_forces(ip, k) - analyt_forces(ip, k))/analyt_forces(ip, k)
+               IF (do_dof_atom_coor(k, ip)) THEN
+                  ! Calculate percentage but ignore very small force values
+                  IF (ABS(analyt_forces(ip, k)) >= eps_no_error_check) THEN
+                     err(k) = 100.0_dp*(numer_forces(ip, k) - analyt_forces(ip, k))/analyt_forces(ip, k)
+                  END IF
+                  ! Increase error tolerance for small force values
+                  IF (ABS(analyt_forces(ip, k)) <= 0.0001_dp) my_maxerr(k) = 5.0_dp*my_maxerr(k)
+               ELSE
+                  err(k) = 0.0_dp
                END IF
-               ! Increase error tolerance for small force values
-               IF (ABS(analyt_forces(ip, k)) <= 0.0001_dp) my_maxerr(k) = 5.0_dp*my_maxerr(k)
             END DO
             IF (iw > 0) THEN
-               WRITE (UNIT=iw, FMT="(/,T2,A)") &
-                  "DEBUG| Atom  Coordinate   f(numerical)   f(analytical)   Difference   Error [%]"
+               IF (ANY(do_dof_atom_coor(1:3, ip))) THEN
+                  WRITE (UNIT=iw, FMT="(/,T2,A)") &
+                     "DEBUG| Atom  Coordinate   f(numerical)   f(analytical)   Difference   Error [%]"
+               END IF
                DO k = 1, 3
-                  difference = analyt_forces(ip, k) - numer_forces(ip, k)
-                  IF (ABS(analyt_forces(ip, k)) >= eps_no_error_check) THEN
-                     WRITE (UNIT=iw, FMT="(T2,A,I5,T19,A1,T26,F14.8,T42,F14.8,T57,F12.8,T71,F10.2)") &
-                        "DEBUG|", ip, ACHAR(119 + k), numer_forces(ip, k), analyt_forces(ip, k), difference, err(k)
-                  ELSE
-                     WRITE (UNIT=iw, FMT="(T2,A,I5,T19,A1,T26,F14.8,T42,F14.8,T57,F12.8,T80,A1)") &
-                        "DEBUG|", ip, ACHAR(119 + k), numer_forces(ip, k), analyt_forces(ip, k), difference, "-"
+                  IF (do_dof_atom_coor(k, ip)) THEN
+                     difference = analyt_forces(ip, k) - numer_forces(ip, k)
+                     IF (ABS(analyt_forces(ip, k)) >= eps_no_error_check) THEN
+                        WRITE (UNIT=iw, FMT="(T2,A,I5,T19,A1,T26,F14.8,T42,F14.8,T57,F12.8,T71,F10.2)") &
+                           "DEBUG|", ip, ACHAR(119 + k), numer_forces(ip, k), analyt_forces(ip, k), difference, err(k)
+                     ELSE
+                        WRITE (UNIT=iw, FMT="(T2,A,I5,T19,A1,T26,F14.8,T42,F14.8,T57,F12.8,T80,A1)") &
+                           "DEBUG|", ip, ACHAR(119 + k), numer_forces(ip, k), analyt_forces(ip, k), difference, "-"
+                     END IF
                   END IF
                END DO
             END IF
@@ -344,16 +390,18 @@ CONTAINS
             DO ip = 1, np
                err(1:3) = 0.0_dp
                DO k = 1, 3
-                  difference = analyt_forces(ip, k) - numer_forces(ip, k)
-                  IF (ABS(analyt_forces(ip, k)) >= eps_no_error_check) THEN
-                     err(k) = 100_dp*(numer_forces(ip, k) - analyt_forces(ip, k))/analyt_forces(ip, k)
-                     WRITE (UNIT=iw, FMT="(T2,A,I5,T19,A1,T26,F14.8,T42,F14.8,T57,F12.8,T71,F10.2)") &
-                        "DEBUG|", ip, ACHAR(119 + k), numer_forces(ip, k), analyt_forces(ip, k), difference, err(k)
-                  ELSE
-                     WRITE (UNIT=iw, FMT="(T2,A,I5,T19,A1,T26,F14.8,T42,F14.8,T57,F12.8,T80,A1)") &
-                        "DEBUG|", ip, ACHAR(119 + k), numer_forces(ip, k), analyt_forces(ip, k), difference, "-"
+                  IF (do_dof_atom_coor(k, ip)) THEN
+                     difference = analyt_forces(ip, k) - numer_forces(ip, k)
+                     IF (ABS(analyt_forces(ip, k)) >= eps_no_error_check) THEN
+                        err(k) = 100_dp*(numer_forces(ip, k) - analyt_forces(ip, k))/analyt_forces(ip, k)
+                        WRITE (UNIT=iw, FMT="(T2,A,I5,T19,A1,T26,F14.8,T42,F14.8,T57,F12.8,T71,F10.2)") &
+                           "DEBUG|", ip, ACHAR(119 + k), numer_forces(ip, k), analyt_forces(ip, k), difference, err(k)
+                     ELSE
+                        WRITE (UNIT=iw, FMT="(T2,A,I5,T19,A1,T26,F14.8,T42,F14.8,T57,F12.8,T80,A1)") &
+                           "DEBUG|", ip, ACHAR(119 + k), numer_forces(ip, k), analyt_forces(ip, k), difference, "-"
+                     END IF
+                     sum_of_differences = sum_of_differences + ABS(difference)
                   END IF
-                  sum_of_differences = sum_of_differences + ABS(difference)
                END DO
             END DO
             WRITE (UNIT=iw, FMT="(T2,A,T57,F12.8)") &
@@ -364,6 +412,7 @@ CONTAINS
          ! Release work storage
          IF (ASSOCIATED(analyt_forces)) DEALLOCATE (analyt_forces)
          IF (ASSOCIATED(numer_forces)) DEALLOCATE (numer_forces)
+         DEALLOCATE (do_dof_atom_coor)
       END IF
 
       IF (debug_dipole) THEN
@@ -383,32 +432,42 @@ CONTAINS
             END IF
             amplitude = de
             DO k = 1, 3
-               poldir = 0.0_dp
-               poldir(k) = 1.0_dp
-               DO j = 1, 2
-                  poldir = -1.0_dp*poldir
-                  CALL set_efield(dft_control, amplitude, poldir)
-                  CALL force_env_calc_energy_force(force_env, calc_force=.FALSE.)
-                  CALL force_env_get(force_env, potential_energy=numer_energy(j))
-               END DO
-               dipole_numer(k) = 0.5_dp*(numer_energy(1) - numer_energy(2))/de
+               IF (do_dof_dipole(k)) THEN
+                  poldir = 0.0_dp
+                  poldir(k) = 1.0_dp
+                  DO j = 1, 2
+                     poldir = -1.0_dp*poldir
+                     CALL set_efield(dft_control, amplitude, poldir)
+                     CALL force_env_calc_energy_force(force_env, calc_force=.FALSE.)
+                     CALL force_env_get(force_env, potential_energy=numer_energy(j))
+                  END DO
+                  dipole_numer(k) = 0.5_dp*(numer_energy(1) - numer_energy(2))/de
+               ELSE
+                  dipole_numer(k) = 0.0_dp
+               END IF
             END DO
             IF (iw > 0) THEN
                WRITE (UNIT=iw, FMT="(/,(T2,A))") &
                   "DEBUG|========================= DIPOLE MOMENTS ================================", &
                   "DEBUG| Coordinate      D(numerical)    D(analytical)    Difference    Error [%]"
+               err(1:3) = 0.0_dp
                DO k = 1, 3
-                  dd = dipole_moment(k) - dipole_numer(k)
-                  IF (ABS(dipole_moment(k)) > eps_no_error_check) THEN
-                     derr = 100._dp*dd/dipole_moment(k)
-                     WRITE (UNIT=iw, FMT="(T13,A1,T21,F16.8,T38,F16.8,T56,G12.3,T72,F9.3)") &
-                        ACHAR(119 + k), dipole_numer(k), dipole_moment(k), dd, derr
+                  IF (do_dof_dipole(k)) THEN
+                     dd = dipole_moment(k) - dipole_numer(k)
+                     IF (ABS(dipole_moment(k)) > eps_no_error_check) THEN
+                        derr = 100._dp*dd/dipole_moment(k)
+                        WRITE (UNIT=iw, FMT="(T13,A1,T21,F16.8,T38,F16.8,T56,G12.3,T72,F9.3)") &
+                           ACHAR(119 + k), dipole_numer(k), dipole_moment(k), dd, derr
+                     ELSE
+                        derr = 0.0_dp
+                        WRITE (UNIT=iw, FMT="(T13,A1,T21,F16.8,T38,F16.8,T56,G12.3)") &
+                           ACHAR(119 + k), dipole_numer(k), dipole_moment(k), dd
+                     END IF
+                     err(k) = derr
                   ELSE
-                     derr = 0.0_dp
-                     WRITE (UNIT=iw, FMT="(T13,A1,T21,F16.8,T38,F16.8,T56,G12.3)") &
-                        ACHAR(119 + k), dipole_numer(k), dipole_moment(k), dd
+                     WRITE (UNIT=iw, FMT="(T13,A1,T21,A16,T38,F16.8)") &
+                        ACHAR(119 + k), "         skipped", dipole_moment(k)
                   END IF
-                  err(k) = derr
                END DO
                WRITE (UNIT=iw, FMT="((T2,A))") &
                   "DEBUG|========================================================================="

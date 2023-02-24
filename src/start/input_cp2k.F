@@ -365,6 +365,20 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="CHECK_DIPOLE_DIRS", &
+                          description="Dipole coordinates to be checked", &
+                          usage="CHECK_DIPOLE_DIRS XZ", type_of_var=char_t, &
+                          default_c_val="XYZ")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="CHECK_ATOM_FORCE", &
+                          description="Atom force directions to be checked [atom_number coordinates]", &
+                          usage="CHECK_ATOM_FORCE 1 XZ", &
+                          type_of_var=char_t, n_var=2, repeats=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_RUN_INFO", &
                                        description="Controls the printing of the DEBUG specific output", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")

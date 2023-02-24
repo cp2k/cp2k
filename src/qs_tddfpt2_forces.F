@@ -313,7 +313,7 @@ CONTAINS
 
       INTEGER                                            :: handle
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: natom_of_kind
-      LOGICAL                                            :: debug_forces = .FALSE.
+      LOGICAL                                            :: debug_forces
       REAL(KIND=dp)                                      :: ehartree, exc
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dft_control_type), POINTER                    :: dft_control
