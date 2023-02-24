@@ -84,7 +84,7 @@ case "$with_libint" in
 
       if [ "${MPI_MODE}" = "intelmpi" ]; then
         # Fix bug in makefile for Fortran module
-        sed -i "s/\$(CXX) \$(CXXFLAGS)/\$(FC) \$(FCFLAGS)/g" fortran/Makefile
+        sed -i -e "s/\$(CXX) \$(CXXFLAGS)/\$(FC) \$(FCFLAGS)/g" -e "s/\$(FCLIBS) -o/\$(FCLIBS) -lstdc++ -o/" fortran/Makefile
       fi
 
       make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
