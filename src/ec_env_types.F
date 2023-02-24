@@ -57,6 +57,9 @@ MODULE ec_env_types
       REAL(KIND=dp)                                    :: eps_default
       LOGICAL                                          :: should_update
       LOGICAL                                          :: use_ls_solver
+      ! debug
+      LOGICAL                                          :: debug_forces = .FALSE.
+      LOGICAL                                          :: debug_stress = .FALSE.
       ! basis set
       CHARACTER(len=20)                                :: basis
       LOGICAL                                          :: mao

@@ -194,9 +194,6 @@ MODULE energy_corrections
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'energy_corrections'
 
-   LOGICAL, PARAMETER                   :: debug_forces = .TRUE.
-   LOGICAL, PARAMETER                   :: debug_stress = .TRUE.
-
    PUBLIC :: energy_correction
 
 CONTAINS
@@ -322,6 +319,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit_nr
 
       INTEGER                                            :: ispin, nspins
+      LOGICAL                                            :: debug_f
       REAL(KIND=dp)                                      :: exc
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -379,6 +377,8 @@ CONTAINS
 
       IF (calculate_forces) THEN
 
+         debug_f = ec_env%debug_forces .OR. ec_env%debug_stress
+
          CALL ec_disp(qs_env, ec_env, calculate_forces=.TRUE.)
 
          SELECT CASE (ec_env%energy_functional)
@@ -433,7 +433,8 @@ CONTAINS
                              zehartree=ec_env%ehartree, &
                              zexc=ec_env%exc, &
                              zexc_aux_fit=ec_env%exc_aux_fit, &
-                             p_env=ec_env%p_env)
+                             p_env=ec_env%p_env, &
+                             debug=debug_f)
 
          CALL ec_properties(qs_env, ec_env)
 
@@ -600,7 +601,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_dc_build_ks_matrix_force'
 
       INTEGER                                            :: handle, i, iounit, ispin, natom, nspins
-      LOGICAL                                            :: do_adiabatic_rescaling, do_hfx, &
+      LOGICAL                                            :: debug_forces, debug_stress, &
+                                                            do_adiabatic_rescaling, do_hfx, &
                                                             use_virial
       REAL(dp)                                           :: ehartree, eovrl, exc, fconv
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: ftot
@@ -631,6 +633,9 @@ CONTAINS
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
+
+      debug_forces = ec_env%debug_forces
+      debug_stress = ec_env%debug_stress
 
       logger => cp_get_default_logger()
       IF (logger%para_env%ionode) THEN
@@ -1380,7 +1385,8 @@ CONTAINS
 
       INTEGER                                            :: handle, iounit, nder, nimages
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: calculate_forces, use_virial
+      LOGICAL                                            :: calculate_forces, debug_forces, &
+                                                            debug_stress, use_virial
       REAL(KIND=dp)                                      :: eps_ppnl, fconv
       REAL(KIND=dp), DIMENSION(3)                        :: fodeb
       REAL(KIND=dp), DIMENSION(3, 3)                     :: stdeb, sttot
@@ -1399,6 +1405,9 @@ CONTAINS
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
+
+      debug_forces = ec_env%debug_forces
+      debug_stress = ec_env%debug_stress
 
       logger => cp_get_default_logger()
       IF (logger%para_env%ionode) THEN
@@ -1589,7 +1598,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_build_ks_matrix_force'
 
       INTEGER                                            :: handle, i, iounit, ispin, natom, nspins
-      LOGICAL                                            :: use_virial
+      LOGICAL                                            :: debug_forces, debug_stress, use_virial
       REAL(dp)                                           :: dehartree, eexc, ehartree, eovrl, exc, &
                                                             fconv
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: ftot
@@ -1621,6 +1630,9 @@ CONTAINS
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
+
+      debug_forces = ec_env%debug_forces
+      debug_stress = ec_env%debug_stress
 
       logger => cp_get_default_logger()
       IF (logger%para_env%ionode) THEN
@@ -2289,7 +2301,6 @@ CONTAINS
 !>      08.2016 created [JGH]
 !> \author JGH
 ! **************************************************************************************************
-
    SUBROUTINE mao_create_matrices(ec_env, ksmat, smat, pmat, wmat)
 
       TYPE(energy_correction_type), POINTER              :: ec_env
@@ -2363,7 +2374,6 @@ CONTAINS
 !>      08.2016 created [JGH]
 !> \author JGH
 ! **************************************************************************************************
-
    SUBROUTINE mao_release_matrices(ec_env, ksmat, smat, pmat, wmat)
 
       TYPE(energy_correction_type), POINTER              :: ec_env
@@ -2412,7 +2422,6 @@ CONTAINS
 !>      03.2014 created [JGH]
 !> \author JGH
 ! **************************************************************************************************
-
    SUBROUTINE ec_diag_solver(qs_env, matrix_ks, matrix_s, matrix_p, matrix_w)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env

@@ -152,9 +152,6 @@ MODULE response_solver
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'response_solver'
 
-!  LOGICAL, PARAMETER                   :: debug_stress = .TRUE.
-!  LOGICAL, PARAMETER                   :: debug_forces = .TRUE.
-
    PUBLIC :: response_calculation, response_equation, response_force, response_force_xtb, &
              response_equation_new
 

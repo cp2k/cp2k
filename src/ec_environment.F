@@ -189,6 +189,11 @@ CONTAINS
          ! Skip EC calculation if ground-state calculation did not converge
          CALL section_vals_val_get(ec_section, "SKIP_EC", &
                                    l_val=ec_env%skip_ec)
+         ! Debug output
+         CALL section_vals_val_get(ec_section, "DEBUG_FORCES", &
+                                   l_val=ec_env%debug_forces)
+         CALL section_vals_val_get(ec_section, "DEBUG_STRESS", &
+                                   l_val=ec_env%debug_stress)
 
          ec_env%do_skip = .FALSE.
 

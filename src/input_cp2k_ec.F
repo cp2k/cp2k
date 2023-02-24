@@ -118,6 +118,17 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="DEBUG_FORCES", &
+                          description="Additional output to debug energy correction forces.", &
+                          usage="DEBUG_FORCES T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="DEBUG_STRESS", &
+                          description="Additional output to debug energy correction forces.", &
+                          usage="DEBUG_STRESS T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="SKIP_EC", &
                           description="Skip EC calculation if ground-state calculation has not converged.", &
                           usage="SKIP_EC T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
