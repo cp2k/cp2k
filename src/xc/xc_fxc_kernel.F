@@ -129,7 +129,7 @@ CONTAINS
          CALL perdew_wang_fxc_calc(rhoa, rhob, fxc_rspace(1), fxc_rspace(2), fxc_rspace(3), &
                                    scalec, eps_rho)
       CASE ("GGAFXC")
-         STOP
+         CPABORT("Fxc Kernel functional not yet available")
       CASE ("NONE")
          CALL pw_zero(fxc_rspace(1))
          CALL pw_zero(fxc_rspace(2))
