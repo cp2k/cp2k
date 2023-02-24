@@ -8,4 +8,5 @@
 H2O-delta-mag.inp                                    1      1e-13           -17.17816619814588
 H2O-delta-lenrep.inp                                 1      1e-13           -17.17816511743962
 H2O-vg.inp                                           1      1e-13           -17.17816522919518
+H2O-delta-velrepr.inp                                1      1e-13           -17.178166262113105
 #EOF
