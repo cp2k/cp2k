@@ -1,0 +1,91 @@
+&GLOBAL
+  PROJECT  G0W0_kpoints_from_Gamma
+  PRINT_LEVEL MEDIUM
+  RUN_TYPE ENERGY
+  &TIMINGS
+     THRESHOLD 0.01
+  &END
+&END GLOBAL
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME  HFX_BASIS
+    SORT_BASIS EXP
+    POTENTIAL_FILE_NAME  GTH_POTENTIALS
+    &MGRID
+      CUTOFF  100
+      REL_CUTOFF  20
+    &END MGRID
+    &QS
+      METHOD GPW
+      EPS_DEFAULT 1.0E-15
+      EPS_PGF_ORB 1.0E-15
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+      EPS_SCF 1.0E-5
+      MAX_SCF 100
+      ADDED_MOS -1
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+      &WF_CORRELATION
+        &INTEGRALS
+          SIZE_LATTICE_SUM 3
+        &END INTEGRALS
+        &LOW_SCALING
+          KPOINTS 1 4 4
+          REGULARIZATION_RI 1.0E-3
+        &END LOW_SCALING
+        &RI_RPA
+          RPA_NUM_QUAD_POINTS  6
+          &GW
+           CORR_OCC   1
+           CORR_VIRT  1
+           RI_SIGMA_X
+           KPOINTS_SELF_ENERGY 2 2 1
+           &KPOINT_SET
+             SPECIAL_POINT  0.5   0.0   0.0
+             SPECIAL_POINT  0.0   0.0   0.0
+             NPOINTS 3
+          &END
+           &PRINT
+             &LOCAL_BANDGAP
+                ENERGY_WINDOW 2.0
+                ENERGY_SPACING 0.5
+                LDOS_THRESHOLD_GAP 0.03
+                STRIDE 4 4 4
+             &END LOCAL_BANDGAP
+           &END PRINT
+          &END GW
+        &END RI_RPA
+      &END
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC [angstrom]  5.00   5.00   7.0   
+      MULTIPLE_UNIT_CELL  1 1 1
+      PERIODIC YZ
+    &END CELL
+    &KIND H
+      BASIS_SET ORB        DZVP-GTH
+      BASIS_SET RI_AUX RI_DZVP-GTH
+      POTENTIAL        GTH-PBE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET ORB        DZVP-GTH
+      BASIS_SET RI_AUX RI_DZVP-GTH
+      POTENTIAL        GTH-PBE-q6
+    &END KIND
+    &TOPOLOGY
+      MULTIPLE_UNIT_CELL  1 1 1
+    &END TOPOLOGY
+    &COORD
+      H  0.0 -0.5 -3.5
+      O  0.5  0.0  3.5
+      H  0.0  0.5 -3.5
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL

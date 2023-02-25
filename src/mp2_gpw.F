@@ -272,7 +272,7 @@ CONTAINS
       IF (do_im_time) THEN
 
          IF (mp2_env%ri_metric%potential_type == ri_default) THEN
-            IF (SUM(periodic) > 0) THEN
+            IF (SUM(periodic) == 1 .OR. SUM(periodic) == 3) THEN
                mp2_env%ri_metric%potential_type = do_potential_id
             ELSE
                mp2_env%ri_metric%potential_type = do_potential_truncated
@@ -307,14 +307,16 @@ CONTAINS
          CALL m_flush(unit_nr)
       END IF
 
-      ! a logger
-      NULLIFY (logger_sub)
-      CALL cp_logger_create(logger_sub, para_env=para_env_sub, &
-                            default_global_unit_nr=local_unit_nr, close_global_unit_on_dealloc=.FALSE.)
-      CALL cp_logger_set(logger_sub, local_filename="MP2_localLog")
-      ! set to a custom print level (we could also have a different print level for para_env%source)
-      logger_sub%iter_info%print_level = mp2_env%mp2_gpw%print_level
-      CALL cp_add_default_logger(logger_sub)
+      IF (.NOT. mp2_env%ri_g0w0%print_local_bandgap) THEN
+         ! a logger
+         NULLIFY (logger_sub)
+         CALL cp_logger_create(logger_sub, para_env=para_env_sub, &
+                               default_global_unit_nr=local_unit_nr, close_global_unit_on_dealloc=.FALSE.)
+         CALL cp_logger_set(logger_sub, local_filename="MP2_localLog")
+         ! set to a custom print level (we could also have a different print level for para_env%source)
+         logger_sub%iter_info%print_level = mp2_env%mp2_gpw%print_level
+         CALL cp_add_default_logger(logger_sub)
+      END IF
 
       ! a blacs_env (ignore the globenv stored defaults for now)
       blacs_grid_layout = BLACS_GRID_SQUARE
@@ -628,8 +630,10 @@ CONTAINS
 
       CALL cp_blacs_env_release(blacs_env_sub)
 
-      CALL cp_rm_default_logger()
-      CALL cp_logger_release(logger_sub)
+      IF (.NOT. mp2_env%ri_g0w0%print_local_bandgap) THEN
+         CALL cp_rm_default_logger()
+         CALL cp_logger_release(logger_sub)
+      END IF
 
       CALL cp_para_env_release(para_env_sub)
 

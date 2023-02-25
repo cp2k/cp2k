@@ -718,11 +718,13 @@ CONTAINS
 
          CALL compute_periodic_dm(mat_dm_occ_global, qs_env, &
                                   ispin, num_integ_points, jquad, e_fermi, tau, &
-                                  remove_occ=.FALSE., remove_virt=.TRUE., first_jquad=1)
+                                  remove_occ=.FALSE., remove_virt=.TRUE., &
+                                  alloc_dm=(jquad == 1))
 
          CALL compute_periodic_dm(mat_dm_virt_global, qs_env, &
                                   ispin, num_integ_points, jquad, e_fermi, tau, &
-                                  remove_occ=.TRUE., remove_virt=.FALSE., first_jquad=1)
+                                  remove_occ=.TRUE., remove_virt=.FALSE., &
+                                  alloc_dm=(jquad == 1))
 
          num_cells_dm = 1
 
@@ -1125,16 +1127,15 @@ CONTAINS
 !> \param tau ...
 !> \param remove_occ ...
 !> \param remove_virt ...
-!> \param first_jquad ...
+!> \param alloc_dm ...
 ! **************************************************************************************************
    SUBROUTINE compute_periodic_dm(mat_dm_global, qs_env, ispin, num_integ_points, jquad, e_fermi, tau, &
-                                  remove_occ, remove_virt, first_jquad)
+                                  remove_occ, remove_virt, alloc_dm)
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_dm_global
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: ispin, num_integ_points, jquad
       REAL(KIND=dp), INTENT(IN)                          :: e_fermi, tau
-      LOGICAL, INTENT(IN)                                :: remove_occ, remove_virt
-      INTEGER, INTENT(IN)                                :: first_jquad
+      LOGICAL, INTENT(IN)                                :: remove_occ, remove_virt, alloc_dm
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_periodic_dm'
 
@@ -1160,13 +1161,13 @@ CONTAINS
       NULLIFY (mat_dm_global_work)
       CALL dbcsr_allocate_matrix_set(mat_dm_global_work, nspin, num_cells_dm)
 
-      ! jquad = first_jquad to allocate the matrix set
-      IF (jquad == first_jquad) THEN
+      ! if necessaray, allocate mat_dm_global
+      IF (alloc_dm) THEN
 
          NULLIFY (mat_dm_global)
-         ALLOCATE (mat_dm_global(first_jquad:num_integ_points, num_cells_dm))
+         ALLOCATE (mat_dm_global(1:num_integ_points, num_cells_dm))
 
-         DO iquad = first_jquad, num_integ_points
+         DO iquad = 1, num_integ_points
             NULLIFY (mat_dm_global(iquad, 1)%matrix)
             ALLOCATE (mat_dm_global(iquad, 1)%matrix)
             CALL dbcsr_create(matrix=mat_dm_global(iquad, 1)%matrix, &
@@ -1186,7 +1187,7 @@ CONTAINS
 
          CALL dbcsr_reserve_all_blocks(mat_dm_global_work(jspin, 1)%matrix)
 
-         CALL dbcsr_set(mat_dm_global_work(ispin, 1)%matrix, 0.0_dp)
+         CALL dbcsr_set(mat_dm_global_work(jspin, 1)%matrix, 0.0_dp)
 
       END DO
 

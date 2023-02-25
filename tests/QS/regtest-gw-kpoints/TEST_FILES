@@ -5,4 +5,7 @@ G0W0_kpoints_in_self_energy_at_HSE06.inp                          98      1e-05 
 G0W0_kpoints_in_self_energy_RI_trunc_Coulomb_metric.inp           98      1e-05       12.869
 G0W0_kpoints_in_self_energy_Sigmax_from_four_center_HFX.inp       98      1e-05       15.414
 G0W0_kpoints_in_self_energy_Sigmax_from_four_center_HFX_ADMM.inp  98      1e-05       15.491
+G0W0_kpoints_in_self_energy_gap_printing.inp                      98      1e-05       18.290
+G0W0_kpoints_in_self_energy_open_shell.inp                       101      1e-05       14.060
+G0W0_kpoints_in_self_energy_open_shell.inp                       102      1e-05       27.637
 #EOF

@@ -79,7 +79,8 @@ MODULE mp2_ri_2c
                                               kpoint_type
    USE libint_2c_3c,                    ONLY: compare_potential_types,&
                                               libint_potential_type
-   USE machine,                         ONLY: m_flush
+   USE machine,                         ONLY: m_flush,&
+                                              m_walltime
    USE message_passing,                 ONLY: mp_request_type
    USE mp2_eri,                         ONLY: mp2_eri_2c_integrate
    USE mp2_eri_gpw,                     ONLY: mp2_eri_2c_integrate_gpw
@@ -258,8 +259,8 @@ CONTAINS
             ! k-dependent 1/r Coulomb matrix V_PQ(k)
             CALL compute_V_by_lattice_sum(qs_env, fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, kpoints)
 
-            CALL inversion_of_M_and_mult_with_chol_dec_of_V(fm_matrix_Minv_L_kpoints, fm_matrix_L_kpoints, &
-                                                            dimen_RI, kpoints, qs_env%mp2_env%ri_rpa_im_time%eps_eigval_S)
+            CALL inversion_of_M_and_mult_with_chol_dec_of_V(fm_matrix_Minv_L_kpoints, fm_matrix_L_kpoints, dimen_RI, &
+                                                            unit_nr, kpoints, qs_env%mp2_env%ri_rpa_im_time%eps_eigval_S)
 
             CALL setup_trunc_coulomb_potential_for_exchange_self_energy(qs_env, trunc_coulomb)
 
@@ -1442,15 +1443,16 @@ CONTAINS
 !> \param fm_matrix_Minv_L_kpoints ...
 !> \param fm_matrix_L_kpoints ...
 !> \param dimen_RI ...
+!> \param unit_nr ...
 !> \param kpoints ...
 !> \param eps_eigval_S ...
 ! **************************************************************************************************
    SUBROUTINE inversion_of_M_and_mult_with_chol_dec_of_V(fm_matrix_Minv_L_kpoints, fm_matrix_L_kpoints, &
-                                                         dimen_RI, kpoints, eps_eigval_S)
+                                                         dimen_RI, unit_nr, kpoints, eps_eigval_S)
 
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: fm_matrix_Minv_L_kpoints, &
                                                             fm_matrix_L_kpoints
-      INTEGER, INTENT(IN)                                :: dimen_RI
+      INTEGER, INTENT(IN)                                :: dimen_RI, unit_nr
       TYPE(kpoint_type), POINTER                         :: kpoints
       REAL(KIND=dp), INTENT(IN)                          :: eps_eigval_S
 
@@ -1459,6 +1461,7 @@ CONTAINS
          czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp), ione = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
 
       INTEGER                                            :: handle, ikp, nkp
+      REAL(KIND=dp)                                      :: t1, t2
       TYPE(cp_cfm_type)                                  :: cfm_matrix_K_tmp, cfm_matrix_M_tmp, &
                                                             cfm_matrix_V_tmp, cfm_matrix_Vtrunc_tmp
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
@@ -1475,6 +1478,8 @@ CONTAINS
       CALL get_kpoint_info(kpoints, nkp=nkp)
 
       DO ikp = 1, nkp
+
+         t1 = m_walltime()
 
          CALL cp_cfm_scale_and_add_fm(czero, cfm_matrix_M_tmp, cone, fm_matrix_Minv_L_kpoints(ikp, 1))
          CALL cp_cfm_scale_and_add_fm(cone, cfm_matrix_M_tmp, ione, fm_matrix_Minv_L_kpoints(ikp, 2))
@@ -1495,6 +1500,12 @@ CONTAINS
 
          ! move
          CALL cp_cfm_to_fm(cfm_matrix_K_tmp, fm_matrix_Minv_L_kpoints(ikp, 1), fm_matrix_Minv_L_kpoints(ikp, 2))
+
+         t2 = m_walltime()
+
+         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,I4,A,I3, A, F11.1)') &
+            'INTEGRAL_INFO| Integrals for k-point', ikp, ' / ', nkp, &
+            ', execution time (s):', t2 - t1
 
       END DO
 

@@ -803,6 +803,16 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="PRINT_SELF_ENERGY", &
+                          description="If true, print the self-energy for all levels for real energy "// &
+                          "together with the straight line to see the quasiparticle energy as intersection. "// &
+                          "In addition, prints the self-energy for imaginary frequencies together with the Pade fit.", &
+                          usage="SELF_ENERGY", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="RI_SIGMA_X", &
                           description="If true, the exchange self-energy is calculated approximatively with RI. "// &
                           "If false, the Hartree-Fock implementation in CP2K is used.", &
@@ -927,13 +937,13 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      ! here we generate a subsection for additional printing
-      CALL create_print_section(subsection)
+      ! here we generate a subsection for calculating the GW band structures
+      CALL create_kpoint_set_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      ! here we generate a subsection for calculating the GW band structures
-      CALL create_kpoint_set_section(subsection)
+      ! here we generate a subsection for additional printing
+      CALL create_print_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -947,23 +957,54 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
 
       TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: print_key
 
       CPASSERT(.NOT. ASSOCIATED(section))
+      NULLIFY (print_key, keyword)
       CALL section_create(section, __LOCATION__, name="PRINT", &
-                          description="Parameters for GW related output.", &
-                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+                          description="Section of possible print options specific for the GW code.", &
+                          n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
-      NULLIFY (keyword)
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "LOCAL_BANDGAP", &
+                                       description="Prints a local bandgap E_gap(r), derived from the local density of "// &
+                                       "states rho(r,E). Details and formulae in the SI of the periodic GW paper (2023).", &
+                                       print_level=high_print_level, add_last=add_last_numeric, &
+                                       filename="LOCAL_BANDGAP", &
+                                       common_iter_levels=3)
 
-      CALL keyword_create(keyword, __LOCATION__, name="SELF_ENERGY", &
-                          description="If true, print the self-energy for all levels for real energy "// &
-                          "together with the straight line to see the quasiparticle energy as intersection. "// &
-                          "In addition, prints the self-energy for imaginary frequencies together with the Pade fit.", &
-                          usage="SELF_ENERGY", &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_WINDOW", &
+                          description="Energy window in the LDOS for searching the gap.", &
+                          usage="ENERGY_WINDOW 6.0", &
+                          default_r_val=cp_unit_to_cp2k(value=6.0_dp, unit_str="eV"), &
+                          unit_str="eV")
+      CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_SPACING", &
+                          description="Energy spacing of the LDOS for searching the gap.", &
+                          usage="ENERGY_SPACING 0.03", &
+                          default_r_val=cp_unit_to_cp2k(value=0.03_dp, unit_str="eV"), &
+                          unit_str="eV")
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="LDOS_THRESHOLD_GAP", &
+                          description="Relative LDOS threshold that determines the local bandgap.", &
+                          usage="LDOS_THRESHOLD_GAP 0.1", &
+                          default_r_val=0.1_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="STRIDE", &
+                          description="The stride (X,Y,Z) used to write the cube file "// &
+                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
+                          " 1 number valid for all components.", &
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
 
    END SUBROUTINE
 
