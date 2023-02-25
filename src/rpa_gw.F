@@ -5194,9 +5194,9 @@ CONTAINS
 
       cut_memory = mp2_env%ri_rpa_im_time%cut_memory
 
-      mo_start(:) = homo(:) - gw_corr_lev_occ(:) + 1
-      mo_end(:) = homo(:) + gw_corr_lev_virt(:)
       DO ispin = 1, nspins
+         mo_start(ispin) = homo(ispin) - gw_corr_lev_occ(ispin) + 1
+         mo_end(ispin) = homo(ispin) + gw_corr_lev_virt(ispin)
          CPASSERT(mo_end(ispin) - mo_start(ispin) + 1 == gw_corr_lev_tot)
       END DO
 
