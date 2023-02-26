@@ -2,10 +2,14 @@
   METHOD Quickstep
   &PROPERTIES
     &TDDFPT
-       KERNEL NONE
+       KERNEL FULL
        NSTATES      1
        MAX_ITER    50
-       CONVERGENCE [eV] 1.0e-7
+       CONVERGENCE [eV] 1.0e-10
+       &XC
+         &XC_FUNCTIONAL PADE
+         &END XC_FUNCTIONAL
+       &END XC
     &END TDDFPT
   &END PROPERTIES
   &DFT
@@ -15,7 +19,7 @@
       CUTOFF 400
     &END MGRID
     &QS
-      METHOD GAPW
+      METHOD GAPW_XC
       EPS_DEFAULT 1.E-14
     &END QS
     &EFIELD
@@ -26,7 +30,7 @@
     &SCF
       SCF_GUESS ATOMIC
       &OT
-         PRECONDITIONER FULL_SINGLE_INVERSE
+         PRECONDITIONER FULL_ALL
          MINIMIZER DIIS
          STEPSIZE 0.1
       &END
@@ -88,7 +92,7 @@
    DEBUG_DIPOLE .TRUE.
    CHECK_DIPOLE_DIRS Z
    DEBUG_POLARIZABILITY .FALSE.
-   DE 0.001
+   DE 0.002
 &END
  
 

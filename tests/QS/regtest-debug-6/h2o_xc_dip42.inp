@@ -2,7 +2,11 @@
   METHOD Quickstep
   &PROPERTIES
     &TDDFPT
-       KERNEL NONE
+       KERNEL FULL
+       &XC
+         &XC_FUNCTIONAL PBE
+         &END XC_FUNCTIONAL
+       &END XC
        NSTATES      1
        MAX_ITER    50
        CONVERGENCE [eV] 1.0e-7
@@ -22,6 +26,7 @@
     &END
     &EXCITED_STATES T
        STATE 1
+       DEBUG_FORCES T
     &END EXCITED_STATES
     &SCF
       SCF_GUESS ATOMIC

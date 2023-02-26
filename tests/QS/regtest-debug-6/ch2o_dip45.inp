@@ -2,7 +2,11 @@
   METHOD Quickstep
   &PROPERTIES
     &TDDFPT
-       KERNEL NONE
+       KERNEL FULL
+       &XC
+         &XC_FUNCTIONAL PBE
+         &END XC_FUNCTIONAL
+       &END XC
        NSTATES      1
        MAX_ITER    50
        CONVERGENCE [eV] 1.0e-7
@@ -22,6 +26,7 @@
     &END
     &EXCITED_STATES T
        STATE 1
+       DEBUG_FORCES T
     &END EXCITED_STATES
     &SCF
       SCF_GUESS ATOMIC
@@ -58,9 +63,10 @@
       PERIODIC NONE
     &END
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+  O         0.000000    0.000000    0.895642
+  C         0.000000    0.000000   -0.307326
+  H         0.000000    0.947608   -0.895642
+  H         0.000000   -0.947608   -0.895562
     &END COORD
     &TOPOLOGY
      &CENTER_COORDINATES
@@ -69,6 +75,10 @@
     &KIND H
       BASIS_SET DZVP-GTH-PADE
       POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND C
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q4
     &END KIND
     &KIND O
       BASIS_SET DZVP-GTH-PADE

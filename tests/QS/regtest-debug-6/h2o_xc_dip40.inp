@@ -15,7 +15,7 @@
       CUTOFF 400
     &END MGRID
     &QS
-      METHOD GAPW
+      METHOD GAPW_XC
       EPS_DEFAULT 1.E-14
     &END QS
     &EFIELD
@@ -26,7 +26,7 @@
     &SCF
       SCF_GUESS ATOMIC
       &OT
-         PRECONDITIONER FULL_SINGLE_INVERSE
+         PRECONDITIONER FULL_ALL
          MINIMIZER DIIS
          STEPSIZE 0.1
       &END
