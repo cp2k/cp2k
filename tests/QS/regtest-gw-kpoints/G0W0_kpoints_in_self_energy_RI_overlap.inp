@@ -40,8 +40,7 @@
         &END LOW_SCALING
         &RI
           &RI_METRIC
-            POTENTIAL_TYPE TRUNCATED
-            CUTOFF_RADIUS  2.0
+            POTENTIAL_TYPE IDENTITY
           &END RI_METRIC
         &END RI
         &RI_RPA

@@ -38,6 +38,11 @@
         &INTEGRALS
           SIZE_LATTICE_SUM 5
         &END INTEGRALS
+        &RI
+          &RI_METRIC
+            POTENTIAL_TYPE IDENTITY
+          &END RI_METRIC
+        &END RI
         &LOW_SCALING
           KPOINTS 1 1 4
           REGULARIZATION_RI 1.0E-3
