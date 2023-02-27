@@ -1,5 +1,3 @@
-G0W0_kpoints_from_Gamma.inp                                       78      1e-05       15.316
-G0W0_kpoints_from_Gamma_RI_regularization_1E-3.inp                78      1e-05       15.216
 G0W0_kpoints_in_self_energy.inp                                   98      1e-05       12.866
 G0W0_kpoints_in_self_energy_at_HSE06.inp                          98      1e-05       13.376
 G0W0_kpoints_in_self_energy_RI_overlap.inp                        98      1e-05       12.562
