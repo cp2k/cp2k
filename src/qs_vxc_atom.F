@@ -774,8 +774,8 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: epsrho = 5.e-4_dp
 
       INTEGER                                            :: bo(2), handle, iat, iatom, ikind, ir, &
-                                                            istep, mepos, myfun, na, natom, nr, &
-                                                            ns, nspins, nstep, num_pe, nf
+                                                            istep, mepos, myfun, na, natom, nf, &
+                                                            nr, ns, nspins, nstep, num_pe
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL                                            :: donlcc, gradient_f, lsd, nlcc, paw_atom, &
@@ -929,9 +929,9 @@ CONTAINS
                CALL get_rho_atom(rho_atom=rho0_atom, ga_Vlocal_gb_h=int_hh, ga_Vlocal_gb_s=int_ss)
                ALLOCATE (fint_ss(nspins), fint_hh(nspins))
                DO ns = 1, nspins
-                  nf = SIZE(int_ss(ns)%r_coef,1)
+                  nf = SIZE(int_ss(ns)%r_coef, 1)
                   ALLOCATE (fint_ss(ns)%r_coef(nf, nf))
-                  nf = SIZE(int_hh(ns)%r_coef,1)
+                  nf = SIZE(int_hh(ns)%r_coef, 1)
                   ALLOCATE (fint_hh(ns)%r_coef(nf, nf))
                END DO
 
