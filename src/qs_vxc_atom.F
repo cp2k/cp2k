@@ -775,7 +775,7 @@ CONTAINS
 
       INTEGER                                            :: bo(2), handle, iat, iatom, ikind, ir, &
                                                             istep, mepos, myfun, na, natom, nr, &
-                                                            ns, nspins, nstep, num_pe
+                                                            ns, nspins, nstep, num_pe, nf
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL                                            :: donlcc, gradient_f, lsd, nlcc, paw_atom, &
@@ -908,12 +908,6 @@ CONTAINS
                ALLOCATE (vtau_h(na, nr, nspins), vtau_s(na, nr, nspins))
             END IF
             !
-            ALLOCATE (fint_ss(nspins), fint_hh(nspins))
-            DO ns = 1, nspins
-               ALLOCATE (fint_ss(ns)%r_coef(na, nr))
-               ALLOCATE (fint_hh(ns)%r_coef(na, nr))
-            END DO
-            !
             ! NLCC: prepare rho and drho of the core charge for this KIND
             donlcc = .FALSE.
             IF (nlcc) THEN
@@ -929,6 +923,17 @@ CONTAINS
 
             DO iat = bo(1), bo(2)
                iatom = atom_list(iat)
+               !
+               NULLIFY (int_hh, int_ss)
+               rho0_atom => rho0_atom_set(iatom)
+               CALL get_rho_atom(rho_atom=rho0_atom, ga_Vlocal_gb_h=int_hh, ga_Vlocal_gb_s=int_ss)
+               ALLOCATE (fint_ss(nspins), fint_hh(nspins))
+               DO ns = 1, nspins
+                  nf = SIZE(int_ss(ns)%r_coef,1)
+                  ALLOCATE (fint_ss(ns)%r_coef(nf, nf))
+                  nf = SIZE(int_hh(ns)%r_coef,1)
+                  ALLOCATE (fint_hh(ns)%r_coef(nf, nf))
+               END DO
 
                ! RHO0
                rho0_h = 0.0_dp
@@ -1053,6 +1058,12 @@ CONTAINS
                      int_hh(ns)%r_coef(:, :) = int_hh(ns)%r_coef(:, :) + oeps2*bl(istep)*fint_hh(ns)%r_coef(:, :)
                   END DO
                END DO
+               !
+               DO ns = 1, nspins
+                  DEALLOCATE (fint_ss(ns)%r_coef)
+                  DEALLOCATE (fint_hh(ns)%r_coef)
+               END DO
+               DEALLOCATE (fint_ss, fint_hh)
 
             END DO ! iat
 
@@ -1071,11 +1082,6 @@ CONTAINS
                DEALLOCATE (tau_h, tau_s, tau0_h, tau0_s, tau1_h, tau1_s)
                DEALLOCATE (vtau_h, vtau_s)
             END IF
-            DO ns = 1, nspins
-               DEALLOCATE (fint_ss(ns)%r_coef)
-               DEALLOCATE (fint_hh(ns)%r_coef)
-            END DO
-            DEALLOCATE (fint_ss, fint_hh)
 
          END DO ! ikind
 
