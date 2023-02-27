@@ -1791,10 +1791,6 @@ CONTAINS
 
       END DO
 
-      DO ikp = 1, nkp
-
-      END DO
-
       n_x_start = LBOUND(LDOS(1)%cr3d, 1)
       n_x_end = UBOUND(LDOS(1)%cr3d, 1)
       n_y_start = LBOUND(LDOS(1)%cr3d, 2)
