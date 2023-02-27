@@ -3,7 +3,19 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-#h2o_dip40.inp                                          86      1e-05             0.000000000000E+00    
 h2o_check1.inp                                         86      1e-08             0.908927636671E+00    
 h2o_check2.inp                                         82      1e-06             0.00000058
+#
+h2o_dip40.inp                                           0
+h2o_dip41.inp                                           0
+#h2o_dip42.inp                                           0
+h2o_dip43.inp                                           0
+ch2o_dip44.inp                                          0
+#ch2o_dip45.inp                                          0
+h2o_xc_dip40.inp                                        0
+h2o_xc_dip41.inp                                        0
+#h2o_xc_dip42.inp                                        0
+h2o_xc_dip43.inp                                        0
+ch2o_xc_dip44.inp                                       0
+#ch2o_xc_dip45.inp                                       0
 #EOF
