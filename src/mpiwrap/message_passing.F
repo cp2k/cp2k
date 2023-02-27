@@ -880,7 +880,7 @@ MODULE message_passing
    INTEGER, PARAMETER :: max_stack_size = 10
    INTEGER            :: stack_pointer = 0
    ! target attribute needed as a hack around ifc 7.1 bug
-   TYPE(mp_perf_env_p_type), DIMENSION(max_stack_size), TARGET, SAVE :: mp_perf_stack
+   TYPE(mp_perf_env_p_type), DIMENSION(max_stack_size), SAVE :: mp_perf_stack
 
    CHARACTER(LEN=20), PARAMETER :: sname(MAX_PERF) = &
                                    (/"MP_Group            ", "MP_Bcast            ", "MP_Allreduce        ", &
