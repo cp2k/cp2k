@@ -56,6 +56,7 @@ LIBTEST/libbqb/test_01.inp
 xTB/regtest-1/si_kp.inp
 QS/regtest-tddfpt-3/ch2o_t2.inp
 QS/regtest-kg/H2_MD.inp
+QS/regtest-kg/geo-phase-1.inp
 QS/regtest-nonortho/graph_b111_gapw.inp
 QS/regtest-debug-1/h2o_gga.inp
 QS/regtest-ps-implicit-2-2/H2O_spatial_rho_dep_dielec.inp
