@@ -46,14 +46,14 @@ PROGRAM dbt_tas_unittest
    INTEGER, DIMENSION(n)          :: bsize_n
    INTEGER, DIMENSION(k)          :: bsize_k
    REAL(KIND=dp), PARAMETER   :: sparsity = 0.1
-   INTEGER                        :: numnodes, mynode, io_unit
+   INTEGER                        :: mynode, io_unit
    TYPE(mp_comm_type)             :: mp_comm
    TYPE(mp_cart_type) :: mp_comm_A, mp_comm_At, mp_comm_B, mp_comm_Bt, mp_comm_C, mp_comm_Ct
    REAL(KIND=dp), PARAMETER   :: filter_eps = 1.0E-08
 
    CALL mp_world_init(mp_comm)
 
-   CALL mp_comm%environ(numnodes, mynode)
+   mynode = mp_comm%mepos
 
    ! Select active offload device when available.
    IF (offload_get_device_count() > 0) THEN
@@ -71,8 +71,6 @@ PROGRAM dbt_tas_unittest
    CALL dbt_tas_random_bsizes([13, 8, 5, 25, 12], 2, bsize_m)
    CALL dbt_tas_random_bsizes([3, 78, 33, 12, 3, 15], 1, bsize_n)
    CALL dbt_tas_random_bsizes([9, 64, 23, 2], 3, bsize_k)
-
-   CALL mp_comm%environ(numnodes, mynode)
 
    CALL dbt_tas_setup_test_matrix(A, mp_comm_A, mp_comm, m, k, bsize_m, bsize_k, [5, 1], "A", sparsity)
    CALL dbt_tas_setup_test_matrix(At, mp_comm_At, mp_comm, k, m, bsize_k, bsize_m, [3, 8], "A^t", sparsity)

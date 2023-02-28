@@ -465,20 +465,20 @@ CONTAINS
       END DO ! ikind
       !
       !
-      CALL para_env%group%sum(itegrated_jrho)
+      CALL para_env%sum(itegrated_jrho)
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(T2,A,E24.16)') 'Integrated local j_'&
               &//ACHAR(idir + 119)//ACHAR(iB + 119)//'(r)=', itegrated_jrho
       END IF
       !
-      CALL para_env%group%sum(cs_loc_tmp)
+      CALL para_env%sum(cs_loc_tmp)
       chemical_shift_loc(:, iB, :) = chemical_shift_loc(:, iB, :) &
            & - nmr_env%shift_factor_gapw*cs_loc_tmp(:, :)/2.0_dp
       !
       DEALLOCATE (cs_loc_tmp, list_j, dist_ij)
       !
       IF (do_nics) THEN
-         CALL para_env%group%sum(cs_nics_loc_tmp)
+         CALL para_env%sum(cs_nics_loc_tmp)
          chemical_shift_nics_loc(:, iB, :) = chemical_shift_nics_loc(:, iB, :) &
               & - nmr_env%shift_factor_gapw*cs_nics_loc_tmp(:, :)/2.0_dp
          !

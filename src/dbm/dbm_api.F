@@ -1345,8 +1345,9 @@ CONTAINS
       TYPE(dbcsr_mp_obj)                                 :: mp_env
 
       ! Create a dbcsr mp environment from communicator
-      CALL mp_comm%environ_cart(numnodes, npdims, mycoord)
-      CALL mp_comm%environ(numnodes, mynode)
+      CALL mp_comm%get_info_cart(npdims, mycoord)
+      CALL mp_comm%get_size(numnodes)
+      CALL mp_comm%get_rank(mynode)
       ALLOCATE (pgrid(0:npdims(1) - 1, 0:npdims(2) - 1))
       DO prow = 0, npdims(1) - 1
          DO pcol = 0, npdims(2) - 1

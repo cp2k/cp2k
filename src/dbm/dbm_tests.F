@@ -52,7 +52,7 @@ CONTAINS
                             bs_m, bs_n, bs_k, sparsities, alpha, beta, &
                             n_loops, eps, retain_sparsity, always_checksum)
 
-      TYPE(mp_comm_type), INTENT(IN)                     :: mp_group
+      CLASS(mp_comm_type), INTENT(IN)                     :: mp_group
       INTEGER, INTENT(IN)                                :: io_unit
       INTEGER, DIMENSION(:), INTENT(in)                  :: matrix_sizes
       LOGICAL, DIMENSION(2), INTENT(in)                  :: trs
@@ -65,11 +65,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'dbm_run_tests'
 
-      INTEGER                                            :: bmax, bmin, handle, mynode, numnodes
+      INTEGER                                            :: bmax, bmin, handle, numnodes
       INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_dist_a, col_dist_b, col_dist_c, &
                                                             row_dist_a, row_dist_b, row_dist_c, &
                                                             sizes_k, sizes_m, sizes_n
-      INTEGER, DIMENSION(2)                              :: mycoord, npdims
+      INTEGER, DIMENSION(2)                              :: npdims
       TYPE(dbm_distribution_obj)                         :: dist_a, dist_b, dist_c
       TYPE(dbm_type), TARGET                             :: matrix_a, matrix_b, matrix_c
       TYPE(mp_cart_type)                                 :: cart_group
@@ -77,10 +77,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! Create MPI processor grid.
-      CALL mp_group%environ(numnodes, mynode)
+      numnodes = mp_group%num_pe
       npdims(:) = 0
       CALL mp_dims_create(numnodes, npdims)
-      CALL cart_group%create(mp_group, 2, npdims, mycoord)
+      CALL cart_group%create(mp_group, 2, npdims)
+      npdims = cart_group%num_pe_cart
 
       ! Initialize random number generator.
       randmat_counter = 12341313
@@ -213,14 +214,14 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'run_multiply_test'
 
-      INTEGER                                            :: handle, loop_iter, mynode, numnodes
+      INTEGER                                            :: handle, loop_iter, numnodes
       INTEGER(kind=int_8)                                :: flop
       REAL(kind=dp)                                      :: cs, duration, flops_all, time_start
       TYPE(dbm_type)                                     :: matrix_c_orig
 
       CALL timeset(routineN, handle)
 
-      CALL group%environ(numnodes, mynode)
+      numnodes = group%num_pe
 
       CALL dbm_create_from_template(matrix_c_orig, "Original Matrix C", matrix_c)
       CALL dbm_copy(matrix_c_orig, matrix_c)
@@ -277,7 +278,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'fill_matrix'
 
       INTEGER                                            :: block_node, col, handle, mynode, ncol, &
-                                                            nrow, numnodes, row
+                                                            nrow, row
       INTEGER(KIND=int_8)                                :: counter, ele, increment, nmax
       INTEGER, DIMENSION(4)                              :: iseed, jseed
       INTEGER, DIMENSION(:), POINTER                     :: col_block_sizes, row_block_sizes
@@ -287,7 +288,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL group%environ(numnodes, mynode)
+      mynode = group%mepos
 
       ! Check that the counter was initialised (or has not overflowed)
       CPASSERT(randmat_counter .NE. 0)

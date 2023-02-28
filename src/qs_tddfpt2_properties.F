@@ -787,7 +787,7 @@ CONTAINS
                ! collect number of non-negligible excitations from other nodes
                DO iproc = 1, para_env%num_pe
                   IF (iproc - 1 /= para_env%mepos) THEN
-                     CALL para_env%group%irecv(nexcs_recv(iproc:iproc), iproc - 1, recv_handlers(iproc), 0)
+                     CALL para_env%irecv(nexcs_recv(iproc:iproc), iproc - 1, recv_handlers(iproc), 0)
                   ELSE
                      nexcs_recv(iproc) = nexcs_local
                   END IF
@@ -813,11 +813,11 @@ CONTAINS
                   IF (nexcs_recv(iproc) > 0) THEN
                      IF (iproc - 1 /= para_env%mepos) THEN
                         ! excitation amplitudes
-                        CALL para_env%group%irecv(weights_recv(nmo_virt_occ + 1:nmo_virt_occ + nexcs_recv(iproc)), &
-                                                  iproc - 1, recv_handlers(iproc), 1)
+                        CALL para_env%irecv(weights_recv(nmo_virt_occ + 1:nmo_virt_occ + nexcs_recv(iproc)), &
+                                            iproc - 1, recv_handlers(iproc), 1)
                         ! compressed indices
-                        CALL para_env%group%irecv(inds_recv(nmo_virt_occ + 1:nmo_virt_occ + nexcs_recv(iproc)), &
-                                                  iproc - 1, recv_handlers2(iproc), 2)
+                        CALL para_env%irecv(inds_recv(nmo_virt_occ + 1:nmo_virt_occ + nexcs_recv(iproc)), &
+                                            iproc - 1, recv_handlers2(iproc), 2)
                      ELSE
                         ! data on master node
                         weights_recv(nmo_virt_occ + 1:nmo_virt_occ + nexcs_recv(iproc)) = weights_local(1:nexcs_recv(iproc))
@@ -839,14 +839,14 @@ CONTAINS
             ELSE
                ! working node: send the number of selected excited states to the master node
                nexcs_send(1) = nexcs_local
-               CALL para_env%group%isend(nexcs_send, para_env%source, send_handler, 0)
+               CALL para_env%isend(nexcs_send, para_env%source, send_handler, 0)
                CALL send_handler%wait()
 
                IF (nexcs_local > 0) THEN
                   ! send excitation amplitudes
-                  CALL para_env%group%isend(weights_local(1:nexcs_local), para_env%source, send_handler, 1)
+                  CALL para_env%isend(weights_local(1:nexcs_local), para_env%source, send_handler, 1)
                   ! send compressed indices
-                  CALL para_env%group%isend(inds_local(1:nexcs_local), para_env%source, send_handler2, 2)
+                  CALL para_env%isend(inds_local(1:nexcs_local), para_env%source, send_handler2, 2)
 
                   CALL send_handler%wait()
                   CALL send_handler2%wait()

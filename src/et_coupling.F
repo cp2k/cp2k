@@ -180,9 +180,9 @@ CONTAINS
             a(i) = -a(i)
             b(i) = -b(i)
          END IF
-         CALL para_env%group%sum(a(i))
+         CALL para_env%sum(a(i))
 
-         CALL para_env%group%sum(b(i))
+         CALL para_env%sum(b(i))
 
          CALL cp_fm_release(tmp2)
          DO j = 1, 2

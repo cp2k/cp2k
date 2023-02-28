@@ -45,7 +45,6 @@ MODULE xas_restart
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_comm_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE qs_density_matrices,             ONLY: calculate_density_matrix
@@ -127,7 +126,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      TYPE(mp_comm_type)                                 :: group
 
       CALL timeset(routineN, handle)
 
@@ -142,10 +140,9 @@ CONTAINS
                                          "PRINT%PROGRAM_RUN_INFO", extension=".Log")
 
       CALL get_qs_env(qs_env=qs_env, para_env=para_env)
-      group = para_env%group
       source = para_env%source
 
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          CALL wfn_restart_file_name(filename, file_exists, xas_section, logger, &
                                     xas=.TRUE.)
 
@@ -173,7 +170,7 @@ CONTAINS
                " not available. Initialization done with GS orbitals"
          END IF
       END IF
-      CALL group%bcast(file_exists, source)
+      CALL para_env%bcast(file_exists, source)
 
       CALL get_xas_env(xas_env=xas_env, occ_estate=occ_estate, xas_estate=xas_estate, &
                        xas_nelectron=xas_nelectron, nexc_search=nexc_search, &
@@ -195,7 +192,7 @@ CONTAINS
                              " is not possible. Start instead a new XAS run with the new set of atoms. ")
          END IF
 
-         CALL group%bcast(xas_estate_read, source)
+         CALL para_env%bcast(xas_estate_read, source)
          CALL set_xas_env(xas_env=xas_env, xas_estate=xas_estate_read)
          estate = xas_estate_read
 
@@ -208,7 +205,7 @@ CONTAINS
             eigenvalues = 0.0_dp
             occupation_numbers = 0.0_dp
             CALL cp_fm_set_all(mo_coeff, 0.0_dp)
-            IF (para_env%ionode) THEN
+            IF (para_env%is_source()) THEN
                READ (rst_unit) nao_read, nmo_read
                IF (nao /= nao_read) &
                   CPABORT("To change basis is not possible. ")
@@ -228,21 +225,21 @@ CONTAINS
                END IF
                DEALLOCATE (eig_read, occ_read)
             END IF
-            CALL group%bcast(eigenvalues, source)
-            CALL group%bcast(occupation_numbers, source)
+            CALL para_env%bcast(eigenvalues, source)
+            CALL para_env%bcast(occupation_numbers, source)
 
             DO i = 1, nmo
-               IF (para_env%ionode) THEN
+               IF (para_env%is_source()) THEN
                   READ (rst_unit) vecbuffer
                ELSE
                   vecbuffer(1, :) = 0.0_dp
                END IF
-               CALL group%bcast(vecbuffer, source)
+               CALL para_env%bcast(vecbuffer, source)
                CALL cp_fm_set_submatrix(mo_coeff, &
                                         vecbuffer, 1, i, nao, 1, transpose=.TRUE.)
             END DO
             ! Skip extra MOs if there any
-            IF (para_env%ionode) THEN
+            IF (para_env%is_source()) THEN
                DO i = nmo + 1, nmo_read
                   READ (rst_unit) vecbuffer
                END DO
@@ -261,7 +258,7 @@ CONTAINS
 !      END DO
       END IF !file_exist
 
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          IF (file_exists) CALL close_file(unit_number=rst_unit)
       END IF
 

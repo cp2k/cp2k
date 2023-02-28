@@ -145,7 +145,7 @@ CONTAINS
 
          ! If thermostats are replicated but molecules distributed, we have to
          ! sum s_kin over all processors
-         IF (map_info%dis_type == do_thermo_communication) CALL para_env%group%sum(map_info%s_kin)
+         IF (map_info%dis_type == do_thermo_communication) CALL para_env%sum(map_info%s_kin)
 
          ! We know the total number of system thermostats.
          IF ((sum_of_thermostats == 1) .AND. (map_info%dis_type /= do_thermo_no_communication)) THEN
@@ -286,7 +286,7 @@ CONTAINS
 
          ! If thermostats are replicated but molecules distributed, we have to
          ! sum s_kin over all processors
-         IF (map_info%dis_type == do_thermo_communication) CALL para_env%group%sum(map_info%s_kin)
+         IF (map_info%dis_type == do_thermo_communication) CALL para_env%sum(map_info%s_kin)
 
          ! Now that we know how many there are stick this into csvr%nkt
          ! (number of degrees of freedom times k_B T )

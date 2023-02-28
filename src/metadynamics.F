@@ -169,7 +169,7 @@ CONTAINS
          CPABORT("NO PLUMED IN YOUR LD_LIBRARY_PATH?")
       ELSE
          CALL plumed_gcreate()
-         IF (cp2k_is_parallel) CALL plumed_gcmd_int("setMPIFComm"//CHAR(0), force_env%para_env%group%get_handle())
+         IF (cp2k_is_parallel) CALL plumed_gcmd_int("setMPIFComm"//CHAR(0), force_env%para_env%get_handle())
          CALL plumed_gcmd_int("setRealPrecision"//CHAR(0), 8)
          CALL plumed_gcmd_double("setMDEnergyUnits"//CHAR(0), kjmol) ! Hartree to kjoule/mol
          CALL plumed_gcmd_double("setMDLengthUnits"//CHAR(0), angstrom*0.1_dp) ! Bohr to nm

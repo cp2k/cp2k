@@ -30,8 +30,7 @@ MODULE cp2k_runs
                                               cp_print_key_finished_output,&
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
-   USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                              cp_para_env_retain
+   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: parser_search_string
    USE cp_parser_types,                 ONLY: cp_parser_type,&
@@ -176,7 +175,8 @@ CONTAINS
       TYPE(section_type), POINTER                        :: input_declaration
       CHARACTER(LEN=*), INTENT(IN)                       :: input_file_name
       INTEGER, INTENT(IN)                                :: output_unit
-      TYPE(mp_comm_type)                                 :: mpi_comm
+
+      CLASS(mp_comm_type)                                 :: mpi_comm
       CHARACTER(len=default_path_length), &
          DIMENSION(:, :), INTENT(IN)                     :: initial_variables
 
@@ -220,7 +220,7 @@ CONTAINS
       input_file => read_input(input_declaration, input_file_name, initial_variables=initial_variables, &
                                para_env=para_env)
 
-      CALL para_env%group%sync()
+      CALL para_env%sync()
 
       glob_section => section_vals_get_subs_vals(input_file, "GLOBAL")
       CALL section_vals_val_get(glob_section, "ECHO_INPUT", l_val=echo_input)
@@ -304,7 +304,7 @@ CONTAINS
          CALL create_force_env(new_env_id, &
                                input_declaration=input_declaration, &
                                input_path=input_file_name, &
-                               output_path="__STD_OUT__", mpi_comm=para_env%group, &
+                               output_path="__STD_OUT__", mpi_comm=para_env, &
                                output_unit=output_unit, &
                                owns_out_unit=.FALSE., &
                                input=input_file, ierr=ierr)
@@ -447,7 +447,7 @@ CONTAINS
          CALL destroy_force_env(new_env_id, ierr=ierr)
          CPASSERT(ierr == 0)
       ELSE
-         I_was_ionode = para_env%ionode
+         I_was_ionode = para_env%is_source()
          CALL cp2k_finalize(root_section, para_env, globenv)
          CPASSERT(globenv%ref_count == 1)
          CALL section_vals_release(root_section)
@@ -486,7 +486,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)     :: str
       INTEGER :: dest, handle, i, i_job_to_restart, ierr, ijob, ijob_current, &
                  ijob_end, ijob_start, iunit, n_jobs_to_run, new_output_unit, &
-                 new_rank, new_size, ngroups, num_slaves, output_unit, primus_slave, &
+                 new_rank, ngroups, num_slaves, output_unit, primus_slave, &
                  slave_rank, source, tag, todo
       INTEGER, DIMENSION(:), POINTER           :: group_distribution, &
                                                   master_slave_partition, &
@@ -529,17 +529,17 @@ CONTAINS
          master_slave_partition = (/1, para_env%num_pe - 1/)
          ALLOCATE (group_distribution(0:para_env%num_pe - 1))
 
-         CALL slave_group%from_split(para_env%group, ngroups, group_distribution, &
+         CALL slave_group%from_split(para_env, ngroups, group_distribution, &
                                      n_subgroups=2, group_partition=master_slave_partition)
          DEALLOCATE (master_slave_partition)
          DEALLOCATE (group_distribution)
-         CALL slave_group%environ(num_slaves, slave_rank)
+         num_slaves = slave_group%num_pe
+         slave_rank = slave_group%mepos
 
          IF (para_env%mepos == 0) THEN
             slave = .FALSE.
             master = .TRUE.
             ! on the master node, num_slaves corresponds to the size of the master group
-            ! due to the environ call.
             CPASSERT(num_slaves == 1)
             num_slaves = para_env%num_pe - 1
             slave_rank = -1
@@ -548,8 +548,9 @@ CONTAINS
       ELSE
          ! all processes are slaves
          IF (output_unit > 0) WRITE (output_unit, FMT="(T2,A)") "FARMING| using a slave-only setup"
-         CALL slave_group%from_dup(para_env%group)
-         CALL slave_group%environ(num_slaves, slave_rank)
+         CALL slave_group%from_dup(para_env)
+         num_slaves = slave_group%num_pe
+         slave_rank = slave_group%mepos
       END IF
       IF (output_unit > 0) WRITE (output_unit, FMT="(T2,A,I0)") "FARMING| number of slaves ", num_slaves
 
@@ -557,7 +558,7 @@ CONTAINS
       ALLOCATE (slave_distribution(0:para_env%num_pe - 1))
       slave_distribution = 0
       slave_distribution(para_env%mepos) = slave_rank
-      CALL para_env%group%sum(slave_distribution)
+      CALL para_env%sum(slave_distribution)
       ! we do have a primus inter pares
       primus_slave = 0
       DO i = 1, para_env%num_pe - 1
@@ -585,22 +586,22 @@ CONTAINS
          ELSE
             CPABORT("must set either group_size_wish or ngroup_wish")
          END IF
-         CALL new_group%environ(new_size, new_rank)
+         new_rank = new_group%mepos
       END IF
 
       ! transfer the info about the slave group distribution to the master
       IF (farming_env%master_slave) THEN
          IF (para_env%mepos == primus_slave) THEN
             tag = 1
-            CALL para_env%group%send(group_distribution, 0, tag)
+            CALL para_env%send(group_distribution, 0, tag)
             tag = 2
-            CALL para_env%group%send(ngroups, 0, tag)
+            CALL para_env%send(ngroups, 0, tag)
          END IF
          IF (para_env%mepos == 0) THEN
             tag = 1
-            CALL para_env%group%recv(group_distribution, primus_slave, tag)
+            CALL para_env%recv(group_distribution, primus_slave, tag)
             tag = 2
-            CALL para_env%group%recv(ngroups, primus_slave, tag)
+            CALL para_env%recv(ngroups, primus_slave, tag)
          END IF
       END IF
 
@@ -657,12 +658,12 @@ CONTAINS
                   ! the message tells what has been done lately
                   tag = 1
                   dest = 0
-                  CALL para_env%group%send(todo, dest, tag)
+                  CALL para_env%send(todo, dest, tag)
 
                   ! gets the new todo item
                   tag = 2
                   source = 0
-                  CALL para_env%group%recv(todo, source, tag)
+                  CALL para_env%recv(todo, source, tag)
 
                   ! and informs his peer slaves
                   CALL new_group%bcast(todo, 0)
@@ -696,7 +697,7 @@ CONTAINS
                ! who's the next slave waiting for work
                tag = 1
                source = mp_any_source
-               CALL para_env%group%recv(todo, source, tag) ! updates source
+               CALL para_env%recv(todo, source, tag) ! updates source
                IF (todo > 0) THEN
                   farming_env%Job(todo)%status = job_finished
                   IF (output_unit > 0) THEN
@@ -709,7 +710,7 @@ CONTAINS
                CALL get_next_job(farming_env, ijob_start, ijob_end, ijob_current, todo)
                dest = source
                tag = 2
-               CALL para_env%group%send(todo, dest, tag)
+               CALL para_env%send(todo, dest, tag)
 
                IF (todo > 0) THEN
                   farming_env%Job(todo)%status = job_running
@@ -779,12 +780,12 @@ CONTAINS
       ! keep information about how long each process has to wait
       ! i.e. the load imbalance
       t1 = m_walltime()
-      CALL para_env%group%sync()
+      CALL para_env%sync()
       t2 = m_walltime()
       ALLOCATE (waittime(0:para_env%num_pe - 1))
       waittime = 0.0_dp
       waittime(para_env%mepos) = t2 - t1
-      CALL para_env%group%sum(waittime)
+      CALL para_env%sum(waittime)
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(T2,A)') "Process idle times [s] at the end of the run"
          DO i = 0, para_env%num_pe - 1
@@ -982,9 +983,9 @@ CONTAINS
          para_env = mpi_comm
       ELSE
          para_env => f77_default_para_env
-         CALL cp_para_env_retain(para_env)
+         CALL para_env%retain()
       END IF
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          IF (output_file_path == "__STD_OUT__") THEN
             unit_nr = default_output_unit
          ELSE
@@ -993,7 +994,7 @@ CONTAINS
       ELSE
          unit_nr = -1
       END IF
-      CALL cp2k_run(input_declaration, input_file_path, unit_nr, para_env%group, initial_variables)
+      CALL cp2k_run(input_declaration, input_file_path, unit_nr, para_env, initial_variables)
       CALL cp_para_env_release(para_env)
    END SUBROUTINE run_input
 

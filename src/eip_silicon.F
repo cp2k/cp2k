@@ -127,7 +127,7 @@ CONTAINS
                               coord=eip_env%coord_avg, ener_var=ener_var, &
                               coord_var=eip_env%coord_var, count=eip_env%count)
 
-      !CALL get_part_ke(md_env, tbmd_energy%E_kinetic, int_grp=globalenv%para_env%group)
+      !CALL get_part_ke(md_env, tbmd_energy%E_kinetic, int_grp=globalenv%para_env)
       CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds)
 
       nparticle_kind = atomic_kinds%n_els
@@ -147,7 +147,7 @@ CONTAINS
 
       ! sum all contributions to energy over calculated parts on all processors
       CALL cp_subsys_get(subsys=subsys, para_env=para_env)
-      CALL para_env%group%sum(ekin)
+      CALL para_env%sum(ekin)
       eip_env%eip_kinetic_energy = ekin
 
       eip_env%eip_potential_energy = ener/evolt
@@ -293,7 +293,7 @@ CONTAINS
                                coord=eip_env%coord_avg, ener_var=ener_var, &
                                coord_var=eip_env%coord_var, count=eip_env%count)
 
-      !CALL get_part_ke(md_env, tbmd_energy%E_kinetic, int_grp=globalenv%para_env%group)
+      !CALL get_part_ke(md_env, tbmd_energy%E_kinetic, int_grp=globalenv%para_env)
       CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds)
 
       nparticle_kind = atomic_kinds%n_els
@@ -313,7 +313,7 @@ CONTAINS
 
       ! sum all contributions to energy over calculated parts on all processors
       CALL cp_subsys_get(subsys=subsys, para_env=para_env)
-      CALL para_env%group%sum(ekin)
+      CALL para_env%sum(ekin)
       eip_env%eip_kinetic_energy = ekin
 
       eip_env%eip_potential_energy = ener/evolt

@@ -163,7 +163,7 @@ CONTAINS
       END DO
 
       ! we make the sum over all RI basis functions
-      CALL para_env%group%sum(BZ)
+      CALL para_env%sum(BZ)
 
    END SUBROUTINE
 
@@ -224,7 +224,7 @@ CONTAINS
       END DO
 
       ! we make the sum over all RI basis functions
-      CALL para_env%group%sum(AZ)
+      CALL para_env%sum(AZ)
 
       ! add (e_a-e_i)*Z_ia
       DO i_occ = 1, homo
@@ -548,7 +548,7 @@ CONTAINS
 
          END DO
 
-         CALL para_env%group%alltoall(num_entries_send, num_entries_rec, 1)
+         CALL para_env%alltoall(num_entries_send, num_entries_rec, 1)
 
          ALLOCATE (buffer_rec(0:para_env%num_pe - 1))
          ALLOCATE (buffer_send(0:para_env%num_pe - 1))

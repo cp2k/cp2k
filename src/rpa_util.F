@@ -34,8 +34,7 @@ MODULE rpa_util
    USE cp_fm_types,                     ONLY: &
         cp_fm_copy_general, cp_fm_create, cp_fm_get_info, cp_fm_release, cp_fm_set_all, &
         cp_fm_set_element, cp_fm_to_fm, cp_fm_to_fm_submat_general, cp_fm_type
-   USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                              cp_para_env_split
+   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_create, dbcsr_deallocate_matrix, dbcsr_filter, dbcsr_get_info, dbcsr_multiply, &
@@ -869,7 +868,7 @@ CONTAINS
       ! copy/redistribute fm_mat_Q_gemm to fm_mat_Q
       CALL cp_fm_set_all(matrix=fm_mat_Q, alpha=0.0_dp)
       CALL cp_fm_to_fm_submat_general(fm_mat_Q_gemm, fm_mat_Q, dimen_RI, dimen_RI, 1, 1, 1, 1, &
-                                      fm_mat_Q_gemm%matrix_struct%context%group)
+                                      fm_mat_Q_gemm%matrix_struct%context)
 
       CALL timestop(handle)
 
@@ -917,7 +916,7 @@ CONTAINS
             END IF
          END DO
       END DO
-      CALL para_env_RPA%group%sum(trace_Qomega)
+      CALL para_env_RPA%sum(trace_Qomega)
 
       CALL timestop(handle)
 
@@ -984,7 +983,7 @@ CONTAINS
             END IF
          END DO
       END DO
-      CALL para_env_RPA%group%sum(Q_log)
+      CALL para_env_RPA%sum(Q_log)
 
       ! the following frequency integration is Eq. (27) in M. Del Ben et al., JCTC 9, 2654 (2013)
       ! (https://doi.org/10.1021/ct4002202)
@@ -1036,7 +1035,8 @@ CONTAINS
       ! END IF
 
       color_sub_kp = para_env%mepos/num_proc_per_kp
-      CALL cp_para_env_split(para_env_sub_kp, para_env, color_sub_kp)
+      ALLOCATE (para_env_sub_kp)
+      CALL para_env_sub_kp%from_split(para_env, color_sub_kp)
 
       ! grid_2d(1) = 1
       ! grid_2d(2) = para_env_sub_kp%num_pe

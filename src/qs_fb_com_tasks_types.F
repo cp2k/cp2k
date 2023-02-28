@@ -524,7 +524,7 @@ CONTAINS
          send_buf(rank) = send_buf(rank) + 1
       END DO
 
-      CALL para_env%group%alltoall(send_buf, recv_buf, 1)
+      CALL para_env%alltoall(send_buf, recv_buf, 1)
 
       ! now that we know how many recv/send tasks to send, pack the
       ! tasks, and send them around, so that the recv/send tasks are
@@ -568,8 +568,8 @@ CONTAINS
          send_sizes(rank) = send_sizes(rank) + task_dim
       END DO
       ! do communication
-      CALL para_env%group%alltoall(send_buf, send_sizes, send_disps, &
-                                   recv_buf, recv_sizes, recv_disps)
+      CALL para_env%alltoall(send_buf, send_sizes, send_disps, &
+                             recv_buf, recv_sizes, recv_disps)
 
       ! deallocate send buffers
       DEALLOCATE (send_buf)
@@ -1034,8 +1034,8 @@ CONTAINS
       END DO ! ipe
 
       ! do communication
-      CALL para_env%group%alltoall(send_buf, send_sizes, send_disps, &
-                                   recv_buf, recv_sizes, recv_disps)
+      CALL para_env%alltoall(send_buf, send_sizes, send_disps, &
+                             recv_buf, recv_sizes, recv_disps)
 
       ! cleanup temporary arrays no longer needed
       DEALLOCATE (send_buf)
@@ -1218,8 +1218,8 @@ CONTAINS
       END DO ! ipe
 
       ! do communication
-      CALL para_env%group%alltoall(send_buf, send_sizes, send_disps, &
-                                   recv_buf, recv_sizes, recv_disps)
+      CALL para_env%alltoall(send_buf, send_sizes, send_disps, &
+                             recv_buf, recv_sizes, recv_disps)
 
       ! cleanup temporary arrays no longer needed
       DEALLOCATE (send_buf)

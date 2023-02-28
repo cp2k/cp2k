@@ -119,7 +119,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE lib_pexsi_init(pexsi_env, mp_group, nspin)
       TYPE(lib_pexsi_env), INTENT(INOUT)                 :: pexsi_env
-      TYPE(mp_comm_type), INTENT(IN)                     :: mp_group
+
+      CLASS(mp_comm_type), INTENT(IN)                     :: mp_group
       INTEGER, INTENT(IN)                                :: nspin
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'lib_pexsi_init'
@@ -129,7 +130,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
 
       logger => cp_get_default_logger()
-      IF (logger%para_env%ionode) THEN
+      IF (logger%para_env%is_source()) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
@@ -141,7 +142,8 @@ CONTAINS
       CALL cite_reference(Lin2013)
 
       pexsi_env%mp_group = mp_group
-      CALL pexsi_env%mp_group%environ(numnodes, mynode)
+      numnodes = pexsi_env%mp_group%num_pe
+      mynode = pexsi_env%mp_group%mepos
 
       ! Use all nodes available per pole by default or if the user tries to use
       ! more nodes than MPI size
@@ -265,13 +267,13 @@ CONTAINS
       TYPE(lib_pexsi_env), INTENT(IN)                    :: pexsi_env
       INTEGER, INTENT(IN)                                :: unit_nr
 
-      INTEGER                                            :: mynode, npSymbFact, numnodes, numPole, &
-                                                            ordering, rowOrdering
+      INTEGER                                            :: npSymbFact, numnodes, numPole, ordering, &
+                                                            rowOrdering
       REAL(KIND=dp)                                      :: gap, muInertiaExpansion, &
                                                             muInertiaTolerance, muMax0, muMin0, &
                                                             muPEXSISafeGuard, temperature
 
-      CALL pexsi_env%mp_group%environ(numnodes, mynode)
+      numnodes = pexsi_env%mp_group%num_pe
 
       CALL cp_pexsi_get_options(pexsi_env%options, temperature=temperature, gap=gap, &
                                 numPole=numPole, muMin0=muMin0, muMax0=muMax0, muInertiaTolerance= &

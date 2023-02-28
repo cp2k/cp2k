@@ -17,9 +17,7 @@ MODULE distribution_2d_types
    USE cp_array_utils,                  ONLY: cp_1d_i_p_type,&
                                               cp_1d_i_write
    USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
-                                              cp_blacs_env_retain,&
-                                              cp_blacs_env_type,&
-                                              cp_blacs_env_write
+                                              cp_blacs_env_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE machine,                         ONLY: m_flush
@@ -207,7 +205,7 @@ CONTAINS
       END IF
 
       distribution_2d%blacs_env => blacs_env
-      CALL cp_blacs_env_retain(distribution_2d%blacs_env)
+      CALL distribution_2d%blacs_env%retain()
 
    END SUBROUTINE distribution_2d_create
 
@@ -301,7 +299,7 @@ CONTAINS
       IF (PRESENT(long_description)) my_long_description = long_description
       my_local = .FALSE.
       IF (PRESENT(local)) my_local = local
-      IF (.NOT. my_local) my_local = logger%para_env%ionode
+      IF (.NOT. my_local) my_local = logger%para_env%is_source()
 
       IF (ASSOCIATED(distribution_2d)) THEN
          IF (my_local) THEN
@@ -434,10 +432,10 @@ CONTAINS
             IF (ASSOCIATED(distribution_2d%blacs_env)) THEN
                IF (my_long_description) THEN
                   WRITE (unit=unit_nr, fmt="('    blacs_env=')", advance="no")
-                  CALL cp_blacs_env_write(distribution_2d%blacs_env, unit_nr=unit_nr)
+                  CALL distribution_2d%blacs_env%write(unit_nr)
                ELSE
                   WRITE (unit=unit_nr, fmt="('    blacs_env=<blacs_env id=',i6,'>')") &
-                     distribution_2d%blacs_env%group%get_handle()
+                     distribution_2d%blacs_env%get_handle()
                END IF
             ELSE
                WRITE (unit=unit_nr, fmt="('    blacs_env=*null*')")

@@ -118,7 +118,6 @@ CONTAINS
       nmoloc = 0
 
       logger => cp_get_default_logger()
-      !ionode = logger%para_env%mepos==logger%para_env%source
       lr_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%LINRES")
 
       output_unit = cp_print_key_unit_nr(logger, lr_section, "PRINT%PROGRAM_RUN_INFO", &

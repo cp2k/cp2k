@@ -218,7 +218,7 @@ CONTAINS
          END DO ! iparticle2
       END DO ! iparticle1
       !NB parallelization
-      CALL para_env%group%sum(d_el)
+      CALL para_env%sum(d_el)
       M => qs_env%cp_ddapc_env%Md
       IF (apply_qmmm_periodic) M => qs_env%cp_ddapc_env%Mr
       CALL cp_decpl_ddapc_forces(qs_env, M, charges, dq, d_el, particle_set)
@@ -276,7 +276,7 @@ CONTAINS
          END DO
       END DO
       !NB now that get_ddapc returns dq that's spread over nodes, must reduce chf here
-      CALL para_env%group%sum(chf)
+      CALL para_env%sum(chf)
       DO iatom = 1, natom
          ikind = kind_of(iatom)
          i = atom_of_kind(iatom)
@@ -428,7 +428,7 @@ CONTAINS
          END DO
       END DO
       !NB now that get_ddapc returns dq that's spread over nodes, must reduce chf here
-      CALL para_env%group%sum(chf)
+      CALL para_env%sum(chf)
       DO iatom = 1, natom
          ikind = kind_of(iatom)
          i = atom_of_kind(iatom)

@@ -696,7 +696,7 @@ CONTAINS
                ! Consider print requests
 
                IF (should_output .AND. (print_level > low_print_level)) THEN
-                  CALL para_env%group%sum(q_matrix)
+                  CALL para_env%sum(q_matrix)
                   IF (output_unit > 0) THEN
                      ALLOCATE (q_work(nsb, nsbsize))
                      q_work(:, :) = 0.0_dp
@@ -742,7 +742,7 @@ CONTAINS
                      ALLOCATE (q_work(nsgf_kind, nsgf_kind))
                      q_work(:, :) = 0.0_dp
                      IF (ASSOCIATED(q_block)) q_work(:, :) = q_block(:, :)
-                     CALL para_env%group%sum(q_work)
+                     CALL para_env%sum(q_work)
                      IF (output_unit > 0) THEN
                         norb = SIZE(q_work, 1)
                         WRITE (UNIT=output_unit, FMT="(/,T9,200I10)") (i, i=1, norb)
@@ -800,7 +800,7 @@ CONTAINS
 
       ! Collect the energy contributions from all processes
 
-      CALL para_env%group%sum(energy%dft_plus_u)
+      CALL para_env%sum(energy%dft_plus_u)
 
       IF (energy%dft_plus_u < 0.0_dp) &
          CALL cp_warn(__LOCATION__, &
@@ -1324,7 +1324,7 @@ CONTAINS
                ! Consider print requests
 
                IF (should_output .AND. (print_level > low_print_level)) THEN
-                  CALL para_env%group%sum(q_matrix)
+                  CALL para_env%sum(q_matrix)
                   IF (output_unit > 0) THEN
                      ALLOCATE (q_work(nsb, nsbsize))
                      q_work(:, :) = 0.0_dp
@@ -1370,7 +1370,7 @@ CONTAINS
                      ALLOCATE (q_work(nsgf_kind, nsgf_kind))
                      q_work(:, :) = 0.0_dp
                      IF (ASSOCIATED(q_block)) q_work(:, :) = q_block(:, :)
-                     CALL para_env%group%sum(q_work)
+                     CALL para_env%sum(q_work)
                      IF (output_unit > 0) THEN
                         norb = SIZE(q_work, 1)
                         WRITE (UNIT=output_unit, FMT="(/,T9,200I10)") (i, i=1, norb)
@@ -1464,7 +1464,7 @@ CONTAINS
 
       ! Collect the energy contributions from all processes
 
-      CALL para_env%group%sum(energy%dft_plus_u)
+      CALL para_env%sum(energy%dft_plus_u)
 
       IF (energy%dft_plus_u < 0.0_dp) THEN
          IF (.NOT. occupation_enforced) THEN
@@ -1720,7 +1720,7 @@ CONTAINS
 
          CALL dbcsr_iterator_stop(iter)
 
-         CALL para_env%group%sum(trps)
+         CALL para_env%sum(trps)
 
          ! q <- Trace(PS)
 
@@ -1863,7 +1863,7 @@ CONTAINS
                ! Consider print requests
 
                IF (should_output .AND. (print_level > low_print_level)) THEN
-                  CALL para_env%group%sum(q_ii)
+                  CALL para_env%sum(q_ii)
                   IF (output_unit > 0) THEN
                      DO isb = 1, nsb
                         WRITE (UNIT=output_unit, FMT="(T3,I6,2X,I6,2X,10F8.3)") &
@@ -1884,7 +1884,7 @@ CONTAINS
          END DO ! next atomic kind "ikind"
 
          IF (.NOT. just_energy) THEN
-            CALL para_env%group%sum(dEdq)
+            CALL para_env%sum(dEdq)
          END IF
 
          ! Add V(i,j)[U] to V(i,j)[DFT]
@@ -2015,7 +2015,7 @@ CONTAINS
 
       ! Collect the energy contributions from all processes
 
-      CALL para_env%group%sum(energy%dft_plus_u)
+      CALL para_env%sum(energy%dft_plus_u)
 
       IF (energy%dft_plus_u < 0.0_dp) &
          CALL cp_warn(__LOCATION__, &

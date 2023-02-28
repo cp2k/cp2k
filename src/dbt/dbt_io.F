@@ -122,7 +122,7 @@ CONTAINS
    SUBROUTINE dbt_write_tensor_dist(tensor, unit_nr)
       TYPE(dbt_type), INTENT(IN) :: tensor
       INTEGER, INTENT(IN)            :: unit_nr
-      INTEGER                        :: nproc, myproc, nblock_max, nelement_max
+      INTEGER                        :: nproc, nblock_max, nelement_max
       INTEGER(KIND=int_8)            :: nblock_sum, nelement_sum, nblock_tot
       INTEGER                        :: nblock, nelement, unit_nr_prv
       INTEGER, DIMENSION(2)          :: tmp
@@ -132,7 +132,7 @@ CONTAINS
       unit_nr_prv = prep_output_unit(unit_nr)
       IF (unit_nr_prv == 0) RETURN
 
-      CALL tensor%pgrid%mp_comm_2d%environ(nproc, myproc)
+      nproc = tensor%pgrid%mp_comm_2d%num_pe
 
       nblock = dbt_get_num_blocks(tensor)
       nelement = dbt_get_nze(tensor)
@@ -180,7 +180,7 @@ CONTAINS
             DIMENSION(${shape_colon(ndim)}$)                :: blk_values_${ndim}$
       #:endfor
       TYPE(dbt_iterator_type)                        :: iterator
-      INTEGER                                            :: proc, mynode, numnodes
+      INTEGER                                            :: proc, mynode
       LOGICAL                                            :: found
 
       IF (io_unit_master > 0) THEN
@@ -190,7 +190,7 @@ CONTAINS
       DO WHILE (dbt_iterator_blocks_left(iterator))
          CALL dbt_iterator_next_block(iterator, blk_index, blk_size=blk_size)
          CALL dbt_get_stored_coordinates(tensor, blk_index, proc)
-         CALL tensor%pgrid%mp_comm_2d%environ(numnodes, mynode)
+         mynode = tensor%pgrid%mp_comm_2d%mepos
          CPASSERT(proc .EQ. mynode)
          #:for ndim in ndims
             IF (ndims_tensor(tensor) == ${ndim}$) THEN
@@ -274,7 +274,7 @@ CONTAINS
             INTEGER, INTENT(IN)                                :: io_unit_master, io_unit_all
             TYPE(dbt_iterator_type)                        :: iterator
             INTEGER, DIMENSION(ndims_tensor(tensor))          :: blk_index, blk_size
-            INTEGER                                            :: mynode, numnodes, proc
+            INTEGER                                            :: mynode, proc
 
             IF (io_unit_master > 0) THEN
                WRITE (io_unit_master, '(T7,A)') "(block index) @ process: size"
@@ -284,7 +284,7 @@ CONTAINS
             DO WHILE (dbt_iterator_blocks_left(iterator))
                CALL dbt_iterator_next_block(iterator, blk_index, blk_size=blk_size)
                CALL dbt_get_stored_coordinates(tensor, blk_index, proc)
-               CALL tensor%pgrid%mp_comm_2d%environ(numnodes, mynode)
+               mynode = tensor%pgrid%mp_comm_2d%mepos
                CPASSERT(proc .EQ. mynode)
                #:for ndim in ndims
                   IF (ndims_tensor(tensor) == ${ndim}$) THEN

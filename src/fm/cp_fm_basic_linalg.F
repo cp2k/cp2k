@@ -143,7 +143,7 @@ CONTAINS
          END IF
       END IF
       IF (my_beta .NE. 0.0_dp) THEN
-         IF (matrix_a%matrix_struct%context%group /= matrix_b%matrix_struct%context%group) &
+         IF (matrix_a%matrix_struct%context /= matrix_b%matrix_struct%context) &
             CPABORT("matrixes must be in the same blacs context")
 
          IF (cp_fm_struct_equivalent(matrix_a%matrix_struct, &
@@ -567,7 +567,7 @@ CONTAINS
       size_a = SIZE(a, 1)*SIZE(a, 2)
       norm = DDOT(size_a, a(1, 1), 1, a(1, 1), 1)
 #if defined(__SCALAPACK)
-      group = matrix_a%matrix_struct%para_env%group
+      group = matrix_a%matrix_struct%para_env
       CALL group%sum(norm)
 #endif
       norm = SQRT(norm)
@@ -718,7 +718,7 @@ CONTAINS
       nprow = context%num_pe(1)
       npcol = context%num_pe(2)
 
-      group = matrix_a%matrix_struct%para_env%group
+      group = matrix_a%matrix_struct%para_env
 
       a => matrix_a%local_data
       b => matrix_b%local_data
@@ -823,7 +823,7 @@ CONTAINS
          END DO
 !$OMP END PARALLEL DO
 
-         group = matrix_b%matrix_struct%para_env%group
+         group = matrix_b%matrix_struct%para_env
          CALL group%sum(trace)
 
          CALL timestop(handle)
@@ -907,7 +907,7 @@ CONTAINS
             END DO
 !$OMP END PARALLEL DO
 
-            group = matrix_a(1) ${appendix1}$%matrix_struct%para_env%group
+            group = matrix_a(1) ${appendix1}$%matrix_struct%para_env
             CALL group%sum(trace)
 
             CALL timestop(handle)
@@ -999,7 +999,7 @@ CONTAINS
             END DO
 !$OMP END PARALLEL DO
 
-            group = matrix_a(1, 1) ${appendix1}$%matrix_struct%para_env%group
+            group = matrix_a(1, 1) ${appendix1}$%matrix_struct%para_env
             CALL group%sum(trace)
 
             CALL timestop(handle)
@@ -1534,7 +1534,7 @@ CONTAINS
             END IF
             DEALLOCATE (diag)
 
-            group = matrix_lu%matrix_struct%para_env%group
+            group = matrix_lu%matrix_struct%para_env
             CALL group%sum(exponent_of_minus_one)
 
             determinant = determinant*(-1.0_dp)**exponent_of_minus_one
@@ -2432,7 +2432,7 @@ CONTAINS
             END IF
 
          END DO
-         CALL matrix_a%matrix_struct%para_env%group%sum(B)
+         CALL matrix_a%matrix_struct%para_env%sum(B)
       END IF
 
       CALL timestop(handle)

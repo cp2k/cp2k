@@ -14,8 +14,7 @@ MODULE rpa_gw_kpoints_util
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell,&
                                               pbc
-   USE cp_blacs_env,                    ONLY: cp_blacs_env_retain,&
-                                              cp_blacs_env_type
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_cholesky_decompose,&
                                               cp_cfm_cholesky_invert,&
                                               cp_cfm_column_scale,&
@@ -43,7 +42,6 @@ MODULE rpa_gw_kpoints_util
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
-   USE cp_para_env,                     ONLY: cp_para_env_retain
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_filter, &
@@ -459,7 +457,7 @@ CONTAINS
             CALL cp_fm_set_all(fm_mat_RI_global_work, 0.0_dp)
             CALL copy_dbcsr_to_fm(mat_P_omega_re, fm_mat_RI_global_work)
 
-            CALL para_env%group%sync()
+            CALL para_env%sync()
 
             IF (ikp_local == jkp) THEN
                CALL cp_fm_copy_general(fm_mat_RI_global_work, fm_mat_work, para_env)
@@ -467,7 +465,7 @@ CONTAINS
                CALL cp_fm_copy_general(fm_mat_RI_global_work, fm_dummy, para_env)
             END IF
 
-            CALL para_env%group%sync()
+            CALL para_env%sync()
 
          END DO
 
@@ -482,7 +480,7 @@ CONTAINS
             CALL cp_fm_set_all(fm_mat_RI_global_work, 0.0_dp)
             CALL copy_dbcsr_to_fm(mat_P_omega_im, fm_mat_RI_global_work)
 
-            CALL para_env%group%sync()
+            CALL para_env%sync()
 
             IF (ikp_local == jkp) THEN
                CALL cp_fm_copy_general(fm_mat_RI_global_work, fm_mat_work, para_env)
@@ -490,7 +488,7 @@ CONTAINS
                CALL cp_fm_copy_general(fm_mat_RI_global_work, fm_dummy, para_env)
             END IF
 
-            CALL para_env%group%sync()
+            CALL para_env%sync()
 
          END DO
 
@@ -500,7 +498,7 @@ CONTAINS
 
       END IF
 
-      CALL para_env%group%sync()
+      CALL para_env%sync()
 
       CALL timestop(handle)
 
@@ -556,7 +554,7 @@ CONTAINS
             END IF
          END DO
       END DO
-      CALL para_env%group%sum(trace_Qomega)
+      CALL para_env%sum(trace_Qomega)
 
       CALL cp_cfm_to_cfm(cfm_mat_Q, cfm_mat_Q_tmp)
 
@@ -621,7 +619,7 @@ CONTAINS
             END IF
          END DO
       END DO
-      CALL para_env%group%sum(Q_log)
+      CALL para_env%sum(Q_log)
 
       FComega = 0.0_dp
       DO iiB = 1, dimen_RI
@@ -1162,7 +1160,7 @@ CONTAINS
 
          DO jkp = 1, nkp
 
-            CALL para_env%group%sync()
+            CALL para_env%sync()
 
             IF (ikp_local == jkp) THEN
                CALL cp_fm_copy_general(fm_mat_work_local, fm_mat_work_global, para_env)
@@ -1170,7 +1168,7 @@ CONTAINS
                CALL cp_fm_copy_general(fm_dummy, fm_mat_work_global, para_env)
             END IF
 
-            CALL para_env%group%sync()
+            CALL para_env%sync()
 
             DO iquad = 1, num_integ_points
 
@@ -1622,11 +1620,7 @@ CONTAINS
       CALL calculate_kpoints_for_bs(kpoints, scheme, kpgeneral=kpgeneral, mp_grid=mp_grid, &
                                     group_size_ext=group_size_ext)
 
-      kpoints%para_env => para_env
-      CALL cp_para_env_retain(para_env)
-      kpoints%blacs_env_all => blacs_env
-      CALL cp_blacs_env_retain(blacs_env)
-      CALL kpoint_env_initialize(kpoints)
+      CALL kpoint_env_initialize(kpoints, para_env, blacs_env)
 
       ! calculate all MOs that are accessible in the given
       ! Gaussian AO basis, therefore nadd=1E10

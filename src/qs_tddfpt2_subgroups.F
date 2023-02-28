@@ -14,7 +14,6 @@ MODULE qs_tddfpt2_subgroups
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
-                                              cp_blacs_env_retain,&
                                               cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               qs_control_type,&
@@ -29,9 +28,7 @@ MODULE qs_tddfpt2_subgroups
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE cp_para_env,                     ONLY: cp_para_env_create,&
-                                              cp_para_env_release,&
-                                              cp_para_env_retain
+   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_create,&
                                               dbcsr_distribution_release,&
@@ -54,7 +51,6 @@ MODULE qs_tddfpt2_subgroups
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_comm_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
@@ -107,40 +103,38 @@ MODULE qs_tddfpt2_subgroups
       !> indicates that the global MPI communicator has been split into subgroups; if it is .FALSE.
       !> certain components of the structure (blacs_env, para_env, admm_A, and mos_occ)
       !> can still be accessed; in this case they simply point to the corresponding global variables
-      LOGICAL                                            :: is_split
-      !> MPI communicator of the current parallel group
-      TYPE(mp_comm_type)                                 :: mpi_comm
+      LOGICAL                                            :: is_split = .FALSE.
       !> number of parallel groups
-      INTEGER                                            :: ngroups
+      INTEGER                                            :: ngroups = -1
       !> group_distribution(0:ngroups-1) : a process with rank 'i' belongs to the parallel group
       !> with index 'group_distribution(i)'
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: group_distribution
       !> group-specific BLACS parallel environment
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env => NULL()
       !> group-specific MPI parallel environment
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env => NULL()
       !> occupied MOs stored in a matrix form [nao x nmo_occ(spin)] distributed across processes
       !> in the parallel group
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)      :: mos_occ
       !> group-specific copy of the ADMM A matrix 'admm_type%A'
-      TYPE(cp_fm_type), POINTER                          :: admm_A
+      TYPE(cp_fm_type), POINTER                          :: admm_A => NULL()
       !
       !> indicates that a set of multi-grids has been allocated; if it is .FALSE. all the components
       !> below point to the corresponding global variables and can be accessed
-      LOGICAL                                            :: is_mgrid
+      LOGICAL                                            :: is_mgrid = .FALSE.
       !> group-specific DBCSR distribution
-      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist => NULL()
       !> group-specific two-dimensional distribution of pairs of particles
-      TYPE(distribution_2d_type), POINTER                :: dist_2d
+      TYPE(distribution_2d_type), POINTER                :: dist_2d => NULL()
       !> group-specific plane wave environment
-      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_env_type), POINTER                         :: pw_env => NULL()
       !> lists of neighbours in auxiliary and primary basis sets
       TYPE(neighbor_list_set_p_type), &
-         DIMENSION(:), POINTER                           :: sab_aux_fit, sab_orb
+         DIMENSION(:), POINTER                           :: sab_aux_fit => NULL(), sab_orb => NULL()
       !> task lists in auxiliary and primary basis sets
-      TYPE(task_list_type), POINTER                      :: task_list_aux_fit, task_list_orb
+      TYPE(task_list_type), POINTER                      :: task_list_aux_fit => NULL(), task_list_orb => NULL()
       !> soft task lists in auxiliary and primary basis sets
-      TYPE(task_list_type), POINTER                      :: task_list_aux_fit_soft, task_list_orb_soft
+      TYPE(task_list_type), POINTER                      :: task_list_aux_fit_soft => NULL(), task_list_orb_soft => NULL()
       !> GAPW local atomic grids
       TYPE(hartree_local_type), POINTER                  :: hartree_local => NULL()
       TYPE(local_rho_type), POINTER                      :: local_rho_set => NULL()
@@ -226,12 +220,12 @@ CONTAINS
       IF (sub_env%is_split) THEN
          ALLOCATE (sub_env%group_distribution(0:para_env_global%num_pe - 1))
 
-         CALL sub_env%mpi_comm%from_split(comm=para_env_global%group, ngroups=sub_env%ngroups, &
+         ALLOCATE (sub_env%para_env)
+         CALL sub_env%para_env%from_split(comm=para_env_global, ngroups=sub_env%ngroups, &
                                           group_distribution=sub_env%group_distribution, subgroup_min_size=tddfpt_control%nprocs)
 
          ! ++ create a new parallel environment based on the given sub-communicator)
-         NULLIFY (sub_env%blacs_env, sub_env%para_env)
-         CALL cp_para_env_create(sub_env%para_env, sub_env%mpi_comm)
+         NULLIFY (sub_env%blacs_env)
 
          ! use the default (SQUARE) BLACS grid layout and non-repeatable BLACS collective operations
          ! by omitting optional parameters 'blacs_grid_layout' and 'blacs_repeatable'.
@@ -261,10 +255,10 @@ CONTAINS
             CALL tddfpt_fm_replicate_across_subgroups(fm_src=admm_env%A, fm_dest_sub=sub_env%admm_A, sub_env=sub_env)
          END IF
       ELSE
-         CALL cp_para_env_retain(para_env_global)
+         CALL para_env_global%retain()
          sub_env%para_env => para_env_global
 
-         CALL cp_blacs_env_retain(blacs_env_global)
+         CALL blacs_env_global%retain()
          sub_env%blacs_env => blacs_env_global
 
          sub_env%mos_occ(:) = mos_occ(:)
@@ -479,8 +473,6 @@ CONTAINS
       CALL cp_blacs_env_release(sub_env%blacs_env)
       CALL cp_para_env_release(sub_env%para_env)
 
-      ! do not need to call mp_comm_free() as the MPI sub-communicator sub_env%mpi_comm
-      ! has already been released by the subroutine cp_para_env_release()
       IF (ALLOCATED(sub_env%group_distribution)) &
          DEALLOCATE (sub_env%group_distribution)
 

@@ -854,7 +854,7 @@ CONTAINS
             ecore_ppl = ecore_ppl + &
                         SUM(vppl_rspace%cr3d*rho_r(ispin)%cr3d)*vppl_rspace%pw_grid%dvol
          END DO
-         CALL para_env%group%sum(ecore_ppl)
+         CALL para_env%sum(ecore_ppl)
          energy%core = energy%core + ecore_ppl
       END IF
 

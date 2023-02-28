@@ -461,7 +461,7 @@ CONTAINS
             IF (para_env%mepos == 0) THEN
                CALL open_file(unit_number=unit_id, file_name=potential_parameter%filename)
             END IF
-            CALL init(m_max, unit_id, para_env%mepos, para_env%group)
+            CALL init(m_max, unit_id, para_env%mepos, para_env)
             IF (para_env%mepos == 0) THEN
                CALL close_file(unit_id)
             END IF
@@ -980,8 +980,8 @@ CONTAINS
       CALL neighbor_list_iterator_release(ab_iter)
       CALL neighbor_list_iterator_release(ac_iter)
 
-      CALL para_env%group%sum(row_cost)
-      CALL para_env%group%sum(col_cost)
+      CALL para_env%sum(row_cost)
+      CALL para_env%sum(col_cost)
 
       !Distribute the cost as evenly as possible
       ALLOCATE (col_proc_cost(npcol), row_proc_cost(nprow))
@@ -1128,7 +1128,7 @@ CONTAINS
 
       !not strictly necessary but avoid having any load unbalance here being reported in the
       !timings for other routines
-      CALL para_env%group%sync()
+      CALL para_env%sync()
 
       CALL timestop(handle)
 
@@ -1218,7 +1218,7 @@ CONTAINS
 
       !not strictly necessary but avoid having any load unbalance here being reported in the
       !timings for other routines
-      CALL para_env%group%sync()
+      CALL para_env%sync()
 
       CALL timestop(handle)
 
@@ -1286,7 +1286,7 @@ CONTAINS
             IF (para_env%mepos == 0) THEN
                CALL open_file(unit_number=unit_id, file_name=xas_tdp_control%ri_m_potential%filename)
             END IF
-            CALL init(2*maxl + 1, unit_id, para_env%mepos, para_env%group)
+            CALL init(2*maxl + 1, unit_id, para_env%mepos, para_env)
             IF (para_env%mepos == 0) THEN
                CALL close_file(unit_id)
             END IF
@@ -1338,7 +1338,7 @@ CONTAINS
             IF (para_env%mepos == 0) THEN
                CALL open_file(unit_number=unit_id, file_name=xas_tdp_control%x_potential%filename)
             END IF
-            CALL init(2*maxl + 1, unit_id, para_env%mepos, para_env%group)
+            CALL init(2*maxl + 1, unit_id, para_env%mepos, para_env)
             IF (para_env%mepos == 0) THEN
                CALL close_file(unit_id)
             END IF

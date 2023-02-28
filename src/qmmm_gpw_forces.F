@@ -285,9 +285,9 @@ CONTAINS
       IF (need_f) THEN
          !ikuo Temporary change to alleviate compiler problems on Intel with
          !array dimension of 0
-         IF (qmmm_env%num_mm_atoms /= 0) CALL para_env%group%sum(Forces)
-         IF (qmmm_env%added_charges%num_mm_atoms /= 0) CALL para_env%group%sum(Forces_added_charges)
-         IF (qmmm_env%added_shells%num_mm_atoms /= 0) CALL para_env%group%sum(Forces_added_shells)
+         IF (qmmm_env%num_mm_atoms /= 0) CALL para_env%sum(Forces)
+         IF (qmmm_env%added_charges%num_mm_atoms /= 0) CALL para_env%sum(Forces_added_charges)
+         IF (qmmm_env%added_shells%num_mm_atoms /= 0) CALL para_env%sum(Forces_added_shells)
          ! Debug Forces
          IF (debug_this_module) THEN
             IF (dft_control%qs_control%semi_empirical .OR. &
@@ -515,7 +515,7 @@ CONTAINS
       END IF
       ! Further setup of parallelization scheme
       IF (qmmm_env%par_scheme == do_par_atom) THEN
-         CALL para_env%group%sum(grids(auxbas_grid)%cr3d)
+         CALL para_env%sum(grids(auxbas_grid)%cr3d)
       END IF
       ! RealSpace Interpolation
       CALL section_vals_val_get(interp_section, "kind", i_val=kind_interp)

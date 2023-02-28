@@ -156,7 +156,7 @@ CONTAINS
                pot_manybody = pot_manybody + embed
             END DO
             ! communicate data
-            CALL para_env%group%sum(fembed)
+            CALL para_env%sum(fembed)
             DO iparticle = 1, nparticle
                IF (particle_set(iparticle)%atomic_kind%kind_number == ikind) THEN
                   eam_data(iparticle)%f_embed = fembed(iparticle)

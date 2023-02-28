@@ -195,7 +195,7 @@ CONTAINS
                              do_stress=.FALSE., do_efield=.TRUE., iw2=iw2, do_debug=.FALSE., &
                              atomic_kind_set=atomic_kind_set, mm_section=mm_section, &
                              efield1=efield1, efield2=efield2)
-         CALL logger%para_env%group%sum(pot_nonbond_local)
+         CALL logger%para_env%sum(pot_nonbond_local)
 
          ! compute the new dipoles, qudrupoles, and check for convergence
          ntot = 0
@@ -288,7 +288,7 @@ CONTAINS
                           forces_local=fg_coulomb, forces_glob=f_nonbond, &
                           pv_local=pv_g, pv_glob=pv_nonbond)
       pot_nonbond = pot_nonbond + pot_nonbond_local
-      CALL logger%para_env%group%sum(pot_nonbond_local)
+      CALL logger%para_env%sum(pot_nonbond_local)
 
       IF (iw > 0) THEN
          ! print the energy that is minimized (this is electrostatic + induction)
@@ -620,7 +620,7 @@ CONTAINS
                              pv_local=pv_g, pv_glob=pv_nonbond)
       END IF
       pot_nonbond = pot_nonbond + pot_nonbond_local
-      CALL logger%para_env%group%sum(pot_nonbond_local)
+      CALL logger%para_env%sum(pot_nonbond_local)
 
       IF (iw > 0) WRITE (iw, FMT="(T2,A,T61,F20.10)") "POL_SCF| Final", &
          vg_coulomb + pot_nonbond_local + thermo%e_induction

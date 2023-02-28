@@ -94,10 +94,10 @@ CONTAINS
       NULLIFY (logger)
       logger => cp_get_default_logger()
       IF (PRESENT(para_env)) THEN
-         group = para_env%group
+         group = para_env
          do_io = .FALSE. !subgroups completely mess up the output file
       ELSE
-         group = logger%para_env%group
+         group = logger%para_env
          do_io = .TRUE.
       END IF
 

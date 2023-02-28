@@ -131,8 +131,8 @@ CONTAINS
                   mtot = mtot + mass
                END DO
             END DO
-            CALL para_env%group%sum(rpoint)
-            CALL para_env%group%sum(mtot)
+            CALL para_env%sum(rpoint)
+            CALL para_env%sum(mtot)
          END IF
          IF (ABS(mtot) > 0._dp) THEN
             rpoint(:) = rpoint(:)/mtot
@@ -177,8 +177,8 @@ CONTAINS
                   ztot = ztot + charge
                END DO
             END DO
-            CALL para_env%group%sum(rpoint)
-            CALL para_env%group%sum(ztot)
+            CALL para_env%sum(rpoint)
+            CALL para_env%sum(ztot)
          END IF
          IF (ABS(ztot) > 0._dp) THEN
             rpoint(:) = rpoint(:)/ztot

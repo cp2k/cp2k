@@ -119,13 +119,13 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dbt_tas_multiply'
 
-      INTEGER :: batched_repl, handle, handle2, handle3, handle4, iproc, max_mm_dim, &
-         max_mm_dim_batched, nsplit, nsplit_batched, nsplit_opt, numproc, numproc_sub, split_a, &
-         split_b, split_c, split_rc, unit_nr_prv
+      INTEGER :: batched_repl, handle, handle2, handle3, handle4, max_mm_dim, max_mm_dim_batched, &
+         nsplit, nsplit_batched, nsplit_opt, numproc, split_a, split_b, split_c, split_rc, &
+         unit_nr_prv
       INTEGER(KIND=int_8)                                :: nze_a, nze_b, nze_c, nze_c_sum
       INTEGER(KIND=int_8), DIMENSION(2)                  :: dims_a, dims_b, dims_c
       INTEGER(KIND=int_8), DIMENSION(3)                  :: dims
-      INTEGER, DIMENSION(2)                              :: pcoord, pcoord_sub, pdims, pdims_sub
+      INTEGER, DIMENSION(2)                              :: pdims, pdims_sub
       LOGICAL :: do_batched, move_a, move_b, new_a, new_b, new_c, nodata_3, opt_pgrid, &
          simple_split_prv, tr_case, transa_prv, transb_prv, transc_prv
       REAL(KIND=dp)                                      :: filter_eps_prv
@@ -252,7 +252,7 @@ CONTAINS
       END IF
 
       CALL dbt_tas_get_split_info(dbt_tas_info(matrix_a), mp_comm=mp_comm)
-      CALL mp_comm%environ(numproc, iproc)
+      numproc = mp_comm%num_pe
 
       ! derive optimal matrix layout and split factor from occupancies
       nze_a = dbt_tas_get_nze_total(matrix_a)
@@ -405,8 +405,8 @@ CONTAINS
 
       CALL dbt_tas_get_split_info(info, nsplit=nsplit, mp_comm=mp_comm, mp_comm_group=mp_comm_group)
 
-      CALL mp_comm%environ_cart(numproc, pdims, pcoord)
-      CALL mp_comm_group%environ_cart(numproc_sub, pdims_sub, pcoord_sub)
+      numproc = mp_comm%num_pe
+      pdims_sub = mp_comm_group%num_pe_cart
 
       opt_pgrid = .NOT. accept_pgrid_dims(pdims_sub, relative=.TRUE.)
 
@@ -434,7 +434,7 @@ CONTAINS
       END IF
 
       pdims = 0
-      CALL mp_comm_mm%create(mp_comm_group, 2, pdims, pcoord)
+      CALL mp_comm_mm%create(mp_comm_group, 2, pdims)
 
       ! Convert DBM submatrices to optimized process grids and multiply
       SELECT CASE (max_mm_dim)
@@ -835,9 +835,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'reshape_mm_small'
 
-      INTEGER                                            :: handle, numnodes
+      INTEGER                                            :: handle
       INTEGER(KIND=int_8), DIMENSION(2)                  :: dims
-      INTEGER, DIMENSION(2)                              :: pcoord, pdims
+      INTEGER, DIMENSION(2)                              :: pdims
       LOGICAL                                            :: nodata_prv
       TYPE(dbt_tas_dist_arb)                             :: new_col_dist, new_row_dist
       TYPE(dbt_tas_distribution_type)                    :: dist
@@ -850,7 +850,7 @@ CONTAINS
          nodata_prv = .FALSE.
       END IF
 
-      CALL mp_comm%environ_cart(numnodes, pdims, pcoord)
+      pdims = mp_comm%num_pe_cart
 
       dims = [dbt_tas_nblkrows_total(matrix_in), dbt_tas_nblkcols_total(matrix_in)]
 
@@ -917,11 +917,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reshape_mm_compatible'
 
-      INTEGER                                            :: handle, nsplit_prv, numnodes, ref, &
-                                                            split_rc_ref, unit_nr_prv
+      INTEGER                                            :: handle, nsplit_prv, ref, split_rc_ref, &
+                                                            unit_nr_prv
       INTEGER(KIND=int_8)                                :: d1, d2, nze1, nze2
       INTEGER(KIND=int_8), DIMENSION(2)                  :: dims1, dims2, dims_ref
-      INTEGER, DIMENSION(2)                              :: pcoord, pdims
+      INTEGER, DIMENSION(2)                              :: pdims
       LOGICAL                                            :: nodata1_prv, nodata2_prv, &
                                                             optimize_dist_prv, trans1_newdist, &
                                                             trans2_newdist
@@ -1050,7 +1050,7 @@ CONTAINS
             comm_new = dbt_tas_mp_comm(mp_comm, rowsplit, nsplit_prv)
             CALL dbt_tas_create_split(split_info, comm_new, rowsplit, nsplit_prv)
 
-            CALL comm_new%environ_cart(numnodes, pdims, pcoord)
+            pdims = comm_new%num_pe_cart
 
             ! use a very simple cyclic distribution that may not be load balanced if block
             ! sizes are not equal. However we can not use arbitrary distributions
@@ -1242,7 +1242,7 @@ CONTAINS
                                                             split_check_a, split_check_b, &
                                                             unit_nr_prv
       INTEGER(int_8), ALLOCATABLE, DIMENSION(:)          :: local_rowcols_a, local_rowcols_b
-      INTEGER, DIMENSION(2)                              :: pcoord_a, pcoord_b, pdims_a, pdims_b
+      INTEGER, DIMENSION(2)                              :: pdims_a, pdims_b
       TYPE(dbt_tas_split_info)                           :: info_a, info_b
 
       unit_nr_prv = prep_output_unit(unit_nr)
@@ -1264,8 +1264,9 @@ CONTAINS
       ! check if communicators are equivalent
       ! Note: mpi_comm_compare is not sufficient since this does not compare associated Cartesian grids.
       ! It's sufficient to check dimensions of global grid, subgrids will be determined later on (change_split)
-      CALL info_a%mp_comm%environ_cart(numproc, pdims_a, pcoord_a)
-      CALL info_b%mp_comm%environ_cart(numproc, pdims_b, pcoord_b)
+      numproc = info_b%mp_comm%num_pe
+      pdims_a = info_a%mp_comm%num_pe_cart
+      pdims_b = info_b%mp_comm%num_pe_cart
       IF (.NOT. array_eq(pdims_a, pdims_b)) THEN
          IF (unit_nr_prv > 0) THEN
             WRITE (unit_nr_prv, *) "mp dims not compatible:", pdims_a, "|", pdims_b
@@ -1323,8 +1324,8 @@ CONTAINS
       TYPE(dbt_tas_distribution_type)          :: dist_new
       TYPE(dbt_tas_split_info)                 :: info_template, info_matrix
       INTEGER                                    :: dim_split_template, dim_split_matrix, &
-                                                    numnodes, handle
-      INTEGER, DIMENSION(2)                      :: pcoord, pdims
+                                                    handle
+      INTEGER, DIMENSION(2)                      :: pdims
       LOGICAL                                    :: nodata_prv, transposed
       TYPE(mp_cart_type) :: mp_comm
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reshape_mm_template'
@@ -1346,7 +1347,7 @@ CONTAINS
       transposed = dim_split_template .NE. dim_split_matrix
       IF (transposed) trans = .NOT. trans
 
-      CALL info_template%mp_comm%environ_cart(numnodes, pdims, pcoord)
+      pdims = info_template%mp_comm%num_pe_cart
 
       SELECT CASE (dim_split_template)
       CASE (1)
@@ -1582,9 +1583,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'convert_to_new_pgrid'
 
       CHARACTER(len=default_string_length)               :: name
-      INTEGER                                            :: handle, nbcols, nbrows, nproc
+      INTEGER                                            :: handle, nbcols, nbrows
       INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_dist, rbsize, rcsize, row_dist
-      INTEGER, DIMENSION(2)                              :: pcoord, pdims
+      INTEGER, DIMENSION(2)                              :: pdims
       LOGICAL                                            :: nodata_prv, optimize_pgrid_prv
       TYPE(dbm_distribution_obj)                         :: dist, dist_old
 
@@ -1618,7 +1619,7 @@ CONTAINS
       nbrows = SIZE(rbsize)
       nbcols = SIZE(rcsize)
       dist_old = dbm_get_distribution(matrix_in)
-      CALL mp_comm_cart%environ_cart(nproc, pdims, pcoord)
+      pdims = mp_comm_cart%num_pe_cart
 
       ALLOCATE (row_dist(nbrows), col_dist(nbcols))
       CALL dbt_tas_default_distvec(nbrows, pdims(1), rbsize, row_dist)

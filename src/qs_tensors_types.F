@@ -97,9 +97,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'distribution_3d_create'
 
-      INTEGER                                            :: handle, nproc_1, nproc_2
-      INTEGER, DIMENSION(2)                              :: mp_coor_1, mp_coor_2, mp_dims_1, &
-                                                            mp_dims_2
+      INTEGER                                            :: handle
+      INTEGER, DIMENSION(2)                              :: mp_coor_1, mp_coor_2
       TYPE(mp_cart_type)                                 :: comm_2d_1, comm_2d_2
 
       CALL timeset(routineN, handle)
@@ -114,8 +113,8 @@ CONTAINS
       CALL comm_2d_1%from_sub(mp_comm_3d, [.TRUE., .TRUE., .FALSE.])
       CALL comm_2d_2%from_sub(mp_comm_3d, [.FALSE., .TRUE., .TRUE.])
 
-      CALL comm_2d_1%environ_cart(nproc_1, mp_dims_1, mp_coor_1)
-      CALL comm_2d_2%environ_cart(nproc_2, mp_dims_2, mp_coor_2)
+      mp_coor_1 = comm_2d_1%mepos_cart
+      mp_coor_2 = comm_2d_2%mepos_cart
 
       CPASSERT(mp_coor_1(2) == mp_coor_2(1))
 
@@ -170,7 +169,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_create'
 
-      INTEGER                                            :: handle, iatom, ikind, n, natom, nproc
+      INTEGER                                            :: handle, iatom, ikind, n, natom
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nparticle_local_col, nparticle_local_row
       INTEGER, DIMENSION(2)                              :: mp_coor, mp_dims
       INTEGER, DIMENSION(:, :), POINTER                  :: dist1_prv, dist2_prv
@@ -182,7 +181,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL mp_comm_2d%environ_cart(nproc, mp_dims, mp_coor)
+      mp_dims = mp_comm_2d%num_pe_cart
+      mp_coor = mp_comm_2d%mepos_cart
       ALLOCATE (para_env)
       para_env = mp_comm_2d
       CALL cp_blacs_env_create(blacs_env, para_env, &

@@ -20,8 +20,7 @@ MODULE md_environment_types
    USE barostat_types,                  ONLY: barostat_type,&
                                               release_barostat_type
    USE cell_types,                      ONLY: cell_type
-   USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                              cp_para_env_retain
+   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE extended_system_types,           ONLY: npt_info_type
    USE force_env_types,                 ONLY: force_env_release,&
@@ -114,7 +113,7 @@ CONTAINS
       NULLIFY (md_env%averages)
       NULLIFY (md_env%thermal_regions)
       md_env%para_env => para_env
-      CALL cp_para_env_retain(md_env%para_env)
+      CALL md_env%para_env%retain()
       ALLOCATE (md_env%itimes)
       ALLOCATE (md_env%constant)
       ALLOCATE (md_env%used_time)

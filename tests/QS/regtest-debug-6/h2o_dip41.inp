@@ -5,7 +5,11 @@
        KERNEL FULL
        NSTATES      1
        MAX_ITER    50
-       CONVERGENCE [eV] 1.0e-7
+       CONVERGENCE [eV] 1.0e-10
+       &XC
+         &XC_FUNCTIONAL PADE
+         &END XC_FUNCTIONAL
+       &END XC
     &END TDDFPT
   &END PROPERTIES
   &DFT
@@ -24,20 +28,21 @@
        STATE 1
     &END EXCITED_STATES
     &SCF
-      SCF_GUESS RESTART
+      SCF_GUESS ATOMIC
       &OT
-         PRECONDITIONER FULL_SINGLE_INVERSE
+         PRECONDITIONER FULL_ALL
          MINIMIZER DIIS
+         STEPSIZE 0.1
       &END
       &OUTER_SCF
          MAX_SCF  20
          EPS_SCF 1.0E-7
       &END
-      MAX_SCF  10
+      MAX_SCF  20
       EPS_SCF 1.0E-7
     &END SCF
     &XC
-      &XC_FUNCTIONAL PADE
+      &XC_FUNCTIONAL PBE
       &END XC_FUNCTIONAL
     &END XC
     &PRINT
@@ -85,8 +90,9 @@
    DEBUG_FORCES .FALSE.
    DEBUG_STRESS_TENSOR .FALSE.
    DEBUG_DIPOLE .TRUE.
+   CHECK_DIPOLE_DIRS Z
    DEBUG_POLARIZABILITY .FALSE.
-   DE 0.001
+   DE 0.002
 &END
  
 

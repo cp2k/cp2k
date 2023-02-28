@@ -441,7 +441,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(results))
       nlist = 0
       IF (para_env%mepos == source) nlist = SIZE(results%result_value)
-      CALL para_env%group%bcast(nlist, source)
+      CALL para_env%bcast(nlist, source)
 
       ALLOCATE (size_value(nlist))
       ALLOCATE (type_in_use(nlist))
@@ -451,8 +451,8 @@ CONTAINS
                            n_entries=size_value(i), type_in_use=type_in_use(i))
          END DO
       END IF
-      CALL para_env%group%bcast(size_value, source)
-      CALL para_env%group%bcast(type_in_use, source)
+      CALL para_env%bcast(size_value, source)
+      CALL para_env%bcast(type_in_use, source)
 
       IF (para_env%mepos /= source) THEN
          CALL cp_result_clean(results)
@@ -467,14 +467,14 @@ CONTAINS
          END DO
       END IF
       DO i = 1, nlist
-         CALL para_env%group%bcast(results%result_label(i), source)
+         CALL para_env%bcast(results%result_label(i), source)
          SELECT CASE (results%result_value(i)%value%type_in_use)
          CASE (result_type_real)
-            CALL para_env%group%bcast(results%result_value(i)%value%real_type, source)
+            CALL para_env%bcast(results%result_value(i)%value%real_type, source)
          CASE (result_type_integer)
-            CALL para_env%group%bcast(results%result_value(i)%value%integer_type, source)
+            CALL para_env%bcast(results%result_value(i)%value%integer_type, source)
          CASE (result_type_logical)
-            CALL para_env%group%bcast(results%result_value(i)%value%logical_type, source)
+            CALL para_env%bcast(results%result_value(i)%value%logical_type, source)
          CASE DEFAULT
             CPABORT("Type not implemented in cp_result_type")
          END SELECT

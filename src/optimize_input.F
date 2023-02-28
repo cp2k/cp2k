@@ -164,7 +164,7 @@ CONTAINS
          ALLOCATABLE, DIMENSION(:, :)                    :: initial_variables
       INTEGER :: color, energies_unit, handle, history_unit, i_atom, i_el, i_frame, i_free_var, &
          i_var, ierr, mepos_master, mepos_slave, n_atom, n_el, n_frames, n_free_var, n_groups, &
-         n_var, new_env_id, num_pe_master, num_pe_slave, output_unit, restart_unit, state
+         n_var, new_env_id, num_pe_master, output_unit, restart_unit, state
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: free_var_index
       INTEGER, DIMENSION(:), POINTER                     :: group_distribution
       LOGICAL                                            :: should_stop
@@ -226,14 +226,14 @@ CONTAINS
       ALLOCATE (energy_var(n_frames), force_var(3, n_atom, n_frames))
 
       ! split the para_env in a set of sub_para_envs that will do the force_env communications
-      mpi_comm_master = para_env%group
+      mpi_comm_master = para_env
       num_pe_master = para_env%num_pe
       mepos_master = para_env%mepos
       ALLOCATE (group_distribution(0:num_pe_master - 1))
       IF (oi_env%fm_env%group_size > para_env%num_pe) oi_env%fm_env%group_size = para_env%num_pe
 
       CALL mpi_comm_slave%from_split(mpi_comm_master, n_groups, group_distribution, subgroup_min_size=oi_env%fm_env%group_size)
-      CALL mpi_comm_slave%environ(num_pe_slave, mepos_slave)
+      mepos_slave = mpi_comm_slave%mepos
       color = 0
       IF (mepos_slave == 0) color = 1
       CALL mpi_comm_slave_primus%from_split(mpi_comm_master, color)
@@ -266,7 +266,7 @@ CONTAINS
       shift_mm = oi_env%fm_env%shift_mm
       shift_qm = oi_env%fm_env%shift_qm
 
-      IF (para_env%mepos == para_env%source) THEN
+      IF (para_env%is_source()) THEN
          ostate%nf = 0
          ostate%nvar = n_free_var
          ostate%rhoend = oi_env%rhoend
@@ -303,8 +303,8 @@ CONTAINS
       DO
 
          ! globalize the state
-         IF (para_env%mepos == para_env%source) state = ostate%state
-         CALL para_env%group%bcast(state, para_env%source)
+         IF (para_env%is_source()) state = ostate%state
+         CALL para_env%bcast(state, para_env%source)
 
          ! if required get the energy of this set of params
          IF (state == 2) THEN
@@ -373,7 +373,7 @@ CONTAINS
             END IF
 
             ! now evaluate the target function to be minimized (only valid on mepos_slave==0)
-            IF (para_env%mepos == para_env%source) THEN
+            IF (para_env%is_source()) THEN
                rf = SQRT(SUM((force_var - force_traj)**2)/(REAL(n_frames, KIND=dp)*REAL(n_atom, KIND=dp)))
                IF (oi_env%fm_env%shift_average) THEN
                   shift_mm = SUM(energy_var)/n_frames
@@ -448,24 +448,24 @@ CONTAINS
          IF (should_stop) EXIT
 
          ! do a powell step if needed
-         IF (para_env%mepos == para_env%source) THEN
+         IF (para_env%is_source()) THEN
             CALL powell_optimize(ostate%nvar, free_vars, ostate)
          END IF
-         CALL para_env%group%bcast(free_vars, para_env%source)
+         CALL para_env%bcast(free_vars, para_env%source)
 
       END DO
 
       ! finally, get the best set of variables
-      IF (para_env%mepos == para_env%source) THEN
+      IF (para_env%is_source()) THEN
          ostate%state = 8
          CALL powell_optimize(ostate%nvar, free_vars, ostate)
       END IF
-      CALL para_env%group%bcast(free_vars, para_env%source)
+      CALL para_env%bcast(free_vars, para_env%source)
       DO i_free_var = 1, n_free_var
          WRITE (initial_variables(2, free_var_index(i_free_var)), *) free_vars(i_free_var)
          oi_env%variables(free_var_index(i_free_var))%value = free_vars(i_free_var)
       END DO
-      IF (para_env%mepos == para_env%source) THEN
+      IF (para_env%is_source()) THEN
          WRITE (output_unit, '(T2,A)') ''
          WRITE (output_unit, '(T2,A,T60,F20.12)') 'FORCE_MATCHING| optimal function value found so far:', ostate%fopt
          WRITE (output_unit, '(T2,A)') 'FORCE_MATCHING| optimal variables found so far:'

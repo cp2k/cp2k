@@ -312,7 +312,7 @@ CONTAINS
       ch_dens = 0.0_dp
       ! should use pw_integrate
       IF (rho_tot_g%pw_grid%have_g0) ch_dens = REAL(rho_tot_g%cc(1), KIND=dp)
-      CALL logger%para_env%group%sum(ch_dens)
+      CALL logger%para_env%sum(ch_dens)
       !
       ! Get Input Parameters
       !

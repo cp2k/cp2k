@@ -193,7 +193,7 @@ CONTAINS
 
       ELSE
          CPASSERT(PRESENT(matrix_b))
-         IF (matrix_a%matrix_struct%context%group /= matrix_b%matrix_struct%context%group) &
+         IF (matrix_a%matrix_struct%context /= matrix_b%matrix_struct%context) &
             CPABORT("matrixes must be in the same blacs context")
 
          IF (cp_fm_struct_equivalent(matrix_a%matrix_struct, &
@@ -300,7 +300,7 @@ CONTAINS
          END IF
 
       ELSE
-         IF (matrix_a%matrix_struct%context%group /= matrix_b%matrix_struct%context%group) &
+         IF (matrix_a%matrix_struct%context /= matrix_b%matrix_struct%context) &
             CPABORT("matrices must be in the same blacs context")
 
          IF (cp_fm_struct_equivalent(matrix_a%matrix_struct, &
@@ -426,7 +426,7 @@ CONTAINS
             icol = icol + 1
          END IF
       END DO
-      CALL matrix_a%matrix_struct%para_env%group%prod(determinant)
+      CALL matrix_a%matrix_struct%para_env%prod(determinant)
 #else
       lda = SIZE(a, 1)
       CALL zgetrf(nrow_global, nrow_global, a(1, 1), lda, ipivot, info)
@@ -714,7 +714,7 @@ CONTAINS
                icol = icol + 1
             END IF
          END DO
-         CALL matrix_a%matrix_struct%para_env%group%prod(determinant)
+         CALL matrix_a%matrix_struct%para_env%prod(determinant)
       END IF
 
       CALL pzgetrs("N", nrow_global, nrow_global, a(1, 1), 1, 1, desca, &
@@ -964,7 +964,7 @@ CONTAINS
       nprow = context%num_pe(1)
       npcol = context%num_pe(2)
 
-      group = matrix_a%matrix_struct%para_env%group
+      group = matrix_a%matrix_struct%para_env
 
       nrow_local = MIN(matrix_a%matrix_struct%nrow_locals(myprow), matrix_b%matrix_struct%nrow_locals(myprow))
       ncol_local = MIN(matrix_a%matrix_struct%ncol_locals(mypcol), matrix_b%matrix_struct%ncol_locals(mypcol))

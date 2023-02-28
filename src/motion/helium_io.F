@@ -197,7 +197,7 @@ CONTAINS
       logger => cp_get_default_logger()
       my_label = "HELIUM| "
 
-      IF (logger%para_env%ionode) THEN
+      IF (logger%para_env%is_source()) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger)
 
          WRITE (unit_nr, *)
@@ -451,7 +451,7 @@ CONTAINS
       logger => cp_get_default_logger()
       my_label = "HELIUM|"
 
-      IF (logger%para_env%ionode) THEN
+      IF (logger%para_env%is_source()) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger)
          WRITE (unit_nr, '(T2,A)') TRIM(my_label)//" "//TRIM(line)
       END IF
@@ -485,7 +485,7 @@ CONTAINS
       NULLIFY (logger, print_key)
       logger => cp_get_default_logger()
 
-      IF (logger%para_env%ionode) THEN
+      IF (logger%para_env%is_source()) THEN
          print_key => section_vals_get_subs_vals(helium_env(1)%helium%input, &
                                                  "MOTION%PINT%HELIUM%PRINT%ENERGY")
          should_output = BTEST(cp_print_key_should_output( &
@@ -517,7 +517,7 @@ CONTAINS
          CALL helium_env(1)%comm%sum(naccptd)
          CALL helium_env(1)%comm%sum(ntot)
 
-         IF (logger%para_env%ionode) THEN
+         IF (logger%para_env%is_source()) THEN
             my_energy => helium_env(1)%helium%energy_avrg
             iteration = logger%iter_info%iteration(2)
 
@@ -659,7 +659,7 @@ CONTAINS
                 file_position=my_fpos, &
                 is_new_file=is_new)
 
-      IF (logger%para_env%ionode) THEN
+      IF (logger%para_env%is_source()) THEN
 
          IF (is_new) THEN
             ! comment
@@ -734,7 +734,7 @@ CONTAINS
       NULLIFY (logger, print_key)
       logger => cp_get_default_logger()
 
-      IF (logger%para_env%ionode) THEN
+      IF (logger%para_env%is_source()) THEN
          print_key => section_vals_get_subs_vals(helium_env(1)%helium%input, &
                                                  "MOTION%PINT%HELIUM%PRINT%ACCEPTS")
          should_output = BTEST(cp_print_key_should_output( &
@@ -849,7 +849,7 @@ CONTAINS
 
       CALL helium_env(1)%comm%sum(helium_env(1)%helium%itmp_atoms_np_1d)
 
-      IF (logger%para_env%ionode) THEN
+      IF (logger%para_env%is_source()) THEN
 
          ! iterate over helium environments
          DO irank = 1, helium_env(1)%helium%num_env
@@ -1043,7 +1043,7 @@ CONTAINS
       CALL helium_env(1)%comm%sum(tmp_pair_action)
       CALL helium_env(1)%comm%sum(tmp_inter_action)
 
-      IF (logger%para_env%ionode) THEN
+      IF (logger%para_env%is_source()) THEN
          iteration = logger%iter_info%iteration(2)
          ! iterate over processors/helium environments
          DO irank = 1, helium_env(1)%helium%num_env
@@ -1185,7 +1185,7 @@ CONTAINS
       ! set logical mask for unpacking coordinates gathered from other ranks
       helium_env(1)%helium%ltmp_3_atoms_beads_3d(:, :, :) = .TRUE.
 
-      IF (logger%para_env%ionode) THEN
+      IF (logger%para_env%is_source()) THEN
 
          CALL section_vals_val_get(print_key, "FORMAT", i_val=outformat)
 
@@ -1415,7 +1415,7 @@ CONTAINS
       NULLIFY (logger, print_key)
       logger => cp_get_default_logger()
 
-      IF (logger%para_env%ionode) THEN
+      IF (logger%para_env%is_source()) THEN
          print_key => section_vals_get_subs_vals(helium_env(1)%helium%input, &
                                                  "MOTION%PINT%HELIUM%PRINT%RDF")
          should_output = BTEST(cp_print_key_should_output( &
@@ -1452,7 +1452,7 @@ CONTAINS
                                                iweight*helium_env(1)%helium%rdf_rstr(:, :)
          helium_env(1)%helium%rdf_inst(:, :) = helium_env(1)%helium%rdf_inst(:, :)/REAL(nsteps + iweight, dp)
 
-         IF (logger%para_env%ionode) THEN
+         IF (logger%para_env%is_source()) THEN
 
             ia = 0
             rtmp = cp_unit_from_cp2k(1.0_dp, "angstrom")
@@ -1622,7 +1622,7 @@ CONTAINS
                       file_position="REWIND", &
                       do_backup=.FALSE.)
 
-            IF (logger%para_env%ionode) THEN
+            IF (logger%para_env%is_source()) THEN
                CALL helium_write_cubefile( &
                   unit_nr, &
                   comment, &
@@ -1734,7 +1734,7 @@ CONTAINS
       NULLIFY (logger, print_key)
       logger => cp_get_default_logger()
 
-      IF (logger%para_env%ionode) THEN
+      IF (logger%para_env%is_source()) THEN
          print_key => section_vals_get_subs_vals(helium_env(1)%helium%input, &
                                                  "MOTION%PINT%HELIUM%PRINT%PLENGTH")
          should_output = BTEST(cp_print_key_should_output( &
@@ -1813,7 +1813,7 @@ CONTAINS
          RETURN
       END IF
 
-      IF (logger%para_env%ionode) THEN
+      IF (logger%para_env%is_source()) THEN
 
          unit_nr = cp_print_key_unit_nr( &
                    logger, &
@@ -1893,10 +1893,10 @@ CONTAINS
 
          ! pass the message from all processors to logger%para_env%source
          helium%rtmp_p_ndim_np_1d(:) = 0.0_dp
-         CALL logger%para_env%group%gather(helium%rtmp_p_ndim_1d, helium%rtmp_p_ndim_np_1d, &
-                                           logger%para_env%source)
+         CALL logger%para_env%gather(helium%rtmp_p_ndim_1d, helium%rtmp_p_ndim_np_1d, &
+                                     logger%para_env%source)
 
-         IF (logger%para_env%ionode) THEN
+         IF (logger%para_env%is_source()) THEN
 
             ! iterate over processors/helium environments
             DO irank = 1, helium%num_env

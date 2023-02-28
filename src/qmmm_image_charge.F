@@ -433,7 +433,7 @@ CONTAINS
 
       END DO
 
-      CALL para_env%group%sum(int_res)
+      CALL para_env%sum(int_res)
 
       DEALLOCATE (hab, cores)
 
@@ -557,7 +557,7 @@ CONTAINS
 
       END DO
 
-      CALL para_env%group%sum(forces)
+      CALL para_env%sum(forces)
 
       DEALLOCATE (hab, pab, cores)
 
@@ -851,7 +851,7 @@ CONTAINS
       END DO
 
       CALL cp_eri_mme_update_local_counts(param, para_env, G_count_2c=G_count, R_count_2c=R_count)
-      CALL para_env%group%sum(hab)
+      CALL para_env%sum(hab)
       CALL timestop(handle)
 
    END SUBROUTINE integrate_s_mme
@@ -1081,7 +1081,7 @@ CONTAINS
       INQUIRE (FILE=image_filename, exist=exist)
 
       IF (exist) THEN
-         IF (para_env%ionode) THEN
+         IF (para_env%is_source()) THEN
             CALL open_file(file_name=image_filename, &
                            file_status="OLD", &
                            file_form="UNFORMATTED", &
@@ -1091,9 +1091,9 @@ CONTAINS
             READ (rst_unit) qs_env%image_matrix
          END IF
 
-         CALL para_env%group%bcast(qs_env%image_matrix, para_env%source)
+         CALL para_env%bcast(qs_env%image_matrix, para_env%source)
 
-         IF (para_env%ionode) CALL close_file(unit_number=rst_unit)
+         IF (para_env%is_source()) CALL close_file(unit_number=rst_unit)
 
          output_unit = cp_print_key_unit_nr(logger, qmmm_section, &
                                             "QMMM%PRINT%PROGRAM_RUN_INFO", &

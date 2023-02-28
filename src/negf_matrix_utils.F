@@ -182,13 +182,14 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN)                       :: fm
       INTEGER, DIMENSION(:), INTENT(in)                  :: atomlist_row, atomlist_col
       TYPE(qs_subsys_type), POINTER                      :: subsys
-      TYPE(mp_comm_type), INTENT(in)                     :: mpi_comm_global
+
+      CLASS(mp_comm_type), INTENT(in)                     :: mpi_comm_global
       LOGICAL, INTENT(in)                                :: do_upper_diag, do_lower
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_copy_sym_dbcsr_to_fm_submat'
 
       INTEGER :: handle, iatom_col, iatom_row, icol, irow, natoms_col, natoms_row, ncols_fm, &
-         nparticles, nrows_fm, offset_sgf_col, offset_sgf_row
+                 nparticles, nrows_fm, offset_sgf_col, offset_sgf_row
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nsgfs
       LOGICAL                                            :: found
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: r2d
@@ -299,7 +300,8 @@ CONTAINS
       INTEGER, DIMENSION(:, :), INTENT(in)               :: index_to_cell
       INTEGER, DIMENSION(:), INTENT(in)                  :: atom_list0, atom_list1
       TYPE(qs_subsys_type), POINTER                      :: subsys
-      TYPE(mp_comm_type), INTENT(in)                     :: mpi_comm_global
+
+      CLASS(mp_comm_type), INTENT(in)                     :: mpi_comm_global
       INTEGER, DIMENSION(:, :), INTENT(inout)            :: is_same_cell
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_ref
 
@@ -546,8 +548,8 @@ CONTAINS
          END DO
       END DO
 
-      CALL para_env%group%sum(rank_device)
-      CALL para_env%group%sum(rank_contact)
+      CALL para_env%sum(rank_device)
+      CALL para_env%sum(rank_contact)
 
       ! compute number of packed matrix elements to send to / receive from each processor
       ALLOCATE (recv_nelems(para_env%num_pe))
@@ -646,7 +648,7 @@ CONTAINS
 
       DO iproc = 1, para_env%num_pe
          IF (iproc /= mepos_plus1 .AND. send_nelems(iproc) > 0) THEN
-            CALL para_env%group%isend(send_packed_blocks(iproc)%vector, iproc - 1, send_handlers(iproc), 1)
+            CALL para_env%isend(send_packed_blocks(iproc)%vector, iproc - 1, send_handlers(iproc), 1)
          END IF
       END DO
 
@@ -654,7 +656,7 @@ CONTAINS
       DO iproc = 1, para_env%num_pe
          IF (iproc /= mepos_plus1) THEN
             IF (recv_nelems(iproc) > 0) THEN
-               CALL para_env%group%irecv(recv_packed_blocks(iproc)%vector, iproc - 1, recv_handlers(iproc), 1)
+               CALL para_env%irecv(recv_packed_blocks(iproc)%vector, iproc - 1, recv_handlers(iproc), 1)
             END IF
          ELSE
             IF (ALLOCATED(send_packed_blocks(iproc)%vector)) &

@@ -167,8 +167,8 @@ CONTAINS
       ! fill the info array
       grid_2_mepos(myprow, mypcol) = para_env_sub%mepos
       ! sum infos
-      CALL para_env_sub%group%sum(grid_2_mepos)
-      CALL para_env_sub%group%allgather([myprow, mypcol], mepos_2_grid)
+      CALL para_env_sub%sum(grid_2_mepos)
+      CALL para_env_sub%allgather([myprow, mypcol], mepos_2_grid)
 
       ! loop over local index range and define the sending map
       ALLOCATE (map_send_size(0:para_env_sub%num_pe - 1))
@@ -334,8 +334,8 @@ CONTAINS
             IF (map_rec_size(proc_receive) > 0) THEN
                rec_counter = rec_counter + 1
                buffer_rec(rec_counter)%msg = 0.0_dp
-               CALL para_env_sub%group%irecv(buffer_rec(rec_counter)%msg, proc_receive, &
-                                             buffer_rec(rec_counter)%msg_req)
+               CALL para_env_sub%irecv(buffer_rec(rec_counter)%msg, proc_receive, &
+                                       buffer_rec(rec_counter)%msg_req)
             END IF
          END DO
          ! fill the sending buffer and send the messages
@@ -375,8 +375,8 @@ CONTAINS
             proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
             IF (map_send_size(proc_send) > 0) THEN
                send_counter = send_counter + 1
-               CALL para_env_sub%group%isend(buffer_send(send_counter)%msg, proc_send, &
-                                             buffer_send(send_counter)%msg_req)
+               CALL para_env_sub%isend(buffer_send(send_counter)%msg, proc_send, &
+                                       buffer_send(send_counter)%msg_req)
                req_send(send_counter) = buffer_send(send_counter)%msg_req
             END IF
          END DO
@@ -483,10 +483,10 @@ CONTAINS
             IF (num_entries_rec(imepos) > 0) THEN
                rec_counter = rec_counter + 1
                IF (my_do_indx) THEN
-                  CALL para_env%group%irecv(buffer_rec(imepos)%indx, imepos, req_array(rec_counter, 3), tag=4)
+                  CALL para_env%irecv(buffer_rec(imepos)%indx, imepos, req_array(rec_counter, 3), tag=4)
                END IF
                IF (my_do_msg) THEN
-                  CALL para_env%group%irecv(buffer_rec(imepos)%msg, imepos, req_array(rec_counter, 4), tag=7)
+                  CALL para_env%irecv(buffer_rec(imepos)%msg, imepos, req_array(rec_counter, 4), tag=7)
                END IF
             END IF
          END DO
@@ -495,10 +495,10 @@ CONTAINS
             IF (num_entries_send(imepos) > 0) THEN
                send_counter = send_counter + 1
                IF (my_do_indx) THEN
-                  CALL para_env%group%isend(buffer_send(imepos)%indx, imepos, req_array(send_counter, 1), tag=4)
+                  CALL para_env%isend(buffer_send(imepos)%indx, imepos, req_array(send_counter, 1), tag=4)
                END IF
                IF (my_do_msg) THEN
-                  CALL para_env%group%isend(buffer_send(imepos)%msg, imepos, req_array(send_counter, 2), tag=7)
+                  CALL para_env%isend(buffer_send(imepos)%msg, imepos, req_array(send_counter, 2), tag=7)
                END IF
             END IF
          END DO

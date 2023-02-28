@@ -439,8 +439,8 @@ CONTAINS
             CALL cp_abort(__LOCATION__, &
                           " Trying to access result ("//TRIM(description)// &
                           ") which is not correctly stored.")
+         CALL external_comm%set_handle(NINT(res_val_3(1)))
       END IF
-      CALL external_comm%set_handle(NINT(res_val_3(1)))
       ext_master_id = NINT(res_val_3(2))
       scf_energy_message_tag = NINT(res_val_3(3))
 
@@ -1394,7 +1394,7 @@ CONTAINS
             CALL build_diagonal_jacobian(qs_env, used_history)
          END IF
       END IF
-      IF (ASSOCIATED(scf_env%outer_scf%inv_jacobian) .AND. para_env%ionode) THEN
+      IF (ASSOCIATED(scf_env%outer_scf%inv_jacobian) .AND. para_env%is_source()) THEN
          ! Write restart file for inverse Jacobian
          CALL print_inverse_jacobian(logger, scf_env%outer_scf%inv_jacobian, iter_count)
       END IF

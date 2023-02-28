@@ -375,8 +375,8 @@ CONTAINS
          ALLOCATE (BIb_C_rec(homo, rec_B_size, my_group_L_size))
          BIb_C_rec = 0.0_dp
 
-         CALL para_env_sub%group%sendrecv(B_ia_Q, proc_send, &
-                                          BIb_C_rec, proc_receive)
+         CALL para_env_sub%sendrecv(B_ia_Q, proc_send, &
+                                    BIb_C_rec, proc_receive)
 
          DO iiB = 1, homo
             DO jjB = 1, rec_B_size
@@ -450,8 +450,8 @@ CONTAINS
          ALLOCATE (BIb_C_rec(rec_B_size, homo, my_group_L_size))
          BIb_C_rec = 0.0_dp
 
-         CALL para_env_sub%group%sendrecv(B_ia_Q, proc_send, &
-                                          BIb_C_rec, proc_receive)
+         CALL para_env_sub%sendrecv(B_ia_Q, proc_send, &
+                                    BIb_C_rec, proc_receive)
 
          DO iiB = 1, homo
             DO jjB = 1, rec_B_size
@@ -562,8 +562,8 @@ CONTAINS
       ALLOCATE (mepos_2_grid(2, 0:para_env%num_pe - 1))
       grid_2_mepos(myprow, mypcol) = para_env%mepos
       ! sum infos
-      CALL para_env%group%sum(grid_2_mepos)
-      CALL para_env%group%allgather([myprow, mypcol], mepos_2_grid)
+      CALL para_env%sum(grid_2_mepos)
+      CALL para_env%allgather([myprow, mypcol], mepos_2_grid)
 
       ! 1) loop over my local data and define a map for the proc to send data
       ALLOCATE (map_send_size(0:para_env%num_pe - 1))
@@ -737,8 +737,8 @@ CONTAINS
             buffer_rec(rec_counter)%msg = 0.0_dp
             buffer_rec(rec_counter)%proc = proc_receive
             ! post the message to be received
-            CALL para_env%group%irecv(buffer_rec(rec_counter)%msg, proc_receive, &
-                                      buffer_rec(rec_counter)%msg_req)
+            CALL para_env%irecv(buffer_rec(rec_counter)%msg, proc_receive, &
+                                buffer_rec(rec_counter)%msg_req)
          END IF
       END DO
 
@@ -749,8 +749,8 @@ CONTAINS
          proc_send = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
          IF (map_send_size(proc_send) > 0) THEN
             send_counter = send_counter + 1
-            CALL para_env%group%isend(buffer_send(send_counter)%msg, proc_send, &
-                                      buffer_send(send_counter)%msg_req)
+            CALL para_env%isend(buffer_send(send_counter)%msg, proc_send, &
+                                buffer_send(send_counter)%msg_req)
             req_send(send_counter) = buffer_send(send_counter)%msg_req
          END IF
       END DO
@@ -961,8 +961,8 @@ CONTAINS
       grid_2_mepos(myprow, mypcol) = para_env%mepos
 
       ! sum infos
-      CALL para_env%group%sum(grid_2_mepos)
-      CALL para_env%group%allgather([myprow, mypcol], mepos_2_grid)
+      CALL para_env%sum(grid_2_mepos)
+      CALL para_env%allgather([myprow, mypcol], mepos_2_grid)
 
       ! 1) loop over my local data and define a map for the proc to send data
       ALLOCATE (map_send_size(0:para_env%num_pe - 1))
@@ -1146,8 +1146,8 @@ CONTAINS
             buffer_rec(rec_counter)%msg = 0.0_dp
             buffer_rec(rec_counter)%proc = proc_receive
             ! post the message to be received
-            CALL para_env%group%irecv(buffer_rec(rec_counter)%msg, proc_receive, &
-                                      buffer_rec(rec_counter)%msg_req)
+            CALL para_env%irecv(buffer_rec(rec_counter)%msg, proc_receive, &
+                                buffer_rec(rec_counter)%msg_req)
          END IF
       END DO
 
@@ -1158,8 +1158,8 @@ CONTAINS
          proc_send = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
          IF (map_send_size(proc_send) > 0) THEN
             send_counter = send_counter + 1
-            CALL para_env%group%isend(buffer_send(send_counter)%msg, proc_send, &
-                                      buffer_send(send_counter)%msg_req)
+            CALL para_env%isend(buffer_send(send_counter)%msg, proc_send, &
+                                buffer_send(send_counter)%msg_req)
             req_send(send_counter) = buffer_send(send_counter)%msg_req
          END IF
       END DO
@@ -1172,7 +1172,7 @@ CONTAINS
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local)
       ALLOCATE (sizes(2, 0:para_env%num_pe - 1))
-      CALL para_env%group%allgather([nrow_local, ncol_local], sizes)
+      CALL para_env%allgather([nrow_local, ncol_local], sizes)
       iiB = MAXVAL(sizes(1, :))
       ALLOCATE (index_row_rec(iiB))
       index_row_rec = 0
@@ -1316,8 +1316,8 @@ CONTAINS
       ! fill the info array
       grid_2_mepos(myprow, mypcol) = para_env_sub%mepos
       ! sum infos
-      CALL para_env_sub%group%sum(grid_2_mepos)
-      CALL para_env_sub%group%allgather([myprow, mypcol], mepos_2_grid)
+      CALL para_env_sub%sum(grid_2_mepos)
+      CALL para_env_sub%allgather([myprow, mypcol], mepos_2_grid)
 
       ! loop over local index range and define the sending map
       ALLOCATE (map_send_size(0:para_env_sub%num_pe - 1))
@@ -1473,8 +1473,8 @@ CONTAINS
             IF (map_rec_size(proc_receive) > 0) THEN
                rec_counter = rec_counter + 1
                buffer_rec(rec_counter)%msg = 0.0_dp
-               CALL para_env_sub%group%irecv(buffer_rec(rec_counter)%msg, proc_receive, &
-                                             buffer_rec(rec_counter)%msg_req)
+               CALL para_env_sub%irecv(buffer_rec(rec_counter)%msg, proc_receive, &
+                                       buffer_rec(rec_counter)%msg_req)
             END IF
          END DO
          ! fill the sending buffer and send the messages
@@ -1511,8 +1511,8 @@ CONTAINS
             proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
             IF (map_send_size(proc_send) > 0) THEN
                send_counter = send_counter + 1
-               CALL para_env_sub%group%isend(buffer_send(send_counter)%msg, proc_send, &
-                                             buffer_send(send_counter)%msg_req)
+               CALL para_env_sub%isend(buffer_send(send_counter)%msg, proc_send, &
+                                       buffer_send(send_counter)%msg_req)
                req_send(send_counter) = buffer_send(send_counter)%msg_req
             END IF
          END DO
@@ -1597,7 +1597,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: my_pos_info
 
       ALLOCATE (my_pos_info(0:para_env%num_pe - 1))
-      CALL para_env%group%allgather(para_env_sub%mepos, my_pos_info)
+      CALL para_env%allgather(para_env_sub%mepos, my_pos_info)
 
       ALLOCATE (group_grid_2_mepos(0:para_env_sub%num_pe - 1, 0:ngroup - 1))
       group_grid_2_mepos = 0

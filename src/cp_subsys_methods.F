@@ -21,7 +21,6 @@ MODULE cp_subsys_methods
    USE cell_types,                      ONLY: cell_retain,&
                                               cell_type
    USE colvar_methods,                  ONLY: colvar_read
-   USE cp_para_env,                     ONLY: cp_para_env_retain
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_types,                 ONLY: cp_result_create
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
@@ -126,7 +125,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(subsys))
       ALLOCATE (subsys)
 
-      CALL cp_para_env_retain(para_env)
+      CALL para_env%retain()
       subsys%para_env => para_env
 
       my_use_motion_section = .FALSE.
@@ -293,8 +292,8 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(small_subsys))
       CPASSERT(ASSOCIATED(big_subsys))
-      IF (big_subsys%para_env%group /= small_para_env%group) &
-         CPABORT("big_subsys%para_env%group==small_para_env%group")
+      IF (big_subsys%para_env /= small_para_env) &
+         CPABORT("big_subsys%para_env==small_para_env")
 
       !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
@@ -380,7 +379,7 @@ CONTAINS
       ! 8. Allocate new subsys
       !-----------------------------------------------------------------------------
       ALLOCATE (small_subsys)
-      CALL cp_para_env_retain(para_env)
+      CALL para_env%retain()
       small_subsys%para_env => para_env
       CALL particle_list_create(particles, els_ptr=particle_set)
       CALL atomic_kind_list_create(atomic_kinds, els_ptr=atomic_kind_set)

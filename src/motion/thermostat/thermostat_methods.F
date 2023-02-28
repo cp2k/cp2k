@@ -534,7 +534,8 @@ CONTAINS
    SUBROUTINE apply_thermostat_baro(thermostat, npt, group)
       TYPE(thermostat_type), POINTER                     :: thermostat
       TYPE(npt_info_type), DIMENSION(:, :), POINTER      :: npt
-      TYPE(mp_comm_type), INTENT(IN)                     :: group
+
+      CLASS(mp_comm_type), INTENT(IN)                     :: group
 
       IF (ASSOCIATED(thermostat)) THEN
          IF (thermostat%type_of_thermostat == do_thermo_nose) THEN
@@ -580,7 +581,8 @@ CONTAINS
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
       TYPE(particle_type), POINTER                       :: particle_set(:)
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
-      TYPE(mp_comm_type), INTENT(IN)                     :: group
+
+      CLASS(mp_comm_type), INTENT(IN)                     :: group
       LOGICAL, INTENT(IN), OPTIONAL                      :: shell_adiabatic
       TYPE(particle_type), OPTIONAL, POINTER             :: shell_particle_set(:), &
                                                             core_particle_set(:)
@@ -639,7 +641,8 @@ CONTAINS
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind_set(:)
       TYPE(particle_type), POINTER                       :: particle_set(:)
       TYPE(distribution_1d_type), POINTER                :: local_particles
-      TYPE(mp_comm_type), INTENT(IN)                     :: group
+
+      CLASS(mp_comm_type), INTENT(IN)                     :: group
       TYPE(particle_type), OPTIONAL, POINTER             :: shell_particle_set(:), &
                                                             core_particle_set(:)
       REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: vel(:, :), shell_vel(:, :), &

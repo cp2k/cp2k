@@ -150,7 +150,7 @@ CONTAINS
                f2 = f2 + SQRT(C%local_data(i, p)**2 + f2_eps)
             END DO
          END DO
-         CALL C%matrix_struct%para_env%group%sum(f2)
+         CALL C%matrix_struct%para_env%sum(f2)
          !write(*,*) 'qs_localize: f_2=',f2
          !-------------------------------------------------------------------
          ! compute the derivative of f_2
@@ -231,7 +231,7 @@ CONTAINS
       !         ENDIF
       !      ENDDO
       !   ENDDO
-      !   CALL C%matrix_struct%para_env%group%sum(gnorm)
+      !   CALL C%matrix_struct%para_env%sum(gnorm)
       !   IF(output_unit.GT.0) THEN
       !      WRITE(output_unit,*) 'qs_localize: ratio2=',gnorm / ( REAL(k,KIND=dp)*REAL(n,KIND=dp) ),thresh(i)
       !   ENDIF
@@ -953,7 +953,7 @@ CONTAINS
             !WRITE(*,*) 'spread_ii', spread_ii
             sum_spread(istate) = spread_ii
          END DO
-         CALL c_zij(1)%matrix_struct%para_env%group%sum(spread_ii)
+         CALL c_zij(1)%matrix_struct%para_env%sum(spread_ii)
          spread_sum = accurate_sum(sum_spread)
 
          IF (nextra > 0) THEN
@@ -1536,7 +1536,7 @@ CONTAINS
             tolerance = MAX(ABS(grad_ij), tolerance)
          END DO
       END DO
-      CALL zij(1, 1)%matrix_struct%para_env%group%max(tolerance)
+      CALL zij(1, 1)%matrix_struct%para_env%max(tolerance)
 
       DEALLOCATE (diag)
 
@@ -2256,8 +2256,8 @@ CONTAINS
                   END DO
                END DO
             END IF
-            CALL para_env%group%bcast(z_ij_loc_re, ip)
-            CALL para_env%group%bcast(z_ij_loc_im, ip)
+            CALL para_env%bcast(z_ij_loc_re, ip)
+            CALL para_env%bcast(z_ij_loc_im, ip)
             CALL cp_fm_set_submatrix(zij(1, idim), z_ij_loc_re, 1, ns_bound(ip, 1), nstate, nblock)
             CALL cp_fm_set_submatrix(zij(2, idim), z_ij_loc_im, 1, ns_bound(ip, 1), nstate, nblock)
          END DO ! ip
@@ -2275,7 +2275,7 @@ CONTAINS
                END DO
             END DO
          END IF
-         CALL para_env%group%bcast(z_ij_loc_re, ip)
+         CALL para_env%bcast(z_ij_loc_re, ip)
          CALL cp_fm_set_submatrix(rmat, z_ij_loc_re, 1, ns_bound(ip, 1), nstate, nblock)
       END DO
 
@@ -2286,7 +2286,7 @@ CONTAINS
       END DO
       DEALLOCATE (cz_ij_loc)
 
-      CALL para_env%group%sync()
+      CALL para_env%sync()
       CALL rotate_orbitals(rmat, vectors)
       CALL cp_fm_release(rmat)
 
@@ -2390,7 +2390,7 @@ CONTAINS
                END DO
             END DO
          END IF
-         CALL para_env%group%bcast(z_ij_loc_re, ip)
+         CALL para_env%bcast(z_ij_loc_re, ip)
          CALL cp_cfm_set_submatrix(rmat, CMPLX(z_ij_loc_re, 0.0_dp, dp), 1, ns_bound(ip, 1), nstate, nblock)
       END DO
 
@@ -2400,7 +2400,7 @@ CONTAINS
       END DO
       DEALLOCATE (cz_ij_loc)
 
-      CALL para_env%group%sync()
+      CALL para_env%sync()
 
       DEALLOCATE (rotmat)
       DEALLOCATE (ns_bound)
@@ -2569,8 +2569,8 @@ CONTAINS
                   END DO
                END DO
 
-               CALL para_env%group%sendrecv(msgin=c_array_me, dest=ip_partner, &
-                                            msgout=c_array_partner, source=ip_partner)
+               CALL para_env%sendrecv(msgin=c_array_me, dest=ip_partner, &
+                                      msgout=c_array_partner, source=ip_partner)
 
                n1 = ns_me
                n2 = ns_partner
@@ -2638,8 +2638,8 @@ CONTAINS
                END DO
 
                k = nblock_max + 1
-               CALL para_env%group%sendrecv(rotmat(1:nstate, 1:ns_me), ip_partner, &
-                                            rotmat(1:nstate, k:k + n2 - 1), ip_partner)
+               CALL para_env%sendrecv(rotmat(1:nstate, 1:ns_me), ip_partner, &
+                                      rotmat(1:nstate, k:k + n2 - 1), ip_partner)
 
                IF (ilow1 < ilow2) THEN
                   ! no longer compiles in official sdgb:
@@ -2724,7 +2724,7 @@ CONTAINS
             END IF
 
             ! collect data from all tasks (this takes some significant time)
-            CALL para_env%group%allgather(rmat_send, rmat_recv_all)
+            CALL para_env%allgather(rmat_send, rmat_recv_all)
 
             ! update blocks everywhere
             DO ip = 0, para_env%num_pe - 1
@@ -2821,7 +2821,7 @@ CONTAINS
                rdispl(ip) = rdispl(ip - 1) + rcount(ip - 1)
             END DO
             ! collect all the diagonal elements in a replicated 1d array
-            CALL para_env%group%allgatherv(zdiag_me(idim)%c_array, zdiag_all(idim)%c_array, rcount, rdispl)
+            CALL para_env%allgatherv(zdiag_me(idim)%c_array, zdiag_all(idim)%c_array, rcount, rdispl)
          END DO
 
          gmax = 0.0_dp
@@ -2848,7 +2848,7 @@ CONTAINS
             END DO
          END DO
 
-         CALL para_env%group%max(gmax)
+         CALL para_env%max(gmax)
          tolerance = gmax
          IF (PRESENT(tol_out)) tol_out = tolerance
 
@@ -2861,7 +2861,7 @@ CONTAINS
                func = func + weights(idim)*(1.0_dp - (zr*zr + zc*zc))/twopi/twopi
             END DO
          END DO
-         CALL para_env%group%sum(func)
+         CALL para_env%sum(func)
          t2 = m_walltime()
 
          IF (output_unit > 0 .AND. MODULO(sweeps, out_each) == 0) THEN

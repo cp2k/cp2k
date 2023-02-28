@@ -578,7 +578,7 @@ CONTAINS
 
          END DO
 
-         CALL para_env%group%sum(vec_Sigma_x_minus_vxc_gw)
+         CALL para_env%sum(vec_Sigma_x_minus_vxc_gw)
 
       END IF
 
@@ -708,7 +708,7 @@ CONTAINS
             CPABORT('Stop after printing exchange energies.')
 
          ELSE
-            CALL para_env%group%sync()
+            CALL para_env%sync()
          END IF
 
       END IF
@@ -886,8 +886,8 @@ CONTAINS
 
       END DO
 
-      CALL para_env%group%sum(vec_Sigma_x_minus_vxc_gw)
-      CALL para_env%group%sum(vec_Sigma_x_minus_vxc_gw_im)
+      CALL para_env%sum(vec_Sigma_x_minus_vxc_gw)
+      CALL para_env%sum(vec_Sigma_x_minus_vxc_gw_im)
 
       ! also adjust in the case of kpoints too big gw_corr_lev_occ and gw_corr_lev_virt
       DO ispin = 1, nspins

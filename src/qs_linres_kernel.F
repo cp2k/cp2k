@@ -458,7 +458,7 @@ CONTAINS
                CALL integrate_v_rspace_one_center(v_rspace_new(ispin), qs_env, &
                                                   lri_v_int, .FALSE., "LRI_AUX")
                DO ikind = 1, nkind
-                  CALL para_env%group%sum(lri_v_int(ikind)%v_int)
+                  CALL para_env%sum(lri_v_int(ikind)%v_int)
                END DO
                ALLOCATE (k1mat(1))
                k1mat(1)%matrix => kpp1_env%v_ao(ispin)%matrix

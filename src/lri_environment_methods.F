@@ -453,7 +453,7 @@ CONTAINS
       !
       IF (.NOT. calculate_forces) THEN
          DO ikind = 1, nkind
-            CALL para_env%group%sum(lri_ppl_coef(ikind)%v_int)
+            CALL para_env%sum(lri_ppl_coef(ikind)%v_int)
             lri_env%lri_ppl_ints%lri_ppl(ikind)%v_int = lri_ppl_coef(ikind)%v_int
          END DO
       END IF
@@ -931,7 +931,7 @@ CONTAINS
                CALL get_atomic_kind(atomic_kind=atomic_kind, natom=natom)
                DO iatom = 1, natom
                   aci => lri_coef(ikind)%acoef(iatom, :)
-                  CALL para_env%group%sum(aci)
+                  CALL para_env%sum(aci)
                END DO
             END DO
 
@@ -1143,11 +1143,11 @@ CONTAINS
       END DO
 
       CALL neighbor_list_iterator_release(nl_iterator)
-      CALL para_env%group%max(dmax_ab)
-      CALL para_env%group%max(dmax_oo)
-      CALL para_env%group%max(dmax_aba)
-      CALL para_env%group%max(dmax_abb)
-      CALL para_env%group%max(dmax_aabb)
+      CALL para_env%max(dmax_ab)
+      CALL para_env%max(dmax_oo)
+      CALL para_env%max(dmax_aba)
+      CALL para_env%max(dmax_abb)
+      CALL para_env%max(dmax_aabb)
 
       logger => cp_get_default_logger()
       iunit = cp_print_key_unit_nr(logger, input, "PRINT%PROGRAM_RUN_INFO", &
@@ -1271,18 +1271,18 @@ CONTAINS
          logger => cp_get_default_logger()
          iunit = cp_print_key_unit_nr(logger, input, "PRINT%PROGRAM_RUN_INFO", extension=".Log")
          pairs_tt = lri_env%stat%pairs_tt
-         CALL para_env%group%sum(pairs_tt)
+         CALL para_env%sum(pairs_tt)
          pairs_sr = lri_env%stat%pairs_sr
-         CALL para_env%group%sum(pairs_sr)
+         CALL para_env%sum(pairs_sr)
          pairs_ff = lri_env%stat%pairs_ff
-         CALL para_env%group%sum(pairs_ff)
+         CALL para_env%sum(pairs_ff)
          overlap_error = lri_env%stat%overlap_error
-         CALL para_env%group%sum(overlap_error)
+         CALL para_env%sum(overlap_error)
          rho_tt = -lri_env%stat%rho_tt
          rho_sr = lri_env%stat%rho_sr
-         CALL para_env%group%sum(rho_sr)
+         CALL para_env%sum(rho_sr)
          rho_ff = lri_env%stat%rho_ff
-         CALL para_env%group%sum(rho_ff)
+         CALL para_env%sum(rho_ff)
          IF (lri_env%exact_1c_terms) THEN
             rho_1c = lri_env%stat%rho_1c
          ELSE
@@ -1290,16 +1290,16 @@ CONTAINS
          END IF
          ppx = 8.e-6_dp
          coef_mem = lri_env%stat%coef_mem*ppx
-         CALL para_env%group%sum(coef_mem)
+         CALL para_env%sum(coef_mem)
          oint_mem = lri_env%stat%oint_mem*ppx
-         CALL para_env%group%sum(oint_mem)
+         CALL para_env%sum(oint_mem)
          rhos_mem = lri_env%stat%rhos_mem*ppx
-         CALL para_env%group%sum(rhos_mem)
+         CALL para_env%sum(rhos_mem)
          abai_mem = lri_env%stat%abai_mem*ppx
-         CALL para_env%group%sum(abai_mem)
+         CALL para_env%sum(abai_mem)
          IF (lri_env%ppl_ri) THEN
             ppli_mem = lri_env%stat%ppli_mem*ppx
-            CALL para_env%group%sum(ppli_mem)
+            CALL para_env%sum(ppli_mem)
          ELSE
             ppli_mem = 0.0_dp
          END IF

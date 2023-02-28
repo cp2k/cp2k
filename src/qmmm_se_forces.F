@@ -207,7 +207,7 @@ CONTAINS
          END DO
          CPASSERT(iqm == number_qm_atoms)
          ! Transfer QM gradients to the QM particles..
-         CALL para_env%group%sum(Forces_QM)
+         CALL para_env%sum(Forces_QM)
          iqm = 0
          DO ikind = 1, nkind
             CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=list)

@@ -327,8 +327,8 @@ CONTAINS
          END DO
          CALL cp_fm_release(overlap_re)
       END DO
-      CALL mos_new(1)%matrix_struct%para_env%group%max(max_alpha)
-      CALL mos_new(1)%matrix_struct%para_env%group%max(max_beta)
+      CALL mos_new(1)%matrix_struct%para_env%max(max_alpha)
+      CALL mos_new(1)%matrix_struct%para_env%max(max_beta)
       orthonormality = max_alpha
 
       CALL timestop(handle)
@@ -440,7 +440,7 @@ CONTAINS
 
       END DO
 
-      CALL delta_mos(1)%matrix_struct%para_env%group%max(max_alpha)
+      CALL delta_mos(1)%matrix_struct%para_env%max(max_alpha)
       delta_eps = SQRT(max_alpha)
 
       CALL timestop(handle)
@@ -627,7 +627,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
-      IF (logger%para_env%ionode) THEN
+      IF (logger%para_env%is_source()) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1

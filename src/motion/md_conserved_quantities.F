@@ -104,7 +104,7 @@ CONTAINS
                       simpar=simpar, &
                       para_env=para_env)
 
-      CALL get_part_ke(md_env, md_ener, tkind, tshell, para_env%group)
+      CALL get_part_ke(md_env, md_ener, tkind, tshell, para_env)
 
       IF (md_ener%nfree /= 0) THEN
          md_ener%temp_part = 2.0_dp*md_ener%ekin/REAL(simpar%nfree, KIND=dp)
@@ -447,7 +447,8 @@ CONTAINS
       TYPE(md_environment_type), POINTER                 :: md_env
       TYPE(md_ener_type), POINTER                        :: md_ener
       LOGICAL, INTENT(IN)                                :: tkind, tshell
-      TYPE(mp_comm_type), INTENT(IN)                     :: group
+
+      CLASS(mp_comm_type), INTENT(IN)                     :: group
 
       INTEGER                                            :: i, iparticle, iparticle_kind, &
                                                             iparticle_local, nparticle_kind, &

@@ -200,22 +200,22 @@ CONTAINS
 
       ! sending message
       IF ((act_send_recv .EQV. send_msg) .AND. (dest .NE. bcast_group)) THEN
-         CALL para_env%group%send(m_send%info, dest, message_tag)
+         CALL para_env%send(m_send%info, dest, message_tag)
          IF (m_send%info(2) .GT. 0) THEN
-            CALL para_env%group%send(m_send%task_int, dest, message_tag)
+            CALL para_env%send(m_send%task_int, dest, message_tag)
          END IF
          IF (m_send%info(3) .GT. 0) THEN
-            CALL para_env%group%send(m_send%task_real, dest, message_tag)
+            CALL para_env%send(m_send%task_real, dest, message_tag)
          END IF
          IF (m_send%info(4) .GT. 0) THEN
             CPABORT("")
-            !TODO send characters CALL para_env%group%send(m_send%task_char, dest, message_tag)
+            !TODO send characters CALL para_env%send(m_send%task_char, dest, message_tag)
          END IF
          IF (DEBUG .GE. 1) &
             WRITE (*, *) "TMC|message: ID: ", para_env%mepos, &
             " send element info to   ", dest, " of stat ", m_send%info(1), &
             " with size int/real/char", m_send%info(2:), " with comm ", &
-            para_env%group%get_handle(), " and tag ", message_tag
+            para_env%get_handle(), " and tag ", message_tag
          IF (m_send%info(2) .GT. 0) DEALLOCATE (m_send%task_int)
          IF (m_send%info(3) .GT. 0) DEALLOCATE (m_send%task_real)
          IF (m_send%info(4) .GT. 0) DEALLOCATE (m_send%task_char)
@@ -227,19 +227,19 @@ CONTAINS
       ! =============================
       IF (dest .EQ. bcast_group) THEN
          IF (para_env%num_pe .GT. 1) THEN
-            CALL para_env%group%bcast(m_send%info, MASTER_COMM_ID)
+            CALL para_env%bcast(m_send%info, MASTER_COMM_ID)
             IF (m_send%info(2) .GT. 0) THEN
                IF (.NOT. act_send_recv) ALLOCATE (m_send%task_int(m_send%info(2)))
-               CALL para_env%group%bcast(m_send%task_int, MASTER_COMM_ID)
+               CALL para_env%bcast(m_send%task_int, MASTER_COMM_ID)
             END IF
             IF (m_send%info(3) .GT. 0) THEN
                IF (.NOT. act_send_recv) ALLOCATE (m_send%task_real(m_send%info(3)))
-               CALL para_env%group%bcast(m_send%task_real, MASTER_COMM_ID)
+               CALL para_env%bcast(m_send%task_real, MASTER_COMM_ID)
             END IF
             IF (m_send%info(4) .GT. 0) THEN
                IF (.NOT. act_send_recv) ALLOCATE (m_send%task_char(m_send%info(3)))
                CPABORT("")
-               !TODO bcast char CALL para_env%group%bcast(m_send%task_char, MASTER_COMM_ID)
+               !TODO bcast char CALL para_env%bcast(m_send%task_char, MASTER_COMM_ID)
             END IF
          END IF
          ! sender delete arrays
@@ -258,13 +258,13 @@ CONTAINS
          tmp_tag = TMC_STATUS_WAIT_FOR_NEW_TASK
          IF (PRESENT(wait_for_message)) THEN
             dest = mp_any_source
-            CALL para_env%group%probe(dest, tmp_tag)
+            CALL para_env%probe(dest, tmp_tag)
             flag = .TRUE.
          ELSE
             participant_loop: DO i = 0, para_env%num_pe - 1
                IF (i .NE. para_env%mepos) THEN
                   dest = i
-                  CALL para_env%group%probe(dest, tmp_tag)
+                  CALL para_env%probe(dest, tmp_tag)
                   IF (dest .EQ. i) THEN
                      flag = .TRUE.
                      EXIT participant_loop
@@ -288,7 +288,7 @@ CONTAINS
          ELSE
             message_tag = mp_any_tag
             ! first get message type and sizes
-            CALL para_env%group%recv(m_send%info, dest, message_tag)
+            CALL para_env%recv(m_send%info, dest, message_tag)
          END IF
          IF (DEBUG .GE. 1) &
             WRITE (*, *) "TMC|message: ID: ", para_env%mepos, &
@@ -297,18 +297,18 @@ CONTAINS
          !-- receive message integer part
          IF (m_send%info(2) .GT. 0) THEN
             ALLOCATE (m_send%task_int(m_send%info(2)))
-            CALL para_env%group%recv(m_send%task_int, dest, message_tag)
+            CALL para_env%recv(m_send%task_int, dest, message_tag)
          END IF
          !-- receive message double (floatingpoint) part
          IF (m_send%info(3) .GT. 0) THEN
             ALLOCATE (m_send%task_real(m_send%info(3)))
-            CALL para_env%group%recv(m_send%task_real, dest, message_tag)
+            CALL para_env%recv(m_send%task_real, dest, message_tag)
          END IF
          !-- receive message character part
          IF (m_send%info(4) .GT. 0) THEN
             ALLOCATE (m_send%task_char(m_send%info(4)))
             CPABORT("")
-            !TODO recv characters CALL para_env%group%recv(m_send%task_char, dest, message_tag)
+            !TODO recv characters CALL para_env%recv(m_send%task_char, dest, message_tag)
          END IF
       END IF
 
@@ -1576,9 +1576,9 @@ CONTAINS
          DO i = 1, SIZE(atoms)
             msg(i) = atoms(i)%name
          END DO
-         CALL para_env%group%bcast(msg, source)
+         CALL para_env%bcast(msg, source)
       ELSE
-         CALL para_env%group%bcast(msg, source)
+         CALL para_env%bcast(msg, source)
          DO i = 1, SIZE(atoms)
             atoms(i)%name = msg(i)
          END DO

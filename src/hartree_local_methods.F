@@ -426,7 +426,7 @@ CONTAINS
          END IF ! paw
       END DO ! ikind
 
-      CALL para_env%group%sum(energy_hartree_1c)
+      CALL para_env%sum(energy_hartree_1c)
 
       CALL timestop(handle)
 

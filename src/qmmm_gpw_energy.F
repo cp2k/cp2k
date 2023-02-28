@@ -309,7 +309,7 @@ CONTAINS
       ! Sumup all contributions according the parallelization scheme
       IF (qmmm_env%par_scheme == do_par_atom) THEN
          DO ilevel = 1, SIZE(grids)
-            CALL para_env%group%sum(grids(ilevel)%cr3d)
+            CALL para_env%sum(grids(ilevel)%cr3d)
          END DO
       END IF
       ! RealSpace Interpolation
@@ -317,7 +317,7 @@ CONTAINS
       SELECT CASE (kind_interp)
       CASE (spline3_nopbc_interp, spline3_pbc_interp)
          ! Spline Iterpolator
-         CALL para_env%group%sync()
+         CALL para_env%sync()
          CALL timeset(TRIM(routineN)//":spline3Int", handle2)
          DO Ilevel = coarser_grid, auxbas_grid + 1, -1
             CALL pw_prolongate_s3(grids(Ilevel), &

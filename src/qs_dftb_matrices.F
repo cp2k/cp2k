@@ -437,7 +437,7 @@ CONTAINS
       END DO
 
       ! set repulsive energy
-      CALL para_env%group%sum(erep)
+      CALL para_env%sum(erep)
       energy%repulsive = erep
 
       CALL section_vals_val_get(qs_env%input, "DFT%PRINT%AO_MATRICES%OMIT_HEADERS", l_val=omit_headers)

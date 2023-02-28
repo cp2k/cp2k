@@ -55,7 +55,6 @@ MODULE distribution_methods
    USE mathconstants,                   ONLY: pi
    USE mathlib,                         ONLY: gcd,&
                                               lcm
-   USE message_passing,                 ONLY: mp_comm_type
    USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                               get_molecule_kind_set,&
                                               molecule_kind_type
@@ -121,8 +120,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'distribute_molecules_1d'
 
       INTEGER :: atom_a, bin, handle, iatom, imolecule, imolecule_kind, imolecule_local, &
-         imolecule_prev_kind, iparticle_kind, ipe, iw, kind_a, molecule_a, mype, n, natom, nbins, &
-         nload, nmolecule, nmolecule_kind, nparticle_kind, npe, nsgf, output_unit
+         imolecule_prev_kind, iparticle_kind, ipe, iw, kind_a, molecule_a, n, natom, nbins, nload, &
+         nmolecule, nmolecule_kind, nparticle_kind, nsgf, output_unit
       INTEGER(int_8)                                     :: bin_price
       INTEGER(int_8), ALLOCATABLE, DIMENSION(:)          :: workload_count, workload_fill
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nmolecule_local, nparticle_local, work
@@ -132,10 +131,6 @@ CONTAINS
       TYPE(cp_heap_type)                                 :: bin_heap_count, bin_heap_fill
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
-      TYPE(mp_comm_type)                                 :: group
-
-! integer n_local_molecules
-! integer, allocatable :: all_local_molecules(:)
 
       CALL timeset(routineN, handle)
 
@@ -150,284 +145,284 @@ CONTAINS
 
       logger => cp_get_default_logger()
 
-      group = logger%para_env%group
-      mype = logger%para_env%mepos + 1
-      npe = logger%para_env%num_pe
+      ASSOCIATE (group => logger%para_env, mype => logger%para_env%mepos + 1, &
+                 npe => logger%para_env%num_pe)
 
-      ALLOCATE (workload_count(npe))
-      workload_count(:) = 0
+         ALLOCATE (workload_count(npe))
+         workload_count(:) = 0
 
-      ALLOCATE (workload_fill(npe))
-      workload_fill(:) = 0
+         ALLOCATE (workload_fill(npe))
+         workload_fill(:) = 0
 
-      nmolecule_kind = SIZE(molecule_kind_set)
+         nmolecule_kind = SIZE(molecule_kind_set)
 
-      ALLOCATE (nmolecule_local(nmolecule_kind))
-      nmolecule_local(:) = 0
+         ALLOCATE (nmolecule_local(nmolecule_kind))
+         nmolecule_local(:) = 0
 
-      ALLOCATE (local_molecule(nmolecule_kind))
+         ALLOCATE (local_molecule(nmolecule_kind))
 
-      nparticle_kind = SIZE(atomic_kind_set)
+         nparticle_kind = SIZE(atomic_kind_set)
 
-      ALLOCATE (nparticle_local(nparticle_kind))
-      nparticle_local(:) = 0
+         ALLOCATE (nparticle_local(nparticle_kind))
+         nparticle_local(:) = 0
 
-      nbins = npe
+         nbins = npe
 
-      CALL cp_heap_new(bin_heap_count, nbins)
-      CALL cp_heap_fill(bin_heap_count, workload_count)
+         CALL cp_heap_new(bin_heap_count, nbins)
+         CALL cp_heap_fill(bin_heap_count, workload_count)
 
-      CALL cp_heap_new(bin_heap_fill, nbins)
-      CALL cp_heap_fill(bin_heap_fill, workload_fill)
+         CALL cp_heap_new(bin_heap_fill, nbins)
+         CALL cp_heap_fill(bin_heap_fill, workload_fill)
 
-      DO imolecule_kind = 1, nmolecule_kind
+         DO imolecule_kind = 1, nmolecule_kind
 
-         molecule_kind => molecule_kind_set(imolecule_kind)
+            molecule_kind => molecule_kind_set(imolecule_kind)
 
-         NULLIFY (molecule_list)
+            NULLIFY (molecule_list)
 
 !     *** Get the number of molecules and the number of ***
 !     *** atoms in each molecule of that molecular kind ***
 
-         CALL get_molecule_kind(molecule_kind=molecule_kind, &
-                                molecule_list=molecule_list, &
-                                natom=natom, &
-                                nsgf=nsgf)
+            CALL get_molecule_kind(molecule_kind=molecule_kind, &
+                                   molecule_list=molecule_list, &
+                                   natom=natom, &
+                                   nsgf=nsgf)
 
 !     *** Consider the number of atoms or basis ***
 !     *** functions which depends on the method ***
 
-         nload = MAX(natom, nsgf)
-         nmolecule = SIZE(molecule_list)
+            nload = MAX(natom, nsgf)
+            nmolecule = SIZE(molecule_list)
 
 !     *** Get the number of local molecules of the current molecule kind ***
 
-         DO imolecule = 1, nmolecule
-            IF (has_prev_subsys_info) THEN
-               DO imolecule_prev_kind = 1, SIZE(prev_molecule_kind_set)
-                  IF (ANY(prev_local_molecules%list(imolecule_prev_kind)%array( &
-                          1:prev_local_molecules%n_el(imolecule_prev_kind)) == molecule_list(imolecule))) THEN
-                     ! molecule used to be local
+            DO imolecule = 1, nmolecule
+               IF (has_prev_subsys_info) THEN
+                  DO imolecule_prev_kind = 1, SIZE(prev_molecule_kind_set)
+                     IF (ANY(prev_local_molecules%list(imolecule_prev_kind)%array( &
+                             1:prev_local_molecules%n_el(imolecule_prev_kind)) == molecule_list(imolecule))) THEN
+                        ! molecule used to be local
+                        nmolecule_local(imolecule_kind) = nmolecule_local(imolecule_kind) + 1
+                     END IF
+                  END DO
+               ELSE
+                  CALL cp_heap_get_first(bin_heap_count, bin, bin_price, found)
+                  IF (.NOT. found) &
+                     CPABORT("No topmost heap element found.")
+
+                  ipe = bin
+                  IF (bin_price /= workload_count(ipe)) &
+                     CPABORT("inconsistent heap")
+
+                  workload_count(ipe) = workload_count(ipe) + nload
+                  IF (ipe == mype) THEN
                      nmolecule_local(imolecule_kind) = nmolecule_local(imolecule_kind) + 1
                   END IF
-               END DO
-            ELSE
-               CALL cp_heap_get_first(bin_heap_count, bin, bin_price, found)
-               IF (.NOT. found) &
-                  CPABORT("No topmost heap element found.")
 
-               ipe = bin
-               IF (bin_price /= workload_count(ipe)) &
-                  CPABORT("inconsistent heap")
-
-               workload_count(ipe) = workload_count(ipe) + nload
-               IF (ipe == mype) THEN
-                  nmolecule_local(imolecule_kind) = nmolecule_local(imolecule_kind) + 1
+                  bin_price = workload_count(ipe)
+                  CALL cp_heap_reset_first(bin_heap_count, bin_price)
                END IF
-
-               bin_price = workload_count(ipe)
-               CALL cp_heap_reset_first(bin_heap_count, bin_price)
-            END IF
-         END DO
+            END DO
 
 !     *** Distribute the molecules ***
-         n = nmolecule_local(imolecule_kind)
+            n = nmolecule_local(imolecule_kind)
 
-         IF (n > 0) THEN
-            ALLOCATE (local_molecule(imolecule_kind)%array(n))
-         ELSE
-            NULLIFY (local_molecule(imolecule_kind)%array)
-         END IF
-
-         imolecule_local = 0
-         DO imolecule = 1, nmolecule
-            is_local = .FALSE.
-            IF (has_prev_subsys_info) THEN
-               DO imolecule_prev_kind = 1, SIZE(prev_molecule_kind_set)
-                  IF (ANY(prev_local_molecules%list(imolecule_prev_kind)%array( &
-                          1:prev_local_molecules%n_el(imolecule_prev_kind)) == molecule_list(imolecule))) THEN
-                     is_local = .TRUE.
-                  END IF
-               END DO
+            IF (n > 0) THEN
+               ALLOCATE (local_molecule(imolecule_kind)%array(n))
             ELSE
-               CALL cp_heap_get_first(bin_heap_fill, bin, bin_price, found)
-               IF (.NOT. found) &
-                  CPABORT("No topmost heap element found.")
-
-               ipe = bin
-               IF (bin_price /= workload_fill(ipe)) &
-                  CPABORT("inconsistent heap")
-
-               workload_fill(ipe) = workload_fill(ipe) + nload
-               is_local = (ipe == mype)
+               NULLIFY (local_molecule(imolecule_kind)%array)
             END IF
-            IF (is_local) THEN
-               imolecule_local = imolecule_local + 1
-               molecule_a = molecule_list(imolecule)
-               local_molecule(imolecule_kind)%array(imolecule_local) = molecule_a
-               DO iatom = 1, natom
-                  atom_a = molecule_set(molecule_a)%first_atom + iatom - 1
 
-                  CALL get_atomic_kind(atomic_kind=particle_set(atom_a)%atomic_kind, &
-                                       kind_number=kind_a)
-                  nparticle_local(kind_a) = nparticle_local(kind_a) + 1
-               END DO
-            END IF
-            IF (.NOT. has_prev_subsys_info) THEN
-               bin_price = workload_fill(ipe)
-               CALL cp_heap_reset_first(bin_heap_fill, bin_price)
-            END IF
+            imolecule_local = 0
+            DO imolecule = 1, nmolecule
+               is_local = .FALSE.
+               IF (has_prev_subsys_info) THEN
+                  DO imolecule_prev_kind = 1, SIZE(prev_molecule_kind_set)
+                     IF (ANY(prev_local_molecules%list(imolecule_prev_kind)%array( &
+                             1:prev_local_molecules%n_el(imolecule_prev_kind)) == molecule_list(imolecule))) THEN
+                        is_local = .TRUE.
+                     END IF
+                  END DO
+               ELSE
+                  CALL cp_heap_get_first(bin_heap_fill, bin, bin_price, found)
+                  IF (.NOT. found) &
+                     CPABORT("No topmost heap element found.")
+
+                  ipe = bin
+                  IF (bin_price /= workload_fill(ipe)) &
+                     CPABORT("inconsistent heap")
+
+                  workload_fill(ipe) = workload_fill(ipe) + nload
+                  is_local = (ipe == mype)
+               END IF
+               IF (is_local) THEN
+                  imolecule_local = imolecule_local + 1
+                  molecule_a = molecule_list(imolecule)
+                  local_molecule(imolecule_kind)%array(imolecule_local) = molecule_a
+                  DO iatom = 1, natom
+                     atom_a = molecule_set(molecule_a)%first_atom + iatom - 1
+
+                     CALL get_atomic_kind(atomic_kind=particle_set(atom_a)%atomic_kind, &
+                                          kind_number=kind_a)
+                     nparticle_local(kind_a) = nparticle_local(kind_a) + 1
+                  END DO
+               END IF
+               IF (.NOT. has_prev_subsys_info) THEN
+                  bin_price = workload_fill(ipe)
+                  CALL cp_heap_reset_first(bin_heap_fill, bin_price)
+               END IF
+            END DO
+
          END DO
 
-      END DO
+         IF (ANY(workload_fill .NE. workload_count)) &
+            CPABORT("Inconsistent heaps encountered")
 
-      IF (ANY(workload_fill .NE. workload_count)) &
-         CPABORT("Inconsistent heaps encountered")
-
-      CALL cp_heap_release(bin_heap_count)
-      CALL cp_heap_release(bin_heap_fill)
+         CALL cp_heap_release(bin_heap_count)
+         CALL cp_heap_release(bin_heap_fill)
 
 !   *** Create the local molecule structure ***
 
-      CALL distribution_1d_create(local_molecules, &
-                                  n_el=nmolecule_local, &
-                                  para_env=logger%para_env)
+         CALL distribution_1d_create(local_molecules, &
+                                     n_el=nmolecule_local, &
+                                     para_env=logger%para_env)
 
 !   *** Create the local particle structure ***
 
-      CALL distribution_1d_create(local_particles, &
-                                  n_el=nparticle_local, &
-                                  para_env=logger%para_env)
+         CALL distribution_1d_create(local_particles, &
+                                     n_el=nparticle_local, &
+                                     para_env=logger%para_env)
 
 !   *** Store the generated local molecule and particle distributions ***
 
-      nparticle_local(:) = 0
+         nparticle_local(:) = 0
 
-      DO imolecule_kind = 1, nmolecule_kind
+         DO imolecule_kind = 1, nmolecule_kind
 
-         IF (nmolecule_local(imolecule_kind) == 0) CYCLE
+            IF (nmolecule_local(imolecule_kind) == 0) CYCLE
 
-         local_molecules%list(imolecule_kind)%array(:) = &
-            local_molecule(imolecule_kind)%array(:)
+            local_molecules%list(imolecule_kind)%array(:) = &
+               local_molecule(imolecule_kind)%array(:)
 
-         molecule_kind => molecule_kind_set(imolecule_kind)
+            molecule_kind => molecule_kind_set(imolecule_kind)
 
-         CALL get_molecule_kind(molecule_kind=molecule_kind, &
-                                natom=natom)
+            CALL get_molecule_kind(molecule_kind=molecule_kind, &
+                                   natom=natom)
 
-         DO imolecule = 1, nmolecule_local(imolecule_kind)
-            molecule_a = local_molecule(imolecule_kind)%array(imolecule)
-            DO iatom = 1, natom
-               atom_a = molecule_set(molecule_a)%first_atom + iatom - 1
-               CALL get_atomic_kind(atomic_kind=particle_set(atom_a)%atomic_kind, &
-                                    kind_number=kind_a)
-               nparticle_local(kind_a) = nparticle_local(kind_a) + 1
-               local_particles%list(kind_a)%array(nparticle_local(kind_a)) = atom_a
+            DO imolecule = 1, nmolecule_local(imolecule_kind)
+               molecule_a = local_molecule(imolecule_kind)%array(imolecule)
+               DO iatom = 1, natom
+                  atom_a = molecule_set(molecule_a)%first_atom + iatom - 1
+                  CALL get_atomic_kind(atomic_kind=particle_set(atom_a)%atomic_kind, &
+                                       kind_number=kind_a)
+                  nparticle_local(kind_a) = nparticle_local(kind_a) + 1
+                  local_particles%list(kind_a)%array(nparticle_local(kind_a)) = atom_a
+               END DO
             END DO
-         END DO
 
-      END DO
+         END DO
 
 !   *** Print distribution, if requested ***
 
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-                                           force_env_section, "PRINT%DISTRIBUTION1D"), cp_p_file)) THEN
+         IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                              force_env_section, "PRINT%DISTRIBUTION1D"), cp_p_file)) THEN
 
-         output_unit = cp_print_key_unit_nr(logger, force_env_section, "PRINT%DISTRIBUTION1D", &
-                                            extension=".Log")
+            output_unit = cp_print_key_unit_nr(logger, force_env_section, "PRINT%DISTRIBUTION1D", &
+                                               extension=".Log")
 
-         iw = output_unit
-         IF (output_unit < 0) iw = cp_logger_get_default_unit_nr(logger, LOCAL=.TRUE.)
+            iw = output_unit
+            IF (output_unit < 0) iw = cp_logger_get_default_unit_nr(logger, LOCAL=.TRUE.)
 
 !     *** Print molecule distribution ***
 
-         ALLOCATE (work(npe))
-         work(:) = 0
+            ALLOCATE (work(npe))
+            work(:) = 0
 
-         work(mype) = SUM(nmolecule_local)
-         CALL group%sum(work)
+            work(mype) = SUM(nmolecule_local)
+            CALL group%sum(work)
 
-         IF (output_unit > 0) THEN
-            WRITE (UNIT=output_unit, &
-                   FMT="(/, T2, A, T51, A, /, (T52, I6, T73, I8))") &
-               "DISTRIBUTION OF THE MOLECULES", &
-               "Process    Number of molecules", &
-               (ipe - 1, work(ipe), ipe=1, npe)
-            WRITE (UNIT=output_unit, FMT="(T55, A3, T73, I8)") &
-               "Sum", SUM(work)
-            CALL m_flush(output_unit)
-         END IF
-
-         CALL group%sync()
-
-         DO ipe = 1, npe
-            IF (ipe == mype) THEN
-               WRITE (UNIT=iw, FMT="(/, T3, A)") &
-                  "Process   Kind   Local molecules (global indices)"
-               DO imolecule_kind = 1, nmolecule_kind
-                  IF (imolecule_kind == 1) THEN
-                     WRITE (UNIT=iw, FMT="(T4, I6, 2X, I5, (T21, 10I6))") &
-                        ipe - 1, imolecule_kind, &
-                        (local_molecules%list(imolecule_kind)%array(imolecule), &
-                         imolecule=1, nmolecule_local(imolecule_kind))
-                  ELSE
-                     WRITE (UNIT=iw, FMT="(T12, I5, (T21, 10I6))") &
-                        imolecule_kind, &
-                        (local_molecules%list(imolecule_kind)%array(imolecule), &
-                         imolecule=1, nmolecule_local(imolecule_kind))
-                  END IF
-               END DO
+            IF (output_unit > 0) THEN
+               WRITE (UNIT=output_unit, &
+                      FMT="(/, T2, A, T51, A, /, (T52, I6, T73, I8))") &
+                  "DISTRIBUTION OF THE MOLECULES", &
+                  "Process    Number of molecules", &
+                  (ipe - 1, work(ipe), ipe=1, npe)
+               WRITE (UNIT=output_unit, FMT="(T55, A3, T73, I8)") &
+                  "Sum", SUM(work)
+               CALL m_flush(output_unit)
             END IF
-            CALL m_flush(iw)
+
             CALL group%sync()
-         END DO
+
+            DO ipe = 1, npe
+               IF (ipe == mype) THEN
+                  WRITE (UNIT=iw, FMT="(/, T3, A)") &
+                     "Process   Kind   Local molecules (global indices)"
+                  DO imolecule_kind = 1, nmolecule_kind
+                     IF (imolecule_kind == 1) THEN
+                        WRITE (UNIT=iw, FMT="(T4, I6, 2X, I5, (T21, 10I6))") &
+                           ipe - 1, imolecule_kind, &
+                           (local_molecules%list(imolecule_kind)%array(imolecule), &
+                            imolecule=1, nmolecule_local(imolecule_kind))
+                     ELSE
+                        WRITE (UNIT=iw, FMT="(T12, I5, (T21, 10I6))") &
+                           imolecule_kind, &
+                           (local_molecules%list(imolecule_kind)%array(imolecule), &
+                            imolecule=1, nmolecule_local(imolecule_kind))
+                     END IF
+                  END DO
+               END IF
+               CALL m_flush(iw)
+               CALL group%sync()
+            END DO
 
 !     *** Print particle distribution ***
 
-         work(:) = 0
+            work(:) = 0
 
-         work(mype) = SUM(nparticle_local)
-         CALL group%sum(work)
+            work(mype) = SUM(nparticle_local)
+            CALL group%sum(work)
 
-         IF (output_unit > 0) THEN
-            WRITE (UNIT=output_unit, &
-                   FMT="(/, T2, A, T51, A, /, (T52, I6, T73, I8))") &
-               "DISTRIBUTION OF THE PARTICLES", &
-               "Process    Number of particles", &
-               (ipe - 1, work(ipe), ipe=1, npe)
-            WRITE (UNIT=output_unit, FMT="(T55, A3, T73, I8)") &
-               "Sum", SUM(work)
-            CALL m_flush(output_unit)
-         END IF
-
-         CALL group%sync()
-
-         DO ipe = 1, npe
-            IF (ipe == mype) THEN
-               WRITE (UNIT=iw, FMT="(/, T3, A)") &
-                  "Process   Kind   Local particles (global indices)"
-               DO iparticle_kind = 1, nparticle_kind
-                  IF (iparticle_kind == 1) THEN
-                     WRITE (UNIT=iw, FMT="(T4, I6, 2X, I5, (T20, 10I6))") &
-                        ipe - 1, iparticle_kind, &
-                        (local_particles%list(iparticle_kind)%array(iatom), &
-                         iatom=1, nparticle_local(iparticle_kind))
-                  ELSE
-                     WRITE (UNIT=iw, FMT="(T12, I5, (T20, 10I6))") &
-                        iparticle_kind, &
-                        (local_particles%list(iparticle_kind)%array(iatom), &
-                         iatom=1, nparticle_local(iparticle_kind))
-                  END IF
-               END DO
+            IF (output_unit > 0) THEN
+               WRITE (UNIT=output_unit, &
+                      FMT="(/, T2, A, T51, A, /, (T52, I6, T73, I8))") &
+                  "DISTRIBUTION OF THE PARTICLES", &
+                  "Process    Number of particles", &
+                  (ipe - 1, work(ipe), ipe=1, npe)
+               WRITE (UNIT=output_unit, FMT="(T55, A3, T73, I8)") &
+                  "Sum", SUM(work)
+               CALL m_flush(output_unit)
             END IF
-            CALL m_flush(iw)
-            CALL group%sync()
-         END DO
-         DEALLOCATE (work)
 
-         CALL cp_print_key_finished_output(output_unit, logger, force_env_section, &
-                                           "PRINT%DISTRIBUTION1D")
-      END IF
+            CALL group%sync()
+
+            DO ipe = 1, npe
+               IF (ipe == mype) THEN
+                  WRITE (UNIT=iw, FMT="(/, T3, A)") &
+                     "Process   Kind   Local particles (global indices)"
+                  DO iparticle_kind = 1, nparticle_kind
+                     IF (iparticle_kind == 1) THEN
+                        WRITE (UNIT=iw, FMT="(T4, I6, 2X, I5, (T20, 10I6))") &
+                           ipe - 1, iparticle_kind, &
+                           (local_particles%list(iparticle_kind)%array(iatom), &
+                            iatom=1, nparticle_local(iparticle_kind))
+                     ELSE
+                        WRITE (UNIT=iw, FMT="(T12, I5, (T20, 10I6))") &
+                           iparticle_kind, &
+                           (local_particles%list(iparticle_kind)%array(iatom), &
+                            iatom=1, nparticle_local(iparticle_kind))
+                     END IF
+                  END DO
+               END IF
+               CALL m_flush(iw)
+               CALL group%sync()
+            END DO
+            DEALLOCATE (work)
+
+            CALL cp_print_key_finished_output(output_unit, logger, force_env_section, &
+                                              "PRINT%DISTRIBUTION1D")
+         END IF
+      END ASSOCIATE
 !   *** Release work storage ***
 
       DEALLOCATE (workload_count)
@@ -490,9 +485,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'distribute_molecules_2d'
 
       INTEGER :: cluster_price, cost_model, handle, iatom, iatom_mol, iatom_one, ikind, imol, &
-         imolecule, imolecule_kind, iparticle_kind, ipcol, iprow, iw, kind_a, mypcol, myprow, n, &
-         natom, natom_mol, nclusters, nmolecule, nmolecule_kind, nparticle_kind, npcol, nprow, &
-         nsgf, output_unit
+         imolecule, imolecule_kind, iparticle_kind, ipcol, iprow, iw, kind_a, n, natom, natom_mol, &
+         nclusters, nmolecule, nmolecule_kind, nparticle_kind, nsgf, output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cluster_list, cluster_prices, &
                                                             nparticle_local_col, &
                                                             nparticle_local_row, work
@@ -508,7 +502,6 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
-      TYPE(mp_comm_type)                                 :: group
       TYPE(section_vals_type), POINTER                   :: distribution_section
 
 !...
@@ -528,286 +521,284 @@ CONTAINS
       CALL section_vals_val_get(distribution_section, "COST_MODEL", i_val=cost_model)
       !
 
-      group = blacs_env%para_env%group
-      myprow = blacs_env%mepos(1) + 1
-      mypcol = blacs_env%mepos(2) + 1
-      nprow = blacs_env%num_pe(1)
-      npcol = blacs_env%num_pe(2)
+      ASSOCIATE (group => blacs_env%para_env, myprow => blacs_env%mepos(1) + 1, mypcol => blacs_env%mepos(2) + 1, &
+                 nprow => blacs_env%num_pe(1), npcol => blacs_env%num_pe(2))
 
-      nmolecule_kind = SIZE(molecule_kind_set)
-      CALL get_molecule_kind_set(molecule_kind_set, nmolecule=nmolecule)
+         nmolecule_kind = SIZE(molecule_kind_set)
+         CALL get_molecule_kind_set(molecule_kind_set, nmolecule=nmolecule)
 
-      nparticle_kind = SIZE(atomic_kind_set)
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom=natom)
+         nparticle_kind = SIZE(atomic_kind_set)
+         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom=natom)
 
-      !
-      ! we need to generate two representations of the distribution, one as a straight array with global particles
-      ! one ordered wrt to kinds and only listing the local particles
-      !
-      ALLOCATE (row_distribution(natom, 2))
-      ALLOCATE (col_distribution(natom, 2))
-      ! Initialize the distributions to -1, as the second dimension only gets set with cluster optimization
-      ! but the information is needed by dbcsr
-      row_distribution = -1; col_distribution = -1
+         !
+         ! we need to generate two representations of the distribution, one as a straight array with global particles
+         ! one ordered wrt to kinds and only listing the local particles
+         !
+         ALLOCATE (row_distribution(natom, 2))
+         ALLOCATE (col_distribution(natom, 2))
+         ! Initialize the distributions to -1, as the second dimension only gets set with cluster optimization
+         ! but the information is needed by dbcsr
+         row_distribution = -1; col_distribution = -1
 
-      ALLOCATE (local_particle_col(nparticle_kind))
-      ALLOCATE (local_particle_row(nparticle_kind))
-      ALLOCATE (nparticle_local_row(nparticle_kind))
-      ALLOCATE (nparticle_local_col(nparticle_kind))
+         ALLOCATE (local_particle_col(nparticle_kind))
+         ALLOCATE (local_particle_row(nparticle_kind))
+         ALLOCATE (nparticle_local_row(nparticle_kind))
+         ALLOCATE (nparticle_local_col(nparticle_kind))
 
-      IF (basic_optimization .OR. basic_spatial_optimization .OR. basic_cluster_optimization) THEN
+         IF (basic_optimization .OR. basic_spatial_optimization .OR. basic_cluster_optimization) THEN
 
-         IF (molecular_distribution) THEN
-            nclusters = nmolecule
-         ELSE
-            nclusters = natom
-         END IF
+            IF (molecular_distribution) THEN
+               nclusters = nmolecule
+            ELSE
+               nclusters = natom
+            END IF
 
-         ALLOCATE (cluster_list(nclusters))
-         ALLOCATE (cluster_prices(nclusters))
-         ALLOCATE (cluster_row_distribution(nclusters, 2))
-         ALLOCATE (cluster_col_distribution(nclusters, 2))
-         cluster_row_distribution = -1; cluster_col_distribution = -1
+            ALLOCATE (cluster_list(nclusters))
+            ALLOCATE (cluster_prices(nclusters))
+            ALLOCATE (cluster_row_distribution(nclusters, 2))
+            ALLOCATE (cluster_col_distribution(nclusters, 2))
+            cluster_row_distribution = -1; cluster_col_distribution = -1
 
-         ! Fill in the clusters and their prices
-         CALL section_vals_val_get(distribution_section, "COST_MODEL", i_val=cost_model)
-         IF (.NOT. molecular_distribution) THEN
-            DO iatom = 1, natom
-               IF (iatom .GT. nclusters) &
-                  CPABORT("Bounds error")
-               CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
-               cluster_list(iatom) = iatom
-               SELECT CASE (cost_model)
-               CASE (model_block_count)
-                  CALL get_qs_kind(qs_kind_set(ikind), nsgf=nsgf)
-                  cluster_price = nsgf
-               CASE (model_block_lmax)
-                  CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
-                  CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
-                  cluster_price = MAXVAL(lmax_basis)
-               CASE default
-                  CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
-                  CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
-                  cluster_price = 8 + (MAXVAL(lmax_basis)**2)
-               END SELECT
-               cluster_prices(iatom) = cluster_price
-            END DO
-         ELSE
-            imol = 0
-            DO imolecule_kind = 1, nmolecule_kind
-               molecule_kind => molecule_kind_set(imolecule_kind)
-               CALL get_molecule_kind(molecule_kind=molecule_kind, molecule_list=molecule_list, natom=natom_mol)
-               DO imolecule = 1, SIZE(molecule_list)
-                  imol = imol + 1
-                  cluster_list(imol) = imol
-                  cluster_price = 0
-                  DO iatom_mol = 1, natom_mol
-                     iatom = molecule_set(molecule_list(imolecule))%first_atom + iatom_mol - 1
-                     CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
-                     SELECT CASE (cost_model)
-                     CASE (model_block_count)
-                        CALL get_qs_kind(qs_kind_set(ikind), nsgf=nsgf)
-                        cluster_price = cluster_price + nsgf
-                     CASE (model_block_lmax)
-                        CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
-                        CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
-                        cluster_price = cluster_price + MAXVAL(lmax_basis)
-                     CASE default
-                        CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
-                        CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
-                        cluster_price = cluster_price + 8 + (MAXVAL(lmax_basis)**2)
-                     END SELECT
-                  END DO
-                  cluster_prices(imol) = cluster_price
-               END DO
-            END DO
-         END IF
-
-         ! And distribute
-         IF (basic_optimization) THEN
-            CALL make_basic_distribution(cluster_list, cluster_prices, &
-                                         nprow, cluster_row_distribution(:, 1), npcol, cluster_col_distribution(:, 1))
-         ELSE
-            IF (basic_cluster_optimization) THEN
-               IF (molecular_distribution) &
-                  CPABORT("clustering and molecular blocking NYI")
-               ALLOCATE (pbc_scaled_coords(3, natom), coords(3, natom))
+            ! Fill in the clusters and their prices
+            CALL section_vals_val_get(distribution_section, "COST_MODEL", i_val=cost_model)
+            IF (.NOT. molecular_distribution) THEN
                DO iatom = 1, natom
-                  CALL real_to_scaled(pbc_scaled_coords(:, iatom), pbc(particle_set(iatom)%r(:), cell), cell)
-                  coords(:, iatom) = pbc(particle_set(iatom)%r(:), cell)
+                  IF (iatom .GT. nclusters) &
+                     CPABORT("Bounds error")
+                  CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+                  cluster_list(iatom) = iatom
+                  SELECT CASE (cost_model)
+                  CASE (model_block_count)
+                     CALL get_qs_kind(qs_kind_set(ikind), nsgf=nsgf)
+                     cluster_price = nsgf
+                  CASE (model_block_lmax)
+                     CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
+                     CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
+                     cluster_price = MAXVAL(lmax_basis)
+                  CASE default
+                     CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
+                     CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
+                     cluster_price = 8 + (MAXVAL(lmax_basis)**2)
+                  END SELECT
+                  cluster_prices(iatom) = cluster_price
                END DO
-               CALL make_cluster_distribution(coords, pbc_scaled_coords, cell, cluster_prices, &
-                                              nprow, cluster_row_distribution, npcol, cluster_col_distribution)
-            ELSE ! basic_spatial_optimization
-               ALLOCATE (pbc_scaled_coords(3, nclusters))
-               IF (.NOT. molecular_distribution) THEN
-                  ! just scaled coords
+            ELSE
+               imol = 0
+               DO imolecule_kind = 1, nmolecule_kind
+                  molecule_kind => molecule_kind_set(imolecule_kind)
+                  CALL get_molecule_kind(molecule_kind=molecule_kind, molecule_list=molecule_list, natom=natom_mol)
+                  DO imolecule = 1, SIZE(molecule_list)
+                     imol = imol + 1
+                     cluster_list(imol) = imol
+                     cluster_price = 0
+                     DO iatom_mol = 1, natom_mol
+                        iatom = molecule_set(molecule_list(imolecule))%first_atom + iatom_mol - 1
+                        CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+                        SELECT CASE (cost_model)
+                        CASE (model_block_count)
+                           CALL get_qs_kind(qs_kind_set(ikind), nsgf=nsgf)
+                           cluster_price = cluster_price + nsgf
+                        CASE (model_block_lmax)
+                           CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
+                           CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
+                           cluster_price = cluster_price + MAXVAL(lmax_basis)
+                        CASE default
+                           CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
+                           CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
+                           cluster_price = cluster_price + 8 + (MAXVAL(lmax_basis)**2)
+                        END SELECT
+                     END DO
+                     cluster_prices(imol) = cluster_price
+                  END DO
+               END DO
+            END IF
+
+            ! And distribute
+            IF (basic_optimization) THEN
+               CALL make_basic_distribution(cluster_list, cluster_prices, &
+                                            nprow, cluster_row_distribution(:, 1), npcol, cluster_col_distribution(:, 1))
+            ELSE
+               IF (basic_cluster_optimization) THEN
+                  IF (molecular_distribution) &
+                     CPABORT("clustering and molecular blocking NYI")
+                  ALLOCATE (pbc_scaled_coords(3, natom), coords(3, natom))
                   DO iatom = 1, natom
                      CALL real_to_scaled(pbc_scaled_coords(:, iatom), pbc(particle_set(iatom)%r(:), cell), cell)
+                     coords(:, iatom) = pbc(particle_set(iatom)%r(:), cell)
                   END DO
-               ELSE
-                  ! use scaled coords of geometric center, folding when appropriate
-                  imol = 0
-                  DO imolecule_kind = 1, nmolecule_kind
-                     molecule_kind => molecule_kind_set(imolecule_kind)
-                     CALL get_molecule_kind(molecule_kind=molecule_kind, molecule_list=molecule_list, natom=natom_mol)
-                     DO imolecule = 1, SIZE(molecule_list)
-                        imol = imol + 1
-                        iatom_one = molecule_set(molecule_list(imolecule))%first_atom
-                        center = 0.0_dp
-                        DO iatom_mol = 1, natom_mol
-                           iatom = molecule_set(molecule_list(imolecule))%first_atom + iatom_mol - 1
-                           center = center + &
+                  CALL make_cluster_distribution(coords, pbc_scaled_coords, cell, cluster_prices, &
+                                                 nprow, cluster_row_distribution, npcol, cluster_col_distribution)
+               ELSE ! basic_spatial_optimization
+                  ALLOCATE (pbc_scaled_coords(3, nclusters))
+                  IF (.NOT. molecular_distribution) THEN
+                     ! just scaled coords
+                     DO iatom = 1, natom
+                        CALL real_to_scaled(pbc_scaled_coords(:, iatom), pbc(particle_set(iatom)%r(:), cell), cell)
+                     END DO
+                  ELSE
+                     ! use scaled coords of geometric center, folding when appropriate
+                     imol = 0
+                     DO imolecule_kind = 1, nmolecule_kind
+                        molecule_kind => molecule_kind_set(imolecule_kind)
+                        CALL get_molecule_kind(molecule_kind=molecule_kind, molecule_list=molecule_list, natom=natom_mol)
+                        DO imolecule = 1, SIZE(molecule_list)
+                           imol = imol + 1
+                           iatom_one = molecule_set(molecule_list(imolecule))%first_atom
+                           center = 0.0_dp
+                           DO iatom_mol = 1, natom_mol
+                              iatom = molecule_set(molecule_list(imolecule))%first_atom + iatom_mol - 1
+                              center = center + &
                                    pbc(particle_set(iatom)%r(:) - particle_set(iatom_one)%r(:), cell) + particle_set(iatom_one)%r(:)
+                           END DO
+                           center = center/natom_mol
+                           CALL real_to_scaled(pbc_scaled_coords(:, imol), pbc(center, cell), cell)
                         END DO
-                        center = center/natom_mol
-                        CALL real_to_scaled(pbc_scaled_coords(:, imol), pbc(center, cell), cell)
+                     END DO
+                  END IF
+
+                  CALL make_basic_spatial_distribution(pbc_scaled_coords, cluster_prices, &
+                                                       nprow, cluster_row_distribution(:, 1), npcol, cluster_col_distribution(:, 1))
+
+                  DEALLOCATE (pbc_scaled_coords)
+               END IF
+            END IF
+
+            ! And assign back
+            IF (.NOT. molecular_distribution) THEN
+               row_distribution = cluster_row_distribution
+               col_distribution = cluster_col_distribution
+            ELSE
+               imol = 0
+               DO imolecule_kind = 1, nmolecule_kind
+                  molecule_kind => molecule_kind_set(imolecule_kind)
+                  CALL get_molecule_kind(molecule_kind=molecule_kind, molecule_list=molecule_list, natom=natom_mol)
+                  DO imolecule = 1, SIZE(molecule_list)
+                     imol = imol + 1
+                     DO iatom_mol = 1, natom_mol
+                        iatom = molecule_set(molecule_list(imolecule))%first_atom + iatom_mol - 1
+                        row_distribution(iatom, :) = cluster_row_distribution(imol, :)
+                        col_distribution(iatom, :) = cluster_col_distribution(imol, :)
                      END DO
                   END DO
-               END IF
-
-               CALL make_basic_spatial_distribution(pbc_scaled_coords, cluster_prices, &
-                                                    nprow, cluster_row_distribution(:, 1), npcol, cluster_col_distribution(:, 1))
-
-               DEALLOCATE (pbc_scaled_coords)
-            END IF
-         END IF
-
-         ! And assign back
-         IF (.NOT. molecular_distribution) THEN
-            row_distribution = cluster_row_distribution
-            col_distribution = cluster_col_distribution
-         ELSE
-            imol = 0
-            DO imolecule_kind = 1, nmolecule_kind
-               molecule_kind => molecule_kind_set(imolecule_kind)
-               CALL get_molecule_kind(molecule_kind=molecule_kind, molecule_list=molecule_list, natom=natom_mol)
-               DO imolecule = 1, SIZE(molecule_list)
-                  imol = imol + 1
-                  DO iatom_mol = 1, natom_mol
-                     iatom = molecule_set(molecule_list(imolecule))%first_atom + iatom_mol - 1
-                     row_distribution(iatom, :) = cluster_row_distribution(imol, :)
-                     col_distribution(iatom, :) = cluster_col_distribution(imol, :)
-                  END DO
                END DO
-            END DO
+            END IF
+
+            ! cleanup
+            DEALLOCATE (cluster_list)
+            DEALLOCATE (cluster_prices)
+            DEALLOCATE (cluster_row_distribution)
+            DEALLOCATE (cluster_col_distribution)
+
+         ELSE
+            ! expects nothing else
+            CPABORT("")
          END IF
 
-         ! cleanup
-         DEALLOCATE (cluster_list)
-         DEALLOCATE (cluster_prices)
-         DEALLOCATE (cluster_row_distribution)
-         DEALLOCATE (cluster_col_distribution)
+         ! prepare the lists of local particles
 
-      ELSE
-         ! expects nothing else
-         CPABORT("")
-      END IF
+         ! count local particles of a given kind
+         nparticle_local_col = 0
+         nparticle_local_row = 0
+         DO iatom = 1, natom
+            CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, kind_number=kind_a)
+            IF (row_distribution(iatom, 1) == myprow) nparticle_local_row(kind_a) = nparticle_local_row(kind_a) + 1
+            IF (col_distribution(iatom, 1) == mypcol) nparticle_local_col(kind_a) = nparticle_local_col(kind_a) + 1
+         END DO
 
-      ! prepare the lists of local particles
+         ! allocate space
+         DO iparticle_kind = 1, nparticle_kind
+            n = nparticle_local_row(iparticle_kind)
+            ALLOCATE (local_particle_row(iparticle_kind)%array(n))
 
-      ! count local particles of a given kind
-      nparticle_local_col = 0
-      nparticle_local_row = 0
-      DO iatom = 1, natom
-         CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, kind_number=kind_a)
-         IF (row_distribution(iatom, 1) == myprow) nparticle_local_row(kind_a) = nparticle_local_row(kind_a) + 1
-         IF (col_distribution(iatom, 1) == mypcol) nparticle_local_col(kind_a) = nparticle_local_col(kind_a) + 1
-      END DO
+            n = nparticle_local_col(iparticle_kind)
+            ALLOCATE (local_particle_col(iparticle_kind)%array(n))
+         END DO
 
-      ! allocate space
-      DO iparticle_kind = 1, nparticle_kind
-         n = nparticle_local_row(iparticle_kind)
-         ALLOCATE (local_particle_row(iparticle_kind)%array(n))
-
-         n = nparticle_local_col(iparticle_kind)
-         ALLOCATE (local_particle_col(iparticle_kind)%array(n))
-      END DO
-
-      ! store
-      nparticle_local_col = 0
-      nparticle_local_row = 0
-      DO iatom = 1, natom
-         CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, kind_number=kind_a)
-         IF (row_distribution(iatom, 1) == myprow) THEN
-            nparticle_local_row(kind_a) = nparticle_local_row(kind_a) + 1
-            local_particle_row(kind_a)%array(nparticle_local_row(kind_a)) = iatom
-         END IF
-         IF (col_distribution(iatom, 1) == mypcol) THEN
-            nparticle_local_col(kind_a) = nparticle_local_col(kind_a) + 1
-            local_particle_col(kind_a)%array(nparticle_local_col(kind_a)) = iatom
-         END IF
-      END DO
+         ! store
+         nparticle_local_col = 0
+         nparticle_local_row = 0
+         DO iatom = 1, natom
+            CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, kind_number=kind_a)
+            IF (row_distribution(iatom, 1) == myprow) THEN
+               nparticle_local_row(kind_a) = nparticle_local_row(kind_a) + 1
+               local_particle_row(kind_a)%array(nparticle_local_row(kind_a)) = iatom
+            END IF
+            IF (col_distribution(iatom, 1) == mypcol) THEN
+               nparticle_local_col(kind_a) = nparticle_local_col(kind_a) + 1
+               local_particle_col(kind_a)%array(nparticle_local_col(kind_a)) = iatom
+            END IF
+         END DO
 
 !   *** Generate the 2d distribution structure  but take care of the zero offsets required
-      row_distribution(:, 1) = row_distribution(:, 1) - 1
-      col_distribution(:, 1) = col_distribution(:, 1) - 1
-      CALL distribution_2d_create(distribution_2d, &
-                                  row_distribution_ptr=row_distribution, &
-                                  col_distribution_ptr=col_distribution, &
-                                  local_rows_ptr=local_particle_row, &
-                                  local_cols_ptr=local_particle_col, &
-                                  blacs_env=blacs_env)
+         row_distribution(:, 1) = row_distribution(:, 1) - 1
+         col_distribution(:, 1) = col_distribution(:, 1) - 1
+         CALL distribution_2d_create(distribution_2d, &
+                                     row_distribution_ptr=row_distribution, &
+                                     col_distribution_ptr=col_distribution, &
+                                     local_rows_ptr=local_particle_row, &
+                                     local_cols_ptr=local_particle_col, &
+                                     blacs_env=blacs_env)
 
-      NULLIFY (local_particle_row)
-      NULLIFY (local_particle_col)
-      NULLIFY (row_distribution)
-      NULLIFY (col_distribution)
+         NULLIFY (local_particle_row)
+         NULLIFY (local_particle_col)
+         NULLIFY (row_distribution)
+         NULLIFY (col_distribution)
 
 !   *** Print distribution, if requested ***
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-                                           force_env_section, "PRINT%DISTRIBUTION"), cp_p_file)) THEN
+         IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                              force_env_section, "PRINT%DISTRIBUTION"), cp_p_file)) THEN
 
-         output_unit = cp_print_key_unit_nr(logger, force_env_section, "PRINT%DISTRIBUTION", &
-                                            extension=".Log")
+            output_unit = cp_print_key_unit_nr(logger, force_env_section, "PRINT%DISTRIBUTION", &
+                                               extension=".Log")
 
 !     *** Print row distribution ***
 
-         ALLOCATE (work(nprow))
-         work(:) = 0
+            ALLOCATE (work(nprow))
+            work(:) = 0
 
-         IF (mypcol == 1) work(myprow) = SUM(distribution_2d%n_local_rows)
+            IF (mypcol == 1) work(myprow) = SUM(distribution_2d%n_local_rows)
 
-         CALL group%sum(work)
+            CALL group%sum(work)
 
-         IF (output_unit > 0) THEN
-            WRITE (UNIT=output_unit, &
-                   FMT="(/, T2, A, /, T15, A, /, (T16, I10, T41, I10, T71, I10))") &
-               "DISTRIBUTION OF THE PARTICLES (ROWS)", &
-               "Process row      Number of particles         Number of matrix rows", &
-               (iprow - 1, work(iprow), -1, iprow=1, nprow)
-            WRITE (UNIT=output_unit, FMT="(T23, A3, T41, I10, T71, I10)") &
-               "Sum", SUM(work), -1
-            CALL m_flush(output_unit)
-         END IF
+            IF (output_unit > 0) THEN
+               WRITE (UNIT=output_unit, &
+                      FMT="(/, T2, A, /, T15, A, /, (T16, I10, T41, I10, T71, I10))") &
+                  "DISTRIBUTION OF THE PARTICLES (ROWS)", &
+                  "Process row      Number of particles         Number of matrix rows", &
+                  (iprow - 1, work(iprow), -1, iprow=1, nprow)
+               WRITE (UNIT=output_unit, FMT="(T23, A3, T41, I10, T71, I10)") &
+                  "Sum", SUM(work), -1
+               CALL m_flush(output_unit)
+            END IF
 
-         DEALLOCATE (work)
+            DEALLOCATE (work)
 
 !     *** Print column distribution ***
 
-         ALLOCATE (work(npcol))
-         work(:) = 0
+            ALLOCATE (work(npcol))
+            work(:) = 0
 
-         IF (myprow == 1) work(mypcol) = SUM(distribution_2d%n_local_cols)
+            IF (myprow == 1) work(mypcol) = SUM(distribution_2d%n_local_cols)
 
-         CALL group%sum(work)
+            CALL group%sum(work)
 
-         IF (output_unit > 0) THEN
-            WRITE (UNIT=output_unit, &
-                   FMT="(/, T2, A, /, T15, A, /, (T16, I10, T41, I10, T71, I10))") &
-               "DISTRIBUTION OF THE PARTICLES (COLUMNS)", &
-               "Process col      Number of particles      Number of matrix columns", &
-               (ipcol - 1, work(ipcol), -1, ipcol=1, npcol)
-            WRITE (UNIT=output_unit, FMT="(T23, A3, T41, I10, T71, I10)") &
-               "Sum", SUM(work), -1
-            CALL m_flush(output_unit)
+            IF (output_unit > 0) THEN
+               WRITE (UNIT=output_unit, &
+                      FMT="(/, T2, A, /, T15, A, /, (T16, I10, T41, I10, T71, I10))") &
+                  "DISTRIBUTION OF THE PARTICLES (COLUMNS)", &
+                  "Process col      Number of particles      Number of matrix columns", &
+                  (ipcol - 1, work(ipcol), -1, ipcol=1, npcol)
+               WRITE (UNIT=output_unit, FMT="(T23, A3, T41, I10, T71, I10)") &
+                  "Sum", SUM(work), -1
+               CALL m_flush(output_unit)
+            END IF
+
+            DEALLOCATE (work)
+
+            CALL cp_print_key_finished_output(output_unit, logger, force_env_section, &
+                                              "PRINT%DISTRIBUTION")
          END IF
-
-         DEALLOCATE (work)
-
-         CALL cp_print_key_finished_output(output_unit, logger, force_env_section, &
-                                           "PRINT%DISTRIBUTION")
-      END IF
+      END ASSOCIATE
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info, &
                                            force_env_section, "PRINT%DISTRIBUTION2D"), cp_p_file)) THEN

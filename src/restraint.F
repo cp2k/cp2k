@@ -186,13 +186,13 @@ CONTAINS
             END IF
          END DO
       END DO MOL
-      CALL force_env%para_env%group%sum(n_restraint)
+      CALL force_env%para_env%sum(n_restraint)
       IF (n_restraint > 0) THEN
-         CALL force_env%para_env%group%sum(energy_fixd)
-         CALL force_env%para_env%group%sum(energy_3x3)
-         CALL force_env%para_env%group%sum(energy_4x6)
-         CALL force_env%para_env%group%sum(energy_colv)
-         CALL update_particle_set(particle_set, force_env%para_env%group, for=force, add=.TRUE.)
+         CALL force_env%para_env%sum(energy_fixd)
+         CALL force_env%para_env%sum(energy_3x3)
+         CALL force_env%para_env%sum(energy_4x6)
+         CALL force_env%para_env%sum(energy_colv)
+         CALL update_particle_set(particle_set, force_env%para_env, for=force, add=.TRUE.)
          force = 0.0_dp
          n_restraint = 0
       END IF

@@ -242,9 +242,9 @@ CONTAINS
       END IF
       CALL close_file(unit_number=msd%ref0_unit)
 
-      CALL para_env%group%bcast(msd%total_mass, para_env%source)
-      CALL para_env%group%bcast(msd%ref0_pos, para_env%source)
-      CALL para_env%group%bcast(msd%ref0_com, para_env%source)
+      CALL para_env%bcast(msd%total_mass, para_env%source)
+      CALL para_env%bcast(msd%ref0_pos, para_env%source)
+      CALL para_env%bcast(msd%ref0_com, para_env%source)
 
       CALL section_vals_val_get(msd_section, "MSD_PER_KIND", l_val=msd%msd_kind)
       CALL section_vals_val_get(msd_section, "MSD_PER_MOLKIND", l_val=msd%msd_molecule)
@@ -379,12 +379,12 @@ CONTAINS
                rcom(3) = rcom(3) + particle_set(atom)%r(3)*mass
             END DO
          END DO
-         CALL para_env%group%sum(rcom)
+         CALL para_env%sum(rcom)
          rcom = rcom/reftraj%msd%total_mass
          reftraj%msd%drcom(1) = rcom(1) - reftraj%msd%ref0_com(1)
          reftraj%msd%drcom(2) = rcom(2) - reftraj%msd%ref0_com(2)
          reftraj%msd%drcom(3) = rcom(3) - reftraj%msd%ref0_com(3)
-!      IF(para_env%ionode) WRITE(*,'(A,T50,3f10.5)') ' COM displacement (dx,dy,dz) [angstrom]:  ', &
+!      IF(para_env%is_source()) WRITE(*,'(A,T50,3f10.5)') ' COM displacement (dx,dy,dz) [angstrom]:  ', &
 !                         drcom(1)*angstrom,drcom(2)*angstrom,drcom(3)*angstrom
 ! compute_com
 
@@ -423,9 +423,9 @@ CONTAINS
 
          END DO  ! ikind
       END IF
-      CALL para_env%group%sum(reftraj%msd%val_msd_kind)
-      CALL para_env%group%sum(reftraj%msd%num_disp_atom)
-      CALL para_env%group%sum(reftraj%msd%disp_atom_dr)
+      CALL para_env%sum(reftraj%msd%val_msd_kind)
+      CALL para_env%sum(reftraj%msd%num_disp_atom)
+      CALL para_env%sum(reftraj%msd%disp_atom_dr)
 
       IF (reftraj%msd%msd_molecule) THEN
          CALL cp_subsys_get(subsys=subsys, local_molecules=local_molecules, &
@@ -476,7 +476,7 @@ CONTAINS
             reftraj%msd%val_msd_molecule(3, ikind) = msd_mkind(3)/REAL(nmolecule, KIND=dp)
             reftraj%msd%val_msd_molecule(4, ikind) = msd_mkind(4)/REAL(nmolecule, KIND=dp)
          END DO  ! ikind
-         CALL para_env%group%sum(reftraj%msd%val_msd_molecule)
+         CALL para_env%sum(reftraj%msd%val_msd_molecule)
 
       END IF
 

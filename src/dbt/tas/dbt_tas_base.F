@@ -612,10 +612,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_tas_convert_to_tas'
 
       CHARACTER(len=default_string_length)               :: name
-      INTEGER                                            :: col, handle, numnodes, row
+      INTEGER                                            :: col, handle, row
       INTEGER(KIND=int_8)                                :: nbcols, nbrows
       INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size, row_blk_size
-      INTEGER, DIMENSION(2)                              :: pcoord, pdims
+      INTEGER, DIMENSION(2)                              :: pdims
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
       TYPE(dbm_distribution_obj)                         :: dbm_dist
       TYPE(dbm_iterator)                                 :: iter
@@ -625,7 +625,7 @@ CONTAINS
 
       NULLIFY (col_blk_size, row_blk_size)
       CALL timeset(routineN, handle)
-      CALL info%mp_comm%environ_cart(numnodes, pdims, pcoord)
+      pdims = info%mp_comm%num_pe_cart
 
       name = dbm_get_name(matrix_dbm)
       row_blk_size => dbm_get_row_block_sizes(matrix_dbm)

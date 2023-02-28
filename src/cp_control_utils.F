@@ -1460,21 +1460,21 @@ CONTAINS
          CASE DEFAULT
             CPABORT("Illegal value for periodiciy")
          END SELECT
-      END IF
-      CALL section_vals_get(stda_section, explicit=explicit)
-      IF (explicit) THEN
-         CALL section_vals_val_get(stda_section, "HFX_FRACTION", r_val=hfx, explicit=expl)
-         IF (expl) t_control%stda_control%hfx_fraction = hfx
-         CALL section_vals_val_get(stda_section, "EPS_TD_FILTER", r_val=filter, explicit=expl)
-         IF (expl) t_control%stda_control%eps_td_filter = filter
-         CALL section_vals_val_get(stda_section, "DO_EWALD", l_val=do_ewald, explicit=expl)
-         IF (expl) t_control%stda_control%do_ewald = do_ewald
-         CALL section_vals_val_get(stda_section, "DO_EXCHANGE", l_val=do_exchange, explicit=expl)
-         IF (expl) t_control%stda_control%do_exchange = do_exchange
-         CALL section_vals_val_get(stda_section, "MATAGA_NISHIMOTO_CEXP", r_val=fval)
-         t_control%stda_control%mn_alpha = fval
-         CALL section_vals_val_get(stda_section, "MATAGA_NISHIMOTO_XEXP", r_val=fval)
-         t_control%stda_control%mn_beta = fval
+         CALL section_vals_get(stda_section, explicit=explicit)
+         IF (explicit) THEN
+            CALL section_vals_val_get(stda_section, "HFX_FRACTION", r_val=hfx, explicit=expl)
+            IF (expl) t_control%stda_control%hfx_fraction = hfx
+            CALL section_vals_val_get(stda_section, "EPS_TD_FILTER", r_val=filter, explicit=expl)
+            IF (expl) t_control%stda_control%eps_td_filter = filter
+            CALL section_vals_val_get(stda_section, "DO_EWALD", l_val=do_ewald, explicit=expl)
+            IF (expl) t_control%stda_control%do_ewald = do_ewald
+            CALL section_vals_val_get(stda_section, "DO_EXCHANGE", l_val=do_exchange, explicit=expl)
+            IF (expl) t_control%stda_control%do_exchange = do_exchange
+            CALL section_vals_val_get(stda_section, "MATAGA_NISHIMOTO_CEXP", r_val=fval)
+            t_control%stda_control%mn_alpha = fval
+            CALL section_vals_val_get(stda_section, "MATAGA_NISHIMOTO_XEXP", r_val=fval)
+            t_control%stda_control%mn_beta = fval
+         END IF
          CALL section_vals_val_get(stda_section, "COULOMB_SR_CUT", r_val=fval)
          t_control%stda_control%coulomb_sr_cut = fval
          CALL section_vals_val_get(stda_section, "COULOMB_SR_EPS", r_val=fval)

@@ -298,7 +298,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'transport_initialize'
 
-      INTEGER                                            :: handle, mynode, numnodes, unit_nr
+      INTEGER                                            :: handle, numnodes, unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
@@ -306,13 +306,13 @@ CONTAINS
       CALL cite_reference(Bruck2014)
 
       logger => cp_get_default_logger()
-      IF (logger%para_env%ionode) THEN
+      IF (logger%para_env%is_source()) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
       END IF
 
-      CALL logger%para_env%group%environ(numnodes, mynode)
+      numnodes = logger%para_env%num_pe
 
       IF (dbcsr_has_symmetry(template_matrix)) THEN
          CALL dbcsr_copy(transport_env%template_matrix_sym, template_matrix)
@@ -492,7 +492,7 @@ CONTAINS
          csr_interop_mat%nzvals_local = C_LOC(nzvals_local(1))
       END IF
 
-      ASSOCIATE (mp_group => logger%para_env%group, mepos => logger%para_env%mepos, num_pe => logger%para_env%num_pe)
+      ASSOCIATE (mp_group => logger%para_env, mepos => logger%para_env%mepos, num_pe => logger%para_env%num_pe)
          ALLOCATE (nrows_local_all(0:num_pe - 1), first_row_all(0:num_pe - 1))
          CALL mp_group%allgather(csr_mat%nrows_local, nrows_local_all)
          CALL cumsum_i(nrows_local_all, first_row_all)

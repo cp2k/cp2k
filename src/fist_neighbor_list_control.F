@@ -172,7 +172,7 @@ CONTAINS
             END DO
          END DO
 
-         CALL para_env%group%max(dr2_max)
+         CALL para_env%max(dr2_max)
 
          ! If the maximum distplacement is too large, ...
          IF (dr2_max > 0.25_dp*verlet_skin**2 .OR. build_from_scratch) THEN

@@ -107,7 +107,7 @@ CONTAINS
       DO i = 1, nbib
          t = 0
          IF (thebib(i)%ref%is_cited) t = 1
-         CALL para_env%group%max(t)
+         CALL para_env%max(t)
          thebib(i)%ref%is_cited = (t == 1)
       END DO
 

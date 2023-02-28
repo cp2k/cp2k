@@ -429,8 +429,8 @@ CONTAINS
       CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
 #endif
 
-      ASSOCIATE (ionode => para_env%ionode, my_rank => para_env%mepos, &
-                 num_pe => para_env%num_pe, gid => para_env%group, &
+      ASSOCIATE (ionode => para_env%is_source(), my_rank => para_env%mepos, &
+                 num_pe => para_env%num_pe, &
                  sim_step => qs_env%sim_step, sim_time => qs_env%sim_time, &
                  L1 => rspace_pw%pw_grid%bounds(1, 1), L2 => rspace_pw%pw_grid%bounds(1, 2), &
                  L3 => rspace_pw%pw_grid%bounds(1, 3), U1 => rspace_pw%pw_grid%bounds(2, 1), &
@@ -568,10 +568,10 @@ CONTAINS
             ELSE
                IF (my_rank == source) THEN
                   buf(:) = rspace_pw%cr3d(I1, I2, :)
-                  CALL gid%send(buf, dest, tag)
+                  CALL para_env%send(buf, dest, tag)
                END IF
                IF (my_rank == dest) THEN
-                  CALL gid%recv(buf, source, tag)
+                  CALL para_env%recv(buf, source, tag)
                END IF
             END IF
 
@@ -588,7 +588,7 @@ CONTAINS
             ! that flies around at any given time.
             ! if ever this routine becomes a bottleneck, we should go for a
             ! more complicated rewrite
-            CALL gid%sync()
+            CALL para_env%sync()
 
          END DO
       END DO

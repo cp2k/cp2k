@@ -105,7 +105,7 @@ CONTAINS
                             input_path=input_path, &
                             input=root_section, &
                             output_unit=worker%iw, &
-                            mpi_comm=para_env%group)
+                            mpi_comm=para_env)
 
       ! ======= More setup stuff =======
       CALL f_env_add_defaults(worker%f_env_id, worker%f_env)

@@ -152,7 +152,7 @@ CONTAINS
                          molecule_set=molecules%els, molecule_kind_set=molecule_kinds%els, &
                          particle_set=particles%els, pos=my_pos, vel=my_vel, dt=mydt, &
                          shake_tol=shake_tol, log_unit=my_log_unit, lagrange_mult=my_lagrange_mult, &
-                         dump_lm=my_dump_lm, cell=cell, group=force_env%para_env%group, &
+                         dump_lm=my_dump_lm, cell=cell, group=force_env%para_env, &
                          local_particles=local_particles)
 
       ! Possibly reset the lagrange multipliers
@@ -204,11 +204,11 @@ CONTAINS
       END IF
 
       IF (has_pos) THEN
-         CALL update_particle_set(particles%els, force_env%para_env%group, pos=my_pos)
+         CALL update_particle_set(particles%els, force_env%para_env, pos=my_pos)
          DEALLOCATE (my_pos)
       END IF
       IF (has_vel) THEN
-         CALL update_particle_set(particles%els, force_env%para_env%group, vel=my_vel)
+         CALL update_particle_set(particles%els, force_env%para_env, vel=my_vel)
          DEALLOCATE (my_vel)
       END IF
       CALL timestop(handle)
@@ -300,7 +300,7 @@ CONTAINS
                           molecule_set=molecules%els, molecule_kind_set=molecule_kinds%els, &
                           particle_set=particles%els, vel=my_vel, dt=mydt, &
                           rattle_tol=shake_tol, log_unit=my_log_unit, lagrange_mult=my_lagrange_mult, &
-                          dump_lm=my_dump_lm, cell=cell, group=force_env%para_env%group, &
+                          dump_lm=my_dump_lm, cell=cell, group=force_env%para_env, &
                           local_particles=local_particles)
 
       ! Possibly reset the lagrange multipliers
@@ -352,7 +352,7 @@ CONTAINS
       END IF
 
       IF (has_vel) THEN
-         CALL update_particle_set(particles%els, force_env%para_env%group, vel=my_vel)
+         CALL update_particle_set(particles%els, force_env%para_env, vel=my_vel)
       END IF
       DEALLOCATE (my_vel)
       CALL timestop(handle)

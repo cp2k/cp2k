@@ -438,7 +438,7 @@ CONTAINS
                CALL integrate_v_rspace_one_center(work_matrices%A_ia_rspace_sub(ispin), &
                                                   qs_env, lri_v_int, .FALSE., "P_LRI_AUX")
                DO ikind = 1, nkind
-                  CALL para_env%group%sum(lri_v_int(ikind)%v_int)
+                  CALL para_env%sum(lri_v_int(ikind)%v_int)
                END DO
             END IF ! for full kernel using lri
          END DO

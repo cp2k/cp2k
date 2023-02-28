@@ -202,7 +202,8 @@ CONTAINS
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind_set(:)
       TYPE(particle_type), POINTER                       :: particle_set(:)
       TYPE(virial_type), INTENT(INOUT)                   :: virial
-      TYPE(mp_comm_type), INTENT(IN)                     :: group
+
+      CLASS(mp_comm_type), INTENT(IN)                     :: group
 
       INTEGER                                            :: first_atom, i, ikind, imol, ng3x3, &
                                                             ng4x6, nkind, nmol_per_kind
@@ -633,7 +634,7 @@ CONTAINS
 !>      Teodoro Laino [tlaino] 2007
 ! **************************************************************************************************
    SUBROUTINE update_temporary_set(group, pos, vel)
-      TYPE(mp_comm_type), INTENT(IN)                     :: group
+      CLASS(mp_comm_type), INTENT(IN)                     :: group
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          OPTIONAL                                        :: pos, vel
 

@@ -13,12 +13,10 @@
 ! **************************************************************************************************
 MODULE preconditioner_types
    USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
-                                              cp_blacs_env_retain,&
                                               cp_blacs_env_type
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
-   USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                              cp_para_env_retain
+   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix,&
                                               dbcsr_p_type,&
@@ -106,8 +104,8 @@ CONTAINS
       preconditioner_env%condition_num = -1.0_dp
       preconditioner_env%ihistory = 0
 
-      CALL cp_para_env_retain(preconditioner_env%para_env)
-      CALL cp_blacs_env_retain(preconditioner_env%ctxt)
+      CALL preconditioner_env%para_env%retain()
+      CALL preconditioner_env%ctxt%retain()
 
    END SUBROUTINE init_preconditioner
 

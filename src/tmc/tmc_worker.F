@@ -169,9 +169,9 @@ CONTAINS
             !  and sending additional information (e.g. the intermediate scf energies)
             IF (tmc_env%params%use_scf_energy_info) &
                CALL set_intermediate_info_comm(env_id=itmp, &
-                                               comm=tmc_env%tmc_comp_set%para_env_m_w%group)
+                                               comm=tmc_env%tmc_comp_set%para_env_m_w)
             IF (tmc_env%params%SPECULATIVE_CANCELING) &
-               CALL set_external_comm(comm=tmc_env%tmc_comp_set%para_env_m_w%group, &
+               CALL set_external_comm(comm=tmc_env%tmc_comp_set%para_env_m_w, &
                                       in_external_master_id=MASTER_COMM_ID, &
                                       in_exit_tag=TMC_CANCELING_MESSAGE)
          END IF
@@ -856,7 +856,7 @@ CONTAINS
 !> \author Mandes 10.2013
 ! **************************************************************************************************
    SUBROUTINE set_intermediate_info_comm(comm, env_id)
-      TYPE(mp_comm_type), INTENT(IN)                     :: comm
+      CLASS(mp_comm_type), INTENT(IN)                     :: comm
       INTEGER                                            :: env_id
 
       CHARACTER(LEN=default_string_length)               :: description

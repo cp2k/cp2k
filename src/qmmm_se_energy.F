@@ -229,7 +229,7 @@ CONTAINS
                END IF
             END DO Atoms
          END DO Kinds
-         CALL para_env%group%sum(enuclear)
+         CALL para_env%sum(enuclear)
          energy%qmmm_nu = enuclear
          CALL semi_empirical_release(se_kind_mm)
       CASE (do_qmmm_none)

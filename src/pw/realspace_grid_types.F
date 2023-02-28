@@ -353,7 +353,8 @@ CONTAINS
 
          desc%group_dim(:) = n_slices(:)
          CALL desc%group%from_dup(pw_grid%para%group)
-         CALL desc%group%environ(desc%group_size, desc%my_pos)
+         desc%group_size = desc%group%num_pe
+         desc%my_pos = desc%group%mepos
 
          IF (ALL(n_slices == 1)) THEN
             ! CASE 1 : only one slice: we do not need overlapping regions and special

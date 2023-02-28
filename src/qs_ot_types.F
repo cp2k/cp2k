@@ -17,7 +17,6 @@ MODULE qs_ot_types
                                               Weber2008,&
                                               cite_reference
    USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
-                                              cp_blacs_env_retain,&
                                               cp_blacs_env_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_m_by_n_from_row_template,&
                                               cp_dbcsr_m_by_n_from_template,&
@@ -25,8 +24,7 @@ MODULE qs_ot_types
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
                                               cp_fm_struct_type
-   USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                              cp_para_env_retain
+   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_init_p,&
                                               dbcsr_p_type,&
@@ -323,8 +321,8 @@ CONTAINS
 
       qs_ot_env%para_env => para_env
       qs_ot_env%blacs_env => context
-      CALL cp_para_env_retain(para_env)
-      CALL cp_blacs_env_retain(context)
+      CALL para_env%retain()
+      CALL context%retain()
 
       IF (PRESENT(ortho_k)) THEN
          my_ortho_k = ortho_k

@@ -40,8 +40,7 @@ MODULE rpa_im_time_force_methods
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
-   USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                              cp_para_env_split
+   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_clear, dbcsr_complete_redistribute, dbcsr_copy, &
@@ -265,7 +264,7 @@ CONTAINS
 
       !Dealing with the 3-center derivatives
       pdims_t3c = 0
-      CALL dbt_pgrid_create(para_env%group, pdims_t3c, pgrid_t3c)
+      CALL dbt_pgrid_create(para_env, pdims_t3c, pgrid_t3c)
 
       ALLOCATE (sizes_RI(natom), sizes_AO(natom))
       ALLOCATE (basis_set_ri_aux(nkind), basis_set_ao(nkind))
@@ -291,7 +290,7 @@ CONTAINS
       CALL dbt_destroy(t_3c_template)
 
       CALL dbt_mp_environ_pgrid(pgrid_t3c, pdims, pcoord)
-      CALL mp_comm_t3c%create(pgrid_t3c%mp_comm_2d, 3, pdims, pcoord)
+      CALL mp_comm_t3c%create(pgrid_t3c%mp_comm_2d, 3, pdims)
       CALL distribution_3d_create(dist_3d, dist_RI, dist_AO_1, dist_AO_2, &
                                   nkind, particle_set, mp_comm_t3c, own_comm=.TRUE.)
       DEALLOCATE (dist_RI, dist_AO_1, dist_AO_2)
@@ -359,7 +358,7 @@ CONTAINS
          CALL dbt_destroy(t_3c_der_AO_prv(1, 1, i_xyz))
       END DO
 
-      CALL para_env%group%sum(memory)
+      CALL para_env%sum(memory)
       compression_factor = REAL(nze_tot, dp)*1.0E-06*8.0_dp/memory
       IF (unit_nr > 0) THEN
          WRITE (UNIT=unit_nr, FMT="((T3,A,T66,F11.2,A4))") &
@@ -378,7 +377,7 @@ CONTAINS
       col_bsize(:) = sizes_RI(:)
 
       pdims_t2c = 0
-      CALL dbt_pgrid_create(para_env%group, pdims_t2c, pgrid_t2c)
+      CALL dbt_pgrid_create(para_env, pdims_t2c, pgrid_t2c)
       CALL create_2c_tensor(t_2c_template, dist1, dist2, pgrid_t2c, force_data%bsizes_RI_split, &
                             force_data%bsizes_RI_split, name='(RI| RI)')
       DEALLOCATE (dist1, dist2)
@@ -818,7 +817,7 @@ CONTAINS
          work_virial = 0.0_dp
          work_virial_ovlp = 0.0_dp
 
-         CALL para_env%group%sync()
+         CALL para_env%sync()
          t1 = m_walltime()
 
          !Deal with the force contributions where there is no explicit 3-center quantities, i.e. the
@@ -962,7 +961,7 @@ CONTAINS
          END IF
 
          !Print some info
-         CALL para_env%group%sync()
+         CALL para_env%sync()
          t2 = m_walltime()
          dbcsr_time = dbcsr_time + t2 - t1
 
@@ -1394,7 +1393,7 @@ CONTAINS
          work_virial = 0.0_dp
          work_virial_ovlp = 0.0_dp
 
-         CALL para_env%group%sync()
+         CALL para_env%sync()
          t1 = m_walltime()
 
          !Deal with the force contributions where there is no explicit 3-center quantities, i.e. the
@@ -1526,7 +1525,7 @@ CONTAINS
          END IF
 
          !Print some info
-         CALL para_env%group%sync()
+         CALL para_env%sync()
          t2 = m_walltime()
          dbcsr_time = dbcsr_time + t2 - t1
 
@@ -2634,7 +2633,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL dbcsr_distribution_new(dbcsr_dist, group=para_env%group%get_handle(), pgrid=pgrid, row_dist=row_dist, col_dist=col_dist)
+      CALL dbcsr_distribution_new(dbcsr_dist, group=para_env%get_handle(), pgrid=pgrid, row_dist=row_dist, col_dist=col_dist)
 
       !The temporary DBCSR integrals and derivatives matrices in this flat distribution
       CALL dbcsr_create(tmp_G_PQ, template=G_PQ, matrix_type=dbcsr_type_no_symmetry, dist=dbcsr_dist)
@@ -2646,9 +2645,10 @@ CONTAINS
       n_RI = SUM(sizes_RI)
 
       one_proc_group = mp2_env%mp2_num_proc == 1
+      ALLOCATE (para_env_ext)
       IF (one_proc_group) THEN
          !one subgroup per proc
-         CALL cp_para_env_split(para_env_ext, para_env, para_env%mepos)
+         CALL para_env_ext%from_split(para_env, para_env%mepos)
       ELSE
          !Split the communicator accross the columns of the matrix
          ncoms = MIN(pdims(2), para_env%num_pe/mp2_env%mp2_num_proc)
@@ -2657,7 +2657,7 @@ CONTAINS
                IF (pgrid(i, j) == para_env%mepos) color = MODULO(j + 1, ncoms)
             END DO
          END DO
-         CALL cp_para_env_split(para_env_ext, para_env, color)
+         CALL para_env_ext%from_split(para_env, color)
       END IF
 
       !sab_orb and task_list_ext are essentially dummies

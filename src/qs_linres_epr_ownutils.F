@@ -505,7 +505,7 @@ CONTAINS
             END DO !iat
          END DO !ikind
 
-         CALL para_env%group%sum(temp_so_gapw)
+         CALL para_env%sum(temp_so_gapw)
          temp_so_gapw(:, :) = -1.0_dp*epr_env%g_so_factor_gapw*temp_so_gapw(:, :)
 
          IF (output_unit > 0) THEN
@@ -733,7 +733,7 @@ CONTAINS
             END DO !iat
          END DO !ikind
 
-         CALL para_env%group%sum(temp_soo_gapw)
+         CALL para_env%sum(temp_soo_gapw)
          temp_soo_gapw(:, :) = 1.0_dp*epr_env%g_soo_factor*temp_soo_gapw(:, :)
 
          IF (output_unit > 0) THEN

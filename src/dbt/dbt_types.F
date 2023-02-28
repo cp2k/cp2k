@@ -505,8 +505,8 @@ CONTAINS
             INTEGER, DIMENSION(:), INTENT(IN) :: map1_2d, map2_2d
             INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL :: tensor_dims
             INTEGER, INTENT(IN), OPTIONAL :: nsplit, dimsplit
-            INTEGER :: nproc, iproc, ndims, handle
-            INTEGER, DIMENSION(2) :: pdims_2d, pos
+            INTEGER, DIMENSION(2) :: pdims_2d
+            INTEGER :: nproc, ndims, handle
             TYPE(dbt_tas_split_info) :: info
 
             CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_pgrid_create_expert'
@@ -515,7 +515,7 @@ CONTAINS
 
             ndims = SIZE(dims)
 
-            CALL mp_comm%environ(nproc, iproc)
+            nproc = mp_comm%num_pe
             IF (ANY(dims == 0)) THEN
                IF (.NOT. PRESENT(tensor_dims)) THEN
                   CALL mp_dims_create(nproc, dims)
@@ -525,7 +525,7 @@ CONTAINS
             END IF
             CALL create_nd_to_2d_mapping(pgrid%nd_index_grid, dims, map1_2d, map2_2d, base=0, col_major=.FALSE.)
             CALL dbt_get_mapping_info(pgrid%nd_index_grid, dims_2d=pdims_2d)
-            CALL pgrid%mp_comm_2d%create(mp_comm, 2, pdims_2d, pos)
+            CALL pgrid%mp_comm_2d%create(mp_comm, 2, pdims_2d)
 
             IF (PRESENT(nsplit)) THEN
                CPASSERT(PRESENT(dimsplit))
@@ -558,7 +558,7 @@ CONTAINS
 ! **************************************************************************************************
          FUNCTION dbt_nd_mp_comm(comm_2d, map1_2d, map2_2d, dims_nd, dims1_nd, dims2_nd, pdims_2d, tdims, &
                                  nsplit, dimsplit)
-            TYPE(mp_cart_type), INTENT(IN)                               :: comm_2d
+            CLASS(mp_comm_type), INTENT(IN)                               :: comm_2d
             INTEGER, DIMENSION(:), INTENT(IN)                 :: map1_2d, map2_2d
             INTEGER, DIMENSION(SIZE(map1_2d) + SIZE(map2_2d)), &
                INTENT(IN), OPTIONAL                           :: dims_nd
@@ -569,8 +569,7 @@ CONTAINS
                INTENT(IN), OPTIONAL                           :: tdims
             INTEGER, INTENT(IN), OPTIONAL :: nsplit, dimsplit
             INTEGER                                           :: ndim1, ndim2
-            INTEGER                                           :: numtask
-            INTEGER, DIMENSION(2)                             :: dims_2d, task_coor
+            INTEGER, DIMENSION(2)                             :: dims_2d
 
             INTEGER, DIMENSION(SIZE(map1_2d)) :: dims1_nd_prv
             INTEGER, DIMENSION(SIZE(map2_2d)) :: dims2_nd_prv
@@ -586,7 +585,15 @@ CONTAINS
             IF (PRESENT(pdims_2d)) THEN
                dims_2d(:) = pdims_2d
             ELSE
-               CALL comm_2d%environ_cart(numtask, dims_2d, task_coor)
+! This branch allows us to call this routine with a plain mp_comm_type without actually requiring an mp_cart_type
+! In a few cases in CP2K, this prevents erroneous calls to mpi_cart_get with a non-cartesian communicator
+               SELECT TYPE (comm_2d)
+               CLASS IS (mp_cart_type)
+                  dims_2d = comm_2d%num_pe_cart
+               CLASS DEFAULT
+                  CALL cp_abort(__LOCATION__, "If the argument pdims_2d is not given, the "// &
+                                "communicator comm_2d must be of class mp_cart_type.")
+               END SELECT
             END IF
 
             IF (.NOT. PRESENT(dims_nd)) THEN
@@ -669,10 +676,9 @@ CONTAINS
             TYPE(dbt_pgrid_type), INTENT(IN) :: pgrid
             INTEGER, DIMENSION(ndims_mapping(pgrid%nd_index_grid)), INTENT(OUT) :: dims
             INTEGER, DIMENSION(ndims_mapping(pgrid%nd_index_grid)), INTENT(OUT) :: task_coor
-            INTEGER, DIMENSION(2)                                          :: dims_2d, task_coor_2d
-            INTEGER :: nproc
+            INTEGER, DIMENSION(2)                                          :: task_coor_2d
 
-            CALL pgrid%mp_comm_2d%environ_cart(nproc, dims_2d, task_coor_2d)
+            task_coor_2d = pgrid%mp_comm_2d%mepos_cart
             CALL dbt_get_mapping_info(pgrid%nd_index_grid, dims_nd=dims)
             task_coor = get_nd_indices_pgrid(pgrid%nd_index_grid, task_coor_2d)
          END SUBROUTINE
@@ -695,9 +701,8 @@ CONTAINS
             INTEGER                                         :: ndims
             TYPE(mp_cart_type)                              :: comm_2d
             INTEGER, DIMENSION(2)                           :: pdims_2d_check, &
-                                                               pdims_2d, task_coor_2d
+                                                               pdims_2d
             INTEGER, DIMENSION(SIZE(map1_2d) + SIZE(map2_2d)) :: dims, nblks_nd, task_coor
-            LOGICAL, DIMENSION(2)                           :: periods_2d
             TYPE(array_list)                                :: nd_dist
             TYPE(nd_to_2d_mapping)                          :: map_blks, map_grid
             INTEGER                                         :: handle
@@ -746,7 +751,7 @@ CONTAINS
 
             comm_2d = pgrid_prv%mp_comm_2d
 
-            CALL comm_2d%environ_cart(2, pdims_2d_check, task_coor_2d, periods_2d)
+            pdims_2d_check = comm_2d%num_pe_cart
             IF (ANY(pdims_2d_check .NE. pdims_2d)) THEN
                CPABORT("inconsistent process grid dimensions")
             END IF
@@ -1186,7 +1191,7 @@ CONTAINS
 
             CHARACTER(len=default_string_length)        :: name_in
             INTEGER, DIMENSION(2)                       :: order_in
-            TYPE(mp_cart_type)                          :: comm_2d
+            TYPE(mp_comm_type)                          :: comm_2d
             TYPE(dbcsr_distribution_type)               :: matrix_dist
             TYPE(dbt_distribution_type)                 :: dist
             INTEGER, DIMENSION(:), POINTER              :: row_blk_size, col_blk_size
@@ -1354,7 +1359,7 @@ CONTAINS
 !> \author Patrick Seewald
 ! **************************************************************************************************
          SUBROUTINE dbt_pgrid_create(mp_comm, dims, pgrid, tensor_dims)
-            TYPE(mp_comm_type), INTENT(IN) :: mp_comm
+            CLASS(mp_comm_type), INTENT(IN) :: mp_comm
             INTEGER, DIMENSION(:), INTENT(INOUT) :: dims
             TYPE(dbt_pgrid_type), INTENT(OUT) :: pgrid
             INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL :: tensor_dims
@@ -1640,7 +1645,6 @@ CONTAINS
             blk_count_total = PRODUCT(INT(bdims, int_8))
 
             ! can not call an MPI routine due to PURE
-            !CALL tensor%pgrid%mp_comm_2d%environ(nproc, myproc)
             nproc = tensor%pgrid%nproc
 
             blk_count = INT(blk_count_total/nproc*max_load_imbalance)

@@ -494,7 +494,7 @@ CONTAINS
                                     matrix_kp=matrix_s_kp(1, :), &
                                     index_to_cell=index_to_cell, &
                                     atom_list0=atom_list0, atom_list1=atom_list1, &
-                                    subsys=subsys, mpi_comm_global=para_env%group, &
+                                    subsys=subsys, mpi_comm_global=para_env, &
                                     is_same_cell=is_same_cell, matrix_ref=matrix_s_ref)
 
       ! extract matrices: h_00, h_01, rho_00, rho_01
@@ -505,7 +505,7 @@ CONTAINS
                                        matrix_kp=matrix_ks_kp(ispin, :), &
                                        index_to_cell=index_to_cell, &
                                        atom_list0=atom_list0, atom_list1=atom_list1, &
-                                       subsys=subsys, mpi_comm_global=para_env%group, &
+                                       subsys=subsys, mpi_comm_global=para_env, &
                                        is_same_cell=is_same_cell)
 
          CALL negf_copy_contact_matrix(fm_cell0=contact_env%rho_00(ispin), &
@@ -514,7 +514,7 @@ CONTAINS
                                        matrix_kp=rho_ao_kp(ispin, :), &
                                        index_to_cell=index_to_cell, &
                                        atom_list0=atom_list0, atom_list1=atom_list1, &
-                                       subsys=subsys, mpi_comm_global=para_env%group, &
+                                       subsys=subsys, mpi_comm_global=para_env, &
                                        is_same_cell=is_same_cell)
       END DO
 
@@ -652,26 +652,26 @@ CONTAINS
                                                fm=contact_env%h_00(ispin), &
                                                atomlist_row=contact_env%atomlist_cell0, &
                                                atomlist_col=contact_env%atomlist_cell0, &
-                                               subsys=subsys, mpi_comm_global=para_env%group, &
+                                               subsys=subsys, mpi_comm_global=para_env, &
                                                do_upper_diag=.TRUE., do_lower=.TRUE.)
          CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=matrix_ks_kp(ispin, 1)%matrix, &
                                                fm=contact_env%h_01(ispin), &
                                                atomlist_row=contact_env%atomlist_cell0, &
                                                atomlist_col=contact_env%atomlist_cell1, &
-                                               subsys=subsys, mpi_comm_global=para_env%group, &
+                                               subsys=subsys, mpi_comm_global=para_env, &
                                                do_upper_diag=.TRUE., do_lower=.TRUE.)
 
          CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=rho_ao_kp(ispin, 1)%matrix, &
                                                fm=contact_env%rho_00(ispin), &
                                                atomlist_row=contact_env%atomlist_cell0, &
                                                atomlist_col=contact_env%atomlist_cell0, &
-                                               subsys=subsys, mpi_comm_global=para_env%group, &
+                                               subsys=subsys, mpi_comm_global=para_env, &
                                                do_upper_diag=.TRUE., do_lower=.TRUE.)
          CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=rho_ao_kp(ispin, 1)%matrix, &
                                                fm=contact_env%rho_01(ispin), &
                                                atomlist_row=contact_env%atomlist_cell0, &
                                                atomlist_col=contact_env%atomlist_cell1, &
-                                               subsys=subsys, mpi_comm_global=para_env%group, &
+                                               subsys=subsys, mpi_comm_global=para_env, &
                                                do_upper_diag=.TRUE., do_lower=.TRUE.)
       END DO
 
@@ -679,13 +679,13 @@ CONTAINS
                                             fm=contact_env%s_00, &
                                             atomlist_row=contact_env%atomlist_cell0, &
                                             atomlist_col=contact_env%atomlist_cell0, &
-                                            subsys=subsys, mpi_comm_global=para_env%group, &
+                                            subsys=subsys, mpi_comm_global=para_env, &
                                             do_upper_diag=.TRUE., do_lower=.TRUE.)
       CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=matrix_s_kp(1, 1)%matrix, &
                                             fm=contact_env%s_01, &
                                             atomlist_row=contact_env%atomlist_cell0, &
                                             atomlist_col=contact_env%atomlist_cell1, &
-                                            subsys=subsys, mpi_comm_global=para_env%group, &
+                                            subsys=subsys, mpi_comm_global=para_env, &
                                             do_upper_diag=.TRUE., do_lower=.TRUE.)
 
       CALL timestop(handle)
@@ -780,7 +780,7 @@ CONTAINS
                                                   fm=negf_env%h_s(ispin), &
                                                   atomlist_row=negf_control%atomlist_S_screening, &
                                                   atomlist_col=negf_control%atomlist_S_screening, &
-                                                  subsys=subsys, mpi_comm_global=para_env%group, &
+                                                  subsys=subsys, mpi_comm_global=para_env, &
                                                   do_upper_diag=.TRUE., do_lower=.TRUE.)
          END DO
 
@@ -788,7 +788,7 @@ CONTAINS
                                                fm=negf_env%s_s, &
                                                atomlist_row=negf_control%atomlist_S_screening, &
                                                atomlist_col=negf_control%atomlist_S_screening, &
-                                               subsys=subsys, mpi_comm_global=para_env%group, &
+                                               subsys=subsys, mpi_comm_global=para_env, &
                                                do_upper_diag=.TRUE., do_lower=.TRUE.)
 
          ! v_hartree_s
@@ -809,7 +809,7 @@ CONTAINS
                                                fm=negf_env%v_hartree_s, &
                                                atomlist_row=negf_control%atomlist_S_screening, &
                                                atomlist_col=negf_control%atomlist_S_screening, &
-                                               subsys=subsys, mpi_comm_global=para_env%group, &
+                                               subsys=subsys, mpi_comm_global=para_env, &
                                                do_upper_diag=.TRUE., do_lower=.TRUE.)
 
          CALL dbcsr_deallocate_matrix(hmat%matrix)
@@ -821,7 +821,7 @@ CONTAINS
                                                      fm=negf_env%h_sc(ispin, icontact), &
                                                      atomlist_row=negf_control%atomlist_S_screening, &
                                                      atomlist_col=negf_env%contacts(icontact)%atomlist_cell0, &
-                                                     subsys=subsys, mpi_comm_global=para_env%group, &
+                                                     subsys=subsys, mpi_comm_global=para_env, &
                                                      do_upper_diag=.TRUE., do_lower=.TRUE.)
             END DO
 
@@ -829,7 +829,7 @@ CONTAINS
                                                   fm=negf_env%s_sc(icontact), &
                                                   atomlist_row=negf_control%atomlist_S_screening, &
                                                   atomlist_col=negf_env%contacts(icontact)%atomlist_cell0, &
-                                                  subsys=subsys, mpi_comm_global=para_env%group, &
+                                                  subsys=subsys, mpi_comm_global=para_env, &
                                                   do_upper_diag=.TRUE., do_lower=.TRUE.)
          END DO
       END IF
@@ -1016,7 +1016,7 @@ CONTAINS
             END DO
          END IF
 
-         CALL para_env%group%sum(my_homo_energy)
+         CALL para_env%sum(my_homo_energy)
       ELSE
          ! Hamiltonian of the bulk contact region has been computed without k-points.
          ! Try to obtain the HOMO energy assuming there is no OT. We probably should abort here

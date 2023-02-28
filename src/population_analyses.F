@@ -400,7 +400,7 @@ CONTAINS
          END IF
       END DO
 
-      CALL para_env%group%sum(orbpop)
+      CALL para_env%sum(orbpop)
 
       ! Write atomic populations and charges
       IF (output_unit > 0) THEN

@@ -6,8 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE qs_tddfpt2_restart
-   USE cp_blacs_env,                    ONLY: cp_blacs_env_type,&
-                                              get_blacs_info
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_files,                        ONLY: close_file,&
                                               open_file
@@ -197,14 +196,14 @@ CONTAINS
                                                    extension=".tdwfn", my_local=.FALSE.)
       END IF
 
-      CALL get_blacs_info(blacs_env_global, para_env=para_env_global)
+      CALL blacs_env_global%get(para_env=para_env_global)
 
-      IF (para_env_global%ionode) THEN
+      IF (para_env_global%is_source()) THEN
          INQUIRE (FILE=filename, exist=file_exists)
 
          IF (.NOT. file_exists) THEN
             nstates_read = 0
-            CALL para_env_global%group%bcast(nstates_read, para_env_global%source)
+            CALL para_env_global%bcast(nstates_read, para_env_global%source)
 
             CALL cp_warn(__LOCATION__, &
                          "User requested to restart the TDDFPT wave functions from the file '"//TRIM(filename)// &
@@ -225,7 +224,7 @@ CONTAINS
          nmo_occ(ispin) = SIZE(gs_mos(ispin)%evals_occ)
       END DO
 
-      IF (para_env_global%ionode) THEN
+      IF (para_env_global%is_source()) THEN
          READ (iunit) nstates_read, nspins_read, nao_read
 
          IF (nspins_read /= nspins) THEN
@@ -261,7 +260,7 @@ CONTAINS
                          " excited states were requested.")
          END IF
       END IF
-      CALL para_env_global%group%bcast(nstates_read, para_env_global%source)
+      CALL para_env_global%bcast(nstates_read, para_env_global%source)
 
       ! exit if restart file does not exist
       IF (nstates_read <= 0) THEN
@@ -269,7 +268,7 @@ CONTAINS
          RETURN
       END IF
 
-      IF (para_env_global%ionode) THEN
+      IF (para_env_global%is_source()) THEN
          ALLOCATE (evals_read(nstates_read))
          READ (iunit) evals_read
          IF (nstates_read <= nstates) THEN
@@ -279,7 +278,7 @@ CONTAINS
          END IF
          DEALLOCATE (evals_read)
       END IF
-      CALL para_env_global%group%bcast(evals, para_env_global%source)
+      CALL para_env_global%bcast(evals, para_env_global%source)
 
       DO istate = 1, nstates_read
          DO ispin = 1, nspins
@@ -293,7 +292,7 @@ CONTAINS
          END DO
       END DO
 
-      IF (para_env_global%ionode) &
+      IF (para_env_global%is_source()) &
          CALL close_file(unit_number=iunit)
 
       CALL timestop(handle)
@@ -640,9 +639,9 @@ CONTAINS
          END DO
       END DO
 
-      CALL sub_env%para_env%group%sum(sum_sign_array)
-      CALL sub_env%para_env%group%min(minrow_neg_array)
-      CALL sub_env%para_env%group%min(minrow_pos_array)
+      CALL sub_env%para_env%sum(sum_sign_array)
+      CALL sub_env%para_env%min(minrow_neg_array)
+      CALL sub_env%para_env%min(minrow_pos_array)
 
       DO icol_global = 1, ncol_global
 

@@ -207,7 +207,7 @@ CONTAINS
          END IF
          nstates(2) = para_env%mepos
 
-         CALL para_env%group%maxloc(nstates)
+         CALL para_env%maxloc(nstates)
 
          IF (nstates(1) == 0) CYCLE
          NULLIFY (states)
@@ -219,7 +219,7 @@ CONTAINS
             states(:) = molecule_set(imol)%lmi(ispin)%states(:)
          END IF
          !!BCAST from here root = iproc
-         CALL para_env%group%bcast(states, iproc)
+         CALL para_env%bcast(states, iproc)
 
          ns = nstates(1)
          ind => states(:)

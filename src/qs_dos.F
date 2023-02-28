@@ -73,7 +73,7 @@ CONTAINS
 
       NULLIFY (logger)
       logger => cp_get_default_logger()
-      ionode = logger%para_env%ionode
+      ionode = logger%para_env%is_source()
       should_output = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, &
                                                        "PRINT%DOS"), cp_p_file)
       iounit = cp_logger_get_default_io_unit(logger)
@@ -226,7 +226,7 @@ CONTAINS
 
       NULLIFY (logger)
       logger => cp_get_default_logger()
-      ionode = logger%para_env%ionode
+      ionode = logger%para_env%is_source()
       should_output = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, &
                                                        "PRINT%DOS"), cp_p_file)
       iounit = cp_logger_get_default_io_unit(logger)
@@ -273,9 +273,9 @@ CONTAINS
             END DO
          END DO
       END IF
-      CALL para_env%group%min(emin)
-      CALL para_env%group%max(emax)
-      CALL para_env%group%max(nmo)
+      CALL para_env%min(emin)
+      CALL para_env%max(emax)
+      CALL para_env%max(nmo)
 
       nhist = NINT((emax - emin)/de) + 1
       ALLOCATE (hist(nhist, nspins), occval(nhist, nspins), ehist(nhist, nspins))
@@ -301,8 +301,8 @@ CONTAINS
             END DO
          END DO
       END IF
-      CALL para_env%group%sum(hist)
-      CALL para_env%group%sum(occval)
+      CALL para_env%sum(hist)
+      CALL para_env%sum(occval)
       DO ispin = 1, nspins
          hist(:, ispin) = hist(:, ispin)/REAL(nmo(ispin), KIND=dp)
       END DO

@@ -147,7 +147,7 @@ CONTAINS
                END DO
             END DO Kind_Group_Loop
          END DO
-         CALL para_env%group%sum(rho)
+         CALL para_env%sum(rho)
          DO iparticle = 1, nparticle
             eam_data(iparticle)%rho = rho(iparticle)
          END DO

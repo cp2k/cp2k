@@ -28,8 +28,7 @@ MODULE mp2_optimize_ri_basis
                                               cp_logger_set,&
                                               cp_logger_type,&
                                               cp_rm_default_logger
-   USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                              cp_para_env_split
+   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE hfx_types,                       ONLY: hfx_basis_info_type,&
                                               hfx_basis_type
@@ -167,9 +166,9 @@ CONTAINS
                                                 mp2_biel, dimen, C, Auto, 0, homo, homo, &
                                                 elements_ij_proc, ij_list_proc, homo, 0, &
                                                 Integ_MP2=Integ_MP2_AA)
-         CALL para_env%group%sum(Emp2_AA_Cou)
-         CALL para_env%group%sum(Emp2_AA_Ex)
-         CALL para_env%group%sum(Emp2_AA)
+         CALL para_env%sum(Emp2_AA_Cou)
+         CALL para_env%sum(Emp2_AA_Ex)
+         CALL para_env%sum(Emp2_AA)
          DEALLOCATE (ij_list_proc)
 
          ! beta-beta case
@@ -181,9 +180,9 @@ CONTAINS
                                                 mp2_biel, dimen, C_beta, Auto_beta, 0, homo_beta, homo_beta, &
                                                 elements_ij_proc, ij_list_proc, homo_beta, 0, &
                                                 Integ_MP2=Integ_MP2_BB)
-         CALL para_env%group%sum(Emp2_BB_Cou)
-         CALL para_env%group%sum(Emp2_BB_Ex)
-         CALL para_env%group%sum(Emp2_BB)
+         CALL para_env%sum(Emp2_BB_Cou)
+         CALL para_env%sum(Emp2_BB_Ex)
+         CALL para_env%sum(Emp2_BB)
          DEALLOCATE (ij_list_proc)
 
          ! aplha-beta case
@@ -195,9 +194,9 @@ CONTAINS
                                                 mp2_biel, dimen, C, Auto, 0, homo, homo, &
                                                 elements_ij_proc, ij_list_proc, homo_beta, 0, &
                                                 homo_beta, C_beta, Auto_beta, Integ_MP2=Integ_MP2_AB)
-         CALL para_env%group%sum(Emp2_AB_Cou)
-         CALL para_env%group%sum(Emp2_AB_Ex)
-         CALL para_env%group%sum(Emp2_AB)
+         CALL para_env%sum(Emp2_AB_Cou)
+         CALL para_env%sum(Emp2_AB_Ex)
+         CALL para_env%sum(Emp2_AB)
          DEALLOCATE (ij_list_proc)
 
          Emp2 = Emp2_AA + Emp2_BB + Emp2_AB*2.0_dp !+Emp2_BA
@@ -208,9 +207,9 @@ CONTAINS
          Emp2_T = Emp2_AA + Emp2_BB
 
          ! Replicate the MO-ERI's over all processes
-         CALL para_env%group%sum(Integ_MP2_AA)
-         CALL para_env%group%sum(Integ_MP2_BB)
-         CALL para_env%group%sum(Integ_MP2_AB)
+         CALL para_env%sum(Integ_MP2_AA)
+         CALL para_env%sum(Integ_MP2_BB)
+         CALL para_env%sum(Integ_MP2_AB)
 
       ELSE
          ! close shell case
@@ -219,22 +218,23 @@ CONTAINS
                                                 mp2_biel, dimen, C, Auto, 0, homo, homo, &
                                                 elements_ij_proc, ij_list_proc, homo, 0, &
                                                 Integ_MP2=Integ_MP2)
-         CALL para_env%group%sum(Emp2_Cou)
-         CALL para_env%group%sum(Emp2_Ex)
-         CALL para_env%group%sum(Emp2)
+         CALL para_env%sum(Emp2_Cou)
+         CALL para_env%sum(Emp2_Ex)
+         CALL para_env%sum(Emp2)
          DEALLOCATE (ij_list_proc)
 
          ! Replicate the MO-ERI's over all processes
-         CALL para_env%group%sum(Integ_MP2)
+         CALL para_env%sum(Integ_MP2)
 
       END IF
 
       ! create the para_env_sub
       number_groups = para_env%num_pe/mp2_env%mp2_num_proc
       color_sub = para_env%mepos/mp2_env%mp2_num_proc
-      CALL cp_para_env_split(para_env_sub, para_env, color_sub)
+      ALLOCATE (para_env_sub)
+      CALL para_env_sub%from_split(para_env, color_sub)
 
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          local_unit_nr = cp_logger_get_default_unit_nr(logger, local=.FALSE.)
       ELSE
          local_unit_nr = default_output_unit
@@ -667,7 +667,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL para_env%group%sum(deriv)
+      CALL para_env%sum(deriv)
 
       CALL timestop(handle)
 
@@ -1094,8 +1094,8 @@ CONTAINS
             END DO
          END DO
       END DO
-      CALL para_env%group%sum(DI)
-      CALL para_env%group%sum(Emp2_RI)
+      CALL para_env%sum(DI)
+      CALL para_env%sum(Emp2_RI)
 
       DRI = Emp2 - Emp2_RI
       DI = 2.0D+00*DI - Emp2 - Emp2_RI

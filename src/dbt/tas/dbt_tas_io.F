@@ -124,10 +124,9 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: full_info
 
       CHARACTER(default_string_length)                   :: name
-      INTEGER                                            :: icol, igroup, iproc, irow, nblock, &
-                                                            ndbt_p_max, nelement, nelement_p_max, &
-                                                            ngroup, nproc, split_rowcol, &
-                                                            unit_nr_prv
+      INTEGER                                            :: icol, igroup, irow, nblock, ndbt_p_max, &
+                                                            nelement, nelement_p_max, ngroup, &
+                                                            nproc, split_rowcol, unit_nr_prv
       INTEGER(KIND=int_8)                                :: ndbt_p_sum, ndbt_s, ndbt_s_max, &
                                                             ndbt_tot, nelement_p_sum, nelement_s, &
                                                             nelement_s_max
@@ -143,7 +142,7 @@ CONTAINS
 
       CALL dbt_tas_get_split_info(matrix%dist%info, mp_comm, ngroup, igroup, mp_comm_group, split_rowcol)
       CALL dbt_tas_get_info(matrix, name=name)
-      CALL mp_comm%environ(nproc, iproc)
+      nproc = mp_comm%num_pe
 
       nblock = dbt_tas_get_num_blocks(matrix)
       nelement = dbt_tas_get_nze(matrix)
@@ -217,10 +216,9 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: name
 
       CHARACTER(len=:), ALLOCATABLE                      :: name_prv
-      INTEGER                                            :: groupsize, igroup, mynode, nsplit, &
-                                                            numnodes, split_rowcol, unit_nr_prv
-      INTEGER, DIMENSION(2)                              :: coord, dims, groupcoord, groupdims, &
-                                                            pgrid_offset
+      INTEGER                                            :: igroup, mynode, nsplit, split_rowcol, &
+                                                            unit_nr_prv
+      INTEGER, DIMENSION(2)                              :: dims, groupdims, pgrid_offset
       TYPE(mp_cart_type)                                 :: mp_comm, mp_comm_group
 
       unit_nr_prv = prep_output_unit(unit_nr)
@@ -234,9 +232,9 @@ CONTAINS
 
       CALL dbt_tas_get_split_info(info, mp_comm, nsplit, igroup, mp_comm_group, split_rowcol, pgrid_offset)
 
-      CALL mp_comm%environ(numnodes, mynode)
-      CALL mp_comm%environ_cart(numnodes, dims, coord)
-      CALL mp_comm_group%environ_cart(groupsize, groupdims, groupcoord)
+      mynode = mp_comm%mepos
+      dims = mp_comm%num_pe_cart
+      groupdims = mp_comm_group%num_pe_cart
 
       IF (unit_nr_prv > 0) THEN
          SELECT CASE (split_rowcol)

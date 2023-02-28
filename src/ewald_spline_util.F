@@ -100,7 +100,7 @@ CONTAINS
       NULLIFY (cell, pw)
 
       CALL cell_create(cell, hmat=hmat, periodic=(/1, 1, 1/))
-      CALL pw_grid_create(pw_grid, para_env%group, local=.TRUE.)
+      CALL pw_grid_create(pw_grid, para_env, local=.TRUE.)
       logger => cp_get_default_logger()
       iounit = cp_print_key_unit_nr(logger, print_section, "", &
                                     extension=".Log")

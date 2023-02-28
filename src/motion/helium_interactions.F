@@ -497,7 +497,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! Perform scan only on ionode, since this is only used to output the intpot
-      IF (pint_env%logger%para_env%ionode) THEN
+      IF (pint_env%logger%para_env%is_source()) THEN
          ! Assume ionode always to have at least one helium_env
          k = 1
          helium_env(k)%helium%rho_inst(1, :, :, :) = 0.0_dp

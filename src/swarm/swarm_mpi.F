@@ -21,8 +21,7 @@ MODULE swarm_mpi
                                               cp_logger_release,&
                                               cp_logger_type,&
                                               cp_rm_default_logger
-   USE cp_para_env,                     ONLY: cp_para_env_create,&
-                                              cp_para_env_release
+   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_set
@@ -81,7 +80,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: group_distribution_p
       INTEGER, DIMENSION(0:world_para_env%num_pe-2), &
          TARGET                                          :: group_distribution
-      TYPE(mp_comm_type)                                 :: subgroup, worker_group
+      TYPE(mp_comm_type)                                 :: subgroup
 
 ! ====== Setup of MPI-Groups ======
 
@@ -105,17 +104,17 @@ CONTAINS
       ! the last task becomes the master. Preseves node-alignment of other tasks.
       im_the_master = (swarm_mpi%world%mepos == swarm_mpi%world%num_pe - 1)
 
-      ! First split split para_env%group into a master- and a workers-groups...
+      ! First split split para_env into a master- and a workers-groups...
       IF (im_the_master) THEN
-         CALL subgroup%from_split(swarm_mpi%world%group, 1)
-         CALL subgroup%environ(subgroup_size, subgroup_rank)
-         IF (subgroup_size /= 1) CPABORT("mp_comm_split_direct failed (master)")
-         CALL cp_para_env_create(swarm_mpi%master, group=subgroup)
-         !WRITE (*,*) "this is a master ", swarm_mpi%master%mepos, swarm_mpi%master%num_pe
+         ALLOCATE (swarm_mpi%master)
+         CALL swarm_mpi%master%from_split(swarm_mpi%world, 1)
+         subgroup_size = swarm_mpi%master%num_pe
+         subgroup_rank = swarm_mpi%master%mepos
+         IF (swarm_mpi%master%num_pe /= 1) CPABORT("mp_comm_split_direct failed (master)")
       ELSE
-         CALL subgroup%from_split(swarm_mpi%world%group, 2)
-         CALL subgroup%environ(subgroup_size, subgroup_rank)
-         !WRITE (*,*) "Hello, this is a Worker - there are ",subgroup_size, " of us."
+         CALL subgroup%from_split(swarm_mpi%world, 2)
+         subgroup_size = subgroup%num_pe
+         subgroup_rank = subgroup%mepos
          IF (subgroup_size /= swarm_mpi%world%num_pe - 1) CPABORT("mp_comm_split_direct failed (worker)")
       END IF
 
@@ -125,10 +124,10 @@ CONTAINS
       IF (.NOT. im_the_master) THEN
          ! ...then split workers-group into n_workers groups - one for each worker.
          group_distribution_p => group_distribution
-         CALL worker_group%from_split(subgroup, n_groups_created, group_distribution_p, n_subgroups=n_workers)
+         ALLOCATE (swarm_mpi%worker)
+         CALL swarm_mpi%worker%from_split(subgroup, n_groups_created, group_distribution_p, n_subgroups=n_workers)
          worker_id = group_distribution(subgroup_rank) + 1 ! shall start by 1
          IF (n_groups_created /= n_workers) CPABORT("mp_comm_split failed.")
-         CALL cp_para_env_create(swarm_mpi%worker, group=worker_group)
          CALL subgroup%free()
 
          !WRITE (*,*) "this is worker ", worker_id, swarm_mpi%worker%mepos, swarm_mpi%worker%num_pe
@@ -139,7 +138,7 @@ CONTAINS
 
       END IF
 
-      CALL swarm_mpi%world%group%sum(swarm_mpi%wid2group)
+      CALL swarm_mpi%world%sum(swarm_mpi%wid2group)
       !WRITE (*,*), "wid2group table: ",swarm_mpi%wid2group
 
       CALL logger_init_master(swarm_mpi)
@@ -159,7 +158,7 @@ CONTAINS
 
 ! broadcast master_output_path to all ranks
 
-      IF (swarm_mpi%world%ionode) THEN
+      IF (swarm_mpi%world%is_source()) THEN
          logger => cp_get_default_logger()
          output_unit = logger%default_local_unit_nr
          swarm_mpi%master_output_path = output_unit2path(output_unit)
@@ -167,7 +166,7 @@ CONTAINS
             CLOSE (output_unit)
       END IF
 
-      CALL swarm_mpi%world%group%bcast(swarm_mpi%master_output_path, swarm_mpi%world%source)
+      CALL swarm_mpi%world%bcast(swarm_mpi%master_output_path, swarm_mpi%world%source)
 
       IF (ASSOCIATED(swarm_mpi%master)) &
          CALL error_add_new_logger(swarm_mpi%master, swarm_mpi%master_output_path)
@@ -243,7 +242,7 @@ CONTAINS
 
       NULLIFY (new_logger, old_logger)
       output_unit = -1
-      IF (para_env%ionode) THEN
+      IF (para_env%is_source()) THEN
          ! open output_unit according to output_path
          output_unit = default_output_unit
          IF (output_path /= "__STD_OUT__") &
@@ -270,7 +269,7 @@ CONTAINS
       TYPE(swarm_mpi_type)                               :: swarm_mpi
       TYPE(section_vals_type), POINTER                   :: root_section
 
-      CALL swarm_mpi%world%group%sync()
+      CALL swarm_mpi%world%sync()
       CALL logger_finalize(swarm_mpi, root_section)
 
       IF (ASSOCIATED(swarm_mpi%worker)) CALL cp_para_env_release(swarm_mpi%worker)
@@ -306,7 +305,7 @@ CONTAINS
       CALL section_vals_val_set(root_section, "GLOBAL%PROJECT_NAME", &
                                 c_val=old_logger%iter_info%project_name)
 
-      CALL swarm_mpi%world%group%sync()
+      CALL swarm_mpi%world%sync()
 
       ! do this only on master's rank 0
       I_am_rank0 = swarm_mpi%world%mepos == swarm_mpi%world%source
@@ -331,11 +330,11 @@ CONTAINS
 
 ! Only rank-0 of worker group sends its report
 
-      IF (swarm_mpi%worker%source /= swarm_mpi%worker%mepos) RETURN
-
-      dest = swarm_mpi%world%num_pe - 1
-      tag = 42
-      CALL swarm_message_mpi_send(report, group=swarm_mpi%world%group, dest=dest, tag=tag)
+      IF (swarm_mpi%worker%is_source()) THEN
+         dest = swarm_mpi%world%num_pe - 1
+         tag = 42
+         CALL swarm_message_mpi_send(report, group=swarm_mpi%world, dest=dest, tag=tag)
+      END IF
 
    END SUBROUTINE swarm_mpi_send_report
 
@@ -354,7 +353,7 @@ CONTAINS
       tag = 42
       src = mp_any_source
 
-      CALL swarm_message_mpi_recv(report, group=swarm_mpi%world%group, src=src, tag=tag)
+      CALL swarm_message_mpi_recv(report, group=swarm_mpi%world, src=src, tag=tag)
 
    END SUBROUTINE swarm_mpi_recv_report
 
@@ -374,7 +373,7 @@ CONTAINS
       tag = 42
       dest = swarm_mpi%wid2group(worker_id)
 
-      CALL swarm_message_mpi_send(cmd, group=swarm_mpi%world%group, dest=dest, tag=tag)
+      CALL swarm_message_mpi_send(cmd, group=swarm_mpi%world, dest=dest, tag=tag)
 
    END SUBROUTINE swarm_mpi_send_command
 
@@ -393,15 +392,15 @@ CONTAINS
 ! This is a two step communication schema.
 ! First: The rank-0 of the worker groups receives the command from the master.
 
-      IF (swarm_mpi%worker%ionode) THEN
+      IF (swarm_mpi%worker%is_source()) THEN
          src = swarm_mpi%world%num_pe - 1 !
          tag = 42
-         CALL swarm_message_mpi_recv(cmd, group=swarm_mpi%world%group, src=src, tag=tag)
+         CALL swarm_message_mpi_recv(cmd, group=swarm_mpi%world, src=src, tag=tag)
 
       END IF
 
 !     ! Second: The command is broadcasted within the worker group.
-      CALL swarm_message_mpi_bcast(cmd, src=swarm_mpi%worker%source, group=swarm_mpi%worker%group)
+      CALL swarm_message_mpi_bcast(cmd, src=swarm_mpi%worker%source, group=swarm_mpi%worker)
 
    END SUBROUTINE swarm_mpi_recv_command
 

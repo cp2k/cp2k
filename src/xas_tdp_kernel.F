@@ -169,7 +169,7 @@ CONTAINS
                IF (.NOT. ASSOCIATED(xas_tdp_env%ri_fxc(ri_atom, i)%array)) THEN
                   ALLOCATE (xas_tdp_env%ri_fxc(ri_atom, i)%array(nsgfp, nsgfp))
                END IF
-               CALL para_env%group%bcast(xas_tdp_env%ri_fxc(ri_atom, i)%array, source)
+               CALL para_env%bcast(xas_tdp_env%ri_fxc(ri_atom, i)%array, source)
             END DO
 
             xas_tdp_env%fxc_avail = .TRUE.
@@ -740,7 +740,7 @@ CONTAINS
          ELSE
             ALLOCATE (aIQ(nsgfa, nsgfp))
          END IF
-         CALL para_env%group%bcast(aIQ, source)
+         CALL para_env%bcast(aIQ, source)
 
          ! get the contraction (Q|IJ) by taking (Q|Ia)*contract_coeffs and put it in coeffs
          CALL dgemm('T', 'N', nsgfp, ndo_so, nsgfa, 1.0_dp, aIQ, nsgfa, donor_state%contract_coeffs, &

@@ -35,7 +35,7 @@ PROGRAM dbt_unittest
    IMPLICIT NONE
 
    TYPE(mp_comm_type) :: mp_comm
-   INTEGER                            :: numnodes, mynode, io_unit
+   INTEGER                            :: mynode, io_unit
    INTEGER                            :: ndims, nblks_alloc, nblks_1, nblks_2, nblks_3, nblks_4, nblks_5, &
                                          nblks_alloc_1, nblks_alloc_2, nblks_alloc_3, nblks_alloc_4, nblks_alloc_5
    INTEGER, DIMENSION(:), ALLOCATABLE :: size_1, size_2, size_3, size_4, size_5, dist1_1, dist1_2, dist1_3, &
@@ -61,7 +61,7 @@ PROGRAM dbt_unittest
    INTEGER, DIMENSION(:, :), ALLOCATABLE :: bounds, bounds_1, bounds_2
 
    CALL mp_world_init(mp_comm)
-   CALL mp_comm%environ(numnodes, mynode)
+   mynode = mp_comm%mepos
 
    ! Select active offload device when available.
    IF (offload_get_device_count() > 0) THEN

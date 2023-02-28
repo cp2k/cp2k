@@ -261,9 +261,9 @@ CONTAINS
                END IF
             END DO
          END DO MOL
-         CALL force_env%para_env%group%sum(n_tot)
-         CALL force_env%para_env%group%sum(cvalues)
-         IF (PRESENT(Bmatrix)) CALL force_env%para_env%group%sum(Bmatrix)
+         CALL force_env%para_env%sum(n_tot)
+         CALL force_env%para_env%sum(cvalues)
+         IF (PRESENT(Bmatrix)) CALL force_env%para_env%sum(Bmatrix)
       END IF
       offset = n_tot
       ! Intermolecular Colvars

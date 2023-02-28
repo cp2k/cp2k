@@ -287,7 +287,7 @@ PROGRAM cp2k
       ! some first info concerning how to run CP2K
 
       IF (usage .OR. command_line_error) THEN
-         IF (default_para_env%ionode) THEN
+         IF (default_para_env%is_source()) THEN
             l = LEN_TRIM(command)
             WRITE (UNIT=output_unit, FMT="(/,(T2,A))") &
                TRIM(command)//" [-c|--check] [-e|--echo] [-h|--help]", &
@@ -324,7 +324,7 @@ PROGRAM cp2k
 
          ! write the version string
          IF (print_version) THEN
-            IF (default_para_env%ionode) THEN
+            IF (default_para_env%is_source()) THEN
                WRITE (output_unit, "(T2,A)") cp2k_version, &
                   "Source code revision "//TRIM(compile_revision), &
                   TRIM(cp2k_flags())
@@ -341,13 +341,13 @@ PROGRAM cp2k
 
          ! write the license
          IF (print_license) THEN
-            IF (default_para_env%ionode) THEN
+            IF (default_para_env%is_source()) THEN
                CALL print_cp2k_license(output_unit)
             END IF
          END IF
 
          IF (xml) THEN
-            IF (default_para_env%ionode) THEN
+            IF (default_para_env%is_source()) THEN
                CALL write_xml_file()
             END IF
          END IF
@@ -357,7 +357,7 @@ PROGRAM cp2k
          IF (check) THEN
             CALL check_input(input_declaration, input_file_name, output_file_name, &
                              echo_input=echo_input, ierr=ierr, initial_variables=initial_variables)
-            IF (default_para_env%ionode) THEN
+            IF (default_para_env%is_source()) THEN
                IF (ierr == 0) THEN
                   IF (.NOT. echo_input) THEN
                      WRITE (output_unit, "(A)") "SUCCESS, the input could be parsed correctly."

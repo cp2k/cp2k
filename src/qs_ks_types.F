@@ -17,13 +17,11 @@ MODULE qs_ks_types
    USE atprop_types,                    ONLY: atprop_type
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
-                                              cp_blacs_env_retain,&
                                               cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_release,&
                                               dft_control_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
-   USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                              cp_para_env_retain
+   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_types,                 ONLY: cp_result_type
    USE cp_subsys_types,                 ONLY: cp_subsys_type
@@ -688,12 +686,12 @@ CONTAINS
          ks_env%pw_env => pw_env
       END IF
       IF (PRESENT(para_env)) THEN
-         CALL cp_para_env_retain(para_env)
+         CALL para_env%retain()
          CALL cp_para_env_release(ks_env%para_env)
          ks_env%para_env => para_env
       END IF
       IF (PRESENT(blacs_env)) THEN
-         CALL cp_blacs_env_retain(blacs_env)
+         CALL blacs_env%retain()
          CALL cp_blacs_env_release(ks_env%blacs_env)
          ks_env%blacs_env => blacs_env
       END IF

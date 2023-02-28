@@ -248,8 +248,8 @@ CONTAINS
       END DO ! ipe
 
       ! do communication
-      CALL para_env%group%alltoall(send_buf, send_sizes, send_disps, &
-                                   recv_buf, recv_sizes, recv_disps)
+      CALL para_env%alltoall(send_buf, send_sizes, send_disps, &
+                             recv_buf, recv_sizes, recv_disps)
 
       ! cleanup temporary arrays no longer needed
       DEALLOCATE (send_buf)

@@ -133,7 +133,7 @@ CONTAINS
          charges(ii, 1:ns) = alpha*mixing_store%dacharge(ia, 1:ns, imin) - mixing_store%acharge(ia, 1:ns, imin)
       END DO
 
-      CALL para_env%group%sum(charges)
+      CALL para_env%sum(charges)
 
    END SUBROUTINE mix_charges_only
 
@@ -194,7 +194,7 @@ CONTAINS
       wfac = 0.01_dp
 
       mixing_store%wbroy(nv) = SUM(dq_now(:, :)**2)
-      CALL para_env%group%sum(mixing_store%wbroy(nv))
+      CALL para_env%sum(mixing_store%wbroy(nv))
       mixing_store%wbroy(nv) = SQRT(mixing_store%wbroy(nv))
       IF (mixing_store%wbroy(nv) > (wfac/maxw)) THEN
          mixing_store%wbroy(nv) = wfac/mixing_store%wbroy(nv)
@@ -206,14 +206,14 @@ CONTAINS
       ! dfbroy
       mixing_store%dfbroy(:, :, nv) = dq_now(:, :) - dq_last(:, :)
       wdf = SUM(mixing_store%dfbroy(:, :, nv)**2)
-      CALL para_env%group%sum(wdf)
+      CALL para_env%sum(wdf)
       wdf = 1.0_dp/SQRT(wdf)
       mixing_store%dfbroy(:, :, nv) = wdf*mixing_store%dfbroy(:, :, nv)
 
       ! abroy matrix
       DO i = 1, nv
          wfac = SUM(mixing_store%dfbroy(:, :, i)*mixing_store%dfbroy(:, :, nv))
-         CALL para_env%group%sum(wfac)
+         CALL para_env%sum(wfac)
          mixing_store%abroy(i, nv) = wfac
          mixing_store%abroy(nv, i) = wfac
       END DO
@@ -222,7 +222,7 @@ CONTAINS
       ALLOCATE (amat(nv, nv), beta(nv, nv), cvec(nv), gammab(nv))
       DO i = 1, nv
          wfac = SUM(mixing_store%dfbroy(:, :, i)*dq_now(:, :))
-         CALL para_env%group%sum(wfac)
+         CALL para_env%sum(wfac)
          cvec(i) = mixing_store%wbroy(i)*wfac
       END DO
 
@@ -251,7 +251,7 @@ CONTAINS
             charges(ii, 1:ns) = charges(ii, 1:ns) - mixing_store%wbroy(i)*gammab(i)*mixing_store%ubroy(ia, 1:ns, i)
          END DO
       END DO
-      CALL para_env%group%sum(charges)
+      CALL para_env%sum(charges)
 
       DEALLOCATE (amat, beta, cvec, gammab)
 

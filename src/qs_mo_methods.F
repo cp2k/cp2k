@@ -742,7 +742,7 @@ CONTAINS
          END DO
          CALL cp_fm_release(overlap)
       END DO
-      CALL mo_array(1)%mo_coeff%matrix_struct%para_env%group%max(max_alpha)
+      CALL mo_array(1)%mo_coeff%matrix_struct%para_env%max(max_alpha)
       orthonormality = max_alpha
       ! write(*,*) "max deviation from orthonormalization ",orthonormality
 

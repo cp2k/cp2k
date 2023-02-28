@@ -507,7 +507,7 @@ CONTAINS
       END DO
 
       ! global summation
-      CALL para_env%group%sum(tvec)
+      CALL para_env%sum(tvec)
 
       rm1t => lri_env%ri_fit%rm1t
       DO ispin = 1, nspin

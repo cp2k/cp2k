@@ -30,8 +30,7 @@ MODULE qs_loc_types
    USE cp_array_utils,                  ONLY: cp_2d_r_p_type
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
-   USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                              cp_para_env_retain
+   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix,&
                                               dbcsr_p_type
@@ -410,7 +409,7 @@ CONTAINS
          qs_loc_env%localized_wfn_control => localized_wfn_control
       END IF
       IF (PRESENT(para_env)) THEN
-         CALL cp_para_env_retain(para_env)
+         CALL para_env%retain()
          CALL cp_para_env_release(qs_loc_env%para_env)
          qs_loc_env%para_env => para_env
       END IF

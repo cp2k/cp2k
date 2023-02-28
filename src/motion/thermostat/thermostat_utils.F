@@ -1399,8 +1399,8 @@ CONTAINS
 
       ! Handle the thermostat distribution
       IF (nhc%map_info%dis_type == do_thermo_no_communication) THEN
-         CALL para_env%group%sum(akin)
-         CALL para_env%group%sum(vpot)
+         CALL para_env%sum(akin)
+         CALL para_env%sum(vpot)
       ELSE IF (nhc%map_info%dis_type == do_thermo_communication) THEN
          CALL communication_thermo_low1(akin, number, para_env)
          CALL communication_thermo_low1(vpot, number, para_env)
@@ -1466,7 +1466,7 @@ CONTAINS
 
       ! Handle the thermostat distribution
       IF (map_info%dis_type == do_thermo_no_communication) THEN
-         CALL para_env%group%sum(akin)
+         CALL para_env%sum(akin)
       ELSE IF (map_info%dis_type == do_thermo_communication) THEN
          CALL communication_thermo_low1(akin, number, para_env)
       END IF
@@ -1534,8 +1534,8 @@ CONTAINS
 
       ! Handle the thermostat distribution
       IF (map_info%dis_type == do_thermo_no_communication) THEN
-         CALL para_env%group%sum(akin)
-         CALL para_env%group%sum(deg_of_free)
+         CALL para_env%sum(akin)
+         CALL para_env%sum(deg_of_free)
       ELSE IF (map_info%dis_type == do_thermo_communication) THEN
          CALL communication_thermo_low1(akin, number, para_env)
          CALL communication_thermo_low1(deg_of_free, number, para_env)
@@ -1830,7 +1830,7 @@ CONTAINS
       DO i = 1, number
          work = 0.0_dp
          work(para_env%mepos + 1) = array(i)
-         CALL para_env%group%sum(work)
+         CALL para_env%sum(work)
          ncheck = COUNT(work /= 0.0_dp)
          array(i) = 0.0_dp
          IF (ncheck /= 0) THEN
@@ -1872,7 +1872,7 @@ CONTAINS
       DO i = 1, number2
          work = 0
          work(:, para_env%mepos + 1) = array(:, i)
-         CALL para_env%group%sum(work)
+         CALL para_env%sum(work)
          ncheck = 0
          DO j = 1, para_env%num_pe
             IF (ANY(work(:, j) /= 0)) THEN

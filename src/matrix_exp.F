@@ -720,7 +720,7 @@ CONTAINS
       ALLOCATE (H_approx(narnoldi, narnoldi, ncol_local))
       ALLOCATE (H_approx_save(narnoldi, narnoldi, ncol_local))
       col_procs => mo_struct%context%blacs2mpi(:, mo_struct%context%mepos(2))
-      CALL col_group%from_reordering(para_env%group, col_procs)
+      CALL col_group%from_reordering(para_env, col_procs)
 
       double_col = .TRUE.
       double_row = .FALSE.
@@ -886,7 +886,7 @@ CONTAINS
                conv_norm = MAX(conv_norm, ABS(results(icol_local)))
             END DO
 
-            CALL para_env%group%max(conv_norm)
+            CALL para_env%max(conv_norm)
 
             IF (conv_norm .LT. eps_exp .OR. i .GT. narnoldi) THEN
 
