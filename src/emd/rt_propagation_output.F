@@ -842,24 +842,24 @@ CONTAINS
          ELSE
             WRITE (UNIT=output_unit, FMT="(/,T2,A)") "FIELD APPLIED"
          END IF
+
+         rlab = [CHARACTER(LEN=3) :: "X", "Y", "Z"]
+
+         IF (dft_control%apply_efield_field) THEN
+            WRITE (unit_nr, "(T3,A)") "Electric Field (LG) in atomic units:"
+            CALL make_field(dft_control, field, qs_env%sim_step, qs_env%sim_time)
+            to_write = field
+         ELSE IF (dft_control%apply_vector_potential) THEN
+            WRITE (unit_nr, "(T3,A)") "Vector potential (VG) in atomic units:"
+            to_write = dft_control%rtp_control%vec_pot
+         ELSE
+            WRITE (unit_nr, "(T3,A)") "No electric field applied"
+            to_write = 0._dp
+         END IF
+
+         WRITE (unit_nr, "(T5,3(A,A,E16.8,1X))") &
+            (TRIM(rlab(i)), "=", to_write(i), i=1, 3)
       END IF
-
-      rlab = [CHARACTER(LEN=3) :: "X", "Y", "Z"]
-
-      IF (dft_control%apply_efield_field) THEN
-         WRITE (unit_nr, "(T3,A)") "Electric Field in atomic units:"
-         CALL make_field(dft_control, field, qs_env%sim_step, qs_env%sim_time)
-         to_write = field
-      ELSE IF (dft_control%apply_vector_potential) THEN
-         WRITE (unit_nr, "(T3,A)") "Vector potential in atomic units:"
-         to_write = dft_control%rtp_control%vec_pot
-      ELSE
-         to_write = 0._dp
-      END IF
-
-      WRITE (unit_nr, "(T5,3(A,A,E16.8,1X))") &
-         (TRIM(rlab(i)), "=", to_write(i), i=1, 3)
-
    END SUBROUTINE print_field_applied
 
 END MODULE rt_propagation_output
