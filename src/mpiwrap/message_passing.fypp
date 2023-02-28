@@ -763,11 +763,16 @@
 
 #if defined(__parallel)
       msglen = 1
-      CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, comm%handle, status, ierr)
-      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
-      CALL add_perf(perf_id=14, count=1, msg_size=msglen*${bytes1}$)
-      source = status MPI_STATUS_EXTRACT(MPI_SOURCE)
-      tag = status MPI_STATUS_EXTRACT(MPI_TAG)
+      IF (source /= mp_any_source .AND. tag /= mp_any_tag) THEN
+         CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, comm%handle, MPI_STATUS_IGNORE, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
+      ELSE
+         CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, comm%handle, status, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
+         CALL add_perf(perf_id=14, count=1, msg_size=msglen*${bytes1}$)
+         source = status MPI_STATUS_EXTRACT(MPI_SOURCE)
+         tag = status MPI_STATUS_EXTRACT(MPI_TAG)
+      END IF
 #else
       MARK_USED(msg)
       MARK_USED(source)
@@ -804,11 +809,16 @@
 
 #if defined(__parallel)
       msglen = SIZE(msg)
-      CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, comm%handle, status, ierr)
-      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
-      CALL add_perf(perf_id=14, count=1, msg_size=msglen*${bytes1}$)
-      source = status MPI_STATUS_EXTRACT(MPI_SOURCE)
-      tag = status MPI_STATUS_EXTRACT(MPI_TAG)
+      IF (source /= mp_any_source .AND. tag /= mp_any_tag) THEN
+         CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, comm%handle, MPI_STATUS_IGNORE, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
+      ELSE
+         CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, comm%handle, status, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
+         CALL add_perf(perf_id=14, count=1, msg_size=msglen*${bytes1}$)
+         source = status MPI_STATUS_EXTRACT(MPI_SOURCE)
+         tag = status MPI_STATUS_EXTRACT(MPI_TAG)
+      END IF
 #else
       MARK_USED(msg)
       MARK_USED(source)
@@ -845,11 +855,16 @@
 
 #if defined(__parallel)
       msglen = SIZE(msg)
-      CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, comm%handle, status, ierr)
-      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
-      CALL add_perf(perf_id=14, count=1, msg_size=msglen*${bytes1}$)
-      source = status MPI_STATUS_EXTRACT(MPI_SOURCE)
-      tag = status MPI_STATUS_EXTRACT(MPI_TAG)
+      IF (source /= mp_any_source .AND. tag /= mp_any_tag) THEN
+         CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, comm%handle, MPI_STATUS_IGNORE, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
+      ELSE
+         CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, comm%handle, status, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
+         CALL add_perf(perf_id=14, count=1, msg_size=msglen*${bytes1}$)
+         source = status MPI_STATUS_EXTRACT(MPI_SOURCE)
+         tag = status MPI_STATUS_EXTRACT(MPI_TAG)
+      END IF
 #else
       MARK_USED(msg)
       MARK_USED(source)
@@ -886,11 +901,16 @@
 
 #if defined(__parallel)
       msglen = SIZE(msg)
-      CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, comm%handle, status, ierr)
-      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
-      CALL add_perf(perf_id=14, count=1, msg_size=msglen*${bytes1}$)
-      source = status MPI_STATUS_EXTRACT(MPI_SOURCE)
-      tag = status MPI_STATUS_EXTRACT(MPI_TAG)
+      IF (source /= mp_any_source .AND. tag /= mp_any_tag) THEN
+         CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, comm%handle, MPI_STATUS_IGNORE, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
+      ELSE
+         CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, comm%handle, status, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
+         CALL add_perf(perf_id=14, count=1, msg_size=msglen*${bytes1}$)
+         source = status MPI_STATUS_EXTRACT(MPI_SOURCE)
+         tag = status MPI_STATUS_EXTRACT(MPI_TAG)
+      END IF
 #else
       MARK_USED(msg)
       MARK_USED(source)
