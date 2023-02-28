@@ -256,8 +256,8 @@ CONTAINS
       CALL section_vals_val_get(low_scaling_section, "KPOINTS", &
                                 i_vals=mp2_env%ri_rpa_im_time%kp_grid)
       mp2_env%ri_rpa_im_time%do_kpoints_from_Gamma = SUM(mp2_env%ri_rpa_im_time%kp_grid) > 0
-      IF(mp2_env%ri_rpa_im_time%do_kpoints_from_Gamma) THEN
-        CPASSERT(mp2_env%ri_g0w0%do_kpoints_Sigma)
+      IF (mp2_env%ri_rpa_im_time%do_kpoints_from_Gamma) THEN
+         CPASSERT(mp2_env%ri_g0w0%do_kpoints_Sigma)
       END IF
       CALL section_vals_val_get(low_scaling_section, "KPOINT_WEIGHTS_W", &
                                 i_val=mp2_env%ri_rpa_im_time%kpoint_weights_W_method)
