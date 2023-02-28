@@ -29,15 +29,15 @@ case "${with_intelmpi}" in
     ;;
   __SYSTEM__)
     echo "==================== Finding Intel MPI from system paths ===================="
-    check_command mpiexec "intelmpi" && MPIRUN="$(command -v mpiexec)" || exit 1
+    check_command mpiexec "intelmpi" && MPIRUN="$(realpath $(command -v mpiexec))" || exit 1
     if [ "${with_intel}" != "__DONTUSE__" ]; then
-      check_command mpiicc "intelmpi" && MPICC="$(command -v mpiicc)" || exit 1
-      check_command mpiicpc "intelmpi" && MPICXX="$(command -v mpiicpc)" || exit 1
-      check_command mpiifort "intelmpi" && MPIFC="$(command -v mpiifort)" || exit 1
+      check_command mpiicc "intelmpi" && MPICC="$(realpath $(command -v mpiicc))" || exit 1
+      check_command mpiicpc "intelmpi" && MPICXX="$(realpath $(command -v mpiicpc))" || exit 1
+      check_command mpiifort "intelmpi" && MPIFC="$(realpath $(command -v mpiifort))" || exit 1
     else
-      check_command mpicc "intelmpi" && MPICC="$(command -v mpicc)" || exit 1
-      check_command mpicxx "intelmpi" && MPICXX="$(command -v mpicxx)" || exit 1
-      check_command mpifort "intelmpi" && MPIFC="$(command -v mpifort)" || exit 1
+      check_command mpicc "intelmpi" && MPICC="$(realpath $(command -v mpicc))" || exit 1
+      check_command mpicxx "intelmpi" && MPICXX="$(realpath $(command -v mpicxx))" || exit 1
+      check_command mpifort "intelmpi" && MPIFC="$(realpath $(command -v mpifort))" || exit 1
     fi
     MPIFORT="${MPIFC}"
     MPIF77="${MPIFC}"
