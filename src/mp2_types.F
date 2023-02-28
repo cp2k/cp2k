@@ -203,12 +203,15 @@ MODULE mp2_types
       TYPE(one_dim_real_array), DIMENSION(2) :: ic_corr_list
       INTEGER :: print_exx
       LOGICAL :: do_gamma_only_sigma
-      LOGICAL :: update_xc_energy, do_kpoints_Sigma
+      LOGICAL :: update_xc_energy, do_kpoints_Sigma, print_local_bandgap
       INTEGER :: n_kp_in_kp_line, n_special_kp, nkp_self_energy, &
                  nkp_self_energy_special_kp, nkp_self_energy_monkh_pack
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: xkp_special_kp
       TYPE(dbcsr_p_type), DIMENSION(:), ALLOCATABLE :: &
          matrix_sigma_x_minus_vxc, matrix_ks
+      REAL(KIND=dp)            :: broadening_print_loc_bandgap, energy_window_print_loc_bandgap, &
+                                  ldos_thresh_print_loc_bandgap, energy_spacing_print_loc_bandgap
+      INTEGER, DIMENSION(:), POINTER :: stride_loc_bandgap
    END TYPE
 
    TYPE ri_basis_opt
