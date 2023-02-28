@@ -38,12 +38,6 @@
           KPOINTS 1 4 4
           REGULARIZATION_RI 1.0E-3
         &END LOW_SCALING
-        &RI
-          &RI_METRIC
-            POTENTIAL_TYPE TRUNCATED
-            CUTOFF_RADIUS  2.0
-          &END RI_METRIC
-        &END RI
         &RI_RPA
           RPA_NUM_QUAD_POINTS  6
           &GW
@@ -55,7 +49,15 @@
              SPECIAL_POINT  0.5   0.0   0.0
              SPECIAL_POINT  0.0   0.0   0.0
              NPOINTS 3
-           &END
+          &END
+           &PRINT
+             &LOCAL_BANDGAP
+                ENERGY_WINDOW 2.0
+                ENERGY_SPACING 0.5
+                LDOS_THRESHOLD_GAP 0.03
+                STRIDE 4 4 4
+             &END LOCAL_BANDGAP
+           &END PRINT
           &END GW
         &END RI_RPA
       &END
@@ -63,7 +65,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  8.000   8.000  8.000
+      ABC [angstrom]  5.00   5.00   7.0   
       MULTIPLE_UNIT_CELL  1 1 1
       PERIODIC YZ
     &END CELL
@@ -81,9 +83,9 @@
       MULTIPLE_UNIT_CELL  1 1 1
     &END TOPOLOGY
     &COORD
-      H  0.0 -0.5 -4.5
-      O  0.5  0.0  4.5
-      H  0.0  0.5 -4.5
+      H  0.0 -0.5 -3.5
+      O  0.5  0.0  3.5
+      H  0.0  0.5 -3.5
     &END COORD
   &END SUBSYS
 &END FORCE_EVAL

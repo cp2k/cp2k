@@ -15,7 +15,9 @@ MODULE mp2_setup
    USE cp_eri_mme_interface,            ONLY: cp_eri_mme_init_read_input
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
-   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+   USE cp_output_handling,              ONLY: cp_p_file,&
+                                              cp_print_key_finished_output,&
+                                              cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_parser_methods,               ONLY: read_float_object
    USE input_constants,                 ONLY: &
@@ -141,6 +143,8 @@ CONTAINS
                                 r_val=mp2_env%ri_g0w0%eps_iter)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT_EXX", &
                                 i_val=mp2_env%ri_g0w0%print_exx)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT_SELF_ENERGY", &
+                                l_val=mp2_env%ri_g0w0%print_self_energy)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%RI_SIGMA_X", &
                                 l_val=mp2_env%ri_g0w0%do_ri_Sigma_x)
       NULLIFY (r_vals)
@@ -222,8 +226,17 @@ CONTAINS
                                          mp2_env%ri_g0w0%kp_grid_Sigma(2)* &
                                          mp2_env%ri_g0w0%kp_grid_Sigma(3) > 0
 
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT%SELF_ENERGY", &
-                                l_val=mp2_env%ri_g0w0%print_self_energy)
+      mp2_env%ri_g0w0%print_local_bandgap = BTEST(cp_print_key_should_output(logger%iter_info, &
+                                                                             mp2_section, "RI_RPA%GW%PRINT%LOCAL_BANDGAP"), &
+                                                  cp_p_file)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT%LOCAL_BANDGAP%ENERGY_WINDOW", &
+                                r_val=mp2_env%ri_g0w0%energy_window_print_loc_bandgap)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT%LOCAL_BANDGAP%ENERGY_SPACING", &
+                                r_val=mp2_env%ri_g0w0%energy_spacing_print_loc_bandgap)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT%LOCAL_BANDGAP%LDOS_THRESHOLD_GAP", &
+                                r_val=mp2_env%ri_g0w0%ldos_thresh_print_loc_bandgap)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT%LOCAL_BANDGAP%STRIDE", &
+                                i_vals=mp2_env%ri_g0w0%stride_loc_bandgap)
 
       NULLIFY (low_scaling_section)
       low_scaling_section => section_vals_get_subs_vals(mp2_section, "LOW_SCALING")
@@ -243,6 +256,9 @@ CONTAINS
       CALL section_vals_val_get(low_scaling_section, "KPOINTS", &
                                 i_vals=mp2_env%ri_rpa_im_time%kp_grid)
       mp2_env%ri_rpa_im_time%do_kpoints_from_Gamma = SUM(mp2_env%ri_rpa_im_time%kp_grid) > 0
+      IF (mp2_env%ri_rpa_im_time%do_kpoints_from_Gamma) THEN
+         CPASSERT(mp2_env%ri_g0w0%do_kpoints_Sigma)
+      END IF
       CALL section_vals_val_get(low_scaling_section, "KPOINT_WEIGHTS_W", &
                                 i_val=mp2_env%ri_rpa_im_time%kpoint_weights_W_method)
       CALL section_vals_val_get(low_scaling_section, "EXPONENT_TAILORED_WEIGHTS", &
