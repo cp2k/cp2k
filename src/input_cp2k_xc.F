@@ -815,6 +815,34 @@ CONTAINS
                           type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="GAMMA", &
+                          description="B97 GAMMA parameters [gx, gab, gaa]", &
+                          usage="GAMMA <REAL> <REAL> <REAL>", &
+                          default_r_vals=(/0.004_dp, 0.006_dp, 0.2_dp/), &
+                          type_of_var=real_t, n_var=3)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="C_XAA", &
+                          description="B97 C parameters for exchange", &
+                          usage="C_XAA <REAL> <REAL> <REAL>", &
+                          default_r_vals=(/1.0_dp, 0.63_dp, 0.94_dp/), &
+                          type_of_var=real_t, n_var=3)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="C_CAB", &
+                          description="B97 C parameters for same spin correlation.", &
+                          usage="C_CAB <REAL> <REAL> <REAL>", &
+                          default_r_vals=(/1.0_dp, 0.75_dp, -4.60_dp/), &
+                          type_of_var=real_t, n_var=3)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="C_CAA", &
+                          description="B97 C parameters for opposite spin correlation.", &
+                          usage="C_CAB <REAL> <REAL> <REAL>", &
+                          default_r_vals=(/0.17_dp, 2.35_dp, -2.55_dp/), &
+                          type_of_var=real_t, n_var=3)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="SCALE_X", &
                           description="Scaling parameter for exchange kernel.", &
                           usage="SCALE_X 0.2", default_r_val=1.0_dp)
