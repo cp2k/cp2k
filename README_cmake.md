@@ -109,7 +109,8 @@ tested with ROCM 5.1.x but this version shows performance regression and should
 be avoided. The Jiting capabilities of ROCM 5.2.x do not work properly which
 affects DBCSR. It is highly recommended to update ROCM to the latest version to
 avoid all these issues. CP2K can be built with ROCM 5.2.x but GPU support in
-DBCSR should be tunred off otherwise a crash should be expected.
+DBCSR should be turned off otherwise a crash should be expected. ROCM 5.3.x and
+later seems to work fine.
 
 ## Threading with blas and lapack
 
@@ -189,3 +190,14 @@ What is known to fail sometimes
   present. `-DCP2k_BLAS_VENDOR=OpenBLAS` will also help CMake to find OpenBLAS if
   it is used. Detecting the scalapack library might also fail if the user
   environment is not properly set up.
+
+- BLAS / LAPACK / SCALAPACK: It is possible to set up BLAS / LAPACK / SCALAPACK
+  libraries manually. The following command
+
+```shell
+cmake -DCP2K_BLAS_LINK_LIBRARIES=libmyblas.so -DCP2K_BLAS_VENDOR=CUSTOM 
+-DCP2K_LAPACK_LINK_LIBRARIES=libmylapack.so -DCP2K_SCALAPACK_VENDOR=GENERIC 
+-DCP2K_SCALAPACK_LIBRARIES=libscalapack.so
+```
+
+is an illustration of such functionality (it is still experimental).

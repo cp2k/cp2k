@@ -74,6 +74,9 @@ endforeach()
 # =================================================================================================
 # OPTIONS
 
+option(CP2K_ENABLE_REGTESTS
+       "Enable installation of the binaries for running regtests afterwards"
+       OFF)
 option(CMAKE_POSITION_INDEPENDENT_CODE "Enable position independent code" ON)
 option(CP2K_DEBUG_MODE "Enable several additional options for debugging cp2k."
        OFF)
@@ -101,7 +104,7 @@ option(CP2K_USE_LIBXSMM "Use libxsmm for small gemms (supports x86 platforms)"
        ON)
 
 cmake_dependent_option(CP2K_ENABLE_ELPA_OPENMP_SUPPORT
-                       "Enable elpa openmp support" OFF "CP2K_USE_ELPA" OFF)
+                       "Enable elpa openmp support" ON "CP2K_USE_ELPA" OFF)
 cmake_dependent_option(CP2K_ENABLE_FFTW3_OPENMP_SUPPORT
                        "Enable FFTW openmp support" ON "CP2K_USE_FFTW3" OFF)
 cmake_dependent_option(CP2K_ENABLE_FFTW3_THREADS_SUPPORT
@@ -153,6 +156,9 @@ set(CP2K_USE_ACCEL
 
 set_property(CACHE CP2K_USE_ACCEL
              PROPERTY STRINGS ${CP2K_SUPPORTED_ACCELERATION_TARGETS})
+
+cmake_dependent_option(CP2K_USE_NVHPC OFF "Enable Nvidia NVHPC kit"
+                       "(NOT CP2K_USE_ACCEL MATCHES \"CUDA\")" OFF)
 
 cmake_dependent_option(
   CP2K_USE_SPLA_GEMM_OFFLOADING ON
@@ -330,7 +336,11 @@ if(CP2K_USE_ACCEL MATCHES "CUDA")
   set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -allow-unsupported-compiler")
 
   enable_language(CUDA)
-  find_package(CUDAToolkit REQUIRED)
+  if(CP2K_USE_NVHPC)
+    find_package(NVHPC REQUIRED COMPONENTS CUDA MATH HOSTUTILS NCCL)
+  else()
+    find_package(CUDAToolkit REQUIRED)
+  endif()
 
   list(FIND CP2K_SUPPORTED_CUDA_ARCHITECTURES ${CP2K_WITH_GPU}
        CP2K_GPU_SUPPORTED)
@@ -342,13 +352,10 @@ if(CP2K_USE_ACCEL MATCHES "CUDA")
     )
   endif()
 
-  # set cuda architecture number and compilation flags. Taken from dbcsr
-  set(CP2K_ACC_ARCH_NUMBER ${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}})
-  set(CMAKE_CUDA_ARCHITECTURES ${CP2K_ACC_ARCH_NUMBER})
-  set(CUDA_ARCHITECTURES ${CP2K_ACC_ARCH_NUMBER})
+  set(CMAKE_CUDA_ARCHITECTURES ${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}})
 
   message(STATUS "GPU target architecture: " ${CP2K_WITH_GPU})
-  message(STATUS "GPU architecture number: " ${CP2K_ACC_ARCH_NUMBER})
+  message(STATUS "GPU architecture number: " ${CMAKE_CUDA_ARCHITECTURES})
   message(STATUS "GPU profiling enabled: " ${CP2K_WITH_CUDA_PROFILING})
 
   if(WITH_CUDA_PROFILING)
@@ -379,7 +386,7 @@ elseif(CP2K_USE_ACCEL MATCHES "HIP")
     set(HIP_RELEASE_OPTIONS "-O0 -g --std=c++11")
   endif()
 
-  set(CP2K_ACC_ARCH_NUMBER ${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}})
+  set(CMAKE_HIP_ARCGITECTURES "${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}}")
   set(CP2K_USE_HIP ON)
 endif()
 
@@ -772,7 +779,7 @@ if(NOT CP2K_USE_ELPA)
 endif()
 
 if(NOT CP2K_USE_PLUMMED)
-  message(STATUS "   - PLUMMED")
+  message(STATUS "   - PLUMED")
 endif()
 
 if(NOT CP2K_USE_QUIP)
@@ -812,6 +819,19 @@ if(NOT CP2K_USE_LIBTORCH)
 endif()
 
 message(STATUS "\n\n")
+
+message(
+  STATUS
+    "To run the regtests you need to run cmake with the additional flag -DCP2K_ENABLE_REGTESTS=ON"
+)
+message(
+  STATUS
+    "cmake will copy the necessary binaries to the right directory and then regtests can be ran as"
+)
+message(
+  STATUS
+    "usual. It is a temporary fix until the regtests properly integrate cmake build systems types."
+)
 
 # files needed for cmake
 

@@ -404,7 +404,6 @@ COPY ./exts ./exts
 COPY ./tools/build_utils ./tools/build_utils
 COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
-COPY ./cp2k.pc.in .
 WORKDIR ./build
 RUN /bin/bash -c " \
     echo 'Compiling cp2k...' && \
