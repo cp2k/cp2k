@@ -75,6 +75,9 @@ RUN /bin/bash -c " \
     make -j ARCH=local VERSION=pdbg && \
     ln -sf ./cp2k.pdbg ./exe/local/cp2k && \
     ln -sf ./cp2k_shell.pdbg ./exe/local/cp2k_shell && \
+    ln -sf ./graph.pdbg ./exe/local/graph && \
+    ln -sf ./dumpdcd.pdbg ./exe/local/dumpdcd && \
+    ln -sf ./xyz2dcd.pdbg ./exe/local/xyz2dcd && \
     rm -rf lib obj exe/local/libcp2k_unittest.pdbg && \
     ( [ ! -f ./exe/local/cp2k.pdbg ] || ldd ./exe/local/cp2k.pdbg | grep -q libmpi )"
 COPY ./data ./data

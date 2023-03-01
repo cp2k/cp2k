@@ -76,6 +76,9 @@ RUN /bin/bash -c " \
     make -j ARCH=local VERSION=sdbg && \
     ln -sf ./cp2k.sdbg ./exe/local/cp2k && \
     ln -sf ./cp2k_shell.sdbg ./exe/local/cp2k_shell && \
+    ln -sf ./graph.sdbg ./exe/local/graph && \
+    ln -sf ./dumpdcd.sdbg ./exe/local/dumpdcd && \
+    ln -sf ./xyz2dcd.sdbg ./exe/local/xyz2dcd && \
     rm -rf lib obj exe/local/libcp2k_unittest.sdbg"
 COPY ./data ./data
 COPY ./tests ./tests

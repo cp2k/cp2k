@@ -75,6 +75,9 @@ RUN /bin/bash -c " \
     make -j ARCH=local VERSION=psmp && \
     ln -sf ./cp2k.psmp ./exe/local/cp2k && \
     ln -sf ./cp2k_shell.psmp ./exe/local/cp2k_shell && \
+    ln -sf ./graph.psmp ./exe/local/graph && \
+    ln -sf ./dumpdcd.psmp ./exe/local/dumpdcd && \
+    ln -sf ./xyz2dcd.psmp ./exe/local/xyz2dcd && \
     rm -rf lib obj exe/local/libcp2k_unittest.psmp && \
     ( [ ! -f ./exe/local/cp2k.psmp ] || ldd ./exe/local/cp2k.psmp | grep -q libmpi )"
 COPY ./data ./data

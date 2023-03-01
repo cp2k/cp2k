@@ -32,7 +32,10 @@ def main() -> None:
         f.write(regtest("psmp"))
 
     with OutputFile(f"Dockerfile.test_intel-psmp", args.check) as f:
-        f.write(toolchain_intel() + regtest("psmp"))
+        f.write(toolchain_intel() + regtest("psmp", "Linux-intel-x86_64"))
+
+    with OutputFile(f"Dockerfile.prod_intel_psmp", args.check) as f:
+        f.write(toolchain_intel() + production("psmp", "Linux-intel-x86_64"))
 
     with OutputFile(f"Dockerfile.test_nvhpc", args.check) as f:
         f.write(toolchain_nvhpc())
@@ -351,6 +354,7 @@ def install_cp2k(
         run_lines.append(f"ln -vs {arch_file} ./arch/")
     else:
         input_lines.append(f"COPY ./arch/{arch}.{version} /opt/cp2k/arch/")
+        run_lines.append(f"ln -s /opt/cp2k-toolchain /opt/cp2k/tools/toolchain")
 
     run_lines.append("echo 'Compiling cp2k...'")
     run_lines.append("source /opt/cp2k-toolchain/install/setup")
@@ -360,13 +364,16 @@ def install_cp2k(
         run_lines.append(build_command)
         run_lines.append(f"ln -sf ./cp2k.{version} ./exe/{arch}/cp2k")
         run_lines.append(f"ln -sf ./cp2k_shell.{version} ./exe/{arch}/cp2k_shell")
+        run_lines.append(f"ln -sf ./graph.{version} ./exe/{arch}/graph")
+        run_lines.append(f"ln -sf ./dumpdcd.{version} ./exe/{arch}/dumpdcd")
+        run_lines.append(f"ln -sf ./xyz2dcd.{version} ./exe/{arch}/xyz2dcd")
         run_lines.append(f"rm -rf lib obj exe/{arch}/libcp2k_unittest.{version}")
     else:
         run_lines.append(f"( {build_command} &> /dev/null || true )")
         run_lines.append(f"rm -rf lib obj")
 
     # Ensure MPI is dynamically linked, which is needed e.g. for Shifter.
-    if version.startswith("p"):
+    if version.startswith("p") and not "intel" in arch:
         binary = f"./exe/{arch}/cp2k.{version}"
         run_lines.append(f"( [ ! -f {binary} ] || ldd {binary} | grep -q libmpi )")
 
@@ -476,21 +483,14 @@ RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
 # ======================================================================================
 def toolchain_intel() -> str:
     return rf"""
-FROM intel/oneapi-hpckit:2022.2-devel-ubuntu20.04
-
-# Without this cp2k segfaults right after startup.
-# See https://github.com/cp2k/cp2k/issues/1936
-ENV I_MPI_FABRICS='shm'
+FROM intel/oneapi-hpckit:2023.0.0-devel-ubuntu22.04
 
 """ + install_toolchain(
         base_image="ubuntu",
-        with_intel="",
+        install_all="",
         with_intelmpi="",
-        with_libint="no",  # https://github.com/cp2k/cp2k/issues/1999
-        with_elpa="no",  # MPI does not provide a sufficient threading level for OpenMP.
-        with_quip="no",  # Intel compiler is currently not supported.
-        with_spfft="no",  # Spawns infinite chain of mpiicpc sub-processes.
-        with_sirius="no",  # Requires spfft.
+        with_mkl="",
+        with_sirius="no",
     )
 
 
