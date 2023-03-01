@@ -9,7 +9,7 @@
     &TDDFPT
        NSTATES     3
        MAX_ITER    50
-       CONVERGENCE 1.0e-8
+       CONVERGENCE 1.0e-08
        &XC
          &XC_KERNEL GGAfxc
             SCALE_X  0.80
@@ -32,10 +32,11 @@
     &END MGRID
     &QS
        METHOD GPW
+       EPS_DEFAULT 1.E-14
     &END QS
     &SCF
       MAX_SCF 100
-      EPS_SCF 1.E-7
+      EPS_SCF 1.E-6
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE0

@@ -207,6 +207,8 @@ CONTAINS
          ! exchange
          CALL pw_pool_create_pw(pw_pool, fxa, use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_pool_create_pw(pw_pool, fxb, use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_zero(fxa)
+         CALL pw_zero(fxb)
          CALL xalpha_fxc_eval(rhoa, rhob, fxa, fxb, scalex, eps_rho)
          CALL b97_fxc_eval(rhoa, norm_drhoa, fxa, g_ab(1), cxaa, eps_rho)
          CALL b97_fxc_eval(rhob, norm_drhob, fxb, g_ab(1), cxaa, eps_rho)
