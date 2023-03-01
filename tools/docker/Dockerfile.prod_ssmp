@@ -75,6 +75,9 @@ RUN /bin/bash -c " \
     make -j ARCH=local VERSION=ssmp && \
     ln -sf ./cp2k.ssmp ./exe/local/cp2k && \
     ln -sf ./cp2k_shell.ssmp ./exe/local/cp2k_shell && \
+    ln -sf ./graph.ssmp ./exe/local/graph && \
+    ln -sf ./dumpdcd.ssmp ./exe/local/dumpdcd && \
+    ln -sf ./xyz2dcd.ssmp ./exe/local/xyz2dcd && \
     rm -rf lib obj exe/local/libcp2k_unittest.ssmp"
 COPY ./data ./data
 COPY ./tests ./tests

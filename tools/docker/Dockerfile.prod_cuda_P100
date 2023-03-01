@@ -91,6 +91,9 @@ RUN /bin/bash -c " \
     make -j ARCH=local_cuda VERSION=psmp && \
     ln -sf ./cp2k.psmp ./exe/local_cuda/cp2k && \
     ln -sf ./cp2k_shell.psmp ./exe/local_cuda/cp2k_shell && \
+    ln -sf ./graph.psmp ./exe/local_cuda/graph && \
+    ln -sf ./dumpdcd.psmp ./exe/local_cuda/dumpdcd && \
+    ln -sf ./xyz2dcd.psmp ./exe/local_cuda/xyz2dcd && \
     rm -rf lib obj exe/local_cuda/libcp2k_unittest.psmp && \
     ( [ ! -f ./exe/local_cuda/cp2k.psmp ] || ldd ./exe/local_cuda/cp2k.psmp | grep -q libmpi )"
 COPY ./data ./data
