@@ -1742,6 +1742,7 @@
 #else
       MARK_USED(msg)
       MARK_USED(comm)
+      MARK_USED(root)
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_max_root_${nametype1}$m
@@ -3227,8 +3228,8 @@
 !> \param[in] comm             Message passing environment identifier
 ! **************************************************************************************************
    SUBROUTINE mp_sum_scatter_${nametype1}$v(msgout, msgin, rcount, comm)
-      ${type1}$, CONTIGUOUS, INTENT(OUT)                      :: msgout(:, :)
-      ${type1}$, CONTIGUOUS, INTENT(IN)                     :: msgin(:)
+      ${type1}$, CONTIGUOUS, INTENT(IN)                      :: msgout(:, :)
+      ${type1}$, CONTIGUOUS, INTENT(OUT)                     :: msgin(:)
       INTEGER, CONTIGUOUS, INTENT(IN)                      :: rcount(:)
       CLASS(mp_comm_type), INTENT(IN) :: comm
 
@@ -3251,7 +3252,7 @@
 #else
       MARK_USED(rcount)
       MARK_USED(comm)
-      msgin = msgout
+      msgin = msgout(:, 1)
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_sum_scatter_${nametype1}$v

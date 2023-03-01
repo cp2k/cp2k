@@ -79,10 +79,10 @@ MODULE environment
    USE machine,                         ONLY: &
         flush_should_flush, m_cpuid, m_cpuid_name, m_cpuid_static, m_cpuinfo, m_energy, &
         m_get_omp_stacksize, m_memory_details, m_procrun
-   USE message_passing,                 ONLY: add_mp_perf_env,&
+   USE message_passing,                 ONLY: mp_collect_timings,&
+                                              mp_para_env_type
+   USE mp_performance,                  ONLY: add_mp_perf_env,&
                                               describe_mp_perf_env,&
-                                              mp_collect_timings,&
-                                              mp_para_env_type,&
                                               rm_mp_perf_env
    USE orbital_pointers,                ONLY: deallocate_orbital_pointers,&
                                               init_orbital_pointers

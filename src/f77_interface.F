@@ -93,14 +93,21 @@ MODULE f77_interface
                                               m_chdir,&
                                               m_getcwd,&
                                               m_memory
-   USE message_passing,                 ONLY: &
-        add_mp_perf_env, get_mp_perf_env, mp_comm_type, mp_comm_world, mp_para_env_type, &
-        mp_perf_env_release, mp_perf_env_retain, mp_perf_env_type, mp_world_finalize, &
-        mp_world_init, rm_mp_perf_env
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_comm_world,&
+                                              mp_para_env_type,&
+                                              mp_world_finalize,&
+                                              mp_world_init
    USE metadynamics_types,              ONLY: meta_env_type
    USE metadynamics_utils,              ONLY: metadyn_read
    USE mixed_environment_types,         ONLY: mixed_environment_type
    USE mixed_main,                      ONLY: mixed_create_force_env
+   USE mp_performance,                  ONLY: add_mp_perf_env,&
+                                              get_mp_perf_env,&
+                                              mp_perf_env_release,&
+                                              mp_perf_env_retain,&
+                                              mp_perf_env_type,&
+                                              rm_mp_perf_env
    USE nnp_environment,                 ONLY: nnp_init
    USE nnp_environment_types,           ONLY: nnp_env_create,&
                                               nnp_type
