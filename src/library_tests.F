@@ -46,7 +46,6 @@ MODULE library_tests
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_init,          ONLY: init_input_type
    USE dbcsr_api,                       ONLY: dbcsr_reset_randmat_seed,&
                                               dbcsr_run_tests
@@ -73,7 +72,8 @@ MODULE library_tests
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
-   USE message_passing,                 ONLY: mpi_perf_test
+   USE message_passing,                 ONLY: mp_para_env_type,&
+                                              mpi_perf_test
    USE minimax_exp,                     ONLY: validate_exp_minimax
    USE mp2_grids,                       ONLY: test_least_square_ft
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -126,7 +126,7 @@ CONTAINS
    SUBROUTINE lib_test(root_section, para_env, globenv)
 
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'lib_test'
@@ -251,7 +251,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE test_input(root_section, para_env)
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       TYPE(section_vals_type), POINTER                   :: test_section
 
@@ -288,7 +288,7 @@ CONTAINS
 !>      FFTSG library.
 ! **************************************************************************************************
    SUBROUTINE copy_test(para_env, iw)
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: iw
 
       INTEGER                                            :: i, ierr, j, len, ntim, siz
@@ -348,7 +348,7 @@ CONTAINS
 !> \author JGH  6-NOV-2000
 ! **************************************************************************************************
    SUBROUTINE matmul_test(para_env, test_matmul, test_dgemm, iw)
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL                                            :: test_matmul, test_dgemm
       INTEGER                                            :: iw
 
@@ -564,7 +564,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fft_test(para_env, iw, fftw_plan_type, wisdom_file)
 
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: iw, fftw_plan_type
       CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
 
@@ -700,7 +700,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rs_pw_transfer_test(para_env, iw, globenv, rs_pw_transfer_section)
 
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: iw
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(section_vals_type), POINTER                   :: rs_pw_transfer_section
@@ -815,7 +815,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_fft_test(para_env, iw, globenv, pw_transfer_section)
 
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: iw
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(section_vals_type), POINTER                   :: pw_transfer_section
@@ -1032,7 +1032,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE eigensolver_test(para_env, iw, eigensolver_section)
 
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: iw
       TYPE(section_vals_type), POINTER                   :: eigensolver_section
 
@@ -1248,7 +1248,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_gemm_test(para_env, iw, cp_fm_gemm_test_section)
 
-      TYPE(cp_para_env_type), POINTER          :: para_env
+      TYPE(mp_para_env_type), POINTER          :: para_env
       INTEGER                                  :: iw
       TYPE(section_vals_type), POINTER         :: cp_fm_gemm_test_section
 
@@ -1406,7 +1406,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_dbcsr_tests(para_env, iw, input_section)
 
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: iw
       TYPE(section_vals_type), POINTER                   :: input_section
 
@@ -1480,7 +1480,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE run_dbm_tests(para_env, iw, input_section)
 
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: iw
       TYPE(section_vals_type), POINTER                   :: input_section
 

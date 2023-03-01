@@ -26,7 +26,6 @@ MODULE qmmm_init
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k,&
@@ -49,6 +48,7 @@ MODULE qmmm_init
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE pair_potential_types,            ONLY: pair_potential_reallocate
    USE particle_list_types,             ONLY: particle_list_type
@@ -366,7 +366,7 @@ CONTAINS
                                       mm_atom_chrg, qs_env, added_charges, added_shells, &
                                       print_section, qmmm_section)
       TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env_qm
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mm_atom_chrg
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(add_set_type), POINTER                        :: added_charges
@@ -522,7 +522,7 @@ CONTAINS
                                            added_charges, added_shells, qmmm_periodic, print_section, mm_atom_chrg)
       TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env_qm
       TYPE(cell_type), POINTER                           :: qm_cell_small, mm_cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(add_set_type), POINTER                        :: added_charges
       TYPE(add_shell_type), POINTER                      :: added_shells
@@ -640,7 +640,7 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: qmmm_coupl_type
       REAL(KIND=dp), INTENT(OUT)                         :: eps_mm_rspace
       LOGICAL, INTENT(OUT)                               :: qmmm_link
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=default_string_length)               :: atmname, mm_atom_kind
       INTEGER                                            :: i, icount, ikind, ikindr, my_type, &

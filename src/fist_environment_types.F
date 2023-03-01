@@ -21,7 +21,6 @@ MODULE fist_environment_types
                                               cell_retain,&
                                               cell_type
    USE cp_para_env,                     ONLY: cp_para_env_release
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_types,                 ONLY: cp_result_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_release,&
@@ -42,6 +41,7 @@ MODULE fist_environment_types
    USE input_section_types,             ONLY: section_vals_release,&
                                               section_vals_retain,&
                                               section_vals_type
+   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_create,&
                                               molecule_kind_list_release,&
                                               molecule_kind_list_type
@@ -77,7 +77,7 @@ MODULE fist_environment_types
       TYPE(ewald_environment_type), POINTER        :: ewald_env
       TYPE(ewald_pw_type), POINTER                 :: ewald_pw
       TYPE(fist_energy_type), POINTER              :: thermo
-      TYPE(cp_para_env_type), POINTER              :: para_env
+      TYPE(mp_para_env_type), POINTER              :: para_env
       TYPE(cp_subsys_type), POINTER                :: subsys
       TYPE(fist_nonbond_env_type), POINTER         :: fist_nonbond_env
       TYPE(section_vals_type), POINTER             :: input
@@ -149,7 +149,7 @@ CONTAINS
       TYPE(ewald_environment_type), OPTIONAL, POINTER    :: ewald_env
       TYPE(fist_nonbond_env_type), OPTIONAL, POINTER     :: fist_nonbond_env
       TYPE(fist_energy_type), OPTIONAL, POINTER          :: thermo
-      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
       LOGICAL, OPTIONAL                                  :: qmmm
       TYPE(qmmm_env_mm_type), OPTIONAL, POINTER          :: qmmm_env
@@ -220,7 +220,7 @@ CONTAINS
    SUBROUTINE init_fist_env(fist_env, para_env)
 
       TYPE(fist_environment_type), INTENT(OUT)           :: fist_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       NULLIFY (fist_env%input)
       NULLIFY (fist_env%qmmm_env)
@@ -411,7 +411,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fist_env_create(fist_env, para_env)
       TYPE(fist_environment_type), INTENT(OUT)           :: fist_env
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
+      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
 
       CALL init_fist_env(fist_env, para_env=para_env)
    END SUBROUTINE fist_env_create

@@ -35,7 +35,6 @@ MODULE rpa_util
         cp_fm_copy_general, cp_fm_create, cp_fm_get_info, cp_fm_release, cp_fm_set_all, &
         cp_fm_set_element, cp_fm_to_fm, cp_fm_to_fm_submat_general, cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_release
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_create, dbcsr_deallocate_matrix, dbcsr_filter, dbcsr_get_info, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type
@@ -54,6 +53,7 @@ MODULE rpa_util
                                               kpoint_release,&
                                               kpoint_type
    USE mathconstants,                   ONLY: z_zero
+   USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_laplace,                     ONLY: calc_fm_mat_S_laplace
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -146,7 +146,7 @@ CONTAINS
                             mat_work, mo_coeff, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, homo, nmo)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red, &
                                                             num_integ_points, nspins
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
@@ -485,7 +485,7 @@ CONTAINS
                             dimen_RI, dimen_RI_red, first_ikp_local, ikp_local, fm_struct_sub_kp, allocate_mat_L)
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_mat_L, fm_matrix_Minv_L_kpoints
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_template
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), INTENT(OUT)                    :: mat_L
       TYPE(dbcsr_type), INTENT(IN)                       :: mat_template
       INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red, first_ikp_local
@@ -886,7 +886,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dimen_RI
       REAL(KIND=dp), DIMENSION(dimen_RI), INTENT(OUT)    :: trace_Qomega
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_RPA
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_RPA
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'Q_trace_and_add_unit_matrix'
 
@@ -936,7 +936,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dimen_RI
       REAL(KIND=dp), DIMENSION(dimen_RI), INTENT(IN)     :: trace_Qomega
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_RPA
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_RPA
       REAL(KIND=dp), INTENT(INOUT)                       :: Erpa
       REAL(KIND=dp), INTENT(IN)                          :: wjquad
 
@@ -1011,7 +1011,7 @@ CONTAINS
    SUBROUTINE get_sub_para_kp(fm_struct_sub_kp, para_env, dimen_RI, &
                               ikp_local, first_ikp_local)
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_sub_kp
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: dimen_RI
       INTEGER, INTENT(OUT)                               :: ikp_local, first_ikp_local
 
@@ -1019,7 +1019,7 @@ CONTAINS
 
       INTEGER                                            :: color_sub_kp, handle, num_proc_per_kp
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub_kp
-      TYPE(cp_para_env_type), POINTER                    :: para_env_sub_kp
+      TYPE(mp_para_env_type), POINTER                    :: para_env_sub_kp
 
       CALL timeset(routineN, handle)
 

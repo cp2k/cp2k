@@ -32,13 +32,13 @@ MODULE qs_tddfpt_eigensolver
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                               cp_to_string
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_set
    USE input_constants,                 ONLY: tddfpt_davidson,&
                                               tddfpt_lanczos
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -192,9 +192,9 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: Atilde, Us
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: R, X
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: Ab, b, Sb
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(tddfpt_control_type), POINTER                 :: tddfpt_control
 
       res = .FALSE.

@@ -25,8 +25,6 @@ MODULE replica_types
    USE cp_output_handling,              ONLY: cp_rm_iter_level
    USE cp_para_env,                     ONLY: cp_cart_release,&
                                               cp_para_env_release
-   USE cp_para_types,                   ONLY: cp_para_cart_type,&
-                                              cp_para_env_type
    USE cp_result_methods,               ONLY: cp_results_mp_bcast
    USE cp_result_types,                 ONLY: cp_result_p_type,&
                                               cp_result_release
@@ -36,6 +34,8 @@ MODULE replica_types
                                               f_env_type
    USE kinds,                           ONLY: default_path_length,&
                                               dp
+   USE message_passing,                 ONLY: mp_para_cart_type,&
+                                              mp_para_env_type
    USE qs_wf_history_types,             ONLY: qs_wf_history_p_type,&
                                               wfi_release
 #include "./base/base_uses.f90"
@@ -106,8 +106,8 @@ MODULE replica_types
       INTEGER, DIMENSION(:), POINTER                    :: replica_owner, force_rank, &
                                                            inter_rep_rank
       LOGICAL, DIMENSION(:), POINTER                    :: rep_is_local
-      TYPE(cp_para_cart_type), POINTER                  :: cart
-      TYPE(cp_para_env_type), POINTER                   :: para_env, para_env_f, &
+      TYPE(mp_para_cart_type), POINTER                  :: cart
+      TYPE(mp_para_env_type), POINTER                   :: para_env, para_env_f, &
                                                            para_env_inter_rep
    END TYPE replica_env_type
 

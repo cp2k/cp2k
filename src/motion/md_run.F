@@ -27,7 +27,6 @@ MODULE md_run
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -69,6 +68,7 @@ MODULE md_run
                                               temperature_control
    USE mdctrl_methods,                  ONLY: mdctrl_callback
    USE mdctrl_types,                    ONLY: mdctrl_type
+   USE message_passing,                 ONLY: mp_para_env_type
    USE metadynamics,                    ONLY: metadyn_finalise_plumed,&
                                               metadyn_forces,&
                                               metadyn_initialise_plumed,&
@@ -127,8 +127,8 @@ CONTAINS
       TYPE(mdctrl_type), OPTIONAL, POINTER               :: mdctrl
 
       LOGICAL                                            :: my_rm_restart_info
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(md_environment_type), POINTER                 :: md_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: md_section, motion_section
 
       my_rm_restart_info = .TRUE.
@@ -192,11 +192,11 @@ CONTAINS
       TYPE(barostat_type), POINTER                       :: barostat
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys, subsys_i
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(free_energy_type), POINTER                    :: fe_env
       TYPE(md_ener_type), POINTER                        :: md_ener
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(reftraj_type), POINTER                        :: reftraj
       TYPE(section_vals_type), POINTER :: constraint_section, force_env_section, &

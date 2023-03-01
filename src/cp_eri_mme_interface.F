@@ -22,7 +22,6 @@ MODULE cp_eri_mme_interface
                                               cp_print_key_section_create,&
                                               cp_print_key_unit_nr,&
                                               medium_print_level
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE eri_mme_test,                    ONLY: eri_mme_2c_perf_acc_test,&
                                               eri_mme_3c_perf_acc_test
    USE eri_mme_types,                   ONLY: eri_mme_coulomb,&
@@ -47,6 +46,7 @@ MODULE cp_eri_mme_interface
    USE input_val_types,                 ONLY: real_t
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: init_orbital_pointers
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
@@ -348,7 +348,7 @@ CONTAINS
          POINTER                                         :: qs_kind_set
       CHARACTER(len=*), INTENT(IN)                       :: basis_type_1
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: basis_type_2
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(IN), OPTIONAL                      :: potential
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pot_par
 
@@ -390,7 +390,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: is_ortho
       REAL(KIND=dp), INTENT(IN)                          :: zet_min, zet_max
       INTEGER, INTENT(IN)                                :: l_max_zet, l_max
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(IN), OPTIONAL                      :: potential
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pot_par
 
@@ -707,7 +707,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_eri_mme_update_local_counts(param, para_env, G_count_2c, R_count_2c, GG_count_3c, GR_count_3c, RR_count_3c)
       TYPE(cp_eri_mme_param), INTENT(INOUT)              :: param
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(INOUT), OPTIONAL                   :: G_count_2c, R_count_2c, GG_count_3c, &
                                                             GR_count_3c, RR_count_3c
 
@@ -745,7 +745,7 @@ CONTAINS
 !> \param eri_mme_test_section ...
 ! **************************************************************************************************
    SUBROUTINE cp_eri_mme_perf_acc_test(para_env, iw, eri_mme_test_section)
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(IN)                                :: iw
       TYPE(section_vals_type), POINTER                   :: eri_mme_test_section
 

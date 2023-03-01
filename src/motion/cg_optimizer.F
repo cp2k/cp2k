@@ -44,6 +44,7 @@ MODULE cg_optimizer
                                   section_vals_val_set
    USE kinds, ONLY: dp
    USE machine, ONLY: m_walltime
+   USE message_passing, ONLY: mp_para_env_type
    USE space_groups, ONLY: identify_space_group, &
                            print_spgr, &
                            spgr_apply_rotations_coord, &

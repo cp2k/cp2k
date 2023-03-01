@@ -25,11 +25,11 @@ MODULE qs_elec_field
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
                                               dbcsr_p_type
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                               ncoset
    USE particle_types,                  ONLY: particle_type
@@ -95,9 +95,9 @@ CONTAINS
       TYPE(block_p_type), ALLOCATABLE, DIMENSION(:)      :: efgint
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &

@@ -20,7 +20,6 @@ MODULE optimize_dmfet_potential
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_create,&
                                               dbcsr_init_p,&
                                               dbcsr_multiply,&
@@ -33,6 +32,7 @@ MODULE optimize_dmfet_potential
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -117,8 +117,8 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       ! Read the input
       CALL read_opt_dmfet_section(opt_dmfet, opt_dmfet_section)
@@ -257,8 +257,8 @@ CONTAINS
       INTEGER                                            :: handle, homo, nao
       REAL(KIND=dp)                                      :: coeff
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 

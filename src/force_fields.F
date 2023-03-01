@@ -25,7 +25,6 @@ MODULE force_fields
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE ewald_environment_types,         ONLY: ewald_environment_type
    USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
@@ -49,6 +48,7 @@ MODULE force_fields
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
@@ -95,7 +95,7 @@ CONTAINS
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: qmmm
       TYPE(qmmm_env_mm_type), OPTIONAL, POINTER          :: qmmm_env
       TYPE(section_vals_type), POINTER                   :: subsys_section, mm_section

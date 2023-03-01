@@ -22,7 +22,6 @@ MODULE qs_ks_types
                                               dft_control_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_para_env,                     ONLY: cp_para_env_release
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_types,                 ONLY: cp_result_type
    USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE dbcsr_api,                       ONLY: dbcsr_distribution_release,&
@@ -40,6 +39,7 @@ MODULE qs_ks_types
                                               set_2d_pointer
    USE kpoint_types,                    ONLY: kpoint_release,&
                                               kpoint_type
+   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
@@ -196,7 +196,7 @@ MODULE qs_ks_types
       TYPE(dbcsr_distribution_type), POINTER                 :: dbcsr_dist => Null()
       TYPE(distribution_2d_type), POINTER                   :: distribution_2d => Null()
       TYPE(pw_env_type), POINTER                            :: pw_env => Null()
-      TYPE(cp_para_env_type), POINTER                       :: para_env => Null()
+      TYPE(mp_para_env_type), POINTER                       :: para_env => Null()
       TYPE(cp_blacs_env_type), POINTER                      :: blacs_env => Null()
    END TYPE qs_ks_env_type
 
@@ -370,7 +370,7 @@ CONTAINS
       TYPE(dbcsr_distribution_type), OPTIONAL, POINTER   :: dbcsr_dist
       TYPE(distribution_2d_type), OPTIONAL, POINTER      :: distribution_2d
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env
-      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env
       INTEGER, OPTIONAL                                  :: nelectron_total
       INTEGER, DIMENSION(2), OPTIONAL                    :: nelectron_spin
@@ -577,7 +577,7 @@ CONTAINS
       TYPE(dbcsr_distribution_type), OPTIONAL, POINTER   :: dbcsr_dist
       TYPE(distribution_2d_type), OPTIONAL, POINTER      :: distribution_2d
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env
-      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env
 
       IF (PRESENT(s_mstruct_changed)) ks_env%s_mstruct_changed = s_mstruct_changed

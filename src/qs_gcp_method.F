@@ -17,8 +17,8 @@ MODULE qs_gcp_method
                                               atprop_type
    USE cell_types,                      ONLY: cell_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: kcalmol
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -86,7 +86,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &

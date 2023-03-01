@@ -23,7 +23,6 @@ MODULE optbas_opt_utils
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_create,&
                                               dbcsr_distribution_type,&
                                               dbcsr_get_info,&
@@ -36,6 +35,7 @@ MODULE optbas_opt_utils
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_types,                  ONLY: molecule_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
@@ -236,12 +236,12 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: pair_radius
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(distribution_1d_type), POINTER                :: distribution_1d
       TYPE(distribution_2d_type), POINTER                :: distribution_2d
       TYPE(gto_basis_set_type), POINTER                  :: aux_fit_basis_set, orb_basis_set
       TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env

@@ -21,7 +21,6 @@ MODULE qs_linres_epr_ownutils
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -29,6 +28,7 @@ MODULE qs_linres_epr_ownutils
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathlib,                         ONLY: diamat_all
+   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -228,9 +228,9 @@ CONTAINS
       INTEGER                                            :: i1, ispin, output_unit
       REAL(KIND=dp)                                      :: epr_g_zke_temp(2)
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: kinetic, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: lr_section
 
@@ -298,12 +298,12 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: ra
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(jrho_atom_type), DIMENSION(:), POINTER        :: jrho1_atom_set
       TYPE(jrho_atom_type), POINTER                      :: jrho1_atom
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(nablavks_atom_type), DIMENSION(:), POINTER    :: nablavks_atom_set
       TYPE(nablavks_atom_type), POINTER                  :: nablavks_atom
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -565,10 +565,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: ra
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool

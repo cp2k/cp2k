@@ -48,7 +48,6 @@ MODULE qs_linres_op
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_checksum, dbcsr_convert_offsets_to_sizes, dbcsr_copy, dbcsr_create, &
         dbcsr_deallocate_matrix, dbcsr_distribution_type, dbcsr_get_block_p, &
@@ -59,6 +58,7 @@ MODULE qs_linres_op
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: twopi
+   USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: coset
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_methods,                ONLY: get_particle_set
@@ -143,11 +143,11 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: p_psi0, rxp_psi0
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: op_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_all, sab_orb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -459,12 +459,12 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: dso_psi0, efg_psi0, pso_psi0
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_dso, matrix_efg, matrix_fc, &
                                                             matrix_pso
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: lr_section
@@ -700,11 +700,11 @@ CONTAINS
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :, :)  :: inv_work
       TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: dBerry_psi0
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dbcsr_type), POINTER                          :: cosmat, sinmat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(polar_env_type), POINTER                      :: polar_env
 
       CALL timeset(routineN, handle)

@@ -18,7 +18,6 @@ MODULE qmmm_gaussian_init
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                               gridlevel_info_type
    USE input_constants,                 ONLY: do_qmmm_gauss,&
@@ -27,6 +26,7 @@ MODULE qmmm_gaussian_init
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE memory_utilities,                ONLY: reallocate
+   USE message_passing,                 ONLY: mp_para_env_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_pool_types,                   ONLY: pw_pool_p_type
@@ -71,7 +71,7 @@ CONTAINS
                                        qmmm_coupl_type, eps_mm_rspace, maxradius, maxchrg, compatibility, &
                                        print_section, qmmm_section)
       TYPE(qmmm_gaussian_p_type), DIMENSION(:), POINTER  :: qmmm_gaussian_fns
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mm_el_pot_radius, mm_el_pot_radius_corr
       INTEGER, INTENT(IN)                                :: qmmm_coupl_type

@@ -35,7 +35,6 @@ MODULE mp2_ri_libint
                                               cp_fm_release,&
                                               cp_fm_set_submatrix,&
                                               cp_fm_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE gamma,                           ONLY: init_md_ftable
    USE hfx_energy_potential,            ONLY: coulomb4
    USE hfx_pair_list_methods,           ONLY: build_pair_list_mp2
@@ -50,6 +49,7 @@ MODULE mp2_ri_libint
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE libint_wrapper,                  ONLY: cp_libint_t
+   USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_types,                       ONLY: init_TShPSC_lmax,&
                                               mp2_biel_type,&
                                               mp2_type,&
@@ -111,7 +111,7 @@ CONTAINS
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_S0
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: RI_index_table
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Lai
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'libint_ri_mp2'
@@ -409,7 +409,7 @@ CONTAINS
 
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(mp2_biel_type)                                :: mp2_biel
       INTEGER                                            :: dimen
       REAL(KIND=dp), DIMENSION(dimen, dimen)             :: C
@@ -996,7 +996,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       TYPE(hfx_potential_type), INTENT(OUT)              :: mp2_potential_parameter
       TYPE(hfx_type), POINTER                            :: actual_x_data
       LOGICAL, INTENT(OUT)                               :: do_periodic
@@ -1189,7 +1189,7 @@ CONTAINS
 
       TYPE(mp2_type)                                     :: mp2_env
       INTEGER, INTENT(IN)                                :: l_max
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       TYPE(hfx_potential_type), INTENT(OUT)              :: mp2_potential_parameter
 
       INTEGER                                            :: unit_id

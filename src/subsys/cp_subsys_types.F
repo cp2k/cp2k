@@ -28,7 +28,6 @@ MODULE cp_subsys_types
    USE colvar_types,                    ONLY: colvar_p_release,&
                                               colvar_p_type
    USE cp_para_env,                     ONLY: cp_para_env_release
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_types,                 ONLY: cp_result_release,&
                                               cp_result_retain,&
                                               cp_result_type
@@ -36,6 +35,7 @@ MODULE cp_subsys_types
                                               distribution_1d_retain,&
                                               distribution_1d_type
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_release,&
                                               molecule_kind_list_retain,&
                                               molecule_kind_list_type
@@ -94,7 +94,7 @@ MODULE cp_subsys_types
       TYPE(particle_list_type), POINTER          :: shell_particles => Null()
       TYPE(particle_list_type), POINTER          :: core_particles => Null()
       TYPE(distribution_1d_type), POINTER        :: local_particles => Null()
-      TYPE(cp_para_env_type), POINTER            :: para_env => Null()
+      TYPE(mp_para_env_type), POINTER            :: para_env => Null()
       ! molecules kinds
       TYPE(molecule_list_type), POINTER          :: molecules => Null()
       TYPE(molecule_kind_list_type), POINTER     :: molecule_kinds => Null()
@@ -210,7 +210,7 @@ CONTAINS
       TYPE(molecule_list_type), OPTIONAL, POINTER        :: molecules
       TYPE(molecule_kind_list_type), OPTIONAL, POINTER   :: molecule_kinds
       TYPE(distribution_1d_type), OPTIONAL, POINTER      :: local_molecules
-      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(colvar_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: colvar_p
       TYPE(particle_list_type), OPTIONAL, POINTER        :: shell_particles, core_particles
@@ -359,7 +359,7 @@ CONTAINS
       TYPE(molecule_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: molecule_kind_set
       TYPE(distribution_1d_type), OPTIONAL, POINTER      :: local_molecules
-      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(colvar_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: colvar_p
       TYPE(particle_list_type), OPTIONAL, POINTER        :: shell_particles, core_particles

@@ -18,7 +18,6 @@ MODULE mp2_eri_gpw
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_fm_types,                     ONLY: cp_fm_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_set
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
@@ -31,6 +30,7 @@ MODULE mp2_eri_gpw
    USE kinds,                           ONLY: dp
    USE libint_2c_3c,                    ONLY: libint_potential_type
    USE mathconstants,                   ONLY: fourpi
+   USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
    USE pw_env_methods,                  ONLY: pw_env_create,&
@@ -171,7 +171,7 @@ CONTAINS
                                        natom, potential_parameter, sab_orb_sub, L_local_col, kind_of)
 
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
+      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
       INTEGER, INTENT(IN)                                :: my_group_L_start, my_group_L_end, natom
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -404,7 +404,7 @@ CONTAINS
       TYPE(qs_force_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: force
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: h_stress
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_sub
       TYPE(dft_control_type), INTENT(IN), POINTER        :: dft_control
       TYPE(pw_type), INTENT(INOUT)                       :: psi_L
       REAL(KIND=dp), INTENT(IN)                          :: factor
@@ -538,7 +538,7 @@ CONTAINS
       TYPE(pw_type), INTENT(INOUT)                       :: rho_g_copy
       TYPE(pw_type), INTENT(IN)                          :: dvg(3)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: h_stress
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_sub
       INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of, atom_of_kind
       TYPE(qs_kind_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: qs_kind_set
@@ -724,7 +724,7 @@ CONTAINS
       TYPE(pw_type), INTENT(IN)                          :: dvg(3)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: h_stress
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_sub
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_gpw_potential'
 
@@ -854,7 +854,7 @@ CONTAINS
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       LOGICAL, INTENT(IN)                                :: use_virial
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: h_stress
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_sub
       TYPE(dft_control_type), INTENT(IN), POINTER        :: dft_control
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potential'
@@ -1010,7 +1010,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: e_cutoff_old
       REAL(KIND=dp), INTENT(OUT)                         :: cutoff_old, relative_cutoff_old
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
+      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: auxbas_pw_pool
       TYPE(pw_poisson_type), INTENT(IN), POINTER         :: poisson_env
@@ -1108,7 +1108,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: e_cutoff_old
       REAL(KIND=dp), INTENT(IN)                          :: cutoff_old, relative_cutoff_old
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_sub
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
       TYPE(task_list_type), POINTER                      :: task_list_sub
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: auxbas_pw_pool

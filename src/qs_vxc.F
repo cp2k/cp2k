@@ -17,7 +17,6 @@ MODULE qs_vxc
 
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE input_constants,                 ONLY: sic_ad,&
                                               sic_eo,&
                                               sic_mauri_spz,&
@@ -28,6 +27,7 @@ MODULE qs_vxc
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_grids,                        ONLY: pw_grid_compare
@@ -123,8 +123,8 @@ CONTAINS
                                                             my_scaling, nelec_s_inv
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc_tmp
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, vdw_pw_pool, xc_pw_pool
       TYPE(pw_type), DIMENSION(:), POINTER               :: my_vxc_rho, my_vxc_tau, rho_g, &

@@ -15,14 +15,14 @@ MODULE virial_methods
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
    USE cell_types,                      ONLY: cell_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: det_3x3,&
                                               jacobi
-   USE message_passing,                 ONLY: mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_type
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: pascal
@@ -50,7 +50,7 @@ CONTAINS
    SUBROUTINE virial_update(virial, subsys, para_env)
       TYPE(virial_type), INTENT(INOUT)                   :: virial
       TYPE(cp_subsys_type), POINTER                      :: subsys
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(distribution_1d_type), POINTER                :: local_particles

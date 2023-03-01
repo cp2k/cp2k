@@ -13,7 +13,6 @@
 ! **************************************************************************************************
 MODULE input_cp2k_check
    USE cp_log_handling,                 ONLY: cp_to_string
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_types,                 ONLY: cp_parser_type,&
                                               parser_create,&
                                               parser_release
@@ -38,6 +37,7 @@ MODULE input_cp2k_check
                                               default_string_length,&
                                               dp
    USE memory_utilities,                ONLY: reallocate
+   USE message_passing,                 ONLY: mp_para_env_type
    USE xc_input_constants,              ONLY: do_vwn5
 #include "./base/base_uses.f90"
 
@@ -64,7 +64,7 @@ CONTAINS
    SUBROUTINE check_cp2k_input(input_declaration, input_file, para_env, output_unit)
       TYPE(section_type), POINTER                        :: input_declaration
       TYPE(section_vals_type), POINTER                   :: input_file
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN), OPTIONAL                      :: output_unit
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'check_cp2k_input'
@@ -277,7 +277,7 @@ CONTAINS
    SUBROUTINE handle_ext_restart(input_declaration, input_file, para_env, output_unit)
       TYPE(section_type), POINTER                        :: input_declaration
       TYPE(section_vals_type), POINTER                   :: input_file
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: output_unit
 
       CHARACTER(len=*), PARAMETER :: routineN = 'handle_ext_restart'

@@ -22,7 +22,6 @@ MODULE qs_dftb_parameters
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: parser_get_next_line,&
                                               parser_get_object
    USE cp_parser_types,                 ONLY: cp_parser_type,&
@@ -35,6 +34,7 @@ MODULE qs_dftb_parameters
                                               default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: pi
+   USE message_passing,                 ONLY: mp_para_env_type
    USE physcon,                         ONLY: angstrom,&
                                               kcalmol
    USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
@@ -84,7 +84,7 @@ CONTAINS
       TYPE(qs_dftb_pairpot_type), DIMENSION(:, :), &
          POINTER                                         :: dftb_potential
       TYPE(section_vals_type), POINTER                   :: subsys_section
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=2)                                   :: iel, jel
       CHARACTER(LEN=6)                                   :: cspline

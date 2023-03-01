@@ -34,7 +34,6 @@ MODULE qs_resp
                                               cp_print_key_generate_filename,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE cp_units,                        ONLY: cp_unit_from_cp2k,&
                                               cp_unit_to_cp2k
@@ -59,7 +58,8 @@ MODULE qs_resp
    USE machine,                         ONLY: m_flush
    USE mathconstants,                   ONLY: pi
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_request_type
+   USE message_passing,                 ONLY: mp_para_env_type,&
+                                              mp_request_type
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE periodic_table,                  ONLY: get_ptable_info
@@ -924,7 +924,7 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: periodic
       REAL(KIND=dp)                                      :: normalize_factor
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: vpot
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -1045,7 +1045,7 @@ CONTAINS
                                                             vec_pbc(3)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dist
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_type), POINTER                             :: v_hartree_pw
 
@@ -1242,7 +1242,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: tmp_points
       REAL(KIND=dp)                                      :: conv, dh(3, 3), r(3)
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(mp_request_type), DIMENSION(6)                :: req
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_type), POINTER                             :: v_hartree_pw
@@ -1694,7 +1694,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: dvol, normalize_factor, rms, rrms, &
                                                             sum_diff, sum_hartree, udvol
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool

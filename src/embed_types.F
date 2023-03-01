@@ -17,8 +17,6 @@ MODULE embed_types
    USE cp_log_handling,                 ONLY: cp_logger_p_type,&
                                               cp_logger_release
    USE cp_para_env,                     ONLY: cp_para_env_release
-   USE cp_para_types,                   ONLY: cp_para_env_p_type,&
-                                              cp_para_env_type
    USE cp_result_types,                 ONLY: cp_result_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_release,&
@@ -30,6 +28,8 @@ MODULE embed_types
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE lri_environment_types,           ONLY: lri_kind_type
+   USE message_passing,                 ONLY: mp_para_env_p_type,&
+                                              mp_para_env_type
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_create,&
                                               molecule_kind_list_release,&
                                               molecule_kind_list_type
@@ -126,14 +126,14 @@ MODULE embed_types
 
    TYPE embed_env_type
       TYPE(cell_type), POINTER                         :: cell_ref => NULL()
-      TYPE(cp_para_env_type), POINTER                  :: para_env => NULL()
+      TYPE(mp_para_env_type), POINTER                  :: para_env => NULL()
       TYPE(cp_subsys_type), POINTER                    :: subsys => NULL()
       TYPE(section_vals_type), POINTER                 :: input => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER             :: energies => NULL()
       ! Parallelization of multiple force_eval
       INTEGER                                          :: ngroups = -1
       INTEGER, DIMENSION(:), POINTER                   :: group_distribution => NULL()
-      TYPE(cp_para_env_p_type), DIMENSION(:), POINTER  :: sub_para_env => NULL()
+      TYPE(mp_para_env_p_type), DIMENSION(:), POINTER  :: sub_para_env => NULL()
       TYPE(cp_logger_p_type), DIMENSION(:), POINTER    :: sub_logger => NULL()
       ! Densities from sunbsystem
       REAL(KIND=dp)                                    :: pot_energy = 0.0_dp
@@ -172,8 +172,8 @@ CONTAINS
       TYPE(molecule_kind_type), OPTIONAL, POINTER        :: molecule_kind_set(:)
       TYPE(molecule_type), OPTIONAL, POINTER             :: molecule_set(:)
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell, cell_ref
-      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
-      TYPE(cp_para_env_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(mp_para_env_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: sub_para_env
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
       TYPE(section_vals_type), OPTIONAL, POINTER         :: input
@@ -238,7 +238,7 @@ CONTAINS
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell_ref
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
       TYPE(section_vals_type), OPTIONAL, POINTER         :: input
-      TYPE(cp_para_env_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(mp_para_env_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: sub_para_env
 
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
@@ -310,7 +310,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE embed_env_create(embed_env, para_env)
       TYPE(embed_env_type), INTENT(OUT)                  :: embed_env
-      TYPE(cp_para_env_type), INTENT(IN), TARGET         :: para_env
+      TYPE(mp_para_env_type), INTENT(IN), TARGET         :: para_env
 
       embed_env%para_env => para_env
       CALL embed_env%para_env%retain()

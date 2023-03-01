@@ -25,7 +25,6 @@ MODULE admm_types
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_constants,                 ONLY: do_admm_blocked_projection,&
                                               do_admm_blocking_purify_full,&
@@ -33,6 +32,7 @@ MODULE admm_types
    USE input_section_types,             ONLY: section_vals_release,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE qs_kind_types,                   ONLY: deallocate_qs_kind_set,&
                                               qs_kind_type
    USE qs_local_rho_types,              ONLY: local_rho_set_release,&
@@ -204,7 +204,7 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(admm_control_type), POINTER                   :: admm_control
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: natoms, nao_aux_fit
 
       INTEGER                                            :: i, iatom, iblock, ispin, j, jatom, &

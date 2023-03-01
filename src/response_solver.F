@@ -42,7 +42,6 @@ MODULE response_solver
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
@@ -71,6 +70,7 @@ MODULE response_solver
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: det_3x3
+   USE message_passing,                 ONLY: mp_para_env_type
    USE mulliken,                        ONLY: ao_charges
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
@@ -186,11 +186,11 @@ CONTAINS
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: cpmos
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_s_aux, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -824,7 +824,6 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_pd, matrix_pza, matrix_s, mpa, &
                                                             scrm
@@ -835,6 +834,7 @@ CONTAINS
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(kg_environment_type), POINTER                 :: kg_env
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb, sac_ae, sac_ppl, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -2121,12 +2121,12 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: fodeb
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_pz, matrix_wz, mpa, p_matrix, scrm
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
       TYPE(dbcsr_type), POINTER                          :: s_matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -2324,8 +2324,8 @@ CONTAINS
       REAL(dp)                                           :: eadmm, eovrl, eself
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
@@ -2534,10 +2534,10 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin, nspins
       REAL(KIND=dp)                                      :: scaling
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dbcsr_type)                                   :: matrix_tmp
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_rho_type), POINTER                         :: rho
 
       CALL timeset(routineN, handle)

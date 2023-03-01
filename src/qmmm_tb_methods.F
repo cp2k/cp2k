@@ -19,7 +19,6 @@ MODULE qmmm_tb_methods
                                               xtb_control_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_get_block_p, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
@@ -37,6 +36,7 @@ MODULE qmmm_tb_methods
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE mulliken,                        ONLY: mulliken_charges
    USE particle_types,                  ONLY: allocate_particle_set,&
                                               deallocate_particle_set,&
@@ -104,7 +104,7 @@ CONTAINS
       TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles_mm
       TYPE(cell_type), POINTER                           :: mm_cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_tb_qmmm_matrix'
 
@@ -243,7 +243,7 @@ CONTAINS
    SUBROUTINE build_tb_qmmm_matrix_zero(qs_env, para_env)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_tb_qmmm_matrix_zero'
 
@@ -312,7 +312,7 @@ CONTAINS
       TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles_mm
       TYPE(cell_type), POINTER                           :: mm_cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_tb_qmmm_matrix_pc'
 
@@ -595,7 +595,7 @@ CONTAINS
       TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles_mm
       TYPE(cell_type), POINTER                           :: mm_cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(in), OPTIONAL                      :: calc_force
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: Forces, Forces_added_charges
 
@@ -832,7 +832,7 @@ CONTAINS
       TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles_mm
       TYPE(cell_type), POINTER                           :: mm_cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(in), OPTIONAL                      :: calc_force
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: Forces, Forces_added_charges
 

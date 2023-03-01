@@ -17,8 +17,8 @@ MODULE qs_force_types
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -359,7 +359,7 @@ CONTAINS
    SUBROUTINE replicate_qs_force(qs_force, para_env)
 
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: qs_force
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       INTEGER                                            :: ikind
 

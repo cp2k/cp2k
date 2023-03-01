@@ -14,7 +14,6 @@ MODULE xas_tdp_kernel
    USE basis_set_types,                 ONLY: gto_basis_set_p_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_dist2d_to_dist,&
                                               dbcsr_deallocate_matrix_set
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
         dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_release, &
@@ -32,6 +31,7 @@ MODULE xas_tdp_kernel
                                               dbt_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -96,9 +96,9 @@ CONTAINS
       LOGICAL                                            :: do_coulomb, do_sc, do_sf, do_sg, do_tp, &
                                                             do_xc, found
       REAL(dp), DIMENSION(:, :), POINTER                 :: PQ
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type), POINTER             :: dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: contr1_int
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       NULLIFY (contr1_int, PQ, para_env, dist, blk_size)
 
@@ -677,11 +677,11 @@ CONTAINS
       LOGICAL                                            :: do_roks, do_uks, found
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: coeffs, ri_coeffs
       REAL(dp), DIMENSION(:, :), POINTER                 :: aIQ, pblock, PQ
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type)                      :: opt_dbcsr_dist, work_dbcsr_dist
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dbcsr_type)                                   :: abIJ, mats_desymm, work_mat
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       NULLIFY (para_env, matrix_s, pblock, aIQ, row_dist, col_dist, row_dist_work, col_dist_work, pgrid)
 
@@ -988,13 +988,13 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: ri_blk_size, std_blk_size
       LOGICAL                                            :: do_uks
       REAL(dp), DIMENSION(:, :), POINTER                 :: coeffs
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type)                      :: opt_dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrices, matrix_s
       TYPE(dbcsr_type), POINTER                          :: aI_P, P_Ib, work
       TYPE(dbt_type), POINTER                            :: pq_X
       TYPE(distribution_2d_type), POINTER                :: opt_dist2d
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: ri_basis
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 

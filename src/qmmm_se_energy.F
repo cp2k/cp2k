@@ -24,7 +24,6 @@ MODULE qmmm_se_energy
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_get_block_p,&
                                               dbcsr_p_type,&
@@ -34,6 +33,7 @@ MODULE qmmm_se_energy
         do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rm1, &
         do_qmmm_coulomb, do_qmmm_gauss, do_qmmm_none, do_qmmm_pcharge, do_qmmm_swave
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE multipole_types,                 ONLY: do_multipole_none
    USE particle_types,                  ONLY: particle_type
    USE qmmm_types_low,                  ONLY: qmmm_env_qm_type,&
@@ -90,7 +90,7 @@ CONTAINS
       TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles_mm
       TYPE(cell_type), POINTER                           :: mm_cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_se_qmmm_matrix'
 

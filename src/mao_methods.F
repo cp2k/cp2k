@@ -32,7 +32,6 @@ MODULE mao_methods
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_type, dbcsr_dot, dbcsr_get_block_p, &
         dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
@@ -49,7 +48,8 @@ MODULE mao_methods
                                               kpoint_type
    USE lapack,                          ONLY: lapack_ssyev,&
                                               lapack_ssygv
-   USE message_passing,                 ONLY: mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -625,7 +625,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       INTEGER, INTENT(IN)                                :: unit_nr
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=2)                                   :: element_symbol
       INTEGER                                            :: ia, iab, iatom, ikind, iset, ishell, &

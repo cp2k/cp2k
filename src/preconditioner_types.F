@@ -17,7 +17,6 @@ MODULE preconditioner_types
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_release
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix,&
                                               dbcsr_p_type,&
                                               dbcsr_release_p,&
@@ -25,6 +24,7 @@ MODULE preconditioner_types
    USE input_constants,                 ONLY: cholesky_reduce,&
                                               ot_precond_solver_default
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -47,7 +47,7 @@ MODULE preconditioner_types
       TYPE(dbcsr_type), POINTER           :: max_ev_vector
       TYPE(dbcsr_type), POINTER           :: min_ev_vector
       TYPE(dbcsr_p_type), POINTER, DIMENSION(:) :: inverse_history
-      TYPE(cp_para_env_type), POINTER   :: para_env
+      TYPE(mp_para_env_type), POINTER   :: para_env
       TYPE(cp_blacs_env_type), POINTER   :: ctxt
       INTEGER :: in_use, solver, ihistory, cholesky_use
       REAL(KIND=dp), DIMENSION(:), POINTER :: occ_evals, full_evals
@@ -85,7 +85,7 @@ CONTAINS
    SUBROUTINE init_preconditioner(preconditioner_env, para_env, blacs_env)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
 
       NULLIFY (preconditioner_env%sparse_matrix)

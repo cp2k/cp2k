@@ -35,7 +35,6 @@ MODULE f77_interface
         cp_logger_retain, cp_logger_type, cp_rm_default_logger, cp_to_string
    USE cp_output_handling,              ONLY: cp_iterate
    USE cp_para_env,                     ONLY: cp_para_env_release
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_methods,               ONLY: get_results,&
                                               test_for_result
    USE cp_result_types,                 ONLY: cp_result_type
@@ -95,8 +94,9 @@ MODULE f77_interface
                                               m_getcwd,&
                                               m_memory
    USE message_passing,                 ONLY: &
-        add_mp_perf_env, get_mp_perf_env, mp_comm_type, mp_comm_world, mp_perf_env_release, &
-        mp_perf_env_retain, mp_perf_env_type, mp_world_finalize, mp_world_init, rm_mp_perf_env
+        add_mp_perf_env, get_mp_perf_env, mp_comm_type, mp_comm_world, mp_para_env_type, &
+        mp_perf_env_release, mp_perf_env_retain, mp_perf_env_type, mp_world_finalize, &
+        mp_world_init, rm_mp_perf_env
    USE metadynamics_types,              ONLY: meta_env_type
    USE metadynamics_utils,              ONLY: metadyn_read
    USE mixed_environment_types,         ONLY: mixed_environment_type
@@ -156,7 +156,7 @@ MODULE f77_interface
    END TYPE f_env_type
 
    TYPE(f_env_p_type), DIMENSION(:), POINTER, SAVE :: f_envs
-   TYPE(cp_para_env_type), POINTER, SAVE :: default_para_env
+   TYPE(mp_para_env_type), POINTER, SAVE :: default_para_env
    LOGICAL, SAVE :: module_initialized = .FALSE.
    INTEGER, SAVE :: last_f_env_id = 0, n_f_envs = 0
 
@@ -567,7 +567,7 @@ CONTAINS
       LOGICAL :: check, do_qmmm_force_mixing, multiple_subsys, my_echo, my_owns_out_unit, &
                  use_motion_section, use_multiple_para_env
       TYPE(cp_logger_type), POINTER                      :: logger, my_logger
-      TYPE(cp_para_env_type), POINTER                    :: my_para_env, para_env
+      TYPE(mp_para_env_type), POINTER                    :: my_para_env, para_env
       TYPE(eip_environment_type), POINTER                :: eip_env
       TYPE(embed_env_type), POINTER                      :: embed_env
       TYPE(enumeration_type), POINTER                    :: enum
@@ -936,9 +936,9 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: q_finalize
 
       INTEGER                                            :: env_pos, i
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(f_env_type), POINTER                          :: f_env
       TYPE(global_environment_type), POINTER             :: globenv
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: root_section
 
       NULLIFY (f_env)
@@ -1440,7 +1440,7 @@ CONTAINS
       INTEGER                                            :: unit_nr
       LOGICAL                                            :: my_echo_input
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: input_file
 
       my_echo_input = .FALSE.

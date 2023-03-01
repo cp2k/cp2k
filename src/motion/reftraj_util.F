@@ -24,7 +24,6 @@ MODULE reftraj_util
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: parser_get_next_line
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
@@ -42,6 +41,7 @@ MODULE reftraj_util
    USE machine,                         ONLY: m_flush
    USE md_environment_types,            ONLY: get_md_env,&
                                               md_environment_type
+   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                               molecule_kind_type
@@ -86,9 +86,9 @@ CONTAINS
 
       INTEGER                                            :: natom, nline_to_skip, nskip
       LOGICAL                                            :: my_end
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(section_vals_type), POINTER                   :: msd_section
       TYPE(simpar_type), POINTER                         :: simpar
@@ -166,7 +166,6 @@ CONTAINS
                                                             nmolecule, nmolkind, npart
       REAL(KIND=dp)                                      :: com(3), mass, mass_mol, tol, x, y, z
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
@@ -175,6 +174,7 @@ CONTAINS
       TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(molecule_type), POINTER                       :: molecule
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
@@ -337,7 +337,6 @@ CONTAINS
                                                             mass, mass_mol, msd_mkind(4), rcom(3)
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(distribution_1d_type), POINTER                :: local_molecules
       TYPE(force_env_type), POINTER                      :: force_env
@@ -347,6 +346,7 @@ CONTAINS
       TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(molecule_type), POINTER                       :: molecule
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       NULLIFY (force_env, para_env, subsys)
       NULLIFY (atomic_kind, atomic_kinds, atom_list)

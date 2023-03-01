@@ -18,7 +18,6 @@ MODULE qs_environment_methods
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_dist2d_to_dist
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_distribution_type
    USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                               distribution_2d_type
@@ -28,6 +27,7 @@ MODULE qs_environment_methods
    USE ewald_pw_types,                  ONLY: ewald_pw_type
    USE input_constants,                 ONLY: do_ppl_grid
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
@@ -96,12 +96,12 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_2d_type), POINTER                :: distribution_2d
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_charges_type), POINTER                     :: qs_charges
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set

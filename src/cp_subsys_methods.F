@@ -21,7 +21,6 @@ MODULE cp_subsys_methods
    USE cell_types,                      ONLY: cell_retain,&
                                               cell_type
    USE colvar_methods,                  ONLY: colvar_read
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_types,                 ONLY: cp_result_create
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_set,&
@@ -39,6 +38,7 @@ MODULE cp_subsys_methods
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_create,&
                                               molecule_kind_list_release,&
                                               molecule_kind_list_type
@@ -95,7 +95,7 @@ CONTAINS
                                root_section, force_env_section, subsys_section, &
                                use_motion_section, qmmm, qmmm_env, exclusions, elkind)
       TYPE(cp_subsys_type), POINTER                      :: subsys
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(section_vals_type), OPTIONAL, POINTER         :: force_env_section, subsys_section
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_motion_section
@@ -267,11 +267,11 @@ CONTAINS
 
       TYPE(cp_subsys_type), POINTER                      :: small_subsys, big_subsys
       TYPE(cell_type), POINTER                           :: small_cell
-      TYPE(cp_para_env_type), POINTER                    :: small_para_env
+      TYPE(mp_para_env_type), POINTER                    :: small_para_env
       INTEGER, DIMENSION(:), INTENT(in)                  :: sub_atom_index
       CHARACTER(len=default_string_length), &
          DIMENSION(:), INTENT(in)                        :: sub_atom_kind_name
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section
       LOGICAL, INTENT(in), OPTIONAL                      :: ignore_outside_box
 

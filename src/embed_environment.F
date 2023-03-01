@@ -16,7 +16,6 @@ MODULE embed_environment
    USE cell_types,                      ONLY: cell_release,&
                                               cell_type,&
                                               get_cell
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_methods,               ONLY: cp_subsys_create
    USE cp_subsys_types,                 ONLY: cp_subsys_set,&
                                               cp_subsys_type
@@ -28,6 +27,7 @@ MODULE embed_environment
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                               write_molecule_kind_set
    USE molecule_types,                  ONLY: molecule_type
@@ -59,7 +59,7 @@ CONTAINS
 
       TYPE(embed_env_type), INTENT(INOUT)                :: embed_env
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: force_env_section
       LOGICAL, INTENT(IN)                                :: use_motion_section
 

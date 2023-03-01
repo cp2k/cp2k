@@ -33,7 +33,6 @@ MODULE molecular_states
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE dbcsr_api,                       ONLY: dbcsr_type
    USE input_section_types,             ONLY: section_get_ivals,&
@@ -42,6 +41,7 @@ MODULE molecular_states
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_types,                  ONLY: molecule_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
@@ -124,8 +124,8 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: b, c, d, D_igk, e_vectors, &
                                                             rot_e_vectors, smo, storage
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set

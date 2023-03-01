@@ -30,7 +30,6 @@ MODULE xas_tdp_integrals
                                               cp_eri_mme_set_params
    USE cp_files,                        ONLY: close_file,&
                                               open_file
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_distribution_get,&
                                               dbcsr_distribution_release,&
                                               dbcsr_distribution_type
@@ -63,7 +62,8 @@ MODULE xas_tdp_integrals
                                               cp_libint_set_contrdepth,&
                                               cp_libint_t
    USE mathlib,                         ONLY: invmat_symm
-   USE message_passing,                 ONLY: mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_type
    USE molecule_types,                  ONLY: molecule_type
    USE orbital_pointers,                ONLY: ncoset
    USE particle_methods,                ONLY: get_particle_set
@@ -307,10 +307,10 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: rpgf_a, rpgf_b, rpgf_c, zeta, zetb, zetc
       TYPE(cp_2d_r_p_type), DIMENSION(:, :), POINTER     :: spb, spc, tspa
       TYPE(cp_libint_t)                                  :: lib
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set, basis_set_a, basis_set_b, &
                                                             basis_set_c
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(o3c_container_type), POINTER                  :: o3c
       TYPE(o3c_iterator_type)                            :: o3c_iterator
 
@@ -914,7 +914,7 @@ CONTAINS
                                                             row_proc_cost
       TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER        :: local_particle_col, local_particle_row
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: ab_iter, ac_iter
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -1066,9 +1066,9 @@ CONTAINS
 
       INTEGER                                            :: handle, natom, nkind
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: blk_size_orb, blk_size_ri
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type)                      :: opt_dbcsr_dist
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_orb, basis_set_ri
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: ab_list, ac_list
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -1151,10 +1151,10 @@ CONTAINS
 
       INTEGER                                            :: handle, natom, nkind
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: blk_size_orb, blk_size_ri
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type)                      :: opt_dbcsr_dist
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_orb, basis_set_ri
       TYPE(libint_potential_type)                        :: pot
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: ab_list, ac_list
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -1252,8 +1252,8 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: metric, pq, work
       REAL(dp), DIMENSION(:, :), POINTER                 :: rpgf, sphi, zet
       TYPE(cp_libint_t)                                  :: lib
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(gto_basis_set_type), POINTER                  :: ri_basis
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       NULLIFY (ri_basis, qs_kind_set, para_env, lmin, lmax, npgf_set, zet, rpgf, first_sgf)
@@ -1456,7 +1456,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: sphi, zet
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_eri_mme_param)                             :: mme_param
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       NULLIFY (cell, qs_kind_set, lmin, lmax, nsgf, npgf, zet, sphi, first_sgf)

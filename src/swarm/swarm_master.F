@@ -15,7 +15,6 @@ MODULE swarm_master
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_types,                 ONLY: cp_parser_type,&
                                               parser_create,&
                                               parser_release
@@ -30,6 +29,7 @@ MODULE swarm_master
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length
+   USE message_passing,                 ONLY: mp_para_env_type
    USE swarm_message,                   ONLY: swarm_message_add,&
                                               swarm_message_equal,&
                                               swarm_message_file_read,&
@@ -64,7 +64,7 @@ MODULE swarm_master
       INTEGER                                             :: n_workers = -1
       INTEGER                                             :: comlog_unit
       TYPE(section_vals_type), POINTER                    :: swarm_section => Null()
-      TYPE(cp_para_env_type), POINTER                     :: para_env => Null()
+      TYPE(mp_para_env_type), POINTER                     :: para_env => Null()
       TYPE(swarm_message_p_type), DIMENSION(:), POINTER   :: queued_commands => Null()
       TYPE(global_environment_type), POINTER              :: globenv => Null()
       LOGICAL                                             :: ignore_last_iteration = .FALSE.
@@ -84,7 +84,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE swarm_master_init(master, para_env, globenv, root_section, n_workers)
       TYPE(swarm_master_type)                            :: master
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(section_vals_type), POINTER                   :: root_section
       INTEGER, INTENT(IN)                                :: n_workers

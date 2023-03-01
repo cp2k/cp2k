@@ -15,7 +15,6 @@ MODULE mp2_grids
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_release
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_set
    USE kinds,                           ONLY: dp
@@ -24,6 +23,7 @@ MODULE mp2_grids
                                               kpoint_type
    USE machine,                         ONLY: m_flush
    USE mathconstants,                   ONLY: pi
+   USE message_passing,                 ONLY: mp_para_env_type
    USE minimax_exp,                     ONLY: get_exp_minimax_coeff
    USE minimax_exp_gw,                  ONLY: get_exp_minimax_coeff_gw
    USE minimax_rpa,                     ONLY: get_rpa_minimax_coeff,&
@@ -71,7 +71,7 @@ CONTAINS
                                do_kpoints_cubic_RPA, e_fermi, tj, wj, weights_cos_tf_t_to_w, &
                                weights_cos_tf_w_to_t, weights_sin_tf_t_to_w)
 
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(IN)                                :: unit_nr
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Eigenval
@@ -301,7 +301,7 @@ CONTAINS
                                 num_integ_group, color_rpa_group, fm_mat_S, my_do_gw, &
                                 ext_scaling, a_scaling, tj, wj)
 
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_RPA
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env, para_env_RPA
       INTEGER, INTENT(IN)                                :: unit_nr
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Eigenval
@@ -373,7 +373,7 @@ CONTAINS
                                   num_integ_points, num_integ_group, color_rpa_group, &
                                   tj_ext, wj_ext, fm_mat_S)
       REAL(KIND=dp), INTENT(OUT)                         :: a_scaling_ext
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_RPA
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env, para_env_RPA
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Eigenval
       INTEGER, INTENT(IN)                                :: num_integ_points, num_integ_group, &
@@ -391,7 +391,7 @@ CONTAINS
          right_term, right_term_ref, right_term_ref_beta, step
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cottj, D_ia, D_ia_beta, iaia_RI, &
                                                             iaia_RI_beta, M_ia, M_ia_beta
-      TYPE(cp_para_env_type), POINTER                    :: para_env_col, para_env_col_beta
+      TYPE(mp_para_env_type), POINTER                    :: para_env_col, para_env_col_beta
 
       CALL timeset(routineN, handle)
 
@@ -512,7 +512,7 @@ CONTAINS
    SUBROUTINE calc_ia_ia_integrals(para_env_RPA, homo, virtual, ncol_local, right_term_ref, Eigenval, &
                                    D_ia, iaia_RI, M_ia, fm_mat_S, para_env_col)
 
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_RPA
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_RPA
       INTEGER, INTENT(IN)                                :: homo, virtual
       INTEGER, INTENT(OUT)                               :: ncol_local
       REAL(KIND=dp), INTENT(OUT)                         :: right_term_ref
@@ -520,7 +520,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: D_ia, iaia_RI, M_ia
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S
-      TYPE(cp_para_env_type), POINTER                    :: para_env_col
+      TYPE(mp_para_env_type), POINTER                    :: para_env_col
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_ia_ia_integrals'
 
@@ -529,7 +529,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: eigen_diff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: iaia_RI_dp
-      TYPE(cp_para_env_type), POINTER                    :: para_env_row
+      TYPE(mp_para_env_type), POINTER                    :: para_env_row
 
       CALL timeset(routineN, handle)
 
@@ -655,8 +655,8 @@ CONTAINS
                                                             M_ia_beta
       INTEGER, INTENT(IN)                                :: ncol_local, ncol_local_beta, &
                                                             num_integ_group, color_rpa_group
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_col
-      TYPE(cp_para_env_type), POINTER                    :: para_env_col_beta
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env, para_env_col
+      TYPE(mp_para_env_type), POINTER                    :: para_env_col_beta
 
       INTEGER                                            :: iiB, jquad
       REAL(KIND=dp)                                      :: first_deriv_beta, left_term_beta, omega
@@ -1436,7 +1436,7 @@ CONTAINS
    SUBROUTINE gap_and_max_eig_diff_kpoints(qs_env, para_env, gap, max_eig_diff, e_fermi)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       REAL(KIND=dp), INTENT(OUT)                         :: gap, max_eig_diff, e_fermi
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'gap_and_max_eig_diff_kpoints'

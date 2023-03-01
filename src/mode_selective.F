@@ -25,7 +25,6 @@ MODULE mode_selective
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_methods,               ONLY: get_results
    USE global_types,                    ONLY: global_environment_type
    USE input_constants,                 ONLY: ms_guess_atomic,&
@@ -42,6 +41,7 @@ MODULE mode_selective
                                               dp,&
                                               max_line_length
    USE mathlib,                         ONLY: diamat_all
+   USE message_passing,                 ONLY: mp_para_env_type
    USE molden_utils,                    ONLY: write_vibrations_molden
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: bohr,&
@@ -102,7 +102,7 @@ CONTAINS
                          nrep, calc_intens, dx, output_unit, logger)
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(replica_env_type), POINTER                    :: rep_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles
       INTEGER                                            :: nrep
@@ -256,7 +256,7 @@ CONTAINS
    SUBROUTINE MS_initial_moves(para_env, nrep, input, globenv, ms_vib, particles, &
                                mass, dx, &
                                calc_intens, logger)
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: nrep
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(global_environment_type), POINTER             :: globenv
@@ -447,7 +447,7 @@ CONTAINS
       TYPE(ms_vib_type)                                  :: ms_vib
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles
       REAL(Kind=dp), DIMENSION(:)                        :: mass
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: nrep
 
       CHARACTER(LEN=default_path_length)                 :: hes_filename
@@ -551,7 +551,7 @@ CONTAINS
    SUBROUTINE rest_guess(ms_vib_section, para_env, ms_vib, mass, ionode, particles, nrep, calc_intens)
 
       TYPE(section_vals_type), POINTER                   :: ms_vib_section
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(ms_vib_type)                                  :: ms_vib
       REAL(Kind=dp), DIMENSION(:)                        :: mass
       LOGICAL                                            :: ionode
@@ -663,7 +663,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE molden_guess(ms_vib_section, input, para_env, ms_vib, mass, ncoord, nrep, logger)
       TYPE(section_vals_type), POINTER                   :: ms_vib_section, input
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(ms_vib_type)                                  :: ms_vib
       REAL(Kind=dp), DIMENSION(:)                        :: mass
       INTEGER                                            :: ncoord, nrep

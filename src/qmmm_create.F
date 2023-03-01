@@ -25,7 +25,6 @@ MODULE qmmm_create
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_methods,               ONLY: create_small_subsys
    USE cp_subsys_types,                 ONLY: cp_subsys_release,&
                                               cp_subsys_type
@@ -48,6 +47,7 @@ MODULE qmmm_create
                                               section_vals_val_set
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE pw_env_types,                    ONLY: pw_env_type
    USE qmmm_init,                       ONLY: &
         assign_mm_charges_and_radius, move_or_add_atoms, print_image_charge_info, &
@@ -103,7 +103,7 @@ CONTAINS
                               ignore_outside_box)
       TYPE(qmmm_env_type), INTENT(OUT)                   :: qmmm_env
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(section_vals_type), POINTER                   :: force_env_section, qmmm_section, &
                                                             subsys_section

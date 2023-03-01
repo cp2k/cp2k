@@ -17,10 +17,10 @@ MODULE mixed_main
                                               cp_logger_type,&
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length
+   USE message_passing,                 ONLY: mp_para_env_type
    USE mixed_environment,               ONLY: mixed_init
    USE mixed_environment_types,         ONLY: mixed_env_create,&
                                               mixed_environment_type
@@ -51,7 +51,7 @@ CONTAINS
 
       TYPE(mixed_environment_type), INTENT(OUT)          :: mixed_env
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: force_env_section
       INTEGER, INTENT(IN)                                :: n_subforce_eval
       LOGICAL, INTENT(IN)                                :: use_motion_section
@@ -64,7 +64,7 @@ CONTAINS
                                                             unit_nr
       INTEGER, DIMENSION(:), POINTER                     :: group_partition, i_vals
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: sub_para_env
+      TYPE(mp_para_env_type), POINTER                    :: sub_para_env
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()

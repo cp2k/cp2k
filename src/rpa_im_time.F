@@ -25,7 +25,6 @@ MODULE rpa_im_time
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_clear, dbcsr_copy, dbcsr_create, dbcsr_distribution_get, &
         dbcsr_distribution_type, dbcsr_filter, dbcsr_get_info, dbcsr_init_p, dbcsr_p_type, &
@@ -45,7 +44,8 @@ MODULE rpa_im_time
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE mathconstants,                   ONLY: twopi
-   USE message_passing,                 ONLY: mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_type
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
@@ -163,7 +163,7 @@ CONTAINS
          INTENT(IN)                                      :: tau_tj
       INTEGER, INTENT(IN)                                :: cut_memory, unit_nr
       TYPE(mp2_type)                                     :: mp2_env
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: do_kpoints_from_Gamma
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: index_to_cell_3c
@@ -684,7 +684,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(OUT)                               :: num_cells_dm
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_dm
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_mat_dm_global'
       REAL(KIND=dp), PARAMETER                           :: stabilize_exp = 70.0_dp

@@ -22,7 +22,6 @@ MODULE qs_operators_ao
                                               pbc
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
                                               dbcsr_get_matrix_type,&
                                               dbcsr_has_symmetry,&
@@ -32,6 +31,7 @@ MODULE qs_operators_ao
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: pi
+   USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: coset,&
                                               init_orbital_pointers,&
                                               ncoset
@@ -93,9 +93,9 @@ CONTAINS
       TYPE(block_p_type), ALLOCATABLE, DIMENSION(:)      :: integral
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -464,9 +464,9 @@ CONTAINS
       TYPE(block_p_type), ALLOCATABLE, DIMENSION(:)      :: integral
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &

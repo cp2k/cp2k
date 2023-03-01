@@ -35,7 +35,6 @@ MODULE mp2_gpw
         cp_logger_get_default_unit_nr, cp_logger_release, cp_logger_set, cp_logger_type, &
         cp_rm_default_logger, cp_to_string
    USE cp_para_env,                     ONLY: cp_para_env_release
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_clear_mempools, dbcsr_copy, dbcsr_create, dbcsr_distribution_release, &
         dbcsr_distribution_type, dbcsr_filter, dbcsr_init_p, dbcsr_iterator_blocks_left, &
@@ -65,6 +64,7 @@ MODULE mp2_gpw
                                               cp_libint_static_init
    USE machine,                         ONLY: default_output_unit,&
                                               m_flush
+   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: molecule_type
    USE mp2_cphf,                        ONLY: solve_z_vector_eq
@@ -132,7 +132,7 @@ CONTAINS
       TYPE(mp2_type)                                     :: mp2_env
       REAL(KIND=dp), INTENT(OUT)                         :: Emp2, Emp2_Cou, Emp2_EX, Emp2_S, Emp2_T
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos_mp2
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: unit_nr
       LOGICAL, INTENT(IN)                                :: calc_forces, calc_ex
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_ri_mp2, do_ri_rpa, &
@@ -166,7 +166,6 @@ CONTAINS
                                                             fm_matrix_Minv_Vtrunc_Minv
       TYPE(cp_fm_type), POINTER                          :: mo_coeff_ptr
       TYPE(cp_logger_type), POINTER                      :: logger, logger_sub
-      TYPE(cp_para_env_type), POINTER                    :: para_env_sub
       TYPE(dbcsr_p_type)                                 :: mat_munu, mat_P_global
       TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:)      :: mo_coeff_all, mo_coeff_gw, mo_coeff_o, &
                                                             mo_coeff_v
@@ -186,6 +185,7 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(mp_para_env_type), POINTER                    :: para_env_sub
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb_sub
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -670,7 +670,7 @@ CONTAINS
                                         mo_coeff_o, mo_coeff_v, mo_coeff_all, mo_coeff_gw, my_do_gw, &
                                         gw_corr_lev_occ, gw_corr_lev_virt)
       TYPE(mp2_type)                                     :: mp2_env
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       INTEGER, INTENT(IN)                                :: dimen, homo
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
@@ -846,7 +846,7 @@ CONTAINS
                                      number_of_level, my_mu_start, my_mu_end, &
                                      mat_munu, gd_array)
       TYPE(mp2_type)                                     :: mp2_env
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_sub
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_to_build
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: Cread
@@ -1193,7 +1193,7 @@ CONTAINS
       TYPE(dbcsr_p_type), INTENT(OUT)                    :: mat_P_global
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp2_type)                                     :: mp2_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set

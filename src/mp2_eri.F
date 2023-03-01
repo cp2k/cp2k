@@ -30,7 +30,7 @@ MODULE mp2_eri
                                    cp_eri_mme_init_read_input, &
                                    cp_eri_mme_param, &
                                    cp_eri_mme_set_params
-   USE cp_para_types, ONLY: cp_para_env_type
+   USE message_passing, ONLY: mp_para_env_type
    USE dbcsr_api, ONLY: dbcsr_get_block_p, &
                         dbcsr_p_type
    USE eri_mme_integrate, ONLY: eri_mme_2c_integrate, &
@@ -120,7 +120,7 @@ CONTAINS
                                    reflection_z_a, reflection_z_b, do_reflection_a, do_reflection_b)
       TYPE(cp_eri_mme_param), INTENT(INOUT)              :: param
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
-      TYPE(cp_para_env_type), INTENT(IN)        :: para_env
+      TYPE(mp_para_env_type), INTENT(IN)        :: para_env
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: basis_type_a, basis_type_b
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: hab
@@ -621,7 +621,7 @@ CONTAINS
                                    mat_dabc, mat_adbc, mat_abdc)
       TYPE(cp_eri_mme_param), INTENT(INOUT)              :: param
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
-      TYPE(cp_para_env_type), INTENT(IN)        :: para_env
+      TYPE(mp_para_env_type), INTENT(IN)        :: para_env
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       INTEGER, INTENT(IN)                                :: first_c, last_c
       TYPE(dbcsr_p_type), DIMENSION(last_c - first_c + 1), &

@@ -23,7 +23,6 @@ MODULE mscfg_methods
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_methods,               ONLY: create_small_subsys
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_release,&
@@ -43,6 +42,7 @@ MODULE mscfg_methods
                                               section_vals_val_get,&
                                               section_vals_val_set
    USE kinds,                           ONLY: default_string_length
+   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_types,                  ONLY: get_molecule_set_info,&
                                               molecule_type
    USE mscfg_types,                     ONLY: molecular_scf_guess_env_init,&
@@ -152,10 +152,10 @@ CONTAINS
       LOGICAL                                            :: global_almo_scf_keyword, smear_almo_scf
       TYPE(almo_scf_env_type), POINTER                   :: almo_scf_env
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys, subsys_loc
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_of_frag
       TYPE(molecular_scf_guess_env_type), POINTER        :: mscfg_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(qs_energy_type), POINTER                      :: qs_energy
       TYPE(qs_environment_type), POINTER                 :: qs_env, qs_env_loc

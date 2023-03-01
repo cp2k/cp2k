@@ -17,10 +17,10 @@ MODULE nnp_acsf
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: pi
+   USE message_passing,                 ONLY: mp_para_env_type
    USE nnp_environment_types,           ONLY: nnp_acsf_ang_type,&
                                               nnp_acsf_rad_type,&
                                               nnp_cut_cos,&
@@ -1194,7 +1194,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE nnp_write_acsf(nnp, para_env)
       TYPE(nnp_type), INTENT(INOUT)                      :: nnp
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=default_string_length)               :: my_label
       INTEGER                                            :: i, j, unit_nr

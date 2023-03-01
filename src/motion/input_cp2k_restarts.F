@@ -26,7 +26,6 @@ MODULE input_cp2k_restarts
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
    USE csvr_system_types,               ONLY: csvr_system_type
@@ -59,6 +58,7 @@ MODULE input_cp2k_restarts
    USE md_environment_types,            ONLY: get_md_env,&
                                               md_environment_type
    USE memory_utilities,                ONLY: reallocate
+   USE message_passing,                 ONLY: mp_para_env_type
    USE metadynamics_types,              ONLY: meta_env_type
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_list_types,             ONLY: molecule_list_type
@@ -517,10 +517,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: buffer, eta, fnhc, mnhc, veta, wrk
       REAL(KIND=dp), POINTER                             :: constant, t
       TYPE(average_quantities_type), POINTER             :: averages
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(lnhc_parameters_type), POINTER                :: nhc
       TYPE(meta_env_type), POINTER                       :: meta_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(npt_info_type), POINTER                       :: npt(:, :)
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(section_vals_type), POINTER                   :: replica_section, work_section
@@ -1512,7 +1512,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dump_csvr_restart_info(csvr, para_env, csvr_section)
       TYPE(csvr_system_type), POINTER                    :: csvr
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: csvr_section
 
       CHARACTER(LEN=rng_record_length)                   :: rng_record
@@ -1576,7 +1576,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dump_al_restart_info(al, para_env, al_section)
       TYPE(al_system_type), POINTER                      :: al
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: al_section
 
       INTEGER                                            :: i
@@ -1630,7 +1630,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dump_gle_restart_info(gle, para_env, gle_section)
       TYPE(gle_type), POINTER                            :: gle
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: gle_section
 
       CHARACTER(LEN=rng_record_length)                   :: rng_record
@@ -1748,7 +1748,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE collect_nose_restart_info(nhc, para_env, eta, veta, fnhc, mnhc)
       TYPE(lnhc_parameters_type), POINTER                :: nhc
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eta, veta, fnhc, mnhc
 
       INTEGER                                            :: counter, i, iproc, j, nhc_len, num_nhc, &
@@ -2327,12 +2327,12 @@ CONTAINS
       LOGICAL                                            :: print_info, write_velocities
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rbuf
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(force_env_type), POINTER                      :: my_force_env
       TYPE(lnhc_parameters_type), POINTER                :: nhc
       TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_list_type), POINTER                  :: molecules
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
                                                             shell_particles
       TYPE(thermostat_type), POINTER                     :: thermostat_part, thermostat_shell
@@ -2761,7 +2761,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length), INTENT(IN)   :: section_label
       INTEGER, INTENT(INOUT)                             :: n_char_size, n_dp_size, n_int_size
       LOGICAL, INTENT(IN)                                :: print_info
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_binary_thermostats_nose'
 

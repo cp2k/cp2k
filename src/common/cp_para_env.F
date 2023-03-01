@@ -13,9 +13,9 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE cp_para_env
-   USE cp_para_types,                   ONLY: cp_para_cart_type,&
-                                              cp_para_env_type
-   USE message_passing,                 ONLY: mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_cart_type,&
+                                              mp_para_env_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -38,7 +38,7 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE cp_para_env_create(para_env, group)
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CLASS(mp_comm_type), INTENT(in)                     :: group
 
@@ -60,7 +60,7 @@ CONTAINS
 !>      of this method (see cp_log_handling:my_cp_para_env_release)!
 ! **************************************************************************************************
    SUBROUTINE cp_para_env_release(para_env)
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       IF (ASSOCIATED(para_env)) THEN
          CPASSERT(para_env%is_valid())
@@ -77,7 +77,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE cp_cart_create(cart, group)
-      TYPE(cp_para_cart_type), POINTER                   :: cart
+      TYPE(mp_para_cart_type), POINTER                   :: cart
 
       CLASS(mp_comm_type), INTENT(in)                     :: group
 
@@ -94,7 +94,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE cp_cart_release(cart)
-      TYPE(cp_para_cart_type), POINTER                   :: cart
+      TYPE(mp_para_cart_type), POINTER                   :: cart
 
       IF (ASSOCIATED(cart)) THEN
          CPASSERT(cart%is_valid())

@@ -24,7 +24,6 @@ MODULE topology
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE exclusion_types,                 ONLY: exclusion_type
    USE input_constants,                 ONLY: &
         do_conn_amb7, do_conn_g87, do_conn_g96, do_conn_generate, do_conn_mol_set, do_conn_off, &
@@ -39,6 +38,7 @@ MODULE topology
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE mm_mapping_library,              ONLY: create_ff_map,&
                                               destroy_ff_map
    USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -130,7 +130,7 @@ CONTAINS
       TYPE(colvar_p_type), DIMENSION(:), POINTER         :: colvar_p
       TYPE(global_constraint_type), POINTER              :: gci
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: qmmm
       TYPE(qmmm_env_mm_type), OPTIONAL, POINTER          :: qmmm_env
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section
@@ -284,7 +284,7 @@ CONTAINS
                                    force_env_section)
 
       TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(in), OPTIONAL                      :: qmmm
       TYPE(qmmm_env_mm_type), OPTIONAL, POINTER          :: qmmm_env
       TYPE(section_vals_type), POINTER                   :: subsys_section, force_env_section
@@ -450,7 +450,7 @@ CONTAINS
       TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
       INTEGER, INTENT(IN)                                :: conn_type
       CHARACTER(LEN=default_path_length), INTENT(IN)     :: conn_file_name
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
       CHARACTER(len=default_path_length)                 :: filename
@@ -516,7 +516,7 @@ CONTAINS
 
       TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'coordinate_control'

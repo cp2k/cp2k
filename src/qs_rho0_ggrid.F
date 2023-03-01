@@ -13,12 +13,12 @@ MODULE qs_rho0_ggrid
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE grid_api,                        ONLY: GRID_FUNC_AB,&
                                               collocate_pgf_product
    USE kinds,                           ONLY: dp
    USE memory_utilities,                ONLY: reallocate
+   USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: indco,&
                                               nco,&
                                               ncoset,&
@@ -104,8 +104,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
@@ -317,7 +317,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_type), INTENT(IN)                          :: v_rspace
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
       TYPE(local_rho_type), OPTIONAL, POINTER            :: local_rho_set
 

@@ -24,13 +24,13 @@ MODULE tmc_master
    USE cell_types,                      ONLY: init_cell
    USE cp_external_control,             ONLY: external_control
    USE cp_log_handling,                 ONLY: cp_to_string
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE global_types,                    ONLY: global_environment_type
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE machine,                         ONLY: m_flush,&
                                               m_memory,&
                                               m_walltime
+   USE message_passing,                 ONLY: mp_para_env_type
    USE tmc_calculations,                ONLY: get_subtree_efficiency
    USE tmc_cancelation,                 ONLY: free_cancelation_list
    USE tmc_dot_tree,                    ONLY: create_dot_color,&
@@ -99,7 +99,7 @@ CONTAINS
       TYPE(elem_list_type), POINTER                      :: cancel_list
       TYPE(elem_array_type), DIMENSION(:), POINTER       :: work_list
       INTEGER                                            :: cancel_count
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(tmc_env_type), POINTER                        :: tmc_env
 
       INTEGER                                            :: i, stat, wg
@@ -169,7 +169,7 @@ CONTAINS
    SUBROUTINE send_analysis_tasks(ana_list, ana_worker_info, para_env, tmc_env)
       TYPE(elem_list_type), POINTER                      :: ana_list
       TYPE(elem_array_type), DIMENSION(:), POINTER       :: ana_worker_info
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(tmc_env_type), POINTER                        :: tmc_env
 
       INTEGER                                            :: dest, stat, wg

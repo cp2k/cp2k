@@ -19,13 +19,13 @@ MODULE qs_basis_gradient
    USE cp_fm_types,                     ONLY: cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
                                               dbcsr_type
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
    USE qs_density_matrices,             ONLY: calculate_density_matrix
@@ -93,10 +93,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: gradient
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s, matrix_w_kp
       TYPE(dbcsr_type), POINTER                          :: matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: basis_force, force, qs_force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -282,10 +282,10 @@ CONTAINS
       INTEGER                                            :: handle, ispin, nmo
       LOGICAL                                            :: ks_is_complex
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_scf_env_type), POINTER                     :: scf_env

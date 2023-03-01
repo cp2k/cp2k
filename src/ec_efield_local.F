@@ -22,7 +22,6 @@ MODULE ec_efield_local
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_dot,&
@@ -33,6 +32,7 @@ MODULE ec_efield_local
    USE input_constants,                 ONLY: ec_functional_dc,&
                                               ec_functional_harris
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -173,12 +173,12 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dipmat, matrix_ks, matrix_p
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(efield_berry_type), POINTER                   :: efield
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &

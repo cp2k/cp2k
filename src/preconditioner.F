@@ -18,7 +18,6 @@ MODULE preconditioner
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_type
    USE input_constants,                 ONLY: cholesky_reduce,&
@@ -31,6 +30,7 @@ MODULE preconditioner
                                               ot_precond_solver_update
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE preconditioner_apply,            ONLY: apply_preconditioner_dbcsr,&
                                               apply_preconditioner_fm
    USE preconditioner_makes,            ONLY: make_preconditioner_matrix
@@ -230,7 +230,7 @@ CONTAINS
 
       INTEGER                                            :: ispin
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       NULLIFY (para_env, blacs_env)
       CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
@@ -306,10 +306,10 @@ CONTAINS
                                                             my_has_unit_metric, use_mo_coeff_b
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: kinetic
       TYPE(dbcsr_type), POINTER                          :: matrix_t, mo_coeff_b
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
       NULLIFY (matrix_t, mo_coeff_b, mo_coeff, kinetic, dft_control, para_env, blacs_env)

@@ -14,7 +14,6 @@
 ! **************************************************************************************************
 MODULE dm_ls_scf_types
    USE cp_para_env,                     ONLY: cp_para_env_release
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_release,&
                                               dbcsr_type
    USE input_constants,                 ONLY: ls_cluster_atomic,&
@@ -22,6 +21,7 @@ MODULE dm_ls_scf_types
    USE input_section_types,             ONLY: section_vals_release,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE pao_types,                       ONLY: pao_env_type,&
                                               pao_finalize
    USE pexsi_types,                     ONLY: lib_pexsi_env,&
@@ -150,7 +150,7 @@ MODULE dm_ls_scf_types
 
       TYPE(lib_pexsi_env) :: pexsi
 
-      TYPE(cp_para_env_type), POINTER :: para_env
+      TYPE(mp_para_env_type), POINTER :: para_env
       LOGICAL                 :: do_pao = .FALSE.
       TYPE(pao_env_type)      :: pao_env
    END TYPE ls_scf_env_type

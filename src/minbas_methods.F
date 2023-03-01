@@ -29,7 +29,6 @@ MODULE minbas_methods
                                               cp_fm_release,&
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_create, dbcsr_distribution_type, dbcsr_filter, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
@@ -38,6 +37,7 @@ MODULE minbas_methods
    USE kinds,                           ONLY: dp
    USE lapack,                          ONLY: lapack_ssyev
    USE mao_basis,                       ONLY: mao_generate_basis
+   USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
@@ -96,13 +96,13 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: fm1, fm2, fm3, fm4, fm5, fm6, fma, fmb, &
                                                             fmwork
       TYPE(cp_fm_type), POINTER                          :: fm_mos
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mao_coef
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
       TYPE(dbcsr_type)                                   :: smao, sortho
       TYPE(dbcsr_type), POINTER                          :: smat
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env

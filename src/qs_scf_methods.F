@@ -37,7 +37,6 @@ MODULE qs_scf_methods
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_desymmetrize, dbcsr_get_block_p, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
@@ -47,6 +46,7 @@ MODULE qs_scf_methods
                                               cholesky_reduce,&
                                               cholesky_restore
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_density_mixing_types,         ONLY: mixing_storage_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -97,7 +97,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: p_mix_new
       TYPE(mixing_storage_type), POINTER                 :: mixing_store
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), INTENT(INOUT)                       :: iter_delta
       INTEGER, INTENT(IN)                                :: iter_count
       LOGICAL, INTENT(in), OPTIONAL                      :: diis, invert
@@ -479,7 +479,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: m1, m2
       REAL(KIND=dp), INTENT(IN)                          :: p_mix
       REAL(KIND=dp), INTENT(OUT)                         :: delta
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: m3
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_sm_mix'

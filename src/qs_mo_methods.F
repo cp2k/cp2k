@@ -37,7 +37,6 @@ MODULE qs_mo_methods
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_get_info,&
                                               dbcsr_init_p,&
@@ -47,6 +46,7 @@ MODULE qs_mo_methods
                                               dbcsr_type,&
                                               dbcsr_type_no_symmetry
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: evolt
    USE qs_mo_occupation,                ONLY: set_mo_occupation
@@ -182,7 +182,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: vmatrix
       INTEGER, INTENT(IN)                                :: ncol
       TYPE(dbcsr_type)                                   :: svmatrix
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_sv_dbcsr'
@@ -552,7 +552,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: scr
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_rotation
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: co_rotate
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'subspace_eigenvalues_ks_dbcsr'

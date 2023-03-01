@@ -44,7 +44,6 @@ MODULE hfx_admm_utils
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
                                               cp_to_string
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_create,&
@@ -79,6 +78,7 @@ MODULE hfx_admm_utils
                                               section_vals_val_set
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: kpoint_type
+   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
    USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
@@ -158,10 +158,10 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: aux_fit_fm_struct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff_aux_fit
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_b
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_aux_fit
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -294,10 +294,10 @@ CONTAINS
       TYPE(admm_gapw_type), POINTER                      :: admm_gapw_env
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: aux_fit_basis, aux_fit_soft_basis, &
                                                             orb_basis, soft_basis
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: admm_kind_set, qs_kind_set
       TYPE(section_vals_type), POINTER                   :: input
 
@@ -397,7 +397,6 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: pair_radius
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_1d_type), POINTER                :: distribution_1d
       TYPE(distribution_2d_type), POINTER                :: distribution_2d
@@ -405,6 +404,7 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -743,7 +743,6 @@ CONTAINS
                                                             s_mstruct_changed, use_virial
       REAL(dp)                                           :: eh1, ehfx, ehfxrt, eold
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: hf_energy
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_ks_1d, matrix_ks_aux_fit, &
          matrix_ks_aux_fit_hfx, matrix_ks_aux_fit_im, matrix_ks_im, rho_ao_1d, rho_ao_resp
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_h_im, matrix_ks_orb, &
@@ -751,6 +750,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_array
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -2078,10 +2078,10 @@ CONTAINS
                                                             hfx_treat_lsd_in_core, &
                                                             my_update_energy, s_mstruct_changed
       REAL(KIND=dp)                                      :: eh1, ehfx
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input
 

@@ -42,7 +42,6 @@ MODULE qs_efield_berry
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_get_block_p,&
                                               dbcsr_p_type,&
@@ -54,6 +53,7 @@ MODULE qs_efield_berry
                                               twopi,&
                                               z_one,&
                                               z_zero
+   USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: ncoset
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
@@ -213,7 +213,6 @@ CONTAINS
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: mo_coeff_tmp, mo_derivs_tmp
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: inv_work, op_fm_set, opvec
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: tempmat
       TYPE(dbcsr_type), POINTER                          :: cosmat, mo_coeff_b, sinmat
@@ -222,6 +221,7 @@ CONTAINS
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -695,7 +695,6 @@ CONTAINS
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: mo_coeff_tmp
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: inv_work, mo_derivs_tmp, op_fm_set, opvec
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: tempmat
       TYPE(dbcsr_type), POINTER                          :: cosmat, mo_coeff_b, sinmat
@@ -704,6 +703,7 @@ CONTAINS
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &

@@ -12,9 +12,9 @@
 !> \author FS, Refactored from mp2_types
 ! **************************************************************************************************
 MODULE dgemm_counter_types
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
+   USE message_passing,                 ONLY: mp_para_env_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -103,7 +103,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dgemm_counter_write(dgemm_counter, para_env)
       TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
 
       dgemm_counter%flop_rate = dgemm_counter%flop_rate/REAL(MAX(dgemm_counter%num_dgemm_call, 1), dp)/1.0E9_dp
       ! Average over all ranks

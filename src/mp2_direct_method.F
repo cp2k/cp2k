@@ -16,7 +16,6 @@ MODULE mp2_direct_method
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_para_env,                     ONLY: cp_para_env_release
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE hfx_energy_potential,            ONLY: coulomb4
    USE hfx_load_balance_methods,        ONLY: cost_model,&
                                               p1_energy,&
@@ -36,6 +35,7 @@ MODULE mp2_direct_method
    USE libint_wrapper,                  ONLY: cp_libint_t
    USE machine,                         ONLY: m_flush
    USE mathconstants,                   ONLY: zero
+   USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_ri_libint,                   ONLY: prepare_integral_calc
    USE mp2_types,                       ONLY: init_TShPSC_lmax,&
                                               mp2_biel_type,&
@@ -85,7 +85,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(dimen)                    :: Auto_i
       REAL(KIND=dp)                                      :: Emp2, Emp2_Cou, Emp2_ex
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: unit_nr
       REAL(KIND=dp), DIMENSION(dimen, dimen), OPTIONAL   :: C_j
       REAL(KIND=dp), DIMENSION(dimen), OPTIONAL          :: Auto_j
@@ -106,7 +106,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ij_list_proc, ij_list_proc_temp, &
                                                             ij_matrix
       LOGICAL                                            :: alpha_beta_case
-      TYPE(cp_para_env_type), POINTER                    :: para_env_sub
+      TYPE(mp_para_env_type), POINTER                    :: para_env_sub
 
       CALL timeset(routineN, handle)
 
@@ -387,7 +387,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: Emp2, Emp2_Cou, Emp2_ex
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       TYPE(mp2_biel_type), INTENT(IN)                    :: mp2_biel
       INTEGER, INTENT(IN)                                :: dimen
       REAL(KIND=dp), DIMENSION(dimen, dimen), INTENT(IN) :: C
@@ -1241,7 +1241,7 @@ CONTAINS
          INTENT(IN)                                      :: BI1
       REAL(KIND=dp), DIMENSION(dimen, dimen), INTENT(IN) :: C_T
       TYPE(mp2_biel_type), INTENT(IN)                    :: mp2_biel
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(IN)                                :: elements_ij_proc, multiple
       REAL(KIND=dp), &
          DIMENSION(dimen, dimen, elements_ij_proc), &
@@ -1406,7 +1406,7 @@ CONTAINS
          INTENT(IN)                                      :: BI1
       REAL(KIND=dp), DIMENSION(dimen, dimen), INTENT(IN) :: C_T
       TYPE(mp2_biel_type), INTENT(IN)                    :: mp2_biel
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(IN)                                :: elements_ij_proc
       REAL(KIND=dp), &
          DIMENSION(dimen, dimen, elements_ij_proc), &

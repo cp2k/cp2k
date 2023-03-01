@@ -17,12 +17,12 @@ MODULE cp_cfm_types
                                               cp_fm_struct_retain,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: z_one,&
                                               z_zero
    USE message_passing,                 ONLY: cp2k_is_parallel,&
                                               mp_any_source,&
+                                              mp_para_env_type,&
                                               mp_proc_null,&
                                               mp_request_null,&
                                               mp_request_type,&
@@ -343,7 +343,7 @@ CONTAINS
          start_row_global, start_row_local, this_col
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: do_zero, tr_a
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
@@ -613,7 +613,7 @@ CONTAINS
          OPTIONAL, POINTER                               :: local_data
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: context
       TYPE(cp_fm_struct_type), OPTIONAL, POINTER         :: matrix_struct
-      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
 
       IF (PRESENT(name)) name = matrix%name
       IF (PRESENT(matrix_struct)) matrix_struct => matrix%matrix_struct
@@ -877,7 +877,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_start_copy_general(source, destination, para_env, info)
       TYPE(cp_cfm_type), INTENT(IN)                      :: source, destination
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
+      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
       TYPE(copy_cfm_info_type), INTENT(out)              :: info
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_start_copy_general'

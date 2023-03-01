@@ -19,7 +19,6 @@ MODULE basis_set_types
                                               cite_reference
    USE cp_linked_list_input,            ONLY: cp_sll_val_next,&
                                               cp_sll_val_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: parser_get_object,&
                                               parser_search_string
    USE cp_parser_types,                 ONLY: cp_parser_type,&
@@ -36,6 +35,7 @@ MODULE basis_set_types
    USE mathconstants,                   ONLY: dfac,&
                                               pi
    USE memory_utilities,                ONLY: reallocate
+   USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: coset,&
                                               indco,&
                                               init_orbital_pointers,&
@@ -1199,7 +1199,7 @@ CONTAINS
 
       CHARACTER(LEN=*), INTENT(IN)                       :: element_symbol, basis_set_name
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: dft_section
 
       CHARACTER(LEN=240)                                 :: line
@@ -2198,7 +2198,7 @@ CONTAINS
 
       CHARACTER(LEN=*), INTENT(IN)                       :: element_symbol, basis_set_name
       TYPE(sto_basis_set_type), POINTER                  :: sto_basis_set
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: dft_section
 
       CHARACTER(LEN=10)                                  :: nlsym

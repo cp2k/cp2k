@@ -16,7 +16,6 @@ MODULE optimize_basis
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE cp_para_env,                     ONLY: cp_para_env_release
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE f77_interface,                   ONLY: create_force_env,&
                                               destroy_force_env,&
@@ -36,7 +35,8 @@ MODULE optimize_basis
    USE machine,                         ONLY: m_chdir,&
                                               m_getcwd,&
                                               m_walltime
-   USE message_passing,                 ONLY: mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_type
    USE optbas_fenv_manipulation,        ONLY: allocate_mo_sets,&
                                               calculate_ks_matrix,&
                                               calculate_overlap_inverse,&
@@ -90,7 +90,7 @@ CONTAINS
    SUBROUTINE run_optimize_basis(input_declaration, root_section, para_env)
       TYPE(section_type), POINTER                        :: input_declaration
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'run_optimize_basis'
 
@@ -119,14 +119,14 @@ CONTAINS
    SUBROUTINE driver_para_opt_basis(opt_bas, input_declaration, para_env)
       TYPE(basis_optimization_type)                      :: opt_bas
       TYPE(section_type), POINTER                        :: input_declaration
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'driver_para_opt_basis'
 
       INTEGER                                            :: handle, n_groups_created
+      TYPE(mp_comm_type)                                 :: opt_group
       INTEGER, DIMENSION(:), POINTER                     :: group_distribution_p
       INTEGER, DIMENSION(0:para_env%num_pe-1), TARGET    :: group_distribution
-      TYPE(mp_comm_type)                                 :: opt_group
 
       CALL timeset(routineN, handle)
       group_distribution_p => group_distribution
@@ -156,7 +156,7 @@ CONTAINS
    SUBROUTINE driver_optimization_para_low(opt_bas, input_declaration, para_env_top, mpi_comm_opt)
       TYPE(basis_optimization_type)                      :: opt_bas
       TYPE(section_type), POINTER                        :: input_declaration
-      TYPE(cp_para_env_type), POINTER                    :: para_env_top
+      TYPE(mp_para_env_type), POINTER                    :: para_env_top
       TYPE(mp_comm_type), INTENT(IN)                     :: mpi_comm_opt
 
       CHARACTER(len=*), PARAMETER :: routineN = 'driver_optimization_para_low'
@@ -166,8 +166,8 @@ CONTAINS
       LOGICAL                                            :: write_basis
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tot_time
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: matrix_S_inv
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(f_env_type), POINTER                          :: f_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       NULLIFY (f_env)
 
@@ -250,7 +250,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: f_env_id
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: matrix_S_inv
       REAL(KIND=dp), DIMENSION(:)                        :: tot_time
-      TYPE(cp_para_env_type), POINTER                    :: para_env_top, para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env_top, para_env
       INTEGER                                            :: iopt
 
       CHARACTER(len=*), PARAMETER :: routineN = 'compute_residuum_vectors'
@@ -397,7 +397,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: f_env_id
       TYPE(section_type), POINTER                        :: input_declaration
       TYPE(cp_fm_type), DIMENSION(:), INTENT(OUT)        :: matrix_S_inv
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(mp_comm_type)                                 :: mpi_comm_opt
 
       CHARACTER(len=*), PARAMETER :: routineN = 'init_training_force_envs'
@@ -654,7 +654,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:)                        :: f_vec, cond_vec, my_time, tot_time
       TYPE(basis_optimization_type)                      :: opt_bas
       INTEGER                                            :: iopt
-      TYPE(cp_para_env_type), POINTER                    :: para_env_top
+      TYPE(mp_para_env_type), POINTER                    :: para_env_top
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'output_opt_info'
 

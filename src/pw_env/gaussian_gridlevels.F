@@ -15,13 +15,13 @@ MODULE gaussian_gridlevels
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE input_section_types,             ONLY: section_vals_release,&
                                               section_vals_retain,&
                                               section_vals_type
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE message_passing,                 ONLY: mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -84,7 +84,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info, para_env)
       TYPE(gridlevel_info_type)                          :: gridlevel_info
-      TYPE(cp_para_env_type), INTENT(IN), OPTIONAL       :: para_env
+      TYPE(mp_para_env_type), INTENT(IN), OPTIONAL       :: para_env
 
       INTEGER                                            :: i, output_unit
       LOGICAL                                            :: do_io

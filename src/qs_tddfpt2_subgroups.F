@@ -29,7 +29,6 @@ MODULE qs_tddfpt2_subgroups
                                               cp_fm_release,&
                                               cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_release
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_create,&
                                               dbcsr_distribution_release,&
                                               dbcsr_distribution_type,&
@@ -51,6 +50,7 @@ MODULE qs_tddfpt2_subgroups
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
@@ -112,7 +112,7 @@ MODULE qs_tddfpt2_subgroups
       !> group-specific BLACS parallel environment
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env => NULL()
       !> group-specific MPI parallel environment
-      TYPE(cp_para_env_type), POINTER                    :: para_env => NULL()
+      TYPE(mp_para_env_type), POINTER                    :: para_env => NULL()
       !> occupied MOs stored in a matrix form [nao x nmo_occ(spin)] distributed across processes
       !> in the parallel group
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)      :: mos_occ
@@ -190,9 +190,9 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_para_env_type), POINTER                    :: para_env_global
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mgrid_saved_parameters)                       :: mgrid_saved
+      TYPE(mp_para_env_type), POINTER                    :: para_env_global
       TYPE(pw_env_type), POINTER                         :: pw_env_global
       TYPE(qs_control_type), POINTER                     :: qs_control
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -799,7 +799,7 @@ CONTAINS
          nrows_global_dest, nrows_global_src
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global
       TYPE(cp_fm_type)                                   :: fm_null
-      TYPE(cp_para_env_type), POINTER                    :: para_env_global
+      TYPE(mp_para_env_type), POINTER                    :: para_env_global
 
       IF (sub_env%is_split) THEN
          CALL timeset(routineN, handle)

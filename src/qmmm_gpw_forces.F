@@ -19,7 +19,6 @@ MODULE qmmm_gpw_forces
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_spline_utils,                 ONLY: pw_restrict_s3,&
                                               spline3_nopbc_interp,&
                                               spline3_pbc_interp
@@ -35,6 +34,7 @@ MODULE qmmm_gpw_forces
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_type,&
                                               mp_request_type
    USE mm_collocate_potential,          ONLY: collocate_gf_rspace_NoPBC,&
                                               integrate_gf_rspace_NoPBC
@@ -114,8 +114,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: Forces, Forces_added_charges, &
                                                             Forces_added_shells
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pool
@@ -410,7 +410,7 @@ CONTAINS
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: aug_pools
       INTEGER, INTENT(IN)                                :: auxbas_grid, coarser_grid
       TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), INTENT(IN)                          :: eps_mm_rspace
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: Forces, Forces_added_charges, &
@@ -607,7 +607,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: mm_atom_index
       INTEGER, INTENT(IN)                                :: num_mm_atoms
       TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), INTENT(IN)                          :: eps_mm_rspace
       INTEGER, INTENT(IN)                                :: auxbas_grid, coarser_grid
       TYPE(qmmm_gaussian_p_type), DIMENSION(:), POINTER  :: pgfs
@@ -803,7 +803,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mm_charges
       INTEGER, DIMENSION(:), POINTER                     :: mm_atom_index
       TYPE(particle_type), DIMENSION(:), POINTER         :: mm_particles
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: coarser_grid_level
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: Forces
       TYPE(qmmm_per_pot_p_type), DIMENSION(:), POINTER   :: per_potentials
@@ -1159,7 +1159,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mm_charges
       INTEGER, DIMENSION(:), POINTER                     :: mm_atom_index
       TYPE(particle_type), DIMENSION(:), POINTER         :: mm_particles
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: coarser_grid_level
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: Forces
       TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER       :: Potentials
@@ -1349,7 +1349,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: Err
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: Num_Forces
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_type)                                      :: v_qmmm_rspace
@@ -1601,7 +1601,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: num_mm_atoms, coarser_grid_level
       TYPE(qmmm_per_pot_p_type), DIMENSION(:), POINTER   :: per_potentials
       REAL(KIND=dp), DIMENSION(:, :)                     :: debug_force
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(cell_type), POINTER                           :: mm_cell
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: dOmmOqm
       INTEGER, INTENT(IN)                                :: iw, par_scheme
@@ -1715,7 +1715,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: num_mm_atoms, coarser_grid_level
       TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER       :: Potentials
       REAL(KIND=dp), DIMENSION(:, :)                     :: debug_force
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(cell_type), POINTER                           :: mm_cell
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: dOmmOqm
       INTEGER, INTENT(IN)                                :: iw, par_scheme

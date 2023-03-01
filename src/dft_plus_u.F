@@ -45,7 +45,6 @@ MODULE dft_plus_u
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr,&
                                               low_print_level
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_deallocate_matrix, dbcsr_get_block_diag, dbcsr_get_block_p, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
@@ -57,6 +56,7 @@ MODULE dft_plus_u
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathlib,                         ONLY: jacobi
+   USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_symbols,                 ONLY: sgf_symbol
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_methods,                ONLY: get_particle_set
@@ -234,11 +234,11 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
       TYPE(cp_fm_type), POINTER                          :: fm_s_half, fm_work1, fm_work2
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p, matrix_s
       TYPE(dbcsr_type), POINTER                          :: sm_h, sm_p, sm_q, sm_s, sm_v, sm_w
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -892,11 +892,11 @@ CONTAINS
                                                             v_block
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: kind_a
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p, matrix_s
       TYPE(dbcsr_type), POINTER                          :: sm_h, sm_p, sm_q, sm_s, sm_v
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -1544,12 +1544,12 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: q_ii
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block, p_block, s_block, w_block
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p, matrix_s
       TYPE(dbcsr_type), POINTER                          :: sm_h, sm_p, sm_s, sm_w
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set

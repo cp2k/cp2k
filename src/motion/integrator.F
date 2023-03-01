@@ -44,7 +44,6 @@ MODULE integrator
                                               pv_constraint
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_log_handling,                 ONLY: cp_to_string
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: parser_get_next_line,&
                                               parser_read_line
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
@@ -71,6 +70,7 @@ MODULE integrator
    USE md_environment_types,            ONLY: get_md_env,&
                                               md_environment_type,&
                                               set_md_env
+   USE message_passing,                 ONLY: mp_para_env_type
    USE metadynamics,                    ONLY: metadyn_integrator,&
                                               metadyn_velocities_colvar
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
@@ -145,7 +145,6 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       TYPE(force_env_type), POINTER                      :: force_env
@@ -154,6 +153,7 @@ CONTAINS
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(simpar_type), POINTER                         :: simpar
@@ -401,7 +401,6 @@ CONTAINS
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
@@ -411,6 +410,7 @@ CONTAINS
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
                                                             shell_particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: core_particle_set, particle_set, &
@@ -607,10 +607,10 @@ CONTAINS
       REAL(KIND=dp)                                      :: dt
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
                                                             shell_particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: core_particle_set, particle_set, &
@@ -727,7 +727,6 @@ CONTAINS
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       TYPE(force_env_type), POINTER                      :: force_env
@@ -736,6 +735,7 @@ CONTAINS
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
                                                             shell_particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: core_particle_set, particle_set, &
@@ -935,7 +935,6 @@ CONTAINS
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       TYPE(force_env_type), POINTER                      :: force_env
@@ -944,6 +943,7 @@ CONTAINS
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
                                                             shell_particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: core_particle_set, particle_set, &
@@ -1182,7 +1182,6 @@ CONTAINS
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       TYPE(force_env_type), POINTER                      :: force_env
@@ -1193,6 +1192,7 @@ CONTAINS
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(npt_info_type), POINTER                       :: npt(:, :)
       TYPE(old_variables_type), POINTER                  :: old
       TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
@@ -1513,9 +1513,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: abc, albega
       REAL(KIND=dp), POINTER                             :: time
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(reftraj_type), POINTER                        :: reftraj_env
@@ -1701,7 +1701,6 @@ CONTAINS
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       TYPE(force_env_type), POINTER                      :: force_env
@@ -1710,6 +1709,7 @@ CONTAINS
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(npt_info_type), POINTER                       :: npt(:, :)
       TYPE(old_variables_type), POINTER                  :: old
       TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
@@ -1945,7 +1945,6 @@ CONTAINS
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       TYPE(force_env_type), POINTER                      :: force_env
@@ -1954,6 +1953,7 @@ CONTAINS
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(npt_info_type), POINTER                       :: npt(:, :)
       TYPE(old_variables_type), POINTER                  :: old
       TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
@@ -2200,7 +2200,6 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(barostat_type), POINTER                       :: barostat
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       TYPE(force_env_type), POINTER                      :: force_env
@@ -2209,6 +2208,7 @@ CONTAINS
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(npt_info_type), POINTER                       :: npt(:, :)
       TYPE(old_variables_type), POINTER                  :: old
       TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
@@ -2499,7 +2499,6 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys, subsys_respa
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       TYPE(force_env_type), POINTER                      :: force_env
@@ -2508,6 +2507,7 @@ CONTAINS
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles, particles_respa
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set, particle_set_respa
       TYPE(simpar_type), POINTER                         :: simpar

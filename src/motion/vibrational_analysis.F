@@ -36,7 +36,6 @@ MODULE vibrational_analysis
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_methods,               ONLY: get_results,&
                                               test_for_result
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
@@ -59,6 +58,7 @@ MODULE vibrational_analysis
                                               dp
    USE mathconstants,                   ONLY: pi
    USE mathlib,                         ONLY: diamat_all
+   USE message_passing,                 ONLY: mp_para_env_type
    USE mode_selective,                  ONLY: ms_vb_anal
    USE molden_utils,                    ONLY: write_vibrations_molden
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
@@ -101,7 +101,7 @@ CONTAINS
    SUBROUTINE vb_anal(input, input_declaration, para_env, globenv)
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(section_type), POINTER                        :: input_declaration
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'vb_anal'
@@ -1167,7 +1167,7 @@ CONTAINS
    SUBROUTINE write_va_hessian(vib_section, para_env, ncoord, globenv, Hessian, logger)
 
       TYPE(section_vals_type), POINTER                   :: vib_section
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: ncoord
       TYPE(global_environment_type), POINTER             :: globenv
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Hessian

@@ -45,13 +45,13 @@ MODULE cp_log_handling
                                               cp_iteration_info_release,&
                                               cp_iteration_info_retain,&
                                               cp_iteration_info_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
    USE machine,                         ONLY: default_output_unit,&
                                               m_getpid,&
                                               m_hostnm
+   USE message_passing,                 ONLY: mp_para_env_type
    USE string_utilities,                ONLY: compress
    USE timings,                         ONLY: print_stack
 #include "../base/base_uses.f90"
@@ -144,7 +144,7 @@ MODULE cp_log_handling
       LOGICAL :: close_local_unit_on_dealloc, close_global_unit_on_dealloc
       CHARACTER(len=default_string_length)  :: suffix
       CHARACTER(len=default_path_length)    :: local_filename, global_filename
-      TYPE(cp_para_env_type), POINTER       :: para_env
+      TYPE(mp_para_env_type), POINTER       :: para_env
       TYPE(cp_iteration_info_type), POINTER :: iter_info
    END TYPE cp_logger_type
 
@@ -282,7 +282,7 @@ CONTAINS
                                local_filename, close_global_unit_on_dealloc, iter_info, &
                                close_local_unit_on_dealloc, suffix, template_logger)
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
       INTEGER, INTENT(in), OPTIONAL                      :: print_level, default_global_unit_nr, &
                                                             default_local_unit_nr
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: global_filename, local_filename
@@ -676,7 +676,7 @@ CONTAINS
 !>      (see cp_para_env:cp_para_env_release)!
 ! **************************************************************************************************
    SUBROUTINE my_cp_para_env_release(para_env)
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'my_cp_para_env_release', &
          routineP = moduleN//':'//routineN

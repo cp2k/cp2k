@@ -27,7 +27,6 @@ MODULE lri_environment_methods
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_create,&
                                               dbcsr_dot,&
                                               dbcsr_get_block_diag,&
@@ -58,6 +57,7 @@ MODULE lri_environment_methods
    USE mathlib,                         ONLY: get_pseudo_inverse_diag,&
                                               get_pseudo_inverse_svd,&
                                               invmat_symm
+   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE pw_types,                        ONLY: pw_type
    USE qs_collocate_density,            ONLY: calculate_lri_rho_elec
@@ -347,9 +347,9 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin, nspins
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_type)                                   :: pmat_diag
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r
 
       CALL timeset(routineN, handle)
@@ -397,9 +397,9 @@ CONTAINS
                                                             nspin
       LOGICAL                                            :: use_virial
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_ppl_coef
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sac_lri
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -572,7 +572,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       TYPE(qs_rho_type), INTENT(INOUT)                   :: lri_rho_struct
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: response_density
 
       CALL calculate_avec_lri(lri_env, lri_density, pmatrix, cell_to_index, response_density)
@@ -822,7 +822,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_rho_type), INTENT(INOUT)                   :: lri_rho_struct
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: response_density
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_lri_density_on_the_grid'
@@ -1103,10 +1103,10 @@ CONTAINS
       REAL(KIND=dp)                                      :: dmax_aabb, dmax_ab, dmax_aba, dmax_abb, &
                                                             dmax_oo
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(lri_int_rho_type), POINTER                    :: lriir
       TYPE(lri_int_type), POINTER                        :: lrii
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(section_vals_type), POINTER                   :: input
@@ -1252,8 +1252,8 @@ CONTAINS
       REAL(KIND=dp) :: abai_mem, coef_mem, oint_mem, overlap_error, pairs_ff, pairs_sr, pairs_tt, &
          ppli_mem, ppx, rho_1c, rho_ff, rho_sr, rho_tt, rhos_mem
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(lri_environment_type), POINTER                :: lri_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: input
 
       my_ltddfpt = .FALSE.

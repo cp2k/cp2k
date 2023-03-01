@@ -29,7 +29,6 @@ MODULE mp2_optimize_ri_basis
                                               cp_logger_type,&
                                               cp_rm_default_logger
    USE cp_para_env,                     ONLY: cp_para_env_release
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE hfx_types,                       ONLY: hfx_basis_info_type,&
                                               hfx_basis_type
    USE kinds,                           ONLY: dp
@@ -37,6 +36,7 @@ MODULE mp2_optimize_ri_basis
    USE machine,                         ONLY: default_output_unit,&
                                               m_flush
    USE memory_utilities,                ONLY: reallocate
+   USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_direct_method,               ONLY: mp2_canonical_direct_single_batch
    USE mp2_ri_libint,                   ONLY: libint_ri_mp2,&
                                               read_RI_basis_set,&
@@ -103,7 +103,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Auto
       INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
+      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
       INTEGER, INTENT(IN)                                :: unit_nr
       INTEGER, INTENT(IN), OPTIONAL                      :: homo_beta
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
@@ -128,10 +128,10 @@ CONTAINS
                                                             Integ_MP2_BB
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger, logger_sub
-      TYPE(cp_para_env_type), POINTER                    :: para_env_sub
       TYPE(gto_basis_set_type), POINTER                  :: ri_aux_basis
       TYPE(hfx_basis_info_type)                          :: RI_basis_info
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_S0, RI_basis_parameter
+      TYPE(mp_para_env_type), POINTER                    :: para_env_sub
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL timeset(routineN, handle)
@@ -610,7 +610,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: homo_beta, virtual_beta
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Auto_beta
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: C_beta
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env, para_env_sub
+      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env, para_env_sub
       INTEGER, INTENT(IN)                                :: number_groups, color_sub, unit_nr
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: p, lower_B, max_dev
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: deriv
@@ -740,7 +740,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: homo_beta, virtual_beta
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Auto_beta
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: C_beta
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
+      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
       INTEGER, INTENT(IN)                                :: unit_nr
       LOGICAL, INTENT(IN)                                :: no_write
 
@@ -1057,7 +1057,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: MOenerg, MOenerg_beta
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: abij
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Lai, Lai_beta
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
 
       INTEGER                                            :: a, b, i, ij_counter, j
       REAL(KIND=dp)                                      :: t_iajb, t_iajb_RI
@@ -1114,7 +1114,7 @@ CONTAINS
 ! **************************************************************************************************
    PURE SUBROUTINE calc_elem_ij_proc(homo, homo_beta, para_env, elements_ij_proc, ij_list_proc)
       INTEGER, INTENT(IN)                                :: homo, homo_beta
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(OUT)                               :: elements_ij_proc
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: ij_list_proc
 

@@ -12,7 +12,6 @@ MODULE al_system_mapping
 
    USE al_system_types,                 ONLY: al_system_type,&
                                               al_thermo_create
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE extended_system_types,           ONLY: map_info_type
    USE input_constants,                 ONLY: &
@@ -21,6 +20,7 @@ MODULE al_system_mapping
         npt_f_ensemble, npt_i_ensemble, npt_ia_ensemble, nve_ensemble, nvt_ensemble, &
         reftraj_ensemble
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: global_constraint_type,&
                                               molecule_type
@@ -62,7 +62,7 @@ CONTAINS
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind_set(:)
       TYPE(al_system_type), POINTER                      :: al
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(global_constraint_type), POINTER              :: gci
 
       INTEGER                                            :: i, imap, j, natoms_local, &
@@ -148,7 +148,7 @@ CONTAINS
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind_set(:)
       TYPE(distribution_1d_type), POINTER                :: local_molecules
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(OUT)                               :: natoms_local
       TYPE(simpar_type), POINTER                         :: simpar
       INTEGER, INTENT(OUT)                               :: sum_of_thermostats

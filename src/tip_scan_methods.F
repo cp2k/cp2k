@@ -13,12 +13,12 @@ MODULE tip_scan_methods
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: silent_print_level
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_cube_to_pw
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_grid_types,                   ONLY: pw_grid_type
@@ -267,7 +267,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: scaling
       REAL(KIND=dp), DIMENSION(3)                        :: rdum
       REAL(KIND=dp), DIMENSION(3, 3)                     :: dcell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_grid_type), POINTER                        :: pw_grid
 
       CALL timeset(routineN, handle)

@@ -15,7 +15,6 @@
 MODULE extended_system_init
 
    USE cell_types,                      ONLY: cell_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE extended_system_mapping,         ONLY: nhc_to_barostat_mapping,&
                                               nhc_to_particle_mapping,&
@@ -42,6 +41,7 @@ MODULE extended_system_init
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: global_constraint_type,&
                                               molecule_type
@@ -174,7 +174,7 @@ CONTAINS
    SUBROUTINE initialize_nhc_baro(simpar, para_env, globenv, nhc, nose_section, save_mem)
 
       TYPE(simpar_type), POINTER                         :: simpar
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(lnhc_parameters_type), POINTER                :: nhc
       TYPE(section_vals_type), POINTER                   :: nose_section
@@ -242,7 +242,7 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_molecules
       TYPE(molecule_type), POINTER                       :: molecule(:)
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind_set(:)
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(lnhc_parameters_type), POINTER                :: nhc
       TYPE(section_vals_type), POINTER                   :: nose_section
@@ -308,7 +308,7 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_molecules
       TYPE(molecule_type), POINTER                       :: molecule(:)
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind_set(:)
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(lnhc_parameters_type), POINTER                :: nhc
       TYPE(section_vals_type), POINTER                   :: nose_section
@@ -375,7 +375,7 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_molecules
       TYPE(molecule_type), POINTER                       :: molecule(:)
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind_set(:)
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(lnhc_parameters_type), POINTER                :: nhc
       TYPE(section_vals_type), POINTER                   :: nose_section
@@ -444,7 +444,7 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_molecules
       TYPE(molecule_type), POINTER                       :: molecule(:)
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind_set(:)
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(lnhc_parameters_type), POINTER                :: nhc
       TYPE(section_vals_type), POINTER                   :: nose_section
@@ -581,7 +581,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: save_mem
       LOGICAL, INTENT(OUT)                               :: restart
       CHARACTER(LEN=*), INTENT(IN)                       :: binary_restart_file_name, thermostat_name
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'restart_nose'
 
@@ -708,7 +708,7 @@ CONTAINS
    SUBROUTINE init_nhc_variables(nhc, temp_ext, para_env, globenv)
       TYPE(lnhc_parameters_type), POINTER                :: nhc
       REAL(KIND=dp), INTENT(IN)                          :: temp_ext
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
 
       CHARACTER(len=*), PARAMETER :: routineN = 'init_nhc_variables'

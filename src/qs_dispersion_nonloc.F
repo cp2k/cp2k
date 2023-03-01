@@ -23,7 +23,6 @@ MODULE qs_dispersion_nonloc
                                               cite_reference
    USE cp_files,                        ONLY: close_file,&
                                               open_file
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE input_constants,                 ONLY: vdw_nl_DRSLL,&
                                               vdw_nl_LMKLL,&
                                               vdw_nl_RVV10,&
@@ -31,6 +30,7 @@ MODULE qs_dispersion_nonloc
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: pi
+   USE message_passing,                 ONLY: mp_para_env_type
    USE pw_grid_types,                   ONLY: HALFSPACE,&
                                               pw_grid_type
    USE pw_methods,                      ONLY: pw_axpy,&
@@ -69,7 +69,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qs_dispersion_nonloc_init(dispersion_env, para_env)
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_dispersion_nonloc_init'
 
@@ -171,7 +171,7 @@ CONTAINS
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       LOGICAL, INTENT(IN)                                :: energy_only
       TYPE(pw_pool_type), POINTER                        :: pw_pool, xc_pw_pool
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(virial_type), OPTIONAL, POINTER               :: virial
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dispersion_nonloc'

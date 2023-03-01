@@ -11,7 +11,6 @@ MODULE topology_gromos
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: parser_get_next_line,&
                                               parser_get_object,&
                                               parser_search_string
@@ -26,6 +25,7 @@ MODULE topology_gromos
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE memory_utilities,                ONLY: reallocate
+   USE message_passing,                 ONLY: mp_para_env_type
    USE string_table,                    ONLY: s2s,&
                                               str2id
    USE topology_types,                  ONLY: atom_info_type,&
@@ -52,7 +52,7 @@ CONTAINS
    SUBROUTINE read_topology_gromos(file_name, topology, para_env, subsys_section)
       CHARACTER(LEN=*), INTENT(IN)                       :: file_name
       TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'read_topology_gromos'
@@ -628,7 +628,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE read_coordinate_g96(topology, para_env, subsys_section)
       TYPE(topology_parameters_type)                     :: topology
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_g96'

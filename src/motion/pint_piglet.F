@@ -14,7 +14,6 @@
 MODULE pint_piglet
    USE cp_files,                        ONLY: close_file,&
                                               open_file
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k,&
                                               cp_unit_to_cp2k
    USE gle_system_dynamics,             ONLY: gle_cholesky_stab,&
@@ -29,6 +28,7 @@ MODULE pint_piglet
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_rng_types,              ONLY: GAUSSIAN,&
                                               rng_record_length,&
                                               rng_stream_type,&
@@ -143,7 +143,7 @@ CONTAINS
       TYPE(pint_env_type), INTENT(INOUT)                 :: pint_env
       TYPE(section_vals_type), POINTER                   :: section
       REAL(KIND=dp), INTENT(IN)                          :: dt
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=20)                                  :: default_format, read_unit
       CHARACTER(len=default_path_length)                 :: matrices_file_name

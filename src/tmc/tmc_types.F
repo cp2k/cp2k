@@ -32,10 +32,10 @@
 MODULE tmc_types
    USE cell_types,                      ONLY: cell_type
    USE cp_para_env,                     ONLY: cp_para_env_release
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_rng_types,              ONLY: rng_stream_type
    USE tmc_move_types,                  ONLY: tmc_move_type
    USE tmc_stati,                       ONLY: task_type_MC
@@ -79,11 +79,11 @@ MODULE tmc_types
       INTEGER                                       :: group_nr
       INTEGER                                       :: ana_on_the_fly
       ! the communicators (para_env)
-      TYPE(cp_para_env_type), POINTER               :: para_env_m_w
-      TYPE(cp_para_env_type), POINTER               :: para_env_sub_group
-      TYPE(cp_para_env_type), POINTER               :: para_env_m_first_w
-      TYPE(cp_para_env_type), POINTER               :: para_env_m_ana
-      TYPE(cp_para_env_type), POINTER               :: para_env_m_only
+      TYPE(mp_para_env_type), POINTER               :: para_env_m_w
+      TYPE(mp_para_env_type), POINTER               :: para_env_sub_group
+      TYPE(mp_para_env_type), POINTER               :: para_env_m_first_w
+      TYPE(mp_para_env_type), POINTER               :: para_env_m_ana
+      TYPE(mp_para_env_type), POINTER               :: para_env_m_only
    END TYPE tmc_comp_set_type
 
    ! struct for TMC global variables

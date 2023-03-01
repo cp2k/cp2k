@@ -33,7 +33,6 @@ MODULE rpa_gw_sigma_x
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_get_diag, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_release, dbcsr_release_p, dbcsr_set, dbcsr_type, &
@@ -59,6 +58,7 @@ MODULE rpa_gw_sigma_x
    USE mathconstants,                   ONLY: gaussi,&
                                               z_one,&
                                               z_zero
+   USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_integrals,                   ONLY: compute_kpoints
    USE mp2_ri_2c,                       ONLY: setup_trunc_coulomb_potential_for_exchange_self_energy
    USE mp2_types,                       ONLY: mp2_type
@@ -132,7 +132,6 @@ CONTAINS
                                                             vec_Sigma_x_minus_vxc_gw_im
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:)      :: mat_exchange_for_kp_from_gamma
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_aux_fit, &
                                                             matrix_ks_aux_fit_hfx, rho_ao, &
@@ -143,6 +142,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: matrix_tmp, matrix_tmp_2, mo_coeff_b
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints, kpoints_Sigma
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
@@ -781,7 +781,7 @@ CONTAINS
                                                             matrix_sigma_x_minus_vxc_im
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: vec_Sigma_x_minus_vxc_gw, &
                                                             vec_Sigma_x_minus_vxc_gw_im
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER                                            :: nmo
       TYPE(mp2_type)                                     :: mp2_env
 

@@ -37,7 +37,6 @@ MODULE qs_sccs
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr,&
                                               low_print_level
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE cp_realspace_grid_init,          ONLY: init_input_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
@@ -60,6 +59,7 @@ MODULE qs_sccs
                                               int_8
    USE mathconstants,                   ONLY: fourpi,&
                                               twopi
+   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_list_types,             ONLY: particle_list_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -148,9 +148,9 @@ CONTAINS
          rho_iter_new, tot_rho_elec, tot_rho_solute
       REAL(KIND=dp), DIMENSION(3)                        :: abc
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: cp_subsys
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env

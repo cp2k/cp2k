@@ -20,7 +20,6 @@ MODULE qs_rho_methods
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_log_handling,                 ONLY: cp_to_string
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_type, &
         dbcsr_type_antisymmetric, dbcsr_type_symmetric
@@ -31,6 +30,7 @@ MODULE qs_rho_methods
    USE lri_environment_methods,         ONLY: calculate_lri_densities
    USE lri_environment_types,           ONLY: lri_density_type,&
                                               lri_environment_type
+   USE message_passing,                 ONLY: mp_para_env_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_zero
@@ -384,17 +384,17 @@ CONTAINS
       TYPE(task_list_type), OPTIONAL, POINTER            :: task_list_external, &
                                                             task_list_external_soft
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_external
-      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env_external
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_external
 
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(lri_environment_type), POINTER                :: lri_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
       CALL get_qs_env(qs_env, dft_control=dft_control, &
@@ -474,7 +474,7 @@ CONTAINS
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_external
       TYPE(task_list_type), OPTIONAL, POINTER            :: task_list_external, &
                                                             task_list_external_soft
-      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env_external
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_external
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_update_rho_low'
 
@@ -483,10 +483,10 @@ CONTAINS
       REAL(KIND=dp)                                      :: dum
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r, tot_rho_r_xc
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp, rho_xc_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab
       TYPE(oce_matrix_type), POINTER                     :: oce
@@ -675,7 +675,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_external
       TYPE(task_list_type), OPTIONAL, POINTER            :: task_list_external
-      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env_external
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_external
       TYPE(lri_environment_type), OPTIONAL, POINTER      :: tddfpt_lri_env
       TYPE(lri_density_type), OPTIONAL, POINTER          :: tddfpt_lri_density
 
@@ -686,11 +686,11 @@ CONTAINS
       LOGICAL                                            :: lri_response
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env

@@ -10,7 +10,6 @@
 ! **************************************************************************************************
 MODULE csvr_system_init
 
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE csvr_system_mapping,             ONLY: csvr_to_barostat_mapping,&
                                               csvr_to_particle_mapping,&
                                               csvr_to_shell_mapping
@@ -20,6 +19,7 @@ MODULE csvr_system_init
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
+   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: global_constraint_type,&
                                               molecule_type
@@ -80,7 +80,7 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_molecules
       TYPE(molecule_type), POINTER                       :: molecule(:)
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind_set(:)
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(csvr_system_type), POINTER                    :: csvr
       TYPE(section_vals_type), POINTER                   :: csvr_section
       TYPE(global_constraint_type), POINTER              :: gci
@@ -113,7 +113,7 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_molecules
       TYPE(molecule_type), POINTER                       :: molecule(:)
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind_set(:)
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(csvr_system_type), POINTER                    :: csvr
       TYPE(section_vals_type), POINTER                   :: csvr_section
       TYPE(global_constraint_type), POINTER              :: gci

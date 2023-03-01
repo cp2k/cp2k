@@ -36,7 +36,6 @@ MODULE tamc_run
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
@@ -85,7 +84,8 @@ MODULE tamc_run
                                               md_environment_type,&
                                               set_md_env
    USE md_run,                          ONLY: qs_mol_dyn
-   USE message_passing,                 ONLY: mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_type
    USE metadynamics_types,              ONLY: meta_env_type,&
                                               metavar_type,&
                                               set_meta_env
@@ -167,7 +167,6 @@ CONTAINS
       TYPE(barostat_type), POINTER                       :: barostat
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys, subsys_i
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(free_energy_type), POINTER                    :: fe_env
@@ -178,6 +177,7 @@ CONTAINS
       TYPE(md_ener_type), POINTER                        :: md_ener
       TYPE(md_environment_type), POINTER                 :: md_env
       TYPE(meta_env_type), POINTER                       :: meta_env_saved
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(reftraj_type), POINTER                        :: reftraj
       TYPE(rng_stream_type)                              :: rng_stream_mc
@@ -882,7 +882,6 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       TYPE(force_env_type), POINTER                      :: force_env
@@ -892,6 +891,7 @@ CONTAINS
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(simpar_type), POINTER                         :: simpar

@@ -50,7 +50,6 @@ MODULE qs_p_env_methods
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_p_type,&
@@ -67,6 +66,7 @@ MODULE qs_p_env_methods
                                               section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE preconditioner_types,            ONLY: init_preconditioner
    USE pw_env_types,                    ONLY: pw_env_type
@@ -147,9 +147,9 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools, mo_mo_fm_pools
       TYPE(cp_fm_type), POINTER                          :: qs_env_c
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_s_aux_fit
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
@@ -402,9 +402,9 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: handle, ispin
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho1_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_aux_fit
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g_aux, rho_r_aux
@@ -490,10 +490,10 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: psi0
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -722,10 +722,10 @@ CONTAINS
 
       INTEGER                                            :: handle, ncol
       TYPE(cp_fm_type)                                   :: tmp
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dbcsr_type), POINTER                          :: k_p
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
       NULLIFY (matrix_ks, matrix_s, dft_control)
