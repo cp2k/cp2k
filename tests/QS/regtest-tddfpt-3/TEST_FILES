@@ -11,5 +11,5 @@ ch2o_t3.inp                                           37    5.0E-06             
 ch2o_t4.inp                                           37    5.0E-06                   0.241502E+00
 h2o_fxc_lda.inp                                       37    5.0E-06                   0.599836E+00
 h2o_fxc_pade.inp                                      37    5.0E-06                   0.599826E+00
-h2o_fxc_gga.inp                                       37    5.0E-06                   0.789553E+00
+h2o_fxc_gga.inp                                       37    5.0E-06                   0.789552E+00
 #EOF
