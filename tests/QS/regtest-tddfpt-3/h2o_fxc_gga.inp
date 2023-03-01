@@ -9,7 +9,7 @@
     &TDDFPT
        NSTATES     3
        MAX_ITER    50
-       CONVERGENCE 1.0e-5
+       CONVERGENCE 1.0e-8
        &XC
          &XC_KERNEL GGAfxc
             SCALE_X  0.80
@@ -34,7 +34,8 @@
        METHOD GPW
     &END QS
     &SCF
-      MAX_SCF 50
+      MAX_SCF 100
+      EPS_SCF 1.E-7
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE0
