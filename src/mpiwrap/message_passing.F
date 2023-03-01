@@ -175,13 +175,17 @@ MODULE message_passing
       ! Communication routines
 
       PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: &
+         mp_sendrecv_i, mp_sendrecv_l, mp_sendrecv_r, mp_sendrecv_d, &
+         mp_sendrecv_c, mp_sendrecv_z, &
          mp_sendrecv_iv, mp_sendrecv_im2, mp_sendrecv_im3, mp_sendrecv_im4, &
          mp_sendrecv_lv, mp_sendrecv_lm2, mp_sendrecv_lm3, mp_sendrecv_lm4, &
          mp_sendrecv_rv, mp_sendrecv_rm2, mp_sendrecv_rm3, mp_sendrecv_rm4, &
          mp_sendrecv_dv, mp_sendrecv_dm2, mp_sendrecv_dm3, mp_sendrecv_dm4, &
          mp_sendrecv_cv, mp_sendrecv_cm2, mp_sendrecv_cm3, mp_sendrecv_cm4, &
          mp_sendrecv_zv, mp_sendrecv_zm2, mp_sendrecv_zm3, mp_sendrecv_zm4
-      GENERIC, PUBLIC :: sendrecv => mp_sendrecv_iv, mp_sendrecv_im2, mp_sendrecv_im3, mp_sendrecv_im4, &
+      GENERIC, PUBLIC :: sendrecv => mp_sendrecv_i, mp_sendrecv_l, &
+         mp_sendrecv_r, mp_sendrecv_d, mp_sendrecv_c, mp_sendrecv_z, &
+         mp_sendrecv_iv, mp_sendrecv_im2, mp_sendrecv_im3, mp_sendrecv_im4, &
          mp_sendrecv_lv, mp_sendrecv_lm2, mp_sendrecv_lm3, mp_sendrecv_lm4, &
          mp_sendrecv_rv, mp_sendrecv_rm2, mp_sendrecv_rm3, mp_sendrecv_rm4, &
          mp_sendrecv_dv, mp_sendrecv_dm2, mp_sendrecv_dm3, mp_sendrecv_dm4, &
@@ -284,11 +288,17 @@ MODULE message_passing
       PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_max_i, mp_max_iv, &
          mp_max_l, mp_max_lv, mp_max_r, mp_max_rv, &
          mp_max_d, mp_max_dv, mp_max_c, mp_max_cv, &
-         mp_max_z, mp_max_zv
+         mp_max_z, mp_max_zv, mp_max_root_i, mp_max_root_l, &
+         mp_max_root_r, mp_max_root_d, mp_max_root_c, mp_max_root_z, &
+         mp_max_root_im, mp_max_root_lm, mp_max_root_rm, mp_max_root_dm, &
+         mp_max_root_cm, mp_max_root_zm
       GENERIC, PUBLIC :: max => mp_max_i, mp_max_iv, &
          mp_max_l, mp_max_lv, mp_max_r, mp_max_rv, &
          mp_max_d, mp_max_dv, mp_max_c, mp_max_cv, &
-         mp_max_z, mp_max_zv
+         mp_max_z, mp_max_zv, mp_max_root_i, mp_max_root_l, &
+         mp_max_root_r, mp_max_root_d, mp_max_root_c, mp_max_root_z, &
+         mp_max_root_im, mp_max_root_lm, mp_max_root_rm, mp_max_root_dm, &
+         mp_max_root_cm, mp_max_root_zm
 
       PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_min_i, mp_min_iv, &
          mp_min_l, mp_min_lv, mp_min_r, mp_min_rv, &
@@ -298,6 +308,13 @@ MODULE message_passing
          mp_min_l, mp_min_lv, mp_min_r, mp_min_rv, &
          mp_min_d, mp_min_dv, mp_min_c, mp_min_cv, &
          mp_min_z, mp_min_zv
+
+      PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: &
+         mp_sum_scatter_iv, mp_sum_scatter_lv, mp_sum_scatter_rv, &
+         mp_sum_scatter_dv, mp_sum_scatter_cv, mp_sum_scatter_zv
+      GENERIC, PUBLIC :: sum_scatter => &
+         mp_sum_scatter_iv, mp_sum_scatter_lv, mp_sum_scatter_rv, &
+         mp_sum_scatter_dv, mp_sum_scatter_cv, mp_sum_scatter_zv
 
       PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_prod_r, mp_prod_d, mp_prod_c, mp_prod_z
       GENERIC, PUBLIC :: prod => mp_prod_r, mp_prod_d, mp_prod_c, mp_prod_z
@@ -806,9 +823,6 @@ MODULE message_passing
    PUBLIC :: mp_type_descriptor_type
    PUBLIC :: mp_type_make
    PUBLIC :: mp_type_size
-
-   ! some benchmarking code
-   PUBLIC :: mpi_perf_test
 
    ! vector types
    PUBLIC :: mp_type_indexed_make_r, mp_type_indexed_make_d, &
@@ -4947,400 +4961,6 @@ CONTAINS
 #endif
          CALL mp_timestop(handle)
       END SUBROUTINE mp_win_unlock_all
-
-! **************************************************************************************************
-!> \brief Tests the MPI library
-!> \param comm the relevant, initialized communicator
-!> \param npow number of sizes to test, 10**1 .. 10**npow
-!> \param output_unit where to direct output
-!> \par History
-!>      JGH  6-Feb-2001 : Test and performance code
-!> \author JGH  1-JAN-2001
-!> \note
-!>      quickly adapted benchmark code, will only work on an even number of CPUs.
-! **************************************************************************************************
-      SUBROUTINE mpi_perf_test(comm, npow, output_unit)
-         CLASS(mp_comm_type), INTENT(IN) :: comm
-         INTEGER, INTENT(IN)                      :: npow, output_unit
-
-#if defined(__parallel)
-
-         INTEGER :: I, ierr, ierror, itask, itests, J, jtask, left, nbufmax, &
-                    ncount, Ngrid, Nloc, nprocs, Ntot, partner, right, taskid
-         INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, sdispl
-         LOGICAL                                  :: ionode
-         REAL(KIND=dp)                            :: maxdiff, res, res2, res3, t1, &
-                                                     t2, t3, t4, t5
-         REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: buffer1, buffer2, buffer3, &
-                                                     lgrid, lgrid2, lgrid3
-         REAL(KIND=dp), ALLOCATABLE, &
-            DIMENSION(:, :)                        :: grid, grid2, grid3, &
-                                                      send_timings, send_timings2
-         REAL(KIND=dp), PARAMETER :: threshold = 1.0E-8_dp
-
-         ! set system sizes !
-         ngrid = 10**npow
-
-         taskid = comm%mepos
-         nprocs = comm%num_pe
-         ionode = comm%is_source()
-         IF (ionode .AND. output_unit > 0) THEN
-            WRITE (output_unit, *) "Running with ", nprocs
-            WRITE (output_unit, *) "running messages with npow = ", npow
-            WRITE (output_unit, *) "use MPI X in the input for larger (e.g. 6) of smaller (e.g. 3) messages"
-            IF (MODULO(nprocs, 2) .NE. 0) WRITE (output_unit, *) "Testing only with an even number of tasks"
-         END IF
-
-         IF (MODULO(nprocs, 2) .NE. 0) RETURN
-
-         ! equal loads
-         Nloc = Ngrid/nprocs
-         Ntot = Nprocs*Nloc
-         nbufmax = 10**npow
-         !
-         ALLOCATE (rcount(nprocs))
-         ALLOCATE (scount(nprocs))
-         ALLOCATE (sdispl(nprocs))
-         ALLOCATE (rdispl(nprocs))
-         ALLOCATE (buffer1(nbufmax))
-         ALLOCATE (buffer2(nbufmax))
-         ALLOCATE (buffer3(nbufmax))
-         ALLOCATE (grid(Nloc, Nprocs))
-         ALLOCATE (grid2(Nloc, Nprocs))
-         ALLOCATE (grid3(Nloc, Nprocs))
-         ALLOCATE (lgrid(Nloc))
-         ALLOCATE (lgrid2(Nloc))
-         ALLOCATE (lgrid3(Nloc))
-         ALLOCATE (send_timings(0:nprocs - 1, 0:nprocs - 1))
-         ALLOCATE (send_timings2(0:nprocs - 1, 0:nprocs - 1))
-         buffer1 = 0.0_dp
-         buffer2 = 0.0_dp
-         buffer3 = 0.0_dp
-         ! timings
-         send_timings = 0.0_dp
-         send_timings2 = 0.0_dp
-         ! -------------------------------------------------------------------------------------------
-         ! ------------------------------ some in memory tests                   ---------------------
-         ! -------------------------------------------------------------------------------------------
-         CALL MPI_BARRIER(comm%handle, ierror)
-         IF (ionode .AND. output_unit > 0) THEN
-            WRITE (output_unit, *) "Testing in memory copies just 1 CPU "
-            WRITE (output_unit, *) "  could tell something about the motherboard / cache / compiler "
-         END IF
-         DO i = 1, npow
-            ncount = 10**i
-            t2 = 0.0E0_dp
-            IF (ncount .GT. nbufmax) CPABORT("")
-            DO j = 1, 3**(npow - i)
-               CALL MPI_BARRIER(comm%handle, ierror)
-               t1 = MPI_WTIME()
-               buffer2(1:ncount) = buffer1(1:ncount)
-               t2 = t2 + MPI_WTIME() - t1 + threshold
-            END DO
-            CALL MPI_REDUCE(t2, t1, 1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm%handle, ierror)
-            IF (ionode .AND. output_unit > 0) THEN
-               WRITE (output_unit, '(I9,A,F12.4,A)') 8*ncount, " Bytes ", (3**(npow - i))*ncount*8.0E-6_dp/t1, " MB/s"
-            END IF
-         END DO
-         CALL MPI_BARRIER(comm%handle, ierror)
-         ! -------------------------------------------------------------------------------------------
-         ! ------------------------------ some in memory tests                   ---------------------
-         ! -------------------------------------------------------------------------------------------
-         CALL MPI_BARRIER(comm%handle, ierror)
-         IF (ionode .AND. output_unit > 0) THEN
-            WRITE (output_unit, *) "Testing in memory copies all cpus"
-            WRITE (output_unit, *) "  is the memory bandwidth affected on an SMP machine ?"
-         END IF
-         DO i = 1, npow
-            ncount = 10**i
-            t2 = 0.0E0_dp
-            IF (ncount .GT. nbufmax) CPABORT("")
-            DO j = 1, 3**(npow - i)
-               CALL MPI_BARRIER(comm%handle, ierror)
-               t1 = MPI_WTIME()
-               buffer2(1:ncount) = buffer1(1:ncount)
-               t2 = t2 + MPI_WTIME() - t1 + threshold
-            END DO
-            CALL MPI_REDUCE(t2, t1, 1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm%handle, ierror)
-            IF (ionode .AND. output_unit > 0) THEN
-               WRITE (output_unit, '(I9,A,F12.4,A)') 8*ncount, " Bytes ", (3**(npow - i))*ncount*8.0E-6_dp/t1, " MB/s"
-            END IF
-         END DO
-         CALL MPI_BARRIER(comm%handle, ierror)
-         ! -------------------------------------------------------------------------------------------
-         ! ------------------------------ first test point to point communication ---------------------
-         ! -------------------------------------------------------------------------------------------
-         CALL MPI_BARRIER(comm%handle, ierror)
-         IF (ionode .AND. output_unit > 0) THEN
-            WRITE (output_unit, *) "Testing truly point to point communication (i with j only)"
-            WRITE (output_unit, *) "  is there some different connection between i j (e.g. shared memory comm)"
-         END IF
-         ncount = 10**npow
-         IF (ionode .AND. output_unit > 0) WRITE (output_unit, *) "For messages of ", ncount*8, " bytes"
-         IF (ncount .GT. nbufmax) CPABORT("")
-         DO itask = 0, nprocs - 1
-            DO jtask = itask + 1, nprocs - 1
-               CALL MPI_BARRIER(comm%handle, ierror)
-               t1 = MPI_WTIME()
-               IF (taskid .EQ. itask) THEN
-                  CALL MPI_SEND(buffer1, ncount, MPI_DOUBLE_PRECISION, jtask, itask*jtask, comm%handle, ierror)
-               END IF
-               IF (taskid .EQ. jtask) THEN
-                  CALL MPI_RECV(buffer1, ncount, MPI_DOUBLE_PRECISION, itask, itask*jtask, comm%handle, MPI_STATUS_IGNORE, ierror)
-               END IF
-               send_timings(itask, jtask) = MPI_WTIME() - t1 + threshold
-            END DO
-         END DO
-         send_timings2(:, :) = send_timings
-         CALL MPI_REDUCE(send_timings2, send_timings, nprocs**2, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm%handle, ierror)
-         IF (ionode .AND. output_unit > 0) THEN
-            DO itask = 0, nprocs - 1
-               DO jtask = itask + 1, nprocs - 1
-                  WRITE (output_unit, '(I4,I4,F12.4,A)') itask, jtask, ncount*8.0E-6_dp/send_timings(itask, jtask), " MB/s"
-               END DO
-            END DO
-         END IF
-         CALL MPI_BARRIER(comm%handle, ierror)
-         ! -------------------------------------------------------------------------------------------
-         ! ------------------------------ second test point to point communication -------------------
-         ! -------------------------------------------------------------------------------------------
-         CALL MPI_BARRIER(comm%handle, ierror)
-         IF (ionode .AND. output_unit > 0) THEN
-            WRITE (output_unit, *) "Testing all nearby point to point communication (0,1)(2,3)..."
-            WRITE (output_unit, *) "    these could / should all be on the same shared memory node "
-         END IF
-         DO i = 1, npow
-            ncount = 10**i
-            t2 = 0.0E0_dp
-            IF (ncount .GT. nbufmax) CPABORT("")
-            DO j = 1, 3**(npow - i)
-               CALL MPI_BARRIER(comm%handle, ierror)
-               t1 = MPI_WTIME()
-               IF (MODULO(taskid, 2) == 0) THEN
-                  CALL MPI_SEND(buffer1, ncount, MPI_DOUBLE_PRECISION, taskid + 1, 0, comm%handle, ierror)
-               ELSE
-                  CALL MPI_RECV(buffer1, ncount, MPI_DOUBLE_PRECISION, taskid - 1, 0, comm%handle, MPI_STATUS_IGNORE, ierror)
-               END IF
-               t2 = t2 + MPI_WTIME() - t1 + threshold
-            END DO
-            CALL MPI_REDUCE(t2, t1, 1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm%handle, ierror)
-            IF (ionode .AND. output_unit > 0) THEN
-               WRITE (output_unit, '(I9,A,F12.4,A)') 8*ncount, " Bytes ", (3**(npow - i))*ncount*8.0E-6_dp/t1, " MB/s"
-            END IF
-         END DO
-         CALL MPI_BARRIER(comm%handle, ierror)
-         ! -------------------------------------------------------------------------------------------
-         ! ------------------------------ third test point to point communication -------------------
-         ! -------------------------------------------------------------------------------------------
-         CALL MPI_BARRIER(comm%handle, ierror)
-         IF (ionode .AND. output_unit > 0) THEN
-            WRITE (output_unit, *) "Testing all far point to point communication (0,nprocs/2),(1,nprocs/2+1),.."
-            WRITE (output_unit, *) "    these could all be going over the network, and stress it a lot"
-         END IF
-         DO i = 1, npow
-            ncount = 10**i
-            t2 = 0.0E0_dp
-            IF (ncount .GT. nbufmax) CPABORT("")
-            DO j = 1, 3**(npow - i)
-               CALL MPI_BARRIER(comm%handle, ierror)
-               t1 = MPI_WTIME()
-               ! first half with partner
-               IF (taskid .LT. nprocs/2) THEN
-                  CALL MPI_SEND(buffer1, ncount, MPI_DOUBLE_PRECISION, taskid + nprocs/2, 0, comm%handle, ierror)
-               ELSE
-                  CALL MPI_RECV(buffer1, ncount, MPI_DOUBLE_PRECISION, taskid - nprocs/2, 0, comm%handle, MPI_STATUS_IGNORE, ierror)
-               END IF
-               t2 = t2 + MPI_WTIME() - t1 + threshold
-            END DO
-            CALL MPI_REDUCE(t2, t1, 1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm%handle, ierror)
-            IF (ionode .AND. output_unit > 0) THEN
-               WRITE (output_unit, '(I9,A,F12.4,A)') 8*ncount, " Bytes ", (3**(npow - i))*ncount*8.0E-6_dp/t1, " MB/s"
-            END IF
-         END DO
-         ! -------------------------------------------------------------------------------------------
-         ! ------------------------------ test root to all broadcast               -------------------
-         ! -------------------------------------------------------------------------------------------
-         CALL MPI_BARRIER(comm%handle, ierror)
-         IF (ionode .AND. output_unit > 0) THEN
-            WRITE (output_unit, *) "Testing root to all broadcast "
-            WRITE (output_unit, *) "    using trees at least ? "
-         END IF
-         DO i = 1, npow
-            ncount = 10**i
-            t2 = 0.0E0_dp
-            IF (ncount .GT. nbufmax) CPABORT("")
-            DO j = 1, 3**(npow - i)
-               CALL MPI_BARRIER(comm%handle, ierror)
-               t1 = MPI_WTIME()
-               CALL MPI_BCAST(buffer1, ncount, MPI_DOUBLE_PRECISION, 0, comm%handle, ierror)
-               t2 = t2 + MPI_WTIME() - t1 + threshold
-            END DO
-            CALL MPI_REDUCE(t2, t1, 1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm%handle, ierror)
-            IF (ionode .AND. output_unit > 0) THEN
-               WRITE (output_unit, '(I9,A,F12.4,A)') 8*ncount, " Bytes ", (3**(npow - i))*ncount*8.0E-6_dp/t1, " MB/s"
-            END IF
-         END DO
-         ! -------------------------------------------------------------------------------------------
-         ! ------------------------------ test parallel sum like behavior                -------------------
-         ! -------------------------------------------------------------------------------------------
-         CALL MPI_BARRIER(comm%handle, ierror)
-         IF (ionode .AND. output_unit > 0) WRITE (output_unit, *) "Test global summation (mpi_allreduce) "
-         DO i = 1, npow
-            ncount = 10**i
-            t2 = 0.0E0_dp
-            IF (ncount .GT. nbufmax) CPABORT("")
-            DO j = 1, 3**(npow - i)
-               CALL MPI_BARRIER(comm%handle, ierror)
-               t1 = MPI_WTIME()
-               CALL MPI_ALLREDUCE(buffer1, buffer2, ncount, MPI_DOUBLE_PRECISION, MPI_SUM, comm%handle, ierr)
-               t2 = t2 + MPI_WTIME() - t1 + threshold
-            END DO
-            CALL MPI_REDUCE(t2, t1, 1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm%handle, ierror)
-            IF (ionode .AND. output_unit > 0) THEN
-               WRITE (output_unit, '(I9,A,F12.4,A)') 8*ncount, " Bytes ", (3**(npow - i))*ncount*8.0E-6_dp/t1, " MB/s"
-            END IF
-         END DO
-         ! -------------------------------------------------------------------------------------------
-         ! ------------------------------ test all to all communication            -------------------
-         ! -------------------------------------------------------------------------------------------
-         CALL MPI_BARRIER(comm%handle, ierror)
-         IF (ionode .AND. output_unit > 0) THEN
-            WRITE (output_unit, *) "Test all to all communication (mpi_alltoallv)"
-            WRITE (output_unit, *) "    mpi/network getting confused ? "
-         END IF
-         DO i = 1, npow
-            ncount = 10**i
-            t2 = 0.0E0_dp
-            IF (ncount .GT. nbufmax) CPABORT("")
-            scount = ncount/nprocs
-            rcount = ncount/nprocs
-            DO j = 1, nprocs
-               sdispl(j) = (j - 1)*(ncount/nprocs)
-               rdispl(j) = (j - 1)*(ncount/nprocs)
-            END DO
-            DO j = 1, 3**(npow - i)
-               CALL MPI_BARRIER(comm%handle, ierror)
-               t1 = MPI_WTIME()
-               CALL mpi_alltoallv(buffer1, scount, sdispl, MPI_DOUBLE_PRECISION, &
-                                  buffer2, rcount, rdispl, MPI_DOUBLE_PRECISION, comm%handle, ierr)
-               t2 = t2 + MPI_WTIME() - t1 + threshold
-            END DO
-            CALL MPI_REDUCE(t2, t1, 1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm%handle, ierror)
-            IF (ionode .AND. output_unit > 0) THEN
-               WRITE (output_unit, '(I9,A,F12.4,A)') 8*(ncount/nprocs)*nprocs, " Bytes ", &
-                  (3**(npow - i))*(ncount/nprocs)*nprocs*8.0E-6_dp/t1, " MB/s"
-            END IF
-         END DO
-
-         ! -------------------------------------------------------------------------------------------
-         ! ------------------------------ other stuff                            ---------------------
-         ! -------------------------------------------------------------------------------------------
-         IF (ionode .AND. output_unit > 0) THEN
-            WRITE (output_unit, *) " Clean tests completed "
-            WRITE (output_unit, *) " Testing MPI_REDUCE scatter"
-         END IF
-         rcount = Nloc
-         DO itests = 1, 3
-            IF (ionode .AND. output_unit > 0) &
-               WRITE (output_unit, *) "------------------------------- test ", itests, " ------------------------"
-            ! *** reference ***
-            DO j = 1, Nprocs
-               DO i = 1, Nloc
-                  grid(i, j) = MODULO(i*j*taskid, itests)
-               END DO
-            END DO
-            t1 = MPI_WTIME()
-            CALL MPI_REDUCE_SCATTER(grid, lgrid, rcount, MPI_DOUBLE_PRECISION, MPI_SUM, comm%handle, ierr)
-            t2 = MPI_WTIME() - t1 + threshold
-            CALL mpi_allreduce(t2, res, 1, MPI_DOUBLE_PRECISION, MPI_MAX, comm%handle, ierr)
-            IF (ionode .AND. output_unit > 0) WRITE (output_unit, *) "MPI_REDUCE_SCATTER    ", res
-            ! *** simple shift ***
-            DO j = 1, Nprocs
-               DO i = 1, Nloc
-                  grid2(i, j) = MODULO(i*j*taskid, itests)
-               END DO
-            END DO
-            left = MODULO(taskid - 1, Nprocs)
-            right = MODULO(taskid + 1, Nprocs)
-            t3 = MPI_WTIME()
-            lgrid2 = 0.0E0_dp
-            DO i = 1, Nprocs
-               lgrid2(:) = lgrid2 + grid(:, MODULO(taskid - i, Nprocs) + 1)
-               IF (i .EQ. nprocs) EXIT
-              CALL MPI_SENDRECV_REPLACE(lgrid2, nloc, MPI_DOUBLE_PRECISION, right, 0, left, 0, comm%handle, MPI_STATUS_IGNORE, ierr)
-            END DO
-            t4 = MPI_WTIME() - t3 + threshold
-            CALL mpi_allreduce(t4, res, 1, MPI_DOUBLE_PRECISION, MPI_MAX, comm%handle, ierr)
-            maxdiff = MAXVAL(ABS(lgrid2 - lgrid))
-            CALL mpi_allreduce(maxdiff, res2, 1, MPI_DOUBLE_PRECISION, MPI_MAX, comm%handle, ierr)
-            IF (ionode .AND. output_unit > 0) WRITE (output_unit, *) "MPI_SENDRECV_REPLACE  ", res, res2
-            ! *** involved shift ****
-            IF (MODULO(nprocs, 2) /= 0) CPABORT("")
-            DO j = 1, Nprocs
-               DO i = 1, Nloc
-                  grid3(i, j) = MODULO(i*j*taskid, itests)
-               END DO
-            END DO
-            t3 = MPI_WTIME()
-            ! first sum the grid in pairs (0,1),(2,3) should be within an LPAR and fast XXXXXXXXX
-            ! 0 will only need parts 0,2,4,... correctly summed
-            ! 1 will only need parts 1,3,5,... correctly summed
-            ! *** could nicely be generalised ****
-            IF (MODULO(taskid, 2) == 0) THEN
-               partner = taskid + 1
-               DO i = 1, Nprocs, 2 ! sum the full grid with the partner
-                  CALL MPI_SENDRECV(grid3(1, i + 1), nloc, MPI_DOUBLE_PRECISION, partner, 17, &
-                                    lgrid3, nloc, MPI_DOUBLE_PRECISION, partner, 19, comm%handle, MPI_STATUS_IGNORE, ierr)
-                  grid3(:, i) = grid3(:, i) + lgrid3(:)
-               END DO
-            ELSE
-               partner = taskid - 1
-               DO i = 1, Nprocs, 2
-                  CALL MPI_SENDRECV(grid3(1, i), nloc, MPI_DOUBLE_PRECISION, partner, 19, &
-                                    lgrid3, nloc, MPI_DOUBLE_PRECISION, partner, 17, comm%handle, MPI_STATUS_IGNORE, ierr)
-                  grid3(:, i + 1) = grid3(:, i + 1) + lgrid3(:)
-               END DO
-            END IF
-            t4 = MPI_WTIME() - t3 + threshold
-            ! now send a given buffer from 1 to 3 to 5 .. adding the right part of the data
-            ! since we've summed an lgrid does only need to pass by even or odd tasks
-            left = MODULO(taskid - 2, Nprocs)
-            right = MODULO(taskid + 2, Nprocs)
-            t3 = MPI_WTIME()
-            lgrid3 = 0.0E0_dp
-            DO i = 1, Nprocs, 2
-               lgrid3(:) = lgrid3 + grid3(:, MODULO(taskid - i - 1, Nprocs) + 1)
-               IF (i .EQ. nprocs - 1) EXIT
-              CALL MPI_SENDRECV_REPLACE(lgrid3, nloc, MPI_DOUBLE_PRECISION, right, 0, left, 0, comm%handle, MPI_STATUS_IGNORE, ierr)
-            END DO
-            t5 = MPI_WTIME() - t3 + threshold
-            CALL mpi_allreduce(t4, res, 1, MPI_DOUBLE_PRECISION, MPI_MAX, comm%handle, ierr)
-            CALL mpi_allreduce(t5, res2, 1, MPI_DOUBLE_PRECISION, MPI_MAX, comm%handle, ierr)
-            maxdiff = MAXVAL(ABS(lgrid3 - lgrid))
-            CALL mpi_allreduce(maxdiff, res3, 1, MPI_DOUBLE_PRECISION, MPI_MAX, comm%handle, ierr)
-       IF (ionode .AND. output_unit > 0) WRITE (output_unit, *) "INVOLVED SHIFT        ", res + res2, "(", res, ",", res2, ")", res3
-         END DO
-         DEALLOCATE (rcount)
-         DEALLOCATE (scount)
-         DEALLOCATE (sdispl)
-         DEALLOCATE (rdispl)
-         DEALLOCATE (buffer1)
-         DEALLOCATE (buffer2)
-         DEALLOCATE (buffer3)
-         DEALLOCATE (grid)
-         DEALLOCATE (grid2)
-         DEALLOCATE (grid3)
-         DEALLOCATE (lgrid)
-         DEALLOCATE (lgrid2)
-         DEALLOCATE (lgrid3)
-         DEALLOCATE (send_timings)
-         DEALLOCATE (send_timings2)
-#else
-         MARK_USED(comm)
-         MARK_USED(npow)
-         IF (output_unit > 0) WRITE (output_unit, *) "No MPI tests for a serial program"
-#endif
-      END SUBROUTINE mpi_perf_test
 
 ! **************************************************************************************************
 !> \brief Starts a timer region
