@@ -386,8 +386,8 @@ CONTAINS
          IF (p > 1) DEALLOCATE (fp1)
       END IF
 
-      CALL para_env%bcast(qtb_therm%h, para_env%source)
-      CALL para_env%bcast(qtb_therm%step, para_env%source)
+      CALL para_env%bcast(qtb_therm%h)
+      CALL para_env%bcast(qtb_therm%step)
 
       ALLOCATE (qtb_therm%r(nf, p, ndim))
       ALLOCATE (qtb_therm%cpt(p))

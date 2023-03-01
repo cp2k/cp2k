@@ -177,8 +177,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: is_ortho
       REAL(KIND=dp), INTENT(IN)                          :: zet_min, zet_max
       INTEGER, INTENT(IN)                                :: l_max_zet, l_max
-      TYPE(cp_para_env_type), INTENT(IN), OPTIONAL, &
-         POINTER                                         :: para_env
+      TYPE(cp_para_env_type), INTENT(IN), OPTIONAL       :: para_env
       INTEGER, INTENT(IN), OPTIONAL                      :: potential
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pot_par
 

@@ -148,9 +148,9 @@ CONTAINS
       END IF
       ! broadcast to all compulational nodes. note that it is assumed
       ! that source is the ionode
-      CALL para_env%bcast(dof, para_env%source)
-      CALL para_env%bcast(eigenvalues, para_env%source)
-      CALL para_env%bcast(eigenvectors, para_env%source)
+      CALL para_env%bcast(dof)
+      CALL para_env%bcast(eigenvalues)
+      CALL para_env%bcast(eigenvectors)
       ! close file
       IF (para_env%is_source()) THEN
          CALL close_file(unit_number=unit_nr)

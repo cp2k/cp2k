@@ -306,28 +306,27 @@ CONTAINS
       TYPE(mp_comm_type), INTENT(IN)                     :: mp_group
       INTEGER, DIMENSION(2)                              :: irange
 
-      INTEGER                                            :: numtask, taskid
       REAL(KIND=dp)                                      :: rat
 
-      numtask = mp_group%num_pe
-      taskid = mp_group%mepos
+      ASSOCIATE (numtask => mp_group%num_pe, taskid => mp_group%mepos)
 
-      IF (numtask == 1 .AND. taskid == 0) THEN
-         irange(1) = 1
-         irange(2) = nindex
-      ELSEIF (numtask >= nindex) THEN
-         IF (taskid >= nindex) THEN
+         IF (numtask == 1 .AND. taskid == 0) THEN
             irange(1) = 1
-            irange(2) = 0
+            irange(2) = nindex
+         ELSEIF (numtask >= nindex) THEN
+            IF (taskid >= nindex) THEN
+               irange(1) = 1
+               irange(2) = 0
+            ELSE
+               irange(1) = taskid + 1
+               irange(2) = taskid + 1
+            END IF
          ELSE
-            irange(1) = taskid + 1
-            irange(2) = taskid + 1
+            rat = REAL(nindex, KIND=dp)/REAL(numtask, KIND=dp)
+            irange(1) = NINT(rat*taskid) + 1
+            irange(2) = NINT(rat*taskid + rat)
          END IF
-      ELSE
-         rat = REAL(nindex, KIND=dp)/REAL(numtask, KIND=dp)
-         irange(1) = NINT(rat*taskid) + 1
-         irange(2) = NINT(rat*taskid + rat)
-      END IF
+      END ASSOCIATE
 
    END FUNCTION get_irange_csr
 

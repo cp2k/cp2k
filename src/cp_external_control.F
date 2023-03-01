@@ -223,7 +223,7 @@ CONTAINS
             END IF
          END IF
       END IF
-      CALL logger%para_env%bcast(should_stop, logger%para_env%source)
+      CALL logger%para_env%bcast(should_stop)
 
       check_always = should_stop
 

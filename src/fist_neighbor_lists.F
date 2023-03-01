@@ -650,18 +650,16 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: name, unit_str
 
       CHARACTER(LEN=default_string_length)               :: string
-      INTEGER                                            :: atom_a, atom_b, iab, ilist, mype, &
-                                                            nneighbor
+      INTEGER                                            :: atom_a, atom_b, iab, ilist, nneighbor
       LOGICAL                                            :: print_headline
       REAL(dp)                                           :: conv, dab
       REAL(dp), DIMENSION(3)                             :: cell_v, ra, rab, rb
       TYPE(neighbor_kind_pairs_type), POINTER            :: neighbor_kind_pair
 
-      mype = para_env%mepos
       ! Print headline
       string = ""
       WRITE (UNIT=string, FMT="(A,I5,A)") &
-         TRIM(name)//" IN "//TRIM(unit_str)//" (PROCESS", mype, ")"
+         TRIM(name)//" IN "//TRIM(unit_str)//" (PROCESS", para_env%mepos, ")"
       CALL compress(string)
       IF (output_unit > 0) WRITE (UNIT=output_unit, FMT="(/,/,T2,A)") TRIM(string)
 
@@ -710,7 +708,7 @@ CONTAINS
 
       string = ""
       WRITE (UNIT=string, FMT="(A,I12,A,I12)") &
-         "Total number of neighbor interactions for process", mype, ":", &
+         "Total number of neighbor interactions for process", para_env%mepos, ":", &
          nneighbor
       CALL compress(string)
       IF (output_unit > 0) WRITE (UNIT=output_unit, FMT="(/,T2,A)") TRIM(string)

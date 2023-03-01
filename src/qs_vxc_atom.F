@@ -99,8 +99,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_vxc_atom'
 
       INTEGER                                            :: bo(2), handle, ia, iat, iatom, idir, &
-                                                            ikind, ir, ispin, mepos, myfun, na, &
-                                                            natom, nr, nspins, num_pe
+                                                            ikind, ir, ispin, myfun, na, natom, &
+                                                            nr, nspins, num_pe
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL                                            :: donlcc, epr_xc, gradient_f, lsd, nlcc, &
@@ -278,8 +278,7 @@ CONTAINS
             ! Distribute the atoms of this kind
 
             num_pe = para_env%num_pe
-            mepos = para_env%mepos
-            bo = get_limit(natom, num_pe, mepos)
+            bo = get_limit(natom, para_env%num_pe, para_env%mepos)
 
             DO iat = bo(1), bo(2)
                iatom = atom_list(iat)
@@ -470,7 +469,7 @@ CONTAINS
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set, rho1_atom_set
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: xc_section
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_tddft, do_tddfpt2, do_triplet
       TYPE(qs_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: kind_set_external
@@ -774,8 +773,8 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: epsrho = 5.e-4_dp
 
       INTEGER                                            :: bo(2), handle, iat, iatom, ikind, ir, &
-                                                            istep, mepos, myfun, na, natom, nf, &
-                                                            nr, ns, nspins, nstep, num_pe
+                                                            istep, myfun, na, natom, nf, nr, ns, &
+                                                            nspins, nstep, num_pe
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL                                            :: donlcc, gradient_f, lsd, nlcc, paw_atom, &
@@ -918,8 +917,7 @@ CONTAINS
 
             ! Distribute the atoms of this kind
             num_pe = para_env%num_pe
-            mepos = para_env%mepos
-            bo = get_limit(natom, num_pe, mepos)
+            bo = get_limit(natom, num_pe, para_env%mepos)
 
             DO iat = bo(1), bo(2)
                iatom = atom_list(iat)

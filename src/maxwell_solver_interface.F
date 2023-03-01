@@ -148,27 +148,11 @@ CONTAINS
       END IF
 
       ! The following code block is copied from src/pw/realspace_grid_cube.F
+      CALL gid%bcast(buffer(lbounds(3):ubounds(3)), 0)
 
       !master sends all data to everyone
       DO i = lbounds(1), ubounds(1)
          DO j = lbounds(2), ubounds(2)
-
-            IF (my_rank == 0) THEN
-               !buffer(lbounds(3)) = 23.0;
-               !buffer(lbounds(3)+1) = 42.0;
-               !buffer(lbounds(3)+2) = 69.0;
-               res = libcp2kmw_getzrow(buffer, i - lbounds(1) + 1, j - lbounds(2) + 1, 1, ubounds(3) - lbounds(3) + 1)
-               IF (num_pe > 1) THEN
-                  DO ip = 1, num_pe - 1
-                     CALL gid%send(buffer(lbounds(3):ubounds(3)), ip, tag)
-                  END DO
-               END IF
-            ELSE
-               master = 0
-               CALL gid%recv(buffer(lbounds(3):ubounds(3)), master, tag)
-            END IF
-
-            CALL gid%sync()
 
             !only use data that is local to me - i.e. in slice of pencil I own
             IF ((lbounds_local(1) <= i) .AND. (i <= ubounds_local(1)) .AND. &

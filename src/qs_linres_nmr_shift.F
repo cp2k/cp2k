@@ -259,8 +259,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'nmr_shift_gapw'
 
-      INTEGER :: handle, ia, iat, iatom, idir2_1, idir3_1, ikind, ir, ira, ispin, j, jatom, mepos, &
-         n_nics, na, natom, natom_local, natom_tot, nkind, nnics_local, nr, nra, nspins, num_pe, &
+      INTEGER :: handle, ia, iat, iatom, idir2_1, idir3_1, ikind, ir, ira, ispin, j, jatom, &
+         n_nics, na, natom, natom_local, natom_tot, nkind, nnics_local, nr, nra, nspins, &
          output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: list_j, list_nics_j
       INTEGER, DIMENSION(2)                              :: bo
@@ -364,9 +364,7 @@ CONTAINS
          IF (paw_atom) THEN
             !
             ! Distribute the atoms of this kind
-            num_pe = para_env%num_pe
-            mepos = para_env%mepos
-            bo = get_limit(natom, num_pe, mepos)
+            bo = get_limit(natom, para_env%num_pe, para_env%mepos)
             !
             DO iat = bo(1), bo(2)
                iatom = atom_list(iat)

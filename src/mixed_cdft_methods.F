@@ -1563,8 +1563,7 @@ CONTAINS
             CALL force_env_get(force_env%sub_force_env(iforce_eval)%force_env, qs_env=qs_env)
          END IF
          CALL get_qs_env(qs_env, energy=energy_qs, dft_control=dft_control)
-         IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%mepos == &
-             force_env%sub_force_env(iforce_eval)%force_env%para_env%source) THEN
+         IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%is_source()) THEN
             W_diagonal(:, iforce_eval) = dft_control%qs_control%cdft_control%value(:)
             energy(iforce_eval) = energy_qs%total
          END IF
@@ -2106,8 +2105,8 @@ CONTAINS
       CPASSERT(ASSOCIATED(mixed_cdft%qs_kind_set))
       IF (force_env%para_env%is_source()) &
          CALL wfn_restart_file_name(file_name, exist, mixed_cdft_section, logger)
-      CALL force_env%para_env%bcast(exist, force_env%para_env%source)
-      CALL force_env%para_env%bcast(file_name, force_env%para_env%source)
+      CALL force_env%para_env%bcast(exist)
+      CALL force_env%para_env%bcast(file_name)
       IF (.NOT. exist) &
          CALL cp_abort(__LOCATION__, &
                        "User requested to restart the wavefunction from the file named: "// &

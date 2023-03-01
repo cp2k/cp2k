@@ -292,8 +292,8 @@ CONTAINS
          CALL close_file(unit_number=extunit)
       END IF
 
-      CALL para_env%bcast(npts, para_env%source)
-      CALL para_env%bcast(dcell, para_env%source)
+      CALL para_env%bcast(npts)
+      CALL para_env%bcast(dcell)
 
       NULLIFY (pw_grid)
       CALL pw_grid_create(pw_grid, para_env)

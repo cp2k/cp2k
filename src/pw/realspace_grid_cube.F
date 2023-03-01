@@ -245,10 +245,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cube_to_pw'
       INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
-      INTEGER                                            :: extunit, handle, i, ip, j, k, master, &
-                                                            msglen, my_rank, nat, ndum, &
-                                                            num_linebreak, num_pe, output_unit, &
-                                                            size_of_z, tag
+      INTEGER                                            :: extunit, handle, i, j, k, msglen, &
+                                                            my_rank, nat, ndum, num_linebreak, &
+                                                            num_pe, output_unit, size_of_z, tag
       INTEGER, DIMENSION(3)                              :: lbounds, lbounds_local, npoints, &
                                                             npoints_local, ubounds, ubounds_local
       LOGICAL                                            :: be_silent
@@ -323,16 +322,8 @@ CONTAINS
             DO j = lbounds(2), ubounds(2)
                IF (my_rank .EQ. 0) THEN
                   READ (extunit, *) (buffer(k), k=lbounds(3), ubounds(3))
-                  IF (num_pe .GT. 1) THEN
-                     DO ip = 1, num_pe - 1
-                        CALL gid%send(buffer(lbounds(3):ubounds(3)), ip, tag)
-                     END DO
-                  END IF
-               ELSE
-                  master = 0
-                  CALL gid%recv(buffer(lbounds(3):ubounds(3)), master, tag)
                END IF
-               CALL gid%sync()
+               CALL gid%bcast(buffer(lbounds(3):ubounds(3)), 0)
 
                !only use data that is local to me - i.e. in slice of pencil I own
                IF ((lbounds_local(1) .LE. i) .AND. (i .LE. ubounds_local(1)) .AND. (lbounds_local(2) .LE. j) &
@@ -391,8 +382,8 @@ CONTAINS
       INTEGER(kind=file_offset), ALLOCATABLE, &
          DIMENSION(:), TARGET                            :: displacements
       INTEGER(kind=file_offset)                          :: BOF
-      INTEGER :: extunit_handle, i, ientry, ip, islice, j, k, master, my_rank, nat, ndum, nslices, &
-         num_pe, offset_global, output_unit, pos, readstat, size_of_z, tag
+      INTEGER :: extunit_handle, i, ientry, islice, j, k, my_rank, nat, ndum, nslices, num_pe, &
+         offset_global, output_unit, pos, readstat, size_of_z, tag
       CHARACTER(LEN=msglen), ALLOCATABLE, DIMENSION(:)   :: readbuffer
       CHARACTER(LEN=msglen)                              :: tmp
       LOGICAL                                            :: be_silent, should_read(2)
@@ -593,16 +584,8 @@ CONTAINS
             DO j = lbounds(2), ubounds(2)
                IF (my_rank .EQ. 0) THEN
                   READ (extunit_handle, *) (buffer(k), k=lbounds(3), ubounds(3))
-                  IF (num_pe .GT. 1) THEN
-                     DO ip = 1, num_pe - 1
-                        CALL gid%send(buffer(lbounds(3):ubounds(3)), ip, tag)
-                     END DO
-                  END IF
-               ELSE
-                  master = 0
-                  CALL gid%recv(buffer(lbounds(3):ubounds(3)), master, tag)
                END IF
-               CALL gid%sync()
+               CALL gid%bcast(buffer(lbounds(3):ubounds(3)), 0)
 
                !only use data that is local to me - i.e. in slice of pencil I own
                IF ((lbounds_local(1) .LE. i) .AND. (i .LE. ubounds_local(1)) .AND. (lbounds_local(2) .LE. j) &

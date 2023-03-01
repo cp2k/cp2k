@@ -120,9 +120,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'update_ks_atom'
 
       INTEGER :: bo(2), handle, ia_kind, iac, iat, iatom, ibc, ikind, img, ip, ispin, ja_kind, &
-         jatom, jkind, ka_kind, kac, katom, kbc, kkind, ldCPC, max_gau, max_nsgf, mepos, n_cont_a, &
-         n_cont_b, nat, natom, nimages, nkind, nl_table_num_slots, nsoctot, nspins, num_pe, &
-         slot_num
+         jatom, jkind, ka_kind, kac, katom, kbc, kkind, ldCPC, max_gau, max_nsgf, n_cont_a, &
+         n_cont_b, nat, natom, nimages, nkind, nl_table_num_slots, nsoctot, nspins, slot_num
       INTEGER(KIND=int_8)                                :: nl_table_key
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       INTEGER, DIMENSION(3)                              :: cell_b
@@ -227,8 +226,7 @@ CONTAINS
 
       nkind = SIZE(my_kind_set, 1)
       ! Collect the local potential contributions from all the processors
-      mepos = para_env%mepos
-      num_pe = para_env%num_pe
+      ASSOCIATE (mepos => para_env%mepos, num_pe => para_env%num_pe)
       DO ikind = 1, nkind
          NULLIFY (atom_list)
          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=nat)
@@ -258,6 +256,7 @@ CONTAINS
             END DO
          END IF
       END DO
+      END ASSOCIATE
 
       ALLOCATE (basis_set_list(nkind))
       DO ikind = 1, nkind

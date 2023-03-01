@@ -925,7 +925,7 @@ CONTAINS
       REAL(dp)                                           :: pmax_blocks
       TYPE(cell_type), INTENT(IN), POINTER               :: cell
       TYPE(hfx_type), INTENT(IN), POINTER                :: x_data
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)        :: para_env
       REAL(dp), DIMENSION(:, :), INTENT(IN), POINTER     :: pmax_block
       LOGICAL, INTENT(IN)                                :: do_p_screening
       INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: map_atom_to_kind_atom
@@ -1235,7 +1235,7 @@ CONTAINS
       REAL(dp)                                           :: pmax_blocks
       TYPE(cell_type), POINTER                           :: cell
       TYPE(hfx_type), POINTER                            :: x_data
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       REAL(dp), DIMENSION(:, :), POINTER                 :: pmax_block
       LOGICAL, INTENT(IN)                                :: do_p_screening
       INTEGER, DIMENSION(:), POINTER                     :: map_atom_to_kind_atom
@@ -1482,7 +1482,7 @@ CONTAINS
                                       i_thread, n_threads, eval_type)
 
       TYPE(hfx_type), POINTER                            :: x_data
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       TYPE(hfx_load_balance_type)                        :: load_balance_parameter
       INTEGER, INTENT(IN)                                :: i_thread, n_threads, eval_type
 
@@ -2253,7 +2253,7 @@ CONTAINS
                           atomic_pair_list)
 
       INTEGER, INTENT(IN)                                :: nkind
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER                                            :: natom, block_size, nblock
       TYPE(hfx_block_range_type), DIMENSION(1:nblock)    :: blocks
       TYPE(pair_list_type)                               :: list_ij, list_kl
@@ -2327,7 +2327,7 @@ CONTAINS
    SUBROUTINE collect_load_balance_info(para_env, x_data, iw, n_threads, i_thread, &
                                         eval_type)
 
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       TYPE(hfx_type), POINTER                            :: x_data
       INTEGER, INTENT(IN)                                :: iw, n_threads, i_thread, eval_type
 
@@ -2418,7 +2418,7 @@ CONTAINS
          buffer_in(2*i) = shm_cost_vector(2*i)
       END DO
 
-      CALL para_env%gatherv(buffer_in, buffer_out, bins_per_rank, rdispl, para_env%source)
+      CALL para_env%gatherv(buffer_in, buffer_out, bins_per_rank, rdispl)
 
       IF (iw > 0) THEN
 

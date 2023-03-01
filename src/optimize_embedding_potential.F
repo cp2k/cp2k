@@ -823,7 +823,7 @@ CONTAINS
       END IF
 
       ! Broadcast the coefficients on all processes
-      CALL para_env%bcast(coef, para_env%source)
+      CALL para_env%bcast(coef)
 
       ! Copy to fm_type structure
       ! Information about full matrix gradient

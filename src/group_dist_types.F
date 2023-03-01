@@ -12,7 +12,7 @@
 !> \author Frederick Stein
 ! **************************************************************************************************
 MODULE group_dist_types
-   USE cp_para_types,                   ONLY: cp_para_env_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE util,                            ONLY: get_limit
 #include "./base/base_uses.f90"
 
@@ -129,12 +129,13 @@ CONTAINS
 !> \param starts ...
 !> \param ends ...
 !> \param sizes ...
-!> \param para_env ...
+!> \param comm ...
 ! **************************************************************************************************
-   SUBROUTINE create_group_dist_d1_i3(this, starts, ends, sizes, para_env)
+   SUBROUTINE create_group_dist_d1_i3(this, starts, ends, sizes, comm)
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: this
       INTEGER, INTENT(IN)                                :: starts, ends, sizes
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+
+      CLASS(mp_comm_type), INTENT(IN)                    :: comm
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_group_dist_d1_i3'
 
@@ -142,13 +143,13 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ALLOCATE (this%starts(0:para_env%num_pe - 1))
-      ALLOCATE (this%ends(0:para_env%num_pe - 1))
-      ALLOCATE (this%sizes(0:para_env%num_pe - 1))
+      ALLOCATE (this%starts(0:comm%num_pe - 1))
+      ALLOCATE (this%ends(0:comm%num_pe - 1))
+      ALLOCATE (this%sizes(0:comm%num_pe - 1))
 
-      CALL para_env%allgather(starts, this%starts)
-      CALL para_env%allgather(ends, this%ends)
-      CALL para_env%allgather(sizes, this%sizes)
+      CALL comm%allgather(starts, this%starts)
+      CALL comm%allgather(ends, this%ends)
+      CALL comm%allgather(sizes, this%sizes)
 
       CALL timestop(handle)
 
@@ -158,12 +159,13 @@ CONTAINS
 !> \brief ...
 !> \param this ...
 !> \param group_dist_ext ...
-!> \param para_env ...
+!> \param comm ...
 ! **************************************************************************************************
-   SUBROUTINE create_group_dist_d1_gd(this, group_dist_ext, para_env)
+   SUBROUTINE create_group_dist_d1_gd(this, group_dist_ext, comm)
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: this
       TYPE(group_dist_d0_type), INTENT(IN)               :: group_dist_ext
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+
+      CLASS(mp_comm_type), INTENT(IN)                    :: comm
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_group_dist_d1_gd'
 
@@ -171,13 +173,13 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ALLOCATE (this%starts(0:para_env%num_pe - 1))
-      ALLOCATE (this%ends(0:para_env%num_pe - 1))
-      ALLOCATE (this%sizes(0:para_env%num_pe - 1))
+      ALLOCATE (this%starts(0:comm%num_pe - 1))
+      ALLOCATE (this%ends(0:comm%num_pe - 1))
+      ALLOCATE (this%sizes(0:comm%num_pe - 1))
 
-      CALL para_env%allgather(group_dist_ext%starts, this%starts)
-      CALL para_env%allgather(group_dist_ext%ends, this%ends)
-      CALL para_env%allgather(group_dist_ext%sizes, this%sizes)
+      CALL comm%allgather(group_dist_ext%starts, this%starts)
+      CALL comm%allgather(group_dist_ext%ends, this%ends)
+      CALL comm%allgather(group_dist_ext%sizes, this%sizes)
 
       CALL timestop(handle)
 

@@ -763,11 +763,16 @@
 
 #if defined(__parallel)
       msglen = 1
-      CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, comm%handle, status, ierr)
-      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
-      CALL add_perf(perf_id=14, count=1, msg_size=msglen*${bytes1}$)
-      source = status MPI_STATUS_EXTRACT(MPI_SOURCE)
-      tag = status MPI_STATUS_EXTRACT(MPI_TAG)
+      IF (source /= mp_any_source .AND. tag /= mp_any_tag) THEN
+         CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, comm%handle, MPI_STATUS_IGNORE, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
+      ELSE
+         CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, comm%handle, status, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
+         CALL add_perf(perf_id=14, count=1, msg_size=msglen*${bytes1}$)
+         source = status MPI_STATUS_EXTRACT(MPI_SOURCE)
+         tag = status MPI_STATUS_EXTRACT(MPI_TAG)
+      END IF
 #else
       MARK_USED(msg)
       MARK_USED(source)
@@ -804,11 +809,16 @@
 
 #if defined(__parallel)
       msglen = SIZE(msg)
-      CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, comm%handle, status, ierr)
-      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
-      CALL add_perf(perf_id=14, count=1, msg_size=msglen*${bytes1}$)
-      source = status MPI_STATUS_EXTRACT(MPI_SOURCE)
-      tag = status MPI_STATUS_EXTRACT(MPI_TAG)
+      IF (source /= mp_any_source .AND. tag /= mp_any_tag) THEN
+         CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, comm%handle, MPI_STATUS_IGNORE, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
+      ELSE
+         CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, comm%handle, status, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
+         CALL add_perf(perf_id=14, count=1, msg_size=msglen*${bytes1}$)
+         source = status MPI_STATUS_EXTRACT(MPI_SOURCE)
+         tag = status MPI_STATUS_EXTRACT(MPI_TAG)
+      END IF
 #else
       MARK_USED(msg)
       MARK_USED(source)
@@ -845,11 +855,16 @@
 
 #if defined(__parallel)
       msglen = SIZE(msg)
-      CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, comm%handle, status, ierr)
-      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
-      CALL add_perf(perf_id=14, count=1, msg_size=msglen*${bytes1}$)
-      source = status MPI_STATUS_EXTRACT(MPI_SOURCE)
-      tag = status MPI_STATUS_EXTRACT(MPI_TAG)
+      IF (source /= mp_any_source .AND. tag /= mp_any_tag) THEN
+         CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, comm%handle, MPI_STATUS_IGNORE, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
+      ELSE
+         CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, comm%handle, status, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
+         CALL add_perf(perf_id=14, count=1, msg_size=msglen*${bytes1}$)
+         source = status MPI_STATUS_EXTRACT(MPI_SOURCE)
+         tag = status MPI_STATUS_EXTRACT(MPI_TAG)
+      END IF
 #else
       MARK_USED(msg)
       MARK_USED(source)
@@ -886,11 +901,16 @@
 
 #if defined(__parallel)
       msglen = SIZE(msg)
-      CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, comm%handle, status, ierr)
-      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
-      CALL add_perf(perf_id=14, count=1, msg_size=msglen*${bytes1}$)
-      source = status MPI_STATUS_EXTRACT(MPI_SOURCE)
-      tag = status MPI_STATUS_EXTRACT(MPI_TAG)
+      IF (source /= mp_any_source .AND. tag /= mp_any_tag) THEN
+         CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, comm%handle, MPI_STATUS_IGNORE, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
+      ELSE
+         CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, comm%handle, status, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
+         CALL add_perf(perf_id=14, count=1, msg_size=msglen*${bytes1}$)
+         source = status MPI_STATUS_EXTRACT(MPI_SOURCE)
+         tag = status MPI_STATUS_EXTRACT(MPI_TAG)
+      END IF
 #else
       MARK_USED(msg)
       MARK_USED(source)
@@ -936,6 +956,38 @@
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_bcast_${nametype1}$
+
+! **************************************************************************************************
+!> \brief Broadcasts a datum to all processes. Convenience function using the source of the communicator
+!> \param[in] msg             Datum to broadcast
+!> \param[in] comm             Message passing environment identifier
+!> \par MPI mapping
+!>      mpi_bcast
+! **************************************************************************************************
+   SUBROUTINE mp_bcast_${nametype1}$_src(msg, comm)
+      ${type1}$, INTENT(INOUT)                                  :: msg
+      CLASS(mp_comm_type), INTENT(IN) :: comm
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_${nametype1}$_src'
+
+      INTEGER                                  :: handle
+#if defined(__parallel)
+      INTEGER :: ierr, msglen
+#endif
+
+      CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+      msglen = 1
+      CALL mpi_bcast(msg, msglen, ${mpi_type1}$, comm%source, comm%handle, ierr)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_bcast @ "//routineN)
+      CALL add_perf(perf_id=2, count=1, msg_size=msglen*${bytes1}$)
+#else
+      MARK_USED(msg)
+      MARK_USED(comm)
+#endif
+      CALL mp_timestop(handle)
+   END SUBROUTINE mp_bcast_${nametype1}$_src
 
 ! **************************************************************************************************
 !> \brief Broadcasts a datum to all processes.
@@ -1009,6 +1061,37 @@
    END SUBROUTINE mp_bcast_${nametype1}$v
 
 ! **************************************************************************************************
+!> \brief Broadcasts rank-1 data to all processes, uses the source of the communicator, convenience function
+!> \param[in] msg             Data to broadcast
+!> \param comm ...
+!> \note see mp_bcast_${nametype1}$1
+! **************************************************************************************************
+   SUBROUTINE mp_bcast_${nametype1}$v_src(msg, comm)
+      ${type1}$, CONTIGUOUS, INTENT(INOUT)                                  :: msg(:)
+      CLASS(mp_comm_type), INTENT(IN) :: comm
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_${nametype1}$v_src'
+
+      INTEGER                                  :: handle
+#if defined(__parallel)
+      INTEGER :: ierr, msglen
+#endif
+
+      CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+      msglen = SIZE(msg)
+      CALL mpi_bcast(msg, msglen, ${mpi_type1}$, comm%source, comm%handle, ierr)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_bcast @ "//routineN)
+      CALL add_perf(perf_id=2, count=1, msg_size=msglen*${bytes1}$)
+#else
+      MARK_USED(msg)
+      MARK_USED(comm)
+#endif
+      CALL mp_timestop(handle)
+   END SUBROUTINE mp_bcast_${nametype1}$v_src
+
+! **************************************************************************************************
 !> \brief Broadcasts rank-1 data to all processes
 !> \param[in] msg             Data to broadcast
 !> \param source ...
@@ -1059,7 +1142,7 @@
       INTEGER, INTENT(IN)                                  :: source
       CLASS(mp_comm_type), INTENT(IN) :: comm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_im'
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_${nametype1}$m'
 
       INTEGER                                  :: handle
 #if defined(__parallel)
@@ -1080,6 +1163,38 @@
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_bcast_${nametype1}$m
+
+! **************************************************************************************************
+!> \brief Broadcasts rank-2 data to all processes
+!> \param[in] msg             Data to broadcast
+!> \param source ...
+!> \param comm ...
+!> \note see mp_bcast_${nametype1}$1
+! **************************************************************************************************
+   SUBROUTINE mp_bcast_${nametype1}$m_src(msg, comm)
+      ${type1}$, CONTIGUOUS, INTENT(INOUT)                                  :: msg(:, :)
+      CLASS(mp_comm_type), INTENT(IN) :: comm
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_${nametype1}$m_src'
+
+      INTEGER                                  :: handle
+#if defined(__parallel)
+      INTEGER :: ierr, msglen
+#endif
+
+      CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+      msglen = SIZE(msg)
+      CALL mpi_bcast(msg, msglen, ${mpi_type1}$, comm%source, comm%handle, ierr)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_bcast @ "//routineN)
+      CALL add_perf(perf_id=2, count=1, msg_size=msglen*${bytes1}$)
+#else
+      MARK_USED(msg)
+      MARK_USED(comm)
+#endif
+      CALL mp_timestop(handle)
+   END SUBROUTINE mp_bcast_${nametype1}$m_src
 
 ! **************************************************************************************************
 !> \brief Broadcasts rank-3 data to all processes
@@ -1114,6 +1229,38 @@
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_bcast_${nametype1}$3
+
+! **************************************************************************************************
+!> \brief Broadcasts rank-3 data to all processes. Uses the source of the communicator for convenience
+!> \param[in] msg             Data to broadcast
+!> \param source ...
+!> \param comm ...
+!> \note see mp_bcast_${nametype1}$1
+! **************************************************************************************************
+   SUBROUTINE mp_bcast_${nametype1}$3_src(msg, comm)
+      ${type1}$, CONTIGUOUS                                  :: msg(:, :, :)
+      CLASS(mp_comm_type), INTENT(IN) :: comm
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_${nametype1}$3_src'
+
+      INTEGER                                  :: handle
+#if defined(__parallel)
+      INTEGER :: ierr, msglen
+#endif
+
+      CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+      msglen = SIZE(msg)
+      CALL mpi_bcast(msg, msglen, ${mpi_type1}$, comm%source, comm%handle, ierr)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_bcast @ "//routineN)
+      CALL add_perf(perf_id=2, count=1, msg_size=msglen*${bytes1}$)
+#else
+      MARK_USED(msg)
+      MARK_USED(comm)
+#endif
+      CALL mp_timestop(handle)
+   END SUBROUTINE mp_bcast_${nametype1}$3_src
 
 ! **************************************************************************************************
 !> \brief Sums a datum from all processes with result left on all processes.
@@ -1836,6 +1983,41 @@
    END SUBROUTINE mp_gather_${nametype1}$
 
 ! **************************************************************************************************
+!> \brief Gathers a datum from all processes to one, uses the source process of comm
+!> \param[in] msg             Datum to send to root
+!> \param[out] msg_gather     Received data (on root)
+!> \param[in] comm            Message passing environment identifier
+!> \par MPI mapping
+!>      mpi_gather
+! **************************************************************************************************
+   SUBROUTINE mp_gather_${nametype1}$_src(msg, msg_gather, comm)
+      ${type1}$, INTENT(IN)                      :: msg
+      ${type1}$, CONTIGUOUS, INTENT(OUT)                     :: msg_gather(:)
+      CLASS(mp_comm_type), INTENT(IN) :: comm
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_gather_${nametype1}$_src'
+
+      INTEGER                                  :: handle
+#if defined(__parallel)
+      INTEGER :: ierr, msglen
+#endif
+
+      CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+      msglen = 1
+      CALL mpi_gather(msg, msglen, ${mpi_type1}$, msg_gather, &
+                      msglen, ${mpi_type1}$, comm%source, comm%handle, ierr)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_gather @ "//routineN)
+      CALL add_perf(perf_id=4, count=1, msg_size=msglen*${bytes1}$)
+#else
+      MARK_USED(comm)
+      msg_gather(1) = msg
+#endif
+      CALL mp_timestop(handle)
+   END SUBROUTINE mp_gather_${nametype1}$_src
+
+! **************************************************************************************************
 !> \brief Gathers data from all processes to one
 !> \param[in] msg             Datum to send to root
 !> \param msg_gather ...
@@ -1877,6 +2059,44 @@
    END SUBROUTINE mp_gather_${nametype1}$v
 
 ! **************************************************************************************************
+!> \brief Gathers data from all processes to one. Gathers from comm%source
+!> \param[in] msg             Datum to send to root
+!> \param msg_gather ...
+!> \param comm ...
+!> \par Data length
+!>      All data (msg) is equal-sized
+!> \par MPI mapping
+!>      mpi_gather
+!> \note see mp_gather_${nametype1}$
+! **************************************************************************************************
+   SUBROUTINE mp_gather_${nametype1}$v_src(msg, msg_gather, comm)
+      ${type1}$, CONTIGUOUS, INTENT(IN)                      :: msg(:)
+      ${type1}$, CONTIGUOUS, INTENT(OUT)                     :: msg_gather(:)
+      CLASS(mp_comm_type), INTENT(IN) :: comm
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_gather_${nametype1}$v_src'
+
+      INTEGER                                  :: handle
+#if defined(__parallel)
+      INTEGER :: ierr, msglen
+#endif
+
+      CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+      msglen = SIZE(msg)
+      CALL mpi_gather(msg, msglen, ${mpi_type1}$, msg_gather, &
+                      msglen, ${mpi_type1}$, comm%source, comm%handle, ierr)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_gather @ "//routineN)
+      CALL add_perf(perf_id=4, count=1, msg_size=msglen*${bytes1}$)
+#else
+      MARK_USED(comm)
+      msg_gather = msg
+#endif
+      CALL mp_timestop(handle)
+   END SUBROUTINE mp_gather_${nametype1}$v_src
+
+! **************************************************************************************************
 !> \brief Gathers data from all processes to one
 !> \param[in] msg             Datum to send to root
 !> \param msg_gather ...
@@ -1916,6 +2136,44 @@
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_gather_${nametype1}$m
+
+! **************************************************************************************************
+!> \brief Gathers data from all processes to one. Gathers from comm%source
+!> \param[in] msg             Datum to send to root
+!> \param msg_gather ...
+!> \param comm ...
+!> \par Data length
+!>      All data (msg) is equal-sized
+!> \par MPI mapping
+!>      mpi_gather
+!> \note see mp_gather_${nametype1}$
+! **************************************************************************************************
+   SUBROUTINE mp_gather_${nametype1}$m_src(msg, msg_gather, comm)
+      ${type1}$, CONTIGUOUS, INTENT(IN)                      :: msg(:, :)
+      ${type1}$, CONTIGUOUS, INTENT(OUT)                     :: msg_gather(:, :)
+      CLASS(mp_comm_type), INTENT(IN) :: comm
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_gather_${nametype1}$m_src'
+
+      INTEGER                                  :: handle
+#if defined(__parallel)
+      INTEGER :: ierr, msglen
+#endif
+
+      CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+      msglen = SIZE(msg)
+      CALL mpi_gather(msg, msglen, ${mpi_type1}$, msg_gather, &
+                      msglen, ${mpi_type1}$, comm%source, comm%handle, ierr)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_gather @ "//routineN)
+      CALL add_perf(perf_id=4, count=1, msg_size=msglen*${bytes1}$)
+#else
+      MARK_USED(comm)
+      msg_gather = msg
+#endif
+      CALL mp_timestop(handle)
+   END SUBROUTINE mp_gather_${nametype1}$m_src
 
 ! **************************************************************************************************
 !> \brief Gathers data from all processes to one.
@@ -1968,6 +2226,53 @@
    END SUBROUTINE mp_gatherv_${nametype1}$v
 
 ! **************************************************************************************************
+!> \brief Gathers data from all processes to one. Gathers from comm%source
+!> \param[in] sendbuf         Data to send to root
+!> \param[out] recvbuf        Received data (on root)
+!> \param[in] recvcounts      Sizes of data received from processes
+!> \param[in] displs          Offsets of data received from processes
+!> \param[in] comm            Message passing environment identifier
+!> \par Data length
+!>      Data can have different lengths
+!> \par Offsets
+!>      Offsets start at 0
+!> \par MPI mapping
+!>      mpi_gather
+! **************************************************************************************************
+   SUBROUTINE mp_gatherv_${nametype1}$v_src(sendbuf, recvbuf, recvcounts, displs, comm)
+
+      ${type1}$, DIMENSION(:), CONTIGUOUS, INTENT(IN)        :: sendbuf
+      ${type1}$, DIMENSION(:), CONTIGUOUS, INTENT(OUT)       :: recvbuf
+      INTEGER, DIMENSION(:), CONTIGUOUS, INTENT(IN)        :: recvcounts, displs
+      CLASS(mp_comm_type), INTENT(IN) :: comm
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_gatherv_${nametype1}$v_src'
+
+      INTEGER                                  :: handle
+#if defined(__parallel)
+      INTEGER                                  :: ierr, sendcount
+#endif
+
+      CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+      sendcount = SIZE(sendbuf)
+      CALL mpi_gatherv(sendbuf, sendcount, ${mpi_type1}$, &
+                       recvbuf, recvcounts, displs, ${mpi_type1}$, &
+                       comm%source, comm%handle, ierr)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_gatherv @ "//routineN)
+      CALL add_perf(perf_id=4, &
+                    count=1, &
+                    msg_size=sendcount*${bytes1}$)
+#else
+      MARK_USED(recvcounts)
+      MARK_USED(comm)
+      recvbuf(1 + displs(1):) = sendbuf
+#endif
+      CALL mp_timestop(handle)
+   END SUBROUTINE mp_gatherv_${nametype1}$v_src
+
+! **************************************************************************************************
 !> \brief Gathers data from all processes to one.
 !> \param[in] sendbuf         Data to send to root
 !> \param[out] recvbuf        Received data (on root)
@@ -2016,6 +2321,53 @@
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_gatherv_${nametype1}$m2
+
+! **************************************************************************************************
+!> \brief Gathers data from all processes to one.
+!> \param[in] sendbuf         Data to send to root
+!> \param[out] recvbuf        Received data (on root)
+!> \param[in] recvcounts      Sizes of data received from processes
+!> \param[in] displs          Offsets of data received from processes
+!> \param[in] comm            Message passing environment identifier
+!> \par Data length
+!>      Data can have different lengths
+!> \par Offsets
+!>      Offsets start at 0
+!> \par MPI mapping
+!>      mpi_gather
+! **************************************************************************************************
+   SUBROUTINE mp_gatherv_${nametype1}$m2_src(sendbuf, recvbuf, recvcounts, displs, comm)
+
+      ${type1}$, DIMENSION(:, :), CONTIGUOUS, INTENT(IN)        :: sendbuf
+      ${type1}$, DIMENSION(:, :), CONTIGUOUS, INTENT(OUT)       :: recvbuf
+      INTEGER, DIMENSION(:), CONTIGUOUS, INTENT(IN)        :: recvcounts, displs
+      CLASS(mp_comm_type), INTENT(IN) :: comm
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_gatherv_${nametype1}$m2_src'
+
+      INTEGER                                  :: handle
+#if defined(__parallel)
+      INTEGER                                  :: ierr, sendcount
+#endif
+
+      CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+      sendcount = SIZE(sendbuf)
+      CALL mpi_gatherv(sendbuf, sendcount, ${mpi_type1}$, &
+                       recvbuf, recvcounts, displs, ${mpi_type1}$, &
+                       comm%source, comm%handle, ierr)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_gatherv @ "//routineN)
+      CALL add_perf(perf_id=4, &
+                    count=1, &
+                    msg_size=sendcount*${bytes1}$)
+#else
+      MARK_USED(recvcounts)
+      MARK_USED(comm)
+      recvbuf(:, 1 + displs(1):) = sendbuf
+#endif
+      CALL mp_timestop(handle)
+   END SUBROUTINE mp_gatherv_${nametype1}$m2_src
 
 ! **************************************************************************************************
 !> \brief Gathers data from all processes to one.

@@ -177,7 +177,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_env_release(pw_env, para_env)
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(cp_para_env_type), INTENT(IN), OPTIONAL       :: para_env
 
       INTEGER                                            :: i, igrid_level
 

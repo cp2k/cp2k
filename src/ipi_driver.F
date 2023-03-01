@@ -408,7 +408,7 @@ CONTAINS
 
          CALL para_env%sync()
 
-         CALL para_env%bcast(header, para_env%source)
+         CALL para_env%bcast(header)
 
          IF (output_unit > 0) WRITE (output_unit, *) " @ DRIVER MODE: Message from server: ", TRIM(header)
          IF (TRIM(header) == "STATUS") THEN
@@ -432,12 +432,12 @@ CONTAINS
                cellh = TRANSPOSE(cellh)
                cellih = TRANSPOSE(cellih)
             END IF
-            CALL para_env%bcast(cellh, para_env%source)
-            CALL para_env%bcast(cellih, para_env%source)
-            CALL para_env%bcast(nat, para_env%source)
+            CALL para_env%bcast(cellh)
+            CALL para_env%bcast(cellih)
+            CALL para_env%bcast(nat)
             IF (.NOT. ALLOCATED(combuf)) ALLOCATE (combuf(3*nat))
             IF (ionode) CALL readbuffer(socket, combuf, nat*3)
-            CALL para_env%bcast(combuf, para_env%source)
+            CALL para_env%bcast(combuf)
 
             CALL force_env_get(force_env, subsys=subsys)
             IF (nat /= subsys%particles%n_els) &

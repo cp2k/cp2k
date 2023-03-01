@@ -59,8 +59,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'external_read_density'
 
       CHARACTER(LEN=default_string_length)               :: filename
-      INTEGER                                            :: extunit, handle, i, igrid_level, ip, j, &
-                                                            k, master, nat, ndum, tag
+      INTEGER                                            :: extunit, handle, i, igrid_level, j, k, &
+                                                            nat, ndum, tag
       INTEGER, DIMENSION(3)                              :: lbounds, lbounds_local, npoints, &
                                                             npoints_local, ubounds, ubounds_local
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: buffer
@@ -169,19 +169,8 @@ CONTAINS
                   DO j = lbounds(2), ubounds(2)
                      IF (my_rank .EQ. 0) THEN
                         READ (extunit, *) (buffer(k), k=lbounds(3), ubounds(3))
-                        IF (num_pe .GT. 1) THEN
-                           DO ip = 1, num_pe - 1
-                              CALL gid%send(buffer(lbounds(3):ubounds(3)), ip, tag)
-!                  WRITE(*,*) my_rank," sending to : ",ip
-                           END DO
-!                CALL gid%sync()
-                        END IF
-                     ELSE
-                        master = 0
-                        CALL gid%recv(buffer(lbounds(3):ubounds(3)), master, tag)
-!               WRITE(*,*) my_rank," receiving from master"
                      END IF
-                     CALL gid%sync()
+                     CALL gid%bcast(buffer(lbounds(3):ubounds(3)), 0)
 
                      IF ((lbounds_local(1) .LE. i) .AND. (i .LE. ubounds_local(1)) .AND. (lbounds_local(2) .LE. j) &
                          .AND. (j .LE. ubounds_local(2))) THEN

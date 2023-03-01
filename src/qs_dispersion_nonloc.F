@@ -102,9 +102,9 @@ CONTAINS
             READ (funit, *) nqs, nr_points
             READ (funit, *) dispersion_env%r_max
          END IF
-         CALL para_env%bcast(nqs, para_env%source)
-         CALL para_env%bcast(nr_points, para_env%source)
-         CALL para_env%bcast(dispersion_env%r_max, para_env%source)
+         CALL para_env%bcast(nqs)
+         CALL para_env%bcast(nr_points)
+         CALL para_env%bcast(dispersion_env%r_max)
          ALLOCATE (dispersion_env%q_mesh(nqs), dispersion_env%kernel(0:nr_points, nqs, nqs), &
                    dispersion_env%d2phi_dk2(0:nr_points, nqs, nqs))
          dispersion_env%nqs = nqs
@@ -133,9 +133,9 @@ CONTAINS
             END DO
             CALL close_file(unit_number=funit)
          END IF
-         CALL para_env%bcast(dispersion_env%q_mesh, para_env%source)
-         CALL para_env%bcast(dispersion_env%kernel, para_env%source)
-         CALL para_env%bcast(dispersion_env%d2phi_dk2, para_env%source)
+         CALL para_env%bcast(dispersion_env%q_mesh)
+         CALL para_env%bcast(dispersion_env%kernel)
+         CALL para_env%bcast(dispersion_env%d2phi_dk2)
          ! 2nd derivates for interpolation
          ALLOCATE (dispersion_env%d2y_dx2(nqs, nqs))
          CALL initialize_spline_interpolation(dispersion_env%q_mesh, dispersion_env%d2y_dx2)

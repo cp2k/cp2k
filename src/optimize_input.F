@@ -304,7 +304,7 @@ CONTAINS
 
          ! globalize the state
          IF (para_env%is_source()) state = ostate%state
-         CALL para_env%bcast(state, para_env%source)
+         CALL para_env%bcast(state)
 
          ! if required get the energy of this set of params
          IF (state == 2) THEN
@@ -451,7 +451,7 @@ CONTAINS
          IF (para_env%is_source()) THEN
             CALL powell_optimize(ostate%nvar, free_vars, ostate)
          END IF
-         CALL para_env%bcast(free_vars, para_env%source)
+         CALL para_env%bcast(free_vars)
 
       END DO
 
@@ -460,7 +460,7 @@ CONTAINS
          ostate%state = 8
          CALL powell_optimize(ostate%nvar, free_vars, ostate)
       END IF
-      CALL para_env%bcast(free_vars, para_env%source)
+      CALL para_env%bcast(free_vars)
       DO i_free_var = 1, n_free_var
          WRITE (initial_variables(2, free_var_index(i_free_var)), *) free_vars(i_free_var)
          oi_env%variables(free_var_index(i_free_var))%value = free_vars(i_free_var)

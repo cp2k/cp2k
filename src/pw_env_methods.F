@@ -156,7 +156,8 @@ CONTAINS
    SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: external_para_env
+      TYPE(cp_para_env_type), INTENT(IN), OPTIONAL, &
+         TARGET                                          :: external_para_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_env_rebuild'
 

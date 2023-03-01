@@ -1037,7 +1037,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER :: context
 
       INTEGER :: myprow, mypcol, nprow, npcol, block_dim_row, block_dim_col, &
-                 info, ev_row_block_size, iam, source, mynumrows, mype, npe, &
+                 info, ev_row_block_size, iam, mynumrows, mype, npe, &
                  q_loc
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: a_loc, ev_loc
       INTEGER, DIMENSION(9)                        :: desca, descz, desc_a_block, &
@@ -1053,7 +1053,6 @@ CONTAINS
 
 #if defined(__SCALAPACK)
       context => matrix%matrix_struct%context
-      source = matrix%matrix_struct%para_env%source
       allgrp = matrix%matrix_struct%para_env
 
       myprow = context%mepos(1)

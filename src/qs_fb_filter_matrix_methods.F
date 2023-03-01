@@ -980,7 +980,7 @@ CONTAINS
       INTEGER                                            :: dest, handle, iatom_global, &
                                                             iatom_in_halo, itask, jatom_global, &
                                                             natoms_in_halo, nblkrows_total, &
-                                                            ntasks_send, src
+                                                            ntasks_send
       INTEGER(KIND=int_8), DIMENSION(:, :), POINTER      :: tasks_send
       INTEGER, DIMENSION(:), POINTER                     :: halo_atoms
       TYPE(fb_com_tasks_obj)                             :: com_tasks_recv, com_tasks_send
@@ -1002,9 +1002,6 @@ CONTAINS
       ELSE
          CALL fb_com_atom_pairs_create(atom_pairs_recv)
       END IF
-
-      ! source is always the local processor
-      src = para_env%mepos
 
       ! The total number of filter matrix blocks each processor is going
       ! to construct equals to the total number of halo atoms in all of
@@ -1038,25 +1035,28 @@ CONTAINS
       CALL dbcsr_get_info(filter_mat, &
                           nblkrows_total=nblkrows_total)
 
-      ! construct send tasks
-      itask = 1
-      DO iatom_in_halo = 1, natoms_in_halo
-         iatom_global = halo_atoms(iatom_in_halo)
-         ! find where the constructed block of filter matrix belongs to
-         CALL dbcsr_get_stored_coordinates(filter_mat, &
-                                           iatom_global, &
-                                           jatom_global, &
-                                           processor=dest)
-         ! create the send tasks
-         tasks_send(TASK_DEST, itask) = dest
-         tasks_send(TASK_SRC, itask) = src
-         CALL fb_com_tasks_encode_pair(tasks_send(TASK_PAIR, itask), &
-                                       iatom_global, jatom_global, &
-                                       nblkrows_total)
-         ! calculation of cost not implemented at the moment
-         tasks_send(TASK_COST, itask) = 0
-         itask = itask + 1
-      END DO ! iatom_in_halo
+      ! source is always the local processor
+      ASSOCIATE (src => para_env%mepos)
+         ! construct send tasks
+         itask = 1
+         DO iatom_in_halo = 1, natoms_in_halo
+            iatom_global = halo_atoms(iatom_in_halo)
+            ! find where the constructed block of filter matrix belongs to
+            CALL dbcsr_get_stored_coordinates(filter_mat, &
+                                              iatom_global, &
+                                              jatom_global, &
+                                              processor=dest)
+            ! create the send tasks
+            tasks_send(TASK_DEST, itask) = dest
+            tasks_send(TASK_SRC, itask) = src
+            CALL fb_com_tasks_encode_pair(tasks_send(TASK_PAIR, itask), &
+                                          iatom_global, jatom_global, &
+                                          nblkrows_total)
+            ! calculation of cost not implemented at the moment
+            tasks_send(TASK_COST, itask) = 0
+            itask = itask + 1
+         END DO ! iatom_in_halo
+      END ASSOCIATE
 
       CALL fb_com_tasks_create(com_tasks_recv)
       CALL fb_com_tasks_create(com_tasks_send)
@@ -1116,7 +1116,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_generate_com_pairs_2'
 
       INTEGER :: dest, handle, iatom_global, iatom_in_halo, iatom_stored, ihalo, itask, &
-         jatom_global, jatom_stored, natoms_in_halo, nblkrows_total, nhalos, ntasks_send, src
+         jatom_global, jatom_stored, natoms_in_halo, nblkrows_total, nhalos, ntasks_send
       INTEGER(KIND=int_8), DIMENSION(:, :), POINTER      :: tasks_send
       INTEGER, DIMENSION(:), POINTER                     :: halo_atoms
       LOGICAL                                            :: transpose
@@ -1140,9 +1140,6 @@ CONTAINS
       ELSE
          CALL fb_com_atom_pairs_create(atom_pairs_recv)
       END IF
-
-      ! source is always the local processor
-      src = para_env%mepos
 
       ! The col atom block index for each filter matrix block are the
       ! owner atom of each halo. The row atom block index for each
@@ -1175,34 +1172,37 @@ CONTAINS
       CALL dbcsr_get_info(filter_mat, &
                           nblkrows_total=nblkrows_total)
 
-      ! construct send tasks
-      itask = 1
-      DO ihalo = 1, nhalos
-         CALL fb_atomic_halo_get(atomic_halo=halos(ihalo), &
-                                 owner_atom=jatom_global, &
-                                 natoms=natoms_in_halo, &
-                                 halo_atoms=halo_atoms)
-         DO iatom_in_halo = 1, natoms_in_halo
-            iatom_global = halo_atoms(iatom_in_halo)
-            iatom_stored = iatom_global
-            jatom_stored = jatom_global
-            transpose = .FALSE.
-            ! find where the constructed block of filter matrix belongs to
-            CALL dbcsr_get_stored_coordinates(filter_mat, &
-                                              iatom_stored, &
-                                              jatom_stored, &
-                                              processor=dest)
-            ! create the send tasks
-            tasks_send(TASK_DEST, itask) = dest
-            tasks_send(TASK_SRC, itask) = src
-            CALL fb_com_tasks_encode_pair(tasks_send(TASK_PAIR, itask), &
-                                          iatom_global, jatom_global, &
-                                          nblkrows_total)
-            ! calculation of cost not implemented at the moment
-            tasks_send(TASK_COST, itask) = 0
-            itask = itask + 1
-         END DO ! iatom_in_halo
-      END DO ! ihalo
+      ! source is always the local processor
+      ASSOCIATE (src => para_env%mepos)
+         ! construct send tasks
+         itask = 1
+         DO ihalo = 1, nhalos
+            CALL fb_atomic_halo_get(atomic_halo=halos(ihalo), &
+                                    owner_atom=jatom_global, &
+                                    natoms=natoms_in_halo, &
+                                    halo_atoms=halo_atoms)
+            DO iatom_in_halo = 1, natoms_in_halo
+               iatom_global = halo_atoms(iatom_in_halo)
+               iatom_stored = iatom_global
+               jatom_stored = jatom_global
+               transpose = .FALSE.
+               ! find where the constructed block of filter matrix belongs to
+               CALL dbcsr_get_stored_coordinates(filter_mat, &
+                                                 iatom_stored, &
+                                                 jatom_stored, &
+                                                 processor=dest)
+               ! create the send tasks
+               tasks_send(TASK_DEST, itask) = dest
+               tasks_send(TASK_SRC, itask) = src
+               CALL fb_com_tasks_encode_pair(tasks_send(TASK_PAIR, itask), &
+                                             iatom_global, jatom_global, &
+                                             nblkrows_total)
+               ! calculation of cost not implemented at the moment
+               tasks_send(TASK_COST, itask) = 0
+               itask = itask + 1
+            END DO ! iatom_in_halo
+         END DO ! ihalo
+      END ASSOCIATE
 
       ! get the actual number of tasks
       ntasks_send = itask - 1

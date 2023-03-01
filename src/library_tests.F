@@ -1153,7 +1153,7 @@ CONTAINS
                   READ (UNIT=unit_number, FMT=*) buffer(1, 1:n)
                END SELECT
             END IF
-            CALL para_env%bcast(buffer, para_env%source)
+            CALL para_env%bcast(buffer)
             SELECT CASE (init_method)
             CASE (do_mat_random)
                CALL cp_fm_set_submatrix(fm=matrix, &

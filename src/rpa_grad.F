@@ -28,7 +28,6 @@ MODULE rpa_grad
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_release, cp_fm_set_all, &
         cp_fm_to_fm, cp_fm_to_fm_submat_general, cp_fm_type
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dgemm_counter_types,             ONLY: dgemm_counter_start,&
                                               dgemm_counter_stop,&
@@ -52,7 +51,8 @@ MODULE rpa_grad
    USE machine,                         ONLY: m_flush,&
                                               m_memory
    USE mathconstants,                   ONLY: pi
-   USE message_passing,                 ONLY: mp_request_null,&
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_request_null,&
                                               mp_request_type,&
                                               mp_waitall,&
                                               mp_waitany
@@ -465,7 +465,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, ncol_locals
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
       TYPE(cp_blacs_env_type), POINTER                   :: context
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_exchange
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_comm_type)                                 :: comm_exchange
 
       CALL timeset(routineN, handle)
 
@@ -489,8 +490,7 @@ CONTAINS
 
       IF (num_ij_pairs > 0) THEN
 
-         ALLOCATE (para_env_exchange)
-         CALL para_env_exchange%from_split(para_env, my_prow)
+         CALL comm_exchange%from_split(para_env, my_prow)
 
          data2send = 0
          data2recv = 0
@@ -523,7 +523,7 @@ CONTAINS
             data2send(pcol_send) = counter
          END DO
 
-         CALL para_env_exchange%alltoall(data2send, data2recv, 1)
+         CALL comm_exchange%alltoall(data2send, data2recv, 1)
 
          DO proc_shift = 0, num_pe_col - 1
             pcol_send = MODULO(my_pcol + proc_shift, num_pe_col)
@@ -570,7 +570,7 @@ CONTAINS
             END DO
          END DO
 
-         CALL cp_para_env_release(para_env_exchange)
+         CALL comm_exchange%free()
       END IF
 
       DEALLOCATE (data2send, data2recv)
@@ -599,7 +599,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, ncol_locals
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
       TYPE(cp_blacs_env_type), POINTER                   :: context
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_exchange
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_comm_type)                                 :: comm_exchange
 
       CALL timeset(routineN, handle)
 
@@ -619,8 +620,7 @@ CONTAINS
                           blacs2mpi=blacs2mpi)
          first_p_pos_col = first_p_pos(2)
 
-         ALLOCATE (para_env_exchange)
-         CALL para_env_exchange%from_split(para_env, my_prow)
+         CALL comm_exchange%from_split(para_env, my_prow)
 
          ALLOCATE (data2send(0:num_pe_col - 1))
          ALLOCATE (data2recv(0:num_pe_col - 1))
@@ -656,7 +656,7 @@ CONTAINS
             data2send(pcol_send) = counter
          END DO
 
-         CALL para_env_exchange%alltoall(data2send, data2recv, 1)
+         CALL comm_exchange%alltoall(data2send, data2recv, 1)
 
          DO proc_shift = 0, num_pe_col - 1
             pcol_send = MODULO(my_pcol + proc_shift, num_pe_col)
@@ -703,7 +703,7 @@ CONTAINS
             END DO
          END DO
 
-         CALL cp_para_env_release(para_env_exchange)
+         CALL comm_exchange%free()
          DEALLOCATE (data2send, data2recv)
 
       END IF
@@ -2426,7 +2426,6 @@ CONTAINS
          send_a_size, send_a_start, send_end, send_start, size_recv_buffer, size_send_buffer
       REAL(KIND=dp)                                      :: my_scale
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buffer_recv, buffer_send
-      TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
       TYPE(group_dist_d1_type)                           :: gd_a_sub, gd_virtual_sub
 
       CALL timeset(routineN, handle)
@@ -2541,10 +2540,12 @@ CONTAINS
 
          CALL release_group_dist(gd_a_sub)
 
-         ALLOCATE (para_env_exchange)
-         CALL para_env_exchange%from_split(para_env, para_env_sub%mepos)
-         CALL para_env_exchange%sum(mp2_env%ri_grad%P_ab(ispin)%array)
-         CALL cp_para_env_release(para_env_exchange)
+         BLOCK
+            TYPE(mp_comm_type) :: comm_exchange
+            CALL comm_exchange%from_split(para_env, para_env_sub%mepos)
+            CALL comm_exchange%sum(mp2_env%ri_grad%P_ab(ispin)%array)
+            CALL comm_exchange%free()
+         END BLOCK
 
          ! Symmetrize P_ab
          IF (para_env_sub%num_pe > 1) THEN
@@ -2624,7 +2625,7 @@ CONTAINS
                                                             mpi2blacs_global, mpi2blacs_sub
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: recv_buffer_1D, send_buffer_1D
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: recv_buffer, send_buffer
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_exchange, para_env_sub
+      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
       TYPE(one_dim_int_array), ALLOCATABLE, DIMENSION(:) :: index2recv_col, index2recv_row, &
                                                             index2send_col, index2send_row
 
@@ -2652,12 +2653,12 @@ CONTAINS
       CALL fm_global%matrix_struct%context%get(blacs2mpi=blacs2mpi_global, mpi2blacs=mpi2blacs_global)
 
       IF (para_env%num_pe /= para_env_sub%num_pe) THEN
-         CALL timeset(routineN//"_exchange", handle2)
-         ALLOCATE (para_env_exchange)
-         CALL para_env_exchange%from_split(para_env, para_env_sub%mepos)
-         CALL para_env_exchange%sum(fm_sub%local_data)
-         CALL cp_para_env_release(para_env_exchange)
-         CALL timestop(handle2)
+         BLOCK
+            TYPE(mp_comm_type) :: comm_exchange
+            comm_exchange = fm_sub%matrix_struct%context%interconnect(para_env)
+            CALL comm_exchange%sum(fm_sub%local_data)
+            CALL comm_exchange%free()
+         END BLOCK
       END IF
 
       ALLOCATE (subgroup2mepos(0:para_env_sub%num_pe - 1))

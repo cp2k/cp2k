@@ -140,7 +140,7 @@ CONTAINS
          WRITE (UNIT=output_unit, FMT="(/,T2,A)") REPEAT("-", 79)
       END IF
       bcast_output_unit = output_unit
-      CALL para_env%bcast(bcast_output_unit, para_env%source)
+      CALL para_env%bcast(bcast_output_unit)
 
       ! create tmc_env
       CALL tmc_env_create(tmc_env)

@@ -1091,7 +1091,7 @@ CONTAINS
             READ (rst_unit) qs_env%image_matrix
          END IF
 
-         CALL para_env%bcast(qs_env%image_matrix, para_env%source)
+         CALL para_env%bcast(qs_env%image_matrix)
 
          IF (para_env%is_source()) CALL close_file(unit_number=rst_unit)
 

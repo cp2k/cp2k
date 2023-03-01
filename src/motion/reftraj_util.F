@@ -204,7 +204,7 @@ CONTAINS
       ALLOCATE (msd%ref0_pos(3, reftraj%natom))
       msd%ref0_pos = 0.0_dp
 
-      IF (para_env%mepos == para_env%source) THEN
+      IF (para_env%is_source()) THEN
          REWIND (msd%ref0_unit)
          READ (msd%ref0_unit, *, ERR=999, END=998) natom_read
          IF (natom_read /= reftraj%natom) THEN
@@ -242,9 +242,9 @@ CONTAINS
       END IF
       CALL close_file(unit_number=msd%ref0_unit)
 
-      CALL para_env%bcast(msd%total_mass, para_env%source)
-      CALL para_env%bcast(msd%ref0_pos, para_env%source)
-      CALL para_env%bcast(msd%ref0_com, para_env%source)
+      CALL para_env%bcast(msd%total_mass)
+      CALL para_env%bcast(msd%ref0_pos)
+      CALL para_env%bcast(msd%ref0_com)
 
       CALL section_vals_val_get(msd_section, "MSD_PER_KIND", l_val=msd%msd_kind)
       CALL section_vals_val_get(msd_section, "MSD_PER_MOLKIND", l_val=msd%msd_molecule)

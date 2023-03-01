@@ -3335,8 +3335,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'read_donor_state_restart'
 
       INTEGER                                            :: handle, ispin, nao, nex, nspins, &
-                                                            output_unit, read_params(7), rst_unit, &
-                                                            source
+                                                            output_unit, read_params(7), rst_unit
       INTEGER, DIMENSION(:, :), POINTER                  :: mo_indices
       LOGICAL                                            :: file_exists
       REAL(dp), DIMENSION(:), POINTER                    :: lr_evals
@@ -3355,7 +3354,6 @@ CONTAINS
       CPASSERT(ASSOCIATED(donor_state))
       CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
       group = para_env
-      source = para_env%source
 
       file_exists = .FALSE.
       rst_unit = -1
@@ -3380,7 +3378,7 @@ CONTAINS
          READ (rst_unit) read_params(1:4)
          READ (rst_unit) read_params(5:7)
       END IF
-      CALL group%bcast(read_params, source)
+      CALL group%bcast(read_params)
       donor_state%at_index = read_params(1)
       donor_state%state_type = read_params(2)
       donor_state%ndo_mo = read_params(3)
@@ -3393,13 +3391,13 @@ CONTAINS
       IF (rst_unit > 0) THEN
          READ (rst_unit) mo_indices(1:donor_state%ndo_mo, 1:nspins)
       END IF
-      CALL group%bcast(mo_indices, source)
+      CALL group%bcast(mo_indices)
       donor_state%mo_indices => mo_indices
 
       !read evals
       ALLOCATE (lr_evals(nex))
       IF (rst_unit > 0) READ (rst_unit) lr_evals(1:nex)
-      CALL group%bcast(lr_evals, source)
+      CALL group%bcast(lr_evals)
 
       !read evecs
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, para_env=para_env, &

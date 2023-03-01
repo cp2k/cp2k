@@ -84,7 +84,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info, para_env)
       TYPE(gridlevel_info_type)                          :: gridlevel_info
-      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(cp_para_env_type), INTENT(IN), OPTIONAL       :: para_env
 
       INTEGER                                            :: i, output_unit
       LOGICAL                                            :: do_io

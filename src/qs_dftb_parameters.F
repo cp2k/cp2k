@@ -262,15 +262,15 @@ CONTAINS
             IF (n_urpoly < 2) n_urpoly = 0
          END IF
 
-         CALL para_env%bcast(n_urpoly, para_env%source)
-         CALL para_env%bcast(uwork, para_env%source)
-         CALL para_env%bcast(ngrd, para_env%source)
-         CALL para_env%bcast(dgrd, para_env%source)
+         CALL para_env%bcast(n_urpoly)
+         CALL para_env%bcast(uwork)
+         CALL para_env%bcast(ngrd)
+         CALL para_env%bcast(dgrd)
 
-         CALL para_env%bcast(skself, para_env%source)
-         CALL para_env%bcast(energy, para_env%source)
-         CALL para_env%bcast(eta, para_env%source)
-         CALL para_env%bcast(occupation, para_env%source)
+         CALL para_env%bcast(skself)
+         CALL para_env%bcast(energy)
+         CALL para_env%bcast(eta)
+         CALL para_env%bcast(occupation)
 
          CALL set_dftb_atom_param(dftb_parameter=dftb_atom_a, &
                                   z=z, zeff=SUM(occupation), defined=.TRUE., &
@@ -286,8 +286,8 @@ CONTAINS
                smat(k, 1:10) = swork(1:10)
             END DO
          END IF
-         CALL para_env%bcast(fmat, para_env%source)
-         CALL para_env%bcast(smat, para_env%source)
+         CALL para_env%bcast(fmat)
+         CALL para_env%bcast(smat)
 
          !
          ! Determine lmax for atom type.
@@ -362,17 +362,17 @@ CONTAINS
             CALL close_file(unit_number=runit)
          END IF
 
-         CALL para_env%bcast(spdim, para_env%source)
+         CALL para_env%bcast(spdim)
          IF (spdim > 0 .AND. (.NOT. para_env%is_source())) THEN
             ALLOCATE (spxr(spdim, 2))
             ALLOCATE (scoeff(spdim, 4))
          END IF
          IF (spdim > 0) THEN
-            CALL para_env%bcast(spxr, para_env%source)
-            CALL para_env%bcast(scoeff, para_env%source)
-            CALL para_env%bcast(surr, para_env%source)
-            CALL para_env%bcast(srep, para_env%source)
-            CALL para_env%bcast(s_cut, para_env%source)
+            CALL para_env%bcast(spxr)
+            CALL para_env%bcast(scoeff)
+            CALL para_env%bcast(surr)
+            CALL para_env%bcast(srep)
+            CALL para_env%bcast(s_cut)
          END IF
 
          ! store potential data
@@ -475,10 +475,10 @@ CONTAINS
                IF (n_urpoly < 2) n_urpoly = 0
             END IF
 
-            CALL para_env%bcast(n_urpoly, para_env%source)
-            CALL para_env%bcast(uwork, para_env%source)
-            CALL para_env%bcast(ngrd, para_env%source)
-            CALL para_env%bcast(dgrd, para_env%source)
+            CALL para_env%bcast(n_urpoly)
+            CALL para_env%bcast(uwork)
+            CALL para_env%bcast(ngrd)
+            CALL para_env%bcast(dgrd)
 
             ! Slater-Koster table
             ALLOCATE (fmat(ngrd, 10))
@@ -490,8 +490,8 @@ CONTAINS
                   smat(k, 1:10) = swork(1:10)
                END DO
             END IF
-            CALL para_env%bcast(fmat, para_env%source)
-            CALL para_env%bcast(smat, para_env%source)
+            CALL para_env%bcast(fmat)
+            CALL para_env%bcast(smat)
 
             spdim = 0
             IF (n_urpoly == 0) THEN
@@ -523,17 +523,17 @@ CONTAINS
                CALL close_file(unit_number=runit)
             END IF
 
-            CALL para_env%bcast(spdim, para_env%source)
+            CALL para_env%bcast(spdim)
             IF (spdim > 0 .AND. (.NOT. para_env%is_source())) THEN
                ALLOCATE (spxr(spdim, 2))
                ALLOCATE (scoeff(spdim, 4))
             END IF
             IF (spdim > 0) THEN
-               CALL para_env%bcast(spxr, para_env%source)
-               CALL para_env%bcast(scoeff, para_env%source)
-               CALL para_env%bcast(surr, para_env%source)
-               CALL para_env%bcast(srep, para_env%source)
-               CALL para_env%bcast(s_cut, para_env%source)
+               CALL para_env%bcast(spxr)
+               CALL para_env%bcast(scoeff)
+               CALL para_env%bcast(surr)
+               CALL para_env%bcast(srep)
+               CALL para_env%bcast(s_cut)
             END IF
 
             ! store potential data

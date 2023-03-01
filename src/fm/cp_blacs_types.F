@@ -49,6 +49,8 @@ MODULE cp_blacs_types
 
       PROCEDURE, PRIVATE, PASS(this), NON_OVERRIDABLE :: cp_context_is_not_equal
       GENERIC, PUBLIC :: OPERATOR(/=) => cp_context_is_not_equal
+
+      PROCEDURE, PUBLIC, PASS(this), NON_OVERRIDABLE :: interconnect => cp_blacs_interconnect
    END TYPE
 
 !***
@@ -303,5 +305,24 @@ CONTAINS
       cp_context_is_not_equal = .FALSE.
 #endif
    END FUNCTION cp_context_is_not_equal
+
+! **************************************************************************************************
+!> \brief ...
+!> \param this ...
+!> \param comm_super ...
+!> \return ...
+! **************************************************************************************************
+   TYPE(mp_comm_type) FUNCTION cp_blacs_interconnect(this, comm_super)
+      CLASS(cp_blacs_type), INTENT(IN) :: this
+      CLASS(mp_comm_type), INTENT(IN) :: comm_super
+
+      INTEGER :: blacs_coord
+
+! We enumerate the processes within the process grid in a linear fashion
+      blacs_coord = this%mepos(1)*this%num_pe(2) + this%mepos(2)
+
+      CALL cp_blacs_interconnect%from_split(comm_super, blacs_coord)
+
+   END FUNCTION cp_blacs_interconnect
 
 END MODULE cp_blacs_types

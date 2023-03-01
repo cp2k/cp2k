@@ -911,7 +911,7 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: filename
       CHARACTER(LEN=default_string_length)               :: my_middle
       INTEGER :: handle, i, i_block, ia, ie, iostat, iounit, ispin, iv, iv1, ivec_tmp, j, &
-         max_block, n_rep_val, nao, nao_tmp, nmo, nmo_tmp, nspins, nspins_tmp, rst_unit, source
+         max_block, n_rep_val, nao, nao_tmp, nmo, nmo_tmp, nspins, nspins_tmp, rst_unit
       LOGICAL                                            :: file_exists
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vecbuffer
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
@@ -935,7 +935,6 @@ CONTAINS
                       mos=mos)
 
       nspins = SIZE(mos)
-      source = para_env%source !ionode???
 
       rst_unit = -1
       IF (para_env%is_source()) THEN
@@ -978,7 +977,7 @@ CONTAINS
          END IF
       END IF
 
-      CALL para_env%bcast(file_exists, source)
+      CALL para_env%bcast(file_exists)
 
       IF (file_exists) THEN
 
@@ -997,17 +996,17 @@ CONTAINS
 
             IF (PRESENT(ind)) THEN
                IF (rst_unit > 0) READ (rst_unit, IOSTAT=iostat) ind, ivec_tmp, nspins_tmp, nao_tmp
-               CALL para_env%bcast(iostat, source)
-               CALL para_env%bcast(ind, source)
+               CALL para_env%bcast(iostat)
+               CALL para_env%bcast(ind)
             ELSE
                IF (rst_unit > 0) READ (rst_unit, IOSTAT=iostat) ivec_tmp, nspins_tmp, nao_tmp
-               CALL para_env%bcast(iostat, source)
+               CALL para_env%bcast(iostat)
             END IF
 
             IF (iostat .NE. 0) EXIT
-            CALL para_env%bcast(ivec_tmp, source)
-            CALL para_env%bcast(nspins_tmp, source)
-            CALL para_env%bcast(nao_tmp, source)
+            CALL para_env%bcast(ivec_tmp)
+            CALL para_env%bcast(nspins_tmp)
+            CALL para_env%bcast(nao_tmp)
 
             ! check that the number nao, nmo and nspins are
             ! the same as in the current mos
@@ -1019,7 +1018,7 @@ CONTAINS
                CALL cp_fm_get_info(mo_coeff, ncol_global=nmo)
                !
                IF (rst_unit > 0) READ (rst_unit) nmo_tmp
-               CALL para_env%bcast(nmo_tmp, source)
+               CALL para_env%bcast(nmo_tmp)
                IF (nmo_tmp .NE. nmo) CPABORT("nmo not consistent")
                !
                ! read the response
@@ -1029,7 +1028,7 @@ CONTAINS
                      IF (rst_unit > 0) READ (rst_unit) vecbuffer(1:nao, j)
                   END DO
                   IF (iv .EQ. ivec_tmp) THEN
-                     CALL para_env%bcast(vecbuffer, source)
+                     CALL para_env%bcast(vecbuffer)
                      CALL cp_fm_set_submatrix(vec(ispin), vecbuffer, 1, i, nao, i_block)
                   END IF
                END DO

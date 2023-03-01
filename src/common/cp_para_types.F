@@ -44,7 +44,6 @@ MODULE cp_para_types
       PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: mp_comm_init => cp_para_env_init
       PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: mp_comm_free => cp_para_env_free
       PROCEDURE, PUBLIC, PASS(para_env), NON_OVERRIDABLE :: retain => cp_para_env_retain
-      PROCEDURE, PUBLIC, PASS(para_env), NON_OVERRIDABLE :: is_source => cp_para_env_is_source
       PROCEDURE, PUBLIC, PASS(para_env), NON_OVERRIDABLE :: is_valid => cp_para_env_is_valid
    END TYPE cp_para_env_type
 
@@ -103,18 +102,6 @@ CONTAINS
       comm%ref_count = 1
 
    END SUBROUTINE cp_para_env_init
-
-! **************************************************************************************************
-!> \brief check whether the local process is the source process
-!> \param para_env ...
-!> \return ...
-! **************************************************************************************************
-   ELEMENTAL LOGICAL FUNCTION cp_para_env_is_source(para_env)
-      CLASS(cp_para_env_type), INTENT(IN) :: para_env
-
-      cp_para_env_is_source = para_env%source == para_env%mepos
-
-   END FUNCTION cp_para_env_is_source
 
 ! **************************************************************************************************
 !> \brief check whether the environment exists

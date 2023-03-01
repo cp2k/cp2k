@@ -60,6 +60,7 @@ MODULE rpa_main
                                               m_memory
    USE mathconstants,                   ONLY: pi,&
                                               z_zero
+   USE message_passing,                 ONLY: mp_comm_type
    USE minimax_exp,                     ONLY: check_exp_minimax_range
    USE mp2_grids,                       ONLY: get_clenshaw_grid,&
                                               get_minimax_grid
@@ -827,13 +828,12 @@ CONTAINS
 
       INTEGER                                            :: col_row_proc_ratio, grid_2D(2), handle, &
                                                             iproc, iproc_col, iproc_row, ispin, &
-                                                            mepos_in_RPA_group, sub_sub_color
+                                                            mepos_in_RPA_group
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: group_grid_2_mepos
       LOGICAL                                            :: my_blacs_ext, my_blacs_S_ext, &
                                                             my_do_im_time
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env, blacs_env_Q
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
       TYPE(group_dist_d1_type)                           :: gd_ia, gd_L
 
       CALL timeset(routineN, handle)
@@ -938,11 +938,12 @@ CONTAINS
 
             ! sum the local data across processes belonging to different RPA group.
             IF (para_env_RPA%num_pe /= para_env%num_pe) THEN
-               sub_sub_color = para_env_RPA%mepos
-               ALLOCATE (para_env_exchange)
-               CALL para_env_exchange%from_split(para_env, sub_sub_color)
-               CALL para_env_exchange%sum(fm_mat_S(ispin)%local_data)
-               CALL cp_para_env_release(para_env_exchange)
+               BLOCK
+                  TYPE(mp_comm_type) :: comm_exchange
+                  comm_exchange = fm_mat_S(ispin)%matrix_struct%context%interconnect(para_env)
+                  CALL comm_exchange%sum(fm_mat_S(ispin)%local_data)
+                  CALL comm_exchange%free()
+               END BLOCK
             END IF
          END DO
       END IF

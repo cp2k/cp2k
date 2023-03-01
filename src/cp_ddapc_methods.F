@@ -623,7 +623,7 @@ CONTAINS
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE ewald_ddapc_pot(cp_para_env, coeff, factor, cell, multipole_section, &
                                         particle_set, M, radii)
-      TYPE(cp_para_env_type), POINTER                    :: cp_para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: cp_para_env
       TYPE(pw_type), INTENT(IN), POINTER                 :: coeff
       REAL(KIND=dp), INTENT(IN)                          :: factor
       TYPE(cell_type), POINTER                           :: cell

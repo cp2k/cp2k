@@ -612,7 +612,7 @@ CONTAINS
                lggr%close_global_unit_on_dealloc = .FALSE.
             END IF
          END IF
-         IF ((lggr%para_env%mepos /= lggr%para_env%source) .AND. (.NOT. skip)) THEN
+         IF (.NOT. (lggr%para_env%is_source() .OR. skip)) THEN
             WRITE (UNIT=lggr%default_global_unit_nr, FMT='(/,T2,A)', IOSTAT=iostat) &
                ' *** WARNING non ionode asked for global logger ***'
             IF (iostat /= 0) THEN

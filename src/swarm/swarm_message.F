@@ -233,29 +233,30 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: src
       CLASS(mp_comm_type), INTENT(IN) :: group
 
-      INTEGER                                            :: i, length, mepos
+      INTEGER                                            :: i, length
       TYPE(message_entry_type), POINTER                  :: curr_entry
 
-      mepos = group%mepos
+      ASSOCIATE (mepos => group%mepos)
 
-      IF (mepos /= src .AND. ASSOCIATED(msg%root)) CPABORT("message not empty")
-      length = swarm_message_length(msg)
-      CALL group%bcast(length, src)
+         IF (mepos /= src .AND. ASSOCIATED(msg%root)) CPABORT("message not empty")
+         length = swarm_message_length(msg)
+         CALL group%bcast(length, src)
 
-      IF (mepos == src) curr_entry => msg%root
+         IF (mepos == src) curr_entry => msg%root
 
-      DO i = 1, length
-         IF (mepos /= src) ALLOCATE (curr_entry)
+         DO i = 1, length
+            IF (mepos /= src) ALLOCATE (curr_entry)
 
-         CALL swarm_message_entry_mpi_bcast(curr_entry, src, group, mepos)
+            CALL swarm_message_entry_mpi_bcast(curr_entry, src, group, mepos)
 
-         IF (mepos == src) THEN
-            curr_entry => curr_entry%next
-         ELSE
-            curr_entry%next => msg%root
-            msg%root => curr_entry
-         END IF
-      END DO
+            IF (mepos == src) THEN
+               curr_entry => curr_entry%next
+            ELSE
+               curr_entry%next => msg%root
+               msg%root => curr_entry
+            END IF
+         END DO
+      END ASSOCIATE
 
    END SUBROUTINE swarm_message_mpi_bcast
 

@@ -64,7 +64,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: rabc
       INTEGER, INTENT(IN)                                :: nrep
       LOGICAL, INTENT(INOUT)                             :: test_accuracy
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(IN)                                :: iw
       INTEGER, INTENT(IN), OPTIONAL                      :: potential
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pot_par
@@ -192,7 +192,7 @@ CONTAINS
          INTENT(IN)                                      :: rabc
       INTEGER, INTENT(IN)                                :: nrep
       INTEGER, INTENT(IN), OPTIONAL                      :: nsample
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(IN)                                :: iw
       INTEGER, INTENT(IN), OPTIONAL                      :: potential
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pot_par
