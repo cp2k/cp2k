@@ -26,7 +26,7 @@ MODULE cp_lbfgs_optimizer_gopt
                               cp_to_string
    USE cp_output_handling, ONLY: cp_print_key_finished_output, &
                                  cp_print_key_unit_nr
-   USE cp_para_env, ONLY: cp_para_env_release
+   USE message_passing, ONLY: mp_para_env_release
    USE message_passing, ONLY: mp_para_env_type
    USE cp_subsys_types, ONLY: cp_subsys_type
    USE force_env_types, ONLY: force_env_get, &
@@ -304,7 +304,7 @@ CONTAINS
       IF (ASSOCIATED(optimizer%work_array)) THEN
          DEALLOCATE (optimizer%work_array)
       END IF
-      CALL cp_para_env_release(optimizer%para_env)
+      CALL mp_para_env_release(optimizer%para_env)
       CALL gopt_f_release(optimizer%obj_funct)
 
       CALL timestop(handle)

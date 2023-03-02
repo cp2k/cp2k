@@ -28,7 +28,6 @@ MODULE mp2_optimize_ri_basis
                                               cp_logger_set,&
                                               cp_logger_type,&
                                               cp_rm_default_logger
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE hfx_types,                       ONLY: hfx_basis_info_type,&
                                               hfx_basis_type
    USE kinds,                           ONLY: dp
@@ -36,7 +35,8 @@ MODULE mp2_optimize_ri_basis
    USE machine,                         ONLY: default_output_unit,&
                                               m_flush
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_para_env_release,&
+                                              mp_para_env_type
    USE mp2_direct_method,               ONLY: mp2_canonical_direct_single_batch
    USE mp2_ri_libint,                   ONLY: libint_ri_mp2,&
                                               read_RI_basis_set,&
@@ -524,7 +524,7 @@ CONTAINS
       ! Release RI basis set
       CALL release_RI_basis_set(RI_basis_parameter, basis_S0)
 
-      CALL cp_para_env_release(para_env_sub)
+      CALL mp_para_env_release(para_env_sub)
       CALL cp_rm_default_logger()
       CALL cp_logger_release(logger_sub)
 

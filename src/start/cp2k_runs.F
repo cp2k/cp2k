@@ -30,7 +30,6 @@ MODULE cp2k_runs
                                               cp_print_key_finished_output,&
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_parser_methods,               ONLY: parser_search_string
    USE cp_parser_types,                 ONLY: cp_parser_type,&
                                               parser_create,&
@@ -107,6 +106,7 @@ MODULE cp2k_runs
    USE md_run,                          ONLY: qs_mol_dyn
    USE message_passing,                 ONLY: mp_any_source,&
                                               mp_comm_type,&
+                                              mp_para_env_release,&
                                               mp_para_env_type
    USE mscfg_methods,                   ONLY: do_mol_loop,&
                                               loop_over_molecules
@@ -456,7 +456,7 @@ CONTAINS
 
       CALL dbcsr_finalize_lib()
 
-      CALL cp_para_env_release(para_env)
+      CALL mp_para_env_release(para_env)
 
    END SUBROUTINE cp2k_run
 
@@ -995,7 +995,7 @@ CONTAINS
          unit_nr = -1
       END IF
       CALL cp2k_run(input_declaration, input_file_path, unit_nr, para_env, initial_variables)
-      CALL cp_para_env_release(para_env)
+      CALL mp_para_env_release(para_env)
    END SUBROUTINE run_input
 
 END MODULE cp2k_runs

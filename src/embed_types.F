@@ -16,7 +16,6 @@ MODULE embed_types
    USE cp_fm_types,                     ONLY: cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_p_type,&
                                               cp_logger_release
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_result_types,                 ONLY: cp_result_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_release,&
@@ -29,6 +28,7 @@ MODULE embed_types
    USE kinds,                           ONLY: dp
    USE lri_environment_types,           ONLY: lri_kind_type
    USE message_passing,                 ONLY: mp_para_env_p_type,&
+                                              mp_para_env_release,&
                                               mp_para_env_type
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_create,&
                                               molecule_kind_list_release,&
@@ -331,14 +331,14 @@ CONTAINS
       DO i = 1, ngroups
          IF (ASSOCIATED(embed_env%sub_para_env(i)%para_env)) THEN
             CALL cp_logger_release(embed_env%sub_logger(i)%p)
-            CALL cp_para_env_release(embed_env%sub_para_env(i)%para_env)
+            CALL mp_para_env_release(embed_env%sub_para_env(i)%para_env)
          END IF
       END DO
       DEALLOCATE (embed_env%sub_para_env)
       DEALLOCATE (embed_env%sub_logger)
       DEALLOCATE (embed_env%energies)
       CALL cell_release(embed_env%cell_ref)
-      CALL cp_para_env_release(embed_env%para_env)
+      CALL mp_para_env_release(embed_env%para_env)
       CALL cp_subsys_release(embed_env%subsys)
       CALL section_vals_release(embed_env%input)
       IF (ASSOCIATED(embed_env%group_distribution)) THEN

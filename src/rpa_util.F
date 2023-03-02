@@ -34,7 +34,6 @@ MODULE rpa_util
    USE cp_fm_types,                     ONLY: &
         cp_fm_copy_general, cp_fm_create, cp_fm_get_info, cp_fm_release, cp_fm_set_all, &
         cp_fm_set_element, cp_fm_to_fm, cp_fm_to_fm_submat_general, cp_fm_type
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE dbcsr_api,                       ONLY: &
         dbcsr_create, dbcsr_deallocate_matrix, dbcsr_filter, dbcsr_get_info, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type
@@ -53,7 +52,8 @@ MODULE rpa_util
                                               kpoint_release,&
                                               kpoint_type
    USE mathconstants,                   ONLY: z_zero
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_para_env_release,&
+                                              mp_para_env_type
    USE mp2_laplace,                     ONLY: calc_fm_mat_S_laplace
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -1066,7 +1066,7 @@ CONTAINS
       !    END DO
       ! END IF
 
-      CALL cp_para_env_release(para_env_sub_kp)
+      CALL mp_para_env_release(para_env_sub_kp)
 
       CALL timestop(handle)
 

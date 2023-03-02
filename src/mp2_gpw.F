@@ -34,7 +34,6 @@ MODULE mp2_gpw
         cp_add_default_logger, cp_get_default_logger, cp_logger_create, &
         cp_logger_get_default_unit_nr, cp_logger_release, cp_logger_set, cp_logger_type, &
         cp_rm_default_logger, cp_to_string
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE dbcsr_api,                       ONLY: &
         dbcsr_clear_mempools, dbcsr_copy, dbcsr_create, dbcsr_distribution_release, &
         dbcsr_distribution_type, dbcsr_filter, dbcsr_init_p, dbcsr_iterator_blocks_left, &
@@ -64,7 +63,8 @@ MODULE mp2_gpw
                                               cp_libint_static_init
    USE machine,                         ONLY: default_output_unit,&
                                               m_flush
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_para_env_release,&
+                                              mp_para_env_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: molecule_type
    USE mp2_cphf,                        ONLY: solve_z_vector_eq
@@ -635,7 +635,7 @@ CONTAINS
          CALL cp_logger_release(logger_sub)
       END IF
 
-      CALL cp_para_env_release(para_env_sub)
+      CALL mp_para_env_release(para_env_sub)
 
       ! finally solve the z-vector equation if forces are required
       IF (calc_forces .AND. .NOT. do_im_time) THEN

@@ -14,7 +14,6 @@
 MODULE mp2_grids
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_set
    USE kinds,                           ONLY: dp
@@ -23,7 +22,8 @@ MODULE mp2_grids
                                               kpoint_type
    USE machine,                         ONLY: m_flush
    USE mathconstants,                   ONLY: pi
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_para_env_release,&
+                                              mp_para_env_type
    USE minimax_exp,                     ONLY: get_exp_minimax_coeff
    USE minimax_exp_gw,                  ONLY: get_exp_minimax_coeff_gw
    USE minimax_rpa,                     ONLY: get_rpa_minimax_coeff,&
@@ -482,13 +482,13 @@ CONTAINS
       DEALLOCATE (iaia_RI)
       DEALLOCATE (D_ia)
       DEALLOCATE (M_ia)
-      CALL cp_para_env_release(para_env_col)
+      CALL mp_para_env_release(para_env_col)
 
       IF (my_open_shell) THEN
          DEALLOCATE (iaia_RI_beta)
          DEALLOCATE (D_ia_beta)
          DEALLOCATE (M_ia_beta)
-         CALL cp_para_env_release(para_env_col_beta)
+         CALL mp_para_env_release(para_env_col_beta)
       END IF
 
       CALL timestop(handle)
@@ -615,7 +615,7 @@ CONTAINS
       ! allocate communication array for rows
       CALL para_env_row%sum(right_term_ref)
 
-      CALL cp_para_env_release(para_env_row)
+      CALL mp_para_env_release(para_env_row)
 
       CALL timestop(handle)
 

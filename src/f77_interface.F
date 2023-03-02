@@ -34,7 +34,6 @@ MODULE f77_interface
         cp_get_default_logger, cp_logger_create, cp_logger_get_default_unit_nr, cp_logger_release, &
         cp_logger_retain, cp_logger_type, cp_rm_default_logger, cp_to_string
    USE cp_output_handling,              ONLY: cp_iterate
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_result_methods,               ONLY: get_results,&
                                               test_for_result
    USE cp_result_types,                 ONLY: cp_result_type
@@ -95,6 +94,7 @@ MODULE f77_interface
                                               m_memory
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_comm_world,&
+                                              mp_para_env_release,&
                                               mp_para_env_type,&
                                               mp_world_finalize,&
                                               mp_world_init
@@ -328,7 +328,7 @@ CONTAINS
          ! Finalize the DBCSR configuration
          CALL dbcsr_finalize_lib()
          CALL pw_gpu_finalize()
-         CALL cp_para_env_release(default_para_env)
+         CALL mp_para_env_release(default_para_env)
          ierr = 0
          CALL cp_rm_default_logger()
 
@@ -918,7 +918,7 @@ CONTAINS
       CALL force_env_release(force_env)
       CALL globenv_release(globenv)
       CALL section_vals_release(root_section)
-      CALL cp_para_env_release(para_env)
+      CALL mp_para_env_release(para_env)
       CALL f_env_rm_defaults(f_envs(n_f_envs)%f_env, ierr=ierr)
       CALL timestop(handle)
 
@@ -1490,7 +1490,7 @@ CONTAINS
       CALL section_vals_release(input_file)
 
       CALL cp_logger_release(logger)
-      CALL cp_para_env_release(para_env)
+      CALL mp_para_env_release(para_env)
       ierr = 0
       CALL cp_rm_default_logger()
    END SUBROUTINE check_input

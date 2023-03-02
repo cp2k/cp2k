@@ -28,7 +28,6 @@ MODULE qs_tddfpt2_subgroups
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE dbcsr_api,                       ONLY: dbcsr_create,&
                                               dbcsr_distribution_release,&
                                               dbcsr_distribution_type,&
@@ -50,7 +49,8 @@ MODULE qs_tddfpt2_subgroups
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_para_env_release,&
+                                              mp_para_env_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
@@ -471,7 +471,7 @@ CONTAINS
       DEALLOCATE (sub_env%mos_occ)
 
       CALL cp_blacs_env_release(sub_env%blacs_env)
-      CALL cp_para_env_release(sub_env%para_env)
+      CALL mp_para_env_release(sub_env%para_env)
 
       IF (ALLOCATED(sub_env%group_distribution)) &
          DEALLOCATE (sub_env%group_distribution)

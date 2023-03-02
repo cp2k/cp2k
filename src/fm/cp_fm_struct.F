@@ -18,10 +18,10 @@ MODULE cp_fm_struct
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type,&
                                               cp_to_string
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_para_env_release,&
+                                              mp_para_env_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -325,7 +325,7 @@ CONTAINS
          fmstruct%ref_count = fmstruct%ref_count - 1
          IF (fmstruct%ref_count < 1) THEN
             CALL cp_blacs_env_release(fmstruct%context)
-            CALL cp_para_env_release(fmstruct%para_env)
+            CALL mp_para_env_release(fmstruct%para_env)
             IF (ASSOCIATED(fmstruct%row_indices)) THEN
                DEALLOCATE (fmstruct%row_indices)
             END IF

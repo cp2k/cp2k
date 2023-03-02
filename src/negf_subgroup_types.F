@@ -14,8 +14,8 @@ MODULE negf_subgroup_types
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_release,&
                                               mp_para_env_type
    USE negf_control_types,              ONLY: negf_control_type
 #include "./base/base_uses.f90"
@@ -135,7 +135,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL cp_blacs_env_release(sub_env%blacs_env)
-      CALL cp_para_env_release(sub_env%para_env)
+      CALL mp_para_env_release(sub_env%para_env)
 
       IF (ALLOCATED(sub_env%group_distribution)) &
          DEALLOCATE (sub_env%group_distribution)

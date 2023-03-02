@@ -33,7 +33,6 @@ MODULE rpa_main
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_clear,&
                                               dbcsr_get_info,&
@@ -60,6 +59,7 @@ MODULE rpa_main
    USE mathconstants,                   ONLY: pi,&
                                               z_zero
    USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_release,&
                                               mp_para_env_type
    USE minimax_exp,                     ONLY: check_exp_minimax_range
    USE mp2_grids,                       ONLY: get_clenshaw_grid,&
@@ -630,7 +630,7 @@ CONTAINS
 
       CALL release_group_dist(gd_array)
 
-      IF (num_integ_group > 1) CALL cp_para_env_release(para_env_RPA)
+      IF (num_integ_group > 1) CALL mp_para_env_release(para_env_RPA)
 
       IF (.NOT. do_im_time) THEN
          DO ispin = 1, SIZE(fm_mat_Q_gemm)

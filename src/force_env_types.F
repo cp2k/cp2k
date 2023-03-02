@@ -20,7 +20,6 @@ MODULE force_env_types
    USE cp_log_handling,                 ONLY: cp_add_default_logger,&
                                               cp_logger_type,&
                                               cp_rm_default_logger
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type,&
                                               pack_subsys_particles
@@ -44,7 +43,8 @@ MODULE force_env_types
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_para_env_release,&
+                                              mp_para_env_type
    USE metadynamics_types,              ONLY: meta_env_release,&
                                               meta_env_type
    USE mixed_energy_types,              ONLY: mixed_energy_type
@@ -255,7 +255,7 @@ CONTAINS
                DEALLOCATE (force_env%embed_env)
             END SELECT
             CALL globenv_release(force_env%globenv)
-            CALL cp_para_env_release(force_env%para_env)
+            CALL mp_para_env_release(force_env%para_env)
             ! Not deallocated
             CPASSERT(.NOT. ASSOCIATED(force_env%fist_env))
             CPASSERT(.NOT. ASSOCIATED(force_env%qs_env))

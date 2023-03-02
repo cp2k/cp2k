@@ -27,7 +27,6 @@ MODULE cp_subsys_types
                                               scaled_to_real
    USE colvar_types,                    ONLY: colvar_p_release,&
                                               colvar_p_type
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_result_types,                 ONLY: cp_result_release,&
                                               cp_result_retain,&
                                               cp_result_type
@@ -35,7 +34,8 @@ MODULE cp_subsys_types
                                               distribution_1d_retain,&
                                               distribution_1d_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_para_env_release,&
+                                              mp_para_env_type
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_release,&
                                               molecule_kind_list_retain,&
                                               molecule_kind_list_type
@@ -162,7 +162,7 @@ CONTAINS
             CALL molecule_kind_list_release(subsys%molecule_kinds)
             CALL molecule_list_release(subsys%molecules)
             CALL distribution_1d_release(subsys%local_molecules)
-            CALL cp_para_env_release(subsys%para_env)
+            CALL mp_para_env_release(subsys%para_env)
             IF (ASSOCIATED(subsys%multipoles)) THEN
                CALL release_multipole_type(subsys%multipoles)
                DEALLOCATE (subsys%multipoles)
@@ -261,7 +261,7 @@ CONTAINS
       END IF
       IF (PRESENT(para_env)) THEN
          CALL para_env%retain()
-         CALL cp_para_env_release(subsys%para_env)
+         CALL mp_para_env_release(subsys%para_env)
          subsys%para_env => para_env
       END IF
       IF (PRESENT(colvar_p)) THEN

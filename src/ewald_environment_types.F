@@ -16,7 +16,6 @@ MODULE ewald_environment_types
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE input_cp2k_poisson,              ONLY: create_ewald_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
@@ -34,6 +33,7 @@ MODULE ewald_environment_types
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: twopi
    USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_release,&
                                               mp_para_env_type
    USE pw_grid_info,                    ONLY: pw_grid_n_for_fft
    USE pw_poisson_types,                ONLY: do_ewald_ewald,&
@@ -237,7 +237,7 @@ CONTAINS
    SUBROUTINE ewald_env_release(ewald_env)
       TYPE(ewald_environment_type), INTENT(INOUT)        :: ewald_env
 
-      CALL cp_para_env_release(ewald_env%para_env)
+      CALL mp_para_env_release(ewald_env%para_env)
       CALL section_vals_release(ewald_env%poisson_section)
       IF (ASSOCIATED(ewald_env%interaction_cutoffs)) THEN
          DEALLOCATE (ewald_env%interaction_cutoffs)

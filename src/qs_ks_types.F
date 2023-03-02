@@ -21,7 +21,6 @@ MODULE qs_ks_types
    USE cp_control_types,                ONLY: dft_control_release,&
                                               dft_control_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_result_types,                 ONLY: cp_result_type
    USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE dbcsr_api,                       ONLY: dbcsr_distribution_release,&
@@ -39,7 +38,8 @@ MODULE qs_ks_types
                                               set_2d_pointer
    USE kpoint_types,                    ONLY: kpoint_release,&
                                               kpoint_type
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_para_env_release,&
+                                              mp_para_env_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
@@ -687,7 +687,7 @@ CONTAINS
       END IF
       IF (PRESENT(para_env)) THEN
          CALL para_env%retain()
-         CALL cp_para_env_release(ks_env%para_env)
+         CALL mp_para_env_release(ks_env%para_env)
          ks_env%para_env => para_env
       END IF
       IF (PRESENT(blacs_env)) THEN
@@ -794,7 +794,7 @@ CONTAINS
          DEALLOCATE (ks_env%subsys)
       END IF
       CALL pw_env_release(ks_env%pw_env)
-      CALL cp_para_env_release(ks_env%para_env)
+      CALL mp_para_env_release(ks_env%para_env)
       CALL cp_blacs_env_release(ks_env%blacs_env)
 
    END SUBROUTINE qs_ks_release

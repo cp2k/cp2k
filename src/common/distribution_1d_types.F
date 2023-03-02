@@ -24,8 +24,8 @@
 MODULE distribution_1d_types
 
    USE cp_array_utils,                  ONLY: cp_1d_i_p_type
-   USE cp_para_env,                     ONLY: cp_para_env_release
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_para_env_release,&
+                                              mp_para_env_type
    USE parallel_rng_types,              ONLY: rng_stream_p_type
 #include "../base/base_uses.f90"
 
@@ -192,7 +192,7 @@ CONTAINS
                DEALLOCATE (local_particle_set)
             END IF
 
-            CALL cp_para_env_release(distribution_1d%para_env)
+            CALL mp_para_env_release(distribution_1d%para_env)
 
             DEALLOCATE (distribution_1d)
          END IF

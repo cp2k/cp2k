@@ -447,7 +447,7 @@ CONTAINS
                logger%close_local_unit_on_dealloc = .FALSE.
                logger%default_local_unit_nr = -1
             END IF
-            CALL my_cp_para_env_release(logger%para_env)
+            CALL my_mp_para_env_release(logger%para_env)
             CALL cp_iteration_info_release(logger%iter_info)
             DEALLOCATE (logger)
          END IF
@@ -673,12 +673,12 @@ CONTAINS
 !> \author Fawzi Mohamed
 !> \note
 !>      local private version to avoid circular dependencies
-!>      (see cp_para_env:cp_para_env_release)!
+!>      (see cp_para_env:mp_para_env_release)!
 ! **************************************************************************************************
-   SUBROUTINE my_cp_para_env_release(para_env)
+   SUBROUTINE my_mp_para_env_release(para_env)
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'my_cp_para_env_release', &
+      CHARACTER(len=*), PARAMETER :: routineN = 'my_mp_para_env_release', &
          routineP = moduleN//':'//routineN
 
       IF (ASSOCIATED(para_env)) THEN
@@ -689,7 +689,7 @@ CONTAINS
          IF (.NOT. para_env%is_valid()) DEALLOCATE (para_env)
       END IF
       NULLIFY (para_env)
-   END SUBROUTINE my_cp_para_env_release
+   END SUBROUTINE my_mp_para_env_release
 
 ! **************************************************************************************************
 !> \brief generates a unique filename (ie adding eventual suffixes and

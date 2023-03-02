@@ -25,7 +25,6 @@ MODULE mp2_ri_grad
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_indxl2g, cp_fm_release, &
         cp_fm_set_all, cp_fm_to_fm_submat, cp_fm_type
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_transposed, dbcsr_type, &
@@ -37,7 +36,8 @@ MODULE mp2_ri_grad
                                               ri_rpa_method_gpw
    USE kinds,                           ONLY: dp
    USE libint_2c_3c,                    ONLY: compare_potential_types
-   USE message_passing,                 ONLY: mp_para_env_type,&
+   USE message_passing,                 ONLY: mp_para_env_release,&
+                                              mp_para_env_type,&
                                               mp_request_null,&
                                               mp_request_type,&
                                               mp_waitall
@@ -1100,7 +1100,7 @@ CONTAINS
       CALL timestop(handle2)
 
       ! release para_env_exchange
-      CALL cp_para_env_release(para_env_exchange)
+      CALL mp_para_env_release(para_env_exchange)
 
       CALL cp_fm_release(L1_mu_i)
       CALL cp_fm_release(L2_nu_a)

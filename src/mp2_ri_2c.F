@@ -52,7 +52,6 @@ MODULE mp2_ri_2c
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
         dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_p_type, dbcsr_release, &
@@ -80,6 +79,7 @@ MODULE mp2_ri_2c
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_release,&
                                               mp_para_env_type,&
                                               mp_request_type
    USE mp2_eri,                         ONLY: mp2_eri_2c_integrate
@@ -239,7 +239,7 @@ CONTAINS
             ! GPW overlap matrix
          ELSE
 
-            CALL cp_para_env_release(para_env_L)
+            CALL mp_para_env_release(para_env_L)
             CALL release_group_dist(gd_array)
 
             ALLOCATE (fm_matrix_Minv_L_kpoints(1, 1))
@@ -353,7 +353,7 @@ CONTAINS
       CALL cp_fm_release(fm_matrix_L_work)
       IF (calc_forces .AND. .NOT. (do_im_time .OR. compare_potential_types(qs_env%mp2_env%ri_metric, &
                                                                qs_env%mp2_env%potential_parameter))) CALL cp_fm_release(fm_matrix_V)
-      CALL cp_para_env_release(para_env_L)
+      CALL mp_para_env_release(para_env_L)
 
       CALL timestop(handle)
 

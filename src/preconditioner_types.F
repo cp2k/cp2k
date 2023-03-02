@@ -16,7 +16,6 @@ MODULE preconditioner_types
                                               cp_blacs_env_type
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix,&
                                               dbcsr_p_type,&
                                               dbcsr_release_p,&
@@ -24,7 +23,8 @@ MODULE preconditioner_types
    USE input_constants,                 ONLY: cholesky_reduce,&
                                               ot_precond_solver_default
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_para_env_release,&
+                                              mp_para_env_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -154,7 +154,7 @@ CONTAINS
          END DO
          DEALLOCATE (preconditioner_env%inverse_history)
       END IF
-      CALL cp_para_env_release(preconditioner_env%para_env)
+      CALL mp_para_env_release(preconditioner_env%para_env)
       CALL cp_blacs_env_release(preconditioner_env%ctxt)
 
       preconditioner_env%in_use = 0

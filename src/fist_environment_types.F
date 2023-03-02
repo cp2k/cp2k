@@ -20,7 +20,6 @@ MODULE fist_environment_types
    USE cell_types,                      ONLY: cell_release,&
                                               cell_retain,&
                                               cell_type
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_result_types,                 ONLY: cp_result_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_release,&
@@ -41,7 +40,8 @@ MODULE fist_environment_types
    USE input_section_types,             ONLY: section_vals_release,&
                                               section_vals_retain,&
                                               section_vals_type
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_para_env_release,&
+                                              mp_para_env_type
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_create,&
                                               molecule_kind_list_release,&
                                               molecule_kind_list_type
@@ -439,7 +439,7 @@ CONTAINS
          CALL ewald_env_release(fist_env%ewald_env)
          DEALLOCATE (fist_env%ewald_env)
       END IF
-      CALL cp_para_env_release(fist_env%para_env)
+      CALL mp_para_env_release(fist_env%para_env)
       CALL deallocate_fist_energy(fist_env%thermo)
 
       IF (ASSOCIATED(fist_env%fist_nonbond_env)) THEN

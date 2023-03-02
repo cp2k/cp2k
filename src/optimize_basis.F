@@ -15,7 +15,6 @@ MODULE optimize_basis
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE f77_interface,                   ONLY: create_force_env,&
                                               destroy_force_env,&
@@ -36,6 +35,7 @@ MODULE optimize_basis
                                               m_getcwd,&
                                               m_walltime
    USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_release,&
                                               mp_para_env_type
    USE optbas_fenv_manipulation,        ONLY: allocate_mo_sets,&
                                               calculate_ks_matrix,&
@@ -226,7 +226,7 @@ CONTAINS
          CALL cp_fm_release(matrix_s_inv(icalc))
       END DO
       DEALLOCATE (f_env_id); DEALLOCATE (tot_time); DEALLOCATE (matrix_S_inv)
-      CALL cp_para_env_release(para_env)
+      CALL mp_para_env_release(para_env)
       CALL timestop(handle)
 
    END SUBROUTINE driver_optimization_para_low

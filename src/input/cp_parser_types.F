@@ -21,7 +21,6 @@
 MODULE cp_parser_types
    USE cp_files,                        ONLY: close_file,&
                                               open_file
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_parser_buffer_types,          ONLY: buffer_type,&
                                               create_buffer_type,&
                                               release_buffer_type
@@ -38,6 +37,7 @@ MODULE cp_parser_types
                                               default_string_length,&
                                               max_line_length
    USE message_passing,                 ONLY: mp_comm_self,&
+                                              mp_para_env_release,&
                                               mp_para_env_type
    USE string_utilities,                ONLY: compress
 #include "../base/base_uses.f90"
@@ -111,7 +111,7 @@ CONTAINS
       IF (parser%input_unit >= 0) THEN
          CALL close_file(unit_number=parser%input_unit)
       END IF
-      CALL cp_para_env_release(parser%para_env)
+      CALL mp_para_env_release(parser%para_env)
       CALL release_inpp_type(parser%inpp)
       CALL release_ilist_type(parser%ilist)
       CALL release_buffer_type(parser%buffer)

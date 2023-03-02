@@ -21,7 +21,6 @@ MODULE kpoint_types
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE input_cp2k_kpoints,              ONLY: use_complex_wfn,&
                                               use_real_wfn
    USE input_section_types,             ONLY: section_vals_get,&
@@ -30,7 +29,8 @@ MODULE kpoint_types
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: twopi
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_para_env_release,&
+                                              mp_para_env_type
    USE physcon,                         ONLY: angstrom
    USE qs_matrix_pools,                 ONLY: mpools_release,&
                                               qs_matrix_pools_type
@@ -240,9 +240,9 @@ CONTAINS
          CALL cp_blacs_env_release(kpoint%blacs_env)
          CALL cp_blacs_env_release(kpoint%blacs_env_all)
 
-         CALL cp_para_env_release(kpoint%para_env)
-         CALL cp_para_env_release(kpoint%para_env_kp)
-         CALL cp_para_env_release(kpoint%para_env_inter_kp)
+         CALL mp_para_env_release(kpoint%para_env)
+         CALL mp_para_env_release(kpoint%para_env_kp)
+         CALL mp_para_env_release(kpoint%para_env_inter_kp)
 
          IF (ASSOCIATED(kpoint%cell_to_index)) DEALLOCATE (kpoint%cell_to_index)
          IF (ASSOCIATED(kpoint%index_to_cell)) DEALLOCATE (kpoint%index_to_cell)

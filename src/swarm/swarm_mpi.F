@@ -21,7 +21,6 @@ MODULE swarm_mpi
                                               cp_logger_release,&
                                               cp_logger_type,&
                                               cp_rm_default_logger
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_set
    USE kinds,                           ONLY: default_path_length,&
@@ -29,6 +28,7 @@ MODULE swarm_mpi
    USE machine,                         ONLY: default_output_unit
    USE message_passing,                 ONLY: mp_any_source,&
                                               mp_comm_type,&
+                                              mp_para_env_release,&
                                               mp_para_env_type
    USE swarm_message,                   ONLY: swarm_message_get,&
                                               swarm_message_mpi_bcast,&
@@ -272,8 +272,8 @@ CONTAINS
       CALL swarm_mpi%world%sync()
       CALL logger_finalize(swarm_mpi, root_section)
 
-      IF (ASSOCIATED(swarm_mpi%worker)) CALL cp_para_env_release(swarm_mpi%worker)
-      IF (ASSOCIATED(swarm_mpi%master)) CALL cp_para_env_release(swarm_mpi%master)
+      IF (ASSOCIATED(swarm_mpi%worker)) CALL mp_para_env_release(swarm_mpi%worker)
+      IF (ASSOCIATED(swarm_mpi%master)) CALL mp_para_env_release(swarm_mpi%master)
       NULLIFY (swarm_mpi%worker, swarm_mpi%master)
       DEALLOCATE (swarm_mpi%wid2group)
    END SUBROUTINE swarm_mpi_finalize

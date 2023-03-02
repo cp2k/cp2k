@@ -18,7 +18,6 @@ MODULE qs_tensors_types
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE dbt_api,                         ONLY: dbt_create,&
                                               dbt_default_distvec,&
                                               dbt_distribution_destroy,&
@@ -32,6 +31,7 @@ MODULE qs_tensors_types
                                               distribution_2d_type
    USE message_passing,                 ONLY: mp_cart_type,&
                                               mp_comm_type,&
+                                              mp_para_env_release,&
                                               mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_iterator_p_type,&
@@ -191,7 +191,7 @@ CONTAINS
       CPASSERT(blacs_env%mepos(1) == mp_coor(1))
       CPASSERT(blacs_env%mepos(2) == mp_coor(2))
 
-      CALL cp_para_env_release(para_env)
+      CALL mp_para_env_release(para_env)
 
       natom = SIZE(particle_set)
       ALLOCATE (dist1_prv(natom, 2), dist2_prv(natom, 2))

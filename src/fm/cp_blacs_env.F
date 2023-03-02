@@ -15,11 +15,11 @@
 MODULE cp_blacs_env
    USE cp_array_utils,                  ONLY: cp_2d_i_write
    USE cp_blacs_types,                  ONLY: cp_blacs_type
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: gcd
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_para_env_release,&
+                                              mp_para_env_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -303,7 +303,7 @@ CONTAINS
       CLASS(cp_blacs_env_type), INTENT(INOUT)                   :: blacs_env
 
       CALL blacs_env%gridexit()
-      CALL cp_para_env_release(blacs_env%para_env)
+      CALL mp_para_env_release(blacs_env%para_env)
       DEALLOCATE (blacs_env%mpi2blacs)
       DEALLOCATE (blacs_env%blacs2mpi)
 

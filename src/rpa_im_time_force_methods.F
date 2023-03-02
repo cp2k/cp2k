@@ -40,7 +40,6 @@ MODULE rpa_im_time_force_methods
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_clear, dbcsr_complete_redistribute, dbcsr_copy, &
         dbcsr_create, dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
@@ -84,6 +83,7 @@ MODULE rpa_im_time_force_methods
                                               m_walltime
    USE mathconstants,                   ONLY: fourpi
    USE message_passing,                 ONLY: mp_cart_type,&
+                                              mp_para_env_release,&
                                               mp_para_env_type
    USE mp2_eri,                         ONLY: integrate_set_2c
    USE mp2_eri_gpw,                     ONLY: calc_potential_gpw,&
@@ -2842,7 +2842,7 @@ CONTAINS
       CALL dbcsr_distribution_release(dbcsr_dist)
       DEALLOCATE (col_dist, row_dist, pgrid)
 
-      CALL cp_para_env_release(para_env_ext)
+      CALL mp_para_env_release(para_env_ext)
 
       CALL timestop(handle)
 

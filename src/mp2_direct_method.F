@@ -15,7 +15,6 @@ MODULE mp2_direct_method
    USE cell_types,                      ONLY: cell_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE hfx_energy_potential,            ONLY: coulomb4
    USE hfx_load_balance_methods,        ONLY: cost_model,&
                                               p1_energy,&
@@ -35,7 +34,8 @@ MODULE mp2_direct_method
    USE libint_wrapper,                  ONLY: cp_libint_t
    USE machine,                         ONLY: m_flush
    USE mathconstants,                   ONLY: zero
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_para_env_release,&
+                                              mp_para_env_type
    USE mp2_ri_libint,                   ONLY: prepare_integral_calc
    USE mp2_types,                       ONLY: init_TShPSC_lmax,&
                                               mp2_biel_type,&
@@ -346,7 +346,7 @@ CONTAINS
       CALL para_env%sum(Emp2_Ex)
       CALL para_env%sum(Emp2)
 
-      CALL cp_para_env_release(para_env_sub)
+      CALL mp_para_env_release(para_env_sub)
 
       CALL timestop(handle)
 

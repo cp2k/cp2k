@@ -18,7 +18,6 @@ MODULE mixed_environment_types
                                               cell_type
    USE cp_log_handling,                 ONLY: cp_logger_p_type,&
                                               cp_logger_release
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_result_types,                 ONLY: cp_result_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_release,&
@@ -32,6 +31,7 @@ MODULE mixed_environment_types
                                               default_string_length,&
                                               dp
    USE message_passing,                 ONLY: mp_para_env_p_type,&
+                                              mp_para_env_release,&
                                               mp_para_env_type
    USE mixed_cdft_types,                ONLY: mixed_cdft_type,&
                                               mixed_cdft_type_release
@@ -301,7 +301,7 @@ CONTAINS
       DO i = 1, ngroups
          IF (ASSOCIATED(mixed_env%sub_para_env(i)%para_env)) THEN
             CALL cp_logger_release(mixed_env%sub_logger(i)%p)
-            CALL cp_para_env_release(mixed_env%sub_para_env(i)%para_env)
+            CALL mp_para_env_release(mixed_env%sub_para_env(i)%para_env)
          END IF
       END DO
       DEALLOCATE (mixed_env%sub_para_env)
@@ -314,7 +314,7 @@ CONTAINS
          DEALLOCATE (mixed_env%val)
       END IF
       CALL cell_release(mixed_env%cell_ref)
-      CALL cp_para_env_release(mixed_env%para_env)
+      CALL mp_para_env_release(mixed_env%para_env)
       CALL deallocate_mixed_energy(mixed_env%mixed_energy)
       CALL cp_subsys_release(mixed_env%subsys)
       CALL section_vals_release(mixed_env%input)

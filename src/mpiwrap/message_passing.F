@@ -157,6 +157,8 @@ MODULE message_passing
    PUBLIC :: mp_cart_type
 
    PUBLIC :: mp_para_env_type, mp_para_env_p_type, mp_para_cart_type
+   PUBLIC :: mp_para_env_create, mp_para_env_release, &
+             mp_para_cart_create, mp_para_cart_release
 
    TYPE mp_comm_type
       PRIVATE
@@ -1517,12 +1519,16 @@ CONTAINS
          SELECT TYPE (comm)
          CLASS IS (mp_para_env_type)
             free_comm = .FALSE.
+            IF (comm%ref_count <= 0) &
+               CPABORT("para_env%ref_count <= 0")
             comm%ref_count = comm%ref_count - 1
             IF (comm%ref_count <= 0) THEN
                free_comm = comm%owns_group
             END IF
          CLASS IS (mp_para_cart_type)
             free_comm = .FALSE.
+            IF (comm%ref_count <= 0) &
+               CPABORT("para_cart%ref_count <= 0")
             comm%ref_count = comm%ref_count - 1
             IF (comm%ref_count <= 0) THEN
                free_comm = comm%owns_group
@@ -1699,6 +1705,79 @@ CONTAINS
          END SELECT
 
       END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief creates a new para environment
+!> \param para_env the new parallel environment
+!> \param group the id of the actual mpi_group
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! **************************************************************************************************
+      SUBROUTINE mp_para_env_create(para_env, group)
+         TYPE(mp_para_env_type), POINTER        :: para_env
+         CLASS(mp_comm_type), INTENT(in)                     :: group
+
+         IF (ASSOCIATED(para_env)) &
+            CPABORT("The passed para_env must not be associated!")
+         ALLOCATE (para_env)
+         para_env%mp_comm_type = group
+         CALL para_env%init()
+      END SUBROUTINE mp_para_env_create
+
+! **************************************************************************************************
+!> \brief releases the para object (to be called when you don't want anymore
+!>      the shared copy of this object)
+!> \param para_env the new group
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+!> \note
+!>      to avoid circular dependencies cp_log_handling has a private copy
+!>      of this method (see cp_log_handling:my_mp_para_env_release)!
+! **************************************************************************************************
+      SUBROUTINE mp_para_env_release(para_env)
+         TYPE(mp_para_env_type), POINTER                    :: para_env
+
+         IF (ASSOCIATED(para_env)) THEN
+            CALL para_env%free()
+            IF (.NOT. para_env%is_valid()) DEALLOCATE (para_env)
+         END IF
+         NULLIFY (para_env)
+      END SUBROUTINE mp_para_env_release
+
+! **************************************************************************************************
+!> \brief creates a cart (multidimensional parallel environment)
+!> \param cart the cart environment to create
+!> \param group the mpi communicator
+!> \author fawzi
+! **************************************************************************************************
+      SUBROUTINE mp_para_cart_create(cart, group)
+         TYPE(mp_para_cart_type), POINTER, INTENT(OUT)                   :: cart
+         CLASS(mp_comm_type), INTENT(in)                     :: group
+
+         IF (ASSOCIATED(cart)) &
+            CPABORT("The passed para_cart must not be associated!")
+         ALLOCATE (cart)
+         cart%mp_cart_type = group
+         CALL cart%init()
+
+      END SUBROUTINE mp_para_cart_create
+
+! **************************************************************************************************
+!> \brief releases the given cart
+!> \param cart the cart to release
+!> \author fawzi
+! **************************************************************************************************
+      SUBROUTINE mp_para_cart_release(cart)
+         TYPE(mp_para_cart_type), POINTER                   :: cart
+
+         IF (ASSOCIATED(cart)) THEN
+            CALL cart%free()
+            IF (.NOT. cart%is_valid()) DEALLOCATE (cart)
+         END IF
+         NULLIFY (cart)
+      END SUBROUTINE mp_para_cart_release
 
 ! **************************************************************************************************
 !> \brief wrapper to MPI_Group_translate_ranks

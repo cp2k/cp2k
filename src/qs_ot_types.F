@@ -24,7 +24,6 @@ MODULE qs_ot_types
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
                                               cp_fm_struct_type
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE dbcsr_api,                       ONLY: dbcsr_init_p,&
                                               dbcsr_p_type,&
                                               dbcsr_release_p,&
@@ -43,7 +42,8 @@ MODULE qs_ot_types
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_para_env_release,&
+                                              mp_para_env_type
    USE preconditioner_types,            ONLY: preconditioner_type
 #include "./base/base_uses.f90"
 
@@ -635,7 +635,7 @@ CONTAINS
    SUBROUTINE qs_ot_destroy(qs_ot_env)
       TYPE(qs_ot_type)                                   :: qs_ot_env
 
-      CALL cp_para_env_release(qs_ot_env%para_env)
+      CALL mp_para_env_release(qs_ot_env%para_env)
       CALL cp_blacs_env_release(qs_ot_env%blacs_env)
 
       DEALLOCATE (qs_ot_env%evals)
