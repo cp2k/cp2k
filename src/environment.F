@@ -81,7 +81,7 @@ MODULE environment
         m_get_omp_stacksize, m_memory_details, m_procrun
    USE message_passing,                 ONLY: mp_collect_timings,&
                                               mp_para_env_type
-   USE mp_performance,                  ONLY: add_mp_perf_env,&
+   USE mp_perf_env,                     ONLY: add_mp_perf_env,&
                                               describe_mp_perf_env,&
                                               rm_mp_perf_env
    USE orbital_pointers,                ONLY: deallocate_orbital_pointers,&

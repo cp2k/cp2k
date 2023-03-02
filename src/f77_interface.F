@@ -102,7 +102,7 @@ MODULE f77_interface
    USE metadynamics_utils,              ONLY: metadyn_read
    USE mixed_environment_types,         ONLY: mixed_environment_type
    USE mixed_main,                      ONLY: mixed_create_force_env
-   USE mp_performance,                  ONLY: add_mp_perf_env,&
+   USE mp_perf_env,                     ONLY: add_mp_perf_env,&
                                               get_mp_perf_env,&
                                               mp_perf_env_release,&
                                               mp_perf_env_retain,&

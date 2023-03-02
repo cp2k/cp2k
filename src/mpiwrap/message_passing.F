@@ -27,8 +27,8 @@ MODULE message_passing
       dp, int_4, int_4_size, int_8, int_8_size, real_4, real_4_size, real_8, &
       real_8_size, default_string_length
    USE machine, ONLY: m_abort
-   USE mp_performance, ONLY: add_perf, &
-                             add_mp_perf_env, rm_mp_perf_env
+   USE mp_perf_env, ONLY: add_perf, &
+                          add_mp_perf_env, rm_mp_perf_env
 
 #include "../base/base_uses.f90"
 

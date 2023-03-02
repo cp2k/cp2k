@@ -8,7 +8,7 @@
 ! **************************************************************************************************
 !> \brief Defines all routines to deal with the performance of MPI routines
 ! **************************************************************************************************
-MODULE mp_performance
+MODULE mp_perf_env
    ! performance gathering
    USE kinds,                           ONLY: dp
 #include "../base/base_uses.f90"
@@ -28,9 +28,11 @@ MODULE mp_performance
 
 ! **************************************************************************************************
    TYPE mp_perf_env_type
-      !private
+      PRIVATE
       INTEGER :: ref_count
       TYPE(mp_perf_type), DIMENSION(MAX_PERF) :: mp_perfs
+   CONTAINS
+      PROCEDURE, PUBLIC, PASS(perf_env), NON_OVERRIDABLE :: retain => mp_perf_env_retain
    END TYPE mp_perf_env_type
 
 ! **************************************************************************************************
@@ -41,7 +43,6 @@ MODULE mp_performance
    ! introduce a stack of mp_perfs, first index is the stack pointer, for convenience is replacing
    INTEGER, PARAMETER :: max_stack_size = 10
    INTEGER            :: stack_pointer = 0
-   ! target attribute needed as a hack around ifc 7.1 bug
    TYPE(mp_perf_env_p_type), DIMENSION(max_stack_size), SAVE :: mp_perf_stack
 
    CHARACTER(LEN=20), PARAMETER :: sname(MAX_PERF) = &
@@ -93,13 +94,10 @@ CONTAINS
    SUBROUTINE mp_perf_env_create(perf_env)
       TYPE(mp_perf_env_type), OPTIONAL, POINTER          :: perf_env
 
-      INTEGER                                            :: i, stat
+      INTEGER                                            :: i
 
       NULLIFY (perf_env)
-      ALLOCATE (perf_env, stat=stat)
-      IF (stat /= 0) THEN
-         CPABORT("allocation failed in mp_perf_env_create")
-      END IF
+      ALLOCATE (perf_env)
       perf_env%ref_count = 1
       DO i = 1, MAX_PERF
          perf_env%mp_perfs(i)%name = sname(i)
@@ -132,15 +130,9 @@ CONTAINS
 !> \brief ...
 !> \param perf_env ...
 ! **************************************************************************************************
-   SUBROUTINE mp_perf_env_retain(perf_env)
-      TYPE(mp_perf_env_type), POINTER                    :: perf_env
+   ELEMENTAL SUBROUTINE mp_perf_env_retain(perf_env)
+      CLASS(mp_perf_env_type), INTENT(INOUT)                    :: perf_env
 
-      IF (.NOT. ASSOCIATED(perf_env)) THEN
-         CPABORT("unassociated perf_env: message_passing @ mp_perf_env_retain")
-      END IF
-      IF (perf_env%ref_count < 1) THEN
-         CPABORT("invalid ref_count: message_passing @ mp_perf_env_retain")
-      END IF
       perf_env%ref_count = perf_env%ref_count + 1
    END SUBROUTINE mp_perf_env_retain
 
@@ -262,4 +254,4 @@ CONTAINS
 
    END SUBROUTINE add_perf
 
-END MODULE mp_performance
+END MODULE mp_perf_env
