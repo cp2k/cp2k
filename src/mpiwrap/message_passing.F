@@ -99,6 +99,7 @@ MODULE message_passing
    MPI_WIN_TYPE, PARAMETER :: mp_win_null_handle = MPI_WIN_NULL
    MPI_FILE_TYPE, PARAMETER :: mp_file_null_handle = MPI_FILE_NULL
    MPI_INFO_TYPE, PARAMETER :: mp_info_null_handle = MPI_INFO_NULL
+   MPI_DATA_TYPE, PARAMETER :: mp_datatype_null_handle = MPI_DATATYPE_NULL
    INTEGER, PARAMETER, PUBLIC :: mp_status_size = MPI_STATUS_SIZE
    INTEGER, PARAMETER, PUBLIC :: mp_proc_null = MPI_PROC_NULL
    ! Set max allocatable memory by MPI to 2 GiByte
@@ -125,8 +126,9 @@ MODULE message_passing
    MPI_WIN_TYPE, PARAMETER :: mp_win_null_handle = -5
    MPI_FILE_TYPE, PARAMETER :: mp_file_null_handle = -6
    MPI_INFO_TYPE, PARAMETER :: mp_info_null_handle = -7
-   INTEGER, PARAMETER, PUBLIC :: mp_status_size = -8
-   INTEGER, PARAMETER, PUBLIC :: mp_proc_null = -9
+   MPI_DATA_TYPE, PARAMETER :: mp_datatype_null_handle = -8
+   INTEGER, PARAMETER, PUBLIC :: mp_status_size = -9
+   INTEGER, PARAMETER, PUBLIC :: mp_proc_null = -10
    INTEGER, PARAMETER, PUBLIC :: mp_max_library_version_string = 1
 
    INTEGER, PARAMETER, PUBLIC :: file_offset = int_8
@@ -891,38 +893,38 @@ MODULE message_passing
 
 ! Type declarations
    TYPE mp_indexing_meta_type
-      INTEGER, DIMENSION(:), POINTER :: index, chunks
+      INTEGER, DIMENSION(:), POINTER :: index => NULL(), chunks => NULL()
    END TYPE mp_indexing_meta_type
 
    TYPE mp_type_descriptor_type
-      MPI_DATA_TYPE :: type_handle
-      INTEGER :: length
+      MPI_DATA_TYPE :: type_handle = mp_datatype_null_handle
+      INTEGER :: length = -1
 #if defined(__parallel)
-      INTEGER(kind=mpi_address_kind) :: base
+      INTEGER(kind=mpi_address_kind) :: base = -1
 #endif
-      INTEGER(kind=int_4), DIMENSION(:), POINTER :: data_i
-      INTEGER(kind=int_8), DIMENSION(:), POINTER :: data_l
-      REAL(kind=real_4), DIMENSION(:), POINTER :: data_r
-      REAL(kind=real_8), DIMENSION(:), POINTER :: data_d
-      COMPLEX(kind=real_4), DIMENSION(:), POINTER :: data_c
-      COMPLEX(kind=real_8), DIMENSION(:), POINTER :: data_z
-      TYPE(mp_type_descriptor_type), DIMENSION(:), POINTER :: subtype
-      INTEGER :: vector_descriptor(2)
-      LOGICAL :: has_indexing
-      TYPE(mp_indexing_meta_type) :: index_descriptor
+      INTEGER(kind=int_4), DIMENSION(:), POINTER :: data_i => NULL()
+      INTEGER(kind=int_8), DIMENSION(:), POINTER :: data_l => NULL()
+      REAL(kind=real_4), DIMENSION(:), POINTER :: data_r => NULL()
+      REAL(kind=real_8), DIMENSION(:), POINTER :: data_d => NULL()
+      COMPLEX(kind=real_4), DIMENSION(:), POINTER :: data_c => NULL()
+      COMPLEX(kind=real_8), DIMENSION(:), POINTER :: data_z => NULL()
+      TYPE(mp_type_descriptor_type), DIMENSION(:), POINTER :: subtype => NULL()
+      INTEGER :: vector_descriptor(2) = -1
+      LOGICAL :: has_indexing = .FALSE.
+      TYPE(mp_indexing_meta_type) :: index_descriptor = mp_indexing_meta_type()
    END TYPE mp_type_descriptor_type
 
    TYPE mp_file_indexing_meta_type
-      INTEGER, DIMENSION(:), POINTER   :: index
+      INTEGER, DIMENSION(:), POINTER   :: index => NULL()
       INTEGER(kind=file_offset), &
-         DIMENSION(:), POINTER         :: chunks
+         DIMENSION(:), POINTER         :: chunks => NULL()
    END TYPE mp_file_indexing_meta_type
 
    TYPE mp_file_descriptor_type
-      MPI_DATA_TYPE :: type_handle
-      INTEGER                          :: length
+      MPI_DATA_TYPE :: type_handle = mp_datatype_null_handle
+      INTEGER                          :: length = -1
       LOGICAL                          :: has_indexing = .FALSE.
-      TYPE(mp_file_indexing_meta_type) :: index_descriptor
+      TYPE(mp_file_indexing_meta_type) :: index_descriptor = mp_file_indexing_meta_type()
    END TYPE
 
    ! we make some assumptions on the length of INTEGERS, REALS and LOGICALS
@@ -4091,7 +4093,6 @@ CONTAINS
          MPI_DATA_TYPE, ALLOCATABLE, DIMENSION(:) :: old_types
 
          n = SIZE(subtypes)
-         !type_descriptor%mpi_type_handle = MPI_DATATYPE_NULL
          type_descriptor%length = 1
 #if defined(__parallel)
          ierr = 0
