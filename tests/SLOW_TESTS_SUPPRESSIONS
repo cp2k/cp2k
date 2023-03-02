@@ -65,5 +65,6 @@ QS/regtest-xastdp/CH3-PBE-uks.inp
 QS/regtest-p-efield/HF-field-debug.inp
 QS/regtest-admm-qps/H2O-ADMMQ_debug_forces.inp
 QS/regtest-ps-implicit-1-1/Ar_mixed_cuboidal.inp
+QS/regtest-embed/H2O_H2_pbe_FAB.inp
 
 #EOF
