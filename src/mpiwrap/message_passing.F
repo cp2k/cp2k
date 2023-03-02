@@ -564,10 +564,10 @@ MODULE message_passing
       PROCEDURE, PUBLIC, PASS(comm1), NON_OVERRIDABLE :: rank_compare => mp_rank_compare
 
       PROCEDURE, PUBLIC, PASS(comm2), NON_OVERRIDABLE :: from_dup => mp_comm_dup
-      PROCEDURE, PUBLIC, PASS(comm) :: mp_comm_free
+      PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: mp_comm_free
       GENERIC, PUBLIC :: free => mp_comm_free
 
-      PROCEDURE, PUBLIC, PASS(comm) :: mp_comm_init
+      PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: mp_comm_init
       GENERIC, PUBLIC :: init => mp_comm_init
 
       PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: get_size => mp_comm_size
@@ -705,7 +705,6 @@ MODULE message_passing
    CONTAINS
       PROCEDURE, PUBLIC, PASS(comm_cart), NON_OVERRIDABLE :: create => mp_cart_create
       PROCEDURE, PUBLIC, PASS(sub_comm), NON_OVERRIDABLE :: from_sub => mp_cart_sub
-      PROCEDURE, PUBLIC, PASS(comm) :: mp_comm_init => mp_cart_init
 
       PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: get_info_cart => mp_cart_get
 
@@ -729,10 +728,8 @@ MODULE message_passing
       LOGICAL :: owns_group = .TRUE.
       INTEGER :: ref_count = -1
    CONTAINS
-      PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: mp_comm_init => cp_para_env_init
-      PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: mp_comm_free => cp_para_env_free
-      PROCEDURE, PUBLIC, PASS(para_env), NON_OVERRIDABLE :: retain => cp_para_env_retain
-      PROCEDURE, PUBLIC, PASS(para_env), NON_OVERRIDABLE :: is_valid => cp_para_env_is_valid
+      PROCEDURE, PUBLIC, PASS(para_env), NON_OVERRIDABLE :: retain => mp_para_env_retain
+      PROCEDURE, PUBLIC, PASS(para_env), NON_OVERRIDABLE :: is_valid => mp_para_env_is_valid
    END TYPE mp_para_env_type
 
 ! **************************************************************************************************
@@ -768,10 +765,8 @@ MODULE message_passing
       LOGICAL :: owns_group = .TRUE.
       INTEGER :: ref_count = -1
    CONTAINS
-      PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: mp_comm_free => cp_para_cart_free
-      PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: mp_comm_init => cp_para_cart_init
-      PROCEDURE, PUBLIC, PASS(cart), NON_OVERRIDABLE :: retain => cp_para_cart_retain
-      PROCEDURE, PUBLIC, PASS(cart), NON_OVERRIDABLE :: is_valid => cp_para_cart_is_valid
+      PROCEDURE, PUBLIC, PASS(cart), NON_OVERRIDABLE :: retain => mp_para_cart_retain
+      PROCEDURE, PUBLIC, PASS(cart), NON_OVERRIDABLE :: is_valid => mp_para_cart_is_valid
    END TYPE mp_para_cart_type
 
    ! Create the constants from the corresponding handles
@@ -1390,33 +1385,6 @@ CONTAINS
 
       END SUBROUTINE mp_cart_create
 
-      ELEMENTAL IMPURE SUBROUTINE mp_cart_init(comm, owns_group)
-         CLASS(mp_cart_type), INTENT(INOUT) :: comm
-         LOGICAL, INTENT(IN), OPTIONAL :: owns_group
-
-         MARK_USED(owns_group)
-
-         CALL comm%mp_comm_type%init()
-
-         IF (ALLOCATED(comm%periodic)) DEALLOCATE (comm%periodic)
-         IF (ALLOCATED(comm%mepos_cart)) DEALLOCATE (comm%mepos_cart)
-         IF (ALLOCATED(comm%num_pe_cart)) DEALLOCATE (comm%num_pe_cart)
-
-         ASSOCIATE (ndims => comm%ndims)
-
-            ALLOCATE (comm%periodic(ndims), comm%mepos_cart(ndims), &
-                      comm%num_pe_cart(ndims))
-         END ASSOCIATE
-
-         comm%mepos_cart = 0
-         comm%periodic = .FALSE.
-         IF (comm%handle /= mp_comm_null_handle) THEN
-            CALL comm%get_info_cart(comm%num_pe_cart, comm%mepos_cart, &
-                                    comm%periodic)
-         END IF
-
-      END SUBROUTINE
-
 ! **************************************************************************************************
 !> \brief wrapper to MPI_Cart_coords
 !> \param comm ...
@@ -1540,19 +1508,38 @@ CONTAINS
          CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_free'
 
          INTEGER                                            :: handle
+         LOGICAL :: free_comm
 #if defined(__parallel)
          INTEGER :: ierr
 #endif
 
+         free_comm = .TRUE.
+         SELECT TYPE (comm)
+         CLASS IS (mp_para_env_type)
+            free_comm = .FALSE.
+            comm%ref_count = comm%ref_count - 1
+            IF (comm%ref_count <= 0) THEN
+               free_comm = comm%owns_group
+            END IF
+         CLASS IS (mp_para_cart_type)
+            free_comm = .FALSE.
+            comm%ref_count = comm%ref_count - 1
+            IF (comm%ref_count <= 0) THEN
+               free_comm = comm%owns_group
+            END IF
+         END SELECT
+
          CALL mp_timeset(routineN, handle)
 
+         IF (free_comm) THEN
 #if defined(__parallel)
-         CALL mpi_comm_free(comm%handle, ierr)
-         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_free @ mp_comm_free")
+            CALL mpi_comm_free(comm%handle, ierr)
+            IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_free @ mp_comm_free")
 #else
-         comm%handle = mp_comm_null_handle
+            comm%handle = mp_comm_null_handle
 #endif
-         debug_comm_count = debug_comm_count - 1
+            debug_comm_count = debug_comm_count - 1
+         END IF
 
          SELECT TYPE (comm)
          CLASS IS (mp_cart_type)
@@ -1564,115 +1551,50 @@ CONTAINS
       END SUBROUTINE mp_comm_free
 
 ! **************************************************************************************************
-!> \brief initialize the environment
-!> \param comm ...
-!> \param owns_group ...
-! **************************************************************************************************
-      ELEMENTAL IMPURE SUBROUTINE cp_para_env_init(comm, owns_group)
-         CLASS(mp_para_env_type), INTENT(INOUT)                  :: comm
-         LOGICAL, INTENT(IN), OPTIONAL :: owns_group
-
-         CALL comm%mp_comm_type%init()
-
-         IF (PRESENT(owns_group)) comm%owns_group = owns_group
-         comm%ref_count = 1
-
-      END SUBROUTINE cp_para_env_init
-
-! **************************************************************************************************
 !> \brief check whether the environment exists
 !> \param para_env ...
 !> \return ...
 ! **************************************************************************************************
-      ELEMENTAL LOGICAL FUNCTION cp_para_env_is_valid(para_env)
+      ELEMENTAL LOGICAL FUNCTION mp_para_env_is_valid(para_env)
          CLASS(mp_para_env_type), INTENT(IN) :: para_env
 
-         cp_para_env_is_valid = para_env%ref_count > 0
+         mp_para_env_is_valid = para_env%ref_count > 0
 
-      END FUNCTION cp_para_env_is_valid
+      END FUNCTION mp_para_env_is_valid
 
 ! **************************************************************************************************
 !> \brief increase the reference counter but ensure that you free it later
 !> \param para_env ...
 ! **************************************************************************************************
-      ELEMENTAL SUBROUTINE cp_para_env_retain(para_env)
+      ELEMENTAL SUBROUTINE mp_para_env_retain(para_env)
          CLASS(mp_para_env_type), INTENT(INOUT) :: para_env
 
          para_env%ref_count = para_env%ref_count + 1
 
-      END SUBROUTINE cp_para_env_retain
-
-! **************************************************************************************************
-!> \brief free the communicator
-!> \param comm ...
-! **************************************************************************************************
-      SUBROUTINE cp_para_env_free(comm)
-         CLASS(mp_para_env_type), INTENT(INOUT) :: comm
-
-         comm%ref_count = comm%ref_count - 1
-         IF (comm%ref_count <= 0) THEN
-            IF (comm%owns_group) CALL comm%mp_comm_type%free()
-         END IF
-
-      END SUBROUTINE cp_para_env_free
-
-! **************************************************************************************************
-!> \brief intializes a cart (multidimensional parallel environment)
-!> \param comm ...
-!> \param owns_group ...
-!> \author fawzi
-! **************************************************************************************************
-      ELEMENTAL IMPURE SUBROUTINE cp_para_cart_init(comm, owns_group)
-         CLASS(mp_para_cart_type), INTENT(INOUT)             :: comm
-         LOGICAL, INTENT(IN), OPTIONAL :: owns_group
-
-         CALL comm%mp_cart_type%init()
-
-         IF (PRESENT(owns_group)) comm%owns_group = owns_group
-
-         comm%ref_count = 1
-      END SUBROUTINE cp_para_cart_init
+      END SUBROUTINE mp_para_env_retain
 
 ! **************************************************************************************************
 !> \brief check whether the given environment is valid, i.e. existent
 !> \param cart ...
 !> \return ...
 ! **************************************************************************************************
-      ELEMENTAL LOGICAL FUNCTION cp_para_cart_is_valid(cart)
+      ELEMENTAL LOGICAL FUNCTION mp_para_cart_is_valid(cart)
          CLASS(mp_para_cart_type), INTENT(IN) :: cart
 
-         cp_para_cart_is_valid = cart%ref_count > 0
+         mp_para_cart_is_valid = cart%ref_count > 0
 
-      END FUNCTION cp_para_cart_is_valid
+      END FUNCTION mp_para_cart_is_valid
 
 ! **************************************************************************************************
 !> \brief increase the reference counter, don't forget to free it later
 !> \param cart ...
 ! **************************************************************************************************
-      ELEMENTAL SUBROUTINE cp_para_cart_retain(cart)
+      ELEMENTAL SUBROUTINE mp_para_cart_retain(cart)
          CLASS(mp_para_cart_type), INTENT(INOUT) :: cart
 
          cart%ref_count = cart%ref_count + 1
 
-      END SUBROUTINE cp_para_cart_retain
-
-! **************************************************************************************************
-!> \brief free the communicator
-!> \param comm ...
-! **************************************************************************************************
-      SUBROUTINE cp_para_cart_free(comm)
-         CLASS(mp_para_cart_type), INTENT(INOUT) :: comm
-
-         comm%ref_count = comm%ref_count - 1
-         IF (comm%ref_count <= 0) THEN
-            IF (comm%owns_group) THEN
-               CALL comm%mp_cart_type%free()
-            ELSE
-               DEALLOCATE (comm%periodic, comm%mepos_cart, comm%num_pe_cart)
-            END IF
-         END IF
-
-      END SUBROUTINE cp_para_cart_free
+      END SUBROUTINE mp_para_cart_retain
 
 ! **************************************************************************************************
 !> \brief wrapper to MPI_Comm_dup
@@ -1741,14 +1663,40 @@ CONTAINS
          CLASS(mp_comm_type), INTENT(INOUT) :: comm
          LOGICAL, INTENT(IN), OPTIONAL :: owns_group
 
-         ! The mp_comm_type does not care about ownership yet, this is just relevant for cp_para_*_type
-         MARK_USED(owns_group)
-
          IF (comm%handle /= mp_comm_null_handle) THEN
             comm%source = 0
             CALL comm%get_size(comm%num_pe)
             CALL comm%get_rank(comm%mepos)
          END IF
+
+         SELECT TYPE (comm)
+         CLASS IS (mp_cart_type)
+            IF (ALLOCATED(comm%periodic)) DEALLOCATE (comm%periodic)
+            IF (ALLOCATED(comm%mepos_cart)) DEALLOCATE (comm%mepos_cart)
+            IF (ALLOCATED(comm%num_pe_cart)) DEALLOCATE (comm%num_pe_cart)
+
+            ASSOCIATE (ndims => comm%ndims)
+
+               ALLOCATE (comm%periodic(ndims), comm%mepos_cart(ndims), &
+                         comm%num_pe_cart(ndims))
+            END ASSOCIATE
+
+            comm%mepos_cart = 0
+            comm%periodic = .FALSE.
+            IF (comm%handle /= mp_comm_null_handle) THEN
+               CALL comm%get_info_cart(comm%num_pe_cart, comm%mepos_cart, &
+                                       comm%periodic)
+            END IF
+         END SELECT
+
+         SELECT TYPE (comm)
+         CLASS IS (mp_para_env_type)
+            IF (PRESENT(owns_group)) comm%owns_group = owns_group
+            comm%ref_count = 1
+         CLASS IS (mp_para_cart_type)
+            IF (PRESENT(owns_group)) comm%owns_group = owns_group
+            comm%ref_count = 1
+         END SELECT
 
       END SUBROUTINE
 
