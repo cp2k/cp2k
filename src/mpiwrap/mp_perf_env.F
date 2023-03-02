@@ -19,9 +19,9 @@ MODULE mp_perf_env
    PUBLIC :: add_perf
 
    TYPE mp_perf_type
-      CHARACTER(LEN=20) :: name
-      INTEGER :: count
-      REAL(KIND=dp) :: msg_size
+      CHARACTER(LEN=20) :: name = ""
+      INTEGER :: count = 0
+      REAL(KIND=dp) :: msg_size = 0.0_dp
    END TYPE mp_perf_type
 
    INTEGER, PARAMETER :: MAX_PERF = 28
@@ -29,8 +29,8 @@ MODULE mp_perf_env
 ! **************************************************************************************************
    TYPE mp_perf_env_type
       PRIVATE
-      INTEGER :: ref_count
-      TYPE(mp_perf_type), DIMENSION(MAX_PERF) :: mp_perfs
+      INTEGER :: ref_count = -1
+      TYPE(mp_perf_type), DIMENSION(MAX_PERF) :: mp_perfs = mp_perf_type()
    CONTAINS
       PROCEDURE, PUBLIC, PASS(perf_env), NON_OVERRIDABLE :: retain => mp_perf_env_retain
    END TYPE mp_perf_env_type
@@ -101,8 +101,6 @@ CONTAINS
       perf_env%ref_count = 1
       DO i = 1, MAX_PERF
          perf_env%mp_perfs(i)%name = sname(i)
-         perf_env%mp_perfs(i)%count = 0
-         perf_env%mp_perfs(i)%msg_size = 0.0_dp
       END DO
 
    END SUBROUTINE mp_perf_env_create
