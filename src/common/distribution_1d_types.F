@@ -24,8 +24,8 @@
 MODULE distribution_1d_types
 
    USE cp_array_utils,                  ONLY: cp_1d_i_p_type
-   USE cp_para_env,                     ONLY: cp_para_env_release
-   USE cp_para_types,                   ONLY: cp_para_env_type
+   USE message_passing,                 ONLY: mp_para_env_release,&
+                                              mp_para_env_type
    USE parallel_rng_types,              ONLY: rng_stream_p_type
 #include "../base/base_uses.f90"
 
@@ -64,7 +64,7 @@ MODULE distribution_1d_types
       LOGICAL :: listbased_distribution
       INTEGER, DIMENSION(:), POINTER :: n_el
       TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER :: list
-      TYPE(cp_para_env_type), POINTER :: para_env
+      TYPE(mp_para_env_type), POINTER :: para_env
       TYPE(local_particle_type), DIMENSION(:), POINTER :: local_particle_set
    END TYPE distribution_1d_type
 
@@ -85,7 +85,7 @@ CONTAINS
    SUBROUTINE distribution_1d_create(distribution_1d, para_env, listbased_distribution, &
                                      n_el, n_lists)
       TYPE(distribution_1d_type), POINTER                :: distribution_1d
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(in), OPTIONAL                      :: listbased_distribution
       INTEGER, DIMENSION(:), INTENT(in), OPTIONAL        :: n_el
       INTEGER, INTENT(in), OPTIONAL                      :: n_lists
@@ -192,7 +192,7 @@ CONTAINS
                DEALLOCATE (local_particle_set)
             END IF
 
-            CALL cp_para_env_release(distribution_1d%para_env)
+            CALL mp_para_env_release(distribution_1d%para_env)
 
             DEALLOCATE (distribution_1d)
          END IF

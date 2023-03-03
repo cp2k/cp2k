@@ -14,7 +14,6 @@
 ! **************************************************************************************************
 MODULE almo_scf_types
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_release,&
                                               dbcsr_type
    USE domain_submatrix_types,          ONLY: domain_map_type,&
@@ -25,6 +24,7 @@ MODULE almo_scf_types
         trustr_cauchy, trustr_dogleg, trustr_steihaug, xalmo_prec_domain, xalmo_prec_full, &
         xalmo_prec_zero
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -103,7 +103,7 @@ MODULE almo_scf_types
    ! the structure contains general info about the system
    TYPE almo_scf_env_type
 
-      TYPE(cp_para_env_type), POINTER  :: para_env
+      TYPE(mp_para_env_type), POINTER  :: para_env
       TYPE(cp_blacs_env_type), POINTER  :: blacs_env
 
       INTEGER :: nspins, nelectrons_total, naos

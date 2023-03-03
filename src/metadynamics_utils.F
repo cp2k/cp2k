@@ -19,7 +19,6 @@ MODULE metadynamics_utils
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type
@@ -47,6 +46,7 @@ MODULE metadynamics_utils
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE machine,                         ONLY: m_mov
+   USE message_passing,                 ONLY: mp_para_env_type
    USE metadynamics_types,              ONLY: hills_env_type,&
                                               meta_env_type,&
                                               metadyn_create,&
@@ -84,7 +84,7 @@ CONTAINS
       TYPE(meta_env_type), POINTER                       :: meta_env
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), OPTIONAL, POINTER         :: fe_section
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'metadyn_read'
@@ -522,7 +522,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_s_save, ss0_save
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: delta_s_ss0_buf
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 

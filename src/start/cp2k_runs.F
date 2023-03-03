@@ -30,8 +30,6 @@ MODULE cp2k_runs
                                               cp_print_key_finished_output,&
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
-   USE cp_para_env,                     ONLY: cp_para_env_release
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: parser_search_string
    USE cp_parser_types,                 ONLY: cp_parser_type,&
                                               parser_create,&
@@ -107,7 +105,9 @@ MODULE cp2k_runs
    USE mc_run,                          ONLY: do_mon_car
    USE md_run,                          ONLY: qs_mol_dyn
    USE message_passing,                 ONLY: mp_any_source,&
-                                              mp_comm_type
+                                              mp_comm_type,&
+                                              mp_para_env_release,&
+                                              mp_para_env_type
    USE mscfg_methods,                   ONLY: do_mol_loop,&
                                               loop_over_molecules
    USE neb_methods,                     ONLY: neb
@@ -187,7 +187,7 @@ CONTAINS
       LOGICAL                                            :: echo_input, grid_apply_cutoff, &
                                                             grid_validate, I_was_ionode
       TYPE(cp_logger_type), POINTER                      :: logger, sublogger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(f_env_type), POINTER                          :: f_env
       TYPE(force_env_type), POINTER                      :: force_env
@@ -456,7 +456,7 @@ CONTAINS
 
       CALL dbcsr_finalize_lib()
 
-      CALL cp_para_env_release(para_env)
+      CALL mp_para_env_release(para_env)
 
    END SUBROUTINE cp2k_run
 
@@ -474,7 +474,7 @@ CONTAINS
    RECURSIVE SUBROUTINE farming_run(input_declaration, root_section, para_env, initial_variables)
       TYPE(section_type), POINTER              :: input_declaration
       TYPE(section_vals_type), POINTER         :: root_section
-      TYPE(cp_para_env_type), POINTER          :: para_env
+      TYPE(mp_para_env_type), POINTER          :: para_env
       CHARACTER(len=default_path_length), DIMENSION(:, :), INTENT(IN) :: initial_variables
 
       CHARACTER(len=*), PARAMETER :: routineN = 'farming_run'
@@ -976,7 +976,7 @@ CONTAINS
       TYPE(mp_comm_type), INTENT(in), OPTIONAL           :: mpi_comm
 
       INTEGER                                            :: unit_nr
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       IF (PRESENT(mpi_comm)) THEN
          ALLOCATE (para_env)
@@ -995,7 +995,7 @@ CONTAINS
          unit_nr = -1
       END IF
       CALL cp2k_run(input_declaration, input_file_path, unit_nr, para_env, initial_variables)
-      CALL cp_para_env_release(para_env)
+      CALL mp_para_env_release(para_env)
    END SUBROUTINE run_input
 
 END MODULE cp2k_runs

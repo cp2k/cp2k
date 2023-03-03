@@ -35,7 +35,6 @@ MODULE qs_diis
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_dot, dbcsr_maxabs, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_transposed, dbcsr_type
@@ -44,6 +43,7 @@ MODULE qs_diis
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathlib,                         ONLY: diamat_all
+   USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_diis_types,                   ONLY: qs_diis_buffer_type,&
                                               qs_diis_buffer_type_sparse
@@ -545,10 +545,10 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ev
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a, b
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(dbcsr_type)                                   :: matrix_KSerr_t, matrix_tmp
       TYPE(dbcsr_type), POINTER                          :: new_errors, old_errors, parameters
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
       nspin = ls_scf_env%nspins

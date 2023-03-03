@@ -19,7 +19,6 @@ MODULE se_core_core
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               semi_empirical_control_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE ewald_environment_types,         ONLY: ewald_env_get,&
                                               ewald_environment_type
    USE ewald_pw_types,                  ONLY: ewald_pw_get,&
@@ -28,6 +27,7 @@ MODULE se_core_core
         do_method_am1, do_method_mndo, do_method_mndod, do_method_pdg, do_method_pm3, &
         do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rm1
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -77,7 +77,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE se_core_core_interaction(qs_env, para_env, calculate_forces)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(in)                                :: calculate_forces
 
       CHARACTER(len=*), PARAMETER :: routineN = 'se_core_core_interaction'

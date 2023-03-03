@@ -31,7 +31,6 @@ MODULE cp_ddapc_util
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE input_constants,                 ONLY: do_full_density,&
                                               do_spin_density
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -40,6 +39,7 @@ MODULE cp_ddapc_util
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: pi
+   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -90,8 +90,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: inp_radii, radii
       TYPE(cell_type), POINTER                           :: cell, super_cell
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pool

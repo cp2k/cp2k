@@ -40,7 +40,6 @@ MODULE mp2
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_get_info,&
                                               dbcsr_p_type
    USE hfx_types,                       ONLY: &
@@ -60,6 +59,7 @@ MODULE mp2
    USE machine,                         ONLY: m_flush,&
                                               m_memory,&
                                               m_walltime
+   USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_direct_method,               ONLY: mp2_direct_energy
    USE mp2_gpw,                         ONLY: mp2_gpw_main
    USE mp2_optimize_ri_basis,           ONLY: optimize_ri_basis_main
@@ -135,7 +135,6 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: fm_matrix_ks, fm_matrix_s, fm_matrix_work
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_transl, matrix_s_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -149,6 +148,7 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp2_biel_type)                                :: mp2_biel
       TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set

@@ -23,7 +23,6 @@ MODULE rpa_hfx
                                               copy_fm_to_dbcsr,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_create,&
@@ -49,6 +48,7 @@ MODULE rpa_hfx
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
+   USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -105,11 +105,11 @@ CONTAINS
       LOGICAL                                            :: calc_ints, hfx_treat_lsd_in_core, &
                                                             use_virial
       REAL(KIND=dp)                                      :: eh1, ehfx, t1, t2
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_aux_fit, rho_ao, &
                                                             rho_ao_aux_fit, rho_ao_resp
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_2d, rho_ao_2d
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input
@@ -476,8 +476,8 @@ CONTAINS
 
       INTEGER                                            :: natom
       TYPE(admm_type), POINTER                           :: qs_admm_env, tmp_admm_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: xc_fun, xc_fun_empty, xc_section, &
                                                             xc_section_empty
 

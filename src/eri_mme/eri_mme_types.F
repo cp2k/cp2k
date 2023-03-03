@@ -15,7 +15,6 @@
 
 MODULE eri_mme_types
 
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE eri_mme_error_control,           ONLY: calibrate_cutoff,&
                                               cutoff_minimax_error,&
                                               minimax_error
@@ -28,6 +27,7 @@ MODULE eri_mme_types
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: det_3x3,&
                                               inv_3x3
+   USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: init_orbital_pointers
 #include "../base/base_uses.f90"
 
@@ -177,7 +177,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: is_ortho
       REAL(KIND=dp), INTENT(IN)                          :: zet_min, zet_max
       INTEGER, INTENT(IN)                                :: l_max_zet, l_max
-      TYPE(cp_para_env_type), INTENT(IN), OPTIONAL       :: para_env
+      TYPE(mp_para_env_type), INTENT(IN), OPTIONAL       :: para_env
       INTEGER, INTENT(IN), OPTIONAL                      :: potential
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pot_par
 

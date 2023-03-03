@@ -14,9 +14,9 @@ MODULE negf_subgroup_types
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
-   USE cp_para_env,                     ONLY: cp_para_env_release
-   USE cp_para_types,                   ONLY: cp_para_env_type
-   USE message_passing,                 ONLY: mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_release,&
+                                              mp_para_env_type
    USE negf_control_types,              ONLY: negf_control_type
 #include "./base/base_uses.f90"
 
@@ -50,7 +50,7 @@ MODULE negf_subgroup_types
       !> group-specific BLACS parallel environment
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env => NULL()
       !> group-specific MPI parallel environment
-      TYPE(cp_para_env_type), POINTER                    :: para_env => NULL()
+      TYPE(mp_para_env_type), POINTER                    :: para_env => NULL()
    END TYPE negf_subgroup_env_type
 
 CONTAINS
@@ -76,7 +76,7 @@ CONTAINS
 
       INTEGER                                            :: handle
       LOGICAL                                            :: is_split
-      TYPE(cp_para_env_type), POINTER                    :: para_env_global
+      TYPE(mp_para_env_type), POINTER                    :: para_env_global
 
       CALL timeset(routineN, handle)
 
@@ -135,7 +135,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL cp_blacs_env_release(sub_env%blacs_env)
-      CALL cp_para_env_release(sub_env%para_env)
+      CALL mp_para_env_release(sub_env%para_env)
 
       IF (ALLOCATED(sub_env%group_distribution)) &
          DEALLOCATE (sub_env%group_distribution)

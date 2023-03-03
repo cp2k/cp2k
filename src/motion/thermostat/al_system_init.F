@@ -12,13 +12,13 @@ MODULE al_system_init
 
    USE al_system_mapping,               ONLY: al_to_particle_mapping
    USE al_system_types,                 ONLY: al_system_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: global_constraint_type,&
                                               molecule_type
@@ -57,7 +57,7 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_molecules
       TYPE(molecule_type), POINTER                       :: molecule(:)
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind_set(:)
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(al_system_type), POINTER                      :: al
       TYPE(section_vals_type), POINTER                   :: al_section
       TYPE(global_constraint_type), POINTER              :: gci

@@ -19,7 +19,6 @@ MODULE qs_cdft_scf_utils
    USE cp_log_handling,                 ONLY: cp_logger_create,&
                                               cp_logger_type,&
                                               cp_to_string
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE input_constants,                 ONLY: &
         broyden_type_1, broyden_type_1_explicit, broyden_type_1_explicit_ls, broyden_type_1_ls, &
         broyden_type_2, broyden_type_2_explicit, broyden_type_2_explicit_ls, broyden_type_2_ls, &
@@ -29,6 +28,7 @@ MODULE qs_cdft_scf_utils
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE mathlib,                         ONLY: invert_matrix
+   USE message_passing,                 ONLY: mp_para_env_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_scf_types,                    ONLY: qs_scf_env_type
@@ -361,7 +361,7 @@ CONTAINS
 !>      03.2018 created [Nico Holmberg]
 ! **************************************************************************************************
    SUBROUTINE create_tmp_logger(para_env, project_name, suffix, output_unit, tmp_logger)
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       CHARACTER(len=*)                                   :: project_name, suffix
       INTEGER, INTENT(OUT)                               :: output_unit
       TYPE(cp_logger_type), INTENT(OUT), POINTER         :: tmp_logger

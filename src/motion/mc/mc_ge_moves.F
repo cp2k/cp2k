@@ -22,7 +22,6 @@ MODULE mc_ge_moves
                                               cell_release,&
                                               cell_type,&
                                               get_cell
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_p_type,&
                                               cp_subsys_set,&
@@ -46,7 +45,8 @@ MODULE mc_ge_moves
         get_mc_molecule_info, get_mc_par, mc_determine_molecule_info, mc_input_file_type, &
         mc_molecule_info_destroy, mc_molecule_info_type, mc_moves_p_type, &
         mc_simulation_parameters_p_type, set_mc_par
-   USE message_passing,                 ONLY: mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_type
    USE parallel_rng_types,              ONLY: rng_stream_type
    USE particle_list_types,             ONLY: particle_list_p_type,&
                                               particle_list_type
@@ -434,7 +434,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: r_old
       REAL(KIND=dp), DIMENSION(1:2), INTENT(INOUT)       :: old_energy
       TYPE(section_type), POINTER                        :: input_declaration
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), DIMENSION(1:2), INTENT(INOUT)       :: bias_energy_old, last_bias_energy
       TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 

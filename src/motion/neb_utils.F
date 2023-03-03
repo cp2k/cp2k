@@ -32,7 +32,6 @@ MODULE neb_utils
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: parser_get_next_line,&
                                               parser_get_object
    USE cp_parser_types,                 ONLY: cp_parser_type,&
@@ -61,6 +60,7 @@ MODULE neb_utils
                                               default_string_length,&
                                               dp
    USE md_run,                          ONLY: qs_mol_dyn
+   USE message_passing,                 ONLY: mp_para_env_type
    USE neb_io,                          ONLY: dump_replica_coordinates,&
                                               handle_band_file_names
    USE neb_md_utils,                    ONLY: neb_initialize_velocity
@@ -143,7 +143,7 @@ CONTAINS
       TYPE(neb_type), POINTER                            :: neb_env
       INTEGER, INTENT(IN)                                :: iw
       TYPE(global_environment_type), POINTER             :: globenv
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_replica_coords'
 

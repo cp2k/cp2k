@@ -30,7 +30,6 @@ MODULE md_vel_utils
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
@@ -62,6 +61,7 @@ MODULE md_vel_utils
    USE md_environment_types,            ONLY: get_md_env,&
                                               md_environment_type
    USE md_util,                         ONLY: read_vib_eigs_unformatted
+   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_kind_types,             ONLY: fixd_constraint_type,&
                                               get_molecule_kind,&
@@ -552,7 +552,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: shell_present
       TYPE(particle_type), DIMENSION(:), POINTER         :: shell_part, core_part
       LOGICAL, INTENT(IN)                                :: force_rescaling
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: write_binary_restart_file
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_velocities'
@@ -697,7 +697,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: shell_present
       TYPE(particle_type), DIMENSION(:), POINTER         :: shell_part, core_part
       LOGICAL, INTENT(IN)                                :: force_rescaling
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: is_fixed
       LOGICAL, INTENT(OUT)                               :: success
 
@@ -889,7 +889,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues, phase, random
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dr, eigenvectors
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(rng_stream_type), ALLOCATABLE                 :: random_stream
 
       CALL cite_reference(West2006)
@@ -1832,8 +1832,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'temperature_control'
 
       INTEGER                                            :: handle, iw
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
       NULLIFY (subsys, para_env)
@@ -2060,9 +2060,9 @@ CONTAINS
                                                             shell_present
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
                                                             shell_particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: core_particle_set, particle_set, &

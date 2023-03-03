@@ -20,7 +20,6 @@ MODULE mc_types
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
    USE cp_units,                        ONLY: cp_unit_to_cp2k
@@ -44,7 +43,8 @@ MODULE mc_types
                                               default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: pi
-   USE message_passing,                 ONLY: mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_type
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_p_type
    USE molecule_kind_types,             ONLY: atom_type,&
                                               get_molecule_kind,&
@@ -1194,7 +1194,7 @@ CONTAINS
    SUBROUTINE read_mc_section(mc_par, para_env, globenv, input_file_name, input_file, force_env_section)
 
       TYPE(mc_simpar_type), POINTER                      :: mc_par
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
       CHARACTER(LEN=*), INTENT(IN)                       :: input_file_name
       TYPE(section_vals_type), POINTER                   :: input_file, force_env_section

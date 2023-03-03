@@ -24,7 +24,6 @@ MODULE qs_tddfpt2_eigensolver
         cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_type
    USE cp_output_handling,              ONLY: cp_iterate
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_get_info,&
                                               dbcsr_p_type,&
                                               dbcsr_type
@@ -37,6 +36,7 @@ MODULE qs_tddfpt2_eigensolver
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE memory_utilities,                ONLY: reallocate
+   USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -318,8 +318,8 @@ CONTAINS
       LOGICAL                                            :: do_admm, do_hfx, do_lri_response, &
                                                             is_rks_triplets
       TYPE(cp_fm_type)                                   :: fm_dummy
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(full_kernel_env_type), POINTER                :: kernel_env_admm_aux
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 

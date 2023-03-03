@@ -28,6 +28,7 @@ MODULE cg_utils
    USE kinds, ONLY: dp
    USE mathconstants, ONLY: pi
    USE memory_utilities, ONLY: reallocate
+   USE message_passing, ONLY: mp_para_env_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE

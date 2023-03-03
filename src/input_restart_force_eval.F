@@ -16,7 +16,6 @@ MODULE input_restart_force_eval
    USE cp_linked_list_input,            ONLY: cp_sll_val_create,&
                                               cp_sll_val_get_length,&
                                               cp_sll_val_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
@@ -46,6 +45,7 @@ MODULE input_restart_force_eval
                                               val_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_types,             ONLY: get_molecule_kind
    USE molecule_list_types,             ONLY: molecule_list_type
    USE molecule_types,                  ONLY: get_molecule,&
@@ -238,9 +238,9 @@ CONTAINS
                                                             nparticle_kind, nparticle_local
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ascii
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(distribution_1d_type), POINTER                :: local_particles
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
 
       CALL force_env_get(force_env, subsys=subsys, para_env=para_env)
@@ -301,9 +301,9 @@ CONTAINS
       LOGICAL                                            :: scale, use_ref_cell
       REAL(KIND=dp)                                      :: conv_factor
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(molecule_list_type), POINTER                  :: molecules
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(multipole_type), POINTER                      :: multipoles
       TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
                                                             shell_particles

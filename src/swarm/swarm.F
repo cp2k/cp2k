@@ -13,12 +13,12 @@ MODULE swarm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE global_types,                    ONLY: global_environment_type
    USE input_section_types,             ONLY: section_type,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length
+   USE message_passing,                 ONLY: mp_para_env_type
    USE swarm_master,                    ONLY: swarm_master_finalize,&
                                               swarm_master_init,&
                                               swarm_master_steer,&
@@ -61,7 +61,7 @@ CONTAINS
    SUBROUTINE run_swarm(input_declaration, root_section, para_env, globenv, input_path)
       TYPE(section_type), POINTER                        :: input_declaration
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
       CHARACTER(LEN=*), INTENT(IN)                       :: input_path
 
@@ -106,7 +106,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: input_declaration
       TYPE(section_vals_type), POINTER                   :: root_section
       CHARACTER(LEN=*), INTENT(IN)                       :: input_path
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
 
       INTEGER                                            :: handle
@@ -154,7 +154,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: input_declaration
       TYPE(section_vals_type), POINTER                   :: root_section
       CHARACTER(LEN=*), INTENT(IN)                       :: input_path
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
       INTEGER, INTENT(IN)                                :: iw
 

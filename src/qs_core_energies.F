@@ -17,7 +17,6 @@ MODULE qs_core_energies
                                               get_atomic_kind_set
    USE atprop_types,                    ONLY: atprop_array_init,&
                                               atprop_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_dot,&
                                               dbcsr_p_type,&
                                               dbcsr_type
@@ -25,7 +24,8 @@ MODULE qs_core_energies
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: oorootpi,&
                                               twopi
-   USE message_passing,                 ONLY: mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -194,7 +194,7 @@ CONTAINS
    SUBROUTINE calculate_ecore_overlap(qs_env, para_env, calculate_forces, molecular, &
                                       E_overlap_core)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
       LOGICAL, INTENT(IN), OPTIONAL                      :: molecular
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: E_overlap_core

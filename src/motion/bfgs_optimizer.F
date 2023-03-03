@@ -47,7 +47,7 @@ MODULE bfgs_optimizer
                                  cp_print_key_finished_output, &
                                  cp_print_key_should_output, &
                                  cp_print_key_unit_nr
-   USE cp_para_types, ONLY: cp_para_env_type
+   USE message_passing, ONLY: mp_para_env_type
    USE cp_subsys_types, ONLY: cp_subsys_get, &
                               cp_subsys_type
    USE force_env_types, ONLY: force_env_get, &
@@ -130,7 +130,7 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_hes
       TYPE(cp_fm_type)                          :: eigvec_mat, hess_mat, hess_tmp
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: print_key, root_section
       TYPE(spgr_type), POINTER                           :: spgr
@@ -464,7 +464,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: dg(ndf), eigval(ndf), work(ndf)
       TYPE(cp_fm_type), INTENT(IN)                       :: eigvec_mat
       REAL(KIND=dp), INTENT(INOUT)                       :: g(ndf)
-      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rat_fun_opt'
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp
@@ -632,7 +632,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: dx(ndf), dg(ndf)
       TYPE(cp_fm_type), INTENT(IN)                       :: hess_mat
       REAL(KIND=dp), INTENT(INOUT)                       :: work(ndf)
-      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'bfgs'
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
@@ -745,7 +745,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: eigval(ndf)
       TYPE(cp_fm_type), INTENT(IN)                       :: eigvec_mat, hess_tmp
       REAL(KIND=dp), INTENT(INOUT)                       :: dr(ndf), g(ndf)
-      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
       LOGICAL                                            :: use_rfo
 
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
@@ -852,7 +852,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: dr(ndf), g(ndf)
       LOGICAL, INTENT(INOUT)                             :: conv
       REAL(KIND=dp), INTENT(INOUT)                       :: pred
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'energy_predict'
       REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp

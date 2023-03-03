@@ -20,7 +20,6 @@ MODULE external_potential_types
                                               cite_reference
    USE cp_linked_list_input,            ONLY: cp_sll_val_next,&
                                               cp_sll_val_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: parser_get_next_line,&
                                               parser_get_object,&
                                               parser_search_string,&
@@ -43,6 +42,7 @@ MODULE external_potential_types
                                               rootpi
    USE mathlib,                         ONLY: symmetrize_matrix
    USE memory_utilities,                ONLY: reallocate
+   USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: co,&
                                               coset,&
                                               init_orbital_pointers,&
@@ -1373,7 +1373,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: element_symbol, potential_name
       TYPE(all_potential_type), POINTER                  :: potential
       REAL(KIND=dp)                                      :: zeff_correction
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       CHARACTER(len=default_path_length), INTENT(IN)     :: potential_file_name
       TYPE(section_vals_type), POINTER                   :: potential_section
       LOGICAL, INTENT(IN)                                :: update_input
@@ -1555,7 +1555,7 @@ CONTAINS
 
       CHARACTER(LEN=*), INTENT(IN)                       :: element_symbol, potential_name
       TYPE(local_potential_type), POINTER                :: potential
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       CHARACTER(len=default_path_length), INTENT(IN)     :: potential_file_name
       TYPE(section_vals_type), POINTER                   :: potential_section
       LOGICAL, INTENT(IN)                                :: update_input
@@ -1744,7 +1744,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: element_symbol, potential_name
       TYPE(gth_potential_type), POINTER                  :: potential
       REAL(KIND=dp), INTENT(IN)                          :: zeff_correction
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       CHARACTER(len=default_path_length), INTENT(IN)     :: potential_file_name
       TYPE(section_vals_type), POINTER                   :: potential_section
       LOGICAL, INTENT(IN)                                :: update_input

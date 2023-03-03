@@ -36,7 +36,6 @@ MODULE optimize_embedding_potential
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_cube_to_pw,&
                                               cp_pw_to_cube,&
                                               cp_pw_to_simple_volumetric
@@ -56,6 +55,7 @@ MODULE optimize_embedding_potential
                                               dp
    USE lri_environment_types,           ONLY: lri_kind_type
    USE mathconstants,                   ONLY: pi
+   USE message_passing,                 ONLY: mp_para_env_type
    USE mixed_environment_utils,         ONLY: get_subsys_map_index
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
@@ -309,7 +309,7 @@ CONTAINS
       INTEGER                                            :: diff_size, i_dens, size_prev_dens
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
 
@@ -764,7 +764,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: my_embed_pot_coef
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       ! Get the vector dimension
       CALL find_aux_dimen(qs_env, dimen_aux)
@@ -1119,7 +1119,7 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: embed_pot_coeff_spin, &
                                                             embed_pot_coeff_spinless, &
                                                             regular_term, spin_reg, spinless_reg
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
 
@@ -1259,8 +1259,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: pot_grad
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
@@ -1769,9 +1769,9 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: embed_pot_coef_spin, &
                                                             embed_pot_coef_spinless
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -2048,7 +2048,7 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_mat, fm_struct_vec, &
                                                             fm_struct_vec_t
       TYPE(cp_fm_type)                                   :: B_s, B_s_s_B, s_t_B, y, y_y_t
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       ! Recover the dimension
       CALL cp_fm_get_info(matrix=Hess, &
@@ -2306,7 +2306,7 @@ CONTAINS
       LOGICAL                                            :: converged, do_shift
       REAL(KIND=dp) :: diag_grad_norm, grad_min, hess_min, shift, shift_max, shift_min, step_len, &
          step_minus_trad, step_minus_trad_first, step_minus_trad_max, step_minus_trad_min
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
@@ -2437,7 +2437,7 @@ CONTAINS
       INTEGER                                            :: l_global, LLL, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
       REAL(KIND=dp)                                      :: step, step_1d
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL cp_fm_get_info(matrix=diag_grad, &
                           nrow_local=nrow_local, &

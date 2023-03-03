@@ -36,7 +36,6 @@ MODULE qs_initial_guess
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_checksum, dbcsr_copy, dbcsr_dot, dbcsr_filter, dbcsr_get_diag, dbcsr_get_num_blocks, &
         dbcsr_get_occupation, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
@@ -62,6 +61,7 @@ MODULE qs_initial_guess
                                               dp
    USE kpoint_io,                       ONLY: read_kpoints_restart
    USE kpoint_types,                    ONLY: kpoint_type
+   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE qs_atomic_block,                 ONLY: calculate_atomic_block_dm
@@ -160,7 +160,6 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: work1
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, moa, mob, ortho, work2
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: h_core_sparse, matrix_ks, p_rmpv, &
                                                             s_sparse
@@ -172,6 +171,7 @@ CONTAINS
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_array, mos_last_converged
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
@@ -1157,7 +1157,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       INTEGER, INTENT(IN)                                :: nspin
       INTEGER, DIMENSION(:), INTENT(IN)                  :: nelectron_spin
-      TYPE(cp_para_env_type)                             :: para_env
+      TYPE(mp_para_env_type)                             :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_mopac_dm'
 

@@ -31,7 +31,6 @@ MODULE xas_tdp_atom
                                               cp_dbcsr_cholesky_invert
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_release, &
         dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, dbcsr_get_block_p, &
@@ -61,6 +60,7 @@ MODULE xas_tdp_atom
                                               invmat_symm
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_type,&
                                               mp_request_type,&
                                               mp_waitall
    USE orbital_pointers,                ONLY: indco,&
@@ -515,8 +515,8 @@ CONTAINS
       REAL(dp)                                           :: dist2, rad2, ri(3), rij(3), rj(3)
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER        :: my_neighbor_set
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       NULLIFY (particle_set, para_env, my_neighbor_set, cell)
@@ -678,11 +678,11 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_2d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: recv_buff, send_buff
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type)                      :: sinv_dist
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(mp_comm_type)                                 :: group
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: recv_req, send_req
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
@@ -867,7 +867,6 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: pmat_block, pmat_blockt, sinv_block, &
                                                             sinv_blockt
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: overlap, rho_ao
       TYPE(dbcsr_type)                                   :: ri_sinv
@@ -876,6 +875,7 @@ CONTAINS
       TYPE(dbt_type)                                     :: pqX
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_orb, basis_set_ri
       TYPE(libint_potential_type)                        :: pot
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: ab_list, ac_list, sab_ri
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -1709,10 +1709,10 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: rexp
       REAL(dp), DIMENSION(:, :), POINTER                 :: dgr1, dgr2, ga, gr, slm, zet
       REAL(dp), DIMENSION(:, :, :), POINTER              :: dga1, dga2, dslm_dxyz
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       TYPE(gto_basis_set_type), POINTER                  :: ri_basis
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       NULLIFY (qs_kind_set, harmonics, grid_atom, slm, dslm_dxyz, ri_basis, lmax, lmin, npgf)
@@ -1874,8 +1874,8 @@ CONTAINS
       LOGICAL                                            :: do_gga, do_sc, do_sf
       TYPE(batch_info_type)                              :: batch_info
       TYPE(cp_1d_r_p_type), DIMENSION(:, :), POINTER     :: ri_dcoeff
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: input, xc_functionals
@@ -2063,10 +2063,10 @@ CONTAINS
       REAL(dp), DIMENSION(:, :, :), POINTER              :: dga1, dga2
       TYPE(cp_2d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: int_so, vxc
       TYPE(cp_3d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: vxg
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       TYPE(gto_basis_set_type), POINTER                  :: ri_basis
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       NULLIFY (grid_atom, ri_basis, qs_kind_set, ga, gr, dgr1, dgr2, lmax, lmin, npgf)

@@ -19,7 +19,6 @@ MODULE eip_environment
    USE cell_types,                      ONLY: cell_release,&
                                               cell_type,&
                                               get_cell
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_methods,               ONLY: cp_subsys_create
    USE cp_subsys_types,                 ONLY: cp_subsys_set,&
                                               cp_subsys_type
@@ -33,6 +32,7 @@ MODULE eip_environment
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                               write_molecule_kind_set
    USE molecule_types,                  ONLY: molecule_type
@@ -71,7 +71,7 @@ CONTAINS
                        subsys_section)
       TYPE(eip_environment_type), POINTER                :: eip_env
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'eip_init'

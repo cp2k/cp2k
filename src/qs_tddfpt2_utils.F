@@ -31,7 +31,6 @@ MODULE qs_tddfpt2_utils
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_get_info,&
@@ -51,6 +50,7 @@ MODULE qs_tddfpt2_utils
                                               section_vals_val_get
    USE kinds,                           ONLY: dp,&
                                               int_8
+   USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -269,8 +269,8 @@ CONTAINS
                                                             work_fm_virt
       TYPE(cp_fm_type), POINTER                          :: mo_coeff_extended
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(mo_set_type), POINTER                         :: mos_extended
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: print_section
 
       CALL timeset(routineN, handle)

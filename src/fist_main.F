@@ -14,7 +14,6 @@
 !> \author CJM-Sept-01-02
 ! **************************************************************************************************
 MODULE fist_main
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE fist_environment,                ONLY: fist_init
    USE fist_environment_types,          ONLY: fist_env_create,&
@@ -24,6 +23,7 @@ MODULE fist_main
    USE force_env_types,                 ONLY: force_env_type
    USE global_types,                    ONLY: global_environment_type
    USE input_section_types,             ONLY: section_vals_type
+   USE message_passing,                 ONLY: mp_para_env_type
    USE qmmm_types_low,                  ONLY: qmmm_env_mm_type
 #include "./base/base_uses.f90"
 
@@ -65,7 +65,7 @@ CONTAINS
                                     qmmm, qmmm_env, force_env_section, subsys_section, use_motion_section, prev_subsys)
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
       LOGICAL, OPTIONAL                                  :: qmmm
       TYPE(qmmm_env_mm_type), OPTIONAL, POINTER          :: qmmm_env

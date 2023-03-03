@@ -29,7 +29,6 @@ MODULE qs_environment_types
                                               cp_ddapc_type
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_types,                 ONLY: cp_result_type
    USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE dbcsr_api,                       ONLY: dbcsr_distribution_type,&
@@ -73,6 +72,7 @@ MODULE qs_environment_types
                                               lri_density_type,&
                                               lri_env_release,&
                                               lri_environment_type
+   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: molecule_type
    USE mp2_types,                       ONLY: mp2_env_release,&
@@ -533,7 +533,7 @@ CONTAINS
       TYPE(active_space_type), OPTIONAL, POINTER         :: active_space
       TYPE(qs_matrix_pools_type), OPTIONAL, POINTER      :: mpools
       TYPE(section_vals_type), OPTIONAL, POINTER         :: input
-      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env
       TYPE(scf_control_type), OPTIONAL, POINTER          :: scf_control
       TYPE(rel_control_type), OPTIONAL, POINTER          :: rel_control

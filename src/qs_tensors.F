@@ -25,7 +25,6 @@ MODULE qs_tensors
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_files,                        ONLY: close_file,&
                                               open_file
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_filter,&
                                               dbcsr_finalize,&
                                               dbcsr_get_block_p,&
@@ -74,6 +73,7 @@ MODULE qs_tensors
         cp_libint_cleanup_2eri, cp_libint_cleanup_2eri1, cp_libint_cleanup_3eri, &
         cp_libint_cleanup_3eri1, cp_libint_init_2eri, cp_libint_init_2eri1, cp_libint_init_3eri, &
         cp_libint_init_3eri1, cp_libint_set_contrdepth, cp_libint_t
+   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_types,                  ONLY: molecule_type
    USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
@@ -641,9 +641,9 @@ CONTAINS
                                                             kind_radius_k
       REAL(KIND=dp), DIMENSION(3)                        :: rij, rik, rjk
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_3c_iterator_type)               :: nl_3c_iter
       TYPE(one_dim_int_array), ALLOCATABLE, &
          DIMENSION(:, :)                                 :: alloc_i, alloc_j, alloc_k
@@ -872,9 +872,9 @@ CONTAINS
                                                             kind_radius_k
       REAL(KIND=dp), DIMENSION(3)                        :: rij, rik, rjk
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_3c_iterator_type)               :: nl_3c_iter
       TYPE(one_dim_int_array), ALLOCATABLE, &
          DIMENSION(:, :)                                 :: alloc_i, alloc_j, alloc_k
@@ -1140,13 +1140,13 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_2d_r_p_type), DIMENSION(:, :), POINTER     :: spi, spk, tspj
       TYPE(cp_libint_t)                                  :: lib
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbt_type)                                     :: t3c_tmp
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: t3c_template
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :, :)    :: t3c_der_j
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
       TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_3c_iterator_type)               :: nl_3c_iter
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
@@ -1797,11 +1797,11 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_2d_r_p_type), DIMENSION(:, :), POINTER     :: spi, spk, tspj
       TYPE(cp_libint_t)                                  :: lib
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbt_type)                                     :: t_3c_tmp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
       TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_3c_iterator_type)               :: nl_3c_iter
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
@@ -2314,9 +2314,9 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(block_p_type), DIMENSION(3)                   :: block_t
       TYPE(cp_libint_t)                                  :: lib
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -2554,9 +2554,9 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(block_p_type)                                 :: block_t
       TYPE(cp_libint_t)                                  :: lib
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set

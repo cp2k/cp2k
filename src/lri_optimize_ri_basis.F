@@ -27,7 +27,6 @@ MODULE lri_optimize_ri_basis
                                               cp_print_key_generate_filename,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
                                               dbcsr_p_type,&
                                               dbcsr_type
@@ -58,6 +57,7 @@ MODULE lri_optimize_ri_basis
                                               lri_opt_type,&
                                               orthonormalize_gcc
    USE memory_utilities,                ONLY: reallocate
+   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE powell,                          ONLY: opt_state_type,&
                                               powell_optimize
@@ -102,11 +102,11 @@ CONTAINS
       INTEGER                                            :: iunit, nkind
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: pmatrix
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_opt_type), POINTER                        :: lri_opt
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(opt_state_type)                               :: opt_state
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(section_vals_type), POINTER                   :: dft_section, input, lri_optbas_section
@@ -592,7 +592,7 @@ CONTAINS
       TYPE(lri_opt_type), POINTER                        :: lri_opt
       TYPE(opt_state_type)                               :: opt_state
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: pmatrix
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: nkind
 
       INTEGER                                            :: ikind, nset
@@ -640,7 +640,7 @@ CONTAINS
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(lri_opt_type), POINTER                        :: lri_opt
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: pmatrix
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), INTENT(OUT)                         :: fobj
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_objective'

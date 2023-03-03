@@ -20,7 +20,6 @@ MODULE mc_ensembles
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_p_type,&
                                               cp_subsys_type
@@ -74,7 +73,8 @@ MODULE mc_ensembles
                                               mc_moves_p_type,&
                                               mc_simulation_parameters_p_type,&
                                               set_mc_par
-   USE message_passing,                 ONLY: mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_type
    USE parallel_rng_types,              ONLY: rng_stream_type
    USE particle_list_types,             ONLY: particle_list_p_type,&
                                               particle_list_type
@@ -114,7 +114,7 @@ CONTAINS
    SUBROUTINE mc_run_ensemble(mc_env, para_env, globenv, input_declaration, nboxes, rng_stream)
 
       TYPE(mc_environment_p_type), DIMENSION(:), POINTER :: mc_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(section_type), POINTER                        :: input_declaration
       INTEGER, INTENT(IN)                                :: nboxes

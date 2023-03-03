@@ -34,7 +34,7 @@ SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
                              gopt_new_logger_release
    USE cell_types, ONLY: cell_type
    USE cell_methods, ONLY: write_cell
-   USE cp_para_types, ONLY: cp_para_env_type
+   USE message_passing, ONLY: mp_para_env_type
    USE cp_subsys_types, ONLY: cp_subsys_get, &
                               cp_subsys_type, &
                               pack_subsys_particles, &
@@ -87,7 +87,7 @@ SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
       POINTER                                :: gradient
    INTEGER, INTENT(IN)                      :: master
    LOGICAL, INTENT(IN), OPTIONAL            :: final_evaluation
-   TYPE(cp_para_env_type), POINTER          :: para_env
+   TYPE(mp_para_env_type), POINTER          :: para_env
 
    CHARACTER(len=*), PARAMETER :: routineN = 'cp_eval_at'
 

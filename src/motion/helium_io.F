@@ -20,7 +20,6 @@ MODULE helium_io
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: parser_get_next_line,&
                                               parser_get_object
    USE cp_parser_types,                 ONLY: cp_parser_type,&
@@ -52,6 +51,7 @@ MODULE helium_io
                                               int_8
    USE machine,                         ONLY: m_flush
    USE memory_utilities,                ONLY: reallocate
+   USE message_passing,                 ONLY: mp_para_env_type
    USE physcon,                         ONLY: angstrom,&
                                               massunit
    USE pint_types,                      ONLY: pint_env_type
@@ -102,7 +102,7 @@ CONTAINS
 
       REAL(KIND=dp), DIMENSION(:), POINTER               :: coords
       CHARACTER(LEN=default_path_length)                 :: file_name
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'helium_read_xyz'
 

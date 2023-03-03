@@ -26,8 +26,8 @@ MODULE cp_lbfgs_optimizer_gopt
                               cp_to_string
    USE cp_output_handling, ONLY: cp_print_key_finished_output, &
                                  cp_print_key_unit_nr
-   USE cp_para_env, ONLY: cp_para_env_release
-   USE cp_para_types, ONLY: cp_para_env_type
+   USE message_passing, ONLY: mp_para_env_release
+   USE message_passing, ONLY: mp_para_env_type
    USE cp_subsys_types, ONLY: cp_subsys_type
    USE force_env_types, ONLY: force_env_get, &
                               force_env_type
@@ -138,7 +138,7 @@ MODULE cp_lbfgs_optimizer_gopt
                        last_f, projected_gradient, eold, emin, trust_radius
       REAL(kind=dp), DIMENSION(:), POINTER :: x, lower_bound, upper_bound, &
                                               gradient, dsave, work_array
-      TYPE(cp_para_env_type), POINTER :: para_env
+      TYPE(mp_para_env_type), POINTER :: para_env
       TYPE(gopt_f_type), POINTER :: obj_funct
    END TYPE cp_lbfgs_opt_gopt_type
 
@@ -171,7 +171,7 @@ CONTAINS
                                  wanted_relative_f_delta, wanted_projected_gradient, lower_bound, upper_bound, &
                                  kind_of_bound, master, max_f_per_iter, trust_radius)
       TYPE(cp_lbfgs_opt_gopt_type), INTENT(OUT)          :: optimizer
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(gopt_f_type), POINTER                         :: obj_funct
       REAL(kind=dp), DIMENSION(:), INTENT(in)            :: x0
       INTEGER, INTENT(in), OPTIONAL                      :: m, print_every
@@ -304,7 +304,7 @@ CONTAINS
       IF (ASSOCIATED(optimizer%work_array)) THEN
          DEALLOCATE (optimizer%work_array)
       END IF
-      CALL cp_para_env_release(optimizer%para_env)
+      CALL mp_para_env_release(optimizer%para_env)
       CALL gopt_f_release(optimizer%obj_funct)
 
       CALL timestop(handle)
@@ -346,7 +346,7 @@ CONTAINS
                               n_var, n_iter, status, max_f_per_iter, at_end, &
                               is_master, last_f, f)
       TYPE(cp_lbfgs_opt_gopt_type), INTENT(IN)           :: optimizer
-      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(gopt_f_type), OPTIONAL, POINTER               :: obj_funct
       INTEGER, INTENT(out), OPTIONAL                     :: m, print_every
       REAL(kind=dp), INTENT(out), OPTIONAL               :: wanted_relative_f_delta, &

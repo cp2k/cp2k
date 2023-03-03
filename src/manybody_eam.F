@@ -15,7 +15,6 @@ MODULE manybody_eam
    USE bibliography,                    ONLY: Foiles1986,&
                                               cite_reference
    USE cell_types,                      ONLY: cell_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE fist_neighbor_list_types,        ONLY: fist_neighbor_type,&
                                               neighbor_kind_pairs_type
    USE fist_nonbond_env_types,          ONLY: eam_type,&
@@ -24,6 +23,7 @@ MODULE manybody_eam
                                               fist_nonbond_env_type,&
                                               pos_type
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE pair_potential_types,            ONLY: ea_type,&
                                               eam_pot_type,&
                                               pair_potential_pp_type
@@ -50,7 +50,7 @@ CONTAINS
       TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
       TYPE(particle_type), DIMENSION(:), INTENT(INOUT)   :: particle_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'density_nonbond'
 

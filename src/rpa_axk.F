@@ -32,7 +32,6 @@ MODULE rpa_axk
                                               cp_fm_to_fm,&
                                               cp_fm_to_fm_submat_general,&
                                               cp_fm_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
         dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry
@@ -45,6 +44,7 @@ MODULE rpa_axk
                                               section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
@@ -98,7 +98,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q, fm_mat_Q_gemm
       INTEGER, INTENT(IN)                                :: dimen_RI, dimen_ia
-      TYPE(cp_para_env_type), POINTER                    :: para_env_sub, para_env_RPA
+      TYPE(mp_para_env_type), POINTER                    :: para_env_sub, para_env_RPA
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eig
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S
       INTEGER, INTENT(IN)                                :: homo, virtual
@@ -333,7 +333,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_munu_P
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_munu
-      TYPE(cp_para_env_type), POINTER                    :: para_env_sub
+      TYPE(mp_para_env_type), POINTER                    :: para_env_sub
       INTEGER, INTENT(INOUT)                             :: P_stack_size
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       REAL(KIND=dp), INTENT(OUT)                         :: axk_corr
@@ -439,7 +439,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE hfx_create_subgroup(qs_env, para_env_sub, hfx_section, x_data, n_rep_hf)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env_sub
+      TYPE(mp_para_env_type), POINTER                    :: para_env_sub
       TYPE(section_vals_type), POINTER                   :: hfx_section
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       INTEGER, INTENT(OUT)                               :: n_rep_hf

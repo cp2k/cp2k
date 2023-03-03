@@ -26,7 +26,6 @@ MODULE cell_opt_utils
                                               cp_logger_set,&
                                               cp_logger_type,&
                                               cp_to_string
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_units,                        ONLY: cp_units_rad
    USE input_constants,                 ONLY: fix_none,&
                                               fix_x,&
@@ -51,6 +50,7 @@ MODULE cell_opt_utils
                                               dp
    USE mathconstants,                   ONLY: sqrt3
    USE mathlib,                         ONLY: angle
+   USE message_passing,                 ONLY: mp_para_env_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -98,7 +98,7 @@ CONTAINS
                                      id_run)
       TYPE(cp_logger_type), POINTER                      :: new_logger
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       CHARACTER(len=default_string_length), INTENT(OUT)  :: project_name
       INTEGER, INTENT(IN)                                :: id_run
 
@@ -161,7 +161,7 @@ CONTAINS
    SUBROUTINE gopt_new_logger_release(new_logger, root_section, para_env, project_name, id_run)
       TYPE(cp_logger_type), POINTER                      :: new_logger
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       CHARACTER(len=default_string_length), INTENT(IN)   :: project_name
       INTEGER, INTENT(IN)                                :: id_run
 

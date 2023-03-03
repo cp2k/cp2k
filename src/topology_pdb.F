@@ -57,7 +57,6 @@ MODULE topology_pdb
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_generate_filename,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: parser_get_next_line
    USE cp_parser_types,                 ONLY: cp_parser_type,&
                                               parser_create,&
@@ -72,6 +71,7 @@ MODULE topology_pdb
                                               default_string_length,&
                                               dp
    USE memory_utilities,                ONLY: reallocate
+   USE message_passing,                 ONLY: mp_para_env_type
    USE physcon,                         ONLY: angstrom
    USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
    USE string_table,                    ONLY: id2str,&
@@ -100,7 +100,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE read_coordinate_pdb(topology, para_env, subsys_section)
       TYPE(topology_parameters_type)                     :: topology
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_pdb'

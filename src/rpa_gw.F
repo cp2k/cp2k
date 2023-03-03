@@ -50,7 +50,6 @@ MODULE rpa_gw
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE dbcsr_api,                       ONLY: &
         dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_filter, &
@@ -91,6 +90,7 @@ MODULE rpa_gw
                                               twopi,&
                                               z_one,&
                                               z_zero
+   USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_types,                       ONLY: mp2_type,&
                                               one_dim_real_array,&
                                               two_dim_int_array
@@ -195,7 +195,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nmo, num_integ_points, unit_nr
       INTEGER, DIMENSION(:), POINTER                     :: RI_blk_sizes
       LOGICAL, INTENT(IN)                                :: do_ic_model
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: fm_mat_W
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
@@ -366,7 +366,7 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S_gw
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: fm_mat_S_gw_work
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER, INTENT(OUT)                               :: nkp, nkp_self_energy
@@ -525,7 +525,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: vec_Sigma_x_gw
       INTEGER, INTENT(IN)                                :: nmo
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S_gw
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: num_integ_group, color_rpa_group, homo, &
                                                             gw_corr_lev_occ
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: vec_Sigma_x_minus_vxc_gw11
@@ -817,7 +817,7 @@ CONTAINS
                                                             fm_mat_R_gw
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S_gw, fm_mat_S_gw_work
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA
+      TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_RPA
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_berry_im_mo_mo, &
                                                             matrix_berry_re_mo_mo
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -1254,7 +1254,7 @@ CONTAINS
                                                             fm_scaled_dm_virt_tau, mo_coeff
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: fm_mat_W
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA
+      TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_RPA
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_dm, mat_MinvVMinv
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: t_3c_O
       TYPE(dbt_type)                                     :: t_3c_M, t_3c_overl_int_ao_mo
@@ -1673,12 +1673,12 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_work
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_weighted
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints_Sigma
       TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
       TYPE(particle_list_type), POINTER                  :: particles
@@ -1924,8 +1924,8 @@ CONTAINS
 
       INTEGER                                            :: handle, i_E, n_E
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
 
       CALL timeset(routineN, handle)
@@ -1986,7 +1986,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: delta_corr
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA
+      TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_RPA
       INTEGER, DIMENSION(:), POINTER                     :: kp_grid
       INTEGER, INTENT(IN)                                :: homo, nmo, gw_corr_lev_occ, &
                                                             gw_corr_lev_virt
@@ -2060,7 +2060,7 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: matrix_berry_re_mo_mo, &
                                                             matrix_berry_im_mo_mo
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_RPA
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_RPA
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: homo
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
@@ -2220,7 +2220,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_berry_re_mo_mo, &
                                                             matrix_berry_im_mo_mo
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mo_coeff
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: do_mo_coeff_Gamma_only
       INTEGER, INTENT(IN)                                :: homo, nmo, gw_corr_lev_virt
       REAL(KIND=dp), INTENT(IN)                          :: eps_kpoint
@@ -2763,7 +2763,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: matrix_berry_re_mo_mo, &
                                                             matrix_berry_im_mo_mo
       INTEGER, INTENT(IN)                                :: homo, gw_corr_lev_occ, gw_corr_lev_virt
-      TYPE(cp_para_env_type), INTENT(IN), OPTIONAL       :: para_env_RPA
+      TYPE(mp_para_env_type), INTENT(IN), OPTIONAL       :: para_env_RPA
       LOGICAL, INTENT(IN)                                :: do_extra_kpoints
 
       INTEGER                                            :: col, col_offset, col_size, i_col, i_row, &
@@ -2983,7 +2983,7 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER, DIMENSION(:), POINTER                     :: kp_grid
       INTEGER, INTENT(IN)                                :: num_kp_grids
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: h_inv
       INTEGER, INTENT(IN)                                :: nmo
       LOGICAL, INTENT(IN)                                :: do_mo_coeff_Gamma_only, do_extra_kpoints
@@ -4718,7 +4718,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: delta_corr
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA
+      TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_RPA
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_berry_re_mo_mo, &
                                                             matrix_berry_im_mo_mo
@@ -5143,7 +5143,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :, :, :), &
          INTENT(OUT)                                     :: vec_Sigma_c_gw
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       INTEGER, INTENT(IN)                                :: num_fit_points
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mo_coeff
@@ -5512,9 +5512,9 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_fm_type)                                   :: fm_dummy, fm_Sigma_x_minus_vxc_mo_mo, &
                                                             fm_tmp_im, fm_tmp_re
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints_Sigma, kpoints_Sigma_no_xc
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
@@ -5641,10 +5641,10 @@ CONTAINS
                                                             cfm_self_energy_mo_mo
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_fm_type)                                   :: fm_self_energy_mo_mo
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: mat_self_energy_ao_ao_kp_im, &
          mat_self_energy_ao_ao_kp_re, mat_self_energy_ao_ao_real_space
       TYPE(kpoint_type), POINTER                         :: kpoints_Sigma
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
@@ -5953,7 +5953,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: vec_Sigma
       INTEGER, INTENT(IN)                                :: mo_offset
       INTEGER, DIMENSION(2), INTENT(IN)                  :: mo_bounds
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'trace_sigma_gw'
 
@@ -6054,7 +6054,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       INTEGER, INTENT(IN)                                :: nmo
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter, e_fermi, tau
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Greens_function_time'
 

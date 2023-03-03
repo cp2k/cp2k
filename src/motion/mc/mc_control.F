@@ -19,7 +19,6 @@ MODULE mc_control
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
    USE f77_interface,                   ONLY: create_force_env,&
@@ -42,7 +41,8 @@ MODULE mc_control
                                               mc_molecule_info_type,&
                                               mc_simpar_type,&
                                               set_mc_par
-   USE message_passing,                 ONLY: mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_type
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_kind_types,             ONLY: atom_type,&
                                               get_molecule_kind,&
@@ -348,7 +348,7 @@ CONTAINS
 
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(section_type), POINTER                        :: input_declaration
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       CHARACTER(LEN=*), INTENT(IN)                       :: input_file_name
       TYPE(global_environment_type), OPTIONAL, POINTER   :: globenv_new
 
@@ -398,7 +398,7 @@ CONTAINS
       CHARACTER(default_string_length), DIMENSION(:), &
          INTENT(IN)                                      :: atom_symbols
       INTEGER, INTENT(IN)                                :: nunits_tot
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), DIMENSION(1:3), INTENT(IN)          :: box_length
       INTEGER, DIMENSION(:), POINTER                     :: nchains
       TYPE(section_type), POINTER                        :: input_declaration

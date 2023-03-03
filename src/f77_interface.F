@@ -34,8 +34,6 @@ MODULE f77_interface
         cp_get_default_logger, cp_logger_create, cp_logger_get_default_unit_nr, cp_logger_release, &
         cp_logger_retain, cp_logger_type, cp_rm_default_logger, cp_to_string
    USE cp_output_handling,              ONLY: cp_iterate
-   USE cp_para_env,                     ONLY: cp_para_env_release
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_methods,               ONLY: get_results,&
                                               test_for_result
    USE cp_result_types,                 ONLY: cp_result_type
@@ -94,13 +92,22 @@ MODULE f77_interface
                                               m_chdir,&
                                               m_getcwd,&
                                               m_memory
-   USE message_passing,                 ONLY: &
-        add_mp_perf_env, get_mp_perf_env, mp_comm_type, mp_comm_world, mp_perf_env_release, &
-        mp_perf_env_retain, mp_perf_env_type, mp_world_finalize, mp_world_init, rm_mp_perf_env
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_comm_world,&
+                                              mp_para_env_release,&
+                                              mp_para_env_type,&
+                                              mp_world_finalize,&
+                                              mp_world_init
    USE metadynamics_types,              ONLY: meta_env_type
    USE metadynamics_utils,              ONLY: metadyn_read
    USE mixed_environment_types,         ONLY: mixed_environment_type
    USE mixed_main,                      ONLY: mixed_create_force_env
+   USE mp_perf_env,                     ONLY: add_mp_perf_env,&
+                                              get_mp_perf_env,&
+                                              mp_perf_env_release,&
+                                              mp_perf_env_retain,&
+                                              mp_perf_env_type,&
+                                              rm_mp_perf_env
    USE nnp_environment,                 ONLY: nnp_init
    USE nnp_environment_types,           ONLY: nnp_env_create,&
                                               nnp_type
@@ -156,7 +163,7 @@ MODULE f77_interface
    END TYPE f_env_type
 
    TYPE(f_env_p_type), DIMENSION(:), POINTER, SAVE :: f_envs
-   TYPE(cp_para_env_type), POINTER, SAVE :: default_para_env
+   TYPE(mp_para_env_type), POINTER, SAVE :: default_para_env
    LOGICAL, SAVE :: module_initialized = .FALSE.
    INTEGER, SAVE :: last_f_env_id = 0, n_f_envs = 0
 
@@ -321,7 +328,7 @@ CONTAINS
          ! Finalize the DBCSR configuration
          CALL dbcsr_finalize_lib()
          CALL pw_gpu_finalize()
-         CALL cp_para_env_release(default_para_env)
+         CALL mp_para_env_release(default_para_env)
          ierr = 0
          CALL cp_rm_default_logger()
 
@@ -567,7 +574,7 @@ CONTAINS
       LOGICAL :: check, do_qmmm_force_mixing, multiple_subsys, my_echo, my_owns_out_unit, &
                  use_motion_section, use_multiple_para_env
       TYPE(cp_logger_type), POINTER                      :: logger, my_logger
-      TYPE(cp_para_env_type), POINTER                    :: my_para_env, para_env
+      TYPE(mp_para_env_type), POINTER                    :: my_para_env, para_env
       TYPE(eip_environment_type), POINTER                :: eip_env
       TYPE(embed_env_type), POINTER                      :: embed_env
       TYPE(enumeration_type), POINTER                    :: enum
@@ -911,7 +918,7 @@ CONTAINS
       CALL force_env_release(force_env)
       CALL globenv_release(globenv)
       CALL section_vals_release(root_section)
-      CALL cp_para_env_release(para_env)
+      CALL mp_para_env_release(para_env)
       CALL f_env_rm_defaults(f_envs(n_f_envs)%f_env, ierr=ierr)
       CALL timestop(handle)
 
@@ -936,9 +943,9 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: q_finalize
 
       INTEGER                                            :: env_pos, i
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(f_env_type), POINTER                          :: f_env
       TYPE(global_environment_type), POINTER             :: globenv
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: root_section
 
       NULLIFY (f_env)
@@ -1440,7 +1447,7 @@ CONTAINS
       INTEGER                                            :: unit_nr
       LOGICAL                                            :: my_echo_input
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: input_file
 
       my_echo_input = .FALSE.
@@ -1483,7 +1490,7 @@ CONTAINS
       CALL section_vals_release(input_file)
 
       CALL cp_logger_release(logger)
-      CALL cp_para_env_release(para_env)
+      CALL mp_para_env_release(para_env)
       ierr = 0
       CALL cp_rm_default_logger()
    END SUBROUTINE check_input

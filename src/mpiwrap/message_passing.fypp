@@ -1641,6 +1641,43 @@
    END SUBROUTINE mp_max_${nametype1}$
 
 ! **************************************************************************************************
+!> \brief Finds the maximum of a datum with the result left on all processes.
+!> \param[in,out] msg         Find maximum among these data (input) and
+!>                            maximum (output)
+!> \param[in] comm             Message passing environment identifier
+!> \par MPI mapping
+!>      mpi_allreduce
+! **************************************************************************************************
+   SUBROUTINE mp_max_root_${nametype1}$ (msg, root, comm)
+      ${type1}$, INTENT(INOUT)                   :: msg
+      INTEGER, INTENT(IN) :: root
+      CLASS(mp_comm_type), INTENT(IN) :: comm
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_max_root_${nametype1}$'
+
+      INTEGER                                  :: handle
+#if defined(__parallel)
+      INTEGER :: ierr, msglen
+      ${type1}$ :: res
+#endif
+
+      CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+      msglen = 1
+      CALL mpi_reduce(msg, res, msglen, ${mpi_type1}$, MPI_MAX, root, comm%handle, ierr)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_reduce @ "//routineN)
+      IF (root == comm%mepos) msg = res
+      CALL add_perf(perf_id=3, count=1, msg_size=msglen*${bytes1}$)
+#else
+      MARK_USED(msg)
+      MARK_USED(comm)
+      MARK_USED(root)
+#endif
+      CALL mp_timestop(handle)
+   END SUBROUTINE mp_max_root_${nametype1}$
+
+! **************************************************************************************************
 !> \brief Finds the element-wise maximum of a vector with the result left on
 !>        all processes.
 !> \param[in,out] msg         Find maximum among these data (input) and
@@ -1672,6 +1709,43 @@
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_max_${nametype1}$v
+
+! **************************************************************************************************
+!> \brief Finds the element-wise maximum of a vector with the result left on
+!>        all processes.
+!> \param[in,out] msg         Find maximum among these data (input) and
+!>                            maximum (output)
+!> \param comm ...
+!> \note see mp_max_${nametype1}$
+! **************************************************************************************************
+   SUBROUTINE mp_max_root_${nametype1}$m(msg, root, comm)
+      ${type1}$, CONTIGUOUS, INTENT(INOUT)                   :: msg(:, :)
+      INTEGER :: root
+      CLASS(mp_comm_type), INTENT(IN) :: comm
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_max_root_${nametype1}$m'
+
+      INTEGER                                  :: handle
+#if defined(__parallel)
+      INTEGER :: ierr, msglen
+      ${type1}$                   :: res(SIZE(msg, 1), SIZE(msg, 2))
+#endif
+
+      CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+      msglen = SIZE(msg)
+      CALL mpi_reduce(msg, res, msglen, ${mpi_type1}$, MPI_MAX, root, comm%handle, ierr)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
+      IF (root == comm%mepos) msg = res
+      CALL add_perf(perf_id=3, count=1, msg_size=msglen*${bytes1}$)
+#else
+      MARK_USED(msg)
+      MARK_USED(comm)
+      MARK_USED(root)
+#endif
+      CALL mp_timestop(handle)
+   END SUBROUTINE mp_max_root_${nametype1}$m
 
 ! **************************************************************************************************
 !> \brief Finds the minimum of a datum with the result left on all processes.
@@ -3151,13 +3225,13 @@
 !> \param[out] msgin          Received portion of summed data
 !> \param[in] rcount          Partition sizes of the summed data for
 !>                            every process
-!> \param[in] gid             Message passing environment identifier
+!> \param[in] comm             Message passing environment identifier
 ! **************************************************************************************************
-   SUBROUTINE mp_sum_scatter_${nametype1}$v(msgout, msgin, rcount, gid)
-      ${type1}$, CONTIGUOUS, INTENT(IN)                      :: msgout(:)
+   SUBROUTINE mp_sum_scatter_${nametype1}$v(msgout, msgin, rcount, comm)
+      ${type1}$, CONTIGUOUS, INTENT(IN)                      :: msgout(:, :)
       ${type1}$, CONTIGUOUS, INTENT(OUT)                     :: msgin(:)
       INTEGER, CONTIGUOUS, INTENT(IN)                      :: rcount(:)
-      TYPE(mp_comm_type), INTENT(IN) :: gid
+      CLASS(mp_comm_type), INTENT(IN) :: comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_scatter_${nametype1}$v'
 
@@ -3170,18 +3244,69 @@
 
 #if defined(__parallel)
       CALL MPI_REDUCE_SCATTER(msgout, msgin, rcount, ${mpi_type1}$, MPI_SUM, &
-                              gid%handle, ierr)
+                              comm%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_reduce_scatter @ "//routineN)
 
       CALL add_perf(perf_id=3, count=1, &
                     msg_size=rcount(1)*2*${bytes1}$)
 #else
       MARK_USED(rcount)
-      MARK_USED(gid)
-      msgin = msgout
+      MARK_USED(comm)
+      msgin = msgout(:, 1)
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_sum_scatter_${nametype1}$v
+
+! **************************************************************************************************
+!> \brief Sends and receives vector data
+!> \param[in] msgin           Data to send
+!> \param[in] dest            Process to send data to
+!> \param[out] msgout         Received data
+!> \param[in] source          Process from which to receive
+!> \param[in] comm            Message passing environment identifier
+!> \param[in] tag             Send and recv tag (default: 0)
+! **************************************************************************************************
+   SUBROUTINE mp_sendrecv_${nametype1}$ (msgin, dest, msgout, source, comm, tag)
+      ${type1}$, INTENT(IN)                      :: msgin
+      INTEGER, INTENT(IN)                      :: dest
+      ${type1}$, INTENT(OUT)                     :: msgout
+      INTEGER, INTENT(IN)                      :: source
+      CLASS(mp_comm_type), INTENT(IN) :: comm
+      INTEGER, INTENT(IN), OPTIONAL            :: tag
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_sendrecv_${nametype1}$'
+
+      INTEGER                                  :: handle
+#if defined(__parallel)
+      INTEGER                                  :: ierr, msglen_in, msglen_out, &
+                                                  recv_tag, send_tag
+#endif
+
+      CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+      msglen_in = 1
+      msglen_out = 1
+      send_tag = 0 ! cannot think of something better here, this might be dangerous
+      recv_tag = 0 ! cannot think of something better here, this might be dangerous
+      IF (PRESENT(tag)) THEN
+         send_tag = tag
+         recv_tag = tag
+      END IF
+      CALL mpi_sendrecv(msgin, msglen_in, ${mpi_type1}$, dest, send_tag, msgout, &
+                        msglen_out, ${mpi_type1}$, source, recv_tag, comm%handle, MPI_STATUS_IGNORE, ierr)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_sendrecv @ "//routineN)
+      CALL add_perf(perf_id=7, count=1, &
+                    msg_size=(msglen_in + msglen_out)*${bytes1}$/2)
+#else
+      MARK_USED(dest)
+      MARK_USED(source)
+      MARK_USED(comm)
+      MARK_USED(tag)
+      msgout = msgin
+#endif
+      CALL mp_timestop(handle)
+   END SUBROUTINE mp_sendrecv_${nametype1}$
 
 ! **************************************************************************************************
 !> \brief Sends and receives vector data

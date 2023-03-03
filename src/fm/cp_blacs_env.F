@@ -15,11 +15,11 @@
 MODULE cp_blacs_env
    USE cp_array_utils,                  ONLY: cp_2d_i_write
    USE cp_blacs_types,                  ONLY: cp_blacs_type
-   USE cp_para_env,                     ONLY: cp_para_env_release
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: gcd
+   USE message_passing,                 ONLY: mp_para_env_release,&
+                                              mp_para_env_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -38,7 +38,7 @@ MODULE cp_blacs_env
 
 ! **************************************************************************************************
 !> \brief represent a blacs multidimensional parallel environment
-!>      (for the mpi corrispective see cp_paratypes/cp_para_cart_type)
+!>      (for the mpi corrispective see cp_paratypes/mp_para_cart_type)
 !> \param ref_count the reference count, when it is zero this object gets
 !>        deallocated
 !> \param my_pid process id of the actual processor
@@ -52,7 +52,7 @@ MODULE cp_blacs_env
 ! **************************************************************************************************
    TYPE, EXTENDS(cp_blacs_type) :: cp_blacs_env_type
       INTEGER :: my_pid = -1, n_pid = -1, ref_count = -1
-      TYPE(cp_para_env_type), POINTER :: para_env => NULL()
+      TYPE(mp_para_env_type), POINTER :: para_env => NULL()
       INTEGER, DIMENSION(:, :), POINTER :: blacs2mpi => NULL()
       INTEGER, DIMENSION(:, :), POINTER :: mpi2blacs => NULL()
       LOGICAL :: repeatable = .FALSE.
@@ -92,7 +92,7 @@ CONTAINS
       CLASS(cp_blacs_env_type), INTENT(IN)                :: blacs_env
       INTEGER, INTENT(OUT), OPTIONAL :: my_process_row, my_process_column, my_process_number, &
                                         number_of_process_rows, number_of_process_columns, number_of_processes
-      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
       INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: blacs2mpi, mpi2blacs
 
       IF (PRESENT(my_process_row)) my_process_row = blacs_env%mepos(1)
@@ -121,7 +121,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_blacs_env_create(blacs_env, para_env, blacs_grid_layout, blacs_repeatable, row_major, grid_2d)
       TYPE(cp_blacs_env_type), INTENT(OUT), POINTER      :: blacs_env
-      TYPE(cp_para_env_type), INTENT(INOUT), TARGET      :: para_env
+      TYPE(mp_para_env_type), INTENT(INOUT), TARGET      :: para_env
       INTEGER, INTENT(IN), OPTIONAL                      :: blacs_grid_layout
       LOGICAL, INTENT(IN), OPTIONAL                      :: blacs_repeatable, row_major
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: grid_2d
@@ -145,7 +145,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_blacs_env_create_low(blacs_env, para_env, blacs_grid_layout, blacs_repeatable, row_major, grid_2d)
       CLASS(cp_blacs_env_type), INTENT(OUT)    :: blacs_env
-      TYPE(cp_para_env_type), TARGET, INTENT(INOUT) :: para_env
+      TYPE(mp_para_env_type), TARGET, INTENT(INOUT) :: para_env
       INTEGER, INTENT(IN), OPTIONAL            :: blacs_grid_layout
       LOGICAL, INTENT(IN), OPTIONAL            :: blacs_repeatable, row_major
       INTEGER, DIMENSION(:), INTENT(IN), &
@@ -303,7 +303,7 @@ CONTAINS
       CLASS(cp_blacs_env_type), INTENT(INOUT)                   :: blacs_env
 
       CALL blacs_env%gridexit()
-      CALL cp_para_env_release(blacs_env%para_env)
+      CALL mp_para_env_release(blacs_env%para_env)
       DEALLOCATE (blacs_env%mpi2blacs)
       DEALLOCATE (blacs_env%blacs2mpi)
 

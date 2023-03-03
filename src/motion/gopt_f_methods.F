@@ -23,7 +23,7 @@ MODULE gopt_f_methods
                          real_to_scaled, &
                          scaled_to_real
    USE cp_log_handling, ONLY: cp_to_string
-   USE cp_para_types, ONLY: cp_para_env_type
+   USE message_passing, ONLY: mp_para_env_type
    USE cp_subsys_types, ONLY: cp_subsys_get, &
                               cp_subsys_set, &
                               cp_subsys_type, &
@@ -257,7 +257,7 @@ CONTAINS
 
       REAL(KIND=dp)                                      :: pres_diff, pres_diff_constr, pres_int, &
                                                             pres_tol
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER(KIND=int_8)                                :: max_memory
       LOGICAL                                            :: print_memory
 
@@ -353,7 +353,7 @@ CONTAINS
       LOGICAL                                            :: conv
       INTEGER                                            :: its
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: master, output_unit
 
       IF (gopt_env%eval_opt_geo) THEN
@@ -734,7 +734,7 @@ CONTAINS
       TYPE(gopt_f_type), POINTER                         :: gopt_env
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x0
       INTEGER, INTENT(IN)                                :: master
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(section_vals_type), POINTER                   :: motion_section, root_section
 
@@ -911,7 +911,7 @@ CONTAINS
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(particle_list_type), POINTER                  :: particles

@@ -48,7 +48,6 @@ MODULE qs_localization_methods
         cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                               cp_logger_get_default_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE kahan_sum,                       ONLY: accurate_sum
    USE kinds,                           ONLY: dp
@@ -58,6 +57,7 @@ MODULE qs_localization_methods
                                               twopi
    USE matrix_exp,                      ONLY: exp_pade_real,&
                                               get_nsquare_norder
+   USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_mo_methods,                   ONLY: make_basis_simple
 #include "./base/base_uses.f90"
@@ -104,7 +104,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_k_k
       TYPE(cp_fm_type)                                   :: CTmp, G, Gp1, Gp2, U
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
@@ -292,7 +292,7 @@ CONTAINS
 
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
       TYPE(cp_fm_type), INTENT(IN)                       :: zij(:, :), vectors
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: eps_localization
       INTEGER                                            :: sweeps
@@ -574,7 +574,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE jacobi_cg_edf_ls(para_env, weights, zij, vectors, max_iter, eps_localization, &
                                iter, out_each, nextra, do_cg, nmo, vectors_2, mos_guess)
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
       TYPE(cp_fm_type), INTENT(IN)                       :: zij(:, :), vectors
       INTEGER, INTENT(IN)                                :: max_iter
@@ -2164,7 +2164,7 @@ CONTAINS
 
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
       TYPE(cp_fm_type), INTENT(IN)                       :: zij(:, :), vectors
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: eps_localization
       INTEGER                                            :: sweeps
@@ -2310,7 +2310,7 @@ CONTAINS
 
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
       TYPE(cp_cfm_type), INTENT(IN)                      :: czij(:)
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: max_iter
       TYPE(cp_cfm_type), INTENT(IN)                      :: rmat
       REAL(dp), INTENT(OUT), OPTIONAL                    :: tol_out
@@ -2434,7 +2434,7 @@ CONTAINS
                                    ns_bound, cz_ij_loc, rotmat, output_unit, tol_out, eps_localization, target_time, start_time)
 
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: max_iter
       INTEGER, INTENT(OUT)                               :: sweeps
       INTEGER, INTENT(IN)                                :: out_each, dim2, nstate, nblock_max
@@ -2916,7 +2916,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE eberlein(iperm, para_env, list_pair)
       INTEGER, INTENT(IN)                                :: iperm
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, DIMENSION(:, :)                           :: list_pair
 
       INTEGER                                            :: i, ii, jj, npair

@@ -25,8 +25,6 @@ MODULE mp2_ri_grad
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_indxl2g, cp_fm_release, &
         cp_fm_set_all, cp_fm_to_fm_submat, cp_fm_type
-   USE cp_para_env,                     ONLY: cp_para_env_release
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_transposed, dbcsr_type, &
@@ -38,7 +36,9 @@ MODULE mp2_ri_grad
                                               ri_rpa_method_gpw
    USE kinds,                           ONLY: dp
    USE libint_2c_3c,                    ONLY: compare_potential_types
-   USE message_passing,                 ONLY: mp_request_null,&
+   USE message_passing,                 ONLY: mp_para_env_release,&
+                                              mp_para_env_type,&
+                                              mp_request_null,&
                                               mp_request_type,&
                                               mp_waitall
    USE mp2_eri,                         ONLY: mp2_eri_2c_integrate,&
@@ -116,7 +116,7 @@ CONTAINS
                                  blacs_env_sub)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp2_type)                                     :: mp2_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
+      TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_sub
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -650,7 +650,7 @@ CONTAINS
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       INTEGER, INTENT(IN)                                :: homo, virtual, dimen
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
+      TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_sub
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       TYPE(cp_fm_type), INTENT(INOUT)                    :: L1_mu_i, L2_nu_a
       REAL(KIND=dp), INTENT(IN)                          :: factor
@@ -684,11 +684,11 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type)                                   :: fm_P_ij, L_mu_q
-      TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
       TYPE(integ_mat_buffer_type_2D), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_cyclic
+      TYPE(mp_para_env_type), POINTER                    :: para_env_exchange
       TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: req_send
 
       CALL timeset(routineN, handle)
@@ -1100,7 +1100,7 @@ CONTAINS
       CALL timestop(handle2)
 
       ! release para_env_exchange
-      CALL cp_para_env_release(para_env_exchange)
+      CALL mp_para_env_release(para_env_exchange)
 
       CALL cp_fm_release(L1_mu_i)
       CALL cp_fm_release(L2_nu_a)

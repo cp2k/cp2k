@@ -37,7 +37,6 @@ MODULE qs_neighbor_lists
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
@@ -62,6 +61,7 @@ MODULE qs_neighbor_lists
                                               dp,&
                                               int_8
    USE kpoint_types,                    ONLY: kpoint_type
+   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
    USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
@@ -286,7 +286,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE build_qs_neighbor_lists(qs_env, para_env, molecular, force_env_section)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, OPTIONAL                                  :: molecular
       TYPE(section_vals_type), POINTER                   :: force_env_section
 
@@ -1636,7 +1636,7 @@ CONTAINS
          POINTER                                         :: ab
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       INTEGER, INTENT(in)                                :: output_unit
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'write_neighbor_distribution'
       LOGICAL, PARAMETER                                 :: full_output = .FALSE.
@@ -1751,7 +1751,7 @@ CONTAINS
          POINTER                                         :: ab
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: neighbor_list_section
       CHARACTER(LEN=*), INTENT(IN)                       :: nl_type, middle_name, nlname
 

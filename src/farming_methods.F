@@ -13,7 +13,6 @@ MODULE farming_methods
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_generate_filename,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE farming_types,                   ONLY: farming_env_type,&
                                               init_job_type,&
                                               job_finished,&
@@ -23,6 +22,7 @@ MODULE farming_methods
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
+   USE message_passing,                 ONLY: mp_para_env_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -118,7 +118,7 @@ CONTAINS
    SUBROUTINE farming_parse_input(farming_env, root_section, para_env)
       TYPE(farming_env_type), POINTER                    :: farming_env
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=3)                                   :: text
       INTEGER                                            :: i, iunit, n_rep_val, num_slaves, &

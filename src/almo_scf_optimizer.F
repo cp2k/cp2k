@@ -50,7 +50,6 @@ MODULE almo_scf_optimizer
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE ct_methods,                      ONLY: analytic_line_search,&
                                               ct_step_execute,&
                                               diagonalize_diagonal_blocks
@@ -93,7 +92,8 @@ MODULE almo_scf_optimizer
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
-   USE message_passing,                 ONLY: mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_type
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -6974,7 +6974,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(IN)                       :: m_siginv, m_quench_t, m_FTsiginv, &
                                                             m_siginvTFTsiginv, m_ST
       TYPE(dbcsr_type), INTENT(INOUT), OPTIONAL          :: m_STsiginv_out, m_s_vv_out, m_f_vv_out
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       INTEGER, DIMENSION(:), INTENT(IN)                  :: nocc_of_domain
       TYPE(domain_submatrix_type), DIMENSION(:), &
@@ -7465,7 +7465,7 @@ CONTAINS
       TYPE(domain_map_type), DIMENSION(:), INTENT(IN)    :: domain_map
       INTEGER, DIMENSION(:), INTENT(IN)                  :: cpu_of_domain
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: nocc_of_domain
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       LOGICAL, INTENT(IN)                                :: optimize_theta, penalty_occ_vol, &
@@ -8330,7 +8330,7 @@ CONTAINS
                                                             penalty_occ_vol_pf2, spin_factor, &
                                                             eps_zero
       TYPE(dbcsr_type), INTENT(IN)                       :: m_s
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'hessian_diag_apply'

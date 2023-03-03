@@ -21,7 +21,6 @@ MODULE topology_generate_util
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE fist_neighbor_list_types,        ONLY: fist_neighbor_deallocate,&
                                               fist_neighbor_type
@@ -39,6 +38,7 @@ MODULE topology_generate_util
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE memory_utilities,                ONLY: reallocate
+   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: allocate_particle_set,&
                                               deallocate_particle_set,&
                                               particle_type
@@ -562,7 +562,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE topology_generate_bond(topology, para_env, subsys_section)
       TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_bond'

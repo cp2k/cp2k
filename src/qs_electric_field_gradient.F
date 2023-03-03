@@ -21,7 +21,6 @@ MODULE qs_electric_field_gradient
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE eigenvalueproblems,              ONLY: diagonalise
    USE input_section_types,             ONLY: section_get_lval,&
                                               section_vals_get_subs_vals,&
@@ -30,6 +29,7 @@ MODULE qs_electric_field_gradient
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fac,&
                                               fourpi
+   USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: indso,&
                                               nsoset
    USE particle_types,                  ONLY: particle_type
@@ -107,8 +107,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: rvals
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
@@ -414,7 +414,7 @@ CONTAINS
 
       ! calculate : Limit(r->0) V_hartree(r)/r^2
 
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       REAL(dp), DIMENSION(:, -2:), INTENT(inout)         :: vlimit
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
       TYPE(qs_kind_type), INTENT(IN)                     :: qs_kind

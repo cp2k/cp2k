@@ -14,7 +14,6 @@ MODULE hartree_local_methods
                                               gto_basis_set_type
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE hartree_local_types,             ONLY: allocate_ecoul_1center,&
                                               ecoul_1center_type,&
                                               hartree_local_type,&
@@ -22,6 +21,7 @@ MODULE hartree_local_methods
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi,&
                                               pi
+   USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: indso,&
                                               nsoset
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -213,7 +213,7 @@ CONTAINS
       REAL(kind=dp), INTENT(out)                         :: energy_hartree_1c
       TYPE(ecoul_1center_type), DIMENSION(:), POINTER    :: ecoul_1c
       TYPE(local_rho_type), POINTER                      :: local_rho_set
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: tddft
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'Vh_1c_gg_integrals'

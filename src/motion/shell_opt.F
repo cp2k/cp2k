@@ -19,7 +19,6 @@ MODULE shell_opt
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                               cp_rm_iter_level
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -37,6 +36,7 @@ MODULE shell_opt
                                               section_vals_type
    USE integrator_utils,                ONLY: tmp_variables_type
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE shell_potential_types,           ONLY: shell_kind_type
 #include "../base/base_uses.f90"
@@ -75,11 +75,11 @@ CONTAINS
       REAL(dp), DIMENSION(:), POINTER                    :: dvec_sc, dvec_sc_0
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(gopt_f_type), POINTER                         :: gopt_env
       TYPE(gopt_param_type), POINTER                     :: gopt_param
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: force_env_section, geo_section, &
                                                             root_section
 
@@ -187,7 +187,7 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set, shell_particle_set, &
                                                             core_particle_set
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(INOUT)                             :: optimize
 
       INTEGER                                            :: ikind, iparticle, iparticle_local, &
