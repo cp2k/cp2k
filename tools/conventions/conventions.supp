@@ -174,9 +174,6 @@ cp_parser_status_types.F: Found type status_type without initializer https://cp2
 cp_parser_types.F: Found type cp_parser_type without initializer https://cp2k.org/conv#c016
 cp_subsys_types.F: Found type cp_subsys_p_type without initializer https://cp2k.org/conv#c016
 cp_subsys_types.F: Found type cp_subsys_type without initializer https://cp2k.org/conv#c016
-cp_units.F: Found type cp_unit_p_type without initializer https://cp2k.org/conv#c016
-cp_units.F: Found type cp_unit_set_type without initializer https://cp2k.org/conv#c016
-cp_units.F: Found type cp_unit_type without initializer https://cp2k.org/conv#c016
 cryssym.F: Found type csym_type without initializer https://cp2k.org/conv#c016
 csvr_system_types.F: Found type csvr_system_type without initializer https://cp2k.org/conv#c016
 csvr_system_types.F: Found type csvr_thermo_type without initializer https://cp2k.org/conv#c016
@@ -226,8 +223,6 @@ dirichlet_bc_types.F: Found type dirichlet_bc_p_type without initializer https:/
 dirichlet_bc_types.F: Found type dirichlet_bc_type without initializer https://cp2k.org/conv#c016
 dirichlet_bc_types.F: Found type tile_p_type without initializer https://cp2k.org/conv#c016
 dirichlet_bc_types.F: Found type tile_type without initializer https://cp2k.org/conv#c016
-distribution_1d_types.F: Found type distribution_1d_type without initializer https://cp2k.org/conv#c016
-distribution_1d_types.F: Found type local_particle_type without initializer https://cp2k.org/conv#c016
 distribution_2d_types.F: Found type distribution_2d_type without initializer https://cp2k.org/conv#c016
 dkh_main.F: Found WRITE statement with hardcoded unit in "kintegral_a" https://cp2k.org/conv#c012
 dkh_main.F: Found WRITE statement with hardcoded unit in "kintegral" https://cp2k.org/conv#c012
@@ -313,7 +308,6 @@ force_field_types.F: Found type charmm_info_type without initializer https://cp2
 force_field_types.F: Found type force_field_type without initializer https://cp2k.org/conv#c016
 force_field_types.F: Found type gromos_info_type without initializer https://cp2k.org/conv#c016
 force_field_types.F: Found type input_info_type without initializer https://cp2k.org/conv#c016
-fparser.F: Found type tcomp without initializer https://cp2k.org/conv#c016
 fparser.F: Found WRITE statement with hardcoded unit in "parseerrmsg" https://cp2k.org/conv#c012
 fp_types.F: Found type fp_type without initializer https://cp2k.org/conv#c016
 free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_norm_sc" https://cp2k.org/conv#c012
@@ -416,7 +410,6 @@ kpoint_types.F: Found type kpoint_env_type without initializer https://cp2k.org/
 kpoint_types.F: Found type kpoint_sym_p_type without initializer https://cp2k.org/conv#c016
 kpoint_types.F: Found type kpoint_sym_type without initializer https://cp2k.org/conv#c016
 kpoint_types.F: Found type kpoint_type without initializer https://cp2k.org/conv#c016
-lebedev.F: Found type oh_grid without initializer https://cp2k.org/conv#c016
 libcp2k.F: Found type eri2array without initializer https://cp2k.org/conv#c016
 libint_2c_3c.F: Found type libint_potential_type without initializer https://cp2k.org/conv#c016
 libint_2c_3c.F: Found type params_2c without initializer https://cp2k.org/conv#c016
@@ -618,15 +611,12 @@ pair_potential_types.F: Found type williams_pot_type without initializer https:/
 pao_param_exp.F: Found lossy conversion real_4_r8 without KIND argument in "zheevd_wrapper" https://cp2k.org/conv#c015
 pao_types.F: Found type filename_type without initializer https://cp2k.org/conv#c016
 parallel_gemm_api.F: Found CALL cp_fm_gemm in procedure "parallel_gemm_fm" https://cp2k.org/conv#c101
-parallel_rng_types.F: Found type rng_stream_p_type without initializer https://cp2k.org/conv#c016
-parallel_rng_types.F: Found type rng_stream_type without initializer https://cp2k.org/conv#c016
 parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "dump_reload_check" https://cp2k.org/conv#c012
 parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "parallel_rng_types_test" https://cp2k.org/conv#c012
 parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "shuffle_check" https://cp2k.org/conv#c012
 particle_list_types.F: Found type particle_list_p_type without initializer https://cp2k.org/conv#c016
 particle_list_types.F: Found type particle_list_type without initializer https://cp2k.org/conv#c016
 paw_proj_set_types.F: Found type paw_proj_set_type without initializer https://cp2k.org/conv#c016
-periodic_table.F: Found type atom without initializer https://cp2k.org/conv#c016
 pexsi_types.F: Found type lib_pexsi_env without initializer https://cp2k.org/conv#c016
 pint_types.F: Found type normalmode_env_type without initializer https://cp2k.org/conv#c016
 pint_types.F: Found type piglet_therm_type without initializer https://cp2k.org/conv#c016
@@ -636,7 +626,6 @@ pint_types.F: Found type pint_propagator_type without initializer https://cp2k.o
 pint_types.F: Found type qtb_therm_type without initializer https://cp2k.org/conv#c016
 pint_types.F: Found type staging_env_type without initializer https://cp2k.org/conv#c016
 powell.F: Found GOTO statement in procedure "newuob" https://cp2k.org/conv#c201
-powell.F: Found type opt_state_type without initializer https://cp2k.org/conv#c016
 preconditioner_makes.F: Found WRITE statement with hardcoded unit in "make_full_all" https://cp2k.org/conv#c012
 preconditioner_makes.F: Found WRITE statement with hardcoded unit in "make_full_all_ortho" https://cp2k.org/conv#c012
 preconditioner_types.F: Found type preconditioner_p_type without initializer https://cp2k.org/conv#c016
@@ -829,8 +818,6 @@ realspace_grid_types.F: Found type realspace_grid_desc_p_type without initialize
 realspace_grid_types.F: Found type realspace_grid_desc_type without initializer https://cp2k.org/conv#c016
 realspace_grid_types.F: Found type realspace_grid_input_type without initializer https://cp2k.org/conv#c016
 realspace_grid_types.F: Found type realspace_grid_p_type without initializer https://cp2k.org/conv#c016
-reference_manager.F: Found type reference_p_type without initializer https://cp2k.org/conv#c016
-reference_manager.F: Found type reference_type without initializer https://cp2k.org/conv#c016
 reftraj_types.F: Found type reftraj_info_type without initializer https://cp2k.org/conv#c016
 reftraj_types.F: Found type reftraj_msd_type without initializer https://cp2k.org/conv#c016
 reftraj_types.F: Found type reftraj_type without initializer https://cp2k.org/conv#c016

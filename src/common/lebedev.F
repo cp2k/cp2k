@@ -77,19 +77,19 @@ MODULE lebedev
 
 ! **************************************************************************************************
    TYPE oh_grid
-      INTEGER                           :: l, n
+      INTEGER                           :: l = -1, n = -1
       REAL(KIND=dp), DIMENSION(:), POINTER   :: w => NULL()
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: r => NULL()
    END TYPE oh_grid
 
-   TYPE(oh_grid), DIMENSION(nlg), TARGET :: lebedev_grid
+   TYPE(oh_grid), DIMENSION(nlg), TARGET :: lebedev_grid = oh_grid()
 
-   REAL(KIND=dp) :: one, rs2, rs3, zero
-   INTEGER  :: nlgp
+   REAL(KIND=dp), PARAMETER :: one = 1.0_dp, rs2 = one/SQRT(2.0_dp), rs3 = one/SQRT(3.0_dp), zero = 0.0_dp
+   INTEGER  :: nlgp = -1
    LOGICAL  :: init_lebedev_grids_done = .FALSE.
 
-   REAL(KIND=dp), DIMENSION(max_np/3) :: w
-   REAL(KIND=dp), DIMENSION(max_np)   :: r
+   REAL(KIND=dp), DIMENSION(max_np/3) :: w = 0.0_dp
+   REAL(KIND=dp), DIMENSION(max_np)   :: r = 0.0_dp
 
    PUBLIC :: lebedev_grid
 
@@ -352,18 +352,6 @@ CONTAINS
          IF (ASSOCIATED(lebedev_grid(ilg)%r)) DEALLOCATE (lebedev_grid(ilg)%r)
          IF (ASSOCIATED(lebedev_grid(ilg)%w)) DEALLOCATE (lebedev_grid(ilg)%w)
       END DO
-
-!   *** Initialize constants ***
-
-      one = 1.0_dp
-      rs2 = one/SQRT(2.0_dp)
-      rs3 = one/SQRT(3.0_dp)
-      zero = 0.0_dp
-
-!   *** Initialize working storage ***
-
-      w(:) = zero
-      r(:) = zero
 
 !   *** Load the angular momentum quantum numbers l of the Lebedev grids ***
 
