@@ -3088,7 +3088,7 @@ CONTAINS
                      bstring = "RI HFX Basis Set"
                   END SELECT
 
-                  CALL write_gto_basis_set(tmp_basis, output_unit, bstring)
+                  IF (ASSOCIATED(tmp_basis)) CALL write_gto_basis_set(tmp_basis, output_unit, bstring)
 
                END DO
 
