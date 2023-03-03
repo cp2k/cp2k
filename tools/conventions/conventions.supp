@@ -142,10 +142,6 @@ cp_files.F: Found OPEN statement in procedure "open_file" https://cp2k.org/conv#
 cp_files.F: Found type preconnection_type without initializer https://cp2k.org/conv#c016
 cp_fm_basic_linalg.F: Found CALL cp_fm_gemm in procedure "cp_complex_fm_gemm" https://cp2k.org/conv#c101
 cp_fm_diag.F: Found CALL cp_fm_gemm in procedure "cp_fm_geeig_canon" https://cp2k.org/conv#c101
-cp_fm_pool_types.F: Found type cp_fm_pool_p_type without initializer https://cp2k.org/conv#c016
-cp_fm_pool_types.F: Found type cp_fm_pool_type without initializer https://cp2k.org/conv#c016
-cp_fm_struct.F: Found type cp_fm_struct_p_type without initializer https://cp2k.org/conv#c016
-cp_fm_struct.F: Found type cp_fm_struct_type without initializer https://cp2k.org/conv#c016
 cp_iter_types.F: Found type cp_iteration_info_type without initializer https://cp2k.org/conv#c016
 cp_lbfgs.F: Found WRITE statement with hardcoded unit in "active" https://cp2k.org/conv#c012
 cp_lbfgs.F: Found WRITE statement with hardcoded unit in "cauchy" https://cp2k.org/conv#c012

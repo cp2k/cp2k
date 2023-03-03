@@ -311,7 +311,6 @@ CONTAINS
 
       IF (sub_env%is_split) THEN
          DO ispin = 1, nspins
-            NULLIFY (fm_struct_evects(ispin)%struct)
             CALL cp_fm_struct_create(fm_struct_evects(ispin)%struct, nrow_global=nao, &
                                      ncol_global=nmo_occ(ispin), context=sub_env%blacs_env)
          END DO
@@ -588,7 +587,6 @@ CONTAINS
       END DO
 
       DO ispin = 1, nspins
-         NULLIFY (fm_struct_evects(ispin)%struct)
          CALL cp_fm_struct_create(fm_struct_evects(ispin)%struct, nrow_global=nao, &
                                   ncol_global=nmo_occ(ispin), context=sub_env%blacs_env)
       END DO

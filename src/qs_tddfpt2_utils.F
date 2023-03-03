@@ -935,8 +935,8 @@ CONTAINS
    SUBROUTINE tddfpt_guess_vectors(evects, evals, gs_mos, log_unit)
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(inout)   :: evects
       REAL(kind=dp), DIMENSION(:), INTENT(inout)         :: evals
-      TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
-         INTENT(in)                                      :: gs_mos
+      TYPE(tddfpt_ground_state_mos), &
+         DIMENSION(SIZE(evects, 1)), INTENT(in)          :: gs_mos
       INTEGER, INTENT(in)                                :: log_unit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_guess_vectors'
@@ -961,7 +961,6 @@ CONTAINS
       IF (debug_this_module) THEN
          CPASSERT(nstates > 0)
          CPASSERT(nspins == 1 .OR. nspins == 2)
-         CPASSERT(SIZE(gs_mos) == nspins)
       END IF
 
       DO ispin = 1, nspins
