@@ -69,5 +69,6 @@ QS/regtest-embed/H2O_H2_pbe_FAB.inp
 QS/regtest-gapw-ext/H2S-e4.inp
 QS/regtest-rtp-5/si8-smearing-rtp-dens.inp
 QS/regtest-rtp-5/si8-smearing-rtp-dens-pulse-1.inp
+QS/regtest-kp-2/cc2_lri.inp
 
 #EOF
