@@ -82,22 +82,24 @@ MODULE xc_rho_set_types
 !> \author fawzi & thomas
 ! **************************************************************************************************
    TYPE xc_rho_set_type
-      INTEGER, DIMENSION(2, 3) :: local_bounds
-      REAL(kind=dp) :: rho_cutoff, drho_cutoff, tau_cutoff
-      TYPE(xc_rho_cflags_type) :: owns, has
+      INTEGER, DIMENSION(2, 3) :: local_bounds = -1
+      REAL(kind=dp) :: rho_cutoff = EPSILON(0.0_dp), drho_cutoff = EPSILON(0.0_dp), tau_cutoff = EPSILON(0.0_dp)
+      TYPE(xc_rho_cflags_type) :: owns = xc_rho_cflags_type(), has = xc_rho_cflags_type()
       ! for spin restricted systems
-      REAL(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: rho
-      TYPE(cp_3d_r_cp_type), DIMENSION(3)         :: drho
-      REAL(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: norm_drho
-      REAL(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: rho_1_3
-      REAL(kind=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: tau
+      REAL(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: rho => NULL()
+      TYPE(cp_3d_r_cp_type), DIMENSION(3)         :: drho = cp_3d_r_cp_type()
+      REAL(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: norm_drho => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: rho_1_3 => NULL()
+      REAL(kind=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: tau => NULL()
       ! for UNrestricted systems
-      REAL(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: rhoa, rhob
-      TYPE(cp_3d_r_cp_type), DIMENSION(3)         :: drhoa, drhob
-      REAL(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: norm_drhoa, norm_drhob
-      REAL(kind=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: rhoa_1_3, rhob_1_3
-      REAL(kind=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: tau_a, tau_b
-      REAL(kind=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: laplace_rho, laplace_rhoa, laplace_rhob
+      REAL(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: rhoa => NULL(), rhob => NULL()
+      TYPE(cp_3d_r_cp_type), DIMENSION(3)         :: drhoa = cp_3d_r_cp_type(), &
+                                                     drhob = cp_3d_r_cp_type()
+      REAL(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: norm_drhoa => NULL(), norm_drhob => NULL()
+      REAL(kind=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: rhoa_1_3 => NULL(), rhob_1_3 => NULL()
+      REAL(kind=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: tau_a => NULL(), tau_b => NULL()
+      REAL(kind=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: laplace_rho => NULL(), laplace_rhoa => NULL(), &
+                                                                laplace_rhob => NULL()
    END TYPE xc_rho_set_type
 
 CONTAINS
@@ -112,34 +114,16 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xc_rho_set_create(rho_set, local_bounds, rho_cutoff, drho_cutoff, &
                                 tau_cutoff)
-      TYPE(xc_rho_set_type)                              :: rho_set
+      TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho_set
       INTEGER, DIMENSION(2, 3), INTENT(in)               :: local_bounds
       REAL(kind=dp), INTENT(in), OPTIONAL                :: rho_cutoff, drho_cutoff, tau_cutoff
 
-      INTEGER                                            :: i
-
-      rho_set%rho_cutoff = EPSILON(0.0_dp)
       IF (PRESENT(rho_cutoff)) rho_set%rho_cutoff = rho_cutoff
-      rho_set%drho_cutoff = EPSILON(0.0_dp)
       IF (PRESENT(drho_cutoff)) rho_set%drho_cutoff = drho_cutoff
-      rho_set%tau_cutoff = EPSILON(0.0_dp)
       IF (PRESENT(tau_cutoff)) rho_set%tau_cutoff = tau_cutoff
       rho_set%local_bounds = local_bounds
       CALL xc_rho_cflags_setall(rho_set%owns, .TRUE.)
       CALL xc_rho_cflags_setall(rho_set%has, .FALSE.)
-      NULLIFY (rho_set%rho)
-      DO i = 1, 3
-         NULLIFY (rho_set%drho(i)%array)
-      END DO
-      NULLIFY (rho_set%rho_1_3)
-      NULLIFY (rho_set%norm_drho, rho_set%rhoa, rho_set%rhob)
-      DO i = 1, 3
-         NULLIFY (rho_set%drhoa(i)%array, rho_set%drhob(i)%array)
-      END DO
-      NULLIFY (rho_set%norm_drhoa, rho_set%norm_drhob, &
-               rho_set%rhoa_1_3, rho_set%rhob_1_3, &
-               rho_set%tau, rho_set%tau_a, rho_set%tau_b, rho_set%laplace_rho, rho_set%laplace_rhoa, &
-               rho_set%laplace_rhob)
    END SUBROUTINE xc_rho_set_create
 
 ! **************************************************************************************************
@@ -148,7 +132,7 @@ CONTAINS
 !> \param pw_pool the plae where to give back the arrays
 ! **************************************************************************************************
    SUBROUTINE xc_rho_set_release(rho_set, pw_pool)
-      TYPE(xc_rho_set_type)                              :: rho_set
+      TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho_set
       TYPE(pw_pool_type), OPTIONAL, POINTER              :: pw_pool
 
       INTEGER                                            :: i
@@ -165,6 +149,8 @@ CONTAINS
       rho_set%local_bounds(1, :) = HUGE(0)
       IF (rho_set%owns%rho .AND. ASSOCIATED(rho_set%rho)) THEN
          DEALLOCATE (rho_set%rho)
+      ELSE
+         NULLIFY (rho_set%rho)
       END IF
       IF (rho_set%owns%rho_spin) THEN
          IF (ASSOCIATED(rho_set%rhoa)) THEN
@@ -173,9 +159,13 @@ CONTAINS
          IF (ASSOCIATED(rho_set%rhob)) THEN
             DEALLOCATE (rho_set%rhob)
          END IF
+      ELSE
+         NULLIFY (rho_set%rhoa, rho_set%rhob)
       END IF
       IF (rho_set%owns%rho_1_3 .AND. ASSOCIATED(rho_set%rho_1_3)) THEN
          DEALLOCATE (rho_set%rho_1_3)
+      ELSE
+         NULLIFY (rho_set%rho_1_3)
       END IF
       IF (rho_set%owns%rho_spin) THEN
          IF (ASSOCIATED(rho_set%rhoa_1_3)) THEN
@@ -184,12 +174,18 @@ CONTAINS
          IF (ASSOCIATED(rho_set%rhob_1_3)) THEN
             DEALLOCATE (rho_set%rhob_1_3)
          END IF
+      ELSE
+         NULLIFY (rho_set%rhoa_1_3, rho_set%rhob_1_3)
       END IF
       IF (rho_set%owns%drho) THEN
          DO i = 1, 3
             IF (ASSOCIATED(rho_set%drho(i)%array)) THEN
                DEALLOCATE (rho_set%drho(i)%array)
             END IF
+         END DO
+      ELSE
+         DO i = 1, 3
+            NULLIFY (rho_set%drho(i)%array)
          END DO
       END IF
       IF (rho_set%owns%drho_spin) THEN
@@ -201,13 +197,21 @@ CONTAINS
                DEALLOCATE (rho_set%drhob(i)%array)
             END IF
          END DO
+      ELSE
+         DO i = 1, 3
+            NULLIFY (rho_set%drhoa(i)%array, rho_set%drhob(i)%array)
+         END DO
       END IF
       IF (rho_set%owns%laplace_rho .AND. ASSOCIATED(rho_set%laplace_rho)) THEN
          DEALLOCATE (rho_set%laplace_rho)
+      ELSE
+         NULLIFY (rho_set%laplace_rho)
       END IF
 
       IF (rho_set%owns%norm_drho .AND. ASSOCIATED(rho_set%norm_drho)) THEN
          DEALLOCATE (rho_set%norm_drho)
+      ELSE
+         NULLIFY (rho_set%norm_drho)
       END IF
       IF (rho_set%owns%laplace_rho_spin) THEN
          IF (ASSOCIATED(rho_set%laplace_rhoa)) THEN
@@ -216,6 +220,8 @@ CONTAINS
          IF (ASSOCIATED(rho_set%laplace_rhob)) THEN
             DEALLOCATE (rho_set%laplace_rhob)
          END IF
+      ELSE
+         NULLIFY (rho_set%laplace_rhoa, rho_set%laplace_rhob)
       END IF
 
       IF (rho_set%owns%norm_drho_spin) THEN
@@ -225,9 +231,13 @@ CONTAINS
          IF (ASSOCIATED(rho_set%norm_drhob)) THEN
             DEALLOCATE (rho_set%norm_drhob)
          END IF
+      ELSE
+         NULLIFY (rho_set%norm_drhoa, rho_set%norm_drhob)
       END IF
       IF (rho_set%owns%tau .AND. ASSOCIATED(rho_set%tau)) THEN
          DEALLOCATE (rho_set%tau)
+      ELSE
+         NULLIFY (rho_set%tau)
       END IF
       IF (rho_set%owns%tau_spin) THEN
          IF (ASSOCIATED(rho_set%tau_a)) THEN
@@ -236,6 +246,8 @@ CONTAINS
          IF (ASSOCIATED(rho_set%tau_b)) THEN
             DEALLOCATE (rho_set%tau_b)
          END IF
+      ELSE
+         NULLIFY (rho_set%tau_a, rho_set%tau_b)
       END IF
    END SUBROUTINE xc_rho_set_release
 
@@ -272,7 +284,7 @@ CONTAINS
                              rhoa, rhob, norm_drhoa, norm_drhob, rho_1_3, rhoa_1_3, &
                              rhob_1_3, laplace_rho, laplace_rhoa, laplace_rhob, drhoa, drhob, rho_cutoff, &
                              drho_cutoff, tau_cutoff, tau, tau_a, tau_b, local_bounds)
-      TYPE(xc_rho_set_type)                              :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       LOGICAL, INTENT(in), OPTIONAL                      :: can_return_null
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: rho
@@ -641,7 +653,6 @@ CONTAINS
             ! some checks
             SELECT CASE (nspins)
             CASE (1)
-               CPASSERT(SIZE(rho_r) == 1)
                CPASSERT(rho_r(1)%in_use == REALDATA3D)
                CPASSERT(.NOT. needs%rho_spin)
                CPASSERT(.NOT. needs%drho_spin)
@@ -650,7 +661,6 @@ CONTAINS
                CPASSERT(.NOT. needs%tau_spin)
                CPASSERT(.NOT. needs%laplace_rho_spin)
             CASE (2)
-               CPASSERT(SIZE(rho_r) == 2)
                CPASSERT(rho_r(1)%in_use == REALDATA3D)
                CPASSERT(rho_r(2)%in_use == REALDATA3D)
                CPASSERT(.NOT. needs%rho)
