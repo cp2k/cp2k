@@ -28,8 +28,8 @@ case "${with_intel}" in
     ;;
   __SYSTEM__)
     echo "==================== Finding Intel compiler from system paths ===================="
-    check_command icc "intel" && CC="$(realpath $(command -v icx))" || exit 1
-    check_command icpc "intel" && CXX="$(realpath $(command -v icpx))" || exit 1
+    check_command icc "intel" && CC="$(realpath $(command -v icc))" || exit 1
+    check_command icpc "intel" && CXX="$(realpath $(command -v icpc))" || exit 1
     check_command ifort "intel" && FC="$(realpath $(command -v ifort))" || exit 1
     F90="${FC}"
     F77="${FC}"
