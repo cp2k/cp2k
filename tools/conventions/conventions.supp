@@ -601,7 +601,6 @@ optimize_basis_types.F: Found type subset_type without initializer https://cp2k.
 optimize_input.F: Found type fm_env_type without initializer https://cp2k.org/conv#c016
 optimize_input.F: Found type oi_env_type without initializer https://cp2k.org/conv#c016
 optimize_input.F: Found type variable_type without initializer https://cp2k.org/conv#c016
-orbital_transformation_matrices.F: Found type orbtramat_type without initializer https://cp2k.org/conv#c016
 outer_scf_control_types.F: Found type outer_scf_control_type without initializer https://cp2k.org/conv#c016
 outer_scf_control_types.F: Found type qs_outer_scf_type without initializer https://cp2k.org/conv#c016
 pair_potential_types.F: Found type buck4ran_pot_type without initializer https://cp2k.org/conv#c016
