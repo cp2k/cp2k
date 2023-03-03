@@ -12,12 +12,6 @@ almo_scf_types.F: Found type penalty_type without initializer https://cp2k.org/c
 al_system_dynamics.F: Found WRITE statement with hardcoded unit in "dump_vel" https://cp2k.org/conv#c012
 al_system_types.F: Found type al_system_type without initializer https://cp2k.org/conv#c016
 al_system_types.F: Found type al_thermo_type without initializer https://cp2k.org/conv#c016
-arnoldi_types.F: Found type arnoldi_control_type without initializer https://cp2k.org/conv#c016
-arnoldi_types.F: Found type arnoldi_data_c_type without initializer https://cp2k.org/conv#c016
-arnoldi_types.F: Found type arnoldi_data_d_type without initializer https://cp2k.org/conv#c016
-arnoldi_types.F: Found type arnoldi_data_s_type without initializer https://cp2k.org/conv#c016
-arnoldi_types.F: Found type arnoldi_data_type without initializer https://cp2k.org/conv#c016
-arnoldi_types.F: Found type arnoldi_data_z_type without initializer https://cp2k.org/conv#c016
 atom_fit.F: Found type wfn_init without initializer https://cp2k.org/conv#c016
 atom_grb.F: Found type basis_p_type without initializer https://cp2k.org/conv#c016
 atomic_kind_list_types.F: Found type atomic_kind_list_p_type without initializer https://cp2k.org/conv#c016
