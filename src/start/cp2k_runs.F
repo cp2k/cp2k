@@ -870,7 +870,23 @@ CONTAINS
             new_output_unit = -1
          END IF
 
+         ! External commands (each)
+         IF (new_rank == 0) THEN
+            DO icmd = 1, farming_env%ext_scripts%n_local_init
+               CALL EXECUTE_COMMAND_LINE("cd "//TRIM(farming_env%Job(i)%cwd)//"; "// &
+                                         farming_env%ext_scripts%ext_local_init(icmd))
+            END DO
+         END IF
+
          CALL cp2k_run(input_declaration, TRIM(farming_env%Job(i)%input), new_output_unit, new_group, initial_variables)
+
+         ! External commands (each)
+         IF (new_rank == 0) THEN
+            DO icmd = 1, farming_env%ext_scripts%n_local_final
+               CALL EXECUTE_COMMAND_LINE("cd "//TRIM(farming_env%Job(i)%cwd)//"; "// &
+                                         farming_env%ext_scripts%ext_local_final(icmd))
+            END DO
+         END IF
 
          IF (new_rank == 0) CALL close_file(unit_number=new_output_unit)
 

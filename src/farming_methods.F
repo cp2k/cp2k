@@ -234,6 +234,56 @@ CONTAINS
          CPASSERT(.NOT. farming_env%cycle)
       END IF
 
+      ! external commands
+      CALL section_vals_val_get(farming_section, "RUN_GLOBAL_INIT", n_rep_val=n_rep_val, &
+                                explicit=explicit)
+      IF (explicit) THEN
+         farming_env%ext_scripts%n_global_init = n_rep_val
+         ALLOCATE (farming_env%ext_scripts%ext_global_init(n_rep_val))
+         DO i = 1, n_rep_val
+            CALL section_vals_val_get(farming_section, "RUN_GLOBAL_INIT", i_rep_val=i, &
+                                      c_val=farming_env%ext_scripts%ext_global_init(i))
+         END DO
+      ELSE
+         farming_env%ext_scripts%n_global_init = 0
+      END IF
+      CALL section_vals_val_get(farming_section, "RUN_GLOBAL_FINAL", n_rep_val=n_rep_val, &
+                                explicit=explicit)
+      IF (explicit) THEN
+         farming_env%ext_scripts%n_global_final = n_rep_val
+         ALLOCATE (farming_env%ext_scripts%ext_global_final(n_rep_val))
+         DO i = 1, n_rep_val
+            CALL section_vals_val_get(farming_section, "RUN_GLOBAL_FINAL", i_rep_val=i, &
+                                      c_val=farming_env%ext_scripts%ext_global_final(i))
+         END DO
+      ELSE
+         farming_env%ext_scripts%n_global_final = 0
+      END IF
+      CALL section_vals_val_get(farming_section, "RUN_EACH_INIT", n_rep_val=n_rep_val, &
+                                explicit=explicit)
+      IF (explicit) THEN
+         farming_env%ext_scripts%n_local_init = n_rep_val
+         ALLOCATE (farming_env%ext_scripts%ext_local_init(n_rep_val))
+         DO i = 1, n_rep_val
+            CALL section_vals_val_get(farming_section, "RUN_EACH_INIT", i_rep_val=i, &
+                                      c_val=farming_env%ext_scripts%ext_local_init(i))
+         END DO
+      ELSE
+         farming_env%ext_scripts%n_local_init = 0
+      END IF
+      CALL section_vals_val_get(farming_section, "RUN_EACH_FINAL", n_rep_val=n_rep_val, &
+                                explicit=explicit)
+      IF (explicit) THEN
+         farming_env%ext_scripts%n_local_final = n_rep_val
+         ALLOCATE (farming_env%ext_scripts%ext_local_final(n_rep_val))
+         DO i = 1, n_rep_val
+            CALL section_vals_val_get(farming_section, "RUN_EACH_FINAL", i_rep_val=i, &
+                                      c_val=farming_env%ext_scripts%ext_local_final(i))
+         END DO
+      ELSE
+         farming_env%ext_scripts%n_local_final = 0
+      END IF
+
       output_unit = cp_print_key_unit_nr(logger, farming_section, "PROGRAM_RUN_INFO", &
                                          extension=".log")
 
@@ -305,6 +355,33 @@ CONTAINS
                   "FARMING| ---- WARNING ---- failed to open ("//TRIM(farming_env%restart_file_name)//"), starting at 1"
             END IF
             CLOSE (iunit, IOSTAT=stat)
+         END IF
+         ! external scripts
+         stat = farming_env%ext_scripts%n_global_init + farming_env%ext_scripts%n_global_final
+         IF (stat > 0) THEN
+            WRITE (output_unit, "(T2,A)") &
+               "FARMING| External commands executed at Start/End of farming run"
+            DO i = 1, farming_env%ext_scripts%n_global_init
+               WRITE (output_unit, "(T2,A,T25,A56)") &
+                  "FARMING| ExCMD start:", TRIM(ADJUSTL(farming_env%ext_scripts%ext_global_init(i)))
+            END DO
+            DO i = 1, farming_env%ext_scripts%n_global_final
+               WRITE (output_unit, "(T2,A,T25,A56)") &
+                  "FARMING| ExCMD end:", TRIM(ADJUSTL(farming_env%ext_scripts%ext_global_final(i)))
+            END DO
+         END IF
+         stat = farming_env%ext_scripts%n_local_init + farming_env%ext_scripts%n_local_final
+         IF (stat > 0) THEN
+            WRITE (output_unit, "(T2,A)") &
+               "FARMING| External commands executed at Start/End of each farming job"
+            DO i = 1, farming_env%ext_scripts%n_local_init
+               WRITE (output_unit, "(T2,A,T25,A56)") &
+                  "FARMING| ExCMD start:", TRIM(ADJUSTL(farming_env%ext_scripts%ext_local_init(i)))
+            END DO
+            DO i = 1, farming_env%ext_scripts%n_local_final
+               WRITE (output_unit, "(T2,A,T25,A56)") &
+                  "FARMING| ExCMD end:", TRIM(ADJUSTL(farming_env%ext_scripts%ext_local_final(i)))
+            END DO
          END IF
 
          CALL cp_print_key_finished_output(output_unit, logger, farming_section, &
