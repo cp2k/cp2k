@@ -53,6 +53,9 @@ case "${with_intel}" in
     ;;
 esac
 if [ "${with_intel}" != "__DONTUSE__" ]; then
+  echo "CC  is ${CC}"
+  echo "CXX is ${CXX}"
+  echo "FC  is ${FC}"
   cat << EOF > "${BUILDDIR}/setup_intel"
 export CC="${CC}"
 export CXX="${CXX}"
