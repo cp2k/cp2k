@@ -51,15 +51,15 @@ MODULE cp_result_types
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
    TYPE cp_result_value_type
-      INTEGER                                              :: type_in_use
-      LOGICAL, DIMENSION(:), POINTER                       :: logical_type
-      INTEGER, DIMENSION(:), POINTER                       :: integer_type
-      REAL(KIND=dp), DIMENSION(:), POINTER                 :: real_type
+      INTEGER                                              :: type_in_use = -1
+      LOGICAL, DIMENSION(:), POINTER                       :: logical_type => NULL()
+      INTEGER, DIMENSION(:), POINTER                       :: integer_type => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER                 :: real_type => NULL()
    END TYPE cp_result_value_type
 
 ! **************************************************************************************************
    TYPE cp_result_value_p_type
-      TYPE(cp_result_value_type), POINTER                  :: value
+      TYPE(cp_result_value_type), POINTER                  :: value => NULL()
    END TYPE cp_result_value_p_type
 
 ! **************************************************************************************************
@@ -71,15 +71,15 @@ MODULE cp_result_types
 !> \author fschiff (12.2007)
 ! **************************************************************************************************
    TYPE cp_result_type
-      INTEGER                                              :: ref_count
-      TYPE(cp_result_value_p_type), POINTER, DIMENSION(:)  :: result_value
+      INTEGER                                              :: ref_count = -1
+      TYPE(cp_result_value_p_type), POINTER, DIMENSION(:)  :: result_value => NULL()
       CHARACTER(LEN=default_string_length), DIMENSION(:), &
-         POINTER                                         :: result_label
+         POINTER                                         :: result_label => NULL()
    END TYPE cp_result_type
 
 ! **************************************************************************************************
    TYPE cp_result_p_type
-      TYPE(cp_result_type), POINTER                        :: results
+      TYPE(cp_result_type), POINTER                        :: results => NULL()
    END TYPE cp_result_p_type
 
 CONTAINS
@@ -151,25 +151,23 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich - 10.2008
 ! **************************************************************************************************
    SUBROUTINE cp_result_clean(results)
-      TYPE(cp_result_type), POINTER                      :: results
+      TYPE(cp_result_type), INTENT(INOUT)                :: results
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_result_clean'
 
       INTEGER                                            :: handle, i
 
       CALL timeset(routineN, handle)
-      IF (ASSOCIATED(results)) THEN
-         ! Description
-         IF (ASSOCIATED(results%result_label)) THEN
-            DEALLOCATE (results%result_label)
-         END IF
-         ! Values
-         IF (ASSOCIATED(results%result_value)) THEN
-            DO i = 1, SIZE(results%result_value)
-               CALL cp_result_value_release(results%result_value(i)%value)
-            END DO
-            DEALLOCATE (results%result_value)
-         END IF
+      ! Description
+      IF (ASSOCIATED(results%result_label)) THEN
+         DEALLOCATE (results%result_label)
+      END IF
+      ! Values
+      IF (ASSOCIATED(results%result_value)) THEN
+         DO i = 1, SIZE(results%result_value)
+            CALL cp_result_value_release(results%result_value(i)%value)
+         END DO
+         DEALLOCATE (results%result_value)
       END IF
       CALL timestop(handle)
    END SUBROUTINE cp_result_clean
@@ -182,9 +180,8 @@ CONTAINS
 !> \author fschiff
 ! **************************************************************************************************
    SUBROUTINE cp_result_retain(results)
-      TYPE(cp_result_type), POINTER                      :: results
+      TYPE(cp_result_type), INTENT(INOUT)                :: results
 
-      CPASSERT(ASSOCIATED(results))
       CPASSERT(results%ref_count > 0)
       results%ref_count = results%ref_count + 1
    END SUBROUTINE cp_result_retain
@@ -203,10 +200,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       ALLOCATE (value)
-      value%type_in_use = -1
-      NULLIFY (value%real_type)
-      NULLIFY (value%logical_type)
-      NULLIFY (value%integer_type)
       CALL timestop(handle)
    END SUBROUTINE cp_result_value_create
 
@@ -218,7 +211,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
    SUBROUTINE cp_result_value_init(value, type_in_use, size_value)
-      TYPE(cp_result_value_type), POINTER                :: value
+      TYPE(cp_result_value_type), INTENT(INOUT)          :: value
       INTEGER, INTENT(IN)                                :: type_in_use, size_value
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_result_value_init'
@@ -226,7 +219,6 @@ CONTAINS
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
-      CPASSERT(ASSOCIATED(value))
       value%type_in_use = type_in_use
       SELECT CASE (value%type_in_use)
       CASE (result_type_real)
@@ -291,7 +283,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
    SUBROUTINE cp_result_copy(results_in, results_out)
-      TYPE(cp_result_type), POINTER                      :: results_in, results_out
+      TYPE(cp_result_type), INTENT(INOUT)                :: results_in, results_out
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_result_copy'
 
@@ -299,8 +291,6 @@ CONTAINS
       LOGICAL                                            :: check
 
       CALL timeset(routineN, handle)
-      CPASSERT(ASSOCIATED(results_in))
-      CPASSERT(ASSOCIATED(results_out))
       CALL cp_result_clean(results_out)
 
       check = SIZE(results_in%result_label) == SIZE(results_in%result_value)
@@ -324,15 +314,13 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
    SUBROUTINE cp_result_value_copy(value_out, value_in)
-      TYPE(cp_result_value_type), POINTER                :: value_out, value_in
+      TYPE(cp_result_value_type), INTENT(INOUT)          :: value_out, value_in
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_result_value_copy'
 
       INTEGER                                            :: handle, isize
 
       CALL timeset(routineN, handle)
-      CPASSERT(ASSOCIATED(value_in))
-      CPASSERT(ASSOCIATED(value_out))
       value_out%type_in_use = value_in%type_in_use
       SELECT CASE (value_out%type_in_use)
       CASE (result_type_real)
