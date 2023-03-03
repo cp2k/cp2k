@@ -67,7 +67,7 @@ MODULE cp_lbfgs_optimizer_gopt
 ! **************************************************************************************************
 !> \brief info for the optimizer (see the description of this module)
 !> \param task the actual task of the optimizer (in the master it is up to
-!>        date, in case of error also the slaves one get updated.
+!>        date, in case of error also the minions one get updated.
 !> \param csave internal character string used by the lbfgs optimizer,
 !>        meaningful only in the master
 !> \param lsave logical array used by the lbfgs optimizer, updated only
