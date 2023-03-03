@@ -66,5 +66,8 @@ QS/regtest-p-efield/HF-field-debug.inp
 QS/regtest-admm-qps/H2O-ADMMQ_debug_forces.inp
 QS/regtest-ps-implicit-1-1/Ar_mixed_cuboidal.inp
 QS/regtest-embed/H2O_H2_pbe_FAB.inp
+QS/regtest-gapw-ext/H2S-e4.inp
+QS/regtest-rtp-5/si8-smearing-rtp-dens.inp
+QS/regtest-rtp-5/si8-smearing-rtp-dens-pulse-1.inp
 
 #EOF
