@@ -35,9 +35,8 @@ case "${with_intelmpi}" in
       check_command mpiicpc "intelmpi" && MPICXX="$(realpath $(command -v mpiicpc))" || exit 1
       check_command mpiifort "intelmpi" && MPIFC="$(realpath $(command -v mpiifort))" || exit 1
     else
-      check_command mpicc "intelmpi" && MPICC="$(realpath $(command -v mpicc))" || exit 1
-      check_command mpicxx "intelmpi" && MPICXX="$(realpath $(command -v mpicxx))" || exit 1
-      check_command mpifort "intelmpi" && MPIFC="$(realpath $(command -v mpifort))" || exit 1
+      echo "The use of Intel MPI is only supported with the Intel compiler"
+      exit 1
     fi
     MPIFORT="${MPIFC}"
     MPIF77="${MPIFC}"
@@ -62,9 +61,8 @@ case "${with_intelmpi}" in
       check_command ${pkg_install_dir}/bin/mpiicpc "intel" && MPICXX="${pkg_install_dir}/bin/mpiicpc" || exit 1
       check_command ${pkg_install_dir}/bin/mpiifort "intel" && MPIFC="${pkg_install_dir}/bin/mpiifort" || exit 1
     else
-      check_command ${pkg_install_dir}/bin/mpicc "intel" && MPICC="${pkg_install_dir}/bin/mpicc" || exit 1
-      check_command ${pkg_install_dir}/bin/mpicxx "intel" && MPICXX="${pkg_install_dir}/bin/mpicxx" || exit 1
-      check_command ${pkg_install_dir}/bin/mpifort "intel" && MPIFC="${pkg_install_dir}/bin/mpifort" || exit 1
+      echo "The use of Intel MPI is only supported with the Intel compiler"
+      exit 1
     fi
     MPIFORT="${MPIFC}"
     MPIF77="${MPIFC}"
@@ -74,8 +72,12 @@ case "${with_intelmpi}" in
     ;;
 esac
 if [ "${with_intelmpi}" != "__DONTUSE__" ]; then
+  I_MPI_CC="icc"
+  I_MPI_FC="ifort"
   INTELMPI_LIBS="-lmpi -lmpicxx"
   cat << EOF > "${BUILDDIR}/setup_intelmpi"
+export I_MPI_CC="${I_MPI_CC}"
+export I_MPI_FC="${I_MPI_FC}"
 export MPI_MODE="${MPI_MODE}"
 export MPIRUN="${MPIRUN}"
 export MPICC="${MPICC}"
