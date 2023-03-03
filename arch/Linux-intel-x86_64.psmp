@@ -6,14 +6,13 @@
 #              LIBINT 2.6.0, LIBXC 6.1.0, ELPA 2022.11.001,
 #              PLUMED 2.8.1, SPGLIB 1.16.2, LIBVORI 220621,
 #              GSL 2.7, COSMA 2.6.2, SIRIUS 7.4.3
-# on the Merlin cluster (PSI)
 #
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
 #        Optionally, the Intel compiler version can be specified as argument.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Author: Matthias Krack (01.03.2023)
+# Author: Matthias Krack (03.03.2023)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -55,7 +54,7 @@ USE_LIBVORI    := 220621
 USE_LIBXC      := 6.1.0
 USE_LIBXSMM    := 1.17
 USE_PLUMED     := 2.8.1
-#USE_SIRIUS     := 7.4.3
+USE_SIRIUS     := 7.4.3
 USE_SPGLIB     := 1.16.2
 # Only needed for SIRIUS
 LIBVDWXC_VER   := 0.4.0
@@ -75,9 +74,9 @@ LD             := mpiifort
 AR             := ar -r
 
 ifeq ($(strip $(TARGET_CPU)), native)
-   CFLAGS         := -O2 -fopenmp -fp-model precise -funroll-loops -g -qopenmp-simd -traceback -xHost
+   CFLAGS         := -O2 -fPIC -fp-model precise -funroll-loops -g -qopenmp -qopenmp-simd -traceback -xHost
 else
-   CFLAGS         := -O2 -fopenmp -fp-model precise -funroll-loops -g -mtune=$(TARGET_CPU) -qopenmp-simd
+   CFLAGS         := -O2 -fPIC -fp-model precise -funroll-loops -g -mtune=$(TARGET_CPU) -qopenmp -qopenmp-simd -traceback
 endif
 
 DFLAGS         := -D__parallel
@@ -326,5 +325,8 @@ mp2_optimize_ri_basis.o: mp2_optimize_ri_basis.F
 # Required due to SEGFAULTS occurring for higher optimisation levels
 paw_basis_types.o: paw_basis_types.F
 	$(FC) -c $(subst O2,O1,$(FCFLAGS)) $<
+# Reduce compilation time
+hfx_contraction_methods.o: hfx_contraction_methods.F
+	$(FC) -c $(subst -O2,-O1,$(FCFLAGS)) $<
 
 # End
