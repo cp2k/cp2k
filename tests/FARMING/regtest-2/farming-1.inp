@@ -14,7 +14,4 @@
     DIRECTORY dir-1
     INPUT_FILE_NAME water2.inp
   &END JOB
-  RUN_GLOBAL_INIT  "ls"
-  RUN_GLOBAL_FINAL "ls -ltr"
-  RUN_EACH_FINAL "ls"
 &END FARMING

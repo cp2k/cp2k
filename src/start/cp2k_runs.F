@@ -487,7 +487,7 @@ CONTAINS
       INTEGER :: dest, handle, i, i_job_to_restart, ierr, ijob, ijob_current, &
                  ijob_end, ijob_start, iunit, n_jobs_to_run, new_output_unit, &
                  new_rank, ngroups, num_minions, output_unit, primus_minion, &
-                 minion_rank, source, tag, todo, icmd
+                 minion_rank, source, tag, todo
       INTEGER, DIMENSION(:), POINTER           :: group_distribution, &
                                                   captain_minion_partition, &
                                                   minion_distribution, &
@@ -518,13 +518,6 @@ CONTAINS
       ! remember where we started
       CALL m_getcwd(farming_env%cwd)
       CALL farming_parse_input(farming_env, root_section, para_env)
-
-      ! External commands (global)
-      IF (para_env%is_source()) THEN
-         DO icmd = 1, farming_env%ext_scripts%n_global_init
-            CALL EXECUTE_COMMAND_LINE(farming_env%ext_scripts%ext_global_init(icmd))
-         END DO
-      END IF
 
       ! the full mpi group is first split in a minion group and a captain group, the latter being at most 1 process
       minion = .TRUE.
@@ -812,13 +805,6 @@ CONTAINS
       DEALLOCATE (group_distribution)
       DEALLOCATE (minion_distribution)
 
-      ! External commands (global)
-      IF (para_env%is_source()) THEN
-         DO icmd = 1, farming_env%ext_scripts%n_global_final
-            CALL EXECUTE_COMMAND_LINE(farming_env%ext_scripts%ext_global_final(icmd))
-         END DO
-      END IF
-
       ! clean the farming env
       CALL deallocate_farming_env(farming_env)
 
@@ -884,23 +870,7 @@ CONTAINS
             new_output_unit = -1
          END IF
 
-         ! External commands (each)
-         IF (new_rank == 0) THEN
-            DO icmd = 1, farming_env%ext_scripts%n_local_init
-               CALL EXECUTE_COMMAND_LINE("cd "//TRIM(farming_env%Job(i)%cwd)//"; "// &
-                                         farming_env%ext_scripts%ext_local_init(icmd))
-            END DO
-         END IF
-
          CALL cp2k_run(input_declaration, TRIM(farming_env%Job(i)%input), new_output_unit, new_group, initial_variables)
-
-         ! External commands (each)
-         IF (new_rank == 0) THEN
-            DO icmd = 1, farming_env%ext_scripts%n_local_final
-               CALL EXECUTE_COMMAND_LINE("cd "//TRIM(farming_env%Job(i)%cwd)//"; "// &
-                                         farming_env%ext_scripts%ext_local_final(icmd))
-            END DO
-         END IF
 
          IF (new_rank == 0) CALL close_file(unit_number=new_output_unit)
 
