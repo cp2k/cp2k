@@ -50,6 +50,7 @@ USE_COSMA      := 2.6.2
 USE_ELPA       := 2022.11.001
 USE_LIBINT     := 2.6.0
 USE_LIBPEXSI   := 1.2.0
+#USE_LIBTORCH   := 1.12.1
 USE_LIBVORI    := 220621
 USE_LIBXC      := 6.1.0
 USE_LIBXSMM    := 1.17
@@ -304,15 +305,29 @@ else
    LIBS           += -Wl,--end-group
 endif
 
+ifeq ($(shell [ $(shell ldd --version | head -n 1 | tr -s '.' '\n' | tail -n 1) -ge 27 ] && echo yes), yes)
+   ifneq ($(USE_LIBTORCH),)
+      USE_LIBTORCH   := $(strip $(USE_LIBTORCH))
+      LIBTORCH_INC   := $(INSTALL_PATH)/libtorch-$(USE_LIBTORCH)/include
+      LIBTORCH_LIB   := $(INSTALL_PATH)/libtorch-$(USE_LIBTORCH)/lib
+      CFLAGS         += -I$(LIBTORCH_INC)
+      DFLAGS         += -D__LIBTORCH
+      LIBS           += -Wl,-rpath=$(LIBTORCH_LIB) -L$(LIBTORCH_LIB) -lc10 -ltorch_cpu -ltorch
+   endif
+endif
+
 CFLAGS         += $(DFLAGS)
 CFLAGS         += -I$(MKLROOT)/include
 CFLAGS         += -I$(MKLROOT)/include/fftw
+
+CXXFLAGS       := $(CFLAGS) -std=c++14
 
 FCFLAGS        := $(CFLAGS)
 FCFLAGS        += -diag-disable=8291
 FCFLAGS        += -diag-disable=8293
 FCFLAGS        += -fpp
 FCFLAGS        += -free
+FCFLAGS        += -std08
 
 LDFLAGS        += $(FCFLAGS)
 LDFLAGS_C      := -nofor-main
