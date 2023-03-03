@@ -490,7 +490,6 @@ FROM intel/oneapi-hpckit:2023.0.0-devel-ubuntu22.04
         install_all="",
         with_intelmpi="",
         with_mkl="",
-        with_sirius="no",
     )
 
 
