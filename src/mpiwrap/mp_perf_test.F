@@ -281,7 +281,7 @@ CONTAINS
          t2 = 0.0E0_dp
          IF (ncount .GT. nbufmax) CPABORT("")
          DO j = 1, 3**(npow - i)
-            buffer2 = buffer1
+            buffer2(:) = buffer1
             CALL comm%sync()
             t1 = MPI_WTIME()
             CALL comm%sum(buffer2)
