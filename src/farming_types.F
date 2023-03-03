@@ -30,18 +30,6 @@ MODULE farming_types
    END TYPE job_type
 
 ! **************************************************************************************************
-   TYPE ext_script_type
-      INTEGER                            :: n_global_init = 0
-      INTEGER                            :: n_global_final = 0
-      INTEGER                            :: n_local_init = 0
-      INTEGER                            :: n_local_final = 0
-      CHARACTER(LEN=default_path_length), DIMENSION(:), ALLOCATABLE :: ext_global_init
-      CHARACTER(LEN=default_path_length), DIMENSION(:), ALLOCATABLE :: ext_global_final
-      CHARACTER(LEN=default_path_length), DIMENSION(:), ALLOCATABLE :: ext_local_init
-      CHARACTER(LEN=default_path_length), DIMENSION(:), ALLOCATABLE :: ext_local_final
-   END TYPE ext_script_type
-
-! **************************************************************************************************
    TYPE farming_env_type
       INTEGER :: group_size_wish
       LOGICAL :: group_size_wish_set
@@ -60,7 +48,6 @@ MODULE farming_types
       INTEGER                                                     :: stride ! for creating minion groups.
       TYPE(job_type), DIMENSION(:), POINTER                       :: job ! a list of jobs
       REAL(KIND=dp) :: wait_time
-      TYPE(ext_script_type)                                       :: ext_scripts ! a list of external scripts
    END TYPE farming_env_type
 
 CONTAINS
@@ -90,10 +77,6 @@ CONTAINS
          ! so that maxsteps*ngroup is (likely) not overflowing
          farming_env%max_steps = 65535
          NULLIFY (farming_env%Job)
-         farming_env%ext_scripts%n_global_init = 0
-         farming_env%ext_scripts%n_global_final = 0
-         farming_env%ext_scripts%n_local_init = 0
-         farming_env%ext_scripts%n_local_final = 0
       END IF
    END SUBROUTINE
 
@@ -141,14 +124,6 @@ CONTAINS
       INTEGER                                            :: I
 
       IF (ASSOCIATED(farming_env)) THEN
-         IF (ALLOCATED(farming_env%ext_scripts%ext_global_init)) &
-            DEALLOCATE (farming_env%ext_scripts%ext_global_init)
-         IF (ALLOCATED(farming_env%ext_scripts%ext_global_final)) &
-            DEALLOCATE (farming_env%ext_scripts%ext_global_final)
-         IF (ALLOCATED(farming_env%ext_scripts%ext_local_init)) &
-            DEALLOCATE (farming_env%ext_scripts%ext_local_init)
-         IF (ALLOCATED(farming_env%ext_scripts%ext_local_final)) &
-            DEALLOCATE (farming_env%ext_scripts%ext_local_final)
          IF (ASSOCIATED(farming_env%job)) THEN
             DO I = 1, SIZE(farming_env%job, 1)
                CALL deallocate_job_type(farming_env%job(I))

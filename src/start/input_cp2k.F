@@ -731,31 +731,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="RUN_GLOBAL_INIT", &
-                          description="External command to be run before farming jobs start.", &
-                          usage="RUN_GLOBAL_INIT 'script_line'", &
-                          default_lc_val="", repeats=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="RUN_GLOBAL_FINAL", &
-                          description="External command to be run after all farming jobs end.", &
-                          usage="RUN_GLOBAL_FINAL 'script_line'", &
-                          default_lc_val="", repeats=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="RUN_EACH_INIT", &
-                          description="External command to be run before each farming job.", &
-                          usage="RUN_EACH_INIT'script_line'", &
-                          default_lc_val="", repeats=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="RUN_EACH_FINAL", &
-                          description="External command to be run after each farming job.", &
-                          usage="RUN_EACH_FINAL 'script_line'", &
-                          default_lc_val="", repeats=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       NULLIFY (sub_section)
       CALL section_create(sub_section, __LOCATION__, name="JOB", &
                           description="description of the jobs to be executed", &
