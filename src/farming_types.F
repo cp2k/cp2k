@@ -37,7 +37,7 @@ MODULE farming_types
       LOGICAL :: ngroup_wish_set
       LOGICAL :: restart
       LOGICAL :: CYCLE
-      LOGICAL :: master_slave
+      LOGICAL :: captain_minion
       INTEGER, DIMENSION(:), POINTER                              :: group_partition ! user preference for partitioning the cpus
       CHARACTER(LEN=default_path_length)                          :: restart_file_name ! restart file for farming
       CHARACTER(LEN=default_path_length)                          :: cwd ! directory we started from
@@ -45,7 +45,7 @@ MODULE farming_types
       INTEGER                                                     :: restart_n ! where to start
       INTEGER                                                     :: max_steps ! max number of steps,
       ! results in max_steps*Ngroup jobs being run
-      INTEGER                                                     :: stride ! for creating slave groups.
+      INTEGER                                                     :: stride ! for creating minion groups.
       TYPE(job_type), DIMENSION(:), POINTER                       :: job ! a list of jobs
       REAL(KIND=dp) :: wait_time
    END TYPE farming_env_type
@@ -70,7 +70,7 @@ CONTAINS
          farming_env%restart = .FALSE.
          farming_env%restart_n = 1
          farming_env%cycle = .FALSE.
-         farming_env%master_slave = .FALSE.
+         farming_env%captain_minion = .FALSE.
          NULLIFY (farming_env%group_partition)
          farming_env%cwd = "."
          farming_env%Njobs = 0

@@ -163,7 +163,7 @@ CONTAINS
       CHARACTER(len=default_string_length), &
          ALLOCATABLE, DIMENSION(:, :)                    :: initial_variables
       INTEGER :: color, energies_unit, handle, history_unit, i_atom, i_el, i_frame, i_free_var, &
-         i_var, ierr, mepos_master, mepos_slave, n_atom, n_el, n_frames, n_free_var, n_groups, &
+         i_var, ierr, mepos_master, mepos_minion, n_atom, n_el, n_frames, n_free_var, n_groups, &
          n_var, new_env_id, num_pe_master, output_unit, restart_unit, state
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: free_var_index
       INTEGER, DIMENSION(:), POINTER                     :: group_distribution
@@ -177,8 +177,8 @@ CONTAINS
                                                             force_traj_read, force_var, pos_traj, &
                                                             pos_traj_read
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(mp_comm_type)                                 :: mpi_comm_master, mpi_comm_slave, &
-                                                            mpi_comm_slave_primus
+      TYPE(mp_comm_type)                                 :: mpi_comm_master, mpi_comm_minion, &
+                                                            mpi_comm_minion_primus
       TYPE(opt_state_type)                               :: ostate
       TYPE(section_vals_type), POINTER                   :: oi_section, variable_section
 
@@ -232,11 +232,11 @@ CONTAINS
       ALLOCATE (group_distribution(0:num_pe_master - 1))
       IF (oi_env%fm_env%group_size > para_env%num_pe) oi_env%fm_env%group_size = para_env%num_pe
 
-      CALL mpi_comm_slave%from_split(mpi_comm_master, n_groups, group_distribution, subgroup_min_size=oi_env%fm_env%group_size)
-      mepos_slave = mpi_comm_slave%mepos
+      CALL mpi_comm_minion%from_split(mpi_comm_master, n_groups, group_distribution, subgroup_min_size=oi_env%fm_env%group_size)
+      mepos_minion = mpi_comm_minion%mepos
       color = 0
-      IF (mepos_slave == 0) color = 1
-      CALL mpi_comm_slave_primus%from_split(mpi_comm_master, color)
+      IF (mepos_minion == 0) color = 1
+      CALL mpi_comm_minion_primus%from_split(mpi_comm_master, color)
 
       ! assign initial variables
       n_var = SIZE(oi_env%variables, 1)
@@ -320,13 +320,13 @@ CONTAINS
             ierr = 0
             CALL create_force_env(new_env_id=new_env_id, input_declaration=input_declaration, &
                                   input_path=input_path, output_path=output_path, &
-                                  mpi_comm=mpi_comm_slave, initial_variables=initial_variables, ierr=ierr)
+                                  mpi_comm=mpi_comm_minion, initial_variables=initial_variables, ierr=ierr)
 
             ! set to zero initialy, for easier mp_summing
             energy_var = 0.0_dp
             force_var = 0.0_dp
 
-            ! compute energies and forces for all frames, doing the work on a slave sub group based on round robin
+            ! compute energies and forces for all frames, doing the work on a minion sub group based on round robin
             t5 = 0.0_dp
             DO i_frame = group_distribution(mepos_master) + 1, n_frames, n_groups
 
@@ -366,13 +366,13 @@ CONTAINS
             CALL destroy_force_env(env_id=new_env_id, ierr=ierr)
 
             ! get data everywhere on the master group, we could reduce the amount of data by reducing to partial RMSD first
-            ! furthermore, we should only do this operation among the masters of the slave group
-            IF (mepos_slave == 0) THEN
-               CALL mpi_comm_slave_primus%sum(energy_var)
-               CALL mpi_comm_slave_primus%sum(force_var)
+            ! furthermore, we should only do this operation among the masters of the minion group
+            IF (mepos_minion == 0) THEN
+               CALL mpi_comm_minion_primus%sum(energy_var)
+               CALL mpi_comm_minion_primus%sum(force_var)
             END IF
 
-            ! now evaluate the target function to be minimized (only valid on mepos_slave==0)
+            ! now evaluate the target function to be minimized (only valid on mepos_minion==0)
             IF (para_env%is_source()) THEN
                rf = SQRT(SUM((force_var - force_traj)**2)/(REAL(n_frames, KIND=dp)*REAL(n_atom, KIND=dp)))
                IF (oi_env%fm_env%shift_average) THEN
@@ -480,8 +480,8 @@ CONTAINS
       IF (ASSOCIATED(cell_traj)) DEALLOCATE (cell_traj)
       DEALLOCATE (pos, force, force_traj, pos_traj, force_var)
       DEALLOCATE (group_distribution, energy_traj, energy_var)
-      CALL mpi_comm_slave%free()
-      CALL mpi_comm_slave_primus%free()
+      CALL mpi_comm_minion%free()
+      CALL mpi_comm_minion_primus%free()
 
       CALL timestop(handle)
 

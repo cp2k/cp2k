@@ -676,11 +676,11 @@ CONTAINS
       NULLIFY (keyword, print_key)
 
       CALL keyword_create( &
-         keyword, __LOCATION__, name="MASTER_SLAVE", &
-         description="If a master-slave setup should be employed, in which one process is used to distribute the tasks. "// &
+         keyword, __LOCATION__, name="CAPTAIN_MINION", &
+    description="If a captain/minion setup should be employed, in which one process (captain) is used to distribute the tasks. "// &
          "This is most useful to load-balance if not all jobs have the same length, "// &
          "and a lot of CPUs/groups are available.", &
-         usage="MASTER_SLAVE", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+         usage="CAPTAIN_MINION", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -699,7 +699,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="STRIDE", &
                           description="Stride to be used when building working groups from the parent MPI comm."// &
-                          "Can be used to layout slave groups over nodes in advanced ways (1 rank per node / 2 groups per node).", &
+                         "Can be used to layout minion groups over nodes in advanced ways (1 rank per node / 2 groups per node).", &
                           usage="STRIDE 2", default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -770,7 +770,7 @@ CONTAINS
          keyword, __LOCATION__, name="DEPENDENCIES", &
          description="specifies a list of JOB_IDs on which the current job depends. "// &
          "The current job will not be executed before all the dependencies have finished. "// &
-         "The keyword requires a MASTER_SLAVE farming run. "// &
+         "The keyword requires a CAPTAIN_MINION farming run. "// &
          "Beyond the default case, some special cases might arise: "// &
          "1) circular dependencies will lead to a deadlock. "// &
          "2) This keyword is not compatible with CYCLE. "// &

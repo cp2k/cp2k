@@ -87,7 +87,7 @@ CONTAINS
                   END DO
                END DO dep
 
-               ! if there are pending jobs, the slave can not be told to stop
+               ! if there are pending jobs, the minion can not be told to stop
                ! at least wait if there are unresolved dependencies
                IF (dep_OK) THEN
                   todo = itry
@@ -121,7 +121,7 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=3)                                   :: text
-      INTEGER                                            :: i, iunit, n_rep_val, num_slaves, &
+      INTEGER                                            :: i, iunit, n_rep_val, num_minions, &
                                                             output_unit, stat
       INTEGER, DIMENSION(:), POINTER                     :: dependencies, i_vals
       LOGICAL                                            :: explicit, has_dep
@@ -187,8 +187,8 @@ CONTAINS
       CALL section_vals_val_get(farming_section, "WAIT_TIME", &
                                 r_val=farming_env%wait_time)
 
-      CALL section_vals_val_get(farming_section, "MASTER_SLAVE", &
-                                l_val=farming_env%master_slave)
+      CALL section_vals_val_get(farming_section, "CAPTAIN_MINION", &
+                                l_val=farming_env%captain_minion)
 
       jobs_section => section_vals_get_subs_vals(farming_section, "JOB")
       CALL section_vals_get(jobs_section, n_repetition=farming_env%njobs)
@@ -230,22 +230,22 @@ CONTAINS
       END DO
 
       IF (has_dep) THEN
-         CPASSERT(farming_env%master_slave)
+         CPASSERT(farming_env%captain_minion)
          CPASSERT(.NOT. farming_env%cycle)
       END IF
 
       output_unit = cp_print_key_unit_nr(logger, farming_section, "PROGRAM_RUN_INFO", &
                                          extension=".log")
 
-      ! master slave not supported
+      ! Captain/Minion not supported
       IF (para_env%num_pe == 1) THEN
-         farming_env%master_slave = .FALSE.
-         WRITE (output_unit, FMT="(T2,A)") "FARMING| Master-slave setup not supported for serial runs"
+         farming_env%captain_minion = .FALSE.
+         WRITE (output_unit, FMT="(T2,A)") "FARMING| Captain-Minion setup not supported for serial runs"
       END IF
-      IF (farming_env%master_slave) THEN
-         num_slaves = para_env%num_pe - 1
+      IF (farming_env%captain_minion) THEN
+         num_minions = para_env%num_pe - 1
       ELSE
-         num_slaves = para_env%num_pe
+         num_minions = para_env%num_pe
       END IF
 
       IF (output_unit > 0) THEN
@@ -259,10 +259,10 @@ CONTAINS
                   WRITE (output_unit, FMT='(I4)', ADVANCE="NO") farming_env%group_partition(i)
                END DO
                WRITE (output_unit, *)
-               IF (SUM(farming_env%group_partition) .NE. num_slaves) THEN
+               IF (SUM(farming_env%group_partition) .NE. num_minions) THEN
                   WRITE (output_unit, FMT="(T2,A,T61,I10,T71,I10)") &
-                     "FARMING| WARNING : group partition CPUs not equal to the available number (ignoring master) ", &
-                     num_slaves, SUM(farming_env%group_partition)
+                     "FARMING| WARNING : group partition CPUs not equal to the available number (ignoring Captain) ", &
+                     num_minions, SUM(farming_env%group_partition)
                   WRITE (output_unit, FMT="(T2,A)") "FARMING|          partition data ignored" ! any better idea ??
                   DEALLOCATE (farming_env%group_partition)
                END IF
