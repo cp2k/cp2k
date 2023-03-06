@@ -24,6 +24,8 @@ RUN ./install_cp2k_toolchain.sh \
     --install-all \
     --with-intelmpi \
     --with-mkl \
+    --with-libtorch=no \
+    --with-sirius=no \
     --dry-run
 
 # Dry-run leaves behind config files for the followup install scripts.
@@ -60,18 +62,18 @@ COPY ./tools/toolchain/scripts/arch_base.tmpl \
      ./scripts/
 RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 
-# Install CP2K using Linux-intel-x86_64.psmp.
+# Install CP2K using local.psmp.
 WORKDIR /opt/cp2k
 COPY ./Makefile .
 COPY ./src ./src
 COPY ./exts ./exts
 COPY ./tools/build_utils ./tools/build_utils
-COPY ./arch/Linux-intel-x86_64.psmp /opt/cp2k/arch/
 RUN /bin/bash -c " \
-    ln -s /opt/cp2k-toolchain /opt/cp2k/tools/toolchain && \
+    mkdir -p arch && \
+    ln -vs /opt/cp2k-toolchain/install/arch/local.psmp ./arch/ && \
     echo 'Compiling cp2k...' && \
     source /opt/cp2k-toolchain/install/setup && \
-    ( make -j ARCH=Linux-intel-x86_64 VERSION=psmp &> /dev/null || true ) && \
+    ( make -j ARCH=local VERSION=psmp &> /dev/null || true ) && \
     rm -rf lib obj"
 COPY ./data ./data
 COPY ./tests ./tests
@@ -82,7 +84,7 @@ ARG TESTOPTS=""
 COPY ./tools/docker/scripts/test_regtest.sh ./
 RUN /bin/bash -o pipefail -c " \
     TESTOPTS="${TESTOPTS}" \
-    ./test_regtest.sh 'Linux-intel-x86_64' 'psmp' |& tee report.log && \
+    ./test_regtest.sh 'local' 'psmp' |& tee report.log && \
     rm -rf regtesting"
 
 # Output the report if the image is old and was therefore pulled from the build cache.

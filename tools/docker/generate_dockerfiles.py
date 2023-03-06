@@ -32,10 +32,12 @@ def main() -> None:
         f.write(regtest("psmp"))
 
     with OutputFile(f"Dockerfile.test_intel-psmp", args.check) as f:
-        f.write(toolchain_intel() + regtest("psmp", "Linux-intel-x86_64"))
+        f.write(toolchain_intel() + regtest("psmp", intel=True))
 
     with OutputFile(f"Dockerfile.prod_intel_psmp", args.check) as f:
-        f.write(toolchain_intel() + production("psmp", "Linux-intel-x86_64"))
+        f.write(
+            toolchain_intel() + production("psmp", "Linux-intel-x86_64", intel=True)
+        )
 
     with OutputFile(f"Dockerfile.test_nvhpc", args.check) as f:
         f.write(toolchain_nvhpc())
@@ -119,9 +121,11 @@ def main() -> None:
 
 
 # ======================================================================================
-def regtest(version: str, arch: str = "local", testopts: str = "") -> str:
+def regtest(
+    version: str, arch: str = "local", testopts: str = "", intel: bool = False
+) -> str:
     return (
-        install_cp2k(version=version, arch=arch)
+        install_cp2k(version=version, arch=arch, intel=intel)
         + rf"""
 # Run regression tests.
 ARG TESTOPTS="{testopts}"
@@ -307,9 +311,9 @@ ENTRYPOINT []
 
 
 # ======================================================================================
-def production(version: str, arch: str = "local") -> str:
+def production(version: str, arch: str = "local", intel: bool = False) -> str:
     return (
-        install_cp2k(version=version, arch=arch, revision=True, prod=True)
+        install_cp2k(version=version, arch=arch, revision=True, prod=True, intel=intel)
         + rf"""
 # Run regression tests.
 ARG TESTOPTS
@@ -331,7 +335,11 @@ CMD ["cp2k", "--help"]
 
 # ======================================================================================
 def install_cp2k(
-    version: str, arch: str, revision: bool = False, prod: bool = False
+    version: str,
+    arch: str,
+    revision: bool = False,
+    prod: bool = False,
+    intel: bool = False,
 ) -> str:
     input_lines = []
     run_lines = []
@@ -373,7 +381,7 @@ def install_cp2k(
         run_lines.append(f"rm -rf lib obj")
 
     # Ensure MPI is dynamically linked, which is needed e.g. for Shifter.
-    if version.startswith("p") and not "intel" in arch:
+    if version.startswith("p") and not intel:
         binary = f"./exe/{arch}/cp2k.{version}"
         run_lines.append(f"( [ ! -f {binary} ] || ldd {binary} | grep -q libmpi )")
 
@@ -490,6 +498,8 @@ FROM intel/oneapi-hpckit:2023.0.0-devel-ubuntu22.04
         install_all="",
         with_intelmpi="",
         with_mkl="",
+        with_libtorch="no",
+        with_sirius="no",
     )
 
 
