@@ -198,10 +198,13 @@ EOF
     cat << EOF >> "${BUILDDIR}/setup_spla"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_HIP(${SPLA_HIP_LDFLAGS}|${SPLA_LDFLAGS})"
 EOF
-  fi
-  if [ "$ENABLE_CUDA" = "__TRUE__" ]; then
+  elif [ "$ENABLE_CUDA" = "__TRUE__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_spla"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_CUDA(${SPLA_CUDA_LDFLAGS}|${SPLA_LDFLAGS})"
+EOF
+  else
+    cat << EOF >> "${BUILDDIR}/setup_spla"
+export CP_LDFLAGS="\${CP_LDFLAGS} ${SPLA_LDFLAGS}"
 EOF
   fi
   cat "${BUILDDIR}/setup_spla" >> $SETUPFILE

@@ -35,22 +35,30 @@ LD_arch="IF_MPI(${MPIFC}|${FC})"
 # we always want good line information and backtraces
 if [ "${with_intel}" != "__DONTUSE__" ]; then
   if [ "${TARGET_CPU}" = "native" ]; then
-    BASEFLAGS="-fopenmp -fp-model precise -g -nofor-main -qopenmp-simd -traceback -wd279 -xHost"
+    BASEFLAGS="-fPIC -fp-model precise -g -qopenmp -qopenmp-simd -traceback -xHost"
   elif [ "${TARGET_CPU}" = "generic" ]; then
-    BASEFLAGS="-fopenmp -fp-model precise -g -mtune=${TARGET_CPU} -nofor-main -qopenmp-simd -traceback -wd279"
+    BASEFLAGS="-fPIC -fp-model precise -g -mtune=$(TARGET_CPU) -qopenmp -qopenmp-simd -traceback"
   else
-    BASEFLAGS="-fopenmp -fp-model precise -g -march=${TARGET_CPU} -mtune=${TARGET_CPU} -nofor-main -qopenmp-simd -traceback -wd279"
+    BASEFLAGS="-fPIC -fp-model precise -g -march=${TARGET_CPU} -mtune=$(TARGET_CPU) -qopenmp -qopenmp-simd -traceback"
   fi
+  OPT_FLAGS="-O2 -funroll-loops"
+  LDFLAGS_C="-nofor-main"
 else
   BASEFLAGS="-fno-omit-frame-pointer -fopenmp -g -mtune=${TARGET_CPU} IF_ASAN(-fsanitize=address|)"
+  OPT_FLAGS="-O3 -funroll-loops"
+  LDFLAGS_C=""
 fi
 
-OPT_FLAGS="-O3 -funroll-loops"
 NOOPT_FLAGS="-O1"
 
 # those flags that do not influence code generation are used always, the others if debug
-FCDEB_FLAGS="-fbacktrace -ffree-form -fimplicit-none -std=f2008"
-FCDEB_FLAGS_DEBUG="-fsanitize=leak -fcheck=all,no-array-temps -ffpe-trap=invalid,zero,overflow -finit-derived -finit-real=snan -finit-integer=-42 -Werror=realloc-lhs -finline-matmul-limit=0"
+if [ "${with_intel}" != "__DONTUSE__" ]; then
+  FCDEB_FLAGS=""
+  FCDEB_FLAGS_DEBUG=""
+else
+  FCDEB_FLAGS="-fbacktrace -ffree-form -fimplicit-none -std=f2008"
+  FCDEB_FLAGS_DEBUG="-fsanitize=leak -fcheck=all,no-array-temps -ffpe-trap=invalid,zero,overflow -finit-derived -finit-real=snan -finit-integer=-42 -Werror=realloc-lhs -finline-matmul-limit=0"
+fi
 
 # code coverage generation flags
 COVERAGE_FLAGS="-O1 -coverage -fkeep-static-functions"
@@ -74,14 +82,16 @@ IEEE_EXCEPTIONS_DFLAGS="-D__HAS_IEEE_EXCEPTIONS"
 
 # check all of the above flags, filter out incompatible flags for the
 # current version of gcc in use
-OPT_FLAGS=$(allowed_gfortran_flags $OPT_FLAGS)
-NOOPT_FLAGS=$(allowed_gfortran_flags $NOOPT_FLAGS)
-FCDEB_FLAGS=$(allowed_gfortran_flags $FCDEB_FLAGS)
-FCDEB_FLAGS_DEBUG=$(allowed_gfortran_flags $FCDEB_FLAGS_DEBUG)
-COVERAGE_FLAGS=$(allowed_gfortran_flags $COVERAGE_FLAGS)
-WFLAGS_ERROR=$(allowed_gfortran_flags $WFLAGS_ERROR)
-WFLAGS_WARN=$(allowed_gfortran_flags $WFLAGS_WARN)
-WFLAGS_WARNALL=$(allowed_gfortran_flags $WFLAGS_WARNALL)
+if [ "${with_intel}" == "__DONTUSE__" ]; then
+  OPT_FLAGS=$(allowed_gfortran_flags $OPT_FLAGS)
+  NOOPT_FLAGS=$(allowed_gfortran_flags $NOOPT_FLAGS)
+  FCDEB_FLAGS=$(allowed_gfortran_flags $FCDEB_FLAGS)
+  FCDEB_FLAGS_DEBUG=$(allowed_gfortran_flags $FCDEB_FLAGS_DEBUG)
+  COVERAGE_FLAGS=$(allowed_gfortran_flags $COVERAGE_FLAGS)
+  WFLAGS_ERROR=$(allowed_gfortran_flags $WFLAGS_ERROR)
+  WFLAGS_WARN=$(allowed_gfortran_flags $WFLAGS_WARN)
+  WFLAGS_WARNALL=$(allowed_gfortran_flags $WFLAGS_WARNALL)
+fi
 
 # check if ieee_exeptions module is available for the current version
 # of gfortran being used
@@ -99,14 +109,23 @@ G_CFLAGS="$BASEFLAGS"
 G_CFLAGS="$G_CFLAGS IF_COVERAGE($COVERAGE_FLAGS|IF_DEBUG($NOOPT_FLAGS|$OPT_FLAGS))"
 G_CFLAGS="$G_CFLAGS IF_DEBUG(|$PROFOPT_FLAGS)"
 G_CFLAGS="$G_CFLAGS $CP_CFLAGS"
-# FCFLAGS, for gfortran
-FCFLAGS="$G_CFLAGS \$(FCDEBFLAGS) \$(WFLAGS) \$(DFLAGS)"
-FCFLAGS+=" IF_MPI($(allowed_gfortran_flags "-fallow-argument-mismatch")|)"
+if [ "${with_intel}" == "__DONTUSE__" ]; then
+  # FCFLAGS, for gfortran
+  FCFLAGS="$G_CFLAGS \$(FCDEBFLAGS) \$(WFLAGS) \$(DFLAGS)"
+  FCFLAGS+=" IF_MPI($(allowed_gfortran_flags "-fallow-argument-mismatch")|)"
+else
+  FCFLAGS="$G_CFLAGS \$(FCDEBFLAGS) \$(DFLAGS)"
+fi
 # CFLAGS, special flags for gcc
 
 # TODO: Remove -Wno-vla-parameter after upgrade to gcc 11.3.
 # https://gcc.gnu.org/bugzilla//show_bug.cgi?id=101289
-CFLAGS="$G_CFLAGS -std=c11 -Wall -Wextra -Werror -Wno-vla-parameter -Wno-deprecated-declarations \$(DFLAGS)"
+if [ "${with_intel}" == "__DONTUSE__" ]; then
+  CFLAGS="$G_CFLAGS -std=c11 -Wall -Wextra -Werror -Wno-vla-parameter -Wno-deprecated-declarations \$(DFLAGS)"
+else
+  CFLAGS="-cc=${I_MPI_CC} $G_CFLAGS -std=c11 -Wall -Wextra -Wno-deprecated-declarations \$(DFLAGS)"
+  FCFLAGS="-fc=${I_MPI_FC} $FCFLAGS -diag-disable=8291 -diag-disable=8293 -fpp -free"
+fi
 
 # Linker flags
 # About --whole-archive see: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=52590
@@ -340,6 +359,20 @@ EOF
 FYPPFLAGS   = -n --line-marker-format=gfortran5
 EOF
   fi
+  if [ "${with_intel}" != "__DONTUSE__" ]; then
+    cat << EOF >> $__filename
+#
+# Required due to memory leak that occurs if high optimisations are used
+mp2_optimize_ri_basis.o: mp2_optimize_ri_basis.F
+	\\\$(FC) -c \\\$(subst -O2,-O0,\\\$(FCFLAGS)) \\\$<
+# Required due to SEGFAULTS occurring for higher optimisation levels
+paw_basis_types.o: paw_basis_types.F
+	\\\$(FC) -c \\\$(subst -O2,-O1,\\\$(FCFLAGS)) \\\$<
+# Reduce compilation time
+hfx_contraction_methods.o: hfx_contraction_methods.F
+	\\\$(FC) -c \\\$(subst -O2,-O1,\\\$(FCFLAGS)) \\\$<
+EOF
+  fi
   # replace variable values in output file using eval
   local __TMPL=$(cat $__filename)
   eval "printf \"${__TMPL}\n\"" > $__filename
@@ -350,20 +383,30 @@ EOF
 
 rm -f ${INSTALLDIR}/arch/local*
 # normal production arch files
-gen_arch_file "local.ssmp"
-gen_arch_file "local_static.ssmp" STATIC
-gen_arch_file "local.sdbg" DEBUG
-gen_arch_file "local_asan.ssmp" ASAN
-gen_arch_file "local_coverage.sdbg" COVERAGE
+if [ "${with_intel}" != "__DONTUSE__" ]; then
+  gen_arch_file "local.ssmp"
+  gen_arch_file "local.sdbg" DEBUG
+else
+  gen_arch_file "local.ssmp"
+  gen_arch_file "local_static.ssmp" STATIC
+  gen_arch_file "local.sdbg" DEBUG
+  gen_arch_file "local_asan.ssmp" ASAN
+  gen_arch_file "local_coverage.sdbg" COVERAGE
+fi
 arch_vers="ssmp sdbg"
 
 if [ "$MPI_MODE" != no ]; then
-  gen_arch_file "local.psmp" MPI
-  gen_arch_file "local.pdbg" MPI DEBUG
-  gen_arch_file "local_asan.psmp" MPI ASAN
-  gen_arch_file "local_static.psmp" MPI STATIC
-  gen_arch_file "local_warn.psmp" MPI WARNALL
-  gen_arch_file "local_coverage.pdbg" MPI COVERAGE
+  if [ "${with_intel}" != "__DONTUSE__" ]; then
+    gen_arch_file "local.psmp" MPI
+    gen_arch_file "local.pdbg" MPI DEBUG
+  else
+    gen_arch_file "local.psmp" MPI
+    gen_arch_file "local.pdbg" MPI DEBUG
+    gen_arch_file "local_asan.psmp" MPI ASAN
+    gen_arch_file "local_static.psmp" MPI STATIC
+    gen_arch_file "local_warn.psmp" MPI WARNALL
+    gen_arch_file "local_coverage.pdbg" MPI COVERAGE
+  fi
   arch_vers="${arch_vers} psmp pdbg"
 fi
 
