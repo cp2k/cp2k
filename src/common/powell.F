@@ -16,21 +16,25 @@ MODULE powell
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'powell'
 
    TYPE opt_state_type
-      INTEGER            :: state
-      INTEGER            :: nvar
-      INTEGER            :: iprint
-      INTEGER            :: unit
-      INTEGER            :: maxfun
-      REAL(dp)           :: rhobeg, rhoend
-      REAL(dp), DIMENSION(:), POINTER  :: w
-      REAL(dp), DIMENSION(:), POINTER  :: xopt
+      INTEGER            :: state = -1
+      INTEGER            :: nvar = -1
+      INTEGER            :: iprint = -1
+      INTEGER            :: unit = -1
+      INTEGER            :: maxfun = -1
+      REAL(dp)           :: rhobeg = 0.0_dp, rhoend = 0.0_dp
+      REAL(dp), DIMENSION(:), POINTER  :: w => NULL()
+      REAL(dp), DIMENSION(:), POINTER  :: xopt => NULL()
       ! local variables
-      INTEGER            :: np, nh, nptm, nftest, idz, itest, nf, nfm, nfmm, &
-                            nfsav, knew, kopt, ksave, ktemp
-      REAL(dp)           :: rhosq, recip, reciq, fbeg, fopt, diffa, xoptsq, &
-                            rho, delta, dsq, dnorm, ratio, temp, tempq, beta, &
-                            dx, vquad, diff, diffc, diffb, fsave, detrat, hdiag, &
-                            distsq, gisq, gqsq, f, bstep, alpha, dstep
+      INTEGER            :: np = -1, nh = -1, nptm = -1, nftest = -1, idz = -1, itest = -1, nf = -1, nfm = -1, nfmm = -1, &
+                            nfsav = -1, knew = -1, kopt = -1, ksave = -1, ktemp = -1
+      REAL(dp)           :: rhosq = 0.0_dp, recip = 0.0_dp, reciq = 0.0_dp, fbeg = 0.0_dp, &
+                            fopt = 0.0_dp, diffa = 0.0_dp, xoptsq = 0.0_dp, &
+                            rho = 0.0_dp, delta = 0.0_dp, dsq = 0.0_dp, dnorm = 0.0_dp, &
+                            ratio = 0.0_dp, temp = 0.0_dp, tempq = 0.0_dp, beta = 0.0_dp, &
+                            dx = 0.0_dp, vquad = 0.0_dp, diff = 0.0_dp, diffc = 0.0_dp, &
+                            diffb = 0.0_dp, fsave = 0.0_dp, detrat = 0.0_dp, hdiag = 0.0_dp, &
+                            distsq = 0.0_dp, gisq = 0.0_dp, gqsq = 0.0_dp, f = 0.0_dp, &
+                            bstep = 0.0_dp, alpha = 0.0_dp, dstep = 0.0_dp
    END TYPE opt_state_type
 
    PRIVATE
@@ -48,9 +52,9 @@ CONTAINS
 !> \param optstate ...
 ! **************************************************************************************************
    SUBROUTINE powell_optimize(n, x, optstate)
-      INTEGER                                            :: n
-      REAL(dp), DIMENSION(*)                             :: x
-      TYPE(opt_state_type)                               :: optstate
+      INTEGER, INTENT(IN)                                :: n
+      REAL(dp), DIMENSION(*), INTENT(INOUT)              :: x
+      TYPE(opt_state_type), INTENT(INOUT)                :: optstate
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'powell_optimize'
 
@@ -107,9 +111,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE newuoa(n, x, optstate)
 
-      INTEGER                                            :: n
-      REAL(dp), DIMENSION(*)                             :: x
-      TYPE(opt_state_type)                               :: optstate
+      INTEGER, INTENT(IN)                                :: n
+      REAL(dp), DIMENSION(*), INTENT(INOUT)              :: x
+      TYPE(opt_state_type), INTENT(INOUT)                :: optstate
 
       INTEGER                                            :: ibmat, id, ifv, igq, ihq, ipq, ivl, iw, &
                                                             ixb, ixn, ixo, ixp, izmat, maxfun, &
@@ -217,15 +221,15 @@ CONTAINS
    SUBROUTINE newuob(n, npt, x, rhobeg, rhoend, maxfun, xbase, &
                      xopt, xnew, xpt, fval, gq, hq, pq, bmat, zmat, ndim, d, vlag, w, opt)
 
-      INTEGER, INTENT(inout)                   :: n, npt
+      INTEGER, INTENT(in)                   :: n, npt
       REAL(dp), DIMENSION(1:n), INTENT(inout)  :: x
-      REAL(dp), INTENT(inout)                  :: rhobeg, rhoend
-      INTEGER, INTENT(inout)                   :: maxfun
+      REAL(dp), INTENT(in)                  :: rhobeg, rhoend
+      INTEGER, INTENT(in)                   :: maxfun
       REAL(dp), DIMENSION(*), INTENT(inout)    :: xbase, xopt, xnew
       REAL(dp), DIMENSION(npt, *), &
          INTENT(inout)                          :: xpt
       REAL(dp), DIMENSION(*), INTENT(inout)    :: fval, gq, hq, pq
-      INTEGER, INTENT(inout)                   :: ndim
+      INTEGER, INTENT(in)                   :: ndim
       REAL(dp), DIMENSION(npt, *), &
          INTENT(inout)                          :: zmat
       REAL(dp), DIMENSION(ndim, *), &
@@ -1031,10 +1035,10 @@ CONTAINS
    SUBROUTINE bigden(n, npt, xopt, xpt, bmat, zmat, idz, ndim, kopt, &
                      knew, d, w, vlag, beta, s, wvec, prod)
 
-      INTEGER, INTENT(inout)                             :: n, npt
-      REAL(dp), DIMENSION(*), INTENT(inout)              :: xopt
-      REAL(dp), DIMENSION(npt, *), INTENT(inout)         :: xpt
-      INTEGER, INTENT(inout)                             :: ndim, idz
+      INTEGER, INTENT(in)                             :: n, npt
+      REAL(dp), DIMENSION(*), INTENT(in)              :: xopt
+      REAL(dp), DIMENSION(npt, *), INTENT(in)         :: xpt
+      INTEGER, INTENT(in)                             :: ndim, idz
       REAL(dp), DIMENSION(npt, *), INTENT(inout)         :: zmat
       REAL(dp), DIMENSION(ndim, *), INTENT(inout)        :: bmat
       INTEGER, INTENT(inout)                             :: kopt, knew
@@ -1421,10 +1425,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE biglag(n, npt, xopt, xpt, bmat, zmat, idz, ndim, knew, &
                      delta, d, alpha, hcol, gc, gd, s, w)
-      INTEGER, INTENT(inout)                             :: n, npt
-      REAL(dp), DIMENSION(*), INTENT(inout)              :: xopt
-      REAL(dp), DIMENSION(npt, *), INTENT(inout)         :: xpt
-      INTEGER, INTENT(inout)                             :: ndim, idz
+      INTEGER, INTENT(in)                                :: n, npt
+      REAL(dp), DIMENSION(*), INTENT(in)                 :: xopt
+      REAL(dp), DIMENSION(npt, *), INTENT(in)            :: xpt
+      INTEGER, INTENT(in)                                :: ndim, idz
       REAL(dp), DIMENSION(npt, *), INTENT(inout)         :: zmat
       REAL(dp), DIMENSION(ndim, *), INTENT(inout)        :: bmat
       INTEGER, INTENT(inout)                             :: knew
@@ -1646,12 +1650,12 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE trsapp(n, npt, xopt, xpt, gq, hq, pq, delta, step, d, g, hd, hs, crvmin)
 
-      INTEGER, INTENT(INOUT)                   :: n, npt
-      REAL(dp), DIMENSION(*), INTENT(INOUT)    :: xopt
+      INTEGER, INTENT(IN)                   :: n, npt
+      REAL(dp), DIMENSION(*), INTENT(IN)    :: xopt
       REAL(dp), DIMENSION(npt, *), &
-         INTENT(INOUT)                          :: xpt
+         INTENT(IN)                          :: xpt
       REAL(dp), DIMENSION(*), INTENT(INOUT)    :: gq, hq, pq
-      REAL(dp), INTENT(INOUT)                  :: delta
+      REAL(dp), INTENT(IN)                  :: delta
       REAL(dp), DIMENSION(*), INTENT(INOUT)    :: step, d, g, hd, hs
       REAL(dp), INTENT(INOUT)                  :: crvmin
 

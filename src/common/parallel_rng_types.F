@@ -158,10 +158,10 @@ MODULE parallel_rng_types
       PRIVATE
       ! the name could be an allocatable, but gfortran (even with 9.1) does not properly implement
       ! automatic deallocation of it and a `final`routine which would do it triggers an ICE in 7.4.1
-      CHARACTER(LEN=rng_name_length) :: name
+      CHARACTER(LEN=rng_name_length) :: name = ""
       INTEGER                        :: distribution_type = UNIFORM
       ! ig: initial state, cg: current state, bg: initial state of the substream
-      REAL(KIND=dp), DIMENSION(3, 2) :: bg, cg, ig
+      REAL(KIND=dp), DIMENSION(3, 2) :: bg = 0.0_dp, cg = 0.0_dp, ig = 0.0_dp
       LOGICAL                        :: antithetic = .FALSE., extended_precision = .FALSE.
       ! only used for distribution type GAUSSIAN
       REAL(KIND=dp)                  :: buffer = 0.0_dp
@@ -193,7 +193,7 @@ MODULE parallel_rng_types
    END INTERFACE
 
    TYPE rng_stream_p_type
-      TYPE(rng_stream_type), POINTER :: stream
+      TYPE(rng_stream_type), POINTER :: stream => NULL()
    END TYPE rng_stream_p_type
 
    ! Public parameters
@@ -649,7 +649,7 @@ CONTAINS
 !> \param c ...
 !> \param m ...
 ! **************************************************************************************************
-   SUBROUTINE mat_mat_mod_m(a, b, c, m)
+   PURE SUBROUTINE mat_mat_mod_m(a, b, c, m)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: a, b
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: c
       REAL(KIND=dp), INTENT(IN)                          :: m
@@ -669,7 +669,7 @@ CONTAINS
 !> \param m ...
 !> \param n ...
 ! **************************************************************************************************
-   SUBROUTINE mat_pow_mod_m(a, b, m, n)
+   PURE SUBROUTINE mat_pow_mod_m(a, b, m, n)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: a
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: b
       REAL(KIND=dp), INTENT(IN)                          :: m
@@ -717,7 +717,7 @@ CONTAINS
 !> \param m ...
 !> \param e ...
 ! **************************************************************************************************
-   SUBROUTINE mat_two_pow_mod_m(a, b, m, e)
+   PURE SUBROUTINE mat_two_pow_mod_m(a, b, m, e)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: a
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: b
       REAL(KIND=dp), INTENT(IN)                          :: m
@@ -743,7 +743,7 @@ CONTAINS
 !> \param v ...
 !> \param m ...
 ! **************************************************************************************************
-   SUBROUTINE mat_vec_mod_m(a, s, v, m)
+   PURE SUBROUTINE mat_vec_mod_m(a, s, v, m)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: a
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: s
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: v

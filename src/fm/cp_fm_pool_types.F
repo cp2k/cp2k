@@ -55,10 +55,9 @@ MODULE cp_fm_pool_types
 ! **************************************************************************************************
    TYPE cp_fm_pool_type
       PRIVATE
-      INTEGER :: ref_count
-      TYPE(cp_fm_struct_type), POINTER :: el_struct
-
-      TYPE(cp_sll_fm_type), POINTER :: cache
+      INTEGER :: ref_count = -1
+      TYPE(cp_fm_struct_type), POINTER :: el_struct => NULL()
+      TYPE(cp_sll_fm_type), POINTER :: cache => NULL()
    END TYPE cp_fm_pool_type
 
 ! **************************************************************************************************
@@ -69,7 +68,7 @@ MODULE cp_fm_pool_types
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    TYPE cp_fm_pool_p_type
-      TYPE(cp_fm_pool_type), POINTER :: pool
+      TYPE(cp_fm_pool_type), POINTER :: pool => NULL()
    END TYPE cp_fm_pool_p_type
 
    INTERFACE fm_pools_create_fm_vect
@@ -99,13 +98,12 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fm_pool_create(pool, el_struct)
       TYPE(cp_fm_pool_type), POINTER                     :: pool
-      TYPE(cp_fm_struct_type), POINTER                   :: el_struct
+      TYPE(cp_fm_struct_type), TARGET                    :: el_struct
 
       ALLOCATE (pool)
       pool%el_struct => el_struct
       CALL cp_fm_struct_retain(pool%el_struct)
       pool%ref_count = 1
-      NULLIFY (pool%cache)
 
    END SUBROUTINE fm_pool_create
 
@@ -117,9 +115,8 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE fm_pool_retain(pool)
-      TYPE(cp_fm_pool_type), POINTER                     :: pool
+      TYPE(cp_fm_pool_type), INTENT(INOUT)               :: pool
 
-      CPASSERT(ASSOCIATED(pool))
       CPASSERT(pool%ref_count > 0)
 
       pool%ref_count = pool%ref_count + 1

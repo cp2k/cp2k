@@ -187,7 +187,8 @@ CONTAINS
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: evals
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
-      TYPE(cp_fm_struct_p_type), DIMENSION(:), POINTER   :: kv_fm_struct
+      TYPE(cp_fm_struct_p_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: kv_fm_struct
       TYPE(cp_fm_struct_type), POINTER                   :: tilde_fm_struct
       TYPE(cp_fm_type)                                   :: Atilde, Us
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: R, X
@@ -234,7 +235,6 @@ CONTAINS
             WRITE (output_unit, *) "  Setting the maximum number of krylov vectors to ", max_kv, "!!"
          END IF
       END IF
-!    CPPostcondition(max_krylovspace_dim>=max_kv,cp_failure_level,routineP,failure)
 
       !----------------------!
       ! allocate the vectors !
@@ -256,7 +256,6 @@ CONTAINS
       ALLOCATE (kv_fm_struct(nspins))
 
       DO spin = 1, nspins
-         NULLIFY (kv_fm_struct(spin)%struct)
          CALL cp_fm_struct_create(kv_fm_struct(spin)%struct, para_env, blacs_env, &
                                   p_env%n_ao(spin), p_env%n_mo(spin))
       END DO
@@ -586,7 +585,8 @@ CONTAINS
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: vectors
       CHARACTER(LEN=*), INTENT(IN)                       :: vectors_name
       INTEGER, INTENT(IN)                                :: startv, n_v, nspins
-      TYPE(cp_fm_struct_p_type), DIMENSION(:), POINTER   :: fm_struct
+      TYPE(cp_fm_struct_p_type), DIMENSION(:), &
+         INTENT(IN)                                      :: fm_struct
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_krylov_vectors', &
          routineP = moduleN//':'//routineN

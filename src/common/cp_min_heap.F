@@ -23,18 +23,18 @@ MODULE cp_min_heap
    INTEGER, PARAMETER         :: valt = int_8
 
    TYPE cp_heap_node
-      INTEGER(KIND=keyt) :: key
-      INTEGER(KIND=valt) :: value
+      INTEGER(KIND=keyt) :: key = -1_keyt
+      INTEGER(KIND=valt) :: value = -1_valt
    END TYPE cp_heap_node
 
    TYPE cp_heap_node_e
-      TYPE(cp_heap_node) :: node
+      TYPE(cp_heap_node) :: node = cp_heap_node()
    END TYPE cp_heap_node_e
 
    TYPE cp_heap_type
-      INTEGER :: n
-      INTEGER, DIMENSION(:), POINTER           :: index
-      TYPE(cp_heap_node_e), DIMENSION(:), POINTER :: nodes
+      INTEGER :: n = -1
+      INTEGER, DIMENSION(:), POINTER           :: index => NULL()
+      TYPE(cp_heap_node_e), DIMENSION(:), POINTER :: nodes => NULL()
    END TYPE cp_heap_type
 
 CONTAINS

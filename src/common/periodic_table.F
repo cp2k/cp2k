@@ -39,30 +39,30 @@ MODULE periodic_table
              get_ptable_info
 
    TYPE atom
-      CHARACTER(LEN=2)  :: symbol
-      CHARACTER(LEN=14) :: name
-      INTEGER           :: number
+      CHARACTER(LEN=2)  :: symbol = ""
+      CHARACTER(LEN=14) :: name = ""
+      INTEGER           :: number = -1
       ! Standard atomic weight, i.e. the relative atomic mass
       ! of an element derived by averaging the relative
       ! atomic masses of the (natural) isotopes of that
       ! element or the relative (possibly estimated)
       ! longest half-life period in formula units
-      REAL(KIND=dp)     :: amass
-      REAL(KIND=dp)     :: covalent_radius ! in Angstroms
-      REAL(KIND=dp)     :: metallic_radius ! in Angstroms
-      REAL(KIND=dp)     :: vdw_radius ! in Angstroms
-      INTEGER           :: e_conv(0:3)
-      REAL(KIND=dp)     :: heat_of_formation ! in kcal/mol
-      REAL(KIND=dp)     :: eht_param(0:3) ! in eV
-      REAL(KIND=dp)     :: gyrom_ratio ! in MHz/Tesla
-      INTEGER           :: gyrom_ratio_isotope ! isotope number corresponding to gyrom_ratio
+      REAL(KIND=dp)     :: amass = 0.0_dp
+      REAL(KIND=dp)     :: covalent_radius = 0.0_dp ! in Angstroms
+      REAL(KIND=dp)     :: metallic_radius = 0.0_dp ! in Angstroms
+      REAL(KIND=dp)     :: vdw_radius = 0.0_dp ! in Angstroms
+      INTEGER           :: e_conv(0:3) = -1
+      REAL(KIND=dp)     :: heat_of_formation = 0.0_dp ! in kcal/mol
+      REAL(KIND=dp)     :: eht_param(0:3) = 0.0_dp ! in eV
+      REAL(KIND=dp)     :: gyrom_ratio = 0.0_dp ! in MHz/Tesla
+      INTEGER           :: gyrom_ratio_isotope = -1 ! isotope number corresponding to gyrom_ratio
    END TYPE atom
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'periodic_table'
    REAL(KIND=dp), PARAMETER             :: z = 0.0_dp
    INTEGER, PARAMETER                   :: nelem = 118
 
-   TYPE(atom) :: ptable(0:nelem)
+   TYPE(atom) :: ptable(0:nelem) = atom()
 
 CONTAINS
 

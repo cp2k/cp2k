@@ -80,18 +80,18 @@ MODULE cp_fm_struct
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    TYPE cp_fm_struct_type
-      TYPE(mp_para_env_type), POINTER :: para_env
-      TYPE(cp_blacs_env_type), POINTER :: context
-      INTEGER, DIMENSION(9) :: descriptor
-      INTEGER :: nrow_block, ncol_block, nrow_global, ncol_global
-      INTEGER, DIMENSION(2) :: first_p_pos
-      INTEGER, DIMENSION(:), POINTER :: row_indices, col_indices, &
-                                        nrow_locals, ncol_locals
-      INTEGER :: ref_count, local_leading_dimension
+      TYPE(mp_para_env_type), POINTER :: para_env => NULL()
+      TYPE(cp_blacs_env_type), POINTER :: context => NULL()
+      INTEGER, DIMENSION(9) :: descriptor = -1
+      INTEGER :: nrow_block = -1, ncol_block = -1, nrow_global = -1, ncol_global = -1
+      INTEGER, DIMENSION(2) :: first_p_pos = -1
+      INTEGER, DIMENSION(:), POINTER :: row_indices => NULL(), col_indices => NULL(), &
+                                        nrow_locals => NULL(), ncol_locals => NULL()
+      INTEGER :: ref_count = -1, local_leading_dimension = -1
    END TYPE cp_fm_struct_type
 ! **************************************************************************************************
    TYPE cp_fm_struct_p_type
-      TYPE(cp_fm_struct_type), POINTER :: struct
+      TYPE(cp_fm_struct_type), POINTER :: struct => NULL()
    END TYPE cp_fm_struct_p_type
 
 CONTAINS
@@ -128,7 +128,7 @@ CONTAINS
       INTEGER, INTENT(in), OPTIONAL                :: nrow_global, ncol_global
       INTEGER, INTENT(in), OPTIONAL                :: nrow_block, ncol_block
       INTEGER, INTENT(in), OPTIONAL                :: local_leading_dimension
-      TYPE(cp_blacs_env_type), POINTER, OPTIONAL   :: context
+      TYPE(cp_blacs_env_type), TARGET, OPTIONAL   :: context
       INTEGER, DIMENSION(9), INTENT(in), OPTIONAL  :: descriptor
       INTEGER, OPTIONAL, DIMENSION(2)               :: first_p_pos
       TYPE(cp_fm_struct_type), POINTER, OPTIONAL   :: template_fmstruct
@@ -303,9 +303,8 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE cp_fm_struct_retain(fmstruct)
-      TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
+      TYPE(cp_fm_struct_type), INTENT(INOUT)             :: fmstruct
 
-      CPASSERT(ASSOCIATED(fmstruct))
       CPASSERT(fmstruct%ref_count > 0)
       fmstruct%ref_count = fmstruct%ref_count + 1
    END SUBROUTINE cp_fm_struct_retain
@@ -487,7 +486,7 @@ CONTAINS
 !> \param io_unit the I/O unit to use for writing
 ! **************************************************************************************************
    SUBROUTINE cp_fm_struct_write_info(fmstruct, io_unit)
-      TYPE(cp_fm_struct_type), INTENT(IN), POINTER       :: fmstruct
+      TYPE(cp_fm_struct_type), INTENT(IN)                :: fmstruct
       INTEGER, INTENT(IN)                                :: io_unit
 
       INTEGER, PARAMETER                                 :: oblock_size = 8
@@ -532,8 +531,9 @@ CONTAINS
 !> \author Florian Schiffmann
 ! **************************************************************************************************
    SUBROUTINE cp_fm_struct_double(fmstruct, struct, context, col, row)
-      TYPE(cp_fm_struct_type), POINTER                   :: fmstruct, struct
-      TYPE(cp_blacs_env_type), POINTER                   :: context
+      TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
+      TYPE(cp_fm_struct_type), INTENT(INOUT)             :: struct
+      TYPE(cp_blacs_env_type), INTENT(INOUT), TARGET     :: context
       LOGICAL, INTENT(in)                                :: col, row
 
       INTEGER :: n_doubled_items_in_partially_filled_block, ncol_block, ncol_global, newdim_col, &
@@ -627,8 +627,8 @@ CONTAINS
 !> \param force_block ...
 ! **************************************************************************************************
    SUBROUTINE cp_fm_struct_config(nrow_block, ncol_block, force_block)
-      INTEGER, OPTIONAL                                  :: nrow_block, ncol_block
-      LOGICAL, OPTIONAL                                  :: force_block
+      INTEGER, INTENT(IN), OPTIONAL                      :: nrow_block, ncol_block
+      LOGICAL, INTENT(IN), OPTIONAL                      :: force_block
 
       IF (PRESENT(ncol_block)) optimal_blacs_col_block_size = ncol_block
       IF (PRESENT(nrow_block)) optimal_blacs_row_block_size = nrow_block

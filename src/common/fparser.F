@@ -81,15 +81,15 @@ MODULE fparser
                                                                    'erfc '/)
 ! **************************************************************************************************
    TYPE tComp
-      INTEGER(is), DIMENSION(:), POINTER :: ByteCode
-      INTEGER                            :: ByteCodeSize
-      REAL(rn), DIMENSION(:), POINTER :: Immed
-      INTEGER                            :: ImmedSize
-      REAL(rn), DIMENSION(:), POINTER :: Stack
-      INTEGER                            :: StackSize, &
-                                            StackPtr
+      INTEGER(is), DIMENSION(:), POINTER :: ByteCode => NULL()
+      INTEGER                            :: ByteCodeSize = -1
+      REAL(rn), DIMENSION(:), POINTER :: Immed => NULL()
+      INTEGER                            :: ImmedSize = -1
+      REAL(rn), DIMENSION(:), POINTER :: Stack => NULL()
+      INTEGER                            :: StackSize = -1, &
+                                            StackPtr = -1
    END TYPE tComp
-   TYPE(tComp), DIMENSION(:), POINTER :: Comp ! Bytecode
+   TYPE(tComp), DIMENSION(:), POINTER :: Comp => NULL() ! Bytecode
    INTEGER, DIMENSION(:), ALLOCATABLE :: ipos ! Associates function strings
    !
 CONTAINS
@@ -132,15 +132,10 @@ CONTAINS
       !----- -------- --------- --------- --------- --------- --------- --------- -------
       INTEGER, INTENT(in)                                :: n
 
-      INTEGER                                            :: i
-
 ! Number of functions
 !----- -------- --------- --------- --------- --------- --------- --------- -------
 
       ALLOCATE (Comp(n))
-      DO i = 1, n
-         NULLIFY (Comp(i)%ByteCode, Comp(i)%Immed, Comp(i)%Stack)
-      END DO
    END SUBROUTINE initf
    !
 ! **************************************************************************************************

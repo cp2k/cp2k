@@ -598,7 +598,7 @@ CONTAINS
          IF (print_basis) THEN
             DO ikind = 1, nkind
                basis_set => mao_basis_set_list(ikind)%gto_basis_set
-               CALL write_gto_basis_set(basis_set, unit_nr, "MAO REFERENCE BASIS")
+               IF (ASSOCIATED(basis_set)) CALL write_gto_basis_set(basis_set, unit_nr, "MAO REFERENCE BASIS")
             END DO
          END IF
       END IF

@@ -130,8 +130,8 @@ MODULE cp_units
 !> \author fawzi
 ! **************************************************************************************************
    TYPE cp_unit_type
-      INTEGER :: n_kinds
-      INTEGER, DIMENSION(cp_unit_max_kinds):: kind_id, unit_id, power
+      INTEGER :: n_kinds = -1
+      INTEGER, DIMENSION(cp_unit_max_kinds):: kind_id = -1, unit_id = -1, power = -1
    END TYPE cp_unit_type
 
 ! **************************************************************************************************
@@ -140,7 +140,7 @@ MODULE cp_units
 !> \author fawzi
 ! **************************************************************************************************
    TYPE cp_unit_p_type
-      TYPE(cp_unit_type), POINTER :: unit
+      TYPE(cp_unit_type), POINTER :: unit => NULL()
    END TYPE cp_unit_p_type
 
 ! **************************************************************************************************
@@ -148,7 +148,7 @@ MODULE cp_units
 !> \author fawzi
 ! **************************************************************************************************
    TYPE cp_unit_set_type
-      TYPE(cp_unit_p_type), DIMENSION(cp_ukind_max) :: units
+      TYPE(cp_unit_p_type), DIMENSION(cp_ukind_max) :: units = cp_unit_p_type()
    END TYPE cp_unit_set_type
 
 CONTAINS
@@ -541,7 +541,7 @@ CONTAINS
 !> \note
 !>      at the moment not needed, there for completeness
 ! **************************************************************************************************
-   SUBROUTINE cp_unit_release(unit)
+   ELEMENTAL SUBROUTINE cp_unit_release(unit)
       TYPE(cp_unit_type), INTENT(IN)                     :: unit
 
       MARK_USED(unit)

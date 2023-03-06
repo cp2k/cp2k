@@ -46,9 +46,10 @@ MODULE xc_rho_cflags_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE xc_rho_cflags_type
-      LOGICAL :: rho, rho_spin, drho, drho_spin, &
-                 norm_drho, norm_drho_spin, &
-                 rho_1_3, rho_spin_1_3, tau, tau_spin, laplace_rho, laplace_rho_spin
+      LOGICAL :: rho = .FALSE., rho_spin = .FALSE., drho = .FALSE., drho_spin = .FALSE., &
+                 norm_drho = .FALSE., norm_drho_spin = .FALSE., &
+                 rho_1_3 = .FALSE., rho_spin_1_3 = .FALSE., &
+                 tau = .FALSE., tau_spin = .FALSE., laplace_rho = .FALSE., laplace_rho_spin = .FALSE.
    END TYPE xc_rho_cflags_type
 
 CONTAINS

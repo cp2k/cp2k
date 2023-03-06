@@ -40,8 +40,8 @@ MODULE cp_files
 
    TYPE preconnection_type
       PRIVATE
-      CHARACTER(LEN=default_path_length) :: file_name
-      INTEGER                            :: unit_number
+      CHARACTER(LEN=default_path_length) :: file_name = ""
+      INTEGER                            :: unit_number = -1
    END TYPE preconnection_type
 
    TYPE(preconnection_type), DIMENSION(max_preconnections) :: preconnected

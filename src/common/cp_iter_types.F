@@ -73,13 +73,13 @@ MODULE cp_iter_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE cp_iteration_info_type
-      INTEGER                              :: ref_count
-      INTEGER                              :: print_level, n_rlevel
-      INTEGER, DIMENSION(:), POINTER       :: iteration
-      LOGICAL, DIMENSION(:), POINTER       :: last_iter
-      CHARACTER(len=default_string_length) :: project_name
+      INTEGER                              :: ref_count = -1
+      INTEGER                              :: print_level = -1, n_rlevel = -1
+      INTEGER, DIMENSION(:), POINTER       :: iteration => NULL()
+      LOGICAL, DIMENSION(:), POINTER       :: last_iter => NULL()
+      CHARACTER(len=default_string_length) :: project_name = ""
       CHARACTER(LEN=default_string_length), &
-         DIMENSION(:), POINTER           :: level_name
+         DIMENSION(:), POINTER           :: level_name => NULL()
    END TYPE cp_iteration_info_type
 
 CONTAINS
@@ -90,38 +90,19 @@ CONTAINS
 !> \param project_name name of the project, used to create the filenames
 !> \author fawzi
 ! **************************************************************************************************
-   SUBROUTINE cp_iteration_info_create(iteration_info, project_name)
+   PURE SUBROUTINE cp_iteration_info_create(iteration_info, project_name)
       TYPE(cp_iteration_info_type), POINTER              :: iteration_info
       CHARACTER(len=*), INTENT(in)                       :: project_name
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_iteration_info_create', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: stat
-
-      ALLOCATE (iteration_info, stat=stat)
-      IF (stat /= 0) &
-         CPABORT(routineP//" could not allocate iteration_info")
+      ALLOCATE (iteration_info)
 
       iteration_info%ref_count = 1
       iteration_info%print_level = 2
       iteration_info%n_rlevel = 1
       iteration_info%project_name = project_name
-      NULLIFY (iteration_info%iteration)
-      NULLIFY (iteration_info%level_name)
-      NULLIFY (iteration_info%last_iter)
-      ALLOCATE (iteration_info%iteration(iteration_info%n_rlevel), stat=stat)
-      IF (stat /= 0) THEN
-         CPABORT(routineP//" iteration_info%iteration allocation")
-      END IF
-      ALLOCATE (iteration_info%level_name(iteration_info%n_rlevel), stat=stat)
-      IF (stat /= 0) THEN
-         CPABORT(routineP//" iteration_info%level_name allocation")
-      END IF
-      ALLOCATE (iteration_info%last_iter(iteration_info%n_rlevel), stat=stat)
-      IF (stat /= 0) THEN
-         CPABORT(routineP//" iteration_info%last_iter allocation")
-      END IF
+      ALLOCATE (iteration_info%iteration(iteration_info%n_rlevel))
+      ALLOCATE (iteration_info%level_name(iteration_info%n_rlevel))
+      ALLOCATE (iteration_info%last_iter(iteration_info%n_rlevel))
       iteration_info%iteration(iteration_info%n_rlevel) = 1
       iteration_info%level_name(iteration_info%n_rlevel) = "__ROOT__"
       iteration_info%last_iter(iteration_info%n_rlevel) = .FALSE.
@@ -134,14 +115,11 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE cp_iteration_info_retain(iteration_info)
-      TYPE(cp_iteration_info_type), POINTER              :: iteration_info
+      TYPE(cp_iteration_info_type), INTENT(INOUT)        :: iteration_info
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_iteration_info_retain', &
          routineP = moduleN//':'//routineN
 
-      IF (.NOT. ASSOCIATED(iteration_info)) THEN
-         CPABORT(routineP//" iteration_info not associated")
-      END IF
       IF (iteration_info%ref_count <= 0) THEN
          CPABORT(routineP//" iteration_info%ref_counf<=0")
       END IF
@@ -186,44 +164,34 @@ CONTAINS
 !> \author Teodoro Laino [tlaino]
 ! **************************************************************************************************
    SUBROUTINE cp_iteration_info_copy_iter(iteration_info_in, iteration_info_out)
-      TYPE(cp_iteration_info_type), POINTER              :: iteration_info_in, iteration_info_out
+      TYPE(cp_iteration_info_type), INTENT(INOUT)        :: iteration_info_in, iteration_info_out
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_iteration_info_copy_iter', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, stat
+      INTEGER                                            :: i
 
-      IF (ASSOCIATED(iteration_info_in)) THEN
-         IF (iteration_info_in%ref_count <= 0) THEN
-            CPABORT(routineP//" iteration_info_in%ref_counf<=0")
-         END IF
-
-         iteration_info_out%n_rlevel = iteration_info_in%n_rlevel
-
-         DEALLOCATE (iteration_info_out%iteration)
-         i = SIZE(iteration_info_in%iteration)
-         ALLOCATE (iteration_info_out%iteration(i), stat=stat)
-         IF (stat /= 0) &
-            CPABORT(routineP//" could not allocate iteration_info%iteration")
-         iteration_info_out%iteration = iteration_info_in%iteration
-
-         DEALLOCATE (iteration_info_out%last_iter)
-         i = SIZE(iteration_info_in%last_iter)
-         ALLOCATE (iteration_info_out%last_iter(i), stat=stat)
-         IF (stat /= 0) &
-            CPABORT(routineP//" could not allocate iteration_info%last_iter")
-         iteration_info_out%last_iter = iteration_info_in%last_iter
-
-         DEALLOCATE (iteration_info_out%level_name)
-         i = SIZE(iteration_info_in%level_name)
-         ALLOCATE (iteration_info_out%level_name(i), stat=stat)
-         IF (stat /= 0) &
-            CPABORT(routineP//" could not allocate iteration_info%level_name")
-         iteration_info_out%level_name = iteration_info_in%level_name
-
-      ELSE
-         CPABORT(routineP//" iteration_info_in not associated!")
+      IF (iteration_info_in%ref_count <= 0) THEN
+         CPABORT(routineP//" iteration_info_in%ref_counf<=0")
       END IF
+
+      iteration_info_out%n_rlevel = iteration_info_in%n_rlevel
+
+      DEALLOCATE (iteration_info_out%iteration)
+      i = SIZE(iteration_info_in%iteration)
+      ALLOCATE (iteration_info_out%iteration(i))
+      iteration_info_out%iteration = iteration_info_in%iteration
+
+      DEALLOCATE (iteration_info_out%last_iter)
+      i = SIZE(iteration_info_in%last_iter)
+      ALLOCATE (iteration_info_out%last_iter(i))
+      iteration_info_out%last_iter = iteration_info_in%last_iter
+
+      DEALLOCATE (iteration_info_out%level_name)
+      i = SIZE(iteration_info_in%level_name)
+      ALLOCATE (iteration_info_out%level_name(i))
+      iteration_info_out%level_name = iteration_info_in%level_name
+
    END SUBROUTINE cp_iteration_info_copy_iter
 
 END MODULE cp_iter_types

@@ -38,7 +38,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_paw_basis_info(basis_1c, o2nindex, n2oindex, nsatbas)
 
-      TYPE(gto_basis_set_type), POINTER                  :: basis_1c
+      TYPE(gto_basis_set_type), INTENT(IN)               :: basis_1c
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: o2nindex, n2oindex
       INTEGER, INTENT(OUT), OPTIONAL                     :: nsatbas
 
@@ -46,8 +46,6 @@ CONTAINS
                                                             k, lx, maxso, nset, nsox
       INTEGER, DIMENSION(:), POINTER                     :: lmax, lmin, npgf
       LOGICAL                                            :: n2o, nsa, o2n
-
-      CPASSERT(ASSOCIATED(basis_1c))
 
       o2n = PRESENT(o2nindex)
       n2o = PRESENT(n2oindex)
