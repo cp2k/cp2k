@@ -874,24 +874,22 @@ CONTAINS
                         i = i + 1
                      END DO
                   END DO
-                  IF (actual_x_data%memory_parameter%treat_forces_in_core) THEN
-                     ALLOCATE (actual_x_data%pmax_atom_forces(natom, natom))
 
-                     ALLOCATE (actual_x_data%initial_p_forces(nkind*(nkind + 1)/2))
-                     i = 1
-                     DO ikind = 1, nkind
-                        CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_a)
-                        nseta = actual_x_data%basis_parameter(ikind)%nset
-                        DO jkind = ikind, nkind
-                           CALL get_atomic_kind(atomic_kind_set(jkind), natom=natom_b)
-                           nsetb = actual_x_data%basis_parameter(jkind)%nset
-                           ALLOCATE (actual_x_data%initial_p_forces(i)%p_kind(nseta, nsetb, natom_a, natom_b))
-                           actual_x_data%memory_parameter%size_p_screen = &
-                              actual_x_data%memory_parameter%size_p_screen + nseta*nsetb*natom_a*natom_b
-                           i = i + 1
-                        END DO
+                  ALLOCATE (actual_x_data%pmax_atom_forces(natom, natom))
+                  ALLOCATE (actual_x_data%initial_p_forces(nkind*(nkind + 1)/2))
+                  i = 1
+                  DO ikind = 1, nkind
+                     CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_a)
+                     nseta = actual_x_data%basis_parameter(ikind)%nset
+                     DO jkind = ikind, nkind
+                        CALL get_atomic_kind(atomic_kind_set(jkind), natom=natom_b)
+                        nsetb = actual_x_data%basis_parameter(jkind)%nset
+                        ALLOCATE (actual_x_data%initial_p_forces(i)%p_kind(nseta, nsetb, natom_a, natom_b))
+                        actual_x_data%memory_parameter%size_p_screen = &
+                           actual_x_data%memory_parameter%size_p_screen + nseta*nsetb*natom_a*natom_b
+                        i = i + 1
                      END DO
-                  END IF
+                  END DO
                END IF
                ALLOCATE (actual_x_data%map_atom_to_kind_atom(natom))
                CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
@@ -1831,13 +1829,12 @@ CONTAINS
                      DEALLOCATE (actual_x_data%initial_p(i)%p_kind)
                   END DO
                   DEALLOCATE (actual_x_data%initial_p)
-                  IF (actual_x_data%memory_parameter%treat_forces_in_core) THEN
-                     DEALLOCATE (actual_x_data%pmax_atom_forces)
-                     DO i = 1, SIZE(actual_x_data%initial_p_forces)
-                        DEALLOCATE (actual_x_data%initial_p_forces(i)%p_kind)
-                     END DO
-                     DEALLOCATE (actual_x_data%initial_p_forces)
-                  END IF
+
+                  DEALLOCATE (actual_x_data%pmax_atom_forces)
+                  DO i = 1, SIZE(actual_x_data%initial_p_forces)
+                     DEALLOCATE (actual_x_data%initial_p_forces(i)%p_kind)
+                  END DO
+                  DEALLOCATE (actual_x_data%initial_p_forces)
                END IF
                DEALLOCATE (actual_x_data%map_atom_to_kind_atom)
             END IF

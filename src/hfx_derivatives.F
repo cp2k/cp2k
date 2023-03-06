@@ -534,13 +534,8 @@ CONTAINS
       !! matrix is initialized to 1.0
       IF (screen_pmat_forces) THEN
          NULLIFY (shm_initial_p)
-         shm_initial_p => actual_x_data%initial_p
-         shm_pmax_atom => actual_x_data%pmax_atom
-
-         IF (memory_parameter%treat_forces_in_core) THEN
-            shm_initial_p => actual_x_data%initial_p_forces
-            shm_pmax_atom => actual_x_data%pmax_atom_forces
-         END IF
+         shm_initial_p => actual_x_data%initial_p_forces
+         shm_pmax_atom => actual_x_data%pmax_atom_forces
          IF (memory_parameter%recalc_forces) THEN
             CALL update_pmax_mat(shm_initial_p, &
                                  actual_x_data%map_atom_to_kind_atom, &
