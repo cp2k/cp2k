@@ -24,15 +24,15 @@ MODULE timings_types
    PRIVATE
 
    TYPE timer_env_type
-      INTEGER                                          :: ref_count
-      TYPE(routine_map_type)                           :: routine_names
-      TYPE(list_routinestat_type)                      :: routine_stats
-      TYPE(list_callstackentry_type)                   :: callstack
-      TYPE(callgraph_type)                             :: callgraph
-      INTEGER                                          :: trace_max
-      INTEGER                                          :: trace_unit
-      CHARACTER(len=13)                                :: trace_str
-      LOGICAL                                          :: trace_all
+      INTEGER                                          :: ref_count = -1
+      TYPE(routine_map_type)                           :: routine_names = routine_map_type()
+      TYPE(list_routinestat_type)                      :: routine_stats = list_routinestat_type()
+      TYPE(list_callstackentry_type)                   :: callstack = list_callstackentry_type()
+      TYPE(callgraph_type)                             :: callgraph = callgraph_type()
+      INTEGER                                          :: trace_max = -1
+      INTEGER                                          :: trace_unit = -1
+      CHARACTER(len=13)                                :: trace_str = ""
+      LOGICAL                                          :: trace_all = .FALSE.
    END TYPE timer_env_type
 
    PUBLIC :: timer_env_type

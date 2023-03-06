@@ -24,32 +24,32 @@ MODULE timings_base_type
    PRIVATE
 
    TYPE routine_stat_type
-      INTEGER       :: routine_id
-      CHARACTER(len=default_string_length) :: routineN
-      REAL(kind=dp) :: excl_walltime_accu
-      REAL(kind=dp) :: incl_walltime_accu
-      REAL(kind=dp) :: excl_energy_accu
-      REAL(kind=dp) :: incl_energy_accu
-      INTEGER       :: active_calls
-      INTEGER       :: total_calls
-      INTEGER       :: stackdepth_accu
-      LOGICAL       :: trace
+      INTEGER       :: routine_id = -1
+      CHARACTER(len=default_string_length) :: routineN = ""
+      REAL(kind=dp) :: excl_walltime_accu = 0.0_dp
+      REAL(kind=dp) :: incl_walltime_accu = 0.0_dp
+      REAL(kind=dp) :: excl_energy_accu = 0.0_dp
+      REAL(kind=dp) :: incl_energy_accu = 0.0_dp
+      INTEGER       :: active_calls = 0
+      INTEGER       :: total_calls = 0
+      INTEGER       :: stackdepth_accu = 0
+      LOGICAL       :: trace = .FALSE.
    END TYPE routine_stat_type
 
    TYPE call_stat_type
-      INTEGER       :: total_calls
-      REAL(kind=dp) :: incl_walltime_accu
-      REAL(kind=dp) :: incl_energy_accu
+      INTEGER       :: total_calls = 0
+      REAL(kind=dp) :: incl_walltime_accu = 0.0_dp
+      REAL(kind=dp) :: incl_energy_accu = 0.0_dp
    END TYPE call_stat_type
 
    TYPE callstack_entry_type
-      INTEGER       :: routine_id
-      REAL(kind=dp) :: walltime_start
-      REAL(kind=dp) :: energy_start
+      INTEGER       :: routine_id = -1
+      REAL(kind=dp) :: walltime_start = 0.0_dp
+      REAL(kind=dp) :: energy_start = 0.0_dp
    END TYPE callstack_entry_type
 
    TYPE routine_report_type
-      CHARACTER(LEN=default_string_length) :: routineN
+      CHARACTER(LEN=default_string_length) :: routineN = ""
       REAL(KIND=dp)                        :: max_icost = 0.0_dp
       REAL(KIND=dp)                        :: sum_icost = 0.0_dp
       REAL(KIND=dp)                        :: max_ecost = 0.0_dp

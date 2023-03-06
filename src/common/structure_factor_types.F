@@ -21,12 +21,12 @@ MODULE structure_factor_types
 
 ! **************************************************************************************************
    TYPE structure_factor_type
-      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER :: ex, ey, ez
-      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER :: shell_ex, shell_ey, shell_ez
-      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER :: core_ex, core_ey, core_ez
-      INTEGER, DIMENSION(:, :), POINTER :: centre, core_centre, shell_centre
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: delta, core_delta, shell_delta
-      INTEGER :: lb(3)
+      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER :: ex => NULL(), ey => NULL(), ez => NULL()
+      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER :: shell_ex => NULL(), shell_ey => NULL(), shell_ez => NULL()
+      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER :: core_ex => NULL(), core_ey => NULL(), core_ez => NULL()
+      INTEGER, DIMENSION(:, :), POINTER :: centre => NULL(), core_centre => NULL(), shell_centre => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: delta => NULL(), core_delta => NULL(), shell_delta => NULL()
+      INTEGER :: lb(3) = -1
    END TYPE structure_factor_type
 
 END MODULE structure_factor_types

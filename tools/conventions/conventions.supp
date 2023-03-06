@@ -880,7 +880,6 @@ splines_types.F: Found type spline_data_type without initializer https://cp2k.or
 splines_types.F: Found type spline_environment_type without initializer https://cp2k.org/conv#c016
 splines_types.F: Found type spline_factor_type without initializer https://cp2k.org/conv#c016
 statistical_methods.F: Found WRITE statement with hardcoded unit in "tests" https://cp2k.org/conv#c012
-structure_factor_types.F: Found type structure_factor_type without initializer https://cp2k.org/conv#c016
 subcell_types.F: Found type subcell_type without initializer https://cp2k.org/conv#c016
 submatrix_dissection.F: Found type submatrix_dissection_type without initializer https://cp2k.org/conv#c016
 submatrix_types.F: Found type buffer_type without initializer https://cp2k.org/conv#c016
@@ -897,10 +896,6 @@ thermal_region_types.F: Found type thermal_region_type without initializer https
 thermostat_types.F: Found type thermostat_info_type without initializer https://cp2k.org/conv#c016
 thermostat_types.F: Found type thermostats_type without initializer https://cp2k.org/conv#c016
 thermostat_types.F: Found type thermostat_type without initializer https://cp2k.org/conv#c016
-timings_base_type.F: Found type callstack_entry_type without initializer https://cp2k.org/conv#c016
-timings_base_type.F: Found type call_stat_type without initializer https://cp2k.org/conv#c016
-timings_base_type.F: Found type routine_report_type without initializer https://cp2k.org/conv#c016
-timings_base_type.F: Found type routine_stat_type without initializer https://cp2k.org/conv#c016
 timings.F: Found WRITE statement with hardcoded unit in "timestop_handler" https://cp2k.org/conv#c012
 timings_types.F: Found type timer_env_type without initializer https://cp2k.org/conv#c016
 tip_scan_types.F: Found type scanning_type without initializer https://cp2k.org/conv#c016
