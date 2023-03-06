@@ -247,6 +247,7 @@ eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_bazant_silicon"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_lenosky_silicon" https://cp2k.org/conv#c012
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_b" https://cp2k.org/conv#c012
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_l" https://cp2k.org/conv#c012
+environment.F: Module "mp_perf_env" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 eri_mme_types.F: Found type eri_mme_param without initializer https://cp2k.org/conv#c016
 eri_mme_types.F: Found type minimax_grid without initializer https://cp2k.org/conv#c016
 et_coupling_proj.F: Found type et_cpl_atom without initializer https://cp2k.org/conv#c016
@@ -275,6 +276,7 @@ external_potential_types.F: Found type sgp_potential_p_type without initializer 
 external_potential_types.F: Found type sgp_potential_type without initializer https://cp2k.org/conv#c016
 f77_interface.F: Found type f_env_p_type without initializer https://cp2k.org/conv#c016
 f77_interface.F: Found type f_env_type without initializer https://cp2k.org/conv#c016
+f77_interface.F: Module "mp_perf_env" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 farming_methods.F: Found CLOSE statement in procedure "farming_parse_input" https://cp2k.org/conv#c204
 farming_methods.F: Found OPEN statement in procedure "farming_parse_input" https://cp2k.org/conv#c203
 farming_types.F: Found type farming_env_type without initializer https://cp2k.org/conv#c016
@@ -418,6 +420,7 @@ library_tests.F: Found CALL RANDOM_NUMBER in procedure "copy_test" https://cp2k.
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "cp_fm_gemm_test" https://cp2k.org/conv#c104
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "fft_test" https://cp2k.org/conv#c104
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "rs_pw_transfer_test" https://cp2k.org/conv#c104
+library_tests.F: Module "mp_perf_test" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 library_tests.F: Procedure 'pilaenv' called with an implicit interface at (1) [-Wimplicit-interface]
 list_callstackentry.F: Found type private_item_type_callstackentry without initializer https://cp2k.org/conv#c016
 list_routinereport.F: Found type private_item_type_routinereport without initializer https://cp2k.org/conv#c016
@@ -484,13 +487,14 @@ message_passing.F: Found CLOSE statement in procedure "mp_file_close" https://cp
 message_passing.F: Found OPEN statement in procedure "mp_file_open" https://cp2k.org/conv#c203
 message_passing.F: Found STOP statement in procedure "mp_abort" https://cp2k.org/conv#c205
 message_passing.F: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-1)
-message_passing.F: Type mismatch between actual argument at (1) and actual argument at (2) (REAL(8)/INTEGER(4)).
 message_passing.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+message_passing.F: Module "mp_perf_env" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 message_passing.fypp: Rank mismatch between actual argument at (1) and actual argument at (2) (rank-1 and scalar)
 message_passing.fypp: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-1)
 message_passing.fypp: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-3)
 message_passing.fypp: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-4)
 message_passing.fypp: Type mismatch between actual argument at (1) and actual argument at (2) (COMPLEX(8)/COMPLEX(4)).
+message_passing.F: Type mismatch between actual argument at (1) and actual argument at (2) (REAL(4)/INTEGER(4)).
 metadynamics_types.F: Found type hills_env_type without initializer https://cp2k.org/conv#c016
 metadynamics_types.F: Found type meta_env_type without initializer https://cp2k.org/conv#c016
 metadynamics_types.F: Found type metavar_type without initializer https://cp2k.org/conv#c016
@@ -537,6 +541,7 @@ molecule_types.F: Found type local_g4x6_constraint_type without initializer http
 molecule_types.F: Found type local_states_type without initializer https://cp2k.org/conv#c016
 molecule_types.F: Found type molecule_type without initializer https://cp2k.org/conv#c016
 molsym.F: Found type molsym_type without initializer https://cp2k.org/conv#c016
+mp_perf_test.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 mp2_integrals.F: Found type intermediate_matrix_type without initializer https://cp2k.org/conv#c016
 mp2_types.F: Found type grad_util without initializer https://cp2k.org/conv#c016
 mp2_types.F: Found type integ_mat_buffer_type_2d without initializer https://cp2k.org/conv#c016
