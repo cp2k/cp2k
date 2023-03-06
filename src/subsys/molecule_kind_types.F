@@ -26,17 +26,18 @@ MODULE molecule_kind_types
    USE colvar_types,                    ONLY: &
         acid_hyd_dist_colvar_id, acid_hyd_shell_colvar_id, angle_colvar_id, colvar_counters, &
         combine_colvar_id, coord_colvar_id, dfunct_colvar_id, dist_colvar_id, gyration_colvar_id, &
-        hydronium_dist_colvar_id, hydronium_shell_colvar_id, plane_distance_colvar_id, &
-        plane_plane_angle_colvar_id, population_colvar_id, qparm_colvar_id, &
-        reaction_path_colvar_id, rotation_colvar_id, torsion_colvar_id, xyz_diag_colvar_id, &
-        xyz_outerdiag_colvar_id
+        hydronium_dist_colvar_id, hydronium_shell_colvar_id, no_colvar_id, &
+        plane_distance_colvar_id, plane_plane_angle_colvar_id, population_colvar_id, &
+        qparm_colvar_id, reaction_path_colvar_id, rotation_colvar_id, torsion_colvar_id, &
+        xyz_diag_colvar_id, xyz_outerdiag_colvar_id
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE force_field_kind_types,          ONLY: &
-        bend_kind_type, bond_kind_type, impr_kind_dealloc_ref, impr_kind_type, opbend_kind_type, &
-        torsion_kind_dealloc_ref, torsion_kind_type, ub_kind_dealloc_ref, ub_kind_type
+        bend_kind_type, bond_kind_type, do_ff_undef, impr_kind_dealloc_ref, impr_kind_type, &
+        opbend_kind_type, torsion_kind_dealloc_ref, torsion_kind_type, ub_kind_dealloc_ref, &
+        ub_kind_type
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -53,152 +54,152 @@ MODULE molecule_kind_types
 
 ! **************************************************************************************************
    TYPE atom_type
-      TYPE(atomic_kind_type), POINTER :: atomic_kind
-      INTEGER :: id_name
+      TYPE(atomic_kind_type), POINTER :: atomic_kind => NULL()
+      INTEGER :: id_name = 0
    END TYPE atom_type
 
 ! **************************************************************************************************
    TYPE shell_type
-      INTEGER :: a
-      CHARACTER(LEN=default_string_length)  :: name
-      TYPE(shell_kind_type), POINTER :: shell_kind
+      INTEGER :: a = 0
+      CHARACTER(LEN=default_string_length)  :: name = ""
+      TYPE(shell_kind_type), POINTER :: shell_kind => NULL()
    END TYPE shell_type
 
 ! **************************************************************************************************
    TYPE bond_type
-      INTEGER :: a, b
-      INTEGER :: id_type, itype
-      TYPE(bond_kind_type), POINTER :: bond_kind
+      INTEGER :: a = 0, b = 0
+      INTEGER :: id_type = do_ff_undef, itype = 0
+      TYPE(bond_kind_type), POINTER :: bond_kind => NULL()
    END TYPE bond_type
 
 ! **************************************************************************************************
    TYPE bend_type
-      INTEGER :: a, b, c
-      INTEGER :: id_type, itype
-      TYPE(bend_kind_type), POINTER :: bend_kind
+      INTEGER :: a = 0, b = 0, c = 0
+      INTEGER :: id_type = do_ff_undef, itype = 0
+      TYPE(bend_kind_type), POINTER :: bend_kind => NULL()
    END TYPE bend_type
 
 ! **************************************************************************************************
    TYPE ub_type
-      INTEGER :: a, b, c
-      INTEGER :: id_type, itype
-      TYPE(ub_kind_type), POINTER :: ub_kind
+      INTEGER :: a = 0, b = 0, c = 0
+      INTEGER :: id_type = do_ff_undef, itype = 0
+      TYPE(ub_kind_type), POINTER :: ub_kind => NULL()
    END TYPE ub_type
 
 ! **************************************************************************************************
    TYPE torsion_type
-      INTEGER :: a, b, c, d
-      INTEGER :: id_type, itype
-      TYPE(torsion_kind_type), POINTER :: torsion_kind
+      INTEGER :: a = 0, b = 0, c = 0, d = 0
+      INTEGER :: id_type = do_ff_undef, itype = 0
+      TYPE(torsion_kind_type), POINTER :: torsion_kind => NULL()
    END TYPE torsion_type
 
 ! **************************************************************************************************
    TYPE impr_type
-      INTEGER :: a, b, c, d
-      INTEGER :: id_type, itype
-      TYPE(impr_kind_type), POINTER :: impr_kind
+      INTEGER :: a = 0, b = 0, c = 0, d = 0
+      INTEGER :: id_type = do_ff_undef, itype = 0
+      TYPE(impr_kind_type), POINTER :: impr_kind => NULL()
    END TYPE impr_type
 
 ! **************************************************************************************************
    TYPE opbend_type
-      INTEGER :: a, b, c, d
-      INTEGER :: id_type, itype
-      TYPE(opbend_kind_type), POINTER :: opbend_kind
+      INTEGER :: a = 0, b = 0, c = 0, d = 0
+      INTEGER :: id_type = do_ff_undef, itype = 0
+      TYPE(opbend_kind_type), POINTER :: opbend_kind => NULL()
    END TYPE opbend_type
 
 ! **************************************************************************************************
    TYPE restraint_type
-      LOGICAL       :: active
-      REAL(KIND=dp) :: k0
+      LOGICAL       :: active = .FALSE.
+      REAL(KIND=dp) :: k0 = 0.0_dp
    END TYPE restraint_type
 
 ! **************************************************************************************************
    TYPE colvar_constraint_type
-      INTEGER                        :: type_id
-      INTEGER                        :: inp_seq_num
-      LOGICAL                        :: use_points
-      REAL(KIND=dp)                :: expected_value
-      REAL(KIND=dp)                :: expected_value_growth_speed
-      INTEGER, POINTER, DIMENSION(:) :: i_atoms
-      TYPE(restraint_type)           :: restraint
+      INTEGER                        :: type_id = no_colvar_id
+      INTEGER                        :: inp_seq_num = 0
+      LOGICAL                        :: use_points = .FALSE.
+      REAL(KIND=dp)                :: expected_value = 0.0_dp
+      REAL(KIND=dp)                :: expected_value_growth_speed = 0.0_dp
+      INTEGER, POINTER, DIMENSION(:) :: i_atoms => NULL()
+      TYPE(restraint_type)           :: restraint = restraint_type()
    END TYPE colvar_constraint_type
 
 ! **************************************************************************************************
    TYPE g3x3_constraint_type
-      INTEGER                        :: a, b, c
-      REAL(KIND=dp)                :: dab, dac, dbc
-      TYPE(restraint_type)           :: restraint
+      INTEGER                        :: a = 0, b = 0, c = 0
+      REAL(KIND=dp)                :: dab = 0.0_dp, dac = 0.0_dp, dbc = 0.0_dp
+      TYPE(restraint_type)           :: restraint = restraint_type()
    END TYPE g3x3_constraint_type
 
 ! **************************************************************************************************
    TYPE g4x6_constraint_type
-      INTEGER                        :: a, b, c, d
-      REAL(KIND=dp)                :: dab, dac, dbc, dad, dbd, dcd
-      TYPE(restraint_type)           :: restraint
+      INTEGER                        :: a = 0, b = 0, c = 0, d = 0
+      REAL(KIND=dp)                :: dab = 0.0_dp, dac = 0.0_dp, dbc = 0.0_dp, dad = 0.0_dp, dbd = 0.0_dp, dcd = 0.0_dp
+      TYPE(restraint_type)           :: restraint = restraint_type()
    END TYPE g4x6_constraint_type
 
 ! **************************************************************************************************
    TYPE vsite_constraint_type
-      INTEGER                        :: a, b, c, d
-      REAL(KIND=dp)                :: wbc, wdc
-      TYPE(restraint_type)           :: restraint
+      INTEGER                        :: a = 0, b = 0, c = 0, d = 0
+      REAL(KIND=dp)                :: wbc = 0.0_dp, wdc = 0.0_dp
+      TYPE(restraint_type)           :: restraint = restraint_type()
    END TYPE vsite_constraint_type
 
 ! **************************************************************************************************
    TYPE fixd_constraint_type
-      TYPE(restraint_type)           :: restraint
-      INTEGER                        :: fixd, itype
-      REAL(KIND=dp), DIMENSION(3)    :: coord
+      TYPE(restraint_type)           :: restraint = restraint_type()
+      INTEGER                        :: fixd = 0, itype = 0
+      REAL(KIND=dp), DIMENSION(3)    :: coord = 0.0_dp
    END TYPE fixd_constraint_type
 
 ! **************************************************************************************************
    TYPE local_fixd_constraint_type
-      INTEGER                        :: ifixd_index, ikind
+      INTEGER                        :: ifixd_index = 0, ikind = 0
    END TYPE local_fixd_constraint_type
 
 ! **************************************************************************************************
    TYPE molecule_kind_type
-      TYPE(atom_type), DIMENSION(:), POINTER            :: atom_list
-      TYPE(bond_kind_type), DIMENSION(:), POINTER       :: bond_kind_set
-      TYPE(bond_type), DIMENSION(:), POINTER            :: bond_list
-      TYPE(bend_kind_type), DIMENSION(:), POINTER       :: bend_kind_set
-      TYPE(bend_type), DIMENSION(:), POINTER            :: bend_list
-      TYPE(ub_kind_type), DIMENSION(:), POINTER         :: ub_kind_set
-      TYPE(ub_type), DIMENSION(:), POINTER              :: ub_list
-      TYPE(torsion_kind_type), DIMENSION(:), POINTER    :: torsion_kind_set
-      TYPE(torsion_type), DIMENSION(:), POINTER         :: torsion_list
-      TYPE(impr_kind_type), DIMENSION(:), POINTER       :: impr_kind_set
-      TYPE(impr_type), DIMENSION(:), POINTER            :: impr_list
-      TYPE(opbend_kind_type), DIMENSION(:), POINTER     :: opbend_kind_set
-      TYPE(opbend_type), DIMENSION(:), POINTER          :: opbend_list
-      TYPE(colvar_constraint_type), DIMENSION(:), POINTER :: colv_list
-      TYPE(g3x3_constraint_type), DIMENSION(:), POINTER   :: g3x3_list
-      TYPE(g4x6_constraint_type), DIMENSION(:), POINTER   :: g4x6_list
-      TYPE(vsite_constraint_type), DIMENSION(:), POINTER  :: vsite_list
-      TYPE(fixd_constraint_type), DIMENSION(:), POINTER   :: fixd_list
-      TYPE(shell_type), DIMENSION(:), POINTER           :: shell_list
-      CHARACTER(LEN=default_string_length)              :: name
-      REAL(KIND=dp)                                   :: charge, &
-                                                         mass
-      INTEGER                                           :: kind_number, &
-                                                           natom, &
-                                                           nbond, &
-                                                           nbend, &
-                                                           nimpr, &
-                                                           nopbend, &
-                                                           ntorsion, &
-                                                           nub, &
-                                                           ng3x3, ng3x3_restraint, &
-                                                           ng4x6, ng4x6_restraint, &
-                                                           nvsite, nvsite_restraint, &
-                                                           nfixd, nfixd_restraint, &
-                                                           nmolecule, nshell
-      TYPE(colvar_counters)                             :: ncolv
-      INTEGER                                           :: nsgf, nelectron, &
-                                                           nelectron_alpha, &
-                                                           nelectron_beta
-      INTEGER, DIMENSION(:), POINTER                    :: molecule_list
-      LOGICAL                                           :: molname_generated
+      TYPE(atom_type), DIMENSION(:), POINTER            :: atom_list => NULL()
+      TYPE(bond_kind_type), DIMENSION(:), POINTER       :: bond_kind_set => NULL()
+      TYPE(bond_type), DIMENSION(:), POINTER            :: bond_list => NULL()
+      TYPE(bend_kind_type), DIMENSION(:), POINTER       :: bend_kind_set => NULL()
+      TYPE(bend_type), DIMENSION(:), POINTER            :: bend_list => NULL()
+      TYPE(ub_kind_type), DIMENSION(:), POINTER         :: ub_kind_set => NULL()
+      TYPE(ub_type), DIMENSION(:), POINTER              :: ub_list => NULL()
+      TYPE(torsion_kind_type), DIMENSION(:), POINTER    :: torsion_kind_set => NULL()
+      TYPE(torsion_type), DIMENSION(:), POINTER         :: torsion_list => NULL()
+      TYPE(impr_kind_type), DIMENSION(:), POINTER       :: impr_kind_set => NULL()
+      TYPE(impr_type), DIMENSION(:), POINTER            :: impr_list => NULL()
+      TYPE(opbend_kind_type), DIMENSION(:), POINTER     :: opbend_kind_set => NULL()
+      TYPE(opbend_type), DIMENSION(:), POINTER          :: opbend_list => NULL()
+      TYPE(colvar_constraint_type), DIMENSION(:), POINTER :: colv_list => NULL()
+      TYPE(g3x3_constraint_type), DIMENSION(:), POINTER   :: g3x3_list => NULL()
+      TYPE(g4x6_constraint_type), DIMENSION(:), POINTER   :: g4x6_list => NULL()
+      TYPE(vsite_constraint_type), DIMENSION(:), POINTER  :: vsite_list => NULL()
+      TYPE(fixd_constraint_type), DIMENSION(:), POINTER   :: fixd_list => NULL()
+      TYPE(shell_type), DIMENSION(:), POINTER           :: shell_list => NULL()
+      CHARACTER(LEN=default_string_length)              :: name = ""
+      REAL(KIND=dp)                                   :: charge = 0.0_dp, &
+                                                         mass = 0.0_dp
+      INTEGER                                           :: kind_number = 0, &
+                                                           natom = 0, &
+                                                           nbond = 0, &
+                                                           nbend = 0, &
+                                                           nimpr = 0, &
+                                                           nopbend = 0, &
+                                                           ntorsion = 0, &
+                                                           nub = 0, &
+                                                           ng3x3 = 0, ng3x3_restraint = 0, &
+                                                           ng4x6 = 0, ng4x6_restraint = 0, &
+                                                           nvsite = 0, nvsite_restraint = 0, &
+                                                           nfixd = 0, nfixd_restraint = 0, &
+                                                           nmolecule = 0, nshell = 0
+      TYPE(colvar_counters)                             :: ncolv = colvar_counters()
+      INTEGER                                           :: nsgf = 0, nelectron = 0, &
+                                                           nelectron_alpha = 0, &
+                                                           nelectron_beta = 0
+      INTEGER, DIMENSION(:), POINTER                    :: molecule_list => NULL()
+      LOGICAL                                           :: molname_generated = .FALSE.
    END TYPE molecule_kind_type
 
    ! *** Public subroutines ***
@@ -237,30 +238,9 @@ CONTAINS
    SUBROUTINE setup_colvar_counters(colv_list, ncolv)
       TYPE(colvar_constraint_type), DIMENSION(:), &
          POINTER                                         :: colv_list
-      TYPE(colvar_counters)                              :: ncolv
+      TYPE(colvar_counters), INTENT(OUT)                 :: ncolv
 
       INTEGER                                            :: k
-
-      ncolv%ndist = 0
-      ncolv%nangle = 0
-      ncolv%ndfunct = 0
-      ncolv%ntorsion = 0
-      ncolv%ncoord = 0
-      ncolv%nplane_dist = 0
-      ncolv%nplane_angle = 0
-      ncolv%nrot = 0
-      ncolv%nqparm = 0
-      ncolv%nxyz_diag = 0
-      ncolv%nxyz_outerdiag = 0
-      ncolv%nhydronium_shell = 0
-      ncolv%nhydronium_dist = 0
-      ncolv%nacid_hyd_dist = 0
-      ncolv%nacid_hyd_shell = 0
-      ncolv%nreactionpath = 0
-      ncolv%ncombinecvs = 0
-      ncolv%nrestraint = 0
-      ncolv%npopulation = 0
-      ncolv%ngyration = 0
 
       IF (ASSOCIATED(colv_list)) THEN
          DO k = 1, SIZE(colv_list)
@@ -352,50 +332,9 @@ CONTAINS
       ALLOCATE (molecule_kind_set(nmolecule_kind))
 
       DO imolecule_kind = 1, nmolecule_kind
-         NULLIFY (molecule_kind_set(imolecule_kind)%atom_list)
-         NULLIFY (molecule_kind_set(imolecule_kind)%bond_list)
-         NULLIFY (molecule_kind_set(imolecule_kind)%bend_list)
-         NULLIFY (molecule_kind_set(imolecule_kind)%colv_list)
-         NULLIFY (molecule_kind_set(imolecule_kind)%ub_list)
-         NULLIFY (molecule_kind_set(imolecule_kind)%ub_kind_set)
-         NULLIFY (molecule_kind_set(imolecule_kind)%impr_kind_set)
-         NULLIFY (molecule_kind_set(imolecule_kind)%impr_list)
-         NULLIFY (molecule_kind_set(imolecule_kind)%opbend_kind_set)
-         NULLIFY (molecule_kind_set(imolecule_kind)%opbend_list)
-         NULLIFY (molecule_kind_set(imolecule_kind)%g3x3_list)
-         NULLIFY (molecule_kind_set(imolecule_kind)%g4x6_list)
-         NULLIFY (molecule_kind_set(imolecule_kind)%vsite_list)
-         NULLIFY (molecule_kind_set(imolecule_kind)%fixd_list)
-         NULLIFY (molecule_kind_set(imolecule_kind)%shell_list)
-         NULLIFY (molecule_kind_set(imolecule_kind)%torsion_list)
-         NULLIFY (molecule_kind_set(imolecule_kind)%bond_kind_set)
-         NULLIFY (molecule_kind_set(imolecule_kind)%bend_kind_set)
-         NULLIFY (molecule_kind_set(imolecule_kind)%torsion_kind_set)
-         molecule_kind_set(imolecule_kind)%charge = 0.0_dp
-         molecule_kind_set(imolecule_kind)%mass = 0.0_dp
-         molecule_kind_set(imolecule_kind)%name = ""
-         molecule_kind_set(imolecule_kind)%molname_generated = .FALSE.
          molecule_kind_set(imolecule_kind)%kind_number = imolecule_kind
-         molecule_kind_set(imolecule_kind)%natom = 0
-         molecule_kind_set(imolecule_kind)%nbend = 0
-         molecule_kind_set(imolecule_kind)%nbond = 0
-         molecule_kind_set(imolecule_kind)%nimpr = 0
-         molecule_kind_set(imolecule_kind)%nopbend = 0
-         molecule_kind_set(imolecule_kind)%nub = 0
          CALL setup_colvar_counters(molecule_kind_set(imolecule_kind)%colv_list, &
                                     molecule_kind_set(imolecule_kind)%ncolv)
-         molecule_kind_set(imolecule_kind)%ng3x3 = 0
-         molecule_kind_set(imolecule_kind)%ng4x6 = 0
-         molecule_kind_set(imolecule_kind)%nvsite = 0
-         molecule_kind_set(imolecule_kind)%nfixd = 0
-         molecule_kind_set(imolecule_kind)%ng3x3_restraint = 0
-         molecule_kind_set(imolecule_kind)%ng4x6_restraint = 0
-         molecule_kind_set(imolecule_kind)%nvsite_restraint = 0
-         molecule_kind_set(imolecule_kind)%nfixd_restraint = 0
-         molecule_kind_set(imolecule_kind)%nmolecule = 0
-         molecule_kind_set(imolecule_kind)%ntorsion = 0
-         molecule_kind_set(imolecule_kind)%nshell = 0
-         NULLIFY (molecule_kind_set(imolecule_kind)%molecule_list)
       END DO
 
    END SUBROUTINE allocate_molecule_kind_set
@@ -426,7 +365,6 @@ CONTAINS
                DO i = 1, SIZE(molecule_kind_set(imolecule_kind)%bend_kind_set)
                   IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%bend_kind_set(i)%legendre%coeffs)) &
                      DEALLOCATE (molecule_kind_set(imolecule_kind)%bend_kind_set(i)%legendre%coeffs)
-                  NULLIFY (molecule_kind_set(imolecule_kind)%bend_kind_set(i)%legendre%coeffs)
                END DO
                DEALLOCATE (molecule_kind_set(imolecule_kind)%bend_kind_set)
             END IF
@@ -496,9 +434,8 @@ CONTAINS
          END DO
 
          DEALLOCATE (molecule_kind_set)
-      ELSE
-         CPABORT("The pointer molecule_kind_set is not associated and cannot be deallocated")
       END IF
+      NULLIFY (molecule_kind_set)
 
    END SUBROUTINE deallocate_molecule_kind_set
 

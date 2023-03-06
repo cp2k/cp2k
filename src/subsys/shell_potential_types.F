@@ -26,20 +26,20 @@ MODULE shell_potential_types
 !> \brief Define the shell type
 ! **************************************************************************************************
    TYPE shell_kind_type
-      REAL(dp)                               :: charge_core, &
-                                                charge_shell
-      REAL(dp)                               :: mass_core, &
-                                                massfrac, &
-                                                mass_shell
-      REAL(dp)                               :: k2_spring, k4_spring
-      REAL(dp)                               :: max_dist
-      REAL(dp)                               :: shell_cutoff
+      REAL(dp)                               :: charge_core = 0.0_dp, &
+                                                charge_shell = 0.0_dp
+      REAL(dp)                               :: mass_core = 0.0_dp, &
+                                                massfrac = 0.0_dp, &
+                                                mass_shell = 0.0_dp
+      REAL(dp)                               :: k2_spring = 0.0_dp, k4_spring = 0.0_dp
+      REAL(dp)                               :: max_dist = 0.0_dp
+      REAL(dp)                               :: shell_cutoff = 0.0_dp
    END TYPE shell_kind_type
 
 ! **************************************************************************************************
    TYPE shell_p_type
-      CHARACTER(LEN=default_string_length)   :: atm_name
-      TYPE(shell_kind_type), POINTER          :: shell
+      CHARACTER(LEN=default_string_length)   :: atm_name = ""
+      TYPE(shell_kind_type), POINTER          :: shell => NULL()
    END TYPE shell_p_type
 
 ! Public subroutines
@@ -66,8 +66,8 @@ CONTAINS
 !> \param max_dist ...
 !> \param shell_cutoff ...
 ! **************************************************************************************************
-   SUBROUTINE get_shell(shell, charge, charge_core, charge_shell, mass_core, &
-                        mass_shell, k2_spring, k4_spring, max_dist, shell_cutoff)
+   ELEMENTAL SUBROUTINE get_shell(shell, charge, charge_core, charge_shell, mass_core, &
+                                  mass_shell, k2_spring, k4_spring, max_dist, shell_cutoff)
 
       TYPE(shell_kind_type), INTENT(IN)                  :: shell
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: charge, charge_core, charge_shell, &
@@ -102,9 +102,7 @@ CONTAINS
       ALLOCATE (shell_list(ndim))
 
       DO i = 1, ndim
-         NULLIFY (shell_list(i)%shell)
          ALLOCATE (shell_list(i)%shell)
-         shell_list(i)%atm_name = ''
       END DO
 
    END SUBROUTINE shell_p_create

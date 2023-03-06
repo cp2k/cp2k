@@ -56,15 +56,15 @@ MODULE cell_types
 !> \version 1.0
 ! **************************************************************************************************
    TYPE cell_type
-      INTEGER                           :: ref_count, symmetry_id
-      LOGICAL                           :: orthorhombic ! actually means a diagonal hmat
-      REAL(KIND=dp)                     :: deth
-      INTEGER, DIMENSION(3)             :: perd
-      REAL(KIND=dp), DIMENSION(3, 3)    :: hmat, h_inv
+      INTEGER                           :: ref_count = -1, symmetry_id = use_perd_none
+      LOGICAL                           :: orthorhombic = .FALSE. ! actually means a diagonal hmat
+      REAL(KIND=dp)                     :: deth = 0.0_dp
+      INTEGER, DIMENSION(3)             :: perd = -1
+      REAL(KIND=dp), DIMENSION(3, 3)    :: hmat = 0.0_dp, h_inv = 0.0_dp
    END TYPE cell_type
 
    TYPE cell_p_type
-      TYPE(cell_type), POINTER :: cell
+      TYPE(cell_type), POINTER :: cell => NULL()
    END TYPE cell_p_type
 
    ! Public data types
@@ -98,12 +98,7 @@ CONTAINS
       TYPE(cell_type), INTENT(IN)                        :: cell_in
       TYPE(cell_type), INTENT(OUT)                       :: cell_out
 
-      cell_out%deth = cell_in%deth
-      cell_out%perd = cell_in%perd
-      cell_out%hmat = cell_in%hmat
-      cell_out%h_inv = cell_in%h_inv
-      cell_out%orthorhombic = cell_in%orthorhombic
-      cell_out%symmetry_id = cell_in%symmetry_id
+      cell_out = cell_in
       cell_out%ref_count = 1
 
    END SUBROUTINE cell_clone

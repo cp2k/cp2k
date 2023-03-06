@@ -179,10 +179,8 @@ MODULE energy_corrections
    USE virial_methods,                  ONLY: one_third_sum_diag,&
                                               write_stress_tensor,&
                                               write_stress_tensor_components
-   USE virial_types,                    ONLY: cp_virial,&
-                                              symmetrize_virial,&
-                                              virial_type,&
-                                              zero_virial
+   USE virial_types,                    ONLY: symmetrize_virial,&
+                                              virial_type
    USE voronoi_interface,               ONLY: entry_voronoi_or_bqb
 #include "./base/base_uses.f90"
 
@@ -1059,8 +1057,7 @@ CONTAINS
          ! apply volume terms immediately
          BLOCK
             TYPE(virial_type) :: virdeb
-            CALL zero_virial(virdeb)
-            CALL cp_virial(virial, virdeb)
+            virdeb = virial
 
             CALL para_env%sum(virdeb%pv_overlap)
             CALL para_env%sum(virdeb%pv_ekinetic)
@@ -2164,8 +2161,7 @@ CONTAINS
          ! apply volume terms immediately
          BLOCK
             TYPE(virial_type) :: virdeb
-            CALL zero_virial(virdeb)
-            CALL cp_virial(virial, virdeb)
+            virdeb = virial
 
             CALL para_env%sum(virdeb%pv_overlap)
             CALL para_env%sum(virdeb%pv_ekinetic)

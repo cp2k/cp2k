@@ -88,255 +88,255 @@ MODULE colvar_types
 !> \author alessandro laio and fawzi mohamed
 ! **************************************************************************************************
    TYPE dist_colvar_type
-      INTEGER       :: i_at, j_at, axis_id
-      LOGICAL       :: sign_d
+      INTEGER       :: i_at = 0, j_at = 0, axis_id = 0
+      LOGICAL       :: sign_d = .FALSE.
    END TYPE dist_colvar_type
 
 ! **************************************************************************************************
    TYPE coord_colvar_type
-      LOGICAL                    :: do_chain, use_kinds_from, use_kinds_to, &
-                                    use_kinds_to_b
-      INTEGER                         :: n_atoms_to, &
-                                         n_atoms_from, &
-                                         nncrd, &
-                                         ndcrd, &
-                                         n_atoms_to_b, &
-                                         nncrd_b, &
-                                         ndcrd_b
-      INTEGER, POINTER, DIMENSION(:) :: i_at_from, &
-                                        i_at_to, &
-                                        i_at_to_b
-      CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: c_kinds_from, &
-                                                                     c_kinds_to, &
-                                                                     c_kinds_to_b
-      REAL(KIND=dp)                   :: r_0, r_0_b
+      LOGICAL                    :: do_chain = .FALSE., use_kinds_from = .FALSE., use_kinds_to = .FALSE., &
+                                    use_kinds_to_b = .FALSE.
+      INTEGER                         :: n_atoms_to = 0, &
+                                         n_atoms_from = 0, &
+                                         nncrd = 0, &
+                                         ndcrd = 0, &
+                                         n_atoms_to_b = 0, &
+                                         nncrd_b = 0, &
+                                         ndcrd_b = 0
+      INTEGER, POINTER, DIMENSION(:) :: i_at_from => NULL(), &
+                                        i_at_to => NULL(), &
+                                        i_at_to_b => NULL()
+      CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: c_kinds_from => NULL(), &
+                                                                     c_kinds_to => NULL(), &
+                                                                     c_kinds_to_b => NULL()
+      REAL(KIND=dp)                   :: r_0 = 0.0_dp, r_0_b = 0.0_dp
    END TYPE coord_colvar_type
 
 ! **************************************************************************************************
    TYPE population_colvar_type
-      LOGICAL                         :: use_kinds_from, use_kinds_to
-      INTEGER                         :: n_atoms_to, &
-                                         n_atoms_from, &
-                                         nncrd, &
-                                         ndcrd, &
-                                         n0
-      INTEGER, POINTER, DIMENSION(:) :: i_at_from, &
-                                        i_at_to
-      CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: c_kinds_from, &
-                                                                     c_kinds_to
-      REAL(KIND=dp)                   :: r_0, sigma
+      LOGICAL                         :: use_kinds_from = .FALSE., use_kinds_to = .FALSE.
+      INTEGER                         :: n_atoms_to = 0, &
+                                         n_atoms_from = 0, &
+                                         nncrd = 0, &
+                                         ndcrd = 0, &
+                                         n0 = 0
+      INTEGER, POINTER, DIMENSION(:) :: i_at_from => NULL(), &
+                                        i_at_to => NULL()
+      CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: c_kinds_from => NULL(), &
+                                                                     c_kinds_to => NULL()
+      REAL(KIND=dp)                   :: r_0 = 0.0_dp, sigma = 0.0_dp
    END TYPE population_colvar_type
 
 ! **************************************************************************************************
    TYPE gyration_colvar_type
-      LOGICAL                         :: use_kinds
-      INTEGER                         :: n_atoms
-      INTEGER, POINTER, DIMENSION(:) :: i_at
-      CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: c_kinds
+      LOGICAL                         :: use_kinds = .FALSE.
+      INTEGER                         :: n_atoms = 0
+      INTEGER, POINTER, DIMENSION(:) :: i_at => NULL()
+      CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: c_kinds => NULL()
    END TYPE gyration_colvar_type
 
 ! **************************************************************************************************
    TYPE torsion_colvar_type
-      REAL(KIND=dp)                   :: o0
-      INTEGER, DIMENSION(4)          :: i_at_tors
+      REAL(KIND=dp)                   :: o0 = 0.0_dp
+      INTEGER, DIMENSION(4)          :: i_at_tors = 0
    END TYPE torsion_colvar_type
 
 ! **************************************************************************************************
    TYPE plane_distance_colvar_type
-      LOGICAL               :: use_pbc
-      INTEGER, DIMENSION(3) :: plane
-      INTEGER               :: point
+      LOGICAL               :: use_pbc = .FALSE.
+      INTEGER, DIMENSION(3) :: plane = -1
+      INTEGER               :: point = -1
    END TYPE plane_distance_colvar_type
 
 ! **************************************************************************************************
    TYPE plane_def_type
-      INTEGER                     :: type_of_def
-      INTEGER, DIMENSION(3)       :: points
-      REAL(KIND=dp), DIMENSION(3) :: normal_vec
+      INTEGER                     :: type_of_def = -1
+      INTEGER, DIMENSION(3)       :: points = 0
+      REAL(KIND=dp), DIMENSION(3) :: normal_vec = 0.0_dp
    END TYPE plane_def_type
 
    TYPE plane_plane_angle_colvar_type
-      TYPE(plane_def_type)        :: plane1, plane2
+      TYPE(plane_def_type)        :: plane1 = plane_def_type(), plane2 = plane_def_type()
    END TYPE plane_plane_angle_colvar_type
 
 ! **************************************************************************************************
    TYPE angle_colvar_type
-      INTEGER, DIMENSION(3) :: i_at_angle
+      INTEGER, DIMENSION(3) :: i_at_angle = 0
    END TYPE angle_colvar_type
 
 ! **************************************************************************************************
    TYPE rotation_colvar_type
-      INTEGER :: i_at1_bond1, &
-                 i_at2_bond1, &
-                 i_at1_bond2, &
-                 i_at2_bond2
+      INTEGER :: i_at1_bond1 = 0, &
+                 i_at2_bond1 = 0, &
+                 i_at1_bond2 = 0, &
+                 i_at2_bond2 = 0
    END TYPE rotation_colvar_type
 
 ! **************************************************************************************************
    TYPE dfunct_colvar_type
-      INTEGER, DIMENSION(4)         :: i_at_dfunct
-      LOGICAL                       :: use_pbc
-      REAL(KIND=dp)                 :: coeff
+      INTEGER, DIMENSION(4)         :: i_at_dfunct = 0
+      LOGICAL                       :: use_pbc = .FALSE.
+      REAL(KIND=dp)                 :: coeff = 0.0_dp
    END TYPE dfunct_colvar_type
 
 ! **************************************************************************************************
    TYPE qparm_colvar_type
-      INTEGER                         :: l
-      INTEGER                         :: n_atoms_to, &
-                                         n_atoms_from
-      INTEGER, POINTER, DIMENSION(:) :: i_at_from, &
-                                        i_at_to
-      REAL(KIND=dp)                   :: rcut, rstart
-      LOGICAL                         :: include_images
+      INTEGER                         :: l = 0
+      INTEGER                         :: n_atoms_to = 0, &
+                                         n_atoms_from = 0
+      INTEGER, POINTER, DIMENSION(:) :: i_at_from => NULL(), &
+                                        i_at_to => NULL()
+      REAL(KIND=dp)                   :: rcut = 0.0_dp, rstart = 0.0_dp
+      LOGICAL                         :: include_images = .FALSE.
    END TYPE qparm_colvar_type
 
 ! **************************************************************************************************
    TYPE hydronium_shell_colvar_type
-      INTEGER                         :: n_oxygens, &
-                                         n_hydrogens, &
-                                         poh, qoh, poo, qoo, &
-                                         pm, qm
-      INTEGER, POINTER, DIMENSION(:)  :: i_oxygens, &
-                                         i_hydrogens
-      REAL(KIND=dp)                   :: roo, roh, lambda, nh
+      INTEGER                         :: n_oxygens = -1, &
+                                         n_hydrogens = -1, &
+                                         poh = -1, qoh = -1, poo = -1, qoo = -1, &
+                                         pm = -1, qm = -1
+      INTEGER, POINTER, DIMENSION(:)  :: i_oxygens => NULL(), &
+                                         i_hydrogens => NULL()
+      REAL(KIND=dp)                   :: roo = 0.0_dp, roh = 0.0_dp, lambda = 0.0_dp, nh = 0.0_dp
    END TYPE hydronium_shell_colvar_type
 
 ! **************************************************************************************************
    TYPE hydronium_dist_colvar_type
-      INTEGER                         :: n_oxygens, &
-                                         n_hydrogens, &
-                                         poh, qoh, &
-                                         pf, qf, pm, qm
-      INTEGER, POINTER, DIMENSION(:)  :: i_oxygens, &
-                                         i_hydrogens
-      REAL(KIND=dp)                   :: roh, lambda, nh, nn
+      INTEGER                         :: n_oxygens = -1, &
+                                         n_hydrogens = -1, &
+                                         poh = -1, qoh = -1, &
+                                         pf = -1, qf = -1, pm = -1, qm = -1
+      INTEGER, POINTER, DIMENSION(:)  :: i_oxygens => NULL(), &
+                                         i_hydrogens => NULL()
+      REAL(KIND=dp)                   :: roh = 0.0_dp, lambda = 0.0_dp, nh = 0.0_dp, nn = 0.0_dp
    END TYPE hydronium_dist_colvar_type
 
 ! **************************************************************************************************
    TYPE acid_hyd_dist_colvar_type
-      INTEGER                         :: n_oxygens_water, &
-                                         n_oxygens_acid, &
-                                         n_hydrogens, &
-                                         pwoh, qwoh, paoh, qaoh, pcut, qcut
-      INTEGER, POINTER, DIMENSION(:)  :: i_oxygens_water, i_oxygens_acid, &
-                                         i_hydrogens
-      REAL(KIND=dp)                   :: rwoh, raoh, lambda, nc
+      INTEGER                         :: n_oxygens_water = -1, &
+                                         n_oxygens_acid = -1, &
+                                         n_hydrogens = -1, &
+                                         pwoh = -1, qwoh = -1, paoh = -1, qaoh = -1, pcut = -1, qcut = -1
+      INTEGER, POINTER, DIMENSION(:)  :: i_oxygens_water => NULL(), i_oxygens_acid => NULL(), &
+                                         i_hydrogens => NULL()
+      REAL(KIND=dp)                   :: rwoh = 0.0_dp, raoh = 0.0_dp, lambda = 0.0_dp, nc = 0.0_dp
    END TYPE acid_hyd_dist_colvar_type
 
 ! **************************************************************************************************
    TYPE acid_hyd_shell_colvar_type
-      INTEGER                         :: n_oxygens_water, &
-                                         n_oxygens_acid, &
-                                         n_hydrogens, &
-                                         pwoh, qwoh, paoh, qaoh, &
-                                         poo, qoo, pcut, qcut, pm, qm
-      INTEGER, POINTER, DIMENSION(:)  :: i_oxygens_water, i_oxygens_acid, &
-                                         i_hydrogens
-      REAL(KIND=dp)                   :: rwoh, raoh, roo, lambda, nc, nh
+      INTEGER                         :: n_oxygens_water = -1, &
+                                         n_oxygens_acid = -1, &
+                                         n_hydrogens = -1, &
+                                         pwoh = -1, qwoh = -1, paoh = -1, qaoh = -1, &
+                                         poo = -1, qoo = -1, pcut = -1, qcut = -1, pm = -1, qm = -1
+      INTEGER, POINTER, DIMENSION(:)  :: i_oxygens_water => NULL(), i_oxygens_acid => NULL(), &
+                                         i_hydrogens => NULL()
+      REAL(KIND=dp)                   :: rwoh = 0.0_dp, raoh = 0.0_dp, roo = 0.0_dp, lambda = 0.0_dp, nc = 0.0_dp, nh = 0.0_dp
    END TYPE acid_hyd_shell_colvar_type
 
 ! **************************************************************************************************
    TYPE reaction_path_colvar_type
-      INTEGER                                  :: type_id
-      INTEGER                                  :: n_components, nr_frames, subset
-      INTEGER, DIMENSION(2)                     :: function_bounds
-      INTEGER, POINTER, DIMENSION(:)          :: i_rmsd
-      LOGICAL                                  :: align_frames, dist_rmsd, rmsd
-      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: f_vals
-      REAL(KIND=dp), DIMENSION(:, :), POINTER   :: r_ref
-      REAL(KIND=dp)                            :: lambda
-      REAL(KIND=dp)                            :: step_size
-      TYPE(colvar_p_type), POINTER, DIMENSION(:) :: colvar_p
+      INTEGER                                  :: type_id = -1
+      INTEGER                                  :: n_components = -1, nr_frames = -1, subset = -1
+      INTEGER, DIMENSION(2)                     :: function_bounds = -1
+      INTEGER, POINTER, DIMENSION(:)          :: i_rmsd => NULL()
+      LOGICAL                                  :: align_frames = .FALSE., dist_rmsd = .FALSE., rmsd = .FALSE.
+      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: f_vals => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER   :: r_ref => NULL()
+      REAL(KIND=dp)                            :: lambda = 0.0_dp
+      REAL(KIND=dp)                            :: step_size = 0.0_dp
+      TYPE(colvar_p_type), POINTER, DIMENSION(:) :: colvar_p => NULL()
    END TYPE reaction_path_colvar_type
 
 ! **************************************************************************************************
    TYPE combine_colvar_type
-      INTEGER                                  :: type_id
-      TYPE(colvar_p_type), POINTER, DIMENSION(:) :: colvar_p
-      REAL(KIND=dp)                            :: lerr, dx
-      CHARACTER(LEN=default_path_length)       :: FUNCTION
+      INTEGER                                  :: type_id = -1
+      TYPE(colvar_p_type), POINTER, DIMENSION(:) :: colvar_p => NULL()
+      REAL(KIND=dp)                            :: lerr = 0.0_dp, dx = 0.0_dp
+      CHARACTER(LEN=default_path_length)       :: FUNCTION = ""
       CHARACTER(LEN=default_string_length), &
-         DIMENSION(:), POINTER               :: c_parameters, variables
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: v_parameters
+         DIMENSION(:), POINTER               :: c_parameters => NULL(), variables => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: v_parameters => NULL()
    END TYPE combine_colvar_type
 ! **************************************************************************************************
    TYPE rmsd_colvar_type
-      INTEGER                                  :: n_atoms, nr_frames, subset
-      INTEGER, POINTER, DIMENSION(:)          :: i_rmsd
-      LOGICAL                                  :: align_frames
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: weights
-      REAL(KIND=dp), DIMENSION(:, :), POINTER   :: r_ref
+      INTEGER                                  :: n_atoms = 0, nr_frames = 0, subset = 0
+      INTEGER, POINTER, DIMENSION(:)          :: i_rmsd => NULL()
+      LOGICAL                                  :: align_frames = .FALSE.
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: weights => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER   :: r_ref => NULL()
    END TYPE rmsd_colvar_type
 
 ! **************************************************************************************************
    TYPE point_type
-      INTEGER :: type_id
-      INTEGER, DIMENSION(:), POINTER          :: atoms
-      REAL(KIND=dp), DIMENSION(:), POINTER    :: weights
-      REAL(KIND=dp), DIMENSION(3)              :: r
+      INTEGER :: type_id = -1
+      INTEGER, DIMENSION(:), POINTER          :: atoms => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER    :: weights => NULL()
+      REAL(KIND=dp), DIMENSION(3)              :: r = 0.0_dp
    END TYPE point_type
 
 ! **************************************************************************************************
    TYPE xyz_diag_colvar_type
-      LOGICAL                                  :: use_pbc
-      LOGICAL                                  :: use_absolute_position
-      INTEGER                                  :: i_atom
-      INTEGER                                  :: component
-      REAL(KIND=dp), DIMENSION(3)              :: r0
+      LOGICAL                                  :: use_pbc = .FALSE.
+      LOGICAL                                  :: use_absolute_position = .FALSE.
+      INTEGER                                  :: i_atom = 0
+      INTEGER                                  :: component = 0
+      REAL(KIND=dp), DIMENSION(3)              :: r0 = 0.0_dp
    END TYPE xyz_diag_colvar_type
 
 ! **************************************************************************************************
    TYPE xyz_outerdiag_colvar_type
-      LOGICAL                                  :: use_pbc
-      INTEGER, DIMENSION(2)                    :: i_atoms
-      INTEGER, DIMENSION(2)                    :: components
-      REAL(KIND=dp), DIMENSION(3, 2)            :: r0
+      LOGICAL                                  :: use_pbc = .FALSE.
+      INTEGER, DIMENSION(2)                    :: i_atoms = 0
+      INTEGER, DIMENSION(2)                    :: components = 0
+      REAL(KIND=dp), DIMENSION(3, 2)            :: r0 = 0.0_dp
    END TYPE xyz_outerdiag_colvar_type
 
 ! **************************************************************************************************
    TYPE u_colvar_type
-      TYPE(section_vals_type), POINTER         :: mixed_energy_section
-      INTEGER       :: natom
+      TYPE(section_vals_type), POINTER         :: mixed_energy_section => NULL()
+      INTEGER       :: natom = -1
    END TYPE u_colvar_type
 
 ! **************************************************************************************************
    TYPE Wc_colvar_type
-      INTEGER                         :: ids(3) ! first is the Od, second the H, third the Oa
-      REAL(KIND=dp)                   :: ewc
-      REAL(KIND=dp)                   :: rcut
+      INTEGER                         :: ids(3) = -1 ! first is the Od, second the H, third the Oa
+      REAL(KIND=dp)                   :: ewc = 0.0_dp
+      REAL(KIND=dp)                   :: rcut = 0.0_dp
    END TYPE Wc_colvar_type
 
 ! **************************************************************************************************
    TYPE HBP_colvar_type
-      INTEGER                         :: nPoints ! number of the points in the path
-      INTEGER, POINTER                :: ids(:, :) ! first is the Od, second the H,
+      INTEGER                         :: nPoints = -1 ! number of the points in the path
+      INTEGER, POINTER                :: ids(:, :) => NULL() ! first is the Od, second the H,
       ! third the Oa and contains a row for each intermediate point in the path
-      REAL(KIND=dp), POINTER           :: ewc(:) ! one for each point in the path
-      REAL(KIND=dp)                   :: rcut
-      REAL(KIND=dp)                   :: shift ! shift applied for each term in the collective variable
+      REAL(KIND=dp), POINTER           :: ewc(:) => NULL() ! one for each point in the path
+      REAL(KIND=dp)                   :: rcut = 0.0_dp
+      REAL(KIND=dp)                   :: shift = 0.0_dp ! shift applied for each term in the collective variable
    END TYPE HBP_colvar_type
 
 ! **************************************************************************************************
    TYPE ring_puckering_colvar_type
-      INTEGER                         :: nring
-      INTEGER, POINTER, DIMENSION(:) :: atoms
-      INTEGER                         :: iq
+      INTEGER                         :: nring = -1
+      INTEGER, POINTER, DIMENSION(:) :: atoms => NULL()
+      INTEGER                         :: iq = -1
    END TYPE ring_puckering_colvar_type
 
 ! **************************************************************************************************
    TYPE mindist_colvar_type
-      LOGICAL                    :: use_kinds_from, use_kinds_to
-      INTEGER                         :: n_coord_to, &
-                                         n_coord_from, &
-                                         n_dist_from, &
-                                         p_exp, &
-                                         q_exp
-      INTEGER, POINTER, DIMENSION(:) :: i_coord_from, &
-                                        i_coord_to, &
-                                        i_dist_from
-      CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: k_coord_from, &
-                                                                     k_coord_to
-      REAL(KIND=dp)                   :: lambda, r_cut
+      LOGICAL                    :: use_kinds_from = .FALSE., use_kinds_to = .FALSE.
+      INTEGER                         :: n_coord_to = 0, &
+                                         n_coord_from = 0, &
+                                         n_dist_from = 0, &
+                                         p_exp = 0, &
+                                         q_exp = 0
+      INTEGER, POINTER, DIMENSION(:) :: i_coord_from => NULL(), &
+                                        i_coord_to => NULL(), &
+                                        i_dist_from => NULL()
+      CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: k_coord_from => NULL(), &
+                                                                     k_coord_to => NULL()
+      REAL(KIND=dp)                   :: lambda = 0.0_dp, r_cut = 0.0_dp
    END TYPE mindist_colvar_type
 
 ! **************************************************************************************************
@@ -344,73 +344,69 @@ MODULE colvar_types
 !> \author alessandro laio and fawzi mohamed
 ! **************************************************************************************************
    TYPE colvar_type
-      INTEGER                                     :: type_id
-      LOGICAL                                     :: use_points
-      REAL(kind=dp)                               :: ss ! Value of the colvar
-      REAL(kind=dp), DIMENSION(:, :), POINTER     :: dsdr ! Derivative of colvar (3,:)
-      INTEGER, DIMENSION(:), POINTER              :: i_atom ! Mapping of dsdr
-      INTEGER                                     :: n_atom_s
+      INTEGER                                     :: type_id = -1
+      LOGICAL                                     :: use_points = .FALSE.
+      REAL(kind=dp)                               :: ss = 0.0_dp ! Value of the colvar
+      REAL(kind=dp), DIMENSION(:, :), POINTER     :: dsdr => NULL() ! Derivative of colvar (3,:)
+      INTEGER, DIMENSION(:), POINTER              :: i_atom => NULL() ! Mapping of dsdr
+      INTEGER                                     :: n_atom_s = -1
       ! Available COLVAR types
-      TYPE(dist_colvar_type), POINTER              :: dist_param
-      TYPE(coord_colvar_type), POINTER             :: coord_param
-      TYPE(population_colvar_type), POINTER        :: population_param
-      TYPE(gyration_colvar_type), POINTER          :: gyration_param
-      TYPE(torsion_colvar_type), POINTER           :: torsion_param
-      TYPE(angle_colvar_type), POINTER             :: angle_param
-      TYPE(plane_distance_colvar_type), POINTER    :: plane_distance_param
-      TYPE(plane_plane_angle_colvar_type), POINTER :: plane_plane_angle_param
-      TYPE(rotation_colvar_type), POINTER          :: rotation_param
-      TYPE(dfunct_colvar_type), POINTER            :: dfunct_param
-      TYPE(qparm_colvar_type), POINTER             :: qparm_param
-      TYPE(hydronium_shell_colvar_type), POINTER   :: hydronium_shell_param
-      TYPE(hydronium_dist_colvar_type), POINTER    :: hydronium_dist_param
-      TYPE(acid_hyd_dist_colvar_type), POINTER     :: acid_hyd_dist_param
-      TYPE(acid_hyd_shell_colvar_type), POINTER    :: acid_hyd_shell_param
-      TYPE(reaction_path_colvar_type), POINTER     :: reaction_path_param
-      TYPE(combine_colvar_type), POINTER           :: combine_cvs_param
-      TYPE(rmsd_colvar_type), POINTER              :: rmsd_param
-      TYPE(xyz_diag_colvar_type), POINTER          :: xyz_diag_param
-      TYPE(xyz_outerdiag_colvar_type), POINTER     :: xyz_outerdiag_param
-      TYPE(u_colvar_type), POINTER                 :: u_param
-      TYPE(point_type), DIMENSION(:), POINTER      :: points
-      TYPE(Wc_colvar_type), POINTER                :: Wc
-      TYPE(HBP_colvar_type), POINTER               :: HBP
-      TYPE(ring_puckering_colvar_type), POINTER    :: ring_puckering_param
-      TYPE(mindist_colvar_type), POINTER           :: mindist_param
+      TYPE(dist_colvar_type), POINTER              :: dist_param => NULL()
+      TYPE(coord_colvar_type), POINTER             :: coord_param => NULL()
+      TYPE(population_colvar_type), POINTER        :: population_param => NULL()
+      TYPE(gyration_colvar_type), POINTER          :: gyration_param => NULL()
+      TYPE(torsion_colvar_type), POINTER           :: torsion_param => NULL()
+      TYPE(angle_colvar_type), POINTER             :: angle_param => NULL()
+      TYPE(plane_distance_colvar_type), POINTER    :: plane_distance_param => NULL()
+      TYPE(plane_plane_angle_colvar_type), POINTER :: plane_plane_angle_param => NULL()
+      TYPE(rotation_colvar_type), POINTER          :: rotation_param => NULL()
+      TYPE(dfunct_colvar_type), POINTER            :: dfunct_param => NULL()
+      TYPE(qparm_colvar_type), POINTER             :: qparm_param => NULL()
+      TYPE(hydronium_shell_colvar_type), POINTER   :: hydronium_shell_param => NULL()
+      TYPE(hydronium_dist_colvar_type), POINTER    :: hydronium_dist_param => NULL()
+      TYPE(acid_hyd_dist_colvar_type), POINTER     :: acid_hyd_dist_param => NULL()
+      TYPE(acid_hyd_shell_colvar_type), POINTER    :: acid_hyd_shell_param => NULL()
+      TYPE(reaction_path_colvar_type), POINTER     :: reaction_path_param => NULL()
+      TYPE(combine_colvar_type), POINTER           :: combine_cvs_param => NULL()
+      TYPE(rmsd_colvar_type), POINTER              :: rmsd_param => NULL()
+      TYPE(xyz_diag_colvar_type), POINTER          :: xyz_diag_param => NULL()
+      TYPE(xyz_outerdiag_colvar_type), POINTER     :: xyz_outerdiag_param => NULL()
+      TYPE(u_colvar_type), POINTER                 :: u_param => NULL()
+      TYPE(point_type), DIMENSION(:), POINTER      :: points => NULL()
+      TYPE(Wc_colvar_type), POINTER                :: Wc => NULL()
+      TYPE(HBP_colvar_type), POINTER               :: HBP => NULL()
+      TYPE(ring_puckering_colvar_type), POINTER    :: ring_puckering_param => NULL()
+      TYPE(mindist_colvar_type), POINTER           :: mindist_param => NULL()
    END TYPE colvar_type
 
 ! **************************************************************************************************
    TYPE colvar_p_type
-      TYPE(colvar_type), POINTER :: colvar
+      TYPE(colvar_type), POINTER :: colvar => NULL()
    END TYPE colvar_p_type
 
 ! **************************************************************************************************
    TYPE colvar_counters
-      INTEGER :: ndist
-      INTEGER :: nangle
-      INTEGER :: ntorsion
-      INTEGER :: ncoord
-      INTEGER :: nplane_dist
-      INTEGER :: nplane_angle
-      INTEGER :: nrot
-      INTEGER :: ndfunct
-      INTEGER :: nqparm
-      INTEGER :: nhydronium_shell
-      INTEGER :: nhydronium_dist
-      INTEGER :: nacid_hyd_dist
-      INTEGER :: nacid_hyd_shell
-      INTEGER :: nreactionpath
-      INTEGER :: ncombinecvs
-      INTEGER :: nrestraint
-      INTEGER :: npopulation
-      INTEGER :: ngyration
-      INTEGER :: nrmsd
-      INTEGER :: nxyz_diag
-      INTEGER :: nxyz_outerdiag
-      INTEGER :: ntot
-      INTEGER :: nWc
-      INTEGER :: nHBP
-      INTEGER :: nring_puckering
+      INTEGER :: ndist = 0
+      INTEGER :: nangle = 0
+      INTEGER :: ntorsion = 0
+      INTEGER :: ncoord = 0
+      INTEGER :: nplane_dist = 0
+      INTEGER :: nplane_angle = 0
+      INTEGER :: nrot = 0
+      INTEGER :: ndfunct = 0
+      INTEGER :: nqparm = 0
+      INTEGER :: nhydronium_shell = 0
+      INTEGER :: nhydronium_dist = 0
+      INTEGER :: nacid_hyd_dist = 0
+      INTEGER :: nacid_hyd_shell = 0
+      INTEGER :: nreactionpath = 0
+      INTEGER :: ncombinecvs = 0
+      INTEGER :: nrestraint = 0
+      INTEGER :: npopulation = 0
+      INTEGER :: ngyration = 0
+      INTEGER :: nxyz_diag = 0
+      INTEGER :: nxyz_outerdiag = 0
+      INTEGER :: ntot = 0
    END TYPE colvar_counters
 
 CONTAINS
@@ -427,35 +423,6 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(colvar))
       ALLOCATE (colvar)
-      ! Nullify all available COLVAR types
-      NULLIFY (colvar%dist_param)
-      NULLIFY (colvar%angle_param)
-      NULLIFY (colvar%torsion_param)
-      NULLIFY (colvar%plane_distance_param)
-      NULLIFY (colvar%plane_plane_angle_param)
-      NULLIFY (colvar%rotation_param)
-      NULLIFY (colvar%dfunct_param)
-      NULLIFY (colvar%coord_param)
-      NULLIFY (colvar%population_param)
-      NULLIFY (colvar%gyration_param)
-      NULLIFY (colvar%qparm_param)
-      NULLIFY (colvar%xyz_diag_param)
-      NULLIFY (colvar%xyz_outerdiag_param)
-      NULLIFY (colvar%u_param)
-      NULLIFY (colvar%hydronium_shell_param)
-      NULLIFY (colvar%hydronium_dist_param)
-      NULLIFY (colvar%acid_hyd_dist_param)
-      NULLIFY (colvar%acid_hyd_shell_param)
-      NULLIFY (colvar%reaction_path_param)
-      NULLIFY (colvar%combine_cvs_param)
-      NULLIFY (colvar%rmsd_param)
-      ! More types to nullify
-      NULLIFY (colvar%points)
-      NULLIFY (colvar%dsdr)
-      NULLIFY (colvar%i_atom)
-      NULLIFY (colvar%Wc)
-      NULLIFY (colvar%ring_puckering_param)
-      NULLIFY (colvar%mindist_param)
       colvar%type_id = colvar_id
       colvar%use_points = .FALSE.
       SELECT CASE (colvar_id)
@@ -1390,7 +1357,6 @@ CONTAINS
       INTEGER                                            :: i, my_offset, ndim, ndim2, stat
 
       my_offset = 0
-      CPASSERT(.NOT. ASSOCIATED(colvar_out))
       IF (PRESENT(i_atom_offset)) my_offset = i_atom_offset
       CALL colvar_create(colvar_out, colvar_in%type_id)
       CALL colvar_clone_points(colvar_out, colvar_in, my_offset)
@@ -1414,9 +1380,6 @@ CONTAINS
          colvar_out%coord_param%use_kinds_from = colvar_in%coord_param%use_kinds_from
          colvar_out%coord_param%use_kinds_to = colvar_in%coord_param%use_kinds_to
          colvar_out%coord_param%use_kinds_to_b = colvar_in%coord_param%use_kinds_to_b
-         NULLIFY (colvar_out%coord_param%c_kinds_from, colvar_out%coord_param%i_at_from)
-         NULLIFY (colvar_out%coord_param%c_kinds_to, colvar_out%coord_param%i_at_to)
-         NULLIFY (colvar_out%coord_param%c_kinds_to_b, colvar_out%coord_param%i_at_to_b)
          IF (colvar_in%coord_param%use_kinds_from) THEN
             ! KINDS
             ndim = SIZE(colvar_in%coord_param%c_kinds_from)
@@ -1459,8 +1422,6 @@ CONTAINS
          colvar_out%population_param%r_0 = colvar_in%population_param%r_0
          colvar_out%population_param%use_kinds_from = colvar_in%population_param%use_kinds_from
          colvar_out%population_param%use_kinds_to = colvar_in%population_param%use_kinds_to
-         NULLIFY (colvar_out%population_param%c_kinds_from, colvar_out%population_param%i_at_from)
-         NULLIFY (colvar_out%population_param%c_kinds_to, colvar_out%population_param%i_at_to)
          IF (colvar_in%population_param%use_kinds_from) THEN
             ! KINDS
             ndim = SIZE(colvar_in%population_param%c_kinds_from)
@@ -1487,7 +1448,6 @@ CONTAINS
       CASE (gyration_colvar_id)
          colvar_out%gyration_param%n_atoms = colvar_in%gyration_param%n_atoms
          colvar_out%gyration_param%use_kinds = colvar_in%gyration_param%use_kinds
-         NULLIFY (colvar_out%gyration_param%c_kinds, colvar_out%gyration_param%i_at)
          IF (colvar_in%gyration_param%use_kinds) THEN
             ! KINDS
             ndim = SIZE(colvar_in%gyration_param%c_kinds)
@@ -1654,8 +1614,6 @@ CONTAINS
          IF (colvar_in%reaction_path_param%dist_rmsd .OR. colvar_in%reaction_path_param%rmsd) THEN
             colvar_out%reaction_path_param%align_frames = colvar_in%reaction_path_param%align_frames
             colvar_out%reaction_path_param%subset = colvar_in%reaction_path_param%subset
-            NULLIFY (colvar_out%reaction_path_param%i_rmsd)
-            NULLIFY (colvar_out%reaction_path_param%r_ref)
             ndim = SIZE(colvar_in%reaction_path_param%i_rmsd)
             ALLOCATE (colvar_out%reaction_path_param%i_rmsd(ndim), stat=stat)
             colvar_out%reaction_path_param%i_rmsd = colvar_in%reaction_path_param%i_rmsd
@@ -1667,13 +1625,11 @@ CONTAINS
             ndim = SIZE(colvar_in%reaction_path_param%colvar_p)
             ALLOCATE (colvar_out%reaction_path_param%colvar_p(ndim))
             DO i = 1, ndim
-               NULLIFY (colvar_out%reaction_path_param%colvar_p(i)%colvar)
                CALL colvar_clone(colvar_out%reaction_path_param%colvar_p(i)%colvar, &
                                  colvar_in%reaction_path_param%colvar_p(i)%colvar, &
                                  my_offset)
             END DO
             colvar_out%reaction_path_param%function_bounds = colvar_in%reaction_path_param%function_bounds
-            NULLIFY (colvar_out%reaction_path_param%f_vals)
             ndim = SIZE(colvar_in%reaction_path_param%f_vals, 1)
             ndim2 = SIZE(colvar_in%reaction_path_param%f_vals, 2)
             ALLOCATE (colvar_out%reaction_path_param%f_vals(ndim, ndim2))
@@ -1686,7 +1642,6 @@ CONTAINS
          ndim = SIZE(colvar_in%combine_cvs_param%colvar_p)
          ALLOCATE (colvar_out%combine_cvs_param%colvar_p(ndim))
          DO i = 1, ndim
-            NULLIFY (colvar_out%combine_cvs_param%colvar_p(i)%colvar)
             CALL colvar_clone(colvar_out%combine_cvs_param%colvar_p(i)%colvar, &
                               colvar_in%combine_cvs_param%colvar_p(i)%colvar, &
                               my_offset)
@@ -1711,9 +1666,6 @@ CONTAINS
          colvar_out%rmsd_param%align_frames = colvar_in%rmsd_param%align_frames
          colvar_out%rmsd_param%nr_frames = colvar_in%rmsd_param%nr_frames
          colvar_out%rmsd_param%subset = colvar_in%rmsd_param%subset
-         NULLIFY (colvar_out%rmsd_param%i_rmsd)
-         NULLIFY (colvar_out%rmsd_param%weights)
-         NULLIFY (colvar_out%rmsd_param%r_ref)
          ! INDEX
          ndim = SIZE(colvar_in%rmsd_param%i_rmsd)
          ALLOCATE (colvar_out%rmsd_param%i_rmsd(ndim))
@@ -1754,9 +1706,6 @@ CONTAINS
          colvar_out%mindist_param%lambda = colvar_in%mindist_param%lambda
          colvar_out%mindist_param%use_kinds_from = colvar_in%mindist_param%use_kinds_from
          colvar_out%mindist_param%use_kinds_to = colvar_in%mindist_param%use_kinds_to
-         NULLIFY (colvar_out%mindist_param%k_coord_from, colvar_out%mindist_param%i_coord_from)
-         NULLIFY (colvar_out%mindist_param%k_coord_to, colvar_out%mindist_param%i_coord_to)
-         NULLIFY (colvar_out%mindist_param%i_dist_from)
          ! INDEX
          ndim = SIZE(colvar_in%mindist_param%i_dist_from)
          ALLOCATE (colvar_out%mindist_param%i_dist_from(ndim))
@@ -1853,21 +1802,16 @@ CONTAINS
          ub1 = MIN(ub1_new, ub1_old)
          ALLOCATE (work(lb1:ub1))
          DO j = lb1, ub1
-            NULLIFY (work(j)%colvar)
             CALL colvar_clone(work(j)%colvar, colvar_set(j)%colvar)
          END DO
          DO j = lb1, ub1
             CALL colvar_release(colvar_set(j)%colvar)
-            NULLIFY (colvar_set(j)%colvar)
          END DO
          DEALLOCATE (colvar_set)
       END IF
 
       ALLOCATE (colvar_set(lb1_new:ub1_new))
 
-      DO j = lb1_new, ub1_new
-         NULLIFY (colvar_set(j)%colvar)
-      END DO
       IF (ASSOCIATED(work)) THEN
          lb1 = MAX(lb1_new, lb1_old)
          ub1 = MIN(ub1_new, ub1_old)
@@ -1876,7 +1820,6 @@ CONTAINS
          END DO
          DO j = lb1, ub1
             CALL colvar_release(work(j)%colvar)
-            NULLIFY (work(j)%colvar)
          END DO
          DEALLOCATE (work)
       END IF

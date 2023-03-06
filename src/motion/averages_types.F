@@ -27,8 +27,7 @@ MODULE averages_types
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE md_ener_types,                   ONLY: md_ener_type
-   USE virial_types,                    ONLY: virial_type,&
-                                              zero_virial
+   USE virial_types,                    ONLY: virial_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -120,7 +119,6 @@ CONTAINS
          IF (PRESENT(virial_avg)) THEN
             IF (virial_avg) THEN
                ALLOCATE (averages%virial)
-               CALL zero_virial(averages%virial)
             END IF
          END IF
          CALL section_vals_val_get(averages_section, "AVERAGE_COLVAR", l_val=do_colvars)

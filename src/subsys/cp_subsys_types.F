@@ -88,7 +88,7 @@ MODULE cp_subsys_types
 ! **************************************************************************************************
    TYPE cp_subsys_type
       INTEGER                                    :: ref_count = 1
-      REAL(KIND=dp), DIMENSION(3, 2)             :: seed
+      REAL(KIND=dp), DIMENSION(3, 2)             :: seed = -1
       TYPE(atomic_kind_list_type), POINTER       :: atomic_kinds => Null()
       TYPE(particle_list_type), POINTER          :: particles => Null()
       TYPE(particle_list_type), POINTER          :: shell_particles => Null()
@@ -120,7 +120,7 @@ MODULE cp_subsys_types
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    TYPE cp_subsys_p_type
-      TYPE(cp_subsys_type), POINTER :: subsys
+      TYPE(cp_subsys_type), POINTER :: subsys => NULL()
    END TYPE cp_subsys_p_type
 
 CONTAINS
@@ -133,9 +133,8 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE cp_subsys_retain(subsys)
-      TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(cp_subsys_type), INTENT(INOUT)                :: subsys
 
-      CPASSERT(ASSOCIATED(subsys))
       CPASSERT(subsys%ref_count > 0)
       subsys%ref_count = subsys%ref_count + 1
    END SUBROUTINE cp_subsys_retain
@@ -447,7 +446,7 @@ CONTAINS
       TYPE(cp_subsys_type), INTENT(IN)                   :: subsys
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT), OPTIONAL :: f, r, s, v
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: fscale
-      TYPE(cell_type), OPTIONAL, POINTER                 :: cell
+      TYPE(cell_type), INTENT(IN), OPTIONAL              :: cell
 
       INTEGER                                            :: i, iatom, j, k, natom, nparticle, nsize, &
                                                             shell_index
@@ -597,7 +596,7 @@ CONTAINS
       TYPE(cp_subsys_type), INTENT(IN)                   :: subsys
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: f, r, s, v
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: fscale
-      TYPE(cell_type), OPTIONAL, POINTER                 :: cell
+      TYPE(cell_type), INTENT(IN), OPTIONAL              :: cell
 
       INTEGER                                            :: i, iatom, j, k, natom, nparticle, nsize, &
                                                             shell_index

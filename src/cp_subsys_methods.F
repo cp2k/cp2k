@@ -63,8 +63,7 @@ MODULE cp_subsys_methods
                                               init_topology,&
                                               topology_parameters_type
    USE topology_util,                   ONLY: check_subsys_element
-   USE virial_types,                    ONLY: virial_set,&
-                                              zero_virial
+   USE virial_types,                    ONLY: virial_set
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -200,7 +199,6 @@ CONTAINS
       END SELECT
 
       ALLOCATE (subsys%virial)
-      CALL zero_virial(subsys%virial)
       CALL virial_set(virial=subsys%virial, &
                       pv_availability=pv_availability, &
                       pv_numer=pv_numerical, &
@@ -393,7 +391,6 @@ CONTAINS
       CALL molecule_kind_list_release(mol_kinds)
 
       ALLOCATE (small_subsys%virial)
-      CALL zero_virial(small_subsys%virial)
       CALL atprop_create(small_subsys%atprop)
       CALL cp_result_create(small_subsys%results)
    END SUBROUTINE create_small_subsys

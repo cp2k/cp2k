@@ -30,20 +30,20 @@ MODULE damping_dipole_types
 ! *** Define the damping types ***
 ! **************************************************************************************************
    TYPE damping_info_type
-      CHARACTER(LEN=default_string_length)   :: atm_name1, atm_name2
-      CHARACTER(LEN=default_string_length)   :: dtype
-      INTEGER                                 :: order
-      REAL(KIND=dp)                           :: bij, cij
+      CHARACTER(LEN=default_string_length)   :: atm_name1 = "", atm_name2 = ""
+      CHARACTER(LEN=default_string_length)   :: dtype = ""
+      INTEGER                                 :: order = -1
+      REAL(KIND=dp)                           :: bij = 0.0_dp, cij = 0.0_dp
    END TYPE damping_info_type
 ! **************************************************************************************************
    TYPE damping_type
-      INTEGER :: itype
-      INTEGER :: order
-      REAL(KIND=dp) :: bij, cij
+      INTEGER :: itype = no_damping
+      INTEGER :: order = 1
+      REAL(KIND=dp) :: bij = HUGE(0.0_dp), cij = 0.0_dp
    END TYPE damping_type
 
    TYPE damping_p_type
-      TYPE(damping_type), DIMENSION(:), POINTER :: damp
+      TYPE(damping_type), DIMENSION(:), POINTER :: damp => NULL()
    END TYPE
 
 ! **************************************************************************************************
@@ -68,14 +68,9 @@ CONTAINS
       TYPE(damping_p_type), POINTER                      :: damping
       INTEGER, INTENT(IN)                                :: nkinds
 
-      INTEGER                                            :: i
-
       CPASSERT(.NOT. ASSOCIATED(damping))
       ALLOCATE (damping)
       ALLOCATE (damping%damp(nkinds))
-      DO i = 1, nkinds
-         CALL init_damping(damping%damp(i))
-      END DO
 
    END SUBROUTINE damping_p_create
 ! **************************************************************************************************
@@ -95,20 +90,6 @@ CONTAINS
       NULLIFY (damping)
 
    END SUBROUTINE damping_p_release
-
-! **************************************************************************************************
-!> \brief ...
-!> \param damping ...
-! **************************************************************************************************
-   SUBROUTINE init_damping(damping)
-      TYPE(damping_type), INTENT(INOUT)                  :: damping
-
-      damping%itype = no_damping
-      damping%order = 1
-      damping%bij = HUGE(0.0_dp)
-      damping%cij = 0.0_dp
-
-   END SUBROUTINE init_damping
 
 ! **************************************************************************************************
 END MODULE damping_dipole_types

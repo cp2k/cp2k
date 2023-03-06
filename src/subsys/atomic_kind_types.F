@@ -59,7 +59,7 @@ MODULE atomic_kind_types
 ! **************************************************************************************************
    TYPE atomic_kind_p_type
       TYPE(atomic_kind_type), DIMENSION(:), &
-         POINTER                             :: atomic_kind_set
+         POINTER                             :: atomic_kind_set => NULL()
    END TYPE atomic_kind_p_type
 
    ! Public subroutines
@@ -221,8 +221,7 @@ CONTAINS
                                   natom, nshell, fist_potential_present, shell_present, &
                                   shell_adiabatic, shell_check_distance, damping_present)
 
-      TYPE(atomic_kind_type), DIMENSION(:), INTENT(IN), &
-         POINTER                                         :: atomic_kind_set
+      TYPE(atomic_kind_type), DIMENSION(:), INTENT(IN)   :: atomic_kind_set
       INTEGER, ALLOCATABLE, DIMENSION(:), OPTIONAL       :: atom_of_kind, kind_of, natom_of_kind
       INTEGER, INTENT(OUT), OPTIONAL                     :: maxatom, natom, nshell
       LOGICAL, INTENT(OUT), OPTIONAL                     :: fist_potential_present, shell_present, &
@@ -230,8 +229,6 @@ CONTAINS
                                                             damping_present
 
       INTEGER                                            :: atom_a, iatom, ikind, my_natom
-
-      CPASSERT(ASSOCIATED(atomic_kind_set))
 
       ! Compute number of atoms which is needed for possible allocations later.
       my_natom = 0
@@ -379,7 +376,7 @@ CONTAINS
 !> \return ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
-   PURE FUNCTION is_hydrogen(atomic_kind) RESULT(res)
+   ELEMENTAL FUNCTION is_hydrogen(atomic_kind) RESULT(res)
       TYPE(atomic_kind_type), INTENT(IN)                 :: atomic_kind
       LOGICAL                                            :: res
 
