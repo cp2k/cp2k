@@ -2174,7 +2174,7 @@ CONTAINS
 !> \param unit ...
 ! **************************************************************************************************
    SUBROUTINE cp_fm_read_unformatted(fm, unit)
-      TYPE(cp_fm_type), INTENT(IN)          :: fm
+      TYPE(cp_fm_type), INTENT(OUT)            :: fm
       INTEGER, INTENT(IN)                      :: unit
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_read_unformatted'
