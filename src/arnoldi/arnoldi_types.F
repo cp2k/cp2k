@@ -90,10 +90,10 @@ MODULE arnoldi_types
    END TYPE arnoldi_data_type
 
    TYPE m_x_v_vectors_type
-      TYPE(dbcsr_type)                          :: input_vec = dbcsr_type()
-      TYPE(dbcsr_type)                          :: result_vec = dbcsr_type()
-      TYPE(dbcsr_type)                          :: rep_col_vec = dbcsr_type()
-      TYPE(dbcsr_type)                          :: rep_row_vec = dbcsr_type()
+      TYPE(dbcsr_type)                          :: input_vec
+      TYPE(dbcsr_type)                          :: result_vec
+      TYPE(dbcsr_type)                          :: rep_col_vec
+      TYPE(dbcsr_type)                          :: rep_row_vec
    END TYPE m_x_v_vectors_type
 
    PRIVATE
